@@ -19,9 +19,12 @@ package core
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/event"
 )
 
 // Validator is an interface which defines the standard for block validation.
@@ -48,7 +51,7 @@ type Validator interface {
 // ValidateHeader validates the given header and parent and returns an error
 // if it failed to do so.
 type HeaderValidator interface {
-	ValidateHeader(header, parent *types.Header, checkPow bool) error
+	ValidateHeader(chaindb ethdb.Database, header, parent *types.Header) error
 }
 
 // Processor is an interface for processing blocks using a given initial state.
@@ -59,4 +62,24 @@ type HeaderValidator interface {
 // failed.
 type Processor interface {
 	Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, vm.Logs, *big.Int, error)
+}
+
+// Finiliser is an interface which finilises blocks.
+//
+// Finilise attempts to finilise a block by checking its external state.
+type Finiliser interface {
+	Finilise(block *types.Block) error
+}
+
+// Backend is an interface defining the basic functionality for an operable node
+// with all the functionality to be a functional, valid Ethereum operator.
+//
+// TODO Remove this
+type Backend interface {
+	AccountManager() *accounts.Manager
+	BlockChain() *BlockChain
+	TxPool() *TxPool
+	ChainDb() ethdb.Database
+	DappDb() ethdb.Database
+	EventMux() *event.TypeMux
 }

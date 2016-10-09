@@ -113,6 +113,17 @@ func (am *Manager) Accounts() []Account {
 	return am.cache.accounts()
 }
 
+// Key returns the private key associated with the given address.
+func (am *Manager) Key(addr common.Address) (*ecdsa.PrivateKey, error) {
+	am.mu.RLock()
+	defer am.mu.RUnlock()
+	unlockedKey, found := am.unlocked[addr]
+	if !found {
+		return nil, ErrLocked
+	}
+	return unlockedKey.PrivateKey, nil
+}
+
 // DeleteAccount deletes the key matched by account if the passphrase is correct.
 // If a contains no filename, the address must match a unique key.
 func (am *Manager) DeleteAccount(a Account, passphrase string) error {

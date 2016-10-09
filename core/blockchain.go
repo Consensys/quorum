@@ -113,7 +113,7 @@ type BlockChain struct {
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialiser the default Ethereum Validator and
 // Processor.
-func NewBlockChain(chainDb ethdb.Database, config *ChainConfig, pow pow.PoW, mux *event.TypeMux) (*BlockChain, error) {
+func NewBlockChain(chainDb ethdb.Database, config *ChainConfig, pow pow.PoW, mux *event.TypeMux, enableQuorumChecks bool) (*BlockChain, error) {
 	bodyCache, _ := lru.New(bodyCacheLimit)
 	bodyRLPCache, _ := lru.New(bodyCacheLimit)
 	blockCache, _ := lru.New(blockCacheLimit)
@@ -130,7 +130,7 @@ func NewBlockChain(chainDb ethdb.Database, config *ChainConfig, pow pow.PoW, mux
 		futureBlocks: futureBlocks,
 		pow:          pow,
 	}
-	bc.SetValidator(NewBlockValidator(config, bc, pow))
+	bc.SetValidator(NewBlockValidator(chainDb, config, bc, enableQuorumChecks))
 	bc.SetProcessor(NewStateProcessor(config, bc))
 
 	gv := func() HeaderValidator { return bc.Validator() }
@@ -351,9 +351,6 @@ func (self *BlockChain) Processor() Processor {
 	defer self.procmu.RUnlock()
 	return self.processor
 }
-
-// AuxValidator returns the auxiliary validator (Proof of work atm)
-func (self *BlockChain) AuxValidator() pow.PoW { return self.pow }
 
 // State returns a new mutable state based on the current HEAD block.
 func (self *BlockChain) State() (*state.StateDB, error) {
@@ -841,12 +838,7 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		stats         = insertStats{startTime: time.Now()}
 		events        = make([]interface{}, 0, len(chain))
 		coalescedLogs vm.Logs
-		nonceChecked  = make([]bool, len(chain))
 	)
-
-	// Start the parallel nonce verifier.
-	nonceAbort, nonceResults := verifyNoncesFromBlocks(self.pow, chain)
-	defer close(nonceAbort)
 
 	for i, block := range chain {
 		if atomic.LoadInt32(&self.procInterrupt) == 1 {
@@ -855,16 +847,6 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		}
 
 		bstart := time.Now()
-		// Wait for block i's nonce to be verified before processing
-		// its state transition.
-		for !nonceChecked[i] {
-			r := <-nonceResults
-			nonceChecked[r.index] = true
-			if !r.valid {
-				block := chain[r.index]
-				return r.index, &BlockNonceErr{Hash: block.Hash(), Number: block.Number(), Nonce: block.Nonce()}
-			}
-		}
 
 		if BadHashes[block.Hash()] {
 			err := BadHashError(block.Hash())

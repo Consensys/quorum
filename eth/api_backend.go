@@ -47,7 +47,7 @@ func (b *EthApiBackend) SetHead(number uint64) {
 func (b *EthApiBackend) HeaderByNumber(blockNr rpc.BlockNumber) *types.Header {
 	// Pending block is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
-		block, _ := b.eth.miner.Pending()
+		block, _ := b.eth.blockVoting.Pending()
 		return block.Header()
 	}
 	// Otherwise resolve and return the block
@@ -60,7 +60,7 @@ func (b *EthApiBackend) HeaderByNumber(blockNr rpc.BlockNumber) *types.Header {
 func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
 	// Pending block is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
-		block, _ := b.eth.miner.Pending()
+		block, _ := b.eth.blockVoting.Pending()
 		return block, nil
 	}
 	// Otherwise resolve and return the block
@@ -73,7 +73,7 @@ func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumb
 func (b *EthApiBackend) StateAndHeaderByNumber(blockNr rpc.BlockNumber) (ethapi.State, *types.Header, error) {
 	// Pending state is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
-		block, state := b.eth.miner.Pending()
+		block, state := b.eth.blockVoting.Pending()
 		return EthApiState{state}, block.Header(), nil
 	}
 	// Otherwise resolve the block number and return its state

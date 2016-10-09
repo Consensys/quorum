@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/pow/ezp"
 )
 
 func testChainConfig() *ChainConfig {
@@ -39,7 +38,7 @@ func proc() (Validator, *BlockChain) {
 	var mux event.TypeMux
 
 	WriteTestNetGenesisBlock(db)
-	blockchain, err := NewBlockChain(db, testChainConfig(), thePow(), &mux)
+	blockchain, err := NewBlockChain(db, testChainConfig(), thePow(), &mux, false)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -47,20 +46,19 @@ func proc() (Validator, *BlockChain) {
 }
 
 func TestNumber(t *testing.T) {
-	pow := ezp.New()
 	_, chain := proc()
 
 	statedb, _ := state.New(chain.Genesis().Root(), chain.chainDb)
 	header := makeHeader(chain.Genesis(), statedb)
 	header.Number = big.NewInt(3)
 	cfg := testChainConfig()
-	err := ValidateHeader(cfg, pow, header, chain.Genesis().Header(), false, false)
+	err := ValidateHeader(chain.chainDb, chain, cfg, header, chain.Genesis().Header(), false, false)
 	if err != BlockNumberErr {
 		t.Errorf("expected block number error, got %q", err)
 	}
 
 	header = makeHeader(chain.Genesis(), statedb)
-	err = ValidateHeader(cfg, pow, header, chain.Genesis().Header(), false, false)
+	err = ValidateHeader(chain.chainDb, chain, cfg, header, chain.Genesis().Header(), false, false)
 	if err == BlockNumberErr {
 		t.Errorf("didn't expect block number error")
 	}

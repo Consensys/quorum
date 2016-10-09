@@ -1709,7 +1709,7 @@ func TestFastCriticalRestarts64(t *testing.T) { testFastCriticalRestarts(t, 64) 
 func testFastCriticalRestarts(t *testing.T, protocol int) {
 	t.Parallel()
 
-	// Create a large enough blockchin to actually fast sync on
+	// Create a large enough blockchain to actually fast sync on
 	targetBlocks := fsMinFullBlocks + 2*fsPivotInterval - 15
 	hashes, headers, blocks, receipts := makeChain(targetBlocks, 0, genesis, nil, false)
 
@@ -1738,9 +1738,4 @@ func testFastCriticalRestarts(t *testing.T, protocol int) {
 			tester.lock.Unlock()
 		}
 	}
-	// Retry limit exhausted, downloader will switch to full sync, should succeed
-	if err := tester.sync("peer", nil, FastSync); err != nil {
-		t.Fatalf("failed to synchronise blocks in slow sync: %v", err)
-	}
-	assertOwnChain(t, tester, targetBlocks+1)
 }

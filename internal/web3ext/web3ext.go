@@ -27,6 +27,7 @@ var Modules = map[string]string{
 	"miner":      Miner_JS,
 	"net":        Net_JS,
 	"personal":   Personal_JS,
+	"quorum":     Quorum_JS,
 	"rpc":        RPC_JS,
 	"shh":        Shh_JS,
 	"txpool":     TxPool_JS,
@@ -658,3 +659,120 @@ web3._extend({
 	]
 });
 `
+
+const Quorum_JS = `
+web3._extend({
+	property: 'quorum',
+	methods: [
+		new web3._extend.Method({
+			name: 'canonicalHash',
+			call: 'quorum_canonicalHash',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'vote',
+			call: 'quorum_vote',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'makeBlock',
+			call: 'quorum_makeBlock'
+		}),
+		new web3._extend.Method({
+			name: 'isVoter',
+			call: 'quorum_isVoter',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'isBlockMaker',
+			call: 'quorum_isBlockMaker',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'pauseBlockMaker',
+			call: 'quorum_pauseBlockMaker'
+		}),
+		new web3._extend.Method({
+			name: 'resumeBlockMaker',
+			call: 'quorum_resumeBlockMaker'
+		})
+	],
+	properties:
+	[
+		new web3._extend.Property({
+			name: 'nodeInfo',
+			getter: 'quorum_nodeInfo'
+		}),
+	]
+});
+`
+
+/*
+const Voting_JS = `
+web3._extend({
+	property: 'voting',
+	methods: [
+		new web3._extend.Method({
+			name: 'startVoting',
+			call: 'voting_startVoting'
+		}),
+		new web3._extend.Method({
+			name: 'stopVoting',
+			call: 'voting_stopVoting'
+		}),
+		new web3._extend.Method({
+			name: 'addVoter',
+			call: 'voting_addVoter',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'removeVoter',
+			call: 'voting_removeVoter',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'startBlockMaker',
+			call: 'voting_startBlockMaker'
+		}),
+		new web3._extend.Method({
+			name: 'stopBlockMaker',
+			call: 'voting_stopBlockMaker'
+		}),
+		new web3._extend.Method({
+			name: 'addBlockMaker',
+			call: 'voting_addBlockMaker',
+			params: 1,
+			iinputFormatter: [web3._extend.formatters.inputAddressFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'removeBlockMaker',
+			call: 'voting_removeBlockMaker',
+			params: 1,
+			iinputFormatter: [web3._extend.formatters.inputAddressFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getEntry',
+			call: 'voting_getEntry',
+			params: 2
+		})
+	],
+	properties:
+	[
+		new web3._extend.Property({
+			name: 'period',
+			getter: 'voting_period'
+		}),
+		new web3._extend.Property({
+			name: 'voterCount',
+			getter: 'voting_voterCount'
+		}),
+
+	]
+});
+`
+*/

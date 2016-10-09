@@ -501,7 +501,8 @@ func (pool *TxPool) promoteExecutables() {
 			delete(pool.all, tx.Hash())
 		}
 		// Gather all executable transactions and promote them
-		for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {
+		nonce := pool.pendingState.GetNonce(addr)
+		for _, tx := range list.Ready(nonce) {
 			if glog.V(logger.Core) {
 				glog.Infof("Promoting queued transaction: %v", tx)
 			}

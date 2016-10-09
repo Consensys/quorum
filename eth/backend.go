@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/httpclient"
 	"github.com/ethereum/go-ethereum/common/registrar/ethreg"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/quorum"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -44,7 +45,6 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -66,9 +66,9 @@ var (
 type Config struct {
 	ChainConfig *core.ChainConfig // chain configuration
 
-	NetworkId int    // Network ID to use for selecting peers to connect to
-	Genesis   string // Genesis JSON to seed the chain database with
-	FastSync  bool   // Enables the state download based fast synchronisation algorithm
+	NetworkId        int    // Network ID to use for selecting peers to connect to
+	Genesis          string // Genesis JSON to seed the chain database with
+	SingleBlockMaker bool   // Assume this node is the only node on the network allowed to create blocks
 
 	SkipBcVersionCheck bool // e.g. blockchain export
 	DatabaseCache      int
@@ -98,6 +98,9 @@ type Config struct {
 
 	TestGenesisBlock *types.Block   // Genesis block to seed the chain database with (testing only!)
 	TestGenesisState ethdb.Database // Genesis state to seed the database with (testing only!)
+
+	VoteMinBlockTime uint
+	VoteMaxBlockTime uint
 }
 
 // Ethereum implements the Ethereum full node service.
@@ -121,18 +124,20 @@ type Ethereum struct {
 
 	apiBackend *EthApiBackend
 
-	miner        *miner.Miner
-	Mining       bool
-	MinerThreads int
-	AutoDAG      bool
-	autodagquit  chan bool
-	etherbase    common.Address
-	solcPath     string
+	AutoDAG     bool
+	autodagquit chan bool
+	etherbase   common.Address
+	solcPath    string
 
 	NatSpec       bool
 	PowTest       bool
 	netVersionId  int
 	netRPCService *ethapi.PublicNetAPI
+
+	blockVoting      *quorum.BlockVoting
+	voteMinBlockTime uint
+	voteMaxBlockTime uint
+	blockMakerStrat  quorum.BlockMakerStrategy
 }
 
 // New creates a new Ethereum object (including the
@@ -152,20 +157,21 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 
 	eth := &Ethereum{
-		chainDb:        chainDb,
-		eventMux:       ctx.EventMux,
-		accountManager: ctx.AccountManager,
-		pow:            pow,
-		shutdownChan:   make(chan bool),
-		stopDbUpgrade:  stopDbUpgrade,
-		httpclient:     httpclient.New(config.DocRoot),
-		netVersionId:   config.NetworkId,
-		NatSpec:        config.NatSpec,
-		PowTest:        config.PowTest,
-		etherbase:      config.Etherbase,
-		MinerThreads:   config.MinerThreads,
-		AutoDAG:        config.AutoDAG,
-		solcPath:       config.SolcPath,
+		chainDb:          chainDb,
+		eventMux:         ctx.EventMux,
+		accountManager:   ctx.AccountManager,
+		pow:              pow,
+		shutdownChan:     make(chan bool),
+		stopDbUpgrade:    stopDbUpgrade,
+		httpclient:       httpclient.New(config.DocRoot),
+		netVersionId:     config.NetworkId,
+		NatSpec:          config.NatSpec,
+		PowTest:          config.PowTest,
+		etherbase:        config.Etherbase,
+		AutoDAG:          config.AutoDAG,
+		solcPath:         config.SolcPath,
+		voteMinBlockTime: config.VoteMinBlockTime,
+		voteMaxBlockTime: config.VoteMaxBlockTime,
 	}
 
 	if err := upgradeChainDatabase(chainDb); err != nil {
@@ -207,7 +213,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		ForceJit:  config.ForceJit,
 	}
 
-	eth.blockchain, err = core.NewBlockChain(chainDb, eth.chainConfig, eth.pow, eth.EventMux())
+	eth.blockchain, err = core.NewBlockChain(chainDb, eth.chainConfig, eth.pow, eth.EventMux(), true)
 	if err != nil {
 		if err == core.ErrNoGenesis {
 			return nil, fmt.Errorf(`No chain found. Please initialise a new chain using the "init" subcommand.`)
@@ -217,12 +223,9 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	newPool := core.NewTxPool(eth.chainConfig, eth.EventMux(), eth.blockchain.State, eth.blockchain.GasLimit)
 	eth.txPool = newPool
 
-	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.FastSync, config.NetworkId, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb); err != nil {
+	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SingleBlockMaker, config.NetworkId, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb); err != nil {
 		return nil, err
 	}
-	eth.miner = miner.New(eth, eth.chainConfig, eth.EventMux(), eth.pow)
-	eth.miner.SetGasPrice(config.GasPrice)
-	eth.miner.SetExtra(config.ExtraData)
 
 	gpoParams := &gasprice.GpoParams{
 		GpoMinGasPrice:          config.GpoMinGasPrice,
@@ -234,6 +237,8 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 	gpo := gasprice.NewGasPriceOracle(eth.blockchain, chainDb, eth.eventMux, gpoParams)
 	eth.apiBackend = &EthApiBackend{eth, gpo}
+
+	eth.blockVoting = quorum.NewBlockVoting(eth.blockchain, eth.chainConfig, eth.txPool, eth.eventMux, eth.chainDb, eth.accountManager, config.SingleBlockMaker)
 
 	return eth, nil
 }
@@ -297,18 +302,8 @@ func (s *Ethereum) APIs() []rpc.API {
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   NewPublicMinerAPI(s),
-			Public:    true,
-		}, {
-			Namespace: "eth",
-			Version:   "1.0",
 			Service:   downloader.NewPublicDownloaderAPI(s.protocolManager.downloader, s.eventMux),
 			Public:    true,
-		}, {
-			Namespace: "miner",
-			Version:   "1.0",
-			Service:   NewPrivateMinerAPI(s),
-			Public:    false,
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
@@ -337,6 +332,11 @@ func (s *Ethereum) APIs() []rpc.API {
 			Version:   "1.0",
 			Service:   ethreg.NewPrivateRegistarAPI(s.chainConfig, s.blockchain, s.chainDb, s.txPool, s.accountManager),
 		},
+		{
+			Namespace: "quorum",
+			Version:   "1.0",
+			Service:   quorum.NewPublicQuorumAPI(s.blockVoting),
+		},
 	}...)
 }
 
@@ -359,23 +359,7 @@ func (s *Ethereum) Etherbase() (eb common.Address, err error) {
 // set in js console via admin interface or wrapper from cli flags
 func (self *Ethereum) SetEtherbase(etherbase common.Address) {
 	self.etherbase = etherbase
-	self.miner.SetEtherbase(etherbase)
 }
-
-func (s *Ethereum) StartMining(threads int) error {
-	eb, err := s.Etherbase()
-	if err != nil {
-		err = fmt.Errorf("Cannot start mining without etherbase address: %v", err)
-		glog.V(logger.Error).Infoln(err)
-		return err
-	}
-	go s.miner.Start(eb, threads)
-	return nil
-}
-
-func (s *Ethereum) StopMining()         { s.miner.Stop() }
-func (s *Ethereum) IsMining() bool      { return s.miner.Mining() }
-func (s *Ethereum) Miner() *miner.Miner { return s.miner }
 
 func (s *Ethereum) AccountManager() *accounts.Manager  { return s.accountManager }
 func (s *Ethereum) BlockChain() *core.BlockChain       { return s.blockchain }
@@ -414,7 +398,6 @@ func (s *Ethereum) Stop() error {
 	s.blockchain.Stop()
 	s.protocolManager.Stop()
 	s.txPool.Stop()
-	s.miner.Stop()
 	s.eventMux.Stop()
 
 	s.StopAutoDAG()

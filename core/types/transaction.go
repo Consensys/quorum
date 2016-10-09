@@ -458,7 +458,7 @@ type TransactionsByPriceAndNonce struct {
 // price sorted transactions in a nonce-honouring way.
 //
 // Note, the input map is reowned so the caller should not interact any more with
-// if after providng it to the constructor.
+// if after providing it to the constructor.
 func NewTransactionsByPriceAndNonce(txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
 	// Initialize a price based heap with the head transactions
 	heads := make(TxByPrice, 0, len(txs))

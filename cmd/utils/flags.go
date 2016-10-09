@@ -25,7 +25,6 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -141,10 +140,6 @@ var (
 		Usage: "Document Root for HTTPClient file scheme",
 		Value: DirectoryString{homeDir()},
 	}
-	FastSyncFlag = cli.BoolFlag{
-		Name:  "fast",
-		Usage: "Enable fast syncing through state downloads",
-	}
 	LightKDFFlag = cli.BoolFlag{
 		Name:  "lightkdf",
 		Usage: "Reduce key-derivation RAM & CPU usage at some expense of KDF strength",
@@ -159,25 +154,6 @@ var (
 		Name:  "trie-cache-gens",
 		Usage: "Number of trie node generations to keep in memory",
 		Value: int(state.MaxTrieCacheGen),
-	}
-	// Fork settings
-	SupportDAOFork = cli.BoolFlag{
-		Name:  "support-dao-fork",
-		Usage: "Updates the chain rules to support the DAO hard-fork",
-	}
-	OpposeDAOFork = cli.BoolFlag{
-		Name:  "oppose-dao-fork",
-		Usage: "Updates the chain rules to oppose the DAO hard-fork",
-	}
-	// Miner settings
-	MiningEnabledFlag = cli.BoolFlag{
-		Name:  "mine",
-		Usage: "Enable mining",
-	}
-	MinerThreadsFlag = cli.IntFlag{
-		Name:  "minerthreads",
-		Usage: "Number of CPU threads to use for mining",
-		Value: runtime.NumCPU(),
 	}
 	TargetGasLimitFlag = cli.StringFlag{
 		Name:  "targetgaslimit",
@@ -394,6 +370,41 @@ var (
 		Name:  "gpobasecf",
 		Usage: "Suggested gas price base correction factor (%)",
 		Value: 110,
+	}
+	// Quorum flags
+	VoteAccountFlag = cli.StringFlag{
+		Name:  "voteaccount",
+		Usage: "Address that is used to vote for blocks",
+		Value: "",
+	}
+	VoteAccountPasswordFlag = cli.StringFlag{
+		Name:  "votepassword",
+		Usage: "Password to unlock the voting address",
+		Value: "",
+	}
+	VoteBlockMakerAccountFlag = cli.StringFlag{
+		Name:  "blockmakeraccount",
+		Usage: "Address that is used to create blocks",
+		Value: "",
+	}
+	VoteBlockMakerAccountPasswordFlag = cli.StringFlag{
+		Name:  "blockmakerpassword",
+		Usage: "Password to unlock the block maker address",
+		Value: "",
+	}
+	VoteMinBlockTimeFlag = cli.IntFlag{
+		Name:  "minblocktime",
+		Usage: "Set minimum block time",
+		Value: 3,
+	}
+	VoteMaxBlockTimeFlag = cli.IntFlag{
+		Name:  "maxblocktime",
+		Usage: "Set max block time",
+		Value: 10,
+	}
+	SingleBlockMakerFlag = cli.BoolFlag{
+		Name:  "singleblockmaker",
+		Usage: "Indicate this node is the only node that can create blocks",
 	}
 )
 
@@ -679,11 +690,10 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 	ethConf := &eth.Config{
 		Etherbase:               MakeEtherbase(stack.AccountManager(), ctx),
 		ChainConfig:             MakeChainConfig(ctx, stack),
-		FastSync:                ctx.GlobalBool(FastSyncFlag.Name),
+		SingleBlockMaker:        ctx.GlobalBool(SingleBlockMakerFlag.Name),
 		DatabaseCache:           ctx.GlobalInt(CacheFlag.Name),
 		DatabaseHandles:         MakeDatabaseHandles(),
 		NetworkId:               ctx.GlobalInt(NetworkIdFlag.Name),
-		MinerThreads:            ctx.GlobalInt(MinerThreadsFlag.Name),
 		ExtraData:               MakeMinerExtra(extra, ctx),
 		NatSpec:                 ctx.GlobalBool(NatspecEnabledFlag.Name),
 		DocRoot:                 ctx.GlobalString(DocRootFlag.Name),
@@ -697,7 +707,8 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 		GpobaseStepUp:           ctx.GlobalInt(GpobaseStepUpFlag.Name),
 		GpobaseCorrectionFactor: ctx.GlobalInt(GpobaseCorrectionFactorFlag.Name),
 		SolcPath:                ctx.GlobalString(SolcPathFlag.Name),
-		AutoDAG:                 ctx.GlobalBool(AutoDAGFlag.Name) || ctx.GlobalBool(MiningEnabledFlag.Name),
+		VoteMinBlockTime:        uint(ctx.GlobalInt(VoteMinBlockTimeFlag.Name)),
+		VoteMaxBlockTime:        uint(ctx.GlobalInt(VoteMaxBlockTimeFlag.Name)),
 	}
 
 	// Override any default configs in dev mode or the test net
@@ -797,35 +808,6 @@ func MakeChainConfigFromDb(ctx *cli.Context, db ethdb.Database) *core.ChainConfi
 				config.HomesteadBlock = params.MainNetHomesteadBlock
 			}
 		}
-		if config.DAOForkBlock == nil {
-			if ctx.GlobalBool(TestNetFlag.Name) {
-				config.DAOForkBlock = params.TestNetDAOForkBlock
-			} else {
-				config.DAOForkBlock = params.MainNetDAOForkBlock
-			}
-			config.DAOForkSupport = true
-		}
-		if config.HomesteadGasRepriceBlock == nil {
-			if ctx.GlobalBool(TestNetFlag.Name) {
-				config.HomesteadGasRepriceBlock = params.TestNetHomesteadGasRepriceBlock
-			} else {
-				config.HomesteadGasRepriceBlock = params.MainNetHomesteadGasRepriceBlock
-			}
-		}
-		if config.HomesteadGasRepriceHash == (common.Hash{}) {
-			if ctx.GlobalBool(TestNetFlag.Name) {
-				config.HomesteadGasRepriceHash = params.TestNetHomesteadGasRepriceHash
-			} else {
-				config.HomesteadGasRepriceHash = params.MainNetHomesteadGasRepriceHash
-			}
-		}
-	}
-	// Force override any existing configs if explicitly requested
-	switch {
-	case ctx.GlobalBool(SupportDAOFork.Name):
-		config.DAOForkSupport = true
-	case ctx.GlobalBool(OpposeDAOFork.Name):
-		config.DAOForkSupport = false
 	}
 	return config
 }
@@ -861,7 +843,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chai
 	if !ctx.GlobalBool(FakePoWFlag.Name) {
 		pow = ethash.New()
 	}
-	chain, err = core.NewBlockChain(chainDb, chainConfig, pow, new(event.TypeMux))
+	chain, err = core.NewBlockChain(chainDb, chainConfig, pow, new(event.TypeMux), true)
 	if err != nil {
 		Fatalf("Could not start chainmanager: %v", err)
 	}

@@ -71,7 +71,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.TestNetFlag,
 			utils.DevModeFlag,
 			utils.IdentityFlag,
-			utils.FastSyncFlag,
 			utils.LightKDFFlag,
 		},
 	},
@@ -80,6 +79,18 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			utils.CacheFlag,
 			utils.TrieCacheGenFlag,
+		},
+	},
+	{
+		Name: "QUORUM",
+		Flags: []cli.Flag{
+			utils.VoteAccountFlag,
+			utils.VoteAccountPasswordFlag,
+			utils.VoteBlockMakerAccountFlag,
+			utils.VoteBlockMakerAccountPasswordFlag,
+			utils.SingleBlockMakerFlag,
+			utils.VoteMinBlockTimeFlag,
+			utils.VoteMaxBlockTimeFlag,
 		},
 	},
 	{
@@ -121,18 +132,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.NoDiscoverFlag,
 			utils.NodeKeyFileFlag,
 			utils.NodeKeyHexFlag,
-		},
-	},
-	{
-		Name: "MINER",
-		Flags: []cli.Flag{
-			utils.MiningEnabledFlag,
-			utils.MinerThreadsFlag,
-			utils.AutoDAGFlag,
-			utils.EtherbaseFlag,
-			utils.TargetGasLimitFlag,
-			utils.GasPriceFlag,
-			utils.ExtraDataFlag,
 		},
 	},
 	{

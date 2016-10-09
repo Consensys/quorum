@@ -170,8 +170,10 @@ func runBlockTest(homesteadBlock, daoForkBlock, gasPriceFork *big.Int, test *Blo
 	core.WriteCanonicalHash(db, test.Genesis.Hash(), test.Genesis.NumberU64())
 	core.WriteHeadBlockHash(db, test.Genesis.Hash())
 	evmux := new(event.TypeMux)
+
 	config := &core.ChainConfig{HomesteadBlock: homesteadBlock, DAOForkBlock: daoForkBlock, DAOForkSupport: true, HomesteadGasRepriceBlock: gasPriceFork}
-	chain, err := core.NewBlockChain(db, config, ethash.NewShared(), evmux)
+	chain, err := core.NewBlockChain(db, config, ethash.NewShared(), evmux, false)
+
 	if err != nil {
 		return err
 	}

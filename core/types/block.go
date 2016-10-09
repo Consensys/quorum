@@ -141,6 +141,17 @@ func (h *Header) HashNoNonce() common.Hash {
 	})
 }
 
+// QuorumHash returns a RLP hash of header fields relevant to determine if
+// a block was created/signed by an authorized block maker.
+func (h *Header) QuorumHash() common.Hash {
+	return rlpHash([]interface{}{
+		h.ParentHash,
+		h.Coinbase,
+		h.Root,
+		h.Number,
+	})
+}
+
 // MarshalJSON encodes headers into the web3 RPC response block format.
 func (h *Header) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&jsonHeader{
@@ -428,12 +439,24 @@ func CalcUncleHash(uncles []*Header) common.Hash {
 	return rlpHash(uncles)
 }
 
-// WithMiningResult returns a new block with the data from b
-// where nonce and mix digest are set to the provided values.
-func (b *Block) WithMiningResult(nonce uint64, mixDigest common.Hash) *Block {
+// WithCoinbase returns a new block with the data from b
+// where coinbase is set to the provided value.
+func (b *Block) WithCoinbase(coinbase common.Address) *Block {
 	cpy := *b.header
-	binary.BigEndian.PutUint64(cpy.Nonce[:], nonce)
-	cpy.MixDigest = mixDigest
+	cpy.Coinbase.Set(coinbase)
+	return &Block{
+		header:       &cpy,
+		transactions: b.transactions,
+		uncles:       b.uncles,
+	}
+}
+
+// WithExtraData returns a new block with the data from b
+// where extraData is set to the provided value.
+func (b *Block) WithExtraData(extraData []byte) *Block {
+	cpy := *b.header
+	cpy.Extra = make([]byte, len(extraData))
+	copy(cpy.Extra, extraData)
 	return &Block{
 		header:       &cpy,
 		transactions: b.transactions,

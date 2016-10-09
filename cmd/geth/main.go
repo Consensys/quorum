@@ -28,6 +28,8 @@ import (
 	"strings"
 	"time"
 
+	"crypto/ecdsa"
+
 	"github.com/ethereum/ethash"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -74,17 +76,6 @@ func init() {
 		attachCommand,
 		javascriptCommand,
 		{
-			Action: makedag,
-			Name:   "makedag",
-			Usage:  "generate ethash dag (for testing)",
-			Description: `
-The makedag command generates an ethash DAG in /tmp/dag.
-
-This command exists to support the system testing project.
-Regular users do not need to execute it.
-`,
-		},
-		{
 			Action: version,
 			Name:   "version",
 			Usage:  "print ethereum version numbers",
@@ -117,9 +108,8 @@ participating.
 		utils.DataDirFlag,
 		utils.KeyStoreDirFlag,
 		utils.OlympicFlag,
-		utils.FastSyncFlag,
-		utils.LightKDFFlag,
 		utils.CacheFlag,
+		utils.LightKDFFlag,
 		utils.TrieCacheGenFlag,
 		utils.JSpathFlag,
 		utils.ListenPortFlag,
@@ -127,10 +117,6 @@ participating.
 		utils.MaxPendingPeersFlag,
 		utils.EtherbaseFlag,
 		utils.GasPriceFlag,
-		utils.SupportDAOFork,
-		utils.OpposeDAOFork,
-		utils.MinerThreadsFlag,
-		utils.MiningEnabledFlag,
 		utils.AutoDAGFlag,
 		utils.TargetGasLimitFlag,
 		utils.NATFlag,
@@ -170,6 +156,13 @@ participating.
 		utils.GpobaseStepUpFlag,
 		utils.GpobaseCorrectionFactorFlag,
 		utils.ExtraDataFlag,
+		utils.VoteAccountFlag,
+		utils.VoteAccountPasswordFlag,
+		utils.VoteBlockMakerAccountFlag,
+		utils.VoteBlockMakerAccountPasswordFlag,
+		utils.VoteMinBlockTimeFlag,
+		utils.VoteMaxBlockTimeFlag,
+		utils.SingleBlockMakerFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 
@@ -289,15 +282,53 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			unlockAccount(ctx, accman, trimmed, i, passwords)
 		}
 	}
-	// Start auxiliary services if enabled
-	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) {
-		var ethereum *eth.Ethereum
-		if err := stack.Service(&ethereum); err != nil {
-			utils.Fatalf("ethereum service not running: %v", err)
+	// Start auxiliary services
+	var ethereum *eth.Ethereum
+	if err := stack.Service(&ethereum); err != nil {
+		utils.Fatalf("ethereum service not running: %v", err)
+	}
+
+	client, err := stack.Attach()
+	if err != nil {
+		utils.Fatalf("Unable to attach to node: %v", err)
+	}
+
+	var (
+		voteKey      *ecdsa.PrivateKey
+		blockVoteKey *ecdsa.PrivateKey
+	)
+
+	if addr := ctx.GlobalString(utils.VoteAccountFlag.Name); addr != "" {
+		addr = strings.TrimSpace(addr)
+		var passwd []string
+		if ctx.GlobalIsSet(utils.VoteAccountPasswordFlag.Name) {
+			passwd = append(passwd, ctx.GlobalString(utils.VoteAccountPasswordFlag.Name))
 		}
-		if err := ethereum.StartMining(ctx.GlobalInt(utils.MinerThreadsFlag.Name)); err != nil {
-			utils.Fatalf("Failed to start mining: %v", err)
+
+		unlockAccount(ctx, accman, addr, 0, passwd)
+		// unlockAccounts fatals in case the account could not be unlocked
+		voteKey, err = accman.Key(common.HexToAddress(addr))
+		if err != nil {
+			utils.Fatalf("Unable to unlock vote key: %v", err)
 		}
+	}
+
+	if addr := ctx.GlobalString(utils.VoteBlockMakerAccountFlag.Name); addr != "" {
+		addr = strings.TrimSpace(addr)
+		var passwd []string
+		if ctx.GlobalIsSet(utils.VoteBlockMakerAccountPasswordFlag.Name) {
+			passwd = append(passwd, ctx.GlobalString(utils.VoteBlockMakerAccountPasswordFlag.Name))
+		}
+		unlockAccount(ctx, accman, addr, 0, passwd)
+		// unlockAccounts fatals in case the account could not be unlocked
+		blockVoteKey, err = accman.Key(common.HexToAddress(addr[2:]))
+		if err != nil {
+			utils.Fatalf("Unable to unlock block maker key: %v", err)
+		}
+	}
+
+	if err := ethereum.StartBlockVoting(client, voteKey, blockVoteKey); err != nil {
+		utils.Fatalf("Failed to start block voting: %v", err)
 	}
 }
 
