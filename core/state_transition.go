@@ -254,8 +254,12 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 			glog.V(logger.Core).Infoln("VM create err:", err)
 		}
 	} else {
+		state := vmenv.Db()
+		if env, ok := vmenv.(DualStateEnv); ok {
+			state = env.PublicState()
+		}
 		// Increment the nonce for the next transaction
-		self.state.SetNonce(sender.Address(), self.state.GetNonce(sender.Address())+1)
+		state.SetNonce(sender.Address(), state.GetNonce(sender.Address())+1)
 		ret, err = vmenv.Call(sender, self.to().Address(), self.data, self.gas, self.gasPrice, self.value)
 		if err != nil {
 			glog.V(logger.Core).Infoln("VM call err:", err)

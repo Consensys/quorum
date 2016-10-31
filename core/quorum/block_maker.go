@@ -49,7 +49,7 @@ func (ps *pendingState) applyTransaction(tx *types.Transaction, bc *core.BlockCh
 	}
 	config.ForceJit = false // disable forcing jit
 
-	receipt, logs, _, err := core.ApplyTransaction(cc, bc, ps.gp, ps.state, ps.header, tx, ps.header.GasUsed, config)
+	receipt, logs, _, err := core.ApplyTransaction(cc, bc, ps.gp, ps.state, ps.state, ps.header, tx, ps.header.GasUsed, config)
 	if err != nil {
 		ps.state.RevertToSnapshot(snap)
 		return err, nil

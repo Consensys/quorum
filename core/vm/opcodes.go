@@ -31,6 +31,15 @@ func (op OpCode) IsPush() bool {
 	return false
 }
 
+func (op OpCode) isMutating() bool {
+	switch op {
+	case SUICIDE, CREATE, SSTORE, LOG0, LOG1, LOG2, LOG3, LOG4:
+		return true
+	default:
+		return false
+	}
+}
+
 func (op OpCode) IsStaticJump() bool {
 	return op == JUMP
 }

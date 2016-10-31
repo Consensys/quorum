@@ -42,6 +42,7 @@ var (
 	blockHashPrefix     = []byte("H") // blockHashPrefix + hash -> num (uint64 big endian)
 	bodyPrefix          = []byte("b") // bodyPrefix + num (uint64 big endian) + hash -> block body
 	blockReceiptsPrefix = []byte("r") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
+	privateRootPrefix   = []byte("P") // rootPrefix + block public root -> hash
 
 	txMetaSuffix   = []byte{0x01}
 	receiptsPrefix = []byte("receipts-")
@@ -613,4 +614,13 @@ func GetChainConfig(db ethdb.Database, hash common.Hash) (*ChainConfig, error) {
 	}
 
 	return &config, nil
+}
+
+func GetPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
+	root, _ := db.Get(append(privateRootPrefix, blockRoot[:]...))
+	return common.BytesToHash(root)
+}
+
+func WritePrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error {
+	return db.Put(append(privateRootPrefix, blockRoot[:]...), root[:])
 }

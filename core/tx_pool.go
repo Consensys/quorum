@@ -55,7 +55,7 @@ var (
 	evictionInterval     = time.Minute   // Time interval to check for evictable transactions
 )
 
-type stateFn func() (*state.StateDB, error)
+type stateFn func() (*state.StateDB, *state.StateDB, error)
 
 // TxPool contains all currently known transactions. Transactions
 // enter the pool when they are received from the network or submitted
@@ -137,7 +137,7 @@ func (pool *TxPool) eventLoop() {
 }
 
 func (pool *TxPool) resetState() {
-	currentState, err := pool.currentState()
+	currentState, _, err := pool.currentState()
 	if err != nil {
 		glog.V(logger.Error).Infof("Failed to get current state: %v", err)
 		return
@@ -248,7 +248,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction) error {
 		return ErrCheap
 	}
 
-	currentState, err := pool.currentState()
+	currentState, _, err := pool.currentState()
 	if err != nil {
 		return err
 	}
@@ -477,7 +477,7 @@ func (pool *TxPool) promoteExecutables() {
 		pool.resetState()
 	}
 	// Retrieve the current state to allow nonce and balance checking
-	state, err := pool.currentState()
+	state, _, err := pool.currentState()
 	if err != nil {
 		glog.Errorf("Could not get current state: %v", err)
 		return
@@ -614,7 +614,7 @@ func (pool *TxPool) promoteExecutables() {
 // are moved back into the future queue.
 func (pool *TxPool) demoteUnexecutables() {
 	// Retrieve the current state to allow nonce and balance checking
-	state, err := pool.currentState()
+	state, _, err := pool.currentState()
 	if err != nil {
 		glog.V(logger.Info).Infoln("failed to get current state: %v", err)
 		return

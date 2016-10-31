@@ -105,7 +105,7 @@ func NewBlockVoting(bc *core.BlockChain, chainConfig *core.ChainConfig, txpool *
 }
 
 func (bv *BlockVoting) resetPendingState(parent *types.Block) {
-	statedb, err := bv.bc.StateAt(parent.Root())
+	statedb, _, err := bv.bc.StateAt(parent.Root())
 	if err != nil {
 		panic(fmt.Sprintf("State corrupt: ", err))
 	}

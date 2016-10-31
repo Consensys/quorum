@@ -307,3 +307,5 @@ func (self *VMEnv) DelegateCall(caller vm.ContractRef, addr common.Address, data
 func (self *VMEnv) Create(caller vm.ContractRef, data []byte, gas, price, value *big.Int) ([]byte, common.Address, error) {
 	return core.Create(self, caller, data, gas, price, value)
 }
+
+func (*VMEnv) ReadOnly() bool { return false }

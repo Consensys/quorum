@@ -84,6 +84,8 @@ func (self *Env) DelegateCall(me vm.ContractRef, addr common.Address, data []byt
 	return nil, nil
 }
 
+func (*Env) ReadOnly() bool { return false }
+
 type account struct{}
 
 func (account) SubBalance(amount *big.Int)                          {}

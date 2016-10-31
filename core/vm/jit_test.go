@@ -176,6 +176,7 @@ func (self *Env) RuleSet() RuleSet       { return ruleSet{new(big.Int)} }
 func (self *Env) Vm() Vm                 { return self.evm }
 func (self *Env) Origin() common.Address { return common.Address{} }
 func (self *Env) BlockNumber() *big.Int  { return big.NewInt(0) }
+func (self *Env) ReadOnly() bool         { return false }
 
 //func (self *Env) PrevHash() []byte      { return self.parent }
 func (self *Env) Coinbase() common.Address { return common.Address{} }

@@ -301,6 +301,7 @@ func (self *Env) Create(caller vm.ContractRef, data []byte, gas, price, value *b
 		return core.Create(self, caller, data, gas, price, value)
 	}
 }
+func (self *Env) ReadOnly() bool { return false }
 
 type Message struct {
 	from              common.Address

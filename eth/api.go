@@ -152,16 +152,24 @@ func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 }
 
 // DumpBlock retrieves the entire state of the database at a given block.
-func (api *PublicDebugAPI) DumpBlock(number uint64) (state.Dump, error) {
+func (api *PublicDebugAPI) DumpBlock(number uint64, typ string) (state.Dump, error) {
 	block := api.eth.BlockChain().GetBlockByNumber(number)
 	if block == nil {
 		return state.Dump{}, fmt.Errorf("block #%d not found", number)
 	}
-	stateDb, err := api.eth.BlockChain().StateAt(block.Root())
+	publicDb, privateDb, err := api.eth.BlockChain().StateAt(block.Root())
 	if err != nil {
 		return state.Dump{}, err
 	}
-	return stateDb.RawDump(), nil
+
+	switch typ {
+	case "public":
+		return publicDb.RawDump(), nil
+	case "private":
+		return privateDb.RawDump(), nil
+	default:
+		return state.Dump{}, fmt.Errorf("unknown type: '%s'", typ)
+	}
 }
 
 // PrivateDebugAPI is the collection of Etheruem full node APIs exposed over
@@ -270,16 +278,16 @@ func (api *PrivateDebugAPI) traceBlock(block *types.Block, logConfig *vm.LogConf
 	if err := core.ValidateHeader(api.eth.chainDb, api.eth.blockchain, api.config, block.Header(), blockchain.GetHeader(block.ParentHash(), block.NumberU64()-1), false, false); err != nil {
 		return false, structLogger.StructLogs(), err
 	}
-	statedb, err := blockchain.StateAt(blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1).Root())
+	publicStateDb, privateStateDb, err := blockchain.StateAt(blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1).Root())
 	if err != nil {
 		return false, structLogger.StructLogs(), err
 	}
 
-	receipts, _, usedGas, err := processor.Process(block, statedb, config)
+	receipts, _, usedGas, err := processor.Process(block, publicStateDb, privateStateDb, config)
 	if err != nil {
 		return false, structLogger.StructLogs(), err
 	}
-	if err := validator.ValidateState(block, blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1), statedb, receipts, usedGas); err != nil {
+	if err := validator.ValidateState(block, blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1), publicStateDb, receipts, usedGas); err != nil {
 		return false, structLogger.StructLogs(), err
 	}
 	return true, structLogger.StructLogs(), nil
@@ -365,7 +373,7 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, txHash common.
 	if parent == nil {
 		return nil, fmt.Errorf("block parent %x not found", block.ParentHash())
 	}
-	stateDb, err := api.eth.BlockChain().StateAt(parent.Root())
+	publicStateDb, privateStateDb, err := api.eth.BlockChain().StateAt(parent.Root())
 	if err != nil {
 		return nil, err
 	}
@@ -386,16 +394,17 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, txHash common.
 		}
 		// Mutate the state if we haven't reached the tracing transaction yet
 		if uint64(idx) < txIndex {
-			vmenv := core.NewEnv(stateDb, api.config, api.eth.BlockChain(), msg, block.Header(), vm.Config{})
+			vmenv := core.NewEnv(publicStateDb, privateStateDb, api.config, api.eth.BlockChain(), msg, block.Header(), vm.Config{})
 			_, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas()))
 			if err != nil {
 				return nil, fmt.Errorf("mutation failed: %v", err)
 			}
-			stateDb.DeleteSuicides()
+			publicStateDb.DeleteSuicides()
+			privateStateDb.DeleteSuicides()
 			continue
 		}
 		// Otherwise trace the transaction and return
-		vmenv := core.NewEnv(stateDb, api.config, api.eth.BlockChain(), msg, block.Header(), vm.Config{Debug: true, Tracer: tracer})
+		vmenv := core.NewEnv(publicStateDb, privateStateDb, api.config, api.eth.BlockChain(), msg, block.Header(), vm.Config{Debug: true, Tracer: tracer})
 		ret, gas, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas()))
 		if err != nil {
 			return nil, fmt.Errorf("tracing failed: %v", err)

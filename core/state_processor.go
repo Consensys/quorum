@@ -54,7 +54,7 @@ func NewStateProcessor(config *ChainConfig, bc *BlockChain) *StateProcessor {
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, vm.Logs, *big.Int, error) {
+func (p *StateProcessor) Process(block *types.Block, publicState, privateState *state.StateDB, cfg vm.Config) (types.Receipts, vm.Logs, *big.Int, error) {
 	var (
 		receipts     types.Receipts
 		totalUsedGas = big.NewInt(0)
@@ -65,15 +65,15 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	)
 
 	for i, tx := range block.Transactions() {
-		statedb.StartRecord(tx.Hash(), block.Hash(), i)
-		receipt, logs, _, err := ApplyTransaction(p.config, p.bc, gp, statedb, header, tx, totalUsedGas, cfg)
+		publicState.StartRecord(tx.Hash(), block.Hash(), i)
+		receipt, logs, _, err := ApplyTransaction(p.config, p.bc, gp, publicState, privateState, header, tx, totalUsedGas, cfg)
 		if err != nil {
 			return nil, nil, totalUsedGas, err
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, logs...)
 	}
-	AccumulateRewards(statedb, header, block.Uncles())
+	AccumulateRewards(publicState, header, block.Uncles())
 
 	return receipts, allLogs, totalUsedGas, err
 }
@@ -83,15 +83,19 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 //
 // ApplyTransactions returns the generated receipts and vm logs during the
 // execution of the state transition phase.
-func ApplyTransaction(config *ChainConfig, bc *BlockChain, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *big.Int, cfg vm.Config) (*types.Receipt, vm.Logs, *big.Int, error) {
-	_, gas, err := ApplyMessage(NewEnv(statedb, config, bc, tx, header, cfg), tx, gp)
+func ApplyTransaction(config *ChainConfig, bc *BlockChain, gp *GasPool, publicState, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *big.Int, cfg vm.Config) (*types.Receipt, vm.Logs, *big.Int, error) {
+	// TODO Obviously this needs to be a real check
+	if /*tx.is_a_public_transaction*/ true {
+		privateState = publicState
+	}
+	_, gas, err := ApplyMessage(NewEnv(publicState, privateState, config, bc, tx, header, cfg), tx, gp)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	// Update the state with pending changes
 	usedGas.Add(usedGas, gas)
-	receipt := types.NewReceipt(statedb.IntermediateRoot().Bytes(), usedGas)
+	receipt := types.NewReceipt(publicState.IntermediateRoot().Bytes(), usedGas)
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = new(big.Int).Set(gas)
 	if MessageCreatesContract(tx) {
@@ -99,7 +103,7 @@ func ApplyTransaction(config *ChainConfig, bc *BlockChain, gp *GasPool, statedb 
 		receipt.ContractAddress = crypto.CreateAddress(from, tx.Nonce())
 	}
 
-	logs := statedb.GetLogs(tx.Hash())
+	logs := publicState.GetLogs(tx.Hash())
 	receipt.Logs = logs
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 

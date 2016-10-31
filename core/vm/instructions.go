@@ -554,7 +554,6 @@ func opCall(instr instruction, pc *uint64, env Environment, contract *Contract, 
 	}
 
 	ret, err := env.Call(contract, address, args, gas, contract.Price, value)
-
 	if err != nil {
 		stack.push(new(big.Int))
 

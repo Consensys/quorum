@@ -20,19 +20,86 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 )
 
+/*
+func stateSwitch(env vm.Environment, addr common.Address) {
+	if env, ok := env.(DualStateEnv); ok {
+		var state *state.StateDB
+		if env.PrivateState().Exist(addr) {
+			state = env.PrivateState()
+		} else if env.PublicState().Exist(addr) {
+			state = env.PublicState()
+		}
+		env.Push(state)
+		defer func() { env.Pop() }()
+	}
+}
+*/
+
+func getDualState(env DualStateEnv, addr common.Address) *state.StateDB {
+	// priv: (a) -> (b)  (private)
+	// pub:   a  -> [b]  (private -> public)
+	// priv: (a) ->  b   (public)
+	state := env.Db().(*state.StateDB)
+	if env.PrivateState().Exist(addr) {
+		state = env.PrivateState()
+	} else if env.PublicState().Exist(addr) {
+		state = env.PublicState()
+	}
+
+	return state
+}
+
+// createAddressAndIncrementNonce returns an address based on the caller address and nonce.
+//
+// It also gets the right state in case of a dual state environment. If a sender
+// is a transaction (depth == 0) use the public state to derive the address
+// and increment the nonce of the public state. If the sender is a contract
+// (depth > 0) use the private state to derive the nonce and increment the
+// nonce on the private state only.
+//
+// If the transaction went to a public contract the private and public state
+// are the same.
+func createAddressAndIncrementNonce(env vm.Environment, caller vm.ContractRef) common.Address {
+	db := env.Db()
+	// check for a dual state in case of quorum.
+	if env, ok := env.(DualStateEnv); ok {
+		if env.Depth() > 0 {
+			db = env.PrivateState()
+		} else {
+			db = env.PublicState()
+		}
+	}
+	// Increment the callers nonce on the state based on the current depth
+	nonce := db.GetNonce(caller.Address())
+	db.SetNonce(caller.Address(), nonce+1)
+
+	return crypto.CreateAddress(caller.Address(), nonce)
+}
+
 // Call executes within the given contract
 func Call(env vm.Environment, caller vm.ContractRef, addr common.Address, input []byte, gas, gasPrice, value *big.Int) (ret []byte, err error) {
+	if env, ok := env.(DualStateEnv); ok {
+		env.Push(getDualState(env, addr))
+		defer func() { env.Pop() }()
+	}
+
 	ret, _, err = exec(env, caller, &addr, &addr, env.Db().GetCodeHash(addr), input, env.Db().GetCode(addr), gas, gasPrice, value)
 	return ret, err
 }
 
 // CallCode executes the given address' code as the given contract address
 func CallCode(env vm.Environment, caller vm.ContractRef, addr common.Address, input []byte, gas, gasPrice, value *big.Int) (ret []byte, err error) {
+	if env, ok := env.(DualStateEnv); ok {
+		env.Push(getDualState(env, addr))
+		defer func() { env.Pop() }()
+	}
+
 	callerAddr := caller.Address()
 	ret, _, err = exec(env, caller, &callerAddr, &addr, env.Db().GetCodeHash(addr), input, env.Db().GetCode(addr), gas, gasPrice, value)
 	return ret, err
@@ -40,6 +107,11 @@ func CallCode(env vm.Environment, caller vm.ContractRef, addr common.Address, in
 
 // DelegateCall is equivalent to CallCode except that sender and value propagates from parent scope to child scope
 func DelegateCall(env vm.Environment, caller vm.ContractRef, addr common.Address, input []byte, gas, gasPrice *big.Int) (ret []byte, err error) {
+	if env, ok := env.(DualStateEnv); ok {
+		env.Push(getDualState(env, addr))
+		defer func() { env.Pop() }()
+	}
+
 	callerAddr := caller.Address()
 	originAddr := env.Origin()
 	callerValue := caller.Value()
@@ -61,8 +133,7 @@ func Create(env vm.Environment, caller vm.ContractRef, code []byte, gas, gasPric
 
 func exec(env vm.Environment, caller vm.ContractRef, address, codeAddr *common.Address, codeHash common.Hash, input, code []byte, gas, gasPrice, value *big.Int) (ret []byte, addr common.Address, err error) {
 	evm := env.Vm()
-	// Depth check execution. Fail if we're trying to execute above the
-	// limit.
+	// Depth check execution. Fail if we're trying to execute above the limit.
 	if env.Depth() > int(params.CallCreateDepth.Int64()) {
 		caller.ReturnGas(gas, gasPrice)
 
@@ -77,10 +148,7 @@ func exec(env vm.Environment, caller vm.ContractRef, address, codeAddr *common.A
 
 	var createAccount bool
 	if address == nil {
-		// Create a new account on the state
-		nonce := env.Db().GetNonce(caller.Address())
-		env.Db().SetNonce(caller.Address(), nonce+1)
-		addr = crypto.CreateAddress(caller.Address(), nonce)
+		addr = createAddressAndIncrementNonce(env, caller)
 		address = &addr
 		createAccount = true
 	}

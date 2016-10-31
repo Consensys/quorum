@@ -172,6 +172,9 @@ func (evm *EVM) Run(contract *Contract, input []byte) (ret []byte, err error) {
 
 		// Get the memory location of pc
 		op = contract.GetOp(pc)
+		if evm.env.ReadOnly() && op.isMutating() {
+			return nil, fmt.Errorf("VM in read-only mode. Mutating opcode prohibited")
+		}
 		// calculate the new memory size and gas price for the current executing opcode
 		newMemSize, cost, err = calculateGasAndSize(evm.gasTable, evm.env, contract, caller, op, statedb, mem, stack)
 		if err != nil {

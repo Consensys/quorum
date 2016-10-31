@@ -190,7 +190,7 @@ func runBlockTest(homesteadBlock, daoForkBlock, gasPriceFork *big.Int, test *Blo
 		return fmt.Errorf("lastblockhash validation mismatch: want: %x, have: %x", lastblockhash, cmlast)
 	}
 
-	newDB, err := chain.State()
+	newDB, _, err := chain.State()
 	if err != nil {
 		return err
 	}

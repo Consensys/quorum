@@ -74,15 +74,15 @@ func (b *EthApiBackend) StateAndHeaderByNumber(blockNr rpc.BlockNumber) (ethapi.
 	// Pending state is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
 		block, state := b.eth.blockVoting.Pending()
-		return EthApiState{state}, block.Header(), nil
+		return EthApiState{state, state}, block.Header(), nil
 	}
 	// Otherwise resolve the block number and return its state
 	header := b.HeaderByNumber(blockNr)
 	if header == nil {
 		return nil, nil, nil
 	}
-	stateDb, err := b.eth.BlockChain().StateAt(header.Root)
-	return EthApiState{stateDb}, header, err
+	publicState, privateState, err := b.eth.BlockChain().StateAt(header.Root)
+	return EthApiState{publicState, privateState}, header, err
 }
 
 func (b *EthApiBackend) GetBlock(ctx context.Context, blockHash common.Hash) (*types.Block, error) {
@@ -98,12 +98,12 @@ func (b *EthApiBackend) GetTd(blockHash common.Hash) *big.Int {
 }
 
 func (b *EthApiBackend) GetVMEnv(ctx context.Context, msg core.Message, state ethapi.State, header *types.Header) (vm.Environment, func() error, error) {
-	statedb := state.(EthApiState).state
+	statedb := state.(EthApiState)
 	addr, _ := msg.From()
-	from := statedb.GetOrNewStateObject(addr)
+	from := statedb.publicState.GetOrNewStateObject(addr)
 	from.SetBalance(common.MaxBig)
 	vmError := func() error { return nil }
-	return core.NewEnv(statedb, b.eth.chainConfig, b.eth.blockchain, msg, header, b.eth.chainConfig.VmConfig), vmError, nil
+	return core.NewEnv(statedb.publicState, statedb.privateState, b.eth.chainConfig, b.eth.blockchain, msg, header, b.eth.chainConfig.VmConfig), vmError, nil
 }
 
 func (b *EthApiBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
@@ -185,21 +185,21 @@ func (b *EthApiBackend) AccountManager() *accounts.Manager {
 }
 
 type EthApiState struct {
-	state *state.StateDB
+	publicState, privateState *state.StateDB
 }
 
 func (s EthApiState) GetBalance(ctx context.Context, addr common.Address) (*big.Int, error) {
-	return s.state.GetBalance(addr), nil
+	return s.publicState.GetBalance(addr), nil
 }
 
 func (s EthApiState) GetCode(ctx context.Context, addr common.Address) ([]byte, error) {
-	return s.state.GetCode(addr), nil
+	return s.publicState.GetCode(addr), nil
 }
 
 func (s EthApiState) GetState(ctx context.Context, a common.Address, b common.Hash) (common.Hash, error) {
-	return s.state.GetState(a, b), nil
+	return s.publicState.GetState(a, b), nil
 }
 
 func (s EthApiState) GetNonce(ctx context.Context, addr common.Address) (uint64, error) {
-	return s.state.GetNonce(addr), nil
+	return s.publicState.GetNonce(addr), nil
 }

@@ -150,7 +150,7 @@ func RunTest(stack *node.Node, test *tests.BlockTest) error {
 		return err
 	}
 	// Retrieve the assembled state and validate it
-	stateDb, err := blockchain.State()
+	stateDb, _, err := blockchain.State()
 	if err != nil {
 		return err
 	}

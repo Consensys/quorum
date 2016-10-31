@@ -77,6 +77,8 @@ type Environment interface {
 	DelegateCall(me ContractRef, addr common.Address, data []byte, gas, price *big.Int) ([]byte, error)
 	// Create a new contract
 	Create(me ContractRef, data []byte, gas, price, value *big.Int) ([]byte, common.Address, error)
+	// Returns whether the call is in read only mode
+	ReadOnly() bool
 }
 
 // Vm is the basic interface for an implementation of the EVM.

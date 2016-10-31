@@ -174,7 +174,7 @@ func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *stat
 				value:    common.Big0,
 				data:     common.Hex2Bytes(fmt.Sprintf("559c390c%064x", block.Number())), // call getCanonHash(uint256)
 			}
-			vmenv = NewEnv(stateCopy, v.config, v.bc, msg, block.Header(), v.config.VmConfig)
+			vmenv = NewEnv(stateCopy, stateCopy, v.config, v.bc, msg, block.Header(), v.config.VmConfig)
 		)
 
 		result, _, _, err := NewStateTransition(vmenv, msg, gp).TransitionDb()
@@ -344,7 +344,7 @@ func ValidateExtraData(chaindb ethdb.Database, bc *BlockChain, config *ChainConf
 			value:    common.Big0,
 			data:     common.Hex2Bytes(fmt.Sprintf("e814d1c7%064x", signerAddr.Bytes())), // call isBlockMaker(address)
 		}
-		vmenv = NewEnv(state, config, bc, msg, header, config.VmConfig)
+		vmenv = NewEnv(state, state, config, bc, msg, header, config.VmConfig)
 	)
 
 	result, _, _, err := NewStateTransition(vmenv, msg, gp).TransitionDb()

@@ -93,11 +93,12 @@ type BlockChain struct {
 	currentBlock     *types.Block // Current head of the block chain
 	currentFastBlock *types.Block // Current head of the fast-sync chain (may be above the block chain!)
 
-	stateCache   *state.StateDB // State database to reuse between imports (contains state cache)
-	bodyCache    *lru.Cache     // Cache for the most recent block bodies
-	bodyRLPCache *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
-	blockCache   *lru.Cache     // Cache for the most recent entire blocks
-	futureBlocks *lru.Cache     // future blocks are blocks added for later processing
+	publicStateCache  *state.StateDB // Public state database to reuse between imports (contains state cache)
+	privateStateCache *state.StateDB // Private state database to reuse between imports (contains state cache)
+	bodyCache         *lru.Cache     // Cache for the most recent block bodies
+	bodyRLPCache      *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
+	blockCache        *lru.Cache     // Cache for the most recent entire blocks
+	futureBlocks      *lru.Cache     // future blocks are blocks added for later processing
 
 	quit    chan struct{} // blockchain quit channel
 	running int32         // running must be called atomically
@@ -202,8 +203,15 @@ func (self *BlockChain) loadLastState() error {
 	if err != nil {
 		return err
 	}
-	self.stateCache = statedb
-	self.stateCache.GetAccount(common.Address{})
+	self.publicStateCache = statedb
+	self.publicStateCache.GetAccount(common.Address{})
+
+	// Initialize a statedb cache to ensure singleton account bloom filter generation
+	self.privateStateCache, err = state.New(GetPrivateStateRoot(self.chainDb, self.currentBlock.Hash()), self.chainDb)
+	if err != nil {
+		return err
+	}
+	self.privateStateCache.GetAccount(common.Address{})
 
 	// Issue a status log for the user
 	headerTd := self.GetTd(currentHeader.Hash(), currentHeader.Number.Uint64())
@@ -353,13 +361,22 @@ func (self *BlockChain) Processor() Processor {
 }
 
 // State returns a new mutable state based on the current HEAD block.
-func (self *BlockChain) State() (*state.StateDB, error) {
+func (self *BlockChain) State() (*state.StateDB, *state.StateDB, error) {
 	return self.StateAt(self.CurrentBlock().Root())
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
-func (self *BlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
-	return self.stateCache.New(root)
+func (self *BlockChain) StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error) {
+	publicStateDb, publicStateDbErr := self.publicStateCache.New(root)
+	if publicStateDbErr != nil {
+		return nil, nil, publicStateDbErr
+	}
+	privateStateDb, privateStateDbErr := self.privateStateCache.New(GetPrivateStateRoot(self.chainDb, root))
+	if privateStateDbErr != nil {
+		return nil, nil, privateStateDbErr
+	}
+
+	return publicStateDb, privateStateDb, nil
 }
 
 // Reset purges the entire blockchain, restoring it to its genesis state.
@@ -887,33 +904,56 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 			return i, err
 		}
 
-		// Create a new statedb using the parent block and report an
+		// Create a new public statedb using the parent block and report an
 		// error if it fails.
 		switch {
 		case i == 0:
-			err = self.stateCache.Reset(self.GetBlock(block.ParentHash(), block.NumberU64()-1).Root())
+			err = self.publicStateCache.Reset(self.GetBlock(block.ParentHash(), block.NumberU64()-1).Root())
 		default:
-			err = self.stateCache.Reset(chain[i-1].Root())
+			err = self.publicStateCache.Reset(chain[i-1].Root())
+		}
+		if err != nil {
+			reportBlock(block, err)
+			return i, err
+		}
+		// Create a new private statedb using the parent block and report an
+		// error if it fails.
+		switch {
+		case i == 0:
+			privateRoot := GetPrivateStateRoot(self.chainDb, self.GetBlock(block.ParentHash(), block.NumberU64()-1).Root())
+			err = self.privateStateCache.Reset(privateRoot)
+		default:
+			privateRoot := GetPrivateStateRoot(self.chainDb, chain[i-1].Root())
+			err = self.privateStateCache.Reset(privateRoot)
 		}
 		if err != nil {
 			reportBlock(block, err)
 			return i, err
 		}
 		// Process block using the parent state as reference point.
-		receipts, logs, usedGas, err := self.processor.Process(block, self.stateCache, self.config.VmConfig)
+		receipts, logs, usedGas, err := self.processor.Process(block, self.publicStateCache, self.privateStateCache, self.config.VmConfig)
 		if err != nil {
 			reportBlock(block, err)
 			return i, err
 		}
 		// Validate the state using the default validator
-		err = self.Validator().ValidateState(block, self.GetBlock(block.ParentHash(), block.NumberU64()-1), self.stateCache, receipts, usedGas)
+		err = self.Validator().ValidateState(block, self.GetBlock(block.ParentHash(), block.NumberU64()-1), self.publicStateCache, receipts, usedGas)
 		if err != nil {
 			reportBlock(block, err)
 			return i, err
 		}
-		// Write state changes to database
-		_, err = self.stateCache.Commit()
+		// Write public state changes to database
+		_, err = self.publicStateCache.Commit()
 		if err != nil {
+			return i, err
+		}
+
+		// Write private state changes to database
+		privateStateRoot, err := self.privateStateCache.Commit()
+		if err != nil {
+			return i, err
+		}
+		if err := WritePrivateStateRoot(self.chainDb, block.Root(), privateStateRoot); err != nil {
 			return i, err
 		}
 
