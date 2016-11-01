@@ -1,284 +1,320 @@
-## Ethereum Go
+# Quorum
 
-Official golang implementation of the Ethereum protocol
+Quorum is a blockchain with properties that make it suitable as a consortium or private chain.
+One of its core features is the ability to keep certain state private and only accessible by granted parties.
 
-          | Linux   | OSX | ARM | Windows | Tests
-----------|---------|-----|-----|---------|------
-develop   | [![Build+Status](https://build.ethdev.com/buildstatusimage?builder=Linux%20Go%20develop%20branch)](https://build.ethdev.com/builders/Linux%20Go%20develop%20branch/builds/-1) | [![Build+Status](https://build.ethdev.com/buildstatusimage?builder=Linux%20Go%20develop%20branch)](https://build.ethdev.com/builders/OSX%20Go%20develop%20branch/builds/-1) | [![Build+Status](https://build.ethdev.com/buildstatusimage?builder=ARM%20Go%20develop%20branch)](https://build.ethdev.com/builders/ARM%20Go%20develop%20branch/builds/-1) | [![Build+Status](https://build.ethdev.com/buildstatusimage?builder=Windows%20Go%20develop%20branch)](https://build.ethdev.com/builders/Windows%20Go%20develop%20branch/builds/-1) | [![Buildr+Status](https://travis-ci.org/ethereum/go-ethereum.svg?branch=develop)](https://travis-ci.org/ethereum/go-ethereum) [![codecov.io](https://codecov.io/github/ethereum/go-ethereum/coverage.svg?branch=develop)](https://codecov.io/github/ethereum/go-ethereum?branch=develop)
-master    | [![Build+Status](https://build.ethdev.com/buildstatusimage?builder=Linux%20Go%20master%20branch)](https://build.ethdev.com/builders/Linux%20Go%20master%20branch/builds/-1) | [![Build+Status](https://build.ethdev.com/buildstatusimage?builder=OSX%20Go%20master%20branch)](https://build.ethdev.com/builders/OSX%20Go%20master%20branch/builds/-1) | [![Build+Status](https://build.ethdev.com/buildstatusimage?builder=ARM%20Go%20master%20branch)](https://build.ethdev.com/builders/ARM%20Go%20master%20branch/builds/-1) | [![Build+Status](https://build.ethdev.com/buildstatusimage?builder=Windows%20Go%20master%20branch)](https://build.ethdev.com/builders/Windows%20Go%20master%20branch/builds/-1) | [![Buildr+Status](https://travis-ci.org/ethereum/go-ethereum.svg?branch=master)](https://travis-ci.org/ethereum/go-ethereum) [![codecov.io](https://codecov.io/github/ethereum/go-ethereum/coverage.svg?branch=master)](https://codecov.io/github/ethereum/go-ethereum?branch=master)
+## Consensus algorithm
 
-[![API Reference](
-https://camo.githubusercontent.com/915b7be44ada53c290eb157634330494ebe3e30a/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f676f6c616e672f6764646f3f7374617475732e737667
-)](https://godoc.org/github.com/ethereum/go-ethereum)
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ethereum/go-ethereum?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+Quorum is a majority voting protocol where a subset of nodes within the network are given the `voting` role.
+The voting role allows a node to vote which block should be the canonical head on a particular height.
+The block with the most votes will win and is considered the canonical head of the chain.
 
-## Automated development builds
+Block creation is only allowed by nodes with the `block maker` role.
+A node with this role can create a block, sign the block and put the signature within in `ExtraData` field of the block.
+On block import nodes can verify if the block was signed by one of the nodes that have the `block maker` role.
 
-The following builds are built automatically by our build servers after each push to the [develop](https://github.com/ethereum/go-ethereum/tree/develop) branch.
+Nodes can be given no role, one of the roles or both roles through command line arguments.
+The collection of addresses with special roles is tracked within the Quorum smart contract.
 
-* [Docker](https://registry.hub.docker.com/u/ethereum/client-go/)
-* [OS X](https://build.ethdev.com/builds/OSX%20Go%20develop%20branch/Mist-OSX-latest.dmg)
-* Ubuntu
-  [trusty](https://build.ethdev.com/builds/Linux%20Go%20develop%20deb%20i386-trusty/latest/) |
-  [utopic](https://build.ethdev.com/builds/Linux%20Go%20develop%20deb%20i386-utopic/latest/)
-* [Windows 64-bit](https://build.ethdev.com/builds/Windows%20Go%20develop%20branch/Geth-Win64-latest.zip)
-* [ARM](https://build.ethdev.com/builds/ARM%20Go%20develop%20branch/geth-ARM-latest.tar.bz2)
+Quorum is implemented in a smart contract pre-deployed on address `0x0000000000000000000000000000000000000020` and can be found [here](https://github.com/ethlab/go-ethereum-private/blob/master/core/quorum/block_voting.sol).
+Voters and block makers can be added or removed and the minimum number of votes before a block is selected as winner can be configured.
 
-## Building the source
+## State
 
-For prerequisites and detailed build instructions please read the
-[Installation Instructions](https://github.com/ethereum/go-ethereum/wiki/Building-Ethereum)
-on the wiki.
+Quorum supports dual state:
 
-Building geth requires both a Go and a C compiler.
-You can install them using your favourite package manager.
-Once the dependencies are installed, run
+- public state, accessible by all nodes within the network
+- private state, only accessible by nodes with the correct permissions
 
-    make geth
+The difference is made through the use of transactions with encrypted (private) and non-encrypted payload (public) transactions.
+Nodes can determine if a transaction is private by looking at the V value of the signature.
+Public transactions have a V value of 27 or 28, private transactions have a value of 37 or 38.
 
-or, to build the full suite of utilities:
+If the transaction is private and the node has the ability to decrypt the payload it can execute the transaction.
+Nodes who are not involved in the transaction cannot decrypt the payload and process the transaction.
+As a result all nodes share a common public state which is created through public transactions and have a local unique private state.
 
-    make all
+This model imposes a restriction in the ability to modify state in private transactions.
+Since its a common use case that a (private) contract reads data from a public contract the virtual machine has the ability to jump into read only mode.
+For each call from a private contract to a public contract the virtual machine will change to read only mode.
+If the virtual machine is in read only mode and the code tries to make a stage change the virtual machine stops execution and throws an exception.
 
-## Executables
+The following transactions are allowed:
 
-The go-ethereum project comes with several wrappers/executables found in the `cmd` directory.
-
-| Command    | Description |
-|:----------:|-------------|
-| **`geth`** | Our main Ethereum CLI client. It is the entry point into the Ethereum network (main-, test- or private net), capable of running as a full node (default) archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the Ethereum network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. Please see our [Command Line Options](https://github.com/ethereum/go-ethereum/wiki/Command-Line-Options) wiki page for details. |
-| `abigen` | Source code generator to convert Ethereum contract definitions into easy to use, compile-time type-safe Go packages. It operates on plain [Ethereum contract ABIs](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI) with expanded functionality if the contract bytecode is also available. However it also accepts Solidity source files, making development much more streamlined. Please see our [Native DApps](https://github.com/ethereum/go-ethereum/wiki/Native-DApps:-Go-bindings-to-Ethereum-contracts) wiki page for details. |
-| `bootnode` | Stripped down version of our Ethereum client implementation that only takes part in the network node discovery protocol, but does not run any of the higher level application protocols. It can be used as a lightweight bootstrap node to aid in finding peers in private networks. |
-| `disasm` | Bytecode disassembler to convert EVM (Ethereum Virtual Machine) bytecode into more user friendly assembly-like opcodes (e.g. `echo "6001" | disasm`). For details on the individual opcodes, please see pages 22-30 of the [Ethereum Yellow Paper](http://gavwood.com/paper.pdf). |
-| `evm` | Developer utility version of the EVM (Ethereum Virtual Machine) that is capable of running bytecode snippets within a configurable environment and execution mode. Its purpose is to allow insolated, fine-grained debugging of EVM opcodes (e.g. `evm --code 60ff60ff --debug`). |
-| `gethrpctest` | Developer utility tool to support our [ethereum/rpc-test](https://github.com/ethereum/rpc-tests) test suite which validates baseline conformity to the [Ethereum JSON RPC](https://github.com/ethereum/wiki/wiki/JSON-RPC) specs. Please see the [test suite's readme](https://github.com/ethereum/rpc-tests/blob/master/README.md) for details. |
-| `rlpdump` | Developer utility tool to convert binary RLP ([Recursive Length Prefix](https://github.com/ethereum/wiki/wiki/RLP)) dumps (data encoding used by the Ethereum protocol both network as well as consensus wise) to user friendlier hierarchical representation (e.g. `rlpdump --hex CE0183FFFFFFC4C304050583616263`). |
-
-## Running geth
-
-Going through all the possible command line flags is out of scope here (please consult our
-[CLI Wiki page](https://github.com/ethereum/go-ethereum/wiki/Command-Line-Options)), but we've
-enumerated a few common parameter combos to get you up to speed quickly on how you can run your
-own Geth instance.
-
-### Full node on the main Ethereum network
-
-By far the most common scenario is people wanting to simply interact with the Ethereum network:
-create accounts; transfer funds; deploy and interact with contracts. For this particular use-case
-the user doesn't care about years-old historical data, so we can fast-sync quickly to the current
-state of the network. To do so:
+S: sender, (X): private, X: public, ->: direction, []: read only mode
+```
+1. S -> A -> B
+2. S -> (A) -> (B)
+3. S -> (A) -> [B -> C]
+```
+The following transaction are unsupported:
 
 ```
-$ geth --fast --cache=512 console
+1. (S) -> A
+2. (S) -> (A)
 ```
 
-This command will:
+### State verification
 
- * Start geth in fast sync mode (`--fast`), causing it to download more data in exchange for avoiding
-   processing the entire history of the Ethereum network, which is very CPU intensive.
- * Bump the memory allowance of the database to 512MB (`--cache=512`), which can help significantly in
-   sync times especially for HDD users. This flag is optional and you can set it as high or as low as
-   you'd like, though we'd recommend the 512MB - 2GB range.
- * Start up Geth's built-in interactive [JavaScript console](https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console),
-   (via the trailing `console` subcommand) through which you can invoke all official [`web3` methods](https://github.com/ethereum/wiki/wiki/JavaScript-API)
-   as well as Geth's own [management APIs](https://github.com/ethereum/go-ethereum/wiki/Management-APIs).
-   This too is optional and if you leave it out you can always attach to an already running Geth instance
-   with `geth --attach`.
+To determine if nodes are in sync the public state root hash is included in the block.
+Since private transactions can only be processed by nodes that are involved its impossible to get global consensus on the private state.
+To overcome this issue the RPC method `eth_storageRoot(address[, blockNumber]) -> hash` can be used.
+It returns the storage root for the given address at an (optional) block number.
+If the optional block number is not given the latest block number is used.
+The storage root hash can be on or off chain compared by the parties involved.
 
-### Full node on the Ethereum test network
+## Building Quorum
 
-Transitioning towards developers, if you'd like to play around with creating Ethereum contracts, you
-almost certainly would like to do that without any real money involved until you get the hang of the
-entire system. In other words, instead of attaching to the main network, you want to join the **test**
-network with your node, which is fully equivalent to the main network, but with play-Ether only.
+Clone the repository and build the source:
 
 ```
-$ geth --testnet --fast --cache=512 console
+git clone https://github.com/ethlab/quorum.git
+cd quorum
+make all
 ```
 
-The `--fast`, `--cache` flags and `console` subcommand have the exact same meaning as above and they
-are equially useful on the testnet too. Please see above for their explanations if you've skipped to
-here.
+Binaries are placed within `$REPO_ROOT/build/bin`.
 
-Specifying the `--testnet` flag however will reconfigure your Geth instance a bit:
-
- * Instead of using the default data directory (`~/.ethereum` on Linux for example), Geth will nest
-   itself one level deeper into a `testnet` subfolder (`~/.ethereum/testnet` on Linux).
- * Instead of connecting the main Ethereum network, the client will connect to the test network,
-   which uses different P2P bootnodes, different network IDs and genesis states.
-
-*Note: Although there are some internal protective measures to prevent transactions from crossing
-over between the main network and test network (different starting nonces), you should make sure to
-always use separate accounts for play-money and real-money. Unless you manually move accounts, Geth
-will by default correctly separate the two networks and will not make any accounts available between
-them.*
-
-#### Docker quick start
-
-One of the quickest ways to get Ethereum up and running on your machine is by using Docker:
+Run the tests:
 
 ```
-docker run -d --name ethereum-node -v /Users/alice/ethereum:/root \
-           -p 8545:8545 -p 30303:30303 \
-           ethereum/client-go --fast --cache=512
+make test
 ```
 
-This will start geth in fast sync mode with a DB memory allowance of 512MB just as the above command does.  It will also create a persistent volume in your home directory for saving your blockchain as well as map the default ports. There is also an `alpine` tag available for a slim version of the image.
+## Running Quorum
 
-### Programatically interfacing Geth nodes
+Describing all command line arguments it out of the scope of this document. They can be viewed with: `geth --help`.
 
-As a developer, sooner rather than later you'll want to start interacting with Geth and the Ethereum
-network via your own programs and not manually through the console. To aid this, Geth has built in
-support for a JSON-RPC based APIs ([standard APIs](https://github.com/ethereum/wiki/wiki/JSON-RPC) and
-[Geth specific APIs](https://github.com/ethereum/go-ethereum/wiki/Management-APIs)). These can be
-exposed via HTTP, WebSockets and IPC (unix sockets on unix based platroms, and named pipes on Windows).
+### Initialise chain
 
-The IPC interface is enabled by default and exposes all the APIs supported by Geth, whereas the HTTP
-and WS interfaces need to manually be enabled and only expose a subset of APIs due to security reasons.
-These can be turned on/off and configured as you'd expect.
+The first step is to generate the genesis block.
 
-HTTP based JSON-RPC API options:
+```
+geth init genesis.json
+```
 
-  * `--rpc` Enable the HTTP-RPC server
-  * `--rpcaddr` HTTP-RPC server listening interface (default: "localhost")
-  * `--rpcport` HTTP-RPC server listening port (default: 8545)
-  * `--rpcapi` API's offered over the HTTP-RPC interface (default: "eth,net,web3")
-  * `--rpccorsdomain` Comma separated list of domains from which to accept cross origin requests (browser enforced)
-  * `--ws` Enable the WS-RPC server
-  * `--wsaddr` WS-RPC server listening interface (default: "localhost")
-  * `--wsport` WS-RPC server listening port (default: 8546)
-  * `--wsapi` API's offered over the WS-RPC interface (default: "eth,net,web3")
-  * `--wsorigins` Origins from which to accept websockets requests
-  * `--ipcdisable` Disable the IPC-RPC server
-  * `--ipcapi` API's offered over the IPC-RPC interface (default: "admin,debug,eth,miner,net,personal,shh,txpool,web3")
-  * `--ipcpath` Filename for IPC socket/pipe within the datadir (explicit paths escape it)
+The genesis block should include the Quorum voting contract address `0x0000000000000000000000000000000000000020`.
+The code can be generated with [browser solidity](http://ethereum.github.io/browser-solidity/#version=soljson-latest.js) (note, use the runtime code) or using the solidity compiler `solc --optimize --bin-runtime block_voting.sol`.
 
-You'll need to use your own programming environments' capabilities (libraries, tools, etc) to connect
-via HTTP, WS or IPC to a Geth node configured with the above flags and you'll need to speak [JSON-RPC](http://www.jsonrpc.org/specification)
-on all transports. You can reuse the same connection for multiple requests!
+The `_data/keys` directory contains several keys (empty password) that are used in the example genesis file:
+```
+UTC--2016-11-02T08-55-33.544599174Z--ed9d02e382b34818e88b88a309c7fe71e65f419d    vote key 1
+UTC--2016-11-02T08-55-36.695601929Z--ca843569e3427144cead5e4d5999a3d0ccf92b8e    vote key 2
+UTC--2016-11-02T08-55-39.164648792Z--0fbdc686b912d7722dc86510934589e0aaf3b55a    vote key 3
+UTC--2016-11-02T08-56-07.802508523Z--9186eb3d20cbd1f5f992a950d808c4495153abd5    block maker 1
+UTC--2016-11-02T09-05-09.535511997Z--0638e1574728b6d862dd5d3a3e0942c3be47d996    block maker 2
+```
 
-**Note: Please understand the security implications of opening up an HTTP/WS based transport before
-doing so! Hackers on the internet are actively trying to subvert Ethereum nodes with exposed APIs!
-Further, all browser tabs can access locally running webservers, so malicious webpages could try to
-subvert locally available APIs!**
-
-### Operating a private network
-
-Maintaining your own private network is more involved as a lot of configurations taken for granted in
-the official networks need to be manually set up.
-
-#### Defining the private genesis state
-
-First, you'll need to create the genesis state of your networks, which all nodes need to be aware of
-and agree upon. This consists of a small JSON file (e.g. call it `genesis.json`):
-
-```json
+Example genesis file:
+```
 {
-  "alloc"      : {},
-  "coinbase"   : "0x0000000000000000000000000000000000000000",
-  "difficulty" : "0x20000",
-  "extraData"  : "",
-  "gasLimit"   : "0x2fefd8",
-  "nonce"      : "0x0000000000000042",
-  "mixhash"    : "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "parentHash" : "0x0000000000000000000000000000000000000000000000000000000000000000",
-  "timestamp"  : "0x00"
+  "alloc": {
+    "0x0000000000000000000000000000000000000020": {
+      "code": "606060405236156100c45760e060020a60003504631290948581146100c9578063284d163c146100f957806342169e4814610130578063488099a6146101395780634fe437d514610154578063559c390c1461015d57806368bb8bb61461025d57806372a571fc146102c857806386c1ff681461036957806398ba676d146103a0578063a7771ee31461040b578063adfaa72e14610433578063cf5289851461044e578063de8fa43114610457578063e814d1c71461046d578063f4ab9adf14610494575b610002565b610548600435600160a060020a03331660009081526003602052604090205460ff16156100c45760018190555b50565b610548600435600160a060020a03331660009081526005602052604090205460ff16156100c4576004546001141561055e57610002565b61045b60025481565b61054a60043560056020526000908152604090205460ff1681565b61045b60015481565b61045b60043560006000600060006000600050600186038154811015610002579080526002027f290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e5630192505b60018301548110156105d75760018301805484916000918490811015610002576000918252602080832090910154835282810193909352604091820181205485825292869052205410801561023257506001805490840180548591600091859081101561000257906000526020600020900160005054815260208101919091526040016000205410155b156102555760018301805482908110156100025760009182526020909120015491505b6001016101a8565b610548600435602435600160a060020a03331660009081526003602052604081205460ff16156100c4578054839010156105e45780548084038101808355908290829080158290116105df576002028160020283600052602060002091820191016105df919061066b565b610548600435600160a060020a03331660009081526005602052604090205460ff16156100c457600160a060020a0381166000908152604090205460ff1615156100f65760406000819020805460ff191660019081179091556004805490910190558051600160a060020a038316815290517f1a4ce6942f7aa91856332e618fc90159f13a340611a308f5d7327ba0707e56859181900360200190a16100f6565b610548600435600160a060020a03331660009081526003602052604090205460ff16156100c4576002546001141561071457610002565b61045b600435602435600060006000600050600185038154811015610002579080526002027f290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e5630181509050806001016000508381548110156100025750825250602090200154919050565b61054a600435600160a060020a03811660009081526003602052604090205460ff165b919050565b61054a60043560036020526000908152604090205460ff1681565b61045b60045481565b6000545b60408051918252519081900360200190f35b61054a600435600160a060020a03811660009081526005602052604090205460ff1661042e565b610548600435600160a060020a03331660009081526003602052604090205460ff16156100c457600160a060020a03811660009081526003602052604090205460ff1615156100f65760406000818120600160a060020a0384169182905260036020908152815460ff1916600190811790925560028054909201909155825191825291517f0ad2eca75347acd5160276fe4b5dad46987e4ff4af9e574195e3e9bc15d7e0ff929181900390910190a16100f6565b005b604080519115158252519081900360200190f35b600160a060020a03811660009081526005602052604090205460ff16156100f65760406000819020805460ff19169055600480546000190190558051600160a060020a038316815290517f8cee3054364d6799f1c8962580ad61273d9d38ca1ff26516bd1ad23c099a60229181900360200190a16100f6565b509392505050565b505050505b60008054600019850190811015610002578382526002027f290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563016020819052604082205490925014156106b8578060010160005080548060010182818154818355818115116106a5578183600052602060002091820191016106a5919061068d565b50506002015b808211156106a157600181018054600080835591825260208220610665918101905b808211156106a1576000815560010161068d565b5090565b5050506000928352506020909120018290555b600082815260208281526040918290208054600101905581514381529081018490528151600160a060020a033316927f3d03ba7f4b5227cdb385f2610906e5bcee147171603ec40005b30915ad20e258928290030190a2505050565b600160a060020a03811660009081526003602052604090205460ff16156100f65760406000819020805460ff19169055600280546000190190558051600160a060020a038316815290517f183393fc5cffbfc7d03d623966b85f76b9430f42d3aada2ac3f3deabc78899e89181900360200190a16100f656",
+      "storage": {
+        "0x0000000000000000000000000000000000000000000000000000000000000001": "0x02",
+
+        "0x0000000000000000000000000000000000000000000000000000000000000002": "0x04",
+        "0x29ecdbdf95c7f6ceec92d6150c697aa14abeb0f8595dd58d808842ea237d8494": "0x01",
+        "0x6aa118c6537572d8b515a9f9154be55a3377a8de7991cd23bf6e5ceb368688e3": "0x01",
+        "0x50793743212c6f01d326957d7069005b912f8215f10c7536be6b10782c6c44cd": "0x01",
+        "0x38f6c908c5cc7ca668cec2f476abe61b4dbb1df20f0ad8e07ef5dbf6a2f1ffd4": "0x01",
+
+        "0x0000000000000000000000000000000000000000000000000000000000000004": "0x02",
+        "0xaca3b76ed4968740c3180dd7fa37f4aa229a2c758a848f53920e9ccb4c4bb74e": "0x01",
+        "0xd188ba2dc293670542c1befaf7678b0859e5354a0727d1188b2afb6f47fe24d1": "0x01"
+      }
+    },
+    "0xed9d02e382b34818e88b88a309c7fe71e65f419d": {
+      "balance": "1000000000000000000000000000"
+    },
+    "0xca843569e3427144cead5e4d5999a3d0ccf92b8e": {
+      "balance": "1000000000000000000000000000"
+    },
+    "0x0fbdc686b912d7722dc86510934589e0aaf3b55a": {
+      "balance": "1000000000000000000000000000"
+    },
+    "0x9186eb3d20cbd1f5f992a950d808c4495153abd5": {
+      "balance": "1000000000000000000000000000"
+    },
+    "0xed9d02e382b34818e88b88a309c7fe71e65f419d": {
+      "balance": "1000000000000000000000000000"
+    },
+    "0x0638e1574728b6d862dd5d3a3e0942c3be47d996": {
+      "balance": "1000000000000000000000000000"
+    }
+  },
+  "coinbase": "0x0000000000000000000000000000000000000000",
+  "config": {
+    "homesteadBlock": 0
+  },
+  "difficulty": "0x0",
+  "extraData": "0x",
+  "gasLimit": "0x2FEFD800",
+  "mixhash": "0x00000000000000000000000000000000000000647572616c65787365646c6578",
+  "nonce": "0x0",
+  "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "timestamp": "0x00"
 }
 ```
 
-The above fields should be fine for most purposes, although we'd recommend changing the `nonce` to
-some random value so you prevent unknown remote nodes from being able to connect to you. If you'd
-like to pre-fund some accounts for easier testing, you can populate the `alloc` field with account
-configs:
+The storage key for voters and block makers is calculated with `web3.sha3(<256 bit aligned key value> + <256 bit variable index>)`.
+The console can be used to calculate the storage key, in this case for vote key 1:
+```
+> key = "000000000000000000000000ed9d02e382b34818e88b88a309c7fe71e65f419d" + "0000000000000000000000000000000000000000000000000000000000000003"
+"000000000000000000000000ed9d02e382b34818e88b88a309c7fe71e65f419d0000000000000000000000000000000000000000000000000000000000000003"
+> web3.sha3(key, {"encoding": "hex"})
+"0x29ecdbdf95c7f6ceec92d6150c697aa14abeb0f8595dd58d808842ea237d8494"
+```
 
-```json
-"alloc": {
-  "0x0000000000000000000000000000000000000001": {"balance": "111111111"},
-  "0x0000000000000000000000000000000000000002": {"balance": "222222222"}
+The `genesis.json` file can be found in `_data/gensis.json`.
+
+### Start node
+
+Starting a node is as simple as `geth`. This will start the node without any of the roles and makes the node a spectator.
+
+### Voting role
+
+Start a node with the voting role:
+
+```
+geth --voteaccount 0xed9d02e382b34818e88b88a309c7fe71e65f419d
+```
+
+Optionally the `--votepassword` can be used to unlock the account.
+If this flag is omitted the node will prompt for the password.
+
+### Block maker role
+
+Start a node with the block maker role:
+```
+geth --blockmakeraccount 0x9186eb3d20cbd1f5f992a950d808c4495153abd5
+```
+
+Created blocks will be signed with this account.
+
+Optionally the `--blockmakerpassword` can be used to unlock the account.
+If this flag is omitted the node will prompt for the password.
+
+## Setup multi-node network
+
+Quorum comes with several scripts to setup a private test network with 6 nodes:
+
+* node 1, has both the vote as the block maker role
+* node 2, has the block maker role
+* node 3, has the voting role
+* node 4, has the voting role
+* node 5, has no special roles
+* node 6, has no special roles
+
+
+All scripts can be found in `_data`.
+
+1. Step 1, run `init.sh` and initialise data directories (change variables accordingly)
+2. Step 2, start nodes with `start.sh` (change variables accordingly)
+3. Step 3, stop network with `stop.sh`
+
+### API
+
+Quorum provides an API to inspect the current state of the voting contract.
+ 
+$ quorum.nodeInfo returns the quorum capabilities of this node.
+Example output for a node that is configured as block maker and voter:
+```
+> quorum.nodeInfo
+{
+  blockMakerAccount: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
+  blockmakestrategy: {
+    maxblocktime: 6,
+    minblocktime: 3,
+    status: "active",
+    type: "deadline"
+  },
+  canCreateBlocks: true,
+  canVote: true,
+  voteAccount: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"
 }
 ```
 
-With the genesis state defined in the above JSON file, you'll need to initialize **every** Geth node
-with it prior to starting it up to ensure all blockchain parameters are correctly set:
-
+$ quorum.vote accepts a block hash and votes for this hash to be the canonical head on the current height. It returns the tx hash.
 ```
-$ geth init path/to/genesis.json
-```
-
-#### Creating the rendezvous point
-
-With all nodes that you want to run initialized to the desired genesis state, you'll need to start a
-bootstrap node that others can use to find each other in your network and/or over the internet. The
-clean way is to configure and run a dedicated bootnode:
-
-```
-$ bootnode --genkey=boot.key
-$ bootnode --nodekey=boot.key
+> quorum.vote(eth.getBlock("latest").hash)
+"0x16c69b9bdf9f10c64e65dbfe50bc997d2bc1ed321c6041db602908b7f6cab2a9"
 ```
 
-With the bootnode online, it will display an [`enode` URL](https://github.com/ethereum/wiki/wiki/enode-url-format)
-that other nodes can use to connect to it and exchange peer information. Make sure to replace the
-displayed IP address information (most probably `[::]`) with your externally accessible IP to get the
-actual `enode` URL.
-
-*Note: You could also use a full fledged Geth node as a bootnode, but it's the less recommended way.*
-
-#### Starting up your member nodes
-
-With the bootnode operational and externally reachable (you can try `telnet <ip> <port>` to ensure
-it's indeed reachable), start every subsequent Geth node pointed to the bootnode for peer discovery
-via the `--bootnodes` flag. It will probably also be desirable to keep the data directory of your
-private network separated, so do also specify a custom `--datadir` flag.
-
+$ quorum.canonicalHash accepts a block height and returns the canonical hash for that height (+1 will return the hash where the current pending block will be based on top of).
 ```
-$ geth --datadir=path/to/custom/data/folder --bootnodes=<bootnode-enode-url-from-above>
+> quorum.canonicalHash(eth.blockNumber+1)
+"0xf2c8a36d0c54c7013246fddebfc29bc881f6f10f74f761d511b5ebfaa103adfa"
 ```
 
-*Note: Since your network will be completely cut off from the main and test networks, you'll also
-need to configure a miner to process transactions and create new blocks for you.*
-
-#### Running a private miner
-
-Mining on the public Ethereum network is a complex task as it's only feasible using GPUs, requiring
-an OpenCL or CUDA enabled `ethminer` instance. For information on such a setup, please consult the
-[EtherMining subreddit](https://www.reddit.com/r/EtherMining/) and the [Genoil miner](https://github.com/Genoil/cpp-ethereum)
-repository.
-
-In a private network setting however, a single CPU miner instance is more than enough for practical
-purposes as it can produce a stable stream of blocks at the correct intervals without needing heavy
-resources (consider running on a single thread, no need for multiple ones either). To start a Geth
-instance for mining, run it with all your usual flags, extended by:
-
+$ quorum.isVoter accepts an address and returns an indication if the given address is allowed to vote for new blocks
 ```
-$ geth <usual-flags> --mine --minerthreads=1 --etherbase=0x0000000000000000000000000000000000000000
+> quorum.isVoter("0xed9d02e382b34818e88b88a309c7fe71e65f419d")
+true
 ```
 
-Which will start mining bocks and transactions on a single CPU thread, crediting all proceedings to
-the account specified by `--etherbase`. You can further tune the mining by changing the default gas
-limit blocks converge to (`--targetgaslimit`) and the price transactions are accepted at (`--gasprice`).
+$ quorum.isBlockMaker accepts an address and returns an indication if the given address is allowed to make blocks
+```
+> quorum.isBlockMaker("0xed9d02e382b34818e88b88a309c7fe71e65f419d")
+true
+```
 
-## Contribution
+$ quorum.makeBlock() orders the node to create a block bypassing block maker strategy.
+```
+> quorum.makeBlock()
+"0x3a07e82a48ab3c19a3d09d247e189e3a3041d1d9eafd2e1515b4ddd5b016bfd9"
+```
 
-Thank you for considering to help out with the source code! We welcome contributions from
-anyone on the internet, and are grateful for even the smallest of fixes!
+$ quorum.pauseBlockMaker (temporary) orders the node to stop creating blocks
+```
+> quorum.pauseBlockMaker()
+null
+> quorum.nodeInfo
+{
+  blockMakerAccount: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
+  blockmakestrategy: {
+    maxblocktime: 6,
+    minblocktime: 3,
+    status: "paused",
+    type: "deadline"
+  },
+  canCreateBlocks: true,
+  canVote: true,
+  voteAccount: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"
+}
+```
 
-If you'd like to contribute to go-ethereum, please fork, fix, commit and send a pull request
-for the maintainers to review and merge into the main code base. If you wish to submit more
-complex changes though, please check up with the core devs first on [our gitter channel](https://gitter.im/ethereum/go-ethereum)
-to ensure those changes are in line with the general philosophy of the project and/or get some
-early feedback which can make both your efforts much lighter as well as our review and merge
-procedures quick and simple.
+$ quorum.resumeBlockMaker instructs the node stop begin creating blocks again when its paused.
+```
+> quorum.resumeBlockMaker()
+null
+> quorum.nodeInfo
+{
+  blockMakerAccount: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
+  blockmakestrategy: {
+    maxblocktime: 6,
+    minblocktime: 3,
+    status: "active",
+    type: "deadline"
+  },
+  canCreateBlocks: true,
+  canVote: true,
+  voteAccount: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"
+}
+```
 
-Please make sure your contributions adhere to our coding guidelines:
-
- * Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
- * Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
- * Pull requests need to be based on and opened against the `develop` branch.
- * Commit messages should be prefixed with the package(s) they modify.
-   * E.g. "eth, rpc: make trace configs optional"
-
-Please see the [Developers' Guide](https://github.com/ethereum/go-ethereum/wiki/Developers'-Guide)
-for more details on configuring your environment, managing project dependencies and testing procedures.
+## Command line flags
+```
+QUORUM OPTIONS:
+  --voteaccount value		    Address that is used to vote for blocks
+  --votepassword value		    Password to unlock the voting address
+  --blockmakeraccount value	    Address that is used to create blocks
+  --blockmakerpassword value	Password to unlock the block maker address
+  --singleblockmaker		    Indicate this node is the only node that can create blocks
+  --minblocktime value		    Set minimum block time (default: 3)
+  --maxblocktime value		    Set max block time (default: 10)
+```
 
 ## License
 
