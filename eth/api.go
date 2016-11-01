@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/net/context"
 )
 
@@ -57,6 +58,34 @@ func (s *PublicEthereumAPI) Etherbase() (common.Address, error) {
 // Coinbase is the address that mining rewards will be send to (alias for Etherbase)
 func (s *PublicEthereumAPI) Coinbase() (common.Address, error) {
 	return s.Etherbase()
+}
+
+// StorageRoot returns the storage root of an account on the the given (optional) block height.
+// If block number is not given the latest block is used.
+func (s *PublicEthereumAPI) StorageRoot(addr common.Address, blockNr *rpc.BlockNumber) (common.Hash, error) {
+	var (
+		pub, priv *state.StateDB
+		err       error
+	)
+
+	if blockNr == nil || blockNr.Int64() == rpc.LatestBlockNumber.Int64() {
+		pub, priv, err = s.e.blockchain.State()
+	} else {
+		if ch := s.e.blockchain.GetHeaderByNumber(uint64(blockNr.Int64())); ch != nil {
+			pub, priv, err = s.e.blockchain.StateAt(ch.Root)
+		} else {
+			return common.Hash{}, fmt.Errorf("invalid block number")
+		}
+	}
+
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	if priv.Exist(addr) {
+		return priv.GetStorageRoot(addr)
+	}
+	return pub.GetStorageRoot(addr)
 }
 
 // PrivateAdminAPI is the collection of Etheruem full node-related APIs

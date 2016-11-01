@@ -146,6 +146,10 @@ func (c *StateObject) getTrie(db trie.Database) *trie.SecureTrie {
 	return c.trie
 }
 
+func (so *StateObject) storageRoot(db trie.Database) common.Hash {
+	return so.getTrie(db).Hash()
+}
+
 // GetState returns a value in account storage.
 func (self *StateObject) GetState(db trie.Database, key common.Hash) common.Hash {
 	value, exists := self.cachedStorage[key]
