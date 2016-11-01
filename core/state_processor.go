@@ -17,6 +17,7 @@
 package core
 
 import (
+	"bytes"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/core/state"
@@ -84,8 +85,9 @@ func (p *StateProcessor) Process(block *types.Block, publicState, privateState *
 // ApplyTransactions returns the generated receipts and vm logs during the
 // execution of the state transition phase.
 func ApplyTransaction(config *ChainConfig, bc *BlockChain, gp *GasPool, publicState, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *big.Int, cfg vm.Config) (*types.Receipt, vm.Logs, *big.Int, error) {
-	// TODO Obviously this needs to be a real check
-	if /*tx.is_a_public_transaction*/ true {
+	txData := tx.Data()
+	private := len(txData) > 4 && bytes.Equal(txData[:4], crypto.Keccak256(txData[4:])[:4])
+	if !private {
 		privateState = publicState
 	}
 	_, gas, err := ApplyMessage(NewEnv(publicState, privateState, config, bc, tx, header, cfg), tx, gp)
