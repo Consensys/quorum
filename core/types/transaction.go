@@ -294,6 +294,10 @@ func (tx *Transaction) SignatureValues() (v byte, r *big.Int, s *big.Int) {
 	return tx.data.V, new(big.Int).Set(tx.data.R), new(big.Int).Set(tx.data.S)
 }
 
+func (tx *Transaction) IsPrivate() bool {
+	return tx.data.V == 37 || tx.data.V == 38
+}
+
 func (tx *Transaction) publicKey(homestead bool) ([]byte, error) {
 	if !crypto.ValidateSignatureValues(tx.data.V, tx.data.R, tx.data.S, homestead) {
 		return nil, ErrInvalidSig
@@ -305,6 +309,9 @@ func (tx *Transaction) publicKey(homestead bool) ([]byte, error) {
 	copy(sig[32-len(r):32], r)
 	copy(sig[64-len(s):64], s)
 	sig[64] = tx.data.V - 27
+	if tx.data.V > 28 {
+		sig[64] -= 10
+	}
 
 	// recover the public key from the signature
 	hash := tx.SigHash()
