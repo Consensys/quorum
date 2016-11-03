@@ -67,6 +67,9 @@ type VMEnv struct {
 	getHashFn func(uint64) common.Hash // getHashFn callback is used to retrieve block hashes
 }
 
+// NewEnv creates a new environment for executing a transaction.
+// In case the transaction is public its the responsibility from
+// the caller to supply publicState for the privateState argument.
 func NewEnv(publicState, privateState *state.StateDB, chainConfig *ChainConfig, chain *BlockChain, msg Message, header *types.Header, cfg vm.Config) *VMEnv {
 	env := &VMEnv{
 		chainConfig:  chainConfig,
