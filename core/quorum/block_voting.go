@@ -85,14 +85,13 @@ type CreateBlock struct {
 // Note, don't forget to call Start.
 func NewBlockVoting(bc *core.BlockChain, chainConfig *core.ChainConfig, txpool *core.TxPool, mux *event.TypeMux, db ethdb.Database, accountMgr *accounts.Manager, isSynchronised bool) *BlockVoting {
 	bv := &BlockVoting{
-		bc:       bc,
-		cc:       chainConfig,
-		txpool:   txpool,
-		mux:      mux,
-		db:       db,
-		am:       accountMgr,
-		synced:   isSynchronised,
-		gasPrice: new(big.Int).Mul(big.NewInt(10), common.Shannon),
+		bc:     bc,
+		cc:     chainConfig,
+		txpool: txpool,
+		mux:    mux,
+		db:     db,
+		am:     accountMgr,
+		synced: isSynchronised,
 	}
 
 	return bv

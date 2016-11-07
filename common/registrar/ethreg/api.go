@@ -223,7 +223,6 @@ func (be *registryAPIBackend) Transact(fromStr, toStr, nonceStr, valueStr, gasSt
 		to               = common.HexToAddress(toStr)
 		value            = common.Big(valueStr)
 		gas              *big.Int
-		price            *big.Int
 		data             []byte
 		contractCreation bool
 	)
@@ -232,12 +231,6 @@ func (be *registryAPIBackend) Transact(fromStr, toStr, nonceStr, valueStr, gasSt
 		gas = big.NewInt(90000)
 	} else {
 		gas = common.Big(gasStr)
-	}
-
-	if len(gasPriceStr) == 0 {
-		price = big.NewInt(10000000000000)
-	} else {
-		price = common.Big(gasPriceStr)
 	}
 
 	data = common.FromHex(codeStr)
@@ -252,9 +245,9 @@ func (be *registryAPIBackend) Transact(fromStr, toStr, nonceStr, valueStr, gasSt
 
 	var tx *types.Transaction
 	if contractCreation {
-		tx = types.NewContractCreation(nonce, value, gas, price, data)
+		tx = types.NewContractCreation(nonce, value, gas, nil, data)
 	} else {
-		tx = types.NewTransaction(nonce, to, value, gas, price, data)
+		tx = types.NewTransaction(nonce, to, value, gas, nil, data)
 	}
 
 	signature, err := be.am.SignEthereum(from, tx.SigHash().Bytes())

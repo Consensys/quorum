@@ -22,6 +22,8 @@ import (
 	"io"
 	"io/ioutil"
 
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -58,5 +60,6 @@ func NewKeyedTransactor(key *ecdsa.PrivateKey) *TransactOpts {
 			}
 			return tx.WithSignature(signature)
 		},
+		GasPrice: new(big.Int),
 	}
 }

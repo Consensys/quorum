@@ -169,11 +169,6 @@ var (
 		Usage: "Public address for block mining rewards (default = first account created)",
 		Value: "0",
 	}
-	GasPriceFlag = cli.StringFlag{
-		Name:  "gasprice",
-		Usage: "Minimal gas price to accept for mining a transactions",
-		Value: common.Big0.String(),
-	}
 	ExtraDataFlag = cli.StringFlag{
 		Name:  "extradata",
 		Usage: "Block extra data set by the miner (default = client version)",
@@ -338,38 +333,6 @@ var (
 		Name:  "solc",
 		Usage: "Solidity compiler command to be used",
 		Value: "solc",
-	}
-
-	// Gas price oracle settings
-	GpoMinGasPriceFlag = cli.StringFlag{
-		Name:  "gpomin",
-		Usage: "Minimum suggested gas price",
-		Value: new(big.Int).Mul(big.NewInt(20), common.Shannon).String(),
-	}
-	GpoMaxGasPriceFlag = cli.StringFlag{
-		Name:  "gpomax",
-		Usage: "Maximum suggested gas price",
-		Value: new(big.Int).Mul(big.NewInt(500), common.Shannon).String(),
-	}
-	GpoFullBlockRatioFlag = cli.IntFlag{
-		Name:  "gpofull",
-		Usage: "Full block threshold for gas price calculation (%)",
-		Value: 80,
-	}
-	GpobaseStepDownFlag = cli.IntFlag{
-		Name:  "gpobasedown",
-		Usage: "Suggested gas price base step down ratio (1/1000)",
-		Value: 10,
-	}
-	GpobaseStepUpFlag = cli.IntFlag{
-		Name:  "gpobaseup",
-		Usage: "Suggested gas price base step up ratio (1/1000)",
-		Value: 100,
-	}
-	GpobaseCorrectionFactorFlag = cli.IntFlag{
-		Name:  "gpobasecf",
-		Usage: "Suggested gas price base correction factor (%)",
-		Value: 110,
 	}
 	// Quorum flags
 	VoteAccountFlag = cli.StringFlag{
@@ -688,27 +651,20 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 	}
 
 	ethConf := &eth.Config{
-		Etherbase:               MakeEtherbase(stack.AccountManager(), ctx),
-		ChainConfig:             MakeChainConfig(ctx, stack),
-		SingleBlockMaker:        ctx.GlobalBool(SingleBlockMakerFlag.Name),
-		DatabaseCache:           ctx.GlobalInt(CacheFlag.Name),
-		DatabaseHandles:         MakeDatabaseHandles(),
-		NetworkId:               ctx.GlobalInt(NetworkIdFlag.Name),
-		ExtraData:               MakeMinerExtra(extra, ctx),
-		NatSpec:                 ctx.GlobalBool(NatspecEnabledFlag.Name),
-		DocRoot:                 ctx.GlobalString(DocRootFlag.Name),
-		EnableJit:               jitEnabled,
-		ForceJit:                ctx.GlobalBool(VMForceJitFlag.Name),
-		GasPrice:                common.String2Big(ctx.GlobalString(GasPriceFlag.Name)),
-		GpoMinGasPrice:          common.String2Big(ctx.GlobalString(GpoMinGasPriceFlag.Name)),
-		GpoMaxGasPrice:          common.String2Big(ctx.GlobalString(GpoMaxGasPriceFlag.Name)),
-		GpoFullBlockRatio:       ctx.GlobalInt(GpoFullBlockRatioFlag.Name),
-		GpobaseStepDown:         ctx.GlobalInt(GpobaseStepDownFlag.Name),
-		GpobaseStepUp:           ctx.GlobalInt(GpobaseStepUpFlag.Name),
-		GpobaseCorrectionFactor: ctx.GlobalInt(GpobaseCorrectionFactorFlag.Name),
-		SolcPath:                ctx.GlobalString(SolcPathFlag.Name),
-		VoteMinBlockTime:        uint(ctx.GlobalInt(VoteMinBlockTimeFlag.Name)),
-		VoteMaxBlockTime:        uint(ctx.GlobalInt(VoteMaxBlockTimeFlag.Name)),
+		Etherbase:        MakeEtherbase(stack.AccountManager(), ctx),
+		ChainConfig:      MakeChainConfig(ctx, stack),
+		SingleBlockMaker: ctx.GlobalBool(SingleBlockMakerFlag.Name),
+		DatabaseCache:    ctx.GlobalInt(CacheFlag.Name),
+		DatabaseHandles:  MakeDatabaseHandles(),
+		NetworkId:        ctx.GlobalInt(NetworkIdFlag.Name),
+		ExtraData:        MakeMinerExtra(extra, ctx),
+		NatSpec:          ctx.GlobalBool(NatspecEnabledFlag.Name),
+		DocRoot:          ctx.GlobalString(DocRootFlag.Name),
+		EnableJit:        jitEnabled,
+		ForceJit:         ctx.GlobalBool(VMForceJitFlag.Name),
+		SolcPath:         ctx.GlobalString(SolcPathFlag.Name),
+		VoteMinBlockTime: uint(ctx.GlobalInt(VoteMinBlockTimeFlag.Name)),
+		VoteMaxBlockTime: uint(ctx.GlobalInt(VoteMaxBlockTimeFlag.Name)),
 	}
 
 	// Override any default configs in dev mode or the test net
@@ -728,9 +684,6 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 
 	case ctx.GlobalBool(DevModeFlag.Name):
 		ethConf.Genesis = core.OlympicGenesisBlock()
-		if !ctx.GlobalIsSet(GasPriceFlag.Name) {
-			ethConf.GasPrice = new(big.Int)
-		}
 		ethConf.PowTest = true
 	}
 	// Override any global options pertaining to the Ethereum protocol

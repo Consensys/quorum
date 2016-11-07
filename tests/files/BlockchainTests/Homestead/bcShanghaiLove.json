@@ -25,7 +25,7 @@
                     {
                         "data" : "0x",
                         "gasLimit" : "0x44aa20",
-                        "gasPrice" : "0x01",
+                        "gasPrice" : "0x00",
                         "nonce" : "0x00",
                         "r" : "0x836bdd27c1abba1a55221bc86f6f048c9e364680eebf9f3ab9b6c7ae462b76ee",
                         "s" : "0x0c6fbd2f365de9e87436d2ac7635b709093038befc6ec9933ee936ab0b4a24b6",
