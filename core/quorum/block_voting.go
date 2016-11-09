@@ -11,8 +11,6 @@ import (
 
 	"time"
 
-	"strings"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -256,7 +254,9 @@ func (bv *BlockVoting) run(strat BlockMakerStrategy) {
 					} else if err != nil && e.Err != nil {
 						e.Err <- err
 					} else if err != nil {
-						glog.Errorf("Unable to vote: %v", err)
+						if glog.V(logger.Debug) {
+							glog.Errorf("Unable to vote: %v", err)
+						}
 					}
 				case CreateBlock:
 					block, err := bv.createBlock()
@@ -376,9 +376,6 @@ func (bv *BlockVoting) vote(height *big.Int, hash common.Hash) (common.Hash, err
 
 	tx, err := bv.voteSession.Vote(height, hash)
 	if err != nil {
-		if strings.HasPrefix(err.Error(), "Nonce too low") {
-			panic(err)
-		}
 		return common.Hash{}, err
 	}
 

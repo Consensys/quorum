@@ -77,6 +77,7 @@ func NewEnv(publicState, privateState *state.StateDB, chainConfig *ChainConfig, 
 		msg:          msg,
 		getHashFn:    GetHashFn(header.ParentHash, chain),
 	}
+
 	env.Push(privateState)
 
 	env.evm = vm.New(env, cfg)

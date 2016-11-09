@@ -19,7 +19,6 @@ contract BlockVoting {
 	// Raised when an address is not allowed to make blocks anymore.
 	event RemovedBlockMaker(address);
 
-
     // The period in which voters can vote for a block that is selected
     // as the new head of the chain.
 	struct Period {

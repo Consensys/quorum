@@ -209,7 +209,7 @@ func (b *SimulatedBackend) EstimateGas(ctx context.Context, call ethereum.CallMs
 func (b *SimulatedBackend) callContract(ctx context.Context, call ethereum.CallMsg, block *types.Block, public, private *state.StateDB) ([]byte, *big.Int, error) {
 	// Ensure message is initialized properly.
 	if call.GasPrice == nil {
-		call.GasPrice = big.NewInt(1)
+		call.GasPrice = big.NewInt(0)
 	}
 	if call.Gas == nil || call.Gas.BitLen() == 0 {
 		call.Gas = big.NewInt(50000000)
