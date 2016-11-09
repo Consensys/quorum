@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/quorum"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 var (
@@ -60,7 +61,7 @@ func genesisBlock(voteThreshold int) string {
 		addrVoteKey1.Hex(),
 		addrVoteKey2.Hex(),
 		addrBlockMaker1.Hex(),
-		quorum.BlockVotingContractAddress.Hex(),
+		params.QuorumVotingContractAddr.Hex(),
 		quorum.RuntimeCode,
 		voteThreshold,
 	)

@@ -20,7 +20,9 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"math/big"
+	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -118,6 +120,92 @@ func TestRecipientNormal(t *testing.T) {
 	}
 }
 
+func TestTransactionsByPriorityNonceSort(t *testing.T) {
+	votingContractAddr := common.HexToAddress("0x0000000000000000000000000000000000000020")
+
+	// Generate a batch of accounts to start with
+	keys := make([]*ecdsa.PrivateKey, 50)
+	for i := 0; i < len(keys); i++ {
+		keys[i], _ = crypto.GenerateKey()
+	}
+
+	// Generate a batch of transactions with overlapping values, but shifted nonces
+	groups := map[common.Address]Transactions{}
+
+	rand.Seed(time.Now().UnixNano())
+	for start, key := range keys {
+		addr := crypto.PubkeyToAddress(key.PublicKey)
+		for i := 0; i < 5; i++ {
+			var tx *Transaction
+			switch rand.Int() % 3 {
+			case 0:
+				tx, _ = NewTransaction(uint64(i), votingContractAddr, big.NewInt(100), big.NewInt(100), big.NewInt(int64(start+1)), nil).SignECDSA(key)
+			case 1:
+				tx, _ = NewTransaction(uint64(i), common.Address{}, big.NewInt(100), big.NewInt(100), big.NewInt(int64(start+1)), nil).SignECDSA(key)
+			default:
+				tx, _ = NewContractCreation(uint64(i), common.Big0, common.MaxBig, common.Big0, []byte{0}).SignECDSA(key)
+			}
+
+			groups[addr] = append(groups[addr], tx)
+		}
+	}
+
+	txset := NewTransactionsByPriorityAndNonce(groups)
+
+	txs := Transactions{}
+	for {
+		if tx := txset.Peek(); tx != nil {
+			txs = append(txs, tx)
+			txset.Shift()
+		} else {
+			break
+		}
+	}
+
+	for i, txi := range txs {
+		fromi, _ := txi.From()
+
+		// Make sure the nonce order is valid
+		for j, txj := range txs[i+1:] {
+			fromj, _ := txj.From()
+			if fromi == fromj && txi.Nonce() > txj.Nonce() {
+				t.Errorf("invalid nonce ordering: tx #%d (A=%x N=%v) < tx #%d (A=%x N=%v)", i, fromi[:4], txi.Nonce(), i+j, fromj[:4], txj.Nonce())
+			}
+		}
+	}
+
+	// first first non prioritised transaction
+	index := 0
+	for i, tx := range txs {
+		// search first non prioritized transaction
+		to := tx.To()
+		if to != nil && *to != votingContractAddr {
+			index = i
+			break
+		}
+	}
+
+	// ensure that all transaction after this point are non-prioritized
+	gotNonPrioritised := make(map[common.Address]bool)
+	for i, tx := range txs[index:] {
+		from, _ := tx.From()
+
+		if _, ok := gotNonPrioritised[from]; ok { // got an non-prioritised before this one which, this tx is always good
+			continue
+		} else { // didn't got a non-prioritised tx before this one, ensure this tx has no priority
+			to := tx.To()
+			if to != nil && *to == votingContractAddr {
+				for n, trans := range txs {
+					transFrom, _ := trans.From()
+					t.Logf("Tx[%d] nonce: %d, from: %x, to: %x", n, trans.Nonce(), transFrom, trans.To())
+				}
+				t.Fatalf("Found a priority tx on index %d that hasn't got no priority is should have", index+i)
+			}
+			gotNonPrioritised[from] = true
+		}
+	}
+}
+
 // Tests that transactions can be correctly sorted according to their price in
 // decreasing order, but at the same time with increasing nonces when issued by
 // the same account.
@@ -144,8 +232,9 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 		if tx := txset.Peek(); tx != nil {
 			txs = append(txs, tx)
 			txset.Shift()
+		} else {
+			break
 		}
-		break
 	}
 	for i, txi := range txs {
 		fromi, _ := txi.From()

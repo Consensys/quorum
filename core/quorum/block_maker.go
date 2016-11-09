@@ -60,7 +60,7 @@ func (ps *pendingState) applyTransaction(tx *types.Transaction, bc *core.BlockCh
 	return nil, logs
 }
 
-func (ps *pendingState) applyTransactions(txs *types.TransactionsByPriceAndNonce, mux *event.TypeMux, bc *core.BlockChain, cc *core.ChainConfig) (types.Transactions, types.Transactions) {
+func (ps *pendingState) applyTransactions(txs *types.TransactionsByPriorityAndNonce, mux *event.TypeMux, bc *core.BlockChain, cc *core.ChainConfig) (types.Transactions, types.Transactions) {
 	var (
 		lowGasTxs types.Transactions
 		failedTxs types.Transactions

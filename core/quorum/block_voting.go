@@ -24,12 +24,8 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
-)
-
-var (
-	// Block voting contract is deployed on BlockVotingContractAddress in the genesis block.
-	BlockVotingContractAddress = common.HexToAddress("0x0000000000000000000000000000000000000020")
 )
 
 const (
@@ -105,7 +101,7 @@ func NewBlockVoting(bc *core.BlockChain, chainConfig *core.ChainConfig, txpool *
 func (bv *BlockVoting) resetPendingState(parent *types.Block) {
 	statedb, _, err := bv.bc.StateAt(parent.Root())
 	if err != nil {
-		panic(fmt.Sprintf("State corrupt: ", err))
+		panic(fmt.Sprintf("State corrupt: %v", err))
 	}
 
 	ps := &pendingState{
@@ -118,7 +114,7 @@ func (bv *BlockVoting) resetPendingState(parent *types.Block) {
 
 	ps.gp.AddGas(ps.header.GasLimit)
 
-	txs := types.NewTransactionsByPriceAndNonce(bv.txpool.Pending())
+	txs := types.NewTransactionsByPriorityAndNonce(bv.txpool.Pending())
 
 	lowGasTxs, failedTxs := ps.applyTransactions(txs, bv.mux, bv.bc, bv.cc)
 	bv.txpool.RemoveBatch(lowGasTxs)
@@ -165,14 +161,14 @@ func (bv *BlockVoting) Start(client *rpc.Client, strat BlockMakerStrategy, voteK
 	bv.vk = voteKey
 
 	ethClient := ethclient.NewClient(client)
-	callContract, err := NewVotingContractCaller(BlockVotingContractAddress, ethClient)
+	callContract, err := NewVotingContractCaller(params.QuorumVotingContractAddr, ethClient)
 	if err != nil {
 		return err
 	}
 	bv.callContract = callContract
 
 	if voteKey != nil {
-		contract, err := NewVotingContract(BlockVotingContractAddress, ethClient)
+		contract, err := NewVotingContract(params.QuorumVotingContractAddr, ethClient)
 		if err != nil {
 			return err
 		}
@@ -290,7 +286,7 @@ func (bv *BlockVoting) run(strat BlockMakerStrategy) {
 func (bv *BlockVoting) applyTransaction(tx *types.Transaction) {
 	acc, _ := tx.From()
 	txs := map[common.Address]types.Transactions{acc: types.Transactions{tx}}
-	txset := types.NewTransactionsByPriceAndNonce(txs)
+	txset := types.NewTransactionsByPriorityAndNonce(txs)
 
 	bv.pStateMu.Lock()
 	bv.pState.applyTransactions(txset, bv.mux, bv.bc, bv.cc)
@@ -342,9 +338,6 @@ func (bv *BlockVoting) createBlock() (*types.Block, error) {
 			l.BlockHash = header.Hash()
 		}
 	}
-	//for _, log := range logs {
-	//	log.BlockHash = header.Hash()
-	//}
 
 	header.Bloom = types.CreateBloom(receipts)
 

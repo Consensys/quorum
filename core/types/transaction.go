@@ -28,6 +28,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -461,6 +462,41 @@ type TransactionsByPriceAndNonce struct {
 	heads TxByPrice                       // Next transaction for each unique account (price heap)
 }
 
+type TransactionsByPriorityAndNonce struct {
+	txs   map[common.Address]Transactions
+	heads TxByPriority
+}
+
+// TxByPriority implements both sort and the heap interface, making it useful
+// for all at once sorting as well as individual adding and removing elements.
+//
+// It will prioritise transaction to the voting contract.
+type TxByPriority Transactions
+
+func (s TxByPriority) Len() int { return len(s) }
+func (s TxByPriority) Less(i, j int) bool {
+	var (
+		iRecipient = s[i].data.Recipient
+		jRecipient = s[j].data.Recipient
+	)
+
+	// in case iReceipt is towards the voting contract and jRecipient is not towards the voting contract
+	// iReceipt is "smaller".
+	return iRecipient != nil && *iRecipient == params.QuorumVotingContractAddr && (jRecipient == nil || *jRecipient != params.QuorumVotingContractAddr)
+}
+
+func (s TxByPriority) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s *TxByPriority) Push(x interface{}) {
+	*s = append(*s, x.(*Transaction))
+}
+func (s *TxByPriority) Pop() interface{} {
+	old := *s
+	n := len(old)
+	x := old[n-1]
+	*s = old[0 : n-1]
+	return x
+}
+
 // NewTransactionsByPriceAndNonce creates a transaction set that can retrieve
 // price sorted transactions in a nonce-honouring way.
 //
@@ -480,6 +516,46 @@ func NewTransactionsByPriceAndNonce(txs map[common.Address]Transactions) *Transa
 		txs:   txs,
 		heads: heads,
 	}
+}
+
+// NewTransactionsByPriorityAndNonce creates a transaction set that can retrieve
+// vote tx sorted transactions in a nonce-honouring way.
+//
+// Note, the input map is reowned so the caller should not interact any more with
+// it after providing it to the constructor.
+func NewTransactionsByPriorityAndNonce(txs map[common.Address]Transactions) *TransactionsByPriorityAndNonce {
+	heads := make(TxByPriority, 0, len(txs))
+	for acc, accTxs := range txs {
+		heads = append(heads, accTxs[0])
+		txs[acc] = accTxs[1:]
+	}
+	heap.Init(&heads)
+
+	return &TransactionsByPriorityAndNonce{
+		txs:   txs,
+		heads: heads,
+	}
+}
+
+func (t *TransactionsByPriorityAndNonce) Peek() *Transaction {
+	if len(t.heads) == 0 {
+		return nil
+	}
+	return t.heads[0]
+}
+
+func (t *TransactionsByPriorityAndNonce) Shift() {
+	acc, _ := t.heads[0].From()
+	if txs, ok := t.txs[acc]; ok && len(txs) > 0 {
+		t.heads[0], t.txs[acc] = txs[0], txs[1:]
+		heap.Fix(&t.heads, 0)
+	} else {
+		heap.Pop(&t.heads)
+	}
+}
+
+func (t *TransactionsByPriorityAndNonce) Pop() {
+	heap.Pop(&t.heads)
 }
 
 // Peek returns the next transaction by price.
