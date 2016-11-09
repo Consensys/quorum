@@ -98,12 +98,20 @@ func (b *EthApiBackend) GetTd(blockHash common.Hash) *big.Int {
 }
 
 func (b *EthApiBackend) GetVMEnv(ctx context.Context, msg core.Message, state ethapi.State, header *types.Header) (vm.Environment, func() error, error) {
-	statedb := state.(EthApiState)
+	var (
+		statedb      = state.(EthApiState)
+		publicState  = statedb.publicState
+		privateState = statedb.privateState
+	)
+
 	addr, _ := msg.From()
-	from := statedb.publicState.GetOrNewStateObject(addr)
+	if !privateState.Exist(addr) {
+		privateState = publicState
+	}
+	from := privateState.GetOrNewStateObject(addr)
 	from.SetBalance(common.MaxBig)
 	vmError := func() error { return nil }
-	return core.NewEnv(statedb.publicState, statedb.privateState, b.eth.chainConfig, b.eth.blockchain, msg, header, b.eth.chainConfig.VmConfig), vmError, nil
+	return core.NewEnv(publicState, privateState, b.eth.chainConfig, b.eth.blockchain, msg, header, b.eth.chainConfig.VmConfig), vmError, nil
 }
 
 func (b *EthApiBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
