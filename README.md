@@ -68,7 +68,7 @@ The storage root hash can be on or off chain compared by the parties involved.
 Clone the repository and build the source:
 
 ```
-git clone https://github.com/ethlab/quorum.git
+git clone https://github.com/jpmorganchase/quorum.git
 cd quorum
 make all
 ```
