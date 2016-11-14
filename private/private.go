@@ -3,7 +3,7 @@ package private
 import (
 	"os"
 
-	"github.com/jpmorganchase/quorum/private/constellation"
+	"github.com/ethereum/go-ethereum/private/constellation"
 )
 
 type PrivateTransactionManager interface {
