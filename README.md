@@ -85,7 +85,7 @@ make test
 
 Describing all command line arguments it out of the scope of this document. They can be viewed with: `geth --help`.
 
-### Initialise chain
+### Initialize chain
 
 The first step is to generate the genesis block.
 
@@ -198,19 +198,18 @@ If this flag is omitted the node will prompt for the password.
 
 ## Setup multi-node network
 
-Quorum comes with several scripts to setup a private test network with 6 nodes:
+Quorum comes with several scripts to setup a private test network with 7 nodes:
 
-* node 1, has both the vote as the block maker role
+* node 1, has no special roles
 * node 2, has the block maker role
-* node 3, has the voting role
+* node 3, has no special roles
 * node 4, has the voting role
-* node 5, has no special roles
+* node 5, has the voting role
 * node 6, has no special roles
-
 
 All scripts can be found in the `7nodes` folder in the `quorum-examples` repository.
 
-1. Step 1, run `init.sh` and initialise data directories (change variables accordingly)
+1. Step 1, run `init.sh` and initialize data directories (change variables accordingly)
 2. Step 2, start nodes with `start.sh` (change variables accordingly)
 3. Step 3, stop network with `stop.sh`
 
