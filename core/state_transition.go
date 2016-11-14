@@ -245,7 +245,7 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 	} else {
 		data = self.data
 	}
-	
+
 	homestead := self.env.RuleSet().IsHomestead(self.env.BlockNumber())
 	contractCreation := MessageCreatesContract(msg)
 	// Pay intrinsic gas
