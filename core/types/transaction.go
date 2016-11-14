@@ -299,6 +299,14 @@ func (tx *Transaction) IsPrivate() bool {
 	return tx.data.V == 37 || tx.data.V == 38
 }
 
+func (tx *Transaction) SetPrivate() {
+	if tx.data.V == 28 {
+		tx.data.V = 38
+	} else {
+		tx.data.V = 37
+	}
+}
+
 func (tx *Transaction) publicKey(homestead bool) ([]byte, error) {
 	if !crypto.ValidateSignatureValues(tx.data.V, tx.data.R, tx.data.S, homestead) {
 		return nil, ErrInvalidSig

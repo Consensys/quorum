@@ -21,10 +21,12 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private"
 )
 
 var (
@@ -234,17 +236,27 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 	msg := self.msg
 	sender, _ := self.from() // err checked in preCheck
 
+	var data []byte
+	if tx, ok := msg.(*types.Transaction); ok && tx.IsPrivate() {
+		data, err = private.P.Receive(self.data)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	} else {
+		data = self.data
+	}
+	
 	homestead := self.env.RuleSet().IsHomestead(self.env.BlockNumber())
 	contractCreation := MessageCreatesContract(msg)
 	// Pay intrinsic gas
-	if err = self.useGas(IntrinsicGas(self.data, contractCreation, homestead)); err != nil {
+	if err = self.useGas(IntrinsicGas(data, contractCreation, homestead)); err != nil {
 		return nil, nil, nil, InvalidTxError(err)
 	}
 
 	vmenv := self.env
 	//var addr common.Address
 	if contractCreation {
-		ret, _, err = vmenv.Create(sender, self.data, self.gas, self.gasPrice, self.value)
+		ret, _, err = vmenv.Create(sender, data, self.gas, self.gasPrice, self.value)
 		if homestead && err == vm.CodeStoreOutOfGasError {
 			self.gas = Big0
 		}
@@ -260,7 +272,7 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 		}
 		// Increment the nonce for the next transaction
 		state.SetNonce(sender.Address(), state.GetNonce(sender.Address())+1)
-		ret, err = vmenv.Call(sender, self.to().Address(), self.data, self.gas, self.gasPrice, self.value)
+		ret, err = vmenv.Call(sender, self.to().Address(), data, self.gas, self.gasPrice, self.value)
 		if err != nil {
 			glog.V(logger.Core).Infoln("VM call err:", err)
 		}

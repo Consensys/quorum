@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -994,13 +995,15 @@ func (s *PublicTransactionPoolAPI) sign(addr common.Address, tx *types.Transacti
 
 // SendTxArgs represents the arguments to sumbit a new transaction into the transaction pool.
 type SendTxArgs struct {
-	From     common.Address  `json:"from"`
-	To       *common.Address `json:"to"`
-	Gas      *rpc.HexNumber  `json:"gas"`
-	GasPrice *rpc.HexNumber  `json:"gasPrice"`
-	Value    *rpc.HexNumber  `json:"value"`
-	Data     string          `json:"data"`
-	Nonce    *rpc.HexNumber  `json:"nonce"`
+	From        common.Address  `json:"from"`
+	To          *common.Address `json:"to"`
+	Gas         *rpc.HexNumber  `json:"gas"`
+	GasPrice    *rpc.HexNumber  `json:"gasPrice"`
+	Value       *rpc.HexNumber  `json:"value"`
+	Data        string          `json:"data"`
+	Nonce       *rpc.HexNumber  `json:"nonce"`
+	PrivateFrom string          `json:"privateFrom"`
+	PrivateFor  []string        `json:"privateFor"`
 }
 
 // prepareSendTxArgs is a helper function that fills in default values for unspecified tx fields.
@@ -1061,10 +1064,17 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	var tx *types.Transaction
+	data := common.FromHex(args.Data)
+	if len(args.PrivateFor) > 0 {
+		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+		if err != nil {
+			return common.Hash{}, err
+		}
+	}
 	if args.To == nil {
-		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), common.FromHex(args.Data))
+		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
 	} else {
-		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), common.FromHex(args.Data))
+		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
 	}
 
 	signature, err := s.b.AccountManager().SignEthereum(args.From, tx.SigHash().Bytes())
