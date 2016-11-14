@@ -96,13 +96,13 @@ geth init genesis.json
 The genesis block should include the Quorum voting contract address `0x0000000000000000000000000000000000000020`.
 The code can be generated with [browser solidity](http://ethereum.github.io/browser-solidity/#version=soljson-latest.js) (note, use the runtime code) or using the solidity compiler `solc --optimize --bin-runtime block_voting.sol`.
 
-The `_data/keys` directory contains several keys (empty password) that are used in the example genesis file:
+The `7nodes` directory in the `quorum-examples` repository contains several keys (using an empty password) that are used in the example genesis file:
 ```
-UTC--2016-11-02T08-55-33.544599174Z--ed9d02e382b34818e88b88a309c7fe71e65f419d    vote key 1
-UTC--2016-11-02T08-55-36.695601929Z--ca843569e3427144cead5e4d5999a3d0ccf92b8e    vote key 2
-UTC--2016-11-02T08-55-39.164648792Z--0fbdc686b912d7722dc86510934589e0aaf3b55a    vote key 3
-UTC--2016-11-02T08-56-07.802508523Z--9186eb3d20cbd1f5f992a950d808c4495153abd5    block maker 1
-UTC--2016-11-02T09-05-09.535511997Z--0638e1574728b6d862dd5d3a3e0942c3be47d996    block maker 2
+key1    vote key 1
+key2    vote key 2
+key3    vote key 3
+key4    block maker 1
+key5    block maker 2
 ```
 
 Example genesis file:
@@ -167,7 +167,7 @@ The console can be used to calculate the storage key, in this case for vote key 
 "0x29ecdbdf95c7f6ceec92d6150c697aa14abeb0f8595dd58d808842ea237d8494"
 ```
 
-The `genesis.json` file can be found in `_data/gensis.json`.
+The `genesis.json` file can be found in the `7nodes` folder in the `quorum-examples` repository.
 
 ### Start node
 
@@ -208,7 +208,7 @@ Quorum comes with several scripts to setup a private test network with 6 nodes:
 * node 6, has no special roles
 
 
-All scripts can be found in `_data`.
+All scripts can be found in the `7nodes` folder in the `quorum-examples` repository.
 
 1. Step 1, run `init.sh` and initialise data directories (change variables accordingly)
 2. Step 2, start nodes with `start.sh` (change variables accordingly)
