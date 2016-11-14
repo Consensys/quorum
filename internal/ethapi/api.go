@@ -274,10 +274,18 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	var tx *types.Transaction
+	data := common.FromHex(args.Data)
+	if len(args.PrivateFor) > 0 {
+		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		tx.SetPrivate()
+	}
 	if args.To == nil {
-		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), common.FromHex(args.Data))
+		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
 	} else {
-		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), common.FromHex(args.Data))
+		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
 	}
 
 	signature, err := s.am.SignWithPassphrase(args.From, passwd, tx.SigHash().Bytes())
@@ -1070,6 +1078,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		if err != nil {
 			return common.Hash{}, err
 		}
+		tx.SetPrivate()
 	}
 	if args.To == nil {
 		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
@@ -1299,6 +1308,9 @@ func (s *PublicTransactionPoolAPI) Resend(ctx context.Context, tx Tx, gasPrice, 
 				newTx = types.NewContractCreation(tx.tx.Nonce(), tx.tx.Value(), gasLimit.BigInt(), gasPrice.BigInt(), tx.tx.Data())
 			} else {
 				newTx = types.NewTransaction(tx.tx.Nonce(), *tx.tx.To(), tx.tx.Value(), gasLimit.BigInt(), gasPrice.BigInt(), tx.tx.Data())
+			}
+			if tx.tx.IsPrivate() {
+				newTx.SetPrivate()
 			}
 
 			signedTx, err := s.sign(tx.From, newTx)
