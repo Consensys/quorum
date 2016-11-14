@@ -16,7 +16,7 @@ On block import nodes can verify if the block was signed by one of the nodes tha
 Nodes can be given no role, one of the roles or both roles through command line arguments.
 The collection of addresses with special roles is tracked within the Quorum smart contract.
 
-Quorum is implemented in a smart contract pre-deployed on address `0x0000000000000000000000000000000000000020` and can be found [here](https://github.com/ethlab/go-ethereum-private/blob/master/core/quorum/block_voting.sol).
+Quorum is implemented in a smart contract pre-deployed on address `0x0000000000000000000000000000000000000020` and can be found [here](https://github.com/jpmorganchase/quorum/blob/master/core/quorum/block_voting.sol).
 Voters and block makers can be added or removed and the minimum number of votes before a block is selected as winner can be configured.
 
 ## State
