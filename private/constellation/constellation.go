@@ -1,8 +1,8 @@
 package constellation
 
 import (
-	"github.com/patrickmn/go-cache"
 	"fmt"
+	"github.com/patrickmn/go-cache"
 	"time"
 )
 
@@ -66,7 +66,7 @@ func New(configPath string) (*Constellation, error) {
 	}
 	return &Constellation{
 		node: n,
-		c: cache.New(5 * time.Minute, 5 * time.Minute),
+		c:    cache.New(5*time.Minute, 5*time.Minute),
 	}, nil
 }
 

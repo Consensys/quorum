@@ -5,13 +5,13 @@ import (
 )
 
 type Config struct {
-	Url            string    `toml:"url"`
-	Port           int       `toml:"port"`
-	SocketPath     string    `toml:"socketPath"`
-	OtherNodeUrls  []string  `toml:"otherNodeUrls"`
-	PublicKeyPath  string    `toml:"publicKeyPath"`
-	PrivateKeyPath string    `toml:"privateKeyPath"`
-	StoragePath    string    `toml:"storagePath"`
+	Url            string   `toml:"url"`
+	Port           int      `toml:"port"`
+	SocketPath     string   `toml:"socketPath"`
+	OtherNodeUrls  []string `toml:"otherNodeUrls"`
+	PublicKeyPath  string   `toml:"publicKeyPath"`
+	PrivateKeyPath string   `toml:"privateKeyPath"`
+	StoragePath    string   `toml:"storagePath"`
 }
 
 func LoadConfig(configPath string) (*Config, error) {

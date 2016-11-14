@@ -89,7 +89,7 @@ func (c *Client) do(path string, apiReq interface{}) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest("POST", "http+unix://c/" + path, buf)
+	req, err := http.NewRequest("POST", "http+unix://c/"+path, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func NewClient(publicKeyPath string, nodeSocketPath string) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		httpClient: unixClient(nodeSocketPath),
+		httpClient:   unixClient(nodeSocketPath),
 		b64PublicKey: string(b64PublicKey),
 	}, nil
 }
