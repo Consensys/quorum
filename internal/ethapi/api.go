@@ -280,12 +280,14 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		if err != nil {
 			return common.Hash{}, err
 		}
-		tx.SetPrivate()
 	}
 	if args.To == nil {
 		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
 	} else {
 		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
+	}
+	if len(args.PrivateFor) > 0 {
+		tx.SetPrivate()
 	}
 
 	signature, err := s.am.SignWithPassphrase(args.From, passwd, tx.SigHash().Bytes())
@@ -1078,12 +1080,14 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		if err != nil {
 			return common.Hash{}, err
 		}
-		tx.SetPrivate()
 	}
 	if args.To == nil {
 		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
 	} else {
 		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
+	}
+	if len(args.PrivateFor) > 0 {
+		tx.SetPrivate()
 	}
 
 	signature, err := s.b.AccountManager().SignEthereum(args.From, tx.SigHash().Bytes())
