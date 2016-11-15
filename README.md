@@ -335,19 +335,29 @@ QUORUM OPTIONS:
   --singleblockmaker		    Indicate this node is the only node that can create blocks
   --minblocktime value		    Set minimum block time (default: 3)
   --maxblocktime value		    Set max block time (default: 10)
-  --enableNodePermission      Enables node permissioning. If true, it reads from <datadir>/permissioned-nodes.json and allowws only those nodes to connect
+  --permission      Enables node permissioning. If true, it reads from <datadir>/permissioned-nodes.json and allowws only those nodes to connect
 ```
 
 Node Permissioning:
 
-Node Permissioning is controlled by a CLI flag --enableNodePermission:
+Node Permissioning is a features that controls which nodes can connect to a given node and also to which nodes this node can dial out to. Currently, it is managed at individual node level by a command line flag "--permission" while starting the node.
 
-If enabled, the node performs a validation check based on the remote key of the incoming and dialed out.
+If the "--permission" node is present, the node looks for a file named "<data-dir>/permissioned-nodes.json". This file contains the list of enodes specified that this node can connect to and also accept connections only from those nodes. In other words, if permissioning is enabled, only the nodes that are listed in this become part of the network. It is an error to enable permission but not have the permissioned-nodes.json file under <data-dir>. If the permission is specified, but no nodes are present in this file, then this node can neither connect to any node or would accept any incoming connections.
 
-The list of permissioned nodes are specified in <data-dir>/permissioned-nodes.json and follows the following format ( similar to static-nodes.json).
-  [ 
-   "enode://6598638ac5b15ee386210156a43f565fa8c48592489d3e66ac774eac759db9eb52866898cf0c5e597a1595d9e60e1a19c84f77df489324e2f3a967207c047470@127.0.0.1:30300", 
-  ]
+The permissioned-nodes.json  follows following pattern(similar to static-nodes.json):
+[ 
+  "enode://remoteky1@ip1:port1",
+  "enode://remoteky1@ip2:port2",
+  "enode://remoteky1@ip3:port3",
+]
+
+Sample permissioned-nodes.json file:
+[ 
+"enode://6598638ac5b15ee386210156a43f565fa8c48592489d3e66ac774eac759db9eb52866898cf0c5e597a1595d9e60e1a19c84f77df489324e2f3a967207c047470@127.0.0.1:30300",
+]
+
+In the current release, every node has its own copy of the permissioned-nodes.json. It is understood that if different nodes have different list of remote keys. In future releases, the permissioned nodes list will be moved to a smart contract, thereby keeping the list on chain and one global list of nodes that connect to the network.
+
 
 
 ## License
