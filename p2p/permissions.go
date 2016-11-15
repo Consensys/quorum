@@ -12,14 +12,13 @@ import (
 )
 
 const (
-	// NODE_NAME_LENGTH    = 32
+	NODE_NAME_LENGTH    = 32
 	PERMISSIONED_CONFIG = "permissioned-nodes.json"
 )
 
 // check if a given node is permissioned to connect to the change
 func isNodePermissioned(nodename string, currentNode string, datadir string, direction string) bool {
 
-	// nodename = nodename[0:NODE_NAME_LENGTH]
 	var permissonedList []string
 	nodes := parsePermissionedNodes(datadir)
 	for _, v := range nodes {
@@ -29,7 +28,8 @@ func isNodePermissioned(nodename string, currentNode string, datadir string, dir
 	glog.V(logger.Debug).Infof("Permisssioned_list %v", permissonedList)
 	for _, v := range permissonedList {
 		if v == nodename {
-			glog.V(logger.Debug).Infof("isNodePermissioned <%v> connection:: nodename <%v> ALLOWED-BY <%v>", direction, nodename, currentNode)
+			glog.V(logger.Debug).Infof("isNodePermissioned <%v> connection:: nodename <%v> ALLOWED-BY <%v>", direction, nodename[:	// NODE_NAME_LENGTH    = 32
+, currentNode)
 			return true
 		}
 		glog.V(logger.Debug).Infof("isNodePermissioned <%v> connection:: nodename <%v> DENIED-BY <%v>", direction, nodename, currentNode)
@@ -47,31 +47,31 @@ func parsePermissionedNodes(DataDir string) []*discover.Node {
 
 	path := filepath.Join(DataDir, PERMISSIONED_CONFIG)
 	if _, err := os.Stat(path); err != nil {
-		glog.V(logger.Error).Infof("Read Error for permissioned-nodes.json file %v", err)
+		glog.V(logger.Error).Infof("Read Error for permissioned-nodes.json file %v. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present.", err)
 		return nil
 	}
 	// Load the nodes from the config file
 	blob, err := ioutil.ReadFile(path)
 	if err != nil {
-		glog.V(logger.Error).Infof("Failed to access nodes: %v", err)
+		glog.V(logger.Error).Infof("parsePermissionedNodes: Failed to access nodes: %v", err)
 		return nil
 	}
 
 	nodelist := []string{}
 	if err := json.Unmarshal(blob, &nodelist); err != nil {
-		glog.V(logger.Error).Infof("Failed to load nodes: %v", err)
+		glog.V(logger.Error).Infof("parsePermissionedNodes: Failed to load nodes: %v", err)
 		return nil
 	}
 	// Interpret the list as a discovery node array
 	var nodes []*discover.Node
 	for _, url := range nodelist {
 		if url == "" {
-			glog.V(logger.Error).Infof("Node URL blank")
+			glog.V(logger.Error).Infof("parsePermissionedNodes: Node URL blank")
 			continue
 		}
 		node, err := discover.ParseNode(url)
 		if err != nil {
-			glog.V(logger.Error).Infof("Node URL %s: %v\n", url, err)
+			glog.V(logger.Error).Infof("parsePermissionedNodes: Node URL %s: %v\n", url, err)
 			continue
 		}
 		nodes = append(nodes, node)
@@ -79,8 +79,3 @@ func parsePermissionedNodes(DataDir string) []*discover.Node {
 	return nodes
 }
 
-func main() {
-
-
-
-}
