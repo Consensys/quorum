@@ -2,7 +2,7 @@
 
 Quorum is an Ethereum-based distributed ledger protocol that has been developed to provide the Financial Services industry with a permissioned implementation of Ethereum that supports transaction and contract privacy.
 
-The key components are:
+The key enhancements are:
 
 * __QuorumChain__ - a new consensus model based on majority voting
 * __Constellation__ - a peer-to-peer encrypted message exchange
@@ -59,7 +59,7 @@ Contract transaction send: TransactionHash: 0x5828de9bf1c11d0db7cde96337c3c4d678
 true
 ```
 
-We now have a 7-node Quorum cluster with a [private smart contract](https://github.com/jpmorganchase/quorum-examples/blob/master/7nodes/script1.js) (SimpleStorage) sent from `node1` to `node7` (denoted by the public key `ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc=`).
+We now have a 7-node Quorum cluster with a [private smart contract](https://github.com/jpmorganchase/quorum-examples/blob/master/7nodes/script1.js) (SimpleStorage) sent from `node 1` "for" `node 7` (denoted by the public key passed via `privateFor: ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]` in the `sendTransaction` call).
 
 Connect to any of the nodes and inspect them using the following commands:
 
@@ -114,6 +114,8 @@ at block: 679 (Tue, 15 Nov 2016 00:01:05 UTC)
   value: 0
 }
 ```
+
+Note in particular the `v` field of "0x25" (37 in decimal) which marks this transaction as having a private payload (input).
 
 ## Further Reading
 
