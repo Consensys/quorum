@@ -335,7 +335,20 @@ QUORUM OPTIONS:
   --singleblockmaker		    Indicate this node is the only node that can create blocks
   --minblocktime value		    Set minimum block time (default: 3)
   --maxblocktime value		    Set max block time (default: 10)
+  --enableNodePermission      Enables node permissioning. If true, it reads from <datadir>/permissioned-nodes.json and allowws only those nodes to connect
 ```
+
+Node Permissioning:
+
+Node Permissioning is controlled by a CLI flag --enableNodePermission:
+
+If enabled, the node performs a validation check based on the remote key of the incoming and dialed out.
+
+The list of permissioned nodes are specified in <data-dir>/permissioned-nodes.json and follows the following format ( similar to static-nodes.json).
+  [ 
+   "enode://6598638ac5b15ee386210156a43f565fa8c48592489d3e66ac774eac759db9eb52866898cf0c5e597a1595d9e60e1a19c84f77df489324e2f3a967207c047470@127.0.0.1:30300", 
+  ]
+
 
 ## License
 

@@ -406,6 +406,10 @@ var (
 		Name:  "singleblockmaker",
 		Usage: "Indicate this node is the only node that can create blocks",
 	}
+	EnableNodePermissionFlag = cli.BoolFlag{
+		Name:  "enableNodePermission",
+		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -647,6 +651,8 @@ func MakeNode(ctx *cli.Context, name, gitCommit string) *node.Node {
 		WSPort:            ctx.GlobalInt(WSPortFlag.Name),
 		WSOrigins:         ctx.GlobalString(WSAllowedOriginsFlag.Name),
 		WSModules:         MakeRPCModules(ctx.GlobalString(WSApiFlag.Name)),
+		EnableNodePermission:    ctx.GlobalBool(EnableNodePermissionFlag.Name),
+
 	}
 	if ctx.GlobalBool(DevModeFlag.Name) {
 		if !ctx.GlobalIsSet(DataDirFlag.Name) {
@@ -709,6 +715,7 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 		SolcPath:                ctx.GlobalString(SolcPathFlag.Name),
 		VoteMinBlockTime:        uint(ctx.GlobalInt(VoteMinBlockTimeFlag.Name)),
 		VoteMaxBlockTime:        uint(ctx.GlobalInt(VoteMaxBlockTimeFlag.Name)),
+
 	}
 
 	// Override any default configs in dev mode or the test net

@@ -79,6 +79,8 @@ type Node struct {
 
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
+
+
 }
 
 // New creates a new P2P node, ready for protocol registration.
@@ -167,6 +169,9 @@ func (n *Node) Start() error {
 		NoDial:          n.config.NoDial,
 		MaxPeers:        n.config.MaxPeers,
 		MaxPendingPeers: n.config.MaxPendingPeers,
+		EnableNodePermission: n.config.EnableNodePermission,
+		DataDir:           n.config.DataDir,
+
 	}
 	running := &p2p.Server{Config: n.serverConfig}
 	glog.V(logger.Info).Infoln("instance:", n.serverConfig.Name)
