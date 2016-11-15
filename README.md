@@ -64,10 +64,10 @@ We now have a 7-node Quorum cluster with a [private smart contract](https://gith
 Connect to any of the nodes and inspect them using the following commands:
 
 ```sh
-geth attach ipc:qdata/dd1/geth.ipc
-geth attach ipc:qdata/dd2/geth.ipc
+$ geth attach ipc:qdata/dd1/geth.ipc
+$ geth attach ipc:qdata/dd2/geth.ipc
 ...
-geth attach ipc:qdata/dd7/geth.ipc
+$ geth attach ipc:qdata/dd7/geth.ipc
 
 
 # e.g.
@@ -93,6 +93,25 @@ at block: 679 (Tue, 15 Nov 2016 00:01:05 UTC)
   canCreateBlocks: true,
   canVote: true,
   voteAccount: "0x0fbdc686b912d7722dc86510934589e0aaf3b55a"
+}
+
+# let's look at the private txn created earlier:
+> eth.getTransaction("0x5828de9bf1c11d0db7cde96337c3c4d678da93a9040ac0790d38518e5f8c072d")
+{
+  blockHash: "0xef4afed2572f00d68c79f301a9d1ba4006c45ae709ba583d6ff525779a382548",
+  blockNumber: 1,
+  from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
+  gas: 300000,
+  gasPrice: 21782420000,
+  hash: "0x5828de9bf1c11d0db7cde96337c3c4d678da93a9040ac0790d38518e5f8c072d",
+  input: "0x893e6ccade7e2a36d744941da824bd8f2fedea9d5e6e8a119ec95221099545bc96c229a431ef8386ee5316e1e71f7aeed3b1e2f0f76f3ba3dd5319398b5a5f7a",
+  nonce: 0,
+  r: "0x9d93b88ad815dc90e2bdb4ebe01d11e7f16e887d3d4d37df1e0159404e217e4b",
+  s: "0x10fabc7739c4651c699644ae75f81cc8ac73ab6773620a88a5a4c14199b14b24",
+  to: null,
+  transactionIndex: 0,
+  v: "0x1b",
+  value: 0
 }
 ```
 
