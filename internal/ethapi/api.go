@@ -275,7 +275,8 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 
 	var tx *types.Transaction
 	data := common.FromHex(args.Data)
-	if len(args.PrivateFor) > 0 {
+	isPrivate := len(args.PrivateFor) > 0
+	if isPrivate {
 		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
 		if err != nil {
 			return common.Hash{}, err
@@ -286,16 +287,13 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	} else {
 		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
 	}
-	if len(args.PrivateFor) > 0 {
-		tx.SetPrivate()
-	}
 
 	signature, err := s.am.SignWithPassphrase(args.From, passwd, tx.SigHash().Bytes())
 	if err != nil {
 		return common.Hash{}, err
 	}
 
-	return submitTransaction(ctx, s.b, tx, signature)
+	return submitTransaction(ctx, s.b, tx, signature, isPrivate)
 }
 
 // signHash is a helper function that calculates a hash for the given message that can be
@@ -1035,10 +1033,15 @@ func prepareSendTxArgs(ctx context.Context, args SendTxArgs, b Backend) (SendTxA
 }
 
 // submitTransaction is a helper function that submits tx to txPool and creates a log entry.
-func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction, signature []byte) (common.Hash, error) {
+func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction, signature []byte, isPrivate bool) (common.Hash, error) {
 	signedTx, err := tx.WithSignature(signature)
 	if err != nil {
 		return common.Hash{}, err
+	}
+
+	// mark private after creating signed copy
+	if isPrivate {
+		signedTx.SetPrivate()
 	}
 
 	if err := b.SendTx(ctx, signedTx); err != nil {
@@ -1075,7 +1078,8 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	var tx *types.Transaction
 	data := common.FromHex(args.Data)
-	if len(args.PrivateFor) > 0 {
+	isPrivate := len(args.PrivateFor) > 0
+	if isPrivate {
 		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
 		if err != nil {
 			return common.Hash{}, err
@@ -1086,16 +1090,13 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	} else {
 		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
 	}
-	if len(args.PrivateFor) > 0 {
-		tx.SetPrivate()
-	}
 
 	signature, err := s.b.AccountManager().SignEthereum(args.From, tx.SigHash().Bytes())
 	if err != nil {
 		return common.Hash{}, err
 	}
 
-	return submitTransaction(ctx, s.b, tx, signature)
+	return submitTransaction(ctx, s.b, tx, signature, isPrivate)
 }
 
 // SendRawTransaction will add the signed transaction to the transaction pool.
