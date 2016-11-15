@@ -407,7 +407,7 @@ var (
 		Usage: "Indicate this node is the only node that can create blocks",
 	}
 	EnableNodePermissionFlag = cli.BoolFlag{
-		Name:  "enableNodePermission",
+		Name:  "permissioned",
 		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
 	}
 )
