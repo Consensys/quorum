@@ -163,6 +163,7 @@ participating.
 		utils.VoteMinBlockTimeFlag,
 		utils.VoteMaxBlockTimeFlag,
 		utils.SingleBlockMakerFlag,
+		utils.EnableNodePermissionFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 
