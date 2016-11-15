@@ -19,6 +19,7 @@ package core
 import (
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -87,6 +88,11 @@ func ApplyTransaction(config *ChainConfig, bc *BlockChain, gp *GasPool, publicSt
 	if !tx.IsPrivate() {
 		privateState = publicState
 	}
+
+	if tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
+		return nil, nil, nil, ErrInvalidGasPrice
+	}
+
 	_, gas, err := ApplyMessage(NewEnv(publicState, privateState, config, bc, tx, header, cfg), tx, gp)
 	if err != nil {
 		return nil, nil, nil, err

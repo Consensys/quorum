@@ -33,7 +33,7 @@ func TestStrictTxListAdd(t *testing.T) {
 
 	txs := make(types.Transactions, 1024)
 	for i := 0; i < len(txs); i++ {
-		txs[i] = transaction(uint64(i), new(big.Int), key)
+		txs[i] = transaction(uint64(i), new(big.Int), new(big.Int), key)
 	}
 	// Insert the transactions in a random order
 	list := newTxList(true)

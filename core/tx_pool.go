@@ -37,13 +37,12 @@ var (
 	// Transaction Pool Errors
 	ErrInvalidSender      = errors.New("Invalid sender")
 	ErrNonce              = errors.New("Nonce too low")
-	ErrCheap              = errors.New("Gas price too low for acceptance")
-	ErrBalance            = errors.New("Insufficient balance")
-	ErrNonExistentAccount = errors.New("Account does not exist or account balance too low")
+	ErrInvalidGasPrice    = errors.New("Gas price not 0")
 	ErrInsufficientFunds  = errors.New("Insufficient funds for gas * price + value")
 	ErrIntrinsicGas       = errors.New("Intrinsic gas too low")
 	ErrGasLimit           = errors.New("Exceeds block gas limit")
 	ErrNegativeValue      = errors.New("Negative value")
+	ErrNonExistentAccount = errors.New("Account doesn't exist")
 )
 
 var (
@@ -69,7 +68,6 @@ type TxPool struct {
 	currentState stateFn // The state function which will allow us to do some pre checks
 	pendingState *state.ManagedState
 	gasLimit     func() *big.Int // The current gas limit function callback
-	minGasPrice  *big.Int
 	eventMux     *event.TypeMux
 	events       event.Subscription
 	localTx      *txSet
@@ -96,10 +94,9 @@ func NewTxPool(config *ChainConfig, eventMux *event.TypeMux, currentStateFn stat
 		eventMux:     eventMux,
 		currentState: currentStateFn,
 		gasLimit:     gasLimitFn,
-		minGasPrice:  new(big.Int),
 		pendingState: nil,
 		localTx:      newTxSet(),
-		events:       eventMux.Subscribe(ChainHeadEvent{}, GasPriceChanged{}, RemovedTransactionEvent{}),
+		events:       eventMux.Subscribe(ChainHeadEvent{}, RemovedTransactionEvent{}),
 		quit:         make(chan struct{}),
 	}
 
@@ -126,10 +123,6 @@ func (pool *TxPool) eventLoop() {
 
 			pool.resetState()
 			pool.mu.Unlock()
-		case GasPriceChanged:
-			pool.mu.Lock()
-			pool.minGasPrice = ev.Price
-			pool.mu.Unlock()
 		case RemovedTransactionEvent:
 			pool.AddBatch(ev.Txs)
 		}
@@ -151,8 +144,7 @@ func (pool *TxPool) resetState() {
 
 	// validate the pool of pending transactions, this will remove
 	// any transactions that have been included in the block or
-	// have been invalidated because of another transaction (e.g.
-	// higher gas price)
+	// have been invalidated because of another transaction.
 	pool.demoteUnexecutables()
 
 	// Update all accounts to the latest known pending nonce
@@ -231,8 +223,7 @@ func (pool *TxPool) Pending() map[common.Address]types.Transactions {
 	return pending
 }
 
-// SetLocal marks a transaction as local, skipping gas price
-//  check against local miner minimum in the future
+// SetLocal marks a transaction as local.
 func (pool *TxPool) SetLocal(tx *types.Transaction) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
@@ -242,10 +233,10 @@ func (pool *TxPool) SetLocal(tx *types.Transaction) {
 // validateTx checks whether a transaction is valid according
 // to the consensus rules.
 func (pool *TxPool) validateTx(tx *types.Transaction) error {
-	local := pool.localTx.contains(tx.Hash())
-	// Drop transactions under our own minimal accepted gas price
-	if !local && pool.minGasPrice.Cmp(tx.GasPrice()) > 0 {
-		return ErrCheap
+	// due to dual state balances of private accounts cannot be determined.
+	// only accept transactions with a gas price of 0
+	if tx.GasPrice().Cmp(common.Big0) != 0 {
+		return ErrInvalidGasPrice
 	}
 
 	currentState, _, err := pool.currentState()

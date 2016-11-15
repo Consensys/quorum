@@ -3,8 +3,6 @@ package quorum
 import (
 	"time"
 
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -64,7 +62,6 @@ func (ps *pendingState) applyTransactions(txs *types.TransactionsByPriorityAndNo
 	var (
 		lowGasTxs types.Transactions
 		failedTxs types.Transactions
-		gasPrice  = new(big.Int).Mul(big.NewInt(20), common.Shannon)
 	)
 
 	var coalescedLogs vm.Logs
@@ -78,14 +75,6 @@ func (ps *pendingState) applyTransactions(txs *types.TransactionsByPriorityAndNo
 		// during transaction acceptance is the transaction pool.
 		from, _ := tx.From()
 
-		// Ignore any transactions (and accounts subsequently) with low gas limits
-		if tx.GasPrice().Cmp(gasPrice) < 0 && !ps.ownedAccounts.Has(from) {
-			// Pop the current low-priced transaction without shifting in the next from the account
-			glog.V(logger.Info).Infof("Transaction (%x) below gas price (tx=%v ask=%v). All sequential txs from this address(%x) will be ignored\n", tx.Hash().Bytes()[:4], common.CurrencyToString(tx.GasPrice()), common.CurrencyToString(gasPrice), from[:4])
-			lowGasTxs = append(lowGasTxs, tx)
-			txs.Pop()
-			continue
-		}
 		// Start executing the transaction
 		ps.state.StartRecord(tx.Hash(), common.Hash{}, 0)
 

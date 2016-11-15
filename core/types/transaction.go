@@ -80,7 +80,7 @@ func NewContractCreation(nonce uint64, amount, gasLimit, gasPrice *big.Int, data
 		Recipient:    nil,
 		Amount:       new(big.Int).Set(amount),
 		GasLimit:     new(big.Int).Set(gasLimit),
-		Price:        new(big.Int).Set(gasPrice),
+		Price:        new(big.Int),
 		Payload:      data,
 		R:            new(big.Int),
 		S:            new(big.Int),
@@ -107,9 +107,6 @@ func NewTransaction(nonce uint64, to common.Address, amount, gasLimit, gasPrice 
 	}
 	if gasLimit != nil {
 		d.GasLimit.Set(gasLimit)
-	}
-	if gasPrice != nil {
-		d.Price.Set(gasPrice)
 	}
 	return &Transaction{data: d}
 }
