@@ -109,7 +109,7 @@ func IntrinsicGas(data []byte, contractCreation, homestead bool) *big.Int {
 
 // NewStateTransition initialises and returns a new state transition object.
 func NewStateTransition(env vm.Environment, msg Message, gp *GasPool) *StateTransition {
-	return &StateTransition{
+	st := &StateTransition{
 		gp:         gp,
 		env:        env,
 		msg:        msg,
@@ -120,6 +120,10 @@ func NewStateTransition(env vm.Environment, msg Message, gp *GasPool) *StateTran
 		data:       msg.Data(),
 		state:      env.Db(),
 	}
+	if env, ok := env.(DualStateEnv); ok {
+		st.state = env.PublicState()
+	}
+	return st
 }
 
 // ApplyMessage computes the new state by applying the given message
@@ -238,22 +242,23 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 		sender, _        = self.from() // err checked in preCheck
 		contractCreation = MessageCreatesContract(msg)
 		vmenv            = self.env
-		state            = vmenv.Db()
+		publicState      = self.state
 		data             []byte
 		isPrivate        bool
 	)
-	if env, ok := vmenv.(DualStateEnv); ok {
-		state = env.PublicState()
-	}
 	if tx, ok := msg.(*types.Transaction); ok && tx.IsPrivate() {
 		isPrivate = true
 		data, err = private.P.Receive(self.data)
+		// Increment the public account nonce if:
+		// 1. Tx is private and *not* a participant of the group and either call or create
+		// 2. Tx is private we are part of the group and is a call
+		if err != nil || !contractCreation {
+			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
+		}
+
 		if err != nil {
-			if !contractCreation {
-				// Increment the nonce even if we are ignoring this transaction
-				state.SetNonce(sender.Address(), state.GetNonce(sender.Address())+1)
-			}
-			return nil, nil, nil, err
+			glog.V(logger.Debug).Infof("Ignoring private tx %x. Not a participant.", tx.Hash())
+			return nil, new(big.Int), new(big.Int), nil
 		}
 	} else {
 		data = self.data
@@ -277,8 +282,13 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 			glog.V(logger.Core).Infoln("VM create err:", err)
 		}
 	} else {
-		// Increment the nonce for the next transaction
-		state.SetNonce(sender.Address(), state.GetNonce(sender.Address())+1)
+		// Increment the account nonce only if the transaction isn't private.
+		// If the transaction is private it has already been incremented on
+		// the public state.
+		if !isPrivate {
+			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
+		}
+
 		ret, err = vmenv.Call(sender, self.to().Address(), data, self.gas, self.gasPrice, self.value)
 		if err != nil {
 			glog.V(logger.Core).Infoln("VM call err:", err)
@@ -297,7 +307,7 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 	requiredGas = new(big.Int).Set(self.gasUsed())
 
 	self.refundGas()
-	self.state.AddBalance(self.env.Coinbase(), new(big.Int).Mul(self.gasUsed(), self.gasPrice))
+	publicState.AddBalance(self.env.Coinbase(), new(big.Int).Mul(self.gasUsed(), self.gasPrice))
 
 	if isPrivate {
 		return ret, new(big.Int), new(big.Int), err
