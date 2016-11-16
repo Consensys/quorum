@@ -1,22 +1,22 @@
 # Quorum
 
-Quorum is an Ethereum-based distributed ledger protocol that has been developed to provide the Financial Services industry with a permissioned implementation of Ethereum that supports transaction and contract privacy.
+Quorum is an Ethereum-based distributed ledger protocol with transaction and contract privacy, developed for the financial services industry.
 
-The key enhancements are:
+Key enhancements:
 
 * __QuorumChain__ - a new consensus model based on majority voting
 * __Constellation__ - a peer-to-peer encrypted message exchange
-* __Peer Security__ - node/peer permissioning using Smart Contracts
+* __Peer Security__ - node/peer permissioning using smart contracts
 
 ## Architecture
 
 ![Quorum privacy architecture](docs/img/architecture.png)
 
-The above diagram is a high-level overview of the privacy architecture used by Quorum. For more in-depth discussion of the components, refer to the wiki pages.
+The above diagram is a high-level overview of the privacy architecture used by Quorum. For more in-depth discussion of the components, refer to the [wiki](https://github.com/jpmorganchase/quorum/wiki/) pages.
 
 ## Quickstart
 
-The quickest way to get started with Quorum is using [VirtualBox](https://www.virtualbox.org/wiki/Downloads) and [Vagrant](https://www.vagrantup.com/downloads.html). Once you have both installed, run the following:
+The quickest way to get started with Quorum is using [VirtualBox](https://www.virtualbox.org/wiki/Downloads) and [Vagrant](https://www.vagrantup.com/downloads.html):
 
 ```sh
 git clone https://github.com/jpmorganchase/quorum-examples
@@ -28,7 +28,7 @@ vagrant ssh
 
 Now that you have a fully-functioning Quorum environment set up, let's run the 7-node cluster example. This will spin up several nodes with a mix of voters, block makers, and unprivileged nodes.
 
-```sh
+```
 # (from within vagrant env, use `vagrant ssh` to enter)
 ubuntu@ubuntu-xenial:~$ cd quorum-examples/7nodes
 
