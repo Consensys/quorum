@@ -98,14 +98,15 @@ func NewBlockVoting(bc *core.BlockChain, chainConfig *core.ChainConfig, txpool *
 }
 
 func (bv *BlockVoting) resetPendingState(parent *types.Block) {
-	statedb, _, err := bv.bc.StateAt(parent.Root())
+	publicState, privateState, err := bv.bc.State()
 	if err != nil {
-		panic(fmt.Sprintf("State corrupt: %v", err))
+		panic(fmt.Sprintf("State error: %v", err))
 	}
 
 	ps := &pendingState{
 		parent:        parent,
-		state:         statedb,
+		publicState:   publicState,
+		privateState:  privateState,
 		header:        bv.makeHeader(parent),
 		gp:            new(core.GasPool),
 		ownedAccounts: accountAddressesSet(bv.am.Accounts()),
@@ -295,7 +296,7 @@ func (bv *BlockVoting) applyTransaction(tx *types.Transaction) {
 func (bv *BlockVoting) Pending() (*types.Block, *state.StateDB) {
 	bv.pStateMu.Lock()
 	defer bv.pStateMu.Unlock()
-	return types.NewBlock(bv.pState.header, bv.pState.txs, nil, bv.pState.receipts), bv.pState.state.Copy()
+	return types.NewBlock(bv.pState.header, bv.pState.txs, nil, bv.pState.receipts), bv.pState.publicState.Copy()
 }
 
 func (bv *BlockVoting) createBlock() (*types.Block, error) {
@@ -314,13 +315,13 @@ func (bv *BlockVoting) createBlock() (*types.Block, error) {
 	bv.pStateMu.Lock()
 	defer bv.pStateMu.Unlock()
 
-	state := bv.pState.state // shortcut
+	state := bv.pState.publicState // shortcut
 	header := bv.pState.header
 	receipts := bv.pState.receipts
 
 	core.AccumulateRewards(state, header, nil)
 
-	header.Root = bv.pState.state.IntermediateRoot()
+	header.Root = state.IntermediateRoot()
 
 	// Quorum blocks contain a signature of the header in the Extra field.
 	// This signature is verified during block import and ensures that the

@@ -136,6 +136,10 @@ func (self *VMEnv) SnapshotDatabase() int {
 	return self.currentState().Snapshot()
 }
 
+// We only need to revert the current state because when we call from private
+// public state it's read only, there wouldn't be anything to reset.
+// (A)->(B)->C->(B): A failure in (B) wouldn't need to reset C, as C was flagged
+// read only.
 func (self *VMEnv) RevertToSnapshot(snapshot int) {
 	self.currentState().RevertToSnapshot(snapshot)
 }

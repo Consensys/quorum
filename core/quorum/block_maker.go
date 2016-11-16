@@ -21,14 +21,14 @@ type BlockMaker interface {
 }
 
 type pendingState struct {
-	state         *state.StateDB // apply state changes here
-	tcount        int            // tx count in cycle
-	gp            *core.GasPool
-	ownedAccounts *set.Set
-	txs           types.Transactions // set of transactions
-	lowGasTxs     types.Transactions
-	failedTxs     types.Transactions
-	parent        *types.Block
+	publicState, privateState *state.StateDB
+	tcount                    int // tx count in cycle
+	gp                        *core.GasPool
+	ownedAccounts             *set.Set
+	txs                       types.Transactions // set of transactions
+	lowGasTxs                 types.Transactions
+	failedTxs                 types.Transactions
+	parent                    *types.Block
 
 	header   *types.Header
 	receipts types.Receipts
@@ -38,7 +38,7 @@ type pendingState struct {
 }
 
 func (ps *pendingState) applyTransaction(tx *types.Transaction, bc *core.BlockChain, cc *core.ChainConfig) (error, vm.Logs) {
-	snap := ps.state.Snapshot()
+	publicSnaphot, privateSnapshot := ps.publicState.Snapshot(), ps.privateState.Snapshot()
 
 	// this is a bit of a hack to force jit for the miners
 	config := cc.VmConfig
@@ -47,9 +47,11 @@ func (ps *pendingState) applyTransaction(tx *types.Transaction, bc *core.BlockCh
 	}
 	config.ForceJit = false // disable forcing jit
 
-	receipt, logs, _, err := core.ApplyTransaction(cc, bc, ps.gp, ps.state, ps.state, ps.header, tx, ps.header.GasUsed, config)
+	receipt, logs, _, err := core.ApplyTransaction(cc, bc, ps.gp, ps.publicState, ps.privateState, ps.header, tx, ps.header.GasUsed, config)
 	if err != nil {
-		ps.state.RevertToSnapshot(snap)
+		ps.publicState.RevertToSnapshot(publicSnaphot)
+		ps.privateState.RevertToSnapshot(privateSnapshot)
+
 		return err, nil
 	}
 	ps.txs = append(ps.txs, tx)
@@ -76,7 +78,7 @@ func (ps *pendingState) applyTransactions(txs *types.TransactionsByPriorityAndNo
 		from, _ := tx.From()
 
 		// Start executing the transaction
-		ps.state.StartRecord(tx.Hash(), common.Hash{}, 0)
+		ps.publicState.StartRecord(tx.Hash(), common.Hash{}, 0)
 
 		err, logs := ps.applyTransaction(tx, bc, cc)
 		switch {
