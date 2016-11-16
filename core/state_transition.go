@@ -233,13 +233,26 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 	if err = self.preCheck(); err != nil {
 		return
 	}
-	msg := self.msg
-	sender, _ := self.from() // err checked in preCheck
-
-	var data []byte
+	var (
+		msg              = self.msg
+		sender, _        = self.from() // err checked in preCheck
+		contractCreation = MessageCreatesContract(msg)
+		vmenv            = self.env
+		state            = vmenv.Db()
+		data             []byte
+		isPrivate        bool
+	)
+	if env, ok := vmenv.(DualStateEnv); ok {
+		state = env.PublicState()
+	}
 	if tx, ok := msg.(*types.Transaction); ok && tx.IsPrivate() {
+		isPrivate = true
 		data, err = private.P.Receive(self.data)
 		if err != nil {
+			if !contractCreation {
+				// Increment the nonce even if we are ignoring this transaction
+				state.SetNonce(sender.Address(), state.GetNonce(sender.Address())+1)
+			}
 			return nil, nil, nil, err
 		}
 	} else {
@@ -247,13 +260,11 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 	}
 
 	homestead := self.env.RuleSet().IsHomestead(self.env.BlockNumber())
-	contractCreation := MessageCreatesContract(msg)
 	// Pay intrinsic gas
 	if err = self.useGas(IntrinsicGas(data, contractCreation, homestead)); err != nil {
 		return nil, nil, nil, InvalidTxError(err)
 	}
 
-	vmenv := self.env
 	//var addr common.Address
 	if contractCreation {
 		ret, _, err = vmenv.Create(sender, data, self.gas, self.gasPrice, self.value)
@@ -266,10 +277,6 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 			glog.V(logger.Core).Infoln("VM create err:", err)
 		}
 	} else {
-		state := vmenv.Db()
-		if env, ok := vmenv.(DualStateEnv); ok {
-			state = env.PublicState()
-		}
 		// Increment the nonce for the next transaction
 		state.SetNonce(sender.Address(), state.GetNonce(sender.Address())+1)
 		ret, err = vmenv.Call(sender, self.to().Address(), data, self.gas, self.gasPrice, self.value)
@@ -292,6 +299,9 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 	self.refundGas()
 	self.state.AddBalance(self.env.Coinbase(), new(big.Int).Mul(self.gasUsed(), self.gasPrice))
 
+	if isPrivate {
+		return ret, new(big.Int), new(big.Int), err
+	}
 	return ret, requiredGas, self.gasUsed(), err
 }
 
