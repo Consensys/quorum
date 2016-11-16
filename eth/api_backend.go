@@ -102,10 +102,11 @@ func (b *EthApiBackend) GetVMEnv(ctx context.Context, msg core.Message, state et
 		privateState = statedb.privateState
 	)
 
-	addr, _ := msg.From()
-	if publicState.Exist(addr) {
+	if publicState.Exist(*msg.To()) {
 		privateState = publicState
 	}
+
+	addr, _ := msg.From()
 	from := privateState.GetOrNewStateObject(addr)
 	from.SetBalance(common.MaxBig)
 	vmError := func() error { return nil }
