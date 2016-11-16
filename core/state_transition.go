@@ -240,11 +240,13 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 		vmenv            = self.env
 		state            = vmenv.Db()
 		data             []byte
+		isPrivate        bool
 	)
 	if env, ok := vmenv.(DualStateEnv); ok {
 		state = env.PublicState()
 	}
 	if tx, ok := msg.(*types.Transaction); ok && tx.IsPrivate() {
+		isPrivate = true
 		data, err = private.P.Receive(self.data)
 		if err != nil {
 			if !contractCreation {
@@ -297,6 +299,9 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 	self.refundGas()
 	self.state.AddBalance(self.env.Coinbase(), new(big.Int).Mul(self.gasUsed(), self.gasPrice))
 
+	if isPrivate {
+		return ret, new(big.Int), new(big.Int), err
+	}
 	return ret, requiredGas, self.gasUsed(), err
 }
 
