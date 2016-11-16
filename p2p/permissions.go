@@ -28,8 +28,7 @@ func isNodePermissioned(nodename string, currentNode string, datadir string, dir
 	glog.V(logger.Debug).Infof("Permisssioned_list %v", permissonedList)
 	for _, v := range permissonedList {
 		if v == nodename {
-			glog.V(logger.Debug).Infof("isNodePermissioned <%v> connection:: nodename <%v> ALLOWED-BY <%v>", direction, nodename[:	// NODE_NAME_LENGTH    = 32
-, currentNode)
+			glog.V(logger.Debug).Infof("isNodePermissioned <%v> connection:: nodename <%v> ALLOWED-BY <%v>", direction, nodename[:NODE_NAME_LENGTH], currentNode[:NODE_NAME_LENGTHmai])
 			return true
 		}
 		glog.V(logger.Debug).Infof("isNodePermissioned <%v> connection:: nodename <%v> DENIED-BY <%v>", direction, nodename, currentNode)
