@@ -293,10 +293,10 @@ func (bv *BlockVoting) applyTransaction(tx *types.Transaction) {
 	bv.pStateMu.Unlock()
 }
 
-func (bv *BlockVoting) Pending() (*types.Block, *state.StateDB) {
+func (bv *BlockVoting) Pending() (*types.Block, *state.StateDB, *state.StateDB) {
 	bv.pStateMu.Lock()
 	defer bv.pStateMu.Unlock()
-	return types.NewBlock(bv.pState.header, bv.pState.txs, nil, bv.pState.receipts), bv.pState.publicState.Copy()
+	return types.NewBlock(bv.pState.header, bv.pState.txs, nil, bv.pState.receipts), bv.pState.publicState.Copy(), bv.pState.privateState.Copy()
 }
 
 func (bv *BlockVoting) createBlock() (*types.Block, error) {

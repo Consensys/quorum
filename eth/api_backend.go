@@ -45,7 +45,7 @@ func (b *EthApiBackend) SetHead(number uint64) {
 func (b *EthApiBackend) HeaderByNumber(blockNr rpc.BlockNumber) *types.Header {
 	// Pending block is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
-		block, _ := b.eth.blockVoting.Pending()
+		block, _, _ := b.eth.blockVoting.Pending()
 		return block.Header()
 	}
 	// Otherwise resolve and return the block
@@ -58,7 +58,7 @@ func (b *EthApiBackend) HeaderByNumber(blockNr rpc.BlockNumber) *types.Header {
 func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
 	// Pending block is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
-		block, _ := b.eth.blockVoting.Pending()
+		block, _, _ := b.eth.blockVoting.Pending()
 		return block, nil
 	}
 	// Otherwise resolve and return the block
@@ -71,8 +71,8 @@ func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumb
 func (b *EthApiBackend) StateAndHeaderByNumber(blockNr rpc.BlockNumber) (ethapi.State, *types.Header, error) {
 	// Pending state is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
-		block, state := b.eth.blockVoting.Pending()
-		return EthApiState{state, state}, block.Header(), nil
+		block, publicState, privateState := b.eth.blockVoting.Pending()
+		return EthApiState{publicState, privateState}, block.Header(), nil
 	}
 	// Otherwise resolve the block number and return its state
 	header := b.HeaderByNumber(blockNr)
@@ -103,7 +103,7 @@ func (b *EthApiBackend) GetVMEnv(ctx context.Context, msg core.Message, state et
 	)
 
 	addr, _ := msg.From()
-	if !privateState.Exist(addr) {
+	if publicState.Exist(addr) {
 		privateState = publicState
 	}
 	from := privateState.GetOrNewStateObject(addr)
@@ -195,17 +195,29 @@ type EthApiState struct {
 }
 
 func (s EthApiState) GetBalance(ctx context.Context, addr common.Address) (*big.Int, error) {
-	return s.publicState.GetBalance(addr), nil
+	if s.publicState.Exist(addr) {
+		return s.publicState.GetBalance(addr), nil
+	}
+	return s.privateState.GetBalance(addr), nil
 }
 
 func (s EthApiState) GetCode(ctx context.Context, addr common.Address) ([]byte, error) {
-	return s.publicState.GetCode(addr), nil
+	if s.publicState.Exist(addr) {
+		return s.publicState.GetCode(addr), nil
+	}
+	return s.privateState.GetCode(addr), nil
 }
 
 func (s EthApiState) GetState(ctx context.Context, a common.Address, b common.Hash) (common.Hash, error) {
-	return s.publicState.GetState(a, b), nil
+	if s.publicState.Exist(a) {
+		return s.publicState.GetState(a, b), nil
+	}
+	return s.privateState.GetState(a, b), nil
 }
 
 func (s EthApiState) GetNonce(ctx context.Context, addr common.Address) (uint64, error) {
-	return s.publicState.GetNonce(addr), nil
+	if s.publicState.Exist(addr) {
+		return s.publicState.GetNonce(addr), nil
+	}
+	return s.privateState.GetNonce(addr), nil
 }

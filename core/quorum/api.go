@@ -26,7 +26,7 @@ func (api *PublicQuorumAPI) CanonicalHash(height rpc.HexNumber) (common.Hash, er
 }
 
 func (api *PublicQuorumAPI) Vote(blockHash common.Hash) (common.Hash, error) {
-	pBlock, _ := api.bv.Pending()
+	pBlock, _, _ := api.bv.Pending()
 
 	req := Vote{
 		Hash:   blockHash,
