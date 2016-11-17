@@ -164,21 +164,6 @@ func (self *StateTransition) from() (vm.Account, error) {
 	return self.state.GetAccount(f), nil
 }
 
-func (self *StateTransition) to() vm.Account {
-	if self.msg == nil {
-		return nil
-	}
-	to := self.msg.To()
-	if to == nil {
-		return nil // contract creation
-	}
-
-	if !self.state.Exist(*to) {
-		return self.state.CreateAccount(*to)
-	}
-	return self.state.GetAccount(*to)
-}
-
 func (self *StateTransition) useGas(amount *big.Int) error {
 	if self.gas.Cmp(amount) < 0 {
 		return vm.OutOfGasError
@@ -294,7 +279,7 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}
 
-		ret, err = vmenv.Call(sender, self.to().Address(), data, self.gas, self.gasPrice, self.value)
+		ret, err = vmenv.Call(sender, *self.msg.To(), data, self.gas, self.gasPrice, self.value)
 		if err != nil {
 			glog.V(logger.Core).Infoln("VM call err:", err)
 		}

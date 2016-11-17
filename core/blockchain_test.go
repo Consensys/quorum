@@ -1085,7 +1085,8 @@ func TestPrivateTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	contractAddr := common.Address{1}
+	prvContractAddr := common.Address{1}
+	pubContractAddr := common.Address{2}
 
 	/* gllc
 	asm {
@@ -1094,14 +1095,14 @@ func TestPrivateTransactions(t *testing.T) {
 	SSTORE
 	}
 	*/
-	privateState.SetCode(contractAddr, common.Hex2Bytes("600a60005500"))
-	privateState.SetState(contractAddr, common.Hash{}, common.Hash{9})
-	publicState.SetCode(contractAddr, common.Hex2Bytes("601460005500"))
-	publicState.SetState(contractAddr, common.Hash{}, common.Hash{19})
+	privateState.SetCode(prvContractAddr, common.Hex2Bytes("600a60005500"))
+	privateState.SetState(prvContractAddr, common.Hash{}, common.Hash{9})
+	publicState.SetCode(pubContractAddr, common.Hex2Bytes("601460005500"))
+	publicState.SetState(pubContractAddr, common.Hash{}, common.Hash{19})
 
 	// Private transaction 1
 	ptx := privateTestTx{private: true}
-	ptx.Transaction, err = types.NewTransaction(0, contractAddr, new(big.Int), big.NewInt(1000000), new(big.Int), nil).SignECDSA(key)
+	ptx.Transaction, err = types.NewTransaction(0, prvContractAddr, new(big.Int), big.NewInt(1000000), new(big.Int), nil).SignECDSA(key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1109,14 +1110,14 @@ func TestPrivateTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stateEntry := privateState.GetState(contractAddr, common.Hash{}).Big()
+	stateEntry := privateState.GetState(prvContractAddr, common.Hash{}).Big()
 	if stateEntry.Cmp(big.NewInt(10)) != 0 {
 		t.Error("expected state to have 10, got", stateEntry)
 	}
 
 	// Public transaction 1
 	ptx = privateTestTx{private: false}
-	ptx.Transaction, err = types.NewTransaction(1, contractAddr, new(big.Int), big.NewInt(1000000), new(big.Int), nil).SignECDSA(key)
+	ptx.Transaction, err = types.NewTransaction(1, pubContractAddr, new(big.Int), big.NewInt(1000000), new(big.Int), nil).SignECDSA(key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1124,14 +1125,14 @@ func TestPrivateTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stateEntry = publicState.GetState(contractAddr, common.Hash{}).Big()
+	stateEntry = publicState.GetState(pubContractAddr, common.Hash{}).Big()
 	if stateEntry.Cmp(big.NewInt(20)) != 0 {
 		t.Error("expected state to have 20, got", stateEntry)
 	}
 
 	// Private transaction 2
 	ptx = privateTestTx{private: true}
-	ptx.Transaction, err = types.NewTransaction(2, contractAddr, new(big.Int), big.NewInt(1000000), new(big.Int), nil).SignECDSA(key)
+	ptx.Transaction, err = types.NewTransaction(2, prvContractAddr, new(big.Int), big.NewInt(1000000), new(big.Int), nil).SignECDSA(key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1139,8 +1140,15 @@ func TestPrivateTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stateEntry = privateState.GetState(contractAddr, common.Hash{}).Big()
+	stateEntry = privateState.GetState(prvContractAddr, common.Hash{}).Big()
 	if stateEntry.Cmp(big.NewInt(10)) != 0 {
 		t.Error("expected state to have 10, got", stateEntry)
+	}
+
+	if publicState.Exist(prvContractAddr) {
+		t.Error("didn't expect private contract address to exist on public state")
+	}
+	if privateState.Exist(pubContractAddr) {
+		t.Error("didn't expect public contract address to exist on private state")
 	}
 }
