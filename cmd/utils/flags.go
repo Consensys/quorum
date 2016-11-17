@@ -369,6 +369,10 @@ var (
 		Name:  "singleblockmaker",
 		Usage: "Indicate this node is the only node that can create blocks",
 	}
+	EnableNodePermissionFlag = cli.BoolFlag{
+		Name:  "permissioned",
+		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -588,28 +592,29 @@ func MakeNode(ctx *cli.Context, name, gitCommit string) *node.Node {
 	}
 
 	config := &node.Config{
-		DataDir:           MakeDataDir(ctx),
-		KeyStoreDir:       ctx.GlobalString(KeyStoreDirFlag.Name),
-		UseLightweightKDF: ctx.GlobalBool(LightKDFFlag.Name),
-		PrivateKey:        MakeNodeKey(ctx),
-		Name:              name,
-		Version:           vsn,
-		UserIdent:         makeNodeUserIdent(ctx),
-		NoDiscovery:       ctx.GlobalBool(NoDiscoverFlag.Name),
-		BootstrapNodes:    MakeBootstrapNodes(ctx),
-		ListenAddr:        MakeListenAddress(ctx),
-		NAT:               MakeNAT(ctx),
-		MaxPeers:          ctx.GlobalInt(MaxPeersFlag.Name),
-		MaxPendingPeers:   ctx.GlobalInt(MaxPendingPeersFlag.Name),
-		IPCPath:           MakeIPCPath(ctx),
-		HTTPHost:          MakeHTTPRpcHost(ctx),
-		HTTPPort:          ctx.GlobalInt(RPCPortFlag.Name),
-		HTTPCors:          ctx.GlobalString(RPCCORSDomainFlag.Name),
-		HTTPModules:       MakeRPCModules(ctx.GlobalString(RPCApiFlag.Name)),
-		WSHost:            MakeWSRpcHost(ctx),
-		WSPort:            ctx.GlobalInt(WSPortFlag.Name),
-		WSOrigins:         ctx.GlobalString(WSAllowedOriginsFlag.Name),
-		WSModules:         MakeRPCModules(ctx.GlobalString(WSApiFlag.Name)),
+		DataDir:              MakeDataDir(ctx),
+		KeyStoreDir:          ctx.GlobalString(KeyStoreDirFlag.Name),
+		UseLightweightKDF:    ctx.GlobalBool(LightKDFFlag.Name),
+		PrivateKey:           MakeNodeKey(ctx),
+		Name:                 name,
+		Version:              vsn,
+		UserIdent:            makeNodeUserIdent(ctx),
+		NoDiscovery:          ctx.GlobalBool(NoDiscoverFlag.Name),
+		BootstrapNodes:       MakeBootstrapNodes(ctx),
+		ListenAddr:           MakeListenAddress(ctx),
+		NAT:                  MakeNAT(ctx),
+		MaxPeers:             ctx.GlobalInt(MaxPeersFlag.Name),
+		MaxPendingPeers:      ctx.GlobalInt(MaxPendingPeersFlag.Name),
+		IPCPath:              MakeIPCPath(ctx),
+		HTTPHost:             MakeHTTPRpcHost(ctx),
+		HTTPPort:             ctx.GlobalInt(RPCPortFlag.Name),
+		HTTPCors:             ctx.GlobalString(RPCCORSDomainFlag.Name),
+		HTTPModules:          MakeRPCModules(ctx.GlobalString(RPCApiFlag.Name)),
+		WSHost:               MakeWSRpcHost(ctx),
+		WSPort:               ctx.GlobalInt(WSPortFlag.Name),
+		WSOrigins:            ctx.GlobalString(WSAllowedOriginsFlag.Name),
+		WSModules:            MakeRPCModules(ctx.GlobalString(WSApiFlag.Name)),
+		EnableNodePermission: ctx.GlobalBool(EnableNodePermissionFlag.Name),
 	}
 	if ctx.GlobalBool(DevModeFlag.Name) {
 		if !ctx.GlobalIsSet(DataDirFlag.Name) {
