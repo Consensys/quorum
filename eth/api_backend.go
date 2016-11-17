@@ -102,7 +102,7 @@ func (b *EthApiBackend) GetVMEnv(ctx context.Context, msg core.Message, state et
 		privateState = statedb.privateState
 	)
 
-	if publicState.Exist(*msg.To()) {
+	if !privateState.Exist(*msg.To()) {
 		privateState = publicState
 	}
 
