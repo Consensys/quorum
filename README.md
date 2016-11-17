@@ -28,7 +28,7 @@ vagrant ssh
 
 Now that you have a fully-functioning Quorum environment set up, let's run the 7-node cluster example. This will spin up several nodes with a mix of voters, block makers, and unprivileged nodes.
 
-```
+```sh
 # (from within vagrant env, use `vagrant ssh` to enter)
 ubuntu@ubuntu-xenial:~$ cd quorum-examples/7nodes
 
@@ -45,8 +45,7 @@ $ ./init.sh
 
 $ ./start.sh
 [*] Starting Constellation nodes
-[*] Starting bootnode
-wait for bootnode to start...
+[*] Starting bootnode... waiting... done
 [*] Starting node 1
 [*] Starting node 2
 [*] Starting node 3
@@ -55,7 +54,7 @@ wait for bootnode to start...
 [*] Starting node 6
 [*] Starting node 7
 [*] Unlocking account and sending first transaction
-Contract transaction send: TransactionHash: 0x5828de9bf1c11d0db7cde96337c3c4d678da93a9040ac0790d38518e5f8c072d waiting to be mined...
+Contract transaction send: TransactionHash: 0xbfb7bfb97ba9bacbf768e67ac8ef05e4ac6960fc1eeb6ab38247db91448b8ec6 waiting to be mined...
 true
 ```
 
@@ -96,21 +95,21 @@ at block: 679 (Tue, 15 Nov 2016 00:01:05 UTC)
 }
 
 # let's look at the private txn created earlier:
-> eth.getTransaction("0x5828de9bf1c11d0db7cde96337c3c4d678da93a9040ac0790d38518e5f8c072d")
+> eth.getTransaction("0xbfb7bfb97ba9bacbf768e67ac8ef05e4ac6960fc1eeb6ab38247db91448b8ec6")
 {
-  blockHash: "0xef4afed2572f00d68c79f301a9d1ba4006c45ae709ba583d6ff525779a382548",
+  blockHash: "0xb6aec633ef1f79daddc071bec8a56b7099ab08ac9ff2dc2764ffb34d5a8d15f8",
   blockNumber: 1,
   from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
   gas: 300000,
-  gasPrice: 21782420000,
-  hash: "0x5828de9bf1c11d0db7cde96337c3c4d678da93a9040ac0790d38518e5f8c072d",
-  input: "0x893e6ccade7e2a36d744941da824bd8f2fedea9d5e6e8a119ec95221099545bc96c229a431ef8386ee5316e1e71f7aeed3b1e2f0f76f3ba3dd5319398b5a5f7a",
+  gasPrice: 0,
+  hash: "0xbfb7bfb97ba9bacbf768e67ac8ef05e4ac6960fc1eeb6ab38247db91448b8ec6",
+  input: "0x9820c1a5869713757565daede6fcec57f3a6b45d659e59e72c98c531dcba9ed206fd0012c75ce72dc8b48cd079ac08536d3214b1a4043da8cea85be858b39c1d",
   nonce: 0,
-  r: "0x9d93b88ad815dc90e2bdb4ebe01d11e7f16e887d3d4d37df1e0159404e217e4b",
-  s: "0x10fabc7739c4651c699644ae75f81cc8ac73ab6773620a88a5a4c14199b14b24",
+  r: "0x226615349dc143a26852d91d2dff1e57b4259b576f675b06173e9972850089e7",
+  s: "0x45d74765c5400c5c280dd6285a84032bdcb1de85a846e87b57e9e0cedad6c427",
   to: null,
-  transactionIndex: 0,
-  v: "0x1b",
+  transactionIndex: 1,
+  v: "0x25",
   value: 0
 }
 ```
