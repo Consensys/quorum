@@ -1058,3 +1058,89 @@ func TestCanonicalBlockRetrieval(t *testing.T) {
 		blockchain.InsertChain(types.Blocks{chain[i]})
 	}
 }
+
+type privateTestTx struct {
+	*types.Transaction
+	private bool
+}
+
+func (ptx *privateTestTx) IsPrivate() bool { return ptx.private }
+
+// Tests if the canonical block can be fetched from the database during chain insertion.
+func TestPrivateTransactions(t *testing.T) {
+	var (
+		db, _         = ethdb.NewMemDatabase()
+		key, _        = crypto.GenerateKey()
+		evmux         = &event.TypeMux{}
+		blockchain, _ = NewBlockChain(db, testChainConfig(), FakePow{}, evmux, false)
+		header        = &types.Header{}
+		gp            = new(GasPool).AddGas(big.NewInt(2000000))
+		err           error
+	)
+	publicState, err := state.New(common.Hash{}, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	privateState, err := state.New(common.Hash{}, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contractAddr := common.Address{1}
+
+	/* gllc
+	asm {
+	PUSH1 10
+	PUSH1 0
+	SSTORE
+	}
+	*/
+	privateState.SetCode(contractAddr, common.Hex2Bytes("600a60005500"))
+	privateState.SetState(contractAddr, common.Hash{}, common.Hash{9})
+	publicState.SetCode(contractAddr, common.Hex2Bytes("601460005500"))
+	publicState.SetState(contractAddr, common.Hash{}, common.Hash{19})
+
+	// Private transaction 1
+	ptx := privateTestTx{private: true}
+	ptx.Transaction, err = types.NewTransaction(0, contractAddr, new(big.Int), big.NewInt(1000000), new(big.Int), nil).SignECDSA(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = ApplyMessage(NewEnv(publicState, privateState, &ChainConfig{}, blockchain, ptx.Transaction, header, vm.Config{}), ptx, gp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stateEntry := privateState.GetState(contractAddr, common.Hash{}).Big()
+	if stateEntry.Cmp(big.NewInt(10)) != 0 {
+		t.Error("expected state to have 10, got", stateEntry)
+	}
+
+	// Public transaction 1
+	ptx = privateTestTx{private: false}
+	ptx.Transaction, err = types.NewTransaction(1, contractAddr, new(big.Int), big.NewInt(1000000), new(big.Int), nil).SignECDSA(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = ApplyMessage(NewEnv(publicState, publicState, &ChainConfig{}, blockchain, ptx.Transaction, header, vm.Config{}), ptx, gp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stateEntry = publicState.GetState(contractAddr, common.Hash{}).Big()
+	if stateEntry.Cmp(big.NewInt(20)) != 0 {
+		t.Error("expected state to have 20, got", stateEntry)
+	}
+
+	// Private transaction 2
+	ptx = privateTestTx{private: true}
+	ptx.Transaction, err = types.NewTransaction(2, contractAddr, new(big.Int), big.NewInt(1000000), new(big.Int), nil).SignECDSA(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = ApplyMessage(NewEnv(publicState, privateState, &ChainConfig{}, blockchain, ptx.Transaction, header, vm.Config{}), ptx, gp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stateEntry = privateState.GetState(contractAddr, common.Hash{}).Big()
+	if stateEntry.Cmp(big.NewInt(10)) != 0 {
+		t.Error("expected state to have 10, got", stateEntry)
+	}
+}

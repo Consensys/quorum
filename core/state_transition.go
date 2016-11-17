@@ -21,7 +21,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
@@ -75,6 +74,12 @@ type Message interface {
 	Nonce() uint64
 	CheckNonce() bool
 	Data() []byte
+}
+
+// PrivateMessage implements a private message
+type PrivateMessage interface {
+	Message
+	IsPrivate() bool
 }
 
 func MessageCreatesContract(msg Message) bool {
@@ -246,7 +251,7 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 		data             []byte
 		isPrivate        bool
 	)
-	if tx, ok := msg.(*types.Transaction); ok && tx.IsPrivate() {
+	if msg, ok := msg.(PrivateMessage); ok && msg.IsPrivate() {
 		isPrivate = true
 		data, err = private.P.Receive(self.data)
 		// Increment the public account nonce if:
@@ -257,7 +262,7 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 		}
 
 		if err != nil {
-			glog.V(logger.Debug).Infof("Ignoring private tx %x. Not a participant.", tx.Hash())
+			glog.V(logger.Debug).Infof("Ignoring private tx")
 			return nil, new(big.Int), new(big.Int), nil
 		}
 	} else {
