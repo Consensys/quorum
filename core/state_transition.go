@@ -21,6 +21,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
@@ -74,12 +75,6 @@ type Message interface {
 	Nonce() uint64
 	CheckNonce() bool
 	Data() []byte
-}
-
-// PrivateMessage implements a private message
-type PrivateMessage interface {
-	Message
-	IsPrivate() bool
 }
 
 func MessageCreatesContract(msg Message) bool {
@@ -164,6 +159,21 @@ func (self *StateTransition) from() (vm.Account, error) {
 	return self.state.GetAccount(f), nil
 }
 
+func (self *StateTransition) to() vm.Account {
+	if self.msg == nil {
+		return nil
+	}
+	to := self.msg.To()
+	if to == nil {
+		return nil // contract creation
+	}
+
+	if !self.state.Exist(*to) {
+		return self.state.CreateAccount(*to)
+	}
+	return self.state.GetAccount(*to)
+}
+
 func (self *StateTransition) useGas(amount *big.Int) error {
 	if self.gas.Cmp(amount) < 0 {
 		return vm.OutOfGasError
@@ -236,7 +246,7 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 		data             []byte
 		isPrivate        bool
 	)
-	if msg, ok := msg.(PrivateMessage); ok && msg.IsPrivate() {
+	if tx, ok := msg.(*types.Transaction); ok && tx.IsPrivate() {
 		isPrivate = true
 		data, err = private.P.Receive(self.data)
 		// Increment the public account nonce if:
@@ -247,7 +257,7 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 		}
 
 		if err != nil {
-			glog.V(logger.Debug).Infof("Ignoring private tx")
+			glog.V(logger.Debug).Infof("Ignoring private tx %x. Not a participant.", tx.Hash())
 			return nil, new(big.Int), new(big.Int), nil
 		}
 	} else {
@@ -279,7 +289,7 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}
 
-		ret, err = vmenv.Call(sender, *self.msg.To(), data, self.gas, self.gasPrice, self.value)
+		ret, err = vmenv.Call(sender, self.to().Address(), data, self.gas, self.gasPrice, self.value)
 		if err != nil {
 			glog.V(logger.Core).Infoln("VM call err:", err)
 		}
