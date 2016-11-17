@@ -1,6 +1,6 @@
 # Quorum
 
-Quorum is an Ethereum-based distributed ledger protocol with transaction and contract privacy, developed for the financial services industry.
+Quorum is an Ethereum-based distributed ledger protocol with transaction/contract privacy and a new consensus mechanism.
 
 Key enhancements:
 
