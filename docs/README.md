@@ -1,7 +1,7 @@
 
 # Quorum documentation
 
-* [Whitepaper](./whitepaper.pdf) (PDF) - Quroum Whitepaper
+* [Whitepaper](https://github.com/jpmorganchase/quorum-docs/raw/master/Quorum%20Whitepaper%20v0.1.pdf) (PDF) - Quroum Whitepaper
 * [Design](./design.md) - Quorum design overview
 * [Privacy](./privacy.md) - Sending private transactions
 * [Running](./running.md) - Detailed instructions for running Quorum nodes (see also [Constellation](https://github.com/jpmorganchase/constellation))
