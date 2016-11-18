@@ -67,6 +67,7 @@ type Config struct {
 	NetworkId        int    // Network ID to use for selecting peers to connect to
 	Genesis          string // Genesis JSON to seed the chain database with
 	SingleBlockMaker bool   // Assume this node is the only node on the network allowed to create blocks
+	EnableNodePermission bool //Used for enabling / disabling node permissioning
 
 	SkipBcVersionCheck bool // e.g. blockchain export
 	DatabaseCache      int
