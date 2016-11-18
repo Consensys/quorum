@@ -129,6 +129,17 @@ func (pool *TxPool) eventLoop() {
 	}
 }
 
+// Nonce returns the nonce for the given addr from the pending state.
+// Can only be used for local transactions.
+func (pool *TxPool) Nonce(addr common.Address) uint64 {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	if pool.pendingState == nil {
+		pool.resetState()
+	}
+	return pool.pendingState.GetNonce(addr)
+}
+
 func (pool *TxPool) resetState() {
 	currentState, _, err := pool.currentState()
 	if err != nil {

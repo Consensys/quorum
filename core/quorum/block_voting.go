@@ -244,15 +244,19 @@ func (bv *BlockVoting) run(strat BlockMakerStrategy) {
 				case core.TxPreEvent: // tx entered pool, apply to pending state
 					bv.applyTransaction(e.Tx)
 				case Vote:
-					txHash, err := bv.vote(e.Number, e.Hash)
-					if err == nil && e.TxHash != nil {
-						e.TxHash <- txHash
-					} else if err != nil && e.Err != nil {
-						e.Err <- err
-					} else if err != nil {
-						if glog.V(logger.Debug) {
-							glog.Errorf("Unable to vote: %v", err)
+					if bv.synced {
+						txHash, err := bv.vote(e.Number, e.Hash)
+						if err == nil && e.TxHash != nil {
+							e.TxHash <- txHash
+						} else if err != nil && e.Err != nil {
+							e.Err <- err
+						} else if err != nil {
+							if glog.V(logger.Debug) {
+								glog.Errorf("Unable to vote: %v", err)
+							}
 						}
+					} else {
+						e.Err <- fmt.Errorf("Node not synced")
 					}
 				case CreateBlock:
 					block, err := bv.createBlock()
@@ -366,6 +370,10 @@ func (bv *BlockVoting) vote(height *big.Int, hash common.Hash) (common.Hash, err
 	if glog.V(logger.Detail) {
 		glog.Infof("vote for %s on height %d", hash.Hex(), height)
 	}
+
+	nonce := bv.txpool.Nonce(bv.voteSession.TransactOpts.From)
+	bv.voteSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
+	defer func() { bv.voteSession.TransactOpts.Nonce = nil }()
 
 	tx, err := bv.voteSession.Vote(height, hash)
 	if err != nil {
