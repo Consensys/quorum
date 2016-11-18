@@ -20,7 +20,7 @@ The quickest way to get started with Quorum is using [VirtualBox](https://www.vi
 
 ```sh
 git clone https://github.com/jpmorganchase/quorum-examples
-cd quorum-examples/vagrant
+cd quorum-examples
 vagrant up
 # (should take 5 or so minutes)
 vagrant ssh
