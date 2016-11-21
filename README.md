@@ -117,7 +117,7 @@ at block: 679 (Tue, 15 Nov 2016 00:01:05 UTC)
 Note in particular the `v` field of "0x25" (37 in decimal) which marks this transaction as having a private payload (input).
 
 ## Demonstrating Privacy
-Documentation detailing steps to demonstrate the privacy features of Quorum can be found in the [Testing Quorum](https://github.com/jpmorganchase/quorum/wiki/Getting-Set-Up) section of the wiki.
+Documentation detailing steps to demonstrate the privacy features of Quorum can be found in [quorum-examples/7nodes/README](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes/README.md).
 
 ## Further Reading
 
