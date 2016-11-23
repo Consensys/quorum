@@ -30,7 +30,7 @@ Now that you have a fully-functioning Quorum environment set up, let's run the 7
 
 ```sh
 # (from within vagrant env, use `vagrant ssh` to enter)
-ubuntu@ubuntu-xenial:~$ cd quorum-examples/7nodes
+ubuntu@ubuntu-xenial:~$ cd quorum-examples/examples/7nodes
 
 $ ./init.sh
 # (output condensed for clarity)
