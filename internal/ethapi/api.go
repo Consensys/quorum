@@ -465,6 +465,25 @@ func (s *PublicBlockChainAPI) GetUncleCountByBlockHash(ctx context.Context, bloc
 	return nil
 }
 
+// GetQuorumPayload returns the contents of a private transaction
+func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error) {
+        if private.P == nil {
+                panic("PublicBlockChainApi.GetQuorumPayload: PrivateTransactionManager is not enabled")
+        }
+        b, err := hex.DecodeString(digestHex)
+        if err != nil {
+                return "", err
+        }
+        if len(b) != 64 {
+                return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
+        }
+        data, err := private.P.Receive(b)
+        if err != nil {
+                return "", err
+        }
+        return fmt.Sprintf("0x%x", data), nil
+}
+
 // GetCode returns the code stored at the given address in the state for the given block number.
 func (s *PublicBlockChainAPI) GetCode(ctx context.Context, address common.Address, blockNr rpc.BlockNumber) (string, error) {
 	state, _, err := s.b.StateAndHeaderByNumber(blockNr)
