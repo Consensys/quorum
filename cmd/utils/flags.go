@@ -46,6 +46,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/pow"
+	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"gopkg.in/urfave/cli.v1"
@@ -655,9 +656,11 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 		glog.V(logger.Info).Infoln("You're one of the lucky few that will try out the JIT VM (random). If you get a consensus failure please be so kind to report this incident with the block hash that failed. You can switch to the regular VM by setting --jitvm=false")
 	}
 
+	chainConfig := MakeChainConfig(ctx, stack)
+
 	ethConf := &eth.Config{
 		Etherbase:        MakeEtherbase(stack.AccountManager(), ctx),
-		ChainConfig:      MakeChainConfig(ctx, stack),
+		ChainConfig:      chainConfig,
 		SingleBlockMaker: ctx.GlobalBool(SingleBlockMakerFlag.Name),
 		DatabaseCache:    ctx.GlobalInt(CacheFlag.Name),
 		DatabaseHandles:  MakeDatabaseHandles(),
@@ -696,10 +699,22 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 		state.MaxTrieCacheGen = uint16(gen)
 	}
 
+	// We need a pointer to the ethereum service so we can access it from the raft
+	// service
+	var ethService *eth.Ethereum
+
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		return eth.New(ctx, ethConf)
+		ethService, err := eth.New(ctx, ethConf)
+		return ethService, err
 	}); err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
+	}
+
+	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+		strId := discover.PubkeyID(stack.PublicKey()).String()
+		return gethRaft.New(ctx, chainConfig, strId, ethService)
+	}); err != nil {
+		Fatalf("Failed to register the Raft service: %v", err)
 	}
 }
 

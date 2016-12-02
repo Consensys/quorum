@@ -24,6 +24,7 @@ var Modules = map[string]string{
 	"debug":      Debug_JS,
 	"ens":        ENS_JS,
 	"eth":        Eth_JS,
+	"raft":       Raft_JS,
 	"miner":      Miner_JS,
 	"net":        Net_JS,
 	"personal":   Personal_JS,
@@ -510,6 +511,33 @@ web3._extend({
 		})
 	]
 });
+`
+
+const Raft_JS = `
+web3._extend({
+       property: 'raft',
+       methods:
+       [
+               new web3._extend.Method({
+                       name: 'sendTransaction',
+                       call: 'raft_sendTransaction',
+                       params: 1,
+                       inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'startNode',
+                       call: 'raft_startNode',
+                       params: 0
+               })
+       ],
+       properties:
+       [
+               new web3._extend.Property({
+                       name: 'version',
+                       getter: 'raft_version'
+               })
+       ]
+})
 `
 
 const Miner_JS = `

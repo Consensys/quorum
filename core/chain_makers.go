@@ -54,6 +54,15 @@ func (f FakePow) Verify(block pow.Block) bool { return true }
 func (f FakePow) GetHashrate() int64          { return 0 }
 func (f FakePow) Turbo(bool)                  {}
 
+type RaftPow struct{}
+
+func (f RaftPow) Search(block pow.Block, stop <-chan struct{}, index int) (uint64, []byte) {
+	return 0, nil
+}
+func (f RaftPow) Verify(block pow.Block) bool { return block.Nonce() == 0 }
+func (f RaftPow) GetHashrate() int64          { return 0 }
+func (f RaftPow) Turbo(bool)                  {}
+
 // So we can deterministically seed different blockchains
 var (
 	canonicalSeed = 1

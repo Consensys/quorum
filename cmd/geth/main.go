@@ -28,8 +28,6 @@ import (
 	"strings"
 	"time"
 
-	"crypto/ecdsa"
-
 	"github.com/ethereum/ethash"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
@@ -276,54 +274,56 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			unlockAccount(ctx, accman, trimmed, i, passwords)
 		}
 	}
+
 	// Start auxiliary services
-	var ethereum *eth.Ethereum
-	if err := stack.Service(&ethereum); err != nil {
-		utils.Fatalf("ethereum service not running: %v", err)
-	}
 
-	client, err := stack.Attach()
-	if err != nil {
-		utils.Fatalf("Unable to attach to node: %v", err)
-	}
+	// var ethereum *eth.Ethereum
+	// if err := stack.Service(&ethereum); err != nil {
+	// 	utils.Fatalf("ethereum service not running: %v", err)
+	// }
 
-	var (
-		voteKey      *ecdsa.PrivateKey
-		blockVoteKey *ecdsa.PrivateKey
-	)
+	// client, err := stack.Attach()
+	// if err != nil {
+	// 	utils.Fatalf("Unable to attach to node: %v", err)
+	// }
 
-	if addr := ctx.GlobalString(utils.VoteAccountFlag.Name); addr != "" {
-		addr = strings.TrimSpace(addr)
-		var passwd []string
-		if ctx.GlobalIsSet(utils.VoteAccountPasswordFlag.Name) {
-			passwd = append(passwd, ctx.GlobalString(utils.VoteAccountPasswordFlag.Name))
-		}
+	// var (
+	// 	voteKey      *ecdsa.PrivateKey
+	// 	blockVoteKey *ecdsa.PrivateKey
+	// )
 
-		unlockAccount(ctx, accman, addr, 0, passwd)
-		// unlockAccounts fatals in case the account could not be unlocked
-		voteKey, err = accman.Key(common.HexToAddress(addr))
-		if err != nil {
-			utils.Fatalf("Unable to unlock vote key: %v", err)
-		}
-	}
+	// if addr := ctx.GlobalString(utils.VoteAccountFlag.Name); addr != "" {
+	// 	addr = strings.TrimSpace(addr)
+	// 	var passwd []string
+	// 	if ctx.GlobalIsSet(utils.VoteAccountPasswordFlag.Name) {
+	// 		passwd = append(passwd, ctx.GlobalString(utils.VoteAccountPasswordFlag.Name))
+	// 	}
 
-	if addr := ctx.GlobalString(utils.VoteBlockMakerAccountFlag.Name); addr != "" {
-		addr = strings.TrimSpace(addr)
-		var passwd []string
-		if ctx.GlobalIsSet(utils.VoteBlockMakerAccountPasswordFlag.Name) {
-			passwd = append(passwd, ctx.GlobalString(utils.VoteBlockMakerAccountPasswordFlag.Name))
-		}
-		unlockAccount(ctx, accman, addr, 0, passwd)
-		// unlockAccounts fatals in case the account could not be unlocked
-		blockVoteKey, err = accman.Key(common.HexToAddress(addr[2:]))
-		if err != nil {
-			utils.Fatalf("Unable to unlock block maker key: %v", err)
-		}
-	}
+	// 	unlockAccount(ctx, accman, addr, 0, passwd)
+	// 	// unlockAccounts fatals in case the account could not be unlocked
+	// 	voteKey, err = accman.Key(common.HexToAddress(addr))
+	// 	if err != nil {
+	// 		utils.Fatalf("Unable to unlock vote key: %v", err)
+	// 	}
+	// }
 
-	if err := ethereum.StartBlockVoting(client, voteKey, blockVoteKey); err != nil {
-		utils.Fatalf("Failed to start block voting: %v", err)
-	}
+	// if addr := ctx.GlobalString(utils.VoteBlockMakerAccountFlag.Name); addr != "" {
+	// 	addr = strings.TrimSpace(addr)
+	// 	var passwd []string
+	// 	if ctx.GlobalIsSet(utils.VoteBlockMakerAccountPasswordFlag.Name) {
+	// 		passwd = append(passwd, ctx.GlobalString(utils.VoteBlockMakerAccountPasswordFlag.Name))
+	// 	}
+	// 	unlockAccount(ctx, accman, addr, 0, passwd)
+	// 	// unlockAccounts fatals in case the account could not be unlocked
+	// 	blockVoteKey, err = accman.Key(common.HexToAddress(addr[2:]))
+	// 	if err != nil {
+	// 		utils.Fatalf("Unable to unlock block maker key: %v", err)
+	// 	}
+	// }
+
+	// if err := ethereum.StartBlockVoting(client, voteKey, blockVoteKey); err != nil {
+	// 	utils.Fatalf("Failed to start block voting: %v", err)
+	// }
 }
 
 func makedag(ctx *cli.Context) error {

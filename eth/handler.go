@@ -204,8 +204,14 @@ func (pm *ProtocolManager) Start() {
 	pm.txSub = pm.eventMux.Subscribe(core.TxPreEvent{})
 	go pm.txBroadcastLoop()
 	// broadcast mined blocks
-	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
-	go pm.minedBroadcastLoop()
+
+	// TODO(joel) - stop eth listening on this event in a less invasive way
+	// pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
+	// go pm.minedBroadcastLoop()
+	// We set this immediately in raft mode to make sure the miner never drops
+	// txes. We don't use the fetcher or downloader, and so this would never be
+	// set otherwise.
+	atomic.StoreUint32(&pm.synced, 1)
 
 	// start sync handlers
 	go pm.syncer()
@@ -215,8 +221,8 @@ func (pm *ProtocolManager) Start() {
 func (pm *ProtocolManager) Stop() {
 	glog.V(logger.Info).Infoln("Stopping ethereum protocol handler...")
 
-	pm.txSub.Unsubscribe()         // quits txBroadcastLoop
-	pm.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
+	pm.txSub.Unsubscribe() // quits txBroadcastLoop
+	// pm.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
 
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.

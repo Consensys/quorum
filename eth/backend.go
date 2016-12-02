@@ -64,10 +64,10 @@ var (
 type Config struct {
 	ChainConfig *core.ChainConfig // chain configuration
 
-	NetworkId        int    // Network ID to use for selecting peers to connect to
-	Genesis          string // Genesis JSON to seed the chain database with
-	SingleBlockMaker bool   // Assume this node is the only node on the network allowed to create blocks
-	EnableNodePermission bool //Used for enabling / disabling node permissioning
+	NetworkId            int    // Network ID to use for selecting peers to connect to
+	Genesis              string // Genesis JSON to seed the chain database with
+	SingleBlockMaker     bool   // Assume this node is the only node on the network allowed to create blocks
+	EnableNodePermission bool   //Used for enabling / disabling node permissioning
 
 	SkipBcVersionCheck bool // e.g. blockchain export
 	DatabaseCache      int
@@ -204,7 +204,9 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		ForceJit:  config.ForceJit,
 	}
 
-	eth.blockchain, err = core.NewBlockChain(chainDb, eth.chainConfig, eth.pow, eth.EventMux(), true)
+	raftPow := core.RaftPow{}
+
+	eth.blockchain, err = core.NewBlockChain(chainDb, eth.chainConfig, raftPow, eth.EventMux(), true)
 	if err != nil {
 		if err == core.ErrNoGenesis {
 			return nil, fmt.Errorf(`No chain found. Please initialise a new chain using the "init" subcommand.`)
@@ -214,7 +216,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	newPool := core.NewTxPool(eth.chainConfig, eth.EventMux(), eth.blockchain.State, eth.blockchain.GasLimit)
 	eth.txPool = newPool
 
-	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SingleBlockMaker, config.NetworkId, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb); err != nil {
+	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SingleBlockMaker, config.NetworkId, eth.eventMux, eth.txPool, raftPow, eth.blockchain, chainDb); err != nil {
 		return nil, err
 	}
 

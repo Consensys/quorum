@@ -19,7 +19,6 @@ package core
 import (
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -276,9 +275,9 @@ func ValidateHeader(chaindb ethdb.Database, bc *BlockChain, config *ChainConfig,
 			return BlockTSTooBigErr
 		}
 	} else {
-		if header.Time.Cmp(big.NewInt(time.Now().Unix())) == 1 {
-			return BlockFutureErr
-		}
+		// if header.Time.Cmp(big.NewInt(time.Now().Unix())) == 1 {
+		// 	return BlockFutureErr
+		// }
 	}
 	if header.Time.Cmp(parent.Time) != 1 {
 		return BlockEqualTSErr

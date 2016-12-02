@@ -839,6 +839,49 @@ func (self *BlockChain) WriteBlock(block *types.Block) (status WriteStatus, err 
 	return
 }
 
+// Only writes the block without inserting it as the head of the chain
+func (self *BlockChain) WriteDetachedBlock(block *types.Block) (err error) {
+	self.wg.Add(1)
+	defer self.wg.Done()
+
+	// Calculate the total difficulty of the block
+	ptd := self.GetTdByHash(block.ParentHash())
+	if ptd == nil {
+		return ParentError(block.ParentHash())
+	}
+
+	externTd := new(big.Int).Add(block.Difficulty(), ptd)
+
+	// Make sure no inconsistent state is leaked while writing the block
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	// Write the block itself to the database
+	if err := self.hc.WriteTd(block.Hash(), block.Number().Uint64(), externTd); err != nil {
+		glog.Fatalf("failed to write block total difficulty: %v", err)
+	}
+	if err := WriteBlock(self.chainDb, block); err != nil {
+		glog.Fatalf("failed to write block contents: %v", err)
+	}
+
+	self.futureBlocks.Remove(block.Hash())
+
+	return
+}
+
+func (self *BlockChain) SetNewHeadBlock(block *types.Block) {
+	self.wg.Add(1)
+	defer self.wg.Done()
+
+	self.chainmu.Lock()
+	defer self.chainmu.Unlock()
+
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	self.insert(block)
+}
+
 // InsertChain will attempt to insert the given chain in to the canonical chain or, otherwise, create a fork. It an error is returned
 // it will return the index number of the failing block as well an error describing what went wrong (for possible errors see core/errors.go).
 func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
