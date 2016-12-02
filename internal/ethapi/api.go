@@ -470,6 +470,12 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if private.P == nil {
 		return "", fmt.Errorf("PrivateTransactionManager is not enabled")
 	}
+	if len(digestHex) < 3 {
+		return "", fmt.Errorf("Invalid digest hex")
+	}
+	if digestHex[:2] == "0x" {
+		digestHex = digestHex[2:]
+	}
 	b, err := hex.DecodeString(digestHex)
 	if err != nil {
 		return "", err
