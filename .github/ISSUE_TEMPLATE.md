@@ -4,7 +4,7 @@ Geth version: `geth version`
 
 OS & Version: Windows/Linux/OSX
 
-Branch, Commit Hash or Release:
+Branch, Commit Hash or Release: `git status`
 
 #### Expected behaviour
 
