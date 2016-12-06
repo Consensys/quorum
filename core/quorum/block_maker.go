@@ -26,7 +26,6 @@ type pendingState struct {
 	gp                        *core.GasPool
 	ownedAccounts             *set.Set
 	txs                       types.Transactions // set of transactions
-	txsHashes                 *set.Set
 	lowGasTxs                 types.Transactions
 	failedTxs                 types.Transactions
 	parent                    *types.Block
@@ -56,7 +55,6 @@ func (ps *pendingState) applyTransaction(tx *types.Transaction, bc *core.BlockCh
 		return err, nil
 	}
 	ps.txs = append(ps.txs, tx)
-	ps.txsHashes.Add(tx.Hash())
 	ps.receipts = append(ps.receipts, receipt)
 
 	return nil, logs
@@ -75,11 +73,6 @@ func (ps *pendingState) applyTransactions(txs *types.TransactionsByPriorityAndNo
 		if tx == nil {
 			break
 		}
-
-		if ps.txsHashes.Has(tx.Hash()) {
-			continue
-		}
-
 		// Error may be ignored here. The error has already been checked
 		// during transaction acceptance is the transaction pool.
 		from, _ := tx.From()
