@@ -2,7 +2,7 @@
 
 Geth version: `geth version`
 OS & Version: Windows/Linux/OSX
-Commit hash : (if `develop`)
+Branch, Commit Hash or Release:
 
 #### Expected behaviour
 
