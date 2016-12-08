@@ -2,6 +2,7 @@ package gethRaft
 
 import (
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -37,7 +38,7 @@ type RaftNodeInfo struct {
 	Role        string      `json:"role"`
 }
 
-func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, strID string, e *eth.Ethereum) (*RaftService, error) {
+func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, strID string, blockTime time.Duration, e *eth.Ethereum) (*RaftService, error) {
 	service := &RaftService{
 		eventMux:       ctx.EventMux,
 		chainDb:        e.ChainDb(),
@@ -55,7 +56,7 @@ func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, strID string, 
 		return nil, err
 	}
 
-	service.minter = newMinter(chainConfig, service)
+	service.minter = newMinter(chainConfig, service, blockTime)
 
 	return service, nil
 }

@@ -38,8 +38,6 @@ import (
 	lane "gopkg.in/oleiade/lane.v1"
 )
 
-const throttleMillis = 50
-
 // Work is the minter's current environment and holds
 // all of the current state information
 type Work struct {
@@ -93,13 +91,14 @@ type minter struct {
 	proposedTxes               *set.Set
 	expectedInvalidBlockHashes *set.Set
 	shouldMine                 *channels.RingChannel
+	blockTime                  time.Duration
 
 	parent *types.Block
 
 	unappliedBlocks *lane.Deque
 }
 
-func newMinter(config *core.ChainConfig, eth core.Backend) *minter {
+func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Duration) *minter {
 	minter := &minter{
 		config:       config,
 		eth:          eth,
@@ -109,6 +108,7 @@ func newMinter(config *core.ChainConfig, eth core.Backend) *minter {
 		proc:         eth.BlockChain().Validator(),
 		proposedTxes: set.New(),
 		shouldMine:   channels.NewRingChannel(1),
+		blockTime:    blockTime,
 	}
 	minter.events = minter.mux.Subscribe(core.ChainHeadEvent{}, core.TxPreEvent{}, InvalidRaftOrdering{})
 
@@ -351,10 +351,9 @@ func throttle(rate time.Duration, f func()) func() {
 // spins continuously, blocking until a block should be created.
 func (minter *minter) kickOffMinting() {
 	// Throttling is simple but has two nice properties for this use case:
-	// 1. A block is guaranteed to be created within throttleMillis of being requested
-	// 2. We never create a block more frequently than throttleMillis
-	rate := throttleMillis * time.Millisecond
-	throttledCommitNewWork := throttle(rate, func() {
+	// 1. A block is guaranteed to be created within blockTime of being requested
+	// 2. We never create a block more frequently than blockTime
+	throttledCommitNewWork := throttle(minter.blockTime, func() {
 		if atomic.LoadInt32(&minter.minting) == 1 {
 			minter.mintNewBlock()
 		}
