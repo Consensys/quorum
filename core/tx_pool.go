@@ -262,11 +262,11 @@ func (pool *TxPool) validateTx(tx *types.Transaction) error {
 		return ErrInvalidSender
 	}
 
-	// // Make sure the account exist. Non existent accounts
-	// // haven't got funds and well therefore never pass.
-	// if !currentState.Exist(from) {
-	// 	return ErrNonExistentAccount
-	// }
+	// Make sure the account exist. Non existent accounts
+	// haven't got funds and well therefore never pass.
+	if !currentState.Exist(from) {
+		return ErrNonExistentAccount
+	}
 
 	// Last but not least check for nonce errors
 	if currentState.GetNonce(from) > tx.Nonce() {
