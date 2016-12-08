@@ -374,6 +374,11 @@ var (
 		Name:  "permissioned",
 		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
 	}
+	// Raft flags
+	RaftModeFlag = cli.BoolFlag{
+		Name:  "raft",
+		Usage: "If enabled, uses Raft instead of Quorum Chain for consensus",
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -673,6 +678,7 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 		SolcPath:         ctx.GlobalString(SolcPathFlag.Name),
 		VoteMinBlockTime: uint(ctx.GlobalInt(VoteMinBlockTimeFlag.Name)),
 		VoteMaxBlockTime: uint(ctx.GlobalInt(VoteMaxBlockTimeFlag.Name)),
+		RaftMode:         ctx.GlobalBool(RaftModeFlag.Name),
 	}
 
 	// Override any default configs in dev mode or the test net
@@ -711,11 +717,13 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 		Fatalf("Failed to register the Ethereum service: %v", err)
 	}
 
-	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		strId := discover.PubkeyID(stack.PublicKey()).String()
-		return gethRaft.New(ctx, chainConfig, strId, ethereum)
-	}); err != nil {
-		Fatalf("Failed to register the Raft service: %v", err)
+	if ctx.GlobalBool(RaftModeFlag.Name) {
+		if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+			strId := discover.PubkeyID(stack.PublicKey()).String()
+			return gethRaft.New(ctx, chainConfig, strId, ethereum)
+		}); err != nil {
+			Fatalf("Failed to register the Raft service: %v", err)
+		}
 	}
 }
 

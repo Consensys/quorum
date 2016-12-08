@@ -92,6 +92,8 @@ type Config struct {
 
 	VoteMinBlockTime uint
 	VoteMaxBlockTime uint
+
+	RaftMode bool
 }
 
 // Ethereum implements the Ethereum full node service.
@@ -206,7 +208,9 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 
 	raftPow := core.RaftPow{}
 
-	eth.blockchain, err = core.NewBlockChain(chainDb, eth.chainConfig, raftPow, eth.EventMux(), true)
+	performQuorumChecks := !config.RaftMode
+
+	eth.blockchain, err = core.NewBlockChain(chainDb, eth.chainConfig, raftPow, eth.EventMux(), performQuorumChecks)
 	if err != nil {
 		if err == core.ErrNoGenesis {
 			return nil, fmt.Errorf(`No chain found. Please initialise a new chain using the "init" subcommand.`)
