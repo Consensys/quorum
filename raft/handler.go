@@ -61,7 +61,7 @@ type ProtocolManager struct {
 	// set of rlpx-discovered peers
 	rlpxKnownPeers map[string]*peer
 
-	// set of currently active peers known to the raft cluster
+	// set of currently active peers known to the raft cluster. this includes self
 	raftKnownPeers map[uint64]*raft.Peer
 
 	protocol p2p.Protocol
@@ -405,7 +405,7 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	defer pm.mu.RUnlock()
 
 	return &RaftNodeInfo{
-		ClusterSize: len(pm.raftKnownPeers) + 1,
+		ClusterSize: len(pm.raftKnownPeers),
 		Genesis:     pm.blockchain.Genesis().Hash(),
 		Head:        pm.blockchain.CurrentBlock().Hash(),
 	}
