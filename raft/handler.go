@@ -404,10 +404,18 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
+	var roleDescription string
+	if pm.role == minterRole {
+		roleDescription = "minter"
+	} else {
+		roleDescription = "verifier"
+	}
+
 	return &RaftNodeInfo{
 		ClusterSize: len(pm.raftKnownPeers),
 		Genesis:     pm.blockchain.Genesis().Hash(),
 		Head:        pm.blockchain.CurrentBlock().Hash(),
+		Role:        roleDescription,
 	}
 }
 
