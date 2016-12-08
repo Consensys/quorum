@@ -701,18 +701,19 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 
 	// We need a pointer to the ethereum service so we can access it from the raft
 	// service
-	var ethService *eth.Ethereum
+	var ethereum *eth.Ethereum
 
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		ethService, err := eth.New(ctx, ethConf)
-		return ethService, err
+		var err error
+		ethereum, err = eth.New(ctx, ethConf)
+		return ethereum, err
 	}); err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
 	}
 
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 		strId := discover.PubkeyID(stack.PublicKey()).String()
-		return gethRaft.New(ctx, chainConfig, strId, ethService)
+		return gethRaft.New(ctx, chainConfig, strId, ethereum)
 	}); err != nil {
 		Fatalf("Failed to register the Raft service: %v", err)
 	}
