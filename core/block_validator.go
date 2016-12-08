@@ -275,6 +275,11 @@ func ValidateHeader(chaindb ethdb.Database, bc *BlockChain, config *ChainConfig,
 			return BlockTSTooBigErr
 		}
 	} else {
+		//
+		// TODO(bts): if we want this future check for non-raft (quorum chain)
+		// mode, we'll either need to check for "raft" in the header Extra
+		// field, or check if the magnitude of the timestamp implies nanoseconds
+		//
 		// if header.Time.Cmp(big.NewInt(time.Now().Unix())) == 1 {
 		// 	return BlockFutureErr
 		// }
