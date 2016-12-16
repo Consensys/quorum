@@ -98,6 +98,15 @@ type minter struct {
 	unappliedBlocks *lane.Deque
 }
 
+// Assumes mu is held.
+// TODO(bts): extract all speculative fields into a new SpeculativeState datatype.
+func (minter *minter) clearSpeculativeState(parent *types.Block) {
+	minter.parent = parent
+	minter.proposedTxes.Clear()
+	minter.unappliedBlocks = lane.NewDeque()
+	minter.expectedInvalidBlockHashes = set.New()
+}
+
 func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Duration) *minter {
 	minter := &minter{
 		config:       config,
@@ -112,9 +121,7 @@ func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Durati
 	}
 	minter.events = minter.mux.Subscribe(core.ChainHeadEvent{}, core.TxPreEvent{}, InvalidRaftOrdering{})
 
-	minter.parent = minter.chain.CurrentBlock()
-	minter.unappliedBlocks = lane.NewDeque()
-	minter.expectedInvalidBlockHashes = set.New()
+	minter.clearSpeculativeState(minter.chain.CurrentBlock())
 
 	go minter.eventLoop()
 	go minter.kickOffMinting()
@@ -220,9 +227,7 @@ func (minter *minter) eventLoop() {
 
 					glog.V(logger.Warn).Infof("Another node mined %x; Clearing speculative minting state\n", newHeadBlock.Hash())
 
-					minter.parent = newHeadBlock
-					minter.proposedTxes.Clear()
-					minter.unappliedBlocks = lane.NewDeque()
+					minter.clearSpeculativeState(newHeadBlock)
 				} else {
 					// We're receiving the acceptance for an expected block. Remove its
 					// txes from our blacklist.
