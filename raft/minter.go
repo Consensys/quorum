@@ -241,17 +241,7 @@ func (minter *minter) eventLoop() {
 			minter.mu.Unlock()
 
 		case core.TxPreEvent:
-			// Apply transaction to the pending state if we're not minting
-			if atomic.LoadInt32(&minter.minting) == 0 {
-				minter.currentMu.Lock()
-				if from, err := ev.Tx.From(); err != nil {
-					txMap := map[common.Address]types.Transactions{from: types.Transactions{ev.Tx}}
-					txes := types.NewTransactionsByPriceAndNonce(txMap)
-					// TODO(bts): check whether this is needed to broadcast txes while not minting
-					minter.current.commitTransactions(minter.mux, txes, minter.chain)
-				}
-				minter.currentMu.Unlock()
-			} else {
+			if atomic.LoadInt32(&minter.minting) == 1 {
 				minter.requestMinting()
 			}
 
