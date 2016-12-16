@@ -158,9 +158,7 @@ func (minter *minter) stop() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
 
-	//
-	// TODO(bts): clear speculative mining state.
-	//
+	minter.clearSpeculativeState(minter.chain.CurrentBlock())
 
 	atomic.StoreInt32(&minter.minting, 0)
 }
