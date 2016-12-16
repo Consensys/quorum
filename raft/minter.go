@@ -220,10 +220,7 @@ func (minter *minter) eventLoop() {
 				}
 
 				if earliestProposed != nil && earliestProposed.Hash() != newHeadBlock.Hash() {
-					// Another node has minted and had its block accepted. We clear all
-					// speculative mining state.
-
-					glog.V(logger.Warn).Infof("Another node mined %x; Clearing speculative minting state\n", newHeadBlock.Hash())
+					glog.V(logger.Warn).Infof("Another node minted %x; Clearing speculative state\n", newHeadBlock.Hash())
 
 					minter.clearSpeculativeState(newHeadBlock)
 				} else {
