@@ -332,10 +332,12 @@ func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs
 			glog.V(logger.Info).Infof("Error encoding callback JSON: %v", err)
 			return
 		}
-		_, err = http.Post(asyncArgs.CallbackUrl, "application/json", buf)
-		if err != nil {
-			glog.V(logger.Info).Infof("Error sending callback: %v", err)
-			return
+		if asyncArgs.CallbackUrl != "" {
+			_, err = http.Post(asyncArgs.CallbackUrl, "application/json", buf)
+			if err != nil {
+				glog.V(logger.Info).Infof("Error sending callback: %v", err)
+				return
+			}
 		}
 	}()
 	args, err := prepareSendTxArgs(ctx, asyncArgs.SendTxArgs, s.b)
