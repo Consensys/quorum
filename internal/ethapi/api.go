@@ -298,7 +298,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	return submitTransaction(ctx, s.b, tx, signature, isPrivate)
 }
 
-// Please note: This is a temporary integration to improve performance in low-latency
+// Please note: This is a temporary integration to improve performance in high-latency
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
 
@@ -397,7 +397,7 @@ var async = newAsync(100)
 // called with a POST request containing either {"error": "error message"} or
 // {"txHash": "0x..."}.
 //
-// Please note: This is a temporary integration to improve performance in low-latency
+// Please note: This is a temporary integration to improve performance in high-latency
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
 func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) {
