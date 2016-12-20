@@ -324,21 +324,21 @@ type Async struct {
 
 func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs AsyncSendTxArgs) {
 	res := new(AsyncResult)
-	defer func() {
-		buf := new(bytes.Buffer)
-		err := json.NewEncoder(buf).Encode(res)
-		if err != nil {
-			glog.V(logger.Info).Infof("Error encoding callback JSON: %v", err)
-			return
-		}
-		if asyncArgs.CallbackUrl != "" {
+	if asyncArgs.CallbackUrl != "" {
+		defer func() {
+			buf := new(bytes.Buffer)
+			err := json.NewEncoder(buf).Encode(res)
+			if err != nil {
+				glog.V(logger.Info).Infof("Error encoding callback JSON: %v", err)
+				return
+			}
 			_, err = http.Post(asyncArgs.CallbackUrl, "application/json", buf)
 			if err != nil {
 				glog.V(logger.Info).Infof("Error sending callback: %v", err)
 				return
 			}
-		}
-	}()
+		}()
+	}
 	args, err := prepareSendTxArgs(ctx, asyncArgs.SendTxArgs, s.b)
 	if err != nil {
 		glog.V(logger.Info).Infof("Async.send: Error doing prepareSendTxArgs: %v", err)
