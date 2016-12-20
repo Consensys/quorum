@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/ethash"
@@ -294,6 +295,82 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	return submitTransaction(ctx, s.b, tx, signature, isPrivate)
+}
+
+type AsyncSendTxArgs struct {
+	SendTxArgs
+	CallbackUrl string
+}
+
+type argsAndPayload struct {
+	args AsyncSendTxArgs
+	b    []byte
+}
+
+type Async struct {
+	sync.Mutex
+	sem  chan struct{}
+	s    *PublicTransactionPoolAPI
+	pool []*argsAndPayload
+}
+
+func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, args SendTxArgs) {
+	var err error
+	args, err = prepareSendTxArgs(ctx, args, a.s.b)
+	if err != nil {
+		glog.V(logger.Info).Infof("Async.send: Error doing prepareSendTxArgs: %v", err)
+	}
+	b, err := private.P.Send(common.FromHex(args.Data), args.PrivateFrom, args.PrivateFor)
+	if err != nil {
+		// TODO: Callback
+		glog.V(logger.Info).Infof("Error running Private.P.Send: %v", err)
+		return
+	}
+	a.save(ctx, s, args, b)
+}
+
+func (a *Async) save(ctx context.Context, s *PublicTransactionPoolAPI, args SendTxArgs, data []byte) {
+	a.Lock()
+	defer a.Unlock()
+	if args.Nonce == nil {
+		nonce, err := a.s.b.GetPoolNonce(ctx, args.From)
+		if err != nil {
+			glog.V(logger.Info).Infof("Async.save: Failed to get nonce: %v", err)
+		}
+		args.Nonce = rpc.NewHexNumber(nonce)
+	}
+
+	var tx *types.Transaction
+	if args.To == nil {
+		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
+	} else {
+		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
+	}
+
+	signature, err := a.s.b.AccountManager().SignEthereum(args.From, tx.SigHash().Bytes())
+	if err != nil {
+		glog.V(logger.Info).Infof("Async.save: Failed to sign transaction: %v", err)
+		return
+	}
+
+	submitTransaction(ctx, s.b, tx, signature, len(args.PrivateFor) > 0)
+}
+
+func newAsync(n int) *Async {
+	a := &Async{
+		sem: make(chan struct{}, n),
+	}
+	return a
+}
+
+var async = newAsync(100)
+
+func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args SendTxArgs) {
+	async.sem <- struct{}{}
+	go func() {
+		async.send(ctx, s, args)
+		<-async.sem
+	}()
 }
 
 // signHash is a helper function that calculates a hash for the given message that can be
