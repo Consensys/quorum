@@ -110,7 +110,6 @@ func (bv *BlockVoting) resetPendingState(parent *types.Block) {
 		header:        bv.makeHeader(parent),
 		gp:            new(core.GasPool),
 		ownedAccounts: accountAddressesSet(bv.am.Accounts()),
-		txsHashes:     set.New(),
 	}
 
 	ps.gp.AddGas(ps.header.GasLimit)
@@ -311,11 +310,9 @@ func (bv *BlockVoting) createBlock() (*types.Block, error) {
 
 	ch, err := bv.canonHash(bv.pState.header.Number.Uint64())
 	if err != nil {
-		bv.resetPendingState(bv.bc.CurrentFastBlock())
 		return nil, err
 	}
 	if ch != bv.pState.parent.Hash() {
-		bv.resetPendingState(bv.bc.CurrentFastBlock())
 		return nil, fmt.Errorf("invalid canonical hash, expected %s got %s", ch.Hex(), bv.pState.header.Hash().Hex())
 	}
 
