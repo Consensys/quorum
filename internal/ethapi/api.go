@@ -320,7 +320,6 @@ type argsAndPayload struct {
 type Async struct {
 	sync.Mutex
 	sem  chan struct{}
-	s    *PublicTransactionPoolAPI
 	pool []*argsAndPayload
 }
 
@@ -339,7 +338,7 @@ func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs
 			return
 		}
 	}()
-	args, err := prepareSendTxArgs(ctx, asyncArgs.SendTxArgs, a.s.b)
+	args, err := prepareSendTxArgs(ctx, asyncArgs.SendTxArgs, s.b)
 	if err != nil {
 		glog.V(logger.Info).Infof("Async.send: Error doing prepareSendTxArgs: %v", err)
 		res.Error = err.Error()
@@ -352,14 +351,16 @@ func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs
 		return
 	}
 	res.TxHash, err = a.save(ctx, s, args, b)
-	res.Error = err.Error()
+	if err != nil {
+		res.Error = err.Error()
+	}
 }
 
 func (a *Async) save(ctx context.Context, s *PublicTransactionPoolAPI, args SendTxArgs, data []byte) (common.Hash, error) {
 	a.Lock()
 	defer a.Unlock()
 	if args.Nonce == nil {
-		nonce, err := a.s.b.GetPoolNonce(ctx, args.From)
+		nonce, err := s.b.GetPoolNonce(ctx, args.From)
 		if err != nil {
 			return common.Hash{}, err
 		}
@@ -371,7 +372,7 @@ func (a *Async) save(ctx context.Context, s *PublicTransactionPoolAPI, args Send
 	} else {
 		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
 	}
-	signature, err := a.s.b.AccountManager().SignEthereum(args.From, tx.SigHash().Bytes())
+	signature, err := s.b.AccountManager().SignEthereum(args.From, tx.SigHash().Bytes())
 	if err != nil {
 		return common.Hash{}, err
 	}
