@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -297,9 +298,18 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	return submitTransaction(ctx, s.b, tx, signature, isPrivate)
 }
 
+// Please note: This is a temporary integration to improve performance in low-latency
+// environments when sending many private transactions. It will be removed at a later
+// date when account management is handled outside Ethereum.
+
 type AsyncSendTxArgs struct {
 	SendTxArgs
-	CallbackUrl string
+	CallbackUrl string `json:"callbackUrl"`
+}
+
+type AsyncResult struct {
+	TxHash common.Hash `json:"txHash"`
+	Error  string      `json:"error"`
 }
 
 type argsAndPayload struct {
@@ -314,46 +324,58 @@ type Async struct {
 	pool []*argsAndPayload
 }
 
-func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, args SendTxArgs) {
-	var err error
-	args, err = prepareSendTxArgs(ctx, args, a.s.b)
+func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs AsyncSendTxArgs) {
+	res := new(AsyncResult)
+	defer func() {
+		buf := new(bytes.Buffer)
+		err := json.NewEncoder(buf).Encode(res)
+		if err != nil {
+			glog.V(logger.Info).Infof("Error encoding callback JSON: %v", err)
+			return
+		}
+		_, err = http.Post(asyncArgs.CallbackUrl, "application/json", buf)
+		if err != nil {
+			glog.V(logger.Info).Infof("Error sending callback: %v", err)
+			return
+		}
+	}()
+	args, err := prepareSendTxArgs(ctx, asyncArgs.SendTxArgs, a.s.b)
 	if err != nil {
 		glog.V(logger.Info).Infof("Async.send: Error doing prepareSendTxArgs: %v", err)
+		res.Error = err.Error()
+		return
 	}
 	b, err := private.P.Send(common.FromHex(args.Data), args.PrivateFrom, args.PrivateFor)
 	if err != nil {
-		// TODO: Callback
 		glog.V(logger.Info).Infof("Error running Private.P.Send: %v", err)
+		res.Error = err.Error()
 		return
 	}
-	a.save(ctx, s, args, b)
+	res.TxHash, err = a.save(ctx, s, args, b)
+	res.Error = err.Error()
 }
 
-func (a *Async) save(ctx context.Context, s *PublicTransactionPoolAPI, args SendTxArgs, data []byte) {
+func (a *Async) save(ctx context.Context, s *PublicTransactionPoolAPI, args SendTxArgs, data []byte) (common.Hash, error) {
 	a.Lock()
 	defer a.Unlock()
 	if args.Nonce == nil {
 		nonce, err := a.s.b.GetPoolNonce(ctx, args.From)
 		if err != nil {
-			glog.V(logger.Info).Infof("Async.save: Failed to get nonce: %v", err)
+			return common.Hash{}, err
 		}
 		args.Nonce = rpc.NewHexNumber(nonce)
 	}
-
 	var tx *types.Transaction
 	if args.To == nil {
 		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
 	} else {
 		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), args.GasPrice.BigInt(), data)
 	}
-
 	signature, err := a.s.b.AccountManager().SignEthereum(args.From, tx.SigHash().Bytes())
 	if err != nil {
-		glog.V(logger.Info).Infof("Async.save: Failed to sign transaction: %v", err)
-		return
+		return common.Hash{}, err
 	}
-
-	submitTransaction(ctx, s.b, tx, signature, len(args.PrivateFor) > 0)
+	return submitTransaction(ctx, s.b, tx, signature, len(args.PrivateFor) > 0)
 }
 
 func newAsync(n int) *Async {
@@ -365,7 +387,18 @@ func newAsync(n int) *Async {
 
 var async = newAsync(100)
 
-func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args SendTxArgs) {
+// SendTransactionAsync creates a transaction for the given argument, signs it, and
+// submits it to the transaction pool. This call returns immediately to allow sending
+// many private transactions/bursts of transactions without waiting for the recipient
+// parties to confirm receipt of the encrypted payloads. An optional callbackUrl may
+// be specified--when a transaction is submitted to the transaction pool, it will be
+// called with a POST request containing either {"error": "error message"} or
+// {"txHash": "0x..."}.
+//
+// Please note: This is a temporary integration to improve performance in low-latency
+// environments when sending many private transactions. It will be removed at a later
+// date when account management is handled outside Ethereum.
+func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) {
 	async.sem <- struct{}{}
 	go func() {
 		async.send(ctx, s, args)
