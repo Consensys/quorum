@@ -319,8 +319,7 @@ type argsAndPayload struct {
 
 type Async struct {
 	sync.Mutex
-	sem  chan struct{}
-	pool []*argsAndPayload
+	sem chan struct{}
 }
 
 func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs AsyncSendTxArgs) {
