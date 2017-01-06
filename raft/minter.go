@@ -125,10 +125,12 @@ func (minter *minter) stop() {
 	defer minter.mu.Unlock()
 
 	minter.clearSpeculativeState(minter.chain.CurrentBlock())
-
 	atomic.StoreInt32(&minter.minting, 0)
 }
 
+// Notify the minting loop that minting should occur, if it's not already been
+// requested. Due to the use of a RingChannel, this function is idempotent if
+// called multiple times before the minting occurs.
 func (minter *minter) requestMinting() {
 	minter.shouldMine.In() <- struct{}{}
 }
@@ -300,15 +302,13 @@ func throttle(rate time.Duration, f func()) func() {
 	}
 }
 
-// NOTE: We kick off a goroutine to the side of the minter so the `eventLoop`
-// can run continuously (it adds an anonymous struct to `shouldMine` to
-// request a block creation, when it sees a transaction created; this is
-// non-blocking and can be done >= 1 times with the same effect). This goroutine
-// spins continuously, blocking until a block should be created.
-func (minter *minter) kickOffMinting() {
-	// Throttling is simple but has two nice properties for this use case:
-	// 1. A block is guaranteed to be created within blockTime of being requested
-	// 2. We never create a block more frequently than blockTime
+// This function spins continuously, blocking until a block should be created
+// (via requestMinting()). This is throttled by `minter.blockTime`:
+//
+//   1. A block is guaranteed to be created within `blockTime` of being
+//      requested.
+//   2. We never create a block more frequently than `blockTime`.
+func (minter *minter) mintingLoop() {
 	throttledCommitNewWork := throttle(minter.blockTime, func() {
 		if atomic.LoadInt32(&minter.minting) == 1 {
 			minter.mintNewBlock()

@@ -529,6 +529,8 @@ func (pm *ProtocolManager) handleLogCommands(logCommandC <-chan interface{}) {
 					}
 
 					if pm.blockchain.HasBlock(block.Hash()) {
+						// This node mined the block, so it was already in the
+						// DB. We simply extend the chain:
 						pm.blockchain.SetNewHeadBlock(block)
 					} else {
 						//
@@ -544,9 +546,8 @@ func (pm *ProtocolManager) handleLogCommands(logCommandC <-chan interface{}) {
 						}
 					}
 
-					glog.V(logger.Info).Infof("Successfully extended chain: %x\n", block.Hash())
-
 					pm.eventMux.Post(core.ChainHeadEvent{Block: block})
+					glog.V(logger.Info).Infof("Successfully extended chain: %x\n", block.Hash())
 				}
 			case LoadSnapshot:
 				snapshot, err := pm.snapshotter.Load()
