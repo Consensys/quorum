@@ -51,36 +51,21 @@ type Work struct {
 }
 
 type minter struct {
-	config *core.ChainConfig
-
-	//
-	// TODO(bts): double-check uses of this once we get rid of current{,Mu}
-	//
-	mu sync.Mutex
-
-	// event loop
-	mux    *event.TypeMux
-	events event.Subscription
-	wg     sync.WaitGroup
-
-	eth     core.Backend
-	chain   *core.BlockChain
-	proc    core.Validator
-	chainDb ethdb.Database
-
-	coinbase common.Address
-
-	// atomic status counter
-	minting int32
-
+	config                     *core.ChainConfig
+	mu                         sync.Mutex
+	mux                        *event.TypeMux
+	eth                        core.Backend
+	chain                      *core.BlockChain
+	proc                       core.Validator
+	chainDb                    ethdb.Database
+	coinbase                   common.Address
+	minting                    int32 // atomic status counter
 	proposedTxes               *set.Set
 	expectedInvalidBlockHashes *set.Set
 	shouldMine                 *channels.RingChannel
 	blockTime                  time.Duration
-
-	parent *types.Block
-
-	unappliedBlocks *lane.Deque
+	parent                     *types.Block
+	unappliedBlocks            *lane.Deque
 }
 
 // Assumes mu is held.
@@ -104,12 +89,16 @@ func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Durati
 		shouldMine:   channels.NewRingChannel(1),
 		blockTime:    blockTime,
 	}
-	minter.events = minter.mux.Subscribe(core.ChainHeadEvent{}, core.TxPreEvent{}, InvalidRaftOrdering{})
+	events := minter.mux.Subscribe(
+		core.ChainHeadEvent{},
+		core.TxPreEvent{},
+		InvalidRaftOrdering{},
+	)
 
 	minter.clearSpeculativeState(minter.chain.CurrentBlock())
 
-	go minter.eventLoop()
-	go minter.kickOffMinting()
+	go minter.eventLoop(events)
+	go minter.mintingLoop()
 
 	return minter
 }
@@ -119,8 +108,6 @@ func (minter *minter) start() {
 }
 
 func (minter *minter) stop() {
-	minter.wg.Wait()
-
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
 
@@ -172,8 +159,8 @@ func (minter *minter) removeProposedTxes(block *types.Block) {
 	minter.proposedTxes.Remove(minedTxInterfaces...)
 }
 
-func (minter *minter) eventLoop() {
-	for event := range minter.events.Chan() {
+func (minter *minter) eventLoop(events event.Subscription) {
+	for event := range events.Chan() {
 		switch ev := event.Data.(type) {
 		case core.ChainHeadEvent:
 			newHeadBlock := ev.Block
