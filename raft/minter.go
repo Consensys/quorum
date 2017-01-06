@@ -129,7 +129,7 @@ type AddressTxes map[common.Address]types.Transactions
 // we don't try to create blocks with the same transactions. This is necessary
 // because the TX pool will keep supplying us these transactions until they are
 // in the chain (after having flown through raft).
-func (minter *minter) raftFilterProposedTxes(addrTxes AddressTxes) AddressTxes {
+func (minter *minter) withoutProposedTxes(addrTxes AddressTxes) AddressTxes {
 	newMap := make(AddressTxes)
 
 	for addr, txes := range addrTxes {
@@ -379,7 +379,7 @@ func (minter *minter) mintNewBlock() {
 	work := minter.createWork()
 
 	allAddrTxes := minter.eth.TxPool().Pending()
-	addrTxes := minter.raftFilterProposedTxes(allAddrTxes)
+	addrTxes := minter.withoutProposedTxes(allAddrTxes)
 	transactions := types.NewTransactionsByPriceAndNonce(addrTxes)
 
 	committedTxes := work.commitTransactions(minter.mux, transactions, minter.chain)
