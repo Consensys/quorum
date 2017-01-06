@@ -122,13 +122,15 @@ func (minter *minter) requestMinting() {
 	minter.shouldMine.In() <- struct{}{}
 }
 
+type AddressTxes map[common.Address]types.Transactions
+
 // This is for "speculative" minting. We keep track of txes we've put in all
 // newly-mined blocks since the last ChainHeadEvent, and filter them out so that
 // we don't try to create blocks with the same transactions. This is necessary
 // because the TX pool will keep supplying us these transactions until they are
 // in the chain (after having flown through raft).
-func (minter *minter) raftFilterProposedTxes(addrTxes map[common.Address]types.Transactions) map[common.Address]types.Transactions {
-	newMap := make(map[common.Address]types.Transactions)
+func (minter *minter) raftFilterProposedTxes(addrTxes AddressTxes) AddressTxes {
+	newMap := make(AddressTxes)
 
 	for addr, txes := range addrTxes {
 		filteredTxes := make(types.Transactions, 0)
