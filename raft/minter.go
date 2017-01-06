@@ -38,23 +38,16 @@ import (
 	lane "gopkg.in/oleiade/lane.v1"
 )
 
-// Work is the minter's current environment and holds
-// all of the current state information
+// Current state information for building the next block
 type Work struct {
-	config *core.ChainConfig
-
+	config       *core.ChainConfig
 	publicState  *state.StateDB
 	privateState *state.StateDB
-
-	tcount int // tx count in cycle
-
-	Block *types.Block // the new block
-
-	header   *types.Header
-	txs      []*types.Transaction
-	receipts []*types.Receipt
-
-	createdAt time.Time
+	Block        *types.Block
+	header       *types.Header
+	txs          []*types.Transaction
+	receipts     []*types.Receipt
+	createdAt    time.Time
 }
 
 type minter struct {
@@ -76,12 +69,6 @@ type minter struct {
 	chainDb ethdb.Database
 
 	coinbase common.Address
-
-	//
-	// TODO: do we even need this any more?
-	//
-	currentMu sync.Mutex
-	current   *Work
 
 	// atomic status counter
 	minting int32
@@ -124,24 +111,7 @@ func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Durati
 	go minter.eventLoop()
 	go minter.kickOffMinting()
 
-	minter.currentMu.Lock()
-	minter.createAndSetCurrentWork()
-	minter.currentMu.Unlock()
-
 	return minter
-}
-
-// TODO(bts): use this from our raft API
-func (minter *minter) pending() (*types.Block, *state.StateDB, *state.StateDB) {
-	minter.currentMu.Lock()
-	defer minter.currentMu.Unlock()
-
-	return types.NewBlock(
-		minter.current.header,
-		minter.current.txs,
-		nil,
-		minter.current.receipts,
-	), minter.current.publicState.Copy(), minter.current.privateState.Copy()
 }
 
 func (minter *minter) start() {
@@ -372,11 +342,22 @@ func (minter *minter) broadcastWork(work *Work) {
 	glog.V(logger.Info).Infof("🔨  Mined block (#%v / %x) in %v", block.Number(), block.Hash().Bytes()[:4], elapsed)
 }
 
-// makeCurrent creates a new environment for the current cycle.
-// This method assumes currentMu is being held
-func (minter *minter) createWork(tstamp int64) (*Work, error) {
+func generateNanoTimestamp(parent *types.Block) (tstamp int64) {
+	parentTime := parent.Time().Int64()
+	tstamp = time.Now().UnixNano()
+
+	if parentTime >= tstamp {
+		// Each successive block needs to be after its predecessor.
+		tstamp = parentTime + 1
+	}
+
+	return
+}
+
+func (minter *minter) createWork() *Work {
 	parent := minter.parent
 	parentNumber := parent.Number()
+	tstamp := generateNanoTimestamp(parent)
 
 	header := &types.Header{
 		ParentHash: parent.Hash(),
@@ -390,63 +371,32 @@ func (minter *minter) createWork(tstamp int64) (*Work, error) {
 
 	publicState, privateState, err := minter.chain.StateAt(minter.parent.Root())
 	if err != nil {
-		return nil, err
+		panic(fmt.Sprint("failed to get parent state: ", err))
 	}
 
-	work := &Work{
+	return &Work{
 		config:       minter.config,
 		publicState:  publicState,
 		privateState: privateState,
 		header:       header,
 		createdAt:    time.Now(),
 	}
-
-	work.tcount = 0
-
-	return work, nil
-}
-
-func generateNanoTimestamp(parent *types.Block) (tstamp int64) {
-	parentTime := parent.Time().Int64()
-	tstamp = time.Now().UnixNano()
-
-	if parentTime >= tstamp {
-		// Each successive block needs to be after its predecessor.
-		tstamp = parentTime + 1
-	}
-
-	return
-}
-
-// We assume that currentMu is being held
-func (minter *minter) createAndSetCurrentWork() {
-	tstamp := generateNanoTimestamp(minter.parent)
-
-	// An error could potentially happen if starting to mine in an odd state.
-	work, workErr := minter.createWork(tstamp)
-	if workErr != nil {
-		glog.V(logger.Info).Infoln("Could not create new env for minting, retrying on next block.")
-		return
-	}
-	minter.current = work
 }
 
 func (minter *minter) mintNewBlock() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
-	minter.currentMu.Lock()
-	defer minter.currentMu.Unlock()
 
-	minter.createAndSetCurrentWork()
-	work := minter.current
+	work := minter.createWork()
 
 	allAddrTxes := minter.eth.TxPool().Pending()
 	addrTxes := minter.raftFilterProposedTxes(allAddrTxes)
 	transactions := types.NewTransactionsByPriceAndNonce(addrTxes)
 
 	committedTxes := work.commitTransactions(minter.mux, transactions, minter.chain)
+	txCount := len(committedTxes)
 
-	if len(committedTxes) == 0 {
+	if txCount == 0 {
 		glog.V(logger.Info).Infoln("Not generating new block since there are no pending transactions")
 		return
 	}
@@ -485,7 +435,7 @@ func (minter *minter) mintNewBlock() {
 	block := types.NewBlock(header, work.txs, nil, work.receipts)
 	work.Block = block
 
-	glog.V(logger.Info).Infof("Generated next block #%v with [%d txns]", work.Block.Number(), work.tcount)
+	glog.V(logger.Info).Infof("Generated next block #%v with [%d txns]", work.Block.Number(), txCount)
 
 	work.publicState.Commit()
 
@@ -539,6 +489,7 @@ func (minter *minter) mintNewBlock() {
 func (env *Work) commitTransactions(mux *event.TypeMux, txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) types.Transactions {
 	committedTxes := make(types.Transactions, 0)
 	gp := new(core.GasPool).AddGas(env.header.GasLimit)
+	txCount := 0
 
 	var coalescedLogs vm.Logs
 	for {
@@ -557,13 +508,13 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txes *types.Transactions
 			}
 			txes.Pop() // skip rest of txes from this account
 		default:
-			env.tcount++
+			txCount++
 			coalescedLogs = append(coalescedLogs, logs...)
 			committedTxes = append(committedTxes, tx)
 			txes.Shift()
 		}
 	}
-	if len(coalescedLogs) > 0 || env.tcount > 0 {
+	if len(coalescedLogs) > 0 || txCount > 0 {
 		// make a copy, the state caches the logs and these logs get "upgraded" from pending to mined
 		// logs by filling in the block hash when the block was mined by the local miner. This can
 		// cause a race condition if a log was "upgraded" before the PendingLogsEvent is processed.
@@ -579,7 +530,7 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txes *types.Transactions
 			if tcount > 0 {
 				mux.Post(core.PendingStateEvent{})
 			}
-		}(cpy, env.tcount)
+		}(cpy, txCount)
 	}
 
 	return committedTxes
