@@ -43,10 +43,8 @@ import (
 type Work struct {
 	config *core.ChainConfig
 
-	//
-	// TODO(bts): separate private and public state
-	//
-	state *state.StateDB // apply state changes here
+	publicState  *state.StateDB
+	privateState *state.StateDB
 
 	tcount int // tx count in cycle
 
@@ -63,7 +61,7 @@ type minter struct {
 	config *core.ChainConfig
 
 	//
-	// TODO(bts): revisit this, vs currentMu.
+	// TODO(bts): double-check uses of this once we get rid of current{,Mu}
 	//
 	mu sync.Mutex
 
@@ -99,7 +97,7 @@ type minter struct {
 }
 
 // Assumes mu is held.
-// TODO(bts): extract all speculative fields into a new SpeculativeState datatype.
+// TODO(bts): extract all speculative fields into a new MintingState datatype.
 func (minter *minter) clearSpeculativeState(parent *types.Block) {
 	minter.parent = parent
 	minter.proposedTxes.Clear()
@@ -133,19 +131,17 @@ func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Durati
 	return minter
 }
 
-func (minter *minter) pending() (*types.Block, *state.StateDB) {
+// TODO(bts): use this from our raft API
+func (minter *minter) pending() (*types.Block, *state.StateDB, *state.StateDB) {
 	minter.currentMu.Lock()
 	defer minter.currentMu.Unlock()
 
-	if atomic.LoadInt32(&minter.minting) == 0 {
-		return types.NewBlock(
-			minter.current.header,
-			minter.current.txs,
-			nil,
-			minter.current.receipts,
-		), minter.current.state
-	}
-	return minter.current.Block, minter.current.state
+	return types.NewBlock(
+		minter.current.header,
+		minter.current.txs,
+		nil,
+		minter.current.receipts,
+	), minter.current.publicState.Copy(), minter.current.privateState.Copy()
 }
 
 func (minter *minter) start() {
@@ -362,16 +358,15 @@ func (minter *minter) broadcastWork(work *Work) {
 
 		minter.mux.Post(core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
 
-		// NOTE: we're currently not doing this anymore because the block is not
-		// in the chain yet (in previous wait(), we only do this when stat is
-		// CanonStatTy):
+		// NOTE: we're currently not doing this because the block is not in the
+		// chain yet:
 		//
 		// minter.mux.Post(logs)
 
 		if err := core.WriteBlockReceipts(minter.chainDb, block.Hash(), block.Number().Uint64(), receipts); err != nil {
 			glog.V(logger.Warn).Infoln("error writing block receipts:", err)
 		}
-	}(block, work.state.Logs(), work.receipts)
+	}(block, work.publicState.Logs(), work.receipts)
 
 	elapsed := time.Since(time.Unix(0, work.header.Time.Int64()))
 	glog.V(logger.Info).Infof("🔨  Mined block (#%v / %x) in %v", block.Number(), block.Hash().Bytes()[:4], elapsed)
@@ -393,15 +388,17 @@ func (minter *minter) createWork(tstamp int64) (*Work, error) {
 		Time:       big.NewInt(tstamp),
 	}
 
-	state, err := state.New(minter.parent.Root(), minter.eth.ChainDb())
+	publicState, privateState, err := minter.chain.StateAt(minter.parent.Root())
 	if err != nil {
 		return nil, err
 	}
+
 	work := &Work{
-		config:    minter.config,
-		state:     state,
-		header:    header,
-		createdAt: time.Now(),
+		config:       minter.config,
+		publicState:  publicState,
+		privateState: privateState,
+		header:       header,
+		createdAt:    time.Now(),
 	}
 
 	work.tcount = 0
@@ -449,40 +446,69 @@ func (minter *minter) mintNewBlock() {
 
 	committedTxes := work.commitTransactions(minter.mux, transactions, minter.chain)
 
+	if len(committedTxes) == 0 {
+		glog.V(logger.Info).Infoln("Not generating new block since there are no pending transactions")
+		return
+	}
+
 	committedTxIs := make([]interface{}, len(committedTxes))
 	for i, tx := range committedTxes {
 		committedTxIs[i] = tx.Hash()
 	}
 	minter.proposedTxes.Add(committedTxIs...)
 
-	var emptyUncles []*types.Header
 	header := work.header
 
 	if atomic.LoadInt32(&minter.minting) == 1 {
 		// commit state root after all state transitions.
-		core.AccumulateRewards(work.state, header, emptyUncles)
-		header.Root = work.state.IntermediateRoot()
+		core.AccumulateRewards(work.publicState, header, nil)
+		header.Root = work.publicState.IntermediateRoot()
 	}
 
-	// create the new block whose nonce will be mined.
-	work.Block = types.NewBlock(header, work.txs, emptyUncles, work.receipts)
+	// NOTE: < QuorumChain creates a signature here and puts it in header.Extra. >
 
-	if work.tcount == 0 {
-		// Don't mine if there is nothing to do..
-		glog.V(logger.Info).Infoln("Not generating new block since there are no pending transactions")
-		return
+	// update block hash since it is now available, but was not when the
+	// receipt/log of individual transactions were created:
+	headerHash := header.Hash()
+	for _, r := range work.receipts {
+		for _, l := range r.Logs {
+			l.BlockHash = headerHash
+		}
+	}
+	// NOTE: QuorumChain does not do the following:
+	for _, log := range work.publicState.Logs() {
+		log.BlockHash = headerHash
 	}
 
-	diffchange := new(big.Int).Sub(header.Difficulty, minter.parent.Difficulty())
-	glog.V(logger.Info).Infof("Generated next block #%v with [%d txns] new difficulty: %d (%+v)", work.Block.Number(), work.tcount, header.Difficulty, diffchange)
+	header.Bloom = types.CreateBloom(work.receipts)
 
-	work.state.Commit()
+	block := types.NewBlock(header, work.txs, nil, work.receipts)
+	work.Block = block
 
-	block := work.Block
+	glog.V(logger.Info).Infof("Generated next block #%v with [%d txns]", work.Block.Number(), work.tcount)
+
+	work.publicState.Commit()
+
+	_, pubStateErr := work.publicState.Commit()
+	if pubStateErr != nil {
+		panic(fmt.Sprint("error committing public state: ", pubStateErr))
+	}
+
+	privateStateRoot, privStateErr := work.privateState.Commit()
+	if privStateErr != nil {
+		panic(fmt.Sprint("error committing private state: ", privStateErr))
+	}
+
+	if err := core.WritePrivateStateRoot(minter.chainDb, block.Root(), privateStateRoot); err != nil {
+		panic(fmt.Sprint("error writing private state root: ", err))
+	}
 
 	//
 	// TODO(bts): what to do for validation here now that AuxValidator has been
-	//            removed in Quorum?
+	//            removed in Quorum? looking at InsertChain might help here.
+	//
+	// We might not want/need any validation here. it will occur anyway once the
+	// message has flown through raft.
 	//
 	// auxValidator := minter.eth.BlockChain().AuxValidator()
 	// if err := core.ValidateHeader(minter.config, auxValidator, block.Header(), minter.parent.Header(), true, false); err != nil && err != core.BlockFutureErr {
@@ -490,17 +516,7 @@ func (minter *minter) mintNewBlock() {
 	// }
 
 	if err := minter.chain.WriteDetachedBlock(block); err != nil {
-		panic(fmt.Sprint("error writing block to chain", err))
-	}
-
-	// update block hash since it is now available and not when the receipt/log of individual transactions were created
-	for _, r := range work.receipts {
-		for _, l := range r.Logs {
-			l.BlockHash = block.Hash()
-		}
-	}
-	for _, log := range work.state.Logs() {
-		log.BlockHash = block.Hash()
+		panic(fmt.Sprint("error writing block to chain: ", err))
 	}
 
 	// NOTE: We are currently writing txes, receipts, and the bloom filters
@@ -531,7 +547,7 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txes *types.Transactions
 			break
 		}
 
-		env.state.StartRecord(tx.Hash(), common.Hash{}, 0)
+		env.publicState.StartRecord(tx.Hash(), common.Hash{}, 0)
 
 		logs, err := env.commitTransaction(tx, bc, gp)
 		switch {
@@ -570,14 +586,16 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txes *types.Transactions
 }
 
 func (env *Work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (vm.Logs, error) {
-	snap := env.state.Snapshot()
+	publicSnapshot := env.publicState.Snapshot()
+	privateSnapshot := env.privateState.Snapshot()
 
-	//
-	// TODO: separate private and public state here
-	//
-	receipt, logs, _, err := core.ApplyTransaction(env.config, bc, gp, env.state, env.state, env.header, tx, env.header.GasUsed, env.config.VmConfig)
+	// NOTE: QuorumChain disables forcing JIT here.
+
+	receipt, logs, _, err := core.ApplyTransaction(env.config, bc, gp, env.publicState, env.privateState, env.header, tx, env.header.GasUsed, env.config.VmConfig)
 	if err != nil {
-		env.state.RevertToSnapshot(snap)
+		env.publicState.RevertToSnapshot(publicSnapshot)
+		env.privateState.RevertToSnapshot(privateSnapshot)
+
 		return nil, err
 	}
 	env.txs = append(env.txs, tx)
