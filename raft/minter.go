@@ -45,7 +45,6 @@ type work struct {
 	privateState *state.StateDB
 	Block        *types.Block
 	header       *types.Header
-	txs          []*types.Transaction
 	receipts     []*types.Receipt
 }
 
@@ -426,7 +425,7 @@ func (minter *minter) mintNewBlock() {
 
 	header.Bloom = types.CreateBloom(work.receipts)
 
-	block := types.NewBlock(header, work.txs, nil, work.receipts)
+	block := types.NewBlock(header, committedTxes, nil, work.receipts)
 	work.Block = block
 
 	glog.V(logger.Info).Infof("Generated next block #%v with [%d txns]", block.Number(), txCount)
@@ -543,7 +542,6 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 
 		return nil, err
 	}
-	env.txs = append(env.txs, tx)
 	env.receipts = append(env.receipts, receipt)
 
 	return logs, nil
