@@ -383,12 +383,31 @@ func (minter *minter) mintNewBlock() {
 	addrTxes := minter.withoutProposedTxes(allAddrTxes)
 	transactions := types.NewTransactionsByPriceAndNonce(addrTxes)
 
-	committedTxes, receipts := work.commitTransactions(minter.mux, transactions, minter.chain)
+	committedTxes, receipts, logs := work.commitTransactions(transactions, minter.chain)
 	txCount := len(committedTxes)
 
 	if txCount == 0 {
 		glog.V(logger.Info).Infoln("Not generating new block since there are no pending transactions")
 		return
+	}
+
+	if len(logs) > 0 {
+		// make a copy, the state caches the logs and these logs get "upgraded" from pending to mined
+		// logs by filling in the block hash when the block was mined by the local miner. This can
+		// cause a race condition if a log was "upgraded" before the PendingLogsEvent is processed.
+		cpy := make(vm.Logs, len(logs))
+		for i, l := range logs {
+			cpy[i] = new(vm.Log)
+			*cpy[i] = *l
+		}
+		go func(logs vm.Logs, tcount int) {
+			if len(logs) > 0 {
+				minter.mux.Post(core.PendingLogsEvent{Logs: logs})
+			}
+			if tcount > 0 {
+				minter.mux.Post(core.PendingStateEvent{})
+			}
+		}(cpy, txCount)
 	}
 
 	committedTxIs := make([]interface{}, len(committedTxes))
@@ -476,8 +495,8 @@ func (minter *minter) mintNewBlock() {
 	minter.broadcastWork(work, receipts)
 }
 
-func (env *work) commitTransactions(mux *event.TypeMux, txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts) {
-	var coalescedLogs vm.Logs
+func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts, vm.Logs) {
+	var logs vm.Logs
 	var committedTxes types.Transactions
 	var receipts types.Receipts
 
@@ -492,7 +511,7 @@ func (env *work) commitTransactions(mux *event.TypeMux, txes *types.Transactions
 
 		env.publicState.StartRecord(tx.Hash(), common.Hash{}, 0)
 
-		logs, receipt, err := env.commitTransaction(tx, bc, gp)
+		receipt, txLogs, err := env.commitTransaction(tx, bc, gp)
 		switch {
 		case err != nil:
 			if glog.V(logger.Detail) {
@@ -501,35 +520,17 @@ func (env *work) commitTransactions(mux *event.TypeMux, txes *types.Transactions
 			txes.Pop() // skip rest of txes from this account
 		default:
 			txCount++
-			coalescedLogs = append(coalescedLogs, logs...)
+			logs = append(logs, txLogs...)
 			committedTxes = append(committedTxes, tx)
 			receipts = append(receipts, receipt)
 			txes.Shift()
 		}
 	}
-	if len(coalescedLogs) > 0 || txCount > 0 {
-		// make a copy, the state caches the logs and these logs get "upgraded" from pending to mined
-		// logs by filling in the block hash when the block was mined by the local miner. This can
-		// cause a race condition if a log was "upgraded" before the PendingLogsEvent is processed.
-		cpy := make(vm.Logs, len(coalescedLogs))
-		for i, l := range coalescedLogs {
-			cpy[i] = new(vm.Log)
-			*cpy[i] = *l
-		}
-		go func(logs vm.Logs, tcount int) {
-			if len(logs) > 0 {
-				mux.Post(core.PendingLogsEvent{Logs: logs})
-			}
-			if tcount > 0 {
-				mux.Post(core.PendingStateEvent{})
-			}
-		}(cpy, txCount)
-	}
 
-	return committedTxes, receipts
+	return committedTxes, receipts, logs
 }
 
-func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (vm.Logs, *types.Receipt, error) {
+func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (*types.Receipt, vm.Logs, error) {
 	publicSnapshot := env.publicState.Snapshot()
 	privateSnapshot := env.privateState.Snapshot()
 
@@ -543,5 +544,5 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 		return nil, nil, err
 	}
 
-	return logs, receipt, nil
+	return receipt, logs, nil
 }
