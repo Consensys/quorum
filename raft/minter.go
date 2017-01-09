@@ -53,7 +53,6 @@ type minter struct {
 	mux                        *event.TypeMux
 	eth                        core.Backend
 	chain                      *core.BlockChain
-	proc                       core.Validator
 	chainDb                    ethdb.Database
 	coinbase                   common.Address
 	minting                    int32 // atomic status counter
@@ -81,7 +80,6 @@ func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Durati
 		mux:          eth.EventMux(),
 		chainDb:      eth.ChainDb(),
 		chain:        eth.BlockChain(),
-		proc:         eth.BlockChain().Validator(),
 		proposedTxes: set.New(),
 		shouldMine:   channels.NewRingChannel(1),
 		blockTime:    blockTime,
