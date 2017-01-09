@@ -47,7 +47,6 @@ type work struct {
 	header       *types.Header
 	txs          []*types.Transaction
 	receipts     []*types.Receipt
-	createdAt    time.Time
 }
 
 type minter struct {
@@ -368,7 +367,6 @@ func (minter *minter) createWork() *work {
 		publicState:  publicState,
 		privateState: privateState,
 		header:       header,
-		createdAt:    time.Now(),
 	}
 }
 
