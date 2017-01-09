@@ -373,15 +373,18 @@ func (minter *minter) createWork() *work {
 	}
 }
 
+func (minter *minter) getTransactions() *types.TransactionsByPriceAndNonce {
+	allAddrTxes := minter.eth.TxPool().Pending()
+	addrTxes := minter.withoutProposedTxes(allAddrTxes)
+	return types.NewTransactionsByPriceAndNonce(addrTxes)
+}
+
 func (minter *minter) mintNewBlock() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
 
 	work := minter.createWork()
-
-	allAddrTxes := minter.eth.TxPool().Pending()
-	addrTxes := minter.withoutProposedTxes(allAddrTxes)
-	transactions := types.NewTransactionsByPriceAndNonce(addrTxes)
+	transactions := minter.getTransactions()
 
 	committedTxes, receipts, logs := work.commitTransactions(transactions, minter.chain)
 	txCount := len(committedTxes)
