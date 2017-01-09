@@ -39,7 +39,7 @@ import (
 )
 
 // Current state information for building the next block
-type Work struct {
+type work struct {
 	config       *core.ChainConfig
 	publicState  *state.StateDB
 	privateState *state.StateDB
@@ -309,7 +309,7 @@ func (minter *minter) mintingLoop() {
 	}
 }
 
-func (minter *minter) broadcastWork(work *Work) {
+func (minter *minter) broadcastWork(work *work) {
 	block := work.Block
 
 	go func(block *types.Block, logs vm.Logs, receipts []*types.Receipt) {
@@ -343,7 +343,7 @@ func generateNanoTimestamp(parent *types.Block) (tstamp int64) {
 	return
 }
 
-func (minter *minter) createWork() *Work {
+func (minter *minter) createWork() *work {
 	parent := minter.parent
 	parentNumber := parent.Number()
 	tstamp := generateNanoTimestamp(parent)
@@ -363,7 +363,7 @@ func (minter *minter) createWork() *Work {
 		panic(fmt.Sprint("failed to get parent state: ", err))
 	}
 
-	return &Work{
+	return &work{
 		config:       minter.config,
 		publicState:  publicState,
 		privateState: privateState,
@@ -475,7 +475,7 @@ func (minter *minter) mintNewBlock() {
 	minter.broadcastWork(work)
 }
 
-func (env *Work) commitTransactions(mux *event.TypeMux, txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) types.Transactions {
+func (env *work) commitTransactions(mux *event.TypeMux, txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) types.Transactions {
 	committedTxes := make(types.Transactions, 0)
 	gp := new(core.GasPool).AddGas(env.header.GasLimit)
 	txCount := 0
@@ -525,7 +525,7 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txes *types.Transactions
 	return committedTxes
 }
 
-func (env *Work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (vm.Logs, error) {
+func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (vm.Logs, error) {
 	publicSnapshot := env.publicState.Snapshot()
 	privateSnapshot := env.privateState.Snapshot()
 
