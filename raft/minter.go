@@ -45,7 +45,6 @@ type work struct {
 	privateState *state.StateDB
 	Block        *types.Block
 	header       *types.Header
-	receipts     []*types.Receipt
 }
 
 type minter struct {
@@ -314,10 +313,10 @@ func (minter *minter) mintingLoop() {
 	}
 }
 
-func (minter *minter) broadcastWork(work *work) {
+func (minter *minter) broadcastWork(work *work, receipts types.Receipts) {
 	block := work.Block
 
-	go func(block *types.Block, logs vm.Logs, receipts []*types.Receipt) {
+	go func(block *types.Block, logs vm.Logs, receipts types.Receipts) {
 		minter.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 		minter.mux.Post(core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
@@ -330,7 +329,7 @@ func (minter *minter) broadcastWork(work *work) {
 		if err := core.WriteBlockReceipts(minter.chainDb, block.Hash(), block.Number().Uint64(), receipts); err != nil {
 			glog.V(logger.Warn).Infoln("error writing block receipts:", err)
 		}
-	}(block, work.publicState.Logs(), work.receipts)
+	}(block, work.publicState.Logs(), receipts)
 
 	elapsed := time.Since(time.Unix(0, work.header.Time.Int64()))
 	glog.V(logger.Info).Infof("🔨  Mined block (#%v / %x) in %v", block.Number(), block.Hash().Bytes()[:4], elapsed)
@@ -386,7 +385,7 @@ func (minter *minter) mintNewBlock() {
 	addrTxes := minter.withoutProposedTxes(allAddrTxes)
 	transactions := types.NewTransactionsByPriceAndNonce(addrTxes)
 
-	committedTxes := work.commitTransactions(minter.mux, transactions, minter.chain)
+	committedTxes, receipts := work.commitTransactions(minter.mux, transactions, minter.chain)
 	txCount := len(committedTxes)
 
 	if txCount == 0 {
@@ -413,7 +412,7 @@ func (minter *minter) mintNewBlock() {
 	// update block hash since it is now available, but was not when the
 	// receipt/log of individual transactions were created:
 	headerHash := header.Hash()
-	for _, r := range work.receipts {
+	for _, r := range receipts {
 		for _, l := range r.Logs {
 			l.BlockHash = headerHash
 		}
@@ -423,9 +422,9 @@ func (minter *minter) mintNewBlock() {
 		log.BlockHash = headerHash
 	}
 
-	header.Bloom = types.CreateBloom(work.receipts)
+	header.Bloom = types.CreateBloom(receipts)
 
-	block := types.NewBlock(header, committedTxes, nil, work.receipts)
+	block := types.NewBlock(header, committedTxes, nil, receipts)
 	work.Block = block
 
 	glog.V(logger.Info).Infof("Generated next block #%v with [%d txns]", block.Number(), txCount)
@@ -469,22 +468,24 @@ func (minter *minter) mintNewBlock() {
 	// This puts transactions in a extra db for rpc
 	core.WriteTransactions(minter.chainDb, block)
 	// store the receipts
-	core.WriteReceipts(minter.chainDb, work.receipts)
+	core.WriteReceipts(minter.chainDb, receipts)
 	// Write map map bloom filters
-	core.WriteMipmapBloom(minter.chainDb, block.NumberU64(), work.receipts)
+	core.WriteMipmapBloom(minter.chainDb, block.NumberU64(), receipts)
 
 	minter.parent = block
 	minter.unappliedBlocks.Append(block)
 
-	minter.broadcastWork(work)
+	minter.broadcastWork(work, receipts)
 }
 
-func (env *work) commitTransactions(mux *event.TypeMux, txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) types.Transactions {
-	committedTxes := make(types.Transactions, 0)
+func (env *work) commitTransactions(mux *event.TypeMux, txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts) {
+	var coalescedLogs vm.Logs
+	var committedTxes types.Transactions
+	var receipts types.Receipts
+
 	gp := new(core.GasPool).AddGas(env.header.GasLimit)
 	txCount := 0
 
-	var coalescedLogs vm.Logs
 	for {
 		tx := txes.Peek()
 		if tx == nil {
@@ -493,7 +494,7 @@ func (env *work) commitTransactions(mux *event.TypeMux, txes *types.Transactions
 
 		env.publicState.StartRecord(tx.Hash(), common.Hash{}, 0)
 
-		logs, err := env.commitTransaction(tx, bc, gp)
+		logs, receipt, err := env.commitTransaction(tx, bc, gp)
 		switch {
 		case err != nil:
 			if glog.V(logger.Detail) {
@@ -504,6 +505,7 @@ func (env *work) commitTransactions(mux *event.TypeMux, txes *types.Transactions
 			txCount++
 			coalescedLogs = append(coalescedLogs, logs...)
 			committedTxes = append(committedTxes, tx)
+			receipts = append(receipts, receipt)
 			txes.Shift()
 		}
 	}
@@ -526,10 +528,10 @@ func (env *work) commitTransactions(mux *event.TypeMux, txes *types.Transactions
 		}(cpy, txCount)
 	}
 
-	return committedTxes
+	return committedTxes, receipts
 }
 
-func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (vm.Logs, error) {
+func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (vm.Logs, *types.Receipt, error) {
 	publicSnapshot := env.publicState.Snapshot()
 	privateSnapshot := env.privateState.Snapshot()
 
@@ -540,9 +542,8 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 		env.publicState.RevertToSnapshot(publicSnapshot)
 		env.privateState.RevertToSnapshot(privateSnapshot)
 
-		return nil, err
+		return nil, nil, err
 	}
-	env.receipts = append(env.receipts, receipt)
 
-	return logs, nil
+	return logs, receipt, nil
 }
