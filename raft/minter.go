@@ -429,7 +429,7 @@ func (minter *minter) mintNewBlock() {
 	block := types.NewBlock(header, work.txs, nil, work.receipts)
 	work.Block = block
 
-	glog.V(logger.Info).Infof("Generated next block #%v with [%d txns]", work.Block.Number(), txCount)
+	glog.V(logger.Info).Infof("Generated next block #%v with [%d txns]", block.Number(), txCount)
 
 	work.publicState.Commit()
 
