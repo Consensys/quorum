@@ -146,6 +146,13 @@ func (minter *minter) withoutProposedTxes(addrTxes AddressTxes) AddressTxes {
 	return newMap
 }
 
+// Removes txes in block from our "blacklist" of "proposed tx" hashes. When we
+// create a new block and use txes from the tx pool, we ignore those that we
+// have already used ("proposed"), but that haven't yet officially made it into
+// the chain yet.
+//
+// It's important to remove hashes from this blacklist (once we know we don't
+// need them in there anymore) so that it doesn't grow endlessly.
 func (minter *minter) removeProposedTxes(block *types.Block) {
 	minedTxes := block.Transactions()
 	minedTxInterfaces := make([]interface{}, len(minedTxes))
