@@ -185,6 +185,64 @@ func (minter *minter) updateSpeculativeChainPerNewHead(newHeadBlock *types.Block
 	}
 }
 
+func (minter *minter) updateSpeculativeChainPerInvalidOrdering(headBlock *types.Block, invalidBlock *types.Block) {
+	invalidHash := invalidBlock.Hash()
+
+	glog.V(logger.Warn).Infof("Handling InvalidRaftOrdering for invalid block %x; current head is %x\n", invalidHash, headBlock.Hash())
+
+	minter.mu.Lock()
+	defer minter.mu.Unlock()
+
+	// 1. if the block is not in our db, exit. someone else mined this.
+	if !minter.chain.HasBlock(invalidBlock.Hash()) {
+		glog.V(logger.Warn).Infof("Someone else mined invalid block %x; ignoring\n", invalidHash)
+
+		return
+	}
+
+	// 2. check our guard to see if this is a (descendent) block we're
+	// expected to be ruled invalid. if we find it, remove from the guard
+	if minter.expectedInvalidBlockHashes.Has(invalidHash) {
+		glog.V(logger.Warn).Infof("Removing expected-invalid block %x from guard.\n", invalidHash)
+
+		minter.expectedInvalidBlockHashes.Remove(invalidHash)
+
+		return
+	}
+
+	// 3. pop from the RHS repeatedly, updating minter.parent each time. if not
+	// our block, add to guard. in all cases, call removeProposedTxes
+	for {
+		currBlockI := minter.unappliedBlocks.Pop()
+
+		if nil == currBlockI {
+			glog.V(logger.Warn).Infof("(Popped all blocks from queue.)\n")
+
+			break
+		}
+
+		currBlock := currBlockI.(*types.Block)
+
+		glog.V(logger.Info).Infof("Popped block %x from queue RHS.\n", currBlock.Hash())
+
+		if speculativeParentI := minter.unappliedBlocks.Last(); nil != speculativeParentI {
+			minter.parent = speculativeParentI.(*types.Block)
+		} else {
+			minter.parent = headBlock
+		}
+
+		minter.removeProposedTxes(currBlock)
+
+		if currBlock.Hash() != invalidHash {
+			glog.V(logger.Warn).Infof("Haven't yet found block %x; adding descendent %x to guard.\n", invalidHash, currBlock.Hash())
+
+			minter.expectedInvalidBlockHashes.Add(currBlock.Hash())
+		} else {
+			break
+		}
+	}
+}
+
 func (minter *minter) eventLoop(events event.Subscription) {
 	for event := range events.Chan() {
 		switch ev := event.Data.(type) {
@@ -215,63 +273,8 @@ func (minter *minter) eventLoop(events event.Subscription) {
 		case InvalidRaftOrdering:
 			headBlock := ev.headBlock
 			invalidBlock := ev.invalidBlock
-			invalidHash := invalidBlock.Hash()
 
-			glog.V(logger.Warn).Infof("Handling InvalidRaftOrdering for invalid block %x; current head is %x\n", invalidHash, headBlock.Hash())
-
-			minter.mu.Lock()
-
-			// 1. if the block is not in our db, exit. someone else mined this.
-			if !minter.chain.HasBlock(invalidBlock.Hash()) {
-				glog.V(logger.Warn).Infof("Someone else mined invalid block %x; ignoring\n", invalidHash)
-
-				minter.mu.Unlock()
-				continue
-			}
-
-			// 2. check our guard to see if this is a (descendent) block we're
-			// expected to be ruled invalid. if we find it, remove from the guard
-			if minter.expectedInvalidBlockHashes.Has(invalidHash) {
-				glog.V(logger.Warn).Infof("Removing expected-invalid block %x from guard.\n", invalidHash)
-
-				minter.expectedInvalidBlockHashes.Remove(invalidHash)
-
-				minter.mu.Unlock()
-				continue
-			}
-
-			// 3. pop from the RHS repeatedly, updating minter.parent each time. if not
-			// our block, add to guard. in all cases, call removeProposedTxes
-			for {
-				currBlockI := minter.unappliedBlocks.Pop()
-
-				if nil == currBlockI {
-					glog.V(logger.Warn).Infof("(Popped all blocks from queue.)\n")
-
-					break
-				}
-
-				currBlock := currBlockI.(*types.Block)
-
-				glog.V(logger.Info).Infof("Popped block %x from queue RHS.\n", currBlock.Hash())
-
-				if speculativeParentI := minter.unappliedBlocks.Last(); nil != speculativeParentI {
-					minter.parent = speculativeParentI.(*types.Block)
-				} else {
-					minter.parent = headBlock
-				}
-
-				minter.removeProposedTxes(currBlock)
-
-				if currBlock.Hash() != invalidHash {
-					glog.V(logger.Warn).Infof("Haven't yet found block %x; adding descendent %x to guard.\n", invalidHash, currBlock.Hash())
-
-					minter.expectedInvalidBlockHashes.Add(currBlock.Hash())
-				} else {
-					break
-				}
-			}
-			minter.mu.Unlock()
+			minter.updateSpeculativeChainPerInvalidOrdering(headBlock, invalidBlock)
 		}
 	}
 }
