@@ -404,11 +404,11 @@ func (minter *minter) fireMintedBlockEvents(block *types.Block, logs vm.Logs) {
 }
 
 func (minter *minter) recordProposedTransactions(txes types.Transactions) {
-	txIs := make([]interface{}, len(txes))
+	txHashIs := make([]interface{}, len(txes))
 	for i, tx := range txes {
-		txIs[i] = tx.Hash()
+		txHashIs[i] = tx.Hash()
 	}
-	minter.proposedTxes.Add(txIs...)
+	minter.proposedTxes.Add(txHashIs...)
 }
 
 func (minter *minter) mintNewBlock() {
