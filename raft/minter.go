@@ -430,11 +430,9 @@ func (minter *minter) mintNewBlock() {
 
 	header := work.header
 
-	if atomic.LoadInt32(&minter.minting) == 1 {
-		// commit state root after all state transitions.
-		core.AccumulateRewards(work.publicState, header, nil)
-		header.Root = work.publicState.IntermediateRoot()
-	}
+	// commit state root after all state transitions.
+	core.AccumulateRewards(work.publicState, header, nil)
+	header.Root = work.publicState.IntermediateRoot()
 
 	// NOTE: < QuorumChain creates a signature here and puts it in header.Extra. >
 
