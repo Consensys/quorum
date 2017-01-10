@@ -446,10 +446,6 @@ func (minter *minter) mintNewBlock() {
 			l.BlockHash = headerHash
 		}
 	}
-	// NOTE: QuorumChain does not do the following:
-	for _, log := range work.publicState.Logs() {
-		log.BlockHash = headerHash
-	}
 
 	block := types.NewBlock(header, committedTxes, nil, receipts)
 	work.Block = block
