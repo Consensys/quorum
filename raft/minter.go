@@ -164,41 +164,48 @@ func (minter *minter) removeProposedTxes(block *types.Block) {
 	minter.proposedTxes.Remove(minedTxInterfaces...)
 }
 
+func (minter *minter) updateSpeculativeChainPerNewHead(newHeadBlock *types.Block) {
+	minter.mu.Lock()
+	defer minter.mu.Unlock()
+
+	earliestProposedI := minter.unappliedBlocks.Shift()
+	var earliestProposed *types.Block
+	if nil != earliestProposedI {
+		earliestProposed = earliestProposedI.(*types.Block)
+	}
+
+	if earliestProposed != nil && earliestProposed.Hash() != newHeadBlock.Hash() {
+		glog.V(logger.Warn).Infof("Another node minted %x; Clearing speculative state\n", newHeadBlock.Hash())
+
+		minter.clearSpeculativeState(newHeadBlock)
+	} else {
+		// We're receiving the acceptance for an expected block. Remove its
+		// txes from our blacklist.
+		minter.removeProposedTxes(newHeadBlock)
+	}
+}
+
 func (minter *minter) eventLoop(events event.Subscription) {
 	for event := range events.Chan() {
 		switch ev := event.Data.(type) {
 		case core.ChainHeadEvent:
 			newHeadBlock := ev.Block
 
-			minter.mu.Lock()
 			if atomic.LoadInt32(&minter.minting) == 1 {
-				earliestProposedI := minter.unappliedBlocks.Shift()
-
-				var earliestProposed *types.Block
-				if nil != earliestProposedI {
-					earliestProposed = earliestProposedI.(*types.Block)
-				}
-
-				if earliestProposed != nil && earliestProposed.Hash() != newHeadBlock.Hash() {
-					glog.V(logger.Warn).Infof("Another node minted %x; Clearing speculative state\n", newHeadBlock.Hash())
-
-					minter.clearSpeculativeState(newHeadBlock)
-				} else {
-					// We're receiving the acceptance for an expected block. Remove its
-					// txes from our blacklist.
-					minter.removeProposedTxes(newHeadBlock)
-				}
+				minter.updateSpeculativeChainPerNewHead(newHeadBlock)
 
 				//
-				// TODO(bts): not sure if this is the place, but we're going to need to put
-				// an upper limit on our speculative mining chain length.
+				// TODO(bts): not sure if this is the place, but we're going to
+				// want to put an upper limit on our speculative mining chain
+				// length.
 				//
 
 				minter.requestMinting()
 			} else {
+				minter.mu.Lock()
 				minter.parent = newHeadBlock
+				minter.mu.Unlock()
 			}
-			minter.mu.Unlock()
 
 		case core.TxPreEvent:
 			if atomic.LoadInt32(&minter.minting) == 1 {
