@@ -461,23 +461,20 @@ func (minter *minter) mintNewBlock() {
 	if err := core.WritePrivateStateRoot(minter.chainDb, block.Root(), privateStateRoot); err != nil {
 		panic(fmt.Sprint("error writing private state root: ", err))
 	}
-
 	if err := minter.chain.WriteDetachedBlock(block); err != nil {
 		panic(fmt.Sprint("error writing block to chain: ", err))
 	}
-
-	// NOTE: We are currently writing txes, receipts, and the bloom filters
-	// even though this block might not end up becoming the next head of the
-	// chain.
-	//
-	// This puts transactions in a extra db for rpc
-	core.WriteTransactions(minter.chainDb, block)
-	// store the receipts
-	core.WriteReceipts(minter.chainDb, receipts)
-	// Write map map bloom filters
-	core.WriteMipmapBloom(minter.chainDb, block.NumberU64(), receipts)
+	if err := core.WriteTransactions(minter.chainDb, block); err != nil {
+		panic(fmt.Sprint("error writing txes: ", err))
+	}
+	if err := core.WriteReceipts(minter.chainDb, receipts); err != nil {
+		panic(fmt.Sprint("error writing receipts: ", err))
+	}
+	if err := core.WriteMipmapBloom(minter.chainDb, block.NumberU64(), receipts); err != nil {
+		panic(fmt.Sprint("error writing mipmap bloom: ", err))
+	}
 	if err := core.WriteBlockReceipts(minter.chainDb, block.Hash(), block.Number().Uint64(), receipts); err != nil {
-		glog.V(logger.Warn).Infoln("error writing block receipts:", err)
+		panic(fmt.Sprint("error writing block receipts: ", err))
 	}
 
 	minter.parent = block
