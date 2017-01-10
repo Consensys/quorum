@@ -325,28 +325,6 @@ func (minter *minter) mintingLoop() {
 	}
 }
 
-func (minter *minter) broadcastWork(work *work, receipts types.Receipts) {
-	block := work.Block
-
-	go func(block *types.Block, logs vm.Logs, receipts types.Receipts) {
-		minter.mux.Post(core.NewMinedBlockEvent{Block: block})
-
-		minter.mux.Post(core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
-
-		// NOTE: we're currently not doing this because the block is not in the
-		// chain yet:
-		//
-		// minter.mux.Post(logs)
-
-		if err := core.WriteBlockReceipts(minter.chainDb, block.Hash(), block.Number().Uint64(), receipts); err != nil {
-			glog.V(logger.Warn).Infoln("error writing block receipts:", err)
-		}
-	}(block, work.publicState.Logs(), receipts)
-
-	elapsed := time.Since(time.Unix(0, work.header.Time.Int64()))
-	glog.V(logger.Info).Infof("🔨  Mined block (#%v / %x) in %v", block.Number(), block.Hash().Bytes()[:4], elapsed)
-}
-
 func generateNanoTimestamp(parent *types.Block) (tstamp int64) {
 	parentTime := parent.Time().Int64()
 	tstamp = time.Now().UnixNano()
@@ -393,6 +371,37 @@ func (minter *minter) getTransactions() *types.TransactionsByPriceAndNonce {
 	return types.NewTransactionsByPriceAndNonce(addrTxes)
 }
 
+// Sends-off events asynchronously.
+func (minter *minter) firePendingBlockEvents(logs vm.Logs) {
+	// Copy logs before we mutate them, adding a block hash.
+	copiedLogs := make(vm.Logs, len(logs))
+	for i, l := range logs {
+		copiedLogs[i] = new(vm.Log)
+		*copiedLogs[i] = *l
+	}
+
+	go func() {
+		minter.mux.Post(core.PendingLogsEvent{Logs: copiedLogs})
+		minter.mux.Post(core.PendingStateEvent{})
+	}()
+}
+
+// Sends-off events asynchronously.
+func (minter *minter) fireMintedBlockEvents(block *types.Block, logs vm.Logs) {
+	go func() {
+		minter.mux.Post(core.NewMinedBlockEvent{Block: block})
+		minter.mux.Post(core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
+
+		// NOTE: we're currently not doing this because the block is not in the
+		// chain yet, and it seems like that's a prerequisite for this?
+		//
+		// TODO: do we need to do this in handleLogCommands in the case where we
+		// minted the block?
+		//
+		// minter.mux.Post(work.publicState.Logs())
+	}()
+}
+
 func (minter *minter) mintNewBlock() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
@@ -408,24 +417,7 @@ func (minter *minter) mintNewBlock() {
 		return
 	}
 
-	if len(logs) > 0 {
-		// make a copy, the state caches the logs and these logs get "upgraded" from pending to mined
-		// logs by filling in the block hash when the block was mined by the local miner. This can
-		// cause a race condition if a log was "upgraded" before the PendingLogsEvent is processed.
-		cpy := make(vm.Logs, len(logs))
-		for i, l := range logs {
-			cpy[i] = new(vm.Log)
-			*cpy[i] = *l
-		}
-		go func(logs vm.Logs, tcount int) {
-			if len(logs) > 0 {
-				minter.mux.Post(core.PendingLogsEvent{Logs: logs})
-			}
-			if tcount > 0 {
-				minter.mux.Post(core.PendingStateEvent{})
-			}
-		}(cpy, txCount)
-	}
+	minter.firePendingBlockEvents(logs)
 
 	committedTxIs := make([]interface{}, len(committedTxes))
 	for i, tx := range committedTxes {
@@ -505,11 +497,18 @@ func (minter *minter) mintNewBlock() {
 	core.WriteReceipts(minter.chainDb, receipts)
 	// Write map map bloom filters
 	core.WriteMipmapBloom(minter.chainDb, block.NumberU64(), receipts)
+	if err := core.WriteBlockReceipts(minter.chainDb, block.Hash(), block.Number().Uint64(), receipts); err != nil {
+		glog.V(logger.Warn).Infoln("error writing block receipts:", err)
+	}
 
 	minter.parent = block
 	minter.unappliedBlocks.Append(block)
 
-	minter.broadcastWork(work, receipts)
+	publicLogs := work.publicState.Logs()
+	minter.fireMintedBlockEvents(block, publicLogs)
+
+	elapsed := time.Since(time.Unix(0, header.Time.Int64()))
+	glog.V(logger.Info).Infof("🔨  Mined block (#%v / %x) in %v", block.Number(), block.Hash().Bytes()[:4], elapsed)
 }
 
 func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts, vm.Logs) {
