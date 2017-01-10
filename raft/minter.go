@@ -337,6 +337,7 @@ func generateNanoTimestamp(parent *types.Block) (tstamp int64) {
 	return
 }
 
+// Assumes mu is held.
 func (minter *minter) createWork() *work {
 	parent := minter.parent
 	parentNumber := parent.Number()
