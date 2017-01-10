@@ -55,9 +55,9 @@ type minter struct {
 	chain                      *core.BlockChain
 	chainDb                    ethdb.Database
 	coinbase                   common.Address
-	minting                    int32 // atomic status counter
-	proposedTxes               *set.Set
-	expectedInvalidBlockHashes *set.Set
+	minting                    int32    // Atomic status counter
+	proposedTxes               *set.Set // This is thread-safe.
+	expectedInvalidBlockHashes *set.Set // This is thread-safe.
 	shouldMine                 *channels.RingChannel
 	blockTime                  time.Duration
 	parent                     *types.Block
@@ -125,6 +125,8 @@ type AddressTxes map[common.Address]types.Transactions
 // we don't try to create blocks with the same transactions. This is necessary
 // because the TX pool will keep supplying us these transactions until they are
 // in the chain (after having flown through raft).
+//
+// The Set this method accesses is thread-safe.
 func (minter *minter) withoutProposedTxes(addrTxes AddressTxes) AddressTxes {
 	newMap := make(AddressTxes)
 
