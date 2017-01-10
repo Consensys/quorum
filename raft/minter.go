@@ -279,12 +279,13 @@ func (minter *minter) eventLoop(events event.Subscription) {
 	}
 }
 
-// After `f` been called, wait before calling it again.
-// Note that we will allow `f` to be called immediately, but not again before
-// a timeout.
+// Returns a wrapper around no-arg func `f` which can be called without limit
+// and returns immediately: this will call the underlying func `f` at most once
+// every `rate`. If this function is called more than once before the underlying
+// `f` is invoked (per this rate limiting), `f` will only be called *once*.
 //
-// TODO(joel) this has a small bug in that you can't call it *immediately* when
-// first allocated
+// TODO(joel): this has a small bug in that you can't call it *immediately* when
+// first allocated.
 func throttle(rate time.Duration, f func()) func() {
 	request := channels.NewRingChannel(1)
 
@@ -307,9 +308,9 @@ func throttle(rate time.Duration, f func()) func() {
 // This function spins continuously, blocking until a block should be created
 // (via requestMinting()). This is throttled by `minter.blockTime`:
 //
-//   1. A block is guaranteed to be created within `blockTime` of being
+//   1. A block is guaranteed to be minted within `blockTime` of being
 //      requested.
-//   2. We never create a block more frequently than `blockTime`.
+//   2. We never mint a block more frequently than `blockTime`.
 func (minter *minter) mintingLoop() {
 	throttledCommitNewWork := throttle(minter.blockTime, func() {
 		if atomic.LoadInt32(&minter.minting) == 1 {
@@ -401,7 +402,7 @@ func (minter *minter) mintNewBlock() {
 	txCount := len(committedTxes)
 
 	if txCount == 0 {
-		glog.V(logger.Info).Infoln("Not generating new block since there are no pending transactions")
+		glog.V(logger.Info).Infoln("Not minting a new block since there are no pending transactions")
 		return
 	}
 
