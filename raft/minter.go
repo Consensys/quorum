@@ -100,6 +100,7 @@ func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Durati
 
 func (minter *minter) start() {
 	atomic.StoreInt32(&minter.minting, 1)
+	minter.requestMinting()
 }
 
 func (minter *minter) stop() {
