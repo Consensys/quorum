@@ -432,10 +432,15 @@ func (pm *ProtocolManager) Stop() {
 	glog.V(logger.Info).Infoln("Ethereum protocol handler stopped")
 }
 
+func logCheckpoint(checkpointName string, iface interface{}) {
+	log.Printf("RAFT-CHECKPOINT %s %v\n", checkpointName, iface)
+}
+
 // manage the lifecycle of a peer. the peer is disconnected when this function
 // terminates.
 func (pm *ProtocolManager) handleRlpxPeerDiscovery(p *peer, confChangeC chan<- raftpb.ConfChange, peerMsgC chan<- p2p.Msg) error {
 	glog.V(logger.Debug).Infof("%v: peer connected [%s]", p, p.strID)
+	logCheckpoint("PEER-CONNECTED", p.uint64Id)
 
 	pm.mu.Lock()
 	pm.rlpxKnownPeers[p.strID] = p
@@ -586,6 +591,7 @@ func (pm *ProtocolManager) removeRlpxPeer(id string) error {
 	pm.mu.Lock()
 	if peer, ok := pm.rlpxKnownPeers[id]; ok {
 		glog.V(logger.Debug).Infoln("Removing peer", id)
+		logCheckpoint("PEER-DISCONNECTED", peer.uint64Id)
 		delete(pm.rlpxKnownPeers, id)
 		pm.mu.Unlock()
 		peer.rawPeer.Disconnect(p2p.DiscUselessPeer)
