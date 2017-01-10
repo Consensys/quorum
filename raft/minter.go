@@ -527,6 +527,10 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 
 	// NOTE: QuorumChain disables forcing JIT here.
 
+	//
+	// TODO(bts): look into that core.ApplyTransaction is not currently
+	//            returning any logs?
+	//
 	receipt, logs, _, err := core.ApplyTransaction(env.config, bc, gp, env.publicState, env.privateState, env.header, tx, env.header.GasUsed, env.config.VmConfig)
 	if err != nil {
 		env.publicState.RevertToSnapshot(publicSnapshot)
