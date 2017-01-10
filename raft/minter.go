@@ -456,13 +456,10 @@ func (minter *minter) mintNewBlock() {
 
 	glog.V(logger.Info).Infof("Generated next block #%v with [%d txns]", block.Number(), txCount)
 
-	work.publicState.Commit()
-
 	_, pubStateErr := work.publicState.Commit()
 	if pubStateErr != nil {
 		panic(fmt.Sprint("error committing public state: ", pubStateErr))
 	}
-
 	privateStateRoot, privStateErr := work.privateState.Commit()
 	if privStateErr != nil {
 		panic(fmt.Sprint("error committing private state: ", privStateErr))
