@@ -441,10 +441,8 @@ func (minter *minter) mintNewBlock() {
 	// update block hash since it is now available, but was not when the
 	// receipt/log of individual transactions were created:
 	headerHash := header.Hash()
-	for _, r := range receipts {
-		for _, l := range r.Logs {
-			l.BlockHash = headerHash
-		}
+	for _, l := range logs {
+		l.BlockHash = headerHash
 	}
 
 	block := types.NewBlock(header, committedTxes, nil, receipts)
