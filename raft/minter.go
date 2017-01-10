@@ -480,8 +480,7 @@ func (minter *minter) mintNewBlock() {
 	minter.parent = block
 	minter.unappliedBlocks.Append(block)
 
-	publicLogs := work.publicState.Logs()
-	minter.fireMintedBlockEvents(block, publicLogs)
+	minter.fireMintedBlockEvents(block, logs)
 
 	elapsed := time.Since(time.Unix(0, header.Time.Int64()))
 	glog.V(logger.Info).Infof("🔨  Mined block (#%v / %x) in %v", block.Number(), block.Hash().Bytes()[:4], elapsed)
