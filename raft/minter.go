@@ -436,6 +436,8 @@ func (minter *minter) mintNewBlock() {
 
 	// NOTE: < QuorumChain creates a signature here and puts it in header.Extra. >
 
+	header.Bloom = types.CreateBloom(receipts)
+
 	// update block hash since it is now available, but was not when the
 	// receipt/log of individual transactions were created:
 	headerHash := header.Hash()
@@ -448,8 +450,6 @@ func (minter *minter) mintNewBlock() {
 	for _, log := range work.publicState.Logs() {
 		log.BlockHash = headerHash
 	}
-
-	header.Bloom = types.CreateBloom(receipts)
 
 	block := types.NewBlock(header, committedTxes, nil, receipts)
 	work.Block = block
