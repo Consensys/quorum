@@ -402,6 +402,14 @@ func (minter *minter) fireMintedBlockEvents(block *types.Block, logs vm.Logs) {
 	}()
 }
 
+func (minter *minter) recordProposedTransactions(txes types.Transactions) {
+	txIs := make([]interface{}, len(txes))
+	for i, tx := range txes {
+		txIs[i] = tx.Hash()
+	}
+	minter.proposedTxes.Add(txIs...)
+}
+
 func (minter *minter) mintNewBlock() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
@@ -418,12 +426,7 @@ func (minter *minter) mintNewBlock() {
 	}
 
 	minter.firePendingBlockEvents(logs)
-
-	committedTxIs := make([]interface{}, len(committedTxes))
-	for i, tx := range committedTxes {
-		committedTxIs[i] = tx.Hash()
-	}
-	minter.proposedTxes.Add(committedTxIs...)
+	minter.recordProposedTransactions(committedTxes)
 
 	header := work.header
 
