@@ -472,18 +472,6 @@ func (minter *minter) mintNewBlock() {
 		panic(fmt.Sprint("error writing private state root: ", err))
 	}
 
-	//
-	// TODO(bts): what to do for validation here now that AuxValidator has been
-	//            removed in Quorum? looking at InsertChain might help here.
-	//
-	// We might not want/need any validation here. it will occur anyway once the
-	// message has flown through raft.
-	//
-	// auxValidator := minter.eth.BlockChain().AuxValidator()
-	// if err := core.ValidateHeader(minter.config, auxValidator, block.Header(), minter.parent.Header(), true, false); err != nil && err != core.BlockFutureErr {
-	// 	panic(fmt.Sprint("Invalid header on mined block: ", err))
-	// }
-
 	if err := minter.chain.WriteDetachedBlock(block); err != nil {
 		panic(fmt.Sprint("error writing block to chain: ", err))
 	}
