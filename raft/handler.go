@@ -533,6 +533,10 @@ func (pm *ProtocolManager) handleLogCommands(logCommandC <-chan interface{}) {
 						}
 					}
 
+					for _, tx := range block.Transactions() {
+						logCheckpoint(TX_ACCEPTED, tx.Hash().Hex())
+					}
+
 					if pm.blockchain.HasBlock(block.Hash()) {
 						// This node mined the block, so it was already in the
 						// DB. We simply extend the chain:

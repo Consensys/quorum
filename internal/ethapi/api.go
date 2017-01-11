@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"net/http"
 	"strings"
@@ -1197,6 +1198,8 @@ func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction, si
 		glog.V(logger.Info).Infof("Tx(%s) to: %s\n", signedTx.Hash().Hex(), tx.To().Hex())
 	}
 
+	// XXX(joel) use logCheckpoint
+	log.Printf("RAFT-CHECKPOINT TX-CREATED %v\n", signedTx.Hash())
 	return signedTx.Hash(), nil
 }
 

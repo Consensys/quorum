@@ -24,4 +24,12 @@ const (
 	// -- because we only store the latest block hash.
 	// We might be able to get away with snapshotting *every* entry.
 	defaultSnapCount = 100
+
+	// checkpoints
+	PEER_CONNECTED = "PEER-CONNECTED"
+	PEER_DISCONNECTED = "PEER-DISCONNECTED"
+	TX_CREATED = "TX-CREATED"
+	TX_ACCEPTED = "TX-ACCEPTED"
+	BECAME_MINTER = "BECAME-MINTER"
+	BECAME_VERIFIER = "BECAME-VERIFIER"
 )

@@ -118,8 +118,10 @@ func (service *RaftService) notifyRoleChange(roleC <-chan interface{}) {
 			}
 
 			if intRole == minterRole {
+				logCheckpoint(BECAME_MINTER, "")
 				service.startMinting()
 			} else { // verifier
+				logCheckpoint(BECAME_VERIFIER, "")
 				service.stopMinting()
 			}
 
