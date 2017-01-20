@@ -64,9 +64,6 @@ Example genesis file (copy to `genesis.json`):
     "0x9186eb3d20cbd1f5f992a950d808c4495153abd5": {
       "balance": "1000000000000000000000000000"
     },
-    "0xed9d02e382b34818e88b88a309c7fe71e65f419d": {
-      "balance": "1000000000000000000000000000"
-    },
     "0x0638e1574728b6d862dd5d3a3e0942c3be47d996": {
       "balance": "1000000000000000000000000000"
     }
