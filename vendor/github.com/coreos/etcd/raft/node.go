@@ -19,6 +19,8 @@ import (
 
 	pb "github.com/coreos/etcd/raft/raftpb"
 	"golang.org/x/net/context"
+
+  "github.com/eapache/channels"
 )
 
 type SnapshotStatus int
@@ -26,6 +28,9 @@ type SnapshotStatus int
 const (
 	SnapshotFinish  SnapshotStatus = 1
 	SnapshotFailure SnapshotStatus = 2
+
+  LEADER     = 1
+  NOT_LEADER = 2
 )
 
 var (
@@ -161,6 +166,10 @@ type Node interface {
 	ReportSnapshot(id uint64, status SnapshotStatus)
 	// Stop performs any necessary termination of the Node.
 	Stop()
+
+	// Report when the node's role in the cluster changes, as either LEADER or
+	// NOT_LEADER
+	RoleChan() *channels.RingChannel
 }
 
 type Peer struct {
@@ -233,6 +242,10 @@ type node struct {
 	stop       chan struct{}
 	status     chan chan Status
 
+	// we use a ring channel (of size 1) because we only want the node's latest
+	// role
+	rolec *channels.RingChannel
+
 	logger Logger
 }
 
@@ -251,6 +264,7 @@ func newNode() node {
 		done:   make(chan struct{}),
 		stop:   make(chan struct{}),
 		status: make(chan chan Status),
+    rolec:  channels.NewRingChannel(1),
 	}
 }
 
@@ -264,6 +278,10 @@ func (n *node) Stop() {
 	}
 	// Block until the stop has been acknowledged by run()
 	<-n.done
+}
+
+func (n *node) RoleChan() *channels.RingChannel {
+	return n.rolec
 }
 
 func (n *node) run(r *raft) {
@@ -304,6 +322,15 @@ func (n *node) run(r *raft) {
 				propc = nil
 			}
 			lead = r.lead
+
+			var role int
+			if lead == r.id {
+				role = LEADER
+			} else {
+				role = NOT_LEADER
+			}
+
+			n.rolec.In() <- role
 		}
 
 		select {
