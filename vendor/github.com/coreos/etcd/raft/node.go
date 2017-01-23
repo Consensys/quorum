@@ -19,8 +19,6 @@ import (
 
 	pb "github.com/coreos/etcd/raft/raftpb"
 	"golang.org/x/net/context"
-
-	"github.com/eapache/channels"
 )
 
 type SnapshotStatus int
@@ -28,9 +26,6 @@ type SnapshotStatus int
 const (
 	SnapshotFinish  SnapshotStatus = 1
 	SnapshotFailure SnapshotStatus = 2
-
-	LEADER     = 1
-	NOT_LEADER = 2
 )
 
 var (
@@ -43,7 +38,7 @@ var (
 // SoftState provides state that is useful for logging and debugging.
 // The state is volatile and does not need to be persisted to the WAL.
 type SoftState struct {
-	Lead      uint64
+	Lead      uint64 // must use atomic operations to access; keep 64-bit aligned.
 	RaftState StateType
 }
 
@@ -64,6 +59,12 @@ type Ready struct {
 	// Messages are sent.
 	// HardState will be equal to empty state if there is no update.
 	pb.HardState
+
+	// ReadStates can be used for node to serve linearizable read requests locally
+	// when its applied index is greater than the index in ReadState.
+	// Note that the readState will be returned when raft receives msgReadIndex.
+	// The returned is only valid for the request that requested to read.
+	ReadStates []ReadState
 
 	// Entries specifies entries to be saved to stable storage BEFORE
 	// Messages are sent.
@@ -101,7 +102,7 @@ func IsEmptySnap(sp pb.Snapshot) bool {
 func (rd Ready) containsUpdates() bool {
 	return rd.SoftState != nil || !IsEmptyHardState(rd.HardState) ||
 		!IsEmptySnap(rd.Snapshot) || len(rd.Entries) > 0 ||
-		len(rd.CommittedEntries) > 0 || len(rd.Messages) > 0
+		len(rd.CommittedEntries) > 0 || len(rd.Messages) > 0 || len(rd.ReadStates) != 0
 }
 
 // Node represents a node in a raft cluster.
@@ -135,27 +136,23 @@ type Node interface {
 	// However, as an optimization, the application may call Advance while it is applying the
 	// commands. For example. when the last Ready contains a snapshot, the application might take
 	// a long time to apply the snapshot data. To continue receiving Ready without blocking raft
-	// progress, it can call Advance before finish applying the last ready. To make this optimization
-	// work safely, when the application receives a Ready with softState.RaftState equal to Candidate
-	// it MUST apply all pending configuration changes if there is any.
-	//
-	// Here is a simple solution that waiting for ALL pending entries to get applied.
-	// ```
-	// ...
-	// rd := <-n.Ready()
-	// go apply(rd.CommittedEntries) // optimization to apply asynchronously in FIFO order.
-	// if rd.SoftState.RaftState == StateCandidate {
-	//     waitAllApplied()
-	// }
-	// n.Advance()
-	// ...
-	//```
+	// progress, it can call Advance before finishing applying the last ready.
 	Advance()
 	// ApplyConfChange applies config change to the local node.
 	// Returns an opaque ConfState protobuf which must be recorded
 	// in snapshots. Will never return nil; it returns a pointer only
 	// to match MemoryStorage.Compact.
 	ApplyConfChange(cc pb.ConfChange) *pb.ConfState
+
+	// TransferLeadership attempts to transfer leadership to the given transferee.
+	TransferLeadership(ctx context.Context, lead, transferee uint64)
+
+	// ReadIndex request a read state. The read state will be set in the ready.
+	// Read state has a read index. Once the application advances further than the read
+	// index, any linearizable read requests issued before the read request can be
+	// processed safely. The read state will have the same rctx attached.
+	ReadIndex(ctx context.Context, rctx []byte) error
+
 	// Status returns the current status of the raft state machine.
 	Status() Status
 	// ReportUnreachable reports the given node is not reachable for the last send.
@@ -164,10 +161,6 @@ type Node interface {
 	ReportSnapshot(id uint64, status SnapshotStatus)
 	// Stop performs any necessary termination of the Node.
 	Stop()
-
-	// Report when the node's role in the cluster changes, as either LEADER or
-	// NOT_LEADER
-	RoleChan() *channels.RingChannel
 }
 
 type Peer struct {
@@ -240,10 +233,6 @@ type node struct {
 	stop       chan struct{}
 	status     chan chan Status
 
-	// we use a ring channel (of size 1) because we only want the node's latest
-	// role
-	rolec *channels.RingChannel
-
 	logger Logger
 }
 
@@ -262,7 +251,6 @@ func newNode() node {
 		done:   make(chan struct{}),
 		stop:   make(chan struct{}),
 		status: make(chan chan Status),
-		rolec:  channels.NewRingChannel(1),
 	}
 }
 
@@ -276,10 +264,6 @@ func (n *node) Stop() {
 	}
 	// Block until the stop has been acknowledged by run()
 	<-n.done
-}
-
-func (n *node) RoleChan() *channels.RingChannel {
-	return n.rolec
 }
 
 func (n *node) run(r *raft) {
@@ -320,15 +304,6 @@ func (n *node) run(r *raft) {
 				propc = nil
 			}
 			lead = r.lead
-
-			var role int
-			if lead == r.id {
-				role = LEADER
-			} else {
-				role = NOT_LEADER
-			}
-
-			n.rolec.In() <- role
 		}
 
 		select {
@@ -388,7 +363,9 @@ func (n *node) run(r *raft) {
 			if !IsEmptySnap(rd.Snapshot) {
 				prevSnapi = rd.Snapshot.Metadata.Index
 			}
+
 			r.msgs = nil
+			r.readStates = nil
 			advancec = n.advancec
 		case <-advancec:
 			if prevHardSt.Commit != 0 {
@@ -485,8 +462,12 @@ func (n *node) ApplyConfChange(cc pb.ConfChange) *pb.ConfState {
 
 func (n *node) Status() Status {
 	c := make(chan Status)
-	n.status <- c
-	return <-c
+	select {
+	case n.status <- c:
+		return <-c
+	case <-n.done:
+		return Status{}
+	}
 }
 
 func (n *node) ReportUnreachable(id uint64) {
@@ -505,6 +486,19 @@ func (n *node) ReportSnapshot(id uint64, status SnapshotStatus) {
 	}
 }
 
+func (n *node) TransferLeadership(ctx context.Context, lead, transferee uint64) {
+	select {
+	// manually set 'from' and 'to', so that leader can voluntarily transfers its leadership
+	case n.recvc <- pb.Message{Type: pb.MsgTransferLeader, From: transferee, To: lead}:
+	case <-n.done:
+	case <-ctx.Done():
+	}
+}
+
+func (n *node) ReadIndex(ctx context.Context, rctx []byte) error {
+	return n.step(ctx, pb.Message{Type: pb.MsgReadIndex, Entries: []pb.Entry{{Data: rctx}}})
+}
+
 func newReady(r *raft, prevSoftSt *SoftState, prevHardSt pb.HardState) Ready {
 	rd := Ready{
 		Entries:          r.raftLog.unstableEntries(),
@@ -519,6 +513,9 @@ func newReady(r *raft, prevSoftSt *SoftState, prevHardSt pb.HardState) Ready {
 	}
 	if r.raftLog.unstable.snapshot != nil {
 		rd.Snapshot = *r.raftLog.unstable.snapshot
+	}
+	if len(r.readStates) != 0 {
+		rd.ReadStates = r.readStates
 	}
 	return rd
 }
