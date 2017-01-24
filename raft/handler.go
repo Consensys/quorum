@@ -233,6 +233,7 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 							// We use the context to hold the enode id
 							Context: cc.Context,
 						}
+						glog.V(logger.Info).Infof("adding %v to raftKnownPeers due to EntryConfChange", cc.NodeID)
 						pm.raftKnownPeers[cc.NodeID] = p
 						// if _, ok := pm.protocolManager.rlpxKnownPeers[string(p.Context)]; !ok {
 						// 	// TODO would be cool if we could hint to rlpx to look
@@ -240,6 +241,8 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 						// }
 
 					case raftpb.ConfChangeRemoveNode:
+						glog.V(logger.Info).Infof("removing %v from raftKnownPeers due to ConfChangeRemoveNode", cc.NodeID)
+
 						if cc.NodeID == strToIntID(pm.id) {
 							glog.V(logger.Info).Infoln("I've been removed from the cluster -- shutting down!")
 							return
