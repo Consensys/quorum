@@ -100,15 +100,21 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 	return pm.rawNode.Propose(context.TODO(), buffer)
 }
 
-func StartRaftNode(pm *ProtocolManager, storage *raft.MemoryStorage, startPeers []raft.Peer) {
+func (pm *ProtocolManager) startRaftNode(startPeers []raft.Peer, minter *minter) {
 	c := &raft.Config{
 		ID: strToIntID(pm.id),
 		// TODO(joel): tune these parameters
 		ElectionTick:    10,
 		HeartbeatTick:   1,
-		Storage:         storage,
+		Storage:         pm.raftStorage,
 		MaxSizePerMsg:   4096,
 		MaxInflightMsgs: 256,
+	}
+
+	if len(startPeers) == 0 {
+		panic("exiting due to empty raft peers list")
+	} else {
+		glog.V(logger.Info).Infof("starting raft with %v total peers.", len(startPeers))
 	}
 
 	pm.rawNode = raft.StartNode(c, startPeers)
@@ -116,6 +122,32 @@ func StartRaftNode(pm *ProtocolManager, storage *raft.MemoryStorage, startPeers 
 	go pm.serveInternal(pm.proposeC, pm.confChangeC)
 	go pm.eventLoop(pm.logCommandC)
 	go pm.handlePeerMsgs(pm.peerMsgC)
+	go pm.handleRoleChange(pm.rawNode.RoleChan().Out(), minter)
+}
+
+func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}, minter *minter) {
+	for {
+		select {
+		case role := <-roleC:
+			intRole, ok := role.(int)
+
+			if !ok {
+				panic("Couldn't cast role to int")
+			}
+
+			if intRole == minterRole {
+				logCheckpoint(BECAME_MINTER, "")
+				minter.start()
+			} else { // verifier
+				logCheckpoint(BECAME_VERIFIER, "")
+				minter.stop()
+			}
+
+			pm.role = intRole
+		case <-pm.quitSync:
+			return
+		}
+	}
 }
 
 func (pm *ProtocolManager) stop() {
@@ -123,6 +155,10 @@ func (pm *ProtocolManager) stop() {
 	if pm.rawNode != nil {
 		pm.rawNode.Stop()
 	}
+
+	//
+	// TODO: stop minting here
+	//
 }
 
 func (pm *ProtocolManager) minedBroadcastLoop(proposeC chan<- *types.Block) {
@@ -268,7 +304,7 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 
 // Protocol Manager
 
-func NewProtocolManager(strID string, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peerGetter func() (string, *big.Int), datadir string) (*ProtocolManager, error) {
+func NewProtocolManager(strID string, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peerGetter func() (string, *big.Int)) (*ProtocolManager, error) {
 	manager := &ProtocolManager{
 		rlpxKnownPeers: make(map[string]*peer),
 		raftKnownPeers: make(map[uint64]*raft.Peer),
@@ -366,9 +402,23 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	}
 }
 
-func (pm *ProtocolManager) Start() {
+func makeRaftPeers(nodes []*discover.Node) []raft.Peer {
+	peers := make([]raft.Peer, len(nodes))
+	for i, node := range nodes {
+		enodeId := node.ID.String()
+
+		peers[i] = raft.Peer{
+			ID:      strToIntID(enodeId),
+			Context: []byte(enodeId),
+		}
+	}
+	return peers
+}
+
+func (pm *ProtocolManager) Start(peers []*discover.Node, minter *minter) {
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	go pm.minedBroadcastLoop(pm.proposeC)
+	pm.startRaftNode(makeRaftPeers(peers), minter)
 }
 
 func (pm *ProtocolManager) Stop() {

@@ -523,11 +523,6 @@ web3._extend({
                        call: 'raft_sendTransaction',
                        params: 1,
                        inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
-               }),
-               new web3._extend.Method({
-                       name: 'startNode',
-                       call: 'raft_startNode',
-                       params: 0
                })
        ],
        properties:

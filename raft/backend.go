@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -25,6 +26,7 @@ type RaftService struct {
 	accountManager *accounts.Manager
 
 	raftProtocolManager *ProtocolManager
+	startPeers          []*discover.Node
 
 	// we need an event mux to instantiate the blockchain
 	eventMux *event.TypeMux
@@ -38,25 +40,26 @@ type RaftNodeInfo struct {
 	Role        string      `json:"role"`
 }
 
-func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, strID string, blockTime time.Duration, e *eth.Ethereum, datadir string) (*RaftService, error) {
+func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, strID string, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node) (*RaftService, error) {
 	service := &RaftService{
 		eventMux:       ctx.EventMux,
 		chainDb:        e.ChainDb(),
 		blockchain:     e.BlockChain(),
 		txPool:         e.TxPool(),
 		accountManager: e.AccountManager(),
+		startPeers:     startPeers,
 	}
 
 	ethProxy := e.GetProxy()
 
+	service.minter = newMinter(chainConfig, service, blockTime)
+
 	var err error
 	if service.raftProtocolManager, err = NewProtocolManager(strID,
 		service.blockchain, service.eventMux, ethProxy.Downloader,
-		ethProxy.GetBestRaftPeer, datadir); err != nil {
+		ethProxy.GetBestRaftPeer); err != nil {
 		return nil, err
 	}
-
-	service.minter = newMinter(chainConfig, service, blockTime)
 
 	return service, nil
 }
@@ -64,7 +67,7 @@ func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, strID string, 
 func (service *RaftService) APIs() []rpc.API {
 	return []rpc.API{
 		{
-			// startNode, (TODO) stopNode, version
+			// version
 			Namespace: "raft",
 			Version:   "1.0",
 			Service:   NewPublicRaftAPI(service),
@@ -77,14 +80,6 @@ func (service *RaftService) APIs() []rpc.API {
 			Public:    true,
 		},
 	}
-}
-
-func (service *RaftService) startMinting() {
-	go service.minter.start()
-}
-
-func (service *RaftService) stopMinting() {
-	service.minter.stop()
 }
 
 // Backend interface methods
@@ -103,33 +98,8 @@ func (service *RaftService) Protocols() []p2p.Protocol {
 // Start implements node.Service, starting the background data propagation thread
 // of the protocol.
 func (service *RaftService) Start(*p2p.Server) error {
-	service.raftProtocolManager.Start()
+	service.raftProtocolManager.Start(service.startPeers, service.minter)
 	return nil
-}
-
-func (service *RaftService) notifyRoleChange(roleC <-chan interface{}) {
-	for {
-		select {
-		case role := <-roleC:
-			intRole, ok := role.(int)
-
-			if !ok {
-				panic("Couldn't cast role to int")
-			}
-
-			if intRole == minterRole {
-				logCheckpoint(BECAME_MINTER, "")
-				service.startMinting()
-			} else { // verifier
-				logCheckpoint(BECAME_VERIFIER, "")
-				service.stopMinting()
-			}
-
-			service.raftProtocolManager.role = intRole
-		case <-service.raftProtocolManager.quitSync:
-			return
-		}
-	}
 }
 
 // Stop implements node.Service, stopping the background data propagation thread
@@ -137,7 +107,6 @@ func (service *RaftService) notifyRoleChange(roleC <-chan interface{}) {
 func (service *RaftService) Stop() error {
 	service.blockchain.Stop()
 	service.raftProtocolManager.Stop()
-	service.stopMinting()
 	service.eventMux.Stop()
 
 	service.chainDb.Close()
