@@ -518,12 +518,6 @@ web3._extend({
        property: 'raft',
        methods:
        [
-               new web3._extend.Method({
-                       name: 'sendTransaction',
-                       call: 'raft_sendTransaction',
-                       params: 1,
-                       inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
-               })
        ],
        properties:
        [

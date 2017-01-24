@@ -72,12 +72,6 @@ func (service *RaftService) APIs() []rpc.API {
 			Version:   "1.0",
 			Service:   NewPublicRaftAPI(service),
 			Public:    true,
-		}, {
-			// sendTransaction
-			Namespace: "raft",
-			Version:   "1.0",
-			Service:   NewPublicTransactionPoolAPI(service),
-			Public:    true,
 		},
 	}
 }
