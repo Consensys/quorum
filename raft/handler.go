@@ -579,14 +579,13 @@ func (pm *ProtocolManager) handleLogCommands(logCommandC <-chan interface{}) {
 
 func (pm *ProtocolManager) removeRlpxPeer(id string) error {
 	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
 	if peer, ok := pm.rlpxKnownPeers[id]; ok {
 		glog.V(logger.Debug).Infoln("Removing peer", id)
 		logCheckpoint("PEER-DISCONNECTED", peer.uint64Id)
 		delete(pm.rlpxKnownPeers, id)
-		pm.mu.Unlock()
 		peer.rawPeer.Disconnect(p2p.DiscUselessPeer)
-	} else {
-		pm.mu.Unlock()
 	}
 
 	return nil
