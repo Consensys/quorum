@@ -315,9 +315,9 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 
 // Protocol Manager
 
-func NewProtocolManager(strID string, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peerGetter func() (string, *big.Int)) (*ProtocolManager, error) {
-	waldir := fmt.Sprintf("raft-%s-wal", strID)
-	snapdir := fmt.Sprintf("raft-%s-snap", strID)
+func NewProtocolManager(strID string, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peerGetter func() (string, *big.Int), datadir string) (*ProtocolManager, error) {
+	waldir := fmt.Sprintf("%s/raft-wal", datadir)
+	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 
 	manager := &ProtocolManager{
 		rlpxKnownPeers: make(map[string]*peer),

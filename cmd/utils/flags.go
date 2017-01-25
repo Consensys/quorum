@@ -724,11 +724,12 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 
 	if ctx.GlobalBool(RaftModeFlag.Name) {
 		blockTimeMillis := ctx.GlobalInt(RaftBlockTime.Name)
+		datadir := ctx.GlobalString(DataDirFlag.Name)
 
 		if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 			strId := discover.PubkeyID(stack.PublicKey()).String()
 			blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
-			return gethRaft.New(ctx, chainConfig, strId, blockTimeNanos, ethereum)
+			return gethRaft.New(ctx, chainConfig, strId, blockTimeNanos, ethereum, datadir)
 		}); err != nil {
 			Fatalf("Failed to register the Raft service: %v", err)
 		}
