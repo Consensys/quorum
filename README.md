@@ -130,6 +130,14 @@ Further documentation can be found in the [docs](docs/) folder and on the [wiki]
 * quorum-examples - https://github.com/jpmorganchase/quorum-examples
 * Quorum Wiki - https://github.com/jpmorganchase/quorum/wiki
 
+## Third Party Tools/Libraries
+
+The following Quorum-related libraries/applications have been created by Third Parties and as such are not specifically endorsed by J.P. Morgan.  A big thanks to the developers for improving the tooling around Quorum!
+
+* [Quorum-Genesis](https://github.com/davebryson/quorum-genesis) - A simple CL utility for Quorum to help populate the genesis file with voters and makers
+* [web3j-quorum](https://github.com/web3j/quorum) - an extension to the web3j Java library providing support for the Quorum API
+* [Nethereum Quorum](https://github.com/Nethereum/Nethereum/tree/master/src/Nethereum.Quorum) - a .net Quorum adapter 
+
 ## Contributing
 
 Thank you for your interest in contributing to Quorum!
