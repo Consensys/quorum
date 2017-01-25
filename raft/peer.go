@@ -65,7 +65,7 @@ func (p *peer) SendRaftPB(m raftpb.Message) {
 	}
 
 	if err := p2p.Send(p.rw, raftMsg, data); err != nil {
-		glog.V(logger.Error).Infoln(
-			"Failed to send message (%s) to peer (%s): %s", m.Type, m.To, err)
+		glog.V(logger.Error).Infof(
+			"Failed to send message (%v) to peer (%v): %v", m.Type, m.To, err)
 	}
 }
