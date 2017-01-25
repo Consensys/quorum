@@ -1194,12 +1194,14 @@ func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction, si
 		from, _ := signedTx.From()
 		addr := crypto.CreateAddress(from, signedTx.Nonce())
 		glog.V(logger.Info).Infof("Tx(%s) created: %s\n", signedTx.Hash().Hex(), addr.Hex())
+		// XXX(joel) use logCheckpoint
+		log.Printf("RAFT-CHECKPOINT TX-CREATED (%v, %v)\n", signedTx.Hash().Hex(), addr.Hex())
 	} else {
 		glog.V(logger.Info).Infof("Tx(%s) to: %s\n", signedTx.Hash().Hex(), tx.To().Hex())
+		// XXX(joel) use logCheckpoint
+		log.Printf("RAFT-CHECKPOINT TX-CREATED (%v, %v)\n", signedTx.Hash().Hex(), tx.To().Hex())
 	}
 
-	// XXX(joel) use logCheckpoint
-	log.Printf("RAFT-CHECKPOINT TX-CREATED %v\n", signedTx.Hash())
 	return signedTx.Hash(), nil
 }
 
