@@ -8,7 +8,7 @@
 // * logCommandC, for committed raft entries and commands to take or load a
 //   snapshot, flowing to ethereum.
 // * proposeC, for proposals flowing from ethereum to raft
-// * confChangeC, for config changes flowing from ethereum to raft
+// * confChangeC, currently unused; in the future for adding new, non-initial, raft peers
 // * peerMsgC, for messages coming from peers, to be dumped into raft
 // * roleC, coming from raft notifies us when our role changes
 package gethRaft
@@ -375,7 +375,7 @@ func NewProtocolManager(strID string, blockchain *core.BlockChain, mux *event.Ty
 
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 			peer := newPeer(p, rw)
-			return manager.handleRlpxPeerDiscovery(peer, manager.confChangeC, manager.peerMsgC)
+			return manager.handleRlpxPeerDiscovery(peer, manager.peerMsgC)
 		},
 	}
 
@@ -476,7 +476,7 @@ func logCheckpoint(checkpointName string, iface interface{}) {
 
 // manage the lifecycle of a peer. the peer is disconnected when this function
 // terminates.
-func (pm *ProtocolManager) handleRlpxPeerDiscovery(p *peer, confChangeC chan<- raftpb.ConfChange, peerMsgC chan<- p2p.Msg) error {
+func (pm *ProtocolManager) handleRlpxPeerDiscovery(p *peer, peerMsgC chan<- p2p.Msg) error {
 	glog.V(logger.Debug).Infof("%v: peer connected [%s]", p, p.strID)
 	logCheckpoint("PEER-CONNECTED", p.uint64Id)
 
@@ -484,20 +484,6 @@ func (pm *ProtocolManager) handleRlpxPeerDiscovery(p *peer, confChangeC chan<- r
 	pm.rlpxKnownPeers[p.strID] = p
 	pm.mu.Unlock()
 
-	if raftRunning := pm.rawNode != nil; raftRunning {
-		cc := raftpb.ConfChange{
-			Type:    raftpb.ConfChangeAddNode,
-			NodeID:  p.uint64Id,
-			Context: []byte(p.strID),
-		}
-
-		// TODO(bts): only propose conf change if our raft conf doesn't include this node
-		select {
-		case <-pm.quitSync:
-			return nil
-		case confChangeC <- cc:
-		}
-	}
 
 	defer pm.removeRlpxPeer(p.strID)
 
