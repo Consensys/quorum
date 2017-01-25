@@ -415,10 +415,22 @@ func makeRaftPeers(nodes []*discover.Node) []raft.Peer {
 	return peers
 }
 
+func sleep(duration time.Duration) {
+	<-time.NewTimer(duration).C
+}
+
 func (pm *ProtocolManager) Start(peers []*discover.Node, minter *minter) {
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	go pm.minedBroadcastLoop(pm.proposeC)
-	pm.startRaftNode(makeRaftPeers(peers), minter)
+
+	// HACK: this gives us a little time for the raft transport to initialize.
+	//
+	// Instead, we should probably programmatically check whether we have
+	// connections to all peers.
+	go func() {
+		sleep(2 * time.Second)
+		pm.startRaftNode(makeRaftPeers(peers), minter)
+	}()
 }
 
 func (pm *ProtocolManager) Stop() {
