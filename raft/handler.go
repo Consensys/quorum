@@ -101,14 +101,43 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 }
 
 func (pm *ProtocolManager) startRaftNode(startPeers []raft.Peer, minter *minter) {
+
+	//
+	// NOTE: cockroach sets Applied key
+	//
+
+	// NOTE: cockroach sets this to false for now until they've "worked out the
+	//       bugs"
+	enablePreVote := true
+
 	c := &raft.Config{
 		ID: strToIntID(pm.id),
 		// TODO(joel): tune these parameters
-		ElectionTick:    10,
-		HeartbeatTick:   1,
-		Storage:         pm.raftStorage,
-		MaxSizePerMsg:   4096,
-		MaxInflightMsgs: 256,
+		ElectionTick:  10, // NOTE: cockroach sets this to 15
+		HeartbeatTick: 1,  // NOTE: cockroach sets this to 5
+		Storage:       pm.raftStorage,
+
+		// NOTE, from cockroach:
+		// "PreVote and CheckQuorum are two ways of achieving the same thing.
+		// PreVote is more compatible with quiesced ranges, so we want to switch
+		// to it once we've worked out the bugs."
+		PreVote:     enablePreVote,
+		CheckQuorum: !enablePreVote,
+
+		// MaxSizePerMsg controls how many Raft log entries the leader will send to
+		// followers in a single MsgApp.
+		MaxSizePerMsg: 4096, // NOTE: in cockroachdb this is 16*1024
+
+		// MaxInflightMsgs controls how many in-flight messages Raft will send to
+		// a follower without hearing a response. The total number of Raft log
+		// entries is a combination of this setting and MaxSizePerMsg.
+		//
+		// NOTE: Cockroach's settings (MaxSizePerMsg of 4k and MaxInflightMsgs
+		// of 4) provide for up to 64 KB of raft log to be sent without
+		// acknowledgement. With an average entry size of 1 KB that translates
+		// to ~64 commands that might be executed in the handling of a single
+		// raft.Ready operation.
+		MaxInflightMsgs: 256, // NOTE: in cockroachdb this is 4
 	}
 
 	if len(startPeers) == 0 {
