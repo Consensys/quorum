@@ -304,15 +304,6 @@ func (pm *ProtocolManager) serveInternal(proposeC <-chan *types.Block, confChang
 	}
 }
 
-func strToIntID(strID string) uint64 {
-	// take 64 bits
-	intID, err := strconv.ParseUint(strID[:16], 16, 64)
-	if err != nil {
-		log.Fatalf("Failed to parse string id: %v", err)
-	}
-	return intID
-}
-
 func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 
 	ticker := time.NewTicker(tickerMS * time.Millisecond)
