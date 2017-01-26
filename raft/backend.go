@@ -40,7 +40,7 @@ type RaftNodeInfo struct {
 	Role        string      `json:"role"`
 }
 
-func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, strID string, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node) (*RaftService, error) {
+func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, id int, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node) (*RaftService, error) {
 	service := &RaftService{
 		eventMux:       ctx.EventMux,
 		chainDb:        e.ChainDb(),
@@ -55,9 +55,9 @@ func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, strID string, 
 	service.minter = newMinter(chainConfig, service, blockTime)
 
 	var err error
-	if service.raftProtocolManager, err = NewProtocolManager(strID,
+	if service.raftProtocolManager, err = NewProtocolManager(id,
 		service.blockchain, service.eventMux, ethProxy.Downloader,
-		ethProxy.GetBestRaftPeer); err != nil {
+		startPeers, ethProxy.GetBestRaftPeer); err != nil {
 		return nil, err
 	}
 
@@ -86,13 +86,13 @@ func (service *RaftService) TxPool() *core.TxPool              { return service.
 
 // node.Service interface methods
 func (service *RaftService) Protocols() []p2p.Protocol {
-	return []p2p.Protocol{service.raftProtocolManager.protocol}
+	return []p2p.Protocol{}
 }
 
 // Start implements node.Service, starting the background data propagation thread
 // of the protocol.
 func (service *RaftService) Start(*p2p.Server) error {
-	service.raftProtocolManager.Start(service.startPeers, service.minter)
+	service.raftProtocolManager.Start(service.minter)
 	return nil
 }
 

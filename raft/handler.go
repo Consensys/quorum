@@ -9,7 +9,6 @@
 //   snapshot, flowing to ethereum.
 // * proposeC, for proposals flowing from ethereum to raft
 // * confChangeC, currently unused; in the future for adding new, non-initial, raft peers
-// * peerMsgC, for messages coming from peers, to be dumped into raft
 // * roleC, coming from raft notifies us when our role changes
 package gethRaft
 
@@ -20,6 +19,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"net/http"
+	"net/url"
 
 	"golang.org/x/net/context"
 
@@ -33,34 +34,32 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/rlp"
 
+	raftTypes "github.com/coreos/etcd/pkg/types"
+	"github.com/coreos/etcd/etcdserver/stats"
 	"github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
+	"github.com/coreos/etcd/rafthttp"
 )
 
 type ProtocolManager struct {
-	// peers note -- each node tracks both:
-	// * the peers it knows of from discovery
-	// * the peers acknowledged by raft
+	// peers note -- each node tracks the peers acknowledged by raft
 	//
 	// only the leader proposes `ConfChangeAddNode` for each peer in the first set
 	// but not in the second. this is done:
 	// * when a node becomes leader
 	// * when the leader learns of new peers
 
-	// This node's rlpx (enode) id
-	id string
-
-	// set of rlpx-discovered peers
-	rlpxKnownPeers map[string]*peer
+	// This node's raft id
+	id int
 
 	// set of currently active peers known to the raft cluster. this includes self
-	raftKnownPeers map[uint64]*raft.Peer
-
-	protocol p2p.Protocol
+	raftPeers []raft.Peer
+	peerUrls  []string
+	p2pNodes []*discover.Node
 
 	blockchain *core.BlockChain
 
-	// to protect the (rlpx and raft) peer maps
+	// to protect the raft peers and addresses
 	mu sync.RWMutex
 
 	eventMux      *event.TypeMux
@@ -72,12 +71,15 @@ type ProtocolManager struct {
 	rawNode     raft.Node
 	raftStorage *raft.MemoryStorage
 
+	transport *rafthttp.Transport
+	httpstopc chan struct{}
+	httpdonec chan struct{}
+
 	// The number of entries applied to the raft log
 	appliedIndex uint64
 
 	confState raftpb.ConfState
 
-	peerMsgC    chan p2p.Msg
 	proposeC    chan *types.Block
 	confChangeC chan raftpb.ConfChange
 	// messages committed by raft (right now these are the messages committed
@@ -100,7 +102,31 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 	return pm.rawNode.Propose(context.TODO(), buffer)
 }
 
-func (pm *ProtocolManager) startRaftNode(startPeers []raft.Peer, minter *minter) {
+//
+// Raft interface methods
+//
+func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error {
+       return pm.rawNode.Step(ctx, m)
+}
+func (pm *ProtocolManager) IsIDRemoved(id uint64) bool                           {
+	// TODO: IMPLEMENT
+
+	glog.V(logger.Error).Infof("UNIMPLEMENTED. Reporting that raft ID %d is not removed even though it might be", id)
+
+	return false
+}
+func (pm *ProtocolManager) ReportUnreachable(id uint64)                          {
+	// TODO: IMPLEMENT
+
+	panic("UNIMPLEMENTED Raft: ReportUnreachable")
+}
+func (pm *ProtocolManager) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
+	// TODO: IMPLEMENT
+
+	panic("UNIMPLEMENTED Raft: ReportSnapshot")
+}
+
+func (pm *ProtocolManager) startRaftNode(minter *minter) {
 
 	//
 	// NOTE: cockroach sets Applied key
@@ -111,7 +137,7 @@ func (pm *ProtocolManager) startRaftNode(startPeers []raft.Peer, minter *minter)
 	enablePreVote := true
 
 	c := &raft.Config{
-		ID: strToIntID(pm.id),
+		ID: uint64(pm.id),
 		// TODO(joel): tune these parameters
 		ElectionTick:  10, // NOTE: cockroach sets this to 15
 		HeartbeatTick: 1,  // NOTE: cockroach sets this to 5
@@ -140,18 +166,60 @@ func (pm *ProtocolManager) startRaftNode(startPeers []raft.Peer, minter *minter)
 		MaxInflightMsgs: 256, // NOTE: in cockroachdb this is 4
 	}
 
-	if len(startPeers) == 0 {
+	log.Printf("RAFT ID: %v\n", c.ID)
+
+	if numPeers := len(pm.raftPeers); numPeers == 0 {
 		panic("exiting due to empty raft peers list")
 	} else {
-		glog.V(logger.Info).Infof("starting raft with %v total peers.", len(startPeers))
+		glog.V(logger.Info).Infof("starting raft with %v total peers.", numPeers)
 	}
 
-	pm.rawNode = raft.StartNode(c, startPeers)
+	pm.rawNode = raft.StartNode(c, pm.raftPeers)
 
+	ss := &stats.ServerStats{}
+	ss.Initialize()
+
+	pm.transport = &rafthttp.Transport{
+		ID:          raftTypes.ID(pm.id),
+		ClusterID:   0x1000,
+		Raft:        pm,
+		ServerStats: ss,
+		LeaderStats: stats.NewLeaderStats(strconv.Itoa(pm.id)),
+		ErrorC:      make(chan error),
+	}
+
+	pm.transport.Start()
+	for i := range pm.raftPeers {
+		peerId := i+1
+		// add all peers except self
+		if peerId != pm.id {
+			pm.transport.AddPeer(raftTypes.ID(peerId), []string{pm.peerUrls[i]})
+		}
+	}
+
+	go pm.serveRaft()
 	go pm.serveInternal(pm.proposeC, pm.confChangeC)
 	go pm.eventLoop(pm.logCommandC)
-	go pm.handlePeerMsgs(pm.peerMsgC)
 	go pm.handleRoleChange(pm.rawNode.RoleChan().Out(), minter)
+}
+
+func (pm *ProtocolManager) serveRaft() {
+	url, err := url.Parse(pm.peerUrls[pm.id-1])
+	if err != nil {
+		log.Fatalf("Failed parsing URL (%v)", err)
+	}
+
+	listener, err := newStoppableListener(url.Host, pm.httpstopc)
+	if err != nil {
+		log.Fatalf("Failed to listen rafthttp (%v)", err)
+	}
+	err = (&http.Server{Handler: pm.transport.Handler()}).Serve(listener)
+	select {
+	case <-pm.httpstopc:
+	default:
+		log.Fatalf("Failed to serve rafthttp (%v)", err)
+	}
+	close(pm.httpdonec)
 }
 
 func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}, minter *minter) {
@@ -180,6 +248,9 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}, minter *mi
 }
 
 func (pm *ProtocolManager) stop() {
+	pm.transport.Stop()
+	close(pm.httpstopc)
+	<-pm.httpdonec
 	close(pm.quitSync)
 	if pm.rawNode != nil {
 		pm.rawNode.Stop()
@@ -267,7 +338,7 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 			pm.raftStorage.Append(rd.Entries)
 
 			// 2: Send all Messages to the nodes named in the To field.
-			pm.SendToPeers(rd.Messages)
+			pm.transport.Send(rd.Messages)
 
 			// 3: Apply Snapshot (if any) and CommittedEntries to the state machine.
 			for _, entry := range rd.CommittedEntries {
@@ -293,26 +364,18 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 					pm.mu.Lock()
 					switch cc.Type {
 					case raftpb.ConfChangeAddNode:
-						p := &raft.Peer{
-							ID: cc.NodeID,
-							// We use the context to hold the enode id
-							Context: cc.Context,
-						}
-						glog.V(logger.Info).Infof("adding %v to raftKnownPeers due to EntryConfChange", cc.NodeID)
-						pm.raftKnownPeers[cc.NodeID] = p
-						// if _, ok := pm.protocolManager.rlpxKnownPeers[string(p.Context)]; !ok {
-						// 	// TODO would be cool if we could hint to rlpx to look
-						// 	// for a new peer
-						// }
+						pm.transport.AddPeer(raftTypes.ID(cc.NodeID), []string{string(cc.Context)})
 
 					case raftpb.ConfChangeRemoveNode:
 						glog.V(logger.Info).Infof("removing %v from raftKnownPeers due to ConfChangeRemoveNode", cc.NodeID)
 
-						if cc.NodeID == strToIntID(pm.id) {
+						if cc.NodeID == uint64(pm.id) {
 							glog.V(logger.Info).Infoln("I've been removed from the cluster -- shutting down!")
 							return
 						}
-						delete(pm.raftKnownPeers, cc.NodeID)
+						pm.transport.RemovePeer(raftTypes.ID(cc.NodeID))
+					case raftpb.ConfChangeUpdateNode:
+						log.Panicln("not yet handled: ConfChangeUpdateNode")
 					}
 
 					pm.appliedIndex = entry.Index
@@ -333,83 +396,58 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 
 // Protocol Manager
 
-func NewProtocolManager(strID string, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peerGetter func() (string, *big.Int)) (*ProtocolManager, error) {
-	manager := &ProtocolManager{
-		rlpxKnownPeers: make(map[string]*peer),
-		raftKnownPeers: make(map[uint64]*raft.Peer),
-		blockchain:     blockchain,
-		eventMux:       mux,
-		downloader:     downloader,
-		peerGetter:     peerGetter,
-		peerMsgC:       make(chan p2p.Msg, msgChanSize),
-		logCommandC:    make(chan interface{}),
-		proposeC:       make(chan *types.Block),
-		confChangeC:    make(chan raftpb.ConfChange),
+func makeRaftPeers(urls []string) []raft.Peer {
+	peers := make([]raft.Peer, len(urls))
+	for i, url := range urls {
+		peerId := i + 1
 
-		id:          strID,
-		quitSync:    make(chan struct{}),
-		raftStorage: raft.NewMemoryStorage(),
+		peers[i] = raft.Peer{
+			ID:      uint64(peerId),
+			Context: []byte(url),
+		}
+	}
+	return peers
+}
+
+func makePeerUrls(nodes []*discover.Node) []string {
+	urls := make([]string, len(nodes))
+	for i, node := range nodes {
+		ip := node.IP.String()
+
+		// Eth  ports are 304xx
+		// Rpc  ports are 404xx
+		// Raft ports are 504xx
+		port := 20000 + node.TCP
+
+		urls[i] = fmt.Sprintf("http://%s:%d", ip, port)
 	}
 
-	manager.protocol = p2p.Protocol{
-		Name:    protocolName,
-		Version: uint(protocolVersion),
+	return urls
+}
 
-		// number of message codes used
-		Length: 1,
-
-		NodeInfo: func() interface{} {
-			return manager.NodeInfo()
-		},
-
-		PeerInfo: func(id discover.NodeID) interface{} {
-			manager.mu.RLock()
-			defer manager.mu.RUnlock()
-
-			if p, ok := manager.rlpxKnownPeers[id.String()]; ok {
-				return p.Info()
-			}
-
-			return nil
-		},
-
-		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-			peer := newPeer(p, rw)
-			return manager.handleRlpxPeerDiscovery(peer, manager.peerMsgC)
-		},
+func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peers []*discover.Node, peerGetter func() (string, *big.Int)) (*ProtocolManager, error) {
+	peerUrls := makePeerUrls(peers)
+	manager := &ProtocolManager{
+		raftPeers:     makeRaftPeers(peerUrls),
+		peerUrls:      peerUrls,
+		p2pNodes:      peers,
+		blockchain:    blockchain,
+		eventMux:      mux,
+		downloader:    downloader,
+		peerGetter:    peerGetter,
+		logCommandC:   make(chan interface{}),
+		proposeC:      make(chan *types.Block),
+		confChangeC:   make(chan raftpb.ConfChange),
+		httpstopc:     make(chan struct{}),
+		httpdonec:     make(chan struct{}),
+		id:            id,
+		quitSync:      make(chan struct{}),
+		raftStorage:   raft.NewMemoryStorage(),
 	}
 
 	go manager.handleLogCommands(manager.logCommandC)
 
 	return manager, nil
-}
-
-func (pm *ProtocolManager) SendToPeers(messages []raftpb.Message) {
-	for _, m := range messages {
-		if m.To == 0 {
-			// ignore intentionally dropped message
-			continue
-		}
-
-		pm.mu.RLock()
-		raftPeer, ok := pm.raftKnownPeers[m.To]
-		if ok {
-			rlpxName := string(raftPeer.Context)
-			ethPeer, ok := pm.rlpxKnownPeers[rlpxName]
-
-			if ok {
-				defer ethPeer.SendRaftPB(m)
-			} else {
-				glog.V(logger.Error).Infof(
-					"Ignoring %v sent to unknown p2p peer: %v\n", m.Type, rlpxName)
-			}
-		} else {
-			glog.V(logger.Error).Infof(
-				"Ignoring %v sent to unknown raft peer: %v\n", m.Type, m.To)
-		}
-		pm.mu.RUnlock()
-
-	}
 }
 
 func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
@@ -424,31 +462,18 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	}
 
 	return &RaftNodeInfo{
-		ClusterSize: len(pm.raftKnownPeers),
+		ClusterSize: len(pm.raftPeers),
 		Genesis:     pm.blockchain.Genesis().Hash(),
 		Head:        pm.blockchain.CurrentBlock().Hash(),
 		Role:        roleDescription,
 	}
 }
 
-func makeRaftPeers(nodes []*discover.Node) []raft.Peer {
-	peers := make([]raft.Peer, len(nodes))
-	for i, node := range nodes {
-		enodeId := node.ID.String()
-
-		peers[i] = raft.Peer{
-			ID:      strToIntID(enodeId),
-			Context: []byte(enodeId),
-		}
-	}
-	return peers
-}
-
 func sleep(duration time.Duration) {
 	<-time.NewTimer(duration).C
 }
 
-func (pm *ProtocolManager) Start(peers []*discover.Node, minter *minter) {
+func (pm *ProtocolManager) Start(minter *minter) {
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	go pm.minedBroadcastLoop(pm.proposeC)
 
@@ -458,7 +483,7 @@ func (pm *ProtocolManager) Start(peers []*discover.Node, minter *minter) {
 	// connections to all peers.
 	go func() {
 		sleep(2 * time.Second)
-		pm.startRaftNode(makeRaftPeers(peers), minter)
+		pm.startRaftNode(minter)
 	}()
 }
 
@@ -472,60 +497,6 @@ func (pm *ProtocolManager) Stop() {
 
 func logCheckpoint(checkpointName string, iface interface{}) {
 	log.Printf("RAFT-CHECKPOINT %s %v\n", checkpointName, iface)
-}
-
-// manage the lifecycle of a peer. the peer is disconnected when this function
-// terminates.
-func (pm *ProtocolManager) handleRlpxPeerDiscovery(p *peer, peerMsgC chan<- p2p.Msg) error {
-	glog.V(logger.Debug).Infof("%v: peer connected [%s]", p, p.strID)
-	logCheckpoint("PEER-CONNECTED", p.uint64Id)
-
-	pm.mu.Lock()
-	pm.rlpxKnownPeers[p.strID] = p
-	pm.mu.Unlock()
-
-	//
-	// TODO: make sure this could never race the peer being re-added upon a
-	// reconnect. e.g. if peer 1 disconnects and reconnects before we were able
-	// to remove the RLPX peer, we will remove a connected peer.
-	//
-	defer pm.removeRlpxPeer(p.strID)
-
-	// incoming message loop
-	for {
-		msg, err := p.rw.ReadMsg()
-		if err != nil {
-			return err
-		}
-		select {
-		case peerMsgC <- msg:
-		case <-pm.quitSync:
-			return nil
-		}
-	}
-}
-
-func (pm *ProtocolManager) handlePeerMsgs(peerMsgC <-chan p2p.Msg) error {
-	for {
-		select {
-		case msg := <-peerMsgC:
-			defer msg.Discard()
-
-			decoded := make([]byte, msg.Size)
-			if err := msg.Decode(&decoded); err != nil {
-				return err
-			}
-
-			var pbDecoded raftpb.Message
-			if err := pbDecoded.Unmarshal(decoded); err != nil {
-				return err
-			}
-
-			pm.rawNode.Step(context.TODO(), pbDecoded)
-		case <-pm.quitSync:
-			return nil
-		}
-	}
 }
 
 func blockExtendsChain(block *types.Block, chain *core.BlockChain) bool {
@@ -594,18 +565,4 @@ func (pm *ProtocolManager) handleLogCommands(logCommandC <-chan interface{}) {
 			return
 		}
 	}
-}
-
-func (pm *ProtocolManager) removeRlpxPeer(id string) error {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
-
-	if peer, ok := pm.rlpxKnownPeers[id]; ok {
-		glog.V(logger.Debug).Infoln("Removing peer", id)
-		logCheckpoint("PEER-DISCONNECTED", peer.uint64Id)
-		delete(pm.rlpxKnownPeers, id)
-		peer.rawPeer.Disconnect(p2p.DiscUselessPeer)
-	}
-
-	return nil
 }

@@ -729,7 +729,15 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 			strId := discover.PubkeyID(stack.PublicKey()).String()
 			blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
 			peers := stack.StaticNodes()
-			return gethRaft.New(ctx, chainConfig, strId, blockTimeNanos, ethereum, peers)
+
+			var id int
+			for peerIdx, peer := range peers {
+				if peer.ID.String() == strId {
+					id = peerIdx + 1
+				}
+			}
+
+			return gethRaft.New(ctx, chainConfig, id, blockTimeNanos, ethereum, peers)
 		}); err != nil {
 			Fatalf("Failed to register the Raft service: %v", err)
 		}
