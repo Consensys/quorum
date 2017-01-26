@@ -484,7 +484,11 @@ func (pm *ProtocolManager) handleRlpxPeerDiscovery(p *peer, peerMsgC chan<- p2p.
 	pm.rlpxKnownPeers[p.strID] = p
 	pm.mu.Unlock()
 
-
+	//
+	// TODO: make sure this could never race the peer being re-added upon a
+	// reconnect. e.g. if peer 1 disconnects and reconnects before we were able
+	// to remove the RLPX peer, we will remove a connected peer.
+	//
 	defer pm.removeRlpxPeer(p.strID)
 
 	// incoming message loop
