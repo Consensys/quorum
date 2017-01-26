@@ -189,13 +189,6 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	}
 
 	pm.transport.Start()
-	for i := range pm.raftPeers {
-		peerId := i+1
-		// add all peers except self
-		if peerId != pm.id {
-			pm.transport.AddPeer(raftTypes.ID(peerId), []string{pm.peerUrls[i]})
-		}
-	}
 
 	go pm.serveRaft()
 	go pm.serveInternal(pm.proposeC, pm.confChangeC)
