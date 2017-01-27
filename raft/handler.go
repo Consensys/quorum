@@ -207,7 +207,7 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 }
 
 func (pm *ProtocolManager) serveRaft() {
-	urlString := fmt.Sprintf("http://localhost:%d", nodeHttpPort(pm.p2pNodes[pm.id - 1]))
+	urlString := fmt.Sprintf("http://0.0.0.0:%d", nodeHttpPort(pm.p2pNodes[pm.id - 1]))
 	url, err := url.Parse(urlString)
 	if err != nil {
 		log.Fatalf("Failed parsing URL (%v)", err)
