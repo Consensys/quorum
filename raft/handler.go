@@ -207,7 +207,8 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 }
 
 func (pm *ProtocolManager) serveRaft() {
-	url, err := url.Parse(pm.peerUrls[pm.id-1])
+	urlString := fmt.Sprintf("http://localhost:%d", nodeHttpPort(pm.p2pNodes[pm.id - 1]))
+	url, err := url.Parse(urlString)
 	if err != nil {
 		log.Fatalf("Failed parsing URL (%v)", err)
 	}
@@ -403,16 +404,21 @@ func makeRaftPeers(urls []string) []raft.Peer {
 	return peers
 }
 
+func nodeHttpPort(node *discover.Node) uint16 {
+	//
+	// TODO: we should probably read this from the commandline, but it's a little tricker because we wouldn't be
+	// accepting a single port like with --port or --rpcport; we'd have to ask for a base HTTP port (e.g. 50400)
+	// with the convention/understanding that the port used by each node would be base + raft ID, which quorum is
+	// otherwise not aware of.
+	//
+	return 20000 + node.TCP
+}
+
 func makePeerUrls(nodes []*discover.Node) []string {
 	urls := make([]string, len(nodes))
 	for i, node := range nodes {
 		ip := node.IP.String()
-
-		// Eth  ports are 304xx
-		// Rpc  ports are 404xx
-		// Raft ports are 504xx
-		port := 20000 + node.TCP
-
+		port := nodeHttpPort(node)
 		urls[i] = fmt.Sprintf("http://%s:%d", ip, port)
 	}
 
