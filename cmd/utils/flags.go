@@ -50,6 +50,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"gopkg.in/urfave/cli.v1"
+	"log"
 )
 
 func init() {
@@ -730,14 +731,21 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 			blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
 			peers := stack.StaticNodes()
 
-			var id int
+			peerIds := make([]string, len(peers))
+			var myId int
 			for peerIdx, peer := range peers {
-				if peer.ID.String() == strId {
-					id = peerIdx + 1
+				peerId := peer.ID.String()
+				peerIds[peerIdx] = peerId
+				if peerId == strId {
+					myId = peerIdx + 1
 				}
 			}
 
-			return gethRaft.New(ctx, chainConfig, id, blockTimeNanos, ethereum, peers)
+			if myId == 0 {
+				log.Panicf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
+			}
+
+			return gethRaft.New(ctx, chainConfig, myId, blockTimeNanos, ethereum, peers)
 		}); err != nil {
 			Fatalf("Failed to register the Raft service: %v", err)
 		}

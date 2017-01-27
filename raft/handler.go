@@ -166,7 +166,7 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 		MaxInflightMsgs: 256, // NOTE: in cockroachdb this is 4
 	}
 
-	log.Printf("RAFT ID: %v\n", c.ID)
+	glog.V(logger.Info).Infof("local raft ID is %v", c.ID)
 
 	if numPeers := len(pm.raftPeers); numPeers == 0 {
 		panic("exiting due to empty raft peers list")
