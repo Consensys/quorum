@@ -108,28 +108,38 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error {
        return pm.rawNode.Step(ctx, m)
 }
-func (pm *ProtocolManager) IsIDRemoved(id uint64) bool                           {
-	// TODO: IMPLEMENT
+func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
+	//
+	// TODO: IMPLEMENT in the future once we support dynamic membership
+	//
 
-	glog.V(logger.Error).Infof("UNIMPLEMENTED. Reporting that raft ID %d is not removed even though it might be", id)
-
+	glog.V(logger.Info).Infof("Reporting that raft ID %d is not removed", id)
 	return false
 }
-func (pm *ProtocolManager) ReportUnreachable(id uint64)                          {
-	// TODO: IMPLEMENT
+func (pm *ProtocolManager) ReportUnreachable(id uint64) {
+	//
+	// TODO: Is there anything we need to do here?
+	//
 
-	panic("UNIMPLEMENTED Raft: ReportUnreachable")
+	glog.V(logger.Error).Infof("UNIMPLEMENTED Raft: ReportUnreachable. delegating to RawNode's impl")
+
+	pm.rawNode.ReportUnreachable(id)
 }
 func (pm *ProtocolManager) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
-	// TODO: IMPLEMENT
+	//
+	// TODO: Is there anything we need to do here?
+	//
 
-	panic("UNIMPLEMENTED Raft: ReportSnapshot")
+	glog.V(logger.Error).Infof("UNIMPLEMENTED Raft: ReportSnapshot. delegating to RawNode's impl")
+
+	pm.rawNode.ReportSnapshot(id, status)
 }
 
 func (pm *ProtocolManager) startRaftNode(minter *minter) {
 
 	//
 	// NOTE: cockroach sets Applied key
+	// TODO: we should probably do the same, in coordination with snapshotting/wal/remounting a node
 	//
 
 	// NOTE: cockroach sets this to false for now until they've "worked out the
