@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -24,6 +25,10 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/coreos/etcd/pkg/fileutil"
+	"github.com/coreos/etcd/snap"
+	"github.com/coreos/etcd/wal"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -40,6 +45,9 @@ import (
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/rafthttp"
 )
+
+// Messages we send on the logCommandC channel
+type LoadSnapshot struct{}
 
 type ProtocolManager struct {
 	// peers note -- each node tracks the peers acknowledged by raft
@@ -78,7 +86,17 @@ type ProtocolManager struct {
 	// The number of entries applied to the raft log
 	appliedIndex uint64
 
-	confState raftpb.ConfState
+	// The index of the latest snapshot.
+	snapshotIndex uint64
+
+	// snapshotting
+	snapshotter *snap.Snapshotter
+	snapdir     string
+	confState   raftpb.ConfState
+
+	// write-ahead log
+	waldir string
+	wal    *wal.WAL
 
 	proposeC    chan *types.Block
 	confChangeC chan raftpb.ConfChange
@@ -136,6 +154,17 @@ func (pm *ProtocolManager) ReportSnapshot(id uint64, status raft.SnapshotStatus)
 }
 
 func (pm *ProtocolManager) startRaftNode(minter *minter) {
+	if !fileutil.Exist(pm.snapdir) {
+		if err := os.Mkdir(pm.snapdir, 0750); err != nil {
+			log.Fatalf("raftexample: cannot create dir for snapshot (%v)", err)
+		}
+	}
+	pm.snapshotter = snap.New(pm.snapdir)
+
+	// oldwal := wal.Exist(pm.waldir)
+
+	// wal deallocated in eventLoop
+	pm.wal = pm.replayWAL()
 
 	//
 	// NOTE: cockroach sets Applied key
@@ -185,6 +214,12 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	}
 
 	pm.rawNode = raft.StartNode(c, pm.raftPeers)
+
+	//if oldwal {
+	//	pm.rawNode = raft.RestartNode(c)
+	//} else {
+	//	pm.rawNode = raft.StartNode(c, startPeers)
+	//}
 
 	ss := &stats.ServerStats{}
 	ss.Initialize()
@@ -316,9 +351,17 @@ func (pm *ProtocolManager) serveInternal(proposeC <-chan *types.Block, confChang
 }
 
 func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
+	snap, err := pm.raftStorage.Snapshot()
+	if err != nil {
+		panic(err)
+	}
+	pm.confState = snap.Metadata.ConfState
+	pm.snapshotIndex = snap.Metadata.Index
+	pm.appliedIndex = snap.Metadata.Index
 
 	ticker := time.NewTicker(tickerMS * time.Millisecond)
 	defer ticker.Stop()
+	defer pm.wal.Close()
 
 	for {
 		select {
@@ -328,7 +371,14 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 		// when the node is first ready it gives us entries to commit and messages
 		// to immediately publish
 		case rd := <-pm.rawNode.Ready():
-			// 1: Write HardState, Entries to persistent storage if they
+			pm.wal.Save(rd.HardState, rd.Entries)
+			if !raft.IsEmptySnap(rd.Snapshot) {
+				pm.saveSnap(rd.Snapshot)
+				pm.raftStorage.ApplySnapshot(rd.Snapshot)
+				pm.publishSnapshot(rd.Snapshot)
+			}
+
+			// 1: Write HardState, Entries, and Snapshot to persistent storage if they
 			// are not empty.
 			pm.raftStorage.Append(rd.Entries)
 
@@ -381,6 +431,7 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 
 			// 4: Call Node.Advance() to signal readiness for the next batch of
 			// updates.
+			pm.maybeTriggerSnapshot()
 			pm.rawNode.Advance()
 
 		case <-pm.quitSync:
@@ -425,7 +476,10 @@ func makePeerUrls(nodes []*discover.Node) []string {
 	return urls
 }
 
-func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peers []*discover.Node, peerGetter func() (string, *big.Int)) (*ProtocolManager, error) {
+func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peers []*discover.Node, peerGetter func() (string, *big.Int), datadir string) (*ProtocolManager, error) {
+	waldir := fmt.Sprintf("%s/raft-wal", datadir)
+	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
+
 	peerUrls := makePeerUrls(peers)
 	manager := &ProtocolManager{
 		raftPeers:     makeRaftPeers(peerUrls),
@@ -440,6 +494,10 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 		confChangeC:   make(chan raftpb.ConfChange),
 		httpstopc:     make(chan struct{}),
 		httpdonec:     make(chan struct{}),
+
+		waldir: waldir,
+		snapdir: snapdir,
+		snapshotter: snap.New(snapdir),
 		id:            id,
 		quitSync:      make(chan struct{}),
 		raftStorage:   raft.NewMemoryStorage(),
@@ -556,6 +614,29 @@ func (pm *ProtocolManager) handleLogCommands(logCommandC <-chan interface{}) {
 
 					pm.eventMux.Post(core.ChainHeadEvent{Block: block})
 					glog.V(logger.Info).Infof("Successfully extended chain: %x\n", block.Hash())
+				}
+			case LoadSnapshot:
+				snapshot, err := pm.snapshotter.Load()
+				if err == snap.ErrNoSnapshot {
+					panic(err)
+				}
+				hash := common.BytesToHash(snapshot.Data)
+				block := pm.blockchain.GetBlockByHash(hash)
+
+				// it's possible for the block to not yet be in the chain if we just
+				// joined and have to load a snapshot. Block here and wait for the
+				// downloader to catch us up.
+				if block == nil {
+					peerID, peerTd := pm.peerGetter()
+					pm.downloader.Synchronise(peerID, hash, peerTd, downloader.FullSync)
+
+					if pm.blockchain.GetBlockByHash(hash) == nil {
+						panic(fmt.Sprintf("downloader failed to synchronize block %x\n", hash))
+					}
+				}
+
+				if err = pm.blockchain.FastSyncCommitHead(hash); err != nil {
+					panic(err)
 				}
 			default:
 				panic("Unhandled handleLogCommands type")

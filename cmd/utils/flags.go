@@ -725,6 +725,7 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 
 	if ctx.GlobalBool(RaftModeFlag.Name) {
 		blockTimeMillis := ctx.GlobalInt(RaftBlockTime.Name)
+		datadir := ctx.GlobalString(DataDirFlag.Name)
 
 		if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 			strId := discover.PubkeyID(stack.PublicKey()).String()
@@ -745,7 +746,7 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 				log.Panicf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
 			}
 
-			return gethRaft.New(ctx, chainConfig, myId, blockTimeNanos, ethereum, peers)
+			return gethRaft.New(ctx, chainConfig, myId, blockTimeNanos, ethereum, peers, datadir)
 		}); err != nil {
 			Fatalf("Failed to register the Raft service: %v", err)
 		}

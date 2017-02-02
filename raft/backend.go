@@ -40,7 +40,7 @@ type RaftNodeInfo struct {
 	Role        string      `json:"role"`
 }
 
-func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, id int, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node) (*RaftService, error) {
+func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, id int, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node, datadir string) (*RaftService, error) {
 	service := &RaftService{
 		eventMux:       ctx.EventMux,
 		chainDb:        e.ChainDb(),
@@ -57,7 +57,7 @@ func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, id int, blockT
 	var err error
 	if service.raftProtocolManager, err = NewProtocolManager(id,
 		service.blockchain, service.eventMux, ethProxy.Downloader,
-		startPeers, ethProxy.GetBestRaftPeer); err != nil {
+		startPeers, ethProxy.GetBestRaftPeer, datadir); err != nil {
 		return nil, err
 	}
 
