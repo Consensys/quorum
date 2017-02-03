@@ -158,7 +158,6 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 			glog.Fatalf("raftexample: cannot create dir for snapshot (%v)", err)
 		}
 	}
-	pm.snapshotter = snap.New(pm.snapdir)
 
 	// oldwal := wal.Exist(pm.waldir)
 
