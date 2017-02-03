@@ -1,19 +1,19 @@
 package gethRaft
 
 import (
-	"github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/wal/walpb"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/coreos/etcd/snap"
 )
 
-func (pm *ProtocolManager) saveSnap(snap raftpb.Snapshot) error {
+func (pm *ProtocolManager) saveSnapshot(snap raftpb.Snapshot) error {
 	if err := pm.snapshotter.SaveSnap(snap); err != nil {
 		return err
 	}
 
-	walSnap := walpb.Snapshot{
+	walSnap := walpb.Snapshot {
 		Index: snap.Metadata.Index,
 		Term:  snap.Metadata.Term,
 	}
@@ -25,27 +25,8 @@ func (pm *ProtocolManager) saveSnap(snap raftpb.Snapshot) error {
 	return pm.wal.ReleaseLockTo(snap.Metadata.Index)
 }
 
-func (pm *ProtocolManager) publishSnapshot(snap raftpb.Snapshot) {
-	if raft.IsEmptySnap(snap) {
-		return
-	}
-
-	glog.V(logger.Info).Infof("publishing snapshot at index %d", pm.snapshotIndex)
-	defer glog.V(logger.Info).Infof("finished publishing snapshot at index %d", pm.snapshotIndex)
-
-	if snap.Metadata.Index <= pm.appliedIndex {
-		glog.Fatalf("snapshot index [%d] should > progress.appliedIndex [%d] + 1", snap.Metadata.Index, pm.appliedIndex)
-	}
-
-	pm.logCommandC <- LoadSnapshot{}
-
-	pm.confState = snap.Metadata.ConfState
-	pm.snapshotIndex = snap.Metadata.Index
-	pm.appliedIndex = snap.Metadata.Index
-}
-
 func (pm *ProtocolManager) maybeTriggerSnapshot() {
-	if pm.appliedIndex-pm.snapshotIndex <= defaultSnapCount {
+	if pm.appliedIndex - pm.snapshotIndex < snapshotPeriod {
 		return
 	}
 
@@ -55,7 +36,7 @@ func (pm *ProtocolManager) maybeTriggerSnapshot() {
 	if err != nil {
 		panic(err)
 	}
-	if err := pm.saveSnap(snap); err != nil {
+	if err := pm.saveSnapshot(snap); err != nil {
 		panic(err)
 	}
 
@@ -66,4 +47,18 @@ func (pm *ProtocolManager) maybeTriggerSnapshot() {
 
 	glog.V(logger.Info).Infof("compacted log at index %d", pm.appliedIndex)
 	pm.snapshotIndex = pm.appliedIndex
+}
+
+func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
+	snapshot, err := pm.snapshotter.Load()
+	if err != nil && err != snap.ErrNoSnapshot {
+		glog.Fatalf("error loading snapshot: %v", err)
+	}
+
+	//
+	// TODO: double-check that *all* tx metadata goes through raft. if it does, we should never have to use
+	// downloader.Synchronize here.
+	//
+
+	return snapshot
 }

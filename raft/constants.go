@@ -19,11 +19,11 @@ const (
 	// We use a bounded channel of constant size buffering incoming messages
 	msgChanSize = 1000
 
-	// Snapshot after this many messages
-	// Our snapshots are *super* cheap -- much cheaper than raft naively assumes
-	// -- because we only store the latest block hash.
-	// We might be able to get away with snapshotting *every* entry.
-	defaultSnapCount = 2
+	// Snapshot after this many raft messages
+	//
+	// TODO: measure and get this as low as possible without affecting performance
+	//
+	snapshotPeriod = 250
 
 	// checkpoints
 	PEER_CONNECTED = "PEER-CONNECTED"

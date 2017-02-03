@@ -5,8 +5,6 @@
 //   channel.
 //
 // ProtocolManager.
-// * logCommandC, for committed raft entries and commands to take or load a
-//   snapshot, flowing to ethereum.
 // * proposeC, for proposals flowing from ethereum to raft
 // * confChangeC, currently unused; in the future for adding new, non-initial, raft peers
 // * roleC, coming from raft notifies us when our role changes
@@ -27,7 +25,6 @@ import (
 	"github.com/coreos/etcd/pkg/fileutil"
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -44,9 +41,6 @@ import (
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/rafthttp"
 )
-
-// Messages we send on the logCommandC channel
-type LoadSnapshot struct{}
 
 type ProtocolManager struct {
 	// peers note -- each node tracks the peers acknowledged by raft
@@ -155,25 +149,25 @@ func (pm *ProtocolManager) ReportSnapshot(id uint64, status raft.SnapshotStatus)
 func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	if !fileutil.Exist(pm.snapdir) {
 		if err := os.Mkdir(pm.snapdir, 0750); err != nil {
-			glog.Fatalf("raftexample: cannot create dir for snapshot (%v)", err)
+			glog.Fatalf("cannot create dir for snapshot (%v)", err)
 		}
 	}
 
-	// oldwal := wal.Exist(pm.waldir)
+	walExisted := wal.Exist(pm.waldir)
 
-	// wal deallocated in eventLoop
 	pm.wal = pm.replayWAL()
 
 	//
-	// NOTE: cockroach sets Applied key
-	// TODO: we should probably do the same, in coordination with snapshotting/wal/remounting a node
+	// TODO: LOAD LAST-APPLIED INDEX FROM LEVELDB, IF IT EXISTS:
 	//
+	var lastAppliedIndex uint64 = 0
 
 	// NOTE: cockroach sets this to false for now until they've "worked out the
 	//       bugs"
 	enablePreVote := true
 
 	c := &raft.Config{
+		Applied: lastAppliedIndex,
 		ID: uint64(pm.id),
 		// TODO(joel): tune these parameters
 		ElectionTick:  10, // NOTE: cockroach sets this to 15
@@ -205,19 +199,17 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 
 	glog.V(logger.Info).Infof("local raft ID is %v", c.ID)
 
-	if numPeers := len(pm.raftPeers); numPeers == 0 {
-		panic("exiting due to empty raft peers list")
+	if walExisted {
+		pm.rawNode = raft.RestartNode(c)
 	} else {
-		glog.V(logger.Info).Infof("starting raft with %v total peers.", numPeers)
+		if numPeers := len(pm.raftPeers); numPeers == 0 {
+			panic("exiting due to empty raft peers list")
+		} else {
+			glog.V(logger.Info).Infof("starting raft with %v total peers.", numPeers)
+		}
+
+		pm.rawNode = raft.StartNode(c, pm.raftPeers)
 	}
-
-	pm.rawNode = raft.StartNode(c, pm.raftPeers)
-
-	//if oldwal {
-	//	pm.rawNode = raft.RestartNode(c)
-	//} else {
-	//	pm.rawNode = raft.StartNode(c, startPeers)
-	//}
 
 	ss := &stats.ServerStats{}
 	ss.Initialize()
@@ -235,7 +227,7 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 
 	go pm.serveRaft()
 	go pm.serveInternal(pm.proposeC, pm.confChangeC)
-	go pm.eventLoop(pm.logCommandC)
+	go pm.eventLoop()
 	go pm.handleRoleChange(pm.rawNode.RoleChan().Out(), minter)
 }
 
@@ -277,7 +269,10 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}, minter *mi
 				minter.stop()
 			}
 
+			pm.mu.Lock()
 			pm.role = intRole
+			pm.mu.Unlock()
+
 		case <-pm.quitSync:
 			return
 		}
@@ -348,15 +343,19 @@ func (pm *ProtocolManager) serveInternal(proposeC <-chan *types.Block, confChang
 	}
 }
 
-func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
-	snap, err := pm.raftStorage.Snapshot()
-	if err != nil {
-		panic(err)
+func (pm *ProtocolManager) applySnapshot(snap raftpb.Snapshot) {
+	if err := pm.raftStorage.ApplySnapshot(snap); err != nil {
+		glog.Fatalln("failed to apply snapshot: ", err)
 	}
-	pm.confState = snap.Metadata.ConfState
-	pm.snapshotIndex = snap.Metadata.Index
-	pm.appliedIndex = snap.Metadata.Index
 
+	snapMeta := snap.Metadata
+
+	pm.confState = snapMeta.ConfState
+	pm.snapshotIndex = snapMeta.Index
+	pm.appliedIndex = snapMeta.Index
+}
+
+func (pm *ProtocolManager) eventLoop() {
 	ticker := time.NewTicker(tickerMS * time.Millisecond)
 	defer ticker.Stop()
 	defer pm.wal.Close()
@@ -370,10 +369,10 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 		// to immediately publish
 		case rd := <-pm.rawNode.Ready():
 			pm.wal.Save(rd.HardState, rd.Entries)
-			if !raft.IsEmptySnap(rd.Snapshot) {
-				pm.saveSnap(rd.Snapshot)
-				pm.raftStorage.ApplySnapshot(rd.Snapshot)
-				pm.publishSnapshot(rd.Snapshot)
+
+			if snap := rd.Snapshot; !raft.IsEmptySnap(snap) {
+				pm.saveSnapshot(snap)
+				pm.applySnapshot(snap)
 			}
 
 			// 1: Write HardState, Entries, and Snapshot to persistent storage if they
@@ -395,15 +394,15 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 					if err != nil {
 						glog.V(logger.Error).Infoln("error decoding block: ", err)
 					}
-					select {
-					case logCommandC <- &block:
-					case <-pm.quitSync:
-						return
-					}
+					pm.applyNewChainHead(&block)
+
 				case raftpb.EntryConfChange:
 					var cc raftpb.ConfChange
 					cc.Unmarshal(entry.Data)
 					pm.rawNode.ApplyConfChange(cc)
+
+					// We don't strictly need this lock acquisition yet, but we will likely need it here once we add support for
+					// dynamic cluster membership:
 					pm.mu.Lock()
 					switch cc.Type {
 					case raftpb.ConfChangeAddNode:
@@ -417,14 +416,18 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 							return
 						}
 						pm.transport.RemovePeer(raftTypes.ID(cc.NodeID))
+
 					case raftpb.ConfChangeUpdateNode:
 						glog.Fatalln("not yet handled: ConfChangeUpdateNode")
 					}
-
-					pm.appliedIndex = entry.Index
-
 					pm.mu.Unlock()
 				}
+
+				pm.appliedIndex = entry.Index
+
+				//
+				// TODO: persist applied index durably to disk/LevelDB
+				//
 			}
 
 			// 4: Call Node.Advance() to signal readiness for the next batch of
@@ -487,7 +490,6 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 		eventMux:      mux,
 		downloader:    downloader,
 		peerGetter:    peerGetter,
-		logCommandC:   make(chan interface{}),
 		proposeC:      make(chan *types.Block),
 		confChangeC:   make(chan raftpb.ConfChange),
 		httpstopc:     make(chan struct{}),
@@ -501,13 +503,11 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 		raftStorage:   raft.NewMemoryStorage(),
 	}
 
-	go manager.handleLogCommands(manager.logCommandC)
-
 	return manager, nil
 }
 
 func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
-	pm.mu.RLock()
+	pm.mu.RLock() // as we read pm.role
 	defer pm.mu.RUnlock()
 
 	var roleDescription string
@@ -559,89 +559,43 @@ func blockExtendsChain(block *types.Block, chain *core.BlockChain) bool {
 	return block.ParentHash() == chain.CurrentBlock().Hash()
 }
 
-func (pm *ProtocolManager) handleLogCommands(logCommandC <-chan interface{}) {
-	for {
-		select {
-		case iface := <-logCommandC:
+func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
+	if !blockExtendsChain(block, pm.blockchain) {
+		headBlock := pm.blockchain.CurrentBlock()
 
-			//
-			// TODO(bts): we need to keep track of what we've applied in case we crash. don't replay everything
-			//
+		glog.V(logger.Warn).Infof("Non-extending block: %x (parent is %x; current head is %x)\n", block.Hash(), block.ParentHash(), headBlock.Hash())
 
-			//
-			// TODO(joel): make sure snapshotting/compaction is consistent. i.e. no extra blocks
-			//
-
-			switch cmd := iface.(type) {
-			case *types.Block:
-				block := cmd
-				if !blockExtendsChain(block, pm.blockchain) {
-					headBlock := pm.blockchain.CurrentBlock()
-
-					glog.V(logger.Warn).Infof("Non-extending block: %x (parent is %x; current head is %x)\n", block.Hash(), block.ParentHash(), headBlock.Hash())
-
-					pm.eventMux.Post(InvalidRaftOrdering{headBlock: headBlock, invalidBlock: block})
-				} else {
-					if existingBlock := pm.blockchain.GetBlockByHash(block.Hash()); nil == existingBlock {
-						if err := pm.blockchain.Validator().ValidateBlock(block); err != nil {
-							panic(fmt.Sprintf("failed to validate block %x (%v)", block.Hash(), err))
-						}
-					}
-
-					for _, tx := range block.Transactions() {
-						logCheckpoint(TX_ACCEPTED, tx.Hash().Hex())
-					}
-
-					if pm.blockchain.HasBlock(block.Hash()) {
-						// This node mined the block, so it was already in the
-						// DB. We simply extend the chain:
-						pm.blockchain.SetNewHeadBlock(block)
-					} else {
-						//
-						// This will broadcast a CHE *almost always*. It does its
-						// broadcasting at the end in a goroutine, but only conditionally if
-						// the chain head is in a certain state. For now, we will broadcast
-						// a CHE ourselves below to guarantee correctness.
-						//
-						_, err := pm.blockchain.InsertChain([]*types.Block{block})
-
-						if err != nil {
-							panic(fmt.Sprintf("failed to extend chain: %s", err.Error()))
-						}
-					}
-
-					pm.eventMux.Post(core.ChainHeadEvent{Block: block})
-					glog.V(logger.Info).Infof("Successfully extended chain: %x\n", block.Hash())
-				}
-			case LoadSnapshot:
-				snapshot, err := pm.snapshotter.Load()
-				if err == snap.ErrNoSnapshot {
-					panic(err)
-				}
-				hash := common.BytesToHash(snapshot.Data)
-				block := pm.blockchain.GetBlockByHash(hash)
-
-				// it's possible for the block to not yet be in the chain if we just
-				// joined and have to load a snapshot. Block here and wait for the
-				// downloader to catch us up.
-				if block == nil {
-					peerID, peerTd := pm.peerGetter()
-					pm.downloader.Synchronise(peerID, hash, peerTd, downloader.FullSync)
-
-					if pm.blockchain.GetBlockByHash(hash) == nil {
-						panic(fmt.Sprintf("downloader failed to synchronize block %x\n", hash))
-					}
-				}
-
-				if err = pm.blockchain.FastSyncCommitHead(hash); err != nil {
-					panic(err)
-				}
-			default:
-				panic("Unhandled handleLogCommands type")
+		pm.eventMux.Post(InvalidRaftOrdering{headBlock: headBlock, invalidBlock: block})
+	} else {
+		if existingBlock := pm.blockchain.GetBlockByHash(block.Hash()); nil == existingBlock {
+			if err := pm.blockchain.Validator().ValidateBlock(block); err != nil {
+				panic(fmt.Sprintf("failed to validate block %x (%v)", block.Hash(), err))
 			}
-
-		case <-pm.quitSync:
-			return
 		}
+
+		for _, tx := range block.Transactions() {
+			logCheckpoint(TX_ACCEPTED, tx.Hash().Hex())
+		}
+
+		if pm.blockchain.HasBlock(block.Hash()) {
+			// This node mined the block, so it was already in the
+			// DB. We simply extend the chain:
+			pm.blockchain.SetNewHeadBlock(block)
+		} else {
+			//
+			// This will broadcast a CHE *almost always*. It does its
+			// broadcasting at the end in a goroutine, but only conditionally if
+			// the chain head is in a certain state. For now, we will broadcast
+			// a CHE ourselves below to guarantee correctness.
+			//
+			_, err := pm.blockchain.InsertChain([]*types.Block{block})
+
+			if err != nil {
+				panic(fmt.Sprintf("failed to extend chain: %s", err.Error()))
+			}
+		}
+
+		pm.eventMux.Post(core.ChainHeadEvent{Block: block})
+		glog.V(logger.Info).Infof("Successfully extended chain: %x\n", block.Hash())
 	}
 }
