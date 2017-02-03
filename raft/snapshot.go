@@ -1,11 +1,11 @@
 package gethRaft
 
 import (
-	"log"
-
 	"github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/wal/walpb"
+	"github.com/ethereum/go-ethereum/logger"
+	"github.com/ethereum/go-ethereum/logger/glog"
 )
 
 func (pm *ProtocolManager) saveSnap(snap raftpb.Snapshot) error {
@@ -30,11 +30,11 @@ func (pm *ProtocolManager) publishSnapshot(snap raftpb.Snapshot) {
 		return
 	}
 
-	log.Printf("publishing snapshot at index %d", pm.snapshotIndex)
-	defer log.Printf("finished publishing snapshot at index %d", pm.snapshotIndex)
+	glog.V(logger.Info).Infof("publishing snapshot at index %d", pm.snapshotIndex)
+	defer glog.V(logger.Info).Infof("finished publishing snapshot at index %d", pm.snapshotIndex)
 
 	if snap.Metadata.Index <= pm.appliedIndex {
-		log.Fatalf("snapshot index [%d] should > progress.appliedIndex [%d] + 1", snap.Metadata.Index, pm.appliedIndex)
+		glog.Fatalf("snapshot index [%d] should > progress.appliedIndex [%d] + 1", snap.Metadata.Index, pm.appliedIndex)
 	}
 
 	pm.logCommandC <- LoadSnapshot{}
@@ -49,7 +49,7 @@ func (pm *ProtocolManager) maybeTriggerSnapshot() {
 		return
 	}
 
-	log.Printf("start snapshot [applied index: %d | last snapshot index: %d]", pm.appliedIndex, pm.snapshotIndex)
+	glog.V(logger.Info).Infof("start snapshot [applied index: %d | last snapshot index: %d]", pm.appliedIndex, pm.snapshotIndex)
 	snapData := pm.blockchain.CurrentBlock().Hash().Bytes()
 	snap, err := pm.raftStorage.CreateSnapshot(pm.appliedIndex, &pm.confState, snapData)
 	if err != nil {
@@ -64,6 +64,6 @@ func (pm *ProtocolManager) maybeTriggerSnapshot() {
 		panic(err)
 	}
 
-	log.Printf("compacted log at index %d", pm.appliedIndex)
+	glog.V(logger.Info).Infof("compacted log at index %d", pm.appliedIndex)
 	pm.snapshotIndex = pm.appliedIndex
 }

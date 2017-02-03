@@ -14,7 +14,6 @@ package gethRaft
 
 import (
 	"fmt"
-	"log"
 	"math/big"
 	"os"
 	"strconv"
@@ -156,7 +155,7 @@ func (pm *ProtocolManager) ReportSnapshot(id uint64, status raft.SnapshotStatus)
 func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	if !fileutil.Exist(pm.snapdir) {
 		if err := os.Mkdir(pm.snapdir, 0750); err != nil {
-			log.Fatalf("raftexample: cannot create dir for snapshot (%v)", err)
+			glog.Fatalf("raftexample: cannot create dir for snapshot (%v)", err)
 		}
 	}
 	pm.snapshotter = snap.New(pm.snapdir)
@@ -245,18 +244,18 @@ func (pm *ProtocolManager) serveRaft() {
 	urlString := fmt.Sprintf("http://0.0.0.0:%d", nodeHttpPort(pm.p2pNodes[pm.id - 1]))
 	url, err := url.Parse(urlString)
 	if err != nil {
-		log.Fatalf("Failed parsing URL (%v)", err)
+		glog.Fatalf("Failed parsing URL (%v)", err)
 	}
 
 	listener, err := newStoppableListener(url.Host, pm.httpstopc)
 	if err != nil {
-		log.Fatalf("Failed to listen rafthttp (%v)", err)
+		glog.Fatalf("Failed to listen rafthttp (%v)", err)
 	}
 	err = (&http.Server{Handler: pm.transport.Handler()}).Serve(listener)
 	select {
 	case <-pm.httpstopc:
 	default:
-		log.Fatalf("Failed to serve rafthttp (%v)", err)
+		glog.Fatalf("Failed to serve rafthttp (%v)", err)
 	}
 	close(pm.httpdonec)
 }
@@ -322,7 +321,7 @@ func (pm *ProtocolManager) serveInternal(proposeC <-chan *types.Block, confChang
 		select {
 		case block, ok := <-proposeC:
 			if !ok {
-				log.Println("error: read from proposeC failed")
+				glog.V(logger.Info).Infoln("error: read from proposeC failed")
 				return
 			}
 
@@ -337,7 +336,7 @@ func (pm *ProtocolManager) serveInternal(proposeC <-chan *types.Block, confChang
 			pm.rawNode.Propose(context.TODO(), buffer)
 		case cc, ok := <-confChangeC:
 			if !ok {
-				log.Println("error: read from confChangeC failed")
+				glog.V(logger.Info).Infoln("error: read from confChangeC failed")
 				return
 			}
 
@@ -395,7 +394,7 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 					var block types.Block
 					err := rlp.DecodeBytes(entry.Data, &block)
 					if err != nil {
-						log.Println("error decoding block: ", err)
+						glog.V(logger.Error).Infoln("error decoding block: ", err)
 					}
 					select {
 					case logCommandC <- &block:
@@ -420,7 +419,7 @@ func (pm *ProtocolManager) eventLoop(logCommandC chan<- interface{}) {
 						}
 						pm.transport.RemovePeer(raftTypes.ID(cc.NodeID))
 					case raftpb.ConfChangeUpdateNode:
-						log.Panicln("not yet handled: ConfChangeUpdateNode")
+						glog.Fatalln("not yet handled: ConfChangeUpdateNode")
 					}
 
 					pm.appliedIndex = entry.Index
@@ -554,7 +553,7 @@ func (pm *ProtocolManager) Stop() {
 }
 
 func logCheckpoint(checkpointName string, iface interface{}) {
-	log.Printf("RAFT-CHECKPOINT %s %v\n", checkpointName, iface)
+	glog.V(logger.Info).Infof("RAFT-CHECKPOINT %s %v\n", checkpointName, iface)
 }
 
 func blockExtendsChain(block *types.Block, chain *core.BlockChain) bool {
