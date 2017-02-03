@@ -23,7 +23,7 @@ const (
 	// Our snapshots are *super* cheap -- much cheaper than raft naively assumes
 	// -- because we only store the latest block hash.
 	// We might be able to get away with snapshotting *every* entry.
-	defaultSnapCount = 100
+	defaultSnapCount = 2
 
 	// checkpoints
 	PEER_CONNECTED = "PEER-CONNECTED"
