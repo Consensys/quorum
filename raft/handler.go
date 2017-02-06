@@ -360,6 +360,26 @@ func (pm *ProtocolManager) applySnapshot(snap raftpb.Snapshot) {
 	pm.writeAppliedIndex(snapMeta.Index)
 }
 
+func (pm *ProtocolManager) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
+	if len(ents) == 0 {
+		return
+	}
+
+	first := ents[0].Index
+	lastApplied := pm.appliedIndex
+
+	if first > lastApplied + 1 {
+		glog.Fatalf("first index of committed entry[%d] should <= appliedIndex[%d] + 1", first, lastApplied)
+	}
+
+	firstToApply := lastApplied - first + 1
+
+	if firstToApply < uint64(len(ents)) {
+		nents = ents[firstToApply:]
+	}
+	return
+}
+
 func (pm *ProtocolManager) eventLoop() {
 	ticker := time.NewTicker(tickerMS * time.Millisecond)
 	defer ticker.Stop()
@@ -388,7 +408,7 @@ func (pm *ProtocolManager) eventLoop() {
 			pm.transport.Send(rd.Messages)
 
 			// 3: Apply Snapshot (if any) and CommittedEntries to the state machine.
-			for _, entry := range rd.CommittedEntries {
+			for _, entry := range pm.entriesToApply(rd.CommittedEntries) {
 				switch entry.Type {
 				case raftpb.EntryNormal:
 					if len(entry.Data) == 0 {
