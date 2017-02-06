@@ -11,14 +11,15 @@
 package gethRaft
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/big"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"sync"
 	"time"
-	"net/http"
-	"net/url"
 
 	"golang.org/x/net/context"
 
@@ -35,11 +36,14 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	raftTypes "github.com/coreos/etcd/pkg/types"
 	"github.com/coreos/etcd/etcdserver/stats"
+	raftTypes "github.com/coreos/etcd/pkg/types"
 	"github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/rafthttp"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/errors"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 type ProtocolManager struct {
@@ -56,7 +60,7 @@ type ProtocolManager struct {
 	// set of currently active peers known to the raft cluster. this includes self
 	raftPeers []raft.Peer
 	peerUrls  []string
-	p2pNodes []*discover.Node
+	p2pNodes  []*discover.Node
 
 	blockchain *core.BlockChain
 
@@ -91,6 +95,10 @@ type ProtocolManager struct {
 	waldir string
 	wal    *wal.WAL
 
+	// We create a database with a single value -- the last applied index, used as an optimization for faster
+	// startup
+	appliedDb *leveldb.DB
+
 	proposeC    chan *types.Block
 	confChangeC chan raftpb.ConfChange
 	// messages committed by raft (right now these are the messages committed
@@ -117,7 +125,7 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 // Raft interface methods
 //
 func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error {
-       return pm.rawNode.Step(ctx, m)
+	return pm.rawNode.Step(ctx, m)
 }
 func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
 	//
@@ -157,18 +165,24 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 
 	pm.wal = pm.replayWAL()
 
-	//
-	// TODO: LOAD LAST-APPLIED INDEX FROM LEVELDB, IF IT EXISTS:
-	//
-	var lastAppliedIndex uint64 = 0
-
 	// NOTE: cockroach sets this to false for now until they've "worked out the
 	//       bugs"
 	enablePreVote := true
 
+	dat, err := pm.appliedDb.Get(appliedDbKey, nil)
+	var lastAppliedIndex uint64
+	if err == errors.ErrNotFound {
+		lastAppliedIndex = 0
+	} else if err != nil {
+		glog.Fatalln(err)
+	} else {
+		lastAppliedIndex = binary.LittleEndian.Uint64(dat)
+	}
+	glog.V(logger.Error).Infof("lastAppliedIndex: %d", lastAppliedIndex)
+
 	c := &raft.Config{
 		Applied: lastAppliedIndex,
-		ID: uint64(pm.id),
+		ID:      uint64(pm.id),
 		// TODO(joel): tune these parameters
 		ElectionTick:  10, // NOTE: cockroach sets this to 15
 		HeartbeatTick: 1,  // NOTE: cockroach sets this to 5
@@ -232,7 +246,7 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 }
 
 func (pm *ProtocolManager) serveRaft() {
-	urlString := fmt.Sprintf("http://0.0.0.0:%d", nodeHttpPort(pm.p2pNodes[pm.id - 1]))
+	urlString := fmt.Sprintf("http://0.0.0.0:%d", nodeHttpPort(pm.p2pNodes[pm.id-1]))
 	url, err := url.Parse(urlString)
 	if err != nil {
 		glog.Fatalf("Failed parsing URL (%v)", err)
@@ -287,6 +301,8 @@ func (pm *ProtocolManager) stop() {
 	if pm.rawNode != nil {
 		pm.rawNode.Stop()
 	}
+
+	pm.appliedDb.Close()
 
 	//
 	// TODO: stop minting here
@@ -425,9 +441,10 @@ func (pm *ProtocolManager) eventLoop() {
 
 				pm.appliedIndex = entry.Index
 
-				//
-				// TODO: persist applied index durably to disk/LevelDB
-				//
+				glog.V(logger.Error).Infof("setting appliedIndex: %d", entry.Index)
+				buf := make([]byte, 8)
+				binary.LittleEndian.PutUint64(buf, entry.Index)
+				pm.appliedDb.Put(appliedDbKey, buf, nil)
 			}
 
 			// 4: Call Node.Advance() to signal readiness for the next batch of
@@ -480,28 +497,43 @@ func makePeerUrls(nodes []*discover.Node) []string {
 func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peers []*discover.Node, peerGetter func() (string, *big.Int), datadir string) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
+	appliedDbLoc := fmt.Sprintf("%s/raft-applied", datadir)
 
 	peerUrls := makePeerUrls(peers)
 	manager := &ProtocolManager{
-		raftPeers:     makeRaftPeers(peerUrls),
-		peerUrls:      peerUrls,
-		p2pNodes:      peers,
-		blockchain:    blockchain,
-		eventMux:      mux,
-		downloader:    downloader,
-		peerGetter:    peerGetter,
-		proposeC:      make(chan *types.Block),
-		confChangeC:   make(chan raftpb.ConfChange),
-		httpstopc:     make(chan struct{}),
-		httpdonec:     make(chan struct{}),
+		raftPeers:   makeRaftPeers(peerUrls),
+		peerUrls:    peerUrls,
+		p2pNodes:    peers,
+		blockchain:  blockchain,
+		eventMux:    mux,
+		downloader:  downloader,
+		peerGetter:  peerGetter,
+		proposeC:    make(chan *types.Block),
+		confChangeC: make(chan raftpb.ConfChange),
+		httpstopc:   make(chan struct{}),
+		httpdonec:   make(chan struct{}),
 
-		waldir: waldir,
-		snapdir: snapdir,
+		waldir:      waldir,
+		snapdir:     snapdir,
 		snapshotter: snap.New(snapdir),
-		id:            id,
-		quitSync:      make(chan struct{}),
-		raftStorage:   raft.NewMemoryStorage(),
+		id:          id,
+		quitSync:    make(chan struct{}),
+		raftStorage: raft.NewMemoryStorage(),
 	}
+
+	// Open the db and recover any potential corruptions
+	db, err := leveldb.OpenFile(appliedDbLoc, &opt.Options{
+		OpenFilesCacheCapacity: -1, // -1 means 0??
+		BlockCacheCapacity:     -1,
+	})
+	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {
+		db, err = leveldb.RecoverFile(appliedDbLoc, nil)
+	}
+	// (Re)check for errors and abort if opening of the db failed
+	if err != nil {
+		return nil, err
+	}
+	manager.appliedDb = db
 
 	return manager, nil
 }

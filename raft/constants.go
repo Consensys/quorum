@@ -33,3 +33,7 @@ const (
 	BECAME_MINTER = "BECAME-MINTER"
 	BECAME_VERIFIER = "BECAME-VERIFIER"
 )
+
+var (
+	appliedDbKey = []byte("applied")
+)
