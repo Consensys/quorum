@@ -169,19 +169,8 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	//       bugs"
 	enablePreVote := true
 
-	dat, err := pm.appliedDb.Get(appliedDbKey, nil)
-	var lastAppliedIndex uint64
-	if err == errors.ErrNotFound {
-		lastAppliedIndex = 0
-	} else if err != nil {
-		glog.Fatalln(err)
-	} else {
-		lastAppliedIndex = binary.LittleEndian.Uint64(dat)
-	}
-	glog.V(logger.Error).Infof("lastAppliedIndex: %d", lastAppliedIndex)
-
 	c := &raft.Config{
-		Applied: lastAppliedIndex,
+		Applied: pm.loadAppliedIndex(),
 		ID:      uint64(pm.id),
 		// TODO(joel): tune these parameters
 		ElectionTick:  10, // NOTE: cockroach sets this to 15
@@ -368,7 +357,7 @@ func (pm *ProtocolManager) applySnapshot(snap raftpb.Snapshot) {
 
 	pm.confState = snapMeta.ConfState
 	pm.snapshotIndex = snapMeta.Index
-	pm.appliedIndex = snapMeta.Index
+	pm.writeAppliedIndex(snapMeta.Index)
 }
 
 func (pm *ProtocolManager) eventLoop() {
@@ -439,12 +428,7 @@ func (pm *ProtocolManager) eventLoop() {
 					pm.mu.Unlock()
 				}
 
-				pm.appliedIndex = entry.Index
-
-				glog.V(logger.Error).Infof("setting appliedIndex: %d", entry.Index)
-				buf := make([]byte, 8)
-				binary.LittleEndian.PutUint64(buf, entry.Index)
-				pm.appliedDb.Put(appliedDbKey, buf, nil)
+				pm.writeAppliedIndex(entry.Index)
 			}
 
 			// 4: Call Node.Advance() to signal readiness for the next batch of
@@ -630,4 +614,28 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 		pm.eventMux.Post(core.ChainHeadEvent{Block: block})
 		glog.V(logger.Info).Infof("Successfully extended chain: %x\n", block.Hash())
 	}
+}
+
+func (pm *ProtocolManager) loadAppliedIndex() uint64 {
+	dat, err := pm.appliedDb.Get(appliedDbKey, nil)
+	var lastAppliedIndex uint64
+	if err == errors.ErrNotFound {
+		lastAppliedIndex = 0
+	} else if err != nil {
+		glog.Fatalln(err)
+	} else {
+		lastAppliedIndex = binary.LittleEndian.Uint64(dat)
+	}
+
+	glog.V(logger.Info).Infof("Persistent applied index load: %d", lastAppliedIndex)
+	pm.appliedIndex = lastAppliedIndex
+	return lastAppliedIndex
+}
+
+func (pm *ProtocolManager) writeAppliedIndex(index uint64) {
+	pm.appliedIndex = index
+	glog.V(logger.Info).Infof("Persistent applied index write: %d", index)
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, index)
+	pm.appliedDb.Put(appliedDbKey, buf, nil)
 }
