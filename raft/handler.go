@@ -596,7 +596,7 @@ func (pm *ProtocolManager) Start(minter *minter) {
 }
 
 func (pm *ProtocolManager) Stop() {
-	glog.V(logger.Info).Infoln("Stopping ethereum protocol handler...")
+	glog.V(logger.Info).Infoln("Stopping raft protocol handler...")
 
 	pm.transport.Stop()
 	close(pm.httpstopc)
@@ -612,7 +612,7 @@ func (pm *ProtocolManager) Stop() {
 	// TODO: stop minting here
 	//
 
-	glog.V(logger.Info).Infoln("Ethereum protocol handler stopped")
+	glog.V(logger.Info).Infoln("Raft protocol handler stopped")
 }
 
 func logCheckpoint(checkpointName string, iface interface{}) {
