@@ -358,18 +358,6 @@ func (pm *ProtocolManager) serveInternal(proposeC <-chan *types.Block, confChang
 	}
 }
 
-func (pm *ProtocolManager) applySnapshot(snap raftpb.Snapshot) {
-	if err := pm.raftStorage.ApplySnapshot(snap); err != nil {
-		glog.Fatalln("failed to apply snapshot: ", err)
-	}
-
-	snapMeta := snap.Metadata
-
-	pm.confState = snapMeta.ConfState
-	pm.snapshotIndex = snapMeta.Index
-	pm.advanceAppliedIndex(snapMeta.Index)
-}
-
 func (pm *ProtocolManager) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
 	if len(ents) == 0 {
 		return

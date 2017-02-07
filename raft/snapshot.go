@@ -73,3 +73,15 @@ func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
 
 	return snapshot
 }
+
+func (pm *ProtocolManager) applySnapshot(snap raftpb.Snapshot) {
+	if err := pm.raftStorage.ApplySnapshot(snap); err != nil {
+		glog.Fatalln("failed to apply snapshot: ", err)
+	}
+
+	snapMeta := snap.Metadata
+
+	pm.confState = snapMeta.ConfState
+	pm.snapshotIndex = snapMeta.Index
+	pm.advanceAppliedIndex(snapMeta.Index)
+}
