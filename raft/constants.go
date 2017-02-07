@@ -25,6 +25,8 @@ const (
 	//
 	snapshotPeriod = 250
 
+	peerUrlKeyPrefix = "peerUrl-"
+
 	// checkpoints
 	PEER_CONNECTED = "PEER-CONNECTED"
 	PEER_DISCONNECTED = "PEER-DISCONNECTED"
@@ -36,5 +38,4 @@ const (
 
 var (
 	appliedDbKey = []byte("applied")
-	peerUrlKeyPrefix = "peerUrl-"
 )
