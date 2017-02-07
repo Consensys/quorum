@@ -172,6 +172,8 @@ func (pm *ProtocolManager) Start(minter *minter) {
 func (pm *ProtocolManager) Stop() {
 	glog.V(logger.Info).Infoln("Stopping raft protocol handler...")
 
+	pm.minedBlockSub.Unsubscribe()
+
 	pm.transport.Stop()
 	close(pm.httpstopc)
 	<-pm.httpdonec
