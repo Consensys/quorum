@@ -292,22 +292,6 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}, minter *mi
 	}
 }
 
-func (pm *ProtocolManager) stop() {
-	pm.transport.Stop()
-	close(pm.httpstopc)
-	<-pm.httpdonec
-	close(pm.quitSync)
-	if pm.rawNode != nil {
-		pm.rawNode.Stop()
-	}
-
-	pm.appliedDb.Close()
-
-	//
-	// TODO: stop minting here
-	//
-}
-
 func (pm *ProtocolManager) minedBroadcastLoop(proposeC chan<- *types.Block) {
 	for obj := range pm.minedBlockSub.Chan() {
 		switch ev := obj.Data.(type) {
@@ -614,7 +598,19 @@ func (pm *ProtocolManager) Start(minter *minter) {
 func (pm *ProtocolManager) Stop() {
 	glog.V(logger.Info).Infoln("Stopping ethereum protocol handler...")
 
-	pm.stop()
+	pm.transport.Stop()
+	close(pm.httpstopc)
+	<-pm.httpdonec
+	close(pm.quitSync)
+	if pm.rawNode != nil {
+		pm.rawNode.Stop()
+	}
+
+	pm.appliedDb.Close()
+
+	//
+	// TODO: stop minting here
+	//
 
 	glog.V(logger.Info).Infoln("Ethereum protocol handler stopped")
 }
