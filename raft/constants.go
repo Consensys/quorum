@@ -36,4 +36,5 @@ const (
 
 var (
 	appliedDbKey = []byte("applied")
+	peerUrlKeyPrefix = "peerUrl-"
 )

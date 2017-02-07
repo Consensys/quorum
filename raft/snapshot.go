@@ -30,6 +30,10 @@ func (pm *ProtocolManager) maybeTriggerSnapshot() {
 		return
 	}
 
+	pm.triggerSnapshot()
+}
+
+func (pm *ProtocolManager) triggerSnapshot() {
 	glog.V(logger.Info).Infof("start snapshot [applied index: %d | last snapshot index: %d]", pm.appliedIndex, pm.snapshotIndex)
 	snapData := pm.blockchain.CurrentBlock().Hash().Bytes()
 	snap, err := pm.raftStorage.CreateSnapshot(pm.appliedIndex, &pm.confState, snapData)
@@ -39,12 +43,10 @@ func (pm *ProtocolManager) maybeTriggerSnapshot() {
 	if err := pm.saveSnapshot(snap); err != nil {
 		panic(err)
 	}
-
 	// Discard all log entries prior to appliedIndex.
 	if err := pm.raftStorage.Compact(pm.appliedIndex); err != nil {
 		panic(err)
 	}
-
 	glog.V(logger.Info).Infof("compacted log at index %d", pm.appliedIndex)
 	pm.snapshotIndex = pm.appliedIndex
 }

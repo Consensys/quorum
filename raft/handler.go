@@ -90,6 +90,7 @@ type ProtocolManager struct {
 	snapshotter *snap.Snapshotter
 	snapdir     string
 	confState   raftpb.ConfState
+	awaitingFirstSnapshotPostRestart bool
 
 	// write-ahead log
 	waldir string
@@ -169,8 +170,10 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	//       bugs"
 	enablePreVote := true
 
+	lastAppliedIndex := pm.loadAppliedIndex()
+
 	c := &raft.Config{
-		Applied: pm.loadAppliedIndex(),
+		Applied: lastAppliedIndex,
 		ID:      uint64(pm.id),
 		// TODO(joel): tune these parameters
 		ElectionTick:  10, // NOTE: cockroach sets this to 15
@@ -203,6 +206,10 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	glog.V(logger.Info).Infof("local raft ID is %v", c.ID)
 
 	if walExisted {
+		if lastAppliedIndex > 0 {
+			pm.awaitingFirstSnapshotPostRestart = true
+		}
+
 		pm.rawNode = raft.RestartNode(c)
 	} else {
 		if numPeers := len(pm.raftPeers); numPeers == 0 {
@@ -357,7 +364,7 @@ func (pm *ProtocolManager) applySnapshot(snap raftpb.Snapshot) {
 
 	pm.confState = snapMeta.ConfState
 	pm.snapshotIndex = snapMeta.Index
-	pm.writeAppliedIndex(snapMeta.Index)
+	pm.advanceAppliedIndex(snapMeta.Index)
 }
 
 func (pm *ProtocolManager) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
@@ -380,6 +387,18 @@ func (pm *ProtocolManager) entriesToApply(ents []raftpb.Entry) (nents []raftpb.E
 	return
 }
 
+func (pm *ProtocolManager) addPeer(nodeId uint64, peerUrl string) {
+	pm.transport.AddPeer(raftTypes.ID(nodeId), []string{peerUrl})
+}
+
+func (pm *ProtocolManager) reconnectToPreviousPeers(nodeIds []uint64) {
+	for _, nodeId := range nodeIds {
+		peerUrl := pm.loadPeerUrl(nodeId)
+
+		pm.addPeer(nodeId, peerUrl)
+	}
+}
+
 func (pm *ProtocolManager) eventLoop() {
 	ticker := time.NewTicker(tickerMS * time.Millisecond)
 	defer ticker.Stop()
@@ -398,6 +417,16 @@ func (pm *ProtocolManager) eventLoop() {
 			if snap := rd.Snapshot; !raft.IsEmptySnap(snap) {
 				pm.saveSnapshot(snap)
 				pm.applySnapshot(snap)
+
+				if pm.awaitingFirstSnapshotPostRestart {
+					pm.reconnectToPreviousPeers(snap.Metadata.ConfState.Nodes)
+
+					pm.awaitingFirstSnapshotPostRestart = false
+				}
+			} else {
+				if pm.awaitingFirstSnapshotPostRestart {
+					panic("expected an initial snapshot post restart but did not receive one: unable to connect to peers.")
+				}
 			}
 
 			// 1: Write HardState, Entries, and Snapshot to persistent storage if they
@@ -424,31 +453,53 @@ func (pm *ProtocolManager) eventLoop() {
 				case raftpb.EntryConfChange:
 					var cc raftpb.ConfChange
 					cc.Unmarshal(entry.Data)
-					pm.rawNode.ApplyConfChange(cc)
 
-					// We don't strictly need this lock acquisition yet, but we will likely need it here once we add support for
-					// dynamic cluster membership:
+					// We lock access to this, in case we want to read the list of
+					// cluster members concurrently via RPC (e.g. from NodeInfo()):
 					pm.mu.Lock()
+					pm.confState = *pm.rawNode.ApplyConfChange(cc)
+					pm.mu.Unlock()
+
 					switch cc.Type {
 					case raftpb.ConfChangeAddNode:
-						pm.transport.AddPeer(raftTypes.ID(cc.NodeID), []string{string(cc.Context)})
+						glog.V(logger.Info).Infof("adding peer %v due to ConfChangeAddNode", cc.NodeID)
+
+						nodeId := cc.NodeID
+						peerUrl := string(cc.Context)
+						pm.addPeer(nodeId, peerUrl)
+						pm.writePeerUrl(nodeId, peerUrl)
 
 					case raftpb.ConfChangeRemoveNode:
-						glog.V(logger.Info).Infof("removing %v from raftKnownPeers due to ConfChangeRemoveNode", cc.NodeID)
+						glog.V(logger.Info).Infof("removing peer %v due to ConfChangeRemoveNode", cc.NodeID)
 
 						if cc.NodeID == uint64(pm.id) {
-							glog.V(logger.Info).Infoln("I've been removed from the cluster -- shutting down!")
+							glog.V(logger.Warn).Infoln("removing self from the cluster due to ConfChangeRemoveNode")
+
+							pm.advanceAppliedIndex(entry.Index)
+
+							// TODO: we might want to completely exit(0) geth here
 							return
 						}
+
 						pm.transport.RemovePeer(raftTypes.ID(cc.NodeID))
 
 					case raftpb.ConfChangeUpdateNode:
 						glog.Fatalln("not yet handled: ConfChangeUpdateNode")
 					}
-					pm.mu.Unlock()
+
+					// We force a snapshot here to persist our updated confState, so we
+					// know our fellow cluster members when we come back online.
+					//
+					// It is critical here to snapshot *before* writing our applied
+					// index in LevelDB, otherwise a crash while/before snapshotting
+					// (after advancing our applied index) would result in the loss of a
+					// cluster member upon restart: we would re-mount with an old
+					// ConfState.
+					pm.appliedIndex = entry.Index
+					pm.triggerSnapshot()
 				}
 
-				pm.writeAppliedIndex(entry.Index)
+				pm.advanceAppliedIndex(entry.Index)
 			}
 
 			// 4: Call Node.Advance() to signal readiness for the next batch of
@@ -479,7 +530,7 @@ func makeRaftPeers(urls []string) []raft.Peer {
 
 func nodeHttpPort(node *discover.Node) uint16 {
 	//
-	// TODO: we should probably read this from the commandline, but it's a little tricker because we wouldn't be
+	// TODO: we should probably read this from the commandline, but it's a little trickier because we wouldn't be
 	// accepting a single port like with --port or --rpcport; we'd have to ask for a base HTTP port (e.g. 50400)
 	// with the convention/understanding that the port used by each node would be base + raft ID, which quorum is
 	// otherwise not aware of.
@@ -652,10 +703,32 @@ func (pm *ProtocolManager) loadAppliedIndex() uint64 {
 	return lastAppliedIndex
 }
 
-func (pm *ProtocolManager) writeAppliedIndex(index uint64) {
+// Sets new appliedIndex in-memory, *and* writes this appliedIndex to LevelDB.
+func (pm *ProtocolManager) advanceAppliedIndex(index uint64) {
 	pm.appliedIndex = index
+
+	pm.writeAppliedIndex(index)
+}
+
+func (pm *ProtocolManager) writeAppliedIndex(index uint64) {
 	glog.V(logger.Info).Infof("Persistent applied index write: %d", index)
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, index)
 	pm.appliedDb.Put(appliedDbKey, buf, nil)
+}
+
+func (pm *ProtocolManager) loadPeerUrl(nodeId uint64) string {
+  peerUrlKey := []byte(peerUrlKeyPrefix + string(nodeId))
+	value, err := pm.appliedDb.Get(peerUrlKey, nil)
+	if err != nil {
+		glog.Fatalf("failed to read peer url for peer %d from leveldb: %v", nodeId, err)
+	}
+	return string(value)
+}
+
+func (pm *ProtocolManager) writePeerUrl(nodeId uint64, url string) {
+	key := []byte(peerUrlKeyPrefix + string(nodeId))
+	value := []byte(url)
+
+	pm.appliedDb.Put(key, value, nil)
 }
