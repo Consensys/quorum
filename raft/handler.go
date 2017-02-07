@@ -87,9 +87,9 @@ type ProtocolManager struct {
 	snapshotIndex uint64
 
 	// snapshotting
-	snapshotter *snap.Snapshotter
-	snapdir     string
-	confState   raftpb.ConfState
+	snapshotter                      *snap.Snapshotter
+	snapdir                          string
+	confState                        raftpb.ConfState
 	awaitingFirstSnapshotPostRestart bool
 
 	// write-ahead log
@@ -375,7 +375,7 @@ func (pm *ProtocolManager) entriesToApply(ents []raftpb.Entry) (nents []raftpb.E
 	first := ents[0].Index
 	lastApplied := pm.appliedIndex
 
-	if first > lastApplied + 1 {
+	if first > lastApplied+1 {
 		glog.Fatalf("first index of committed entry[%d] should <= appliedIndex[%d] + 1", first, lastApplied)
 	}
 
@@ -717,7 +717,7 @@ func (pm *ProtocolManager) writeAppliedIndex(index uint64) {
 }
 
 func (pm *ProtocolManager) loadPeerUrl(nodeId uint64) string {
-  peerUrlKey := []byte(peerUrlKeyPrefix + string(nodeId))
+	peerUrlKey := []byte(peerUrlKeyPrefix + string(nodeId))
 	value, err := pm.appliedDb.Get(peerUrlKey, nil)
 	if err != nil {
 		glog.Fatalf("failed to read peer url for peer %d from leveldb: %v", nodeId, err)
