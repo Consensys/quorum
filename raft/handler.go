@@ -495,8 +495,7 @@ func (pm *ProtocolManager) eventLoop() {
 					// (after advancing our applied index) would result in the loss of a
 					// cluster member upon restart: we would re-mount with an old
 					// ConfState.
-					pm.appliedIndex = entry.Index
-					pm.triggerSnapshot()
+					pm.triggerSnapshotWithNextIndex(entry.Index)
 				}
 
 				pm.advanceAppliedIndex(entry.Index)

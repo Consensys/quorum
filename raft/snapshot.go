@@ -51,6 +51,15 @@ func (pm *ProtocolManager) triggerSnapshot() {
 	pm.snapshotIndex = pm.appliedIndex
 }
 
+// For persisting cluster membership changes correctly, we need to trigger a
+// snapshot before advancing our persisted appliedIndex in LevelDB.
+//
+// See handling of EntryConfChange entries in raft/handler.go for details.
+func (pm *ProtocolManager) triggerSnapshotWithNextIndex(index uint64) {
+	pm.appliedIndex = index
+	pm.triggerSnapshot()
+}
+
 func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
 	snapshot, err := pm.snapshotter.Load()
 	if err != nil && err != snap.ErrNoSnapshot {
