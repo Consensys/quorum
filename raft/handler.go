@@ -86,10 +86,14 @@ type ProtocolManager struct {
 	// The index of the latest snapshot.
 	snapshotIndex uint64
 
-	// snapshotting
+	// Snapshotting
 	snapshotter                      *snap.Snapshotter
 	snapdir                          string
 	confState                        raftpb.ConfState
+	// when we restart a cluster, the first snapshot we receive is important: we
+	// read its raftpb.ConfState to reconnect to the last-known members in the
+	// cluster. once we perform this reconnection on startup, we will not do it
+	// again for the life of this geth process.
 	awaitingFirstSnapshotPostRestart bool
 
 	// write-ahead log
@@ -566,7 +570,6 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 		confChangeC: make(chan raftpb.ConfChange),
 		httpstopc:   make(chan struct{}),
 		httpdonec:   make(chan struct{}),
-
 		waldir:      waldir,
 		snapdir:     snapdir,
 		snapshotter: snap.New(snapdir),
