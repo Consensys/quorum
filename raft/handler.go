@@ -116,7 +116,102 @@ type ProtocolManager struct {
 	role int
 }
 
-// Implement the `MsgWriter` interface (necessary for p2p.Send)
+//
+// Public interface
+//
+
+func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peers []*discover.Node, peerGetter func() (string, *big.Int), datadir string) (*ProtocolManager, error) {
+	waldir := fmt.Sprintf("%s/raft-wal", datadir)
+	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
+	appliedDbLoc := fmt.Sprintf("%s/raft-applied", datadir)
+
+	peerUrls := makePeerUrls(peers)
+	manager := &ProtocolManager{
+		raftPeers:   makeRaftPeers(peerUrls),
+		peerUrls:    peerUrls,
+		p2pNodes:    peers,
+		blockchain:  blockchain,
+		eventMux:    mux,
+		downloader:  downloader,
+		peerGetter:  peerGetter,
+		proposeC:    make(chan *types.Block),
+		confChangeC: make(chan raftpb.ConfChange),
+		httpstopc:   make(chan struct{}),
+		httpdonec:   make(chan struct{}),
+		waldir:      waldir,
+		snapdir:     snapdir,
+		snapshotter: snap.New(snapdir),
+		id:          id,
+		quitSync:    make(chan struct{}),
+		raftStorage: raft.NewMemoryStorage(),
+	}
+
+	// Open the db and recover any potential corruptions
+	db, err := leveldb.OpenFile(appliedDbLoc, &opt.Options{
+		OpenFilesCacheCapacity: -1, // -1 means 0??
+		BlockCacheCapacity:     -1,
+	})
+	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {
+		db, err = leveldb.RecoverFile(appliedDbLoc, nil)
+	}
+	// (Re)check for errors and abort if opening of the db failed
+	if err != nil {
+		return nil, err
+	}
+	manager.appliedDb = db
+
+	return manager, nil
+}
+
+func (pm *ProtocolManager) Start(minter *minter) {
+	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
+	go pm.minedBroadcastLoop(pm.proposeC)
+	pm.startRaftNode(minter)
+}
+
+func (pm *ProtocolManager) Stop() {
+	glog.V(logger.Info).Infoln("Stopping raft protocol handler...")
+
+	pm.transport.Stop()
+	close(pm.httpstopc)
+	<-pm.httpdonec
+	close(pm.quitSync)
+	if pm.rawNode != nil {
+		pm.rawNode.Stop()
+	}
+
+	pm.appliedDb.Close()
+
+	//
+	// TODO: stop minting here
+	//
+
+	glog.V(logger.Info).Infoln("Raft protocol handler stopped")
+}
+
+func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
+	pm.mu.RLock() // as we read pm.role
+	defer pm.mu.RUnlock()
+
+	var roleDescription string
+	if pm.role == minterRole {
+		roleDescription = "minter"
+	} else {
+		roleDescription = "verifier"
+	}
+
+	return &RaftNodeInfo{
+		ClusterSize: len(pm.raftPeers),
+		Genesis:     pm.blockchain.Genesis().Hash(),
+		Head:        pm.blockchain.CurrentBlock().Hash(),
+		Role:        roleDescription,
+	}
+}
+
+//
+// MsgWriter interface (necessary for p2p.Send)
+//
+
 func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 	// read *into* buffer
 	var buffer = make([]byte, msg.Size)
@@ -126,8 +221,9 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 }
 
 //
-// Raft interface methods
+// Raft interface
 //
+
 func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error {
 	return pm.rawNode.Step(ctx, m)
 }
@@ -157,6 +253,10 @@ func (pm *ProtocolManager) ReportSnapshot(id uint64, status raft.SnapshotStatus)
 
 	pm.rawNode.ReportSnapshot(id, status)
 }
+
+//
+// Private methods
+//
 
 func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	if !fileutil.Exist(pm.snapdir) {
@@ -487,8 +587,6 @@ func (pm *ProtocolManager) eventLoop() {
 	}
 }
 
-// Protocol Manager
-
 func makeRaftPeers(urls []string) []raft.Peer {
 	peers := make([]raft.Peer, len(urls))
 	for i, url := range urls {
@@ -523,96 +621,8 @@ func makePeerUrls(nodes []*discover.Node) []string {
 	return urls
 }
 
-func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peers []*discover.Node, peerGetter func() (string, *big.Int), datadir string) (*ProtocolManager, error) {
-	waldir := fmt.Sprintf("%s/raft-wal", datadir)
-	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
-	appliedDbLoc := fmt.Sprintf("%s/raft-applied", datadir)
-
-	peerUrls := makePeerUrls(peers)
-	manager := &ProtocolManager{
-		raftPeers:   makeRaftPeers(peerUrls),
-		peerUrls:    peerUrls,
-		p2pNodes:    peers,
-		blockchain:  blockchain,
-		eventMux:    mux,
-		downloader:  downloader,
-		peerGetter:  peerGetter,
-		proposeC:    make(chan *types.Block),
-		confChangeC: make(chan raftpb.ConfChange),
-		httpstopc:   make(chan struct{}),
-		httpdonec:   make(chan struct{}),
-		waldir:      waldir,
-		snapdir:     snapdir,
-		snapshotter: snap.New(snapdir),
-		id:          id,
-		quitSync:    make(chan struct{}),
-		raftStorage: raft.NewMemoryStorage(),
-	}
-
-	// Open the db and recover any potential corruptions
-	db, err := leveldb.OpenFile(appliedDbLoc, &opt.Options{
-		OpenFilesCacheCapacity: -1, // -1 means 0??
-		BlockCacheCapacity:     -1,
-	})
-	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {
-		db, err = leveldb.RecoverFile(appliedDbLoc, nil)
-	}
-	// (Re)check for errors and abort if opening of the db failed
-	if err != nil {
-		return nil, err
-	}
-	manager.appliedDb = db
-
-	return manager, nil
-}
-
-func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
-	pm.mu.RLock() // as we read pm.role
-	defer pm.mu.RUnlock()
-
-	var roleDescription string
-	if pm.role == minterRole {
-		roleDescription = "minter"
-	} else {
-		roleDescription = "verifier"
-	}
-
-	return &RaftNodeInfo{
-		ClusterSize: len(pm.raftPeers),
-		Genesis:     pm.blockchain.Genesis().Hash(),
-		Head:        pm.blockchain.CurrentBlock().Hash(),
-		Role:        roleDescription,
-	}
-}
-
 func sleep(duration time.Duration) {
 	<-time.NewTimer(duration).C
-}
-
-func (pm *ProtocolManager) Start(minter *minter) {
-	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
-	go pm.minedBroadcastLoop(pm.proposeC)
-	pm.startRaftNode(minter)
-}
-
-func (pm *ProtocolManager) Stop() {
-	glog.V(logger.Info).Infoln("Stopping raft protocol handler...")
-
-	pm.transport.Stop()
-	close(pm.httpstopc)
-	<-pm.httpdonec
-	close(pm.quitSync)
-	if pm.rawNode != nil {
-		pm.rawNode.Stop()
-	}
-
-	pm.appliedDb.Close()
-
-	//
-	// TODO: stop minting here
-	//
-
-	glog.V(logger.Info).Infoln("Raft protocol handler stopped")
 }
 
 func logCheckpoint(checkpointName string, iface interface{}) {
