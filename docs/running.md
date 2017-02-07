@@ -96,6 +96,12 @@ The console can be used to calculate the storage key, in this case for vote key 
 > web3.sha3(key, {"encoding": "hex"})
 "0x29ecdbdf95c7f6ceec92d6150c697aa14abeb0f8595dd58d808842ea237d8494"
 ```
+From the above example, the `<256 bit aligned key value>` is the ethereum account address that should be added to the voting map, ed9d02e382b34818e88b88a309c7fe71e65f419d, padded to 256bits. The `<256 bit variable index>` is the index(3) of the canVote mapping in the solidity [voting smart contract](https://github.com/jpmorganchase/quorum/blob/master/core/quorum/block_voting.sol#L42) padded to 256bits. The index is calculated based on the location of canVote:
+
+* Period[] periods --> index 0
+* uint public voteThreshold --> index 1
+* uint public voterCount --> index 2
+* mapping(address => bool) public canVote --> index 3
 
 The `genesis.json` file can be found in the `7nodes` folder in the `quorum-examples` repository.
 
