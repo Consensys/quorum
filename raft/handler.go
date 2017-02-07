@@ -621,15 +621,7 @@ func sleep(duration time.Duration) {
 func (pm *ProtocolManager) Start(minter *minter) {
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	go pm.minedBroadcastLoop(pm.proposeC)
-
-	// HACK: this gives us a little time for the raft transport to initialize.
-	//
-	// Instead, we should probably programmatically check whether we have
-	// connections to all peers.
-	go func() {
-		sleep(2 * time.Second)
-		pm.startRaftNode(minter)
-	}()
+	pm.startRaftNode(minter)
 }
 
 func (pm *ProtocolManager) Stop() {
