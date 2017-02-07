@@ -7,7 +7,21 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 
 	"github.com/syndtr/goleveldb/leveldb/errors"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
+
+func openQuorumRaftDb(path string) (db *leveldb.DB, err error) {
+	// Open the db and recover any potential corruptions
+	db, err = leveldb.OpenFile(path, &opt.Options{
+		OpenFilesCacheCapacity: -1, // -1 means 0??
+		BlockCacheCapacity:     -1,
+	})
+	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {
+		db, err = leveldb.RecoverFile(path, nil)
+	}
+	return
+}
 
 func (pm *ProtocolManager) loadAppliedIndex() uint64 {
 	dat, err := pm.quorumRaftDb.Get(appliedDbKey, nil)

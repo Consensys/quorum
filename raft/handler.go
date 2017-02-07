@@ -41,8 +41,6 @@ import (
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/rafthttp"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/errors"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 type ProtocolManager struct {
@@ -146,19 +144,11 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 		raftStorage: raft.NewMemoryStorage(),
 	}
 
-	// Open the db and recover any potential corruptions
-	db, err := leveldb.OpenFile(appliedDbLoc, &opt.Options{
-		OpenFilesCacheCapacity: -1, // -1 means 0??
-		BlockCacheCapacity:     -1,
-	})
-	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {
-		db, err = leveldb.RecoverFile(appliedDbLoc, nil)
-	}
-	// (Re)check for errors and abort if opening of the db failed
-	if err != nil {
+  if db, err := openQuorumRaftDb(appliedDbLoc); err != nil {
 		return nil, err
+	} else {
+		manager.quorumRaftDb = db
 	}
-	manager.quorumRaftDb = db
 
 	return manager, nil
 }
