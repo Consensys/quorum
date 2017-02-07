@@ -99,9 +99,9 @@ type ProtocolManager struct {
 	waldir string
 	wal    *wal.WAL
 
-	// We create a database with a single value -- the last applied index, used as an optimization for faster
-	// startup
-	appliedDb *leveldb.DB
+	// Persistence outside of the blockchain and raft log to keep track of our
+	// last-applied raft index and raft peer URLs.
+	quorumRaftDb *leveldb.DB
 
 	proposeC    chan *types.Block
 	confChangeC chan raftpb.ConfChange
@@ -158,7 +158,7 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 	if err != nil {
 		return nil, err
 	}
-	manager.appliedDb = db
+	manager.quorumRaftDb = db
 
 	return manager, nil
 }
@@ -182,7 +182,7 @@ func (pm *ProtocolManager) Stop() {
 		pm.rawNode.Stop()
 	}
 
-	pm.appliedDb.Close()
+	pm.quorumRaftDb.Close()
 
 	//
 	// TODO: stop minting here
