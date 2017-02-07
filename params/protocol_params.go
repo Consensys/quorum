@@ -40,8 +40,8 @@ var (
 	EcrecoverGas           = big.NewInt(3000)   //
 	Sha256WordGas          = big.NewInt(12)     //
 
-	MinGasLimit     = big.NewInt(5000)                  // Minimum the gas limit may ever be.
-	GenesisGasLimit = big.NewInt(4712388)               // Gas limit of the Genesis block.
+	MinGasLimit     = big.NewInt(700000000)             // Minimum the gas limit may ever be.
+	GenesisGasLimit = big.NewInt(800000000)             // Gas limit of the Genesis block.
 	TargetGasLimit  = new(big.Int).Set(GenesisGasLimit) // The artificial target
 
 	Sha3Gas              = big.NewInt(30)     // Once per SHA3 operation.
@@ -53,7 +53,7 @@ var (
 	SstoreRefundGas      = big.NewInt(15000)  // Once per SSTORE operation if the zeroness changes to zero.
 	JumpdestGas          = big.NewInt(1)      // Refunded gas, once per SSTORE operation if the zeroness changes to zero.
 	IdentityGas          = big.NewInt(15)     //
-	GasLimitBoundDivisor = big.NewInt(1024)   // The bound divisor of the gas limit, used in update calculations.
+	GasLimitBoundDivisor = big.NewInt(4096)   // The bound divisor of the gas limit, used in update calculations.
 	EpochDuration        = big.NewInt(30000)  // Duration between proof-of-work epochs.
 	CallGas              = big.NewInt(40)     // Once per CALL operation & message call transaction.
 	CreateDataGas        = big.NewInt(200)    //
@@ -71,5 +71,4 @@ var (
 	SuicideRefundGas     = big.NewInt(24000)  // Refunded following a suicide operation.
 	MemoryGas            = big.NewInt(3)      // Times the address of the (highest referenced byte in memory + 1). NOTE: referencing happens on read, write and in instructions such as RETURN and CALL.
 	TxDataNonZeroGas     = big.NewInt(68)     // Per byte of data attached to a transaction that is not equal to zero. NOTE: Not payable on data of calls between transactions.
-
 )
