@@ -121,7 +121,7 @@ type ProtocolManager struct {
 func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peers []*discover.Node, peerGetter func() (string, *big.Int), datadir string) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
-	appliedDbLoc := fmt.Sprintf("%s/raft-applied", datadir)
+	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
 
 	peerUrls := makePeerUrls(peers)
 	manager := &ProtocolManager{
@@ -144,7 +144,7 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 		raftStorage: raft.NewMemoryStorage(),
 	}
 
-  if db, err := openQuorumRaftDb(appliedDbLoc); err != nil {
+  if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
 		return nil, err
 	} else {
 		manager.quorumRaftDb = db
