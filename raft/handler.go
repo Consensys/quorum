@@ -84,9 +84,9 @@ type ProtocolManager struct {
 	snapshotIndex uint64
 
 	// Snapshotting
-	snapshotter                      *snap.Snapshotter
-	snapdir                          string
-	confState                        raftpb.ConfState
+	snapshotter *snap.Snapshotter
+	snapdir     string
+	confState   raftpb.ConfState
 	// when we restart a cluster, the first snapshot we receive is important: we
 	// read its raftpb.ConfState to reconnect to the last-known members in the
 	// cluster. once we perform this reconnection on startup, we will not do it
@@ -144,7 +144,7 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 		raftStorage: raft.NewMemoryStorage(),
 	}
 
-  if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
+	if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
 		return nil, err
 	} else {
 		manager.quorumRaftDb = db
@@ -260,8 +260,8 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	lastAppliedIndex := pm.loadAppliedIndex()
 
 	c := &raft.Config{
-		Applied: lastAppliedIndex,
-		ID:      uint64(pm.id),
+		Applied:       lastAppliedIndex,
+		ID:            uint64(pm.id),
 		ElectionTick:  10, // NOTE: cockroach sets this to 15
 		HeartbeatTick: 1,  // NOTE: cockroach sets this to 5
 		Storage:       pm.raftStorage,
