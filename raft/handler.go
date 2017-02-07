@@ -227,30 +227,22 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error {
 	return pm.rawNode.Step(ctx, m)
 }
-func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
-	//
-	// TODO: IMPLEMENT in the future once we support dynamic membership
-	//
 
-	glog.V(logger.Info).Infof("Reporting that raft ID %d is not removed", id)
+func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
+	// TODO: implement this in the future once we support dynamic cluster membership
+
+	glog.V(logger.Info).Infof("reporting that raft ID %d is not removed", id)
+
 	return false
 }
+
 func (pm *ProtocolManager) ReportUnreachable(id uint64) {
-	//
-	// TODO: Is there anything we need to do here?
-	//
-
-	glog.V(logger.Error).Infof("UNIMPLEMENTED Raft: ReportUnreachable. delegating to RawNode's impl")
-
+	glog.V(logger.Warn).Infof("peer %d is currently unreachable", id)
 	pm.rawNode.ReportUnreachable(id)
 }
+
 func (pm *ProtocolManager) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
-	//
-	// TODO: Is there anything we need to do here?
-	//
-
-	glog.V(logger.Error).Infof("UNIMPLEMENTED Raft: ReportSnapshot. delegating to RawNode's impl")
-
+	glog.V(logger.Info).Infof("status of last-sent snapshot: %v", status)
 	pm.rawNode.ReportSnapshot(id, status)
 }
 
@@ -278,7 +270,6 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	c := &raft.Config{
 		Applied: lastAppliedIndex,
 		ID:      uint64(pm.id),
-		// TODO(joel): tune these parameters
 		ElectionTick:  10, // NOTE: cockroach sets this to 15
 		HeartbeatTick: 1,  // NOTE: cockroach sets this to 5
 		Storage:       pm.raftStorage,
