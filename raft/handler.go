@@ -457,6 +457,10 @@ func (pm *ProtocolManager) addPeer(nodeId uint64, peerUrl string) {
 	pm.transport.AddPeer(raftTypes.ID(nodeId), []string{peerUrl})
 }
 
+func (pm *ProtocolManager) removePeer(nodeId uint64) {
+	pm.transport.RemovePeer(raftTypes.ID(nodeId))
+}
+
 func (pm *ProtocolManager) reconnectToPreviousPeers(nodeIds []uint64) {
 	for _, nodeId := range nodeIds {
 		peerUrl := pm.loadPeerUrl(nodeId)
@@ -547,7 +551,7 @@ func (pm *ProtocolManager) eventLoop() {
 							return
 						}
 
-						pm.transport.RemovePeer(raftTypes.ID(cc.NodeID))
+						pm.removePeer(cc.NodeID)
 
 					case raftpb.ConfChangeUpdateNode:
 						glog.Fatalln("not yet handled: ConfChangeUpdateNode")
