@@ -455,7 +455,9 @@ func (pm *ProtocolManager) reconnectToPreviousPeers() {
 	for _, nodeId := range confState.Nodes {
 		peerUrl := pm.loadPeerUrl(nodeId)
 
-		pm.addPeer(nodeId, peerUrl)
+		if nodeId != uint64(pm.id) {
+			pm.addPeer(nodeId, peerUrl)
+		}
 	}
 }
 
@@ -516,7 +518,11 @@ func (pm *ProtocolManager) eventLoop() {
 
 						nodeId := cc.NodeID
 						peerUrl := string(cc.Context)
-						pm.addPeer(nodeId, peerUrl)
+
+						if nodeId != uint64(pm.id) {
+							pm.addPeer(nodeId, peerUrl)
+						}
+
 						pm.writePeerUrl(nodeId, peerUrl)
 
 					case raftpb.ConfChangeRemoveNode:
