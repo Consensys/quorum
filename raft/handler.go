@@ -286,18 +286,6 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 
 	glog.V(logger.Info).Infof("local raft ID is %v", c.ID)
 
-	if walExisted {
-		pm.rawNode = raft.RestartNode(c)
-	} else {
-		if numPeers := len(pm.raftPeers); numPeers == 0 {
-			panic("exiting due to empty raft peers list")
-		} else {
-			glog.V(logger.Info).Infof("starting raft with %v total peers.", numPeers)
-		}
-
-		pm.rawNode = raft.StartNode(c, pm.raftPeers)
-	}
-
 	ss := &stats.ServerStats{}
 	ss.Initialize()
 
@@ -314,6 +302,16 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 
 	if walExisted {
 		pm.reconnectToPreviousPeers()
+
+		pm.rawNode = raft.RestartNode(c)
+	} else {
+		if numPeers := len(pm.raftPeers); numPeers == 0 {
+			panic("exiting due to empty raft peers list")
+		} else {
+			glog.V(logger.Info).Infof("starting raft with %v total peers.", numPeers)
+		}
+
+		pm.rawNode = raft.StartNode(c, pm.raftPeers)
 	}
 
 	go pm.serveRaft()
