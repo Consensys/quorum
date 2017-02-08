@@ -232,7 +232,7 @@ func TestNetGenesisBlock() string {
 		"timestamp": "0x00",
 		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
 		"extraData": "0x",
-		"gasLimit": "0x2FEFD8",
+		"gasLimit": "0x2FAF0800",
 		"alloc": {
 			"0000000000000000000000000000000000000001": { "balance": "1" },
 			"0000000000000000000000000000000000000002": { "balance": "1" },
