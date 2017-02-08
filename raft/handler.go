@@ -87,11 +87,6 @@ type ProtocolManager struct {
 	snapshotter *snap.Snapshotter
 	snapdir     string
 	confState   raftpb.ConfState
-	// when we restart a cluster, the first snapshot we receive is important: we
-	// read its raftpb.ConfState to reconnect to the last-known members in the
-	// cluster. once we perform this reconnection on startup, we will not do it
-	// again for the life of this geth process.
-	awaitingFirstSnapshotPostRestart bool
 
 	// write-ahead log
 	waldir string
@@ -292,10 +287,6 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	glog.V(logger.Info).Infof("local raft ID is %v", c.ID)
 
 	if walExisted {
-		if lastAppliedIndex > 0 {
-			pm.awaitingFirstSnapshotPostRestart = true
-		}
-
 		pm.rawNode = raft.RestartNode(c)
 	} else {
 		if numPeers := len(pm.raftPeers); numPeers == 0 {
@@ -320,6 +311,10 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	}
 
 	pm.transport.Start()
+
+	if walExisted {
+		pm.reconnectToPreviousPeers()
+	}
 
 	go pm.serveRaft()
 	go pm.serveInternal(pm.proposeC, pm.confChangeC)
@@ -453,8 +448,10 @@ func (pm *ProtocolManager) removePeer(nodeId uint64) {
 	pm.transport.RemovePeer(raftTypes.ID(nodeId))
 }
 
-func (pm *ProtocolManager) reconnectToPreviousPeers(nodeIds []uint64) {
-	for _, nodeId := range nodeIds {
+func (pm *ProtocolManager) reconnectToPreviousPeers() {
+	_, confState, _ := pm.raftStorage.InitialState()
+
+	for _, nodeId := range confState.Nodes {
 		peerUrl := pm.loadPeerUrl(nodeId)
 
 		pm.addPeer(nodeId, peerUrl)
@@ -479,16 +476,6 @@ func (pm *ProtocolManager) eventLoop() {
 			if snap := rd.Snapshot; !raft.IsEmptySnap(snap) {
 				pm.saveSnapshot(snap)
 				pm.applySnapshot(snap)
-
-				if pm.awaitingFirstSnapshotPostRestart {
-					pm.reconnectToPreviousPeers(snap.Metadata.ConfState.Nodes)
-
-					pm.awaitingFirstSnapshotPostRestart = false
-				}
-			} else {
-				if pm.awaitingFirstSnapshotPostRestart {
-					panic("expected an initial snapshot post restart but did not receive one: unable to connect to peers.")
-				}
 			}
 
 			// 1: Write HardState, Entries, and Snapshot to persistent storage if they
