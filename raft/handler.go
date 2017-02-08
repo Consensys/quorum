@@ -384,6 +384,9 @@ func (pm *ProtocolManager) minedBroadcastLoop(proposeC chan<- *types.Block) {
 // serve two channels (proposeC, confChangeC) to handle changes originating
 // internally
 func (pm *ProtocolManager) serveInternal(proposeC <-chan *types.Block, confChangeC <-chan raftpb.ConfChange) {
+	//
+	// TODO: does it matter that this will restart from 0 whenever we restart a cluster?
+	//
 	var confChangeCount uint64
 
 	for {
