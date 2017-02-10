@@ -106,11 +106,11 @@ From the above example, the `<256 bit aligned key value>` is the ethereum accoun
 The `genesis.json` file can be found in the `7nodes` folder in the `quorum-examples` repository.
 
 ### Setup Bootnode
-Optionally you can set up a bootnode that all the other nodes first connect to in order to find other peers in the network. You will need to generate a bootnode key and enode: 
+Optionally you can set up a bootnode that all the other nodes will first connect to in order to find other peers in the network. You will need to generate a bootnode key and enode: 
 
-1-	To generate the key for the first time:
+1-	To generate the key and enode for the first time:
 
-`bootnode –genkey tmp_file.txt  //this will generate a key inside a “tmp_file.txt” file`
+`bootnode –genkey tmp_file.txt  //this will generate a key and enode url inside a “tmp_file.txt” file`
 
 2-	To start using the key and start your bootnode:
 
