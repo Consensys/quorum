@@ -66,11 +66,6 @@ func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
 		glog.Fatalf("error loading snapshot: %v", err)
 	}
 
-	//
-	// TODO: double-check that *all* tx metadata goes through raft. if it does, we should never have to use
-	// downloader.Synchronize here.
-	//
-
 	return snapshot
 }
 
