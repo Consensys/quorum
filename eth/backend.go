@@ -206,11 +206,13 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		ForceJit:  config.ForceJit,
 	}
 
-	raftPow := core.RaftPow{}
+	// We can't swap fake pow into eth.pow: that field has to be a *ethash.Ethash.
+	// So we just set a variable down here, minimizing changes to upstream geth.
+	fakePow := core.FakePow{}
 
 	performQuorumChecks := !config.RaftMode
 
-	eth.blockchain, err = core.NewBlockChain(chainDb, eth.chainConfig, raftPow, eth.EventMux(), performQuorumChecks)
+	eth.blockchain, err = core.NewBlockChain(chainDb, eth.chainConfig, fakePow, eth.EventMux(), performQuorumChecks)
 	if err != nil {
 		if err == core.ErrNoGenesis {
 			return nil, fmt.Errorf(`No chain found. Please initialise a new chain using the "init" subcommand.`)
@@ -220,7 +222,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	newPool := core.NewTxPool(eth.chainConfig, eth.EventMux(), eth.blockchain.State, eth.blockchain.GasLimit)
 	eth.txPool = newPool
 
-	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SingleBlockMaker, config.NetworkId, eth.eventMux, eth.txPool, raftPow, eth.blockchain, chainDb); err != nil {
+	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SingleBlockMaker, config.NetworkId, eth.eventMux, eth.txPool, fakePow, eth.blockchain, chainDb); err != nil {
 		return nil, err
 	}
 
