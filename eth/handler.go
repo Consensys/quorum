@@ -90,11 +90,13 @@ type ProtocolManager struct {
 	wg sync.WaitGroup
 
 	badBlockReportingEnabled bool
+
+	raftMode bool
 }
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the ethereum network.
-func NewProtocolManager(config *core.ChainConfig, singleMiner bool, networkId int, mux *event.TypeMux, txpool txPool, pow pow.PoW, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
+func NewProtocolManager(config *core.ChainConfig, singleMiner bool, networkId int, mux *event.TypeMux, txpool txPool, pow pow.PoW, blockchain *core.BlockChain, chaindb ethdb.Database, raftMode bool) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkId:   networkId,
@@ -108,6 +110,7 @@ func NewProtocolManager(config *core.ChainConfig, singleMiner bool, networkId in
 		noMorePeers: make(chan struct{}),
 		txsyncCh:    make(chan *txsync),
 		quitSync:    make(chan struct{}),
+		raftMode:    raftMode,
 	}
 	if singleMiner {
 		manager.synced = uint32(1)
@@ -203,15 +206,17 @@ func (pm *ProtocolManager) Start() {
 	// broadcast transactions
 	pm.txSub = pm.eventMux.Subscribe(core.TxPreEvent{})
 	go pm.txBroadcastLoop()
-	// broadcast mined blocks
 
-	// TODO(joel) - stop eth listening on this event in a less invasive way
-	// pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
-	// go pm.minedBroadcastLoop()
-	// We set this immediately in raft mode to make sure the miner never drops
-	// txes. We don't use the fetcher or downloader, and so this would never be
-	// set otherwise.
-	atomic.StoreUint32(&pm.synced, 1)
+	if !pm.raftMode {
+		// broadcast mined blocks
+		pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
+		go pm.minedBroadcastLoop()
+	} else {
+		// We set this immediately in raft mode to make sure the miner never drops
+		// incoming txes. Raft mode doesn't use the fetcher or downloader, and so
+		// this would never be set otherwise.
+		atomic.StoreUint32(&pm.synced, 1)
+	}
 
 	// start sync handlers
 	go pm.syncer()
@@ -221,8 +226,10 @@ func (pm *ProtocolManager) Start() {
 func (pm *ProtocolManager) Stop() {
 	glog.V(logger.Info).Infoln("Stopping ethereum protocol handler...")
 
-	pm.txSub.Unsubscribe() // quits txBroadcastLoop
-	// pm.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
+	pm.txSub.Unsubscribe()         // quits txBroadcastLoop
+	if !pm.raftMode {
+		pm.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
+	}
 
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.

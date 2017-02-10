@@ -222,7 +222,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	newPool := core.NewTxPool(eth.chainConfig, eth.EventMux(), eth.blockchain.State, eth.blockchain.GasLimit)
 	eth.txPool = newPool
 
-	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SingleBlockMaker, config.NetworkId, eth.eventMux, eth.txPool, fakePow, eth.blockchain, chainDb); err != nil {
+	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SingleBlockMaker, config.NetworkId, eth.eventMux, eth.txPool, fakePow, eth.blockchain, chainDb, config.RaftMode); err != nil {
 		return nil, err
 	}
 
