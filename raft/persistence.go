@@ -11,6 +11,18 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
+var (
+	noFsync = &opt.WriteOptions{
+		NoWriteMerge: false,
+		Sync:         false,
+	}
+
+	mustFsync = &opt.WriteOptions{
+		NoWriteMerge: false,
+		Sync:         true,
+	}
+)
+
 func openQuorumRaftDb(path string) (db *leveldb.DB, err error) {
 	// Open the db and recover any potential corruptions
 	db, err = leveldb.OpenFile(path, &opt.Options{
@@ -43,7 +55,7 @@ func (pm *ProtocolManager) writeAppliedIndex(index uint64) {
 	glog.V(logger.Info).Infof("Persistent applied index write: %d", index)
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, index)
-	pm.quorumRaftDb.Put(appliedDbKey, buf, nil)
+	pm.quorumRaftDb.Put(appliedDbKey, buf, noFsync)
 }
 
 func (pm *ProtocolManager) loadPeerUrl(nodeId uint64) string {
@@ -59,5 +71,5 @@ func (pm *ProtocolManager) writePeerUrl(nodeId uint64, url string) {
 	key := []byte(peerUrlKeyPrefix + string(nodeId))
 	value := []byte(url)
 
-	pm.quorumRaftDb.Put(key, value, nil)
+	pm.quorumRaftDb.Put(key, value, mustFsync)
 }
