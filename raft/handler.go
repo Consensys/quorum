@@ -107,13 +107,15 @@ type ProtocolManager struct {
 	// starting or stopping the miner in notifyRoleChange. We might want to remove
 	// it, but it might also be useful to check.
 	role int
+
+	minter *minter
 }
 
 //
 // Public interface
 //
 
-func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux, peers []*discover.Node, datadir string) (*ProtocolManager, error) {
+func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux, peers []*discover.Node, datadir string, minter *minter) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -135,6 +137,7 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 		id:          id,
 		quitSync:    make(chan struct{}),
 		raftStorage: etcdRaft.NewMemoryStorage(),
+		minter:      minter,
 	}
 
 	if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
@@ -146,10 +149,10 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 	return manager, nil
 }
 
-func (pm *ProtocolManager) Start(minter *minter) {
+func (pm *ProtocolManager) Start() {
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	go pm.minedBroadcastLoop(pm.proposeC)
-	pm.startRaftNode(minter)
+	pm.startRaftNode()
 }
 
 func (pm *ProtocolManager) Stop() {
@@ -235,7 +238,7 @@ func (pm *ProtocolManager) ReportSnapshot(id uint64, status etcdRaft.SnapshotSta
 // Private methods
 //
 
-func (pm *ProtocolManager) startRaftNode(minter *minter) {
+func (pm *ProtocolManager) startRaftNode() {
 	if !fileutil.Exist(pm.snapdir) {
 		if err := os.Mkdir(pm.snapdir, 0750); err != nil {
 			glog.Fatalf("cannot create dir for snapshot (%v)", err)
@@ -315,7 +318,7 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	go pm.serveRaft()
 	go pm.serveInternal(pm.proposeC, pm.confChangeC)
 	go pm.eventLoop()
-	go pm.handleRoleChange(pm.rawNode.RoleChan().Out(), minter)
+	go pm.handleRoleChange(pm.rawNode.RoleChan().Out())
 }
 
 func (pm *ProtocolManager) serveRaft() {
@@ -338,7 +341,7 @@ func (pm *ProtocolManager) serveRaft() {
 	close(pm.httpdonec)
 }
 
-func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}, minter *minter) {
+func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 	for {
 		select {
 		case role := <-roleC:
@@ -350,10 +353,10 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}, minter *mi
 
 			if intRole == minterRole {
 				logCheckpoint(BECAME_MINTER, "")
-				minter.start()
+				pm.minter.start()
 			} else { // verifier
 				logCheckpoint(BECAME_VERIFIER, "")
-				minter.stop()
+				pm.minter.stop()
 			}
 
 			pm.mu.Lock()

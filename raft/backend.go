@@ -53,7 +53,7 @@ func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, id int, blockT
 	service.minter = newMinter(chainConfig, service, blockTime)
 
 	var err error
-	if service.raftProtocolManager, err = NewProtocolManager(id, service.blockchain, service.eventMux, startPeers, datadir); err != nil {
+	if service.raftProtocolManager, err = NewProtocolManager(id, service.blockchain, service.eventMux, startPeers, datadir, service.minter); err != nil {
 		return nil, err
 	}
 
@@ -75,7 +75,7 @@ func (service *RaftService) APIs() []rpc.API { return []rpc.API{} }
 // Start implements node.Service, starting the background data propagation thread
 // of the protocol.
 func (service *RaftService) Start(*p2p.Server) error {
-	service.raftProtocolManager.Start(service.minter)
+	service.raftProtocolManager.Start()
 	return nil
 }
 
