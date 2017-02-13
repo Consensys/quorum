@@ -852,7 +852,6 @@ func (self *BlockChain) WriteDetachedBlock(block *types.Block) (err error) {
 
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
 
-	// Make sure no inconsistent state is leaked while writing the block
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
