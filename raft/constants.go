@@ -1,7 +1,7 @@
 package gethRaft
 
 import (
-	"github.com/coreos/etcd/raft"
+	etcdRaft "github.com/coreos/etcd/raft"
 )
 
 const (
@@ -10,8 +10,8 @@ const (
 
 	raftMsg = 0x00
 
-	minterRole   = raft.LEADER
-	verifierRole = raft.NOT_LEADER
+	minterRole   = etcdRaft.LEADER
+	verifierRole = etcdRaft.NOT_LEADER
 
 	// Raft's ticker interval
 	tickerMS = 100

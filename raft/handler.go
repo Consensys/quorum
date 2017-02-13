@@ -37,7 +37,7 @@ import (
 
 	"github.com/coreos/etcd/etcdserver/stats"
 	raftTypes "github.com/coreos/etcd/pkg/types"
-	"github.com/coreos/etcd/raft"
+	etcdRaft "github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/rafthttp"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -55,7 +55,7 @@ type ProtocolManager struct {
 	id int
 
 	// set of currently active peers known to the raft cluster. this includes self
-	raftPeers []raft.Peer
+	raftPeers []etcdRaft.Peer
 	peerUrls  []string
 	p2pNodes  []*discover.Node
 
@@ -70,8 +70,8 @@ type ProtocolManager struct {
 	downloader *downloader.Downloader
 	peerGetter func() (string, *big.Int)
 
-	rawNode     raft.Node
-	raftStorage *raft.MemoryStorage
+	rawNode     etcdRaft.Node
+	raftStorage *etcdRaft.MemoryStorage
 
 	transport *rafthttp.Transport
 	httpstopc chan struct{}
@@ -134,7 +134,7 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 		snapshotter: snap.New(snapdir),
 		id:          id,
 		quitSync:    make(chan struct{}),
-		raftStorage: raft.NewMemoryStorage(),
+		raftStorage: etcdRaft.NewMemoryStorage(),
 	}
 
 	if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
@@ -226,7 +226,7 @@ func (pm *ProtocolManager) ReportUnreachable(id uint64) {
 	pm.rawNode.ReportUnreachable(id)
 }
 
-func (pm *ProtocolManager) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
+func (pm *ProtocolManager) ReportSnapshot(id uint64, status etcdRaft.SnapshotStatus) {
 	glog.V(logger.Info).Infof("status of last-sent snapshot: %v", status)
 	pm.rawNode.ReportSnapshot(id, status)
 }
@@ -252,7 +252,7 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 
 	lastAppliedIndex := pm.loadAppliedIndex()
 
-	c := &raft.Config{
+	c := &etcdRaft.Config{
 		Applied:       lastAppliedIndex,
 		ID:            uint64(pm.id),
 		ElectionTick:  10, // NOTE: cockroach sets this to 15
@@ -278,7 +278,7 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 		// of 4) provide for up to 64 KB of raft log to be sent without
 		// acknowledgement. With an average entry size of 1 KB that translates
 		// to ~64 commands that might be executed in the handling of a single
-		// raft.Ready operation.
+		// etcdraft.Ready operation.
 		MaxInflightMsgs: 256, // NOTE: in cockroachdb this is 4
 	}
 
@@ -301,7 +301,7 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 	if walExisted {
 		pm.reconnectToPreviousPeers()
 
-		pm.rawNode = raft.RestartNode(c)
+		pm.rawNode = etcdRaft.RestartNode(c)
 	} else {
 		if numPeers := len(pm.raftPeers); numPeers == 0 {
 			panic("exiting due to empty raft peers list")
@@ -309,7 +309,7 @@ func (pm *ProtocolManager) startRaftNode(minter *minter) {
 			glog.V(logger.Info).Infof("starting raft with %v total peers.", numPeers)
 		}
 
-		pm.rawNode = raft.StartNode(c, pm.raftPeers)
+		pm.rawNode = etcdRaft.StartNode(c, pm.raftPeers)
 	}
 
 	go pm.serveRaft()
@@ -474,7 +474,7 @@ func (pm *ProtocolManager) eventLoop() {
 		case rd := <-pm.rawNode.Ready():
 			pm.wal.Save(rd.HardState, rd.Entries)
 
-			if snap := rd.Snapshot; !raft.IsEmptySnap(snap) {
+			if snap := rd.Snapshot; !etcdRaft.IsEmptySnap(snap) {
 				pm.saveSnapshot(snap)
 				pm.applySnapshot(snap)
 			}
@@ -566,12 +566,12 @@ func (pm *ProtocolManager) eventLoop() {
 	}
 }
 
-func makeRaftPeers(urls []string) []raft.Peer {
-	peers := make([]raft.Peer, len(urls))
+func makeRaftPeers(urls []string) []etcdRaft.Peer {
+	peers := make([]etcdRaft.Peer, len(urls))
 	for i, url := range urls {
 		peerId := i + 1
 
-		peers[i] = raft.Peer{
+		peers[i] = etcdRaft.Peer{
 			ID:      uint64(peerId),
 			Context: []byte(url),
 		}
