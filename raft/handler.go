@@ -170,9 +170,7 @@ func (pm *ProtocolManager) Stop() {
 
 	pm.quorumRaftDb.Close()
 
-	//
-	// TODO: stop minting here
-	//
+	pm.minter.stop()
 
 	glog.V(logger.Info).Infoln("Raft protocol handler stopped")
 }
