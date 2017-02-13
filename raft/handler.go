@@ -113,7 +113,7 @@ type ProtocolManager struct {
 // Public interface
 //
 
-func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux, downloader *downloader.Downloader, peers []*discover.Node, peerGetter func() (string, *big.Int), datadir string) (*ProtocolManager, error) {
+func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux, peers []*discover.Node, datadir string) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -125,8 +125,6 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 		p2pNodes:    peers,
 		blockchain:  blockchain,
 		eventMux:    mux,
-		downloader:  downloader,
-		peerGetter:  peerGetter,
 		proposeC:    make(chan *types.Block),
 		confChangeC: make(chan raftpb.ConfChange),
 		httpstopc:   make(chan struct{}),

@@ -50,14 +50,10 @@ func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, id int, blockT
 		startPeers:     startPeers,
 	}
 
-	ethProxy := e.GetProxy()
-
 	service.minter = newMinter(chainConfig, service, blockTime)
 
 	var err error
-	if service.raftProtocolManager, err = NewProtocolManager(id,
-		service.blockchain, service.eventMux, ethProxy.Downloader,
-		startPeers, ethProxy.GetBestRaftPeer, datadir); err != nil {
+	if service.raftProtocolManager, err = NewProtocolManager(id, service.blockchain, service.eventMux, startPeers, datadir); err != nil {
 		return nil, err
 	}
 
