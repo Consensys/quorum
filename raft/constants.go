@@ -28,8 +28,6 @@ const (
 	peerUrlKeyPrefix = "peerUrl-"
 
 	// checkpoints
-	peerConnected    = "PEER-CONNECTED"
-	peerDisconnected = "PEER-DISCONNECTED"
 	txCreated        = "TX-CREATED"
 	txAccepted       = "TX-ACCEPTED"
 	becameMinter     = "BECAME-MINTER"
