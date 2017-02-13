@@ -352,10 +352,10 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 			}
 
 			if intRole == minterRole {
-				logCheckpoint(BECAME_MINTER, "")
+				logCheckpoint(becameMinter, "")
 				pm.minter.start()
 			} else { // verifier
-				logCheckpoint(BECAME_VERIFIER, "")
+				logCheckpoint(becameVerifier, "")
 				pm.minter.stop()
 			}
 
@@ -630,7 +630,7 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 		}
 
 		for _, tx := range block.Transactions() {
-			logCheckpoint(TX_ACCEPTED, tx.Hash().Hex())
+			logCheckpoint(txAccepted, tx.Hash().Hex())
 		}
 
 		if pm.blockchain.HasBlock(block.Hash()) {

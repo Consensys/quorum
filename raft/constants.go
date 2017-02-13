@@ -28,12 +28,12 @@ const (
 	peerUrlKeyPrefix = "peerUrl-"
 
 	// checkpoints
-	PEER_CONNECTED = "PEER-CONNECTED"
-	PEER_DISCONNECTED = "PEER-DISCONNECTED"
-	TX_CREATED = "TX-CREATED"
-	TX_ACCEPTED = "TX-ACCEPTED"
-	BECAME_MINTER = "BECAME-MINTER"
-	BECAME_VERIFIER = "BECAME-VERIFIER"
+	peerConnected    = "PEER-CONNECTED"
+	peerDisconnected = "PEER-DISCONNECTED"
+	txCreated        = "TX-CREATED"
+	txAccepted       = "TX-ACCEPTED"
+	becameMinter     = "BECAME-MINTER"
+	becameVerifier   = "BECAME-VERIFIER"
 )
 
 var (
