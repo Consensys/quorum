@@ -150,13 +150,15 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 }
 
 func (pm *ProtocolManager) Start() {
+	glog.V(logger.Info).Infoln("starting raft protocol handler")
+
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	go pm.minedBroadcastLoop(pm.proposeC)
 	pm.startRaftNode()
 }
 
 func (pm *ProtocolManager) Stop() {
-	glog.V(logger.Info).Infoln("Stopping raft protocol handler...")
+	glog.V(logger.Info).Infoln("stopping raft protocol handler...")
 
 	pm.minedBlockSub.Unsubscribe()
 
@@ -172,7 +174,7 @@ func (pm *ProtocolManager) Stop() {
 
 	pm.minter.stop()
 
-	glog.V(logger.Info).Infoln("Raft protocol handler stopped")
+	glog.V(logger.Info).Infoln("raft protocol handler stopped")
 }
 
 func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
