@@ -869,6 +869,9 @@ func (self *BlockChain) WriteDetachedBlock(block *types.Block) (err error) {
 	return
 }
 
+// Sets a "detached block" to be the new head of the chain.
+//
+// See WriteDetachedBlock.
 func (self *BlockChain) SetNewHeadBlock(block *types.Block) {
 	self.wg.Add(1)
 	defer self.wg.Done()
