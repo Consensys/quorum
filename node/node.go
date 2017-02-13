@@ -81,6 +81,8 @@ type Node struct {
 
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
+
+
 }
 
 // New creates a new P2P node, ready for protocol registration.
@@ -156,21 +158,22 @@ func (n *Node) Start() error {
 	// Initialize the p2p server. This creates the node key and
 	// discovery databases.
 	n.serverConfig = p2p.Config{
-		PrivateKey:           n.config.NodeKey(),
-		Name:                 n.config.NodeName(),
-		Discovery:            !n.config.NoDiscovery,
-		BootstrapNodes:       n.config.BootstrapNodes,
-		StaticNodes:          n.config.StaticNodes(),
-		TrustedNodes:         n.config.TrusterNodes(),
-		NodeDatabase:         n.config.NodeDB(),
-		ListenAddr:           n.config.ListenAddr,
-		NAT:                  n.config.NAT,
-		Dialer:               n.config.Dialer,
-		NoDial:               n.config.NoDial,
-		MaxPeers:             n.config.MaxPeers,
-		MaxPendingPeers:      n.config.MaxPendingPeers,
+		PrivateKey:      n.config.NodeKey(),
+		Name:            n.config.NodeName(),
+		Discovery:       !n.config.NoDiscovery,
+		BootstrapNodes:  n.config.BootstrapNodes,
+		StaticNodes:     n.config.StaticNodes(),
+		TrustedNodes:    n.config.TrusterNodes(),
+		NodeDatabase:    n.config.NodeDB(),
+		ListenAddr:      n.config.ListenAddr,
+		NAT:             n.config.NAT,
+		Dialer:          n.config.Dialer,
+		NoDial:          n.config.NoDial,
+		MaxPeers:        n.config.MaxPeers,
+		MaxPendingPeers: n.config.MaxPendingPeers,
 		EnableNodePermission: n.config.EnableNodePermission,
-		DataDir:              n.config.DataDir,
+		DataDir:           n.config.DataDir,
+
 	}
 	running := &p2p.Server{Config: n.serverConfig}
 	glog.V(logger.Info).Infoln("instance:", n.serverConfig.Name)
