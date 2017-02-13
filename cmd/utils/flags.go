@@ -746,7 +746,7 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 				log.Panicf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
 			}
 
-			return gethRaft.New(ctx, chainConfig, myId, blockTimeNanos, ethereum, peers, datadir)
+			return raft.New(ctx, chainConfig, myId, blockTimeNanos, ethereum, peers, datadir)
 		}); err != nil {
 			Fatalf("Failed to register the Raft service: %v", err)
 		}

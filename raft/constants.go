@@ -1,4 +1,4 @@
-package gethRaft
+package raft
 
 import (
 	etcdRaft "github.com/coreos/etcd/raft"

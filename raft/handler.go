@@ -8,7 +8,7 @@
 // * proposeC, for proposals flowing from ethereum to raft
 // * confChangeC, currently unused; in the future for adding new, non-initial, raft peers
 // * roleC, coming from raft notifies us when our role changes
-package gethRaft
+package raft
 
 import (
 	"fmt"
