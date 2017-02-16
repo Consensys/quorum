@@ -98,9 +98,6 @@ type ProtocolManager struct {
 
 	proposeC    chan *types.Block
 	confChangeC chan raftpb.ConfChange
-	// messages committed by raft (right now these are the messages committed
-	// right when raft starts)
-	logCommandC chan interface{}
 	quitSync    chan struct{}
 
 	// Note: we don't actually use this field. We just set it at the same time as
