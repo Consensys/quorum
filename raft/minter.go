@@ -314,14 +314,14 @@ func throttle(rate time.Duration, f func()) func() {
 //      requested.
 //   2. We never mint a block more frequently than `blockTime`.
 func (minter *minter) mintingLoop() {
-	throttledCommitNewWork := throttle(minter.blockTime, func() {
+	throttledMintNewBlock := throttle(minter.blockTime, func() {
 		if atomic.LoadInt32(&minter.minting) == 1 {
 			minter.mintNewBlock()
 		}
 	})
 
 	for range minter.shouldMine.Out() {
-		throttledCommitNewWork()
+		throttledMintNewBlock()
 	}
 }
 
