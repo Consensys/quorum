@@ -47,7 +47,7 @@ func (ps *pendingState) applyTransaction(tx *types.Transaction, bc *core.BlockCh
 	}
 	config.ForceJit = false // disable forcing jit
 
-	receipt, logs, _, err := core.ApplyTransaction(cc, bc, ps.gp, ps.publicState, ps.privateState, ps.header, tx, ps.header.GasUsed, config)
+	publicReceipt, _, _, err := core.ApplyTransaction(cc, bc, ps.gp, ps.publicState, ps.privateState, ps.header, tx, ps.header.GasUsed, config)
 	if err != nil {
 		ps.publicState.RevertToSnapshot(publicSnaphot)
 		ps.privateState.RevertToSnapshot(privateSnapshot)
@@ -55,9 +55,9 @@ func (ps *pendingState) applyTransaction(tx *types.Transaction, bc *core.BlockCh
 		return err, nil
 	}
 	ps.txs = append(ps.txs, tx)
-	ps.receipts = append(ps.receipts, receipt)
+	ps.receipts = append(ps.receipts, publicReceipt)
 
-	return nil, logs
+	return nil, publicReceipt.Logs
 }
 
 func (ps *pendingState) applyTransactions(txs *types.TransactionsByPriorityAndNonce, mux *event.TypeMux, bc *core.BlockChain, cc *core.ChainConfig) (types.Transactions, types.Transactions) {

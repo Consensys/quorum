@@ -53,16 +53,9 @@ func TestPrivateTransaction(t *testing.T) {
 
 	prvContractAddr := common.Address{1}
 	pubContractAddr := common.Address{2}
-	/* gllc
-	asm {
-	PUSH1 10
-	PUSH1 0
-	SSTORE
-	}
-	*/
-	privateState.SetCode(prvContractAddr, common.Hex2Bytes("600a60005500"))
+	privateState.SetCode(prvContractAddr, common.Hex2Bytes("600a600055600060006001a1"))
 	privateState.SetState(prvContractAddr, common.Hash{}, common.Hash{9})
-	publicState.SetCode(pubContractAddr, common.Hex2Bytes("601460005500"))
+	publicState.SetCode(pubContractAddr, common.Hex2Bytes("6014600055"))
 	publicState.SetState(pubContractAddr, common.Hash{}, common.Hash{19})
 
 	// Private transaction 1
@@ -73,6 +66,9 @@ func TestPrivateTransaction(t *testing.T) {
 	stateEntry := privateState.GetState(prvContractAddr, common.Hash{}).Big()
 	if stateEntry.Cmp(big.NewInt(10)) != 0 {
 		t.Error("expected state to have 10, got", stateEntry)
+	}
+	if len(privateState.Logs()) != 1 {
+		t.Error("expected private state to have 1 log, got", len(privateState.Logs()))
 	}
 
 	// Public transaction 1

@@ -57,6 +57,8 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	if !private {
 		privateState = publicState
 	}
+
+	cg.header.Number = new(big.Int)
 	_, _, err = ApplyMessage(NewEnv(publicState, privateState, &ChainConfig{}, nil, ptx.Transaction, &cg.header, vm.Config{}), ptx, cg.gp)
 	if err != nil {
 		return err

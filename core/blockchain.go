@@ -931,13 +931,14 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 			return i, err
 		}
 		// Process block using the parent state as reference point.
-		receipts, logs, usedGas, err := self.processor.Process(block, self.publicStateCache, self.privateStateCache, self.config.VmConfig)
+		publicReceipts, privateReceipts, logs, usedGas, err := self.processor.Process(block, self.publicStateCache, self.privateStateCache, self.config.VmConfig)
 		if err != nil {
 			reportBlock(block, err)
 			return i, err
 		}
+
 		// Validate the state using the default validator
-		err = self.Validator().ValidateState(block, self.GetBlock(block.ParentHash(), block.NumberU64()-1), self.publicStateCache, receipts, usedGas)
+		err = self.Validator().ValidateState(block, self.GetBlock(block.ParentHash(), block.NumberU64()-1), self.publicStateCache, publicReceipts, usedGas)
 		if err != nil {
 			reportBlock(block, err)
 			return i, err
@@ -960,7 +961,8 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		// coalesce logs for later processing
 		coalescedLogs = append(coalescedLogs, logs...)
 
-		if err := WriteBlockReceipts(self.chainDb, block.Hash(), block.NumberU64(), receipts); err != nil {
+		allReceipts := append(publicReceipts, privateReceipts...)
+		if err := WriteBlockReceipts(self.chainDb, block.Hash(), block.NumberU64(), allReceipts); err != nil {
 			return i, err
 		}
 
@@ -983,11 +985,15 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 				return i, err
 			}
 			// store the receipts
-			if err := WriteReceipts(self.chainDb, receipts); err != nil {
+			if err := WriteReceipts(self.chainDb, allReceipts); err != nil {
 				return i, err
 			}
 			// Write map map bloom filters
-			if err := WriteMipmapBloom(self.chainDb, block.NumberU64(), receipts); err != nil {
+			if err := WriteMipmapBloom(self.chainDb, block.NumberU64(), allReceipts); err != nil {
+				return i, err
+			}
+			// Write private block bloom
+			if err := WritePrivateBlockBloom(self.chainDb, block.NumberU64(), privateReceipts); err != nil {
 				return i, err
 			}
 		case SideStatTy:
