@@ -746,6 +746,15 @@ web3._extend({
                                 return pr.Vulnerable;
                         }
 		})
+		,
+		new web3._extend.Method({
+			name: 'pauseVoting',
+			call: 'quorum_pauseVoting'
+		}),
+		new web3._extend.Method({
+			name: 'resumeVoting',
+			call: 'quorum_resumeVoting'
+		})
 	],
 	properties:
 	[
@@ -756,70 +765,3 @@ web3._extend({
 	]
 });
 `
-
-/*
-const Voting_JS = `
-web3._extend({
-	property: 'voting',
-	methods: [
-		new web3._extend.Method({
-			name: 'startVoting',
-			call: 'voting_startVoting'
-		}),
-		new web3._extend.Method({
-			name: 'stopVoting',
-			call: 'voting_stopVoting'
-		}),
-		new web3._extend.Method({
-			name: 'addVoter',
-			call: 'voting_addVoter',
-			params: 1,
-			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
-		}),
-		new web3._extend.Method({
-			name: 'removeVoter',
-			call: 'voting_removeVoter',
-			params: 1,
-			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
-		}),
-		new web3._extend.Method({
-			name: 'startBlockMaker',
-			call: 'voting_startBlockMaker'
-		}),
-		new web3._extend.Method({
-			name: 'stopBlockMaker',
-			call: 'voting_stopBlockMaker'
-		}),
-		new web3._extend.Method({
-			name: 'addBlockMaker',
-			call: 'voting_addBlockMaker',
-			params: 1,
-			iinputFormatter: [web3._extend.formatters.inputAddressFormatter]
-		}),
-		new web3._extend.Method({
-			name: 'removeBlockMaker',
-			call: 'voting_removeBlockMaker',
-			params: 1,
-			iinputFormatter: [web3._extend.formatters.inputAddressFormatter]
-		}),
-		new web3._extend.Method({
-			name: 'getEntry',
-			call: 'voting_getEntry',
-			params: 2
-		})
-	],
-	properties:
-	[
-		new web3._extend.Property({
-			name: 'period',
-			getter: 'voting_period'
-		}),
-		new web3._extend.Property({
-			name: 'voterCount',
-			getter: 'voting_voterCount'
-		}),
-
-	]
-});
-`
-*/

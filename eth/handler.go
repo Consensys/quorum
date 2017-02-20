@@ -96,7 +96,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the ethereum network.
-func NewProtocolManager(config *core.ChainConfig, singleMiner bool, networkId int, mux *event.TypeMux, txpool txPool, pow pow.PoW, blockchain *core.BlockChain, chaindb ethdb.Database, raftMode bool) (*ProtocolManager, error) {
+func NewProtocolManager(config *core.ChainConfig, assumeSyncedInitially bool, networkId int, mux *event.TypeMux, txpool txPool, pow pow.PoW, blockchain *core.BlockChain, chaindb ethdb.Database, raftMode bool) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkId:   networkId,
@@ -112,7 +112,7 @@ func NewProtocolManager(config *core.ChainConfig, singleMiner bool, networkId in
 		quitSync:    make(chan struct{}),
 		raftMode:    raftMode,
 	}
-	if singleMiner {
+	if assumeSyncedInitially {
 		manager.synced = uint32(1)
 	}
 	// Initiate a sub-protocol for every implemented version we can handle
@@ -226,7 +226,7 @@ func (pm *ProtocolManager) Start() {
 func (pm *ProtocolManager) Stop() {
 	glog.V(logger.Info).Infoln("Stopping ethereum protocol handler...")
 
-	pm.txSub.Unsubscribe()         // quits txBroadcastLoop
+	pm.txSub.Unsubscribe() // quits txBroadcastLoop
 	if !pm.raftMode {
 		pm.minedBlockSub.Unsubscribe() // quits blockBroadcastLoop
 	}

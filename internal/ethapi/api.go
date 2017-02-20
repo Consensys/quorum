@@ -196,13 +196,15 @@ func (s *PublicAccountAPI) Accounts() []accounts.Account {
 type PrivateAccountAPI struct {
 	am *accounts.Manager
 	b  Backend
+	nonceLock *AddrLocker
 }
 
 // NewPrivateAccountAPI create a new PrivateAccountAPI.
-func NewPrivateAccountAPI(b Backend) *PrivateAccountAPI {
+func NewPrivateAccountAPI(b Backend, nonceLock *AddrLocker) *PrivateAccountAPI {
 	return &PrivateAccountAPI{
 		am: b.AccountManager(),
 		b:  b,
+		nonceLock: nonceLock,
 	}
 }
 
@@ -261,18 +263,15 @@ func (s *PrivateAccountAPI) LockAccount(addr common.Address) bool {
 // tries to sign it with the key associated with args.To. If the given passwd isn't
 // able to decrypt the key it fails.
 func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
+	if args.Nonce == nil {
+		s.nonceLock.LockAddr(args.From)
+		defer s.nonceLock.UnlockAddr(args.From)
+	}
+
 	var err error
 	args, err = prepareSendTxArgs(ctx, args, s.b)
 	if err != nil {
 		return common.Hash{}, err
-	}
-
-	if args.Nonce == nil {
-		nonce, err := s.b.GetPoolNonce(ctx, args.From)
-		if err != nil {
-			return common.Hash{}, err
-		}
-		args.Nonce = rpc.NewHexNumber(nonce)
 	}
 
 	var tx *types.Transaction
@@ -911,11 +910,12 @@ func newRPCTransaction(b *types.Block, txHash common.Hash) (*RPCTransaction, err
 // PublicTransactionPoolAPI exposes methods for the RPC interface
 type PublicTransactionPoolAPI struct {
 	b Backend
+	nonceLock *AddrLocker
 }
 
 // NewPublicTransactionPoolAPI creates a new RPC service with methods specific for the transaction pool.
-func NewPublicTransactionPoolAPI(b Backend) *PublicTransactionPoolAPI {
-	return &PublicTransactionPoolAPI{b}
+func NewPublicTransactionPoolAPI(b Backend, nonceLock *AddrLocker) *PublicTransactionPoolAPI {
+	return &PublicTransactionPoolAPI{b, nonceLock}
 }
 
 func getTransaction(chainDb ethdb.Database, b Backend, txHash common.Hash) (*types.Transaction, bool, error) {
@@ -1138,6 +1138,12 @@ type SendTxArgs struct {
 
 // prepareSendTxArgs is a helper function that fills in default values for unspecified tx fields.
 func prepareSendTxArgs(ctx context.Context, args SendTxArgs, b Backend) (SendTxArgs, error) {
+	nonce, err := b.GetPoolNonce(ctx, args.From)
+	if err != nil {
+		return args, err
+	}
+	args.Nonce = rpc.NewHexNumber(nonce)
+
 	if args.Gas == nil {
 		args.Gas = rpc.NewHexNumber(defaultGas)
 	}
@@ -1186,6 +1192,11 @@ func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction, si
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the
 // transaction pool.
 func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args SendTxArgs) (common.Hash, error) {
+	if args.Nonce == nil {
+		s.nonceLock.LockAddr(args.From)
+		defer s.nonceLock.UnlockAddr(args.From)
+	}
+
 	var err error
 	args, err = prepareSendTxArgs(ctx, args, s.b)
 	if err != nil {

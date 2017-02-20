@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	mrand "math/rand"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -807,11 +806,11 @@ func (self *BlockChain) WriteBlock(block *types.Block) (status WriteStatus, err 
 	if ptd == nil {
 		return NonStatTy, ParentError(block.ParentHash())
 	}
+
 	// Make sure no inconsistent state is leaked during insertion
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
-	localTd := self.GetTd(self.currentBlock.Hash(), self.currentBlock.NumberU64())
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
 
 	// Irrelevant of the canonical status, write the block itself to the database
@@ -822,20 +821,17 @@ func (self *BlockChain) WriteBlock(block *types.Block) (status WriteStatus, err 
 		glog.Fatalf("failed to write block contents: %v", err)
 	}
 
-	// If the total difficulty is higher than our known, add it to the canonical chain
-	// Second clause in the if statement reduces the vulnerability to selfish mining.
-	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
-	if externTd.Cmp(localTd) > 0 || (externTd.Cmp(localTd) == 0 && mrand.Float64() < 0.5) {
+	status = SideStatTy
+	if self.currentBlock.NumberU64() < block.NumberU64() {
 		// Reorganise the chain if the parent is not the head block
 		if block.ParentHash() != self.currentBlock.Hash() {
 			if err := self.reorg(self.currentBlock, block); err != nil {
 				return NonStatTy, err
 			}
 		}
-		self.insert(block) // Insert the block as the new head of the chain
+
 		status = CanonStatTy
-	} else {
-		status = SideStatTy
+		self.insert(block)
 	}
 
 	self.futureBlocks.Remove(block.Hash())

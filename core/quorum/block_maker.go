@@ -26,6 +26,7 @@ type pendingState struct {
 	gp                        *core.GasPool
 	ownedAccounts             *set.Set
 	txs                       types.Transactions // set of transactions
+	alreadyVoted              bool               // keep track if already votes in this pending block
 	lowGasTxs                 types.Transactions
 	failedTxs                 types.Transactions
 	parent                    *types.Block
@@ -51,7 +52,6 @@ func (ps *pendingState) applyTransaction(tx *types.Transaction, bc *core.BlockCh
 	if err != nil {
 		ps.publicState.RevertToSnapshot(publicSnaphot)
 		ps.privateState.RevertToSnapshot(privateSnapshot)
-
 		return err, nil
 	}
 	ps.txs = append(ps.txs, tx)

@@ -4,17 +4,19 @@ $ quorum.nodeInfo returns the quorum capabilities of this node.
 Example output for a node that is configured as block maker and voter:
 > quorum.nodeInfo
 {
-  blockMakerAccount: "0x7bd175a388c7a5f33fb81bbb3b7e97cbfabb3600",
+  blockMakerAccount: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e",
   blockmakestrategy: {
-    maxblocktime: 6,
-    minblocktime: 3,
+    maxblocktime: 3,
+    maxvotetime: 4,
+    minblocktime: 1,
+    minvotetime: 3,
     status: "active",
     type: "deadline"
   },
   canCreateBlocks: true,
   canVote: true,
-  voteAccount: "0x7bd175a388c7a5f33fb81bbb3b7e97cbfabb3600"
-}
+  voteAccount: "0x0fbdc686b912d7722dc86510934589e0aaf3b55a"
+
 
 $ quorum.vote accepts a block hash and votes for this hash to be the canonical head on the current height. It returns the tx hash.
 > quorum.vote(eth.getBlock("latest").hash)
@@ -41,10 +43,12 @@ $ quorum.pauseBlockMaker (temporary) orders the node to stop creating blocks
 null
 > quorum.nodeInfo
 {
-  blockMakerAccount: "0x7bd175a388c7a5f33fb81bbb3b7e97cbfabb3600",
+  blockMakerAccount: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e",
   blockmakestrategy: {
     maxblocktime: 6,
     minblocktime: 3,
+    minblocktime: 1,
+    minvotetime: 3,
     status: "paused",
     type: "deadline"
   },
@@ -58,10 +62,12 @@ $ quorum.resumeBlockMaker instructs the node to begin creating blocks again when
 null
 > quorum.nodeInfo
 {
-  blockMakerAccount: "0x7bd175a388c7a5f33fb81bbb3b7e97cbfabb3600",
+  blockMakerAccount: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e",
   blockmakestrategy: {
     maxblocktime: 6,
     minblocktime: 3,
+    minblocktime: 1,
+    minvotetime: 3,
     status: "active",
     type: "deadline"
   },
@@ -72,10 +78,12 @@ null
 
 ### Command line flags
 QUORUM OPTIONS:
-  --voteaccount value		Address that is used to vote for blocks
-  --votepassword value		Password to unlock the voting address
-  --blockmakeraccount value	Address that is used to create blocks
-  --blockmakerpassword value	Password to unlock the block maker address
-  --singleblockmaker		Indicate this node is the only node that can create blocks
-  --minblocktime value		Set minimum block time (default: 3)
-  --maxblocktime value		Set max block time (default: 10)
+  --voteaccount value         Address that is used to vote for blocks
+  --votepassword value        Password to unlock the voting address
+  --blockmakeraccount value   Address that is used to create blocks
+  --blockmakerpassword value  Password to unlock the block maker address
+  --singleblockmaker          Indicate this node is the only node that can create blocks
+  --minblocktime value        Set minimum block time (default: 3)
+  --maxblocktime value        Set max block time (default: 10)
+  --minvotetime value         Set min voting time (default: 3)
+  --maxvotetime value         Set max voting time (default: 10)
