@@ -177,7 +177,11 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 	if atomic.LoadUint32(&pm.fastSync) == 1 {
 		mode = downloader.FastSync
 	}
+
+	prevSyncedStatus := atomic.LoadUint32(&pm.synced)
+	atomic.StoreUint32(&pm.synced, 0) // Mark catching up with peer
 	if err := pm.downloader.Synchronise(peer.id, pHead, pTd, mode); err != nil {
+		atomic.StoreUint32(&pm.synced, prevSyncedStatus)
 		return
 	}
 	atomic.StoreUint32(&pm.synced, 1) // Mark initial sync done

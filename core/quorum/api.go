@@ -31,8 +31,8 @@ func (api *PublicQuorumAPI) Vote(blockHash common.Hash) (common.Hash, error) {
 	req := Vote{
 		Hash:   blockHash,
 		Number: pBlock.Number(),
-		TxHash: make(chan common.Hash),
-		Err:    make(chan error),
+		TxHash: make(chan common.Hash, 1),
+		Err:    make(chan error, 1),
 	}
 
 	if err := api.bv.mux.Post(req); err != nil {
@@ -74,8 +74,8 @@ func (api *PublicQuorumAPI) NodeInfo() map[string]interface{} {
 
 func (api *PublicQuorumAPI) MakeBlock() (common.Hash, error) {
 	req := CreateBlock{
-		Hash: make(chan common.Hash),
-		Err:  make(chan error),
+		Hash: make(chan common.Hash, 1),
+		Err:  make(chan error, 1),
 	}
 
 	if err := api.bv.mux.Post(req); err != nil {

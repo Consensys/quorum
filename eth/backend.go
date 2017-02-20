@@ -66,7 +66,7 @@ type Config struct {
 
 	NetworkId            int    // Network ID to use for selecting peers to connect to
 	Genesis              string // Genesis JSON to seed the chain database with
-	SingleBlockMaker     bool   // Assume this node is the only node on the network allowed to create blocks
+	AssumeSynced         bool   // Assume this node is synced by default
 	EnableNodePermission bool   //Used for enabling / disabling node permissioning
 
 	SkipBcVersionCheck bool // e.g. blockchain export
@@ -90,8 +90,10 @@ type Config struct {
 	TestGenesisBlock *types.Block   // Genesis block to seed the chain database with (testing only!)
 	TestGenesisState ethdb.Database // Genesis state to seed the database with (testing only!)
 
-	VoteMinBlockTime uint
-	VoteMaxBlockTime uint
+	MinBlockTime uint
+	MaxBlockTime uint
+	MinVoteTime  uint
+	MaxVoteTime  uint
 
 	RaftMode bool
 }
@@ -127,10 +129,12 @@ type Ethereum struct {
 	netVersionId  int
 	netRPCService *ethapi.PublicNetAPI
 
-	blockVoting      *quorum.BlockVoting
-	voteMinBlockTime uint
-	voteMaxBlockTime uint
-	blockMakerStrat  quorum.BlockMakerStrategy
+	blockVoting     *quorum.BlockVoting
+	minBlockTime    uint
+	maxBlockTime    uint
+	minVoteTime     uint
+	maxVoteTime     uint
+	blockMakerStrat quorum.BlockMakerStrategy
 }
 
 // New creates a new Ethereum object (including the
@@ -150,21 +154,23 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 
 	eth := &Ethereum{
-		chainDb:          chainDb,
-		eventMux:         ctx.EventMux,
-		accountManager:   ctx.AccountManager,
-		pow:              pow,
-		shutdownChan:     make(chan bool),
-		stopDbUpgrade:    stopDbUpgrade,
-		httpclient:       httpclient.New(config.DocRoot),
-		netVersionId:     config.NetworkId,
-		NatSpec:          config.NatSpec,
-		PowTest:          config.PowTest,
-		etherbase:        config.Etherbase,
-		AutoDAG:          config.AutoDAG,
-		solcPath:         config.SolcPath,
-		voteMinBlockTime: config.VoteMinBlockTime,
-		voteMaxBlockTime: config.VoteMaxBlockTime,
+		chainDb:        chainDb,
+		eventMux:       ctx.EventMux,
+		accountManager: ctx.AccountManager,
+		pow:            pow,
+		shutdownChan:   make(chan bool),
+		stopDbUpgrade:  stopDbUpgrade,
+		httpclient:     httpclient.New(config.DocRoot),
+		netVersionId:   config.NetworkId,
+		NatSpec:        config.NatSpec,
+		PowTest:        config.PowTest,
+		etherbase:      config.Etherbase,
+		AutoDAG:        config.AutoDAG,
+		solcPath:       config.SolcPath,
+		minBlockTime:   config.MinBlockTime,
+		maxBlockTime:   config.MaxBlockTime,
+		minVoteTime:    config.MinVoteTime,
+		maxVoteTime:    config.MaxVoteTime,
 	}
 
 	if err := upgradeChainDatabase(chainDb); err != nil {
@@ -222,13 +228,13 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	newPool := core.NewTxPool(eth.chainConfig, eth.EventMux(), eth.blockchain.State, eth.blockchain.GasLimit)
 	eth.txPool = newPool
 
-	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SingleBlockMaker, config.NetworkId, eth.eventMux, eth.txPool, fakePow, eth.blockchain, chainDb, config.RaftMode); err != nil {
+	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.AssumeSynced, config.NetworkId, eth.eventMux, eth.txPool, eth.pow, eth.blockchain, chainDb, config.RaftMode); err != nil {
 		return nil, err
 	}
 
 	eth.apiBackend = &EthApiBackend{eth}
 
-	eth.blockVoting = quorum.NewBlockVoting(eth.blockchain, eth.chainConfig, eth.txPool, eth.eventMux, eth.chainDb, eth.accountManager, config.SingleBlockMaker)
+	eth.blockVoting = quorum.NewBlockVoting(eth.blockchain, eth.chainConfig, eth.txPool, eth.eventMux, eth.chainDb, eth.accountManager)
 
 	return eth, nil
 }

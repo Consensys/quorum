@@ -2,14 +2,12 @@ package quorum
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"gopkg.in/fatih/set.v0"
-
-	"fmt"
-
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -36,27 +34,32 @@ const (
 	RuntimeCode = "606060405236156100c45760e060020a60003504631290948581146100c9578063284d163c146100fe57806342169e481461013a578063488099a6146101485780634fe437d514610168578063559c390c1461017657806368bb8bb61461027b57806372a571fc146102eb57806386c1ff681461039157806398ba676d146103cd578063a7771ee31461043d578063adfaa72e1461046a578063cf5289851461048a578063de8fa43114610498578063e814d1c7146104b3578063f4ab9adf146104df575b610002565b3461000257610598600435600160a060020a03331660009081526003602052604090205460ff16156100c45760018190555b50565b3461000257610598600435600160a060020a03331660009081526005602052604090205460ff16156100c457600454600114156105ae57610002565b34610002576104a160025481565b346100025761059a60043560056020526000908152604090205460ff1681565b34610002576104a160015481565b34610002576104a160043560006000600060006000600050600186038154811015610002579080526002027f290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e5630192505b60018301548110156106275760018301805484916000918490811015610002576000918252602080832090910154835282810193909352604091820181205485825292869052205410801561025057506001805490840180548591600091859081101561000257906000526020600020900160005054815260208101919091526040016000205410155b156102735760018301805482908110156100025760009182526020909120015491505b6001016101c6565b3461000257610598600435602435600160a060020a03331660009081526003602052604081205460ff16156100c45780548390101561063457805480840381018083559082908290801582901161062f5760020281600202836000526020600020918201910161062f91906106bb565b3461000257610598600435600160a060020a03331660009081526005602052604090205460ff16156100c457600160a060020a0381166000908152604090205460ff1615156100fb5760406000819020805460ff191660019081179091556004805490910190558051600160a060020a038316815290517f1a4ce6942f7aa91856332e618fc90159f13a340611a308f5d7327ba0707e56859181900360200190a16100fb565b3461000257610598600435600160a060020a03331660009081526003602052604090205460ff16156100c4576002546001141561076457610002565b34610002576104a1600435602435600060006000600050600185038154811015610002579080526002027f290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e5630181509050806001016000508381548110156100025750825250602090200154919050565b346100025761059a600435600160a060020a03811660009081526003602052604090205460ff165b919050565b346100025761059a60043560036020526000908152604090205460ff1681565b34610002576104a160045481565b34610002576000545b60408051918252519081900360200190f35b346100025761059a600435600160a060020a03811660009081526005602052604090205460ff16610465565b3461000257610598600435600160a060020a03331660009081526003602052604090205460ff16156100c457600160a060020a03811660009081526003602052604090205460ff1615156100fb5760406000818120600160a060020a0384169182905260036020908152815460ff1916600190811790925560028054909201909155825191825291517f0ad2eca75347acd5160276fe4b5dad46987e4ff4af9e574195e3e9bc15d7e0ff929181900390910190a16100fb565b005b604080519115158252519081900360200190f35b600160a060020a03811660009081526005602052604090205460ff16156100fb5760406000819020805460ff19169055600480546000190190558051600160a060020a038316815290517f8cee3054364d6799f1c8962580ad61273d9d38ca1ff26516bd1ad23c099a60229181900360200190a16100fb565b509392505050565b505050505b60008054600019850190811015610002578382526002027f290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e56301602081905260408220549092501415610708578060010160005080548060010182818154818355818115116106f5578183600052602060002091820191016106f591906106dd565b50506002015b808211156106f1576001810180546000808355918252602082206106b5918101905b808211156106f157600081556001016106dd565b5090565b5050506000928352506020909120018290555b600082815260208281526040918290208054600101905581514381529081018490528151600160a060020a033316927f3d03ba7f4b5227cdb385f2610906e5bcee147171603ec40005b30915ad20e258928290030190a2505050565b600160a060020a03811660009081526003602052604090205460ff16156100fb5760406000819020805460ff19169055600280546000190190558051600160a060020a038316815290517f183393fc5cffbfc7d03d623966b85f76b9430f42d3aada2ac3f3deabc78899e89181900360200190a16100fb56"
 )
 
+var (
+	errSyncing             = fmt.Errorf("Node synchronising with network")
+	errCouldNotVote        = fmt.Errorf("Not not configured/allowed to vote")
+	errCouldNotCreateBlock = fmt.Errorf("Not not configured/allowed to create block")
+)
+
 // BlockVoting is a type of BlockMaker that uses a smart contract
 // to determine the canonical chain. Parties that are allowed to
 // vote send vote transactions to the voting contract. Based on
 // these transactions the parent block is selected where the next
 // block will be build on top of.
 type BlockVoting struct {
-	bc       *core.BlockChain
-	cc       *core.ChainConfig
-	txpool   *core.TxPool
-	synced   bool
-	mux      *event.TypeMux
-	db       ethdb.Database
-	am       *accounts.Manager
-	gasPrice *big.Int
+	bc           *core.BlockChain
+	cc           *core.ChainConfig
+	txpool       *core.TxPool
+	syncingChain bool
+	mux          *event.TypeMux
+	db           ethdb.Database
+	am           *accounts.Manager
+	gasPrice     *big.Int
 
 	voteSession  *VotingContractSession
 	callContract *VotingContractCaller
 
-	bmk      *ecdsa.PrivateKey
-	vk       *ecdsa.PrivateKey
-	coinbase common.Address
+	bmk *ecdsa.PrivateKey
+	vk  *ecdsa.PrivateKey
 
 	pStateMu sync.Mutex
 	pState   *pendingState
@@ -83,22 +86,22 @@ type CreateBlock struct {
 // NewBlockVoting creates a new BlockVoting instance.
 // blockMakerKey and/or voteKey can be nil in case this node doesn't create blocks or vote.
 // Note, don't forget to call Start.
-func NewBlockVoting(bc *core.BlockChain, chainConfig *core.ChainConfig, txpool *core.TxPool, mux *event.TypeMux, db ethdb.Database, accountMgr *accounts.Manager, isSynchronised bool) *BlockVoting {
+func NewBlockVoting(bc *core.BlockChain, chainConfig *core.ChainConfig, txpool *core.TxPool, mux *event.TypeMux, db ethdb.Database, accountMgr *accounts.Manager) *BlockVoting {
 	bv := &BlockVoting{
-		bc:     bc,
-		cc:     chainConfig,
-		txpool: txpool,
-		mux:    mux,
-		db:     db,
-		am:     accountMgr,
-		synced: isSynchronised,
+		bc:           bc,
+		cc:           chainConfig,
+		txpool:       txpool,
+		mux:          mux,
+		db:           db,
+		am:           accountMgr,
+		syncingChain: false,
 	}
 
 	return bv
 }
 
 func (bv *BlockVoting) resetPendingState(parent *types.Block) {
-	publicState, privateState, err := bv.bc.State()
+	publicState, privateState, err := bv.bc.StateAt(parent.Root())
 	if err != nil {
 		panic(fmt.Sprintf("State error: %v", err))
 	}
@@ -110,6 +113,7 @@ func (bv *BlockVoting) resetPendingState(parent *types.Block) {
 		header:        bv.makeHeader(parent),
 		gp:            new(core.GasPool),
 		ownedAccounts: accountAddressesSet(bv.am.Accounts()),
+		alreadyVoted:  false,
 	}
 
 	ps.gp.AddGas(ps.header.GasLimit)
@@ -223,42 +227,67 @@ func (bv *BlockVoting) run(strat BlockMakerStrategy) {
 
 				switch e := event.Data.(type) {
 				case downloader.StartEvent: // begin synchronising, stop block creation and/or voting
-					bv.synced = false
 					strat.Pause()
+					bv.syncingChain = true
 				case downloader.DoneEvent, downloader.FailedEvent: // caught up, or got an error, start block createion and/or voting
-					bv.synced = true
 					strat.Resume()
+					bv.syncingChain = false
 				case core.ChainHeadEvent: // got a new header, reset pending state
 					bv.resetPendingState(e.Block)
-					if bv.synced {
-						number := new(big.Int)
-						number.Add(e.Block.Number(), common.Big1)
-						if tx, err := bv.vote(number, e.Block.Hash()); err == nil {
-							if glog.V(logger.Debug) {
-								glog.Infof("Voted for %s on height %d in tx %s", e.Block.Hash().Hex(), number, tx.Hex())
-							}
-						} else if glog.V(logger.Debug) {
-							glog.Errorf("Unable to vote: %v", err)
-						}
-					}
 				case core.TxPreEvent: // tx entered pool, apply to pending state
 					bv.applyTransaction(e.Tx)
 				case Vote:
-					if bv.synced {
-						txHash, err := bv.vote(e.Number, e.Hash)
-						if err == nil && e.TxHash != nil {
-							e.TxHash <- txHash
-						} else if err != nil && e.Err != nil {
-							e.Err <- err
-						} else if err != nil {
-							if glog.V(logger.Debug) {
-								glog.Errorf("Unable to vote: %v", err)
-							}
+					// node is currently catching up with the chain
+					if bv.syncingChain {
+						if e.Err != nil {
+							e.Err <- errSyncing
 						}
-					} else {
-						e.Err <- fmt.Errorf("Node not synced")
+						continue
 					}
+
+					// node is not configured/allowed to vote
+					if !bv.canVote() {
+						if e.Err != nil {
+							e.Err <- errCouldNotVote
+						}
+						continue
+					}
+
+					// if the vote request doesn't contain the hash/number vote for our local head.
+					if e.Hash == (common.Hash{}) || e.Number == nil {
+						bv.pStateMu.Lock()
+						pBlock := bv.pState.parent
+						bv.pStateMu.Unlock()
+						e.Hash = pBlock.Hash()
+						e.Number = new(big.Int).Add(pBlock.Number(), common.Big1)
+					}
+
+					txHash, err := bv.vote(e.Number, e.Hash, e.Err != nil)
+					if err == nil && e.TxHash != nil {
+						e.TxHash <- txHash
+					} else if err != nil && e.Err != nil {
+						e.Err <- err
+					} else if err != nil {
+						if glog.V(logger.Debug) {
+							glog.Errorf("Unable to vote: %v", err)
+						}
+					}
+
 				case CreateBlock:
+					if bv.syncingChain {
+						if e.Err != nil {
+							e.Err <- errSyncing
+						}
+						continue
+					}
+
+					if !bv.canCreateBlocks() {
+						if e.Err != nil {
+							e.Err <- errCouldNotCreateBlock
+						}
+						continue
+					}
+
 					block, err := bv.createBlock()
 					if err == nil && e.Hash != nil {
 						e.Hash <- block.Hash()
@@ -269,22 +298,36 @@ func (bv *BlockVoting) run(strat BlockMakerStrategy) {
 							glog.Errorf("Unable to create block: %v", err)
 						}
 					}
-
-					if err != nil {
-						bv.pStateMu.Lock()
-						cBlock := bv.pState.parent
-						bv.pStateMu.Unlock()
-						num := new(big.Int).Add(cBlock.Number(), common.Big1)
-						_, err := bv.vote(num, cBlock.Hash())
-						if err != nil {
-							glog.Errorf("Unable to vote: %v", err)
-							bv.resetPendingState(bv.bc.CurrentBlock())
-						}
-					}
 				}
 			}
 		}
 	}()
+}
+
+func (bv *BlockVoting) canCreateBlocks() bool {
+	if bv.bmk == nil {
+		return false
+	}
+
+	r, err := bv.isBlockMaker(crypto.PubkeyToAddress(bv.bmk.PublicKey))
+	if err != nil {
+		glog.Errorf("Could not determine is node is allowed to create blocks: %v", err)
+		return false
+	}
+	return r
+}
+
+func (bv *BlockVoting) canVote() bool {
+	if bv.vk == nil {
+		return false
+	}
+
+	r, err := bv.isVoter(crypto.PubkeyToAddress(bv.vk.PublicKey))
+	if err != nil {
+		glog.Errorf("Could not determine if node is allowed to vote: %v", err)
+		return false
+	}
+	return r
 }
 
 func (bv *BlockVoting) applyTransaction(tx *types.Transaction) {
@@ -312,8 +355,18 @@ func (bv *BlockVoting) createBlock() (*types.Block, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if ch == (common.Hash{}) {
+		return nil, fmt.Errorf("No block with enough votes")
+	}
+
 	if ch != bv.pState.parent.Hash() {
-		return nil, fmt.Errorf("invalid canonical hash, expected %s got %s", ch.Hex(), bv.pState.header.Hash().Hex())
+		// majority voted for a different head than our pending block was based on
+		// reset pending state to the winning block
+		if pBlock := bv.bc.GetBlockByHash(ch); pBlock != nil {
+			bv.resetPendingState(pBlock)
+		}
+		return nil, fmt.Errorf("Winning parent block [0x%x] differs than pending block parent [0x%x]", ch, bv.pState.header.Hash())
 	}
 
 	bv.pStateMu.Lock()
@@ -355,7 +408,7 @@ func (bv *BlockVoting) createBlock() (*types.Block, error) {
 	return block, nil
 }
 
-func (bv *BlockVoting) vote(height *big.Int, hash common.Hash) (common.Hash, error) {
+func (bv *BlockVoting) vote(height *big.Int, hash common.Hash, force bool) (common.Hash, error) {
 	if bv.voteSession == nil {
 		return common.Hash{}, fmt.Errorf("Node is not configured for voting")
 	}
@@ -367,8 +420,16 @@ func (bv *BlockVoting) vote(height *big.Int, hash common.Hash) (common.Hash, err
 		return common.Hash{}, fmt.Errorf("%s is not allowed to vote", bv.voteSession.TransactOpts.From.Hex())
 	}
 
-	if glog.V(logger.Detail) {
-		glog.Infof("vote for %s on height %d", hash.Hex(), height)
+	if !force {
+		if ch, err := bv.canonHash(height.Uint64()); err == nil && ch != (common.Hash{}) {
+			// already enough votes, test if this node already has voted, if so don't vote again
+			bv.pStateMu.Lock()
+			alreadyVoted := bv.pState.alreadyVoted
+			bv.pStateMu.Unlock()
+			if alreadyVoted {
+				return common.Hash{}, fmt.Errorf("Node already voted on this height")
+			}
+		}
 	}
 
 	nonce := bv.txpool.Nonce(bv.voteSession.TransactOpts.From)
@@ -379,6 +440,12 @@ func (bv *BlockVoting) vote(height *big.Int, hash common.Hash) (common.Hash, err
 	if err != nil {
 		return common.Hash{}, err
 	}
+
+	bv.pStateMu.Lock()
+	if height.Uint64() == bv.pState.header.Number.Uint64() {
+		bv.pState.alreadyVoted = true
+	}
+	bv.pStateMu.Unlock()
 
 	return tx.Hash(), nil
 }

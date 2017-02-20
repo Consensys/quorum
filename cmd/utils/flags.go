@@ -29,6 +29,8 @@ import (
 	"strings"
 	"time"
 
+	"log"
+
 	"github.com/ethereum/ethash"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -50,7 +52,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"gopkg.in/urfave/cli.v1"
-	"log"
 )
 
 func init() {
@@ -357,14 +358,24 @@ var (
 		Usage: "Password to unlock the block maker address",
 		Value: "",
 	}
-	VoteMinBlockTimeFlag = cli.IntFlag{
+	MinBlockTimeFlag = cli.IntFlag{
 		Name:  "minblocktime",
-		Usage: "Set minimum block time",
+		Usage: "Set min block time",
 		Value: 3,
 	}
-	VoteMaxBlockTimeFlag = cli.IntFlag{
+	MaxBlockTimeFlag = cli.IntFlag{
 		Name:  "maxblocktime",
 		Usage: "Set max block time",
+		Value: 10,
+	}
+	MinVoteTimeFlag = cli.IntFlag{
+		Name:  "minvotetime",
+		Usage: "Set min vote time",
+		Value: 3,
+	}
+	MaxVoteTimeFlag = cli.IntFlag{
+		Name:  "maxvotetime",
+		Usage: "Set max vote time",
 		Value: 10,
 	}
 	SingleBlockMakerFlag = cli.BoolFlag{
@@ -670,21 +681,23 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 	chainConfig := MakeChainConfig(ctx, stack)
 
 	ethConf := &eth.Config{
-		Etherbase:        MakeEtherbase(stack.AccountManager(), ctx),
-		ChainConfig:      chainConfig,
-		SingleBlockMaker: ctx.GlobalBool(SingleBlockMakerFlag.Name),
-		DatabaseCache:    ctx.GlobalInt(CacheFlag.Name),
-		DatabaseHandles:  MakeDatabaseHandles(),
-		NetworkId:        ctx.GlobalInt(NetworkIdFlag.Name),
-		ExtraData:        MakeMinerExtra(extra, ctx),
-		NatSpec:          ctx.GlobalBool(NatspecEnabledFlag.Name),
-		DocRoot:          ctx.GlobalString(DocRootFlag.Name),
-		EnableJit:        jitEnabled,
-		ForceJit:         ctx.GlobalBool(VMForceJitFlag.Name),
-		SolcPath:         ctx.GlobalString(SolcPathFlag.Name),
-		VoteMinBlockTime: uint(ctx.GlobalInt(VoteMinBlockTimeFlag.Name)),
-		VoteMaxBlockTime: uint(ctx.GlobalInt(VoteMaxBlockTimeFlag.Name)),
-		RaftMode:         ctx.GlobalBool(RaftModeFlag.Name),
+		Etherbase:       MakeEtherbase(stack.AccountManager(), ctx),
+		ChainConfig:     MakeChainConfig(ctx, stack),
+		AssumeSynced:    ctx.GlobalIsSet(VoteBlockMakerAccountFlag.Name), // assume block maker nodes are always synced until proven otherwise ctx.GlobalBool(SingleBlockMakerFlag.Name),
+		DatabaseCache:   ctx.GlobalInt(CacheFlag.Name),
+		DatabaseHandles: MakeDatabaseHandles(),
+		NetworkId:       ctx.GlobalInt(NetworkIdFlag.Name),
+		ExtraData:       MakeMinerExtra(extra, ctx),
+		NatSpec:         ctx.GlobalBool(NatspecEnabledFlag.Name),
+		DocRoot:         ctx.GlobalString(DocRootFlag.Name),
+		EnableJit:       jitEnabled,
+		ForceJit:        ctx.GlobalBool(VMForceJitFlag.Name),
+		SolcPath:        ctx.GlobalString(SolcPathFlag.Name),
+		MinBlockTime:    uint(ctx.GlobalInt(MinBlockTimeFlag.Name)),
+		MaxBlockTime:    uint(ctx.GlobalInt(MaxBlockTimeFlag.Name)),
+		MinVoteTime:     uint(ctx.GlobalInt(MinVoteTimeFlag.Name)),
+		MaxVoteTime:     uint(ctx.GlobalInt(MaxVoteTimeFlag.Name)),
+		RaftMode:        ctx.GlobalBool(RaftModeFlag.Name),
 	}
 
 	// Override any default configs in dev mode or the test net

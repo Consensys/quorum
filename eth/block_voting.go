@@ -8,7 +8,7 @@ import (
 )
 
 func (s *Ethereum) StartBlockVoting(client *rpc.Client, voteKey, blockMakerKey *ecdsa.PrivateKey) error {
-	s.blockMakerStrat = quorum.NewRandomDeadelineStrategy(s.eventMux, s.voteMinBlockTime, s.voteMaxBlockTime)
+	s.blockMakerStrat = quorum.NewRandomDeadelineStrategy(s.eventMux, s.minBlockTime, s.maxBlockTime, s.minVoteTime, s.maxVoteTime)
 	quorum.Strategy = s.blockMakerStrat
 	return s.blockVoting.Start(client, s.blockMakerStrat, voteKey, blockMakerKey)
 }
