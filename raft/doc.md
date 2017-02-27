@@ -2,7 +2,9 @@
 
 ## Introduction
 
-This directory holds an implementation of [Raft](https://raft.github.io) (using [etcd](https://github.com/coreos/etcd)) as an alternative consensus mechanism for the Ethereum VM instead of the default proof-of-work.
+This directory holds an implementation of a [Raft](https://raft.github.io)-based consensus mechanism (using [etcd](https://github.com/coreos/etcd)'s [raft implementation](https://github.com/coreos/etcd/tree/master/raft)) as an alternative to Ethereum's default proof-of-work. This is useful for closed-membership/consortium settings where byzantine fault tolerance is not a requirement, and there is a desire for faster blocktimes (on the order of milliseconds instead of seconds) and the absence of forking.
+
+### Some implementation basics
 
 Both Raft and Ethereum have their own notion of node:
 
