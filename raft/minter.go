@@ -227,6 +227,8 @@ func (minter *minter) updateSpeculativeChainPerInvalidOrdering(headBlock *types.
 
 		glog.V(logger.Info).Infof("Popped block %x from queue RHS.\n", currBlock.Hash())
 
+		// Maintain invariant: the parent always points the last speculative block or the head of the blockchain
+		// if there are not speculative blocks.
 		if speculativeParentI := minter.unappliedBlocks.Last(); nil != speculativeParentI {
 			minter.parent = speculativeParentI.(*types.Block)
 		} else {
