@@ -6,6 +6,8 @@ This directory holds an implementation of a [Raft](https://raft.github.io)-based
 
 When the `geth` binary is passed the `--raft` flag, the node will operate in "raft mode."
 
+Currently Raft-based consensus requires that all nodes in the cluster are configured to list the others up-front as [static peers](https://github.com/ethereum/go-ethereum/wiki/Connecting-to-the-network#static-nodes).
+
 ### Some implementation basics
 
 Both Raft and Ethereum have their own notion of node:
