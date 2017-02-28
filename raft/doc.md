@@ -1,8 +1,10 @@
-# Raft / Ethereum
+# Raft-based consensus for Ethereum/Quorum
 
 ## Introduction
 
-This directory holds an implementation of a [Raft](https://raft.github.io)-based consensus mechanism (using [etcd](https://github.com/coreos/etcd)'s [raft implementation](https://github.com/coreos/etcd/tree/master/raft)) as an alternative to Ethereum's default proof-of-work. This is useful for closed-membership/consortium settings where byzantine fault tolerance is not a requirement, and there is a desire for faster blocktimes (on the order of milliseconds instead of seconds) and the absence of forking.
+This directory holds an implementation of a [Raft](https://raft.github.io)-based consensus mechanism (using [etcd](https://github.com/coreos/etcd)'s [raft implementation](https://github.com/coreos/etcd/tree/master/raft)) as an alternative to Ethereum's default proof-of-work. This is useful for closed-membership/consortium settings where byzantine fault tolerance is not a requirement, and there is a desire for faster blocktimes (on the order of milliseconds instead of seconds) and transaction finality (the absence of forking.)
+
+When the `geth` binary is passed the `--raft` flag, the node will operate in "raft mode."
 
 ### Some implementation basics
 
@@ -12,56 +14,58 @@ In Raft a node in normal operation is either a leader or a follower. There is a 
 
 In vanilla Ethereum there is no such thing as a leader or follower. It's possible for any node in the network to mine a new block -- which is like being the leader for that round.
 
-In Quorum-Raft We impose a one-to-one correspondence between Raft and Ethereum nodes, so each Ethereum node is also a Raft node, and the leader of the Raft cluster is the only Ethereum node that can mint new blocks. The reason we make sure to colocate the leader and minter is to avoid the latency of transferring the block from minter to raft leader.
+In raft-based consensus, we impose a one-to-one correspondence between Raft and Ethereum nodes: each Ethereum node is also a Raft node, and the leader of the Raft cluster is the only Ethereum node that can mine (or "mint") new blocks. The main reasons we co-locate the leader and minter are (1) convenience, in that raft ensures there is only one leader at a time, and (2) to avoid a network hop from a node minting blocks to the leader, through which all raft writes must flow.
+
+We use the existing Ethereum p2p transport layer to communicate transactions between nodes, but we communicate blocks only through the raft transport layer. They are created minter/leader and flow from there to the rest of the cluster.
 
 Ethereum | Raft
 -------- | ----
 minter   | leader
 verifier | follower
 
-Note that Raft is responsible for creating blocks (bundles of transactions), but at a lower level we rely on Ethereum's built-in p2p network ([RLPx](https://github.com/ethereum/devp2p/blob/master/rlpx.md)) to communicate transactions to the leader. Though it's used for all transactions, this is only important for transactions that originate at a follower. Transactions from the leader can be immediately minted in a block, put into Raft, and then put into the chain.
+During raft leadership transitions, there will be a small period of time where more than one node might assume that it has minting duties, but we detail how correctness is preserved in more detail below.
 
 ### Lifecycle of a Transactions
 
-Note: We use "Etcd" for the Etcd implementation of Raft, and "Raft" more broadly to also include Raft-Ethereum.
+Note: We use "Etcd" for the Etcd implementation of Raft, and "Raft" more broadly to also include Raft-based consensus for Quorum/Ethereum.
 
 Let's follow the lifecycle of a typical transaction:
 
-#### on a follower:
+#### on a verifier:
 
-1. The transaction is created by a user's rpc call.
-2. Using the existing transaction propagation mechanisms in Ethereum, it's announced to all peers and transmitted to a subset of them.
+1. The transaction is created by a user's RPC call.
+2. Using the existing transaction propagation mechanisms in Ethereum, it's announced to all peers and, because our cluster is currently configured to use "static nodes," every transaction is sent to all peers in the cluster. 
 
-#### on the leader:
+#### on the minter:
 
-3. It reaches the leader, where it's minted in the next block (see `mintNewBlock`).
+3. It reaches the minter, where it's included in the next block (see `mintNewBlock`).
 4. That triggers `NewMinedBlockEvent`, which the Raft protocol manager is subscribed to (`minedBlockSub`). The `minedBroadcastLoop` enqueues the new block in `ProtocolManager.proposeC`.
-5. `serveInternal` is waiting at the other end of the channel. Its job is to rlp-encode blocks and propose them to Raft.
+5. `serveInternal` is waiting at the other end of the channel. Its job is to RLP-encode blocks and propose them to Raft.
 6. The block reaches the `eventLoop` (which processes Raft events), as an `AppendEntries` message in `rd.Entries`. It, and all the other messages, are sent through `pm.transport` -- an instance of [`rafthttp.Transport`](https://godoc.org/github.com/coreos/etcd/rafthttp#Transport) -- responsible for communicating raft messages to all peers.
 
-#### on followers:
+#### on verifiers:
 
 7. The message reaches peers through `ProtocolManager.Process`, which `Step`s the raft state machine.
-8. Etcd creates an `AppendEntries` response (acknowledging its acceptance of the block), which `eventLoop` handles, calls `transport.Send` (the message should have only the leader in its `To` field).
+8. Etcd creates an `AppendEntries` response (acknowledging its acceptance of the block), which `eventLoop` handles, calls `transport.Send` (the message should have only the raft leader in its `To` field).
 
-#### on the leader:
+#### on the minter:
 
-9. The leader handles each response through its incoming message loop. When a quorum have been received, Etcd considers the block committed, and it's moved into the `eventLoop` as a `CommittedEntries`.
+9. The minter handles each response through its incoming message loop. When a quorum has been reached, Etcd considers the block committed, and it's moved into the `eventLoop` as a `CommittedEntries`.
 
 #### on all:
 
 10. The block is delivered by raft, then handled by `applyNewChainHead`. This method checks whether the block extends the chain (it's "valid", see below) and if not just ignores it. If so, the block is validated and set as the new head of the chain by `SetNewHeadBlock`.
 11. A `ChainHeadEvent` is posted to notify listeners that a new block has been accepted. This is relevant to us because:
 * It removes the newly minted transactions from `proposedTxes` (see below).
-* It triggers `requestMinting` in the (minter's) worker, telling Raft to try minting a new block.
+* It triggers `requestMinting` in the (minter's) worker, telling the node to try minting a new block.
 
-The transaction is now available on all nodes in the cluster.
+The transaction is now available on all nodes in the cluster with complete finality. Because raft guarantees a single ordering of entries stored in its log, and because everything that is committed is guaranteed to remain committed, there is no forking of the blockchain built upon Raft.
 
 ## Consensus
 
 Raft is responsible for reaching consensus on which transactions should be accepted. More accurately it reaches consensus on blocks, which contain transactions, to be inserted into the blockchain.
 
-We include a "speculative mining" scheme so the minter can create new blocks before the previous has been accepted because we don't want to have to wait for Raft to reach consensus for each block before minting a new one (we currently provide a block latency (the max time before minting a new block) of 50ms). This introduces some complication in that it's possible we'll need to roll back / ignore blocks that aren't accepted by Raft. Thus, blocks accepted by raft can be either labeled "Valid" or "Invalid".
+We include a "speculative mining" scheme so the minter can create new blocks before the previous has been accepted because we don't want to have to wait for Raft to reach consensus for each block before minting a new one (we currently provide a block latency [the max time before minting a new block] of 50ms). This introduces some complication in that it's possible we'll need to roll back / ignore blocks that aren't accepted by Raft. Thus, blocks accepted by raft can be either labeled "Valid" or "Invalid".
 
 An example of the current minter (node 1) being partitioned, with node 2 taking over as minter.
 
@@ -94,9 +98,11 @@ Note that each block is accepted by Raft and serialized in the log, but the Vali
 
 To be clear, this is not the same as the "longest valid chain" mechanism from vanilla Ethereum. LVC is used to resolve forks in a network that doesn't have and can't have assigned leaders. We do have a single leader -- who is the only minter during normal operation -- but forks can be created when leadership changes. We mark blocks invalid iff they have the same parent as another block previously in the Raft log.
 
-## Leadership Change
+## Raft leadership changes and correctness
 
-The leader can be thought of as a recommendation for who should mint. It's important that we never rely on leadership for correctness. During a transition it's possible that two nodes are both minting at the same time, and that's fine. Raft will serialize their blocks, so one of these competing minters will have the first block accepted by raft, and will take over as minter.
+The leader can be thought of as a recommendation or proxy for who should mint. It is generally true that there is only a single minter, but we do not rely on the maximum of one concurrent minter for correctness.
+
+During a Raft leadership transition it's possible that two nodes are both minting for a short period of time, but that turns out to be fine. Raft imposes an ordering on blocks; so if there is a race, the first block that successfully extends the chain will win, and the loser of the race will be ignored (because it will point to a parent block that is no longer the current head of the chain.) All nodes apply the raft log in the same order, and will behave identically in the presence of these short-lived "races."
 
 ## Minting
 
