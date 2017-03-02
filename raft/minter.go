@@ -420,7 +420,7 @@ func (minter *minter) mintNewBlock() {
 	work := minter.createWork()
 	transactions := minter.getTransactions()
 
-	committedTxes, receipts, logs := work.commitTransactions(transactions, minter.chain)
+	committedTxes, publicReceipts, privateReceipts, logs := work.commitTransactions(transactions, minter.chain)
 	txCount := len(committedTxes)
 
 	if txCount == 0 {
@@ -439,7 +439,8 @@ func (minter *minter) mintNewBlock() {
 
 	// NOTE: < QuorumChain creates a signature here and puts it in header.Extra. >
 
-	header.Bloom = types.CreateBloom(receipts)
+	allReceipts := append(publicReceipts, privateReceipts...)
+	header.Bloom = types.CreateBloom(allReceipts)
 
 	// update block hash since it is now available, but was not when the
 	// receipt/log of individual transactions were created:
@@ -448,8 +449,7 @@ func (minter *minter) mintNewBlock() {
 		l.BlockHash = headerHash
 	}
 
-	block := types.NewBlock(header, committedTxes, nil, receipts)
-	work.Block = block
+	block := types.NewBlock(header, committedTxes, nil, publicReceipts)
 
 	glog.V(logger.Info).Infof("Generated next block #%v with [%d txns]", block.Number(), txCount)
 
@@ -470,13 +470,16 @@ func (minter *minter) mintNewBlock() {
 	if err := core.WriteTransactions(minter.chainDb, block); err != nil {
 		panic(fmt.Sprint("error writing txes: ", err))
 	}
-	if err := core.WriteReceipts(minter.chainDb, receipts); err != nil {
+	if err := core.WriteReceipts(minter.chainDb, allReceipts); err != nil {
 		panic(fmt.Sprint("error writing receipts: ", err))
 	}
-	if err := core.WriteMipmapBloom(minter.chainDb, block.NumberU64(), receipts); err != nil {
+	if err := core.WriteMipmapBloom(minter.chainDb, block.NumberU64(), allReceipts); err != nil {
 		panic(fmt.Sprint("error writing mipmap bloom: ", err))
 	}
-	if err := core.WriteBlockReceipts(minter.chainDb, block.Hash(), block.Number().Uint64(), receipts); err != nil {
+	if err := core.WritePrivateBlockBloom(minter.chainDb, block.NumberU64(), privateReceipts); err != nil {
+		panic(fmt.Sprint("error writing private block bloom: ", err))
+	}
+	if err := core.WriteBlockReceipts(minter.chainDb, block.Hash(), block.Number().Uint64(), allReceipts); err != nil {
 		panic(fmt.Sprint("error writing block receipts: ", err))
 	}
 
@@ -489,10 +492,11 @@ func (minter *minter) mintNewBlock() {
 	glog.V(logger.Info).Infof("🔨  Mined block (#%v / %x) in %v", block.Number(), block.Hash().Bytes()[:4], elapsed)
 }
 
-func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts, vm.Logs) {
+func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts, types.Receipts, vm.Logs) {
 	var logs vm.Logs
 	var committedTxes types.Transactions
-	var receipts types.Receipts
+	var publicReceipts types.Receipts
+	var privateReceipts types.Receipts
 
 	gp := new(core.GasPool).AddGas(env.header.GasLimit)
 	txCount := 0
@@ -505,7 +509,7 @@ func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc 
 
 		env.publicState.StartRecord(tx.Hash(), common.Hash{}, 0)
 
-		receipt, txLogs, err := env.commitTransaction(tx, bc, gp)
+		publicReceipt, privateReceipt, err := env.commitTransaction(tx, bc, gp)
 		switch {
 		case err != nil:
 			if glog.V(logger.Detail) {
@@ -514,27 +518,32 @@ func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc 
 			txes.Pop() // skip rest of txes from this account
 		default:
 			txCount++
-			logs = append(logs, txLogs...)
 			committedTxes = append(committedTxes, tx)
-			receipts = append(receipts, receipt)
+
+			logs = append(logs, publicReceipt.Logs...)
+			publicReceipts = append(publicReceipts, publicReceipt)
+
+			if (privateReceipt != nil) {
+				logs = append(logs, privateReceipt.Logs...)
+				privateReceipts = append(privateReceipts, privateReceipt)
+			}
+
 			txes.Shift()
 		}
 	}
 
-	return committedTxes, receipts, logs
+	return committedTxes, publicReceipts, privateReceipts, logs
 }
 
-func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (*types.Receipt, vm.Logs, error) {
+func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (*types.Receipt, *types.Receipt, error) {
 	publicSnapshot := env.publicState.Snapshot()
 	privateSnapshot := env.privateState.Snapshot()
-
-	// NOTE: QuorumChain disables forcing JIT here.
 
 	//
 	// TODO(bts): look into that core.ApplyTransaction is not currently
 	//            returning any logs?
 	//
-	receipt, logs, _, err := core.ApplyTransaction(env.config, bc, gp, env.publicState, env.privateState, env.header, tx, env.header.GasUsed, env.config.VmConfig)
+	publicReceipt, privateReceipt, _, err := core.ApplyTransaction(env.config, bc, gp, env.publicState, env.privateState, env.header, tx, env.header.GasUsed, env.config.VmConfig)
 	if err != nil {
 		env.publicState.RevertToSnapshot(publicSnapshot)
 		env.privateState.RevertToSnapshot(privateSnapshot)
@@ -542,5 +551,5 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 		return nil, nil, err
 	}
 
-	return receipt, logs, nil
+	return publicReceipt, privateReceipt, nil
 }
