@@ -35,7 +35,6 @@ import (
 	"github.com/ethereum/go-ethereum/logger/glog"
 
 	"gopkg.in/fatih/set.v0"
-	lane "gopkg.in/oleiade/lane.v1"
 )
 
 // Current state information for building the next block
@@ -48,41 +47,38 @@ type work struct {
 }
 
 type minter struct {
-	config                     *core.ChainConfig
-	mu                         sync.Mutex
-	mux                        *event.TypeMux
-	eth                        core.Backend
-	chain                      *core.BlockChain
-	chainDb                    ethdb.Database
-	coinbase                   common.Address
-	minting                    int32    // Atomic status counter
-	proposedTxes               *set.Set // This is thread-safe.
-	expectedInvalidBlockHashes *set.Set // This is thread-safe.
-	shouldMine                 *channels.RingChannel
-	blockTime                  time.Duration
-	parent                     *types.Block
-	unappliedBlocks            *lane.Deque
+	config           *core.ChainConfig
+	mu               sync.Mutex
+	mux              *event.TypeMux
+	eth              core.Backend
+	chain            *core.BlockChain
+	chainDb          ethdb.Database
+	coinbase         common.Address
+	minting          int32    // Atomic status counter
+	proposedTxes     *set.Set // This is thread-safe.
+	shouldMine       *channels.RingChannel
+	blockTime        time.Duration
+	speculativeChain *speculativeChain
 }
 
 // Assumes mu is held.
 // TODO(bts): extract all speculative fields into a new MintingState datatype.
 func (minter *minter) clearSpeculativeState(parent *types.Block) {
-	minter.parent = parent
 	minter.proposedTxes.Clear()
-	minter.unappliedBlocks = lane.NewDeque()
-	minter.expectedInvalidBlockHashes = set.New()
+	minter.speculativeChain.clear(parent)
 }
 
 func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Duration) *minter {
 	minter := &minter{
-		config:       config,
-		eth:          eth,
-		mux:          eth.EventMux(),
-		chainDb:      eth.ChainDb(),
-		chain:        eth.BlockChain(),
-		proposedTxes: set.New(),
-		shouldMine:   channels.NewRingChannel(1),
-		blockTime:    blockTime,
+		config:           config,
+		eth:              eth,
+		mux:              eth.EventMux(),
+		chainDb:          eth.ChainDb(),
+		chain:            eth.BlockChain(),
+		proposedTxes:     set.New(),
+		shouldMine:       channels.NewRingChannel(1),
+		blockTime:        blockTime,
+		speculativeChain: &speculativeChain{},
 	}
 	events := minter.mux.Subscribe(
 		core.ChainHeadEvent{},
@@ -170,17 +166,7 @@ func (minter *minter) updateSpeculativeChainPerNewHead(newHeadBlock *types.Block
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
 
-	earliestProposedI := minter.unappliedBlocks.Shift()
-	var earliestProposed *types.Block
-	if nil != earliestProposedI {
-		earliestProposed = earliestProposedI.(*types.Block)
-	}
-
-	if earliestProposed != nil && earliestProposed.Hash() != newHeadBlock.Hash() {
-		glog.V(logger.Warn).Infof("Another node minted %x; Clearing speculative state\n", newHeadBlock.Hash())
-
-		minter.clearSpeculativeState(newHeadBlock)
-	} else {
+	if foundExpected := minter.speculativeChain.accept(newHeadBlock); foundExpected {
 		// We're receiving the acceptance for an expected block. Remove its
 		// txes from our blacklist.
 		minter.removeProposedTxes(newHeadBlock)
@@ -196,55 +182,14 @@ func (minter *minter) updateSpeculativeChainPerInvalidOrdering(headBlock *types.
 	defer minter.mu.Unlock()
 
 	// 1. if the block is not in our db, exit. someone else mined this.
-	if !minter.chain.HasBlock(invalidBlock.Hash()) {
+	if !minter.chain.HasBlock(invalidHash) {
 		glog.V(logger.Warn).Infof("Someone else mined invalid block %x; ignoring\n", invalidHash)
 
 		return
 	}
 
-	// 2. check our guard to see if this is a (descendent) block we're
-	// expected to be ruled invalid. if we find it, remove from the guard
-	if minter.expectedInvalidBlockHashes.Has(invalidHash) {
-		glog.V(logger.Warn).Infof("Removing expected-invalid block %x from guard.\n", invalidHash)
-
-		minter.expectedInvalidBlockHashes.Remove(invalidHash)
-
-		return
-	}
-
-	// 3. pop from the RHS repeatedly, updating minter.parent each time. if not
-	// our block, add to guard. in all cases, call removeProposedTxes
-	for {
-		currBlockI := minter.unappliedBlocks.Pop()
-
-		if nil == currBlockI {
-			glog.V(logger.Warn).Infof("(Popped all blocks from queue.)\n")
-
-			break
-		}
-
-		currBlock := currBlockI.(*types.Block)
-
-		glog.V(logger.Info).Infof("Popped block %x from queue RHS.\n", currBlock.Hash())
-
-		// Maintain invariant: the parent always points the last speculative block or the head of the blockchain
-		// if there are not speculative blocks.
-		if speculativeParentI := minter.unappliedBlocks.Last(); nil != speculativeParentI {
-			minter.parent = speculativeParentI.(*types.Block)
-		} else {
-			minter.parent = headBlock
-		}
-
-		minter.removeProposedTxes(currBlock)
-
-		if currBlock.Hash() != invalidHash {
-			glog.V(logger.Warn).Infof("Haven't yet found block %x; adding descendent %x to guard.\n", invalidHash, currBlock.Hash())
-
-			minter.expectedInvalidBlockHashes.Add(currBlock.Hash())
-		} else {
-			break
-		}
-	}
+	removeProposedTxes := func(currBlock *types.Block) { minter.removeProposedTxes(currBlock) }
+	minter.speculativeChain.unwindFrom(invalidHash, headBlock, removeProposedTxes)
 }
 
 func (minter *minter) eventLoop(events event.Subscription) {
@@ -265,7 +210,7 @@ func (minter *minter) eventLoop(events event.Subscription) {
 				minter.requestMinting()
 			} else {
 				minter.mu.Lock()
-				minter.parent = newHeadBlock
+				minter.speculativeChain.setParent(newHeadBlock)
 				minter.mu.Unlock()
 			}
 
@@ -341,7 +286,7 @@ func generateNanoTimestamp(parent *types.Block) (tstamp int64) {
 
 // Assumes mu is held.
 func (minter *minter) createWork() *work {
-	parent := minter.parent
+	parent := minter.speculativeChain.parent
 	parentNumber := parent.Number()
 	tstamp := generateNanoTimestamp(parent)
 
@@ -355,7 +300,7 @@ func (minter *minter) createWork() *work {
 		Time:       big.NewInt(tstamp),
 	}
 
-	publicState, privateState, err := minter.chain.StateAt(minter.parent.Root())
+	publicState, privateState, err := minter.chain.StateAt(parent.Root())
 	if err != nil {
 		panic(fmt.Sprint("failed to get parent state: ", err))
 	}
@@ -483,8 +428,7 @@ func (minter *minter) mintNewBlock() {
 		panic(fmt.Sprint("error writing block receipts: ", err))
 	}
 
-	minter.parent = block
-	minter.unappliedBlocks.Append(block)
+	minter.speculativeChain.extend(block)
 
 	minter.fireMintedBlockEvents(block, logs)
 
@@ -523,7 +467,7 @@ func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc 
 			logs = append(logs, publicReceipt.Logs...)
 			publicReceipts = append(publicReceipts, publicReceipt)
 
-			if (privateReceipt != nil) {
+			if privateReceipt != nil {
 				logs = append(logs, privateReceipt.Logs...)
 				privateReceipts = append(privateReceipts, privateReceipt)
 			}
