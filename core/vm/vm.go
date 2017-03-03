@@ -77,40 +77,6 @@ func (evm *EVM) Run(contract *Contract, input []byte) (ret []byte, err error) {
 	if codehash == (common.Hash{}) {
 		codehash = crypto.Keccak256Hash(contract.Code)
 	}
-	var program *Program
-	if false {
-		// JIT disabled due to JIT not being Homestead gas reprice ready.
-
-		// If the JIT is enabled check the status of the JIT program,
-		// if it doesn't exist compile a new program in a separate
-		// goroutine or wait for compilation to finish if the JIT is
-		// forced.
-		switch GetProgramStatus(codehash) {
-		case progReady:
-			return RunProgram(GetProgram(codehash), evm.env, contract, input)
-		case progUnknown:
-			if evm.cfg.ForceJit {
-				// Create and compile program
-				program = NewProgram(contract.Code)
-				perr := CompileProgram(program)
-				if perr == nil {
-					return RunProgram(program, evm.env, contract, input)
-				}
-				glog.V(logger.Info).Infoln("error compiling program", err)
-			} else {
-				// create and compile the program. Compilation
-				// is done in a separate goroutine
-				program = NewProgram(contract.Code)
-				go func() {
-					err := CompileProgram(program)
-					if err != nil {
-						glog.V(logger.Info).Infoln("error compiling program", err)
-						return
-					}
-				}()
-			}
-		}
-	}
 
 	var (
 		caller     = contract.caller
@@ -159,17 +125,6 @@ func (evm *EVM) Run(contract *Contract, input []byte) (ret []byte, err error) {
 	}
 
 	for ; ; instrCount++ {
-		/*
-			if EnableJit && it%100 == 0 {
-				if program != nil && progStatus(atomic.LoadInt32(&program.status)) == progReady {
-					// move execution
-					fmt.Println("moved", it)
-					glog.V(logger.Info).Infoln("Moved execution to JIT")
-					return runProgram(program, pc, mem, stack, evm.env, contract, input)
-				}
-			}
-		*/
-
 		// Get the memory location of pc
 		op = contract.GetOp(pc)
 		if evm.env.ReadOnly() && op.isMutating() {

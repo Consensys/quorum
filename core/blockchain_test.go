@@ -140,7 +140,7 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 		if err != nil {
 			return err
 		}
-		receipts, _, usedGas, err := blockchain.Processor().Process(block, statedb, statedb, vm.Config{})
+		receipts, _, _, usedGas, err := blockchain.Processor().Process(block, statedb, statedb, vm.Config{})
 		if err != nil {
 			reportBlock(block, err)
 			return err
@@ -434,8 +434,8 @@ func (bproc) ValidateHeader(ethdb.Database, *types.Header, *types.Header) error 
 func (bproc) ValidateState(block, parent *types.Block, state *state.StateDB, receipts types.Receipts, usedGas *big.Int) error {
 	return nil
 }
-func (bproc) Process(block *types.Block, statedb, state2 *state.StateDB, cfg vm.Config) (types.Receipts, vm.Logs, *big.Int, error) {
-	return nil, nil, new(big.Int), nil
+func (bproc) Process(block *types.Block, statedb, state2 *state.StateDB, cfg vm.Config) (types.Receipts, types.Receipts, vm.Logs, *big.Int, error) {
+	return nil, nil, nil, new(big.Int), nil
 }
 
 func makeHeaderChainWithDiff(genesis *types.Block, d []int, seed byte) []*types.Header {

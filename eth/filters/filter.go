@@ -138,7 +138,7 @@ func (f *Filter) getLogs(start, end uint64) (logs []Log) {
 
 		// Use bloom filtering to see if this block is interesting given the
 		// current parameters
-		if f.bloomFilter(block) {
+		if f.bloomFilter(block.Bloom()) || f.bloomFilter(core.GetPrivateBlockBloom(f.db, block.NumberU64())) {
 			// Get the logs of the block
 			var (
 				receipts   = core.GetBlockReceipts(f.db, block.Hash(), i)
@@ -207,11 +207,11 @@ Logs:
 	return ret
 }
 
-func (f *Filter) bloomFilter(block *types.Block) bool {
+func (f *Filter) bloomFilter(bloom types.Bloom) bool {
 	if len(f.addresses) > 0 {
 		var included bool
 		for _, addr := range f.addresses {
-			if types.BloomLookup(block.Bloom(), addr) {
+			if types.BloomLookup(bloom, addr) {
 				included = true
 				break
 			}
@@ -225,7 +225,7 @@ func (f *Filter) bloomFilter(block *types.Block) bool {
 	for _, sub := range f.topics {
 		var included bool
 		for _, topic := range sub {
-			if (topic == common.Hash{}) || types.BloomLookup(block.Bloom(), topic) {
+			if (topic == common.Hash{}) || types.BloomLookup(bloom, topic) {
 				included = true
 				break
 			}

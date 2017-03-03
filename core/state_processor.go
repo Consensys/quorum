@@ -55,28 +55,38 @@ func NewStateProcessor(config *ChainConfig, bc *BlockChain) *StateProcessor {
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *types.Block, publicState, privateState *state.StateDB, cfg vm.Config) (types.Receipts, vm.Logs, *big.Int, error) {
+func (p *StateProcessor) Process(block *types.Block, publicState, privateState *state.StateDB, cfg vm.Config) (types.Receipts, types.Receipts, vm.Logs, *big.Int, error) {
 	var (
-		receipts     types.Receipts
-		totalUsedGas = big.NewInt(0)
-		err          error
-		header       = block.Header()
-		allLogs      vm.Logs
-		gp           = new(GasPool).AddGas(block.GasLimit())
+		publicReceipts  types.Receipts
+		privateReceipts types.Receipts
+		totalUsedGas    = big.NewInt(0)
+		err             error
+		header          = block.Header()
+		allLogs         vm.Logs
+		gp              = new(GasPool).AddGas(block.GasLimit())
 	)
 
 	for i, tx := range block.Transactions() {
 		publicState.StartRecord(tx.Hash(), block.Hash(), i)
-		receipt, logs, _, err := ApplyTransaction(p.config, p.bc, gp, publicState, privateState, header, tx, totalUsedGas, cfg)
+		privateState.StartRecord(tx.Hash(), block.Hash(), i)
+
+		publicReceipt, privateReceipt, _, err := ApplyTransaction(p.config, p.bc, gp, publicState, privateState, header, tx, totalUsedGas, cfg)
 		if err != nil {
-			return nil, nil, totalUsedGas, err
+			return nil, nil, nil, totalUsedGas, err
 		}
-		receipts = append(receipts, receipt)
-		allLogs = append(allLogs, logs...)
+		publicReceipts = append(publicReceipts, publicReceipt)
+		allLogs = append(allLogs, publicReceipt.Logs...)
+
+		// if the private receipt is nil this means the tx was public
+		// and we do not need to apply the additional logic.
+		if privateReceipt != nil {
+			privateReceipts = append(privateReceipts, privateReceipt)
+			allLogs = append(allLogs, privateReceipt.Logs...)
+		}
 	}
 	AccumulateRewards(publicState, header, block.Uncles())
 
-	return receipts, allLogs, totalUsedGas, err
+	return publicReceipts, privateReceipts, allLogs, totalUsedGas, err
 }
 
 // ApplyTransaction attempts to apply a transaction to the given state database
@@ -84,7 +94,7 @@ func (p *StateProcessor) Process(block *types.Block, publicState, privateState *
 //
 // ApplyTransactions returns the generated receipts and vm logs during the
 // execution of the state transition phase.
-func ApplyTransaction(config *ChainConfig, bc *BlockChain, gp *GasPool, publicState, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *big.Int, cfg vm.Config) (*types.Receipt, vm.Logs, *big.Int, error) {
+func ApplyTransaction(config *ChainConfig, bc *BlockChain, gp *GasPool, publicState, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *big.Int, cfg vm.Config) (*types.Receipt, *types.Receipt, *big.Int, error) {
 	if !tx.IsPrivate() {
 		privateState = publicState
 	}
@@ -100,19 +110,34 @@ func ApplyTransaction(config *ChainConfig, bc *BlockChain, gp *GasPool, publicSt
 
 	// Update the state with pending changes
 	usedGas.Add(usedGas, gas)
-	receipt := types.NewReceipt(publicState.IntermediateRoot().Bytes(), usedGas)
-	receipt.TxHash = tx.Hash()
-	receipt.GasUsed = new(big.Int).Set(gas)
+	publicReceipt := types.NewReceipt(publicState.IntermediateRoot().Bytes(), usedGas)
+	publicReceipt.TxHash = tx.Hash()
+	publicReceipt.GasUsed = new(big.Int).Set(gas)
 	if MessageCreatesContract(tx) {
 		from, _ := tx.From()
-		receipt.ContractAddress = crypto.CreateAddress(from, tx.Nonce())
+		publicReceipt.ContractAddress = crypto.CreateAddress(from, tx.Nonce())
 	}
 
 	logs := publicState.GetLogs(tx.Hash())
-	receipt.Logs = logs
-	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
+	publicReceipt.Logs = logs
+	publicReceipt.Bloom = types.CreateBloom(types.Receipts{publicReceipt})
 
-	return receipt, logs, gas, err
+	var privateReceipt *types.Receipt
+	if tx.IsPrivate() {
+		privateReceipt = types.NewReceipt(privateState.IntermediateRoot().Bytes(), usedGas)
+		privateReceipt.TxHash = tx.Hash()
+		privateReceipt.GasUsed = new(big.Int).Set(gas)
+		if MessageCreatesContract(tx) {
+			from, _ := tx.From()
+			privateReceipt.ContractAddress = crypto.CreateAddress(from, tx.Nonce())
+		}
+
+		logs := privateState.GetLogs(tx.Hash())
+		privateReceipt.Logs = logs
+		privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
+	}
+
+	return publicReceipt, privateReceipt, gas, err
 }
 
 // AccumulateRewards credits the coinbase of the given block with the

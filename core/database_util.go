@@ -36,13 +36,16 @@ var (
 	headBlockKey  = []byte("LastBlock")
 	headFastKey   = []byte("LastFast")
 
-	headerPrefix        = []byte("h") // headerPrefix + num (uint64 big endian) + hash -> header
-	tdSuffix            = []byte("t") // headerPrefix + num (uint64 big endian) + hash + tdSuffix -> td
-	numSuffix           = []byte("n") // headerPrefix + num (uint64 big endian) + numSuffix -> hash
-	blockHashPrefix     = []byte("H") // blockHashPrefix + hash -> num (uint64 big endian)
-	bodyPrefix          = []byte("b") // bodyPrefix + num (uint64 big endian) + hash -> block body
-	blockReceiptsPrefix = []byte("r") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
-	privateRootPrefix   = []byte("P") // rootPrefix + block public root -> hash
+	headerPrefix               = []byte("h")  // headerPrefix + num (uint64 big endian) + hash -> header
+	tdSuffix                   = []byte("t")  // headerPrefix + num (uint64 big endian) + hash + tdSuffix -> td
+	numSuffix                  = []byte("n")  // headerPrefix + num (uint64 big endian) + numSuffix -> hash
+	blockHashPrefix            = []byte("H")  // blockHashPrefix + hash -> num (uint64 big endian)
+	bodyPrefix                 = []byte("b")  // bodyPrefix + num (uint64 big endian) + hash -> block body
+	blockReceiptsPrefix        = []byte("r")  // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
+	privateRootPrefix          = []byte("P")  // rootPrefix + block public root -> hash
+	privateblockReceiptsPrefix = []byte("Pr") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
+	privateReceiptPrefix       = []byte("Prs")
+	privateBloomPrefix         = []byte("Pb")
 
 	txMetaSuffix   = []byte{0x01}
 	receiptsPrefix = []byte("receipts-")
@@ -61,6 +64,22 @@ var (
 	oldBlockReceiptsPrefix = []byte("receipts-block-")
 	oldBlockHashPrefix     = []byte("block-hash-") // [deprecated by the header/block split, remove eventually]
 )
+
+// WritePrivateBlockBloom creates a bloom filter for the given receipts and saves it to the database
+// with the number given as identifier (i.e. block number).
+func WritePrivateBlockBloom(db ethdb.Database, number uint64, receipts types.Receipts) error {
+	rbloom := types.CreateBloom(receipts)
+	return db.Put(append(privateBloomPrefix, encodeBlockNumber(number)...), rbloom[:])
+}
+
+// GetPrivateBlockBloom retrieves the private bloom associated with the given number.
+func GetPrivateBlockBloom(db ethdb.Database, number uint64) (bloom types.Bloom) {
+	data, _ := db.Get(append(privateBloomPrefix, encodeBlockNumber(number)...))
+	if len(data) > 0 {
+		bloom = types.BytesToBloom(data)
+	}
+	return bloom
+}
 
 // encodeBlockNumber encodes a block number as big endian uint64
 func encodeBlockNumber(number uint64) []byte {
@@ -396,6 +415,7 @@ func WriteBlockReceipts(db ethdb.Database, hash common.Hash, number uint64, rece
 	if err != nil {
 		return err
 	}
+
 	// Store the flattened receipt slice
 	key := append(append(blockReceiptsPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 	if err := db.Put(key, bytes); err != nil {
