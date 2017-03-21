@@ -273,20 +273,17 @@ func (minter *minter) firePendingBlockEvents(logs vm.Logs) {
 	}()
 }
 
-// Sends-off events asynchronously.
 func (minter *minter) fireMintedBlockEvents(block *types.Block, logs vm.Logs) {
-	go func() {
-		minter.mux.Post(core.NewMinedBlockEvent{Block: block})
-		minter.mux.Post(core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
+	minter.mux.Post(core.NewMinedBlockEvent{Block: block})
+	minter.mux.Post(core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
 
-		// NOTE: we're currently not doing this because the block is not in the
-		// chain yet, and it seems like that's a prerequisite for this?
-		//
-		// TODO: do we need to do this in handleLogCommands in the case where we
-		// minted the block?
-		//
-		// minter.mux.Post(work.publicState.Logs())
-	}()
+	// NOTE: we're currently not doing this because the block is not in the
+	// chain yet, and it seems like that's a prerequisite for this?
+	//
+	// TODO: do we need to do this in handleLogCommands in the case where we
+	// minted the block?
+	//
+	// minter.mux.Post(work.publicState.Logs())
 }
 
 func (minter *minter) mintNewBlock() {
