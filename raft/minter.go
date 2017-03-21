@@ -149,7 +149,7 @@ func (minter *minter) eventLoop(events event.Subscription) {
 				minter.requestMinting()
 			} else {
 				minter.mu.Lock()
-				minter.speculativeChain.setParent(newHeadBlock)
+				minter.speculativeChain.setHead(newHeadBlock)
 				minter.mu.Unlock()
 			}
 
@@ -225,7 +225,7 @@ func generateNanoTimestamp(parent *types.Block) (tstamp int64) {
 
 // Assumes mu is held.
 func (minter *minter) createWork() *work {
-	parent := minter.speculativeChain.parent
+	parent := minter.speculativeChain.head
 	parentNumber := parent.Number()
 	tstamp := generateNanoTimestamp(parent)
 

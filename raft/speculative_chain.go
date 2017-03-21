@@ -20,7 +20,7 @@ import (
 // * clear state when we stop minting
 // * set the parent when we're not minting (so it's always current)
 type speculativeChain struct {
-	parent                     *types.Block
+	head                       *types.Block
 	unappliedBlocks            *lane.Deque
 	expectedInvalidBlockHashes *set.Set // This is thread-safe.
 	proposedTxes               *set.Set // This is thread-safe.
@@ -28,15 +28,15 @@ type speculativeChain struct {
 
 func newSpeculativeChain() *speculativeChain {
 	return &speculativeChain {
-		parent: nil,
+		head: nil,
 		unappliedBlocks: lane.NewDeque(),
 		expectedInvalidBlockHashes: set.New(),
 		proposedTxes: set.New(),
 	}
 }
 
-func (chain *speculativeChain) clear(parent *types.Block) {
-	chain.parent = parent
+func (chain *speculativeChain) clear(block *types.Block) {
+	chain.head = block
 	chain.unappliedBlocks = lane.NewDeque()
 	chain.expectedInvalidBlockHashes.Clear()
 	chain.proposedTxes.Clear()
@@ -44,7 +44,7 @@ func (chain *speculativeChain) clear(parent *types.Block) {
 
 // Append a new speculative block
 func (chain *speculativeChain) extend(block *types.Block) {
-	chain.parent = block
+	chain.head = block
 	chain.recordProposedTransactions(block.Transactions())
 	chain.unappliedBlocks.Append(block)
 }
@@ -52,8 +52,8 @@ func (chain *speculativeChain) extend(block *types.Block) {
 // Set the parent of the speculative chain
 //
 // Note: This is only called when not minter
-func (chain *speculativeChain) setParent(block *types.Block) {
-	chain.parent = block
+func (chain *speculativeChain) setHead(block *types.Block) {
+	chain.head = block
 }
 
 // Accept this block, removing it from the head of the speculative chain
@@ -105,9 +105,9 @@ func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *ty
 		// Maintain invariant: the parent always points the last speculative block or the head of the blockchain
 		// if there are not speculative blocks.
 		if speculativeParentI := chain.unappliedBlocks.Last(); nil != speculativeParentI {
-			chain.parent = speculativeParentI.(*types.Block)
+			chain.head = speculativeParentI.(*types.Block)
 		} else {
-			chain.parent = headBlock
+			chain.head = headBlock
 		}
 
 		chain.removeProposedTxes(currBlock)
