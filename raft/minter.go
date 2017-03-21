@@ -33,8 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-
-	"gopkg.in/fatih/set.v0"
 )
 
 // Current state information for building the next block
@@ -55,18 +53,11 @@ type minter struct {
 	chainDb          ethdb.Database
 	coinbase         common.Address
 	minting          int32    // Atomic status counter
-	proposedTxes     *set.Set // This is thread-safe.
 	shouldMine       *channels.RingChannel
 	blockTime        time.Duration
 	speculativeChain *speculativeChain
 }
 
-// Assumes mu is held.
-// TODO(bts): extract all speculative fields into a new MintingState datatype.
-func (minter *minter) clearSpeculativeState(parent *types.Block) {
-	minter.proposedTxes.Clear()
-	minter.speculativeChain.clear(parent)
-}
 
 func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Duration) *minter {
 	minter := &minter{
@@ -75,10 +66,9 @@ func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Durati
 		mux:              eth.EventMux(),
 		chainDb:          eth.ChainDb(),
 		chain:            eth.BlockChain(),
-		proposedTxes:     set.New(),
 		shouldMine:       channels.NewRingChannel(1),
 		blockTime:        blockTime,
-		speculativeChain: &speculativeChain{},
+		speculativeChain: newSpeculativeChain(),
 	}
 	events := minter.mux.Subscribe(
 		core.ChainHeadEvent{},
@@ -86,7 +76,7 @@ func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Durati
 		InvalidRaftOrdering{},
 	)
 
-	minter.clearSpeculativeState(minter.chain.CurrentBlock())
+	minter.speculativeChain.clear(minter.chain.CurrentBlock())
 
 	go minter.eventLoop(events)
 	go minter.mintingLoop()
@@ -103,7 +93,7 @@ func (minter *minter) stop() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
 
-	minter.clearSpeculativeState(minter.chain.CurrentBlock())
+	minter.speculativeChain.clear(minter.chain.CurrentBlock())
 	atomic.StoreInt32(&minter.minting, 0)
 }
 
@@ -116,61 +106,11 @@ func (minter *minter) requestMinting() {
 
 type AddressTxes map[common.Address]types.Transactions
 
-// This is for "speculative" minting. We keep track of txes we've put in all
-// newly-mined blocks since the last ChainHeadEvent, and filter them out so that
-// we don't try to create blocks with the same transactions. This is necessary
-// because the TX pool will keep supplying us these transactions until they are
-// in the chain (after having flown through raft).
-//
-// The Set this method accesses is thread-safe.
-func (minter *minter) withoutProposedTxes(addrTxes AddressTxes) AddressTxes {
-	newMap := make(AddressTxes)
-
-	for addr, txes := range addrTxes {
-		filteredTxes := make(types.Transactions, 0)
-		for _, tx := range txes {
-			if !minter.proposedTxes.Has(tx.Hash()) {
-				filteredTxes = append(filteredTxes, tx)
-			}
-		}
-		if len(filteredTxes) > 0 {
-			newMap[addr] = filteredTxes
-		}
-	}
-
-	return newMap
-}
-
-// Removes txes in block from our "blacklist" of "proposed tx" hashes. When we
-// create a new block and use txes from the tx pool, we ignore those that we
-// have already used ("proposed"), but that haven't yet officially made it into
-// the chain yet.
-//
-// It's important to remove hashes from this blacklist (once we know we don't
-// need them in there anymore) so that it doesn't grow endlessly.
-func (minter *minter) removeProposedTxes(block *types.Block) {
-	minedTxes := block.Transactions()
-	minedTxInterfaces := make([]interface{}, len(minedTxes))
-	for i, tx := range minedTxes {
-		minedTxInterfaces[i] = tx.Hash()
-	}
-
-	// NOTE: we are using a thread-safe Set here, so it's fine if we access this
-	// here and in mintNewBlock concurrently. using a finer-grained set-specific
-	// lock here is preferable, because mintNewBlock holds its locks for a
-	// nontrivial amount of time.
-	minter.proposedTxes.Remove(minedTxInterfaces...)
-}
-
 func (minter *minter) updateSpeculativeChainPerNewHead(newHeadBlock *types.Block) {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
 
-	if foundExpected := minter.speculativeChain.accept(newHeadBlock); foundExpected {
-		// We're receiving the acceptance for an expected block. Remove its
-		// txes from our blacklist.
-		minter.removeProposedTxes(newHeadBlock)
-	}
+	minter.speculativeChain.accept(newHeadBlock)
 }
 
 func (minter *minter) updateSpeculativeChainPerInvalidOrdering(headBlock *types.Block, invalidBlock *types.Block) {
@@ -188,8 +128,7 @@ func (minter *minter) updateSpeculativeChainPerInvalidOrdering(headBlock *types.
 		return
 	}
 
-	removeProposedTxes := func(currBlock *types.Block) { minter.removeProposedTxes(currBlock) }
-	minter.speculativeChain.unwindFrom(invalidHash, headBlock, removeProposedTxes)
+	minter.speculativeChain.unwindFrom(invalidHash, headBlock)
 }
 
 func (minter *minter) eventLoop(events event.Subscription) {
@@ -315,7 +254,7 @@ func (minter *minter) createWork() *work {
 
 func (minter *minter) getTransactions() *types.TransactionsByPriceAndNonce {
 	allAddrTxes := minter.eth.TxPool().Pending()
-	addrTxes := minter.withoutProposedTxes(allAddrTxes)
+	addrTxes := minter.speculativeChain.withoutProposedTxes(allAddrTxes)
 	return types.NewTransactionsByPriceAndNonce(addrTxes)
 }
 
@@ -350,14 +289,6 @@ func (minter *minter) fireMintedBlockEvents(block *types.Block, logs vm.Logs) {
 	}()
 }
 
-func (minter *minter) recordProposedTransactions(txes types.Transactions) {
-	txHashIs := make([]interface{}, len(txes))
-	for i, tx := range txes {
-		txHashIs[i] = tx.Hash()
-	}
-	minter.proposedTxes.Add(txHashIs...)
-}
-
 func (minter *minter) mintNewBlock() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
@@ -374,7 +305,6 @@ func (minter *minter) mintNewBlock() {
 	}
 
 	minter.firePendingBlockEvents(logs)
-	minter.recordProposedTransactions(committedTxes)
 
 	header := work.header
 

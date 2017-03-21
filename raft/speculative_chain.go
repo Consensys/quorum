@@ -23,17 +23,29 @@ type speculativeChain struct {
 	parent                     *types.Block
 	unappliedBlocks            *lane.Deque
 	expectedInvalidBlockHashes *set.Set // This is thread-safe.
+	proposedTxes               *set.Set // This is thread-safe.
+}
+
+func newSpeculativeChain() *speculativeChain {
+	return &speculativeChain {
+		parent: nil,
+		unappliedBlocks: lane.NewDeque(),
+		expectedInvalidBlockHashes: set.New(),
+		proposedTxes: set.New(),
+	}
 }
 
 func (chain *speculativeChain) clear(parent *types.Block) {
 	chain.parent = parent
 	chain.unappliedBlocks = lane.NewDeque()
-	chain.expectedInvalidBlockHashes = set.New()
+	chain.expectedInvalidBlockHashes.Clear()
+	chain.proposedTxes.Clear()
 }
 
 // Append a new speculative block
 func (chain *speculativeChain) extend(block *types.Block) {
 	chain.parent = block
+	chain.recordProposedTransactions(block.Transactions())
 	chain.unappliedBlocks.Append(block)
 }
 
@@ -45,24 +57,25 @@ func (chain *speculativeChain) setParent(block *types.Block) {
 }
 
 // Accept this block, removing it from the head of the speculative chain
-func (chain *speculativeChain) accept(acceptedBlock *types.Block) (foundExpected bool) {
+func (chain *speculativeChain) accept(acceptedBlock *types.Block) {
 	earliestProposedI := chain.unappliedBlocks.Shift()
 	var earliestProposed *types.Block
 	if nil != earliestProposedI {
 		earliestProposed = earliestProposedI.(*types.Block)
 	}
 
-	expectedBlock := earliestProposed == nil || earliestProposed.Hash() == acceptedBlock.Hash()
-	if !expectedBlock {
+	if expectedBlock := earliestProposed == nil || earliestProposed.Hash() == acceptedBlock.Hash(); expectedBlock {
+		// Remove the txes in this accepted block from our blacklist.
+		chain.removeProposedTxes(acceptedBlock)
+	} else {
 		glog.V(logger.Warn).Infof("Another node minted %x; Clearing speculative state\n", acceptedBlock.Hash())
 
 		chain.clear(acceptedBlock)
 	}
-	return expectedBlock
 }
 
 // Remove all blocks in the chain from the specified one until the end
-func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *types.Block, removeProposedTxes func(*types.Block)) {
+func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *types.Block) {
 
 	// check our guard to see if this is a (descendant) block we're
 	// expected to be ruled invalid. if we find it, remove from the guard
@@ -97,8 +110,7 @@ func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *ty
 			chain.parent = headBlock
 		}
 
-		// Each time we remove a block call back to the minter to remove proposed txes from that block
-		removeProposedTxes(currBlock)
+		chain.removeProposedTxes(currBlock)
 
 		if currBlock.Hash() != invalidHash {
 			glog.V(logger.Warn).Infof("Haven't yet found block %x; adding descendent %x to guard.\n", invalidHash, currBlock.Hash())
@@ -108,4 +120,56 @@ func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *ty
 			break
 		}
 	}
+}
+
+// We keep track of txes we've put in all newly-mined blocks since the last
+// ChainHeadEvent, and filter them out so that we don't try to create blocks
+// with the same transactions. This is necessary because the TX pool will keep
+// supplying us these transactions until they are in the chain (after having
+// flown through raft).
+func (chain *speculativeChain) recordProposedTransactions(txes types.Transactions) {
+	txHashIs := make([]interface{}, len(txes))
+	for i, tx := range txes {
+		txHashIs[i] = tx.Hash()
+	}
+	chain.proposedTxes.Add(txHashIs...)
+}
+
+// Removes txes in block from our "blacklist" of "proposed tx" hashes. When we
+// create a new block and use txes from the tx pool, we ignore those that we
+// have already used ("proposed"), but that haven't yet officially made it into
+// the chain yet.
+//
+// It's important to remove hashes from this blacklist (once we know we don't
+// need them in there anymore) so that it doesn't grow endlessly.
+func (chain *speculativeChain) removeProposedTxes(block *types.Block) {
+	minedTxes := block.Transactions()
+	minedTxInterfaces := make([]interface{}, len(minedTxes))
+	for i, tx := range minedTxes {
+		minedTxInterfaces[i] = tx.Hash()
+	}
+
+	// NOTE: we are using a thread-safe Set here, so it's fine if we access this
+	// here and in mintNewBlock concurrently. using a finer-grained set-specific
+	// lock here is preferable, because mintNewBlock holds its locks for a
+	// nontrivial amount of time.
+	chain.proposedTxes.Remove(minedTxInterfaces...)
+}
+
+func (chain *speculativeChain) withoutProposedTxes(addrTxes AddressTxes) AddressTxes {
+	newMap := make(AddressTxes)
+
+	for addr, txes := range addrTxes {
+		filteredTxes := make(types.Transactions, 0)
+		for _, tx := range txes {
+			if !chain.proposedTxes.Has(tx.Hash()) {
+				filteredTxes = append(filteredTxes, tx)
+			}
+		}
+		if len(filteredTxes) > 0 {
+			newMap[addr] = filteredTxes
+		}
+	}
+
+	return newMap
 }
