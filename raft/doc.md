@@ -151,3 +151,34 @@ When a node receives a non-extending block from raft, it creates an `InvalidRaft
   - `updateSpeculativeChainPerNewHead` is called on the node which minted a block to remove the oldest speculative block when it's accepted into the chain. This is more complicated in practice since other nodes could take over as minter and update the chain.
   - When an invalid ordering is found we unwind the queue by popping the most recent blocks from the right until we find the invalid block (this can remove blocks that depend on it).
 * `expectedInvalidBlockHashes`: The set of blocks which build on an invalid block, but haven't passsed through Raft yet. We remove these as we get them back. When invalid blocks come back from raft we remove them from the speculative chain, so we use this set as a "guard" against trying to trim the speculative chain when we shouldn't.
+
+### Raft Transport
+
+We communicate blocks over the http transport layer built in to Etcd Raft. It might also be possible to use p2p built in to Ethereum or the Whisper protocol. In our testing we found the http transport to be more reliable than p2p but haven't tested Whisper.
+
+## FAQ
+
+### Could you have a two node cluster? More generally, could you have an even number of nodes?
+
+A cluster can tolerate failures that leave a quorum (majority) available. So a cluster of two nodes can't tolerate any failures, three nodes can tolerate one, and five nodes can tolerate two. Typically Raft clusters have an odd number of nodes, since an even number provides no failure tolerance benefit.
+
+### What happens if you don't assume minter and leader are the same node?
+
+There's no hard reason they couldn't be different. We just colocate minter and leader as an optimization.
+
+* It saves one network call communicating the block to the leader.
+* It provides a simple way to choose a minter. If we didn't use the Raft leader we'd have to build in election at a higher level.
+
+This all assumes there is only one minter, which make sense since transactions / blocks must be applied sequentially.
+
+### Why is it possible that two nodes are minting at the same time? Is there not a direct link between creating blocks and being leader?
+
+There *is* a direct link between creating blocks (being minter) and being leader. However, there is a tricky scenario if, for example, the leader (node A) is partitioned from the rest of the network, which requires another node (B) to take over as leader. Now, if A is still partitioned, it might continue minting *speculative* blocks while B and the rest of the network continue without it. The important point here is that A's blocks are all speculative -- they will ultimately not be accepted as valid.
+
+Note that leadership change is rare in a properly functioning Raft cluster. A leader is meant to remain stable. Long periods of speculative minting as a dethroned (but not yet informed) leader is much rarer still. However, it's important to get right to ensure correctness.
+
+### Can transactions be reversed?
+
+Since blocks can be marked as invalid, does this imply transaction reversal?
+
+No. When a block is marked invalid, its transactions still go into the chain in a different (valid) block.
