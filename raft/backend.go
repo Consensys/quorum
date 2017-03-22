@@ -70,7 +70,16 @@ func (service *RaftService) TxPool() *core.TxPool              { return service.
 
 // node.Service interface methods
 func (service *RaftService) Protocols() []p2p.Protocol { return []p2p.Protocol{} }
-func (service *RaftService) APIs() []rpc.API { return []rpc.API{} }
+func (service *RaftService) APIs() []rpc.API {
+	return []rpc.API{
+		{
+			Namespace: "raft",
+			Version: "1.0",
+			Service: NewPublicRaftAPI(service),
+			Public: true,
+		},
+	}
+}
 
 // Start implements node.Service, starting the background data propagation thread
 // of the protocol.

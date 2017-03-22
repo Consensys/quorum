@@ -522,8 +522,8 @@ web3._extend({
        properties:
        [
                new web3._extend.Property({
-                       name: 'version',
-                       getter: 'raft_version'
+                       name: 'role',
+                       getter: 'raft_role'
                })
        ]
 })
