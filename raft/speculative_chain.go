@@ -22,7 +22,7 @@ import (
 type speculativeChain struct {
 	head                       *types.Block
 	unappliedBlocks            *lane.Deque
-	expectedInvalidBlockHashes *set.Set // This is thread-safe.
+	expectedInvalidBlockHashes *set.Set // This is thread-safe. This set is referred to as our "guard" below.
 	proposedTxes               *set.Set // This is thread-safe.
 }
 
@@ -77,7 +77,7 @@ func (chain *speculativeChain) accept(acceptedBlock *types.Block) {
 // Remove all blocks in the chain from the specified one until the end
 func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *types.Block) {
 
-	// check our guard to see if this is a (descendant) block we're
+	// check our "guard" to see if this is a (descendant) block we're
 	// expected to be ruled invalid. if we find it, remove from the guard
 	if chain.expectedInvalidBlockHashes.Has(invalidHash) {
 		glog.V(logger.Warn).Infof("Removing expected-invalid block %x from guard.\n", invalidHash)
