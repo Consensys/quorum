@@ -17,6 +17,7 @@
 package node
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"net"
 	"os"
@@ -33,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/syndtr/goleveldb/leveldb/storage"
 )
@@ -677,4 +679,12 @@ func (n *Node) apis() []rpc.API {
 			Public:    true,
 		},
 	}
+}
+
+func (n *Node) PublicKey() *ecdsa.PublicKey {
+	return &n.config.NodeKey().PublicKey
+}
+
+func (n *Node) StaticNodes() []*discover.Node {
+	return n.config.StaticNodes()
 }

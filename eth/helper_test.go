@@ -62,7 +62,7 @@ func newTestProtocolManager(blocks int, generator func(int, *core.BlockGen), new
 		panic(err)
 	}
 
-	pm, err := NewProtocolManager(chainConfig, true, NetworkId, evmux, &testTxPool{added: newtx}, pow, blockchain, db)
+	pm, err := NewProtocolManager(chainConfig, true, NetworkId, evmux, &testTxPool{added: newtx}, pow, blockchain, db, false)
 	if err != nil {
 		return nil, err
 	}

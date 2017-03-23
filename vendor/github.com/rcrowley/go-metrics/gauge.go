@@ -44,6 +44,7 @@ func NewFunctionalGauge(f func() int64) Gauge {
 	return &FunctionalGauge{value: f}
 }
 
+
 // NewRegisteredFunctionalGauge constructs and registers a new StandardGauge.
 func NewRegisteredFunctionalGauge(name string, r Registry, f func() int64) Gauge {
 	c := NewFunctionalGauge(f)
@@ -100,7 +101,6 @@ func (g *StandardGauge) Update(v int64) {
 func (g *StandardGauge) Value() int64 {
 	return atomic.LoadInt64(&g.value)
 }
-
 // FunctionalGauge returns value from given function
 type FunctionalGauge struct {
 	value func() int64

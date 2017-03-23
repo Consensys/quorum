@@ -31,10 +31,19 @@ import (
 	"gopkg.in/fatih/set.v0"
 )
 
+func forceParseRfc3339(str string) time.Time {
+	time, err := time.Parse(time.RFC3339, str)
+	if err != nil {
+		panic("unexpected failure to parse rfc3339 timestamp: " + str)
+	}
+	return time
+}
+
 var (
 	ExpDiffPeriod = big.NewInt(100000)
 	big10         = big.NewInt(10)
 	bigMinus99    = big.NewInt(-99)
+	nanosecond2017Timestamp = forceParseRfc3339("2017-01-01T00:00:00+00:00").UnixNano()
 )
 
 // BlockValidator is responsible for validating block headers, uncles and
@@ -276,8 +285,20 @@ func ValidateHeader(chaindb ethdb.Database, bc *BlockChain, config *ChainConfig,
 			return BlockTSTooBigErr
 		}
 	} else {
-		if header.Time.Cmp(big.NewInt(time.Now().Unix())) == 1 {
-			return BlockFutureErr
+		// We disable future checking if we're in --raft mode. This is crucial
+		// because block validation in the raft setting needs to be deterministic.
+		// There is no forking of the chain, and we need each node to only perform
+		// validation as a pure function of block contents with respect to the
+		// previous database state.
+		//
+		// NOTE: whereas we are currently checking whether the timestamp field has
+		// nanosecond semantics to detect --raft mode, we could also use a special
+		// "raft" sentinel in the Extra field, or pass a boolean for raftMode from
+		// all call sites of this function.
+		if raftMode := time.Now().UnixNano() > nanosecond2017Timestamp; !raftMode {
+			if header.Time.Cmp(big.NewInt(time.Now().Unix())) == 1 {
+				return BlockFutureErr
+			}
 		}
 	}
 	if header.Time.Cmp(parent.Time) != 1 {
