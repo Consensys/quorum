@@ -1,13 +1,3 @@
-// Overview of the channels used in this module:
-//
-// Node.
-// * quitSync: *Every* channel operation can be unblocked by closing this
-//   channel.
-//
-// ProtocolManager.
-// * proposeC, for proposals flowing from ethereum to raft
-// * confChangeC, currently unused; in the future for adding new, non-initial, raft peers
-// * roleC, coming from raft notifies us when our role changes
 package raft
 
 import (
@@ -42,6 +32,17 @@ import (
 	"github.com/coreos/etcd/rafthttp"
 	"github.com/syndtr/goleveldb/leveldb"
 )
+
+// Overview of the channels used in this module:
+//
+// Node.
+// * quitSync: *Every* channel operation can be unblocked by closing this
+//   channel.
+//
+// ProtocolManager.
+// * proposeC, for proposals flowing from ethereum to raft
+// * confChangeC, currently unused; in the future for adding new, non-initial, raft peers
+// * roleC, coming from raft notifies us when our role changes
 
 type ProtocolManager struct {
 	// peers note -- each node tracks the peers acknowledged by raft
