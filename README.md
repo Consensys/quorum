@@ -7,6 +7,7 @@ Key enhancements:
 * __QuorumChain__ - a new consensus model based on majority voting
 * __Constellation__ - a peer-to-peer encrypted message exchange
 * __Peer Security__ - node/peer permissioning using smart contracts
+* __Raft-based Consensus__ - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
 
 ## Architecture
 
@@ -125,10 +126,11 @@ Further documentation can be found in the [docs](docs/) folder and on the [wiki]
 
 ## See also
 
-* Quorum - https://github.com/jpmorganchase/quorum (this repository)
-* Constellation - https://github.com/jpmorganchase/constellation
-* quorum-examples - https://github.com/jpmorganchase/quorum-examples
-* Quorum Wiki - https://github.com/jpmorganchase/quorum/wiki
+* [Quorum](https://github.com/jpmorganchase/quorum): this repository
+* [Constellation](https://github.com/jpmorganchase/constellation): peer-to-peer encrypted message exchange for transaction privacy
+* [Raft Consensus Documentation](raft/doc.md)
+* [quorum-examples](https://github.com/jpmorganchase/quorum-examples): example quorum clusters
+* [Quorum Wiki](https://github.com/jpmorganchase/quorum/wiki)
 
 ## Third Party Tools/Libraries
 
