@@ -28,10 +28,10 @@ const (
 	peerUrlKeyPrefix = "peerUrl-"
 
 	// checkpoints
-	txCreated        = "TX-CREATED"
-	txAccepted       = "TX-ACCEPTED"
-	becameMinter     = "BECAME-MINTER"
-	becameVerifier   = "BECAME-VERIFIER"
+	txCreated      = "TX-CREATED"
+	txAccepted     = "TX-ACCEPTED"
+	becameMinter   = "BECAME-MINTER"
+	becameVerifier = "BECAME-VERIFIER"
 )
 
 var (

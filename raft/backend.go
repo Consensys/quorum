@@ -76,9 +76,9 @@ func (service *RaftService) APIs() []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "raft",
-			Version: "1.0",
-			Service: NewPublicRaftAPI(service),
-			Public: true,
+			Version:   "1.0",
+			Service:   NewPublicRaftAPI(service),
+			Public:    true,
 		},
 	}
 }
