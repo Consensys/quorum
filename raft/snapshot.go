@@ -2,10 +2,10 @@ package raft
 
 import (
 	"github.com/coreos/etcd/raft/raftpb"
+	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal/walpb"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/coreos/etcd/snap"
 )
 
 func (pm *ProtocolManager) saveSnapshot(snap raftpb.Snapshot) error {
@@ -13,7 +13,7 @@ func (pm *ProtocolManager) saveSnapshot(snap raftpb.Snapshot) error {
 		return err
 	}
 
-	walSnap := walpb.Snapshot {
+	walSnap := walpb.Snapshot{
 		Index: snap.Metadata.Index,
 		Term:  snap.Metadata.Term,
 	}
@@ -26,7 +26,7 @@ func (pm *ProtocolManager) saveSnapshot(snap raftpb.Snapshot) error {
 }
 
 func (pm *ProtocolManager) maybeTriggerSnapshot() {
-	if pm.appliedIndex - pm.snapshotIndex < snapshotPeriod {
+	if pm.appliedIndex-pm.snapshotIndex < snapshotPeriod {
 		return
 	}
 

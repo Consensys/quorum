@@ -33,7 +33,7 @@ verifier | follower
 
 When the minter creates a block, unlike in vanilla Ethereum where the block is written to the database and immediately considered the new head of the chain, we write the block as "detached" from the chain. We only set the new head of the chain once the block has flown through Raft. All nodes will extend the chain together in lock-step as they "apply" their Raft log.
 
-From the point of view of Ethereum, Raft is integrated via an implementation of the `Service` interface in node/service.go: "an individual protocol that can be registered into a node". Other examples of services are `Ethereum`, `ReleaseService`, and `Whisper`.
+From the point of view of Ethereum, Raft is integrated via an implementation of the [`Service`](https://godoc.org/github.com/jpmorganchase/quorum/node#Service) interface in [node/service.go](https://github.com/jpmorganchase/quorum/blob/master/node/service.go): "an individual protocol that can be registered into a node". Other examples of services are [`Ethereum`](https://godoc.org/github.com/jpmorganchase/quorum/eth#Ethereum), [`ReleaseService`](https://godoc.org/github.com/jpmorganchase/quorum/contracts/release#ReleaseService), and [`Whisper`](https://godoc.org/github.com/jpmorganchase/quorum/whisper/whisperv5#Whisper).
 
 ## The lifecycle of a transaction
 
@@ -42,12 +42,12 @@ Let's follow the lifecycle of a typical transaction:
 #### on any node (whether minter or verifier):
 
 1. The transaction is submitted via an RPC call to geth.
-2. Using the existing (p2p) transaction propagation mechanism in Ethereum, the transaction is announced to all peers and, because our cluster is currently configured to use "static nodes," every transaction is sent to all peers in the cluster. 
+2. Using the existing (p2p) transaction propagation mechanism in Ethereum, the transaction is announced to all peers and, because our cluster is currently configured to use "static nodes," every transaction is sent to all peers in the cluster.
 
 #### on the minter:
 
 3. It reaches the minter, where it's included in the next block (see `mintNewBlock`) via the transaction pool.
-4. Block creation triggers a `NewMinedBlockEvent`, which the Raft protocol manager receives via its subscription `minedBlockSub`. The `minedBroadcastLoop` (in raft/handler.go) puts this new block to the `ProtocolManager.proposeC` channel.
+4. Block creation triggers a [`NewMinedBlockEvent`](https://godoc.org/github.com/jpmorganchase/quorum/core#NewMinedBlockEvent), which the Raft protocol manager receives via its subscription `minedBlockSub`. The `minedBroadcastLoop` (in raft/handler.go) puts this new block to the `ProtocolManager.proposeC` channel.
 5. `serveInternal` is waiting at the other end of the channel. Its job is to RLP-encode blocks and propose them to Raft. Once it flows through Raft, this block will likely become the new head of the blockchain (on all nodes.)
 
 #### on every node:
@@ -56,9 +56,9 @@ Let's follow the lifecycle of a typical transaction:
 
 7. Having crossed the network through Raft, the block reaches the `eventLoop` (which processes new Raft log entries.) It has arrived from the leader through `pm.transport`, an instance of [`rafthttp.Transport`](https://godoc.org/github.com/coreos/etcd/rafthttp#Transport).
 
-8. The block is now handled by `applyNewChainHead`. This method checks whether the block extends the chain (i.e. it's parent is the current head of the chain; see below). If it does not extend the chain, it is simply ignored as a no-op. If it does extend chain, the block is validated and then written as the new head of the chain by `SetNewHeadBlock` (in blockchain.go).
+8. The block is now handled by `applyNewChainHead`. This method checks whether the block extends the chain (i.e. it's parent is the current head of the chain; see below). If it does not extend the chain, it is simply ignored as a no-op. If it does extend chain, the block is validated and then written as the new head of the chain by [`SetNewHeadBlock`](https://godoc.org/github.com/jpmorganchase/quorum/core#BlockChain.SetNewHeadBlock) (in core/blockchain.go).
 
-9. A `ChainHeadEvent` is posted to notify listeners that a new block has been accepted. This is relevant to us because:
+9. A [`ChainHeadEvent`](https://godoc.org/github.com/jpmorganchase/quorum/core#ChainHeadEvent) is posted to notify listeners that a new block has been accepted. This is relevant to us because:
 * It removes the relevant transaction from the transaction pool.
 * It removes the relevant transaction from `speculativeChain`'s `proposedTxes` (see below).
 * It triggers `requestMinting` in (minter.go), telling the node to schedule the minting of a new block if any more transactions are pending.
@@ -126,9 +126,9 @@ In speculative minting we allow the creation of a new block (and its proposal to
 
 Since this can happen repeatedly, these blocks (which each have a reference to their parent block) can form a sort of chain. We call this a "speculative chain."
 
-During the course of operation that a speculative chain forms, we keep track of the subset of transactions in the pool that we have already put into blocks (in the speculative chain) that have not yet made it into the blockchain (and whereupon a `core.ChainHeadEvent` occurs.) These are called "proposed transactions" (see speculative_chain.go).
+During the course of operation that a speculative chain forms, we keep track of the subset of transactions in the pool that we have already put into blocks (in the speculative chain) that have not yet made it into the blockchain (and whereupon a [`core.ChainHeadEvent`](https://godoc.org/github.com/jpmorganchase/quorum/core#ChainHeadEvent) occurs.) These are called "proposed transactions" (see speculative_chain.go).
 
-Per the presence of "races" (as we detail above), it is possible that a block somewhere in the middle of a speculative chain ends up not making into the chain. In this scenario an `InvalidRaftOrdering` event will occur, and we clean up the state of the speculative chain accordingly.
+Per the presence of "races" (as we detail above), it is possible that a block somewhere in the middle of a speculative chain ends up not making into the chain. In this scenario an [`InvalidRaftOrdering`](https://godoc.org/github.com/jpmorganchase/quorum/raft#InvalidRaftOrdering) event will occur, and we clean up the state of the speculative chain accordingly.
 
 There is currently no limit to the length of these speculative chains, but we plan to add support for this in the future. As a consequence, a minter can currently create arbitrarily many blocks back-to-back in a scenario where Raft stops making progress.
 
@@ -139,7 +139,7 @@ There is currently no limit to the length of these speculative chains, but we pl
 * `unappliedBlocks`: A queue of blocks which have been proposed to Raft but not yet committed to the blockchain.
   - When minting a new block, we enqueue it at the end of this queue
   - `accept` is called to remove the oldest speculative block when it's accepted into the blockchain.
-  - When an `InvalidRaftOrdering` occurs, we unwind the queue by popping the most recent blocks from the "new end" of the queue until we find the invalid block. We must repeatedly remove these "newer" speculative blocks because they are all dependent on a block that we know has not been included in the blockchain.
+  - When an [`InvalidRaftOrdering`](https://godoc.org/github.com/jpmorganchase/quorum/raft#InvalidRaftOrdering) occurs, we unwind the queue by popping the most recent blocks from the "new end" of the queue until we find the invalid block. We must repeatedly remove these "newer" speculative blocks because they are all dependent on a block that we know has not been included in the blockchain.
 * `expectedInvalidBlockHashes`: The set of blocks which build on an invalid block, but haven't passsed through Raft yet. We remove these as we get them back. When these non-extending blocks come back through Raft we remove them from the speculative chain. We use this set as a "guard" against trying to trim the speculative chain when we shouldn't.
 
 ## The Raft transport layer

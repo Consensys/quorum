@@ -60,7 +60,8 @@ func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, id int, blockT
 	return service, nil
 }
 
-// Backend interface methods
+// Backend interface methods:
+
 func (service *RaftService) AccountManager() *accounts.Manager { return service.accountManager }
 func (service *RaftService) BlockChain() *core.BlockChain      { return service.blockchain }
 func (service *RaftService) ChainDb() ethdb.Database           { return service.chainDb }
@@ -68,15 +69,16 @@ func (service *RaftService) DappDb() ethdb.Database            { return nil }
 func (service *RaftService) EventMux() *event.TypeMux          { return service.eventMux }
 func (service *RaftService) TxPool() *core.TxPool              { return service.txPool }
 
-// node.Service interface methods
+// node.Service interface methods:
+
 func (service *RaftService) Protocols() []p2p.Protocol { return []p2p.Protocol{} }
 func (service *RaftService) APIs() []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "raft",
-			Version: "1.0",
-			Service: NewPublicRaftAPI(service),
-			Public: true,
+			Version:   "1.0",
+			Service:   NewPublicRaftAPI(service),
+			Public:    true,
 		},
 	}
 }

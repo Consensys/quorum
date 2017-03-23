@@ -52,12 +52,11 @@ type minter struct {
 	chain            *core.BlockChain
 	chainDb          ethdb.Database
 	coinbase         common.Address
-	minting          int32    // Atomic status counter
+	minting          int32 // Atomic status counter
 	shouldMine       *channels.RingChannel
 	blockTime        time.Duration
 	speculativeChain *speculativeChain
 }
-
 
 func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Duration) *minter {
 	minter := &minter{

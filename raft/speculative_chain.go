@@ -27,11 +27,11 @@ type speculativeChain struct {
 }
 
 func newSpeculativeChain() *speculativeChain {
-	return &speculativeChain {
-		head: nil,
-		unappliedBlocks: lane.NewDeque(),
+	return &speculativeChain{
+		head:                       nil,
+		unappliedBlocks:            lane.NewDeque(),
 		expectedInvalidBlockHashes: set.New(),
-		proposedTxes: set.New(),
+		proposedTxes:               set.New(),
 	}
 }
 
