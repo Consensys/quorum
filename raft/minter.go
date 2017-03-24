@@ -272,19 +272,6 @@ func (minter *minter) firePendingBlockEvents(logs vm.Logs) {
 	}()
 }
 
-func (minter *minter) fireMintedBlockEvents(block *types.Block, logs vm.Logs) {
-	minter.mux.Post(core.NewMinedBlockEvent{Block: block})
-	minter.mux.Post(core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
-
-	// NOTE: we're currently not doing this because the block is not in the
-	// chain yet, and it seems like that's a prerequisite for this?
-	//
-	// TODO: do we need to do this in handleLogCommands in the case where we
-	// minted the block?
-	//
-	// minter.mux.Post(work.publicState.Logs())
-}
-
 func (minter *minter) mintNewBlock() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
@@ -356,7 +343,7 @@ func (minter *minter) mintNewBlock() {
 
 	minter.speculativeChain.extend(block)
 
-	minter.fireMintedBlockEvents(block, logs)
+	minter.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 	elapsed := time.Since(time.Unix(0, header.Time.Int64()))
 	glog.V(logger.Info).Infof("🔨  Mined block (#%v / %x) in %v", block.Number(), block.Hash().Bytes()[:4], elapsed)
