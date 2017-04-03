@@ -31,6 +31,7 @@ import (
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/rafthttp"
 	"github.com/syndtr/goleveldb/leveldb"
+	"syscall"
 )
 
 // Overview of the channels used in this module:
@@ -465,6 +466,8 @@ func (pm *ProtocolManager) eventLoop() {
 	defer ticker.Stop()
 	defer pm.wal.Close()
 
+	exitAfterApplying := false
+
 	for {
 		select {
 		case <-ticker.C:
@@ -528,15 +531,10 @@ func (pm *ProtocolManager) eventLoop() {
 						glog.V(logger.Info).Infof("removing peer %v due to ConfChangeRemoveNode", cc.NodeID)
 
 						if cc.NodeID == uint64(pm.id) {
-							glog.V(logger.Warn).Infoln("removing self from the cluster due to ConfChangeRemoveNode")
-
-							pm.advanceAppliedIndex(entry.Index)
-
-							// TODO: we might want to completely exit(0) geth here
-							return
+							exitAfterApplying = true
+						} else {
+							pm.removePeer(cc.NodeID)
 						}
-
-						pm.removePeer(cc.NodeID)
 
 					case raftpb.ConfChangeUpdateNode:
 						glog.Fatalln("not yet handled: ConfChangeUpdateNode")
@@ -556,9 +554,15 @@ func (pm *ProtocolManager) eventLoop() {
 				pm.advanceAppliedIndex(entry.Index)
 			}
 
+			pm.maybeTriggerSnapshot()
+
+			if (exitAfterApplying) {
+				glog.V(logger.Warn).Infoln("removing self from the cluster due to ConfChangeRemoveNode")
+				syscall.Exit(0)
+			}
+
 			// 4: Call Node.Advance() to signal readiness for the next batch of
 			// updates.
-			pm.maybeTriggerSnapshot()
 			pm.rawNode.Advance()
 
 		case <-pm.quitSync:
