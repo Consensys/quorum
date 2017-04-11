@@ -85,8 +85,8 @@ func (service *RaftService) APIs() []rpc.API {
 
 // Start implements node.Service, starting the background data propagation thread
 // of the protocol.
-func (service *RaftService) Start(*p2p.Server) error {
-	service.raftProtocolManager.Start()
+func (service *RaftService) Start(p2pServer *p2p.Server) error {
+	service.raftProtocolManager.Start(p2pServer)
 	return nil
 }
 

@@ -60,6 +60,7 @@ type ProtocolManager struct {
 	raftPeers []etcdRaft.Peer
 	peerUrls  []string
 	p2pNodes  []*discover.Node
+	p2pServer *p2p.Server // Initialized in start()
 
 	blockchain *core.BlockChain
 
@@ -148,9 +149,10 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 	return manager, nil
 }
 
-func (pm *ProtocolManager) Start() {
+func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
 	glog.V(logger.Info).Infoln("starting raft protocol handler")
 
+	pm.p2pServer = p2pServer
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	go pm.minedBroadcastLoop(pm.proposeC)
 	pm.startRaftNode()
@@ -172,6 +174,8 @@ func (pm *ProtocolManager) Stop() {
 	pm.quorumRaftDb.Close()
 
 	pm.minter.stop()
+
+	pm.p2pServer = nil
 
 	glog.V(logger.Info).Infoln("raft protocol handler stopped")
 }
