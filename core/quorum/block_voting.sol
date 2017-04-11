@@ -47,6 +47,9 @@ contract BlockVoting {
     // Collection of addresses that are allowed to create blocks.
     mapping(address => bool) public canCreateBlocks;
 
+    // Lazy loaded and needed for getCanonicalHash retrieval.
+    bytes32 genesisHash;
+
     // Only allow addresses that are allowed to make votes.
 	modifier mustBeVoter() {
 		if (canVote[msg.sender]) {
@@ -98,11 +101,16 @@ contract BlockVoting {
     // Get canonical head for a given block number.
     // E.g. [block 124] - [block 125] - [block 126 (pending)]
     // getCanonHash(126) will return the hash of block 125
-    // (if there are enough votes for it).
+    //
+    // If height is 0 or the canonical hash could not be determined the
+    // default bytes32 values is returned.
 	function getCanonHash(uint height) constant returns(bytes32) {
-		Period period = periods[height-1];
+	    bytes32 best;
+	    if (height == 0 || periods.length < height) {
+	        return best;
+        }
 
-		bytes32 best;
+		Period period = periods[height-1];
 		for(uint i = 0; i < period.indices.length; i++) {
 			if(period.entries[best] < period.entries[period.indices[i]]
 			&& period.entries[period.indices[i]] >= voteThreshold) {
