@@ -58,7 +58,6 @@ type ProtocolManager struct {
 
 	// set of currently active peers known to the raft cluster. this includes self
 	raftPeers []etcdRaft.Peer
-	peerUrls  []string
 	p2pNodes  []*discover.Node
 	p2pServer *p2p.Server // Initialized in start()
 
@@ -120,10 +119,8 @@ func NewProtocolManager(id int, blockchain *core.BlockChain, mux *event.TypeMux,
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
 
-	peerUrls := makePeerUrls(peers)
 	manager := &ProtocolManager{
-		raftPeers:   makeRaftPeers(peerUrls),
-		peerUrls:    peerUrls,
+		raftPeers:   makeRaftPeers(makePeerUrls(peers)),
 		p2pNodes:    peers,
 		blockchain:  blockchain,
 		eventMux:    mux,
