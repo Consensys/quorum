@@ -1,4 +1,4 @@
-pragma solidity ^0.4.2;
+pragma solidity ^0.4.10;
 
 // Implements a block voting algorithm to reach consensus.
 //
@@ -92,7 +92,7 @@ contract BlockVoting {
 		period.entries[hash]++;
 
 		// log vote
-		Vote(msg.sender, block.number, hash);
+		Vote(msg.sender, height, hash);
 	}
 
     // Get canonical head for a given block number.
