@@ -631,25 +631,12 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 			logCheckpoint(txAccepted, tx.Hash().Hex())
 		}
 
-		if pm.blockchain.HasBlock(block.Hash()) {
-			// This node mined the block, so it was already in the
-			// DB. We simply extend the chain:
-			pm.blockchain.SetNewHeadBlock(block)
-		} else {
-			//
-			// This will broadcast a CHE *almost always*. It does its
-			// broadcasting at the end in a goroutine, but only conditionally if
-			// the chain head is in a certain state. For now, we will broadcast
-			// a CHE ourselves below to guarantee correctness.
-			//
-			_, err := pm.blockchain.InsertChain([]*types.Block{block})
+		_, err := pm.blockchain.InsertChain([]*types.Block{block})
 
-			if err != nil {
-				panic(fmt.Sprintf("failed to extend chain: %s", err.Error()))
-			}
+		if err != nil {
+			panic(fmt.Sprintf("failed to extend chain: %s", err.Error()))
 		}
 
-		pm.eventMux.Post(core.ChainHeadEvent{Block: block})
 		glog.V(logger.Info).Infof("Successfully extended chain: %x\n", block.Hash())
 	}
 }

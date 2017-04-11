@@ -272,19 +272,6 @@ func (minter *minter) firePendingBlockEvents(logs vm.Logs) {
 	}()
 }
 
-func (minter *minter) fireMintedBlockEvents(block *types.Block, logs vm.Logs) {
-	minter.mux.Post(core.NewMinedBlockEvent{Block: block})
-	minter.mux.Post(core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
-
-	// NOTE: we're currently not doing this because the block is not in the
-	// chain yet, and it seems like that's a prerequisite for this?
-	//
-	// TODO: do we need to do this in handleLogCommands in the case where we
-	// minted the block?
-	//
-	// minter.mux.Post(work.publicState.Logs())
-}
-
 func (minter *minter) mintNewBlock() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
@@ -327,36 +314,13 @@ func (minter *minter) mintNewBlock() {
 	if _, err := work.publicState.Commit(); err != nil {
 		panic(fmt.Sprint("error committing public state: ", err))
 	}
-	privateStateRoot, privStateErr := work.privateState.Commit()
-	if privStateErr != nil {
+	if _, privStateErr := work.privateState.Commit(); privStateErr != nil {
 		panic(fmt.Sprint("error committing private state: ", privStateErr))
-	}
-
-	if err := core.WritePrivateStateRoot(minter.chainDb, block.Root(), privateStateRoot); err != nil {
-		panic(fmt.Sprint("error writing private state root: ", err))
-	}
-	if err := minter.chain.WriteDetachedBlock(block); err != nil {
-		panic(fmt.Sprint("error writing block to chain: ", err))
-	}
-	if err := core.WriteTransactions(minter.chainDb, block); err != nil {
-		panic(fmt.Sprint("error writing txes: ", err))
-	}
-	if err := core.WriteReceipts(minter.chainDb, allReceipts); err != nil {
-		panic(fmt.Sprint("error writing receipts: ", err))
-	}
-	if err := core.WriteMipmapBloom(minter.chainDb, block.NumberU64(), allReceipts); err != nil {
-		panic(fmt.Sprint("error writing mipmap bloom: ", err))
-	}
-	if err := core.WritePrivateBlockBloom(minter.chainDb, block.NumberU64(), privateReceipts); err != nil {
-		panic(fmt.Sprint("error writing private block bloom: ", err))
-	}
-	if err := core.WriteBlockReceipts(minter.chainDb, block.Hash(), block.Number().Uint64(), allReceipts); err != nil {
-		panic(fmt.Sprint("error writing block receipts: ", err))
 	}
 
 	minter.speculativeChain.extend(block)
 
-	minter.fireMintedBlockEvents(block, logs)
+	minter.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 	elapsed := time.Since(time.Unix(0, header.Time.Int64()))
 	glog.V(logger.Info).Infof("🔨  Mined block (#%v / %x) in %v", block.Number(), block.Hash().Bytes()[:4], elapsed)
@@ -409,10 +373,6 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 	publicSnapshot := env.publicState.Snapshot()
 	privateSnapshot := env.privateState.Snapshot()
 
-	//
-	// TODO(bts): look into that core.ApplyTransaction is not currently
-	//            returning any logs?
-	//
 	publicReceipt, privateReceipt, _, err := core.ApplyTransaction(env.config, bc, gp, env.publicState, env.privateState, env.header, tx, env.header.GasUsed, env.config.VmConfig)
 	if err != nil {
 		env.publicState.RevertToSnapshot(publicSnapshot)

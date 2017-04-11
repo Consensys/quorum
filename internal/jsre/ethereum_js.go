@@ -2897,65 +2897,68 @@ var addEventsToContract = function (contract) {
  */
 var checkForContractAddress = function(contract, callback){
     var count = 0,
-        callbackFired = false;
+        callbackFired = false,
+        filter = null,
+        interval = null,
+        stop = function() {
+            if (interval) { clearInterval(interval); };
+            if (filter)   { filter.stopWatching();   };
+            callbackFired = true;
+        };
 
-    // wait for receipt
-    var filter = contract._eth.filter('latest', function(e){
+    // Track the number of blocks that are added to the chain so that we can
+    // timeout.
+    filter = contract._eth.filter('latest', function(e){
         if (!e && !callbackFired) {
             count++;
 
-            // stop watching after 50 blocks (timeout)
             if (count > 50) {
-
-                filter.stopWatching();
-                callbackFired = true;
+                stop();
 
                 if (callback)
                     callback(new Error('Contract transaction couldn\'t be found after 50 blocks'));
                 else
                     throw new Error('Contract transaction couldn\'t be found after 50 blocks');
-
-
-            } else {
-
-                contract._eth.getTransactionReceipt(contract.transactionHash, function(e, receipt){
-                    if(receipt && !callbackFired) {
-
-                        contract._eth.getCode(receipt.contractAddress, function(e, code){
-                            /*jshint maxcomplexity: 6 */
-
-                            if(callbackFired || !code)
-                                return;
-
-                            filter.stopWatching();
-                            callbackFired = true;
-
-                            if(code.length > 2) {
-
-                                // console.log('Contract code deployed!');
-
-                                contract.address = receipt.contractAddress;
-
-                                // attach events and methods again after we have
-                                addFunctionsToContract(contract);
-                                addEventsToContract(contract);
-
-                                // call callback for the second time
-                                if(callback)
-                                    callback(null, contract);
-
-                            } else {
-                                if(callback)
-                                    callback(new Error('The contract code couldn\'t be stored, please check your gas amount.'));
-                                else
-                                    throw new Error('The contract code couldn\'t be stored, please check your gas amount.');
-                            }
-                        });
-                    }
-                });
             }
         }
     });
+
+    // If we want to guarantee the firing of our callback, using a filter
+    // alone won't suffice, because there is always the possibility that our
+    // block event already fired in high-throughput/non-proof-of-work
+    // scenarios:
+    interval = setInterval(function() {
+        contract._eth.getTransactionReceipt(contract.transactionHash, function(e, receipt){
+            if(receipt && !callbackFired) {
+
+                contract._eth.getCode(receipt.contractAddress, function(e, code){
+                    /*jshint maxcomplexity: 6 */
+
+                    if(callbackFired || !code)
+                        return;
+
+                    stop();
+
+                    if(code.length > 2) {
+                        contract.address = receipt.contractAddress;
+
+                        // attach events and methods again after we have
+                        addFunctionsToContract(contract);
+                        addEventsToContract(contract);
+
+                        // call callback for the second time
+                        if(callback)
+                            callback(null, contract);
+                    } else {
+                        if(callback)
+                            callback(new Error('The contract code couldn\'t be stored, please check your gas amount.'));
+                        else
+                            throw new Error('The contract code couldn\'t be stored, please check your gas amount.');
+                    }
+                });
+            }
+        });
+    }, 250);
 };
 
 /**

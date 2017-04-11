@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This directory holds an implementation of a [Raft](https://raft.github.io)-based consensus mechanism (using [etcd](https://github.com/coreos/etcd)'s [Raft implementation](https://github.com/coreos/etcd/tree/master/raft)) as an alternative to Ethereum's default proof-of-work. This is useful for closed-membership/consortium settings where byzantine fault tolerance is not a requirement, and there is a desire for faster blocktimes (on the order of milliseconds instead of seconds) and transaction finality (the absence of forking.)
+This directory holds an implementation of a [Raft](https://raft.github.io)-based consensus mechanism (using [etcd](https://github.com/coreos/etcd)'s [Raft implementation](https://github.com/coreos/etcd/tree/master/raft)) as an alternative to Ethereum's default proof-of-work. This is useful for closed-membership/consortium settings where byzantine fault tolerance is not a requirement, and there is a desire for faster blocktimes (on the order of milliseconds instead of seconds) and transaction finality (the absence of forking.) Also, compared with QuorumChain, this consensus mechanism does not "unnecessarily" create empty blocks, and effectively creates blocks "on-demand."
 
 When the `geth` binary is passed the `--raft` flag, the node will operate in "raft mode."
 
@@ -20,18 +20,18 @@ In vanilla Ethereum, there is no such thing as a "leader" or "follower." It's po
 
 In Raft-based consensus, we impose a one-to-one correspondence between Raft and Ethereum nodes: each Ethereum node is also a Raft node, and by convention, the leader of the Raft cluster is the only Ethereum node that should mine (or "mint") new blocks. A minter is responsible for bundling transactions into a block just like an Ethereum miner, but does not present a proof of work.
 
+Ethereum | Raft
+-------- | ----
+minter   | leader
+verifier | follower
+
 The main reasons we co-locate the leader and minter are (1) convenience, in that Raft ensures there is only one leader at a time, and (2) to avoid a network hop from a node minting blocks to the leader, through which all Raft writes must flow. Our implementation watches Raft leadership changes -- if a node becomes a leader it will start minting, and if a node loses its leadership, it will stop minting.
 
 An observant reader might note that during raft leadership transitions, there could be a small period of time where more than one node might assume that it has minting duties; we detail how correctness is preserved in more detail later in this document.
 
 We use the existing Ethereum p2p transport layer to communicate transactions between nodes, but we communicate blocks only through the Raft transport layer. They are created by the minter and flow from there to the rest of the cluster, always in the same order, via Raft.
 
-Ethereum | Raft
--------- | ----
-minter   | leader
-verifier | follower
-
-When the minter creates a block, unlike in vanilla Ethereum where the block is written to the database and immediately considered the new head of the chain, we write the block as "detached" from the chain. We only set the new head of the chain once the block has flown through Raft. All nodes will extend the chain together in lock-step as they "apply" their Raft log.
+When the minter creates a block, unlike in vanilla Ethereum where the block is written to the database and immediately considered the new head of the chain, we only insert the block or set it to be the new head of the chain once the block has flown through Raft. All nodes will extend the chain together in lock-step as they "apply" their Raft log.
 
 From the point of view of Ethereum, Raft is integrated via an implementation of the [`Service`](https://godoc.org/github.com/jpmorganchase/quorum/node#Service) interface in [node/service.go](https://github.com/jpmorganchase/quorum/blob/master/node/service.go): "an individual protocol that can be registered into a node". Other examples of services are [`Ethereum`](https://godoc.org/github.com/jpmorganchase/quorum/eth#Ethereum), [`ReleaseService`](https://godoc.org/github.com/jpmorganchase/quorum/contracts/release#ReleaseService), and [`Whisper`](https://godoc.org/github.com/jpmorganchase/quorum/whisper/whisperv5#Whisper).
 
@@ -56,14 +56,14 @@ Let's follow the lifecycle of a typical transaction:
 
 7. Having crossed the network through Raft, the block reaches the `eventLoop` (which processes new Raft log entries.) It has arrived from the leader through `pm.transport`, an instance of [`rafthttp.Transport`](https://godoc.org/github.com/coreos/etcd/rafthttp#Transport).
 
-8. The block is now handled by `applyNewChainHead`. This method checks whether the block extends the chain (i.e. it's parent is the current head of the chain; see below). If it does not extend the chain, it is simply ignored as a no-op. If it does extend chain, the block is validated and then written as the new head of the chain by [`SetNewHeadBlock`](https://godoc.org/github.com/jpmorganchase/quorum/core#BlockChain.SetNewHeadBlock) (in core/blockchain.go).
+8. The block is now handled by `applyNewChainHead`. This method checks whether the block extends the chain (i.e. it's parent is the current head of the chain; see below). If it does not extend the chain, it is simply ignored as a no-op. If it does extend chain, the block is validated and then written as the new head of the chain by [`InsertChain`](https://godoc.org/github.com/jpmorganchase/quorum/core#BlockChain.InsertChain).
 
 9. A [`ChainHeadEvent`](https://godoc.org/github.com/jpmorganchase/quorum/core#ChainHeadEvent) is posted to notify listeners that a new block has been accepted. This is relevant to us because:
 * It removes the relevant transaction from the transaction pool.
 * It removes the relevant transaction from `speculativeChain`'s `proposedTxes` (see below).
 * It triggers `requestMinting` in (minter.go), telling the node to schedule the minting of a new block if any more transactions are pending.
 
-The transaction is now available on all nodes in the cluster with complete finality. Because raft guarantees a single ordering of entries stored in its log, and because everything that is committed is guaranteed to remain so, there is no forking of the blockchain built upon Raft.
+The transaction is now available on all nodes in the cluster with complete finality. Because Raft guarantees a single ordering of entries stored in its log, and because everything that is committed is guaranteed to remain so, there is no forking of the blockchain built upon Raft.
 
 ## Chain extension, races, and correctness
 
@@ -122,7 +122,7 @@ One of the ways our approach differs from vanilla Ethereum is that we introduce 
 
 It takes some time for a block to flow through Raft (consensus) to become the head of the chain. If we synchronously waited for a block to become the new head of the chain before creating the new block, any transactions that we receive would take more time to make it into the chain.
 
-In speculative minting we allow the creation of a new block (and its proposal to raft) before its parent has made it all the way through Raft and into the blockchain.
+In speculative minting we allow the creation of a new block (and its proposal to Raft) before its parent has made it all the way through Raft and into the blockchain.
 
 Since this can happen repeatedly, these blocks (which each have a reference to their parent block) can form a sort of chain. We call this a "speculative chain."
 
@@ -161,7 +161,7 @@ There's no hard reason they couldn't be different. We just co-locate the minter 
 
 Additionally there could even be multiple minters running at the same time, but this would produce contention for which blocks actually extend the chain, reducing the productivity of the cluster (see "races" above).
 
-### I thought there were no forks in a Raft-based blockchain. What's the deal with "speculative mining"?
+### I thought there were no forks in a Raft-based blockchain. What's the deal with "speculative minting"?
 
 "Speculative chains" are not forks in the blockchain. They represent a series ("chain") of blocks that have been sent through Raft, after which each of the blocks may or may not actually end up being included in *the blockchain*.
 
