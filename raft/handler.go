@@ -556,7 +556,7 @@ func (pm *ProtocolManager) eventLoop() {
 
 			pm.maybeTriggerSnapshot()
 
-			if (exitAfterApplying) {
+			if exitAfterApplying {
 				glog.V(logger.Warn).Infoln("removing self from the cluster due to ConfChangeRemoveNode")
 				syscall.Exit(0)
 			}
