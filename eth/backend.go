@@ -134,7 +134,7 @@ type Ethereum struct {
 	maxBlockTime    uint
 	minVoteTime     uint
 	maxVoteTime     uint
-	blockMakerStrat quorum.BlockMakerStrategy
+	blockMakerStrat quorum.BlockVoteMakerStrategy
 }
 
 // New creates a new Ethereum object (including the

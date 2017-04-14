@@ -160,7 +160,7 @@ func (bv *BlockVoting) makeHeader(parent *types.Block) *types.Header {
 }
 
 // Start runs the event loop.
-func (bv *BlockVoting) Start(client *rpc.Client, strat BlockMakerStrategy, voteKey, blockMakerKey *ecdsa.PrivateKey) error {
+func (bv *BlockVoting) Start(client *rpc.Client, strat BlockVoteMakerStrategy, voteKey, blockMakerKey *ecdsa.PrivateKey) error {
 	bv.bmk = blockMakerKey
 	bv.vk = voteKey
 
@@ -195,7 +195,7 @@ func (bv *BlockVoting) Start(client *rpc.Client, strat BlockMakerStrategy, voteK
 	return nil
 }
 
-func (bv *BlockVoting) run(strat BlockMakerStrategy) {
+func (bv *BlockVoting) run(strat BlockVoteMakerStrategy) {
 	if bv.bmk != nil {
 		glog.Infof("Node configured for block creation: %s", crypto.PubkeyToAddress(bv.bmk.PublicKey).Hex())
 	}
@@ -227,10 +227,10 @@ func (bv *BlockVoting) run(strat BlockMakerStrategy) {
 
 				switch e := event.Data.(type) {
 				case downloader.StartEvent: // begin synchronising, stop block creation and/or voting
-					strat.Pause()
+					strat.PauseBlockMaking()
 					bv.syncingChain = true
 				case downloader.DoneEvent, downloader.FailedEvent: // caught up, or got an error, start block createion and/or voting
-					strat.Resume()
+					strat.ResumeBlockMaking()
 					bv.syncingChain = false
 				case core.ChainHeadEvent: // got a new header, reset pending state
 					bv.resetPendingState(e.Block)

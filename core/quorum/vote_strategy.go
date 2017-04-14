@@ -10,30 +10,46 @@ import (
 
 	"math/big"
 
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 )
 
-type BlockMakerStatus int
+type Status int
 
 const (
-	_                       = iota
-	Active BlockMakerStatus = iota
-	Paused                  = iota
+	_             = iota
+	Active Status = iota
+	Paused        = iota
 )
 
-type BlockMakerStrategy interface {
-	// Start generating blocks
+func (s Status) MarshalJSON() ([]byte, error) {
+	switch s {
+	case Active:
+		return []byte(`"active"`), nil
+	case Paused:
+		return []byte(`"inactive"`), nil
+	}
+	return nil, fmt.Errorf("Could not determine status")
+}
+
+type BlockVoteMakerStrategy interface {
+	// Start generating blocks/voting
 	Start() error
 	// (temporary) stop generating blocks
-	Pause() error
-	// Resume after a pause
-	Resume() error
+	PauseBlockMaking() error
+	// Resume block maker after a pause
+	ResumeBlockMaking() error
+	// (temporary) stop generating voting events
+	PauseVoting() error
+	// Resume voting after a pause
+	ResumeVoting() error
 	// Status returns indication if this implementation
-	// is generation CreateBlock events.
-	Status() BlockMakerStatus
+	// is generation CreateBlock and/or Voting events.
+	Status() (Status, Status)
 }
 
 // randomDeadlineStrategy asks the block voter to generate blocks
@@ -44,7 +60,8 @@ type randomDeadlineStrategy struct {
 	minBlockTime, maxBlockTime int // min and max block creation deadline
 	minVoteTime, maxVoteTime   int // min and max block voting deadline
 	activeMu                   sync.Mutex
-	active                     bool
+	blockCreateActive          bool
+	votingActive               bool
 	voteTimer                  *time.Timer
 	deadlineTimer              *time.Timer
 	rand                       *rand.Rand
@@ -81,13 +98,14 @@ func NewRandomDeadelineStrategy(mux *event.TypeMux, minBlockTime, maxBlockTime, 
 	}
 
 	s := &randomDeadlineStrategy{
-		mux:          mux,
-		minBlockTime: int(minBlockTime),
-		maxBlockTime: int(maxBlockTime),
-		minVoteTime:  int(minVoteTime),
-		maxVoteTime:  int(maxVoteTime),
-		active:       true,
-		rand:         rand.New(rand.NewSource(seed.Int64())),
+		mux:               mux,
+		minBlockTime:      int(minBlockTime),
+		maxBlockTime:      int(maxBlockTime),
+		minVoteTime:       int(minVoteTime),
+		maxVoteTime:       int(maxVoteTime),
+		blockCreateActive: true,
+		votingActive:      true,
+		rand:              rand.New(rand.NewSource(seed.Int64())),
 	}
 
 	return s
@@ -118,7 +136,7 @@ func (s *randomDeadlineStrategy) Start() error {
 			select {
 			case <-s.voteTimer.C:
 				s.activeMu.Lock()
-				if s.active {
+				if s.votingActive {
 					s.mux.Post(Vote{})
 				}
 				s.activeMu.Unlock()
@@ -126,7 +144,7 @@ func (s *randomDeadlineStrategy) Start() error {
 				resetTimer(s.voteTimer, time.Duration(s.minVoteTime+s.rand.Intn(s.maxVoteTime-s.minVoteTime))*time.Second)
 			case <-s.deadlineTimer.C:
 				s.activeMu.Lock()
-				if s.active {
+				if s.blockCreateActive {
 					s.mux.Post(CreateBlock{})
 				}
 				s.activeMu.Unlock()
@@ -142,48 +160,67 @@ func (s *randomDeadlineStrategy) Start() error {
 
 // Pause stops generating block create requests.
 // Can be resumed with Resume.
-func (s *randomDeadlineStrategy) Pause() error {
+func (s *randomDeadlineStrategy) PauseBlockMaking() error {
+	glog.Infoln("Pause block creation")
 	s.activeMu.Lock()
-	s.active = false
+	s.blockCreateActive = false
 	s.activeMu.Unlock()
 	return nil
 }
 
 // Resume if paused.
-func (s *randomDeadlineStrategy) Resume() error {
+func (s *randomDeadlineStrategy) ResumeBlockMaking() error {
+	glog.Infoln("Resume block creation")
 	s.activeMu.Lock()
-	s.active = true
+	s.blockCreateActive = true
+	s.activeMu.Unlock()
+	return nil
+}
+
+func (s *randomDeadlineStrategy) PauseVoting() error {
+	glog.Infoln("Pause voting")
+	s.activeMu.Lock()
+	s.votingActive = false
+	s.activeMu.Unlock()
+	return nil
+}
+
+func (s *randomDeadlineStrategy) ResumeVoting() error {
+	glog.Infoln("Resume voting")
+	s.activeMu.Lock()
+	s.votingActive = true
 	s.activeMu.Unlock()
 	return nil
 }
 
 // Status returns an indication if this strategy is currently
 // generating block create request.
-func (s *randomDeadlineStrategy) Status() BlockMakerStatus {
+func (s *randomDeadlineStrategy) Status() (blockMaking, voting Status) {
 	s.activeMu.Lock()
 	defer s.activeMu.Unlock()
 
-	if s.active {
-		return Active
+	blockMaking, voting = Paused, Paused
+	if s.blockCreateActive {
+		blockMaking = Active
 	}
-	return Paused
+	if s.votingActive {
+		voting = Active
+	}
+	return
 }
 
 func (s *randomDeadlineStrategy) MarshalJSON() ([]byte, error) {
+	block, vote := s.Status()
 	s.activeMu.Lock()
 	defer s.activeMu.Unlock()
 
-	status := "active"
-	if !s.active {
-		status = "paused"
-	}
-
 	return json.Marshal(map[string]interface{}{
-		"type":         "deadline",
-		"minblocktime": s.minBlockTime,
-		"maxblocktime": s.maxBlockTime,
-		"minvotetime":  s.minVoteTime,
-		"maxvotetime":  s.maxVoteTime,
-		"status":       status,
+		"type":          "deadline",
+		"minblocktime":  s.minBlockTime,
+		"maxblocktime":  s.maxBlockTime,
+		"minvotetime":   s.minVoteTime,
+		"maxvotetime":   s.maxVoteTime,
+		"blockCreation": block,
+		"voting":        vote,
 	})
 }
