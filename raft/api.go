@@ -9,10 +9,5 @@ func NewPublicRaftAPI(raftService *RaftService) *PublicRaftAPI {
 }
 
 func (s *PublicRaftAPI) Role() string {
-	role := s.raftService.raftProtocolManager.role
-	if role == minterRole {
-		return "minter"
-	} else {
-		return "verifier"
-	}
+	return s.raftService.raftProtocolManager.NodeInfo().Role
 }
