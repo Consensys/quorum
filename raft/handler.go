@@ -89,9 +89,9 @@ type ProtocolManager struct {
 	// last-applied raft index and raft peer URLs.
 	quorumRaftDb *leveldb.DB
 
-	proposeC    chan *types.Block
-	confChangeC chan raftpb.ConfChange
-	quitSync    chan struct{}
+	blockProposalC      chan *types.Block
+	confChangeProposalC chan raftpb.ConfChange
+	quitSync            chan struct{}
 
 	// Note: we don't actually use this field. We just set it at the same time as
 	// starting or stopping the miner in notifyRoleChange. We might want to remove
@@ -111,22 +111,22 @@ func NewProtocolManager(raftId uint16, blockchain *core.BlockChain, mux *event.T
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
 
 	manager := &ProtocolManager{
-		bootstrapNodes: bootstrapNodes,
-		peers:          make(map[uint16]*Peer),
-		joinExisting:   joinExisting,
-		blockchain:     blockchain,
-		eventMux:       mux,
-		proposeC:       make(chan *types.Block),
-		confChangeC:    make(chan raftpb.ConfChange),
-		httpstopc:      make(chan struct{}),
-		httpdonec:      make(chan struct{}),
-		waldir:         waldir,
-		snapdir:        snapdir,
-		snapshotter:    snap.New(snapdir),
-		raftId:         raftId,
-		quitSync:       make(chan struct{}),
-		raftStorage:    etcdRaft.NewMemoryStorage(),
-		minter:         minter,
+		bootstrapNodes:      bootstrapNodes,
+		peers:               make(map[uint16]*Peer),
+		joinExisting:        joinExisting,
+		blockchain:          blockchain,
+		eventMux:            mux,
+		blockProposalC:      make(chan *types.Block),
+		confChangeProposalC: make(chan raftpb.ConfChange),
+		httpstopc:           make(chan struct{}),
+		httpdonec:           make(chan struct{}),
+		waldir:              waldir,
+		snapdir:             snapdir,
+		snapshotter:         snap.New(snapdir),
+		raftId:              raftId,
+		quitSync:            make(chan struct{}),
+		raftStorage:         etcdRaft.NewMemoryStorage(),
+		minter:              minter,
 	}
 
 	if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
@@ -143,7 +143,7 @@ func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
 
 	pm.p2pServer = p2pServer
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
-	go pm.minedBroadcastLoop(pm.proposeC)
+	go pm.minedBroadcastLoop(pm.blockProposalC)
 	pm.startRaft()
 }
 
@@ -314,7 +314,7 @@ func (pm *ProtocolManager) startRaft() {
 	}
 
 	go pm.serveRaft()
-	go pm.serveInternal(pm.proposeC, pm.confChangeC)
+	go pm.serveLocalProposals()
 	go pm.eventLoop()
 	go pm.handleRoleChange(pm.rawNode.RoleChan().Out())
 }
@@ -380,9 +380,8 @@ func (pm *ProtocolManager) minedBroadcastLoop(proposeC chan<- *types.Block) {
 	}
 }
 
-// serve two channels (proposeC, confChangeC) to handle changes originating
-// internally
-func (pm *ProtocolManager) serveInternal(proposeC <-chan *types.Block, confChangeC <-chan raftpb.ConfChange) {
+// Serve two channels to handle new blocks and raft configuration changes originating locally.
+func (pm *ProtocolManager) serveLocalProposals() {
 	//
 	// TODO: does it matter that this will restart from 0 whenever we restart a cluster?
 	//
@@ -390,7 +389,7 @@ func (pm *ProtocolManager) serveInternal(proposeC <-chan *types.Block, confChang
 
 	for {
 		select {
-		case block, ok := <-proposeC:
+		case block, ok := <-pm.blockProposalC:
 			if !ok {
 				glog.V(logger.Info).Infoln("error: read from proposeC failed")
 				return
@@ -405,7 +404,7 @@ func (pm *ProtocolManager) serveInternal(proposeC <-chan *types.Block, confChang
 
 			// blocks until accepted by the raft state machine
 			pm.rawNode.Propose(context.TODO(), buffer)
-		case cc, ok := <-confChangeC:
+		case cc, ok := <-pm.confChangeProposalC:
 			if !ok {
 				glog.V(logger.Info).Infoln("error: read from confChangeC failed")
 				return
