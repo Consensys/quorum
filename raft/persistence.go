@@ -9,6 +9,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"strconv"
 )
 
 var (
@@ -58,18 +59,18 @@ func (pm *ProtocolManager) writeAppliedIndex(index uint64) {
 	pm.quorumRaftDb.Put(appliedDbKey, buf, noFsync)
 }
 
-func (pm *ProtocolManager) loadPeerUrl(nodeId uint64) string {
-	peerUrlKey := []byte(peerUrlKeyPrefix + string(nodeId))
+func (pm *ProtocolManager) loadPeerAddress(raftId uint16) *Address {
+	peerUrlKey := []byte(peerUrlKeyPrefix + strconv.Itoa(int(raftId)))
 	value, err := pm.quorumRaftDb.Get(peerUrlKey, nil)
 	if err != nil {
-		glog.Fatalf("failed to read peer url for peer %d from leveldb: %v", nodeId, err)
+		glog.Fatalf("failed to read address for raft peer %d from leveldb: %v", raftId, err)
 	}
-	return string(value)
+
+	return bytesToAddress(value)
 }
 
-func (pm *ProtocolManager) writePeerUrl(nodeId uint64, url string) {
-	key := []byte(peerUrlKeyPrefix + string(nodeId))
-	value := []byte(url)
+func (pm *ProtocolManager) writePeerAddressBytes(raftId uint16, value []byte) {
+	key := []byte(peerUrlKeyPrefix + strconv.Itoa(int(raftId)))
 
 	pm.quorumRaftDb.Put(key, value, mustFsync)
 }
