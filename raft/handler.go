@@ -188,6 +188,36 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	}
 }
 
+func (pm *ProtocolManager) ProposeNewPeer(raftId uint16, enodeId string) error {
+	node, err := discover.ParseNode(enodeId)
+	if err != nil {
+		return err
+	}
+
+	address := &Address{
+		raftId:   raftId,
+		nodeId:   node.ID,
+		ip:       node.IP,
+		p2pPort:  node.TCP,
+		raftPort: raftPort(raftId),
+	}
+
+	pm.confChangeProposalC <- raftpb.ConfChange{
+		Type:    raftpb.ConfChangeAddNode,
+		NodeID:  uint64(raftId),
+		Context: address.toBytes(),
+	}
+
+	return nil
+}
+
+func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) {
+	pm.confChangeProposalC <- raftpb.ConfChange{
+		Type:   raftpb.ConfChangeRemoveNode,
+		NodeID: uint64(raftId),
+	}
+}
+
 //
 // MsgWriter interface (necessary for p2p.Send)
 //
