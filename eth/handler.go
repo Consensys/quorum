@@ -744,7 +744,11 @@ func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 func (pm *ProtocolManager) BroadcastTx(hash common.Hash, tx *types.Transaction) {
 	// Broadcast transaction to a batch of peers not knowing about it
 	peers := pm.peers.PeersWithoutTx(hash)
-	//FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
+	// NOTE: Raft-based consensus currently assumes that geth broadcasts
+	// transactions to all peers in the network. A previous comment here
+	// indicated that this logic might change in the future to only send to a
+	// subset of peers. If this change occurs upstream, a merge conflict should
+	// arise here, and we should add logic to send to *all* peers in raft mode.
 	for _, peer := range peers {
 		peer.SendTransactions(types.Transactions{tx})
 	}
