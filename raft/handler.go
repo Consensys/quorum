@@ -248,11 +248,17 @@ func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
 
 func (pm *ProtocolManager) ReportUnreachable(id uint64) {
 	glog.V(logger.Warn).Infof("peer %d is currently unreachable", id)
+
 	pm.rawNode.ReportUnreachable(id)
 }
 
 func (pm *ProtocolManager) ReportSnapshot(id uint64, status etcdRaft.SnapshotStatus) {
-	glog.V(logger.Info).Infof("status of last-sent snapshot: %v", status)
+	if status == etcdRaft.SnapshotFailure {
+		glog.V(logger.Info).Infof("failed to send snapshot to raft peer %v", id)
+	} else if status == etcdRaft.SnapshotFinish {
+		glog.V(logger.Info).Infof("finished sending snapshot to raft peer %v", id)
+	}
+
 	pm.rawNode.ReportSnapshot(id, status)
 }
 
