@@ -487,12 +487,14 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 
 func (pm *ProtocolManager) removePeer(raftId uint16) {
 	pm.mu.Lock()
-	peer := pm.peers[raftId]
-	delete(pm.peers, raftId)
-	pm.mu.Unlock()
+	defer pm.mu.Unlock()
 
-	pm.p2pServer.RemovePeer(peer.p2pNode)
-	pm.transport.RemovePeer(raftTypes.ID(raftId))
+	if peer := pm.peers[raftId]; peer != nil {
+		pm.p2pServer.RemovePeer(peer.p2pNode)
+		pm.transport.RemovePeer(raftTypes.ID(raftId))
+
+		delete(pm.peers, raftId)
+	}
 }
 
 func (pm *ProtocolManager) reconnectToPreviousPeers() {
