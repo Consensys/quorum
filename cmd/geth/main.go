@@ -158,7 +158,7 @@ participating.
 		utils.SingleBlockMakerFlag,
 		utils.EnableNodePermissionFlag,
 		utils.RaftModeFlag,
-		utils.RaftBlockTime,
+		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)

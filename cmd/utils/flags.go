@@ -380,7 +380,7 @@ var (
 		Name:  "raft",
 		Usage: "If enabled, uses Raft instead of Quorum Chain for consensus",
 	}
-	RaftBlockTime = cli.IntFlag{
+	RaftBlockTimeFlag = cli.IntFlag{
 		Name:  "raftblocktime",
 		Usage: "Amount of time between raft block creations in milliseconds",
 		Value: 50,
@@ -729,7 +729,7 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 	}
 
 	if ctx.GlobalBool(RaftModeFlag.Name) {
-		blockTimeMillis := ctx.GlobalInt(RaftBlockTime.Name)
+		blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
 		datadir := ctx.GlobalString(DataDirFlag.Name)
 		joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
 
