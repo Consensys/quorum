@@ -561,11 +561,11 @@ func (pm *ProtocolManager) eventLoop() {
 					case raftpb.ConfChangeAddNode:
 						glog.V(logger.Info).Infof("adding peer %v due to ConfChangeAddNode", cc.NodeID)
 
-						if nodeRaftId := uint16(cc.NodeID); nodeRaftId != pm.raftId {
-							address := bytesToAddress(cc.Context)
-							pm.addPeer(address)
+						nodeRaftId := uint16(cc.NodeID)
+						pm.writePeerAddressBytes(nodeRaftId, cc.Context)
 
-							pm.writePeerAddressBytes(nodeRaftId, cc.Context)
+						if nodeRaftId != pm.raftId {
+							pm.addPeer(bytesToAddress(cc.Context))
 						}
 
 					case raftpb.ConfChangeRemoveNode:
