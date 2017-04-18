@@ -239,11 +239,7 @@ func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error 
 }
 
 func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
-	// TODO: implement this in the future once we support dynamic cluster membership
-
-	glog.V(logger.Info).Infof("reporting that raft ID %d is not removed", id)
-
-	return false
+	return pm.peers[uint16(id)] == nil
 }
 
 func (pm *ProtocolManager) ReportUnreachable(id uint64) {
