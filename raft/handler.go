@@ -194,6 +194,10 @@ func (pm *ProtocolManager) ProposeNewPeer(raftId uint16, enodeId string) error {
 		return err
 	}
 
+	if len(node.IP) != 4 {
+		return fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP))
+	}
+
 	address := &Address{
 		raftId:   raftId,
 		nodeId:   node.ID,
