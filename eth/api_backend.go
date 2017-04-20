@@ -19,6 +19,7 @@ package eth
 import (
 	"math/big"
 
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -32,6 +33,8 @@ import (
 	rpc "github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/net/context"
 )
+
+var raftHasNoPending = fmt.Errorf("Raft mode has no Pending block. Use latest instead.")
 
 // EthApiBackend implements ethapi.Backend for full nodes
 type EthApiBackend struct {
@@ -58,6 +61,9 @@ func (b *EthApiBackend) HeaderByNumber(blockNr rpc.BlockNumber) *types.Header {
 func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
 	// Pending block is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
+		if b.eth.protocolManager.raftMode {
+			return nil, raftHasNoPending
+		}
 		block, _, _ := b.eth.blockVoting.Pending()
 		return block, nil
 	}
@@ -71,6 +77,9 @@ func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumb
 func (b *EthApiBackend) StateAndHeaderByNumber(blockNr rpc.BlockNumber) (ethapi.State, *types.Header, error) {
 	// Pending state is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
+		if b.eth.protocolManager.raftMode {
+			return nil, nil, raftHasNoPending
+		}
 		block, publicState, privateState := b.eth.blockVoting.Pending()
 		return EthApiState{publicState, privateState}, block.Header(), nil
 	}
