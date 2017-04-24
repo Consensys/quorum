@@ -17,17 +17,31 @@
 package filters
 
 import (
+	"context"
 	"math"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
-// Filter can be used to retrieve and filter logs
+type Backend interface {
+	ChainDb() ethdb.Database
+	EventMux() *event.TypeMux
+	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error)
+	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
+}
+
+// Filter can be used to retrieve and filter logs.
 type Filter struct {
+	backend   Backend
+	useMipMap bool
+
 	created time.Time
 
 	db         ethdb.Database
@@ -38,8 +52,14 @@ type Filter struct {
 
 // New creates a new filter which uses a bloom filter on blocks to figure out whether
 // a particular block is interesting or not.
-func New(db ethdb.Database) *Filter {
-	return &Filter{db: db}
+// MipMaps allow past blocks to be searched much more efficiently, but are not available
+// to light clients.
+func New(backend Backend, useMipMap bool) *Filter {
+	return &Filter{
+		backend:   backend,
+		useMipMap: useMipMap,
+		db:        backend.ChainDb(),
+	}
 }
 
 // SetBeginBlock sets the earliest block for filtering.
@@ -65,97 +85,119 @@ func (f *Filter) SetTopics(topics [][]common.Hash) {
 	f.topics = topics
 }
 
-// Run filters logs with the current parameters set
-func (f *Filter) Find() []Log {
-	latestHash := core.GetHeadBlockHash(f.db)
-	latestBlock := core.GetBlock(f.db, latestHash, core.GetBlockNumber(f.db, latestHash))
-	if latestBlock == nil {
-		return []Log{}
+// FindOnce searches the blockchain for matching log entries, returning
+// all matching entries from the first block that contains matches,
+// updating the start point of the filter accordingly. If no results are
+// found, a nil slice is returned.
+func (f *Filter) FindOnce(ctx context.Context) ([]*types.Log, error) {
+	head, _ := f.backend.HeaderByNumber(ctx, rpc.LatestBlockNumber)
+	if head == nil {
+		return nil, nil
 	}
+	headBlockNumber := head.Number.Uint64()
 
 	var beginBlockNo uint64 = uint64(f.begin)
 	if f.begin == -1 {
-		beginBlockNo = latestBlock.NumberU64()
+		beginBlockNo = headBlockNumber
 	}
-
-	endBlockNo := uint64(f.end)
+	var endBlockNo uint64 = uint64(f.end)
 	if f.end == -1 {
-		endBlockNo = latestBlock.NumberU64()
+		endBlockNo = headBlockNumber
 	}
 
 	// if no addresses are present we can't make use of fast search which
 	// uses the mipmap bloom filters to check for fast inclusion and uses
 	// higher range probability in order to ensure at least a false positive
-	if len(f.addresses) == 0 {
-		return f.getLogs(beginBlockNo, endBlockNo)
+	if !f.useMipMap || len(f.addresses) == 0 {
+		logs, blockNumber, err := f.getLogs(ctx, beginBlockNo, endBlockNo)
+		f.begin = int64(blockNumber + 1)
+		return logs, err
 	}
-	return f.mipFind(beginBlockNo, endBlockNo, 0)
+
+	logs, blockNumber := f.mipFind(beginBlockNo, endBlockNo, 0)
+	f.begin = int64(blockNumber + 1)
+	return logs, nil
 }
 
-func (f *Filter) mipFind(start, end uint64, depth int) (logs []Log) {
+// Run filters logs with the current parameters set
+func (f *Filter) Find(ctx context.Context) (logs []*types.Log, err error) {
+	for {
+		newLogs, err := f.FindOnce(ctx)
+		if len(newLogs) == 0 || err != nil {
+			return logs, err
+		}
+		logs = append(logs, newLogs...)
+	}
+}
+
+func (f *Filter) mipFind(start, end uint64, depth int) (logs []*types.Log, blockNumber uint64) {
 	level := core.MIPMapLevels[depth]
 	// normalise numerator so we can work in level specific batches and
 	// work with the proper range checks
 	for num := start / level * level; num <= end; num += level {
 		// find addresses in bloom filters
 		bloom := core.GetMipmapBloom(f.db, num, level)
+		// Don't bother checking the first time through the loop - we're probably picking
+		// up where a previous run left off.
+		first := true
 		for _, addr := range f.addresses {
-			if bloom.TestBytes(addr[:]) {
+			if first || bloom.TestBytes(addr[:]) {
+				first = false
 				// range check normalised values and make sure that
 				// we're resolving the correct range instead of the
 				// normalised values.
 				start := uint64(math.Max(float64(num), float64(start)))
 				end := uint64(math.Min(float64(num+level-1), float64(end)))
 				if depth+1 == len(core.MIPMapLevels) {
-					logs = append(logs, f.getLogs(start, end)...)
+					l, blockNumber, _ := f.getLogs(context.Background(), start, end)
+					if len(l) > 0 {
+						return l, blockNumber
+					}
 				} else {
-					logs = append(logs, f.mipFind(start, end, depth+1)...)
+					l, blockNumber := f.mipFind(start, end, depth+1)
+					if len(l) > 0 {
+						return l, blockNumber
+					}
 				}
-				// break so we don't check the same range for each
-				// possible address. Checks on multiple addresses
-				// are handled further down the stack.
-				break
 			}
 		}
 	}
 
-	return logs
+	return nil, end
 }
 
-func (f *Filter) getLogs(start, end uint64) (logs []Log) {
-	var block *types.Block
-
+func (f *Filter) getLogs(ctx context.Context, start, end uint64) (logs []*types.Log, blockNumber uint64, err error) {
 	for i := start; i <= end; i++ {
-		hash := core.GetCanonicalHash(f.db, i)
-		if hash != (common.Hash{}) {
-			block = core.GetBlock(f.db, hash, i)
-		} else { // block not found
-			return logs
-		}
-		if block == nil { // block not found/written
-			return logs
+		blockNumber := rpc.BlockNumber(i)
+		header, err := f.backend.HeaderByNumber(ctx, blockNumber)
+		if header == nil || err != nil {
+			return logs, end, err
 		}
 
 		// Use bloom filtering to see if this block is interesting given the
 		// current parameters
+<<<<<<< HEAD
 		if f.bloomFilter(block.Bloom()) || f.bloomFilter(core.GetPrivateBlockBloom(f.db, block.NumberU64())) {
+=======
+		if f.bloomFilter(header.Bloom) {
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 			// Get the logs of the block
-			var (
-				receipts   = core.GetBlockReceipts(f.db, block.Hash(), i)
-				unfiltered []Log
-			)
-			for _, receipt := range receipts {
-				rl := make([]Log, len(receipt.Logs))
-				for i, l := range receipt.Logs {
-					rl[i] = Log{l, false}
-				}
-				unfiltered = append(unfiltered, rl...)
+			receipts, err := f.backend.GetReceipts(ctx, header.Hash())
+			if err != nil {
+				return nil, end, err
 			}
-			logs = append(logs, filterLogs(unfiltered, f.addresses, f.topics)...)
+			var unfiltered []*types.Log
+			for _, receipt := range receipts {
+				unfiltered = append(unfiltered, ([]*types.Log)(receipt.Logs)...)
+			}
+			logs = filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
+			if len(logs) > 0 {
+				return logs, uint64(blockNumber), nil
+			}
 		}
 	}
 
-	return logs
+	return logs, end, nil
 }
 
 func includes(addresses []common.Address, a common.Address) bool {
@@ -168,12 +210,18 @@ func includes(addresses []common.Address, a common.Address) bool {
 	return false
 }
 
-func filterLogs(logs []Log, addresses []common.Address, topics [][]common.Hash) []Log {
-	var ret []Log
-
-	// Filter the logs for interesting stuff
+// filterLogs creates a slice of logs matching the given criteria.
+func filterLogs(logs []*types.Log, fromBlock, toBlock *big.Int, addresses []common.Address, topics [][]common.Hash) []*types.Log {
+	var ret []*types.Log
 Logs:
 	for _, log := range logs {
+		if fromBlock != nil && fromBlock.Int64() >= 0 && fromBlock.Uint64() > log.BlockNumber {
+			continue
+		}
+		if toBlock != nil && toBlock.Int64() >= 0 && toBlock.Uint64() < log.BlockNumber {
+			continue
+		}
+
 		if len(addresses) > 0 && !includes(addresses, log.Address) {
 			continue
 		}
@@ -200,7 +248,6 @@ Logs:
 				continue Logs
 			}
 		}
-
 		ret = append(ret, log)
 	}
 
@@ -208,9 +255,19 @@ Logs:
 }
 
 func (f *Filter) bloomFilter(bloom types.Bloom) bool {
+<<<<<<< HEAD
 	if len(f.addresses) > 0 {
 		var included bool
 		for _, addr := range f.addresses {
+=======
+	return bloomFilter(bloom, f.addresses, f.topics)
+}
+
+func bloomFilter(bloom types.Bloom, addresses []common.Address, topics [][]common.Hash) bool {
+	if len(addresses) > 0 {
+		var included bool
+		for _, addr := range addresses {
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 			if types.BloomLookup(bloom, addr) {
 				included = true
 				break
@@ -222,7 +279,7 @@ func (f *Filter) bloomFilter(bloom types.Bloom) bool {
 		}
 	}
 
-	for _, sub := range f.topics {
+	for _, sub := range topics {
 		var included bool
 		for _, topic := range sub {
 			if (topic == common.Hash{}) || types.BloomLookup(bloom, topic) {

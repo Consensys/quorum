@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-// Contains the Whisper protocol Envelope element. For formal details please see
-// the specs at https://github.com/ethereum/wiki/wiki/Whisper-PoC-1-Protocol-Spec#envelopes.
+// Contains the Whisper protocol Envelope element.
 
 package whisperv5
 
@@ -23,10 +22,12 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
-	"math"
+	gmath "math"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -73,7 +74,7 @@ func NewEnvelope(ttl uint32, topic TopicType, salt []byte, aesNonce []byte, msg 
 }
 
 func (e *Envelope) IsSymmetric() bool {
-	return e.AESNonce != nil
+	return len(e.AESNonce) > 0
 }
 
 func (e *Envelope) isAsymmetric() bool {
@@ -81,39 +82,52 @@ func (e *Envelope) isAsymmetric() bool {
 }
 
 func (e *Envelope) Ver() uint64 {
-	return bytesToIntLittleEndian(e.Version)
+	return bytesToUintLittleEndian(e.Version)
 }
 
 // Seal closes the envelope by spending the requested amount of time as a proof
 // of work on hashing the data.
-func (e *Envelope) Seal(options *MessageParams) {
-	var target int
+func (e *Envelope) Seal(options *MessageParams) error {
+	var target, bestBit int
 	if options.PoW == 0 {
 		// adjust for the duration of Seal() execution only if execution time is predefined unconditionally
 		e.Expiry += options.WorkTime
 	} else {
 		target = e.powToFirstBit(options.PoW)
+		if target < 1 {
+			target = 1
+		}
 	}
 
 	buf := make([]byte, 64)
 	h := crypto.Keccak256(e.rlpWithoutNonce())
 	copy(buf[:32], h)
 
-	finish, bestBit := time.Now().Add(time.Duration(options.WorkTime)*time.Second).UnixNano(), 0
+	finish := time.Now().Add(time.Duration(options.WorkTime) * time.Second).UnixNano()
 	for nonce := uint64(0); time.Now().UnixNano() < finish; {
 		for i := 0; i < 1024; i++ {
 			binary.BigEndian.PutUint64(buf[56:], nonce)
-			h = crypto.Keccak256(buf)
-			firstBit := common.FirstBitSet(common.BigD(h))
+			d := new(big.Int).SetBytes(crypto.Keccak256(buf))
+			firstBit := math.FirstBitSet(d)
 			if firstBit > bestBit {
 				e.EnvNonce, bestBit = nonce, firstBit
 				if target > 0 && bestBit >= target {
-					return
+					return nil
 				}
 			}
 			nonce++
 		}
 	}
+
+	if target > 0 && bestBit < target {
+		return fmt.Errorf("failed to reach the PoW target, specified pow time (%d seconds) was insufficient", options.WorkTime)
+	}
+
+	return nil
+}
+
+func (e *Envelope) size() int {
+	return len(e.Data) + len(e.Version) + len(e.AESNonce) + len(e.Salt) + 20
 }
 
 func (e *Envelope) PoW() float64 {
@@ -128,20 +142,20 @@ func (e *Envelope) calculatePoW(diff uint32) {
 	h := crypto.Keccak256(e.rlpWithoutNonce())
 	copy(buf[:32], h)
 	binary.BigEndian.PutUint64(buf[56:], e.EnvNonce)
-	h = crypto.Keccak256(buf)
-	firstBit := common.FirstBitSet(common.BigD(h))
-	x := math.Pow(2, float64(firstBit))
-	x /= float64(len(e.Data))
+	d := new(big.Int).SetBytes(crypto.Keccak256(buf))
+	firstBit := math.FirstBitSet(d)
+	x := gmath.Pow(2, float64(firstBit))
+	x /= float64(e.size())
 	x /= float64(e.TTL + diff)
 	e.pow = x
 }
 
 func (e *Envelope) powToFirstBit(pow float64) int {
 	x := pow
-	x *= float64(len(e.Data))
+	x *= float64(e.size())
 	x *= float64(e.TTL)
-	bits := math.Log2(x)
-	bits = math.Ceil(bits)
+	bits := gmath.Log2(x)
+	bits = gmath.Ceil(bits)
 	return int(bits)
 }
 

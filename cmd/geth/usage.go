@@ -30,7 +30,7 @@ import (
 var AppHelpTemplate = `NAME:
    {{.App.Name}} - {{.App.Usage}}
 
-   Copyright 2013-2016 The go-ethereum Authors
+   Copyright 2013-2017 The go-ethereum Authors
 
 USAGE:
    {{.App.HelpName}} [options]{{if .App.Commands}} command [command options]{{end}} {{if .App.ArgsUsage}}{{.App.ArgsUsage}}{{else}}[arguments...]{{end}}
@@ -64,14 +64,33 @@ var AppHelpFlagGroups = []flagGroup{
 	{
 		Name: "ETHEREUM",
 		Flags: []cli.Flag{
+			configFileFlag,
 			utils.DataDirFlag,
 			utils.KeyStoreDirFlag,
+			utils.NoUSBFlag,
 			utils.NetworkIdFlag,
-			utils.OlympicFlag,
 			utils.TestNetFlag,
 			utils.DevModeFlag,
+			utils.SyncModeFlag,
+			utils.EthStatsURLFlag,
 			utils.IdentityFlag,
+<<<<<<< HEAD
+=======
+			utils.LightServFlag,
+			utils.LightPeersFlag,
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 			utils.LightKDFFlag,
+		},
+	},
+	{
+		Name: "ETHASH",
+		Flags: []cli.Flag{
+			utils.EthashCacheDirFlag,
+			utils.EthashCachesInMemoryFlag,
+			utils.EthashCachesOnDiskFlag,
+			utils.EthashDatasetDirFlag,
+			utils.EthashDatasetsInMemoryFlag,
+			utils.EthashDatasetsOnDiskFlag,
 		},
 	},
 	{
@@ -113,7 +132,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.WSApiFlag,
 			utils.WSAllowedOriginsFlag,
 			utils.IPCDisabledFlag,
-			utils.IPCApiFlag,
 			utils.IPCPathFlag,
 			utils.RPCCORSDomainFlag,
 			utils.JSpathFlag,
@@ -130,16 +148,37 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.MaxPendingPeersFlag,
 			utils.NATFlag,
 			utils.NoDiscoverFlag,
+			utils.DiscoveryV5Flag,
+			utils.NetrestrictFlag,
 			utils.NodeKeyFileFlag,
 			utils.NodeKeyHexFlag,
 		},
 	},
 	{
+<<<<<<< HEAD
+=======
+		Name: "MINER",
+		Flags: []cli.Flag{
+			utils.MiningEnabledFlag,
+			utils.MinerThreadsFlag,
+			utils.EtherbaseFlag,
+			utils.TargetGasLimitFlag,
+			utils.GasPriceFlag,
+			utils.ExtraDataFlag,
+		},
+	},
+	{
+		Name: "GAS PRICE ORACLE",
+		Flags: []cli.Flag{
+			utils.GpoBlocksFlag,
+			utils.GpoPercentileFlag,
+		},
+	},
+	{
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 		Name: "VIRTUAL MACHINE",
 		Flags: []cli.Flag{
-			utils.VMEnableJitFlag,
-			utils.VMForceJitFlag,
-			utils.VMJitCacheFlag,
+			utils.VMEnableDebugFlag,
 		},
 	},
 	{
@@ -147,19 +186,20 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: append([]cli.Flag{
 			utils.MetricsEnabledFlag,
 			utils.FakePoWFlag,
+			utils.NoCompactionFlag,
 		}, debug.Flags...),
+	},
+	{
+		Name: "DEPRECATED",
+		Flags: []cli.Flag{
+			utils.FastSyncFlag,
+			utils.LightModeFlag,
+		},
 	},
 	{
 		Name: "EXPERIMENTAL",
 		Flags: []cli.Flag{
 			utils.WhisperEnabledFlag,
-			utils.NatspecEnabledFlag,
-		},
-	},
-	{
-		Name: "MISCELLANEOUS",
-		Flags: []cli.Flag{
-			utils.SolcPathFlag,
 		},
 	},
 }

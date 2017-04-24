@@ -25,10 +25,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 )
 
+<<<<<<< HEAD
 type ruleSet struct{}
 
 func (self *ruleSet) IsHomestead(*big.Int) bool    { return true }
@@ -86,6 +86,8 @@ func (self *Env) DelegateCall(me vm.ContractRef, addr common.Address, data []byt
 
 func (*Env) ReadOnly() bool { return false }
 
+=======
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 type account struct{}
 
 func (account) SubBalance(amount *big.Int)                          {}
@@ -96,17 +98,17 @@ func (account) SetBalance(*big.Int)                                 {}
 func (account) SetNonce(uint64)                                     {}
 func (account) Balance() *big.Int                                   { return nil }
 func (account) Address() common.Address                             { return common.Address{} }
-func (account) ReturnGas(*big.Int, *big.Int)                        {}
+func (account) ReturnGas(*big.Int)                                  {}
 func (account) SetCode(common.Hash, []byte)                         {}
 func (account) ForEachStorage(cb func(key, value common.Hash) bool) {}
 
 func runTrace(tracer *JavascriptTracer) (interface{}, error) {
-	env := NewEnv(&vm.Config{Debug: true, Tracer: tracer})
+	env := vm.NewEVM(vm.Context{}, nil, params.TestChainConfig, vm.Config{Debug: true, Tracer: tracer})
 
-	contract := vm.NewContract(account{}, account{}, big.NewInt(0), env.GasLimit(), big.NewInt(1))
+	contract := vm.NewContract(account{}, account{}, big.NewInt(0), 10000)
 	contract.Code = []byte{byte(vm.PUSH1), 0x1, byte(vm.PUSH1), 0x1, 0x0}
 
-	_, err := env.Vm().Run(contract, []byte{})
+	_, err := env.Interpreter().Run(contract, []byte{})
 	if err != nil {
 		return nil, err
 	}
@@ -191,13 +193,13 @@ func TestHaltBetweenSteps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	env := NewEnv(&vm.Config{Debug: true, Tracer: tracer})
-	contract := vm.NewContract(&account{}, &account{}, big.NewInt(0), big.NewInt(0), big.NewInt(0))
+	env := vm.NewEVM(vm.Context{}, nil, params.TestChainConfig, vm.Config{Debug: true, Tracer: tracer})
+	contract := vm.NewContract(&account{}, &account{}, big.NewInt(0), 0)
 
-	tracer.CaptureState(env, 0, 0, big.NewInt(0), big.NewInt(0), nil, nil, contract, 0, nil)
+	tracer.CaptureState(env, 0, 0, 0, 0, nil, nil, contract, 0, nil)
 	timeout := errors.New("stahp")
 	tracer.Stop(timeout)
-	tracer.CaptureState(env, 0, 0, big.NewInt(0), big.NewInt(0), nil, nil, contract, 0, nil)
+	tracer.CaptureState(env, 0, 0, 0, 0, nil, nil, contract, 0, nil)
 
 	if _, err := tracer.GetResult(); err.Error() != "stahp    in server-side tracer function 'step'" {
 		t.Errorf("Expected timeout error, got %v", err)

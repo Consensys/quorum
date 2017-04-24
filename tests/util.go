@@ -18,18 +18,20 @@ package tests
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -39,14 +41,14 @@ var (
 )
 
 func init() {
-	glog.SetV(0)
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlCrit, log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 	if os.Getenv("JITVM") == "true" {
 		ForceJit = true
 		EnableJit = true
 	}
 }
 
-func checkLogs(tlog []Log, logs vm.Logs) error {
+func checkLogs(tlog []Log, logs []*types.Log) error {
 
 	if len(tlog) != len(logs) {
 		return fmt.Errorf("log length mismatch. Expected %d, got %d", len(tlog), len(logs))
@@ -69,7 +71,7 @@ func checkLogs(tlog []Log, logs vm.Logs) error {
 					}
 				}
 			}
-			genBloom := common.LeftPadBytes(types.LogsBloom(vm.Logs{logs[i]}).Bytes(), 256)
+			genBloom := math.PaddedBigBytes(types.LogsBloom([]*types.Log{logs[i]}), 256)
 
 			if !bytes.Equal(genBloom, common.Hex2Bytes(log.BloomF)) {
 				return fmt.Errorf("bloom mismatch")
@@ -118,8 +120,8 @@ func insertAccount(state *state.StateDB, saddr string, account Account) {
 	}
 	addr := common.HexToAddress(saddr)
 	state.SetCode(addr, common.Hex2Bytes(account.Code))
-	state.SetNonce(addr, common.Big(account.Nonce).Uint64())
-	state.SetBalance(addr, common.Big(account.Balance))
+	state.SetNonce(addr, math.MustParseUint64(account.Nonce))
+	state.SetBalance(addr, math.MustParseBig256(account.Balance))
 	for a, v := range account.Storage {
 		state.SetState(addr, common.HexToHash(a), common.HexToHash(v))
 	}
@@ -148,146 +150,67 @@ type VmTest struct {
 	PostStateRoot string
 }
 
-type RuleSet struct {
-	HomesteadBlock           *big.Int
-	DAOForkBlock             *big.Int
-	DAOForkSupport           bool
-	HomesteadGasRepriceBlock *big.Int
-}
+func NewEVMEnvironment(vmTest bool, chainConfig *params.ChainConfig, statedb *state.StateDB, envValues map[string]string, tx map[string]string) (*vm.EVM, core.Message) {
+	var (
+		data  = common.FromHex(tx["data"])
+		gas   = math.MustParseBig256(tx["gasLimit"])
+		price = math.MustParseBig256(tx["gasPrice"])
+		value = math.MustParseBig256(tx["value"])
+		nonce = math.MustParseUint64(tx["nonce"])
+	)
 
-func (r RuleSet) IsHomestead(n *big.Int) bool {
-	return n.Cmp(r.HomesteadBlock) >= 0
-}
-
-func (r RuleSet) GasTable(num *big.Int) params.GasTable {
-	if r.HomesteadGasRepriceBlock == nil || num == nil || num.Cmp(r.HomesteadGasRepriceBlock) < 0 {
-		return params.GasTableHomestead
+	origin := common.HexToAddress(tx["caller"])
+	if len(tx["secretKey"]) > 0 {
+		key, _ := hex.DecodeString(tx["secretKey"])
+		origin = crypto.PubkeyToAddress(crypto.ToECDSA(key).PublicKey)
 	}
 
-	return params.GasTableHomesteadGasRepriceFork
-}
-
-type Env struct {
-	ruleSet      RuleSet
-	depth        int
-	state        *state.StateDB
-	skipTransfer bool
-	initial      bool
-	Gas          *big.Int
-
-	origin   common.Address
-	parent   common.Hash
-	coinbase common.Address
-
-	number     *big.Int
-	time       *big.Int
-	difficulty *big.Int
-	gasLimit   *big.Int
-
-	vmTest bool
-
-	evm *vm.EVM
-}
-
-func NewEnv(ruleSet RuleSet, state *state.StateDB) *Env {
-	env := &Env{
-		ruleSet: ruleSet,
-		state:   state,
+	var to *common.Address
+	if len(tx["to"]) > 2 {
+		t := common.HexToAddress(tx["to"])
+		to = &t
 	}
-	return env
-}
 
-func NewEnvFromMap(ruleSet RuleSet, state *state.StateDB, envValues map[string]string, exeValues map[string]string) *Env {
-	env := NewEnv(ruleSet, state)
+	msg := types.NewMessage(origin, to, nonce, value, gas, price, data, true)
 
-	env.origin = common.HexToAddress(exeValues["caller"])
-	env.parent = common.HexToHash(envValues["previousHash"])
-	env.coinbase = common.HexToAddress(envValues["currentCoinbase"])
-	env.number = common.Big(envValues["currentNumber"])
-	env.time = common.Big(envValues["currentTimestamp"])
-	env.difficulty = common.Big(envValues["currentDifficulty"])
-	env.gasLimit = common.Big(envValues["currentGasLimit"])
-	env.Gas = new(big.Int)
-
-	env.evm = vm.New(env, vm.Config{
-		EnableJit: EnableJit,
-		ForceJit:  ForceJit,
-	})
-
-	return env
-}
-
-func (self *Env) RuleSet() vm.RuleSet      { return self.ruleSet }
-func (self *Env) Vm() vm.Vm                { return self.evm }
-func (self *Env) Origin() common.Address   { return self.origin }
-func (self *Env) BlockNumber() *big.Int    { return self.number }
-func (self *Env) Coinbase() common.Address { return self.coinbase }
-func (self *Env) Time() *big.Int           { return self.time }
-func (self *Env) Difficulty() *big.Int     { return self.difficulty }
-func (self *Env) Db() vm.Database          { return self.state }
-func (self *Env) GasLimit() *big.Int       { return self.gasLimit }
-func (self *Env) VmType() vm.Type          { return vm.StdVmTy }
-func (self *Env) GetHash(n uint64) common.Hash {
-	return common.BytesToHash(crypto.Keccak256([]byte(big.NewInt(int64(n)).String())))
-}
-func (self *Env) AddLog(log *vm.Log) {
-	self.state.AddLog(log)
-}
-func (self *Env) Depth() int     { return self.depth }
-func (self *Env) SetDepth(i int) { self.depth = i }
-func (self *Env) CanTransfer(from common.Address, balance *big.Int) bool {
-	if self.skipTransfer {
-		if self.initial {
-			self.initial = false
-			return true
+	initialCall := true
+	canTransfer := func(db vm.StateDB, address common.Address, amount *big.Int) bool {
+		if vmTest {
+			if initialCall {
+				initialCall = false
+				return true
+			}
 		}
+		return core.CanTransfer(db, address, amount)
+	}
+	transfer := func(db vm.StateDB, sender, recipient common.Address, amount *big.Int) {
+		if vmTest {
+			return
+		}
+		core.Transfer(db, sender, recipient, amount)
 	}
 
-	return self.state.GetBalance(from).Cmp(balance) >= 0
-}
-func (self *Env) SnapshotDatabase() int {
-	return self.state.Snapshot()
-}
-func (self *Env) RevertToSnapshot(snapshot int) {
-	self.state.RevertToSnapshot(snapshot)
-}
+	context := vm.Context{
+		CanTransfer: canTransfer,
+		Transfer:    transfer,
+		GetHash: func(n uint64) common.Hash {
+			return common.BytesToHash(crypto.Keccak256([]byte(big.NewInt(int64(n)).String())))
+		},
 
-func (self *Env) Transfer(from, to vm.Account, amount *big.Int) {
-	if self.skipTransfer {
-		return
+		Origin:      origin,
+		Coinbase:    common.HexToAddress(envValues["currentCoinbase"]),
+		BlockNumber: math.MustParseBig256(envValues["currentNumber"]),
+		Time:        math.MustParseBig256(envValues["currentTimestamp"]),
+		GasLimit:    math.MustParseBig256(envValues["currentGasLimit"]),
+		Difficulty:  math.MustParseBig256(envValues["currentDifficulty"]),
+		GasPrice:    price,
 	}
-	core.Transfer(from, to, amount)
-}
-
-func (self *Env) Call(caller vm.ContractRef, addr common.Address, data []byte, gas, price, value *big.Int) ([]byte, error) {
-	if self.vmTest && self.depth > 0 {
-		caller.ReturnGas(gas, price)
-
-		return nil, nil
+	if context.GasPrice == nil {
+		context.GasPrice = new(big.Int)
 	}
-	ret, err := core.Call(self, caller, addr, data, gas, price, value)
-	self.Gas = gas
-
-	return ret, err
-
+	return vm.NewEVM(context, statedb, chainConfig, vm.Config{NoRecursion: vmTest}), msg
 }
-func (self *Env) CallCode(caller vm.ContractRef, addr common.Address, data []byte, gas, price, value *big.Int) ([]byte, error) {
-	if self.vmTest && self.depth > 0 {
-		caller.ReturnGas(gas, price)
-
-		return nil, nil
-	}
-	return core.CallCode(self, caller, addr, data, gas, price, value)
-}
-
-func (self *Env) DelegateCall(caller vm.ContractRef, addr common.Address, data []byte, gas, price *big.Int) ([]byte, error) {
-	if self.vmTest && self.depth > 0 {
-		caller.ReturnGas(gas, price)
-
-		return nil, nil
-	}
-	return core.DelegateCall(self, caller, addr, data, gas, price)
-}
+<<<<<<< HEAD
 
 func (self *Env) Create(caller vm.ContractRef, data []byte, gas, price, value *big.Int) ([]byte, common.Address, error) {
 	if self.vmTest {
@@ -325,3 +248,5 @@ func (self Message) Value() *big.Int                       { return self.value }
 func (self Message) Nonce() uint64                         { return self.nonce }
 func (self Message) CheckNonce() bool                      { return true }
 func (self Message) Data() []byte                          { return self.data }
+=======
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37

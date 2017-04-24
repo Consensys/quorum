@@ -19,22 +19,10 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
-	"runtime"
-	"time"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/logger/glog"
-	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -47,14 +35,6 @@ var (
 		Name:  "debug",
 		Usage: "output full trace logs",
 	}
-	ForceJitFlag = cli.BoolFlag{
-		Name:  "forcejit",
-		Usage: "forces jit compilation",
-	}
-	DisableJitFlag = cli.BoolFlag{
-		Name:  "nojit",
-		Usage: "disabled jit compilation",
-	}
 	CodeFlag = cli.StringFlag{
 		Name:  "code",
 		Usage: "EVM code",
@@ -63,20 +43,20 @@ var (
 		Name:  "codefile",
 		Usage: "file containing EVM code",
 	}
-	GasFlag = cli.StringFlag{
+	GasFlag = cli.Uint64Flag{
 		Name:  "gas",
 		Usage: "gas limit for the evm",
-		Value: "10000000000",
+		Value: 10000000000,
 	}
-	PriceFlag = cli.StringFlag{
+	PriceFlag = utils.BigFlag{
 		Name:  "price",
 		Usage: "price set for the evm",
-		Value: "0",
+		Value: new(big.Int),
 	}
-	ValueFlag = cli.StringFlag{
+	ValueFlag = utils.BigFlag{
 		Name:  "value",
 		Usage: "value set for the evm",
-		Value: "0",
+		Value: new(big.Int),
 	}
 	DumpFlag = cli.BoolFlag{
 		Name:  "dump",
@@ -86,10 +66,6 @@ var (
 		Name:  "input",
 		Usage: "input for the EVM",
 	}
-	SysStatFlag = cli.BoolFlag{
-		Name:  "sysstat",
-		Usage: "display system stats",
-	}
 	VerbosityFlag = cli.IntFlag{
 		Name:  "verbosity",
 		Usage: "sets the verbosity level",
@@ -98,6 +74,10 @@ var (
 		Name:  "create",
 		Usage: "indicates the action should be create rather than call",
 	}
+	DisableGasMeteringFlag = cli.BoolFlag{
+		Name:  "nogasmetering",
+		Usage: "disable gas metering",
+	}
 )
 
 func init() {
@@ -105,9 +85,6 @@ func init() {
 		CreateFlag,
 		DebugFlag,
 		VerbosityFlag,
-		ForceJitFlag,
-		DisableJitFlag,
-		SysStatFlag,
 		CodeFlag,
 		CodeFileFlag,
 		GasFlag,
@@ -115,106 +92,13 @@ func init() {
 		ValueFlag,
 		DumpFlag,
 		InputFlag,
+		DisableGasMeteringFlag,
 	}
-	app.Action = run
-}
-
-func run(ctx *cli.Context) error {
-	glog.SetToStderr(true)
-	glog.SetV(ctx.GlobalInt(VerbosityFlag.Name))
-
-	db, _ := ethdb.NewMemDatabase()
-	statedb, _ := state.New(common.Hash{}, db)
-	sender := statedb.CreateAccount(common.StringToAddress("sender"))
-
-	logger := vm.NewStructLogger(nil)
-
-	vmenv := NewEnv(statedb, common.StringToAddress("evmuser"), common.Big(ctx.GlobalString(ValueFlag.Name)), vm.Config{
-		Debug:     ctx.GlobalBool(DebugFlag.Name),
-		ForceJit:  ctx.GlobalBool(ForceJitFlag.Name),
-		EnableJit: !ctx.GlobalBool(DisableJitFlag.Name),
-		Tracer:    logger,
-	})
-
-	tstart := time.Now()
-
-	var (
-		code []byte
-		ret  []byte
-		err  error
-	)
-
-	if ctx.GlobalString(CodeFlag.Name) != "" {
-		code = common.Hex2Bytes(ctx.GlobalString(CodeFlag.Name))
-	} else {
-		var hexcode []byte
-		if ctx.GlobalString(CodeFileFlag.Name) != "" {
-			var err error
-			hexcode, err = ioutil.ReadFile(ctx.GlobalString(CodeFileFlag.Name))
-			if err != nil {
-				fmt.Printf("Could not load code from file: %v\n", err)
-				os.Exit(1)
-			}
-		} else {
-			var err error
-			hexcode, err = ioutil.ReadAll(os.Stdin)
-			if err != nil {
-				fmt.Printf("Could not load code from stdin: %v\n", err)
-				os.Exit(1)
-			}
-		}
-		code = common.Hex2Bytes(string(hexcode[:]))
+	app.Commands = []cli.Command{
+		compileCommand,
+		disasmCommand,
+		runCommand,
 	}
-
-	if ctx.GlobalBool(CreateFlag.Name) {
-		input := append(code, common.Hex2Bytes(ctx.GlobalString(InputFlag.Name))...)
-		ret, _, err = vmenv.Create(
-			sender,
-			input,
-			common.Big(ctx.GlobalString(GasFlag.Name)),
-			common.Big(ctx.GlobalString(PriceFlag.Name)),
-			common.Big(ctx.GlobalString(ValueFlag.Name)),
-		)
-	} else {
-		receiver := statedb.CreateAccount(common.StringToAddress("receiver"))
-
-		receiver.SetCode(crypto.Keccak256Hash(code), code)
-		ret, err = vmenv.Call(
-			sender,
-			receiver.Address(),
-			common.Hex2Bytes(ctx.GlobalString(InputFlag.Name)),
-			common.Big(ctx.GlobalString(GasFlag.Name)),
-			common.Big(ctx.GlobalString(PriceFlag.Name)),
-			common.Big(ctx.GlobalString(ValueFlag.Name)),
-		)
-	}
-	vmdone := time.Since(tstart)
-
-	if ctx.GlobalBool(DumpFlag.Name) {
-		statedb.Commit()
-		fmt.Println(string(statedb.Dump()))
-	}
-	vm.StdErrFormat(logger.StructLogs())
-
-	if ctx.GlobalBool(SysStatFlag.Name) {
-		var mem runtime.MemStats
-		runtime.ReadMemStats(&mem)
-		fmt.Printf("vm took %v\n", vmdone)
-		fmt.Printf(`alloc:      %d
-tot alloc:  %d
-no. malloc: %d
-heap alloc: %d
-heap objs:  %d
-num gc:     %d
-`, mem.Alloc, mem.TotalAlloc, mem.Mallocs, mem.HeapAlloc, mem.HeapObjects, mem.NumGC)
-	}
-
-	fmt.Printf("OUT: 0x%x", ret)
-	if err != nil {
-		fmt.Printf(" error: %v", err)
-	}
-	fmt.Println()
-	return nil
 }
 
 func main() {
@@ -223,6 +107,7 @@ func main() {
 		os.Exit(1)
 	}
 }
+<<<<<<< HEAD
 
 type VMEnv struct {
 	state *state.StateDB
@@ -309,3 +194,5 @@ func (self *VMEnv) Create(caller vm.ContractRef, data []byte, gas, price, value 
 }
 
 func (*VMEnv) ReadOnly() bool { return false }
+=======
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37

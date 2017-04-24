@@ -211,7 +211,7 @@ const (
 	RETURN
 	DELEGATECALL
 
-	SUICIDE = 0xff
+	SELFDESTRUCT = 0xff
 )
 
 // Since the opcodes aren't all in order we can't use a regular slice
@@ -364,7 +364,7 @@ var opCodeToString = map[OpCode]string{
 	RETURN:       "RETURN",
 	CALLCODE:     "CALLCODE",
 	DELEGATECALL: "DELEGATECALL",
-	SUICIDE:      "SUICIDE",
+	SELFDESTRUCT: "SELFDESTRUCT",
 
 	PUSH: "PUSH",
 	DUP:  "DUP",
@@ -510,7 +510,7 @@ var stringToOp = map[string]OpCode{
 	"CALL":         CALL,
 	"RETURN":       RETURN,
 	"CALLCODE":     CALLCODE,
-	"SUICIDE":      SUICIDE,
+	"SELFDESTRUCT": SELFDESTRUCT,
 }
 
 func StringToOp(str string) OpCode {

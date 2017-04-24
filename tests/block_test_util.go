@@ -26,15 +26,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ethereum/ethash"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -144,15 +145,15 @@ func runBlockTests(homesteadBlock, daoForkBlock, gasPriceFork *big.Int, bt map[s
 	}
 
 	for name, test := range bt {
-		if skipTest[name] {
-			glog.Infoln("Skipping block test", name)
+		if skipTest[name] /*|| name != "CallingCanonicalContractFromFork_CALLCODE"*/ {
+			log.Info(fmt.Sprint("Skipping block test", name))
 			continue
 		}
 		// test the block
 		if err := runBlockTest(homesteadBlock, daoForkBlock, gasPriceFork, test); err != nil {
 			return fmt.Errorf("%s: %v", name, err)
 		}
-		glog.Infoln("Block test passed: ", name)
+		log.Info(fmt.Sprint("Block test passed: ", name))
 
 	}
 	return nil
@@ -170,13 +171,19 @@ func runBlockTest(homesteadBlock, daoForkBlock, gasPriceFork *big.Int, test *Blo
 	core.WriteCanonicalHash(db, test.Genesis.Hash(), test.Genesis.NumberU64())
 	core.WriteHeadBlockHash(db, test.Genesis.Hash())
 	evmux := new(event.TypeMux)
+<<<<<<< HEAD
 
 	config := &core.ChainConfig{HomesteadBlock: homesteadBlock, DAOForkBlock: daoForkBlock, DAOForkSupport: true, HomesteadGasRepriceBlock: gasPriceFork}
 	chain, err := core.NewBlockChain(db, config, ethash.NewShared(), evmux, false)
 
+=======
+	config := &params.ChainConfig{HomesteadBlock: homesteadBlock, DAOForkBlock: daoForkBlock, DAOForkSupport: true, EIP150Block: gasPriceFork}
+	chain, err := core.NewBlockChain(db, config, ethash.NewShared(), evmux, vm.Config{})
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 	if err != nil {
 		return err
 	}
+	defer chain.Stop()
 
 	//vm.Debug = true
 	validBlocks, err := test.TryBlocksInsert(chain)
@@ -221,16 +228,18 @@ func (t *BlockTest) InsertPreState(db ethdb.Database) (*state.StateDB, error) {
 		if err != nil {
 			return nil, err
 		}
-		obj := statedb.CreateAccount(common.HexToAddress(addrString))
-		obj.SetCode(crypto.Keccak256Hash(code), code)
-		obj.SetBalance(balance)
-		obj.SetNonce(nonce)
+
+		addr := common.HexToAddress(addrString)
+		statedb.CreateAccount(addr)
+		statedb.SetCode(addr, code)
+		statedb.SetBalance(addr, balance)
+		statedb.SetNonce(addr, nonce)
 		for k, v := range acct.Storage {
 			statedb.SetState(common.HexToAddress(addrString), common.HexToHash(k), common.HexToHash(v))
 		}
 	}
 
-	root, err := statedb.Commit()
+	root, err := statedb.Commit(false)
 	if err != nil {
 		return nil, fmt.Errorf("error writing state: %v", err)
 	}
@@ -553,9 +562,7 @@ func LoadBlockTests(file string) (map[string]*BlockTest, error) {
 // Nothing to see here, please move along...
 func prepInt(base int, s string) string {
 	if base == 16 {
-		if strings.HasPrefix(s, "0x") {
-			s = s[2:]
-		}
+		s = strings.TrimPrefix(s, "0x")
 		if len(s) == 0 {
 			s = "00"
 		}

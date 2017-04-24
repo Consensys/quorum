@@ -19,10 +19,9 @@ package web3ext
 
 var Modules = map[string]string{
 	"admin":      Admin_JS,
-	"bzz":        Bzz_JS,
 	"chequebook": Chequebook_JS,
+	"clique":     Clique_JS,
 	"debug":      Debug_JS,
-	"ens":        ENS_JS,
 	"eth":        Eth_JS,
 	"raft":       Raft_JS,
 	"miner":      Miner_JS,
@@ -31,115 +30,9 @@ var Modules = map[string]string{
 	"quorum":     Quorum_JS,
 	"rpc":        RPC_JS,
 	"shh":        Shh_JS,
+	"swarmfs":    SWARMFS_JS,
 	"txpool":     TxPool_JS,
 }
-
-const Bzz_JS = `
-web3._extend({
-	property: 'bzz',
-	methods:
-	[
-		new web3._extend.Method({
-			name: 'blockNetworkRead',
-			call: 'bzz_blockNetworkRead',
-			params: 1,
-			inputFormatter: [null]
-		}),
-		new web3._extend.Method({
-			name: 'syncEnabled',
-			call: 'bzz_syncEnabled',
-			params: 1,
-			inputFormatter: [null]
-		}),
-		new web3._extend.Method({
-			name: 'swapEnabled',
-			call: 'bzz_swapEnabled',
-			params: 1,
-			inputFormatter: [null]
-		}),
-		new web3._extend.Method({
-			name: 'download',
-			call: 'bzz_download',
-			params: 2,
-			inputFormatter: [null, null]
-		}),
-		new web3._extend.Method({
-			name: 'upload',
-			call: 'bzz_upload',
-			params: 2,
-			inputFormatter: [null, null]
-		}),
-		new web3._extend.Method({
-			name: 'retrieve',
-			call: 'bzz_retrieve',
-			params: 1,
-			inputFormatter: [null]
-		}),
-		new web3._extend.Method({
-			name: 'store',
-			call: 'bzz_store',
-			params: 2,
-			inputFormatter: [null]
-		}),
-		new web3._extend.Method({
-			name: 'get',
-			call: 'bzz_get',
-			params: 1,
-			inputFormatter: [null]
-		}),
-		new web3._extend.Method({
-			name: 'put',
-			call: 'bzz_put',
-			params: 2,
-			inputFormatter: [null, null]
-		}),
-		new web3._extend.Method({
-			name: 'modify',
-			call: 'bzz_modify',
-			params: 4,
-			inputFormatter: [null, null, null, null]
-		})
-	],
-	properties:
-	[
-		new web3._extend.Property({
-			name: 'hive',
-			getter: 'bzz_hive'
-		}),
-		new web3._extend.Property({
-			name: 'info',
-			getter: 'bzz_info',
-		}),
-	]
-});
-`
-
-const ENS_JS = `
-web3._extend({
-  property: 'ens',
-  methods:
-  [
-    new web3._extend.Method({
-			name: 'register',
-			call: 'ens_register',
-			params: 1,
-			inputFormatter: [null]
-		}),
-	new web3._extend.Method({
-			name: 'setContentHash',
-			call: 'ens_setContentHash',
-			params: 2,
-			inputFormatter: [null, null]
-		}),
-	new web3._extend.Method({
-			name: 'resolve',
-			call: 'ens_resolve',
-			params: 1,
-			inputFormatter: [null]
-		}),
-	]
-})
-`
 
 const Chequebook_JS = `
 web3._extend({
@@ -170,6 +63,54 @@ web3._extend({
       inputFormatter: [null, null]
     }),
   ]
+});
+`
+
+const Clique_JS = `
+web3._extend({
+  property: 'clique',
+  methods:
+  [
+		new web3._extend.Method({
+			name: 'getSnapshot',
+			call: 'clique_getSnapshot',
+			params: 1,
+      inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getSnapshotAtHash',
+			call: 'clique_getSnapshotAtHash',
+			params: 1
+		}),
+    new web3._extend.Method({
+      name: 'getSigners',
+      call: 'clique_getSigners',
+      params: 1,
+      inputFormatter: [null]
+    }),
+		new web3._extend.Method({
+			name: 'getSignersAtHash',
+			call: 'clique_getSignersAtHash',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'propose',
+			call: 'clique_propose',
+			params: 2
+		}),
+		new web3._extend.Method({
+			name: 'discard',
+			call: 'clique_discard',
+			params: 1
+		})
+  ],
+	properties:
+	[
+		new web3._extend.Property({
+			name: 'proposals',
+			getter: 'clique_proposals'
+		}),
+	]
 });
 `
 
@@ -205,11 +146,6 @@ web3._extend({
 			params: 2
 		}),
 		new web3._extend.Method({
-			name: 'setSolc',
-			call: 'admin_setSolc',
-			params: 1
-		}),
-		new web3._extend.Method({
 			name: 'startRPC',
 			call: 'admin_startRPC',
 			params: 4,
@@ -228,41 +164,6 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'stopWS',
 			call: 'admin_stopWS'
-		}),
-		new web3._extend.Method({
-			name: 'setGlobalRegistrar',
-			call: 'admin_setGlobalRegistrar',
-			params: 2
-		}),
-		new web3._extend.Method({
-			name: 'setHashReg',
-			call: 'admin_setHashReg',
-			params: 2
-		}),
-		new web3._extend.Method({
-			name: 'setUrlHint',
-			call: 'admin_setUrlHint',
-			params: 2
-		}),
-		new web3._extend.Method({
-			name: 'saveInfo',
-			call: 'admin_saveInfo',
-			params: 2
-		}),
-		new web3._extend.Method({
-			name: 'register',
-			call: 'admin_register',
-			params: 3
-		}),
-		new web3._extend.Method({
-			name: 'registerUrl',
-			call: 'admin_registerUrl',
-			params: 3
-		}),
-		new web3._extend.Method({
-			name: 'httpGet',
-			call: 'admin_httpGet',
-			params: 2
 		})
 	],
 	properties:
@@ -434,7 +335,18 @@ web3._extend({
 			call: 'debug_traceTransaction',
 			params: 2,
 			inputFormatter: [null, null]
-		})
+		}),
+		new web3._extend.Method({
+			name: 'preimage',
+			call: 'debug_preimage',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		new web3._extend.Method({
+			name: 'getBadBlocks',
+			call: 'debug_getBadBlocks',
+			params: 0,
+		}),
 	],
 	properties: []
 });
@@ -456,12 +368,6 @@ web3._extend({
 			call: 'eth_resend',
 			params: 3,
 			inputFormatter: [web3._extend.formatters.inputTransactionFormatter, web3._extend.utils.fromDecimal, web3._extend.utils.fromDecimal]
-		}),
-		new web3._extend.Method({
-			name: 'getNatSpec',
-			call: 'eth_getNatSpec',
-			params: 1,
-			inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'signTransaction',
@@ -562,20 +468,8 @@ web3._extend({
 			inputFormatter: [web3._extend.utils.fromDecimal]
 		}),
 		new web3._extend.Method({
-			name: 'startAutoDAG',
-			call: 'miner_startAutoDAG',
-			params: 0
-		}),
-		new web3._extend.Method({
-			name: 'stopAutoDAG',
-			call: 'miner_stopAutoDAG',
-			params: 0
-		}),
-		new web3._extend.Method({
-			name: 'makeDAG',
-			call: 'miner_makeDAG',
-			params: 1,
-			inputFormatter: [web3._extend.formatters.inputDefaultBlockNumberFormatter]
+			name: 'getHashrate',
+			call: 'miner_getHashrate'
 		})
 	],
 	properties: []
@@ -607,12 +501,6 @@ web3._extend({
 			params: 2
 		}),
 		new web3._extend.Method({
-			name: 'sendTransaction',
-			call: 'personal_sendTransaction',
-			params: 2,
-			inputFormatter: [web3._extend.formatters.inputTransactionFormatter, null]
-		}),
-		new web3._extend.Method({
 			name: 'sign',
 			call: 'personal_sign',
 			params: 3,
@@ -622,6 +510,18 @@ web3._extend({
 			name: 'ecRecover',
 			call: 'personal_ecRecover',
 			params: 2
+		}),
+		new web3._extend.Method({
+			name: 'deriveAccount',
+			call: 'personal_deriveAccount',
+			params: 3
+		})
+	],
+	properties:
+	[
+		new web3._extend.Property({
+			name: 'listWallets',
+			getter: 'personal_listWallets'
 		})
 	]
 })
@@ -651,6 +551,29 @@ web3._extend({
 			name: 'version',
 			getter: 'shh_version',
 			outputFormatter: web3._extend.utils.toDecimal
+		})
+	]
+});
+`
+const SWARMFS_JS = `
+web3._extend({
+	property: 'swarmfs',
+	methods:
+	[
+		new web3._extend.Method({
+			name: 'mount',
+			call: 'swarmfs_mount',
+			params: 2
+		}),
+		new web3._extend.Method({
+			name: 'unmount',
+			call: 'swarmfs_unmount',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'listmounts',
+			call: 'swarmfs_listmounts',
+			params: 0
 		})
 	]
 });
