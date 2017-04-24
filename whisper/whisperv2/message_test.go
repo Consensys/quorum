@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
 // Tests whether a message can be wrapped without any identity or encryption.
@@ -40,7 +39,7 @@ func TestMessageSimpleWrap(t *testing.T) {
 	if len(msg.Signature) != 0 {
 		t.Fatalf("signature found for simple wrapping: 0x%x", msg.Signature)
 	}
-	if bytes.Compare(msg.Payload, payload) != 0 {
+	if !bytes.Equal(msg.Payload, payload) {
 		t.Fatalf("payload mismatch after wrapping: have 0x%x, want 0x%x", msg.Payload, payload)
 	}
 	if msg.TTL/time.Second != DefaultTTL/time.Second {
@@ -65,7 +64,7 @@ func TestMessageCleartextSignRecover(t *testing.T) {
 	if msg.Flags&signatureFlag != signatureFlag {
 		t.Fatalf("signature flag mismatch: have %d, want %d", msg.Flags&signatureFlag, signatureFlag)
 	}
-	if bytes.Compare(msg.Payload, payload) != 0 {
+	if !bytes.Equal(msg.Payload, payload) {
 		t.Fatalf("payload mismatch after signing: have 0x%x, want 0x%x", msg.Payload, payload)
 	}
 
@@ -73,8 +72,8 @@ func TestMessageCleartextSignRecover(t *testing.T) {
 	if pubKey == nil {
 		t.Fatalf("failed to recover public key")
 	}
-	p1 := elliptic.Marshal(secp256k1.S256(), key.PublicKey.X, key.PublicKey.Y)
-	p2 := elliptic.Marshal(secp256k1.S256(), pubKey.X, pubKey.Y)
+	p1 := elliptic.Marshal(crypto.S256(), key.PublicKey.X, key.PublicKey.Y)
+	p2 := elliptic.Marshal(crypto.S256(), pubKey.X, pubKey.Y)
 	if !bytes.Equal(p1, p2) {
 		t.Fatalf("public key mismatch: have 0x%x, want 0x%x", p2, p1)
 	}
@@ -151,8 +150,8 @@ func TestMessageFullCrypto(t *testing.T) {
 	if pubKey == nil {
 		t.Fatalf("failed to recover public key")
 	}
-	p1 := elliptic.Marshal(secp256k1.S256(), fromKey.PublicKey.X, fromKey.PublicKey.Y)
-	p2 := elliptic.Marshal(secp256k1.S256(), pubKey.X, pubKey.Y)
+	p1 := elliptic.Marshal(crypto.S256(), fromKey.PublicKey.X, fromKey.PublicKey.Y)
+	p2 := elliptic.Marshal(crypto.S256(), pubKey.X, pubKey.Y)
 	if !bytes.Equal(p1, p2) {
 		t.Fatalf("public key mismatch: have 0x%x, want 0x%x", p2, p1)
 	}

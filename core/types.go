@@ -27,31 +27,26 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 )
 
-// Validator is an interface which defines the standard for block validation.
+// Validator is an interface which defines the standard for block validation. It
+// is only responsible for validating block contents, as the header validation is
+// done by the specific consensus engines.
 //
-// The validator is responsible for validating incoming block or, if desired,
-// validates headers for fast validation.
-//
-// ValidateBlock validates the given block and should return an error if it
-// failed to do so and should be used for "full" validation.
-//
-// ValidateHeader validates the given header and parent and returns an error
-// if it failed to do so.
-//
-// ValidateState validates the given statedb and optionally the receipts and
-// gas used. The implementer should decide what to do with the given input.
 type Validator interface {
-	HeaderValidator
-	ValidateBlock(block *types.Block) error
-	ValidateState(block, parent *types.Block, state *state.StateDB, receipts types.Receipts, usedGas *big.Int) error
-}
+	// ValidateBody validates the given block's content.
+	ValidateBody(block *types.Block) error
 
+<<<<<<< HEAD
 // HeaderValidator is an interface for validating headers only
 //
 // ValidateHeader validates the given header and parent and returns an error
 // if it failed to do so.
 type HeaderValidator interface {
 	ValidateHeader(chaindb ethdb.Database, header, parent *types.Header) error
+=======
+	// ValidateState validates the given statedb and optionally the receipts and
+	// gas used.
+	ValidateState(block, parent *types.Block, state *state.StateDB, receipts types.Receipts, usedGas *big.Int) error
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 }
 
 // Processor is an interface for processing blocks using a given initial state.
@@ -61,6 +56,7 @@ type HeaderValidator interface {
 // of gas used in the process and return an error if any of the internal rules
 // failed.
 type Processor interface {
+<<<<<<< HEAD
 	Process(block *types.Block, publicState, privateState *state.StateDB, cfg vm.Config) (types.Receipts, types.Receipts, vm.Logs, *big.Int, error)
 }
 
@@ -82,4 +78,7 @@ type Backend interface {
 	ChainDb() ethdb.Database
 	DappDb() ethdb.Database
 	EventMux() *event.TypeMux
+=======
+	Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, *big.Int, error)
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 }

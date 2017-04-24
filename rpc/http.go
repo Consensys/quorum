@@ -18,18 +18,17 @@ package rpc
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/rs/cors"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -115,11 +114,11 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadClos
 	if err != nil {
 		return nil, err
 	}
-	client, req := requestWithContext(hc.client, hc.req, ctx)
+	req := hc.req.WithContext(ctx)
 	req.Body = ioutil.NopCloser(bytes.NewReader(body))
 	req.ContentLength = int64(len(body))
 
-	resp, err := client.Do(req)
+	resp, err := hc.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +139,8 @@ func (t *httpReadWriteNopCloser) Close() error {
 // NewHTTPServer creates a new HTTP RPC server around an API provider.
 //
 // Deprecated: Server implements http.Handler
-func NewHTTPServer(corsString string, srv *Server) *http.Server {
-	return &http.Server{Handler: newCorsHandler(srv, corsString)}
+func NewHTTPServer(cors []string, srv *Server) *http.Server {
+	return &http.Server{Handler: newCorsHandler(srv, cors)}
 }
 
 // ServeHTTP serves JSON-RPC requests over HTTP.
@@ -162,15 +161,15 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	srv.ServeSingleRequest(codec, OptionMethodInvocation)
 }
 
-func newCorsHandler(srv *Server, corsString string) http.Handler {
-	var allowedOrigins []string
-	for _, domain := range strings.Split(corsString, ",") {
-		allowedOrigins = append(allowedOrigins, strings.TrimSpace(domain))
-	}
+func newCorsHandler(srv *Server, allowedOrigins []string) http.Handler {
 	c := cors.New(cors.Options{
 		AllowedOrigins: allowedOrigins,
 		AllowedMethods: []string{"POST", "GET"},
 		MaxAge:         600,
+<<<<<<< HEAD
+=======
+		AllowedHeaders: []string{"*"},
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 	})
 	return c.Handler(srv)
 }

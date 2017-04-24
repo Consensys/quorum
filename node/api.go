@@ -21,11 +21,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/rcrowley/go-metrics"
 )
 
@@ -75,7 +74,7 @@ func (api *PrivateAdminAPI) RemovePeer(url string) (bool, error) {
 }
 
 // StartRPC starts the HTTP RPC API server.
-func (api *PrivateAdminAPI) StartRPC(host *string, port *rpc.HexNumber, cors *string, apis *string) (bool, error) {
+func (api *PrivateAdminAPI) StartRPC(host *string, port *int, cors *string, apis *string) (bool, error) {
 	api.node.lock.Lock()
 	defer api.node.lock.Unlock()
 
@@ -91,10 +90,15 @@ func (api *PrivateAdminAPI) StartRPC(host *string, port *rpc.HexNumber, cors *st
 		host = &h
 	}
 	if port == nil {
-		port = rpc.NewHexNumber(api.node.config.HTTPPort)
+		port = &api.node.config.HTTPPort
 	}
-	if cors == nil {
-		cors = &api.node.config.HTTPCors
+
+	allowedOrigins := api.node.config.HTTPCors
+	if cors != nil {
+		allowedOrigins = nil
+		for _, origin := range strings.Split(*cors, ",") {
+			allowedOrigins = append(allowedOrigins, strings.TrimSpace(origin))
+		}
 	}
 
 	modules := api.node.httpWhitelist
@@ -105,7 +109,7 @@ func (api *PrivateAdminAPI) StartRPC(host *string, port *rpc.HexNumber, cors *st
 		}
 	}
 
-	if err := api.node.startHTTP(fmt.Sprintf("%s:%d", *host, port.Int()), api.node.rpcAPIs, modules, *cors); err != nil {
+	if err := api.node.startHTTP(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, allowedOrigins); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -124,7 +128,7 @@ func (api *PrivateAdminAPI) StopRPC() (bool, error) {
 }
 
 // StartWS starts the websocket RPC API server.
-func (api *PrivateAdminAPI) StartWS(host *string, port *rpc.HexNumber, allowedOrigins *string, apis *string) (bool, error) {
+func (api *PrivateAdminAPI) StartWS(host *string, port *int, allowedOrigins *string, apis *string) (bool, error) {
 	api.node.lock.Lock()
 	defer api.node.lock.Unlock()
 
@@ -140,10 +144,15 @@ func (api *PrivateAdminAPI) StartWS(host *string, port *rpc.HexNumber, allowedOr
 		host = &h
 	}
 	if port == nil {
-		port = rpc.NewHexNumber(api.node.config.WSPort)
+		port = &api.node.config.WSPort
 	}
-	if allowedOrigins == nil {
-		allowedOrigins = &api.node.config.WSOrigins
+
+	origins := api.node.config.WSOrigins
+	if allowedOrigins != nil {
+		origins = nil
+		for _, origin := range strings.Split(*allowedOrigins, ",") {
+			origins = append(origins, strings.TrimSpace(origin))
+		}
 	}
 
 	modules := api.node.config.WSModules
@@ -154,7 +163,7 @@ func (api *PrivateAdminAPI) StartWS(host *string, port *rpc.HexNumber, allowedOr
 		}
 	}
 
-	if err := api.node.startWS(fmt.Sprintf("%s:%d", *host, port.Int()), api.node.rpcAPIs, modules, *allowedOrigins); err != nil {
+	if err := api.node.startWS(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, origins); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -331,6 +340,6 @@ func (s *PublicWeb3API) ClientVersion() string {
 
 // Sha3 applies the ethereum sha3 implementation on the input.
 // It assumes the input is hex encoded.
-func (s *PublicWeb3API) Sha3(input string) string {
-	return common.ToHex(crypto.Keccak256(common.FromHex(input)))
+func (s *PublicWeb3API) Sha3(input hexutil.Bytes) hexutil.Bytes {
+	return crypto.Keccak256(input)
 }

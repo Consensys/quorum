@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
@@ -58,13 +57,13 @@ type TrieSyncLeafCallback func(leaf []byte, parent common.Hash) error
 // unknown trie hashes to retrieve, accepts node data associated with said hashes
 // and reconstructs the trie step by step until all is done.
 type TrieSync struct {
-	database ethdb.Database           // State database for storing all the assembled node data
+	database DatabaseReader
 	requests map[common.Hash]*request // Pending requests pertaining to a key hash
 	queue    *prque.Prque             // Priority queue with the pending requests
 }
 
 // NewTrieSync creates a new trie data download scheduler.
-func NewTrieSync(root common.Hash, database ethdb.Database, callback TrieSyncLeafCallback) *TrieSync {
+func NewTrieSync(root common.Hash, database DatabaseReader, callback TrieSyncLeafCallback) *TrieSync {
 	ts := &TrieSync{
 		database: database,
 		requests: make(map[common.Hash]*request),
@@ -142,34 +141,40 @@ func (s *TrieSync) Missing(max int) []common.Hash {
 	return requests
 }
 
-// Process injects a batch of retrieved trie nodes data.
-func (s *TrieSync) Process(results []SyncResult) (int, error) {
+// Process injects a batch of retrieved trie nodes data, returning if something
+// was committed to the database and also the index of an entry if processing of
+// it failed.
+func (s *TrieSync) Process(results []SyncResult, dbw DatabaseWriter) (bool, int, error) {
+	committed := false
+
 	for i, item := range results {
 		// If the item was not requested, bail out
 		request := s.requests[item.Hash]
 		if request == nil {
-			return i, ErrNotRequested
+			return committed, i, ErrNotRequested
 		}
 		// If the item is a raw entry request, commit directly
 		if request.raw {
 			request.data = item.Data
-			s.commit(request, nil)
+			s.commit(request, dbw)
+			committed = true
 			continue
 		}
 		// Decode the node data content and update the request
 		node, err := decodeNode(item.Hash[:], item.Data, 0)
 		if err != nil {
-			return i, err
+			return committed, i, err
 		}
 		request.data = item.Data
 
 		// Create and schedule a request for all the children nodes
 		requests, err := s.children(request, node)
 		if err != nil {
-			return i, err
+			return committed, i, err
 		}
 		if len(requests) == 0 && request.deps == 0 {
-			s.commit(request, nil)
+			s.commit(request, dbw)
+			committed = true
 			continue
 		}
 		request.deps += len(requests)
@@ -177,7 +182,7 @@ func (s *TrieSync) Process(results []SyncResult) (int, error) {
 			s.schedule(child)
 		}
 	}
-	return 0, nil
+	return committed, 0, nil
 }
 
 // Pending returns the number of state entries currently pending for download.
@@ -260,16 +265,9 @@ func (s *TrieSync) children(req *request, object node) ([]*request, error) {
 // commit finalizes a retrieval request and stores it into the database. If any
 // of the referencing parent requests complete due to this commit, they are also
 // committed themselves.
-func (s *TrieSync) commit(req *request, batch ethdb.Batch) (err error) {
-	// Create a new batch if none was specified
-	if batch == nil {
-		batch = s.database.NewBatch()
-		defer func() {
-			err = batch.Write()
-		}()
-	}
+func (s *TrieSync) commit(req *request, dbw DatabaseWriter) (err error) {
 	// Write the node content to disk
-	if err := batch.Put(req.hash[:], req.data); err != nil {
+	if err := dbw.Put(req.hash[:], req.data); err != nil {
 		return err
 	}
 	delete(s.requests, req.hash)
@@ -278,7 +276,7 @@ func (s *TrieSync) commit(req *request, batch ethdb.Batch) (err error) {
 	for _, parent := range req.parents {
 		parent.deps--
 		if parent.deps == 0 {
-			if err := s.commit(parent, batch); err != nil {
+			if err := s.commit(parent, dbw); err != nil {
 				return err
 			}
 		}

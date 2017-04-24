@@ -19,8 +19,6 @@ package types
 
 import (
 	"encoding/binary"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -29,6 +27,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -36,12 +35,6 @@ import (
 var (
 	EmptyRootHash  = DeriveSha(Transactions{})
 	EmptyUncleHash = CalcUncleHash(nil)
-)
-
-var (
-	errMissingHeaderMixDigest = errors.New("missing mixHash in JSON block header")
-	errMissingHeaderFields    = errors.New("missing required JSON block header fields")
-	errBadNonceSize           = errors.New("invalid block nonce size, want 8 bytes")
 )
 
 // A BlockNonce is a 64-bit hash which proves (combined with the
@@ -61,59 +54,46 @@ func (n BlockNonce) Uint64() uint64 {
 	return binary.BigEndian.Uint64(n[:])
 }
 
-// MarshalJSON implements json.Marshaler
-func (n BlockNonce) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf(`"0x%x"`, n)), nil
+// MarshalText encodes n as a hex string with 0x prefix.
+func (n BlockNonce) MarshalText() ([]byte, error) {
+	return hexutil.Bytes(n[:]).MarshalText()
 }
 
-// UnmarshalJSON implements json.Unmarshaler
-func (n *BlockNonce) UnmarshalJSON(input []byte) error {
-	var b hexBytes
-	if err := b.UnmarshalJSON(input); err != nil {
-		return err
-	}
-	if len(b) != 8 {
-		return errBadNonceSize
-	}
-	copy((*n)[:], b)
-	return nil
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (n *BlockNonce) UnmarshalText(input []byte) error {
+	return hexutil.UnmarshalFixedText("BlockNonce", input, n[:])
 }
 
-// Header represents Ethereum block headers.
+//go:generate gencodec -type Header -field-override headerMarshaling -out gen_header_json.go
+
+// Header represents a block header in the Ethereum blockchain.
 type Header struct {
-	ParentHash  common.Hash    // Hash to the previous block
-	UncleHash   common.Hash    // Uncles of this block
-	Coinbase    common.Address // The coin base address
-	Root        common.Hash    // Block Trie state
-	TxHash      common.Hash    // Tx sha
-	ReceiptHash common.Hash    // Receipt sha
-	Bloom       Bloom          // Bloom
-	Difficulty  *big.Int       // Difficulty for the current block
-	Number      *big.Int       // The block number
-	GasLimit    *big.Int       // Gas limit
-	GasUsed     *big.Int       // Gas used
-	Time        *big.Int       // Creation time
-	Extra       []byte         // Extra data
-	MixDigest   common.Hash    // for quick difficulty verification
-	Nonce       BlockNonce
+	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
+	UncleHash   common.Hash    `json:"sha3Uncles"       gencodec:"required"`
+	Coinbase    common.Address `json:"miner"            gencodec:"required"`
+	Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
+	TxHash      common.Hash    `json:"transactionsRoot" gencodec:"required"`
+	ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+	Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
+	Difficulty  *big.Int       `json:"difficulty"       gencodec:"required"`
+	Number      *big.Int       `json:"number"           gencodec:"required"`
+	GasLimit    *big.Int       `json:"gasLimit"         gencodec:"required"`
+	GasUsed     *big.Int       `json:"gasUsed"          gencodec:"required"`
+	Time        *big.Int       `json:"timestamp"        gencodec:"required"`
+	Extra       []byte         `json:"extraData"        gencodec:"required"`
+	MixDigest   common.Hash    `json:"mixHash"          gencodec:"required"`
+	Nonce       BlockNonce     `json:"nonce"            gencodec:"required"`
 }
 
-type jsonHeader struct {
-	ParentHash  *common.Hash    `json:"parentHash"`
-	UncleHash   *common.Hash    `json:"sha3Uncles"`
-	Coinbase    *common.Address `json:"miner"`
-	Root        *common.Hash    `json:"stateRoot"`
-	TxHash      *common.Hash    `json:"transactionsRoot"`
-	ReceiptHash *common.Hash    `json:"receiptsRoot"`
-	Bloom       *Bloom          `json:"logsBloom"`
-	Difficulty  *hexBig         `json:"difficulty"`
-	Number      *hexBig         `json:"number"`
-	GasLimit    *hexBig         `json:"gasLimit"`
-	GasUsed     *hexBig         `json:"gasUsed"`
-	Time        *hexBig         `json:"timestamp"`
-	Extra       *hexBytes       `json:"extraData"`
-	MixDigest   *common.Hash    `json:"mixHash"`
-	Nonce       *BlockNonce     `json:"nonce"`
+// field type overrides for gencodec
+type headerMarshaling struct {
+	Difficulty *hexutil.Big
+	Number     *hexutil.Big
+	GasLimit   *hexutil.Big
+	GasUsed    *hexutil.Big
+	Time       *hexutil.Big
+	Extra      hexutil.Bytes
+	Hash       common.Hash `json:"hash"` // adds call to Hash() in MarshalJSON
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
@@ -141,6 +121,7 @@ func (h *Header) HashNoNonce() common.Hash {
 	})
 }
 
+<<<<<<< HEAD
 // QuorumHash returns a RLP hash of header fields relevant to determine if
 // a block was created/signed by an authorized block maker.
 func (h *Header) QuorumHash() common.Hash {
@@ -211,6 +192,8 @@ func (h *Header) UnmarshalJSON(input []byte) error {
 	return nil
 }
 
+=======
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 func rlpHash(x interface{}) (h common.Hash) {
 	hw := sha3.NewKeccak256()
 	rlp.Encode(hw, x)
@@ -225,7 +208,7 @@ type Body struct {
 	Uncles       []*Header
 }
 
-// Block represents a block in the Ethereum blockchain.
+// Block represents an entire block in the Ethereum blockchain.
 type Block struct {
 	header       *Header
 	uncles       []*Header
@@ -439,6 +422,7 @@ func CalcUncleHash(uncles []*Header) common.Hash {
 	return rlpHash(uncles)
 }
 
+<<<<<<< HEAD
 // WithCoinbase returns a new block with the data from b
 // where coinbase is set to the provided value.
 func (b *Block) WithCoinbase(coinbase common.Address) *Block {
@@ -457,6 +441,13 @@ func (b *Block) WithExtraData(extraData []byte) *Block {
 	cpy := *b.header
 	cpy.Extra = make([]byte, len(extraData))
 	copy(cpy.Extra, extraData)
+=======
+// WithSeal returns a new block with the data from b but the header replaced with
+// the sealed one.
+func (b *Block) WithSeal(header *Header) *Block {
+	cpy := *header
+
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 	return &Block{
 		header:       &cpy,
 		transactions: b.transactions,

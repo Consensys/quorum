@@ -1,26 +1,28 @@
 // Copyright 2015 The go-ethereum Authors
-// This file is part of go-ethereum.
+// This file is part of the go-ethereum library.
 //
-// go-ethereum is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// go-ethereum is distributed in the hope that it will be useful,
+// The go-ethereum library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
+// GNU Lesser General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License
-// along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 package eth
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -29,36 +31,58 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
-	rpc "github.com/ethereum/go-ethereum/rpc"
-	"golang.org/x/net/context"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // EthApiBackend implements ethapi.Backend for full nodes
 type EthApiBackend struct {
 	eth *Ethereum
+<<<<<<< HEAD
+=======
+	gpo *gasprice.Oracle
+}
+
+func (b *EthApiBackend) ChainConfig() *params.ChainConfig {
+	return b.eth.chainConfig
+}
+
+func (b *EthApiBackend) CurrentBlock() *types.Block {
+	return b.eth.blockchain.CurrentBlock()
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 }
 
 func (b *EthApiBackend) SetHead(number uint64) {
+	b.eth.protocolManager.downloader.Cancel()
 	b.eth.blockchain.SetHead(number)
 }
 
-func (b *EthApiBackend) HeaderByNumber(blockNr rpc.BlockNumber) *types.Header {
+func (b *EthApiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error) {
 	// Pending block is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
+<<<<<<< HEAD
 		block, _, _ := b.eth.blockVoting.Pending()
 		return block.Header()
+=======
+		block := b.eth.miner.PendingBlock()
+		return block.Header(), nil
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 	}
 	// Otherwise resolve and return the block
 	if blockNr == rpc.LatestBlockNumber {
-		return b.eth.blockchain.CurrentBlock().Header()
+		return b.eth.blockchain.CurrentBlock().Header(), nil
 	}
-	return b.eth.blockchain.GetHeaderByNumber(uint64(blockNr))
+	return b.eth.blockchain.GetHeaderByNumber(uint64(blockNr)), nil
 }
 
 func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
 	// Pending block is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
+<<<<<<< HEAD
 		block, _, _ := b.eth.blockVoting.Pending()
+=======
+		block := b.eth.miner.PendingBlock()
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 		return block, nil
 	}
 	// Otherwise resolve and return the block
@@ -68,16 +92,16 @@ func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumb
 	return b.eth.blockchain.GetBlockByNumber(uint64(blockNr)), nil
 }
 
-func (b *EthApiBackend) StateAndHeaderByNumber(blockNr rpc.BlockNumber) (ethapi.State, *types.Header, error) {
+func (b *EthApiBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (ethapi.State, *types.Header, error) {
 	// Pending state is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
 		block, publicState, privateState := b.eth.blockVoting.Pending()
 		return EthApiState{publicState, privateState}, block.Header(), nil
 	}
 	// Otherwise resolve the block number and return its state
-	header := b.HeaderByNumber(blockNr)
-	if header == nil {
-		return nil, nil, nil
+	header, err := b.HeaderByNumber(ctx, blockNr)
+	if header == nil || err != nil {
+		return nil, nil, err
 	}
 	publicState, privateState, err := b.eth.BlockChain().StateAt(header.Root)
 	return EthApiState{publicState, privateState}, header, err
@@ -95,6 +119,7 @@ func (b *EthApiBackend) GetTd(blockHash common.Hash) *big.Int {
 	return b.eth.blockchain.GetTdByHash(blockHash)
 }
 
+<<<<<<< HEAD
 func (b *EthApiBackend) GetVMEnv(ctx context.Context, msg core.Message, state ethapi.State, header *types.Header) (vm.Environment, func() error, error) {
 	var (
 		statedb      = state.(EthApiState)
@@ -111,6 +136,16 @@ func (b *EthApiBackend) GetVMEnv(ctx context.Context, msg core.Message, state et
 	from.SetBalance(common.MaxBig)
 	vmError := func() error { return nil }
 	return core.NewEnv(publicState, privateState, b.eth.chainConfig, b.eth.blockchain, msg, header, b.eth.chainConfig.VmConfig), vmError, nil
+=======
+func (b *EthApiBackend) GetEVM(ctx context.Context, msg core.Message, state ethapi.State, header *types.Header, vmCfg vm.Config) (*vm.EVM, func() error, error) {
+	statedb := state.(EthApiState).state
+	from := statedb.GetOrNewStateObject(msg.From())
+	from.SetBalance(math.MaxBig256)
+	vmError := func() error { return nil }
+
+	context := core.NewEVMContext(msg, header, b.eth.BlockChain(), nil)
+	return vm.NewEVM(context, statedb, b.eth.chainConfig, vmCfg), vmError, nil
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 }
 
 func (b *EthApiBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
@@ -128,15 +163,20 @@ func (b *EthApiBackend) RemoveTx(txHash common.Hash) {
 	b.eth.txPool.Remove(txHash)
 }
 
-func (b *EthApiBackend) GetPoolTransactions() types.Transactions {
+func (b *EthApiBackend) GetPoolTransactions() (types.Transactions, error) {
 	b.eth.txMu.Lock()
 	defer b.eth.txMu.Unlock()
 
+	pending, err := b.eth.txPool.Pending()
+	if err != nil {
+		return nil, err
+	}
+
 	var txs types.Transactions
-	for _, batch := range b.eth.txPool.Pending() {
+	for _, batch := range pending {
 		txs = append(txs, batch...)
 	}
-	return txs
+	return txs, nil
 }
 
 func (b *EthApiBackend) GetPoolTransaction(hash common.Hash) *types.Transaction {
@@ -176,7 +216,11 @@ func (b *EthApiBackend) ProtocolVersion() int {
 }
 
 func (b *EthApiBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
+<<<<<<< HEAD
 	return big.NewInt(0), nil
+=======
+	return b.gpo.SuggestPrice(ctx)
+>>>>>>> 7cc6abeef6ec0b6c5fd5a94920fa79157cdfcd37
 }
 
 func (b *EthApiBackend) ChainDb() ethdb.Database {

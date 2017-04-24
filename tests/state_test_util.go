@@ -18,7 +18,6 @@ package tests
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"math/big"
@@ -27,34 +26,35 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
-func RunStateTestWithReader(ruleSet RuleSet, r io.Reader, skipTests []string) error {
+func RunStateTestWithReader(chainConfig *params.ChainConfig, r io.Reader, skipTests []string) error {
 	tests := make(map[string]VmTest)
 	if err := readJson(r, &tests); err != nil {
 		return err
 	}
 
-	if err := runStateTests(ruleSet, tests, skipTests); err != nil {
+	if err := runStateTests(chainConfig, tests, skipTests); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func RunStateTest(ruleSet RuleSet, p string, skipTests []string) error {
+func RunStateTest(chainConfig *params.ChainConfig, p string, skipTests []string) error {
 	tests := make(map[string]VmTest)
 	if err := readJsonFile(p, &tests); err != nil {
 		return err
 	}
 
-	if err := runStateTests(ruleSet, tests, skipTests); err != nil {
+	if err := runStateTests(chainConfig, tests, skipTests); err != nil {
 		return err
 	}
 
@@ -62,7 +62,7 @@ func RunStateTest(ruleSet RuleSet, p string, skipTests []string) error {
 
 }
 
-func BenchStateTest(ruleSet RuleSet, p string, conf bconf, b *testing.B) error {
+func BenchStateTest(chainConfig *params.ChainConfig, p string, conf bconf, b *testing.B) error {
 	tests := make(map[string]VmTest)
 	if err := readJsonFile(p, &tests); err != nil {
 		return err
@@ -87,46 +87,46 @@ func BenchStateTest(ruleSet RuleSet, p string, conf bconf, b *testing.B) error {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		benchStateTest(ruleSet, test, env, b)
+		benchStateTest(chainConfig, test, env, b)
 	}
 
 	return nil
 }
 
-func benchStateTest(ruleSet RuleSet, test VmTest, env map[string]string, b *testing.B) {
+func benchStateTest(chainConfig *params.ChainConfig, test VmTest, env map[string]string, b *testing.B) {
 	b.StopTimer()
 	db, _ := ethdb.NewMemDatabase()
 	statedb := makePreState(db, test.Pre)
 	b.StartTimer()
 
-	RunState(ruleSet, statedb, env, test.Exec)
+	RunState(chainConfig, statedb, env, test.Exec)
 }
 
-func runStateTests(ruleSet RuleSet, tests map[string]VmTest, skipTests []string) error {
+func runStateTests(chainConfig *params.ChainConfig, tests map[string]VmTest, skipTests []string) error {
 	skipTest := make(map[string]bool, len(skipTests))
 	for _, name := range skipTests {
 		skipTest[name] = true
 	}
 
 	for name, test := range tests {
-		if skipTest[name] /*|| name != "callcodecallcode_11" */ {
-			glog.Infoln("Skipping state test", name)
+		if skipTest[name] /*|| name != "JUMPDEST_Attack"*/ {
+			log.Info(fmt.Sprint("Skipping state test", name))
 			continue
 		}
 
 		//fmt.Println("StateTest:", name)
-		if err := runStateTest(ruleSet, test); err != nil {
+		if err := runStateTest(chainConfig, test); err != nil {
 			return fmt.Errorf("%s: %s\n", name, err.Error())
 		}
 
-		//glog.Infoln("State test passed: ", name)
+		//log.Info(fmt.Sprint("State test passed: ", name))
 		//fmt.Println(string(statedb.Dump()))
 	}
 	return nil
 
 }
 
-func runStateTest(ruleSet RuleSet, test VmTest) error {
+func runStateTest(chainConfig *params.ChainConfig, test VmTest) error {
 	db, _ := ethdb.NewMemDatabase()
 	statedb := makePreState(db, test.Pre)
 
@@ -147,10 +147,10 @@ func runStateTest(ruleSet RuleSet, test VmTest) error {
 		ret []byte
 		// gas  *big.Int
 		// err  error
-		logs vm.Logs
+		logs []*types.Log
 	)
 
-	ret, logs, _, _ = RunState(ruleSet, statedb, env, test.Transaction)
+	ret, logs, _, _ = RunState(chainConfig, statedb, env, test.Transaction)
 
 	// Compare expected and actual return
 	var rexp []byte
@@ -160,36 +160,36 @@ func runStateTest(ruleSet RuleSet, test VmTest) error {
 	} else {
 		rexp = common.FromHex(test.Out)
 	}
-	if bytes.Compare(rexp, ret) != 0 {
+	if !bytes.Equal(rexp, ret) {
 		return fmt.Errorf("return failed. Expected %x, got %x\n", rexp, ret)
 	}
 
 	// check post state
 	for addr, account := range test.Post {
-		obj := statedb.GetStateObject(common.HexToAddress(addr))
-		if obj == nil {
+		address := common.HexToAddress(addr)
+		if !statedb.Exist(address) {
 			return fmt.Errorf("did not find expected post-state account: %s", addr)
 		}
 
-		if obj.Balance().Cmp(common.Big(account.Balance)) != 0 {
-			return fmt.Errorf("(%x) balance failed. Expected: %v have: %v\n", obj.Address().Bytes()[:4], common.String2Big(account.Balance), obj.Balance())
+		if balance := statedb.GetBalance(address); balance.Cmp(math.MustParseBig256(account.Balance)) != 0 {
+			return fmt.Errorf("(%x) balance failed. Expected: %v have: %v\n", address[:4], math.MustParseBig256(account.Balance), balance)
 		}
 
-		if obj.Nonce() != common.String2Big(account.Nonce).Uint64() {
-			return fmt.Errorf("(%x) nonce failed. Expected: %v have: %v\n", obj.Address().Bytes()[:4], account.Nonce, obj.Nonce())
+		if nonce := statedb.GetNonce(address); nonce != math.MustParseUint64(account.Nonce) {
+			return fmt.Errorf("(%x) nonce failed. Expected: %v have: %v\n", address[:4], account.Nonce, nonce)
 		}
 
 		for addr, value := range account.Storage {
-			v := statedb.GetState(obj.Address(), common.HexToHash(addr))
+			v := statedb.GetState(address, common.HexToHash(addr))
 			vexp := common.HexToHash(value)
 
 			if v != vexp {
-				return fmt.Errorf("storage failed:\n%x: %s:\nexpected: %x\nhave:     %x\n(%v %v)\n", obj.Address().Bytes(), addr, vexp, v, vexp.Big(), v.Big())
+				return fmt.Errorf("storage failed:\n%x: %s:\nexpected: %x\nhave:     %x\n(%v %v)\n", address[:4], addr, vexp, v, vexp.Big(), v.Big())
 			}
 		}
 	}
 
-	root, _ := statedb.Commit()
+	root, _ := statedb.Commit(false)
 	if common.HexToHash(test.PostStateRoot) != root {
 		return fmt.Errorf("Post state root error. Expected: %s have: %x", test.PostStateRoot, root)
 	}
@@ -204,35 +204,20 @@ func runStateTest(ruleSet RuleSet, test VmTest) error {
 	return nil
 }
 
-func RunState(ruleSet RuleSet, statedb *state.StateDB, env, tx map[string]string) ([]byte, vm.Logs, *big.Int, error) {
-	var (
-		data  = common.FromHex(tx["data"])
-		gas   = common.Big(tx["gasLimit"])
-		price = common.Big(tx["gasPrice"])
-		value = common.Big(tx["value"])
-		nonce = common.Big(tx["nonce"]).Uint64()
-	)
+func RunState(chainConfig *params.ChainConfig, statedb *state.StateDB, env, tx map[string]string) ([]byte, []*types.Log, *big.Int, error) {
+	environment, msg := NewEVMEnvironment(false, chainConfig, statedb, env, tx)
+	gaspool := new(core.GasPool).AddGas(math.MustParseBig256(env["currentGasLimit"]))
 
-	var to *common.Address
-	if len(tx["to"]) > 2 {
-		t := common.HexToAddress(tx["to"])
-		to = &t
-	}
-	// Set pre compiled contracts
-	vm.Precompiled = vm.PrecompiledContracts()
+	root, _ := statedb.Commit(false)
+	statedb.Reset(root)
+
 	snapshot := statedb.Snapshot()
-	gaspool := new(core.GasPool).AddGas(common.Big(env["currentGasLimit"]))
 
-	key, _ := hex.DecodeString(tx["secretKey"])
-	addr := crypto.PubkeyToAddress(crypto.ToECDSA(key).PublicKey)
-	message := NewMessage(addr, to, data, value, gas, price, nonce)
-	vmenv := NewEnvFromMap(ruleSet, statedb, env, tx)
-	vmenv.origin = addr
-	ret, _, err := core.ApplyMessage(vmenv, message, gaspool)
-	if core.IsNonceErr(err) || core.IsInvalidTxErr(err) || core.IsGasLimitErr(err) {
+	ret, gasUsed, err := core.ApplyMessage(environment, msg, gaspool)
+	if err != nil {
 		statedb.RevertToSnapshot(snapshot)
 	}
-	statedb.Commit()
+	statedb.Commit(chainConfig.IsEIP158(environment.Context.BlockNumber))
 
-	return ret, vmenv.state.Logs(), vmenv.Gas, err
+	return ret, statedb.Logs(), gasUsed, err
 }
