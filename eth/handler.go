@@ -326,8 +326,12 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	defer msg.Discard()
 
 	if pm.raftMode {
-		if msg.Code != TxMsg {
-			glog.V(logger.Debug).Infof("raft: ignoring non-TxMsg with code %v", msg.Code)
+		if msg.Code != TxMsg &&
+			msg.Code != GetBlockHeadersMsg && msg.Code != BlockHeadersMsg &&
+			msg.Code != GetBlockBodiesMsg && msg.Code != BlockBodiesMsg {
+
+			glog.V(logger.Warn).Infof("raft: ignoring message with code %v", msg.Code)
+
 			return nil
 		}
 	}

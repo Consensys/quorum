@@ -2,7 +2,6 @@ package raft
 
 import (
 	"fmt"
-	"math/big"
 	"net/http"
 	"net/url"
 	"os"
@@ -61,7 +60,6 @@ type ProtocolManager struct {
 	minedBlockSub event.Subscription
 
 	downloader *downloader.Downloader
-	peerGetter func() (string, *big.Int)
 
 	rawNode     etcdRaft.Node
 	raftStorage *etcdRaft.MemoryStorage
@@ -105,7 +103,7 @@ type ProtocolManager struct {
 // Public interface
 //
 
-func NewProtocolManager(raftId uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*discover.Node, joinExisting bool, datadir string, minter *minter) (*ProtocolManager, error) {
+func NewProtocolManager(raftId uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*discover.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -127,6 +125,7 @@ func NewProtocolManager(raftId uint16, blockchain *core.BlockChain, mux *event.T
 		quitSync:            make(chan struct{}),
 		raftStorage:         etcdRaft.NewMemoryStorage(),
 		minter:              minter,
+		downloader:          downloader,
 	}
 
 	if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
@@ -677,7 +676,7 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 			panic(fmt.Sprintf("failed to extend chain: %s", err.Error()))
 		}
 
-		glog.V(logger.Info).Infof("Successfully extended chain: %x\n", block.Hash())
+		glog.V(logger.Info).Infof("%s: %x\n", chainExtensionMessage, block.Hash())
 	}
 }
 

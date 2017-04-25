@@ -1,11 +1,17 @@
 package raft
 
 import (
+	"fmt"
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal/walpb"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+	"math/big"
+	"time"
 )
 
 func (pm *ProtocolManager) saveSnapshot(snap raftpb.Snapshot) error {
@@ -70,8 +76,41 @@ func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
 }
 
 func (pm *ProtocolManager) applySnapshot(snap raftpb.Snapshot) {
+	glog.V(logger.Info).Infof("applying snapshot to raft storage")
 	if err := pm.raftStorage.ApplySnapshot(snap); err != nil {
 		glog.Fatalln("failed to apply snapshot: ", err)
+	}
+
+	latestBlockHash := common.BytesToHash(snap.Data)
+
+	preSyncHead := pm.blockchain.CurrentBlock()
+
+	glog.V(logger.Info).Infof("before sync, chain head is at block %x", preSyncHead.Hash())
+
+	if latestBlock := pm.blockchain.GetBlockByHash(latestBlockHash); latestBlock == nil {
+	syncing:
+		for {
+			for peerId, peer := range pm.peers {
+				glog.V(logger.Info).Infof("synchronizing with peer %v up to block %x", peerId, latestBlockHash)
+
+				peerId := peer.p2pNode.ID.String()
+				peerIdPrefix := fmt.Sprintf("%x", peer.p2pNode.ID[:8])
+
+				if err := pm.downloader.Synchronise(peerIdPrefix, latestBlockHash, big.NewInt(0), downloader.BoundedFullSync); err != nil {
+					glog.V(logger.Warn).Infof("failed to synchronize with peer %v", peerId)
+
+					time.Sleep(500 * time.Millisecond)
+				} else {
+					break syncing
+				}
+			}
+		}
+
+		pm.logNewlyAcceptedTransactions(preSyncHead)
+
+		glog.V(logger.Info).Infof("%s: %x\n", chainExtensionMessage, pm.blockchain.CurrentBlock().Hash())
+	} else {
+		glog.V(logger.Info).Infof("already caught up; no need to synchronize")
 	}
 
 	snapMeta := snap.Metadata
@@ -79,4 +118,22 @@ func (pm *ProtocolManager) applySnapshot(snap raftpb.Snapshot) {
 	pm.confState = snapMeta.ConfState
 	pm.snapshotIndex = snapMeta.Index
 	pm.advanceAppliedIndex(snapMeta.Index)
+}
+func (pm *ProtocolManager) logNewlyAcceptedTransactions(preSyncHead *types.Block) {
+	newHead := pm.blockchain.CurrentBlock()
+	numBlocks := newHead.NumberU64() - preSyncHead.NumberU64()
+	blocks := make([]*types.Block, numBlocks)
+	currBlock := newHead
+	blocksSeen := 0
+	for currBlock.Hash() != preSyncHead.Hash() {
+		blocks[int(numBlocks)-(1+blocksSeen)] = currBlock
+
+		blocksSeen += 1
+		currBlock = pm.blockchain.GetBlockByHash(currBlock.ParentHash())
+	}
+	for _, block := range blocks {
+		for _, tx := range block.Transactions() {
+			logger.LogRaftCheckpoint(logger.TxAccepted, tx.Hash().Hex())
+		}
+	}
 }

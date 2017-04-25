@@ -146,11 +146,15 @@ func (pm *ProtocolManager) syncer() {
 			if pm.peers.Len() < minDesiredPeerCount {
 				break
 			}
-			go pm.synchronise(pm.peers.BestPeer())
+			if !pm.raftMode {
+				go pm.synchronise(pm.peers.BestPeer())
+			}
 
 		case <-forceSync:
-			// Force a sync even if not enough peers are present
-			go pm.synchronise(pm.peers.BestPeer())
+			if !pm.raftMode {
+				// Force a sync even if not enough peers are present
+				go pm.synchronise(pm.peers.BestPeer())
+			}
 
 		case <-pm.noMorePeers:
 			return

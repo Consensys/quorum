@@ -369,6 +369,13 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode 
 	if p == nil {
 		return errUnknownPeer
 	}
+	if d.mode == BoundedFullSync {
+		err := d.syncWithPeerUntil(p, hash, td)
+		if err == nil {
+			d.processContent()
+		}
+		return err
+	}
 	return d.syncWithPeer(p, hash, td)
 }
 
@@ -1292,7 +1299,7 @@ func (d *Downloader) processHeaders(origin uint64, td *big.Int) error {
 					}
 				}
 				// Unless we're doing light chains, schedule the headers for associated content retrieval
-				if d.mode == FullSync || d.mode == FastSync {
+				if d.mode == FullSync || d.mode == FastSync || d.mode == BoundedFullSync {
 					// If we've reached the allowed number of pending headers, stall a bit
 					for d.queue.PendingBlocks() >= maxQueuedHeaders || d.queue.PendingReceipts() >= maxQueuedHeaders {
 						select {
@@ -1354,7 +1361,7 @@ func (d *Downloader) processContent() error {
 			items := int(math.Min(float64(len(results)), float64(maxResultsProcess)))
 			for _, result := range results[:items] {
 				switch {
-				case d.mode == FullSync:
+				case d.mode == FullSync || d.mode == BoundedFullSync:
 					blocks = append(blocks, types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles))
 				case d.mode == FastSync:
 					blocks = append(blocks, types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles))
@@ -1502,4 +1509,212 @@ func (d *Downloader) requestTTL() time.Duration {
 		ttl = ttlLimit
 	}
 	return ttl
+}
+
+// Extra downloader functionality for non-proof-of-work consensus
+
+// Synchronizes with a peer, but only up to the provided Hash
+func (d *Downloader) syncWithPeerUntil(p *peer, hash common.Hash, td *big.Int) (err error) {
+	d.mux.Post(StartEvent{})
+	defer func() {
+		// reset on error
+		if err != nil {
+			d.mux.Post(FailedEvent{err})
+		} else {
+			d.mux.Post(DoneEvent{})
+		}
+	}()
+	if p.version < 62 {
+		return errTooOld
+	}
+
+	glog.V(logger.Debug).Infof("Synchronising with the network using: %s [eth/%d]", p.id, p.version)
+	defer func(start time.Time) {
+		glog.V(logger.Debug).Infof("Synchronisation terminated after %v", time.Since(start))
+	}(time.Now())
+
+	remoteHeader, err := d.fetchHeader(p, hash)
+	if err != nil {
+		return err
+	}
+
+	remoteHeight := remoteHeader.Number.Uint64()
+	localHeight := d.headBlock().NumberU64()
+
+	d.syncStatsLock.Lock()
+	if d.syncStatsChainHeight <= localHeight || d.syncStatsChainOrigin > localHeight {
+		d.syncStatsChainOrigin = localHeight
+	}
+	d.syncStatsChainHeight = remoteHeight
+	d.syncStatsLock.Unlock()
+
+	d.queue.Prepare(localHeight+1, d.mode, uint64(0), remoteHeader)
+	if d.syncInitHook != nil {
+		d.syncInitHook(localHeight, remoteHeight)
+	}
+	return d.spawnSync(localHeight+1,
+		func() error { return d.fetchBoundedHeaders(p, localHeight+1, remoteHeight) },
+		func() error { return d.processHeaders(localHeight+1, td) },
+		func() error { return d.fetchBodies(localHeight + 1) },
+		func() error { return d.fetchReceipts(localHeight + 1) }, // Receipts are only retrieved during fast sync
+		func() error { return d.fetchNodeData() },                // Node state data is only retrieved during fast sync
+	)
+}
+
+// Fetches a single header from a peer
+func (d *Downloader) fetchHeader(p *peer, hash common.Hash) (*types.Header, error) {
+	glog.V(logger.Debug).Infof("%v: retrieving remote chain height", p)
+
+	go p.getRelHeaders(hash, 1, 0, false)
+
+	timeout := time.After(d.requestTTL())
+	for {
+		select {
+		case <-d.cancelCh:
+			return nil, errCancelBlockFetch
+
+		case packet := <-d.headerCh:
+			// Discard anything not from the origin peer
+			if packet.PeerId() != p.id {
+				glog.V(logger.Debug).Infof("Received headers from incorrect peer(%s)", packet.PeerId())
+				break
+			}
+			// Make sure the peer actually gave something valid
+			headers := packet.(*headerPack).headers
+			if len(headers) != 1 {
+				glog.V(logger.Debug).Infof("%v: invalid number of head headers: %d != 1", p, len(headers))
+				return nil, errBadPeer
+			}
+			return headers[0], nil
+
+		case <-timeout:
+			glog.V(logger.Debug).Infof("%v: head header timeout", p)
+			return nil, errTimeout
+
+		case <-d.bodyCh:
+		case <-d.stateCh:
+		case <-d.receiptCh:
+			// Out of bounds delivery, ignore
+		}
+	}
+}
+
+// Not defined in go's stdlib:
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// Fetches headers between `from` and `to`, inclusive.
+// Assumes invariant: from <= to.
+func (d *Downloader) fetchBoundedHeaders(p *peer, from uint64, to uint64) error {
+	glog.V(logger.Debug).Infof("%v: directing header downloads from #%d to #%d", p, from, to)
+	defer glog.V(logger.Debug).Infof("%v: header download terminated", p)
+
+	// Create a timeout timer, and the associated header fetcher
+	skeleton := true            // Skeleton assembly phase or finishing up
+	request := time.Now()       // time of the last skeleton fetch request
+	timeout := time.NewTimer(0) // timer to dump a non-responsive active peer
+	<-timeout.C                 // timeout channel should be initially empty
+	defer timeout.Stop()
+
+	getHeaders := func(from uint64) {
+		request = time.Now()
+		timeout.Reset(d.requestTTL())
+
+		skeletonStart := from + uint64(MaxHeaderFetch) - 1
+
+		if skeleton {
+			if skeletonStart > to {
+				skeleton = false
+			}
+		}
+
+		if skeleton {
+			numSkeletonHeaders := minInt(MaxSkeletonSize, (int(to-from)+1)/MaxHeaderFetch)
+			glog.V(logger.Detail).Infof("%v: fetching %d skeleton headers from #%d", p, numSkeletonHeaders, from)
+			go p.getAbsHeaders(skeletonStart, numSkeletonHeaders, MaxHeaderFetch-1, false)
+		} else {
+			// There are not enough headers remaining to warrant a skeleton fetch.
+			// Grab all of the remaining headers.
+
+			numHeaders := int(to-from) + 1
+			glog.V(logger.Detail).Infof("%v: fetching %d full headers from #%d", p, numHeaders, from)
+			go p.getAbsHeaders(from, numHeaders, 0, false)
+		}
+	}
+	// Start pulling the header chain skeleton until all is done
+	getHeaders(from)
+
+	for {
+		select {
+		case <-d.cancelCh:
+			return errCancelHeaderFetch
+
+		case packet := <-d.headerCh:
+			// Make sure the active peer is giving us the skeleton headers
+			if packet.PeerId() != p.id {
+				glog.V(logger.Debug).Infof("Received headers from incorrect peer (%s)", packet.PeerId())
+				break
+			}
+			headerReqTimer.UpdateSince(request)
+			timeout.Stop()
+
+			headers := packet.(*headerPack).headers
+
+			// If we received a skeleton batch, resolve internals concurrently
+			if skeleton {
+				filled, proced, err := d.fillHeaderSkeleton(from, headers)
+				if err != nil {
+					glog.V(logger.Debug).Infof("%v: skeleton chain invalid: %v", p, err)
+					return errInvalidChain
+				}
+				headers = filled[proced:]
+				from += uint64(proced)
+			}
+			// Insert all the new headers and fetch the next batch
+			if len(headers) > 0 {
+				glog.V(logger.Detail).Infof("%v: schedule %d headers from #%d", p, len(headers), from)
+				select {
+				case d.headerProcCh <- headers:
+				case <-d.cancelCh:
+					return errCancelHeaderFetch
+				}
+				from += uint64(len(headers))
+			}
+
+			if from <= to {
+				getHeaders(from)
+			} else {
+				// Notify the content fetchers that no more headers are inbound and return.
+				select {
+				case d.headerProcCh <- nil:
+					return nil
+				case <-d.cancelCh:
+					return errCancelHeaderFetch
+				}
+			}
+
+		case <-timeout.C:
+			// Header retrieval timed out, consider the peer bad and drop
+			glog.V(logger.Debug).Infof("%v: header request timed out", p)
+			headerTimeoutMeter.Mark(1)
+			d.dropPeer(p.id)
+
+			// Finish the sync gracefully instead of dumping the gathered data though
+			for _, ch := range []chan bool{d.bodyWakeCh, d.receiptWakeCh, d.stateWakeCh} {
+				select {
+				case ch <- false:
+				case <-d.cancelCh:
+				}
+			}
+			select {
+			case d.headerProcCh <- nil:
+			case <-d.cancelCh:
+			}
+			return errBadPeer
+		}
+	}
 }
