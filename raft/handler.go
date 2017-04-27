@@ -326,7 +326,15 @@ func (pm *ProtocolManager) startRaft() {
 			glog.V(logger.Info).Infof("starting a new raft log with an initial cluster size of %v.", numPeers)
 		}
 
-		raftPeers, localAddress := pm.makeInitialRaftPeers()
+		raftPeers, peerAddresses, localAddress := pm.makeInitialRaftPeers()
+
+		// We add all peers up-front even though we will see a ConfChangeAddNode
+		// for each shortly. This is because raft's ConfState will contain all of
+		// these nodes before we see these log entries, and we always want our
+		// snapshots to have all addresses for each of the nodes in the ConfState.
+		for _, peerAddress := range peerAddresses {
+			pm.addPeer(peerAddress)
+		}
 
 		pm.mu.Lock()
 		pm.address = localAddress
@@ -461,6 +469,9 @@ func (pm *ProtocolManager) entriesToApply(ents []raftpb.Entry) (nents []raftpb.E
 }
 
 func (pm *ProtocolManager) addPeer(address *Address) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
 	raftId := address.raftId
 
 	// Add P2P connection:
@@ -471,9 +482,7 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 	peerUrl := fmt.Sprintf("http://%s:%d", address.ip, raftPort(raftId))
 	pm.transport.AddPeer(raftTypes.ID(raftId), []string{peerUrl})
 
-	pm.mu.Lock()
 	pm.peers[raftId] = &Peer{address, p2pNode}
-	pm.mu.Unlock()
 }
 
 func (pm *ProtocolManager) removePeer(raftId uint16) {
@@ -540,15 +549,28 @@ func (pm *ProtocolManager) eventLoop() {
 
 					pm.confState = *pm.rawNode.ApplyConfChange(cc)
 
+					forceSnapshot := false
+
 					switch cc.Type {
 					case raftpb.ConfChangeAddNode:
 						if pm.IsIDRemoved(cc.NodeID) {
 							glog.V(logger.Info).Infof("ignoring ConfChangeAddNode for permanently-removed peer %v", cc.NodeID)
 						} else {
-							glog.V(logger.Info).Infof("adding peer %v due to ConfChangeAddNode", cc.NodeID)
+							raftId := uint16(cc.NodeID)
+							pm.mu.RLock()
+							existingPeer := pm.peers[raftId]
+							pm.mu.RUnlock()
 
-							if nodeRaftId := uint16(cc.NodeID); nodeRaftId != pm.raftId {
-								pm.addPeer(bytesToAddress(cc.Context))
+							if existingPeer != nil || pm.raftId == raftId {
+								// See initial cluster logic in startRaft() for more information.
+								glog.V(logger.Info).Infof("ignoring expected ConfChangeAddNode for initial peer %v", cc.NodeID)
+							} else {
+								glog.V(logger.Info).Infof("adding peer %v due to ConfChangeAddNode", cc.NodeID)
+
+								if nodeRaftId := uint16(cc.NodeID); nodeRaftId != pm.raftId {
+									forceSnapshot = true
+									pm.addPeer(bytesToAddress(cc.Context))
+								}
 							}
 						}
 
@@ -558,6 +580,7 @@ func (pm *ProtocolManager) eventLoop() {
 						} else {
 							glog.V(logger.Info).Infof("removing peer %v due to ConfChangeRemoveNode", cc.NodeID)
 
+							forceSnapshot = true
 							if nodeRaftId := uint16(cc.NodeID); nodeRaftId == pm.raftId {
 								exitAfterApplying = true
 							} else {
@@ -566,18 +589,22 @@ func (pm *ProtocolManager) eventLoop() {
 						}
 
 					case raftpb.ConfChangeUpdateNode:
+						// NOTE: remember to forceSnapshot in this case, if we add support
+						// for this.
 						glog.Fatalln("not yet handled: ConfChangeUpdateNode")
 					}
 
-					// We force a snapshot here to persist our updated confState, so we
-					// know our fellow cluster members when we come back online.
-					//
-					// It is critical here to snapshot *before* writing our applied
-					// index in LevelDB, otherwise a crash while/before snapshotting
-					// (after advancing our applied index) would result in the loss of a
-					// cluster member upon restart: we would re-mount with an old
-					// ConfState.
-					pm.triggerSnapshotWithNextIndex(entry.Index, exitAfterApplying)
+					if forceSnapshot {
+						// We force a snapshot here to persist our updated confState, so we
+						// know our fellow cluster members when we come back online.
+						//
+						// It is critical here to snapshot *before* writing our applied
+						// index in LevelDB, otherwise a crash while/before snapshotting
+						// (after advancing our applied index) would result in the loss of a
+						// cluster member upon restart: we would re-mount with an old
+						// ConfState.
+						pm.triggerSnapshotWithNextIndex(entry.Index)
+					}
 				}
 
 				pm.advanceAppliedIndex(entry.Index)
@@ -604,21 +631,26 @@ func raftPort(raftId uint16) uint16 {
 	return 50400 + raftId
 }
 
-func (pm *ProtocolManager) makeInitialRaftPeers() (peers []etcdRaft.Peer, localAddress *Address) {
+func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, peerAddresses []*Address, localAddress *Address) {
 	initialNodes := pm.bootstrapNodes
-	peers = make([]etcdRaft.Peer, len(initialNodes))
+	raftPeers = make([]etcdRaft.Peer, len(initialNodes))  // Entire cluster
+	peerAddresses = make([]*Address, len(initialNodes)-1) // Cluster without *this* node
 
+	peersSeen := 0
 	for i, node := range initialNodes {
 		raftId := uint16(i + 1)
 		address := newAddress(raftId, node)
 
-		if raftId == pm.raftId {
-			localAddress = address
-		}
-
-		peers[i] = etcdRaft.Peer{
+		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
 			Context: address.toBytes(),
+		}
+
+		if raftId == pm.raftId {
+			localAddress = address
+		} else {
+			peerAddresses[peersSeen] = address
+			peersSeen += 1
 		}
 	}
 

@@ -33,28 +33,25 @@ func (a ByRaftId) Len() int           { return len(a) }
 func (a ByRaftId) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByRaftId) Less(i, j int) bool { return a[i].raftId < a[j].raftId }
 
-func (pm *ProtocolManager) buildSnapshot(withoutSelf bool) *Snapshot {
+func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	var numNodes int
-	if withoutSelf {
-		numNodes = len(pm.peers)
-	} else {
-		numNodes = len(pm.peers) + 1
-	}
+	numNodes := len(pm.confState.Nodes)
 
 	snapshot := &Snapshot{
 		addresses:     make([]Address, numNodes),
 		headBlockHash: pm.blockchain.CurrentBlock().Hash(),
 	}
-	i := 0
-	for _, peer := range pm.peers {
-		snapshot.addresses[i] = *peer.address
-		i += 1
-	}
-	if !withoutSelf {
-		snapshot.addresses[i] = *pm.address
+
+	for i, rawRaftId := range pm.confState.Nodes {
+		raftId := uint16(rawRaftId)
+
+		if raftId == pm.raftId {
+			snapshot.addresses[i] = *pm.address
+		} else {
+			snapshot.addresses[i] = *pm.peers[raftId].address
+		}
 	}
 
 	sort.Sort(ByRaftId(snapshot.addresses))
@@ -62,10 +59,10 @@ func (pm *ProtocolManager) buildSnapshot(withoutSelf bool) *Snapshot {
 	return snapshot
 }
 
-func (pm *ProtocolManager) triggerSnapshot(withoutSelf bool) {
+func (pm *ProtocolManager) triggerSnapshot() {
 	glog.V(logger.Info).Infof("start snapshot [applied index: %d | last snapshot index: %d]", pm.appliedIndex, pm.snapshotIndex)
 
-	snapData := pm.buildSnapshot(withoutSelf).toBytes()
+	snapData := pm.buildSnapshot().toBytes()
 	snap, err := pm.raftStorage.CreateSnapshot(pm.appliedIndex, &pm.confState, snapData)
 	if err != nil {
 		panic(err)
@@ -95,7 +92,10 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 	prevConfState := pm.confState
 
 	pm.mu.Lock()
-	pm.removedPeers = set.New(removedRaftIds)
+	pm.removedPeers = set.New()
+	for _, removedRaftId := range removedRaftIds {
+		pm.removedPeers.Add(removedRaftId)
+	}
 	pm.mu.Unlock()
 
 	prevIds := confStateIdSet(prevConfState)
@@ -138,9 +138,9 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 // snapshot before advancing our persisted appliedIndex in LevelDB.
 //
 // See handling of EntryConfChange entries in raft/handler.go for details.
-func (pm *ProtocolManager) triggerSnapshotWithNextIndex(index uint64, withoutSelf bool) {
+func (pm *ProtocolManager) triggerSnapshotWithNextIndex(index uint64) {
 	pm.appliedIndex = index
-	pm.triggerSnapshot(withoutSelf)
+	pm.triggerSnapshot()
 }
 
 func (pm *ProtocolManager) maybeTriggerSnapshot() {
@@ -148,7 +148,7 @@ func (pm *ProtocolManager) maybeTriggerSnapshot() {
 		return
 	}
 
-	pm.triggerSnapshot(false)
+	pm.triggerSnapshot()
 }
 
 func (pm *ProtocolManager) loadSnapshot() {
