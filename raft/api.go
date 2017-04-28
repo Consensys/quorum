@@ -1,5 +1,15 @@
 package raft
 
+type RaftNodeInfo struct {
+	ClusterSize    int        `json:"clusterSize"`
+	Role           string     `json:"role"`
+	Address        *Address   `json:"address"`
+	PeerAddresses  []*Address `json:"peerAddresses"`
+	RemovedPeerIds []uint16   `json:"removedPeerIds"`
+	AppliedIndex   uint64     `json:"appliedIndex"`
+	SnapshotIndex  uint64     `json:"snapshotIndex"`
+}
+
 type PublicRaftAPI struct {
 	raftService *RaftService
 }

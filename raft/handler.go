@@ -35,23 +35,26 @@ import (
 )
 
 type ProtocolManager struct {
-	mu       sync.RWMutex
+	mu       sync.RWMutex // For protecting concurrent JS access to "local peer" and "remote peer" state
 	quitSync chan struct{}
 
 	// Static configuration
 	joinExisting   bool // Whether to join an existing cluster when a WAL doesn't already exist
 	bootstrapNodes []*discover.Node
+	raftId         uint16
 
-	// Node state
-	address *Address
-	raftId  uint16
-	rawNode etcdRaft.Node
-	role    int
+	// Local peer state (protected by mu vs concurrent access via JS)
+	address       *Address
+	role          int    // Role: minter or verifier
+	appliedIndex  uint64 // The index of the last-applied raft entry
+	snapshotIndex uint64 // The index of the latest snapshot.
 
-	// Peer state and communication
+	// Remote peer state (protected by mu vs concurrent access via JS)
 	peers        map[uint16]*Peer
-	removedPeers *set.Set    // *Permanently removed* peers
-	p2pServer    *p2p.Server // Initialized in start()
+	removedPeers *set.Set // *Permanently removed* peers
+
+	// P2P transport
+	p2pServer *p2p.Server // Initialized in start()
 
 	// Blockchain services
 	blockchain *core.BlockChain
@@ -67,16 +70,15 @@ type ProtocolManager struct {
 	confChangeProposalC chan raftpb.ConfChange // for config changes from js console to raft
 
 	// Raft transport
+	rawNode   etcdRaft.Node
 	transport *rafthttp.Transport
 	httpstopc chan struct{}
 	httpdonec chan struct{}
 
 	// Raft snapshotting
-	appliedIndex  uint64 // The index of the last-applied raft entry
-	snapshotIndex uint64 // The index of the latest snapshot.
-	snapshotter   *snap.Snapshotter
-	snapdir       string
-	confState     raftpb.ConfState
+	snapshotter *snap.Snapshotter
+	snapdir     string
+	confState   raftpb.ConfState
 
 	// Raft write-ahead log
 	waldir string
@@ -170,11 +172,31 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 		roleDescription = "verifier"
 	}
 
+	peerAddresses := make([]*Address, len(pm.peers))
+	peerIdx := 0
+	for _, peer := range pm.peers {
+		peerAddresses[peerIdx] = peer.address
+		peerIdx += 1
+	}
+
+	removedPeerIfaces := pm.removedPeers.List()
+	removedPeerIds := make([]uint16, len(removedPeerIfaces))
+	for i, removedIface := range removedPeerIfaces {
+		removedPeerIds[i] = removedIface.(uint16)
+	}
+
+	//
+	// NOTE: before exposing any new fields here, make sure that the underlying
+	// ProtocolManager members are protected from concurrent access by pm.mu!
+	//
 	return &RaftNodeInfo{
-		ClusterSize: len(pm.peers) + 1,
-		Genesis:     pm.blockchain.Genesis().Hash(),
-		Head:        pm.blockchain.CurrentBlock().Hash(),
-		Role:        roleDescription,
+		ClusterSize:    len(pm.peers) + 1,
+		Role:           roleDescription,
+		Address:        pm.address,
+		PeerAddresses:  peerAddresses,
+		RemovedPeerIds: removedPeerIds,
+		AppliedIndex:   pm.appliedIndex,
+		SnapshotIndex:  pm.snapshotIndex,
 	}
 }
 
@@ -448,13 +470,15 @@ func (pm *ProtocolManager) serveLocalProposals() {
 	}
 }
 
-func (pm *ProtocolManager) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
-	if len(ents) == 0 {
+func (pm *ProtocolManager) entriesToApply(allEntries []raftpb.Entry) (entriesToApply []raftpb.Entry) {
+	if len(allEntries) == 0 {
 		return
 	}
 
-	first := ents[0].Index
+	first := allEntries[0].Index
+	pm.mu.RLock()
 	lastApplied := pm.appliedIndex
+	pm.mu.RUnlock()
 
 	if first > lastApplied+1 {
 		glog.Fatalf("first index of committed entry[%d] should <= appliedIndex[%d] + 1", first, lastApplied)
@@ -462,8 +486,8 @@ func (pm *ProtocolManager) entriesToApply(ents []raftpb.Entry) (nents []raftpb.E
 
 	firstToApply := lastApplied - first + 1
 
-	if firstToApply < uint64(len(ents)) {
-		nents = ents[firstToApply:]
+	if firstToApply < uint64(len(allEntries)) {
+		entriesToApply = allEntries[firstToApply:]
 	}
 	return
 }
@@ -603,7 +627,7 @@ func (pm *ProtocolManager) eventLoop() {
 						// (after advancing our applied index) would result in the loss of a
 						// cluster member upon restart: we would re-mount with an old
 						// ConfState.
-						pm.triggerSnapshotWithNextIndex(entry.Index)
+						pm.triggerSnapshot(entry.Index)
 					}
 				}
 
@@ -695,7 +719,9 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 
 // Sets new appliedIndex in-memory, *and* writes this appliedIndex to LevelDB.
 func (pm *ProtocolManager) advanceAppliedIndex(index uint64) {
-	pm.appliedIndex = index
-
 	pm.writeAppliedIndex(index)
+
+	pm.mu.Lock()
+	pm.appliedIndex = index
+	pm.mu.Unlock()
 }

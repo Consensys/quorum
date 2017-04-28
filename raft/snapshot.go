@@ -59,11 +59,19 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	return snapshot
 }
 
-func (pm *ProtocolManager) triggerSnapshot() {
-	glog.V(logger.Info).Infof("start snapshot [applied index: %d | last snapshot index: %d]", pm.appliedIndex, pm.snapshotIndex)
+// Note that we do *not* read `pm.appliedIndex` here. We only use the `index`
+// parameter instead. This is because we need to support a scenario when we
+// snapshot for a future index that we have not yet recorded in LevelDB. See
+// comments around the use of `forceSnapshot`.
+func (pm *ProtocolManager) triggerSnapshot(index uint64) {
+	pm.mu.RLock()
+	snapshotIndex := pm.snapshotIndex
+	pm.mu.RUnlock()
+
+	glog.V(logger.Info).Infof("start snapshot [applied index: %d | last snapshot index: %d]", index, snapshotIndex)
 
 	snapData := pm.buildSnapshot().toBytes()
-	snap, err := pm.raftStorage.CreateSnapshot(pm.appliedIndex, &pm.confState, snapData)
+	snap, err := pm.raftStorage.CreateSnapshot(index, &pm.confState, snapData)
 	if err != nil {
 		panic(err)
 	}
@@ -71,11 +79,15 @@ func (pm *ProtocolManager) triggerSnapshot() {
 		panic(err)
 	}
 	// Discard all log entries prior to appliedIndex.
-	if err := pm.raftStorage.Compact(pm.appliedIndex); err != nil {
+	if err := pm.raftStorage.Compact(index); err != nil {
 		panic(err)
 	}
-	glog.V(logger.Info).Infof("compacted log at index %d", pm.appliedIndex)
-	pm.snapshotIndex = pm.appliedIndex
+
+	glog.V(logger.Info).Infof("compacted log at index %d", index)
+
+	pm.mu.Lock()
+	pm.snapshotIndex = index
+	pm.mu.Unlock()
 }
 
 func confStateIdSet(confState raftpb.ConfState) *set.Set {
@@ -91,11 +103,12 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 
 	prevConfState := pm.confState
 
-	pm.mu.Lock()
-	pm.removedPeers = set.New()
+	removedPeers := set.New()
 	for _, removedRaftId := range removedRaftIds {
-		pm.removedPeers.Add(removedRaftId)
+		removedPeers.Add(removedRaftId)
 	}
+	pm.mu.Lock()
+	pm.removedPeers = removedPeers
 	pm.mu.Unlock()
 
 	prevIds := confStateIdSet(prevConfState)
@@ -134,21 +147,17 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 	glog.V(logger.Info).Infof("updated cluster membership")
 }
 
-// For persisting cluster membership changes correctly, we need to trigger a
-// snapshot before advancing our persisted appliedIndex in LevelDB.
-//
-// See handling of EntryConfChange entries in raft/handler.go for details.
-func (pm *ProtocolManager) triggerSnapshotWithNextIndex(index uint64) {
-	pm.appliedIndex = index
-	pm.triggerSnapshot()
-}
-
 func (pm *ProtocolManager) maybeTriggerSnapshot() {
-	if pm.appliedIndex-pm.snapshotIndex < snapshotPeriod {
+	pm.mu.RLock()
+	appliedIndex := pm.appliedIndex
+	entriesSinceLastSnap := appliedIndex - pm.snapshotIndex
+	pm.mu.RUnlock()
+
+	if entriesSinceLastSnap < snapshotPeriod {
 		return
 	}
 
-	pm.triggerSnapshot()
+	pm.triggerSnapshot(appliedIndex)
 }
 
 func (pm *ProtocolManager) loadSnapshot() {
@@ -254,16 +263,22 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 
 	snapMeta := raftSnapshot.Metadata
 	pm.confState = snapMeta.ConfState
+	pm.mu.Lock()
 	pm.snapshotIndex = snapMeta.Index
+	pm.mu.Unlock()
 	pm.advanceAppliedIndex(snapMeta.Index)
 }
 
 func (pm *ProtocolManager) syncBlockchainUntil(hash common.Hash) {
-	// We don't need to lock access to pm.peers here; only reads can happen
-	// concurrently with this.
+	pm.mu.RLock()
+	peerMap := make(map[uint16]*Peer, len(pm.peers))
+	for raftId, peer := range pm.peers {
+		peerMap[raftId] = peer
+	}
+	pm.mu.RUnlock()
 
 	for {
-		for peerId, peer := range pm.peers {
+		for peerId, peer := range peerMap {
 			glog.V(logger.Info).Infof("synchronizing with peer %v up to block %x", peerId, hash)
 
 			peerId := peer.p2pNode.ID.String()

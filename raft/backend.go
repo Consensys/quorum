@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -33,13 +32,6 @@ type RaftService struct {
 	// we need an event mux to instantiate the blockchain
 	eventMux *event.TypeMux
 	minter   *minter
-}
-
-type RaftNodeInfo struct {
-	ClusterSize int         `json:"clusterSize"`
-	Genesis     common.Hash `json:"genesis"` // SHA3 hash of the host's genesis block
-	Head        common.Hash `json:"head"`    // SHA3 hash of the host's best owned block
-	Role        string      `json:"role"`
 }
 
 func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, raftId uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node, datadir string) (*RaftService, error) {

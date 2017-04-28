@@ -41,8 +41,12 @@ func (pm *ProtocolManager) loadAppliedIndex() uint64 {
 		lastAppliedIndex = binary.LittleEndian.Uint64(dat)
 	}
 
-	glog.V(logger.Info).Infof("loaded the latest applied index: %d", lastAppliedIndex)
+	pm.mu.Lock()
 	pm.appliedIndex = lastAppliedIndex
+	pm.mu.Unlock()
+
+	glog.V(logger.Info).Infof("loaded the latest applied index: %d", lastAppliedIndex)
+
 	return lastAppliedIndex
 }
 
