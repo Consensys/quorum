@@ -49,8 +49,8 @@ func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, raftId uint16,
 		blockchain:     e.BlockChain(),
 		txPool:         e.TxPool(),
 		accountManager: e.AccountManager(),
-		downloader: e.Downloader(),
-		startPeers: startPeers,
+		downloader:     e.Downloader(),
+		startPeers:     startPeers,
 	}
 
 	service.minter = newMinter(chainConfig, service, blockTime)
@@ -98,6 +98,7 @@ func (service *RaftService) Start(p2pServer *p2p.Server) error {
 func (service *RaftService) Stop() error {
 	service.blockchain.Stop()
 	service.raftProtocolManager.Stop()
+	service.minter.stop()
 	service.eventMux.Stop()
 
 	service.chainDb.Close()

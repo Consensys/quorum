@@ -30,73 +30,61 @@ import (
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/rafthttp"
 	"github.com/syndtr/goleveldb/leveldb"
+	"gopkg.in/fatih/set.v0"
 	"syscall"
 )
 
-// Overview of the channels used in this module:
-//
-// Node.
-// * quitSync: *Every* channel operation can be unblocked by closing this
-//   channel.
-//
-// ProtocolManager.
-// * proposeC, for proposals flowing from ethereum to raft
-// * confChangeC, currently unused; in the future for adding new, non-initial, raft peers
-// * roleC, coming from raft notifies us when our role changes
-
 type ProtocolManager struct {
-	raftId         uint16 // This node's raft id
-	joinExisting   bool   // Whether to join an existing cluster when a WAL doesn't already exist
+	mu       sync.RWMutex
+	quitSync chan struct{}
+
+	// Static configuration
+	joinExisting   bool // Whether to join an existing cluster when a WAL doesn't already exist
 	bootstrapNodes []*discover.Node
-	peers          map[uint16]*Peer
-	p2pServer      *p2p.Server // Initialized in start()
 
+	// Node state
+	address *Address
+	raftId  uint16
+	rawNode etcdRaft.Node
+	role    int
+
+	// Peer state and communication
+	peers        map[uint16]*Peer
+	removedPeers *set.Set    // *Permanently removed* peers
+	p2pServer    *p2p.Server // Initialized in start()
+
+	// Blockchain services
 	blockchain *core.BlockChain
+	downloader *downloader.Downloader
+	minter     *minter
 
-	// to protect the raft peers and addresses
-	mu sync.RWMutex
-
+	// Blockchain events
 	eventMux      *event.TypeMux
 	minedBlockSub event.Subscription
 
-	downloader *downloader.Downloader
+	// Raft proposal events
+	blockProposalC      chan *types.Block      // for mined blocks to raft
+	confChangeProposalC chan raftpb.ConfChange // for config changes from js console to raft
 
-	rawNode     etcdRaft.Node
-	raftStorage *etcdRaft.MemoryStorage
-
+	// Raft transport
 	transport *rafthttp.Transport
 	httpstopc chan struct{}
 	httpdonec chan struct{}
 
-	// The number of entries applied to the raft log
-	appliedIndex uint64
+	// Raft snapshotting
+	appliedIndex  uint64 // The index of the last-applied raft entry
+	snapshotIndex uint64 // The index of the latest snapshot.
+	snapshotter   *snap.Snapshotter
+	snapdir       string
+	confState     raftpb.ConfState
 
-	// The index of the latest snapshot.
-	snapshotIndex uint64
-
-	// Snapshotting
-	snapshotter *snap.Snapshotter
-	snapdir     string
-	confState   raftpb.ConfState
-
-	// write-ahead log
+	// Raft write-ahead log
 	waldir string
 	wal    *wal.WAL
 
-	// Persistence outside of the blockchain and raft log to keep track of our
-	// last-applied raft index and raft peer URLs.
-	quorumRaftDb *leveldb.DB
-
-	blockProposalC      chan *types.Block
-	confChangeProposalC chan raftpb.ConfChange
-	quitSync            chan struct{}
-
-	// Note: we don't actually use this field. We just set it at the same time as
-	// starting or stopping the miner in notifyRoleChange. We might want to remove
-	// it, but it might also be useful to check.
-	role int
-
-	minter *minter
+	// Storage
+	quorumRaftDb *leveldb.DB             // Persistent storage for last-applied raft index
+	raftStorage  *etcdRaft.MemoryStorage // Volatile raft storage
 }
 
 //
@@ -111,6 +99,7 @@ func NewProtocolManager(raftId uint16, blockchain *core.BlockChain, mux *event.T
 	manager := &ProtocolManager{
 		bootstrapNodes:      bootstrapNodes,
 		peers:               make(map[uint16]*Peer),
+		removedPeers:        set.New(),
 		joinExisting:        joinExisting,
 		blockchain:          blockchain,
 		eventMux:            mux,
@@ -142,7 +131,7 @@ func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
 
 	pm.p2pServer = p2pServer
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
-	go pm.minedBroadcastLoop(pm.blockProposalC)
+	go pm.minedBroadcastLoop()
 	pm.startRaft()
 }
 
@@ -151,17 +140,19 @@ func (pm *ProtocolManager) Stop() {
 
 	pm.minedBlockSub.Unsubscribe()
 
-	pm.transport.Stop()
+	if pm.transport != nil {
+		pm.transport.Stop()
+	}
+
 	close(pm.httpstopc)
 	<-pm.httpdonec
 	close(pm.quitSync)
+
 	if pm.rawNode != nil {
 		pm.rawNode.Stop()
 	}
 
 	pm.quorumRaftDb.Close()
-
-	pm.minter.stop()
 
 	pm.p2pServer = nil
 
@@ -169,7 +160,7 @@ func (pm *ProtocolManager) Stop() {
 }
 
 func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
-	pm.mu.RLock() // as we read pm.role
+	pm.mu.RLock() // as we read role and peers
 	defer pm.mu.RUnlock()
 
 	var roleDescription string
@@ -197,13 +188,7 @@ func (pm *ProtocolManager) ProposeNewPeer(raftId uint16, enodeId string) error {
 		return fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP))
 	}
 
-	address := &Address{
-		raftId:   raftId,
-		nodeId:   node.ID,
-		ip:       node.IP,
-		p2pPort:  node.TCP,
-		raftPort: raftPort(raftId),
-	}
+	address := newAddress(raftId, node)
 
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddNode,
@@ -242,7 +227,10 @@ func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error 
 }
 
 func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
-	return pm.peers[uint16(id)] == nil
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	return pm.removedPeers.Has(id)
 }
 
 func (pm *ProtocolManager) ReportUnreachable(id uint64) {
@@ -271,8 +259,8 @@ func (pm *ProtocolManager) startRaft() {
 			glog.Fatalf("cannot create dir for snapshot (%v)", err)
 		}
 	}
-
 	walExisted := wal.Exist(pm.waldir)
+	lastAppliedIndex := pm.loadAppliedIndex()
 
 	pm.wal = pm.replayWAL()
 
@@ -280,9 +268,7 @@ func (pm *ProtocolManager) startRaft() {
 	//       bugs"
 	enablePreVote := true
 
-	lastAppliedIndex := pm.loadAppliedIndex()
-
-	c := &etcdRaft.Config{
+	raftConfig := &etcdRaft.Config{
 		Applied:       lastAppliedIndex,
 		ID:            uint64(pm.raftId),
 		ElectionTick:  10, // NOTE: cockroach sets this to 15
@@ -312,11 +298,10 @@ func (pm *ProtocolManager) startRaft() {
 		MaxInflightMsgs: 256, // NOTE: in cockroachdb this is 4
 	}
 
-	glog.V(logger.Info).Infof("local raft ID is %v", c.ID)
+	glog.V(logger.Info).Infof("local raft ID is %v", raftConfig.ID)
 
 	ss := &stats.ServerStats{}
 	ss.Initialize()
-
 	pm.transport = &rafthttp.Transport{
 		ID:          raftTypes.ID(pm.raftId),
 		ClusterID:   0x1000,
@@ -325,18 +310,15 @@ func (pm *ProtocolManager) startRaft() {
 		LeaderStats: stats.NewLeaderStats(strconv.Itoa(int(pm.raftId))),
 		ErrorC:      make(chan error),
 	}
-
 	pm.transport.Start()
 
 	if walExisted {
 		glog.V(logger.Info).Infof("remounting an existing raft log; connecting to peers.")
-
-		pm.reconnectToPreviousPeers()
-		pm.rawNode = etcdRaft.RestartNode(c)
+		pm.loadSnapshot() // re-establishes peer connections
+		pm.rawNode = etcdRaft.RestartNode(raftConfig)
 	} else if pm.joinExisting {
 		glog.V(logger.Info).Infof("newly joining an existing cluster; waiting for connections.")
-
-		pm.rawNode = etcdRaft.StartNode(c, nil)
+		pm.rawNode = etcdRaft.StartNode(raftConfig, nil)
 	} else {
 		if numPeers := len(pm.bootstrapNodes); numPeers == 0 {
 			panic("exiting due to empty raft peers list")
@@ -344,8 +326,12 @@ func (pm *ProtocolManager) startRaft() {
 			glog.V(logger.Info).Infof("starting a new raft log with an initial cluster size of %v.", numPeers)
 		}
 
-		peers := makeInitialRaftPeers(pm.bootstrapNodes)
-		pm.rawNode = etcdRaft.StartNode(c, peers)
+		raftPeers, localAddress := pm.makeInitialRaftPeers()
+
+		pm.mu.Lock()
+		pm.address = localAddress
+		pm.mu.Unlock()
+		pm.rawNode = etcdRaft.StartNode(raftConfig, raftPeers)
 	}
 
 	go pm.serveRaft()
@@ -402,12 +388,12 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 	}
 }
 
-func (pm *ProtocolManager) minedBroadcastLoop(proposeC chan<- *types.Block) {
+func (pm *ProtocolManager) minedBroadcastLoop() {
 	for obj := range pm.minedBlockSub.Chan() {
 		switch ev := obj.Data.(type) {
 		case core.NewMinedBlockEvent:
 			select {
-			case proposeC <- ev.Block:
+			case pm.blockProposalC <- ev.Block:
 			case <-pm.quitSync:
 				return
 			}
@@ -499,17 +485,9 @@ func (pm *ProtocolManager) removePeer(raftId uint16) {
 		pm.transport.RemovePeer(raftTypes.ID(raftId))
 
 		delete(pm.peers, raftId)
-	}
-}
 
-func (pm *ProtocolManager) reconnectToPreviousPeers() {
-	_, confState, _ := pm.raftStorage.InitialState()
-
-	for _, nodeRaftId := range confState.Nodes {
-		if nodeRaftId := uint16(nodeRaftId); nodeRaftId != pm.raftId {
-			address := pm.loadPeerAddress(nodeRaftId)
-			pm.addPeer(address)
-		}
+		// This is only necessary sometimes, but it's idempotent:
+		pm.removedPeers.Add(raftId)
 	}
 }
 
@@ -531,8 +509,8 @@ func (pm *ProtocolManager) eventLoop() {
 			pm.wal.Save(rd.HardState, rd.Entries)
 
 			if snap := rd.Snapshot; !etcdRaft.IsEmptySnap(snap) {
-				pm.saveSnapshot(snap)
-				pm.applySnapshot(snap)
+				pm.saveRaftSnapshot(snap)
+				pm.applyRaftSnapshot(snap)
 			}
 
 			// 1: Write HardState, Entries, and Snapshot to persistent storage if they
@@ -564,22 +542,27 @@ func (pm *ProtocolManager) eventLoop() {
 
 					switch cc.Type {
 					case raftpb.ConfChangeAddNode:
-						glog.V(logger.Info).Infof("adding peer %v due to ConfChangeAddNode", cc.NodeID)
+						if pm.IsIDRemoved(cc.NodeID) {
+							glog.V(logger.Info).Infof("ignoring ConfChangeAddNode for permanently-removed peer %v", cc.NodeID)
+						} else {
+							glog.V(logger.Info).Infof("adding peer %v due to ConfChangeAddNode", cc.NodeID)
 
-						nodeRaftId := uint16(cc.NodeID)
-						pm.writePeerAddressBytes(nodeRaftId, cc.Context)
-
-						if nodeRaftId != pm.raftId {
-							pm.addPeer(bytesToAddress(cc.Context))
+							if nodeRaftId := uint16(cc.NodeID); nodeRaftId != pm.raftId {
+								pm.addPeer(bytesToAddress(cc.Context))
+							}
 						}
 
 					case raftpb.ConfChangeRemoveNode:
-						glog.V(logger.Info).Infof("removing peer %v due to ConfChangeRemoveNode", cc.NodeID)
-
-						if nodeRaftId := uint16(cc.NodeID); nodeRaftId == pm.raftId {
-							exitAfterApplying = true
+						if pm.IsIDRemoved(cc.NodeID) {
+							glog.V(logger.Info).Infof("ignoring ConfChangeRemoveNode for already-removed peer %v", cc.NodeID)
 						} else {
-							pm.removePeer(nodeRaftId)
+							glog.V(logger.Info).Infof("removing peer %v due to ConfChangeRemoveNode", cc.NodeID)
+
+							if nodeRaftId := uint16(cc.NodeID); nodeRaftId == pm.raftId {
+								exitAfterApplying = true
+							} else {
+								pm.removePeer(nodeRaftId)
+							}
 						}
 
 					case raftpb.ConfChangeUpdateNode:
@@ -594,7 +577,7 @@ func (pm *ProtocolManager) eventLoop() {
 					// (after advancing our applied index) would result in the loss of a
 					// cluster member upon restart: we would re-mount with an old
 					// ConfState.
-					pm.triggerSnapshotWithNextIndex(entry.Index)
+					pm.triggerSnapshotWithNextIndex(entry.Index, exitAfterApplying)
 				}
 
 				pm.advanceAppliedIndex(entry.Index)
@@ -603,7 +586,7 @@ func (pm *ProtocolManager) eventLoop() {
 			pm.maybeTriggerSnapshot()
 
 			if exitAfterApplying {
-				glog.V(logger.Warn).Infoln("removing self from the cluster due to ConfChangeRemoveNode")
+				glog.V(logger.Warn).Infoln("permanently removing self from the cluster")
 				syscall.Exit(0)
 			}
 
@@ -621,18 +604,16 @@ func raftPort(raftId uint16) uint16 {
 	return 50400 + raftId
 }
 
-func makeInitialRaftPeers(initialNodes []*discover.Node) []etcdRaft.Peer {
-	peers := make([]etcdRaft.Peer, len(initialNodes))
+func (pm *ProtocolManager) makeInitialRaftPeers() (peers []etcdRaft.Peer, localAddress *Address) {
+	initialNodes := pm.bootstrapNodes
+	peers = make([]etcdRaft.Peer, len(initialNodes))
 
 	for i, node := range initialNodes {
 		raftId := uint16(i + 1)
+		address := newAddress(raftId, node)
 
-		address := &Address{
-			raftId:   raftId,
-			nodeId:   node.ID,
-			ip:       node.IP,
-			p2pPort:  node.TCP,
-			raftPort: raftPort(raftId),
+		if raftId == pm.raftId {
+			localAddress = address
 		}
 
 		peers[i] = etcdRaft.Peer{
@@ -641,7 +622,7 @@ func makeInitialRaftPeers(initialNodes []*discover.Node) []etcdRaft.Peer {
 		}
 	}
 
-	return peers
+	return
 }
 
 func sleep(duration time.Duration) {

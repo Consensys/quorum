@@ -20,6 +20,16 @@ type Address struct {
 	raftPort uint16
 }
 
+func newAddress(raftId uint16, node *discover.Node) *Address {
+	return &Address{
+		raftId:   raftId,
+		nodeId:   node.ID,
+		ip:       node.IP,
+		p2pPort:  node.TCP,
+		raftPort: raftPort(raftId),
+	}
+}
+
 // A peer that we're connected to via both raft's http transport, and ethereum p2p
 type Peer struct {
 	address *Address
