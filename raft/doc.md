@@ -6,8 +6,6 @@ This directory holds an implementation of a [Raft](https://raft.github.io)-based
 
 When the `geth` binary is passed the `--raft` flag, the node will operate in "raft mode."
 
-Currently Raft-based consensus requires that all nodes in the cluster are configured to list the others up-front as [static peers](https://github.com/ethereum/go-ethereum/wiki/Connecting-to-the-network#static-nodes). We will be adding support for dynamic membership changes in the near future.
-
 ## Some implementation basics
 
 Note: Though we use the etcd implementation of the Raft protocol, we speak of "Raft" more broadly to refer to the Raft protocol, and its use to achieve consensus for Quorum/Ethereum.
@@ -145,6 +143,14 @@ There is currently no limit to the length of these speculative chains, but we pl
 ## The Raft transport layer
 
 We communicate blocks over the HTTP transport layer built in to etcd Raft. It's also (at least theoretically) possible to use p2p protocol built-in to Ethereum as a transport for Raft. In our testing we found the default etcd HTTP transport to be more reliable than the p2p (at least as implemented in geth) under high load.
+
+## Initial configuration, and enacting membership changes
+
+Currently Raft-based consensus requires that all _initial_ nodes in the cluster are configured to list the others up-front as [static peers](https://github.com/ethereum/go-ethereum/wiki/Connecting-to-the-network#static-nodes).
+
+To remove a node from the cluster, attach to a JS console and issue `raft.removePeer(raftId)`, where `raftId` is the number of the node you wish to remove. Once a node has been removed from the cluster, it is permanent; this raft ID can not ever re-connect to the cluster in the future, and the party must re-join the cluster with a new raft ID.
+
+To add a node to the cluster, attach to a JS console and issue `raft.addPeer(raftId, enodeId)`. Here, `raftId` must be a raft ID that is not currently in use. Then start the new geth node with the flag `--raftjoinexisting RAFTID` in addition to `--raft`.
 
 ## FAQ
 
