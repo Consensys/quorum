@@ -123,11 +123,9 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 
 	for _, address := range addresses {
 		if address.raftId == pm.raftId {
-			pm.mu.Lock()
 			// If we're a newcomer to an existing cluster, this is where we learn
 			// our own Address.
-			pm.address = &address
-			pm.mu.Unlock()
+			pm.setLocalAddress(&address)
 		} else {
 			pm.mu.RLock()
 			existingPeer := pm.peers[address.raftId]

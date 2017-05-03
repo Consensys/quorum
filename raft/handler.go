@@ -350,6 +350,8 @@ func (pm *ProtocolManager) startRaft() {
 
 		raftPeers, peerAddresses, localAddress := pm.makeInitialRaftPeers()
 
+		pm.setLocalAddress(localAddress)
+
 		// We add all peers up-front even though we will see a ConfChangeAddNode
 		// for each shortly. This is because raft's ConfState will contain all of
 		// these nodes before we see these log entries, and we always want our
@@ -358,9 +360,6 @@ func (pm *ProtocolManager) startRaft() {
 			pm.addPeer(peerAddress)
 		}
 
-		pm.mu.Lock()
-		pm.address = localAddress
-		pm.mu.Unlock()
 		pm.rawNode = etcdRaft.StartNode(raftConfig, raftPeers)
 	}
 
@@ -368,6 +367,21 @@ func (pm *ProtocolManager) startRaft() {
 	go pm.serveLocalProposals()
 	go pm.eventLoop()
 	go pm.handleRoleChange(pm.rawNode.RoleChan().Out())
+}
+
+func (pm *ProtocolManager) setLocalAddress(addr *Address) {
+	pm.mu.Lock()
+	pm.address = addr
+	pm.mu.Unlock()
+
+	// By setting `URLs` on the raft transport, we advertise our URL (in an HTTP
+	// header) to any recipient. This is necessary for a newcomer to the cluster
+	// to be able to accept a snapshot from us to bootstrap them.
+	if urls, err := raftTypes.NewURLs([]string{raftUrl(addr)}); err == nil {
+		pm.transport.URLs = urls
+	} else {
+		panic(fmt.Sprintf("error: could not create URL from local address: %v", addr))
+	}
 }
 
 func (pm *ProtocolManager) serveRaft() {
@@ -492,6 +506,10 @@ func (pm *ProtocolManager) entriesToApply(allEntries []raftpb.Entry) (entriesToA
 	return
 }
 
+func raftUrl(address *Address) string {
+	return fmt.Sprintf("http://%s:%d", address.ip, raftPort(address.raftId))
+}
+
 func (pm *ProtocolManager) addPeer(address *Address) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
@@ -503,9 +521,7 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 	pm.p2pServer.AddPeer(p2pNode)
 
 	// Add raft transport connection:
-	peerUrl := fmt.Sprintf("http://%s:%d", address.ip, raftPort(raftId))
-	pm.transport.AddPeer(raftTypes.ID(raftId), []string{peerUrl})
-
+	pm.transport.AddPeer(raftTypes.ID(raftId), []string{raftUrl(address)})
 	pm.peers[raftId] = &Peer{address, p2pNode}
 }
 
