@@ -9,7 +9,7 @@ pragma solidity ^0.4.10;
 // multiple times for a particular block. Therefore voters must be trusted.
 contract BlockVoting {
     // Raised when a vote is made
-    event Vote(address indexed sender, uint blockNumber, bytes32 blockHash);
+    event Vote(address indexed sender, uint height, bytes32 blockHash);
     // Raised when a new address is allowed to vote.
     event AddVoter(address);
     // Raised when an address is not alloed to make votes anymore.
