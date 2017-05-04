@@ -112,6 +112,8 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 
 	prevConfState := pm.confState
 
+	// Update tombstones
+
 	removedPeers := set.New()
 	for _, removedRaftId := range removedRaftIds {
 		removedPeers.Add(removedRaftId)
@@ -119,6 +121,8 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 	pm.mu.Lock()
 	pm.removedPeers = removedPeers
 	pm.mu.Unlock()
+
+	// Remove old peers that we're still connected to
 
 	prevIds := confStateIdSet(prevConfState)
 	newIds := confStateIdSet(newConfState)
@@ -130,7 +134,11 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 		pm.removePeer(raftId)
 	}
 
-	for _, address := range addresses {
+	// Update local and remote addresses
+
+	for _, tempAddress := range addresses {
+		address := tempAddress // Allocate separately on the heap for each iteration.
+
 		if address.raftId == pm.raftId {
 			// If we're a newcomer to an existing cluster, this is where we learn
 			// our own Address.
