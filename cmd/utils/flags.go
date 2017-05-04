@@ -727,6 +727,8 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 		blockTimeMillis := ctx.GlobalInt(RaftBlockTime.Name)
 		datadir := ctx.GlobalString(DataDirFlag.Name)
 
+		logger.DoLogRaft = true
+
 		if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 			strId := discover.PubkeyID(stack.PublicKey()).String()
 			blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
