@@ -38,11 +38,15 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	defer pm.mu.RUnlock()
 
 	numNodes := len(pm.confState.Nodes)
+	numRemovedNodes := pm.removedPeers.Size()
 
 	snapshot := &Snapshot{
-		addresses:     make([]Address, numNodes),
-		headBlockHash: pm.blockchain.CurrentBlock().Hash(),
+		addresses:      make([]Address, numNodes),
+		removedRaftIds: make([]uint16, numRemovedNodes),
+		headBlockHash:  pm.blockchain.CurrentBlock().Hash(),
 	}
+
+	// Populate addresses
 
 	for i, rawRaftId := range pm.confState.Nodes {
 		raftId := uint16(rawRaftId)
@@ -53,8 +57,13 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 			snapshot.addresses[i] = *pm.peers[raftId].address
 		}
 	}
-
 	sort.Sort(ByRaftId(snapshot.addresses))
+
+	// Populate removed IDs
+
+	for i, removedIface := range pm.removedPeers.List() {
+		snapshot.removedRaftIds[i] = removedIface.(uint16)
+	}
 
 	return snapshot
 }
