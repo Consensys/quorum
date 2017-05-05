@@ -115,6 +115,14 @@ var AppHelpFlagGroups = []flagGroup{
 		},
 	},
 	{
+		Name: "RAFT",
+		Flags: []cli.Flag{
+			utils.RaftModeFlag,
+			utils.RaftBlockTimeFlag,
+			utils.RaftJoinExistingFlag,
+		},
+	},
+	{
 		Name: "ACCOUNT",
 		Flags: []cli.Flag{
 			utils.UnlockedAccountFlag,

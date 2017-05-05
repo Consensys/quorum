@@ -1084,8 +1084,10 @@ func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (c
 		from, _ := types.Sender(signer, tx)
 		addr := crypto.CreateAddress(from, tx.Nonce())
 		log.Info("Submitted contract creation", "fullhash", tx.Hash().Hex(), "contract", addr.Hex())
+		log.EmitCheckpoint(log.TxCreated, tx.Hash().Hex(), addr.Hex())
 	} else {
 		log.Info("Submitted transaction", "fullhash", tx.Hash().Hex(), "recipient", tx.To())
+		log.EmitCheckpoint(log.TxCreated, tx.Hash().Hex(), tx.To().Hex())
 	}
 	return tx.Hash(), nil
 }
