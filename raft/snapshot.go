@@ -87,7 +87,7 @@ func (pm *ProtocolManager) triggerSnapshot(index uint64) {
 	if err := pm.saveRaftSnapshot(snap); err != nil {
 		panic(err)
 	}
-	// Discard all log entries prior to appliedIndex.
+	// Discard all log entries prior to index.
 	if err := pm.raftStorage.Compact(index); err != nil {
 		panic(err)
 	}

@@ -601,16 +601,17 @@ func (pm *ProtocolManager) eventLoop() {
 							existingPeer := pm.peers[raftId]
 							pm.mu.RUnlock()
 
-							if existingPeer != nil || pm.raftId == raftId {
+							forceSnapshot = true
+
+							if existingPeer != nil {
 								// See initial cluster logic in startRaft() for more information.
 								glog.V(logger.Info).Infof("ignoring expected ConfChangeAddNode for initial peer %v", cc.NodeID)
+							} else if pm.raftId == raftId {
+								glog.V(logger.Info).Infof("ignoring expected ConfChangeAddNode for self")
 							} else {
 								glog.V(logger.Info).Infof("adding peer %v due to ConfChangeAddNode", cc.NodeID)
 
-								if nodeRaftId := uint16(cc.NodeID); nodeRaftId != pm.raftId {
-									forceSnapshot = true
-									pm.addPeer(bytesToAddress(cc.Context))
-								}
+								pm.addPeer(bytesToAddress(cc.Context))
 							}
 						}
 
@@ -621,6 +622,7 @@ func (pm *ProtocolManager) eventLoop() {
 							glog.V(logger.Info).Infof("removing peer %v due to ConfChangeRemoveNode", cc.NodeID)
 
 							forceSnapshot = true
+
 							if nodeRaftId := uint16(cc.NodeID); nodeRaftId == pm.raftId {
 								exitAfterApplying = true
 							} else {
