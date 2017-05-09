@@ -284,6 +284,25 @@ func (pm *ProtocolManager) startRaft() {
 	walExisted := wal.Exist(pm.waldir)
 	lastAppliedIndex := pm.loadAppliedIndex()
 
+	ss := &stats.ServerStats{}
+	ss.Initialize()
+	pm.transport = &rafthttp.Transport{
+		ID:          raftTypes.ID(pm.raftId),
+		ClusterID:   0x1000,
+		Raft:        pm,
+		ServerStats: ss,
+		LeaderStats: stats.NewLeaderStats(strconv.Itoa(int(pm.raftId))),
+		ErrorC:      make(chan error),
+	}
+	pm.transport.Start()
+
+	// We load the snapshot to connect to prev peers before replaying the WAL,
+	// which typically goes further into the future than the snapshot.
+
+	if walExisted {
+		pm.loadSnapshot() // re-establishes peer connections
+	}
+
 	pm.wal = pm.replayWAL()
 
 	// NOTE: cockroach sets this to false for now until they've "worked out the
@@ -322,21 +341,8 @@ func (pm *ProtocolManager) startRaft() {
 
 	glog.V(logger.Info).Infof("local raft ID is %v", raftConfig.ID)
 
-	ss := &stats.ServerStats{}
-	ss.Initialize()
-	pm.transport = &rafthttp.Transport{
-		ID:          raftTypes.ID(pm.raftId),
-		ClusterID:   0x1000,
-		Raft:        pm,
-		ServerStats: ss,
-		LeaderStats: stats.NewLeaderStats(strconv.Itoa(int(pm.raftId))),
-		ErrorC:      make(chan error),
-	}
-	pm.transport.Start()
-
 	if walExisted {
 		glog.V(logger.Info).Infof("remounting an existing raft log; connecting to peers.")
-		pm.loadSnapshot() // re-establishes peer connections
 		pm.rawNode = etcdRaft.RestartNode(raftConfig)
 	} else if pm.joinExisting {
 		glog.V(logger.Info).Infof("newly joining an existing cluster; waiting for connections.")
