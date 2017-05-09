@@ -281,7 +281,6 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 	pm.mu.Lock()
 	pm.snapshotIndex = snapMeta.Index
 	pm.mu.Unlock()
-	pm.advanceAppliedIndex(snapMeta.Index)
 }
 
 func (pm *ProtocolManager) syncBlockchainUntil(hash common.Hash) {

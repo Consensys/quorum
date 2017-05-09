@@ -560,6 +560,7 @@ func (pm *ProtocolManager) eventLoop() {
 			if snap := rd.Snapshot; !etcdRaft.IsEmptySnap(snap) {
 				pm.saveRaftSnapshot(snap)
 				pm.applyRaftSnapshot(snap)
+				pm.advanceAppliedIndex(snap.Metadata.Index)
 			}
 
 			// 1: Write HardState, Entries, and Snapshot to persistent storage if they
