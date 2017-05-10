@@ -305,6 +305,20 @@ func (pm *ProtocolManager) startRaft() {
 
 	pm.wal = pm.replayWAL()
 
+	if walExisted {
+		if hardState, _, err := pm.raftStorage.InitialState(); err != nil {
+			panic(fmt.Sprintf("failed to read initial state from raft while restarting: %v", err))
+		} else {
+			if lastPersistedCommittedIndex := hardState.Commit; lastPersistedCommittedIndex < lastAppliedIndex {
+				glog.V(logger.Warn).Infof("rolling back applied index from %v to last-durably-committed %v", lastAppliedIndex, lastPersistedCommittedIndex)
+
+				// Roll back our applied index. See the logic and explanation around
+				// the single call to `pm.applyNewChainHead` for more context.
+				lastAppliedIndex = lastPersistedCommittedIndex
+			}
+		}
+	}
+
 	// NOTE: cockroach sets this to false for now until they've "worked out the
 	//       bugs"
 	enablePreVote := true
@@ -588,7 +602,23 @@ func (pm *ProtocolManager) eventLoop() {
 					if err != nil {
 						glog.V(logger.Error).Infoln("error decoding block: ", err)
 					}
-					pm.applyNewChainHead(&block)
+
+					if pm.blockchain.HasBlock(block.Hash()) {
+						// This can happen:
+						//
+						// if (1) we crashed after applying this block to the chain, but
+						//        before writing appliedIndex to LDB.
+						// or (2) we crashed in a scenario where we applied further than
+						//        raft *durably persisted* its committed index (see
+						//        https://github.com/coreos/etcd/pull/7899). In this
+						//        scenario, when the node comes back up, we will re-apply
+						//        a few entries.
+
+						headBlockHash := pm.blockchain.CurrentBlock().Hash()
+						glog.V(logger.Warn).Infof("not applying already-applied block: %x (parent is %x; current head is %x)\n", block.Hash(), block.ParentHash(), headBlockHash)
+					} else {
+						pm.applyNewChainHead(&block)
+					}
 
 				case raftpb.EntryConfChange:
 					var cc raftpb.ConfChange
