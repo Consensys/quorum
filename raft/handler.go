@@ -200,6 +200,30 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	}
 }
 
+func (pm *ProtocolManager) nextRaftId() uint16 {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	maxId := pm.raftId
+
+	for peerId := range pm.peers {
+		if maxId < peerId {
+			maxId = peerId
+		}
+	}
+
+	removedPeerIfaces := pm.removedPeers.List()
+	for _, removedIface := range removedPeerIfaces {
+		removedId := removedIface.(uint16)
+
+		if maxId < removedId {
+			maxId = removedId
+		}
+	}
+
+	return maxId + 1
+}
+
 func (pm *ProtocolManager) ProposeNewPeer(raftId uint16, enodeId string) error {
 	node, err := discover.ParseNode(enodeId)
 	if err != nil {
