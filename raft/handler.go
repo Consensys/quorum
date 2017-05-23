@@ -662,6 +662,7 @@ func (pm *ProtocolManager) eventLoop() {
 				case raftpb.EntryConfChange:
 					var cc raftpb.ConfChange
 					cc.Unmarshal(entry.Data)
+					raftId := uint16(cc.NodeID)
 
 					pm.confState = *pm.rawNode.ApplyConfChange(cc)
 
@@ -669,40 +670,35 @@ func (pm *ProtocolManager) eventLoop() {
 
 					switch cc.Type {
 					case raftpb.ConfChangeAddNode:
-						if pm.isRaftIdRemoved(uint16(cc.NodeID)) {
-							glog.V(logger.Info).Infof("ignoring ConfChangeAddNode for permanently-removed peer %v", cc.NodeID)
+						if pm.isRaftIdRemoved(raftId) {
+							glog.V(logger.Info).Infof("ignoring ConfChangeAddNode for permanently-removed peer %v", raftId)
+						} else if raftId <= uint16(len(pm.bootstrapNodes)) {
+							// See initial cluster logic in startRaft() for more information.
+							glog.V(logger.Info).Infof("ignoring expected ConfChangeAddNode for initial peer %v", raftId)
+
+							// We need a snapshot to exist to reconnect to peers on start-up after a crash.
+							forceSnapshot = true
+						} else if pm.isRaftIdUsed(raftId) {
+							glog.V(logger.Info).Infof("ignoring ConfChangeAddNode for already-used raft ID %v", raftId)
 						} else {
-							raftId := uint16(cc.NodeID)
-							pm.mu.RLock()
-							existingPeer := pm.peers[raftId]
-							pm.mu.RUnlock()
+							glog.V(logger.Info).Infof("adding peer %v due to ConfChangeAddNode", raftId)
 
 							forceSnapshot = true
-
-							if existingPeer != nil {
-								// See initial cluster logic in startRaft() for more information.
-								glog.V(logger.Info).Infof("ignoring expected ConfChangeAddNode for initial peer %v", cc.NodeID)
-							} else if pm.raftId == raftId {
-								glog.V(logger.Info).Infof("ignoring expected ConfChangeAddNode for self")
-							} else {
-								glog.V(logger.Info).Infof("adding peer %v due to ConfChangeAddNode", cc.NodeID)
-
-								pm.addPeer(bytesToAddress(cc.Context))
-							}
+							pm.addPeer(bytesToAddress(cc.Context))
 						}
 
 					case raftpb.ConfChangeRemoveNode:
-						if pm.isRaftIdRemoved(uint16(cc.NodeID)) {
-							glog.V(logger.Info).Infof("ignoring ConfChangeRemoveNode for already-removed peer %v", cc.NodeID)
+						if pm.isRaftIdRemoved(raftId) {
+							glog.V(logger.Info).Infof("ignoring ConfChangeRemoveNode for already-removed peer %v", raftId)
 						} else {
-							glog.V(logger.Info).Infof("removing peer %v due to ConfChangeRemoveNode", cc.NodeID)
+							glog.V(logger.Info).Infof("removing peer %v due to ConfChangeRemoveNode", raftId)
 
 							forceSnapshot = true
 
-							if nodeRaftId := uint16(cc.NodeID); nodeRaftId == pm.raftId {
+							if raftId == pm.raftId {
 								exitAfterApplying = true
 							} else {
-								pm.removePeer(nodeRaftId)
+								pm.removePeer(raftId)
 							}
 						}
 
