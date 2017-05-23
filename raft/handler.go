@@ -242,15 +242,34 @@ func (pm *ProtocolManager) isRaftIdUsed(raftId uint16) bool {
 	return pm.peers[raftId] != nil
 }
 
-func (pm *ProtocolManager) ProposeNewPeer(raftId uint16, enodeId string) error {
+func (pm *ProtocolManager) isP2pNodeInCluster(node *discover.Node) bool {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	for _, peer := range pm.peers {
+		if peer.p2pNode.ID == node.ID {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 	node, err := discover.ParseNode(enodeId)
 	if err != nil {
-		return err
+		return 0, err
+	}
+
+	if pm.isP2pNodeInCluster(node) {
+		return 0, fmt.Errorf("node is already in the cluster: %v", enodeId)
 	}
 
 	if len(node.IP) != 4 {
-		return fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP))
+		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP))
 	}
+
+	raftId := pm.nextRaftId()
 
 	address := newAddress(raftId, node)
 
@@ -260,7 +279,7 @@ func (pm *ProtocolManager) ProposeNewPeer(raftId uint16, enodeId string) error {
 		Context: address.toBytes(),
 	}
 
-	return nil
+	return raftId, nil
 }
 
 func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) {

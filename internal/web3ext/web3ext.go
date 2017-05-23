@@ -528,7 +528,7 @@ web3._extend({
                new web3._extend.Method({
                        name: 'addPeer',
                        call: 'raft_addPeer',
-                       params: 2
+                       params: 1
                }),
                new web3._extend.Method({
                        name: 'removePeer',
