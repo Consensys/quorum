@@ -224,6 +224,24 @@ func (pm *ProtocolManager) nextRaftId() uint16 {
 	return maxId + 1
 }
 
+func (pm *ProtocolManager) isRaftIdRemoved(id uint16) bool {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	return pm.removedPeers.Has(id)
+}
+
+func (pm *ProtocolManager) isRaftIdUsed(raftId uint16) bool {
+	if pm.raftId == raftId || pm.isRaftIdRemoved(raftId) {
+		return true
+	}
+
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	return pm.peers[raftId] != nil
+}
+
 func (pm *ProtocolManager) ProposeNewPeer(raftId uint16, enodeId string) error {
 	node, err := discover.ParseNode(enodeId)
 	if err != nil {
@@ -273,10 +291,7 @@ func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error 
 }
 
 func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	return pm.removedPeers.Has(id)
+	return pm.isRaftIdRemoved(uint16(id))
 }
 
 func (pm *ProtocolManager) ReportUnreachable(id uint64) {
@@ -654,7 +669,7 @@ func (pm *ProtocolManager) eventLoop() {
 
 					switch cc.Type {
 					case raftpb.ConfChangeAddNode:
-						if pm.IsIDRemoved(cc.NodeID) {
+						if pm.isRaftIdRemoved(uint16(cc.NodeID)) {
 							glog.V(logger.Info).Infof("ignoring ConfChangeAddNode for permanently-removed peer %v", cc.NodeID)
 						} else {
 							raftId := uint16(cc.NodeID)
@@ -677,7 +692,7 @@ func (pm *ProtocolManager) eventLoop() {
 						}
 
 					case raftpb.ConfChangeRemoveNode:
-						if pm.IsIDRemoved(cc.NodeID) {
+						if pm.isRaftIdRemoved(uint16(cc.NodeID)) {
 							glog.V(logger.Info).Infof("ignoring ConfChangeRemoveNode for already-removed peer %v", cc.NodeID)
 						} else {
 							glog.V(logger.Info).Infof("removing peer %v due to ConfChangeRemoveNode", cc.NodeID)
