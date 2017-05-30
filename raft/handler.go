@@ -612,10 +612,15 @@ func (pm *ProtocolManager) removePeer(raftId uint16) {
 		pm.transport.RemovePeer(raftTypes.ID(raftId))
 
 		delete(pm.peers, raftId)
-
-		// This is only necessary sometimes, but it's idempotent:
-		pm.removedPeers.Add(raftId)
 	}
+
+	// This is only necessary sometimes, but it's idempotent. Also, we *always*
+	// do this, and not just when there's still a peer in the map, because we
+	// need to do it for our *own* raft ID before we get booted from the cluster
+	// so that snapshots are identical on all nodes. It's important for a booted
+	// node to have a snapshot identical to every other node because that node
+	// can potentially re-enter the cluster with a new raft ID.
+	pm.removedPeers.Add(raftId)
 }
 
 func (pm *ProtocolManager) eventLoop() {
@@ -716,9 +721,9 @@ func (pm *ProtocolManager) eventLoop() {
 
 							if raftId == pm.raftId {
 								exitAfterApplying = true
-							} else {
-								pm.removePeer(raftId)
 							}
+
+							pm.removePeer(raftId)
 						}
 
 					case raftpb.ConfChangeUpdateNode:
