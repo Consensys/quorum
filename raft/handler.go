@@ -357,11 +357,13 @@ func (pm *ProtocolManager) startRaft() {
 	// We load the snapshot to connect to prev peers before replaying the WAL,
 	// which typically goes further into the future than the snapshot.
 
+	var maybeRaftSnapshot *raftpb.Snapshot
+
 	if walExisted {
-		pm.loadSnapshot() // re-establishes peer connections
+		maybeRaftSnapshot = pm.loadSnapshot() // re-establishes peer connections
 	}
 
-	pm.wal = pm.replayWAL()
+	pm.wal = pm.replayWAL(maybeRaftSnapshot)
 
 	if walExisted {
 		if hardState, _, err := pm.raftStorage.InitialState(); err != nil {

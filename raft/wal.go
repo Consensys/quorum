@@ -3,13 +3,14 @@ package raft
 import (
 	"os"
 
+	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
 )
 
-func (pm *ProtocolManager) openWAL() *wal.WAL {
+func (pm *ProtocolManager) openWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL {
 	if !wal.Exist(pm.waldir) {
 		if err := os.Mkdir(pm.waldir, 0750); err != nil {
 			glog.Fatalf("cannot create waldir: %v", err)
@@ -24,7 +25,13 @@ func (pm *ProtocolManager) openWAL() *wal.WAL {
 
 	glog.V(logger.Info).Infof("loading WAL")
 
-	wal, err := wal.Open(pm.waldir, walpb.Snapshot{})
+	walsnap := walpb.Snapshot{}
+
+	if maybeRaftSnapshot != nil {
+		walsnap.Index, walsnap.Term = maybeRaftSnapshot.Metadata.Index, maybeRaftSnapshot.Metadata.Term
+	}
+
+	wal, err := wal.Open(pm.waldir, walsnap)
 	if err != nil {
 		glog.Fatalf("error loading WAL: %v", err)
 	}
@@ -32,9 +39,9 @@ func (pm *ProtocolManager) openWAL() *wal.WAL {
 	return wal
 }
 
-func (pm *ProtocolManager) replayWAL() *wal.WAL {
+func (pm *ProtocolManager) replayWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL {
 	glog.V(logger.Info).Infoln("replaying WAL")
-	wal := pm.openWAL()
+	wal := pm.openWAL(maybeRaftSnapshot)
 
 	_, hardState, entries, err := wal.ReadAll()
 	if err != nil {

@@ -175,13 +175,17 @@ func (pm *ProtocolManager) maybeTriggerSnapshot() {
 	pm.triggerSnapshot(appliedIndex)
 }
 
-func (pm *ProtocolManager) loadSnapshot() {
+func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
 	if raftSnapshot := pm.readRaftSnapshot(); raftSnapshot != nil {
 		glog.V(logger.Info).Infof("loading snapshot")
 
 		pm.applyRaftSnapshot(*raftSnapshot)
+
+		return raftSnapshot
 	} else {
 		glog.V(logger.Info).Infof("no snapshot to load")
+
+		return nil
 	}
 }
 
