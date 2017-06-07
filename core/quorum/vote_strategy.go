@@ -1,11 +1,13 @@
 package quorum
 
 import (
+	crand "crypto/rand"
+	"encoding/json"
+	"math"
+	"math/big"
 	"math/rand"
 	"sync"
 	"time"
-
-	"encoding/json"
 
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/event"
@@ -42,6 +44,7 @@ type randomDeadlineStrategy struct {
 	activeMu      sync.Mutex
 	active        bool
 	deadlineTimer *time.Timer
+	rand          *rand.Rand
 }
 
 // NewRandomDeadelineStrategy returns a block maker strategy that
@@ -57,22 +60,29 @@ func NewRandomDeadelineStrategy(mux *event.TypeMux, min, max uint) *randomDeadli
 	if min == max {
 		max += 1
 	}
+
+	seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		glog.Fatalf("Unable to seed (psuedo) random deadline strategy")
+	}
+
 	s := &randomDeadlineStrategy{
 		mux:    mux,
 		min:    int(min),
 		max:    int(max),
 		active: true,
+		rand:   rand.New(rand.NewSource(seed.Int64())),
 	}
 	return s
 }
 
-func resetBlockMakerTimer(t *time.Timer, min, max int) {
+func resetBlockMakerTimer(t *time.Timer, duration time.Duration) {
 	t.Stop()
 	select {
 	case <-t.C:
 	default:
 	}
-	t.Reset(time.Duration(min+rand.Intn(max-min)) * time.Second)
+	t.Reset(duration)
 }
 
 // Start generating block create request events.
@@ -91,9 +101,9 @@ func (s *randomDeadlineStrategy) Start() error {
 					s.mux.Post(CreateBlock{})
 				}
 				s.activeMu.Unlock()
-				resetBlockMakerTimer(s.deadlineTimer, s.min, s.max)
+				resetBlockMakerTimer(s.deadlineTimer, time.Duration(s.min+s.rand.Intn(s.max-s.min))*time.Second)
 			case <-sub.Chan():
-				resetBlockMakerTimer(s.deadlineTimer, s.min, s.max)
+				resetBlockMakerTimer(s.deadlineTimer, time.Duration(s.min+s.rand.Intn(s.max-s.min))*time.Second)
 			}
 		}
 	}()
