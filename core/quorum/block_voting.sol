@@ -92,7 +92,7 @@ contract BlockVoting {
 		period.entries[hash]++;
 
 		// log vote
-		Vote(msg.sender, block.number, hash);
+		Vote(msg.sender, height, hash);
 	}
 
     // Get canonical head for a given block number.
