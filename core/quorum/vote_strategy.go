@@ -1,11 +1,10 @@
 package quorum
 
 import (
+	"encoding/json"
 	"math/rand"
 	"sync"
 	"time"
-
-	"encoding/json"
 
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/event"
@@ -66,7 +65,7 @@ func NewRandomDeadelineStrategy(mux *event.TypeMux, min, max uint) *randomDeadli
 	return s
 }
 
-func resetBlockMakerTimer(t *time.Timer, min, max int) {
+func resetTimer(t *time.Timer, min, max int) {
 	t.Stop()
 	select {
 	case <-t.C:
@@ -91,9 +90,9 @@ func (s *randomDeadlineStrategy) Start() error {
 					s.mux.Post(CreateBlock{})
 				}
 				s.activeMu.Unlock()
-				resetBlockMakerTimer(s.deadlineTimer, s.min, s.max)
+				resetTimer(s.deadlineTimer, s.min, s.max)
 			case <-sub.Chan():
-				resetBlockMakerTimer(s.deadlineTimer, s.min, s.max)
+				resetTimer(s.deadlineTimer, s.min, s.max)
 			}
 		}
 	}()
