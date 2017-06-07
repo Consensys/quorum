@@ -56,11 +56,11 @@ func New(configPath string) (*Constellation, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = RunNode(configPath, cfg.SocketPath)
+	err = RunNode(configPath, cfg.Socket)
 	if err != nil {
 		return nil, err
 	}
-	n, err := NewClient(cfg.PublicKeyPath, cfg.SocketPath)
+	n, err := NewClient(cfg.PublicKeys[0], cfg.Socket)
 	if err != nil {
 		return nil, err
 	}

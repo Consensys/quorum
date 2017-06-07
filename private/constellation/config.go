@@ -5,19 +5,25 @@ import (
 )
 
 type Config struct {
-	Url            string   `toml:"url"`
-	Port           int      `toml:"port"`
+	Socket         string   `toml:"socket"`
+	PublicKeys     []string `toml:"publickeys"`
+
+	// Deprecated
 	SocketPath     string   `toml:"socketPath"`
-	OtherNodeUrls  []string `toml:"otherNodeUrls"`
 	PublicKeyPath  string   `toml:"publicKeyPath"`
-	PrivateKeyPath string   `toml:"privateKeyPath"`
-	StoragePath    string   `toml:"storagePath"`
 }
 
 func LoadConfig(configPath string) (*Config, error) {
 	cfg := new(Config)
 	if _, err := toml.DecodeFile(configPath, cfg); err != nil {
 		return nil, err
+	}
+	// Fall back to Constellation 0.0.1 config format if necessary
+	if cfg.Socket == "" {
+		cfg.Socket = cfg.SocketPath
+	}
+	if len(cfg.PublicKeys) == 0 {
+		cfg.PublicKeys = append(cfg.PublicKeys, cfg.PublicKeyPath)
 	}
 	return cfg, nil
 }
