@@ -20,7 +20,7 @@ import (
 
 type RaftService struct {
 	blockchain     *core.BlockChain
-	chainDb        ethdb.Database // Block chain database
+	chainDb        ethdb.Database // Blockchain database
 	txMu           sync.Mutex
 	txPool         *core.TxPool
 	accountManager *accounts.Manager

@@ -74,7 +74,7 @@ type Vote struct {
 
 // CreateBlock is posted to the event mux when the BlockVoting instance
 // is ordered to create a new block. Either the hash of the created
-// block is returned is hash or an error.
+// block or an error is returned.
 type CreateBlock struct {
 	Hash chan common.Hash
 	Err  chan error

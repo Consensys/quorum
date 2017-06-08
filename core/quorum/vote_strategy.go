@@ -35,7 +35,7 @@ type BlockMakerStrategy interface {
 
 // randomDeadlineStrategy asks the block voter to generate blocks
 // after a deadline is passed without importing a new head. This
-// deadline is chosen random between 2 limits.
+// deadline is chosen at random between 2 limits.
 type randomDeadlineStrategy struct {
 	mux           *event.TypeMux
 	min, max      int // min and max deadline

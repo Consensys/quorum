@@ -12,7 +12,7 @@ contract BlockVoting {
     event Vote(address indexed sender, uint blockNumber, bytes32 blockHash);
     // Raised when a new address is allowed to vote.
     event AddVoter(address);
-    // Raised when an address is not alloed to make votes anymore.
+    // Raised when an address is not allowed to make votes anymore.
 	event RemovedVoter(address);
 	// Raised when a new address is allowed to create new blocks.
 	event AddBlockMaker(address);
@@ -32,7 +32,7 @@ contract BlockVoting {
     // Collection of vote rounds.
 	Period[] periods;
 
-    // canonical hash must have as least voteThreshold votes before its considered valid
+    // Canonical hash must have at least voteThreshold votes before its considered valid.
 	uint public voteThreshold;
 
     // Number of addresses that are allowed to make votes.
@@ -41,7 +41,7 @@ contract BlockVoting {
     // Collection of addresses that are allowed to vote.
     mapping(address => bool) public canVote;
 
-    // Number of addresses that are alloed to create blocks.
+    // Number of addresses that are allowed to create blocks.
     uint public blockMakerCount;
 
     // Collection of addresses that are allowed to create blocks.
@@ -112,7 +112,7 @@ contract BlockVoting {
 		return best;
 	}
 
-	// Add an party that is allowed to make a vote.
+	// Add a party that is allowed to make a vote.
 	// Only current voters are allowed to add a new voter.
 	function addVoter(address addr) mustBeVoter {
 		if (!canVote[addr]) {
@@ -123,9 +123,9 @@ contract BlockVoting {
 	}
 
 	// Remove a party that is allowed to vote.
-	// Note, a voter can remove it self as a voter!
+	// Note, a voter can remove itself as a voter!
 	function removeVoter(address addr) mustBeVoter {
-	    // don't let the last voter remove it self
+	    // don't let the last voter remove itself
 	    // which can cause the algorithm to stall.
 	    if (voterCount == 1) throw;
 
@@ -151,7 +151,7 @@ contract BlockVoting {
         }
 	}
 
-	// removeBlocksMaker deletes the given address of the collection of
+	// removeBlocksMaker deletes the given address from the collection of
 	// addresses that are allowed to create blocks.
 	function removeBlockMaker(address addr) mustBeBlockMaker {
 	    if (blockMakerCount == 1) throw;
