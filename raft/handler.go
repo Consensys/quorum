@@ -70,10 +70,10 @@ type ProtocolManager struct {
 	confChangeProposalC chan raftpb.ConfChange // for config changes from js console to raft
 
 	// Raft transport
-	rawNode   etcdRaft.Node
-	transport *rafthttp.Transport
-	httpstopc chan struct{}
-	httpdonec chan struct{}
+	unsafeRawNode etcdRaft.Node
+	transport     *rafthttp.Transport
+	httpstopc     chan struct{}
+	httpdonec     chan struct{}
 
 	// Raft snapshotting
 	snapshotter *snap.Snapshotter
@@ -150,8 +150,8 @@ func (pm *ProtocolManager) Stop() {
 	<-pm.httpdonec
 	close(pm.quitSync)
 
-	if pm.rawNode != nil {
-		pm.rawNode.Stop()
+	if pm.unsafeRawNode != nil {
+		pm.unsafeRawNode.Stop()
 	}
 
 	pm.quorumRaftDb.Close()
@@ -198,6 +198,19 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 		AppliedIndex:   pm.appliedIndex,
 		SnapshotIndex:  pm.snapshotIndex,
 	}
+}
+
+// There seems to be a very rare race in raft where during `etcdRaft.StartNode`
+// it will call back our `Process` method before it's finished returning the
+// `raft.Node`, `pm.unsafeRawNode`, to us. This re-entrance through a separate
+// thread will cause a nil pointer dereference. To work around this, this
+// getter method should be used instead of reading `pm.unsafeRawNode` directly.
+func (pm *ProtocolManager) rawNode() etcdRaft.Node {
+	for pm.unsafeRawNode == nil {
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return pm.unsafeRawNode
 }
 
 func (pm *ProtocolManager) nextRaftId() uint16 {
@@ -298,7 +311,7 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 	var buffer = make([]byte, msg.Size)
 	msg.Payload.Read(buffer)
 
-	return pm.rawNode.Propose(context.TODO(), buffer)
+	return pm.rawNode().Propose(context.TODO(), buffer)
 }
 
 //
@@ -306,7 +319,7 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 //
 
 func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error {
-	return pm.rawNode.Step(ctx, m)
+	return pm.rawNode().Step(ctx, m)
 }
 
 func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
@@ -316,7 +329,7 @@ func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
 func (pm *ProtocolManager) ReportUnreachable(id uint64) {
 	glog.V(logger.Warn).Infof("peer %d is currently unreachable", id)
 
-	pm.rawNode.ReportUnreachable(id)
+	pm.rawNode().ReportUnreachable(id)
 }
 
 func (pm *ProtocolManager) ReportSnapshot(id uint64, status etcdRaft.SnapshotStatus) {
@@ -326,7 +339,7 @@ func (pm *ProtocolManager) ReportSnapshot(id uint64, status etcdRaft.SnapshotSta
 		glog.V(logger.Info).Infof("finished sending snapshot to raft peer %v", id)
 	}
 
-	pm.rawNode.ReportSnapshot(id, status)
+	pm.rawNode().ReportSnapshot(id, status)
 }
 
 //
@@ -417,10 +430,10 @@ func (pm *ProtocolManager) startRaft() {
 
 	if walExisted {
 		glog.V(logger.Info).Infof("remounting an existing raft log; connecting to peers.")
-		pm.rawNode = etcdRaft.RestartNode(raftConfig)
+		pm.unsafeRawNode = etcdRaft.RestartNode(raftConfig)
 	} else if pm.joinExisting {
 		glog.V(logger.Info).Infof("newly joining an existing cluster; waiting for connections.")
-		pm.rawNode = etcdRaft.StartNode(raftConfig, nil)
+		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil)
 	} else {
 		if numPeers := len(pm.bootstrapNodes); numPeers == 0 {
 			panic("exiting due to empty raft peers list")
@@ -440,13 +453,13 @@ func (pm *ProtocolManager) startRaft() {
 			pm.addPeer(peerAddress)
 		}
 
-		pm.rawNode = etcdRaft.StartNode(raftConfig, raftPeers)
+		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, raftPeers)
 	}
 
 	go pm.serveRaft()
 	go pm.serveLocalProposals()
 	go pm.eventLoop()
-	go pm.handleRoleChange(pm.rawNode.RoleChan().Out())
+	go pm.handleRoleChange(pm.rawNode().RoleChan().Out())
 }
 
 func (pm *ProtocolManager) setLocalAddress(addr *Address) {
@@ -548,7 +561,7 @@ func (pm *ProtocolManager) serveLocalProposals() {
 			r.Read(buffer)
 
 			// blocks until accepted by the raft state machine
-			pm.rawNode.Propose(context.TODO(), buffer)
+			pm.rawNode().Propose(context.TODO(), buffer)
 		case cc, ok := <-pm.confChangeProposalC:
 			if !ok {
 				glog.V(logger.Info).Infoln("error: read from confChangeC failed")
@@ -557,7 +570,7 @@ func (pm *ProtocolManager) serveLocalProposals() {
 
 			confChangeCount++
 			cc.ID = confChangeCount
-			pm.rawNode.ProposeConfChange(context.TODO(), cc)
+			pm.rawNode().ProposeConfChange(context.TODO(), cc)
 		case <-pm.quitSync:
 			return
 		}
@@ -635,11 +648,11 @@ func (pm *ProtocolManager) eventLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			pm.rawNode.Tick()
+			pm.rawNode().Tick()
 
 		// when the node is first ready it gives us entries to commit and messages
 		// to immediately publish
-		case rd := <-pm.rawNode.Ready():
+		case rd := <-pm.rawNode().Ready():
 			pm.wal.Save(rd.HardState, rd.Entries)
 
 			if snap := rd.Snapshot; !etcdRaft.IsEmptySnap(snap) {
@@ -690,7 +703,7 @@ func (pm *ProtocolManager) eventLoop() {
 					cc.Unmarshal(entry.Data)
 					raftId := uint16(cc.NodeID)
 
-					pm.confState = *pm.rawNode.ApplyConfChange(cc)
+					pm.confState = *pm.rawNode().ApplyConfChange(cc)
 
 					forceSnapshot := false
 
@@ -759,7 +772,7 @@ func (pm *ProtocolManager) eventLoop() {
 
 			// 4: Call Node.Advance() to signal readiness for the next batch of
 			// updates.
-			pm.rawNode.Advance()
+			pm.rawNode().Advance()
 
 		case <-pm.quitSync:
 			return
