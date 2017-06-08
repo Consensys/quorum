@@ -133,8 +133,8 @@ func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
 
 	pm.p2pServer = p2pServer
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
-	go pm.minedBroadcastLoop()
 	pm.startRaft()
+	go pm.minedBroadcastLoop()
 }
 
 func (pm *ProtocolManager) Stop() {
