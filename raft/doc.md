@@ -52,7 +52,7 @@ Let's follow the lifecycle of a typical transaction:
 
 #### on every node:
 
-6. _At this point, Raft comes to consensus and appends the log entry containing our block to the Raft log. (The way this happens at the Raft layer is that the leader sends an `AppendEntries` to all followers, and they acknowledge receipt of the message. Once the leader has received a quorum of such acknowledgements, it notifies each node that this new entry has been committed permanently to the log).
+6. _At this point, Raft comes to consensus and appends the log entry containing our block to the Raft log. (The way this happens at the Raft layer is that the leader sends an `AppendEntries` to all followers, and they acknowledge receipt of the message. Once the leader has received a quorum of such acknowledgements, it notifies each node that this new entry has been committed permanently to the log)._
 
 7. Having crossed the network through Raft, the block reaches the `eventLoop` (which processes new Raft log entries.) It has arrived from the leader through `pm.transport`, an instance of [`rafthttp.Transport`](https://godoc.org/github.com/coreos/etcd/rafthttp#Transport).
 
