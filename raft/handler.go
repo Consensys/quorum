@@ -31,12 +31,12 @@ import (
 	"github.com/coreos/etcd/rafthttp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"gopkg.in/fatih/set.v0"
-	"syscall"
 )
 
 type ProtocolManager struct {
 	mu       sync.RWMutex // For protecting concurrent JS access to "local peer" and "remote peer" state
 	quitSync chan struct{}
+	stopped  bool
 
 	// Static configuration
 	joinExisting   bool // Whether to join an existing cluster when a WAL doesn't already exist
@@ -138,7 +138,20 @@ func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
 }
 
 func (pm *ProtocolManager) Stop() {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	defer glog.V(logger.Info).Infoln("raft protocol handler stopped")
+
+	if pm.stopped {
+		return
+	}
+
 	glog.V(logger.Info).Infoln("stopping raft protocol handler...")
+
+	for raftId, peer := range pm.peers {
+		pm.disconnectFromPeer(raftId, peer)
+	}
 
 	pm.minedBlockSub.Unsubscribe()
 
@@ -158,7 +171,9 @@ func (pm *ProtocolManager) Stop() {
 
 	pm.p2pServer = nil
 
-	glog.V(logger.Info).Infoln("raft protocol handler stopped")
+	pm.minter.stop()
+
+	pm.stopped = true
 }
 
 func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
@@ -618,13 +633,17 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 	pm.peers[raftId] = &Peer{address, p2pNode}
 }
 
+func (pm *ProtocolManager) disconnectFromPeer(raftId uint16, peer *Peer) {
+	pm.p2pServer.RemovePeer(peer.p2pNode)
+	pm.transport.RemovePeer(raftTypes.ID(raftId))
+}
+
 func (pm *ProtocolManager) removePeer(raftId uint16) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
 	if peer := pm.peers[raftId]; peer != nil {
-		pm.p2pServer.RemovePeer(peer.p2pNode)
-		pm.transport.RemovePeer(raftTypes.ID(raftId))
+		pm.disconnectFromPeer(raftId, peer)
 
 		delete(pm.peers, raftId)
 	}
@@ -767,7 +786,10 @@ func (pm *ProtocolManager) eventLoop() {
 
 			if exitAfterApplying {
 				glog.V(logger.Warn).Infoln("permanently removing self from the cluster")
-				syscall.Exit(0)
+				pm.Stop()
+				glog.V(logger.Warn).Infoln("permanently exited the cluster")
+
+				return
 			}
 
 			// 4: Call Node.Advance() to signal readiness for the next batch of
