@@ -148,9 +148,9 @@ We communicate blocks over the HTTP transport layer built in to etcd Raft. It's 
 
 Currently Raft-based consensus requires that all _initial_ nodes in the cluster are configured to list the others up-front as [static peers](https://github.com/ethereum/go-ethereum/wiki/Connecting-to-the-network#static-nodes).
 
-To remove a node from the cluster, attach to a JS console and issue `raft.removePeer(raftId)`, where `raftId` is the number of the node you wish to remove. Once a node has been removed from the cluster, it is permanent; this raft ID can not ever re-connect to the cluster in the future, and the party must re-join the cluster with a new raft ID.
+To remove a node from the cluster, attach to a JS console and issue `raft.removePeer(raftId)`, where `raftId` is the number of the node you wish to remove. For initial nodes in the cluster, this number is the 1-indexed position of the node's enode ID in the static peers list. Once a node has been removed from the cluster, it is permanent; this raft ID can not ever re-connect to the cluster in the future, and the party must re-join the cluster with a new raft ID.
 
-To add a node to the cluster, attach to a JS console and issue `raft.addPeer(raftId, enodeId)`. Here, `raftId` must be a raft ID that is not currently in use. Then start the new geth node with the flag `--raftjoinexisting RAFTID` in addition to `--raft`.
+To add a node to the cluster, attach to a JS console and issue `raft.addPeer(enodeId)`. This call will allocate and return a raft ID that was not already in use. After `addPeer`, start the new geth node with the flag `--raftjoinexisting RAFTID` in addition to `--raft`.
 
 ## FAQ
 
