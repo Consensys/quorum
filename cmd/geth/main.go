@@ -118,6 +118,9 @@ var (
 		utils.RaftJoinExistingFlag,
 		utils.RaftPortFlag,
 		utils.EmitCheckpointsFlag,
+		utils.IstanbulRequestTimeoutFlag,
+		utils.IstanbulBlockPeriodFlag,
+		utils.IstanbulBlockPauseTimeFlag,
 	}
 
 	rpcFlags = []cli.Flag{
