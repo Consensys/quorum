@@ -39,12 +39,11 @@ import (
 
 // Current state information for building the next block
 type work struct {
-	config *params.ChainConfig
-	//publicState  *state.StateDB
-	//privateState *state.StateDB
-	state  *state.StateDB
-	Block  *types.Block
-	header *types.Header
+	config       *params.ChainConfig
+	publicState  *state.StateDB
+	privateState *state.StateDB
+	Block        *types.Block
+	header       *types.Header
 }
 
 type minter struct {
@@ -241,18 +240,16 @@ func (minter *minter) createWork() *work {
 		Time:       big.NewInt(tstamp),
 	}
 
-	// publicState, privateState, err := minter.chain.StateAt(parent.Root())
-	state, err := minter.chain.StateAt(parent.Root())
+	publicState, privateState, err := minter.chain.StateAt(parent.Root())
 	if err != nil {
 		panic(fmt.Sprint("failed to get parent state: ", err))
 	}
 
 	return &work{
-		config: minter.config,
-		//publicState:  publicState,
-		//privateState: privateState,
-		state:  state,
-		header: header,
+		config:       minter.config,
+		publicState:  publicState,
+		privateState: privateState,
+		header:       header,
 	}
 }
 
@@ -287,7 +284,7 @@ func (minter *minter) mintNewBlock() {
 	work := minter.createWork()
 	transactions := minter.getTransactions()
 
-	committedTxes, receipts, logs := work.commitTransactions(transactions, minter.chain)
+	committedTxes, publicReceipts, privateReceipts, logs := work.commitTransactions(transactions, minter.chain)
 	txCount := len(committedTxes)
 
 	if txCount == 0 {
@@ -300,13 +297,13 @@ func (minter *minter) mintNewBlock() {
 	header := work.header
 
 	// commit state root after all state transitions.
-	ethash.AccumulateRewards(work.state, header, nil)
-	header.Root = work.state.IntermediateRoot(false)
+	ethash.AccumulateRewards(work.publicState, header, nil)
+	header.Root = work.publicState.IntermediateRoot(minter.chain.Config().IsEIP158(work.header.Number))
 
 	// NOTE: < QuorumChain creates a signature here and puts it in header.Extra. >
 
-	//allReceipts := append(publicReceipts, privateReceipts...)
-	header.Bloom = types.CreateBloom(receipts)
+	allReceipts := append(publicReceipts, privateReceipts...)
+	header.Bloom = types.CreateBloom(allReceipts)
 
 	// update block hash since it is now available, but was not when the
 	// receipt/log of individual transactions were created:
@@ -315,31 +312,31 @@ func (minter *minter) mintNewBlock() {
 		l.BlockHash = headerHash
 	}
 
-	block := types.NewBlock(header, committedTxes, nil, receipts)
+	block := types.NewBlock(header, committedTxes, nil, publicReceipts)
 
 	log.Info("Generated next block", "block num", block.Number(), "num txes", txCount)
 
-	if _, err := work.state.Commit(false); err != nil {
+	deleteEmptyObjects := minter.chain.Config().IsEIP158(block.Number())
+	if _, err := work.publicState.CommitTo(minter.chainDb, deleteEmptyObjects); err != nil {
 		panic(fmt.Sprint("error committing public state: ", err))
 	}
-	//if _, privStateErr := work.privateState.Commit(); privStateErr != nil {
-	//	panic(fmt.Sprint("error committing private state: ", privStateErr))
-	//}
+	if _, privStateErr := work.privateState.CommitTo(minter.chainDb, deleteEmptyObjects); privStateErr != nil {
+		panic(fmt.Sprint("error committing private state: ", privStateErr))
+	}
 
 	minter.speculativeChain.extend(block)
 
 	minter.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 	elapsed := time.Since(time.Unix(0, header.Time.Int64()))
-	log.Info("🔨  Mined block", "number", block.Number(), "hash", block.Hash().Bytes()[:4], "elapsed", elapsed)
+	log.Info("🔨  Mined block", "number", block.Number(), "hash", fmt.Sprintf("%x", block.Hash().Bytes()[:4]), "elapsed", elapsed)
 }
 
-func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts, []*types.Log) {
+func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts, types.Receipts, []*types.Log) {
 	var logs []*types.Log
 	var committedTxes types.Transactions
-	//var publicReceipts types.Receipts
-	//var privateReceipts types.Receipts
-	var receipts types.Receipts
+	var publicReceipts types.Receipts
+	var privateReceipts types.Receipts
 
 	gp := new(core.GasPool).AddGas(env.header.GasLimit)
 	txCount := 0
@@ -350,9 +347,9 @@ func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc 
 			break
 		}
 
-		env.state.Prepare(tx.Hash(), common.Hash{}, 0)
+		env.publicState.Prepare(tx.Hash(), common.Hash{}, txCount)
 
-		receipt, err := env.commitTransaction(tx, bc, gp)
+		publicReceipt, privateReceipt, err := env.commitTransaction(tx, bc, gp)
 		switch {
 		case err != nil:
 			log.Info("TX failed, will be removed", "hash", tx.Hash().Bytes()[:4], "err", err)
@@ -361,37 +358,34 @@ func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc 
 			txCount++
 			committedTxes = append(committedTxes, tx)
 
-			logs = append(logs, receipt.Logs...)
-			receipts = append(receipts, receipt)
+			logs = append(logs, publicReceipt.Logs...)
+			publicReceipts = append(publicReceipts, publicReceipt)
 
-			//logs = append(logs, publicReceipt.Logs...)
-			//publicReceipts = append(publicReceipts, publicReceipt)
-			//
-			//if privateReceipt != nil {
-			//	logs = append(logs, privateReceipt.Logs...)
-			//	privateReceipts = append(privateReceipts, privateReceipt)
-			//}
+			if privateReceipt != nil {
+				logs = append(logs, privateReceipt.Logs...)
+				privateReceipts = append(privateReceipts, privateReceipt)
+			}
 
 			txes.Shift()
 		}
 	}
 
-	return committedTxes, receipts, logs
+	return committedTxes, publicReceipts, privateReceipts, logs
 }
 
-func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (*types.Receipt, error) {
-	publicSnapshot := env.state.Snapshot()
-	//privateSnapshot := env.privateState.Snapshot()
+func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (*types.Receipt, *types.Receipt, error) {
+	publicSnapshot := env.publicState.Snapshot()
+	privateSnapshot := env.privateState.Snapshot()
 
 	var author *common.Address
 	var vmConf vm.Config
-	receipt, _, err := core.ApplyTransaction(env.config, bc, author, gp, env.state, env.header, tx, env.header.GasUsed, vmConf)
+	publicReceipt, privateReceipt, _, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, env.header.GasUsed, vmConf)
 	if err != nil {
-		env.state.RevertToSnapshot(publicSnapshot)
-		//env.privateState.RevertToSnapshot(privateSnapshot)
+		env.publicState.RevertToSnapshot(publicSnapshot)
+		env.privateState.RevertToSnapshot(privateSnapshot)
 
-		return nil, err
+		return nil, nil, err
 	}
 
-	return receipt, nil
+	return publicReceipt, privateReceipt, nil
 }

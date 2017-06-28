@@ -154,6 +154,10 @@ func (in *Interpreter) Run(snapshot int, contract *Contract, input []byte) (ret 
 		// Get the memory location of pc
 		op = contract.GetOp(pc)
 
+		if in.evm.readOnly && op.isMutating() {
+			return nil, fmt.Errorf("VM in read-only mode. Mutating opcode prohibited")
+		}
+
 		// get the operation from the jump table matching the opcode
 		operation := in.cfg.JumpTable[op]
 		if err := in.enforceRestrictions(op, operation, stack); err != nil {

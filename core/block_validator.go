@@ -35,6 +35,8 @@ type BlockValidator struct {
 	config *params.ChainConfig // Chain configuration options
 	bc     *BlockChain         // Canonical block chain
 	engine consensus.Engine    // Consensus engine used for validating
+
+	enableQuorumChecks bool // indication if the signature and vote count is checked (disabled for testing purposes)
 }
 
 // NewBlockValidator returns a new block validator which is safe for re-use
@@ -76,6 +78,8 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 // transition, such as amount of used gas, the receipt roots and the state root
 // itself. ValidateState returns a database batch if the validation was a success
 // otherwise nil and an error is returned.
+//
+// For quorum it also verifies if the canonical hash in the blocks state points to a valid parent hash.
 func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *state.StateDB, receipts types.Receipts, usedGas *big.Int) error {
 	header := block.Header()
 	if block.GasUsed().Cmp(usedGas) != 0 {
@@ -97,6 +101,44 @@ func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *stat
 	if root := statedb.IntermediateRoot(v.config.IsEIP158(header.Number)); header.Root != root {
 		return fmt.Errorf("invalid merkle root (remote: %x local: %x)", header.Root, root)
 	}
+
+	// TODO(joel)
+	/*
+		if v.enableQuorumChecks {
+			// Ensure that the parent block was indeed the one that was voted for in the state of this block.
+			// The contract enforces that there are enough votes and only votes from parties that are allowed to vote.
+			var (
+				gp        = new(GasPool).AddGas(common.MaxBig)
+				to        = common.HexToAddress("0x0000000000000000000000000000000000000020")
+				stateCopy = statedb.Copy()
+				msg       = callmsg{
+					from:     stateCopy.GetOrNewStateObject(common.HexToAddress("0x0000000000000000000000000000000000000000")),
+					to:       &to,
+					gas:      big.NewInt(500000),
+					gasPrice: common.Big0,
+					value:    common.Big0,
+					data:     common.Hex2Bytes(fmt.Sprintf("559c390c%064x", block.Number())), // call getCanonHash(uint256)
+				}
+				vmenv = NewEnv(stateCopy, stateCopy, v.config, v.bc, msg, block.Header(), v.config.VmConfig)
+			)
+
+			result, _, _, err := NewStateTransition(vmenv, msg, gp).TransitionDb()
+			if err != nil {
+				return err
+			}
+
+			// result holds the hash that was the winning hash according the voting contract
+			parentHash := common.BytesToHash(result)
+			if parentHash == (common.Hash{}) {
+				// too little votes
+				return fmt.Errorf("block parent could not be verified, ignore block (%d)", block.Number())
+			}
+			if block.ParentHash() != parentHash {
+				return fmt.Errorf("build on top of unexpected parent, expected %s, got %s", parentHash.Hex(), block.ParentHash().Hex())
+			}
+		}
+	*/
+
 	return nil
 }
 

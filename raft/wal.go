@@ -12,12 +12,12 @@ import (
 func (pm *ProtocolManager) openWAL(maybeSnapshot *raftpb.Snapshot) *wal.WAL {
 	if !wal.Exist(pm.waldir) {
 		if err := os.Mkdir(pm.waldir, 0750); err != nil {
-			fatalf("cannot create waldir (%v)", err)
+			fatalf("cannot create waldir: %s", err)
 		}
 
 		wal, err := wal.Create(pm.waldir, nil)
 		if err != nil {
-			fatalf("failed to create waldir (%v)", err)
+			fatalf("failed to create waldir: %s", err)
 		}
 		wal.Close()
 	}
@@ -28,11 +28,11 @@ func (pm *ProtocolManager) openWAL(maybeSnapshot *raftpb.Snapshot) *wal.WAL {
 		walsnap.Term = maybeSnapshot.Metadata.Term
 	}
 
-	log.Info("loading WAL at term %d and index %d", walsnap.Term, walsnap.Index)
+	log.Info("loading WAL", "term", walsnap.Term, "index", walsnap.Index)
 
 	wal, err := wal.Open(pm.waldir, walsnap)
 	if err != nil {
-		fatalf("error loading WAL (%v)", err)
+		fatalf("error loading WAL: %s", err)
 	}
 
 	return wal
@@ -45,7 +45,7 @@ func (pm *ProtocolManager) replayWAL() *wal.WAL {
 
 	_, hardState, entries, err := wal.ReadAll()
 	if err != nil {
-		fatalf("failed to read WAL (%v)", err)
+		fatalf("failed to read WAL: %s", err)
 	}
 
 	if maybeSnapshot != nil {

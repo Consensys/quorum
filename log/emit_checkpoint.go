@@ -12,7 +12,9 @@ const (
 var DoEmitCheckpoints = false
 
 func EmitCheckpoint(checkpointName string, logValues ...interface{}) {
+	args := []interface{}{"name", checkpointName}
+	args = append(args, logValues...)
 	if DoEmitCheckpoints {
-		Info("QUORUM-CHECKPOINT", "name", checkpointName, "data", logValues)
+		Info("QUORUM-CHECKPOINT", args...)
 	}
 }

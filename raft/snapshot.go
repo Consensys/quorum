@@ -70,7 +70,7 @@ func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
 
 func (pm *ProtocolManager) applySnapshot(snap raftpb.Snapshot) {
 	if err := pm.raftStorage.ApplySnapshot(snap); err != nil {
-		fatalf("failed to apply snapshot: ", err)
+		fatalf("failed to apply snapshot: %s", err)
 	}
 
 	snapMeta := snap.Metadata

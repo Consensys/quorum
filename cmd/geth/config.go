@@ -34,8 +34,8 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
-	whisper "github.com/ethereum/go-ethereum/whisper/whisperv5"
 	"github.com/ethereum/go-ethereum/raft"
+	whisper "github.com/ethereum/go-ethereum/whisper/whisperv5"
 	"github.com/naoina/toml"
 	"time"
 )
@@ -137,6 +137,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	}
 
 	utils.SetShhConfig(ctx, stack, &cfg.Shh)
+	cfg.Eth.RaftMode = ctx.GlobalBool(utils.RaftModeFlag.Name)
 
 	return stack, cfg
 }
@@ -157,43 +158,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
-		blockTimeMillis := ctx.GlobalInt(utils.RaftBlockTimeFlag.Name)
-		datadir := ctx.GlobalString(utils.DataDirFlag.Name)
-		joinExistingId := ctx.GlobalInt(utils.RaftJoinExistingFlag.Name)
-
-		if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-			privkey := cfg.Node.NodeKey()
-			strId := discover.PubkeyID(&privkey.PublicKey).String()
-			blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
-			peers := cfg.Node.StaticNodes()
-
-			var myId uint16
-			var joinExisting bool
-
-			if joinExistingId > 0 {
-				myId = uint16(joinExistingId)
-				joinExisting = true
-			} else {
-				peerIds := make([]string, len(peers))
-				for peerIdx, peer := range peers {
-					peerId := peer.ID.String()
-					peerIds[peerIdx] = peerId
-					if peerId == strId {
-						myId = uint16(peerIdx) + 1
-					}
-				}
-
-				if myId == 0 {
-					utils.Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
-				}
-			}
-
-			ethereum := <-ethChan
-
-			return raft.New(ctx, params.TestChainConfig, myId, joinExisting, blockTimeNanos, ethereum, peers, datadir)
-		}); err != nil {
-			utils.Fatalf("Failed to register the Raft service: %v", err)
-		}
+		RegisterRaftService(stack, ctx, cfg, ethChan)
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
@@ -248,4 +213,45 @@ func dumpConfig(ctx *cli.Context) error {
 	io.WriteString(os.Stdout, comment)
 	os.Stdout.Write(out)
 	return nil
+}
+
+func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, ethChan <-chan *eth.Ethereum) {
+	blockTimeMillis := ctx.GlobalInt(utils.RaftBlockTimeFlag.Name)
+	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
+	joinExistingId := ctx.GlobalInt(utils.RaftJoinExistingFlag.Name)
+
+	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+		privkey := cfg.Node.NodeKey()
+		strId := discover.PubkeyID(&privkey.PublicKey).String()
+		blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
+		peers := cfg.Node.StaticNodes()
+
+		var myId uint16
+		var joinExisting bool
+
+		if joinExistingId > 0 {
+			myId = uint16(joinExistingId)
+			joinExisting = true
+		} else {
+			peerIds := make([]string, len(peers))
+			for peerIdx, peer := range peers {
+				peerId := peer.ID.String()
+				peerIds[peerIdx] = peerId
+				if peerId == strId {
+					myId = uint16(peerIdx) + 1
+				}
+			}
+
+			if myId == 0 {
+				utils.Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
+			}
+		}
+
+		ethereum := <-ethChan
+
+		return raft.New(ctx, ethereum.ChainConfig(), myId, joinExisting, blockTimeNanos, ethereum, peers, datadir)
+	}); err != nil {
+		utils.Fatalf("Failed to register the Raft service: %v", err)
+	}
+
 }

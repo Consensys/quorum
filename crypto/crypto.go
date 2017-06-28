@@ -175,7 +175,7 @@ func ValidateSignatureValues(v byte, r, s *big.Int, homestead bool) bool {
 		return false
 	}
 	// Frontier: allow s to be in full N range
-	return r.Cmp(secp256k1_N) < 0 && s.Cmp(secp256k1_N) < 0 && (v == 0 || v == 1)
+	return r.Cmp(secp256k1_N) < 0 && s.Cmp(secp256k1_N) < 0 && (v == 0 || v == 1 || v == 10 || v == 11)
 }
 
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {

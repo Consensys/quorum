@@ -134,6 +134,10 @@ type Config struct {
 
 	// If NoDial is true, the server will not dial any peers.
 	NoDial bool `toml:",omitempty"`
+
+	EnableNodePermission bool `toml:",omitempty"`
+
+	DataDir string `toml:",omitempty"`
 }
 
 // Server manages all peer connections.
@@ -691,6 +695,38 @@ func (srv *Server) setupConn(fd net.Conn, flags connFlag, dialDest *discover.Nod
 		c.close(err)
 		return
 	}
+
+	//START - QUORUM Permissioning
+	currentNode := srv.NodeInfo().ID
+	cnodeName := srv.NodeInfo().Name
+	log.Trace("Quorum permissioning",
+		"EnableNodePermission", srv.EnableNodePermission,
+		"DataDir", srv.DataDir,
+		"Current Node ID", currentNode,
+		"Node Name", cnodeName,
+		"Dialed Dest", dialDest,
+		"Connection ID", c.id,
+		"Connection String", c.id.String())
+
+	if srv.EnableNodePermission {
+		log.Trace("Node Permissioning is Enabled.")
+		node := c.id.String()
+		direction := "INCOMING"
+		if dialDest != nil {
+			node = dialDest.ID.String()
+			direction = "OUTGOING"
+			log.Info("Connection Direction <%v>", direction)
+		}
+
+		if !isNodePermissioned(node, currentNode, srv.DataDir, direction) {
+			return
+		}
+	} else {
+		log.Trace("Node Permissioning is Disabled.")
+	}
+
+	//END - QUORUM Permissioning
+
 	clog := log.New("id", c.id, "addr", c.fd.RemoteAddr(), "conn", c.flags)
 	// For dialed connections, check that the remote public key matches.
 	if dialDest != nil && c.id != dialDest.ID {

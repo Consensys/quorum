@@ -377,7 +377,7 @@ func testGetNodeData(t *testing.T, protocol int) {
 		trie, _ := state.New(pm.blockchain.GetBlockByNumber(i).Root(), state.NewDatabase(statedb))
 
 		for j, acc := range accounts {
-			state, _ := pm.blockchain.State()
+			state, _, _ := pm.blockchain.State()
 			bw := state.GetBalance(acc)
 			bh := trie.GetBalance(acc)
 
@@ -476,7 +476,7 @@ func testDAOChallenge(t *testing.T, localForked, remoteForked bool, timeout bool
 		genesis       = gspec.MustCommit(db)
 		blockchain, _ = core.NewBlockChain(db, config, pow, vm.Config{})
 	)
-	pm, err := NewProtocolManager(config, downloader.FullSync, DefaultConfig.NetworkId, 1000, evmux, new(testTxPool), pow, blockchain, db)
+	pm, err := NewProtocolManager(config, downloader.FullSync, DefaultConfig.NetworkId, 1000, evmux, new(testTxPool), pow, blockchain, db, false)
 	if err != nil {
 		t.Fatalf("failed to start test protocol manager: %v", err)
 	}

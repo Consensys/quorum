@@ -20,6 +20,7 @@ import (
 	"context"
 	"math/big"
 
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -34,6 +35,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
+
+var raftHasNoPending = fmt.Errorf("Raft mode has no Pending block. Use latest instead.")
 
 // EthApiBackend implements ethapi.Backend for full nodes
 type EthApiBackend struct {
@@ -70,6 +73,9 @@ func (b *EthApiBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNum
 func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
 	// Pending block is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
+		if b.eth.protocolManager.raftMode {
+			return nil, raftHasNoPending
+		}
 		block := b.eth.miner.PendingBlock()
 		return block, nil
 	}
@@ -80,19 +86,22 @@ func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumb
 	return b.eth.blockchain.GetBlockByNumber(uint64(blockNr)), nil
 }
 
-func (b *EthApiBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
+func (b *EthApiBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error) {
 	// Pending state is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
-		block, state := b.eth.miner.Pending()
-		return state, block.Header(), nil
+		if b.eth.protocolManager.raftMode {
+			return nil, nil, raftHasNoPending
+		}
+		block, publicState, privateState := b.eth.miner.Pending()
+		return EthApiState{publicState, privateState}, block.Header(), nil
 	}
 	// Otherwise resolve the block number and return its state
 	header, err := b.HeaderByNumber(ctx, blockNr)
 	if header == nil || err != nil {
 		return nil, nil, err
 	}
-	stateDb, err := b.eth.BlockChain().StateAt(header.Root)
-	return stateDb, header, err
+	stateDb, privateState, err := b.eth.BlockChain().StateAt(header.Root)
+	return EthApiState{stateDb, privateState}, header, err
 }
 
 func (b *EthApiBackend) GetBlock(ctx context.Context, blockHash common.Hash) (*types.Block, error) {
@@ -107,12 +116,14 @@ func (b *EthApiBackend) GetTd(blockHash common.Hash) *big.Int {
 	return b.eth.blockchain.GetTdByHash(blockHash)
 }
 
-func (b *EthApiBackend) GetEVM(ctx context.Context, msg core.Message, state *state.StateDB, header *types.Header, vmCfg vm.Config) (*vm.EVM, func() error, error) {
-	state.SetBalance(msg.From(), math.MaxBig256)
+func (b *EthApiBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header, vmCfg vm.Config) (*vm.EVM, func() error, error) {
+	statedb := state.(EthApiState)
+	from := statedb.state.GetOrNewStateObject(msg.From())
+	from.SetBalance(math.MaxBig256)
 	vmError := func() error { return nil }
 
 	context := core.NewEVMContext(msg, header, b.eth.BlockChain(), nil)
-	return vm.NewEVM(context, state, b.eth.chainConfig, vmCfg), vmError, nil
+	return vm.NewEVM(context, statedb.state, statedb.privateState, b.eth.chainConfig, vmCfg), vmError, nil
 }
 
 func (b *EthApiBackend) SubscribeRemovedTxEvent(ch chan<- core.RemovedTransactionEvent) event.Subscription {
@@ -188,7 +199,11 @@ func (b *EthApiBackend) ProtocolVersion() int {
 }
 
 func (b *EthApiBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	return b.gpo.SuggestPrice(ctx)
+	if b.ChainConfig().IsQuorum {
+		return big.NewInt(0), nil
+	} else {
+		return b.gpo.SuggestPrice(ctx)
+	}
 }
 
 func (b *EthApiBackend) ChainDb() ethdb.Database {
@@ -202,3 +217,25 @@ func (b *EthApiBackend) EventMux() *event.TypeMux {
 func (b *EthApiBackend) AccountManager() *accounts.Manager {
 	return b.eth.AccountManager()
 }
+
+type EthApiState struct {
+	state, privateState *state.StateDB
+}
+
+func (s EthApiState) GetBalance(addr common.Address) *big.Int {
+	return s.state.GetBalance(addr)
+}
+
+func (s EthApiState) GetCode(addr common.Address) []byte {
+	return s.state.GetCode(addr)
+}
+
+func (s EthApiState) GetState(a common.Address, b common.Hash) common.Hash {
+	return s.state.GetState(a, b)
+}
+
+func (s EthApiState) GetNonce(addr common.Address) uint64 {
+	return s.state.GetNonce(addr)
+}
+
+//func (s MinimalApiState) Error

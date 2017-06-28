@@ -484,7 +484,7 @@ var (
 		Name:  "shh.pow",
 		Usage: "Minimum POW accepted",
 		Value: whisper.DefaultMinimumPoW,
-  }
+	}
 
 	// Raft flags
 	RaftModeFlag = cli.BoolFlag{
@@ -504,6 +504,12 @@ var (
 	EmitCheckpointsFlag = cli.BoolFlag{
 		Name:  "emitcheckpoints",
 		Usage: "If enabled, emit specially formatted logging checkpoints",
+	}
+
+	// Quorum
+	EnableNodePermissionFlag = cli.BoolFlag{
+		Name:  "permissioned",
+		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
 	}
 )
 
@@ -831,6 +837,8 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	setHTTP(ctx, cfg)
 	setWS(ctx, cfg)
 	setNodeUserIdent(ctx, cfg)
+
+	cfg.EnableNodePermission = ctx.GlobalBool(EnableNodePermissionFlag.Name)
 
 	switch {
 	case ctx.GlobalIsSet(DataDirFlag.Name):

@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	set "gopkg.in/fatih/set.v0"
 )
@@ -38,6 +39,8 @@ import (
 var (
 	blockReward *big.Int = big.NewInt(5e+18) // Block reward in wei for successfully mining a block
 	maxUncles            = 2                 // Maximum number of uncles allowed in a single block
+
+	nanosecond2017Timestamp = forceParseRfc3339("2017-01-01T00:00:00+00:00").UnixNano()
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -56,6 +59,14 @@ var (
 	errInvalidMixDigest  = errors.New("invalid mix digest")
 	errInvalidPoW        = errors.New("invalid proof-of-work")
 )
+
+func forceParseRfc3339(str string) time.Time {
+	time, err := time.Parse(time.RFC3339, str)
+	if err != nil {
+		panic("unexpected failure to parse rfc3339 timestamp: " + str)
+	}
+	return time
+}
 
 // Author implements consensus.Engine, returning the header's coinbase as the
 // proof-of-work verified author of the block.
@@ -221,17 +232,34 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 // See YP section 4.3.4. "Block Header Validity"
 func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *types.Header, uncle bool, seal bool) error {
 	// Ensure that the header's extra-data section is of a reasonable size
-	if uint64(len(header.Extra)) > params.MaximumExtraDataSize {
-		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), params.MaximumExtraDataSize)
+	maximumExtraDataSize := params.GetMaximumExtraDataSize(chain.Config().IsQuorum)
+	if uint64(len(header.Extra)) > maximumExtraDataSize {
+		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), maximumExtraDataSize)
 	}
 	// Verify the header's timestamp
 	if uncle {
 		if header.Time.Cmp(math.MaxBig256) > 0 {
 			return errLargeBlockTime
 		}
-	} else {
+	} else if !chain.Config().IsQuorum {
 		if header.Time.Cmp(big.NewInt(time.Now().Unix())) > 0 {
 			return consensus.ErrFutureBlock
+		}
+	} else {
+		// We disable future checking if we're in --raft mode. This is crucial
+		// because block validation in the raft setting needs to be deterministic.
+		// There is no forking of the chain, and we need each node to only perform
+		// validation as a pure function of block contents with respect to the
+		// previous database state.
+		//
+		// NOTE: whereas we are currently checking whether the timestamp field has
+		// nanosecond semantics to detect --raft mode, we could also use a special
+		// "raft" sentinel in the Extra field, or pass a boolean for raftMode from
+		// all call sites of this function.
+		if raftMode := time.Now().UnixNano() > nanosecond2017Timestamp; !raftMode {
+			if header.Time.Cmp(big.NewInt(time.Now().Unix())) > 0 {
+				return consensus.ErrFutureBlock
+			}
 		}
 	}
 	if header.Time.Cmp(parent.Time) <= 0 {
@@ -445,6 +473,8 @@ func calcDifficultyFrontier(time uint64, parent *types.Header) *big.Int {
 // VerifySeal implements consensus.Engine, checking whether the given block satisfies
 // the PoW difficulty requirements.
 func (ethash *Ethash) VerifySeal(chain consensus.ChainReader, header *types.Header) error {
+	isQuorum := chain != nil && chain.Config().IsQuorum
+
 	// If we're running a fake PoW, accept any seal as valid
 	if ethash.fakeMode {
 		time.Sleep(ethash.fakeDelay)
@@ -476,11 +506,18 @@ func (ethash *Ethash) VerifySeal(chain consensus.ChainReader, header *types.Head
 	}
 	digest, result := hashimotoLight(size, cache, header.HashNoNonce().Bytes(), header.Nonce.Uint64())
 	if !bytes.Equal(header.MixDigest[:], digest) {
-		return errInvalidMixDigest
+		if isQuorum {
+			log.Info("invalid mix digest", "calculated", fmt.Sprintf("%x", digest), "in header", fmt.Sprintf("%x", header.MixDigest[:]))
+		} else {
+			return errInvalidMixDigest
+		}
+
 	}
 	target := new(big.Int).Div(maxUint256, header.Difficulty)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
-		return errInvalidPoW
+		if !isQuorum {
+			return errInvalidPoW
+		}
 	}
 	return nil
 }

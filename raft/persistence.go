@@ -41,7 +41,7 @@ func (pm *ProtocolManager) loadAppliedIndex() uint64 {
 	if err == errors.ErrNotFound {
 		lastAppliedIndex = 0
 	} else if err != nil {
-		fatalf("loadAppliedIndex", err)
+		fatalf("loadAppliedIndex error: %s", err)
 	} else {
 		lastAppliedIndex = binary.LittleEndian.Uint64(dat)
 	}

@@ -43,6 +43,9 @@ type sigCache struct {
 
 // MakeSigner returns a Signer based on the given chain config and block number.
 func MakeSigner(config *params.ChainConfig, blockNumber *big.Int) Signer {
+	if config.IsQuorum {
+		return HomesteadSigner{}
+	}
 	var signer Signer
 	switch {
 	case config.IsEIP155(blockNumber):
@@ -214,7 +217,11 @@ func (hs HomesteadSigner) WithSignature(tx *Transaction, sig []byte) (*Transacti
 	cpy := &Transaction{data: tx.data}
 	cpy.data.R = new(big.Int).SetBytes(sig[:32])
 	cpy.data.S = new(big.Int).SetBytes(sig[32:64])
-	cpy.data.V = new(big.Int).SetBytes([]byte{sig[64] + 27})
+	if tx.IsPrivate() {
+		cpy.data.V = new(big.Int).SetBytes([]byte{sig[64] + 37})
+	} else {
+		cpy.data.V = new(big.Int).SetBytes([]byte{sig[64] + 27})
+	}
 	return cpy, nil
 }
 
@@ -222,7 +229,13 @@ func (hs HomesteadSigner) PublicKey(tx *Transaction) ([]byte, error) {
 	if tx.data.V.BitLen() > 8 {
 		return nil, ErrInvalidSig
 	}
-	V := byte(tx.data.V.Uint64() - 27)
+	var offset uint64
+	if tx.IsPrivate() {
+		offset = 37
+	} else {
+		offset = 27
+	}
+	V := byte(tx.data.V.Uint64() - offset)
 	if !crypto.ValidateSignatureValues(V, tx.data.R, tx.data.S, true) {
 		return nil, ErrInvalidSig
 	}
@@ -313,6 +326,7 @@ func deriveChainId(v *big.Int) *big.Int {
 		if v == 27 || v == 28 {
 			return new(big.Int)
 		}
+		// TODO(joel): this given v = 37 / 38 this constrains us to chain id 1
 		return new(big.Int).SetUint64((v - 35) / 2)
 	}
 	v = new(big.Int).Sub(v, big.NewInt(35))

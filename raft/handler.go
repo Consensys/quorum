@@ -668,7 +668,7 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 		}
 
 		for _, tx := range block.Transactions() {
-			log.EmitCheckpoint(log.TxAccepted, tx.Hash().Hex())
+			log.EmitCheckpoint(log.TxAccepted, "tx", tx.Hash().Hex())
 		}
 
 		_, err := pm.blockchain.InsertChain([]*types.Block{block})
@@ -677,7 +677,7 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 			panic(fmt.Sprintf("failed to extend chain: %s", err.Error()))
 		}
 
-		log.EmitCheckpoint(log.BlockCreated, fmt.Sprintf("%x", block.Hash()))
+		log.EmitCheckpoint(log.BlockCreated, "block", fmt.Sprintf("%x", block.Hash()))
 	}
 }
 
