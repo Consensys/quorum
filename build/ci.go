@@ -49,7 +49,7 @@ import (
 	"strings"
 	"time"
 
-	"../internal/build"
+	"github.com/ethereum/go-ethereum/internal/build"
 )
 
 var (
