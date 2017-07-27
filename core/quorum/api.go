@@ -155,6 +155,30 @@ func (api PublicQuorumAPI) RunPorosity(args PorosityArgs) (*PorosityResult, erro
 		b              []string
 	)
 	b = addArg(b, "code", args.Code)
+	if args.Arguments != "" {
+		b = addArg(b, "arguments", args.Arguments)
+	}
+	if args.Abi != "" {
+		b = addArg(b, "abi", args.Abi)
+	}
+	if args.Hash != "" {
+		b = addArg(b, "hash", args.Hash)
+	}
+	if args.List {
+		b = addArg(b, "list", "")
+	}
+	if args.Disassm {
+		b = addArg(b, "disassm", "")
+	}
+	if args.SingleStep {
+		b = addArg(b, "single-step", "")
+	}
+	if args.Cfg {
+		b = addArg(b, "cfg", "")
+	}
+	if args.CfgFull {
+		b = addArg(b, "cfg-full", "")
+	}
 	if args.Decompile {
 		b = addArg(b, "decompile", "")
 	}
