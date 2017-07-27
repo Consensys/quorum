@@ -578,28 +578,9 @@ func (s *PublicBlockChainAPI) GetUncleCountByBlockHash(ctx context.Context, bloc
 }
 
 // GetQuorumPayload returns the contents of a private transaction
+// DEPRECATED in favor of quorum.GetPrivatePayload.
 func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error) {
-	if private.P == nil {
-		return "", fmt.Errorf("PrivateTransactionManager is not enabled")
-	}
-	if len(digestHex) < 3 {
-		return "", fmt.Errorf("Invalid digest hex")
-	}
-	if digestHex[:2] == "0x" {
-		digestHex = digestHex[2:]
-	}
-	b, err := hex.DecodeString(digestHex)
-	if err != nil {
-		return "", err
-	}
-	if len(b) != 64 {
-		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
-	}
-	data, err := private.P.Receive(b)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("0x%x", data), nil
+	return private.GetPayload(digestHex)
 }
 
 // GetCode returns the code stored at the given address in the state for the given block number.

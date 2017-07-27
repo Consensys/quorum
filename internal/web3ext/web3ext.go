@@ -721,6 +721,20 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'resumeBlockMaker',
 			call: 'quorum_resumeBlockMaker'
+		}),
+		new web3._extend.Method({
+			name: 'getPrivatePayload',
+			params: 1,
+			call: 'quorum_getPrivatePayload'
+		}),
+		new web3._extend.Method({
+			name: 'runPorosity',
+			params: 1,
+			call: 'quorum_runPorosity',
+			outputFormatter: function(pr) {
+                                console.log(pr.Output);
+                                return pr.Vulnerable;
+                        }
 		})
 	],
 	properties:
