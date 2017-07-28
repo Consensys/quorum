@@ -11,7 +11,7 @@ Key enhancements over go-ethereum:
     * __QuorumChain__ - a new smart-contract based, majority voting consensus model
     * __Raft-based Consensus__ - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
 * __Peer Permissioning__ - node/peer permissioning using smart contracts, ensuring only known parties can join the network
-* __Higher Perfomance__ - Quorum offers significantly higher performance than public geth
+* __Higher Performance__ - Quorum offers significantly higher performance than public geth
 
 
 ## Architecture
