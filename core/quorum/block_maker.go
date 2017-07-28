@@ -74,7 +74,7 @@ func (ps *pendingState) applyTransactions(txs *types.TransactionsByPriorityAndNo
 			break
 		}
 		// Error may be ignored here. The error has already been checked
-		// during transaction acceptance is the transaction pool.
+		// during transaction acceptance in the transaction pool.
 		from, _ := tx.From()
 
 		// Start executing the transaction

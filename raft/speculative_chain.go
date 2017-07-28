@@ -77,7 +77,7 @@ func (chain *speculativeChain) accept(acceptedBlock *types.Block) {
 // Remove all blocks in the chain from the specified one until the end
 func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *types.Block) {
 
-	// check our "guard" to see if this is a (descendant) block we're
+	// check our "guard" to see if this is a (descendant) block we
 	// expected to be ruled invalid. if we find it, remove from the guard
 	if chain.expectedInvalidBlockHashes.Has(invalidHash) {
 		glog.V(logger.Warn).Infof("Removing expected-invalid block %x from guard.\n", invalidHash)
@@ -102,7 +102,7 @@ func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *ty
 
 		glog.V(logger.Info).Infof("Popped block %x from queue RHS.\n", currBlock.Hash())
 
-		// Maintain invariant: the parent always points the last speculative block or the head of the blockchain
+		// Maintain invariant: the parent always points to the last speculative block or the head of the blockchain
 		// if there are not speculative blocks.
 		if speculativeParentI := chain.unappliedBlocks.Last(); nil != speculativeParentI {
 			chain.head = speculativeParentI.(*types.Block)
@@ -138,7 +138,7 @@ func (chain *speculativeChain) recordProposedTransactions(txes types.Transaction
 // Removes txes in block from our "blacklist" of "proposed tx" hashes. When we
 // create a new block and use txes from the tx pool, we ignore those that we
 // have already used ("proposed"), but that haven't yet officially made it into
-// the chain yet.
+// the chain.
 //
 // It's important to remove hashes from this blacklist (once we know we don't
 // need them in there anymore) so that it doesn't grow endlessly.

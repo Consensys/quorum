@@ -53,7 +53,7 @@ null
   voteAccount: "0x7bd175a388c7a5f33fb81bbb3b7e97cbfabb3600"
 }
 
-$ quorum.resumeBlockMaker instructs the node stop begin creating blocks again when its paused.
+$ quorum.resumeBlockMaker instructs the node to begin creating blocks again when its paused.
 > quorum.resumeBlockMaker()
 null
 > quorum.nodeInfo
