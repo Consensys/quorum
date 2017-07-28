@@ -89,8 +89,10 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.VoteBlockMakerAccountFlag,
 			utils.VoteBlockMakerAccountPasswordFlag,
 			utils.SingleBlockMakerFlag,
-			utils.VoteMinBlockTimeFlag,
-			utils.VoteMaxBlockTimeFlag,
+			utils.MinBlockTimeFlag,
+			utils.MaxBlockTimeFlag,
+			utils.MinVoteTimeFlag,
+			utils.MaxVoteTimeFlag,
 		},
 	},
 	{
