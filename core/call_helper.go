@@ -14,28 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-// privateTestMessage stubs transaction so that it can be flagged as private or not
-// TODO(joel): is there duplication between this and callmsg?
-type privateTestMessage struct {
-	*types.Message
-	private bool
-}
-
-// Must implement `Message`
-func (ptx privateTestMessage) From() common.Address { return ptx.Message.From() }
-func (ptx privateTestMessage) To() *common.Address  { return ptx.Message.To() }
-
-func (ptx privateTestMessage) GasPrice() *big.Int { return ptx.Message.GasPrice() }
-func (ptx privateTestMessage) Gas() *big.Int      { return ptx.Message.Gas() }
-func (ptx privateTestMessage) Value() *big.Int    { return ptx.Message.Value() }
-
-func (ptx privateTestMessage) Nonce() uint64    { return ptx.Message.Nonce() }
-func (ptx privateTestMessage) CheckNonce() bool { return ptx.Message.CheckNonce() }
-func (ptx privateTestMessage) Data() []byte     { return ptx.Message.Data() }
-
-// IsPrivate returns whether the transaction should be considered private.
-func (pmsg privateTestMessage) IsPrivate() bool { return pmsg.private }
-
 // callHelper makes it easier to do proper calls and use the state transition object.
 // It also manages the nonces of the caller and keeps private and public state, which
 // can be freely modified outside of the helper.
@@ -59,7 +37,6 @@ func (cg *callHelper) TxNonce(addr common.Address) uint64 {
 func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Address, input []byte) error {
 	var (
 		from = crypto.PubkeyToAddress(key.PublicKey)
-		pmsg = privateTestMessage{private: private}
 		err  error
 	)
 
@@ -79,18 +56,19 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	if err != nil {
 		return err
 	}
-	pmsg.Message = &msg
 
 	publicState, privateState := cg.PublicState, cg.PrivateState
 	if !private {
 		privateState = publicState
+	} else {
+		tx.SetPrivate()
 	}
 
 	// TODO(joel): can we just pass nil instead of bc?
 	bc, _ := NewBlockChain(cg.db, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{})
-	context := NewEVMContext(pmsg, &cg.header, bc, &from)
+	context := NewEVMContext(msg, &cg.header, bc, &from)
 	vmenv := vm.NewEVM(context, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})
-	_, _, _, err = ApplyMessage(vmenv, pmsg, cg.gp)
+	_, _, _, err = ApplyMessage(vmenv, msg, cg.gp)
 	if err != nil {
 		return err
 	}
