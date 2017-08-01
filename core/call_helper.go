@@ -12,15 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
-// privateTestTx stubs transaction so that it can be flagged as private or not
-type privateTestTx struct {
-	*types.Transaction
-	private bool
-}
-
-// IsPrivate returns whether the transaction should be considered privat.
-func (ptx *privateTestTx) IsPrivate() bool { return ptx.private }
-
 // callHelper makes it easier to do proper calls and use the state transition object.
 // It also manages the nonces of the caller and keeps private and public state, which
 // can be freely modified outside of the helper.
@@ -44,10 +35,9 @@ func (cg *callHelper) TxNonce(addr common.Address) uint64 {
 func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Address, input []byte) error {
 	var (
 		from = crypto.PubkeyToAddress(key.PublicKey)
-		ptx  = privateTestTx{private: private}
 		err  error
 	)
-	ptx.Transaction, err = types.NewTransaction(cg.TxNonce(from), to, new(big.Int), big.NewInt(1000000), new(big.Int), input).SignECDSA(key)
+	tx, err := types.NewTransaction(cg.TxNonce(from), to, new(big.Int), big.NewInt(1000000), new(big.Int), input).SignECDSA(key)
 	if err != nil {
 		return err
 	}
@@ -56,10 +46,12 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	publicState, privateState := cg.PublicState, cg.PrivateState
 	if !private {
 		privateState = publicState
+	} else {
+		tx.SetPrivate()
 	}
 
 	cg.header.Number = new(big.Int)
-	_, _, err = ApplyMessage(NewEnv(publicState, privateState, &ChainConfig{}, nil, ptx.Transaction, &cg.header, vm.Config{}), ptx, cg.gp)
+	_, _, err = ApplyMessage(NewEnv(publicState, privateState, &ChainConfig{}, nil, tx, &cg.header, vm.Config{}), tx, cg.gp)
 	if err != nil {
 		return err
 	}

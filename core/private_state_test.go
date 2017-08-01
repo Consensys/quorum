@@ -1,12 +1,21 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
+	"html/template"
+	"io/ioutil"
 	"math/big"
+	"os"
+	osExec "os/exec"
+	"path"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/constellation"
 )
 
 func ExampleMakeCallHelper() {
@@ -43,6 +52,60 @@ func ExampleMakeCallHelper() {
 	fmt.Println("Public:", helper.PublicState.GetState(pubContractAddr, common.Hash{}).Big())
 }
 
+var constellationCfgTemplate = template.Must(template.New("t").Parse(`
+	url = "http://127.0.0.1:9000/"
+	port = 9000
+	socketPath = "{{.RootDir}}/qdata/tm1.ipc"
+	otherNodeUrls = []
+	publicKeyPath = "{{.RootDir}}/keys/tm1.pub"
+	privateKeyPath = "{{.RootDir}}/keys/tm1.key"
+	archivalPublicKeyPath = "{{.RootDir}}/keys/tm1a.pub"
+	archivalPrivateKeyPath = "{{.RootDir}}/keys/tm1a.key"
+	storagePath = "{{.RootDir}}/qdata/constellation1"
+`))
+
+func runConstellation() (*osExec.Cmd, error) {
+	dir, err := ioutil.TempDir("", "TestPrivateTxConstellationData")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(dir)
+	here, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	if err = os.MkdirAll(path.Join(dir, "qdata"), 0755); err != nil {
+		return nil, err
+	}
+	if err = os.Symlink(path.Join(here, "constellation-test-keys"), path.Join(dir, "keys")); err != nil {
+		return nil, err
+	}
+	cfgFile, err := os.Create(path.Join(dir, "constellation.cfg"))
+	if err != nil {
+		return nil, err
+	}
+	err = constellationCfgTemplate.Execute(cfgFile, map[string]string{"RootDir": dir})
+	if err != nil {
+		return nil, err
+	}
+	constellationCmd := osExec.Command("constellation-node", cfgFile.Name())
+	var stdout, stderr bytes.Buffer
+	constellationCmd.Stdout = &stdout
+	constellationCmd.Stderr = &stderr
+	var constellationErr error
+	go func() {
+		constellationErr = constellationCmd.Start()
+	}()
+	// Give the constellation subprocess some time to start.
+	time.Sleep(1 * time.Second)
+	if constellationErr != nil {
+		fmt.Println(stdout.String() + stderr.String())
+		return nil, constellationErr
+	}
+	private.P = constellation.MustNew(cfgFile.Name())
+	return constellationCmd, nil
+}
+
 func TestPrivateTransaction(t *testing.T) {
 	var (
 		key, _       = crypto.GenerateKey()
@@ -50,6 +113,12 @@ func TestPrivateTransaction(t *testing.T) {
 		privateState = helper.PrivateState
 		publicState  = helper.PublicState
 	)
+
+	constellationCmd, err := runConstellation()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer constellationCmd.Process.Kill()
 
 	prvContractAddr := common.Address{1}
 	pubContractAddr := common.Address{2}
@@ -59,7 +128,7 @@ func TestPrivateTransaction(t *testing.T) {
 	publicState.SetState(pubContractAddr, common.Hash{}, common.Hash{19})
 
 	// Private transaction 1
-	err := helper.MakeCall(true, key, prvContractAddr, nil)
+	err = helper.MakeCall(true, key, prvContractAddr, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
