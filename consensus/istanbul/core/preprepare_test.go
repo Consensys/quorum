@@ -39,6 +39,7 @@ func TestHandlePreprepare(t *testing.T) {
 		system          *testSystem
 		expectedRequest istanbul.Proposal
 		expectedErr     error
+		existingBlock   bool
 	}{
 		{
 			// normal case
@@ -56,6 +57,7 @@ func TestHandlePreprepare(t *testing.T) {
 			}(),
 			newTestProposal(),
 			nil,
+			false,
 		},
 		{
 			// future message
@@ -84,6 +86,7 @@ func TestHandlePreprepare(t *testing.T) {
 			}(),
 			makeBlock(1),
 			errFutureMessage,
+			false,
 		},
 		{
 			// non-proposer
@@ -105,9 +108,10 @@ func TestHandlePreprepare(t *testing.T) {
 			}(),
 			makeBlock(1),
 			errNotFromProposer,
+			false,
 		},
 		{
-			// ErrInvalidMessage
+			// errOldMessage
 			func() *testSystem {
 				sys := NewTestSystemWithBackend(N, F)
 
@@ -124,6 +128,7 @@ func TestHandlePreprepare(t *testing.T) {
 			}(),
 			makeBlock(1),
 			errOldMessage,
+			false,
 		},
 	}
 
@@ -167,7 +172,7 @@ OUTER:
 				t.Errorf("state mismatch: have %v, want %v", c.state, StatePreprepared)
 			}
 
-			if !reflect.DeepEqual(c.current.Subject().View, curView) {
+			if !test.existingBlock && !reflect.DeepEqual(c.current.Subject().View, curView) {
 				t.Errorf("view mismatch: have %v, want %v", c.current.Subject().View, curView)
 			}
 
@@ -178,16 +183,115 @@ OUTER:
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
 
-			if decodedMsg.Code != msgPrepare {
-				t.Errorf("message code mismatch: have %v, want %v", decodedMsg.Code, msgPrepare)
+			expectedCode := msgPrepare
+			if test.existingBlock {
+				expectedCode = msgCommit
 			}
+			if decodedMsg.Code != expectedCode {
+				t.Errorf("message code mismatch: have %v, want %v", decodedMsg.Code, expectedCode)
+			}
+
 			var subject *istanbul.Subject
 			err = decodedMsg.Decode(&subject)
 			if err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
-			if !reflect.DeepEqual(subject, c.current.Subject()) {
+			if !test.existingBlock && !reflect.DeepEqual(subject, c.current.Subject()) {
 				t.Errorf("subject mismatch: have %v, want %v", subject, c.current.Subject())
+			}
+
+		}
+	}
+}
+
+func TestHandlePreprepareWithLock(t *testing.T) {
+	N := uint64(4) // replica 0 is the proposer, it will send messages to others
+	F := uint64(1) // F does not affect tests
+	proposal := newTestProposal()
+	mismatchProposal := makeBlock(10)
+	newSystem := func() *testSystem {
+		sys := NewTestSystemWithBackend(N, F)
+
+		for i, backend := range sys.backends {
+			c := backend.engine.(*core)
+			c.valSet = backend.peers
+			if i != 0 {
+				c.state = StateAcceptRequest
+			}
+			c.roundChangeSet = newRoundChangeSet(c.valSet)
+		}
+		return sys
+	}
+
+	testCases := []struct {
+		system       *testSystem
+		proposal     istanbul.Proposal
+		lockProposal istanbul.Proposal
+	}{
+		{
+			newSystem(),
+			proposal,
+			proposal,
+		},
+		{
+			newSystem(),
+			proposal,
+			mismatchProposal,
+		},
+	}
+
+	for _, test := range testCases {
+		test.system.Run(false)
+		v0 := test.system.backends[0]
+		r0 := v0.engine.(*core)
+		curView := r0.currentView()
+		preprepare := &istanbul.Preprepare{
+			View:     curView,
+			Proposal: test.proposal,
+		}
+		lockPreprepare := &istanbul.Preprepare{
+			View:     curView,
+			Proposal: test.lockProposal,
+		}
+
+		for i, v := range test.system.backends {
+			// i == 0 is primary backend, it is responsible for send PRE-PREPARE messages to others.
+			if i == 0 {
+				continue
+			}
+
+			c := v.engine.(*core)
+			c.current.SetPreprepare(lockPreprepare)
+			c.current.LockHash()
+			m, _ := Encode(preprepare)
+			_, val := r0.valSet.GetByAddress(v0.Address())
+			if err := c.handlePreprepare(&message{
+				Code:    msgPreprepare,
+				Msg:     m,
+				Address: v0.Address(),
+			}, val); err != nil {
+				t.Errorf("error mismatch: have %v, want nil", err)
+			}
+			if test.proposal == test.lockProposal {
+				if c.state != StatePreprepared {
+					t.Errorf("state mismatch: have %v, want %v", c.state, StatePreprepared)
+				}
+				if !reflect.DeepEqual(curView, c.currentView()) {
+					t.Errorf("view mismatch: have %v, want %v", c.currentView(), curView)
+				}
+			} else {
+				// Should stay at StateAcceptRequest
+				if c.state != StateAcceptRequest {
+					t.Errorf("state mismatch: have %v, want %v", c.state, StateAcceptRequest)
+				}
+				// Should have triggered a round change
+				expectedView := &istanbul.View{
+					Sequence: curView.Sequence,
+					Round:    big.NewInt(1),
+				}
+				if !reflect.DeepEqual(expectedView, c.currentView()) {
+					t.Errorf("view mismatch: have %v, want %v", c.currentView(), expectedView)
+				}
 			}
 		}
 	}

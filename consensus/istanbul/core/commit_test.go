@@ -178,6 +178,9 @@ OUTER:
 				if err != test.expectedErr {
 					t.Errorf("error mismatch: have %v, want %v", err, test.expectedErr)
 				}
+				if r0.current.IsHashLocked() {
+					t.Errorf("block should not be locked")
+				}
 				continue OUTER
 			}
 		}
@@ -191,7 +194,9 @@ OUTER:
 			if r0.current.Commits.Size() > 2*r0.valSet.F() {
 				t.Errorf("the size of commit messages should be less than %v", 2*r0.valSet.F()+1)
 			}
-
+			if r0.current.IsHashLocked() {
+				t.Errorf("block should not be locked")
+			}
 			continue
 		}
 
@@ -213,6 +218,9 @@ OUTER:
 		}
 		if signedCount <= 2*r0.valSet.F() {
 			t.Errorf("the expected signed count should be larger than %v, but got %v", 2*r0.valSet.F(), signedCount)
+		}
+		if !r0.current.IsHashLocked() {
+			t.Errorf("block should be locked")
 		}
 	}
 }

@@ -49,15 +49,18 @@ func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
 		return err
 	}
 
+	// If it is locked, it can only process on the locked block.
+	// Passing verifyPrepare and checkMessage implies it is processing on the locked block since it was verified in the Preprepared state.
 	if err := c.verifyPrepare(prepare, src); err != nil {
 		return err
 	}
 
 	c.acceptPrepare(msg, src)
 
-	// Change to Prepared state if we've received enough PREPARE messages
-	// and we are in earlier state before Prepared state
-	if c.current.Prepares.Size() > 2*c.valSet.F() && c.state.Cmp(StatePrepared) < 0 {
+	// Change to Prepared state if we've received enough PREPARE messages or it is locked
+	// and we are in earlier state before Prepared state.
+	if (c.current.IsHashLocked() || c.current.Prepares.Size() > 2*c.valSet.F()) && c.state.Cmp(StatePrepared) < 0 {
+		c.current.LockHash()
 		c.setState(StatePrepared)
 		c.sendCommit()
 	}

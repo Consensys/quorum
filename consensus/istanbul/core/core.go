@@ -25,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	metrics "github.com/ethereum/go-ethereum/metrics"
@@ -171,6 +172,7 @@ func (c *core) commit() {
 		}
 
 		if err := c.backend.Commit(proposal, committedSeals); err != nil {
+			c.current.UnlockHash() //Unlock block when insertion fails
 			c.sendNextRoundChange()
 			return
 		}
@@ -203,18 +205,20 @@ func (c *core) startNewRound(newView *istanbul.View, lastProposal istanbul.Propo
 	// Clear invalid ROUND CHANGE messages
 	c.roundChangeSet = newRoundChangeSet(c.valSet)
 	// New snapshot for new round
-	if c.current != nil {
-		c.current = newRoundState(newView, c.valSet, c.current.pendingRequest)
-	} else {
-		c.current = newRoundState(newView, c.valSet, nil)
-	}
-
+	c.updateRoundState(newView, c.valSet, roundChange)
 	// Calculate new proposer
 	c.valSet.CalcProposer(c.lastProposer, newView.Round.Uint64())
 	c.waitingForRoundChange = false
 	c.setState(StateAcceptRequest)
 	if roundChange && c.isProposer() && c.current != nil {
-		if c.current.pendingRequest != nil {
+		// If it is locked, propose the old proposal
+		// If we have pending request, propose pending request
+		if c.current.IsHashLocked() {
+			r := &istanbul.Request{
+				Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
+			}
+			c.sendPreprepare(r)
+		} else if c.current.pendingRequest != nil {
 			c.sendPreprepare(c.current.pendingRequest)
 		}
 	}
@@ -230,11 +234,27 @@ func (c *core) catchUpRound(view *istanbul.View) {
 		c.roundMeter.Mark(new(big.Int).Sub(view.Round, c.current.Round()).Int64())
 	}
 	c.waitingForRoundChange = true
-	c.current = newRoundState(view, c.valSet)
+
+	// Need to keep block locked for round catching up
+	c.updateRoundState(view, c.valSet, true)
 	c.roundChangeSet.Clear(view.Round)
 	c.newRoundChangeTimer()
 
 	logger.Trace("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.valSet)
+}
+
+// updateRoundState updates round state by checking if locking block is necessary
+func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
+	// Lock only if both roundChange is true and it is locked
+	if roundChange && c.current != nil {
+		if c.current.IsHashLocked() {
+			c.current = newRoundState(view, validatorSet, c.current.GetLockedHash(), c.current.Preprepare, c.current.pendingRequest)
+		} else {
+			c.current = newRoundState(view, validatorSet, common.Hash{}, nil, c.current.pendingRequest)
+		}
+	} else {
+		c.current = newRoundState(view, validatorSet, common.Hash{}, nil, nil)
+	}
 }
 
 func (c *core) setState(state State) {

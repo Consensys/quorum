@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -35,7 +36,7 @@ func TestCheckRequestMsg(t *testing.T) {
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),
-		}, newTestValidatorSet(4), nil),
+		}, newTestValidatorSet(4), common.Hash{}, nil, nil),
 	}
 
 	// invalid request
@@ -90,7 +91,7 @@ func TestStoreRequestMsg(t *testing.T) {
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(0),
 			Round:    big.NewInt(0),
-		}, newTestValidatorSet(4), nil),
+		}, newTestValidatorSet(4), common.Hash{}, nil, nil),
 		pendingRequests:   prque.New(),
 		pendingRequestsMu: new(sync.Mutex),
 	}

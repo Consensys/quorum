@@ -86,9 +86,17 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 
 	// Here is about to accept the PRE-PREPARE
 	if c.state == StateAcceptRequest {
-		c.acceptPreprepare(preprepare)
-		c.setState(StatePreprepared)
-		c.sendPrepare()
+		// Send ROUND CHANGE if the locked proposal and the received proposal are different
+		if c.current.IsHashLocked() && preprepare.Proposal.Hash() != c.current.GetLockedHash() {
+			c.sendNextRoundChange()
+		} else {
+			// Either
+			//   1. the locked proposal and the received proposal match
+			//   2. we have no locked proposal
+			c.acceptPreprepare(preprepare)
+			c.setState(StatePreprepared)
+			c.sendPrepare()
+		}
 	}
 
 	return nil

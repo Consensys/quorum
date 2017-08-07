@@ -37,7 +37,7 @@ func TestCheckMessage(t *testing.T) {
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),
-		}, newTestValidatorSet(4), nil),
+		}, newTestValidatorSet(4), common.Hash{}, nil, nil),
 	}
 
 	// invalid view format
@@ -209,7 +209,7 @@ func TestProcessFutureBacklog(t *testing.T) {
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),
-		}, newTestValidatorSet(4), nil),
+		}, newTestValidatorSet(4), common.Hash{}, nil, nil),
 		state: StateAcceptRequest,
 	}
 	c.subscribeEvents()
@@ -297,7 +297,7 @@ func testProcessBacklog(t *testing.T, msg *message) {
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),
-		}, newTestValidatorSet(4), nil),
+		}, newTestValidatorSet(4), common.Hash{}, nil, nil),
 	}
 	c.subscribeEvents()
 	defer c.unsubscribeEvents()

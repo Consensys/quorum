@@ -21,18 +21,22 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-func newRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, pendingRequest *istanbul.Request) *roundState {
+// newRoundState creates a new roundState instance with the given view and validatorSet
+// lockedHash and preprepare are for round change when lock exists,
+// we need to keep a reference of preprepare in order to propose locked proposal when there is a lock and itself is the proposer
+func newRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, lockedHash common.Hash, preprepare *istanbul.Preprepare, pendingRequest *istanbul.Request) *roundState {
 	return &roundState{
 		round:          view.Round,
 		sequence:       view.Sequence,
-		Preprepare:     nil,
+		Preprepare:     preprepare,
 		Prepares:       newMessageSet(validatorSet),
 		Commits:        newMessageSet(validatorSet),
-		Checkpoints:    newMessageSet(validatorSet),
+		lockedHash:     lockedHash,
 		mu:             new(sync.RWMutex),
 		pendingRequest: pendingRequest,
 	}
@@ -45,7 +49,7 @@ type roundState struct {
 	Preprepare     *istanbul.Preprepare
 	Prepares       *messageSet
 	Commits        *messageSet
-	Checkpoints    *messageSet
+	lockedHash     common.Hash
 	pendingRequest *istanbul.Request
 
 	mu *sync.RWMutex
@@ -114,6 +118,36 @@ func (s *roundState) Sequence() *big.Int {
 	return s.sequence
 }
 
+func (s *roundState) LockHash() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.Preprepare != nil {
+		s.lockedHash = s.Preprepare.Proposal.Hash()
+	}
+}
+
+func (s *roundState) UnlockHash() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.lockedHash = common.Hash{}
+}
+
+func (s *roundState) IsHashLocked() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.lockedHash != common.Hash{}
+}
+
+func (s *roundState) GetLockedHash() common.Hash {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.lockedHash
+}
+
 // The DecodeRLP method should read one value from the given
 // Stream. It is not forbidden to read less or more, but it might
 // be confusing.
@@ -124,7 +158,7 @@ func (s *roundState) DecodeRLP(stream *rlp.Stream) error {
 		Preprepare     *istanbul.Preprepare
 		Prepares       *messageSet
 		Commits        *messageSet
-		Checkpoints    *messageSet
+		lockedHash     common.Hash
 		pendingRequest *istanbul.Request
 	}
 
@@ -136,7 +170,7 @@ func (s *roundState) DecodeRLP(stream *rlp.Stream) error {
 	s.Preprepare = ss.Preprepare
 	s.Prepares = ss.Prepares
 	s.Commits = ss.Commits
-	s.Checkpoints = ss.Checkpoints
+	s.lockedHash = ss.lockedHash
 	s.pendingRequest = ss.pendingRequest
 	s.mu = new(sync.RWMutex)
 
@@ -161,7 +195,7 @@ func (s *roundState) EncodeRLP(w io.Writer) error {
 		s.Preprepare,
 		s.Prepares,
 		s.Commits,
-		s.Checkpoints,
+		s.lockedHash,
 		s.pendingRequest,
 	})
 }
