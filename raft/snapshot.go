@@ -112,7 +112,8 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 
 	prevConfState := pm.confState
 
-	// Update tombstones
+	// Update tombstones for permanently removed peers. For simplicity we do not
+	// allow the re-use of peer IDs once a peer is removed.
 
 	removedPeers := set.New()
 	for _, removedRaftId := range removedRaftIds {

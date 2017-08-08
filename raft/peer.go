@@ -32,8 +32,8 @@ func newAddress(raftId uint16, node *discover.Node) *Address {
 
 // A peer that we're connected to via both raft's http transport, and ethereum p2p
 type Peer struct {
-	address *Address
-	p2pNode *discover.Node
+	address *Address       // For raft transport
+	p2pNode *discover.Node // For ethereum transport
 }
 
 func (addr *Address) EncodeRLP(w io.Writer) error {
