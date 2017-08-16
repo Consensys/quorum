@@ -659,7 +659,7 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 
 		log.Info("Non-extending block", "block", block.Hash(), "parent", block.ParentHash(), "head", headBlock.Hash())
 
-		pm.eventMux.Post(InvalidRaftOrdering{headBlock: headBlock, invalidBlock: block})
+		pm.minter.invalidRaftOrderingChan <- InvalidRaftOrdering{headBlock: headBlock, invalidBlock: block}
 	} else {
 		if existingBlock := pm.blockchain.GetBlockByHash(block.Hash()); nil == existingBlock {
 			if err := pm.blockchain.Validator().ValidateBody(block); err != nil {

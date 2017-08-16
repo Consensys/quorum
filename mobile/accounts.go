@@ -120,7 +120,7 @@ func (ks *KeyStore) SignTx(account *Account, tx *Transaction, chainID *BigInt) (
 	if chainID == nil { // Null passed from mobile app
 		chainID = new(BigInt)
 	}
-	signed, err := ks.keystore.SignTx(account.account, tx.tx, chainID.bigint)
+	signed, err := ks.keystore.SignTx(account.account, tx.tx, chainID.bigint, false)
 	if err != nil {
 		return nil, err
 	}

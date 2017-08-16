@@ -1,32 +1,5 @@
 # Hacking on Quorum / various notes
 
-## Testing with Constellation
-
-### `tm.conf`
-
-Replace with appropriate absolute paths:
-
-TODO(joel): figure out how to use relative paths
-
-```
-url = "http://127.0.0.1:9000/"
-port = 9000
-socket = "/Users/joel/go/src/github.com/ethereum/go-ethereum/qdata/tm.ipc"
-othernodes = []
-storage = "/Users/joel/go/src/github.com/ethereum/go-ethereum/qdata/constellation"
-publickeys = ["/Users/joel/go/src/github.com/ethereum/go-ethereum/qdata/test.pub"]
-privatekeys = ["/Users/joel/go/src/github.com/ethereum/go-ethereum/qdata/test.key"]
-```
-
-Run constellation:
-
-```
-> mkdir qdata
-> constellation-node tm.conf
-```
-
-Now you should be able to run the private state tests as well: `env PRIVATE_CONFIG=(pwd)/tm.conf go test ./...`.
-
 ## How does private state work?
 
 Let's look at the EVM structure:

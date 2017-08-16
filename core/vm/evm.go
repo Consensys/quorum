@@ -26,6 +26,17 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+// note: Quorum, States, and Value Transfer
+//
+// In Quorum there is a tricky issue in one specific case when there is call from private state to public state:
+// * The state db is selected based on the callee (public)
+// * With every call there is an associated value transfer -- in our case this is 0
+// * Thus, there is an implicit transfer of 0 value from the caller to callee on the public state
+// * However in our scenario the caller is private
+// * Thus, the transfer creates a ghost of the private account on the public state with no value, code, or storage
+//
+// The solution is to skip this transfer of 0 value under Quorum
+
 type (
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
 	TransferFunc    func(StateDB, common.Address, common.Address, *big.Int)
@@ -110,8 +121,10 @@ type EVM struct {
 	privateState      PrivateState
 	states            [1027]*state.StateDB // TODO(joel) we should be able to get away with 1024 or maybe 1025
 	currentStateDepth uint
-	readOnly          bool
-	readOnlyDepth     uint
+	// This flag has different semantics from the `Interpreter:readOnly` flag (though they interact and could maybe
+	// be simplified). This is set by Quorum when it's inside a Private State -> Public State read.
+	quorumReadOnly bool
+	readOnlyDepth  uint
 }
 
 // NewEVM retutrns a new EVM . The returned EVM is not thread safe and should
@@ -161,33 +174,32 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		return nil, gas, ErrInsufficientBalance
 	}
 
-	// TODO(joel) there's still some work to untangle this
-	var createAccount bool
-	if addr == (common.Address{}) {
-		addr = createAddressAndIncrementNonce(evm, caller)
-		createAccount = true
-	}
-
 	var (
 		to       = AccountRef(addr)
 		snapshot = evm.StateDB.Snapshot()
 	)
-	if createAccount {
-		evm.StateDB.CreateAccount(addr)
-	} else {
-		if !evm.StateDB.Exist(addr) {
-			precompiles := PrecompiledContractsHomestead
-			if evm.ChainConfig().IsMetropolis(evm.BlockNumber) {
-				precompiles = PrecompiledContractsMetropolis
-			}
-			if precompiles[addr] == nil && evm.ChainConfig().IsEIP158(evm.BlockNumber) && value.Sign() == 0 {
-				return nil, gas, nil
-			}
-
-			evm.StateDB.CreateAccount(addr)
+	if !evm.StateDB.Exist(addr) {
+		precompiles := PrecompiledContractsHomestead
+		if evm.ChainConfig().IsMetropolis(evm.BlockNumber) {
+			precompiles = PrecompiledContractsMetropolis
 		}
+		if precompiles[addr] == nil && evm.ChainConfig().IsEIP158(evm.BlockNumber) && value.Sign() == 0 {
+			return nil, gas, nil
+		}
+
+		evm.StateDB.CreateAccount(addr)
 	}
-	evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+	if evm.ChainConfig().IsQuorum {
+		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
+		if value.Sign() != 0 {
+			if evm.quorumReadOnly {
+				return nil, gas, ErrReadOnlyValueTransfer
+			}
+			evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+		}
+	} else {
+		evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+	}
 
 	// initialise a new contract and set the code that is to be used by the
 	// E The contract is a scoped environment for this execution context
@@ -228,11 +240,10 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
-	if !evm.CanTransfer(caller.Address(), value) {
+	if !evm.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, gas, ErrInsufficientBalance
 	}
 
-	// TODO(joel) the old version did createAccount / createAddressAndIncrementNonce like Call, but I think unnecessary?
 	var (
 		snapshot = evm.StateDB.Snapshot()
 		to       = AccountRef(caller.Address())
@@ -344,18 +355,46 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
 	}
-	if !evm.CanTransfer(caller.Address(), value) {
+	if !evm.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
 
-	contractAddr = createAddressAndIncrementNonce(evm, caller)
+	// Get the right state in case of a dual state environment. If a sender
+	// is a transaction (depth == 0) use the public state to derive the address
+	// and increment the nonce of the public state. If the sender is a contract
+	// (depth > 0) use the private state to derive the nonce and increment the
+	// nonce on the private state only.
+	//
+	// If the transaction went to a public contract the private and public state
+	// are the same.
+	var creatorStateDb StateDB
+	if evm.Depth() > 0 {
+		creatorStateDb = evm.privateState
+	} else {
+		creatorStateDb = evm.publicState
+	}
+
+	// Create a new account on the state
+	nonce := creatorStateDb.GetNonce(caller.Address())
+	creatorStateDb.SetNonce(caller.Address(), nonce+1)
 
 	snapshot := evm.StateDB.Snapshot()
+	contractAddr = crypto.CreateAddress(caller.Address(), nonce)
 	evm.StateDB.CreateAccount(contractAddr)
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
 		evm.StateDB.SetNonce(contractAddr, 1)
 	}
-	evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value)
+	if evm.ChainConfig().IsQuorum {
+		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
+		if value.Sign() != 0 {
+			if evm.quorumReadOnly {
+				return nil, common.Address{}, gas, ErrReadOnlyValueTransfer
+			}
+			evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value)
+		}
+	} else {
+		evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value)
+	}
 
 	// initialise a new contract and set the code that is to be used by the
 	// E The contract is a scoped evmironment for this execution context
@@ -416,36 +455,11 @@ func getDualState(env *EVM, addr common.Address) StateDB {
 	return state
 }
 
-// createAddressAndIncrementNonce returns an address based on the caller address and nonce.
-//
-// It also gets the right state in case of a dual state environment. If a sender
-// is a transaction (depth == 0) use the public state to derive the address
-// and increment the nonce of the public state. If the sender is a contract
-// (depth > 0) use the private state to derive the nonce and increment the
-// nonce on the private state only.
-//
-// If the transaction went to a public contract the private and public state
-// are the same.
-func createAddressAndIncrementNonce(env *EVM, caller ContractRef) common.Address {
-	var db StateDB
-	// check for a dual state in case of quorum.
-	if env.Depth() > 0 {
-		db = env.privateState
-	} else {
-		db = env.publicState
-	}
-	// Increment the callers nonce on the state based on the current depth
-	nonce := db.GetNonce(caller.Address())
-	db.SetNonce(caller.Address(), nonce+1)
-
-	return crypto.CreateAddress(caller.Address(), nonce)
-}
-
 func (env *EVM) PublicState() PublicState   { return env.publicState }
 func (env *EVM) PrivateState() PrivateState { return env.privateState }
 func (env *EVM) Push(statedb StateDB) {
 	if env.privateState != statedb {
-		env.readOnly = true
+		env.quorumReadOnly = true
 		env.readOnlyDepth = env.currentStateDepth
 	}
 
@@ -458,17 +472,13 @@ func (env *EVM) Push(statedb StateDB) {
 }
 func (env *EVM) Pop() {
 	env.currentStateDepth--
-	if env.readOnly && env.currentStateDepth == env.readOnlyDepth {
-		env.readOnly = false
+	if env.quorumReadOnly && env.currentStateDepth == env.readOnlyDepth {
+		env.quorumReadOnly = false
 	}
 	env.StateDB = env.states[env.currentStateDepth-1]
 }
 
 func (env *EVM) Depth() int { return env.depth }
-
-func (self *EVM) CanTransfer(from common.Address, balance *big.Int) bool {
-	return self.StateDB.GetBalance(from).Cmp(balance) >= 0
-}
 
 // We only need to revert the current state because when we call from private
 // public state it's read only, there wouldn't be anything to reset.

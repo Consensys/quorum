@@ -77,7 +77,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 
 		receipt, privateReceipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, totalUsedGas, cfg)
 		if err != nil {
-			return nil, nil, nil, totalUsedGas, err // TODO(joel) s/totalUsedGas/nil ?
+			return nil, nil, nil, nil, err
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
@@ -100,7 +100,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
 func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *big.Int, cfg vm.Config) (*types.Receipt, *types.Receipt, *big.Int, error) {
-	if !tx.IsPrivate() {
+	if !config.IsQuorum || !tx.IsPrivate() {
 		privateState = statedb
 	}
 

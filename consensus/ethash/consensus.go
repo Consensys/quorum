@@ -30,7 +30,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	set "gopkg.in/fatih/set.v0"
 )
@@ -40,7 +39,7 @@ var (
 	blockReward *big.Int = big.NewInt(5e+18) // Block reward in wei for successfully mining a block
 	maxUncles            = 2                 // Maximum number of uncles allowed in a single block
 
-	nanosecond2017Timestamp = forceParseRfc3339("2017-01-01T00:00:00+00:00").UnixNano()
+	nanosecond2017Timestamp = mustParseRfc3339("2017-01-01T00:00:00+00:00").UnixNano()
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -60,7 +59,7 @@ var (
 	errInvalidPoW        = errors.New("invalid proof-of-work")
 )
 
-func forceParseRfc3339(str string) time.Time {
+func mustParseRfc3339(str string) time.Time {
 	time, err := time.Parse(time.RFC3339, str)
 	if err != nil {
 		panic("unexpected failure to parse rfc3339 timestamp: " + str)
@@ -505,13 +504,8 @@ func (ethash *Ethash) VerifySeal(chain consensus.ChainReader, header *types.Head
 		size = 32 * 1024
 	}
 	digest, result := hashimotoLight(size, cache, header.HashNoNonce().Bytes(), header.Nonce.Uint64())
-	if !bytes.Equal(header.MixDigest[:], digest) {
-		if isQuorum {
-			log.Info("invalid mix digest", "calculated", fmt.Sprintf("%x", digest), "in header", fmt.Sprintf("%x", header.MixDigest[:]))
-		} else {
-			return errInvalidMixDigest
-		}
-
+	if !isQuorum && !bytes.Equal(header.MixDigest[:], digest) {
+		return errInvalidMixDigest
 	}
 	target := new(big.Int).Div(maxUint256, header.Difficulty)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {

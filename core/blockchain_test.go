@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
@@ -856,7 +857,6 @@ func TestChainTxReorgs(t *testing.T) {
 	}
 }
 
-/*
 func TestLogReorgs(t *testing.T) {
 
 	var (
@@ -986,7 +986,6 @@ done:
 	}
 
 }
-*/
 
 // Tests if the canonical block can be fetched from the database during chain insertion.
 func TestCanonicalBlockRetrieval(t *testing.T) {

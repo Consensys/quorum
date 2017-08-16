@@ -58,6 +58,12 @@ type minter struct {
 	shouldMine       *channels.RingChannel
 	blockTime        time.Duration
 	speculativeChain *speculativeChain
+
+	invalidRaftOrderingChan chan InvalidRaftOrdering
+	chainHeadChan           chan core.ChainHeadEvent
+	chainHeadSub            event.Subscription
+	txPreChan               chan core.TxPreEvent
+	txPreSub                event.Subscription
 }
 
 func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration) *minter {
@@ -70,16 +76,18 @@ func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Dura
 		shouldMine:       channels.NewRingChannel(1),
 		blockTime:        blockTime,
 		speculativeChain: newSpeculativeChain(),
+
+		invalidRaftOrderingChan: make(chan InvalidRaftOrdering, 1),
+		chainHeadChan:           make(chan core.ChainHeadEvent, 1),
+		txPreChan:               make(chan core.TxPreEvent, 4096),
 	}
-	events := minter.mux.Subscribe(
-		core.ChainHeadEvent{},
-		core.TxPreEvent{},
-		InvalidRaftOrdering{},
-	)
+
+	minter.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(minter.chainHeadChan)
+	minter.txPreSub = eth.TxPool().SubscribeTxPreEvent(minter.txPreChan)
 
 	minter.speculativeChain.clear(minter.chain.CurrentBlock())
 
-	go minter.eventLoop(events.Chan())
+	go minter.eventLoop()
 	go minter.mintingLoop()
 
 	return minter
@@ -132,10 +140,13 @@ func (minter *minter) updateSpeculativeChainPerInvalidOrdering(headBlock *types.
 	minter.speculativeChain.unwindFrom(invalidHash, headBlock)
 }
 
-func (minter *minter) eventLoop(events <-chan *event.TypeMuxEvent) {
-	for event := range events {
-		switch ev := event.Data.(type) {
-		case core.ChainHeadEvent:
+func (minter *minter) eventLoop() {
+	defer minter.chainHeadSub.Unsubscribe()
+	defer minter.txPreSub.Unsubscribe()
+
+	for {
+		select {
+		case ev := <-minter.chainHeadChan:
 			newHeadBlock := ev.Block
 
 			if atomic.LoadInt32(&minter.minting) == 1 {
@@ -154,16 +165,22 @@ func (minter *minter) eventLoop(events <-chan *event.TypeMuxEvent) {
 				minter.mu.Unlock()
 			}
 
-		case core.TxPreEvent:
+		case <-minter.txPreChan:
 			if atomic.LoadInt32(&minter.minting) == 1 {
 				minter.requestMinting()
 			}
 
-		case InvalidRaftOrdering:
+		case ev := <-minter.invalidRaftOrderingChan:
 			headBlock := ev.headBlock
 			invalidBlock := ev.invalidBlock
 
 			minter.updateSpeculativeChainPerInvalidOrdering(headBlock, invalidBlock)
+
+		// system stopped
+		case <-minter.chainHeadSub.Err():
+			return
+		case <-minter.txPreSub.Err():
+			return
 		}
 	}
 }
@@ -333,7 +350,7 @@ func (minter *minter) mintNewBlock() {
 }
 
 func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts, types.Receipts, []*types.Log) {
-	var logs []*types.Log
+	var allLogs []*types.Log
 	var committedTxes types.Transactions
 	var publicReceipts types.Receipts
 	var privateReceipts types.Receipts
@@ -352,25 +369,25 @@ func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc 
 		publicReceipt, privateReceipt, err := env.commitTransaction(tx, bc, gp)
 		switch {
 		case err != nil:
-			log.Info("TX failed, will be removed", "hash", tx.Hash().Bytes()[:4], "err", err)
+			log.Info("TX failed, will be removed", "hash", tx.Hash(), "err", err)
 			txes.Pop() // skip rest of txes from this account
 		default:
 			txCount++
 			committedTxes = append(committedTxes, tx)
 
-			logs = append(logs, publicReceipt.Logs...)
 			publicReceipts = append(publicReceipts, publicReceipt)
+			allLogs = append(allLogs, publicReceipt.Logs...)
 
 			if privateReceipt != nil {
-				logs = append(logs, privateReceipt.Logs...)
 				privateReceipts = append(privateReceipts, privateReceipt)
+				allLogs = append(allLogs, privateReceipt.Logs...)
 			}
 
 			txes.Shift()
 		}
 	}
 
-	return committedTxes, publicReceipts, privateReceipts, logs
+	return committedTxes, publicReceipts, privateReceipts, allLogs
 }
 
 func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (*types.Receipt, *types.Receipt, error) {

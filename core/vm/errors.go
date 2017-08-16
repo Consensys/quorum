@@ -24,4 +24,6 @@ var (
 	ErrDepth               = errors.New("max call depth exceeded")
 	ErrTraceLimitReached   = errors.New("the number of logs reached the specified limit")
 	ErrInsufficientBalance = errors.New("insufficient balance for transfer")
+
+	ErrReadOnlyValueTransfer = errors.New("VM in read-only mode. Value transfer prohibited.")
 )
