@@ -146,6 +146,7 @@ The following Quorum-related libraries/applications have been created by Third P
 * [web3j-quorum](https://github.com/web3j/quorum) - an extension to the web3j Java library providing support for the Quorum API
 * [Nethereum Quorum](https://github.com/Nethereum/Nethereum/tree/master/src/Nethereum.Quorum) - a .net Quorum adapter 
 * [ERC20 REST service](https://github.com/blk-io/erc20-rest-service) - a Quorum-supported RESTful service for creating and managing ERC-20 tokens
+* [Quorum Maker][https://github.com/synechron-finlabs/quorum-maker/tree/development] - a utility to create Quorum nodes
 
 ## Contributing
 
