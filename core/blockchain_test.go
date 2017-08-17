@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
+	"time"
 )
 
 // newTestBlockChain creates a blockchain without validation.
@@ -856,7 +857,6 @@ func TestChainTxReorgs(t *testing.T) {
 	}
 }
 
-/*
 func TestLogReorgs(t *testing.T) {
 
 	var (
@@ -986,7 +986,6 @@ done:
 	}
 
 }
-*/
 
 // Tests if the canonical block can be fetched from the database during chain insertion.
 func TestCanonicalBlockRetrieval(t *testing.T) {
