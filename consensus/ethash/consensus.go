@@ -40,7 +40,7 @@ var (
 	blockReward *big.Int = big.NewInt(5e+18) // Block reward in wei for successfully mining a block
 	maxUncles            = 2                 // Maximum number of uncles allowed in a single block
 
-	nanosecond2017Timestamp = forceParseRfc3339("2017-01-01T00:00:00+00:00").UnixNano()
+	nanosecond2017Timestamp = mustParseRfc3339("2017-01-01T00:00:00+00:00").UnixNano()
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -60,7 +60,7 @@ var (
 	errInvalidPoW        = errors.New("invalid proof-of-work")
 )
 
-func forceParseRfc3339(str string) time.Time {
+func mustParseRfc3339(str string) time.Time {
 	time, err := time.Parse(time.RFC3339, str)
 	if err != nil {
 		panic("unexpected failure to parse rfc3339 timestamp: " + str)
