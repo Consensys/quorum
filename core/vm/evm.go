@@ -228,11 +228,10 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
-	if !evm.CanTransfer(caller.Address(), value) {
+	if !evm.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, gas, ErrInsufficientBalance
 	}
 
-	// TODO(joel) the old version did createAccount / createAddressAndIncrementNonce like Call, but I think unnecessary?
 	var (
 		snapshot = evm.StateDB.Snapshot()
 		to       = AccountRef(caller.Address())
@@ -344,7 +343,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
 	}
-	if !evm.CanTransfer(caller.Address(), value) {
+	if !evm.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
 
@@ -465,10 +464,6 @@ func (env *EVM) Pop() {
 }
 
 func (env *EVM) Depth() int { return env.depth }
-
-func (self *EVM) CanTransfer(from common.Address, balance *big.Int) bool {
-	return self.StateDB.GetBalance(from).Cmp(balance) >= 0
-}
 
 // We only need to revert the current state because when we call from private
 // public state it's read only, there wouldn't be anything to reset.
