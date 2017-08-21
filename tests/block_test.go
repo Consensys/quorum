@@ -38,9 +38,6 @@ func TestBlockchain(t *testing.T) {
 	// Still failing tests
 	bt.skipLoad(`^bcWalletTest.*_Byzantium$`)
 
-	// Skip invalid receipt root hash / invalid nonce quorum failures
-	bt.skipLoad(`(TransactionSendingToZero|wrongParentHash|wrongMixHash|wrongStateRoot|timestampTooHigh|timestampTooLow|nonceWrong|gasLimitTooLowExactBound|gasLimitTooLow|gasLimitTooHighExactBound|gasLimitTooHigh|diffTooLow2|diffTooLow|diffTooHigh|suicideCoinbase|InternlCallStoreClearsSucces|StoreClearsAndInternlCallStoreClearsOOG|failed_tx_xcf416c53|TransactionSendingToZero|SuicidesAndInternlCallSuicidesSuccess|SuicidesAndInternlCallSuicidesOOG|SuicidesAndInternlCallSuicidesBonusGasAtCallFailed|SuicidesAndInternlCallSuicidesBonusGasAtCall|StoreClearsAndInternlCallStoreClearsSuccess|CallContractToCreateContractOOG).json`)
-
 	bt.walk(t, blockTestDir, func(t *testing.T, name string, test *BlockTest) {
 		if err := bt.checkFailure(t, name, test.Run()); err != nil {
 			t.Error(err)
