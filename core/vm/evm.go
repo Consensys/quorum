@@ -161,31 +161,30 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		return nil, gas, ErrInsufficientBalance
 	}
 
-	// TODO(joel) there's still some work to untangle this
-	var createAccount bool
-	if addr == (common.Address{}) {
-		addr = createAddressAndIncrementNonce(evm, caller)
-		createAccount = true
-	}
-
 	var (
 		to       = AccountRef(addr)
 		snapshot = evm.StateDB.Snapshot()
 	)
-	if createAccount {
-		evm.StateDB.CreateAccount(addr)
-	} else {
-		if !evm.StateDB.Exist(addr) {
-			precompiles := PrecompiledContractsHomestead
-			if evm.ChainConfig().IsMetropolis(evm.BlockNumber) {
-				precompiles = PrecompiledContractsMetropolis
-			}
-			if precompiles[addr] == nil && evm.ChainConfig().IsEIP158(evm.BlockNumber) && value.Sign() == 0 {
-				return nil, gas, nil
-			}
-
-			evm.StateDB.CreateAccount(addr)
+	if !evm.StateDB.Exist(addr) {
+		precompiles := PrecompiledContractsHomestead
+		if evm.ChainConfig().IsMetropolis(evm.BlockNumber) {
+			precompiles = PrecompiledContractsMetropolis
 		}
+		if precompiles[addr] == nil && evm.ChainConfig().IsEIP158(evm.BlockNumber) && value.Sign() == 0 {
+			return nil, gas, nil
+		}
+
+		// TODO(joel): is this path exercised in practice?
+		if evm.chainConfig.IsQuorum && addr == (common.Address{}) {
+			db := getQuorumDb(evm)
+			// Increment the caller's nonce on the state based on the current depth
+			nonce := db.GetNonce(caller.Address())
+			db.SetNonce(caller.Address(), nonce+1)
+
+			addr = crypto.CreateAddress(caller.Address(), nonce)
+		}
+
+		evm.StateDB.CreateAccount(addr)
 	}
 	evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
 
@@ -347,9 +346,14 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
 
-	contractAddr = createAddressAndIncrementNonce(evm, caller)
+	quorumDb := getQuorumDb(evm)
+
+	// Create a new account on the state
+	nonce := quorumDb.GetNonce(caller.Address())
+	quorumDb.SetNonce(caller.Address(), nonce+1)
 
 	snapshot := evm.StateDB.Snapshot()
+	contractAddr = crypto.CreateAddress(caller.Address(), nonce)
 	evm.StateDB.CreateAccount(contractAddr)
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
 		evm.StateDB.SetNonce(contractAddr, 1)
@@ -415,9 +419,7 @@ func getDualState(env *EVM, addr common.Address) StateDB {
 	return state
 }
 
-// createAddressAndIncrementNonce returns an address based on the caller address and nonce.
-//
-// It also gets the right state in case of a dual state environment. If a sender
+// Get the right state in case of a dual state environment. If a sender
 // is a transaction (depth == 0) use the public state to derive the address
 // and increment the nonce of the public state. If the sender is a contract
 // (depth > 0) use the private state to derive the nonce and increment the
@@ -425,19 +427,12 @@ func getDualState(env *EVM, addr common.Address) StateDB {
 //
 // If the transaction went to a public contract the private and public state
 // are the same.
-func createAddressAndIncrementNonce(env *EVM, caller ContractRef) common.Address {
-	var db StateDB
-	// check for a dual state in case of quorum.
-	if env.Depth() > 0 {
-		db = env.privateState
+func getQuorumDb(evm *EVM) StateDB {
+	if evm.Depth() > 0 {
+		return evm.privateState
 	} else {
-		db = env.publicState
+		return evm.publicState
 	}
-	// Increment the callers nonce on the state based on the current depth
-	nonce := db.GetNonce(caller.Address())
-	db.SetNonce(caller.Address(), nonce+1)
-
-	return crypto.CreateAddress(caller.Address(), nonce)
 }
 
 func (env *EVM) PublicState() PublicState   { return env.publicState }
