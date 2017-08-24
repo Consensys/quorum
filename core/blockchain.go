@@ -118,8 +118,7 @@ type BlockChain struct {
 
 	badBlocks *lru.Cache // Bad block cache
 
-	privateStateCache state.Database   // Private state database to reuse between imports (contains state cache)
-	chainEvents       chan interface{} // Serialized chain insertion events
+	privateStateCache state.Database // Private state database to reuse between imports (contains state cache)
 }
 
 // NewBlockChain returns a fully initialised block chain using information
@@ -146,7 +145,6 @@ func NewBlockChain(chainDb ethdb.Database, config *params.ChainConfig, engine co
 		badBlocks:    badBlocks,
 
 		privateStateCache: state.NewDatabase(chainDb),
-		chainEvents:       make(chan interface{}, 20), // Buffered for async publishing
 	}
 	bc.SetValidator(NewBlockValidator(config, bc, engine))
 	bc.SetProcessor(NewStateProcessor(config, bc, engine))
@@ -1094,12 +1092,14 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		stats.report(chain, i)
 	}
 
+	// TODO(joel/bryan/quorum):
 	//
 	// This should remain *synchronous* so that we can control ordering of
 	// ChainHeadEvents. This is important for supporting low latency
 	// (non-Proof-of-Work) consensus mechanisms.
 	//
-	bc.PostChainEvents(events, coalescedLogs)
+	// We currently deadlock when running this synchronously. Fix.
+	go bc.PostChainEvents(events, coalescedLogs)
 
 	return 0, nil
 }

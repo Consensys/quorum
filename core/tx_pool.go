@@ -519,13 +519,11 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if !isQuorum && !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
 		return ErrUnderpriced
 	}
-
 	// Ensure the transaction adheres to nonce ordering
 	currentState, _, err := pool.blockChain.State()
 	if err != nil {
 		return err
 	}
-
 	if currentState.GetNonce(from) > tx.Nonce() {
 		return ErrNonceTooLow
 	}
