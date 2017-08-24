@@ -58,6 +58,12 @@ type minter struct {
 	shouldMine       *channels.RingChannel
 	blockTime        time.Duration
 	speculativeChain *speculativeChain
+
+	invalidRaftOrderingChan chan InvalidRaftOrdering
+	chainHeadChan           chan core.ChainHeadEvent
+	chainHeadSub            event.Subscription
+	txPreChan               chan core.TxPreEvent
+	txPreSub                event.Subscription
 }
 
 func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration) *minter {
@@ -70,16 +76,18 @@ func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Dura
 		shouldMine:       channels.NewRingChannel(1),
 		blockTime:        blockTime,
 		speculativeChain: newSpeculativeChain(),
+
+		invalidRaftOrderingChan: make(chan InvalidRaftOrdering, 1),
+		chainHeadChan:           make(chan core.ChainHeadEvent, 1),
+		txPreChan:               make(chan core.TxPreEvent, 4096),
 	}
-	events := minter.mux.Subscribe(
-		core.ChainHeadEvent{},
-		core.TxPreEvent{},
-		InvalidRaftOrdering{},
-	)
+
+	minter.chainHeadSub = eth.blockchain.SubscribeChainHeadEvent(minter.chainHeadChan)
+	minter.txPreSub = eth.txPool.SubscribeTxPreEvent(minter.txPreChan)
 
 	minter.speculativeChain.clear(minter.chain.CurrentBlock())
 
-	go minter.eventLoop(events.Chan())
+	go minter.eventLoop()
 	go minter.mintingLoop()
 
 	return minter
@@ -94,6 +102,8 @@ func (minter *minter) stop() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
 
+	minter.chainHeadSub.Unsubscribe()
+	minter.txPreSub.Unsubscribe()
 	minter.speculativeChain.clear(minter.chain.CurrentBlock())
 	atomic.StoreInt32(&minter.minting, 0)
 }
@@ -132,10 +142,10 @@ func (minter *minter) updateSpeculativeChainPerInvalidOrdering(headBlock *types.
 	minter.speculativeChain.unwindFrom(invalidHash, headBlock)
 }
 
-func (minter *minter) eventLoop(events <-chan *event.TypeMuxEvent) {
-	for event := range events {
-		switch ev := event.Data.(type) {
-		case core.ChainHeadEvent:
+func (minter *minter) eventLoop() {
+	for {
+		select {
+		case ev := <-minter.chainHeadChan:
 			newHeadBlock := ev.Block
 
 			if atomic.LoadInt32(&minter.minting) == 1 {
@@ -154,16 +164,22 @@ func (minter *minter) eventLoop(events <-chan *event.TypeMuxEvent) {
 				minter.mu.Unlock()
 			}
 
-		case core.TxPreEvent:
+		case <-minter.txPreChan:
 			if atomic.LoadInt32(&minter.minting) == 1 {
 				minter.requestMinting()
 			}
 
-		case InvalidRaftOrdering:
+		case ev := <-minter.invalidRaftOrderingChan:
 			headBlock := ev.headBlock
 			invalidBlock := ev.invalidBlock
 
 			minter.updateSpeculativeChainPerInvalidOrdering(headBlock, invalidBlock)
+
+		// system stopped
+		case <-minter.chainHeadSub.Err():
+			return
+		case <-minter.txPreSub.Err():
+			return
 		}
 	}
 }
