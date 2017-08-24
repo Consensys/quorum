@@ -102,6 +102,8 @@ func (minter *minter) stop() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
 
+	minter.chainHeadSub.Unsubscribe()
+	minter.txPreSub.Unsubscribe()
 	minter.speculativeChain.clear(minter.chain.CurrentBlock())
 	atomic.StoreInt32(&minter.minting, 0)
 }
