@@ -34,7 +34,7 @@ type RaftService struct {
 	minter   *minter
 }
 
-func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, raftId uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node, datadir string) (*RaftService, error) {
+func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, raftId uint16, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node, datadir string) (*RaftService, error) {
 	service := &RaftService{
 		eventMux:       ctx.EventMux,
 		chainDb:        e.ChainDb(),
@@ -48,7 +48,7 @@ func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, raftId uint16,
 	service.minter = newMinter(chainConfig, service, blockTime)
 
 	var err error
-	if service.raftProtocolManager, err = NewProtocolManager(raftId, service.blockchain, service.eventMux, startPeers, joinExisting, datadir, service.minter, service.downloader); err != nil {
+	if service.raftProtocolManager, err = NewProtocolManager(raftId, raftPort, service.blockchain, service.eventMux, startPeers, joinExisting, datadir, service.minter, service.downloader); err != nil {
 		return nil, err
 	}
 

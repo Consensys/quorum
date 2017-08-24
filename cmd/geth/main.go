@@ -160,6 +160,7 @@ participating.
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,
+		utils.RaftPortFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 

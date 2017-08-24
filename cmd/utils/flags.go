@@ -389,6 +389,11 @@ var (
 		Usage: "The raft ID to assume when joining an pre-existing cluster",
 		Value: 0,
 	}
+	RaftPortFlag = cli.IntFlag{
+		Name:  "raftport",
+		Usage: "The port to bind for the raft transport",
+		Value: 50400,
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -731,6 +736,7 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 		blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
 		datadir := ctx.GlobalString(DataDirFlag.Name)
 		joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
+		raftPort := uint16(ctx.GlobalInt(RaftPortFlag.Name))
 
 		logger.DoLogRaft = true
 
@@ -751,6 +757,10 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 				peerIds := make([]string, len(peers))
 
 				for peerIdx, peer := range peers {
+					if peer.RaftPort == 0 {
+						Fatalf("raftport querystring parameter not specified in static-node enode ID: %v. please check your static-nodes.json file.", peer.String())
+					}
+
 					peerId := peer.ID.String()
 					peerIds[peerIdx] = peerId
 					if peerId == strId {
@@ -763,7 +773,7 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 				}
 			}
 
-			return raft.New(ctx, chainConfig, myId, joinExisting, blockTimeNanos, ethereum, peers, datadir)
+			return raft.New(ctx, chainConfig, myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir)
 		}); err != nil {
 			Fatalf("Failed to register the Raft service: %v", err)
 		}

@@ -42,6 +42,7 @@ type ProtocolManager struct {
 	joinExisting   bool // Whether to join an existing cluster when a WAL doesn't already exist
 	bootstrapNodes []*discover.Node
 	raftId         uint16
+	raftPort       uint16
 
 	// Local peer state (protected by mu vs concurrent access via JS)
 	address       *Address
@@ -93,7 +94,7 @@ type ProtocolManager struct {
 // Public interface
 //
 
-func NewProtocolManager(raftId uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*discover.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
+func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*discover.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -113,6 +114,7 @@ func NewProtocolManager(raftId uint16, blockchain *core.BlockChain, mux *event.T
 		snapdir:             snapdir,
 		snapshotter:         snap.New(snapdir),
 		raftId:              raftId,
+		raftPort:            raftPort,
 		quitSync:            make(chan struct{}),
 		raftStorage:         etcdRaft.NewMemoryStorage(),
 		minter:              minter,
@@ -297,9 +299,13 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP))
 	}
 
-	raftId := pm.nextRaftId()
+	raftPort := node.RaftPort
+	if raftPort == 0 {
+		return 0, fmt.Errorf("enodeId is missing raftport querystring parameter: %v", enodeId)
+	}
 
-	address := newAddress(raftId, node)
+	raftId := pm.nextRaftId()
+	address := newAddress(raftId, raftPort, node)
 
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddNode,
@@ -493,7 +499,7 @@ func (pm *ProtocolManager) setLocalAddress(addr *Address) {
 }
 
 func (pm *ProtocolManager) serveRaft() {
-	urlString := fmt.Sprintf("http://0.0.0.0:%d", raftPort(pm.raftId))
+	urlString := fmt.Sprintf("http://0.0.0.0:%d", pm.raftPort)
 	url, err := url.Parse(urlString)
 	if err != nil {
 		glog.Fatalf("Failed parsing URL (%v)", err)
@@ -615,7 +621,7 @@ func (pm *ProtocolManager) entriesToApply(allEntries []raftpb.Entry) (entriesToA
 }
 
 func raftUrl(address *Address) string {
-	return fmt.Sprintf("http://%s:%d", address.ip, raftPort(address.raftId))
+	return fmt.Sprintf("http://%s:%d", address.ip, address.raftPort)
 }
 
 func (pm *ProtocolManager) addPeer(address *Address) {
@@ -802,10 +808,6 @@ func (pm *ProtocolManager) eventLoop() {
 	}
 }
 
-func raftPort(raftId uint16) uint16 {
-	return 50400 + raftId
-}
-
 func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, peerAddresses []*Address, localAddress *Address) {
 	initialNodes := pm.bootstrapNodes
 	raftPeers = make([]etcdRaft.Peer, len(initialNodes))  // Entire cluster
@@ -814,7 +816,10 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 	peersSeen := 0
 	for i, node := range initialNodes {
 		raftId := uint16(i + 1)
-		address := newAddress(raftId, node)
+		// We initially get the raftPort from the enode ID's query string. As an alternative, we can move away from
+		// requiring the use of static peers for the initial set, and load them from e.g. another JSON file which
+		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
+		address := newAddress(raftId, node.RaftPort, node)
 
 		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),

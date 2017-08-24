@@ -20,13 +20,13 @@ type Address struct {
 	raftPort uint16
 }
 
-func newAddress(raftId uint16, node *discover.Node) *Address {
+func newAddress(raftId uint16, raftPort uint16, node *discover.Node) *Address {
 	return &Address{
 		raftId:   raftId,
 		nodeId:   node.ID,
 		ip:       node.IP,
 		p2pPort:  node.TCP,
-		raftPort: raftPort(raftId),
+		raftPort: raftPort,
 	}
 }
 
