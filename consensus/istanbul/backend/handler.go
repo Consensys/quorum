@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -58,6 +59,25 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		if err := msg.Decode(&data); err != nil {
 			return true, errDecodeFailed
 		}
+
+		hash := istanbul.RLPHash(data)
+
+		// Mark peer's message
+		ms, ok := sb.recentMessages.Get(addr)
+		var m *lru.ARCCache
+		if ok {
+			m, _ = ms.(*lru.ARCCache)
+		} else {
+			m, _ = lru.NewARC(inmemoryMessages)
+			sb.recentMessages.Add(addr, m)
+		}
+		m.Add(hash, true)
+
+		// Mark self known message
+		if _, ok := sb.knownMessages.Get(hash); ok {
+			return true, nil
+		}
+		sb.knownMessages.Add(hash, true)
 
 		go sb.istanbulEventMux.Post(istanbul.MessageEvent{
 			Payload: data,

@@ -87,6 +87,11 @@ func (self *testSystemBackend) Broadcast(valSet istanbul.ValidatorSet, message [
 	return nil
 }
 
+func (self *testSystemBackend) Gossip(valSet istanbul.ValidatorSet, message []byte) error {
+	testLogger.Warn("not sign any data")
+	return nil
+}
+
 func (self *testSystemBackend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
 	testLogger.Info("commit message", "address", self.Address())
 	self.committedMsgs = append(self.committedMsgs, testCommittedMsgs{

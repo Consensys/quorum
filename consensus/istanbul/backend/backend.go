@@ -39,6 +39,8 @@ import (
 func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Istanbul {
 	// Allocate the snapshot caches and create the engine
 	recents, _ := lru.NewARC(inmemorySnapshots)
+	recentMessages, _ := lru.NewARC(inmemoryPeers)
+	knownMessages, _ := lru.NewARC(inmemoryMessages)
 	backend := &backend{
 		config:           config,
 		istanbulEventMux: new(event.TypeMux),
@@ -50,6 +52,8 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		recents:          recents,
 		candidates:       make(map[common.Address]bool),
 		coreStarted:      false,
+		recentMessages:   recentMessages,
+		knownMessages:    knownMessages,
 	}
 	backend.core = istanbulCore.New(backend, backend.config)
 	return backend
@@ -84,6 +88,9 @@ type backend struct {
 
 	// event subscription for ChainHeadEvent event
 	broadcaster consensus.Broadcaster
+
+	recentMessages *lru.ARCCache // the cache of peer's messages
+	knownMessages  *lru.ARCCache // the cache of self messages
 }
 
 // Address implements istanbul.Backend.Address
@@ -108,7 +115,11 @@ func (sb *backend) Broadcast(valSet istanbul.ValidatorSet, payload []byte) error
 	return nil
 }
 
+// Broadcast implements istanbul.Backend.Gossip
 func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
+	hash := istanbul.RLPHash(payload)
+	sb.knownMessages.Add(hash, true)
+
 	targets := make(map[common.Address]bool)
 	for _, val := range valSet.List() {
 		if val.Address() != sb.Address() {
@@ -118,7 +129,22 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 
 	if sb.broadcaster != nil && len(targets) > 0 {
 		ps := sb.broadcaster.FindPeers(targets)
-		for _, p := range ps {
+		for addr, p := range ps {
+			ms, ok := sb.recentMessages.Get(addr)
+			var m *lru.ARCCache
+			if ok {
+				m, _ = ms.(*lru.ARCCache)
+				if _, k := m.Get(hash); k {
+					// This peer had this event, skip it
+					continue
+				}
+			} else {
+				m, _ = lru.NewARC(inmemoryMessages)
+			}
+
+			m.Add(hash, true)
+			sb.recentMessages.Add(addr, m)
+
 			go p.Send(istanbulMsg, payload)
 		}
 	}
