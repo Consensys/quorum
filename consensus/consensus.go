@@ -115,3 +115,14 @@ type PoW interface {
 	// Hashrate returns the current mining hashrate of a PoW consensus engine.
 	Hashrate() float64
 }
+
+// Istanbul is a consensus engine to avoid byzantine failure
+type Istanbul interface {
+	Engine
+
+	// Start starts the engine
+	Start(chain ChainReader, inserter func(types.Blocks) (int, error)) error
+
+	// Stop stops the engine
+	Stop() error
+}
