@@ -116,6 +116,7 @@ var (
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,
+		utils.RaftPortFlag,
 		utils.EmitCheckpointsFlag,
 	}
 
