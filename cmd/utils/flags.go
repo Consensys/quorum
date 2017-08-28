@@ -50,7 +50,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"gopkg.in/urfave/cli.v1"
-	"log"
 )
 
 func init() {
@@ -380,10 +379,20 @@ var (
 		Name:  "raft",
 		Usage: "If enabled, uses Raft instead of Quorum Chain for consensus",
 	}
-	RaftBlockTime = cli.IntFlag{
+	RaftBlockTimeFlag = cli.IntFlag{
 		Name:  "raftblocktime",
 		Usage: "Amount of time between raft block creations in milliseconds",
 		Value: 50,
+	}
+	RaftJoinExistingFlag = cli.IntFlag{
+		Name:  "raftjoinexisting",
+		Usage: "The raft ID to assume when joining an pre-existing cluster",
+		Value: 0,
+	}
+	RaftPortFlag = cli.IntFlag{
+		Name:  "raftport",
+		Usage: "The port to bind for the raft transport",
+		Value: 50400,
 	}
 )
 
@@ -724,8 +733,10 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 	}
 
 	if ctx.GlobalBool(RaftModeFlag.Name) {
-		blockTimeMillis := ctx.GlobalInt(RaftBlockTime.Name)
+		blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
 		datadir := ctx.GlobalString(DataDirFlag.Name)
+		joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
+		raftPort := uint16(ctx.GlobalInt(RaftPortFlag.Name))
 
 		logger.DoLogRaft = true
 
@@ -734,21 +745,35 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 			blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
 			peers := stack.StaticNodes()
 
-			peerIds := make([]string, len(peers))
-			var myId int
-			for peerIdx, peer := range peers {
-				peerId := peer.ID.String()
-				peerIds[peerIdx] = peerId
-				if peerId == strId {
-					myId = peerIdx + 1
+			var myId uint16
+			var joinExisting bool
+
+			if joinExistingId > 0 {
+				myId = uint16(joinExistingId)
+				joinExisting = true
+			} else if len(peers) == 0 {
+				Fatalf("Raft-based consensus requires either (1) an initial peers list (in static-nodes.json) including this enode hash (%v), or (2) the flag --raftjoinexisting RAFT_ID, where RAFT_ID has been issued by an existing cluster member calling `raft.addPeer(ENODE_ID)` with an enode ID containing this node's enode hash.", strId)
+			} else {
+				peerIds := make([]string, len(peers))
+
+				for peerIdx, peer := range peers {
+					if !peer.HasRaftPort() {
+						Fatalf("raftport querystring parameter not specified in static-node enode ID: %v. please check your static-nodes.json file.", peer.String())
+					}
+
+					peerId := peer.ID.String()
+					peerIds[peerIdx] = peerId
+					if peerId == strId {
+						myId = uint16(peerIdx) + 1
+					}
+				}
+
+				if myId == 0 {
+					Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
 				}
 			}
 
-			if myId == 0 {
-				log.Panicf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
-			}
-
-			return raft.New(ctx, chainConfig, myId, blockTimeNanos, ethereum, peers, datadir)
+			return raft.New(ctx, chainConfig, myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir)
 		}); err != nil {
 			Fatalf("Failed to register the Raft service: %v", err)
 		}

@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/logger"
@@ -24,6 +24,7 @@ type RaftService struct {
 	txMu           sync.Mutex
 	txPool         *core.TxPool
 	accountManager *accounts.Manager
+	downloader     *downloader.Downloader
 
 	raftProtocolManager *ProtocolManager
 	startPeers          []*discover.Node
@@ -33,27 +34,21 @@ type RaftService struct {
 	minter   *minter
 }
 
-type RaftNodeInfo struct {
-	ClusterSize int         `json:"clusterSize"`
-	Genesis     common.Hash `json:"genesis"` // SHA3 hash of the host's genesis block
-	Head        common.Hash `json:"head"`    // SHA3 hash of the host's best owned block
-	Role        string      `json:"role"`
-}
-
-func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, id int, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node, datadir string) (*RaftService, error) {
+func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, raftId uint16, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node, datadir string) (*RaftService, error) {
 	service := &RaftService{
 		eventMux:       ctx.EventMux,
 		chainDb:        e.ChainDb(),
 		blockchain:     e.BlockChain(),
 		txPool:         e.TxPool(),
 		accountManager: e.AccountManager(),
+		downloader:     e.Downloader(),
 		startPeers:     startPeers,
 	}
 
 	service.minter = newMinter(chainConfig, service, blockTime)
 
 	var err error
-	if service.raftProtocolManager, err = NewProtocolManager(id, service.blockchain, service.eventMux, startPeers, datadir, service.minter); err != nil {
+	if service.raftProtocolManager, err = NewProtocolManager(raftId, raftPort, service.blockchain, service.eventMux, startPeers, joinExisting, datadir, service.minter, service.downloader); err != nil {
 		return nil, err
 	}
 
@@ -85,8 +80,8 @@ func (service *RaftService) APIs() []rpc.API {
 
 // Start implements node.Service, starting the background data propagation thread
 // of the protocol.
-func (service *RaftService) Start(*p2p.Server) error {
-	service.raftProtocolManager.Start()
+func (service *RaftService) Start(p2pServer *p2p.Server) error {
+	service.raftProtocolManager.Start(p2pServer)
 	return nil
 }
 
@@ -95,6 +90,7 @@ func (service *RaftService) Start(*p2p.Server) error {
 func (service *RaftService) Stop() error {
 	service.blockchain.Stop()
 	service.raftProtocolManager.Stop()
+	service.minter.stop()
 	service.eventMux.Stop()
 
 	service.chainDb.Close()

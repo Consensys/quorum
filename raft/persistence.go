@@ -16,11 +16,6 @@ var (
 		NoWriteMerge: false,
 		Sync:         false,
 	}
-
-	mustFsync = &opt.WriteOptions{
-		NoWriteMerge: false,
-		Sync:         true,
-	}
 )
 
 func openQuorumRaftDb(path string) (db *leveldb.DB, err error) {
@@ -46,30 +41,18 @@ func (pm *ProtocolManager) loadAppliedIndex() uint64 {
 		lastAppliedIndex = binary.LittleEndian.Uint64(dat)
 	}
 
-	glog.V(logger.Info).Infof("Persistent applied index load: %d", lastAppliedIndex)
+	pm.mu.Lock()
 	pm.appliedIndex = lastAppliedIndex
+	pm.mu.Unlock()
+
+	glog.V(logger.Info).Infof("loaded the latest applied index: %d", lastAppliedIndex)
+
 	return lastAppliedIndex
 }
 
 func (pm *ProtocolManager) writeAppliedIndex(index uint64) {
-	glog.V(logger.Info).Infof("Persistent applied index write: %d", index)
+	glog.V(logger.Info).Infof("persisted the latest applied index: %d", index)
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, index)
 	pm.quorumRaftDb.Put(appliedDbKey, buf, noFsync)
-}
-
-func (pm *ProtocolManager) loadPeerUrl(nodeId uint64) string {
-	peerUrlKey := []byte(peerUrlKeyPrefix + string(nodeId))
-	value, err := pm.quorumRaftDb.Get(peerUrlKey, nil)
-	if err != nil {
-		glog.Fatalf("failed to read peer url for peer %d from leveldb: %v", nodeId, err)
-	}
-	return string(value)
-}
-
-func (pm *ProtocolManager) writePeerUrl(nodeId uint64, url string) {
-	key := []byte(peerUrlKeyPrefix + string(nodeId))
-	value := []byte(url)
-
-	pm.quorumRaftDb.Put(key, value, mustFsync)
 }

@@ -23,4 +23,6 @@ const (
 	FullSync  SyncMode = iota // Synchronise the entire blockchain history from full blocks
 	FastSync                  // Quickly download the headers, full sync only at the chain head
 	LightSync                 // Download only the headers and terminate afterwards
+	// Used by raft:
+	BoundedFullSync SyncMode = 100 // Perform a full sync until the requested hash, and no further
 )
