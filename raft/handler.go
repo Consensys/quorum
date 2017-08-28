@@ -299,13 +299,12 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP))
 	}
 
-	raftPort := node.RaftPort
-	if raftPort == 0 {
+	if !node.HasRaftPort() {
 		return 0, fmt.Errorf("enodeId is missing raftport querystring parameter: %v", enodeId)
 	}
 
 	raftId := pm.nextRaftId()
-	address := newAddress(raftId, raftPort, node)
+	address := newAddress(raftId, node.RaftPort, node)
 
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddNode,

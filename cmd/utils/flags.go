@@ -757,7 +757,7 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 				peerIds := make([]string, len(peers))
 
 				for peerIdx, peer := range peers {
-					if peer.RaftPort == 0 {
+					if !peer.HasRaftPort() {
 						Fatalf("raftport querystring parameter not specified in static-node enode ID: %v. please check your static-nodes.json file.", peer.String())
 					}
 

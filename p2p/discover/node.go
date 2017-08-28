@@ -114,7 +114,7 @@ func (n *Node) String() string {
 			u.RawQuery = "discport=" + strconv.Itoa(int(n.UDP))
 		}
 
-		if n.RaftPort > 0 {
+		if n.HasRaftPort() {
 			raftQuery := "raftport=" + strconv.Itoa(int(n.RaftPort))
 			if len(u.RawQuery) > 0 {
 				u.RawQuery = u.RawQuery + "&" + raftQuery
@@ -124,6 +124,10 @@ func (n *Node) String() string {
 		}
 	}
 	return u.String()
+}
+
+func (n *Node) HasRaftPort() bool {
+	return n.RaftPort > 0
 }
 
 var incompleteNodeURL = regexp.MustCompile("(?i)^(?:enode://)?([0-9a-f]+)$")
