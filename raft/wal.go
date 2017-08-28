@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-func (pm *ProtocolManager) openWAL(maybeSnapshot *raftpb.Snapshot) *wal.WAL {
+func (pm *ProtocolManager) openWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL {
 	if !wal.Exist(pm.waldir) {
 		if err := os.Mkdir(pm.waldir, 0750); err != nil {
 			fatalf("cannot create waldir: %s", err)
@@ -23,12 +23,12 @@ func (pm *ProtocolManager) openWAL(maybeSnapshot *raftpb.Snapshot) *wal.WAL {
 	}
 
 	walsnap := walpb.Snapshot{}
-	if maybeSnapshot != nil {
-		walsnap.Index = maybeSnapshot.Metadata.Index
-		walsnap.Term = maybeSnapshot.Metadata.Term
-	}
 
 	log.Info("loading WAL", "term", walsnap.Term, "index", walsnap.Index)
+
+	if maybeRaftSnapshot != nil {
+		walsnap.Index, walsnap.Term = maybeRaftSnapshot.Metadata.Index, maybeRaftSnapshot.Metadata.Term
+	}
 
 	wal, err := wal.Open(pm.waldir, walsnap)
 	if err != nil {
@@ -38,18 +38,13 @@ func (pm *ProtocolManager) openWAL(maybeSnapshot *raftpb.Snapshot) *wal.WAL {
 	return wal
 }
 
-func (pm *ProtocolManager) replayWAL() *wal.WAL {
+func (pm *ProtocolManager) replayWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL {
 	log.Info("replaying WAL")
-	maybeSnapshot := pm.loadSnapshot()
-	wal := pm.openWAL(maybeSnapshot)
+	wal := pm.openWAL(maybeRaftSnapshot)
 
 	_, hardState, entries, err := wal.ReadAll()
 	if err != nil {
 		fatalf("failed to read WAL: %s", err)
-	}
-
-	if maybeSnapshot != nil {
-		pm.applySnapshot(*maybeSnapshot)
 	}
 
 	pm.raftStorage.SetHardState(hardState)
