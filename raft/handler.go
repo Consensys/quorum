@@ -2,6 +2,15 @@ package raft
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"strconv"
+	"sync"
+	"time"
+
+	"golang.org/x/net/context"
+
 	"github.com/coreos/etcd/pkg/fileutil"
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal"
@@ -13,15 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/rlp"
-	"golang.org/x/net/context"
-	"math/big"
-	"net/http"
-	"net/url"
-	"os"
-	"strconv"
-	"sync"
-	"syscall"
-	"time"
 
 	"github.com/coreos/etcd/etcdserver/stats"
 	raftTypes "github.com/coreos/etcd/pkg/types"
@@ -29,81 +29,71 @@ import (
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/rafthttp"
 	"github.com/syndtr/goleveldb/leveldb"
+	"gopkg.in/fatih/set.v0"
 )
 
-// Overview of the channels used in this module:
-//
-// Node.
-// * quitSync: *Every* channel operation can be unblocked by closing this
-//   channel.
-//
-// ProtocolManager.
-// * proposeC, for proposals flowing from ethereum to raft
-// * confChangeC, currently unused; in the future for adding new, non-initial, raft peers
-// * roleC, coming from raft notifies us when our role changes
-
 type ProtocolManager struct {
-	raftId         uint16 // This node's raft id
-	joinExisting   bool   // Whether to join an existing cluster when a WAL doesn't already exist
+	mu       sync.RWMutex // For protecting concurrent JS access to "local peer" and "remote peer" state
+	quitSync chan struct{}
+	stopped  bool
+
+	// Static configuration
+	joinExisting   bool // Whether to join an existing cluster when a WAL doesn't already exist
 	bootstrapNodes []*discover.Node
-	peers          map[uint16]*Peer
-	p2pServer      *p2p.Server // Initialized in start()
+	raftId         uint16
+	raftPort       uint16
 
+	// Local peer state (protected by mu vs concurrent access via JS)
+	address       *Address
+	role          int    // Role: minter or verifier
+	appliedIndex  uint64 // The index of the last-applied raft entry
+	snapshotIndex uint64 // The index of the latest snapshot.
+
+	// Remote peer state (protected by mu vs concurrent access via JS)
+	peers        map[uint16]*Peer
+	removedPeers *set.Set // *Permanently removed* peers
+
+	// P2P transport
+	p2pServer *p2p.Server // Initialized in start()
+
+	// Blockchain services
 	blockchain *core.BlockChain
-
-	// to protect the raft peers and addresses
-	mu sync.RWMutex
-
-	eventMux       *event.TypeMux
-	minedBlockSub  *event.TypeMuxSubscription
-	minedBlockChan <-chan struct{}
-
 	downloader *downloader.Downloader
-	peerGetter func() (string, *big.Int)
+	minter     *minter
 
-	rawNode     etcdRaft.Node
-	raftStorage *etcdRaft.MemoryStorage
+	// Blockchain events
+	eventMux      *event.TypeMux
+	minedBlockSub *event.TypeMuxSubscription
 
-	transport *rafthttp.Transport
-	httpstopc chan struct{}
-	httpdonec chan struct{}
+	// Raft proposal events
+	blockProposalC      chan *types.Block      // for mined blocks to raft
+	confChangeProposalC chan raftpb.ConfChange // for config changes from js console to raft
 
-	// The number of entries applied to the raft log
-	appliedIndex uint64
+	// Raft transport
+	unsafeRawNode etcdRaft.Node
+	transport     *rafthttp.Transport
+	httpstopc     chan struct{}
+	httpdonec     chan struct{}
 
-	// The index of the latest snapshot.
-	snapshotIndex uint64
-
-	// Snapshotting
+	// Raft snapshotting
 	snapshotter *snap.Snapshotter
 	snapdir     string
 	confState   raftpb.ConfState
 
-	// write-ahead log
+	// Raft write-ahead log
 	waldir string
 	wal    *wal.WAL
 
-	// Persistence outside of the blockchain and raft log to keep track of our
-	// last-applied raft index and raft peer URLs.
-	quorumRaftDb *leveldb.DB
-
-	blockProposalC      chan *types.Block
-	confChangeProposalC chan raftpb.ConfChange
-	quitSync            chan struct{}
-
-	// Note: we don't actually use this field. We just set it at the same time as
-	// starting or stopping the miner in notifyRoleChange. We might want to remove
-	// it, but it might also be useful to check.
-	role int
-
-	minter *minter
+	// Storage
+	quorumRaftDb *leveldb.DB             // Persistent storage for last-applied raft index
+	raftStorage  *etcdRaft.MemoryStorage // Volatile raft storage
 }
 
 //
 // Public interface
 //
 
-func NewProtocolManager(raftId uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*discover.Node, joinExisting bool, datadir string, minter *minter) (*ProtocolManager, error) {
+func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*discover.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -111,6 +101,7 @@ func NewProtocolManager(raftId uint16, blockchain *core.BlockChain, mux *event.T
 	manager := &ProtocolManager{
 		bootstrapNodes:      bootstrapNodes,
 		peers:               make(map[uint16]*Peer),
+		removedPeers:        set.New(),
 		joinExisting:        joinExisting,
 		blockchain:          blockchain,
 		eventMux:            mux,
@@ -122,9 +113,11 @@ func NewProtocolManager(raftId uint16, blockchain *core.BlockChain, mux *event.T
 		snapdir:             snapdir,
 		snapshotter:         snap.New(snapdir),
 		raftId:              raftId,
+		raftPort:            raftPort,
 		quitSync:            make(chan struct{}),
 		raftStorage:         etcdRaft.NewMemoryStorage(),
 		minter:              minter,
+		downloader:          downloader,
 	}
 
 	if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
@@ -141,34 +134,51 @@ func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
 
 	pm.p2pServer = p2pServer
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
-	go pm.minedBroadcastLoop(pm.blockProposalC)
 	pm.startRaft()
+	go pm.minedBroadcastLoop()
 }
 
 func (pm *ProtocolManager) Stop() {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	defer log.Info("raft protocol handler stopped")
+
+	if pm.stopped {
+		return
+	}
+
 	log.Info("stopping raft protocol handler...")
+
+	for raftId, peer := range pm.peers {
+		pm.disconnectFromPeer(raftId, peer)
+	}
 
 	pm.minedBlockSub.Unsubscribe()
 
-	pm.transport.Stop()
+	if pm.transport != nil {
+		pm.transport.Stop()
+	}
+
 	close(pm.httpstopc)
 	<-pm.httpdonec
 	close(pm.quitSync)
-	if pm.rawNode != nil {
-		pm.rawNode.Stop()
+
+	if pm.unsafeRawNode != nil {
+		pm.unsafeRawNode.Stop()
 	}
 
 	pm.quorumRaftDb.Close()
 
-	pm.minter.stop()
-
 	pm.p2pServer = nil
 
-	log.Info("raft protocol handler stopped")
+	pm.minter.stop()
+
+	pm.stopped = true
 }
 
 func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
-	pm.mu.RLock() // as we read pm.role
+	pm.mu.RLock() // as we read role and peers
 	defer pm.mu.RUnlock()
 
 	var roleDescription string
@@ -178,31 +188,122 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 		roleDescription = "verifier"
 	}
 
+	peerAddresses := make([]*Address, len(pm.peers))
+	peerIdx := 0
+	for _, peer := range pm.peers {
+		peerAddresses[peerIdx] = peer.address
+		peerIdx += 1
+	}
+
+	removedPeerIfaces := pm.removedPeers.List()
+	removedPeerIds := make([]uint16, len(removedPeerIfaces))
+	for i, removedIface := range removedPeerIfaces {
+		removedPeerIds[i] = removedIface.(uint16)
+	}
+
+	//
+	// NOTE: before exposing any new fields here, make sure that the underlying
+	// ProtocolManager members are protected from concurrent access by pm.mu!
+	//
 	return &RaftNodeInfo{
-		ClusterSize: len(pm.peers) + 1,
-		Genesis:     pm.blockchain.Genesis().Hash(),
-		Head:        pm.blockchain.CurrentBlock().Hash(),
-		Role:        roleDescription,
+		ClusterSize:    len(pm.peers) + 1,
+		Role:           roleDescription,
+		Address:        pm.address,
+		PeerAddresses:  peerAddresses,
+		RemovedPeerIds: removedPeerIds,
+		AppliedIndex:   pm.appliedIndex,
+		SnapshotIndex:  pm.snapshotIndex,
 	}
 }
 
-func (pm *ProtocolManager) ProposeNewPeer(raftId uint16, enodeId string) error {
+// There seems to be a very rare race in raft where during `etcdRaft.StartNode`
+// it will call back our `Process` method before it's finished returning the
+// `raft.Node`, `pm.unsafeRawNode`, to us. This re-entrance through a separate
+// thread will cause a nil pointer dereference. To work around this, this
+// getter method should be used instead of reading `pm.unsafeRawNode` directly.
+func (pm *ProtocolManager) rawNode() etcdRaft.Node {
+	for pm.unsafeRawNode == nil {
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return pm.unsafeRawNode
+}
+
+func (pm *ProtocolManager) nextRaftId() uint16 {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	maxId := pm.raftId
+
+	for peerId := range pm.peers {
+		if maxId < peerId {
+			maxId = peerId
+		}
+	}
+
+	removedPeerIfaces := pm.removedPeers.List()
+	for _, removedIface := range removedPeerIfaces {
+		removedId := removedIface.(uint16)
+
+		if maxId < removedId {
+			maxId = removedId
+		}
+	}
+
+	return maxId + 1
+}
+
+func (pm *ProtocolManager) isRaftIdRemoved(id uint16) bool {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	return pm.removedPeers.Has(id)
+}
+
+func (pm *ProtocolManager) isRaftIdUsed(raftId uint16) bool {
+	if pm.raftId == raftId || pm.isRaftIdRemoved(raftId) {
+		return true
+	}
+
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	return pm.peers[raftId] != nil
+}
+
+func (pm *ProtocolManager) isP2pNodeInCluster(node *discover.Node) bool {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	for _, peer := range pm.peers {
+		if peer.p2pNode.ID == node.ID {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 	node, err := discover.ParseNode(enodeId)
 	if err != nil {
-		return err
+		return 0, err
+	}
+
+	if pm.isP2pNodeInCluster(node) {
+		return 0, fmt.Errorf("node is already in the cluster: %v", enodeId)
 	}
 
 	if len(node.IP) != 4 {
-		return fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP))
+		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP))
 	}
 
-	address := &Address{
-		raftId:   raftId,
-		nodeId:   node.ID,
-		ip:       node.IP,
-		p2pPort:  node.TCP,
-		raftPort: raftPort(raftId),
+	if !node.HasRaftPort() {
+		return 0, fmt.Errorf("enodeId is missing raftport querystring parameter: %v", enodeId)
 	}
+
+	raftId := pm.nextRaftId()
+	address := newAddress(raftId, node.RaftPort, node)
 
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddNode,
@@ -210,7 +311,7 @@ func (pm *ProtocolManager) ProposeNewPeer(raftId uint16, enodeId string) error {
 		Context: address.toBytes(),
 	}
 
-	return nil
+	return raftId, nil
 }
 
 func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) {
@@ -229,7 +330,7 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 	var buffer = make([]byte, msg.Size)
 	msg.Payload.Read(buffer)
 
-	return pm.rawNode.Propose(context.TODO(), buffer)
+	return pm.rawNode().Propose(context.TODO(), buffer)
 }
 
 //
@@ -237,17 +338,17 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 //
 
 func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error {
-	return pm.rawNode.Step(ctx, m)
+	return pm.rawNode().Step(ctx, m)
 }
 
 func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
-	return pm.peers[uint16(id)] == nil
+	return pm.isRaftIdRemoved(uint16(id))
 }
 
 func (pm *ProtocolManager) ReportUnreachable(id uint64) {
-	log.Info("peer is currently unreachable", "peer", id)
+	log.Info("peer is currently unreachable", "peer id", id)
 
-	pm.rawNode.ReportUnreachable(id)
+	pm.rawNode().ReportUnreachable(id)
 }
 
 func (pm *ProtocolManager) ReportSnapshot(id uint64, status etcdRaft.SnapshotStatus) {
@@ -257,7 +358,7 @@ func (pm *ProtocolManager) ReportSnapshot(id uint64, status etcdRaft.SnapshotSta
 		log.Info("finished sending snapshot", "raft peer", id)
 	}
 
-	pm.rawNode.ReportSnapshot(id, status)
+	pm.rawNode().ReportSnapshot(id, status)
 }
 
 //
@@ -270,18 +371,51 @@ func (pm *ProtocolManager) startRaft() {
 			fatalf("cannot create dir for snapshot (%v)", err)
 		}
 	}
-
 	walExisted := wal.Exist(pm.waldir)
+	lastAppliedIndex := pm.loadAppliedIndex()
 
-	pm.wal = pm.replayWAL()
+	ss := &stats.ServerStats{}
+	ss.Initialize()
+	pm.transport = &rafthttp.Transport{
+		ID:          raftTypes.ID(pm.raftId),
+		ClusterID:   0x1000,
+		Raft:        pm,
+		ServerStats: ss,
+		LeaderStats: stats.NewLeaderStats(strconv.Itoa(int(pm.raftId))),
+		ErrorC:      make(chan error),
+	}
+	pm.transport.Start()
+
+	// We load the snapshot to connect to prev peers before replaying the WAL,
+	// which typically goes further into the future than the snapshot.
+
+	var maybeRaftSnapshot *raftpb.Snapshot
+
+	if walExisted {
+		maybeRaftSnapshot = pm.loadSnapshot() // re-establishes peer connections
+	}
+
+	pm.wal = pm.replayWAL(maybeRaftSnapshot)
+
+	if walExisted {
+		if hardState, _, err := pm.raftStorage.InitialState(); err != nil {
+			panic(fmt.Sprintf("failed to read initial state from raft while restarting: %v", err))
+		} else {
+			if lastPersistedCommittedIndex := hardState.Commit; lastPersistedCommittedIndex < lastAppliedIndex {
+				log.Info("rolling back applied index to last-durably-committed", "last applied index", lastAppliedIndex, "last persisted index", lastPersistedCommittedIndex)
+
+				// Roll back our applied index. See the logic and explanation around
+				// the single call to `pm.applyNewChainHead` for more context.
+				lastAppliedIndex = lastPersistedCommittedIndex
+			}
+		}
+	}
 
 	// NOTE: cockroach sets this to false for now until they've "worked out the
 	//       bugs"
 	enablePreVote := true
 
-	lastAppliedIndex := pm.loadAppliedIndex()
-
-	c := &etcdRaft.Config{
+	raftConfig := &etcdRaft.Config{
 		Applied:       lastAppliedIndex,
 		ID:            uint64(pm.raftId),
 		ElectionTick:  10, // NOTE: cockroach sets this to 15
@@ -313,50 +447,59 @@ func (pm *ProtocolManager) startRaft() {
 		MaxInflightMsgs: 256, // NOTE: in cockroachdb this is 4
 	}
 
-	log.Info("local raft ID", "ID", c.ID)
-
-	ss := &stats.ServerStats{}
-	ss.Initialize()
-
-	pm.transport = &rafthttp.Transport{
-		ID:          raftTypes.ID(pm.raftId),
-		ClusterID:   0x1000,
-		Raft:        pm,
-		ServerStats: ss,
-		LeaderStats: stats.NewLeaderStats(strconv.Itoa(int(pm.raftId))),
-		ErrorC:      make(chan error),
-	}
-
-	pm.transport.Start()
+	log.Info("startRaft", "raft ID", raftConfig.ID)
 
 	if walExisted {
 		log.Info("remounting an existing raft log; connecting to peers.")
-
-		pm.reconnectToPreviousPeers()
-		pm.rawNode = etcdRaft.RestartNode(c)
+		pm.unsafeRawNode = etcdRaft.RestartNode(raftConfig)
 	} else if pm.joinExisting {
 		log.Info("newly joining an existing cluster; waiting for connections.")
-
-		pm.rawNode = etcdRaft.StartNode(c, nil)
+		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil)
 	} else {
 		if numPeers := len(pm.bootstrapNodes); numPeers == 0 {
 			panic("exiting due to empty raft peers list")
 		} else {
-			log.Info("starting a new raft log with an initial cluster.", "size", numPeers)
+			log.Info("starting a new raft log", "initial cluster size of", numPeers)
 		}
 
-		peers := makeInitialRaftPeers(pm.bootstrapNodes)
-		pm.rawNode = etcdRaft.StartNode(c, peers)
+		raftPeers, peerAddresses, localAddress := pm.makeInitialRaftPeers()
+
+		pm.setLocalAddress(localAddress)
+
+		// We add all peers up-front even though we will see a ConfChangeAddNode
+		// for each shortly. This is because raft's ConfState will contain all of
+		// these nodes before we see these log entries, and we always want our
+		// snapshots to have all addresses for each of the nodes in the ConfState.
+		for _, peerAddress := range peerAddresses {
+			pm.addPeer(peerAddress)
+		}
+
+		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, raftPeers)
 	}
 
 	go pm.serveRaft()
 	go pm.serveLocalProposals()
 	go pm.eventLoop()
-	go pm.handleRoleChange(pm.rawNode.RoleChan().Out())
+	go pm.handleRoleChange(pm.rawNode().RoleChan().Out())
+}
+
+func (pm *ProtocolManager) setLocalAddress(addr *Address) {
+	pm.mu.Lock()
+	pm.address = addr
+	pm.mu.Unlock()
+
+	// By setting `URLs` on the raft transport, we advertise our URL (in an HTTP
+	// header) to any recipient. This is necessary for a newcomer to the cluster
+	// to be able to accept a snapshot from us to bootstrap them.
+	if urls, err := raftTypes.NewURLs([]string{raftUrl(addr)}); err == nil {
+		pm.transport.URLs = urls
+	} else {
+		panic(fmt.Sprintf("error: could not create URL from local address: %v", addr))
+	}
 }
 
 func (pm *ProtocolManager) serveRaft() {
-	urlString := fmt.Sprintf("http://0.0.0.0:%d", raftPort(pm.raftId))
+	urlString := fmt.Sprintf("http://0.0.0.0:%d", pm.raftPort)
 	url, err := url.Parse(urlString)
 	if err != nil {
 		fatalf("Failed parsing URL (%v)", err)
@@ -403,12 +546,12 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 	}
 }
 
-func (pm *ProtocolManager) minedBroadcastLoop(proposeC chan<- *types.Block) {
+func (pm *ProtocolManager) minedBroadcastLoop() {
 	for obj := range pm.minedBlockSub.Chan() {
 		switch ev := obj.Data.(type) {
 		case core.NewMinedBlockEvent:
 			select {
-			case proposeC <- ev.Block:
+			case pm.blockProposalC <- ev.Block:
 			case <-pm.quitSync:
 				return
 			}
@@ -439,7 +582,7 @@ func (pm *ProtocolManager) serveLocalProposals() {
 			r.Read(buffer)
 
 			// blocks until accepted by the raft state machine
-			pm.rawNode.Propose(context.TODO(), buffer)
+			pm.rawNode().Propose(context.TODO(), buffer)
 		case cc, ok := <-pm.confChangeProposalC:
 			if !ok {
 				log.Info("error: read from confChangeC failed")
@@ -448,20 +591,22 @@ func (pm *ProtocolManager) serveLocalProposals() {
 
 			confChangeCount++
 			cc.ID = confChangeCount
-			pm.rawNode.ProposeConfChange(context.TODO(), cc)
+			pm.rawNode().ProposeConfChange(context.TODO(), cc)
 		case <-pm.quitSync:
 			return
 		}
 	}
 }
 
-func (pm *ProtocolManager) entriesToApply(ents []raftpb.Entry) (nents []raftpb.Entry) {
-	if len(ents) == 0 {
+func (pm *ProtocolManager) entriesToApply(allEntries []raftpb.Entry) (entriesToApply []raftpb.Entry) {
+	if len(allEntries) == 0 {
 		return
 	}
 
-	first := ents[0].Index
+	first := allEntries[0].Index
+	pm.mu.RLock()
 	lastApplied := pm.appliedIndex
+	pm.mu.RUnlock()
 
 	if first > lastApplied+1 {
 		fatalf("first index of committed entry[%d] should <= appliedIndex[%d] + 1", first, lastApplied)
@@ -469,13 +614,20 @@ func (pm *ProtocolManager) entriesToApply(ents []raftpb.Entry) (nents []raftpb.E
 
 	firstToApply := lastApplied - first + 1
 
-	if firstToApply < uint64(len(ents)) {
-		nents = ents[firstToApply:]
+	if firstToApply < uint64(len(allEntries)) {
+		entriesToApply = allEntries[firstToApply:]
 	}
 	return
 }
 
+func raftUrl(address *Address) string {
+	return fmt.Sprintf("http://%s:%d", address.ip, address.raftPort)
+}
+
 func (pm *ProtocolManager) addPeer(address *Address) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
 	raftId := address.raftId
 
 	// Add P2P connection:
@@ -483,12 +635,13 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 	pm.p2pServer.AddPeer(p2pNode)
 
 	// Add raft transport connection:
-	peerUrl := fmt.Sprintf("http://%s:%d", address.ip, raftPort(raftId))
-	pm.transport.AddPeer(raftTypes.ID(raftId), []string{peerUrl})
-
-	pm.mu.Lock()
+	pm.transport.AddPeer(raftTypes.ID(raftId), []string{raftUrl(address)})
 	pm.peers[raftId] = &Peer{address, p2pNode}
-	pm.mu.Unlock()
+}
+
+func (pm *ProtocolManager) disconnectFromPeer(raftId uint16, peer *Peer) {
+	pm.p2pServer.RemovePeer(peer.p2pNode)
+	pm.transport.RemovePeer(raftTypes.ID(raftId))
 }
 
 func (pm *ProtocolManager) removePeer(raftId uint16) {
@@ -496,22 +649,18 @@ func (pm *ProtocolManager) removePeer(raftId uint16) {
 	defer pm.mu.Unlock()
 
 	if peer := pm.peers[raftId]; peer != nil {
-		pm.p2pServer.RemovePeer(peer.p2pNode)
-		pm.transport.RemovePeer(raftTypes.ID(raftId))
+		pm.disconnectFromPeer(raftId, peer)
 
 		delete(pm.peers, raftId)
 	}
-}
 
-func (pm *ProtocolManager) reconnectToPreviousPeers() {
-	_, confState, _ := pm.raftStorage.InitialState()
-
-	for _, nodeRaftId := range confState.Nodes {
-		if nodeRaftId := uint16(nodeRaftId); nodeRaftId != pm.raftId {
-			address := pm.loadPeerAddress(nodeRaftId)
-			pm.addPeer(address)
-		}
-	}
+	// This is only necessary sometimes, but it's idempotent. Also, we *always*
+	// do this, and not just when there's still a peer in the map, because we
+	// need to do it for our *own* raft ID before we get booted from the cluster
+	// so that snapshots are identical on all nodes. It's important for a booted
+	// node to have a snapshot identical to every other node because that node
+	// can potentially re-enter the cluster with a new raft ID.
+	pm.removedPeers.Add(raftId)
 }
 
 func (pm *ProtocolManager) eventLoop() {
@@ -524,16 +673,17 @@ func (pm *ProtocolManager) eventLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			pm.rawNode.Tick()
+			pm.rawNode().Tick()
 
 		// when the node is first ready it gives us entries to commit and messages
 		// to immediately publish
-		case rd := <-pm.rawNode.Ready():
+		case rd := <-pm.rawNode().Ready():
 			pm.wal.Save(rd.HardState, rd.Entries)
 
 			if snap := rd.Snapshot; !etcdRaft.IsEmptySnap(snap) {
-				pm.saveSnapshot(snap)
-				pm.applySnapshot(snap)
+				pm.saveRaftSnapshot(snap)
+				pm.applyRaftSnapshot(snap)
+				pm.advanceAppliedIndex(snap.Metadata.Index)
 			}
 
 			// 1: Write HardState, Entries, and Snapshot to persistent storage if they
@@ -555,47 +705,84 @@ func (pm *ProtocolManager) eventLoop() {
 					if err != nil {
 						log.Error("error decoding block: ", err)
 					}
-					pm.applyNewChainHead(&block)
+
+					if pm.blockchain.HasBlock(block.Hash()) {
+						// This can happen:
+						//
+						// if (1) we crashed after applying this block to the chain, but
+						//        before writing appliedIndex to LDB.
+						// or (2) we crashed in a scenario where we applied further than
+						//        raft *durably persisted* its committed index (see
+						//        https://github.com/coreos/etcd/pull/7899). In this
+						//        scenario, when the node comes back up, we will re-apply
+						//        a few entries.
+
+						headBlockHash := pm.blockchain.CurrentBlock().Hash()
+						log.Warn("not applying already-applied block", "block hash", block.Hash(), "parent", block.ParentHash(), "head", headBlockHash)
+					} else {
+						pm.applyNewChainHead(&block)
+					}
 
 				case raftpb.EntryConfChange:
 					var cc raftpb.ConfChange
 					cc.Unmarshal(entry.Data)
+					raftId := uint16(cc.NodeID)
 
-					pm.confState = *pm.rawNode.ApplyConfChange(cc)
+					pm.confState = *pm.rawNode().ApplyConfChange(cc)
+
+					forceSnapshot := false
 
 					switch cc.Type {
 					case raftpb.ConfChangeAddNode:
-						log.Info("adding peer due to ConfChangeAddNode", "peer", cc.NodeID)
+						if pm.isRaftIdRemoved(raftId) {
+							log.Info("ignoring ConfChangeAddNode for permanently-removed peer", "raft id", raftId)
+						} else if raftId <= uint16(len(pm.bootstrapNodes)) {
+							// See initial cluster logic in startRaft() for more information.
+							log.Info("ignoring expected ConfChangeAddNode for initial peer", "raft id", raftId)
 
-						nodeRaftId := uint16(cc.NodeID)
-						pm.writePeerAddressBytes(nodeRaftId, cc.Context)
+							// We need a snapshot to exist to reconnect to peers on start-up after a crash.
+							forceSnapshot = true
+						} else if pm.isRaftIdUsed(raftId) {
+							log.Info("ignoring ConfChangeAddNode for already-used raft ID", "raft id", raftId)
+						} else {
+							log.Info("adding peer due to ConfChangeAddNode", "raft id", raftId)
 
-						if nodeRaftId != pm.raftId {
+							forceSnapshot = true
 							pm.addPeer(bytesToAddress(cc.Context))
 						}
 
 					case raftpb.ConfChangeRemoveNode:
-						log.Info("removing peer due to ConfChangeRemoveNode", "peer", cc.NodeID)
-
-						if nodeRaftId := uint16(cc.NodeID); nodeRaftId == pm.raftId {
-							exitAfterApplying = true
+						if pm.isRaftIdRemoved(raftId) {
+							log.Info("ignoring ConfChangeRemoveNode for already-removed peer", "raft id", raftId)
 						} else {
-							pm.removePeer(nodeRaftId)
+							log.Info("removing peer due to ConfChangeRemoveNode", "raft id", raftId)
+
+							forceSnapshot = true
+
+							if raftId == pm.raftId {
+								exitAfterApplying = true
+							}
+
+							pm.removePeer(raftId)
 						}
 
 					case raftpb.ConfChangeUpdateNode:
+						// NOTE: remember to forceSnapshot in this case, if we add support
+						// for this.
 						fatalf("not yet handled: ConfChangeUpdateNode")
 					}
 
-					// We force a snapshot here to persist our updated confState, so we
-					// know our fellow cluster members when we come back online.
-					//
-					// It is critical here to snapshot *before* writing our applied
-					// index in LevelDB, otherwise a crash while/before snapshotting
-					// (after advancing our applied index) would result in the loss of a
-					// cluster member upon restart: we would re-mount with an old
-					// ConfState.
-					pm.triggerSnapshotWithNextIndex(entry.Index)
+					if forceSnapshot {
+						// We force a snapshot here to persist our updated confState, so we
+						// know our fellow cluster members when we come back online.
+						//
+						// It is critical here to snapshot *before* writing our applied
+						// index in LevelDB, otherwise a crash while/before snapshotting
+						// (after advancing our applied index) would result in the loss of a
+						// cluster member upon restart: we would re-mount with an old
+						// ConfState.
+						pm.triggerSnapshot(entry.Index)
+					}
 				}
 
 				pm.advanceAppliedIndex(entry.Index)
@@ -604,13 +791,16 @@ func (pm *ProtocolManager) eventLoop() {
 			pm.maybeTriggerSnapshot()
 
 			if exitAfterApplying {
-				log.Warn("removing self from the cluster due to ConfChangeRemoveNode")
-				syscall.Exit(0)
+				log.Warn("permanently removing self from the cluster")
+				pm.Stop()
+				log.Warn("permanently exited the cluster")
+
+				return
 			}
 
 			// 4: Call Node.Advance() to signal readiness for the next batch of
 			// updates.
-			pm.rawNode.Advance()
+			pm.rawNode().Advance()
 
 		case <-pm.quitSync:
 			return
@@ -618,31 +808,33 @@ func (pm *ProtocolManager) eventLoop() {
 	}
 }
 
-func raftPort(raftId uint16) uint16 {
-	return 50400 + raftId
-}
+func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, peerAddresses []*Address, localAddress *Address) {
+	initialNodes := pm.bootstrapNodes
+	raftPeers = make([]etcdRaft.Peer, len(initialNodes))  // Entire cluster
+	peerAddresses = make([]*Address, len(initialNodes)-1) // Cluster without *this* node
 
-func makeInitialRaftPeers(initialNodes []*discover.Node) []etcdRaft.Peer {
-	peers := make([]etcdRaft.Peer, len(initialNodes))
-
+	peersSeen := 0
 	for i, node := range initialNodes {
 		raftId := uint16(i + 1)
+		// We initially get the raftPort from the enode ID's query string. As an alternative, we can move away from
+		// requiring the use of static peers for the initial set, and load them from e.g. another JSON file which
+		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
+		address := newAddress(raftId, node.RaftPort, node)
 
-		address := &Address{
-			raftId:   raftId,
-			nodeId:   node.ID,
-			ip:       node.IP,
-			p2pPort:  node.TCP,
-			raftPort: raftPort(raftId),
-		}
-
-		peers[i] = etcdRaft.Peer{
+		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
 			Context: address.toBytes(),
 		}
+
+		if raftId == pm.raftId {
+			localAddress = address
+		} else {
+			peerAddresses[peersSeen] = address
+			peersSeen += 1
+		}
 	}
 
-	return peers
+	return
 }
 
 func sleep(duration time.Duration) {
@@ -683,7 +875,9 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 
 // Sets new appliedIndex in-memory, *and* writes this appliedIndex to LevelDB.
 func (pm *ProtocolManager) advanceAppliedIndex(index uint64) {
-	pm.appliedIndex = index
-
 	pm.writeAppliedIndex(index)
+
+	pm.mu.Lock()
+	pm.appliedIndex = index
+	pm.mu.Unlock()
 }
