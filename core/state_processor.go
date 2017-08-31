@@ -77,7 +77,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 
 		receipt, privateReceipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, totalUsedGas, cfg)
 		if err != nil {
-			return nil, nil, nil, totalUsedGas, err // TODO(joel) s/totalUsedGas/nil ?
+			return nil, nil, nil, nil, err
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)

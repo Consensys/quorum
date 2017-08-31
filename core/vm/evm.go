@@ -110,8 +110,9 @@ type EVM struct {
 	privateState      PrivateState
 	states            [1027]*state.StateDB // TODO(joel) we should be able to get away with 1024 or maybe 1025
 	currentStateDepth uint
-	readOnly          bool
-	readOnlyDepth     uint
+	// TODO(joel): there's a metropolis interpreter readOnly flag now. Do these interact?
+	readOnly      bool
+	readOnlyDepth uint
 }
 
 // NewEVM retutrns a new EVM . The returned EVM is not thread safe and should
@@ -172,16 +173,6 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}
 		if precompiles[addr] == nil && evm.ChainConfig().IsEIP158(evm.BlockNumber) && value.Sign() == 0 {
 			return nil, gas, nil
-		}
-
-		// TODO(joel): is this path exercised in practice?
-		if evm.chainConfig.IsQuorum && addr == (common.Address{}) {
-			db := getQuorumDb(evm)
-			// Increment the caller's nonce on the state based on the current depth
-			nonce := db.GetNonce(caller.Address())
-			db.SetNonce(caller.Address(), nonce+1)
-
-			addr = crypto.CreateAddress(caller.Address(), nonce)
 		}
 
 		evm.StateDB.CreateAccount(addr)
@@ -346,11 +337,24 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
 
-	quorumDb := getQuorumDb(evm)
+	// Get the right state in case of a dual state environment. If a sender
+	// is a transaction (depth == 0) use the public state to derive the address
+	// and increment the nonce of the public state. If the sender is a contract
+	// (depth > 0) use the private state to derive the nonce and increment the
+	// nonce on the private state only.
+	//
+	// If the transaction went to a public contract the private and public state
+	// are the same.
+	var creatorStateDb StateDB
+	if evm.Depth() > 0 {
+		creatorStateDb = evm.privateState
+	} else {
+		creatorStateDb = evm.publicState
+	}
 
 	// Create a new account on the state
-	nonce := quorumDb.GetNonce(caller.Address())
-	quorumDb.SetNonce(caller.Address(), nonce+1)
+	nonce := creatorStateDb.GetNonce(caller.Address())
+	creatorStateDb.SetNonce(caller.Address(), nonce+1)
 
 	snapshot := evm.StateDB.Snapshot()
 	contractAddr = crypto.CreateAddress(caller.Address(), nonce)
@@ -417,22 +421,6 @@ func getDualState(env *EVM, addr common.Address) StateDB {
 	}
 
 	return state
-}
-
-// Get the right state in case of a dual state environment. If a sender
-// is a transaction (depth == 0) use the public state to derive the address
-// and increment the nonce of the public state. If the sender is a contract
-// (depth > 0) use the private state to derive the nonce and increment the
-// nonce on the private state only.
-//
-// If the transaction went to a public contract the private and public state
-// are the same.
-func getQuorumDb(evm *EVM) StateDB {
-	if evm.Depth() > 0 {
-		return evm.privateState
-	} else {
-		return evm.publicState
-	}
 }
 
 func (env *EVM) PublicState() PublicState   { return env.publicState }
