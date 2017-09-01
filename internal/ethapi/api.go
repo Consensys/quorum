@@ -359,7 +359,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	data := []byte(args.Data)
-	isPrivate := len(args.PrivateFor) > 0
+	isPrivate := args.PrivateFor != nil
 	if isPrivate {
 		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
@@ -1137,7 +1137,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	data := []byte(args.Data)
-	isPrivate := len(args.PrivateFor) > 0
+	isPrivate := args.PrivateFor != nil
 
 	if isPrivate {
 		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
