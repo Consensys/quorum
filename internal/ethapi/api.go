@@ -277,7 +277,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 
 	var tx *types.Transaction
 	data := common.FromHex(args.Data)
-	isPrivate := len(args.PrivateFor) > 0
+	isPrivate := args.PrivateFor != nil
 	if isPrivate {
 		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
 		if err != nil {
@@ -377,7 +377,7 @@ func (a *Async) save(ctx context.Context, s *PublicTransactionPoolAPI, args Send
 	if err != nil {
 		return common.Hash{}, err
 	}
-	return submitTransaction(ctx, s.b, tx, signature, len(args.PrivateFor) > 0)
+	return submitTransaction(ctx, s.b, tx, signature, args.PrivateFor != nil)
 }
 
 func newAsync(n int) *Async {
@@ -1202,7 +1202,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	var tx *types.Transaction
 	data := common.FromHex(args.Data)
-	isPrivate := len(args.PrivateFor) > 0
+	isPrivate := args.PrivateFor != nil
 	if isPrivate {
 		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
 		if err != nil {

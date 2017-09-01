@@ -6,28 +6,15 @@ import (
 	"time"
 )
 
-func copyBytes(b []byte) []byte {
-	ob := make([]byte, len(b))
-	copy(ob, b)
-	return ob
-}
-
 type Constellation struct {
 	node *Client
 	c    *cache.Cache
 }
 
 func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
-	if len(data) > 0 {
-		if len(to) == 0 {
-			out = copyBytes(data)
-		} else {
-			var err error
-			out, err = g.node.SendPayload(data, from, to)
-			if err != nil {
-				return nil, err
-			}
-		}
+	out, err = g.node.SendPayload(data, from, to)
+	if err != nil {
+		return nil, err
 	}
 	g.c.Set(string(out), data, cache.DefaultExpiration)
 	return out, nil
