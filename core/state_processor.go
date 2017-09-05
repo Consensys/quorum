@@ -26,7 +26,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -154,15 +156,22 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		} else {
 			privateRoot = privateState.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
 		}
-		privateReceipt = types.NewReceipt(privateRoot, failed, usedGas)
-		privateReceipt.TxHash = tx.Hash()
-		privateReceipt.GasUsed = new(big.Int).Set(gas)
-		if msg.To() == nil {
-			privateReceipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
-		}
+		recipient, _, err := private.P.Receive(tx.Data())
 
-		privateReceipt.Logs = privateState.GetLogs(tx.Hash())
-		privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
+		if err == nil {
+			log.Info("Creating a private transaction receipt", "hash", tx.Hash())
+			privateReceipt = types.NewReceipt(privateRoot, failed, usedGas)
+			privateReceipt.TxHash = tx.Hash()
+			privateReceipt.GasUsed = new(big.Int).Set(gas)
+			if recipient == nil {
+				from := msg.From()
+				privateReceipt.ContractAddress = crypto.CreateAddress(from, tx.Nonce())
+			}
+
+			logs := privateState.GetLogs(tx.Hash())
+			privateReceipt.Logs = logs
+			privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
+		}
 	}
 
 	return receipt, privateReceipt, gas, err

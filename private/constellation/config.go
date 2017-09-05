@@ -5,12 +5,14 @@ import (
 )
 
 type Config struct {
-	Socket         string   `toml:"socket"`
-	PublicKeys     []string `toml:"publickeys"`
+	Socket     string   `toml:"socket"`
+	PublicKeys []string `toml:"publickeys"`
 
 	// Deprecated
-	SocketPath     string   `toml:"socketPath"`
-	PublicKeyPath  string   `toml:"publicKeyPath"`
+	SocketPath    string `toml:"socketPath"`
+	PublicKeyPath string `toml:"publicKeyPath"`
+	ToMask        string `toml:"toMask"`
+	NullProxy     string `toml:"nullProxy"`
 }
 
 func LoadConfig(configPath string) (*Config, error) {
@@ -24,6 +26,12 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 	if len(cfg.PublicKeys) == 0 {
 		cfg.PublicKeys = append(cfg.PublicKeys, cfg.PublicKeyPath)
+	}
+	if cfg.ToMask == "" {
+		cfg.ToMask = "ffffffffffffffffffffffffffffffffffffffff"
+	}
+	if cfg.NullProxy == "" {
+		cfg.NullProxy = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	}
 	return cfg, nil
 }

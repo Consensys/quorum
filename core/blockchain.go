@@ -1040,10 +1040,15 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		// coalesce logs for later processing
 		coalescedLogs = append(coalescedLogs, logs...)
 
-		allReceipts := append(receipts, privateReceipts...)
-		if err = WriteBlockReceipts(bc.chainDb, block.Hash(), block.NumberU64(), allReceipts); err != nil {
+		if err = WriteBlockReceipts(bc.chainDb, block.Hash(), block.NumberU64(), receipts); err != nil {
 			return i, err
 		}
+
+		if err = WritePrivateReceipts(bc.chainDb, privateReceipts); err != nil {
+			return i, err
+		}
+
+		allReceipts := append(receipts, privateReceipts...)
 
 		// write the block to the chain and get the status
 		status, err := bc.WriteBlock(block)

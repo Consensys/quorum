@@ -220,9 +220,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 	}
 	msg := st.msg
 	sender := st.from() // err checked in preCheck
+	recipient := msg.To()
+	contractCreation := recipient == nil
 
 	homestead := st.evm.ChainConfig().IsHomestead(st.evm.BlockNumber)
-	contractCreation := msg.To() == nil
 	isQuorum := st.evm.ChainConfig().IsQuorum
 
 	var data []byte
@@ -230,7 +231,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 	publicState := st.state
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
-		data, err = private.P.Receive(st.data)
+		var err error
+		recipient, data, err = private.P.Receive(st.data)
+		contractCreation = recipient == nil
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -271,13 +274,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 		if !isPrivate {
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}
-		var to common.Address
-		if isQuorum {
-			to = *st.msg.To()
-		} else {
-			to = st.to().Address()
-		}
-		ret, st.gas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
+
+		ret, st.gas, vmerr = evm.Call(sender, *recipient, data, st.gas, st.value)
 	}
 	if vmerr != nil {
 		log.Debug("VM returned with error", "err", vmerr)
