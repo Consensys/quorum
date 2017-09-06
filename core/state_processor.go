@@ -168,11 +168,9 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 				privateReceipt.ContractAddress = crypto.CreateAddress(from, tx.Nonce())
 			}
 
-			logs := privateState.GetLogs(tx.Hash())
-			privateReceipt.Logs = logs
+			privateReceipt.Logs = privateState.GetLogs(tx.Hash())
 			privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
 		}
 	}
-
 	return receipt, privateReceipt, gas, err
 }

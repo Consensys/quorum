@@ -235,8 +235,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 		recipient, data, err = private.P.Receive(st.data)
 		contractCreation = recipient == nil
 		// Increment the public account nonce if:
-		// 1. Tx is private and *not* a participant of the group and either call or create
-		// 2. Tx is private we are part of the group and is a call
+		// 1. *not* a participant of the group and either call or create
+		// 2. we are part of the group and is a call
 		if err != nil || !contractCreation {
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}
