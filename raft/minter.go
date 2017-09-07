@@ -369,7 +369,7 @@ func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc 
 		publicReceipt, privateReceipt, err := env.commitTransaction(tx, bc, gp)
 		switch {
 		case err != nil:
-			log.Info("TX failed, will be removed", "hash", tx.Hash().Bytes()[:4], "err", err)
+			log.Info("TX failed, will be removed", "hash", tx.Hash(), "err", err)
 			txes.Pop() // skip rest of txes from this account
 		default:
 			txCount++
