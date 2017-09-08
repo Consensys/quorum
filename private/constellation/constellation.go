@@ -2,7 +2,9 @@ package constellation
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/patrickmn/go-cache"
+	"runtime/debug"
 	"time"
 )
 
@@ -34,7 +36,10 @@ func (g *Constellation) Send(data []byte, from string, to []string) (out []byte,
 }
 
 func (g *Constellation) Receive(data []byte) ([]byte, error) {
+	log.Info("Receiving from constellation")
+	debug.PrintStack()
 	if len(data) == 0 {
+		log.Info("bad: no data")
 		return data, nil
 	}
 	// Ignore this error since not being a recipient of
@@ -42,11 +47,14 @@ func (g *Constellation) Receive(data []byte) ([]byte, error) {
 	// TODO: Return an error if it's anything OTHER than
 	// 'you are not a recipient.'
 	dataStr := string(data)
+	log.Info("Receive", "data", fmt.Sprintf("%x", data))
 	x, found := g.c.Get(dataStr)
 	if found {
+		log.Info("Receive (found)")
 		return x.([]byte), nil
 	}
 	pl, _ := g.node.ReceivePayload(data)
+	log.Info("Receive", "pl", fmt.Sprintf("%x", pl))
 	g.c.Set(dataStr, pl, cache.DefaultExpiration)
 	return pl, nil
 }

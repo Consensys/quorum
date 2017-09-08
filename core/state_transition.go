@@ -230,7 +230,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 	publicState := st.state
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
+		log.Info("TransitionDb: receiving private", "sender", sender.Address().String())
 		data, err = private.P.Receive(st.data)
+		log.Info("TransitionDb: receiving private", "data", fmt.Sprintf("%x", data))
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
