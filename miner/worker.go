@@ -75,9 +75,10 @@ type Work struct {
 
 	Block *types.Block // the new block
 
-	header   *types.Header
-	txs      []*types.Transaction
-	receipts []*types.Receipt
+	header          *types.Header
+	txs             []*types.Transaction
+	receipts        []*types.Receipt
+	privateReceipts []*types.Receipt
 
 	createdAt time.Time
 
@@ -153,13 +154,16 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase com
 		fullValidation: false,
 	}
 
-	if !config.IsQuorum {
+	if _, ok := engine.(consensus.Istanbul); ok || !config.IsQuorum {
 		// Subscribe TxPreEvent for tx pool
 		worker.txSub = eth.TxPool().SubscribeTxPreEvent(worker.txCh)
 		// Subscribe events for blockchain
 		worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 		worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
 		go worker.update()
+
+		go worker.wait()
+		worker.commitNewWork()
 	}
 
 	return worker
@@ -321,6 +325,9 @@ func (self *worker) wait() {
 				go self.mux.Post(core.NewMinedBlockEvent{Block: block})
 			} else {
 				work.state.CommitTo(self.chainDb, self.config.IsEIP158(block.Number()))
+				privateStateRoot, _ := work.privateState.CommitTo(self.chainDb, self.config.IsEIP158(block.Number()))
+				core.WritePrivateStateRoot(self.chainDb, block.Root(), privateStateRoot)
+
 				stat, err := self.chain.WriteBlock(block)
 				if err != nil {
 					log.Error("Failed writing block to chain", "err", err)
@@ -335,13 +342,16 @@ func (self *worker) wait() {
 				for _, log := range work.state.Logs() {
 					log.BlockHash = block.Hash()
 				}
+				allReceipts := append(work.receipts, work.privateReceipts...)
 
 				// check if canon block and write transactions
 				if stat == core.CanonStatTy {
 					// This puts transactions in a extra db for rpc
 					core.WriteTxLookupEntries(self.chainDb, block)
 					// Write map map bloom filters
-					core.WriteMipmapBloom(self.chainDb, block.NumberU64(), work.receipts)
+					core.WriteMipmapBloom(self.chainDb, block.NumberU64(), allReceipts)
+					core.WritePrivateBlockBloom(self.chainDb, block.NumberU64(), work.privateReceipts)
+
 					// implicit by posting ChainHeadEvent
 					mustCommitNewWork = false
 				}
@@ -364,7 +374,7 @@ func (self *worker) wait() {
 					if err := core.WriteBlockReceipts(self.chainDb, block.Hash(), block.NumberU64(), receipts); err != nil {
 						log.Warn("Failed writing block receipts", "err", err)
 					}
-				}(block, work.state.Logs(), work.receipts)
+				}(block, work.state.Logs(), allReceipts)
 			}
 			// Insert the block into the set of pending ones to wait for confirmations
 			self.unconfirmed.Insert(block.NumberU64(), block.Hash())
@@ -616,14 +626,21 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txs *types.TransactionsB
 
 func (env *Work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, coinbase common.Address, gp *core.GasPool) (error, []*types.Log) {
 	snap := env.state.Snapshot()
+	privateSnap := env.privateState.Snapshot()
 
-	receipt, _, _, err := core.ApplyTransaction(env.config, bc, &coinbase, gp, env.state, env.privateState, env.header, tx, env.header.GasUsed, vm.Config{})
+	receipt, privateReceipt, _, err := core.ApplyTransaction(env.config, bc, &coinbase, gp, env.state, env.privateState, env.header, tx, env.header.GasUsed, vm.Config{})
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
+		env.privateState.RevertToSnapshot(privateSnap)
 		return err, nil
 	}
 	env.txs = append(env.txs, tx)
 	env.receipts = append(env.receipts, receipt)
 
-	return nil, receipt.Logs
+	logs := receipt.Logs
+	if privateReceipt != nil {
+		logs = append(receipt.Logs, privateReceipt.Logs...)
+		env.privateReceipts = append(env.privateReceipts, privateReceipt)
+	}
+	return nil, logs
 }
