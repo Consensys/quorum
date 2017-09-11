@@ -43,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethstats"
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/kafka"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -510,6 +511,12 @@ var (
 		Usage: "The port to bind for the raft transport",
 		Value: 50400,
 	}
+
+	// Kafka flags
+	KafkaEnabledFlag = cli.BoolFlag{
+		Name:  "kafka",
+		Usage: "Enable kafka",
+  }
 
 	// Quorum
 	EnableNodePermissionFlag = cli.BoolFlag{
@@ -1083,6 +1090,30 @@ func RegisterEthStatsService(stack *node.Node, url string) {
 		return ethstats.New(url, ethServ, lesServ)
 	}); err != nil {
 		Fatalf("Failed to register the Ethereum Stats service: %v", err)
+	}
+}
+
+// RegisterKafkaService configures Kafka and adds it to the given node.
+func RegisterKafkaService(stack *node.Node) {
+	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+		var ethServe *eth.Ethereum
+
+		ctx.Service(&ethServe)
+
+		chainDb := ethServe.ChainDb()
+
+		genesisHash := core.GetCanonicalHash(chainDb, 0)
+
+		chainConfig, cErr := core.GetChainConfig(chainDb, genesisHash)
+
+		blockchain := ethServe.BlockChain()
+
+		if cErr != nil {
+			Fatalf("Failed to read chain config: ", "err", cErr)
+		}
+		return kafka.New(stack.EventMux(), chainDb, chainConfig, blockchain)
+	}); err != nil {
+		Fatalf("Failed to register the Kafka service: ", "err", err)
 	}
 }
 

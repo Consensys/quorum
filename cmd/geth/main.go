@@ -118,6 +118,7 @@ var (
 		utils.RaftJoinExistingFlag,
 		utils.RaftPortFlag,
 		utils.EmitCheckpointsFlag,
+		utils.KafkaEnabledFlag,
 	}
 
 	rpcFlags = []cli.Flag{
