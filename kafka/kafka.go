@@ -109,7 +109,7 @@ func (k *Kafka) Start(server *p2p.Server) error {
 		return err
 	} else {
 		k.Producer = producer
-		if err := k.initializeTopicWithGenesis(); err != nil {
+		if err := k.initializeTopicsWithGenesis(); err != nil {
 			return err
 		}
 		go k.loop()
@@ -195,10 +195,9 @@ func (k *Kafka) loop() {
 	}
 }
 
-func (k * Kafka)  initializeTopicWithGenesis () error {
+func (k * Kafka)  initializeTopicsWithGenesis () error {
 	bHash := core.GetCanonicalHash(k.chainDb,0)
 	block := core.GetBlock(k.chainDb, bHash, 0)
-	k.lastBlock = block
   opBlock := &outputBlock{
 		Origin:              "Unknown",
 		TotalDifficulty:     block.Difficulty(),
@@ -211,6 +210,18 @@ func (k * Kafka)  initializeTopicWithGenesis () error {
 		Topic: "indexevents",
 		Key:   nil,
 		Value: opBlock,
+	}
+	if stateDiff, err := k.stateDiffBuilder.CreateStateDiff(common.Hash{}, block.Root(), *block.Number(), block.Hash()); err!= nil {
+		log.Error("Failed to create StateDiff for genesis block", "err", err)
+		return err
+	} else {
+		log.Info("StateDiff is:", "statediff", stateDiff)
+		k.Producer.Input() <- &sarama.ProducerMessage{
+			Topic: "statediff",
+			Key:   nil,
+			Value: stateDiff,
+		}
+		k.lastBlock = block
 	}
 	return nil
 }
