@@ -152,6 +152,7 @@ func enableWhisper(ctx *cli.Context) bool {
 	return false
 }
 
+
 func makeFullNode(ctx *cli.Context) *node.Node {
 	stack, cfg := makeConfigNode(ctx)
 
@@ -177,6 +178,11 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	// Add the Ethereum Stats daemon if requested.
 	if cfg.Ethstats.URL != "" {
 		utils.RegisterEthStatsService(stack, cfg.Ethstats.URL)
+	}
+
+  // Register Kafka Service if enabled
+	if ctx.GlobalBool(utils.KafkaEnabledFlag.Name) {
+		utils.RegisterKafkaService(stack)
 	}
 
 	// Add the release oracle service so it boots along with node.
