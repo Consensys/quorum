@@ -144,60 +144,6 @@ func (k *Kafka) loop() {
 
 	for {
 		select {
-		// case event, ok := <-k.events.Chan():
-			// if !ok {
-			// 	return
-			// }
-
-			// switch event.Data.(type) {
-			// case core.ChainEvent: // got a new block
-			// 	log.Debug("ChainEvent in kafka:", "data", event.Data)
-			// 	eventData := event.Data.(core.ChainEvent)
-			// 	transactions := eventData.Block.Transactions()
-			// 	var receiptTransactions []outputTx
-			// 	signer := types.MakeSigner(k.chainConfig, eventData.Block.Number())
-			// 	for i := 0; i < len(transactions); i++ {
-			// 		if message, err := transactions[i].AsMessage(signer); err != nil {
-
-			// 			// TODO: refactor this as a function to get transactions in the shape
-			// 			// we need them
-			// 		} else {
-			// 			receiptTransactions = append(receiptTransactions, outputTx{
-			// 				Origin: "Unknown",
-			// 				Hash:   transactions[i].Hash(),
-			// 				Signer: message.From(),
-			// 				Tx:     transactions[i],
-			// 			})
-			// 		}
-
-			// 	}
-			// 	// block := core.GetBlock(k.chainDb, eventData.Hash, eventData.Block.Number().Uint64())
-			// 	opBlock := &outputBlock{
-			// 		Origin:              "Unknown",
-			// 		TotalDifficulty:     eventData.Block.Difficulty(),
-			// 		BlockData:           eventData.Block.Header(),
-			// 		ReceiptTransactions: receiptTransactions,
-			// 		BlockUncles:         eventData.Block.Uncles(),
-			// 	}
-			// 	k.Producer.Input() <- &sarama.ProducerMessage{
-			// 		// TODO: move to config file or generate on startup
-			// 		Topic: "indexevents",
-			// 		Key:   nil,
-			// 		Value: opBlock,
-			// 	}
-
-			// 	if stateDiff, err := k.stateDiffBuilder.CreateStateDiff(k.lastBlock.Root(), eventData.Block.Root(), *eventData.Block.Number(), eventData.Block.Hash()); err!= nil {
-			// 		log.Error("Failed to create StateDiff for blocks", "old Block", k.lastBlock.Number(), "new block", eventData.Block.Number(), "err", err)
-			// 	} else {
-			// 		log.Info("StateDiff is:", "statediff", stateDiff)
-			// 		k.Producer.Input() <- &sarama.ProducerMessage{
-			// 			Topic: "statediff",
-			// 			Key:   nil,
-			// 			Value: stateDiff,
-			// 		}
-			// 			k.lastBlock = eventData.Block
-			// 		}
-			// }
 		case chainEvent := <- newChainEvent:
 				transactions := chainEvent.Block.Transactions()
 				var receiptTransactions []outputTx

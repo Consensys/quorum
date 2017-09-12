@@ -159,9 +159,9 @@ func (self *StateDiffBuilder) buildDiffEventual(accounts *map[common.Address]*st
 			log.Error("Failed building eventual storage diffs", "Address", val, "error", err)
 			return nil, err
 		} else {
-			var code string
+			code := ""
 			codeBytes,errGetCode := self.chainDb.Get(val.CodeHash)
-			if errGetCode != nil {
+			if errGetCode != nil  && len(codeBytes) != 0{
 				code = common.ToHex(codeBytes)
 			}
 			codeHash := common.ToHex(val.CodeHash)
