@@ -318,6 +318,19 @@ func GetReceipt(db ethdb.Database, hash common.Hash) (*types.Receipt, common.Has
 	return (*types.Receipt)(&receipt), common.Hash{}, 0, 0
 }
 
+func GetPrivateReceipt(db ethdb.Database, txHash common.Hash) *types.Receipt {
+	data, _ := db.Get(append(privateReceiptPrefix, txHash[:]...))
+	if len(data) == 0 {
+		return nil
+	}
+	var receipt types.ReceiptForStorage
+	err := rlp.DecodeBytes(data, &receipt)
+	if err != nil {
+		log.Info("GetReceiptError", "err", err)
+	}
+	return (*types.Receipt)(&receipt)
+}
+
 // WriteCanonicalHash stores the canonical hash for the given block number.
 func WriteCanonicalHash(db ethdb.Database, hash common.Hash, number uint64) error {
 	key := append(append(headerPrefix, encodeBlockNumber(number)...), numSuffix...)
@@ -411,6 +424,28 @@ func WriteBlock(db ethdb.Database, block *types.Block) error {
 	// Store the header too, signaling full block ownership
 	if err := WriteHeader(db, block.Header()); err != nil {
 		return err
+	}
+	return nil
+}
+
+// WriteReceipts stores a batch of transaction receipts into the database.
+func WritePrivateReceipts(db ethdb.Database, receipts types.Receipts) error {
+	batch := db.NewBatch()
+
+	// Iterate over all the receipts and queue them for database injection
+	for _, receipt := range receipts {
+		storageReceipt := (*types.ReceiptForStorage)(receipt)
+		data, err := rlp.EncodeToBytes(storageReceipt)
+		if err != nil {
+			return err
+		}
+		if err := batch.Put(append(privateReceiptPrefix, receipt.TxHash.Bytes()...), data); err != nil {
+			return err
+		}
+	}
+	// Write the scheduled data into the database
+	if err := batch.Write(); err != nil {
+		log.Error("failed to store receipts into database", "err", err)
 	}
 	return nil
 }

@@ -361,13 +361,11 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	data := []byte(args.Data)
 	isPrivate := len(args.PrivateFor) > 0
 	if isPrivate {
-		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+		log.Info("Sending private transaction", "data", data)
+		args.To, data, err = private.P.Send(args.To, data, args.PrivateFrom, args.PrivateFor)
 		if err != nil {
 			return common.Hash{}, err
 		}
-		args.Data = data
 	}
 
 	// Set some sanity defaults and terminate on failure
@@ -994,12 +992,28 @@ func (s *PublicTransactionPoolAPI) GetRawTransactionByHash(ctx context.Context, 
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (s *PublicTransactionPoolAPI) GetTransactionReceipt(hash common.Hash) (map[string]interface{}, error) {
+
 	tx, blockHash, blockNumber, index := core.GetTransaction(s.b.ChainDb(), hash)
 	if tx == nil {
 		return nil, nil
 	}
-	receipt, _, _, _ := core.GetReceipt(s.b.ChainDb(), hash) // Old receipts don't have the lookup data available
+	realTo := tx.To()
+	var receipt *types.Receipt
+	if tx.IsPrivate() {
+		receipt = core.GetPrivateReceipt(s.b.ChainDb(), hash)
+		if receipt != nil {
+			log.Info("found receipt for a private transaction", "hash", hash.Hex())
+			realTo, _, _ = private.P.Receive(tx.Data())
+		}
+	}
+	if receipt == nil {
+		log.Info("Didn't find receipt for a private transaction, looking for public transaction", "hash", hash.Hex())
+		receipt, blockHash, blockNumber, _ = core.GetReceipt(s.b.ChainDb(), hash)
+	}
 
+	if receipt == nil {
+		return nil, fmt.Errorf("Couldn't find public or private transaction with hash %s", hash.Hex())
+	}
 	var signer types.Signer = types.FrontierSigner{}
 	if tx.Protected() {
 		signer = types.NewEIP155Signer(tx.ChainId())
@@ -1013,7 +1027,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(hash common.Hash) (map[
 		"transactionHash":   hash,
 		"transactionIndex":  hexutil.Uint64(index),
 		"from":              from,
-		"to":                tx.To(),
+		"to":                realTo,
 		"gasUsed":           (*hexutil.Big)(receipt.GasUsed),
 		"cumulativeGasUsed": (*hexutil.Big)(receipt.CumulativeGasUsed),
 		"contractAddress":   nil,
@@ -1141,7 +1155,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	if isPrivate {
 		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+		args.To, data, err = private.P.Send(args.To, data, args.PrivateFrom, args.PrivateFor)
 		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 		if err != nil {
 			return common.Hash{}, err
@@ -1485,7 +1499,8 @@ func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs
 		res.Error = err.Error()
 		return
 	}
-	b, err := private.P.Send([]byte(args.Data), args.PrivateFrom, args.PrivateFor)
+
+	_, b, err := private.P.Send(asyncArgs.To, args.Data, args.PrivateFrom, args.PrivateFor)
 	if err != nil {
 		log.Info("Error running Private.P.Send: %v", err)
 		res.Error = err.Error()
@@ -1587,7 +1602,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != 64 {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	data, err := private.P.Receive(b)
+	_, data, err := private.P.Receive(b)
 	if err != nil {
 		return "", err
 	}
