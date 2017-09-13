@@ -469,16 +469,16 @@ func makeBlockChainWithDiff(genesis *types.Block, d []int, seed byte) []*types.B
 	return chain
 }
 
-func chm(genesis *types.Block, db ethdb.Database) *BlockChain {
+func chm(genesis *types.Block, db ethdb.Database, t *testing.T) *BlockChain {
 	var eventMux event.TypeMux
-	bc := &BlockChain{
-		chainDb:      db,
-		genesisBlock: genesis,
-		eventMux:     &eventMux,
-		pow:          FakePow{},
-		config:       testChainConfig(),
+
+	bc, err := NewBlockChain(db, testChainConfig(), FakePow{}, &eventMux, true)
+	if err != nil {
+		t.Fatalf("Could not create block chain: %v", err)
 	}
+
 	valFn := func() HeaderValidator { return bc.Validator() }
+	bc.genesisBlock = genesis
 	bc.hc, _ = NewHeaderChain(db, testChainConfig(), valFn, bc.getProcInterrupt)
 	bc.bodyCache, _ = lru.New(100)
 	bc.bodyRLPCache, _ = lru.New(100)
@@ -513,7 +513,7 @@ func testReorg(t *testing.T, first, second []int, td int64, full bool) {
 	// Create a pristine block chain
 	db, _ := ethdb.NewMemDatabase()
 	genesis, _ := WriteTestNetGenesisBlock(db)
-	bc := chm(genesis, db)
+	bc := chm(genesis, db, t)
 
 	// Insert an easy and a difficult chain afterwards
 	if full {
@@ -560,7 +560,7 @@ func testBadHashes(t *testing.T, full bool) {
 	// Create a pristine block chain
 	db, _ := ethdb.NewMemDatabase()
 	genesis, _ := WriteTestNetGenesisBlock(db)
-	bc := chm(genesis, db)
+	bc := chm(genesis, db, t)
 
 	// Create a chain, ban a hash and try to import
 	var err error
@@ -587,7 +587,7 @@ func testReorgBadHashes(t *testing.T, full bool) {
 	// Create a pristine block chain
 	db, _ := ethdb.NewMemDatabase()
 	genesis, _ := WriteTestNetGenesisBlock(db)
-	bc := chm(genesis, db)
+	bc := chm(genesis, db, t)
 
 	// Create a chain, import and ban afterwards
 	headers := makeHeaderChainWithDiff(genesis, []int{1, 2, 3, 4}, 10)
