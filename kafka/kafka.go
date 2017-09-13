@@ -21,21 +21,21 @@ import (
 // Kafka structure to be used by other modules
 // when reading or writing from kafka streams
 type Kafka struct {
-	eventMux    *event.TypeMux
-	events      *event.TypeMuxSubscription
-	server      *p2p.Server
-	blockchain  *core.BlockChain
+	eventMux         *event.TypeMux
+	events           *event.TypeMuxSubscription
+	server           *p2p.Server
+	blockchain       *core.BlockChain
 	stateDiffBuilder *statediff.StateDiffBuilder
-	lastBlock   *types.Block
-	Producer    sarama.AsyncProducer
-	Client      sarama.Client
-	quit        chan struct{}
-	chainDb     ethdb.Database
-	chainConfig *params.ChainConfig
+	lastBlock        *types.Block
+	Producer         sarama.AsyncProducer
+	Client           sarama.Client
+	quit             chan struct{}
+	chainDb          ethdb.Database
+	chainConfig      *params.ChainConfig
 }
 
 type outputBlock struct {
-	Origin              string          `json:"obOrigin"`
+	Hash                common.Hash     `json:"obHash"                gencodec:"required"`
 	TotalDifficulty     *big.Int        `json:"obTotalDifficulty"     gencodec:"required"`
 	BlockData           *types.Header   `json:"obBlockData"           gencodec:"required"`
 	ReceiptTransactions []outputTx      `json:"obReceiptTransactions" gencodec:"required"`
@@ -46,10 +46,21 @@ type outputBlock struct {
 }
 
 type outputTx struct {
-	Origin string             `json:"otOrigin" gencodec:"required"`
-	Hash   common.Hash        `json:"otHash"   gencodec:"required"`
-	Signer common.Address     `json:"otSigner" gencodec:"required"`
-	Tx     *types.Transaction `json:"otBaseTx" gencodec:"required"`
+	AccountNonce uint64          `json:"nonce"    gencodec:"required"`
+	Price        *big.Int        `json:"gasPrice" gencodec:"required"`
+	GasLimit     *big.Int        `json:"gas"      gencodec:"required"`
+	From         common.Address  `json:"from"    gencodec:"required"`
+	Recipient    *common.Address `json:"to"       rlp:"nil"` // nil means contract creation
+	Amount       *big.Int        `json:"value"    gencodec:"required"`
+	Payload      string          `json:"input"    gencodec:"required"`
+
+	// Signature values
+	V *big.Int `json:"v" gencodec:"required"`
+	R *big.Int `json:"r" gencodec:"required"`
+	S *big.Int `json:"s" gencodec:"required"`
+
+	// This is only used when marshaling to JSON.
+	Hash common.Hash `json:"hash" rlp:"-"`
 }
 
 func (ob *outputBlock) ensureEncoded() {
@@ -76,13 +87,13 @@ func New(emux *event.TypeMux, db ethdb.Database, config *params.ChainConfig, bc 
 		log.Error("Error while creating StateDiffBuilder in kafka", "err", err)
 		return nil, err
 	} else {
-	  return &Kafka{
-	  	eventMux:    emux,
-	  	chainDb:     db,
-			blockchain: bc,
-	  	chainConfig: config,
-	  	stateDiffBuilder: sdBuilder,
-	  }, nil
+		return &Kafka{
+			eventMux:         emux,
+			chainDb:          db,
+			blockchain:       bc,
+			chainConfig:      config,
+			stateDiffBuilder: sdBuilder,
+		}, nil
 	}
 }
 
@@ -144,74 +155,88 @@ func (k *Kafka) loop() {
 
 	for {
 		select {
-		case chainEvent := <- newChainEvent:
-				transactions := chainEvent.Block.Transactions()
-				var receiptTransactions []outputTx
-				signer := types.MakeSigner(k.chainConfig, chainEvent.Block.Number())
-				for i := 0; i < len(transactions); i++ {
-					if message, err := transactions[i].AsMessage(signer); err != nil {
+		case chainEvent := <-newChainEvent:
+			transactions := chainEvent.Block.Transactions()
+			var receiptTransactions []outputTx
+			signer := types.MakeSigner(k.chainConfig, chainEvent.Block.Number())
+			for i := 0; i < len(transactions); i++ {
+				if message, err := transactions[i].AsMessage(signer); err != nil {
 
-						// TODO: refactor this as a function to get transactions in the shape
-						// we need them
-					} else {
-						receiptTransactions = append(receiptTransactions, outputTx{
-							Origin: "Unknown",
-							Hash:   transactions[i].Hash(),
-							Signer: message.From(),
-							Tx:     transactions[i],
-						})
-					}
+					// TODO: refactor this as a function to get transactions in the shape
+					// we need them
 
+				} else {
+
+					v, r, s := transactions[i].RawSignatureValues()
+					receiptTransactions = append(receiptTransactions, outputTx{
+
+						AccountNonce: transactions[i].Nonce(),
+						Price:        transactions[i].GasPrice(),
+						GasLimit:     transactions[i].Gas(),
+						From:         message.From(),
+						Recipient:    transactions[i].To(),
+						Amount:       transactions[i].Value(),
+						Payload:      common.ToHex(transactions[i].Data()),
+
+						// Signature values
+						V: v,
+						R: r,
+						S: s,
+
+						// This is only used when marshaling to JSON.
+						Hash: transactions[i].Hash(),
+					})
 				}
-				// block := core.GetBlock(k.chainDb, chainEvent.Hash, chainEvent.Block.Number().Uint64())
-				opBlock := &outputBlock{
-					Origin:              "Unknown",
-					TotalDifficulty:     chainEvent.Block.Difficulty(),
-					BlockData:           chainEvent.Block.Header(),
-					ReceiptTransactions: receiptTransactions,
-					BlockUncles:         chainEvent.Block.Uncles(),
-				}
+			}
+			// block := core.GetBlock(k.chainDb, chainEvent.Hash, chainEvent.Block.Number().Uint64())
+			opBlock := &outputBlock{
+				Hash:                chainEvent.Block.Hash(),
+				TotalDifficulty:     chainEvent.Block.Difficulty(),
+				BlockData:           chainEvent.Block.Header(),
+				ReceiptTransactions: receiptTransactions,
+				BlockUncles:         chainEvent.Block.Uncles(),
+			}
+			k.Producer.Input() <- &sarama.ProducerMessage{
+				// TODO: move to config file or generate on startup
+				Topic: "indexevents",
+				Key:   nil,
+				Value: opBlock,
+			}
+
+			if stateDiff, err := k.stateDiffBuilder.CreateStateDiff(k.lastBlock.Root(), chainEvent.Block.Root(), *chainEvent.Block.Number(), chainEvent.Block.Hash()); err != nil {
+				log.Error("Failed to create StateDiff for blocks", "old Block", k.lastBlock.Number(), "new block", chainEvent.Block.Number(), "err", err)
+			} else {
+				log.Info("StateDiff is:", "statediff", stateDiff)
 				k.Producer.Input() <- &sarama.ProducerMessage{
-					// TODO: move to config file or generate on startup
-					Topic: "indexevents",
+					Topic: "statediff",
 					Key:   nil,
-					Value: opBlock,
+					Value: stateDiff,
 				}
-
-				if stateDiff, err := k.stateDiffBuilder.CreateStateDiff(k.lastBlock.Root(), chainEvent.Block.Root(), *chainEvent.Block.Number(), chainEvent.Block.Hash()); err!= nil {
-					log.Error("Failed to create StateDiff for blocks", "old Block", k.lastBlock.Number(), "new block", chainEvent.Block.Number(), "err", err)
-				} else {
-					log.Info("StateDiff is:", "statediff", stateDiff)
-					k.Producer.Input() <- &sarama.ProducerMessage{
-						Topic: "statediff",
-						Key:   nil,
-						Value: stateDiff,
-					}
-						k.lastBlock = chainEvent.Block
-					}
-				privateSR := core.GetPrivateStateRoot(k.chainDb, chainEvent.Block.Root())
-				if stateDiff, err := k.stateDiffBuilder.CreateStateDiff(k.lastBlock.Root(), privateSR, *chainEvent.Block.Number(), chainEvent.Block.Hash()); err!= nil {
-					log.Error("Failed to create StateDiff for blocks", "old Block", k.lastBlock.Number(), "new block", chainEvent.Block.Number(), "err", err)
-				} else {
-					log.Info("StateDiff is:", "statediff", stateDiff)
-					k.Producer.Input() <- &sarama.ProducerMessage{
-						Topic: "statediff",
-						Key:   nil,
-						Value: stateDiff,
-					}
-						k.lastBlock = chainEvent.Block
-					}
+				k.lastBlock = chainEvent.Block
+			}
+			privateSR := core.GetPrivateStateRoot(k.chainDb, chainEvent.Block.Root())
+			if stateDiff, err := k.stateDiffBuilder.CreateStateDiff(k.lastBlock.Root(), privateSR, *chainEvent.Block.Number(), chainEvent.Block.Hash()); err != nil {
+				log.Error("Failed to create StateDiff for blocks", "old Block", k.lastBlock.Number(), "new block", chainEvent.Block.Number(), "err", err)
+			} else {
+				log.Info("StateDiff is:", "statediff", stateDiff)
+				k.Producer.Input() <- &sarama.ProducerMessage{
+					Topic: "statediff",
+					Key:   nil,
+					Value: stateDiff,
+				}
+				k.lastBlock = chainEvent.Block
+			}
 			break
 		}
 
 	}
 }
 
-func (k * Kafka)  initializeTopicsWithGenesis () error {
-	bHash := core.GetCanonicalHash(k.chainDb,0)
+func (k *Kafka) initializeTopicsWithGenesis() error {
+	bHash := core.GetCanonicalHash(k.chainDb, 0)
 	block := core.GetBlock(k.chainDb, bHash, 0)
-  opBlock := &outputBlock{
-		Origin:              "Unknown",
+	opBlock := &outputBlock{
+		Hash:                block.Hash(),
 		TotalDifficulty:     block.Difficulty(),
 		BlockData:           block.Header(),
 		ReceiptTransactions: nil,
@@ -223,7 +248,7 @@ func (k * Kafka)  initializeTopicsWithGenesis () error {
 		Key:   nil,
 		Value: opBlock,
 	}
-	if stateDiff, err := k.stateDiffBuilder.CreateStateDiff(common.Hash{}, block.Root(), *block.Number(), block.Hash()); err!= nil {
+	if stateDiff, err := k.stateDiffBuilder.CreateStateDiff(common.Hash{}, block.Root(), *block.Number(), block.Hash()); err != nil {
 		log.Error("Failed to create StateDiff for genesis block", "err", err)
 		return err
 	} else {
@@ -243,7 +268,7 @@ func newClient(brokerList []string) (sarama.Client, error) {
 	// By creating batches of compressed messages, we reduce network I/O at a cost of more latency.
 	config := sarama.NewConfig()
 	config.Producer.RequiredAcks = sarama.WaitForLocal       // Only wait for the leader to ack
-	config.Producer.Compression = sarama.CompressionNone   // Don't compress messages
+	config.Producer.Compression = sarama.CompressionNone     // Don't compress messages
 	config.Producer.Flush.Frequency = 500 * time.Millisecond // Flush batches every 500ms
 
 	if client, err := sarama.NewClient(brokerList, config); err != nil {
