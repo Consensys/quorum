@@ -19,7 +19,7 @@ if [ ! -L "$ethdir/go-ethereum" ]; then
 fi
 
 # Set up the environment to use the workspace.
-GOPATH="$workspace":$GOPATH
+GOPATH="$workspace"
 export GOPATH
 
 # Run the command inside the workspace.
