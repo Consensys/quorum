@@ -3,6 +3,7 @@ package kafka
 import (
 	"encoding/json"
 	"math/big"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -114,7 +115,7 @@ func (k *Kafka) APIs() []rpc.API { return nil }
 func (k *Kafka) Start(server *p2p.Server) error {
 	k.server = server
 	// TODO: Move to config file
-	brokerAddr := k.config.IPAddress + ":" + string(k.config.Port)
+	brokerAddr := k.config.IPAddress + ":" + strconv.Itoa(int(k.config.Port))
 	brokerList := []string{brokerAddr}
 
 	log.Info("Starting Kafka with brokers: ", "brokerList", brokerList)
