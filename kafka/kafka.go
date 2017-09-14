@@ -117,7 +117,7 @@ func (k *Kafka) Start(server *p2p.Server) error {
 	brokerAddr := k.config.IPAddress + ":" + string(k.config.Port)
 	brokerList := []string{brokerAddr}
 
-	log.Info("Starting Kafka")
+	log.Info("Starting Kafka with brokers: ", "brokerList", brokerList)
 	if client, err := newClient(brokerList); err != nil {
 		return err
 	} else {
