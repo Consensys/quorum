@@ -32,6 +32,12 @@ type Kafka struct {
 	quit             chan struct{}
 	chainDb          ethdb.Database
 	chainConfig      *params.ChainConfig
+	config					 KafkaConfig
+}
+
+type KafkaConfig struct {
+	Port		uint16
+	IPAddress string
 }
 
 type outputBlock struct {
@@ -82,7 +88,7 @@ func (ob *outputBlock) Encode() ([]byte, error) {
 }
 
 // New runs the event loop.
-func New(emux *event.TypeMux, db ethdb.Database, config *params.ChainConfig, bc *core.BlockChain) (*Kafka, error) {
+func New(emux *event.TypeMux, db ethdb.Database, config *params.ChainConfig, bc *core.BlockChain, kConfig KafkaConfig) (*Kafka, error) {
 	if sdBuilder, err := statediff.NewStateDiffBuilder(db); err != nil {
 		log.Error("Error while creating StateDiffBuilder in kafka", "err", err)
 		return nil, err
@@ -93,6 +99,7 @@ func New(emux *event.TypeMux, db ethdb.Database, config *params.ChainConfig, bc 
 			blockchain:       bc,
 			chainConfig:      config,
 			stateDiffBuilder: sdBuilder,
+			config:			kConfig,
 		}, nil
 	}
 }
@@ -107,7 +114,8 @@ func (k *Kafka) APIs() []rpc.API { return nil }
 func (k *Kafka) Start(server *p2p.Server) error {
 	k.server = server
 	// TODO: Move to config file
-	brokerList := []string{"localhost:9092"}
+	brokerAddr := k.config.IPAddress + ":" + string(k.config.Port)
+	brokerList := []string{brokerAddr}
 
 	log.Info("Starting Kafka")
 	if client, err := newClient(brokerList); err != nil {

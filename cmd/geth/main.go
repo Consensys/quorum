@@ -118,7 +118,12 @@ var (
 		utils.RaftJoinExistingFlag,
 		utils.RaftPortFlag,
 		utils.EmitCheckpointsFlag,
+	}
+
+	kafkaFlags = []cli.Flag{
 		utils.KafkaEnabledFlag,
+		utils.KafkaAddrFlag,
+		utils.KafkaPortFlag,
 	}
 
 	rpcFlags = []cli.Flag{
@@ -179,6 +184,7 @@ func init() {
 	app.Flags = append(app.Flags, consoleFlags...)
 	app.Flags = append(app.Flags, debug.Flags...)
 	app.Flags = append(app.Flags, whisperFlags...)
+	app.Flags = append(app.Flags, kafkaFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
 		runtime.GOMAXPROCS(runtime.NumCPU())

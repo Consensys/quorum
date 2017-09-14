@@ -518,6 +518,18 @@ var (
 		Usage: "Enable kafka",
   }
 
+	KafkaAddrFlag = cli.StringFlag{
+		Name:  "kafkaaddr",
+		Usage: "kafka broker IP address",
+		Value: "localhost",
+	}
+
+	KafkaPortFlag = cli.IntFlag{
+		Name:  "kafkaport",
+		Usage: "The port that kafka broker is listening on",
+		Value: 9092,
+	}
+
 	// Quorum
 	EnableNodePermissionFlag = cli.BoolFlag{
 		Name:  "permissioned",
@@ -1094,7 +1106,7 @@ func RegisterEthStatsService(stack *node.Node, url string) {
 }
 
 // RegisterKafkaService configures Kafka and adds it to the given node.
-func RegisterKafkaService(stack *node.Node) {
+func RegisterKafkaService(stack *node.Node, addr string, port uint16) {
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 		var ethServe *eth.Ethereum
 
@@ -1108,10 +1120,12 @@ func RegisterKafkaService(stack *node.Node) {
 
 		blockchain := ethServe.BlockChain()
 
+		kafkaConfig := kafka.KafkaConfig{Port:port, IPAddress:addr}
+
 		if cErr != nil {
 			Fatalf("Failed to read chain config: ", "err", cErr)
 		}
-		return kafka.New(stack.EventMux(), chainDb, chainConfig, blockchain)
+		return kafka.New(stack.EventMux(), chainDb, chainConfig, blockchain, kafkaConfig)
 	}); err != nil {
 		Fatalf("Failed to register the Kafka service: ", "err", err)
 	}

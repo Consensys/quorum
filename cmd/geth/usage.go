@@ -213,13 +213,7 @@ var AppHelpFlagGroups = []flagGroup{
 	},
 	{
 		Name:  "Kafka (EXPERIMENTAL)",
-		Flags: whisperFlags,
-	},
-	{
-		Name: "DEPRECATED",
-		Flags: []cli.Flag{
-			utils.KafkaEnabledFlag,
-		},
+		Flags: kafkaFlags,
 	},
 	{
 		Name: "MISC",

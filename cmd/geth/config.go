@@ -182,7 +182,9 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
   // Register Kafka Service if enabled
 	if ctx.GlobalBool(utils.KafkaEnabledFlag.Name) {
-		utils.RegisterKafkaService(stack)
+		kafkaAddr := ctx.GlobalString(utils.KafkaAddrFlag.Name)
+		kafkaPort := uint16(ctx.GlobalInt(utils.KafkaPortFlag.Name))
+		utils.RegisterKafkaService(stack, kafkaAddr, kafkaPort)
 	}
 
 	// Add the release oracle service so it boots along with node.
