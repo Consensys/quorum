@@ -1,0 +1,58 @@
+name: quorum
+version: master
+summary: A permissioned implementation of Ethereum supporting data privacy
+description: |
+  Quorum is an Ethereum-based distributed ledger protocol with
+  transaction/contract privacy and new consensus mechanisms.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: devmode # use 'strict' once you have the right plugs and slots
+
+apps:
+  abigen:
+    command: abigen
+  bootnode:
+    command: bootnode
+  constellation-node:
+    command: constellation-node
+  disasm:
+    command: disasm
+  ethtest:
+    command: ethtest
+  evm:
+    command: evm
+  generators:
+    command: generators
+  geth:
+    command: geth
+  gethrpctest:
+    command: gethrpctest
+  rlpdump:
+    command: rlpdump
+
+parts:
+  quorum:
+    source: .
+    plugin: make
+    build-snaps: [go]
+    artifacts: [build/bin]
+    make-parameters: [all]
+    organize:
+      build/bin: bin
+  constellation:
+    source: https://github.com/jpmorganchase/constellation.git
+    plugin: nil
+    build-packages:
+      - curl
+      - libdb-dev
+      - libleveldb-dev
+      - libsodium-dev
+      - zlib1g-dev
+      - libtinfo-dev
+    build: |
+      curl -sSL https://get.haskellstack.org/ | sh
+      stack setup
+      stack install
+    stage-packages: [libsodium18]
+    install: |
+      cp -R .stack-work/install/*/*/*/bin $SNAPCRAFT_PART_INSTALL
