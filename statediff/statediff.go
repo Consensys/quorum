@@ -86,7 +86,7 @@ func NewStateDiffBuilder(db ethdb.Database) (*StateDiffBuilder, error) {
 }
 
 func (self *StateDiffBuilder) CreateStateDiff(oldStateRoot common.Hash, newStateRoot common.Hash, blockNumber big.Int, blockHash common.Hash) (*StateDiff, error) {
-	log.Info("Creating StateDiff==========================================", "oldRoot", oldStateRoot.Hex(), "newRoot", newStateRoot.Hex())
+	log.Debug("Creating StateDiff", "oldRoot", oldStateRoot.Hex(), "newRoot", newStateRoot.Hex())
 	oldTrie, errOld := trie.New(oldStateRoot, self.chainDb)
 	if errOld != nil {
 		log.Error("Error in creating Trie", "stateroot", oldStateRoot.Hex())
@@ -102,7 +102,7 @@ func (self *StateDiffBuilder) CreateStateDiff(oldStateRoot common.Hash, newState
 	oldIt := oldTrie.NodeIterator(make([]byte,0))
 	newIt := newTrie.NodeIterator(make([]byte,0))
 	creations, errCreate := self.collectDiffNodes(oldIt,newIt)
-	log.Debug("Creations!!==========", "creations", creations)
+	log.Debug("Creation Accounts", "creations", creations)
 	if errCreate != nil {
 		log.Error("Error in finding Created statediffs", "error", errCreate)
 		return nil, errCreate
@@ -111,7 +111,6 @@ func (self *StateDiffBuilder) CreateStateDiff(oldStateRoot common.Hash, newState
 	oldIt = oldTrie.NodeIterator(make([]byte,0))
 	newIt = newTrie.NodeIterator(make([]byte,0))
 	deletions,errDel := self.collectDiffNodes(newIt,oldIt)
-	log.Debug("Deletions!!==========", "deletions", deletions)
 	if errDel != nil {
 		log.Error("Error in finding deleted statediffs", "error", errDel)
 		return nil, errDel
@@ -120,7 +119,6 @@ func (self *StateDiffBuilder) CreateStateDiff(oldStateRoot common.Hash, newState
 	createKeys := sortKeys(&creations)
 	deleteKeys := sortKeys(&deletions)
 	updatedKeys := findIntersection(createKeys, deleteKeys)
-	log.Debug("Updates!!=========", "updatedKeys", updatedKeys)
 
 	// build statediff
 	updatedAccounts,errUDiffs := self.buildDiffIncremental(&creations, &deletions, &updatedKeys)
@@ -128,7 +126,7 @@ func (self *StateDiffBuilder) CreateStateDiff(oldStateRoot common.Hash, newState
 		log.Error("Error in finding updated statediffs", "error", errDel)
 		return nil, errUDiffs
 	}
-	log.Debug("updated accounts", "updatedAccs", updatedAccounts)
+	log.Debug("updated accounts", "updated", updatedAccounts)
 
 	createdAccounts, errCDiffs := self.buildDiffEventual(&creations,true)
 	if errCDiffs != nil {
@@ -161,8 +159,10 @@ func (self *StateDiffBuilder) buildDiffEventual(accounts *map[common.Address]*st
 		} else {
 			code := ""
 			codeBytes,errGetCode := self.chainDb.Get(val.CodeHash)
-			if errGetCode != nil  && len(codeBytes) != 0{
+			if errGetCode == nil  && len(codeBytes) != 0{
 				code = common.ToHex(codeBytes)
+			} else {
+				log.Debug("No code field.", "codehash", val.CodeHash, "Address", val, "error", errGetCode)
 			}
 			codeHash := common.ToHex(val.CodeHash)
 			if created {
@@ -250,10 +250,11 @@ func (self *StateDiffBuilder) buildDiffIncremental(creations *map[common.Address
 			delete(*deletions,common.HexToAddress(val))
 		}
 	}
-	log.Debug("updated accounts", "updatedAccs", updatedAccounts)
-	return updatedAccounts,nil }
+	return updatedAccounts,nil
+}
 
 func (self *StateDiffBuilder) buildStorageDiffsEventual(sr common.Hash, creation bool) (map[string]diffString, error) {
+		log.Debug("Storage Root For Eventual Diff", "root", sr.Hex())
 		sTrie, errSt := trie.New(sr, self.chainDb)
 	  if errSt != nil {
 			return nil, errSt
@@ -274,7 +275,6 @@ func (self *StateDiffBuilder) buildStorageDiffsEventual(sr common.Hash, creation
 			}
 			cont := it.Next(true)
 			if !cont {
-				log.Debug("Reached end of iterator", "path", pathToStr(it))
 				break;
 			}
 	  }
@@ -282,7 +282,7 @@ func (self *StateDiffBuilder) buildStorageDiffsEventual(sr common.Hash, creation
 }
 
 func (self *StateDiffBuilder) buildStorageDiffsIncremental(oldSR common.Hash, newSR common.Hash) (map[string]diffString, error) {
-		log.Debug("Storage Roots!:", "old", oldSR.Hex(), "new", newSR.Hex())
+		log.Debug("Storage Roots for Incremental Diff", "old", oldSR.Hex(), "new", newSR.Hex())
 		oldTrie, errStOld := trie.New(oldSR, self.chainDb)
 	  if errStOld != nil {
 			return nil, errStOld
@@ -308,9 +308,9 @@ func (self *StateDiffBuilder) buildStorageDiffsIncremental(oldSR common.Hash, ne
 					storageDiffs[path] = diffString{OldValue:&hexOldVal,NewValue:&value}
 				}
 			}
+
 			cont := it.Next(true)
 			if !cont {
-				log.Debug("Reached end of iterator", "path", pathToStr(it))
 				break;
 			}
 	  }
@@ -321,7 +321,7 @@ func (self *StateDiffBuilder) collectDiffNodes(a, b trie.NodeIterator) (map[comm
 	var diffAccounts = make(map[common.Address]*state.Account)
 	it,_ := trie.NewDifferenceIterator(a,b)
 	for {
-		log.Info("path and hash at this point", "path", pathToStr(it), "hashold", common.Hash(it.Hash()))
+		log.Debug("Current Path and Hash", "path", pathToStr(it), "hashold", common.Hash(it.Hash()))
 		if it.Leaf() {
 
 			// lookup address
@@ -361,7 +361,7 @@ func (self *StateDiffBuilder) addressByPath(path []byte) (*common.Address,error)
 		return nil, err
 	} else {
 		addr := common.BytesToAddress(addrBytes)
-		log.Debug("Address found!", "Address", addr)
+		log.Debug("Address found", "Address", addr)
 		return &addr, nil
 	}
 

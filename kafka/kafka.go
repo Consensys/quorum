@@ -160,7 +160,7 @@ func (k *Kafka) loop() {
 	chainEventSub := k.blockchain.SubscribeChainEvent(newChainEvent)
 	defer k.events.Unsubscribe()
 	defer chainEventSub.Unsubscribe()
-	log.Debug("starting kafka loop===============================")
+	log.Debug("starting kafka loop")
 
 	for {
 		select {
@@ -221,21 +221,22 @@ func (k *Kafka) loop() {
 					Key:   nil,
 					Value: stateDiff,
 				}
-				k.lastBlock = chainEvent.Block
 			}
+
 			privateSRNew := core.GetPrivateStateRoot(k.chainDb, chainEvent.Block.Root())
 			privateSROld := core.GetPrivateStateRoot(k.chainDb, k.lastBlock.Root())
+			log.Debug("Private stateroots", "old", privateSROld.Hex(), "new", privateSRNew.Hex())
 			if stateDiff, err := k.stateDiffBuilder.CreateStateDiff(privateSROld, privateSRNew, *chainEvent.Block.Number(), chainEvent.Block.Hash()); err != nil {
 				log.Error("Failed to create StateDiff for blocks", "old Block", k.lastBlock.Number(), "new block", chainEvent.Block.Number(), "err", err)
 			} else {
-				log.Info("StateDiff is:", "statediff", stateDiff)
+				log.Debug("StateDiff is:", "statediff", stateDiff)
 				k.Producer.Input() <- &sarama.ProducerMessage{
 					Topic: "statediff",
 					Key:   nil,
 					Value: stateDiff,
 				}
-				k.lastBlock = chainEvent.Block
 			}
+			k.lastBlock = chainEvent.Block
 			break
 		}
 
