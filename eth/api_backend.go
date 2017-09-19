@@ -17,9 +17,9 @@
 package eth
 
 import (
+	"fmt"
 	"math/big"
 
-	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -62,7 +62,8 @@ func (b *EthApiBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumb
 	// Pending block is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
 		if b.eth.protocolManager.raftMode {
-			return nil, raftHasNoPending
+			// Use latest instead.
+			return b.eth.blockchain.CurrentBlock(), nil
 		}
 		block, _, _ := b.eth.blockVoting.Pending()
 		return block, nil
@@ -78,7 +79,13 @@ func (b *EthApiBackend) StateAndHeaderByNumber(blockNr rpc.BlockNumber) (ethapi.
 	// Pending state is only known by the miner
 	if blockNr == rpc.PendingBlockNumber {
 		if b.eth.protocolManager.raftMode {
-			return nil, nil, raftHasNoPending
+			// Use latest instead.
+			header := b.HeaderByNumber(rpc.LatestBlockNumber)
+			if header == nil {
+				return nil, nil, nil
+			}
+			publicState, privateState, err := b.eth.BlockChain().StateAt(header.Root)
+			return EthApiState{publicState, privateState}, header, err
 		}
 		block, publicState, privateState := b.eth.blockVoting.Pending()
 		return EthApiState{publicState, privateState}, block.Header(), nil
