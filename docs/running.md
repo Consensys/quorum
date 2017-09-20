@@ -111,15 +111,15 @@ Optionally you can set up a bootnode that all the other nodes will first connect
 
 1-	To generate the key for the first time:
 
-`bootnode –genkey tmp_file.txt  //this will start a bootnode with an enode address and generate a key inside a “tmp_file.txt” file`
+`bootnode -genkey tmp_file.txt  //this will start a bootnode with an enode address and generate a key inside a “tmp_file.txt” file`
 
 2-	To later restart the bootnode using the same key (and hence use the same enode url):
 
-`bootnode –nodekey tmp_file.txt`
+`bootnode -nodekey tmp_file.txt`
               
 or
                 
-`bootnode –nodekeyhex 77bd02ffa26e3fb8f324bda24ae588066f1873d95680104de5bc2db9e7b2e510 // Key from tmp_file.txt`
+`bootnode -nodekeyhex 77bd02ffa26e3fb8f324bda24ae588066f1873d95680104de5bc2db9e7b2e510 // Key from tmp_file.txt`
 
 
 ### Start node
