@@ -52,7 +52,7 @@ parts:
     build: |
       curl -sSL https://get.haskellstack.org/ | sh
       stack setup
-      stack install
+      stack build
     stage-packages: [libsodium18]
     install: |
       cp -R .stack-work/install/*/*/*/bin $SNAPCRAFT_PART_INSTALL
