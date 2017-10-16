@@ -350,7 +350,7 @@ func (minter *minter) mintNewBlock() {
 }
 
 func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts, types.Receipts, []*types.Log) {
-	var logs []*types.Log
+	var allLogs []*types.Log
 	var committedTxes types.Transactions
 	var publicReceipts types.Receipts
 	var privateReceipts types.Receipts
@@ -375,19 +375,19 @@ func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc 
 			txCount++
 			committedTxes = append(committedTxes, tx)
 
-			logs = append(logs, publicReceipt.Logs...)
 			publicReceipts = append(publicReceipts, publicReceipt)
+			allLogs = append(allLogs, publicReceipt.Logs...)
 
 			if privateReceipt != nil {
-				logs = append(logs, privateReceipt.Logs...)
 				privateReceipts = append(privateReceipts, privateReceipt)
+				allLogs = append(allLogs, privateReceipt.Logs...)
 			}
 
 			txes.Shift()
 		}
 	}
 
-	return committedTxes, publicReceipts, privateReceipts, logs
+	return committedTxes, publicReceipts, privateReceipts, allLogs
 }
 
 func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (*types.Receipt, *types.Receipt, error) {
