@@ -26,6 +26,17 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+// note: Quorum, States, and Value Transfer
+//
+// In Quorum there is a tricky issue in one specific case when there is call from private state to public state:
+// * The state db is selected based on the callee (public)
+// * With every call there is an associated value transfer -- in our case this is 0
+// * Thus, there is an implicit transfer of 0 value from the caller to callee on the public state
+// * However in our scenario the caller is private
+// * Thus, the transfer creates a ghost of the private account on the public state with no value, code, or storage
+//
+// The solution is to skip this transfer of 0 value under Quorum
+
 type (
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
 	TransferFunc    func(StateDB, common.Address, common.Address, *big.Int)
@@ -177,7 +188,17 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 
 		evm.StateDB.CreateAccount(addr)
 	}
-	evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+	if evm.ChainConfig().IsQuorum {
+		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
+		if value.Sign() != 0 {
+			if evm.readOnly {
+				return nil, gas, ErrReadOnlyValueTransfer
+			}
+			evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+		}
+	} else {
+		evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
+	}
 
 	// initialise a new contract and set the code that is to be used by the
 	// E The contract is a scoped environment for this execution context
@@ -362,7 +383,17 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
 		evm.StateDB.SetNonce(contractAddr, 1)
 	}
-	evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value)
+	if evm.ChainConfig().IsQuorum {
+		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
+		if value.Sign() != 0 {
+			if evm.readOnly {
+				return nil, common.Address{}, gas, ErrReadOnlyValueTransfer
+			}
+			evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value)
+		}
+	} else {
+		evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value)
+	}
 
 	// initialise a new contract and set the code that is to be used by the
 	// E The contract is a scoped evmironment for this execution context
