@@ -96,7 +96,7 @@ The console can be used to calculate the storage key, in this case for vote key 
 > web3.sha3(key, {"encoding": "hex"})
 "0x29ecdbdf95c7f6ceec92d6150c697aa14abeb0f8595dd58d808842ea237d8494"
 ```
-From the above example, the `<256 bit aligned key value>` is the ethereum account address that should be added to the voting map, ed9d02e382b34818e88b88a309c7fe71e65f419d, padded to 256bits. The `<256 bit variable index>` is the index(3) of the canVote mapping in the solidity [voting smart contract](https://github.com/jpmorganchase/quorum/blob/master/core/quorum/block_voting.sol#L42) padded to 256bits. The index is calculated based on the location of canVote:
+From the above example, the `<256 bit aligned key value>` is the ethereum account address that should be added to the voting map, `ed9d02e382b34818e88b88a309c7fe71e65f419d`, padded to 256bits. The `<256 bit variable index>` is the index(3) of the canVote mapping in the solidity [voting smart contract](https://github.com/jpmorganchase/quorum/blob/master/core/quorum/block_voting.sol#L42) padded to 256bits. The index is calculated based on the location of canVote:
 
 * Period[] periods --> index 0
 * uint public voteThreshold --> index 1
@@ -109,11 +109,11 @@ The `genesis.json` file can be found in the `7nodes` folder in the `quorum-examp
 
 Optionally you can set up a bootnode that all the other nodes will first connect to in order to find other peers in the network. You will first need to generate a bootnode key: 
 
-1-	To generate the key for the first time:
+1. To generate the key for the first time:
 
-`bootnode -genkey tmp_file.txt  //this will start a bootnode with an enode address and generate a key inside a “tmp_file.txt” file`
+`bootnode -genkey tmp_file.txt  // this will start a bootnode with an enode address and generate a key inside a “tmp_file.txt” file`
 
-2-	To later restart the bootnode using the same key (and hence use the same enode url):
+2. To later restart the bootnode using the same key (and hence use the same enode url):
 
 `bootnode -nodekey tmp_file.txt`
               
