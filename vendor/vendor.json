@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"path": "github.com/jpmorganchase/zsl-q/zsl-golang/zsl/sha256"
+		},
+		{
+			"path": "github.com/jpmorganchase/zsl-q/zsl-golang/zsl/snark"
+		},
+		{
 			"checksumSHA1": "b5bkSc2hlmUV7PlLY6JlLwiJpiE=",
 			"path": "bazil.org/fuse",
 			"revision": "371fbbdaa8987b715bdd21d6adc4c9b20155f748",

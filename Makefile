@@ -11,7 +11,11 @@
 GOBIN = $(shell pwd)/build/bin
 GO ?= latest
 
-geth:
+zsl:
+	cd vendor/github.com/jpmorganchase/zsl-q/zsl-golang/zsl/snark/ ; $(MAKE)
+	@echo "Done building libzsl.a"
+
+geth: zsl
 	build/env.sh go run build/ci.go install ./cmd/geth
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."
@@ -21,7 +25,7 @@ swarm:
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/swarm\" to launch swarm."
 
-all:
+all: zsl
 	build/env.sh go run build/ci.go install
 
 android:

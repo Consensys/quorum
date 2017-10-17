@@ -71,6 +71,10 @@ const (
 	Bn256PairingPerPointGas uint64 = 80000  // Per-point price for an elliptic curve pairing check
 
 	QuorumMaximumExtraDataSize uint64 = 65 // Maximum size extra data may be after Genesis.
+
+	// ZSL START
+	ZSLGas uint64 = 1
+	// ZSL END
 )
 
 var (

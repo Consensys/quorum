@@ -1,0 +1,59 @@
+zsl/sha256 is a modified version of the crytpo/sha256 package from go 1.8.3
+https://github.com/golang/go/commits/release-branch.go1.8
+
+TODO:
+Move this documentation and add documentation to .go files (standard go & godoc practice)
+
+What's new:
+
+A SHA-256 compression function to apply to input data, without any padding,
+which must be a 512-bit block, to produce a 256-bit hash [NIST2015].
+
+Changes made:
+
+1. [When using Go 1.8.x] Import path to 'internal/cpu' changed in sha256block_amd64.go (BSD) to avoid import problems
+   with local packages in non-local packages and the special package name 'internal'.
+2. Compress method added to sha256.go (BSD)
+3. compress_test added (Apache)
+4. [When using Go 1.8.x] Only AMD64 assembly retained, non x86 cpus removed from 'cpu' folder
+5. Copied Golang LICENSE and PATENTS into package, which apply to crypto/sha256
+
+Other links:
+
+https://github.com/zcash/zips/issues/100
+
+Testing:
+
+Compress tests match the zcash Sha256Compress tests, run with:
+
+go test
+
+
+Example usage:
+
+package main
+
+import (
+	"encoding/hex"
+	"fmt"
+
+	"./zsl/sha256"
+)
+
+func main() {
+	buf := make([]byte, 64)
+
+	h := sha256.New()
+	h.Write(buf)
+	result := hex.EncodeToString(h.Sum(nil))
+	fmt.Println(result)
+
+	c := sha256.NewCompress()
+	c.Write(buf)
+
+	result = hex.EncodeToString(c.Sum(nil))
+	fmt.Println(result)
+
+	result = hex.EncodeToString(c.Compress())
+	fmt.Println(result)
+}
