@@ -129,7 +129,7 @@ Further documentation can be found in the [docs](docs/) folder and on the [wiki]
 * [Quorum](https://github.com/jpmorganchase/quorum): this repository
 * [Constellation](https://github.com/jpmorganchase/constellation): peer-to-peer encrypted message exchange for transaction privacy
 * [Raft Consensus Documentation](raft/doc.md)
-* [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) and [documentation](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
+* [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) wiki page and [documentation](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
 * [quorum-examples](https://github.com/jpmorganchase/quorum-examples): example quorum clusters
 * [Quorum Wiki](https://github.com/jpmorganchase/quorum/wiki)
 
