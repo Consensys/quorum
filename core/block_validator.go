@@ -40,9 +40,9 @@ func forceParseRfc3339(str string) time.Time {
 }
 
 var (
-	ExpDiffPeriod = big.NewInt(100000)
-	big10         = big.NewInt(10)
-	bigMinus99    = big.NewInt(-99)
+	ExpDiffPeriod           = big.NewInt(100000)
+	big10                   = big.NewInt(10)
+	bigMinus99              = big.NewInt(-99)
 	nanosecond2017Timestamp = forceParseRfc3339("2017-01-01T00:00:00+00:00").UnixNano()
 )
 

@@ -70,6 +70,7 @@ type State interface {
 
 func GetAPIs(apiBackend Backend, solcPath string) []rpc.API {
 	compiler := makeCompilerAPIs(solcPath)
+	nonceLock := new(AddrLocker)
 	all := []rpc.API{
 		{
 			Namespace: "eth",
@@ -84,7 +85,7 @@ func GetAPIs(apiBackend Backend, solcPath string) []rpc.API {
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   NewPublicTransactionPoolAPI(apiBackend),
+			Service:   NewPublicTransactionPoolAPI(apiBackend, nonceLock),
 			Public:    true,
 		}, {
 			Namespace: "txpool",
@@ -108,7 +109,7 @@ func GetAPIs(apiBackend Backend, solcPath string) []rpc.API {
 		}, {
 			Namespace: "personal",
 			Version:   "1.0",
-			Service:   NewPrivateAccountAPI(apiBackend),
+			Service:   NewPrivateAccountAPI(apiBackend, nonceLock),
 			Public:    false,
 		},
 	}

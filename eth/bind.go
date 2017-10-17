@@ -47,7 +47,7 @@ func NewContractBackend(eth *Ethereum) *ContractBackend {
 	return &ContractBackend{
 		eapi:  ethapi.NewPublicEthereumAPI(eth.apiBackend),
 		bcapi: ethapi.NewPublicBlockChainAPI(eth.apiBackend),
-		txapi: ethapi.NewPublicTransactionPoolAPI(eth.apiBackend),
+		txapi: ethapi.NewPublicTransactionPoolAPI(eth.apiBackend, new(ethapi.AddrLocker)),
 	}
 }
 
