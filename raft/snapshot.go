@@ -2,6 +2,11 @@ package raft
 
 import (
 	"fmt"
+	"io"
+	"math/big"
+	"sort"
+	"time"
+
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal/walpb"
@@ -11,10 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"gopkg.in/fatih/set.v0"
-	"io"
-	"math/big"
-	"sort"
-	"time"
 )
 
 // Snapshot
@@ -203,7 +204,7 @@ func (snapshot *Snapshot) toBytes() []byte {
 func bytesToSnapshot(bytes []byte) *Snapshot {
 	var snapshot Snapshot
 	if err := rlp.DecodeBytes(bytes, &snapshot); err != nil {
-		fatalf("failed to RLP-decode Snapshot", "err", err)
+		fatalf("failed to RLP-decode Snapshot: %v", err)
 	}
 	return &snapshot
 }
