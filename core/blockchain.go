@@ -967,7 +967,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 				// is exceeded the chain is discarded and processed at a later time
 				// if given.
 				max := big.NewInt(time.Now().Unix() + maxTimeFutureBlocks)
-				if block.Time().Cmp(max) > 0 {
+				if block.Time().Cmp(max) > 0 && !bc.config.IsQuorum {
 					return i, fmt.Errorf("future block: %v > %v", block.Time(), max)
 				}
 				bc.futureBlocks.Add(block.Hash(), block)
