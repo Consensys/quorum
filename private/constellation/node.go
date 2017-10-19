@@ -101,6 +101,9 @@ func (c *Client) do(path string, apiReq interface{}) (*http.Response, error) {
 	return res, err
 }
 
+// SendPayload sends a message to constellation using a POST over the http+unix protocol.
+// send it from the b64 public key to each of the users with the b64 to public keys.
+// responsible for decoding a response, and sending up a marshallable request to the internal do method.
 func (c *Client) SendPayload(pl []byte, b64From string, b64To []string) ([]byte, error) {
 	var from string
 	if b64From == "" {
@@ -130,6 +133,9 @@ func (c *Client) SendPayload(pl []byte, b64From string, b64To []string) ([]byte,
 	return key, nil
 }
 
+// ReceivePayload receives a message from constellation using a POST over the http+unix protocol.
+// Get the message using the provided key, using the base 64 encoded key for the client.
+// responsible for decoding a response, and sending up a marshallable request to the internal do method.
 func (c *Client) ReceivePayload(key []byte) ([]byte, error) {
 	b64Key := base64.StdEncoding.EncodeToString(key)
 	req := &ReceiveRequest{
@@ -153,6 +159,7 @@ func (c *Client) ReceivePayload(key []byte) ([]byte, error) {
 	return pl, nil
 }
 
+// NewClient creates a client for constellation, looking up the public key at the specified path, and node socket path.
 func NewClient(publicKeyPath string, nodeSocketPath string) (*Client, error) {
 	b64PublicKey, err := ioutil.ReadFile(publicKeyPath)
 	if err != nil {
