@@ -1487,7 +1487,7 @@ func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs
 	}
 	b, err := private.P.Send([]byte(args.Data), args.PrivateFrom, args.PrivateFor)
 	if err != nil {
-		log.Info("Error running Private.P.Send: %v", err)
+		log.Info("Error running Private.P.Send", "err", err)
 		res.Error = err.Error()
 		return
 	}
@@ -1513,12 +1513,13 @@ func (a *Async) save(ctx context.Context, s *PublicTransactionPoolAPI, args Send
 	} else {
 		tx = types.NewTransaction((uint64)(*args.Nonce), *args.To, (*big.Int)(args.Value), (*big.Int)(args.Gas), (*big.Int)(args.GasPrice), data)
 	}
-	return common.Hash{}, fmt.Errorf("unimplemented: Async.save %v", tx)
-	//signature, err := s.b.AccountManager().SignEthereum(args.From, tx.SigHash().Bytes())
-	//if err != nil {
-	//	return common.Hash{}, err
-	//}
-	//return submitTransaction(ctx, s.b, tx, signature, len(args.PrivateFor) > 0)
+
+	signed, err := s.sign(args.From, tx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return submitTransaction(ctx, s.b, signed, args.PrivateFor != nil)
 }
 
 func newAsync(n int) *Async {
