@@ -11,6 +11,9 @@ type Constellation struct {
 	c    *cache.Cache
 }
 
+// Send is the constellation implementation of the PrivateTransactionManager interface.
+// It sends the private data from an identity(public key) to an array of recipients using constellation.
+// Constellation will take the responsibility of managing all this behind the scenes.
 func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
 	out, err = g.node.SendPayload(data, from, to)
 	if err != nil {
@@ -20,6 +23,7 @@ func (g *Constellation) Send(data []byte, from string, to []string) (out []byte,
 	return out, nil
 }
 
+// Receive gets the data if available from Constellation.  Will cache data using a cache.Cache.
 func (g *Constellation) Receive(data []byte) ([]byte, error) {
 	if len(data) == 0 {
 		return data, nil
