@@ -131,7 +131,7 @@ func (minter *minter) updateSpeculativeChainPerInvalidOrdering(headBlock *types.
 	defer minter.mu.Unlock()
 
 	// 1. if the block is not in our db, exit. someone else mined this.
-	if !minter.chain.HasBlock(invalidHash) {
+	if !minter.chain.HasBlock(invalidHash, invalidBlock.NumberU64()) {
 		log.Info("Someone else mined invalid block; ignoring", "block", invalidHash)
 
 		return
@@ -276,7 +276,8 @@ func (minter *minter) getTransactions() *types.TransactionsByPriceAndNonce {
 		panic(err)
 	}
 	addrTxes := minter.speculativeChain.withoutProposedTxes(allAddrTxes)
-	return types.NewTransactionsByPriceAndNonce(addrTxes)
+	signer := types.MakeSigner(minter.chain.Config(), minter.chain.CurrentBlock().Number())
+	return types.NewTransactionsByPriceAndNonce(signer, addrTxes)
 }
 
 // Sends-off events asynchronously.
@@ -314,7 +315,7 @@ func (minter *minter) mintNewBlock() {
 	header := work.header
 
 	// commit state root after all state transitions.
-	ethash.AccumulateRewards(work.publicState, header, nil)
+	ethash.AccumulateRewards(minter.chain.Config(), work.publicState, header, nil)
 	header.Root = work.publicState.IntermediateRoot(minter.chain.Config().IsEIP158(work.header.Number))
 
 	// NOTE: < QuorumChain creates a signature here and puts it in header.Extra. >

@@ -706,7 +706,7 @@ func (pm *ProtocolManager) eventLoop() {
 						log.Error("error decoding block: ", err)
 					}
 
-					if pm.blockchain.HasBlock(block.Hash()) {
+					if pm.blockchain.HasBlock(block.Hash(), block.NumberU64()) {
 						// This can happen:
 						//
 						// if (1) we crashed after applying this block to the chain, but

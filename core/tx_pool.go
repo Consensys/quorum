@@ -213,15 +213,15 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 
 	// Create the transaction pool with its initial settings
 	pool := &TxPool{
-		config:       config,
+		config:      config,
 		chainconfig: chainconfig,
 		chain:       chain,
-		signer:       types.MakeSigner(chainconfig, new(big.Int)),
-		pending:      make(map[common.Address]*txList),
-		queue:        make(map[common.Address]*txList),
-		beats:        make(map[common.Address]time.Time),
-		all:          make(map[common.Hash]*types.Transaction),
-		chainHeadCh:  make(chan ChainHeadEvent, chainHeadChanSize),
+		signer:      types.MakeSigner(chainconfig, new(big.Int)),
+		pending:     make(map[common.Address]*txList),
+		queue:       make(map[common.Address]*txList),
+		beats:       make(map[common.Address]time.Time),
+		all:         make(map[common.Hash]*types.Transaction),
+		chainHeadCh: make(chan ChainHeadEvent, chainHeadChanSize),
 		gasPrice:    new(big.Int).SetUint64(config.PriceLimit),
 	}
 	pool.locals = newAccountSet(pool.signer)
@@ -394,7 +394,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	if newHead == nil {
 		newHead = pool.chain.CurrentBlock().Header() // Special case during testing
 	}
-	statedb, err := pool.chain.StateAt(newHead.Root)
+	statedb, _, err := pool.chain.StateAt(newHead.Root)
 	if err != nil {
 		log.Error("Failed to reset txpool state", "err", err)
 		return
@@ -873,6 +873,12 @@ func (pool *TxPool) removeTx(hash common.Hash) {
 // future queue to the set of pending transactions. During this process, all
 // invalidated transactions (low nonce, low balance) are deleted.
 func (pool *TxPool) promoteExecutables(accounts []common.Address) {
+	isQuorum := pool.chainconfig.IsQuorum
+	// Init delayed since tx pool could have been started before any state sync
+	if isQuorum && pool.pendingState == nil {
+		pool.reset(nil, nil)
+	}
+
 	// Gather all the accounts potentially needing updates
 	if accounts == nil {
 		accounts = make([]common.Address, 0, len(pool.queue))
@@ -894,15 +900,15 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			pool.priced.Removed()
 		}
 		if !isQuorum {
-      // Drop all transactions that are too costly (low balance or out of gas)
-      drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
-      for _, tx := range drops {
-        hash := tx.Hash()
-        log.Trace("Removed unpayable queued transaction", "hash", hash)
-        delete(pool.all, hash)
-        pool.priced.Removed()
-        queuedNofundsCounter.Inc(1)
-      }
+			// Drop all transactions that are too costly (low balance or out of gas)
+			drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+			for _, tx := range drops {
+				hash := tx.Hash()
+				log.Trace("Removed unpayable queued transaction", "hash", hash)
+				delete(pool.all, hash)
+				pool.priced.Removed()
+				queuedNofundsCounter.Inc(1)
+			}
 		}
 		// Gather all executable transactions and promote them
 		for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {

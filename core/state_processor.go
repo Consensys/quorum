@@ -149,7 +149,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	var privateReceipt *types.Receipt
 	if config.IsQuorum && tx.IsPrivate() {
 		var privateRoot []byte
-		if config.IsMetropolis(header.Number) {
+		if config.IsByzantium(header.Number) {
 			privateState.Finalise(true)
 		} else {
 			privateRoot = privateState.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()

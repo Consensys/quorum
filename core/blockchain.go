@@ -1002,7 +1002,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		privateStateRoot := GetPrivateStateRoot(bc.chainDb, parent.Root())
 		privateState, err := stateNew(privateStateRoot, bc.privateStateCache)
 		if err != nil {
-			return i, err
+			return i, events, coalescedLogs, err
 		}
 		// /Quorum
 
@@ -1019,12 +1019,20 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
 		}
-		// Write the block to the chain and get the status.
-		status, err := bc.WriteBlockAndState(block, receipts, state)
-		if err != nil {
+
+		// Quorum
+		// Write private state changes to database
+		if privateStateRoot, err = privateState.CommitTo(bc.chainDb, bc.config.IsEIP158(block.Number())); err != nil {
 			return i, events, coalescedLogs, err
 		}
-		_, err := bc.WriteBlockAndState(block, receipts, privateState)
+		if err := WritePrivateStateRoot(bc.chainDb, block.Root(), privateStateRoot); err != nil {
+			return i, events, coalescedLogs, err
+		}
+		// /Quorum
+
+		allReceipts := append(receipts, privateReceipts...)
+		// Write the block to the chain and get the status.
+		status, err := bc.WriteBlockAndState(block, allReceipts, state)
 		if err != nil {
 			return i, events, coalescedLogs, err
 		}
@@ -1054,7 +1062,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		events = append(events, ChainHeadEvent{lastCanon})
 	}
 	return 0, events, coalescedLogs, nil
-
+}
 
 // insertStats tracks and reports on block insertion.
 type insertStats struct {
