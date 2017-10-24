@@ -37,6 +37,10 @@ import (
 //
 // The solution is to skip this transfer of 0 value under Quorum
 
+// emptyCodeHash is used by create to ensure deployment is disallowed to already
+// deployed contract addresses (relevant after the account abstraction).
+var emptyCodeHash = crypto.Keccak256Hash(nil)
+
 type (
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
 	TransferFunc    func(StateDB, common.Address, common.Address, *big.Int)
@@ -49,8 +53,8 @@ type (
 func run(evm *EVM, snapshot int, contract *Contract, input []byte) ([]byte, error) {
 	if contract.CodeAddr != nil {
 		precompiles := PrecompiledContractsHomestead
-		if evm.ChainConfig().IsMetropolis(evm.BlockNumber) {
-			precompiles = PrecompiledContractsMetropolis
+		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
+			precompiles = PrecompiledContractsByzantium
 		}
 		if p := precompiles[*contract.CodeAddr]; p != nil {
 			return RunPrecompiledContract(p, input, contract)
@@ -180,8 +184,8 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	)
 	if !evm.StateDB.Exist(addr) {
 		precompiles := PrecompiledContractsHomestead
-		if evm.ChainConfig().IsMetropolis(evm.BlockNumber) {
-			precompiles = PrecompiledContractsMetropolis
+		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
+			precompiles = PrecompiledContractsByzantium
 		}
 		if precompiles[addr] == nil && evm.ChainConfig().IsEIP158(evm.BlockNumber) && value.Sign() == 0 {
 			return nil, gas, nil
@@ -346,9 +350,6 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 
 // Create creates a new contract using code as deployment code.
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	if evm.vmConfig.NoRecursion && evm.depth > 0 {
-		return nil, common.Address{}, gas, nil
-	}
 
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
@@ -374,12 +375,17 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 		creatorStateDb = evm.publicState
 	}
 
-	// Create a new account on the state
-	nonce := creatorStateDb.GetNonce(caller.Address())
-	creatorStateDb.SetNonce(caller.Address(), nonce+1)
+	// Ensure there's no existing contract already at the designated address
+	nonce := evm.StateDB.GetNonce(caller.Address())
+	evm.StateDB.SetNonce(caller.Address(), nonce+1)
 
-	snapshot := evm.StateDB.Snapshot()
 	contractAddr = crypto.CreateAddress(caller.Address(), nonce)
+	contractHash := evm.StateDB.GetCodeHash(contractAddr)
+	if evm.StateDB.GetNonce(contractAddr) != 0 || (contractHash != (common.Hash{}) && contractHash != emptyCodeHash) {
+		return nil, common.Address{}, 0, ErrContractAddressCollision
+	}
+	// Create a new account on the state
+	snapshot := evm.StateDB.Snapshot()
 	evm.StateDB.CreateAccount(contractAddr)
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
 		evm.StateDB.SetNonce(contractAddr, 1)
@@ -402,9 +408,12 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	contract := NewContract(caller, AccountRef(contractAddr), value, gas)
 	contract.SetCallCode(&contractAddr, crypto.Keccak256Hash(code), code)
 
+	if evm.vmConfig.NoRecursion && evm.depth > 0 {
+		return nil, contractAddr, gas, nil
+	}
 	ret, err = run(evm, snapshot, contract, nil)
 	// check whether the max code size has been exceeded
-	maxCodeSizeExceeded := len(ret) > params.MaxCodeSize
+	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
 	// if the contract creation ran successfully and no errors were returned
 	// calculate the gas required to store the code. If the code could not
 	// be stored due to not enough gas set an error and let it be handled

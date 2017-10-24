@@ -120,7 +120,7 @@ var (
 	}
 	NoUSBFlag = cli.BoolFlag{
 		Name:  "nousb",
-		Usage: "Disables monitoring for and managine USB hardware wallets",
+		Usage: "Disables monitoring for and managing USB hardware wallets",
 	}
 	NetworkIdFlag = cli.Uint64Flag{
 		Name:  "networkid",
@@ -981,10 +981,6 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	if ctx.GlobalIsSet(NetworkIdFlag.Name) {
 		cfg.NetworkId = ctx.GlobalUint64(NetworkIdFlag.Name)
 	}
-
-	// Ethereum needs to know maxPeers to calculate the light server peer ratio.
-	// TODO(fjl): ensure Ethereum can get MaxPeers from node.
-	cfg.MaxPeers = ctx.GlobalInt(MaxPeersFlag.Name)
 
 	if ctx.GlobalIsSet(CacheFlag.Name) {
 		cfg.DatabaseCache = ctx.GlobalInt(CacheFlag.Name)
