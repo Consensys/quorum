@@ -64,10 +64,11 @@ var (
 )
 
 func TestTransactionSigHash(t *testing.T) {
-	if emptyTx.SigHash(HomesteadSigner{}) != common.HexToHash("c775b99e7ad12f50d819fcd602390467e28141316969f4b57f0626f74fe3b386") {
+	var homestead HomesteadSigner
+	if homestead.Hash(emptyTx) != common.HexToHash("c775b99e7ad12f50d819fcd602390467e28141316969f4b57f0626f74fe3b386") {
 		t.Errorf("empty transaction hash mismatch, got %x", emptyTx.Hash())
 	}
-	if rightvrsTx.SigHash(HomesteadSigner{}) != common.HexToHash("fe7a79529ed5f7c3375d06b26b186a8644e0e16c373d7a12be41c62d6042b77a") {
+	if homestead.Hash(rightvrsTx) != common.HexToHash("fe7a79529ed5f7c3375d06b26b186a8644e0e16c373d7a12be41c62d6042b77a") {
 		t.Errorf("RightVRS transaction hash mismatch, got %x", rightvrsTx.Hash())
 	}
 }
@@ -80,16 +81,6 @@ func TestTransactionEncode(t *testing.T) {
 	should := common.FromHex("f86103018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a8255441ca098ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4aa08887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a3")
 	if !bytes.Equal(txb, should) {
 		t.Errorf("encoded RLP mismatch, got %x", txb)
-	}
-}
-
-// Test from the original quorum implementation
-func TestTransactionSigHash2(t *testing.T) {
-	if emptyTx.SigHash(HomesteadSigner{}) != common.HexToHash("c775b99e7ad12f50d819fcd602390467e28141316969f4b57f0626f74fe3b386") {
-		t.Errorf("empty transaction hash mismatch, got %x", emptyTx.Hash())
-	}
-	if rightvrsTx2.SigHash(HomesteadSigner{}) != common.HexToHash("c75e06c2a1b4e254e869653871436fdfa752fd613152b474e6dd36b73a13dae2") {
-		t.Errorf("RightVRS transaction hash mismatch, got %x", rightvrsTx2.Hash())
 	}
 }
 
@@ -180,12 +171,12 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 	txset := NewTransactionsByPriceAndNonce(signer, groups)
 
 	txs := Transactions{}
-	for {
-		if tx := txset.Peek(); tx != nil {
-			txs = append(txs, tx)
-			txset.Shift()
-		}
-		break
+	for tx := txset.Peek(); tx != nil; tx = txset.Peek() {
+		txs = append(txs, tx)
+		txset.Shift()
+	}
+	if len(txs) != 25*25 {
+		t.Errorf("expected %d transactions, found %d", 25*25, len(txs))
 	}
 	for i, txi := range txs {
 		fromi, _ := Sender(signer, txi)

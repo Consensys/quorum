@@ -60,7 +60,7 @@ type PublicEthereumAPI struct {
 	b Backend
 }
 
-// NewPublicEthereumAPI creates a new Etheruem protocol API.
+// NewPublicEthereumAPI creates a new Ethereum protocol API.
 func NewPublicEthereumAPI(b Backend) *PublicEthereumAPI {
 	return &PublicEthereumAPI{b}
 }
@@ -466,7 +466,7 @@ type PublicBlockChainAPI struct {
 	b Backend
 }
 
-// NewPublicBlockChainAPI creates a new Etheruem blockchain API.
+// NewPublicBlockChainAPI creates a new Ethereum blockchain API.
 func NewPublicBlockChainAPI(b Backend) *PublicBlockChainAPI {
 	return &PublicBlockChainAPI{b}
 }
@@ -595,12 +595,12 @@ type CallArgs struct {
 	Data     hexutil.Bytes   `json:"data"`
 }
 
-func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr rpc.BlockNumber, vmCfg vm.Config) ([]byte, *big.Int, error) {
+func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr rpc.BlockNumber, vmCfg vm.Config) ([]byte, *big.Int, bool, error) {
 	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := s.b.StateAndHeaderByNumber(ctx, blockNr)
 	if state == nil || err != nil {
-		return nil, common.Big0, err
+		return nil, common.Big0, false, err
 	}
 	// Set sender address or use a default if none specified
 	addr := args.From
@@ -639,7 +639,7 @@ func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr
 	// Get a new instance of the EVM.
 	evm, vmError, err := s.b.GetEVM(ctx, msg, state, header, vmCfg)
 	if err != nil {
-		return nil, common.Big0, err
+		return nil, common.Big0, false, err
 	}
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
@@ -651,26 +651,28 @@ func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr
 	// Setup the gas pool (also for unmetered requests)
 	// and apply the message.
 	gp := new(core.GasPool).AddGas(math.MaxBig256)
-	// TODO utilize failed flag to help gas estimation
-	res, gas, _, err := core.ApplyMessage(evm, msg, gp)
+	res, gas, failed, err := core.ApplyMessage(evm, msg, gp)
 	if err := vmError(); err != nil {
-		return nil, common.Big0, err
+		return nil, common.Big0, false, err
 	}
-	return res, gas, err
+	return res, gas, failed, err
 }
 
 // Call executes the given transaction on the state for the given block number.
 // It doesn't make and changes in the state/blockchain and is useful to execute and retrieve values.
 func (s *PublicBlockChainAPI) Call(ctx context.Context, args CallArgs, blockNr rpc.BlockNumber) (hexutil.Bytes, error) {
-	result, _, err := s.doCall(ctx, args, blockNr, vm.Config{DisableGasMetering: true})
+	result, _, _, err := s.doCall(ctx, args, blockNr, vm.Config{DisableGasMetering: true})
 	return (hexutil.Bytes)(result), err
 }
 
 // EstimateGas returns an estimate of the amount of gas needed to execute the given transaction.
 func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (*hexutil.Big, error) {
 	// Binary search the gas requirement, as it may be higher than the amount used
-	var lo, hi uint64
-	if (*big.Int)(&args.Gas).Sign() != 0 {
+	var (
+		lo uint64 = params.TxGas - 1
+		hi uint64
+	)
+	if (*big.Int)(&args.Gas).Uint64() >= params.TxGas {
 		hi = (*big.Int)(&args.Gas).Uint64()
 	} else {
 		// Retrieve the current pending block to act as the gas ceiling
@@ -685,10 +687,10 @@ func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (*
 		mid := (hi + lo) / 2
 		(*big.Int)(&args.Gas).SetUint64(mid)
 
-		_, gas, err := s.doCall(ctx, args, rpc.PendingBlockNumber, vm.Config{})
+		_, _, failed, err := s.doCall(ctx, args, rpc.PendingBlockNumber, vm.Config{})
 
-		// If the transaction became invalid or used all the gas (failed), raise the gas limit
-		if err != nil || gas.Cmp((*big.Int)(&args.Gas)) == 0 {
+		// If the transaction became invalid or execution failed, raise the gas limit
+		if err != nil || failed {
 			lo = mid
 			continue
 		}
@@ -699,10 +701,11 @@ func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (*
 }
 
 // ExecutionResult groups all structured logs emitted by the EVM
-// while replaying a transaction in debug mode as well as the amount of
-// gas used and the return value
+// while replaying a transaction in debug mode as well as transaction
+// execution status, the amount of gas used and the return value
 type ExecutionResult struct {
 	Gas         *big.Int       `json:"gas"`
+	Failed      bool           `json:"failed"`
 	ReturnValue string         `json:"returnValue"`
 	StructLogs  []StructLogRes `json:"structLogs"`
 }
@@ -1007,7 +1010,6 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(hash common.Hash) (map[
 	from, _ := types.Sender(signer, tx)
 
 	fields := map[string]interface{}{
-		"root":              hexutil.Bytes(receipt.PostState),
 		"blockHash":         blockHash,
 		"blockNumber":       hexutil.Uint64(blockNumber),
 		"transactionHash":   hash,
@@ -1019,6 +1021,13 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(hash common.Hash) (map[
 		"contractAddress":   nil,
 		"logs":              receipt.Logs,
 		"logsBloom":         receipt.Bloom,
+	}
+
+	// Assign receipt status or post state.
+	if len(receipt.PostState) > 0 {
+		fields["root"] = hexutil.Bytes(receipt.PostState)
+	} else {
+		fields["status"] = hexutil.Uint(receipt.Status)
 	}
 	if receipt.Logs == nil {
 		fields["logs"] = [][]*types.Log{}
@@ -1107,7 +1116,10 @@ func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction, is
 	}
 	if tx.To() == nil {
 		signer := types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number())
-		from, _ := types.Sender(signer, tx)
+		from, err := types.Sender(signer, tx)
+		if err != nil {
+			return common.Hash{}, err
+		}
 		addr := crypto.CreateAddress(from, tx.Nonce())
 		log.Info("Submitted contract creation", "fullhash", tx.Hash().Hex(), "to", addr.Hex())
 		log.EmitCheckpoint(log.TxCreated, "tx", tx.Hash().Hex(), "to", addr.Hex())
@@ -1171,29 +1183,12 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 // SendRawTransaction will add the signed transaction to the transaction pool.
 // The sender is responsible for signing the transaction and using the correct nonce.
-func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (string, error) {
+func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encodedTx hexutil.Bytes) (common.Hash, error) {
 	tx := new(types.Transaction)
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
-		return "", err
+		return common.Hash{}, err
 	}
-
-	if err := s.b.SendTx(ctx, tx); err != nil {
-		return "", err
-	}
-
-	signer := types.MakeSigner(s.b.ChainConfig(), s.b.CurrentBlock().Number())
-	if tx.To() == nil {
-		from, err := types.Sender(signer, tx)
-		if err != nil {
-			return "", err
-		}
-		addr := crypto.CreateAddress(from, tx.Nonce())
-		log.Info("Submitted contract creation", "fullhash", tx.Hash().Hex(), "contract", addr.Hex())
-	} else {
-		log.Info("Submitted transaction", "fullhash", tx.Hash().Hex(), "recipient", tx.To())
-	}
-
-	return tx.Hash().Hex(), nil
+	return submitTransaction(ctx, s.b, tx, tx.IsPrivate())
 }
 
 // Sign calculates an ECDSA signature for:
@@ -1322,7 +1317,7 @@ func (s *PublicTransactionPoolAPI) Resend(ctx context.Context, sendArgs SendTxAr
 	return common.Hash{}, fmt.Errorf("Transaction %#x not found", matchTx.Hash())
 }
 
-// PublicDebugAPI is the collection of Etheruem APIs exposed over the public
+// PublicDebugAPI is the collection of Ethereum APIs exposed over the public
 // debugging endpoint.
 type PublicDebugAPI struct {
 	b Backend
@@ -1365,7 +1360,7 @@ func (api *PublicDebugAPI) SeedHash(ctx context.Context, number uint64) (string,
 	return fmt.Sprintf("0x%x", ethash.SeedHash(number)), nil
 }
 
-// PrivateDebugAPI is the collection of Etheruem APIs exposed over the private
+// PrivateDebugAPI is the collection of Ethereum APIs exposed over the private
 // debugging endpoint.
 type PrivateDebugAPI struct {
 	b Backend

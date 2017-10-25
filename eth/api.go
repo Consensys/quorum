@@ -51,7 +51,7 @@ type PublicEthereumAPI struct {
 	e *Ethereum
 }
 
-// NewPublicEthereumAPI creates a new Etheruem protocol API for full nodes.
+// NewPublicEthereumAPI creates a new Ethereum protocol API for full nodes.
 func NewPublicEthereumAPI(e *Ethereum) *PublicEthereumAPI {
 	return &PublicEthereumAPI{e}
 }
@@ -205,7 +205,7 @@ func (api *PrivateMinerAPI) GetHashrate() uint64 {
 	return uint64(api.e.miner.HashRate())
 }
 
-// PrivateAdminAPI is the collection of Etheruem full node-related APIs
+// PrivateAdminAPI is the collection of Ethereum full node-related APIs
 // exposed over the private admin endpoint.
 type PrivateAdminAPI struct {
 	eth *Ethereum
@@ -298,7 +298,7 @@ func (api *PrivateAdminAPI) ImportChain(file string) (bool, error) {
 	return true, nil
 }
 
-// PublicDebugAPI is the collection of Etheruem full node APIs exposed
+// PublicDebugAPI is the collection of Ethereum full node APIs exposed
 // over the public debugging endpoint.
 type PublicDebugAPI struct {
 	eth *Ethereum
@@ -345,7 +345,7 @@ func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ string) (state
 	}
 }
 
-// PrivateDebugAPI is the collection of Etheruem full node APIs exposed over
+// PrivateDebugAPI is the collection of Ethereum full node APIs exposed over
 // the private debugging endpoint.
 type PrivateDebugAPI struct {
 	config *params.ChainConfig
@@ -533,8 +533,7 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, txHash common.
 
 	// Run the transaction with tracing enabled.
 	vmenv := vm.NewEVM(context, statedb, privateStateDb, api.config, vm.Config{Debug: true, Tracer: tracer})
-	// TODO utilize failed flag
-	ret, gas, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas()))
+	ret, gas, failed, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas()))
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %v", err)
 	}
@@ -542,6 +541,7 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, txHash common.
 	case *vm.StructLogger:
 		return &ethapi.ExecutionResult{
 			Gas:         gas,
+			Failed:      failed,
 			ReturnValue: fmt.Sprintf("%x", ret),
 			StructLogs:  ethapi.FormatLogs(tracer.StructLogs()),
 		}, nil

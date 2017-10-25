@@ -129,6 +129,13 @@ type Config struct {
 	// exposed.
 	WSModules []string `toml:",omitempty"`
 
+	// WSExposeAll exposes all API modules via the WebSocket RPC interface rather
+	// than just the public ones.
+	//
+	// *WARNING* Only set this if the node is running in a trusted network, exposing
+	// private APIs to untrusted users is a major security risk.
+	WSExposeAll bool `toml:",omitempty"`
+
 	EnableNodePermission bool `toml:",omitempty"`
 }
 
