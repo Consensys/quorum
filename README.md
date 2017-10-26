@@ -1,5 +1,7 @@
 # Quorum
 
+<a href="https://quorumslack.azurewebsites.net" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://quorumslack.azurewebsites.net/badge.svg" alt="Quorum Slack" /></a>
+
 Quorum is an Ethereum-based distributed ledger protocol with transaction/contract privacy and new consensus mechanisms.
 
 Quorum is a fork of [go-ethereum](https://github.com/ethereum/go-ethereum) and is updated in line with go-ethereum releases.
