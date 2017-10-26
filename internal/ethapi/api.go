@@ -1073,7 +1073,6 @@ type SendTxArgs struct {
 }
 
 // prepareSendTxArgs is a helper function that fills in default values for unspecified tx fields.
-// XXX wrong name? Have we duplicated this unwittingly?
 func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 	if args.Gas == nil {
 		args.Gas = (*hexutil.Big)(big.NewInt(defaultGas))
@@ -1473,9 +1472,10 @@ func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs
 			}
 		}()
 	}
-	args, err := prepareSendTxArgs(ctx, asyncArgs.SendTxArgs, s.b)
+	args := asyncArgs.SendTxArgs
+	err := args.setDefaults(ctx, s.b)
 	if err != nil {
-		log.Info("Async.send: Error doing prepareSendTxArgs: %v", err)
+		log.Info("Async.send: Error doing setDefaults: %v", err)
 		res.Error = err.Error()
 		return
 	}
@@ -1542,26 +1542,6 @@ func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, arg
 		async.send(ctx, s, args)
 		<-async.sem
 	}()
-}
-
-// prepareSendTxArgs is a helper function that fills in default values for unspecified tx fields.
-func prepareSendTxArgs(ctx context.Context, args SendTxArgs, b Backend) (SendTxArgs, error) {
-	if args.Gas == nil {
-		gas := big.Int{}
-		gas.SetUint64(defaultGas)
-		args.Gas = (*hexutil.Big)(&gas)
-	}
-	if args.GasPrice == nil {
-		price, err := b.SuggestPrice(ctx)
-		if err != nil {
-			return args, err
-		}
-		args.GasPrice = (*hexutil.Big)(price)
-	}
-	if args.Value == nil {
-		args.Value = (*hexutil.Big)(common.Big0)
-	}
-	return args, nil
 }
 
 // GetQuorumPayload returns the contents of a private transaction
