@@ -136,7 +136,7 @@ func (s EIP155Signer) Sender(tx *Transaction) (common.Address, error) {
 	}
 	V := new(big.Int).Sub(tx.data.V, s.chainIdMul)
 	V.Sub(V, big8)
-	return recoverPlain(s.Hash(tx), tx.data.R, tx.data.S, V, true, tx.IsPrivate())
+	return recoverPlain(s.Hash(tx), tx.data.R, tx.data.S, V, true, false)
 }
 
 // WithSignature returns a new transaction with the given signature. This signature
