@@ -25,6 +25,10 @@ const (
 	VersionMinor = 7        // Minor version component of the current release
 	VersionPatch = 2        // Patch version component of the current release
 	VersionMeta  = "stable" // Version metadata to append to the version string
+
+	QuorumVersionMajor = 2
+	QuorumVersionMinor = 0
+	QuorumVersionPatch = 0
 )
 
 // Version holds the textual version string.
@@ -33,6 +37,9 @@ var Version = func() string {
 	if VersionMeta != "" {
 		v += "-" + VersionMeta
 	}
+
+	v = fmt.Sprintf("quorum %d.%d.%d (geth %s)", QuorumVersionMajor, QuorumVersionMinor, QuorumVersionPatch, v)
+
 	return v
 }()
 
