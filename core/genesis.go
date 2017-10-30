@@ -151,7 +151,7 @@ func (e *GenesisMismatchError) Error() string {
 // The returned chain configuration is never nil.
 func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
-		return params.AllProtocolChanges, common.Hash{}, errGenesisNoConfig
+		return params.AllEthashProtocolChanges, common.Hash{}, errGenesisNoConfig
 	}
 
 	// Just commit the new block if there is no stored genesis block.
@@ -218,7 +218,7 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
 	case ghash == params.TestnetGenesisHash:
 		return params.TestnetChainConfig
 	default:
-		return params.AllProtocolChanges
+		return params.AllEthashProtocolChanges
 	}
 }
 
@@ -287,7 +287,7 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	}
 	config := g.Config
 	if config == nil {
-		config = params.AllProtocolChanges
+		config = params.AllEthashProtocolChanges
 	}
 	return block, WriteChainConfig(db, block.Hash(), config)
 }
@@ -344,10 +344,23 @@ func DefaultRinkebyGenesisBlock() *Genesis {
 	}
 }
 
+// DefaultOttomanGenesisBlock returns the Ottoman network genesis block.
+func DefaultOttomanGenesisBlock() *Genesis {
+	return &Genesis{
+		Config:     params.OttomanChainConfig,
+		Timestamp:  1496993285,
+		ExtraData:  hexutil.MustDecode("0x0000000000000000000000000000000000000000000000000000000000000000f89af85494475cc98b5521ab2a1335683e7567c8048bfe79ed9407d8299de61faed3686ba4c4e6c3b9083d7e2371944fe035ce99af680d89e2c4d73aca01dbfc1bd2fd94dc421209441a754f79c4a4ecd2b49c935aad0312b8410000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c0"),
+		GasLimit:   4700000,
+		Difficulty: big.NewInt(1),
+		Mixhash:    common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365"),
+		Alloc:      decodePrealloc(ottomanAllocData),
+	}
+}
+
 // DevGenesisBlock returns the 'geth --dev' genesis block.
 func DevGenesisBlock() *Genesis {
 	return &Genesis{
-		Config:     params.AllProtocolChanges,
+		Config:     params.AllCliqueProtocolChanges,
 		Nonce:      42,
 		GasLimit:   4712388,
 		Difficulty: big.NewInt(131072),

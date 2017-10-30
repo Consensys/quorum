@@ -149,13 +149,16 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase com
 		unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
 	}
 
-	if !config.IsQuorum {
+	if _, ok := engine.(consensus.Istanbul); ok || !config.IsQuorum {
 		// Subscribe TxPreEvent for tx pool
 		worker.txSub = eth.TxPool().SubscribeTxPreEvent(worker.txCh)
 		// Subscribe events for blockchain
 		worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 		worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
 		go worker.update()
+
+		go worker.wait()
+		worker.commitNewWork()
 	}
 
 	return worker
@@ -252,8 +255,11 @@ func (self *worker) update() {
 		// A real event arrived, process interesting content
 		select {
 		// Handle ChainHeadEvent
-		case <-self.chainHeadCh:
+		case ev := <-self.chainHeadCh:
 			self.commitNewWork()
+			if h, ok := self.engine.(consensus.Handler); ok && ev.Block != nil {
+				h.NewChainHead(ev.Block)
+			}
 
 		// Handle ChainSideEvent
 		case ev := <-self.chainSideCh:
@@ -587,14 +593,20 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txs *types.TransactionsB
 
 func (env *Work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, coinbase common.Address, gp *core.GasPool) (error, []*types.Log) {
 	snap := env.state.Snapshot()
+	privateSnap := env.privateState.Snapshot()
 
-	receipt, _, _, err := core.ApplyTransaction(env.config, bc, &coinbase, gp, env.state, env.privateState, env.header, tx, env.header.GasUsed, vm.Config{})
+	receipt, privateReceipt, _, err := core.ApplyTransaction(env.config, bc, &coinbase, gp, env.state, env.privateState, env.header, tx, env.header.GasUsed, vm.Config{})
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
+		env.privateState.RevertToSnapshot(privateSnap)
 		return err, nil
 	}
 	env.txs = append(env.txs, tx)
 	env.receipts = append(env.receipts, receipt)
 
-	return nil, receipt.Logs
+	logs := receipt.Logs
+	if privateReceipt != nil {
+		logs = append(receipt.Logs, privateReceipt.Logs...)
+	}
+	return nil, logs
 }

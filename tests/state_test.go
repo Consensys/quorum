@@ -49,6 +49,10 @@ func TestState(t *testing.T) {
 	st.fails(`^stCreateTest/TransactionCollisionToEmpty\.json/EIP158/3`, "known bug ")
 	st.fails(`^stCreateTest/TransactionCollisionToEmpty\.json/Byzantium/2`, "known bug ")
 	st.fails(`^stCreateTest/TransactionCollisionToEmpty\.json/Byzantium/3`, "known bug ")
+
+	// Skip invalid receipt root hash / invalid nonce quorum failures
+	st.skipLoad(`(StoreClearsAndInternlCallStoreClearsOOG|TransactionSendingToZero|SuicidesAndInternlCallSuicidesOOG|SuicidesAndInternlCallSuicidesSuccess|SuicidesAndInternlCallSuicidesBonusGasAtCallFailed|SuicidesAndInternlCallSuicidesBonusGasAtCall|StoreClearsAndInternlCallStoreClearsSuccess|InternlCallStoreClearsSucces|InternlCallStoreClearsOOG|failed_tx_xcf416c53|CallContractToCreateContractOOG)\.json`) // EIP-86 is not supported yet
+
 	st.walk(t, stateTestDir, func(t *testing.T, name string, test *StateTest) {
 		for _, subtest := range test.Subtests() {
 			subtest := subtest

@@ -270,8 +270,6 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 
 	preSyncHead := pm.blockchain.CurrentBlock()
 
-	log.Info("before sync", "chain head", preSyncHead.Hash())
-
 	if latestBlock := pm.blockchain.GetBlockByHash(latestBlockHash); latestBlock == nil {
 		pm.syncBlockchainUntil(latestBlockHash)
 		pm.logNewlyAcceptedTransactions(preSyncHead)

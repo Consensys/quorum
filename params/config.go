@@ -18,6 +18,7 @@ package params
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -77,19 +78,42 @@ var (
 		},
 	}
 
-	// AllProtocolChanges contains every protocol change (EIPs)
-	// introduced and accepted by the Ethereum core developers.
-	//
-	// This configuration is intentionally not using keyed fields.
-	// This configuration must *always* have all forks enabled, which
-	// means that all fields must be set at all times. This forces
-	// anyone adding flags to the config to also have to set these
-	// fields.
-	AllProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), new(EthashConfig), nil, false}
-	TestChainConfig    = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), new(EthashConfig), nil, false}
-	TestRules          = TestChainConfig.Rules(new(big.Int))
+	// OttomanChainConfig contains the chain parameters to run a node on the Ottoman test network.
+	OttomanChainConfig = &ChainConfig{
+		ChainId:        big.NewInt(5),
+		HomesteadBlock: big.NewInt(1),
+		DAOForkBlock:   nil,
+		DAOForkSupport: true,
+		EIP150Block:    big.NewInt(2),
+		EIP150Hash:     common.HexToHash("0x9b095b36c15eaf13044373aef8ee0bd3a382a5abb92e402afa44b8249c3a90e9"),
+		EIP155Block:    big.NewInt(3),
+		EIP158Block:    big.NewInt(3),
+		ByzantiumBlock: big.NewInt(math.MaxInt64), // Don't enable yet
 
-	QuorumTestChainConfig = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, nil, common.Hash{}, nil, nil, nil, new(EthashConfig), nil, true}
+		Istanbul: &IstanbulConfig{
+			Epoch:          30000,
+			ProposerPolicy: 0,
+		},
+	}
+
+	// AllEthashProtocolChanges contains every protocol change (EIPs) introduced
+	// and accepted by the Ethereum core developers into the Ethash consensus.
+	//
+	// This configuration is intentionally not using keyed fields to force anyone
+	// adding flags to the config to also have to set these fields.
+	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), new(EthashConfig), nil, nil, false}
+
+	// AllCliqueProtocolChanges contains every protocol change (EIPs) introduced
+	// and accepted by the Ethereum core developers into the Clique consensus.
+	//
+	// This configuration is intentionally not using keyed fields to force anyone
+	// adding flags to the config to also have to set these fields.
+	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil, false}
+
+	TestChainConfig = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), new(EthashConfig), nil, nil, false}
+	TestRules       = TestChainConfig.Rules(new(big.Int))
+
+	QuorumTestChainConfig = &ChainConfig{big.NewInt(1), big.NewInt(0), nil, false, nil, common.Hash{}, nil, nil, nil, new(EthashConfig), nil, nil, true}
 )
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -115,8 +139,9 @@ type ChainConfig struct {
 	ByzantiumBlock *big.Int `json:"byzantiumBlock,omitempty"` // Byzantium switch block (nil = no fork, 0 = already on byzantium)
 
 	// Various consensus engines
-	Ethash *EthashConfig `json:"ethash,omitempty"`
-	Clique *CliqueConfig `json:"clique,omitempty"`
+	Ethash   *EthashConfig   `json:"ethash,omitempty"`
+	Clique   *CliqueConfig   `json:"clique,omitempty"`
+	Istanbul *IstanbulConfig `json:"istanbul,omitempty"`
 
 	IsQuorum bool `json:"isQuorum,omitempty"`
 }
@@ -140,6 +165,17 @@ func (c *CliqueConfig) String() string {
 	return "clique"
 }
 
+// IstanbulConfig is the consensus engine configs for Istanbul based sealing.
+type IstanbulConfig struct {
+	Epoch          uint64 `json:"epoch"`  // Epoch length to reset votes and checkpoint
+	ProposerPolicy uint64 `json:"policy"` // The policy for proposer selection
+}
+
+// String implements the stringer interface, returning the consensus engine details.
+func (c *IstanbulConfig) String() string {
+	return "istanbul"
+}
+
 // String implements the fmt.Stringer interface.
 func (c *ChainConfig) String() string {
 	var engine interface{}
@@ -148,6 +184,8 @@ func (c *ChainConfig) String() string {
 		engine = c.Ethash
 	case c.Clique != nil:
 		engine = c.Clique
+	//case c.Istanbul != nil:
+	//	engine = c.Istanbul
 	default:
 		engine = "unknown"
 	}

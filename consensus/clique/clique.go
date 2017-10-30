@@ -659,3 +659,8 @@ func (c *Clique) APIs(chain consensus.ChainReader) []rpc.API {
 		Public:    false,
 	}}
 }
+
+// Protocol implements consensus.Engine.Protocol
+func (c *Clique) Protocol() consensus.Protocol {
+	return consensus.EthProtocol
+}
