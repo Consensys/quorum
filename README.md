@@ -1,18 +1,13 @@
 # Quorum
 
-Quorum is an Ethereum-based distributed ledger protocol with transaction/contract privacy and new consensus mechanisms.
+Quorum is an Ethereum-based distributed ledger protocol with transaction/contract privacy and a new consensus mechanism.
 
-Quorum is a fork of [go-ethereum](https://github.com/ethereum/go-ethereum) and is updated in line with go-ethereum releases.
+Key enhancements:
 
-Key enhancements over go-ethereum:
-
-* __Privacy__ - Quorum supports private transactions and private contracts through public/private state separation and utilising [Constellation](https://github.com/jpmorganchase/constellation), a peer-to-peer encrypted message exchange for directed transfer of private data to network participants
-* __Alternative Consensus Mechanisms__ - with no need for POW/POS in a permissioned network, Quorum instead offers multiple consensus mechanisms that are more appropriate for consortium chains:
-    * __QuorumChain__ - a new smart-contract based, majority voting consensus model
-    * __Raft-based Consensus__ - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
-* __Peer Permissioning__ - node/peer permissioning using smart contracts, ensuring only known parties can join the network
-* __Higher Performance__ - Quorum offers significantly higher performance than public geth
-
+* __QuorumChain__ - a new consensus model based on majority voting
+* __Constellation__ - a peer-to-peer encrypted message exchange
+* __Peer Security__ - node/peer permissioning using smart contracts
+* __Raft-based Consensus__ - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
 
 ## Architecture
 
@@ -145,15 +140,13 @@ The following Quorum-related libraries/applications have been created by Third P
 * [Quorum-Genesis](https://github.com/davebryson/quorum-genesis) - A simple CL utility for Quorum to help populate the genesis file with voters and makers
 * [QuorumNetworkManager](https://github.com/ConsenSys/QuorumNetworkManager) - makes creating & managing Quorum networks easy
 * [web3j-quorum](https://github.com/web3j/quorum) - an extension to the web3j Java library providing support for the Quorum API
-* [Nethereum Quorum](https://github.com/Nethereum/Nethereum/tree/master/src/Nethereum.Quorum) - a .net Quorum adapter 
-* [ERC20 REST service](https://github.com/blk-io/erc20-rest-service) - a Quorum-supported RESTful service for creating and managing ERC-20 tokens
-* [Quorum Maker](https://github.com/synechron-finlabs/quorum-maker/tree/development) - a utility to create Quorum nodes
+* [Nethereum Quorum](https://github.com/Nethereum/Nethereum/tree/master/src/Nethereum.Quorum) - a .net Quorum adapter
 
 ## Contributing
 
 Thank you for your interest in contributing to Quorum!
 
-Quorum is built on open source and we invite you to contribute enhancements. Upon review you will be required to complete a Contributor License Agreement (CLA) before we are able to merge. If you have any questions about the contribution process, please feel free to send an email to [quorum_info@jpmorgan.com](mailto:quorum_info@jpmorgan.com). 
+Quorum is built on open source and we invite you to contribute enhancements. Upon review you will be required to complete a Contributor License Agreement (CLA) before we are able to merge. If you have any questions about the contribution process, please feel free to send an email to [quorum_info@jpmorgan.com](mailto:quorum_info@jpmorgan.com).
 
 ## License
 

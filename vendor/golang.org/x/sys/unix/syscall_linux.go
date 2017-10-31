@@ -411,6 +411,146 @@ func (sa *SockaddrHCI) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrHCI, nil
 }
 
+// SockaddrCAN implements the Sockaddr interface for AF_CAN type sockets.
+// The RxID and TxID fields are used for transport protocol addressing in
+// (CAN_TP16, CAN_TP20, CAN_MCNET, and CAN_ISOTP), they can be left with
+// zero values for CAN_RAW and CAN_BCM sockets as they have no meaning.
+//
+// The SockaddrCAN struct must be bound to the socket file descriptor
+// using Bind before the CAN socket can be used.
+//
+//      // Read one raw CAN frame
+//      fd, _ := Socket(AF_CAN, SOCK_RAW, CAN_RAW)
+//      addr := &SockaddrCAN{Ifindex: index}
+//      Bind(fd, addr)
+//      frame := make([]byte, 16)
+//      Read(fd, frame)
+//
+// The full SocketCAN documentation can be found in the linux kernel
+// archives at: https://www.kernel.org/doc/Documentation/networking/can.txt
+type SockaddrCAN struct {
+	Ifindex int
+	RxID    uint32
+	TxID    uint32
+	raw     RawSockaddrCAN
+}
+
+func (sa *SockaddrCAN) sockaddr() (unsafe.Pointer, _Socklen, error) {
+	if sa.Ifindex < 0 || sa.Ifindex > 0x7fffffff {
+		return nil, 0, EINVAL
+	}
+	sa.raw.Family = AF_CAN
+	sa.raw.Ifindex = int32(sa.Ifindex)
+	rx := (*[4]byte)(unsafe.Pointer(&sa.RxID))
+	for i := 0; i < 4; i++ {
+		sa.raw.Addr[i] = rx[i]
+	}
+	tx := (*[4]byte)(unsafe.Pointer(&sa.TxID))
+	for i := 0; i < 4; i++ {
+		sa.raw.Addr[i+4] = tx[i]
+	}
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrCAN, nil
+}
+
+// SockaddrALG implements the Sockaddr interface for AF_ALG type sockets.
+// SockaddrALG enables userspace access to the Linux kernel's cryptography
+// subsystem. The Type and Name fields specify which type of hash or cipher
+// should be used with a given socket.
+//
+// To create a file descriptor that provides access to a hash or cipher, both
+// Bind and Accept must be used. Once the setup process is complete, input
+// data can be written to the socket, processed by the kernel, and then read
+// back as hash output or ciphertext.
+//
+// Here is an example of using an AF_ALG socket with SHA1 hashing.
+// The initial socket setup process is as follows:
+//
+//      // Open a socket to perform SHA1 hashing.
+//      fd, _ := unix.Socket(unix.AF_ALG, unix.SOCK_SEQPACKET, 0)
+//      addr := &unix.SockaddrALG{Type: "hash", Name: "sha1"}
+//      unix.Bind(fd, addr)
+//      // Note: unix.Accept does not work at this time; must invoke accept()
+//      // manually using unix.Syscall.
+//      hashfd, _, _ := unix.Syscall(unix.SYS_ACCEPT, uintptr(fd), 0, 0)
+//
+// Once a file descriptor has been returned from Accept, it may be used to
+// perform SHA1 hashing. The descriptor is not safe for concurrent use, but
+// may be re-used repeatedly with subsequent Write and Read operations.
+//
+// When hashing a small byte slice or string, a single Write and Read may
+// be used:
+//
+//      // Assume hashfd is already configured using the setup process.
+//      hash := os.NewFile(hashfd, "sha1")
+//      // Hash an input string and read the results. Each Write discards
+//      // previous hash state. Read always reads the current state.
+//      b := make([]byte, 20)
+//      for i := 0; i < 2; i++ {
+//          io.WriteString(hash, "Hello, world.")
+//          hash.Read(b)
+//          fmt.Println(hex.EncodeToString(b))
+//      }
+//      // Output:
+//      // 2ae01472317d1935a84797ec1983ae243fc6aa28
+//      // 2ae01472317d1935a84797ec1983ae243fc6aa28
+//
+// For hashing larger byte slices, or byte streams such as those read from
+// a file or socket, use Sendto with MSG_MORE to instruct the kernel to update
+// the hash digest instead of creating a new one for a given chunk and finalizing it.
+//
+//      // Assume hashfd and addr are already configured using the setup process.
+//      hash := os.NewFile(hashfd, "sha1")
+//      // Hash the contents of a file.
+//      f, _ := os.Open("/tmp/linux-4.10-rc7.tar.xz")
+//      b := make([]byte, 4096)
+//      for {
+//          n, err := f.Read(b)
+//          if err == io.EOF {
+//              break
+//          }
+//          unix.Sendto(hashfd, b[:n], unix.MSG_MORE, addr)
+//      }
+//      hash.Read(b)
+//      fmt.Println(hex.EncodeToString(b))
+//      // Output: 85cdcad0c06eef66f805ecce353bec9accbeecc5
+//
+// For more information, see: http://www.chronox.de/crypto-API/crypto/userspace-if.html.
+type SockaddrALG struct {
+	Type    string
+	Name    string
+	Feature uint32
+	Mask    uint32
+	raw     RawSockaddrALG
+}
+
+func (sa *SockaddrALG) sockaddr() (unsafe.Pointer, _Socklen, error) {
+	// Leave room for NUL byte terminator.
+	if len(sa.Type) > 13 {
+		return nil, 0, EINVAL
+	}
+	if len(sa.Name) > 63 {
+		return nil, 0, EINVAL
+	}
+
+	sa.raw.Family = AF_ALG
+	sa.raw.Feat = sa.Feature
+	sa.raw.Mask = sa.Mask
+
+	typ, err := ByteSliceFromString(sa.Type)
+	if err != nil {
+		return nil, 0, err
+	}
+	name, err := ByteSliceFromString(sa.Name)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	copy(sa.raw.Type[:], typ)
+	copy(sa.raw.Name[:], name)
+
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrALG, nil
+}
+
 func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 	switch rsa.Addr.Family {
 	case AF_NETLINK:
@@ -899,6 +1039,7 @@ func Getpgrp() (pid int) {
 //sysnb	Getppid() (ppid int)
 //sys	Getpriority(which int, who int) (prio int, err error)
 //sysnb	Getrusage(who int, rusage *Rusage) (err error)
+//sysnb	Getsid(pid int) (sid int, err error)
 //sysnb	Gettid() (tid int)
 //sys	Getxattr(path string, attr string, dest []byte) (sz int, err error)
 //sys	InotifyAddWatch(fd int, pathname string, mask uint32) (watchdesc int, err error)
@@ -911,7 +1052,7 @@ func Getpgrp() (pid int) {
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
 //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
-//sysnb prlimit(pid int, resource int, old *Rlimit, newlimit *Rlimit) (err error) = SYS_PRLIMIT64
+//sysnb prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
 //sys   Prctl(option int, arg2 uintptr, arg3 uintptr, arg4 uintptr, arg5 uintptr) (err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Removexattr(path string, attr string) (err error)

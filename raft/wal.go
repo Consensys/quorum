@@ -6,26 +6,25 @@ import (
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 func (pm *ProtocolManager) openWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL {
 	if !wal.Exist(pm.waldir) {
 		if err := os.Mkdir(pm.waldir, 0750); err != nil {
-			glog.Fatalf("cannot create waldir: %v", err)
+			fatalf("cannot create waldir: %s", err)
 		}
 
 		wal, err := wal.Create(pm.waldir, nil)
 		if err != nil {
-			glog.Fatalf("failed to create waldir: %v", err)
+			fatalf("failed to create waldir: %s", err)
 		}
 		wal.Close()
 	}
 
-	glog.V(logger.Info).Infof("loading WAL")
-
 	walsnap := walpb.Snapshot{}
+
+	log.Info("loading WAL", "term", walsnap.Term, "index", walsnap.Index)
 
 	if maybeRaftSnapshot != nil {
 		walsnap.Index, walsnap.Term = maybeRaftSnapshot.Metadata.Index, maybeRaftSnapshot.Metadata.Term
@@ -33,19 +32,19 @@ func (pm *ProtocolManager) openWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL 
 
 	wal, err := wal.Open(pm.waldir, walsnap)
 	if err != nil {
-		glog.Fatalf("error loading WAL: %v", err)
+		fatalf("error loading WAL: %s", err)
 	}
 
 	return wal
 }
 
 func (pm *ProtocolManager) replayWAL(maybeRaftSnapshot *raftpb.Snapshot) *wal.WAL {
-	glog.V(logger.Info).Infoln("replaying WAL")
+	log.Info("replaying WAL")
 	wal := pm.openWAL(maybeRaftSnapshot)
 
 	_, hardState, entries, err := wal.ReadAll()
 	if err != nil {
-		glog.Fatalf("failed to read WAL: %v", err)
+		fatalf("failed to read WAL: %s", err)
 	}
 
 	pm.raftStorage.SetHardState(hardState)

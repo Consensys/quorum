@@ -18,8 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -64,7 +63,7 @@ type ProtocolManager struct {
 
 	// Blockchain events
 	eventMux      *event.TypeMux
-	minedBlockSub event.Subscription
+	minedBlockSub *event.TypeMuxSubscription
 
 	// Raft proposal events
 	blockProposalC      chan *types.Block      // for mined blocks to raft
@@ -131,7 +130,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 }
 
 func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
-	glog.V(logger.Info).Infoln("starting raft protocol handler")
+	log.Info("starting raft protocol handler")
 
 	pm.p2pServer = p2pServer
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
@@ -143,13 +142,13 @@ func (pm *ProtocolManager) Stop() {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	defer glog.V(logger.Info).Infoln("raft protocol handler stopped")
+	defer log.Info("raft protocol handler stopped")
 
 	if pm.stopped {
 		return
 	}
 
-	glog.V(logger.Info).Infoln("stopping raft protocol handler...")
+	log.Info("stopping raft protocol handler...")
 
 	for raftId, peer := range pm.peers {
 		pm.disconnectFromPeer(raftId, peer)
@@ -347,16 +346,16 @@ func (pm *ProtocolManager) IsIDRemoved(id uint64) bool {
 }
 
 func (pm *ProtocolManager) ReportUnreachable(id uint64) {
-	glog.V(logger.Warn).Infof("peer %d is currently unreachable", id)
+	log.Info("peer is currently unreachable", "peer id", id)
 
 	pm.rawNode().ReportUnreachable(id)
 }
 
 func (pm *ProtocolManager) ReportSnapshot(id uint64, status etcdRaft.SnapshotStatus) {
 	if status == etcdRaft.SnapshotFailure {
-		glog.V(logger.Info).Infof("failed to send snapshot to raft peer %v", id)
+		log.Info("failed to send snapshot", "raft peer", id)
 	} else if status == etcdRaft.SnapshotFinish {
-		glog.V(logger.Info).Infof("finished sending snapshot to raft peer %v", id)
+		log.Info("finished sending snapshot", "raft peer", id)
 	}
 
 	pm.rawNode().ReportSnapshot(id, status)
@@ -369,7 +368,7 @@ func (pm *ProtocolManager) ReportSnapshot(id uint64, status etcdRaft.SnapshotSta
 func (pm *ProtocolManager) startRaft() {
 	if !fileutil.Exist(pm.snapdir) {
 		if err := os.Mkdir(pm.snapdir, 0750); err != nil {
-			glog.Fatalf("cannot create dir for snapshot (%v)", err)
+			fatalf("cannot create dir for snapshot (%v)", err)
 		}
 	}
 	walExisted := wal.Exist(pm.waldir)
@@ -403,7 +402,7 @@ func (pm *ProtocolManager) startRaft() {
 			panic(fmt.Sprintf("failed to read initial state from raft while restarting: %v", err))
 		} else {
 			if lastPersistedCommittedIndex := hardState.Commit; lastPersistedCommittedIndex < lastAppliedIndex {
-				glog.V(logger.Warn).Infof("rolling back applied index from %v to last-durably-committed %v", lastAppliedIndex, lastPersistedCommittedIndex)
+				log.Info("rolling back applied index to last-durably-committed", "last applied index", lastAppliedIndex, "last persisted index", lastPersistedCommittedIndex)
 
 				// Roll back our applied index. See the logic and explanation around
 				// the single call to `pm.applyNewChainHead` for more context.
@@ -427,7 +426,9 @@ func (pm *ProtocolManager) startRaft() {
 		// "PreVote and CheckQuorum are two ways of achieving the same thing.
 		// PreVote is more compatible with quiesced ranges, so we want to switch
 		// to it once we've worked out the bugs."
-		PreVote:     enablePreVote,
+		//
+		// TODO: vendor again?
+		// PreVote:     enablePreVote,
 		CheckQuorum: !enablePreVote,
 
 		// MaxSizePerMsg controls how many Raft log entries the leader will send to
@@ -446,19 +447,19 @@ func (pm *ProtocolManager) startRaft() {
 		MaxInflightMsgs: 256, // NOTE: in cockroachdb this is 4
 	}
 
-	glog.V(logger.Info).Infof("local raft ID is %v", raftConfig.ID)
+	log.Info("startRaft", "raft ID", raftConfig.ID)
 
 	if walExisted {
-		glog.V(logger.Info).Infof("remounting an existing raft log; connecting to peers.")
+		log.Info("remounting an existing raft log; connecting to peers.")
 		pm.unsafeRawNode = etcdRaft.RestartNode(raftConfig)
 	} else if pm.joinExisting {
-		glog.V(logger.Info).Infof("newly joining an existing cluster; waiting for connections.")
+		log.Info("newly joining an existing cluster; waiting for connections.")
 		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil)
 	} else {
 		if numPeers := len(pm.bootstrapNodes); numPeers == 0 {
 			panic("exiting due to empty raft peers list")
 		} else {
-			glog.V(logger.Info).Infof("starting a new raft log with an initial cluster size of %v.", numPeers)
+			log.Info("starting a new raft log", "initial cluster size of", numPeers)
 		}
 
 		raftPeers, peerAddresses, localAddress := pm.makeInitialRaftPeers()
@@ -501,18 +502,18 @@ func (pm *ProtocolManager) serveRaft() {
 	urlString := fmt.Sprintf("http://0.0.0.0:%d", pm.raftPort)
 	url, err := url.Parse(urlString)
 	if err != nil {
-		glog.Fatalf("Failed parsing URL (%v)", err)
+		fatalf("Failed parsing URL (%v)", err)
 	}
 
 	listener, err := newStoppableListener(url.Host, pm.httpstopc)
 	if err != nil {
-		glog.Fatalf("Failed to listen rafthttp (%v)", err)
+		fatalf("Failed to listen rafthttp (%v)", err)
 	}
 	err = (&http.Server{Handler: pm.transport.Handler()}).Serve(listener)
 	select {
 	case <-pm.httpstopc:
 	default:
-		glog.Fatalf("Failed to serve rafthttp (%v)", err)
+		fatalf("Failed to serve rafthttp (%v)", err)
 	}
 	close(pm.httpdonec)
 }
@@ -528,10 +529,10 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 			}
 
 			if intRole == minterRole {
-				logger.LogRaftCheckpoint(logger.BecameMinter)
+				log.EmitCheckpoint(log.BecameMinter)
 				pm.minter.start()
 			} else { // verifier
-				logger.LogRaftCheckpoint(logger.BecameVerifier)
+				log.EmitCheckpoint(log.BecameVerifier)
 				pm.minter.stop()
 			}
 
@@ -569,7 +570,7 @@ func (pm *ProtocolManager) serveLocalProposals() {
 		select {
 		case block, ok := <-pm.blockProposalC:
 			if !ok {
-				glog.V(logger.Info).Infoln("error: read from proposeC failed")
+				log.Info("error: read from proposeC failed")
 				return
 			}
 
@@ -584,7 +585,7 @@ func (pm *ProtocolManager) serveLocalProposals() {
 			pm.rawNode().Propose(context.TODO(), buffer)
 		case cc, ok := <-pm.confChangeProposalC:
 			if !ok {
-				glog.V(logger.Info).Infoln("error: read from confChangeC failed")
+				log.Info("error: read from confChangeC failed")
 				return
 			}
 
@@ -608,7 +609,7 @@ func (pm *ProtocolManager) entriesToApply(allEntries []raftpb.Entry) (entriesToA
 	pm.mu.RUnlock()
 
 	if first > lastApplied+1 {
-		glog.Fatalf("first index of committed entry[%d] should <= appliedIndex[%d] + 1", first, lastApplied)
+		fatalf("first index of committed entry[%d] should <= appliedIndex[%d] + 1", first, lastApplied)
 	}
 
 	firstToApply := lastApplied - first + 1
@@ -702,10 +703,10 @@ func (pm *ProtocolManager) eventLoop() {
 					var block types.Block
 					err := rlp.DecodeBytes(entry.Data, &block)
 					if err != nil {
-						glog.V(logger.Error).Infoln("error decoding block: ", err)
+						log.Error("error decoding block: ", err)
 					}
 
-					if pm.blockchain.HasBlock(block.Hash()) {
+					if pm.blockchain.HasBlock(block.Hash(), block.NumberU64()) {
 						// This can happen:
 						//
 						// if (1) we crashed after applying this block to the chain, but
@@ -717,7 +718,7 @@ func (pm *ProtocolManager) eventLoop() {
 						//        a few entries.
 
 						headBlockHash := pm.blockchain.CurrentBlock().Hash()
-						glog.V(logger.Warn).Infof("not applying already-applied block: %x (parent is %x; current head is %x)\n", block.Hash(), block.ParentHash(), headBlockHash)
+						log.Warn("not applying already-applied block", "block hash", block.Hash(), "parent", block.ParentHash(), "head", headBlockHash)
 					} else {
 						pm.applyNewChainHead(&block)
 					}
@@ -734,17 +735,17 @@ func (pm *ProtocolManager) eventLoop() {
 					switch cc.Type {
 					case raftpb.ConfChangeAddNode:
 						if pm.isRaftIdRemoved(raftId) {
-							glog.V(logger.Info).Infof("ignoring ConfChangeAddNode for permanently-removed peer %v", raftId)
+							log.Info("ignoring ConfChangeAddNode for permanently-removed peer", "raft id", raftId)
 						} else if raftId <= uint16(len(pm.bootstrapNodes)) {
 							// See initial cluster logic in startRaft() for more information.
-							glog.V(logger.Info).Infof("ignoring expected ConfChangeAddNode for initial peer %v", raftId)
+							log.Info("ignoring expected ConfChangeAddNode for initial peer", "raft id", raftId)
 
 							// We need a snapshot to exist to reconnect to peers on start-up after a crash.
 							forceSnapshot = true
 						} else if pm.isRaftIdUsed(raftId) {
-							glog.V(logger.Info).Infof("ignoring ConfChangeAddNode for already-used raft ID %v", raftId)
+							log.Info("ignoring ConfChangeAddNode for already-used raft ID", "raft id", raftId)
 						} else {
-							glog.V(logger.Info).Infof("adding peer %v due to ConfChangeAddNode", raftId)
+							log.Info("adding peer due to ConfChangeAddNode", "raft id", raftId)
 
 							forceSnapshot = true
 							pm.addPeer(bytesToAddress(cc.Context))
@@ -752,9 +753,9 @@ func (pm *ProtocolManager) eventLoop() {
 
 					case raftpb.ConfChangeRemoveNode:
 						if pm.isRaftIdRemoved(raftId) {
-							glog.V(logger.Info).Infof("ignoring ConfChangeRemoveNode for already-removed peer %v", raftId)
+							log.Info("ignoring ConfChangeRemoveNode for already-removed peer", "raft id", raftId)
 						} else {
-							glog.V(logger.Info).Infof("removing peer %v due to ConfChangeRemoveNode", raftId)
+							log.Info("removing peer due to ConfChangeRemoveNode", "raft id", raftId)
 
 							forceSnapshot = true
 
@@ -768,7 +769,7 @@ func (pm *ProtocolManager) eventLoop() {
 					case raftpb.ConfChangeUpdateNode:
 						// NOTE: remember to forceSnapshot in this case, if we add support
 						// for this.
-						glog.Fatalln("not yet handled: ConfChangeUpdateNode")
+						fatalf("not yet handled: ConfChangeUpdateNode")
 					}
 
 					if forceSnapshot {
@@ -790,9 +791,9 @@ func (pm *ProtocolManager) eventLoop() {
 			pm.maybeTriggerSnapshot()
 
 			if exitAfterApplying {
-				glog.V(logger.Warn).Infoln("permanently removing self from the cluster")
+				log.Warn("permanently removing self from the cluster")
 				pm.Stop()
-				glog.V(logger.Warn).Infoln("permanently exited the cluster")
+				log.Warn("permanently exited the cluster")
 
 				return
 			}
@@ -848,18 +849,18 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 	if !blockExtendsChain(block, pm.blockchain) {
 		headBlock := pm.blockchain.CurrentBlock()
 
-		glog.V(logger.Warn).Infof("Non-extending block: %x (parent is %x; current head is %x)\n", block.Hash(), block.ParentHash(), headBlock.Hash())
+		log.Info("Non-extending block", "block", block.Hash(), "parent", block.ParentHash(), "head", headBlock.Hash())
 
-		pm.eventMux.Post(InvalidRaftOrdering{headBlock: headBlock, invalidBlock: block})
+		pm.minter.invalidRaftOrderingChan <- InvalidRaftOrdering{headBlock: headBlock, invalidBlock: block}
 	} else {
 		if existingBlock := pm.blockchain.GetBlockByHash(block.Hash()); nil == existingBlock {
-			if err := pm.blockchain.Validator().ValidateBlock(block); err != nil {
+			if err := pm.blockchain.Validator().ValidateBody(block); err != nil {
 				panic(fmt.Sprintf("failed to validate block %x (%v)", block.Hash(), err))
 			}
 		}
 
 		for _, tx := range block.Transactions() {
-			logger.LogRaftCheckpoint(logger.TxAccepted, tx.Hash().Hex())
+			log.EmitCheckpoint(log.TxAccepted, "tx", tx.Hash().Hex())
 		}
 
 		_, err := pm.blockchain.InsertChain([]*types.Block{block})
@@ -868,7 +869,7 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 			panic(fmt.Sprintf("failed to extend chain: %s", err.Error()))
 		}
 
-		glog.V(logger.Info).Infof("%s: %x\n", chainExtensionMessage, block.Hash())
+		log.EmitCheckpoint(log.BlockCreated, "block", fmt.Sprintf("%x", block.Hash()))
 	}
 }
 

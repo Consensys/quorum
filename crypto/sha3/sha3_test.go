@@ -53,15 +53,6 @@ var testShakes = map[string]func() ShakeHash{
 	"SHAKE256": NewShake256,
 }
 
-// decodeHex converts a hex-encoded string into a raw byte string.
-func decodeHex(s string) []byte {
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		panic(err)
-	}
-	return b
-}
-
 // structs used to marshal JSON test-cases.
 type KeccakKats struct {
 	Kats map[string][]struct {
@@ -125,7 +116,7 @@ func TestKeccakKats(t *testing.T) {
 
 // TestUnalignedWrite tests that writing data in an arbitrary pattern with
 // small input buffers.
-func testUnalignedWrite(t *testing.T) {
+func TestUnalignedWrite(t *testing.T) {
 	testUnalignedAndGeneric(t, func(impl string) {
 		buf := sequentialBytes(0x10000)
 		for alg, df := range testDigests {
@@ -201,7 +192,7 @@ func TestSqueezing(t *testing.T) {
 			d1 := newShakeHash()
 			d1.Write([]byte(testString))
 			var multiple []byte
-			for _ = range ref {
+			for range ref {
 				one := make([]byte, 1)
 				d1.Read(one)
 				multiple = append(multiple, one...)

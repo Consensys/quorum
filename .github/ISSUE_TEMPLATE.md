@@ -1,10 +1,8 @@
 #### System information
 
 Geth version: `geth version`
-
 OS & Version: Windows/Linux/OSX
-
-Branch, Commit Hash or Release: `git status`
+Commit hash : (if `develop`)
 
 #### Expected behaviour
 

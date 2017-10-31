@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,16 +26,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 const (
-	jsonrpcVersion         = "2.0"
-	serviceMethodSeparator = "_"
-	subscribeMethod        = "eth_subscribe"
-	unsubscribeMethod      = "eth_unsubscribe"
-	notificationMethod     = "eth_subscription"
+	jsonrpcVersion           = "2.0"
+	serviceMethodSeparator   = "_"
+	subscribeMethodSuffix    = "_subscribe"
+	unsubscribeMethodSuffix  = "_unsubscribe"
+	notificationMethodSuffix = "_subscription"
 )
 
 type jsonRequest struct {
@@ -164,27 +164,26 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 	}
 
 	// subscribe are special, they will always use `subscribeMethod` as first param in the payload
-	if in.Method == subscribeMethod {
-		reqs := []rpcRequest{rpcRequest{id: &in.Id, isPubSub: true}}
+	if strings.HasSuffix(in.Method, subscribeMethodSuffix) {
+		reqs := []rpcRequest{{id: &in.Id, isPubSub: true}}
 		if len(in.Payload) > 0 {
 			// first param must be subscription name
 			var subscribeMethod [1]string
 			if err := json.Unmarshal(in.Payload, &subscribeMethod); err != nil {
-				glog.V(logger.Debug).Infof("Unable to parse subscription method: %v\n", err)
+				log.Debug(fmt.Sprintf("Unable to parse subscription method: %v\n", err))
 				return nil, false, &invalidRequestError{"Unable to parse subscription request"}
 			}
 
-			// all subscriptions are made on the eth service
-			reqs[0].service, reqs[0].method = "eth", subscribeMethod[0]
+			reqs[0].service, reqs[0].method = strings.TrimSuffix(in.Method, subscribeMethodSuffix), subscribeMethod[0]
 			reqs[0].params = in.Payload
 			return reqs, false, nil
 		}
 		return nil, false, &invalidRequestError{"Unable to parse subscription request"}
 	}
 
-	if in.Method == unsubscribeMethod {
-		return []rpcRequest{rpcRequest{id: &in.Id, isPubSub: true,
-			method: unsubscribeMethod, params: in.Payload}}, false, nil
+	if strings.HasSuffix(in.Method, unsubscribeMethodSuffix) {
+		return []rpcRequest{{id: &in.Id, isPubSub: true,
+			method: in.Method, params: in.Payload}}, false, nil
 	}
 
 	elems := strings.Split(in.Method, serviceMethodSeparator)
@@ -194,10 +193,10 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 
 	// regular RPC call
 	if len(in.Payload) == 0 {
-		return []rpcRequest{rpcRequest{service: elems[0], method: elems[1], id: &in.Id}}, false, nil
+		return []rpcRequest{{service: elems[0], method: elems[1], id: &in.Id}}, false, nil
 	}
 
-	return []rpcRequest{rpcRequest{service: elems[0], method: elems[1], id: &in.Id, params: in.Payload}}, false, nil
+	return []rpcRequest{{service: elems[0], method: elems[1], id: &in.Id, params: in.Payload}}, false, nil
 }
 
 // parseBatchRequest will parse a batch request into a collection of requests from the given RawMessage, an indication
@@ -216,19 +215,18 @@ func parseBatchRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) 
 
 		id := &in[i].Id
 
-		// subscribe are special, they will always use `subscribeMethod` as first param in the payload
-		if r.Method == subscribeMethod {
+		// subscribe are special, they will always use `subscriptionMethod` as first param in the payload
+		if strings.HasSuffix(r.Method, subscribeMethodSuffix) {
 			requests[i] = rpcRequest{id: id, isPubSub: true}
 			if len(r.Payload) > 0 {
 				// first param must be subscription name
 				var subscribeMethod [1]string
 				if err := json.Unmarshal(r.Payload, &subscribeMethod); err != nil {
-					glog.V(logger.Debug).Infof("Unable to parse subscription method: %v\n", err)
+					log.Debug(fmt.Sprintf("Unable to parse subscription method: %v\n", err))
 					return nil, false, &invalidRequestError{"Unable to parse subscription request"}
 				}
 
-				// all subscriptions are made on the eth service
-				requests[i].service, requests[i].method = "eth", subscribeMethod[0]
+				requests[i].service, requests[i].method = strings.TrimSuffix(r.Method, subscribeMethodSuffix), subscribeMethod[0]
 				requests[i].params = r.Payload
 				continue
 			}
@@ -236,8 +234,8 @@ func parseBatchRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) 
 			return nil, true, &invalidRequestError{"Unable to parse (un)subscribe request arguments"}
 		}
 
-		if r.Method == unsubscribeMethod {
-			requests[i] = rpcRequest{id: id, isPubSub: true, method: unsubscribeMethod, params: r.Payload}
+		if strings.HasSuffix(r.Method, unsubscribeMethodSuffix) {
+			requests[i] = rpcRequest{id: id, isPubSub: true, method: r.Method, params: r.Payload}
 			continue
 		}
 
@@ -256,8 +254,8 @@ func parseBatchRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) 
 	return requests, true, nil
 }
 
-// ParseRequestArguments tries to parse the given params (json.RawMessage) with the given types. It returns the parsed
-// values or an error when the parsing failed.
+// ParseRequestArguments tries to parse the given params (json.RawMessage) with the given
+// types. It returns the parsed values or an error when the parsing failed.
 func (c *jsonCodec) ParseRequestArguments(argTypes []reflect.Type, params interface{}) ([]reflect.Value, Error) {
 	if args, ok := params.(json.RawMessage); !ok {
 		return nil, &invalidParamsError{"Invalid params supplied"}
@@ -266,42 +264,42 @@ func (c *jsonCodec) ParseRequestArguments(argTypes []reflect.Type, params interf
 	}
 }
 
-// parsePositionalArguments tries to parse the given args to an array of values with the given types.
-// It returns the parsed values or an error when the args could not be parsed. Missing optional arguments
-// are returned as reflect.Zero values.
-func parsePositionalArguments(args json.RawMessage, callbackArgs []reflect.Type) ([]reflect.Value, Error) {
-	params := make([]interface{}, 0, len(callbackArgs))
-	for _, t := range callbackArgs {
-		params = append(params, reflect.New(t).Interface())
+// parsePositionalArguments tries to parse the given args to an array of values with the
+// given types. It returns the parsed values or an error when the args could not be
+// parsed. Missing optional arguments are returned as reflect.Zero values.
+func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]reflect.Value, Error) {
+	// Read beginning of the args array.
+	dec := json.NewDecoder(bytes.NewReader(rawArgs))
+	if tok, _ := dec.Token(); tok != json.Delim('[') {
+		return nil, &invalidParamsError{"non-array args"}
 	}
-
-	if err := json.Unmarshal(args, &params); err != nil {
+	// Read args.
+	args := make([]reflect.Value, 0, len(types))
+	for i := 0; dec.More(); i++ {
+		if i >= len(types) {
+			return nil, &invalidParamsError{fmt.Sprintf("too many arguments, want at most %d", len(types))}
+		}
+		argval := reflect.New(types[i])
+		if err := dec.Decode(argval.Interface()); err != nil {
+			return nil, &invalidParamsError{fmt.Sprintf("invalid argument %d: %v", i, err)}
+		}
+		if argval.IsNil() && types[i].Kind() != reflect.Ptr {
+			return nil, &invalidParamsError{fmt.Sprintf("missing value for required argument %d", i)}
+		}
+		args = append(args, argval.Elem())
+	}
+	// Read end of args array.
+	if _, err := dec.Token(); err != nil {
 		return nil, &invalidParamsError{err.Error()}
 	}
-
-	if len(params) > len(callbackArgs) {
-		return nil, &invalidParamsError{fmt.Sprintf("too many params, want %d got %d", len(callbackArgs), len(params))}
-	}
-
-	// assume missing params are null values
-	for i := len(params); i < len(callbackArgs); i++ {
-		params = append(params, nil)
-	}
-
-	argValues := make([]reflect.Value, len(params))
-	for i, p := range params {
-		// verify that JSON null values are only supplied for optional arguments (ptr types)
-		if p == nil && callbackArgs[i].Kind() != reflect.Ptr {
-			return nil, &invalidParamsError{fmt.Sprintf("invalid or missing value for params[%d]", i)}
+	// Set any missing args to nil.
+	for i := len(args); i < len(types); i++ {
+		if types[i].Kind() != reflect.Ptr {
+			return nil, &invalidParamsError{fmt.Sprintf("missing value for required argument %d", i)}
 		}
-		if p == nil {
-			argValues[i] = reflect.Zero(callbackArgs[i])
-		} else { // deref pointers values creates previously with reflect.New
-			argValues[i] = reflect.ValueOf(p).Elem()
-		}
+		args = append(args, reflect.Zero(types[i]))
 	}
-
-	return argValues, nil
+	return args, nil
 }
 
 // CreateResponse will create a JSON-RPC success response with the given id and reply as result.
@@ -325,13 +323,13 @@ func (c *jsonCodec) CreateErrorResponseWithInfo(id interface{}, err Error, info 
 }
 
 // CreateNotification will create a JSON-RPC notification with the given subscription id and event as params.
-func (c *jsonCodec) CreateNotification(subid string, event interface{}) interface{} {
+func (c *jsonCodec) CreateNotification(subid, namespace string, event interface{}) interface{} {
 	if isHexNum(reflect.TypeOf(event)) {
-		return &jsonNotification{Version: jsonrpcVersion, Method: notificationMethod,
+		return &jsonNotification{Version: jsonrpcVersion, Method: namespace + notificationMethodSuffix,
 			Params: jsonSubscription{Subscription: subid, Result: fmt.Sprintf(`%#x`, event)}}
 	}
 
-	return &jsonNotification{Version: jsonrpcVersion, Method: notificationMethod,
+	return &jsonNotification{Version: jsonrpcVersion, Method: namespace + notificationMethodSuffix,
 		Params: jsonSubscription{Subscription: subid, Result: event}}
 }
 

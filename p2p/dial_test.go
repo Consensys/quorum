@@ -25,6 +25,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 )
 
 func init() {
@@ -86,7 +87,7 @@ func (t fakeTable) ReadRandomNodes(buf []*discover.Node) int { return copy(buf, 
 // This test checks that dynamic dials are launched from discovery results.
 func TestDialStateDynDial(t *testing.T) {
 	runDialTest(t, dialtest{
-		init: newDialState(nil, fakeTable{}, 5),
+		init: newDialState(nil, nil, fakeTable{}, 5, nil),
 		rounds: []round{
 			// A discovery query is launched.
 			{
@@ -218,6 +219,94 @@ func TestDialStateDynDial(t *testing.T) {
 	})
 }
 
+// Tests that bootnodes are dialed if no peers are connectd, but not otherwise.
+func TestDialStateDynDialBootnode(t *testing.T) {
+	bootnodes := []*discover.Node{
+		{ID: uintID(1)},
+		{ID: uintID(2)},
+		{ID: uintID(3)},
+	}
+	table := fakeTable{
+		{ID: uintID(4)},
+		{ID: uintID(5)},
+		{ID: uintID(6)},
+		{ID: uintID(7)},
+		{ID: uintID(8)},
+	}
+	runDialTest(t, dialtest{
+		init: newDialState(nil, bootnodes, table, 5, nil),
+		rounds: []round{
+			// 2 dynamic dials attempted, bootnodes pending fallback interval
+			{
+				new: []task{
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(4)}},
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(5)}},
+					&discoverTask{},
+				},
+			},
+			// No dials succeed, bootnodes still pending fallback interval
+			{
+				done: []task{
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(4)}},
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(5)}},
+				},
+			},
+			// No dials succeed, bootnodes still pending fallback interval
+			{},
+			// No dials succeed, 2 dynamic dials attempted and 1 bootnode too as fallback interval was reached
+			{
+				new: []task{
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(1)}},
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(4)}},
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(5)}},
+				},
+			},
+			// No dials succeed, 2nd bootnode is attempted
+			{
+				done: []task{
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(1)}},
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(4)}},
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(5)}},
+				},
+				new: []task{
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(2)}},
+				},
+			},
+			// No dials succeed, 3rd bootnode is attempted
+			{
+				done: []task{
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(2)}},
+				},
+				new: []task{
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(3)}},
+				},
+			},
+			// No dials succeed, 1st bootnode is attempted again, expired random nodes retried
+			{
+				done: []task{
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(3)}},
+				},
+				new: []task{
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(1)}},
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(4)}},
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(5)}},
+				},
+			},
+			// Random dial succeeds, no more bootnodes are attempted
+			{
+				peers: []*Peer{
+					{rw: &conn{flags: dynDialedConn, id: uintID(4)}},
+				},
+				done: []task{
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(1)}},
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(4)}},
+					&dialTask{flags: dynDialedConn, dest: &discover.Node{ID: uintID(5)}},
+				},
+			},
+		},
+	})
+}
+
 func TestDialStateDynDialFromTable(t *testing.T) {
 	// This table always returns the same random nodes
 	// in the order given below.
@@ -233,7 +322,7 @@ func TestDialStateDynDialFromTable(t *testing.T) {
 	}
 
 	runDialTest(t, dialtest{
-		init: newDialState(nil, table, 10),
+		init: newDialState(nil, nil, table, 10, nil),
 		rounds: []round{
 			// 5 out of 8 of the nodes returned by ReadRandomNodes are dialed.
 			{
@@ -313,6 +402,36 @@ func TestDialStateDynDialFromTable(t *testing.T) {
 	})
 }
 
+// This test checks that candidates that do not match the netrestrict list are not dialed.
+func TestDialStateNetRestrict(t *testing.T) {
+	// This table always returns the same random nodes
+	// in the order given below.
+	table := fakeTable{
+		{ID: uintID(1), IP: net.ParseIP("127.0.0.1")},
+		{ID: uintID(2), IP: net.ParseIP("127.0.0.2")},
+		{ID: uintID(3), IP: net.ParseIP("127.0.0.3")},
+		{ID: uintID(4), IP: net.ParseIP("127.0.0.4")},
+		{ID: uintID(5), IP: net.ParseIP("127.0.2.5")},
+		{ID: uintID(6), IP: net.ParseIP("127.0.2.6")},
+		{ID: uintID(7), IP: net.ParseIP("127.0.2.7")},
+		{ID: uintID(8), IP: net.ParseIP("127.0.2.8")},
+	}
+	restrict := new(netutil.Netlist)
+	restrict.Add("127.0.2.0/24")
+
+	runDialTest(t, dialtest{
+		init: newDialState(nil, nil, table, 10, restrict),
+		rounds: []round{
+			{
+				new: []task{
+					&dialTask{flags: dynDialedConn, dest: table[4]},
+					&discoverTask{},
+				},
+			},
+		},
+	})
+}
+
 // This test checks that static dials are launched.
 func TestDialStateStaticDial(t *testing.T) {
 	wantStatic := []*discover.Node{
@@ -324,7 +443,7 @@ func TestDialStateStaticDial(t *testing.T) {
 	}
 
 	runDialTest(t, dialtest{
-		init: newDialState(wantStatic, fakeTable{}, 0),
+		init: newDialState(wantStatic, nil, fakeTable{}, 0, nil),
 		rounds: []round{
 			// Static dials are launched for the nodes that
 			// aren't yet connected.
@@ -405,7 +524,7 @@ func TestDialStateCache(t *testing.T) {
 	}
 
 	runDialTest(t, dialtest{
-		init: newDialState(wantStatic, fakeTable{}, 0),
+		init: newDialState(wantStatic, nil, fakeTable{}, 0, nil),
 		rounds: []round{
 			// Static dials are launched for the nodes that
 			// aren't yet connected.
@@ -467,7 +586,7 @@ func TestDialStateCache(t *testing.T) {
 func TestDialResolve(t *testing.T) {
 	resolved := discover.NewNode(uintID(1), net.IP{127, 0, 55, 234}, 3333, 4444)
 	table := &resolveMock{answer: resolved}
-	state := newDialState(nil, table, 0)
+	state := newDialState(nil, nil, table, 0, nil)
 
 	// Check that the task is generated with an incomplete ID.
 	dest := discover.NewNode(uintID(1), nil, 0, 0)
@@ -478,7 +597,7 @@ func TestDialResolve(t *testing.T) {
 	}
 
 	// Now run the task, it should resolve the ID once.
-	config := Config{Dialer: &net.Dialer{Deadline: time.Now().Add(-5 * time.Minute)}}
+	config := Config{Dialer: TCPDialer{&net.Dialer{Deadline: time.Now().Add(-5 * time.Minute)}}}
 	srv := &Server{ntab: table, Config: config}
 	tasks[0].Do(srv)
 	if !reflect.DeepEqual(table.resolveCalls, []discover.NodeID{dest.ID}) {

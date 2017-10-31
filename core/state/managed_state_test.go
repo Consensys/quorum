@@ -27,10 +27,10 @@ var addr = common.BytesToAddress([]byte("test"))
 
 func create() (*ManagedState, *account) {
 	db, _ := ethdb.NewMemDatabase()
-	statedb, _ := New(common.Hash{}, db)
+	statedb, _ := New(common.Hash{}, NewDatabase(db))
 	ms := ManageState(statedb)
 	ms.StateDB.SetNonce(addr, 100)
-	ms.accounts[addr] = newAccount(ms.StateDB.GetStateObject(addr))
+	ms.accounts[addr] = newAccount(ms.StateDB.getStateObject(addr))
 	return ms, ms.accounts[addr]
 }
 
@@ -52,7 +52,7 @@ func TestRemove(t *testing.T) {
 	ms, account := create()
 
 	nn := make([]bool, 10)
-	for i, _ := range nn {
+	for i := range nn {
 		nn[i] = true
 	}
 	account.nonces = append(account.nonces, nn...)
@@ -68,7 +68,7 @@ func TestReuse(t *testing.T) {
 	ms, account := create()
 
 	nn := make([]bool, 10)
-	for i, _ := range nn {
+	for i := range nn {
 		nn[i] = true
 	}
 	account.nonces = append(account.nonces, nn...)
@@ -84,16 +84,16 @@ func TestReuse(t *testing.T) {
 func TestRemoteNonceChange(t *testing.T) {
 	ms, account := create()
 	nn := make([]bool, 10)
-	for i, _ := range nn {
+	for i := range nn {
 		nn[i] = true
 	}
 	account.nonces = append(account.nonces, nn...)
-	nonce := ms.NewNonce(addr)
+	ms.NewNonce(addr)
 
 	ms.StateDB.stateObjects[addr].data.Nonce = 200
-	nonce = ms.NewNonce(addr)
+	nonce := ms.NewNonce(addr)
 	if nonce != 200 {
-		t.Error("expected nonce after remote update to be", 201, "got", nonce)
+		t.Error("expected nonce after remote update to be", 200, "got", nonce)
 	}
 	ms.NewNonce(addr)
 	ms.NewNonce(addr)
@@ -101,7 +101,7 @@ func TestRemoteNonceChange(t *testing.T) {
 	ms.StateDB.stateObjects[addr].data.Nonce = 200
 	nonce = ms.NewNonce(addr)
 	if nonce != 204 {
-		t.Error("expected nonce after remote update to be", 201, "got", nonce)
+		t.Error("expected nonce after remote update to be", 204, "got", nonce)
 	}
 }
 

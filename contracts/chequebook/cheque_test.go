@@ -42,11 +42,11 @@ var (
 )
 
 func newTestBackend() *backends.SimulatedBackend {
-	return backends.NewSimulatedBackend(
-		core.GenesisAccount{Address: addr0, Balance: big.NewInt(1000000000)},
-		core.GenesisAccount{Address: addr1, Balance: big.NewInt(1000000000)},
-		core.GenesisAccount{Address: addr2, Balance: big.NewInt(1000000000)},
-	)
+	return backends.NewSimulatedBackend(core.GenesisAlloc{
+		addr0: {Balance: big.NewInt(1000000000)},
+		addr1: {Balance: big.NewInt(1000000000)},
+		addr2: {Balance: big.NewInt(1000000000)},
+	})
 }
 
 func deploy(prvKey *ecdsa.PrivateKey, amount *big.Int, backend *backends.SimulatedBackend) (common.Address, error) {
@@ -73,8 +73,8 @@ func TestIssueAndReceive(t *testing.T) {
 	}
 	chbook.sent[addr1] = new(big.Int).SetUint64(42)
 	amount := common.Big1
-	ch, err := chbook.Issue(addr1, amount)
-	if err == nil {
+
+	if _, err = chbook.Issue(addr1, amount); err == nil {
 		t.Fatalf("expected insufficient funds error, got none")
 	}
 
@@ -83,12 +83,12 @@ func TestIssueAndReceive(t *testing.T) {
 		t.Fatalf("expected: %v, got %v", "0", chbook.Balance())
 	}
 
-	ch, err = chbook.Issue(addr1, amount)
+	ch, err := chbook.Issue(addr1, amount)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if chbook.Balance().Cmp(common.Big0) != 0 {
+	if chbook.Balance().Sign() != 0 {
 		t.Errorf("expected: %v, got %v", "0", chbook.Balance())
 	}
 
@@ -128,8 +128,8 @@ func TestCheckbookFile(t *testing.T) {
 		t.Errorf("expected: %v, got %v", "0", chbook.Balance())
 	}
 
-	ch, err := chbook.Issue(addr1, common.Big1)
-	if err != nil {
+	var ch *Cheque
+	if ch, err = chbook.Issue(addr1, common.Big1); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if ch.Amount.Cmp(new(big.Int).SetUint64(43)) != 0 {
@@ -155,7 +155,7 @@ func TestVerifyErrors(t *testing.T) {
 	}
 
 	path1 := filepath.Join(os.TempDir(), "chequebook-test-1.json")
-	contr1, err := deploy(key1, common.Big2, backend)
+	contr1, _ := deploy(key1, common.Big2, backend)
 	chbook1, err := NewChequebook(path1, contr1, key1, backend)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
@@ -170,7 +170,6 @@ func TestVerifyErrors(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	time.Sleep(5)
 	chbox, err := NewInbox(key1, contr0, addr1, &key0.PublicKey, backend)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -193,7 +192,7 @@ func TestVerifyErrors(t *testing.T) {
 	received, err = chbox.Receive(ch1)
 	t.Logf("correct error: %v", err)
 	if err == nil {
-		t.Fatalf("expected receiver error, got none")
+		t.Fatalf("expected receiver error, got none and value %v", received)
 	}
 
 	ch2, err := chbook1.Issue(addr1, amount)
@@ -203,7 +202,7 @@ func TestVerifyErrors(t *testing.T) {
 	received, err = chbox.Receive(ch2)
 	t.Logf("correct error: %v", err)
 	if err == nil {
-		t.Fatalf("expected sender error, got none")
+		t.Fatalf("expected sender error, got none and value %v", received)
 	}
 
 	_, err = chbook1.Issue(addr1, new(big.Int).SetInt64(-1))
@@ -215,7 +214,7 @@ func TestVerifyErrors(t *testing.T) {
 	received, err = chbox.Receive(ch0)
 	t.Logf("correct error: %v", err)
 	if err == nil {
-		t.Fatalf("expected incorrect amount error, got none")
+		t.Fatalf("expected incorrect amount error, got none and value %v", received)
 	}
 
 }
@@ -223,7 +222,8 @@ func TestVerifyErrors(t *testing.T) {
 func TestDeposit(t *testing.T) {
 	path0 := filepath.Join(os.TempDir(), "chequebook-test-0.json")
 	backend := newTestBackend()
-	contr0, err := deploy(key0, new(big.Int), backend)
+	contr0, _ := deploy(key0, new(big.Int), backend)
+
 	chbook, err := NewChequebook(path0, contr0, key0, backend)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
@@ -232,8 +232,8 @@ func TestDeposit(t *testing.T) {
 	balance := new(big.Int).SetUint64(42)
 	chbook.Deposit(balance)
 	backend.Commit()
-	if chbook.balance.Cmp(balance) != 0 {
-		t.Fatalf("expected balance %v, got %v", balance, chbook.balance)
+	if chbook.Balance().Cmp(balance) != 0 {
+		t.Fatalf("expected balance %v, got %v", balance, chbook.Balance())
 	}
 
 	amount := common.Big1
@@ -243,8 +243,8 @@ func TestDeposit(t *testing.T) {
 	}
 	backend.Commit()
 	exp := new(big.Int).SetUint64(41)
-	if chbook.balance.Cmp(exp) != 0 {
-		t.Fatalf("expected balance %v, got %v", exp, chbook.balance)
+	if chbook.Balance().Cmp(exp) != 0 {
+		t.Fatalf("expected balance %v, got %v", exp, chbook.Balance())
 	}
 
 	// autodeposit on each issue
@@ -259,8 +259,8 @@ func TestDeposit(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	backend.Commit()
-	if chbook.balance.Cmp(balance) != 0 {
-		t.Fatalf("expected balance %v, got %v", balance, chbook.balance)
+	if chbook.Balance().Cmp(balance) != 0 {
+		t.Fatalf("expected balance %v, got %v", balance, chbook.Balance())
 	}
 
 	// autodeposit off
@@ -277,11 +277,11 @@ func TestDeposit(t *testing.T) {
 	backend.Commit()
 
 	exp = new(big.Int).SetUint64(40)
-	if chbook.balance.Cmp(exp) != 0 {
-		t.Fatalf("expected balance %v, got %v", exp, chbook.balance)
+	if chbook.Balance().Cmp(exp) != 0 {
+		t.Fatalf("expected balance %v, got %v", exp, chbook.Balance())
 	}
 
-	// autodeposit every 10ms if new cheque issued
+	// autodeposit every 30ms if new cheque issued
 	interval := 30 * time.Millisecond
 	chbook.AutoDeposit(interval, common.Big1, balance)
 	_, err = chbook.Issue(addr1, amount)
@@ -296,14 +296,14 @@ func TestDeposit(t *testing.T) {
 	backend.Commit()
 
 	exp = new(big.Int).SetUint64(38)
-	if chbook.balance.Cmp(exp) != 0 {
-		t.Fatalf("expected balance %v, got %v", exp, chbook.balance)
+	if chbook.Balance().Cmp(exp) != 0 {
+		t.Fatalf("expected balance %v, got %v", exp, chbook.Balance())
 	}
 
 	time.Sleep(3 * interval)
 	backend.Commit()
-	if chbook.balance.Cmp(balance) != 0 {
-		t.Fatalf("expected balance %v, got %v", balance, chbook.balance)
+	if chbook.Balance().Cmp(balance) != 0 {
+		t.Fatalf("expected balance %v, got %v", balance, chbook.Balance())
 	}
 
 	exp = new(big.Int).SetUint64(40)
@@ -319,8 +319,8 @@ func TestDeposit(t *testing.T) {
 	}
 	time.Sleep(3 * interval)
 	backend.Commit()
-	if chbook.balance.Cmp(exp) != 0 {
-		t.Fatalf("expected balance %v, got %v", exp, chbook.balance)
+	if chbook.Balance().Cmp(exp) != 0 {
+		t.Fatalf("expected balance %v, got %v", exp, chbook.Balance())
 	}
 
 	_, err = chbook.Issue(addr1, amount)
@@ -330,8 +330,8 @@ func TestDeposit(t *testing.T) {
 	time.Sleep(1 * interval)
 	backend.Commit()
 
-	if chbook.balance.Cmp(balance) != 0 {
-		t.Fatalf("expected balance %v, got %v", balance, chbook.balance)
+	if chbook.Balance().Cmp(balance) != 0 {
+		t.Fatalf("expected balance %v, got %v", balance, chbook.Balance())
 	}
 
 	chbook.AutoDeposit(1*interval, common.Big0, balance)
@@ -352,8 +352,8 @@ func TestDeposit(t *testing.T) {
 	backend.Commit()
 
 	exp = new(big.Int).SetUint64(39)
-	if chbook.balance.Cmp(exp) != 0 {
-		t.Fatalf("expected balance %v, got %v", exp, chbook.balance)
+	if chbook.Balance().Cmp(exp) != 0 {
+		t.Fatalf("expected balance %v, got %v", exp, chbook.Balance())
 	}
 
 }
@@ -361,7 +361,8 @@ func TestDeposit(t *testing.T) {
 func TestCash(t *testing.T) {
 	path := filepath.Join(os.TempDir(), "chequebook-test.json")
 	backend := newTestBackend()
-	contr0, err := deploy(key0, common.Big2, backend)
+	contr0, _ := deploy(key0, common.Big2, backend)
+
 	chbook, err := NewChequebook(path, contr0, key0, backend)
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
@@ -380,11 +381,12 @@ func TestCash(t *testing.T) {
 	}
 
 	// cashing latest cheque
-	_, err = chbox.Receive(ch)
-	if err != nil {
+	if _, err = chbox.Receive(ch); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	_, err = ch.Cash(chbook.session)
+	if _, err = ch.Cash(chbook.session); err != nil {
+		t.Fatal("Cash failed:", err)
+	}
 	backend.Commit()
 
 	chbook.balance = new(big.Int).Set(common.Big3)
@@ -411,20 +413,9 @@ func TestCash(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	backend.Commit()
-	// expBalance := big.NewInt(2)
-	// gotBalance := backend.BalanceAt(addr1)
-	// if gotBalance.Cmp(expBalance) != 0 {
-	// 	t.Fatalf("expected beneficiary balance %v, got %v", expBalance, gotBalance)
-	// }
 	// after 3x interval time and 2 cheques received, exactly one cashing tx is sent
 	time.Sleep(4 * interval)
 	backend.Commit()
-
-	// expBalance = big.NewInt(4)
-	// gotBalance = backend.BalanceAt(addr1)
-	// if gotBalance.Cmp(expBalance) != 0 {
-	// 	t.Fatalf("expected beneficiary balance %v, got %v", expBalance, gotBalance)
-	// }
 
 	// after stopping autocash no more tx are sent
 	ch2, err := chbook.Issue(addr1, amount)
@@ -438,11 +429,6 @@ func TestCash(t *testing.T) {
 	}
 	time.Sleep(2 * interval)
 	backend.Commit()
-	// expBalance = big.NewInt(4)
-	// gotBalance = backend.BalanceAt(addr1)
-	// if gotBalance.Cmp(expBalance) != 0 {
-	// 	t.Fatalf("expected beneficiary balance %v, got %v", expBalance, gotBalance)
-	// }
 
 	// autocash below 1
 	chbook.balance = big.NewInt(2)
@@ -453,11 +439,6 @@ func TestCash(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	backend.Commit()
-	// expBalance = big.NewInt(4)
-	// gotBalance = backend.BalanceAt(addr1)
-	// if gotBalance.Cmp(expBalance) != 0 {
-	// 	t.Fatalf("expected beneficiary balance %v, got %v", expBalance, gotBalance)
-	// }
 
 	ch4, err := chbook.Issue(addr1, amount)
 	if err != nil {
@@ -476,13 +457,6 @@ func TestCash(t *testing.T) {
 	}
 	backend.Commit()
 
-	// 2 checks of amount 1 received, exactly 1 tx is sent
-	// expBalance = big.NewInt(6)
-	// gotBalance = backend.BalanceAt(addr1)
-	// if gotBalance.Cmp(expBalance) != 0 {
-	// 	t.Fatalf("expected beneficiary balance %v, got %v", expBalance, gotBalance)
-	// }
-
 	// autochash on receipt when maxUncashed is 0
 	chbook.balance = new(big.Int).Set(common.Big2)
 	chbox.AutoCash(0, common.Big0)
@@ -492,11 +466,6 @@ func TestCash(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	backend.Commit()
-	// expBalance = big.NewInt(5)
-	// gotBalance = backend.BalanceAt(addr1)
-	// if gotBalance.Cmp(expBalance) != 0 {
-	// 	t.Fatalf("expected beneficiary balance %v, got %v", expBalance, gotBalance)
-	// }
 
 	ch6, err := chbook.Issue(addr1, amount)
 	if err != nil {
@@ -508,21 +477,11 @@ func TestCash(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	backend.Commit()
-	// expBalance = big.NewInt(4)
-	// gotBalance = backend.BalanceAt(addr1)
-	// if gotBalance.Cmp(expBalance) != 0 {
-	// 	t.Fatalf("expected beneficiary balance %v, got %v", expBalance, gotBalance)
-	// }
 
 	_, err = chbox.Receive(ch6)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	backend.Commit()
-	// expBalance = big.NewInt(6)
-	// gotBalance = backend.BalanceAt(addr1)
-	// if gotBalance.Cmp(expBalance) != 0 {
-	// 	t.Fatalf("expected beneficiary balance %v, got %v", expBalance, gotBalance)
-	// }
 
 }

@@ -24,11 +24,13 @@ import (
 	"io"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/bmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 )
 
 type Hasher func() hash.Hash
+type SwarmHasher func() SwarmHash
 
 // Peer is the recorded as Source on the chunk
 // should probably not be here? but network should wrap chunk object
@@ -41,7 +43,7 @@ func (x Key) Size() uint {
 }
 
 func (x Key) isEqual(y Key) bool {
-	return bytes.Compare(x, y) == 0
+	return bytes.Equal(x, y)
 }
 
 func (h Key) bits(i, j uint) uint {
@@ -77,12 +79,18 @@ func IsZeroKey(key Key) bool {
 
 var ZeroKey = Key(common.Hash{}.Bytes())
 
-func MakeHashFunc(hash string) Hasher {
+func MakeHashFunc(hash string) SwarmHasher {
 	switch hash {
 	case "SHA256":
-		return crypto.SHA256.New
+		return func() SwarmHash { return &HashWithLength{crypto.SHA256.New()} }
 	case "SHA3":
-		return sha3.NewKeccak256
+		return func() SwarmHash { return &HashWithLength{sha3.NewKeccak256()} }
+	case "BMT":
+		return func() SwarmHash {
+			hasher := sha3.NewKeccak256
+			pool := bmt.NewTreePool(hasher, bmt.DefaultSegmentCount, bmt.DefaultPoolSize)
+			return bmt.New(pool)
+		}
 	}
 	return nil
 }
@@ -167,6 +175,7 @@ The ChunkStore interface is implemented by :
 type ChunkStore interface {
 	Put(*Chunk) // effectively there is no error even if there is an error
 	Get(Key) (*Chunk, error)
+	Close()
 }
 
 /*
@@ -177,7 +186,7 @@ It relies on the underlying chunking model.
 When calling Split, the caller provides a channel (chan *Chunk) on which it receives chunks to store. The DPA delegates to storage layers (implementing ChunkStore interface).
 
 Split returns an error channel, which the caller can monitor.
-After getting notified that all the data has been split (the error channel is closed), the caller can safely read or save the root key. Optionally it times out if not all chunks get stored or not the entire stream of data has been processed. By inspecting the errc channel the caller can check if any explicit errors (typically IO read/write failures) occured during splitting.
+After getting notified that all the data has been split (the error channel is closed), the caller can safely read or save the root key. Optionally it times out if not all chunks get stored or not the entire stream of data has been processed. By inspecting the errc channel the caller can check if any explicit errors (typically IO read/write failures) occurred during splitting.
 
 When calling Join with a root key, the caller gets returned a seekable lazy reader. The caller again provides a channel on which the caller receives placeholder chunks with missing data. The DPA is supposed to forward this to the chunk stores and notify the chunker if the data has been delivered (i.e. retrieved from memory cache, disk-persisted db or cloud based swarm delivery). As the seekable reader is used, the chunker then puts these together the relevant parts on demand.
 */
@@ -190,6 +199,13 @@ type Splitter interface {
 	   A closed error signals process completion at which point the key can be considered final if there were no errors.
 	*/
 	Split(io.Reader, int64, chan *Chunk, *sync.WaitGroup, *sync.WaitGroup) (Key, error)
+
+	/* This is the first step in making files mutable (not chunks)..
+	   Append allows adding more data chunks to the end of the already existsing file.
+	   The key for the root chunk is supplied to load the respective tree.
+	   Rest of the parameters behave like Split.
+	*/
+	Append(Key, io.Reader, chan *Chunk, *sync.WaitGroup, *sync.WaitGroup) (Key, error)
 }
 
 type Joiner interface {
