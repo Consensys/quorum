@@ -29,7 +29,7 @@ type Stack struct {
 }
 
 func newstack() *Stack {
-	return &Stack{}
+	return &Stack{data: make([]*big.Int, 0, 1024)}
 }
 
 func (st *Stack) Data() []*big.Int {
@@ -60,12 +60,17 @@ func (st *Stack) swap(n int) {
 	st.data[st.len()-n], st.data[st.len()-1] = st.data[st.len()-1], st.data[st.len()-n]
 }
 
-func (st *Stack) dup(n int) {
-	st.push(new(big.Int).Set(st.data[st.len()-n]))
+func (st *Stack) dup(pool *intPool, n int) {
+	st.push(pool.get().Set(st.data[st.len()-n]))
 }
 
 func (st *Stack) peek() *big.Int {
 	return st.data[st.len()-1]
+}
+
+// Back returns the n'th item in stack
+func (st *Stack) Back(n int) *big.Int {
+	return st.data[st.len()-n-1]
 }
 
 func (st *Stack) require(n int) error {

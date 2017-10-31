@@ -6,8 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 )
 
@@ -25,15 +24,15 @@ func isNodePermissioned(nodename string, currentNode string, datadir string, dir
 		permissonedList = append(permissonedList, v.ID.String())
 	}
 
-	glog.V(logger.Debug).Infof("Permisssioned_list %v", permissonedList)
+	log.Debug("isNodePermissioned", "permisssionedList %v", permissonedList)
 	for _, v := range permissonedList {
 		if v == nodename {
-			glog.V(logger.Debug).Infof("isNodePermissioned <%v> connection:: nodename <%v> ALLOWED-BY <%v>", direction, nodename[:NODE_NAME_LENGTH], currentNode[:NODE_NAME_LENGTH])
+			log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
 			return true
 		}
-		glog.V(logger.Debug).Infof("isNodePermissioned <%v> connection:: nodename <%v> DENIED-BY <%v>", direction, nodename[:NODE_NAME_LENGTH], currentNode[:NODE_NAME_LENGTH])
+		log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "DENIED-BY", currentNode[:NODE_NAME_LENGTH])
 	}
-	glog.V(logger.Debug).Infof("isNodePermissioned <%v> connection:: nodename <%v> DENIED-BY <%v>", direction, nodename[:NODE_NAME_LENGTH], currentNode[:NODE_NAME_LENGTH])
+	log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "DENIED-BY", currentNode[:NODE_NAME_LENGTH])
 	return false
 }
 
@@ -42,39 +41,38 @@ func isNodePermissioned(nodename string, currentNode string, datadir string, dir
 
 func parsePermissionedNodes(DataDir string) []*discover.Node {
 
-	glog.V(logger.Debug).Infof("parsePermissionedNodes DataDir %v, file %v", DataDir, PERMISSIONED_CONFIG)
+	log.Debug("parsePermissionedNodes DataDir %v, file %v", DataDir, PERMISSIONED_CONFIG)
 
 	path := filepath.Join(DataDir, PERMISSIONED_CONFIG)
 	if _, err := os.Stat(path); err != nil {
-		glog.V(logger.Error).Infof("Read Error for permissioned-nodes.json file %v. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present.", err)
+		log.Error("Read Error for permissioned-nodes.json file. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present.", "err", err)
 		return nil
 	}
 	// Load the nodes from the config file
 	blob, err := ioutil.ReadFile(path)
 	if err != nil {
-		glog.V(logger.Error).Infof("parsePermissionedNodes: Failed to access nodes: %v", err)
+		log.Error("parsePermissionedNodes: Failed to access nodes", "err", err)
 		return nil
 	}
 
 	nodelist := []string{}
 	if err := json.Unmarshal(blob, &nodelist); err != nil {
-		glog.V(logger.Error).Infof("parsePermissionedNodes: Failed to load nodes: %v", err)
+		log.Error("parsePermissionedNodes: Failed to load nodes", "err", err)
 		return nil
 	}
 	// Interpret the list as a discovery node array
 	var nodes []*discover.Node
 	for _, url := range nodelist {
 		if url == "" {
-			glog.V(logger.Error).Infof("parsePermissionedNodes: Node URL blank")
+			log.Error("parsePermissionedNodes: Node URL blank")
 			continue
 		}
 		node, err := discover.ParseNode(url)
 		if err != nil {
-			glog.V(logger.Error).Infof("parsePermissionedNodes: Node URL %s: %v\n", url, err)
+			log.Error("parsePermissionedNodes: Node URL", "url", url, "err", err)
 			continue
 		}
 		nodes = append(nodes, node)
 	}
 	return nodes
 }
-

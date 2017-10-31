@@ -17,18 +17,12 @@
 package compiler
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"os"
-	"path"
+	"os/exec"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
-	supportedSolcVersion = "0.3.5"
-	testSource           = `
+	testSource = `
 contract test {
    /// @notice Will multiply ` + "`a`" + ` by 7.
    function multiply(uint a) returns(uint d) {
@@ -36,23 +30,17 @@ contract test {
    }
 }
 `
-	testCode = "0x6060604052602a8060106000396000f3606060405260e060020a6000350463c6888fa18114601a575b005b6007600435026060908152602090f3"
-	testInfo = `{"source":"\ncontract test {\n   /// @notice Will multiply ` + "`a`" + ` by 7.\n   function multiply(uint a) returns(uint d) {\n       return a * 7;\n   }\n}\n","language":"Solidity","languageVersion":"0.1.1","compilerVersion":"0.1.1","compilerOptions":"--binary file --json-abi file --natspec-user file --natspec-dev file --add-std 1","abiDefinition":[{"constant":false,"inputs":[{"name":"a","type":"uint256"}],"name":"multiply","outputs":[{"name":"d","type":"uint256"}],"type":"function"}],"userDoc":{"methods":{"multiply(uint256)":{"notice":"Will multiply ` + "`a`" + ` by 7."}}},"developerDoc":{"methods":{}}}`
 )
 
-func skipUnsupported(t *testing.T) {
-	sol, err := SolidityVersion("")
-	if err != nil {
+func skipWithoutSolc(t *testing.T) {
+	if _, err := exec.LookPath("solc"); err != nil {
 		t.Skip(err)
-		return
-	}
-	if sol.Version != supportedSolcVersion {
-		t.Skipf("unsupported version of solc found (%v, expect %v)", sol.Version, supportedSolcVersion)
 	}
 }
 
 func TestCompiler(t *testing.T) {
-	skipUnsupported(t)
+	skipWithoutSolc(t)
+
 	contracts, err := CompileSolidityString("", testSource)
 	if err != nil {
 		t.Fatalf("error compiling source. result %v: %v", contracts, err)
@@ -62,49 +50,28 @@ func TestCompiler(t *testing.T) {
 	}
 	c, ok := contracts["test"]
 	if !ok {
-		t.Fatal("info for contract 'test' not present in result")
+		c, ok = contracts["<stdin>:test"]
+		if !ok {
+			t.Fatal("info for contract 'test' not present in result")
+		}
 	}
-	if c.Code != testCode {
-		t.Errorf("wrong code: expected\n%s, got\n%s", testCode, c.Code)
+	if c.Code == "" {
+		t.Error("empty code")
 	}
 	if c.Info.Source != testSource {
 		t.Error("wrong source")
 	}
-	if c.Info.CompilerVersion != supportedSolcVersion {
-		t.Errorf("wrong version: expected %q, got %q", supportedSolcVersion, c.Info.CompilerVersion)
+	if c.Info.CompilerVersion == "" {
+		t.Error("empty version")
 	}
 }
 
 func TestCompileError(t *testing.T) {
-	skipUnsupported(t)
+	skipWithoutSolc(t)
+
 	contracts, err := CompileSolidityString("", testSource[4:])
 	if err == nil {
 		t.Errorf("error expected compiling source. got none. result %v", contracts)
 	}
 	t.Logf("error: %v", err)
-}
-
-func TestSaveInfo(t *testing.T) {
-	var cinfo ContractInfo
-	err := json.Unmarshal([]byte(testInfo), &cinfo)
-	if err != nil {
-		t.Errorf("%v", err)
-	}
-	filename := path.Join(os.TempDir(), "solctest.info.json")
-	os.Remove(filename)
-	cinfohash, err := SaveInfo(&cinfo, filename)
-	if err != nil {
-		t.Errorf("error extracting info: %v", err)
-	}
-	got, err := ioutil.ReadFile(filename)
-	if err != nil {
-		t.Errorf("error reading '%v': %v", filename, err)
-	}
-	if string(got) != testInfo {
-		t.Errorf("incorrect info.json extracted, expected:\n%s\ngot\n%s", testInfo, string(got))
-	}
-	wantHash := common.HexToHash("0x9f3803735e7f16120c5a140ab3f02121fd3533a9655c69b33a10e78752cc49b0")
-	if cinfohash != wantHash {
-		t.Errorf("content hash for info is incorrect. expected %v, got %v", wantHash.Hex(), cinfohash.Hex())
-	}
 }

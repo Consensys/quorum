@@ -23,14 +23,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rcrowley/go-metrics/exp"
 )
 
 // MetricsEnabledFlag is the CLI flag name to use to enable metrics collections.
-var MetricsEnabledFlag = "metrics"
+const MetricsEnabledFlag = "metrics"
 
 // Enabled is the flag specifying if metrics are enable or not.
 var Enabled = false
@@ -41,11 +40,20 @@ var Enabled = false
 func init() {
 	for _, arg := range os.Args {
 		if strings.TrimLeft(arg, "-") == MetricsEnabledFlag {
-			glog.V(logger.Info).Infof("Enabling metrics collection")
+			log.Info("Enabling metrics collection")
 			Enabled = true
 		}
 	}
 	exp.Exp(metrics.DefaultRegistry)
+}
+
+// NewCounter create a new metrics Counter, either a real one of a NOP stub depending
+// on the metrics flag.
+func NewCounter(name string) metrics.Counter {
+	if !Enabled {
+		return new(metrics.NilCounter)
+	}
+	return metrics.GetOrRegisterCounter(name, metrics.DefaultRegistry)
 }
 
 // NewMeter create a new metrics Meter, either a real one of a NOP stub depending
@@ -93,7 +101,7 @@ func CollectProcessMetrics(refresh time.Duration) {
 		diskWrites = metrics.GetOrRegisterMeter("system/disk/writecount", metrics.DefaultRegistry)
 		diskWriteBytes = metrics.GetOrRegisterMeter("system/disk/writedata", metrics.DefaultRegistry)
 	} else {
-		glog.V(logger.Debug).Infof("failed to read disk metrics: %v", err)
+		log.Debug("Failed to read disk metrics", "err", err)
 	}
 	// Iterate loading the different stats and updating the meters
 	for i := 1; ; i++ {

@@ -25,7 +25,7 @@ verifier | follower
 
 The main reasons we co-locate the leader and minter are (1) convenience, in that Raft ensures there is only one leader at a time, and (2) to avoid a network hop from a node minting blocks to the leader, through which all Raft writes must flow. Our implementation watches Raft leadership changes -- if a node becomes a leader it will start minting, and if a node loses its leadership, it will stop minting.
 
-An observant reader might note that during raft leadership transitions, there could be a small period of time where more than one node might assume that it has minting duties; we describe how correctness is preserved in more detail later in this document.
+An observant reader might note that during raft leadership transitions, there could be a small period of time where more than one node might assume that it has minting duties; we detail how correctness is preserved in more detail later in this document.
 
 We use the existing Ethereum p2p transport layer to communicate transactions between nodes, but we communicate blocks only through the Raft transport layer. They are created by the minter and flow from there to the rest of the cluster, always in the same order, via Raft.
 
@@ -92,7 +92,7 @@ Where `0xbeda` is the ID of new block, and `0xaa` is the ID of its parent. Here,
   v                              [ 0x8b37 Parent: 0x8b37 ]
 ```
 
-Once the partition heals, at the Raft layer node 1 will resubmit `0x2c52`, and the resulting serialized log might look as follows:
+Once the partition heals, at the Raft layer node1 will resubmit `0x2c52`, and the resulting serialized log might look as follows:
 
 ```
 [ 0xbeda Parent: 0xacaa - Extends! ]  (due to node 1)
@@ -142,7 +142,7 @@ There is currently no limit to the length of these speculative chains, but we pl
 
 ## The Raft transport layer
 
-We communicate blocks over the HTTP transport layer built in to etcd Raft. It's also (at least theoretically) possible to use the p2p protocol built-in to Ethereum as a transport for Raft. In our testing we found the default etcd HTTP transport to be more reliable than the p2p (at least as implemented in geth) under high load.
+We communicate blocks over the HTTP transport layer built in to etcd Raft. It's also (at least theoretically) possible to use p2p protocol built-in to Ethereum as a transport for Raft. In our testing we found the default etcd HTTP transport to be more reliable than the p2p (at least as implemented in geth) under high load.
 
 Quorum listens on port 50400 by default for the raft transport, but this is configurable with the `--raftport` flag.
 

@@ -18,6 +18,26 @@ import (
 	"github.com/ethereum/go-ethereum/private/constellation"
 )
 
+// callmsg is the message type used for call transactions in the private state test
+type callmsg struct {
+	addr          common.Address
+	to            *common.Address
+	gas, gasPrice *big.Int
+	value         *big.Int
+	data          []byte
+}
+
+// accessor boilerplate to implement core.Message
+func (m callmsg) From() common.Address         { return m.addr }
+func (m callmsg) FromFrontier() common.Address { return m.addr }
+func (m callmsg) Nonce() uint64                { return 0 }
+func (m callmsg) To() *common.Address          { return m.to }
+func (m callmsg) GasPrice() *big.Int           { return m.gasPrice }
+func (m callmsg) Gas() *big.Int                { return m.gas }
+func (m callmsg) Value() *big.Int              { return m.value }
+func (m callmsg) Data() []byte                 { return m.data }
+func (m callmsg) CheckNonce() bool             { return true }
+
 func ExampleMakeCallHelper() {
 	var (
 		// setup new pair of keys for the calls
@@ -106,6 +126,16 @@ func runConstellation() (*osExec.Cmd, error) {
 	return constellationCmd, nil
 }
 
+// 600a600055600060006001a1
+// [1] PUSH1 0x0a (store value)
+// [3] PUSH1 0x00 (store addr)
+// [4] SSTORE
+// [6] PUSH1 0x00
+// [8] PUSH1 0x00
+// [10] PUSH1 0x01
+// [11] LOG1
+//
+// Store then log
 func TestPrivateTransaction(t *testing.T) {
 	var (
 		key, _       = crypto.GenerateKey()
@@ -127,6 +157,10 @@ func TestPrivateTransaction(t *testing.T) {
 	publicState.SetCode(pubContractAddr, common.Hex2Bytes("6014600055"))
 	publicState.SetState(pubContractAddr, common.Hash{}, common.Hash{19})
 
+	if publicState.Exist(prvContractAddr) {
+		t.Error("didn't expect private contract address to exist on public state")
+	}
+
 	// Private transaction 1
 	err = helper.MakeCall(true, key, prvContractAddr, nil)
 	if err != nil {
@@ -138,6 +172,15 @@ func TestPrivateTransaction(t *testing.T) {
 	}
 	if len(privateState.Logs()) != 1 {
 		t.Error("expected private state to have 1 log, got", len(privateState.Logs()))
+	}
+	if len(publicState.Logs()) != 0 {
+		t.Error("expected public state to have 0 logs, got", len(publicState.Logs()))
+	}
+	if publicState.Exist(prvContractAddr) {
+		t.Error("didn't expect private contract address to exist on public state")
+	}
+	if !privateState.Exist(prvContractAddr) {
+		t.Error("expected private contract address to exist on private state")
 	}
 
 	// Public transaction 1

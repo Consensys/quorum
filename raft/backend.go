@@ -10,17 +10,17 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type RaftService struct {
 	blockchain     *core.BlockChain
-	chainDb        ethdb.Database // Blockchain database
+	chainDb        ethdb.Database // Block chain database
 	txMu           sync.Mutex
 	txPool         *core.TxPool
 	accountManager *accounts.Manager
@@ -34,7 +34,7 @@ type RaftService struct {
 	minter   *minter
 }
 
-func New(ctx *node.ServiceContext, chainConfig *core.ChainConfig, raftId uint16, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node, datadir string) (*RaftService, error) {
+func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftId, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node, datadir string) (*RaftService, error) {
 	service := &RaftService{
 		eventMux:       ctx.EventMux,
 		chainDb:        e.ChainDb(),
@@ -95,6 +95,6 @@ func (service *RaftService) Stop() error {
 
 	service.chainDb.Close()
 
-	glog.V(logger.Info).Infoln("Raft stopped")
+	log.Info("Raft stopped")
 	return nil
 }

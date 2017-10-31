@@ -1,4 +1,4 @@
-// Copyright 2015 The go-ethereum Authors
+// Copyright 2016 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -36,9 +36,9 @@ import (
 )
 
 var (
-	passwordRegexp = regexp.MustCompile("personal.[nus]")
-	onlyWhitespace = regexp.MustCompile("^\\s*$")
-	exit           = regexp.MustCompile("^\\s*exit\\s*;*\\s*$")
+	passwordRegexp = regexp.MustCompile(`personal.[nus]`)
+	onlyWhitespace = regexp.MustCompile(`^\s*$`)
+	exit           = regexp.MustCompile(`^\s*exit\s*;*\s*$`)
 )
 
 // HistoryFile is the file within the data directory to store input scrollback.
@@ -137,9 +137,13 @@ func (c *Console) init(preload []string) error {
 			continue // manually mapped or ignore
 		}
 		if file, ok := web3ext.Modules[api]; ok {
+			// Load our extension for the module.
 			if err = c.jsre.Compile(fmt.Sprintf("%s.js", api), file); err != nil {
 				return fmt.Errorf("%s.js: %v", api, err)
 			}
+			flatten += fmt.Sprintf("var %s = web3.%s; ", api, api)
+		} else if obj, err := c.jsre.Run("web3." + api); err == nil && obj.IsObject() {
+			// Enable web3.js built-in extension if available.
 			flatten += fmt.Sprintf("var %s = web3.%s; ", api, api)
 		}
 	}
@@ -156,10 +160,15 @@ func (c *Console) init(preload []string) error {
 		if err != nil {
 			return err
 		}
-		// Override the unlockAccount, newAccount and sign methods since these require user interaction.
-		// Assign these method in the Console the original web3 callbacks. These will be called by the jeth.*
-		// methods after they got the password from the user and send the original web3 request to the backend.
+		// Override the openWallet, unlockAccount, newAccount and sign methods since
+		// these require user interaction. Assign these method in the Console the
+		// original web3 callbacks. These will be called by the jeth.* methods after
+		// they got the password from the user and send the original web3 request to
+		// the backend.
 		if obj := personal.Object(); obj != nil { // make sure the personal api is enabled over the interface
+			if _, err = c.jsre.Run(`jeth.openWallet = personal.openWallet;`); err != nil {
+				return fmt.Errorf("personal.openWallet: %v", err)
+			}
 			if _, err = c.jsre.Run(`jeth.unlockAccount = personal.unlockAccount;`); err != nil {
 				return fmt.Errorf("personal.unlockAccount: %v", err)
 			}
@@ -169,6 +178,7 @@ func (c *Console) init(preload []string) error {
 			if _, err = c.jsre.Run(`jeth.sign = personal.sign;`); err != nil {
 				return fmt.Errorf("personal.sign: %v", err)
 			}
+			obj.Set("openWallet", bridge.OpenWallet)
 			obj.Set("unlockAccount", bridge.UnlockAccount)
 			obj.Set("newAccount", bridge.NewAccount)
 			obj.Set("sign", bridge.Sign)
@@ -226,8 +236,8 @@ func (c *Console) AutoCompleteInput(line string, pos int) (string, []string, str
 	}
 	// Chunck data to relevant part for autocompletion
 	// E.g. in case of nested lines eth.getBalance(eth.coinb<tab><tab>
-	start := 0
-	for start = pos - 1; start > 0; start-- {
+	start := pos - 1
+	for ; start > 0; start-- {
 		// Skip all methods and namespaces (i.e. including te dot)
 		if line[start] == '.' || (line[start] >= 'a' && line[start] <= 'z') || (line[start] >= 'A' && line[start] <= 'Z') {
 			continue
@@ -275,10 +285,7 @@ func (c *Console) Evaluate(statement string) error {
 			fmt.Fprintf(c.printer, "[native] error: %v\n", r)
 		}
 	}()
-	if err := c.jsre.Evaluate(statement, c.printer); err != nil {
-		return err
-	}
-	return nil
+	return c.jsre.Evaluate(statement, c.printer)
 }
 
 // Interactive starts an interactive user session, where input is propted from

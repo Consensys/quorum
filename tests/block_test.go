@@ -17,84 +17,31 @@
 package tests
 
 import (
-	"math/big"
-	"path/filepath"
 	"testing"
 )
 
-func TestBcInvalidHeaderTests(t *testing.T) {
-	err := RunBlockTest(big.NewInt(1000000), nil, nil, filepath.Join(blockTestDir, "bcInvalidHeaderTest.json"), BlockSkipTests)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
+func TestBlockchain(t *testing.T) {
+	t.Parallel()
 
-func TestBcInvalidRLPTests(t *testing.T) {
-	err := RunBlockTest(big.NewInt(1000000), nil, nil, filepath.Join(blockTestDir, "bcInvalidRLPTest.json"), BlockSkipTests)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
+	bt := new(testMatcher)
+	// General state tests are 'exported' as blockchain tests, but we can run them natively.
+	bt.skipLoad(`^GeneralStateTests/`)
+	// Skip random failures due to selfish mining test.
+	bt.skipLoad(`^bcForgedTest/bcForkUncle\.json`)
+	bt.skipLoad(`^bcMultiChainTest/(ChainAtoChainB_blockorder|CallContractFromNotBestBlock)`)
+	bt.skipLoad(`^bcTotalDifficultyTest/(lotsOfLeafs|lotsOfBranches|sideChainWithMoreTransactions)`)
+	// Constantinople is not implemented yet.
+	bt.skipLoad(`(?i)(constantinople)`)
 
-func TestBcRPCAPITests(t *testing.T) {
-	err := RunBlockTest(big.NewInt(1000000), nil, nil, filepath.Join(blockTestDir, "bcRPC_API_Test.json"), BlockSkipTests)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
+	// Still failing tests
+	bt.skipLoad(`^bcWalletTest.*_Byzantium$`)
 
-func TestBcForkBlockTests(t *testing.T) {
-	err := RunBlockTest(big.NewInt(1000000), nil, nil, filepath.Join(blockTestDir, "bcForkBlockTest.json"), BlockSkipTests)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
+	// TODO(joel): fix Byzantium tests for Quorum
+	bt.skipLoad(`Byzantium`)
 
-func TestBcTotalDifficulty(t *testing.T) {
-	// skip because these will fail due to selfish mining fix
-	t.Skip()
-
-	err := RunBlockTest(big.NewInt(1000000), nil, nil, filepath.Join(blockTestDir, "bcTotalDifficultyTest.json"), BlockSkipTests)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-// TODO: iterate over files once we got more than a few
-func TestBcRandom(t *testing.T) {
-	err := RunBlockTest(big.NewInt(1000000), nil, big.NewInt(10), filepath.Join(blockTestDir, "RandomTests/bl201507071825GO.json"), BlockSkipTests)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestBcMultiChain(t *testing.T) {
-	// skip due to selfish mining
-	t.Skip()
-
-	err := RunBlockTest(big.NewInt(1000000), nil, big.NewInt(10), filepath.Join(blockTestDir, "bcMultiChainTest.json"), BlockSkipTests)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestHomesteadBcInvalidHeaderTests(t *testing.T) {
-	err := RunBlockTest(big.NewInt(0), nil, nil, filepath.Join(blockTestDir, "Homestead", "bcInvalidHeaderTest.json"), BlockSkipTests)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestHomesteadBcRPCAPITests(t *testing.T) {
-	err := RunBlockTest(big.NewInt(0), nil, nil, filepath.Join(blockTestDir, "Homestead", "bcRPC_API_Test.json"), BlockSkipTests)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestHomesteadBcSuicideIssue(t *testing.T) {
-	err := RunBlockTest(big.NewInt(0), nil, nil, filepath.Join(blockTestDir, "Homestead", "bcSuicideIssue.json"), BlockSkipTests)
-	if err != nil {
-		t.Fatal(err)
-	}
+	bt.walk(t, blockTestDir, func(t *testing.T, name string, test *BlockTest) {
+		if err := bt.checkFailure(t, name, test.Run()); err != nil {
+			t.Error(err)
+		}
+	})
 }

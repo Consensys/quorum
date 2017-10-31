@@ -20,15 +20,13 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-)
-
-var (
-	big8  = big.NewInt(8)
-	big32 = big.NewInt(32)
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -36,15 +34,17 @@ var (
 //
 // StateProcessor implements Processor.
 type StateProcessor struct {
-	config *ChainConfig
-	bc     *BlockChain
+	config *params.ChainConfig // Chain configuration options
+	bc     *BlockChain         // Canonical block chain
+	engine consensus.Engine    // Consensus engine used for block rewards
 }
 
 // NewStateProcessor initialises a new StateProcessor.
-func NewStateProcessor(config *ChainConfig, bc *BlockChain) *StateProcessor {
+func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consensus.Engine) *StateProcessor {
 	return &StateProcessor{
 		config: config,
 		bc:     bc,
+		engine: engine,
 	}
 }
 
@@ -55,27 +55,32 @@ func NewStateProcessor(config *ChainConfig, bc *BlockChain) *StateProcessor {
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *types.Block, publicState, privateState *state.StateDB, cfg vm.Config) (types.Receipts, types.Receipts, vm.Logs, *big.Int, error) {
+func (p *StateProcessor) Process(block *types.Block, statedb, privateState *state.StateDB, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, *big.Int, error) {
+
 	var (
-		publicReceipts  types.Receipts
+		receipts     types.Receipts
+		totalUsedGas = big.NewInt(0)
+		header       = block.Header()
+		allLogs      []*types.Log
+		gp           = new(GasPool).AddGas(block.GasLimit())
+
 		privateReceipts types.Receipts
-		totalUsedGas    = big.NewInt(0)
-		err             error
-		header          = block.Header()
-		allLogs         vm.Logs
-		gp              = new(GasPool).AddGas(block.GasLimit())
 	)
-
+	// Mutate the the block and state according to any hard-fork specs
+	if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
+		misc.ApplyDAOHardFork(statedb)
+	}
+	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
-		publicState.StartRecord(tx.Hash(), block.Hash(), i)
-		privateState.StartRecord(tx.Hash(), block.Hash(), i)
+		statedb.Prepare(tx.Hash(), block.Hash(), i)
+		privateState.Prepare(tx.Hash(), block.Hash(), i)
 
-		publicReceipt, privateReceipt, _, err := ApplyTransaction(p.config, p.bc, gp, publicState, privateState, header, tx, totalUsedGas, cfg)
+		receipt, privateReceipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, totalUsedGas, cfg)
 		if err != nil {
-			return nil, nil, nil, totalUsedGas, err
+			return nil, nil, nil, nil, err
 		}
-		publicReceipts = append(publicReceipts, publicReceipt)
-		allLogs = append(allLogs, publicReceipt.Logs...)
+		receipts = append(receipts, receipt)
+		allLogs = append(allLogs, receipt.Logs...)
 
 		// if the private receipt is nil this means the tx was public
 		// and we do not need to apply the additional logic.
@@ -84,78 +89,81 @@ func (p *StateProcessor) Process(block *types.Block, publicState, privateState *
 			allLogs = append(allLogs, privateReceipt.Logs...)
 		}
 	}
-	AccumulateRewards(publicState, header, block.Uncles())
+	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
+	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
 
-	return publicReceipts, privateReceipts, allLogs, totalUsedGas, err
+	return receipts, privateReceipts, allLogs, totalUsedGas, nil
 }
 
 // ApplyTransaction attempts to apply a transaction to the given state database
-// and uses the input parameters for its environment.
-//
-// ApplyTransactions returns the generated receipts and vm logs during the
-// execution of the state transition phase.
-func ApplyTransaction(config *ChainConfig, bc *BlockChain, gp *GasPool, publicState, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *big.Int, cfg vm.Config) (*types.Receipt, *types.Receipt, *big.Int, error) {
-	if !tx.IsPrivate() {
-		privateState = publicState
+// and uses the input parameters for its environment. It returns the receipt
+// for the transaction, gas used and an error if the transaction failed,
+// indicating the block was invalid.
+func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *big.Int, cfg vm.Config) (*types.Receipt, *types.Receipt, *big.Int, error) {
+	if !config.IsQuorum || !tx.IsPrivate() {
+		privateState = statedb
 	}
 
-	if tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
+	if config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
 		return nil, nil, nil, ErrInvalidGasPrice
 	}
 
-	_, gas, err := ApplyMessage(NewEnv(publicState, privateState, config, bc, tx, header, cfg), tx, gp)
+	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	// Create a new context to be used in the EVM environment
+	context := NewEVMContext(msg, header, bc, author)
+	// Create a new environment which holds all relevant information
+	// about the transaction and calling mechanisms.
+	vmenv := vm.NewEVM(context, statedb, privateState, config, cfg)
+	// Apply the transaction to the current state (included in the env)
+	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	// Update the state with pending changes
+	var root []byte
+	if config.IsByzantium(header.Number) {
+		statedb.Finalise(true)
+	} else {
+		root = statedb.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
+	}
 	usedGas.Add(usedGas, gas)
-	publicReceipt := types.NewReceipt(publicState.IntermediateRoot().Bytes(), usedGas)
-	publicReceipt.TxHash = tx.Hash()
-	publicReceipt.GasUsed = new(big.Int).Set(gas)
-	if MessageCreatesContract(tx) {
-		from, _ := tx.From()
-		publicReceipt.ContractAddress = crypto.CreateAddress(from, tx.Nonce())
+
+	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx
+	// based on the eip phase, we're passing wether the root touch-delete accounts.
+	receipt := types.NewReceipt(root, failed, usedGas)
+	receipt.TxHash = tx.Hash()
+	receipt.GasUsed = new(big.Int).Set(gas)
+	// if the transaction created a contract, store the creation address in the receipt.
+	if msg.To() == nil {
+		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
 	}
 
-	logs := publicState.GetLogs(tx.Hash())
-	publicReceipt.Logs = logs
-	publicReceipt.Bloom = types.CreateBloom(types.Receipts{publicReceipt})
+	// Set the receipt logs and create a bloom for filtering
+	receipt.Logs = statedb.GetLogs(tx.Hash())
+	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
 	var privateReceipt *types.Receipt
-	if tx.IsPrivate() {
-		privateReceipt = types.NewReceipt(privateState.IntermediateRoot().Bytes(), usedGas)
+	if config.IsQuorum && tx.IsPrivate() {
+		var privateRoot []byte
+		if config.IsByzantium(header.Number) {
+			privateState.Finalise(true)
+		} else {
+			privateRoot = privateState.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
+		}
+		privateReceipt = types.NewReceipt(privateRoot, failed, usedGas)
 		privateReceipt.TxHash = tx.Hash()
 		privateReceipt.GasUsed = new(big.Int).Set(gas)
-		if MessageCreatesContract(tx) {
-			from, _ := tx.From()
-			privateReceipt.ContractAddress = crypto.CreateAddress(from, tx.Nonce())
+		if msg.To() == nil {
+			privateReceipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
 		}
 
-		logs := privateState.GetLogs(tx.Hash())
-		privateReceipt.Logs = logs
+		privateReceipt.Logs = privateState.GetLogs(tx.Hash())
 		privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
 	}
 
-	return publicReceipt, privateReceipt, gas, err
-}
-
-// AccumulateRewards credits the coinbase of the given block with the
-// mining reward. The total reward consists of the static block reward
-// and rewards for included uncles. The coinbase of each uncle block is
-// also rewarded.
-func AccumulateRewards(statedb *state.StateDB, header *types.Header, uncles []*types.Header) {
-	reward := new(big.Int).Set(BlockReward)
-	r := new(big.Int)
-	for _, uncle := range uncles {
-		r.Add(uncle.Number, big8)
-		r.Sub(r, header.Number)
-		r.Mul(r, BlockReward)
-		r.Div(r, big8)
-		statedb.AddBalance(uncle.Coinbase, r)
-
-		r.Div(BlockReward, big32)
-		reward.Add(reward, r)
-	}
-	statedb.AddBalance(header.Coinbase, reward)
+	return receipt, privateReceipt, gas, err
 }

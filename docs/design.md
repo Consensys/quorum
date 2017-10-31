@@ -27,7 +27,7 @@ Quorum supports dual state:
 - public state, accessible by all nodes within the network
 - private state, only accessible by nodes with the correct permissions
 
-The difference is made through the use of transactions with encrypted (private) and non-encrypted (public) payloads.
+The difference is made through the use of transactions with encrypted (private) and non-encrypted payloads (public).
 Nodes can determine if a transaction is private by looking at the `v` value of the signature.
 Public transactions have a `v` value of 27 or 28, private transactions have a value of 37 or 38.
 
@@ -48,7 +48,7 @@ S: sender, (X): private, X: public, ->: direction, []: read only mode
 2. S -> (A) -> (B)
 3. S -> (A) -> [B -> C]
 ```
-The following transactions are unsupported:
+The following transaction are unsupported:
 
 ```
 1. (S) -> A
