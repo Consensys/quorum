@@ -1,16 +1,4 @@
-## Can I have feature X
-
-Before you do a feature request please check and make sure that it isn't possible
-through some other means. The JavaScript enabled console is a powerful feature
-in the right hands. Please check our [Bitchin' tricks](https://github.com/ethereum/go-ethereum/wiki/bitchin-tricks) wiki page for more info
-and help.
-
 ## Contributing
+Thank you for your interest in contributing to Quorum!
 
-If you'd like to contribute to go-ethereum please fork, fix, commit and
-send a pull request. Commits which do not comply with the coding standards
-are ignored (use gofmt!).
-
-See [Developers' Guide](https://github.com/ethereum/go-ethereum/wiki/Developers'-Guide)
-for more details on configuring your environment, testing, and
-dependency management.
+Quorum is built on open source and we invite you to contribute enhancements. Upon review you will be required to complete a Contributor License Agreement (CLA) before we are able to merge. If you have any questions about the contribution process, please feel free to send an email to [quorum_info@jpmorgan.com](mailto:quorum_info@jpmorgan.com).
