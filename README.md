@@ -137,6 +137,7 @@ Further documentation can be found in the [docs](docs/) folder and on the [wiki]
 * [Raft Consensus Documentation](raft/doc.md)
 * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) wiki page and [documentation](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
 * [quorum-examples](https://github.com/jpmorganchase/quorum-examples): example quorum clusters
+* [quorum-tools](https://github.com/jpmorganchase/quorum-tools): local cluster orchestration, and integration testing tool
 * [Quorum Wiki](https://github.com/jpmorganchase/quorum/wiki)
 
 ## Third Party Tools/Libraries
