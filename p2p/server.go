@@ -739,7 +739,7 @@ func (srv *Server) SetupConn(fd net.Conn, flags connFlag, dialDest *discover.Nod
 		if dialDest != nil {
 			node = dialDest.ID.String()
 			direction = "OUTGOING"
-			log.Info("Connection Direction <%v>", direction)
+			log.Trace("Node Permissioning", "Connection Direction", direction)
 		}
 
 		if !isNodePermissioned(node, currentNode, srv.DataDir, direction) {
