@@ -38,9 +38,12 @@ var Version = func() string {
 		v += "-" + VersionMeta
 	}
 
-	v = fmt.Sprintf("quorum %d.%d.%d (geth %s)", QuorumVersionMajor, QuorumVersionMinor, QuorumVersionPatch, v)
-
 	return v
+}()
+
+// Version holds the textual version string.
+var QuorumVersion = func() string {
+	return fmt.Sprintf("%d.%d.%d", QuorumVersionMajor, QuorumVersionMinor, QuorumVersionPatch)
 }()
 
 func VersionWithCommit(gitCommit string) string {
