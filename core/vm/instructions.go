@@ -324,7 +324,7 @@ func opAddress(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *
 
 func opBalance(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	addr := common.BigToAddress(stack.pop())
-	balance := evm.StateDB.GetBalance(addr)
+	balance := getDualState(evm, addr).GetBalance(addr)
 
 	stack.push(new(big.Int).Set(balance))
 	return nil, nil
@@ -393,7 +393,7 @@ func opExtCodeSize(pc *uint64, evm *EVM, contract *Contract, memory *Memory, sta
 	a := stack.pop()
 
 	addr := common.BigToAddress(a)
-	a.SetInt64(int64(evm.StateDB.GetCodeSize(addr)))
+	a.SetInt64(int64(getDualState(evm, addr).GetCodeSize(addr)))
 	stack.push(a)
 
 	return nil, nil
@@ -425,7 +425,7 @@ func opExtCodeCopy(pc *uint64, evm *EVM, contract *Contract, memory *Memory, sta
 		codeOffset = stack.pop()
 		length     = stack.pop()
 	)
-	codeCopy := getDataBig(evm.StateDB.GetCode(addr), codeOffset, length)
+	codeCopy := getDataBig(getDualState(evm, addr).GetCode(addr), codeOffset, length)
 	memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
 
 	evm.interpreter.intPool.put(memOffset, codeOffset, length)
@@ -508,7 +508,7 @@ func opMstore8(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *
 
 func opSload(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	loc := common.BigToHash(stack.pop())
-	val := evm.StateDB.GetState(contract.Address(), loc).Big()
+	val := getDualState(evm, contract.Address()).GetState(contract.Address(), loc).Big()
 	stack.push(val)
 	return nil, nil
 }
@@ -516,7 +516,7 @@ func opSload(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *St
 func opSstore(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	loc := common.BigToHash(stack.pop())
 	val := stack.pop()
-	evm.StateDB.SetState(contract.Address(), loc, common.BigToHash(val))
+	getDualState(evm, contract.Address()).SetState(contract.Address(), loc, common.BigToHash(val))
 
 	evm.interpreter.intPool.put(val)
 	return nil, nil
@@ -741,10 +741,11 @@ func opStop(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Sta
 }
 
 func opSuicide(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	balance := evm.StateDB.GetBalance(contract.Address())
-	evm.StateDB.AddBalance(common.BigToAddress(stack.pop()), balance)
+	db := getDualState(evm, contract.Address())
+	balance := db.GetBalance(contract.Address())
+	db.AddBalance(common.BigToAddress(stack.pop()), balance)
 
-	evm.StateDB.Suicide(contract.Address())
+	db.Suicide(contract.Address())
 	return nil, nil
 }
 

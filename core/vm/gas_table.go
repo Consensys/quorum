@@ -119,8 +119,9 @@ func gasReturnDataCopy(gt params.GasTable, evm *EVM, contract *Contract, stack *
 
 func gasSStore(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var (
+		db   = getDualState(evm, contract.Address())
 		y, x = stack.Back(1), stack.Back(0)
-		val  = evm.StateDB.GetState(contract.Address(), common.BigToHash(x))
+		val  = db.GetState(contract.Address(), common.BigToHash(x))
 	)
 	// This checks for 3 scenario's and calculates gas accordingly
 	// 1. From a zero-value address to a non-zero value         (NEW VALUE)
@@ -130,7 +131,7 @@ func gasSStore(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, m
 		// 0 => non 0
 		return params.SstoreSetGas, nil
 	} else if !common.EmptyHash(val) && common.EmptyHash(common.BigToHash(y)) {
-		evm.StateDB.AddRefund(new(big.Int).SetUint64(params.SstoreRefundGas))
+		db.AddRefund(new(big.Int).SetUint64(params.SstoreRefundGas))
 
 		return params.SstoreClearGas, nil
 	} else {
@@ -324,10 +325,10 @@ func gasCall(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem
 		eip158         = evm.ChainConfig().IsEIP158(evm.BlockNumber)
 	)
 	if eip158 {
-		if transfersValue && evm.StateDB.Empty(address) {
+		if transfersValue && getDualState(evm, address).Empty(address) {
 			gas += params.CallNewAccountGas
 		}
-	} else if !evm.StateDB.Exist(address) {
+	} else if !getDualState(evm, address).Exist(address) {
 		gas += params.CallNewAccountGas
 	}
 	if transfersValue {
@@ -401,6 +402,7 @@ func gasRevert(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, m
 }
 
 func gasSuicide(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	var db StateDB
 	var gas uint64
 	// EIP150 homestead gas reprice fork:
 	if evm.ChainConfig().IsEIP150(evm.BlockNumber) {
@@ -409,19 +411,20 @@ func gasSuicide(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, 
 			address = common.BigToAddress(stack.Back(0))
 			eip158  = evm.ChainConfig().IsEIP158(evm.BlockNumber)
 		)
+		db = getDualState(evm, address)
 
 		if eip158 {
 			// if empty and transfers value
-			if evm.StateDB.Empty(address) && evm.StateDB.GetBalance(contract.Address()).Sign() != 0 {
+			if db.Empty(address) && db.GetBalance(contract.Address()).Sign() != 0 {
 				gas += gt.CreateBySuicide
 			}
-		} else if !evm.StateDB.Exist(address) {
+		} else if !db.Exist(address) {
 			gas += gt.CreateBySuicide
 		}
 	}
 
-	if !evm.StateDB.HasSuicided(contract.Address()) {
-		evm.StateDB.AddRefund(new(big.Int).SetUint64(params.SuicideRefundGas))
+	if !db.HasSuicided(contract.Address()) {
+		db.AddRefund(new(big.Int).SetUint64(params.SuicideRefundGas))
 	}
 	return gas, nil
 }
