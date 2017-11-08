@@ -74,9 +74,10 @@ type Work struct {
 
 	Block *types.Block // the new block
 
-	header   *types.Header
-	txs      []*types.Transaction
-	receipts []*types.Receipt
+	header          *types.Header
+	txs             []*types.Transaction
+	receipts        []*types.Receipt
+	privateReceipts []*types.Receipt
 
 	createdAt time.Time
 
@@ -313,7 +314,13 @@ func (self *worker) wait() {
 			for _, log := range work.state.Logs() {
 				log.BlockHash = block.Hash()
 			}
-			stat, err := self.chain.WriteBlockAndState(block, work.receipts, work.state)
+
+			// write private transacions
+			privateStateRoot, _ := work.privateState.CommitTo(self.chainDb, self.config.IsEIP158(block.Number()))
+			core.WritePrivateStateRoot(self.chainDb, block.Root(), privateStateRoot)
+			allReceipts := append(work.receipts, work.privateReceipts...)
+
+			stat, err := self.chain.WriteBlockAndState(block, allReceipts, work.state)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
@@ -365,15 +372,14 @@ func (self *worker) makeCurrent(parent *types.Block, header *types.Header) error
 		return err
 	}
 	work := &Work{
-		config:    self.config,
-		signer:    types.NewEIP155Signer(self.config.ChainId),
-		state:     publicState,
-		ancestors: set.New(),
-		family:    set.New(),
-		uncles:    set.New(),
-		header:    header,
-		createdAt: time.Now(),
-
+		config:       self.config,
+		signer:       types.MakeSigner(self.config, header.Number),
+		state:        publicState,
+		ancestors:    set.New(),
+		family:       set.New(),
+		uncles:       set.New(),
+		header:       header,
+		createdAt:    time.Now(),
 		privateState: privateState,
 	}
 
@@ -607,6 +613,7 @@ func (env *Work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, c
 	logs := receipt.Logs
 	if privateReceipt != nil {
 		logs = append(receipt.Logs, privateReceipt.Logs...)
+		env.privateReceipts = append(env.privateReceipts, privateReceipt)
 	}
 	return nil, logs
 }
