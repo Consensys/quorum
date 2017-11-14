@@ -24,7 +24,7 @@ func isNodePermissioned(nodename string, currentNode string, datadir string, dir
 		permissonedList = append(permissonedList, v.ID.String())
 	}
 
-	log.Debug("isNodePermissioned", "permisssionedList %v", permissonedList)
+	log.Debug("isNodePermissioned", "permisssionedList", permissonedList)
 	for _, v := range permissonedList {
 		if v == nodename {
 			log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
@@ -41,7 +41,7 @@ func isNodePermissioned(nodename string, currentNode string, datadir string, dir
 
 func parsePermissionedNodes(DataDir string) []*discover.Node {
 
-	log.Debug("parsePermissionedNodes DataDir %v, file %v", DataDir, PERMISSIONED_CONFIG)
+	log.Debug("parsePermissionedNodes", "DataDir", DataDir, "file", PERMISSIONED_CONFIG)
 
 	path := filepath.Join(DataDir, PERMISSIONED_CONFIG)
 	if _, err := os.Stat(path); err != nil {
