@@ -18,14 +18,14 @@ const (
 // check if a given node is permissioned to connect to the change
 func isNodePermissioned(nodename string, currentNode string, datadir string, direction string) bool {
 
-	var permissonedList []string
+	var permissionedList []string
 	nodes := parsePermissionedNodes(datadir)
 	for _, v := range nodes {
-		permissonedList = append(permissonedList, v.ID.String())
+		permissionedList = append(permissionedList, v.ID.String())
 	}
 
-	log.Debug("isNodePermissioned", "permisssionedList", permissonedList)
-	for _, v := range permissonedList {
+	log.Debug("isNodePermissioned", "permissionedList", permissionedList)
+	for _, v := range permissionedList {
 		if v == nodename {
 			log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
 			return true
