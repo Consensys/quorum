@@ -45,9 +45,8 @@ func unixClient(socketPath string) *http.Client {
 	}
 }
 
-func RunNode(cfgPath, nodeSocketPath string) error {
-	// launchNode(cfgPath)
-	c := unixClient(nodeSocketPath)
+func RunNode(socketPath string) error {
+	c := unixClient(socketPath)
 	res, err := c.Get("http+unix://c/upcheck")
 	if err != nil {
 		return err
@@ -60,7 +59,7 @@ func RunNode(cfgPath, nodeSocketPath string) error {
 
 type SendRequest struct {
 	Payload string   `json:"payload"`
-	From    string   `json:"from"`
+	From    string   `json:"from,omitempty"`
 	To      []string `json:"to"`
 }
 
@@ -78,12 +77,10 @@ type ReceiveResponse struct {
 }
 
 type Client struct {
-	httpClient   *http.Client
-	publicKey    [32]byte
-	b64PublicKey string
+	httpClient *http.Client
 }
 
-func (c *Client) do(path string, apiReq interface{}) (*http.Response, error) {
+func (c *Client) doJson(path string, apiReq interface{}) (*http.Response, error) {
 	buf := new(bytes.Buffer)
 	err := json.NewEncoder(buf).Encode(apiReq)
 	if err != nil {
@@ -153,13 +150,8 @@ func (c *Client) ReceivePayload(key []byte) ([]byte, error) {
 	return pl, nil
 }
 
-func NewClient(publicKeyPath string, nodeSocketPath string) (*Client, error) {
-	b64PublicKey, err := ioutil.ReadFile(publicKeyPath)
-	if err != nil {
-		return nil, err
-	}
+func NewClient(socketPath string) (*Client, error) {
 	return &Client{
-		httpClient:   unixClient(nodeSocketPath),
-		b64PublicKey: string(b64PublicKey),
+		httpClient: unixClient(socketPath),
 	}, nil
 }

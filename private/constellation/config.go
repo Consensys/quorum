@@ -5,12 +5,8 @@ import (
 )
 
 type Config struct {
-	Socket         string   `toml:"socket"`
-	PublicKeys     []string `toml:"publickeys"`
-
-	// Deprecated
-	SocketPath     string   `toml:"socketPath"`
-	PublicKeyPath  string   `toml:"publicKeyPath"`
+	Socket  string `toml:"socket"`
+	WorkDir string `toml:"workdir"`
 }
 
 func LoadConfig(configPath string) (*Config, error) {
