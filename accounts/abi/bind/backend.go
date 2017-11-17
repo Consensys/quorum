@@ -88,6 +88,10 @@ type ContractTransactor interface {
 	EstimateGas(ctx context.Context, call ethereum.CallMsg) (usedGas *big.Int, err error)
 	// SendTransaction injects the transaction into the pending pool for execution.
 	SendTransaction(ctx context.Context, tx *types.Transaction) error
+	// PreparePrivateTransaction sends the encoded raw transaction to Constellation,
+	// returning the encoded commitment transaction.
+	PreparePrivateTransaction(ctx context.Context, tx *types.Transaction,
+		privateFrom []byte, privateFor [][]byte) (*types.Transaction, error)
 }
 
 // ContractBackend defines the methods needed to work with contracts on a read-write basis.

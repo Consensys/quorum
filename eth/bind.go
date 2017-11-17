@@ -136,3 +136,22 @@ func (b *ContractBackend) SendTransaction(ctx context.Context, tx *types.Transac
 	_, err := b.txapi.SendRawTransaction(ctx, raw)
 	return err
 }
+
+// PreparePrivateTransaction replaces the payload data of the transaction with a
+// commitment to turn it into a private tx.
+func (b *ContractBackend) PreparePrivateTransaction(ctx context.Context, tx *types.Transaction, privateFrom []byte, privateFor [][]byte) (*types.Transaction, error) {
+	raw, _ := rlp.EncodeToBytes(tx)
+
+	privateInfo := ethapi.NewPrivateTxInfoBinary(privateFrom, privateFor)
+	privTxBytes, err := b.txapi.PreparePrivateTransaction(ctx, raw, privateInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	tx = new(types.Transaction)
+	if err := rlp.DecodeBytes(privTxBytes, tx); err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}

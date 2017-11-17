@@ -17,16 +17,19 @@
 package ethapi
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 	"strings"
+	"sync"
 	"time"
 
-	"bytes"
-	"encoding/hex"
-	"encoding/json"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -45,8 +48,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
-	"net/http"
-	"sync"
 )
 
 const (
@@ -1178,6 +1179,50 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		return common.Hash{}, err
 	}
 	return submitTransaction(ctx, s.b, signed, isPrivate)
+}
+
+type PrivateTxInfo struct {
+	PrivateFrom string   `json:"privateFrom"`
+	PrivateFor  []string `json:"privateFor"`
+}
+
+// NewPrivateTxInfoBinary creates a new PrivateTxInfo based using binary pubkeys.
+func NewPrivateTxInfoBinary(privateFrom []byte, privateFor [][]byte) PrivateTxInfo {
+	encodedFors := make([]string, len(privateFor))
+	for i := range encodedFors {
+		encodedFors[i] = base64.StdEncoding.EncodeToString(privateFor[i])
+	}
+	return PrivateTxInfo{
+		PrivateFrom: base64.StdEncoding.EncodeToString(privateFrom),
+		PrivateFor:  encodedFors,
+	}
+}
+
+// PreparePrivateTransaction sends the encoded raw transaction to Constellation,
+// returning the encoded commitment transaction.
+func (s *PublicTransactionPoolAPI) PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateInfo PrivateTxInfo) (hexutil.Bytes, error) {
+	if len(privateInfo.PrivateFor) == 0 {
+		return nil, errors.New("need at least one private for")
+	}
+
+	tx := new(types.Transaction)
+	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
+		return nil, err
+	}
+
+	data, err := private.P.Send(tx.Data(), privateInfo.PrivateFrom, privateInfo.PrivateFor)
+	if err != nil {
+		return nil, err
+	}
+
+	tx.SetPrivate()
+	tx.SetData(data)
+	newEncoded, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	return hexutil.Bytes(newEncoded), nil
 }
 
 // SendRawTransaction will add the signed transaction to the transaction pool.

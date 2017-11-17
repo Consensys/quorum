@@ -48,6 +48,9 @@ type TransactOpts struct {
 	Nonce  *big.Int       // Nonce to use for the transaction execution (nil = use pending state)
 	Signer SignerFn       // Method to use for signing the transaction (mandatory)
 
+	PrivateFrom []byte   // The public key of the Constellation identity to send this tx from.
+	PrivateFor  [][]byte // The public keys of the Constellation identities this tx is intended for.
+
 	Value    *big.Int // Funds to transfer along along the transaction (nil = 0 = no funds)
 	GasPrice *big.Int // Gas price to use for the transaction execution (nil = gas price oracle)
 	GasLimit *big.Int // Gas limit to set for the transaction execution (nil = estimate + 10%)
@@ -205,13 +208,26 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 			return nil, fmt.Errorf("failed to estimate gas needed: %v", err)
 		}
 	}
-	// Create the transaction, sign it and schedule it for execution
+
+	// Create the raw transaction.
 	var rawTx *types.Transaction
 	if contract == nil {
 		rawTx = types.NewContractCreation(nonce, value, gasLimit, gasPrice, input)
 	} else {
 		rawTx = types.NewTransaction(nonce, c.address, value, gasLimit, gasPrice, input)
 	}
+
+	// If this transaction is private, we need to substitute the data payload
+	// with one from constelation.
+	if len(opts.PrivateFor) > 0 {
+		rawTx, err = c.transactor.PreparePrivateTransaction(
+			ensureContext(opts.Context), rawTx, opts.PrivateFrom, opts.PrivateFor)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Sign the transaction and submit it to the mempool.
 	if opts.Signer == nil {
 		return nil, errors.New("no signer to authorize the transaction with")
 	}
