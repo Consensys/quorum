@@ -34,3 +34,6 @@ profile.cov
 
 # IdeaIDE
 .idea
+
+# docker image tests
+/build/docker/tests/tmp/
