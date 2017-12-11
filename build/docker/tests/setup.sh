@@ -37,7 +37,7 @@ then
     echo "ERROR: There must be more than one node IP address."
     exit 1
 fi
-   
+
 ./scripts/cleanup.sh
 
 cd tmp
@@ -69,7 +69,10 @@ do
     qd=qdata_$n
 
     # Generate the node's Enode and key
-    enode=`docker run -v $pwd/$qd:/qdata $image_quorum /usr/local/bin/bootnode -genkey /qdata/dd/nodekey -writeaddress`
+    bootnode_cmd="docker run -it -v $pwd/$qd:/qdata $image_quorum /usr/local/bin/bootnode"
+    $bootnode_cmd -genkey /qdata/dd/nodekey
+    enode=`$bootnode_cmd -nodekey /qdata/dd/nodekey -writeaddress | tr -d '[:space:]'`
+    echo "Node $n id: $enode"
 
     # Add the enode to static-nodes.json
     sep=`[[ $n < $nnodes ]] && echo ","`
