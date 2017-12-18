@@ -99,12 +99,23 @@ do
 
     # Generate an Ether account for the node
     touch $qd/passwords.txt
-    account=`docker run -v $pwd/$qd:/qdata $image_quorum /usr/local/bin/geth --datadir=/qdata/dd --password /qdata/passwords.txt account new | cut -c 11-50`
+    create_account="docker run -v $pwd/$qd:/qdata $image_quorum /usr/local/bin/geth --datadir=/qdata/dd --password /qdata/passwords.txt account new"
+    account1=`$create_account | cut -c 11-50`
+    account2=`$create_account | cut -c 11-50`
+    account3=`$create_account | cut -c 11-50`
+    account4=`$create_account | cut -c 11-50`
+    echo "Accounts for node $n: $account1 $account2 $account3 $account4"
 
     # Add the account to the genesis block so it has some Ether at start-up
     sep=`[[ $n < $nnodes ]] && echo ","`
     cat >> genesis.json <<EOF
-    "${account}": {
+    "${account1}": {
+      "balance": "1000000000000000000000000000"
+    }, "${account2}": {
+      "balance": "1000000000000000000000000000"
+    }, "${account3}": {
+      "balance": "1000000000000000000000000000"
+    }, "${account4}": {
       "balance": "1000000000000000000000000000"
     }${sep}
 EOF
