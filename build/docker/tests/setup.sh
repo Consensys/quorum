@@ -24,6 +24,15 @@
 subnet="172.13.0.0/16"
 ips=("172.13.0.3" "172.13.0.5")
 
+cips=()
+## constellation node uses IP address derived from
+## the corresponding geth node IP address by subtracting 1
+for ip in ${ips[*]}
+do
+    [[ $ip =~ (.*\.)([0-9]+)$ ]] && cip=${BASH_REMATCH[2]}
+    cips+=("${BASH_REMATCH[1]}$(($cip - 1))")
+done
+
 # Docker image name
 image_constellation=jpmorganchase/constellation
 image_quorum=jpmorganchase/quorum
@@ -144,9 +153,9 @@ EOF
 
 nodelist=
 n=1
-for ip in ${ips[*]}
+for ip in ${cips[*]}
 do
-    sep=`[[ $ip != ${ips[0]} ]] && echo ","`
+    sep=`[[ $ip != ${cips[0]} ]] && echo ","`
     nodelist=${nodelist}${sep}'"http://'${ip}':9000/"'
     let n++
 done
@@ -157,12 +166,12 @@ done
 echo '[4] Creating Quorum keys and finishing configuration.'
 
 n=1
-for ip in ${ips[*]}
+for ip in ${cips[*]}
 do
     qd=qdata_$n
 
     cat ../templates/tm.conf \
-        | sed s/_NODEIP_/${ips[$((n-1))]}/g \
+        | sed s/_NODEIP_/${cips[$((n-1))]}/g \
         | sed s%_NODELIST_%$nodelist%g \
               > $qd/tm.conf
 
@@ -185,14 +194,11 @@ version: '2'
 services:
 EOF
 
-n=1
-for ip in ${ips[*]}
-do
+for index in ${!ips[*]}; do 
+    n=$((index+1))
     qd=qdata_$n
-    ## constellation node uses IP address derived from
-    ## the corresponding geth node IP address by subtracting 1
-    [[ $ip =~ (.*\.)([0-9]+)$ ]] && cip=${BASH_REMATCH[2]}
-    cip="${BASH_REMATCH[1]}$(($cip + 1))"
+    ip=${ips[index]}; 
+    cip=${cips[index]}; 
 
     cat >> docker-compose.yml <<EOF
   constellation_$n:
@@ -219,8 +225,6 @@ do
     ipc: container:constellation_$n
 
 EOF
-
-    let n++
 done
 
 cat >> docker-compose.yml <<EOF
