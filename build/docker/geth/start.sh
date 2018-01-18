@@ -8,13 +8,13 @@ set -u
 set -e
 
 ### Configuration Options
-TMCONF=/qdata/tm.conf
+TMCONF=/qdata/constellation/tm.conf
 
-GETH_ARGS="--datadir /qdata/dd --raft --rpc --rpcaddr 0.0.0.0 --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum --nodiscover --unlock 0 --password /qdata/passwords.txt --verbosity 4"
+GETH_ARGS="--datadir /qdata/ethereum --permissioned --raft --rpc --rpcaddr 0.0.0.0 --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum --unlock 0 --password /qdata/ethereum/passwords.txt --verbosity 4"
 
-if [ ! -d /qdata/dd/geth/chaindata ]; then
+if [ ! -d /qdata/ethereum/geth/chaindata ]; then
   echo "[*] Mining Genesis block"
-  /usr/local/bin/geth --datadir /qdata/dd init /qdata/genesis.json
+  /usr/local/bin/geth --datadir /qdata/ethereum init /qdata/ethereum/genesis.json
 fi
 
 echo "[*] Starting node"
