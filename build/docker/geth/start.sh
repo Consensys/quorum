@@ -10,7 +10,11 @@ set -e
 ### Configuration Options
 TMCONF=/qdata/constellation/tm.conf
 
-GETH_ARGS="--datadir /qdata/ethereum --permissioned --raft --rpc --rpcaddr 0.0.0.0 --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,raft --unlock 0 --password /qdata/ethereum/passwords.txt --verbosity 4"
+if [ $# -eq 2 ]; then
+  GETH_ARGS="--datadir /qdata/ethereum --permissioned --raft --rpc --rpcaddr 0.0.0.0 --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,raft --unlock 0 --password /qdata/ethereum/passwords.txt --verbosity 4 --bootnodes $1 --raftjoinexisting $2"
+else
+  GETH_ARGS="--datadir /qdata/ethereum --permissioned --raft --rpc --rpcaddr 0.0.0.0 --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,raft --unlock 0 --password /qdata/ethereum/passwords.txt --verbosity 4 --bootnodes $1"
+fi
 
 if [ ! -d /qdata/ethereum/geth/chaindata ]; then
   echo "[*] Mining Genesis block"
