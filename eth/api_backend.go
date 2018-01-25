@@ -18,7 +18,6 @@ package eth
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -36,8 +35,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
-
-var raftHasNoPending = fmt.Errorf("Raft mode has no Pending block. Use latest instead.")
 
 // EthApiBackend implements ethapi.Backend for full nodes
 type EthApiBackend struct {
