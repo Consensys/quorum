@@ -123,6 +123,7 @@ Further documentation can be found in the [docs](docs/) folder and on the [wiki]
 * [Quorum](https://github.com/jpmorganchase/quorum): this repository
 * [Constellation](https://github.com/jpmorganchase/constellation): peer-to-peer encrypted message exchange for transaction privacy
 * [Raft Consensus Documentation](raft/doc.md)
+* [Istanbul BFT Consensus Documentation](https://github.com/ethereum/EIPs/issues/650): [RPC API](https://github.com/getamis/go-ethereum/wiki/RPC-API) and [technical article](https://medium.com/getamis/istanbul-bft-ibft-c2758b7fe6ff)
 * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) wiki page and [documentation](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
 * [quorum-examples](https://github.com/jpmorganchase/quorum-examples): example quorum clusters
 * [quorum-tools](https://github.com/jpmorganchase/quorum-tools): local cluster orchestration, and integration testing tool
