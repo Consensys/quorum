@@ -235,7 +235,7 @@ for index in ${!ips[*]}; do
   node_$n:
     container_name: node_$n
     image: $image_quorum
-    command: start.sh "enode://$bootnode_enode@172.13.0.100:30301"
+    command: start.sh --bootnode="enode://$bootnode_enode@172.13.0.100:30301" --raftInit
     volumes:
       - './$qd:/qdata'
     networks:
