@@ -19,6 +19,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"strconv"
@@ -140,6 +141,24 @@ Use "ethereum dump 0" to dump the genesis block.`,
 	}
 )
 
+// In the regular Genesis / ChainConfig struct, due to the way go deserializes
+// json, IsQuorum defaults to false (when not specified). Here we specify it as
+// a pointer so we can make the distinction and default unspecified to true.
+func getIsQuorum(file io.Reader) bool {
+	altGenesis := new(struct {
+		Config *struct {
+			IsQuorum *bool `json:"isQuorum"`
+		} `json:"config"`
+	})
+
+	if err := json.NewDecoder(file).Decode(altGenesis); err != nil {
+		utils.Fatalf("invalid genesis file: %v", err)
+	}
+
+	// unspecified defaults to true
+	return altGenesis.Config.IsQuorum == nil || *altGenesis.Config.IsQuorum
+}
+
 // initGenesis will initialise the given JSON format genesis file and writes it as
 // the zero'd block (i.e. genesis) or will fail hard if it can't succeed.
 func initGenesis(ctx *cli.Context) error {
@@ -158,6 +177,10 @@ func initGenesis(ctx *cli.Context) error {
 	if err := json.NewDecoder(file).Decode(genesis); err != nil {
 		utils.Fatalf("invalid genesis file: %v", err)
 	}
+
+	file.Seek(0, 0)
+	genesis.Config.IsQuorum = getIsQuorum(file)
+
 	// Open an initialise both full and light databases
 	stack := makeFullNode(ctx)
 	for _, name := range []string{"chaindata", "lightchaindata"} {

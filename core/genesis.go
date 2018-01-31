@@ -191,8 +191,6 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 	// config is supplied. These chains would get AllProtocolChanges (and a compat error)
 	// if we just continued here.
 	if genesis == nil && stored != params.MainnetGenesisHash {
-		log.Info("Reconfiguring old genesis as Quorum")
-		storedcfg.IsQuorum = true
 		return storedcfg, stored, nil
 	}
 
