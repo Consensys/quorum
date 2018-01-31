@@ -37,7 +37,7 @@ func TestCheckMessage(t *testing.T) {
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),
-		}, newTestValidatorSet(4), common.Hash{}, nil, nil),
+		}, newTestValidatorSet(4), common.Hash{}, nil, nil, nil),
 	}
 
 	// invalid view format
@@ -47,7 +47,7 @@ func TestCheckMessage(t *testing.T) {
 	}
 
 	testStates := []State{StateAcceptRequest, StatePreprepared, StatePrepared, StateCommitted}
-	testCode := []uint64{msgPreprepare, msgPrepare, msgCommit}
+	testCode := []uint64{msgPreprepare, msgPrepare, msgCommit, msgRoundChange}
 
 	// future sequence
 	v := &istanbul.View{
@@ -73,7 +73,11 @@ func TestCheckMessage(t *testing.T) {
 		c.state = testStates[i]
 		for j := 0; j < len(testCode); j++ {
 			err := c.checkMessage(testCode[j], v)
-			if err != errFutureMessage {
+			if testCode[j] == msgRoundChange {
+				if err != nil {
+					t.Errorf("error mismatch: have %v, want nil", err)
+				}
+			} else if err != errFutureMessage {
 				t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
 			}
 		}
@@ -89,7 +93,11 @@ func TestCheckMessage(t *testing.T) {
 		c.state = testStates[i]
 		for j := 0; j < len(testCode); j++ {
 			err := c.checkMessage(testCode[j], v)
-			if err != errFutureMessage {
+			if testCode[j] == msgRoundChange {
+				if err != nil {
+					t.Errorf("error mismatch: have %v, want nil", err)
+				}
+			} else if err != errFutureMessage {
 				t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
 			}
 		}
@@ -101,7 +109,11 @@ func TestCheckMessage(t *testing.T) {
 	c.state = StateAcceptRequest
 	for i := 0; i < len(testCode); i++ {
 		err = c.checkMessage(testCode[i], v)
-		if testCode[i] == msgPreprepare {
+		if testCode[i] == msgRoundChange {
+			if err != nil {
+				t.Errorf("error mismatch: have %v, want nil", err)
+			}
+		} else if testCode[i] == msgPreprepare {
 			if err != nil {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
@@ -116,7 +128,11 @@ func TestCheckMessage(t *testing.T) {
 	c.state = StatePreprepared
 	for i := 0; i < len(testCode); i++ {
 		err = c.checkMessage(testCode[i], v)
-		if err != nil {
+		if testCode[i] == msgRoundChange {
+			if err != nil {
+				t.Errorf("error mismatch: have %v, want nil", err)
+			}
+		} else if err != nil {
 			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 	}
@@ -125,7 +141,11 @@ func TestCheckMessage(t *testing.T) {
 	c.state = StatePrepared
 	for i := 0; i < len(testCode); i++ {
 		err = c.checkMessage(testCode[i], v)
-		if err != nil {
+		if testCode[i] == msgRoundChange {
+			if err != nil {
+				t.Errorf("error mismatch: have %v, want nil", err)
+			}
+		} else if err != nil {
 			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 	}
@@ -134,7 +154,11 @@ func TestCheckMessage(t *testing.T) {
 	c.state = StateCommitted
 	for i := 0; i < len(testCode); i++ {
 		err = c.checkMessage(testCode[i], v)
-		if err != nil {
+		if testCode[i] == msgRoundChange {
+			if err != nil {
+				t.Errorf("error mismatch: have %v, want nil", err)
+			}
+		} else if err != nil {
 			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 	}
@@ -195,6 +219,17 @@ func TestStoreBacklog(t *testing.T) {
 	if !reflect.DeepEqual(msg, m) {
 		t.Errorf("message mismatch: have %v, want %v", msg, m)
 	}
+
+	// push roundChange msg
+	m = &message{
+		Code: msgRoundChange,
+		Msg:  subjectPayload,
+	}
+	c.storeBacklog(m, p)
+	msg = c.backlogs[p].PopItem()
+	if !reflect.DeepEqual(msg, m) {
+		t.Errorf("message mismatch: have %v, want %v", msg, m)
+	}
 }
 
 func TestProcessFutureBacklog(t *testing.T) {
@@ -209,7 +244,7 @@ func TestProcessFutureBacklog(t *testing.T) {
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),
-		}, newTestValidatorSet(4), common.Hash{}, nil, nil),
+		}, newTestValidatorSet(4), common.Hash{}, nil, nil, nil),
 		state: StateAcceptRequest,
 	}
 	c.subscribeEvents()
@@ -276,6 +311,10 @@ func TestProcessBacklog(t *testing.T) {
 			Code: msgCommit,
 			Msg:  subjectPayload,
 		},
+		&message{
+			Code: msgRoundChange,
+			Msg:  subjectPayload,
+		},
 	}
 	for i := 0; i < len(msgs); i++ {
 		testProcessBacklog(t, msgs[i])
@@ -297,7 +336,7 @@ func testProcessBacklog(t *testing.T, msg *message) {
 		current: newRoundState(&istanbul.View{
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),
-		}, newTestValidatorSet(4), common.Hash{}, nil, nil),
+		}, newTestValidatorSet(4), common.Hash{}, nil, nil, nil),
 	}
 	c.subscribeEvents()
 	defer c.unsubscribeEvents()

@@ -29,7 +29,7 @@ import (
 // newRoundState creates a new roundState instance with the given view and validatorSet
 // lockedHash and preprepare are for round change when lock exists,
 // we need to keep a reference of preprepare in order to propose locked proposal when there is a lock and itself is the proposer
-func newRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, lockedHash common.Hash, preprepare *istanbul.Preprepare, pendingRequest *istanbul.Request) *roundState {
+func newRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, lockedHash common.Hash, preprepare *istanbul.Preprepare, pendingRequest *istanbul.Request, hasBadProposal func(hash common.Hash) bool) *roundState {
 	return &roundState{
 		round:          view.Round,
 		sequence:       view.Sequence,
@@ -39,6 +39,7 @@ func newRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, lock
 		lockedHash:     lockedHash,
 		mu:             new(sync.RWMutex),
 		pendingRequest: pendingRequest,
+		hasBadProposal: hasBadProposal,
 	}
 }
 
@@ -52,7 +53,23 @@ type roundState struct {
 	lockedHash     common.Hash
 	pendingRequest *istanbul.Request
 
-	mu *sync.RWMutex
+	mu             *sync.RWMutex
+	hasBadProposal func(hash common.Hash) bool
+}
+
+func (s *roundState) GetPrepareOrCommitSize() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	result := s.Prepares.Size() + s.Commits.Size()
+
+	// find duplicate one
+	for _, m := range s.Prepares.Values() {
+		if s.Commits.Get(m.Address) != nil {
+			result--
+		}
+	}
+	return result
 }
 
 func (s *roundState) Subject() *istanbul.Subject {
@@ -138,7 +155,10 @@ func (s *roundState) IsHashLocked() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.lockedHash != common.Hash{}
+	if common.EmptyHash(s.lockedHash) {
+		return false
+	}
+	return !s.hasBadProposal(s.GetLockedHash())
 }
 
 func (s *roundState) GetLockedHash() common.Hash {

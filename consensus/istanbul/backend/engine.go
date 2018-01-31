@@ -80,6 +80,8 @@ var (
 	errInvalidCommittedSeals = errors.New("invalid committed seals")
 	// errEmptyCommittedSeals is returned if the field of committed seals is zero.
 	errEmptyCommittedSeals = errors.New("zero committed seals")
+	// errMismatchTxhashes is returned if the TxHash in header is mismatch.
+	errMismatchTxhashes = errors.New("mismatch transcations hashes")
 )
 var (
 	defaultDifficulty = big.NewInt(1)
@@ -485,7 +487,7 @@ func (sb *backend) APIs(chain consensus.ChainReader) []rpc.API {
 }
 
 // Start implements consensus.Istanbul.Start
-func (sb *backend) Start(chain consensus.ChainReader, inserter func(types.Blocks) (int, error)) error {
+func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if sb.coreStarted {
@@ -500,23 +502,10 @@ func (sb *backend) Start(chain consensus.ChainReader, inserter func(types.Blocks
 	sb.commitCh = make(chan *types.Block, 1)
 
 	sb.chain = chain
-	sb.inserter = inserter
+	sb.currentBlock = currentBlock
+	sb.hasBadBlock = hasBadBlock
 
-	curHeader := chain.CurrentHeader()
-	lastSequence := new(big.Int).Set(curHeader.Number)
-	lastProposer := common.Address{}
-	// should get proposer if the block is not genesis
-	if lastSequence.Cmp(common.Big0) > 0 {
-		p, err := sb.Author(curHeader)
-		if err != nil {
-			return err
-		}
-		lastProposer = p
-	}
-	// We don't need block body so we create a header only block.
-	// The proposal is only for validator set calculation.
-	lastProposal := types.NewBlockWithHeader(curHeader)
-	if err := sb.core.Start(lastSequence, lastProposer, lastProposal); err != nil {
+	if err := sb.core.Start(); err != nil {
 		return err
 	}
 

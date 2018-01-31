@@ -40,6 +40,15 @@ func (c *core) checkMessage(msgCode uint64, view *istanbul.View) error {
 		return errInvalidMessage
 	}
 
+	if msgCode == msgRoundChange {
+		if view.Sequence.Cmp(c.currentView().Sequence) > 0 {
+			return errFutureMessage
+		} else if view.Cmp(c.currentView()) < 0 {
+			return errOldMessage
+		}
+		return nil
+	}
+
 	if view.Cmp(c.currentView()) > 0 {
 		return errFutureMessage
 	}
@@ -90,7 +99,7 @@ func (c *core) storeBacklog(msg *message, src istanbul.Validator) {
 		if err == nil {
 			backlog.Push(msg, toPriority(msg.Code, p.View))
 		}
-		// for istanbul.MsgPrepare and istanbul.MsgCommit cases
+		// for msgRoundChange, msgPrepare and msgCommit cases
 	default:
 		var p *istanbul.Subject
 		err := msg.Decode(&p)
@@ -127,7 +136,7 @@ func (c *core) processBacklog() {
 				if err == nil {
 					view = m.View
 				}
-				// for istanbul.MsgPrepare and istanbul.MsgCommit cases
+				// for msgRoundChange, msgPrepare and msgCommit cases
 			default:
 				var sub *istanbul.Subject
 				err := msg.Decode(&sub)
@@ -162,6 +171,10 @@ func (c *core) processBacklog() {
 }
 
 func toPriority(msgCode uint64, view *istanbul.View) float32 {
+	if msgCode == msgRoundChange {
+		// For msgRoundChange, set the message priority based on its sequence
+		return -float32(view.Sequence.Uint64() * 1000)
+	}
 	// FIXME: round will be reset as 0 while new sequence
 	// 10 * Round limits the range of message code is from 0 to 9
 	// 1000 * Sequence limits the range of round is from 0 to 99

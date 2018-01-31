@@ -100,9 +100,7 @@ func (self *testSystemBackend) Commit(proposal istanbul.Proposal, seals [][]byte
 	})
 
 	// fake new head events
-	go self.events.Post(istanbul.FinalCommittedEvent{
-		Proposal: proposal,
-	})
+	go self.events.Post(istanbul.FinalCommittedEvent{})
 	return nil
 }
 
@@ -133,8 +131,29 @@ func (self *testSystemBackend) NewRequest(request istanbul.Proposal) {
 	})
 }
 
+func (self *testSystemBackend) HasBadProposal(hash common.Hash) bool {
+	return false
+}
+
 func (self *testSystemBackend) LastProposal() (istanbul.Proposal, common.Address) {
-	return makeBlock(1), common.Address{}
+	l := len(self.committedMsgs)
+	if l > 0 {
+		return self.committedMsgs[l-1].commitProposal, common.Address{}
+	}
+	return makeBlock(0), common.Address{}
+}
+
+// Only block height 5 will return true
+func (self *testSystemBackend) HasPropsal(hash common.Hash, number *big.Int) bool {
+	return number.Cmp(big.NewInt(5)) == 0
+}
+
+func (self *testSystemBackend) GetProposer(number uint64) common.Address {
+	return common.Address{}
+}
+
+func (self *testSystemBackend) ParentValidators(proposal istanbul.Proposal) istanbul.ValidatorSet {
+	return self.peers
 }
 
 // ==============================================
@@ -187,11 +206,13 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 
 		core := New(backend, config).(*core)
 		core.state = StateAcceptRequest
-		core.lastProposer = common.Address{}
 		core.current = newRoundState(&istanbul.View{
 			Round:    big.NewInt(0),
 			Sequence: big.NewInt(1),
-		}, vset, common.Hash{}, nil, nil)
+		}, vset, common.Hash{}, nil, nil, func(hash common.Hash) bool {
+			return false
+		})
+		core.valSet = vset
 		core.logger = testLogger
 		core.validateFn = backend.CheckValidatorSignature
 
@@ -223,7 +244,7 @@ func (t *testSystem) listen() {
 func (t *testSystem) Run(core bool) func() {
 	for _, b := range t.backends {
 		if core {
-			b.engine.Start(common.Big0, common.Address{}, nil) // start Istanbul core
+			b.engine.Start() // start Istanbul core
 		}
 	}
 
