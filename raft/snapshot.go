@@ -326,7 +326,7 @@ func (pm *ProtocolManager) logNewlyAcceptedTransactions(preSyncHead *types.Block
 	}
 	for _, block := range blocks {
 		for _, tx := range block.Transactions() {
-			log.EmitCheckpoint(log.TxAccepted, tx.Hash().Hex())
+			log.EmitCheckpoint(log.TxAccepted, "tx", tx.Hash().Hex())
 		}
 	}
 }
