@@ -834,6 +834,7 @@ type RPCTransaction struct {
 // representation, with the given location metadata set (if available).
 func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64) *RPCTransaction {
 	var signer types.Signer = types.HomesteadSigner{}
+	// joel: this is one of the two places we used a wrong signer to print txes
 	if tx.Protected() {
 		signer = types.NewEIP155Signer(tx.ChainId())
 	}

@@ -39,6 +39,7 @@ var (
 
 // deriveSigner makes a *best* guess about which signer to use.
 func deriveSigner(V *big.Int) Signer {
+	// joel: this is one of the two places we used a wrong signer to print txes
 	if V.Sign() != 0 && isProtectedV(V) {
 		return NewEIP155Signer(deriveChainId(V))
 	} else {
@@ -131,7 +132,10 @@ func (tx *Transaction) Protected() bool {
 func isProtectedV(V *big.Int) bool {
 	if V.BitLen() <= 8 {
 		v := V.Uint64()
-		return v != 27 && v != 28
+		// 27 / 28 are pre eip 155 -- ie unprotected.
+		// TODO(joel): this is a hack. Everywhere else we maintain vanilla ethereum
+		// compatibility and we should figure out how to extend that to here
+		return !(v == 27 || v == 28 || v == 37 || v == 38)
 	}
 	// anything not 27 or 28 are considered unprotected
 	return true
