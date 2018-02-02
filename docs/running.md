@@ -51,11 +51,11 @@ geth init genesis.json
 ### Setup Bootnode
 Optionally you can set up a bootnode that all the other nodes will first connect to in order to find other peers in the network. You will first need to generate a bootnode key:
 
-1-	To generate the key for the first time:
+1. To generate the key for the first time:
 
-`bootnode -genkey tmp_file.txt  //this will start a bootnode with an enode address and generate a key inside a “tmp_file.txt” file`
+`bootnode -genkey tmp_file.txt  // this will start a bootnode with an enode address and generate a key inside a “tmp_file.txt” file`
 
-2-	To later restart the bootnode using the same key (and hence use the same enode url):
+2. To later restart the bootnode using the same key (and hence use the same enode url):
 
 `bootnode -nodekey tmp_file.txt`
 
