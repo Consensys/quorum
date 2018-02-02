@@ -29,12 +29,12 @@ import (
 var (
 	key, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 	name   = "my name on ENS"
-	hash   = crypto.Sha3Hash([]byte("my content"))
+	hash   = crypto.Keccak256Hash([]byte("my content"))
 	addr   = crypto.PubkeyToAddress(key.PublicKey)
 )
 
 func TestENS(t *testing.T) {
-	contractBackend := backends.NewSimulatedBackend(core.GenesisAccount{Address: addr, Balance: big.NewInt(1000000000)})
+	contractBackend := backends.NewSimulatedBackend(core.GenesisAlloc{addr: {Balance: big.NewInt(1000000000)}})
 	transactOpts := bind.NewKeyedTransactor(key)
 	// Workaround for bug estimating gas in the call to Register
 	transactOpts.GasLimit = big.NewInt(1000000)

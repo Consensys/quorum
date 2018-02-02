@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
 var testAddrHex = "970e8128ab834e8eac17ab8e3812f010678cf791"
@@ -37,28 +36,10 @@ var testPrivHex = "289c2857d4598e37fb9647507e47a309d6133539bf21a8b9cb6df88fd5232
 // These tests are sanity checks.
 // They should ensure that we don't e.g. use Sha3-224 instead of Sha3-256
 // and that the sha3 library uses keccak-f permutation.
-func TestSha3(t *testing.T) {
-	msg := []byte("abc")
-	exp, _ := hex.DecodeString("4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45")
-	checkhash(t, "Sha3-256", func(in []byte) []byte { return Keccak256(in) }, msg, exp)
-}
-
-func TestSha3Hash(t *testing.T) {
+func TestKeccak256Hash(t *testing.T) {
 	msg := []byte("abc")
 	exp, _ := hex.DecodeString("4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45")
 	checkhash(t, "Sha3-256-array", func(in []byte) []byte { h := Keccak256Hash(in); return h[:] }, msg, exp)
-}
-
-func TestSha256(t *testing.T) {
-	msg := []byte("abc")
-	exp, _ := hex.DecodeString("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
-	checkhash(t, "Sha256", Sha256, msg, exp)
-}
-
-func TestRipemd160(t *testing.T) {
-	msg := []byte("abc")
-	exp, _ := hex.DecodeString("8eb208f7e05d987a9b044a8e98c6b087f15a0bfc")
-	checkhash(t, "Ripemd160", Ripemd160, msg, exp)
 }
 
 func BenchmarkSha3(b *testing.B) {
@@ -72,30 +53,15 @@ func BenchmarkSha3(b *testing.B) {
 	fmt.Println(amount, ":", time.Since(start))
 }
 
-func Test0Key(t *testing.T) {
-	key := common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000")
-	_, err := secp256k1.GeneratePubKey(key)
-	if err == nil {
-		t.Errorf("expected error due to zero privkey")
-	}
-}
-
-func testSign(signfn func([]byte, *ecdsa.PrivateKey) ([]byte, error), t *testing.T) {
+func TestSign(t *testing.T) {
 	key, _ := HexToECDSA(testPrivHex)
 	addr := common.HexToAddress(testAddrHex)
 
 	msg := Keccak256([]byte("foo"))
-	sig, err := signfn(msg, key)
+	sig, err := Sign(msg, key)
 	if err != nil {
 		t.Errorf("Sign error: %s", err)
 	}
-
-	// signfn can return a recover id of either [0,1] or [27,28].
-	// In the latter case its an Ethereum signature, adjust recover id.
-	if sig[64] == 27 || sig[64] == 28 {
-		sig[64] -= 27
-	}
-
 	recoveredPub, err := Ecrecover(msg, sig)
 	if err != nil {
 		t.Errorf("ECRecover error: %s", err)
@@ -117,32 +83,13 @@ func testSign(signfn func([]byte, *ecdsa.PrivateKey) ([]byte, error), t *testing
 	}
 }
 
-func TestSign(t *testing.T) {
-	testSign(Sign, t)
-}
-
-func TestSignEthereum(t *testing.T) {
-	testSign(SignEthereum, t)
-}
-
-func testInvalidSign(signfn func([]byte, *ecdsa.PrivateKey) ([]byte, error), t *testing.T) {
-	_, err := signfn(make([]byte, 1), nil)
-	if err == nil {
+func TestInvalidSign(t *testing.T) {
+	if _, err := Sign(make([]byte, 1), nil); err == nil {
 		t.Errorf("expected sign with hash 1 byte to error")
 	}
-
-	_, err = signfn(make([]byte, 33), nil)
-	if err == nil {
+	if _, err := Sign(make([]byte, 33), nil); err == nil {
 		t.Errorf("expected sign with hash 33 byte to error")
 	}
-}
-
-func TestInvalidSign(t *testing.T) {
-	testInvalidSign(Sign, t)
-}
-
-func TestInvalidSignEthereum(t *testing.T) {
-	testInvalidSign(SignEthereum, t)
 }
 
 func TestNewContractAddress(t *testing.T) {
@@ -204,46 +151,46 @@ func TestValidateSignatureValues(t *testing.T) {
 	minusOne := big.NewInt(-1)
 	one := common.Big1
 	zero := common.Big0
-	secp256k1nMinus1 := new(big.Int).Sub(secp256k1.N, common.Big1)
+	secp256k1nMinus1 := new(big.Int).Sub(secp256k1_N, common.Big1)
 
 	// correct v,r,s
-	check(true, 27, one, one)
-	check(true, 28, one, one)
+	check(true, 0, one, one)
+	check(true, 1, one, one)
 	// incorrect v, correct r,s,
-	check(false, 30, one, one)
-	check(false, 26, one, one)
+	check(false, 2, one, one)
+	check(false, 3, one, one)
 
 	// incorrect v, combinations of incorrect/correct r,s at lower limit
+	check(false, 2, zero, zero)
+	check(false, 2, zero, one)
+	check(false, 2, one, zero)
+	check(false, 2, one, one)
+
+	// correct v for any combination of incorrect r,s
 	check(false, 0, zero, zero)
 	check(false, 0, zero, one)
 	check(false, 0, one, zero)
-	check(false, 0, one, one)
 
-	// correct v for any combination of incorrect r,s
-	check(false, 27, zero, zero)
-	check(false, 27, zero, one)
-	check(false, 27, one, zero)
-
-	check(false, 28, zero, zero)
-	check(false, 28, zero, one)
-	check(false, 28, one, zero)
+	check(false, 1, zero, zero)
+	check(false, 1, zero, one)
+	check(false, 1, one, zero)
 
 	// correct sig with max r,s
-	check(true, 27, secp256k1nMinus1, secp256k1nMinus1)
+	check(true, 0, secp256k1nMinus1, secp256k1nMinus1)
 	// correct v, combinations of incorrect r,s at upper limit
-	check(false, 27, secp256k1.N, secp256k1nMinus1)
-	check(false, 27, secp256k1nMinus1, secp256k1.N)
-	check(false, 27, secp256k1.N, secp256k1.N)
+	check(false, 0, secp256k1_N, secp256k1nMinus1)
+	check(false, 0, secp256k1nMinus1, secp256k1_N)
+	check(false, 0, secp256k1_N, secp256k1_N)
 
 	// current callers ensures r,s cannot be negative, but let's test for that too
 	// as crypto package could be used stand-alone
-	check(false, 27, minusOne, one)
-	check(false, 27, one, minusOne)
+	check(false, 0, minusOne, one)
+	check(false, 0, one, minusOne)
 }
 
 func checkhash(t *testing.T, name string, f func([]byte) []byte, msg, exp []byte) {
 	sum := f(msg)
-	if bytes.Compare(exp, sum) != 0 {
+	if !bytes.Equal(exp, sum) {
 		t.Fatalf("hash %s mismatch: want: %x have: %x", name, exp, sum)
 	}
 }
@@ -259,14 +206,13 @@ func checkAddr(t *testing.T, addr0, addr1 common.Address) {
 func TestPythonIntegration(t *testing.T) {
 	kh := "289c2857d4598e37fb9647507e47a309d6133539bf21a8b9cb6df88fd5232032"
 	k0, _ := HexToECDSA(kh)
-	k1 := FromECDSA(k0)
 
 	msg0 := Keccak256([]byte("foo"))
-	sig0, _ := secp256k1.Sign(msg0, k1)
+	sig0, _ := Sign(msg0, k0)
 
 	msg1 := common.FromHex("00000000000000000000000000000000")
-	sig1, _ := secp256k1.Sign(msg0, k1)
+	sig1, _ := Sign(msg0, k0)
 
-	fmt.Printf("msg: %x, privkey: %x sig: %x\n", msg0, k1, sig0)
-	fmt.Printf("msg: %x, privkey: %x sig: %x\n", msg1, k1, sig1)
+	t.Logf("msg: %x, privkey: %s sig: %x\n", msg0, kh, sig0)
+	t.Logf("msg: %x, privkey: %s sig: %x\n", msg1, kh, sig1)
 }

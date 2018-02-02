@@ -14,6 +14,7 @@
 */**/*tx_database*
 */**/*dapps*
 build/_vendor/pkg
+.idea
 
 #*
 .#*
@@ -21,7 +22,6 @@ build/_vendor/pkg
 *~
 .project
 .settings
-.idea
 
 # used by the Makefile
 /build/_workspace/
@@ -31,3 +31,6 @@ build/_vendor/pkg
 # travis
 profile.tmp
 profile.cov
+
+# IdeaIDE
+.idea

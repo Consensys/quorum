@@ -3,8 +3,7 @@ package raft
 import (
 	"encoding/binary"
 
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
@@ -36,7 +35,7 @@ func (pm *ProtocolManager) loadAppliedIndex() uint64 {
 	if err == errors.ErrNotFound {
 		lastAppliedIndex = 0
 	} else if err != nil {
-		glog.Fatalln(err)
+		fatalf("loadAppliedIndex error: %s", err)
 	} else {
 		lastAppliedIndex = binary.LittleEndian.Uint64(dat)
 	}
@@ -45,13 +44,13 @@ func (pm *ProtocolManager) loadAppliedIndex() uint64 {
 	pm.appliedIndex = lastAppliedIndex
 	pm.mu.Unlock()
 
-	glog.V(logger.Info).Infof("loaded the latest applied index: %d", lastAppliedIndex)
+	log.Info("loaded the latest applied index", "lastAppliedIndex", lastAppliedIndex)
 
 	return lastAppliedIndex
 }
 
 func (pm *ProtocolManager) writeAppliedIndex(index uint64) {
-	glog.V(logger.Info).Infof("persisted the latest applied index: %d", index)
+	log.Info("persisted the latest applied index", "index", index)
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, index)
 	pm.quorumRaftDb.Put(appliedDbKey, buf, noFsync)

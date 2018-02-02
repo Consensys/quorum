@@ -17,7 +17,8 @@
 package api
 
 import (
-	// "encoding/json"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -70,11 +71,52 @@ func TestGetEntry(t *testing.T) {
 	testGetEntry(t, "/a", "", "")
 	testGetEntry(t, "/a/b", "a/b", "a/b")
 	// longest/deepest math
-	testGetEntry(t, "a/b", "-", "a", "a/ba", "a/b/c")
+	testGetEntry(t, "read", "read", "readme.md", "readit.md")
+	testGetEntry(t, "rf", "-", "readme.md", "readit.md")
+	testGetEntry(t, "readme", "readme", "readme.md")
+	testGetEntry(t, "readme", "-", "readit.md")
+	testGetEntry(t, "readme.md", "readme.md", "readme.md")
+	testGetEntry(t, "readme.md", "-", "readit.md")
+	testGetEntry(t, "readmeAmd", "-", "readit.md")
+	testGetEntry(t, "readme.mdffff", "-", "readme.md")
+	testGetEntry(t, "ab", "ab", "ab/cefg", "ab/cedh", "ab/kkkkkk")
+	testGetEntry(t, "ab/ce", "ab/ce", "ab/cefg", "ab/cedh", "ab/ceuuuuuuuuuu")
+	testGetEntry(t, "abc", "abc", "abcd", "abczzzzef", "abc/def", "abc/e/g")
+	testGetEntry(t, "a/b", "a/b", "a", "a/bc", "a/ba", "a/b/c")
 	testGetEntry(t, "a/b", "a/b", "a", "a/b", "a/bb", "a/b/c")
 	testGetEntry(t, "//a//b//", "a/b", "a", "a/b", "a/bb", "a/b/c")
 }
-
 func TestDeleteEntry(t *testing.T) {
 
+}
+
+// TestAddFileWithManifestPath tests that adding an entry at a path which
+// already exists as a manifest just adds the entry to the manifest rather
+// than replacing the manifest with the entry
+func TestAddFileWithManifestPath(t *testing.T) {
+	// create a manifest containing "ab" and "ac"
+	manifest, _ := json.Marshal(&Manifest{
+		Entries: []ManifestEntry{
+			{Path: "ab", Hash: "ab"},
+			{Path: "ac", Hash: "ac"},
+		},
+	})
+	reader := &storage.LazyTestSectionReader{
+		SectionReader: io.NewSectionReader(bytes.NewReader(manifest), 0, int64(len(manifest))),
+	}
+	trie, err := readManifest(reader, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkEntry(t, "ab", "ab", trie)
+	checkEntry(t, "ac", "ac", trie)
+
+	// now add path "a" and check we can still get "ab" and "ac"
+	entry := &manifestTrieEntry{}
+	entry.Path = "a"
+	entry.Hash = "a"
+	trie.addEntry(entry, nil)
+	checkEntry(t, "ab", "ab", trie)
+	checkEntry(t, "ac", "ac", trie)
+	checkEntry(t, "a", "a", trie)
 }

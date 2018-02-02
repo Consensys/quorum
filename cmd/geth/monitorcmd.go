@@ -49,9 +49,11 @@ var (
 		Usage: "Refresh interval in seconds",
 	}
 	monitorCommand = cli.Command{
-		Action: monitor,
-		Name:   "monitor",
-		Usage:  `Geth Monitor: node metrics monitoring and visualization`,
+		Action:    utils.MigrateFlags(monitor), // keep track of migration progress
+		Name:      "monitor",
+		Usage:     "Monitor and visualize node metrics",
+		ArgsUsage: " ",
+		Category:  "MONITOR COMMANDS",
 		Description: `
 The Geth monitor is a tool to collect and visualize various internal metrics
 gathered by the node, supporting different chart types as well as the capacity
@@ -234,8 +236,9 @@ func expandMetrics(metrics map[string]interface{}, path string) []string {
 
 // fetchMetric iterates over the metrics map and retrieves a specific one.
 func fetchMetric(metrics map[string]interface{}, metric string) float64 {
-	parts, found := strings.Split(metric, "/"), true
+	parts := strings.Split(metric, "/")
 	for _, part := range parts[:len(parts)-1] {
+		var found bool
 		metrics, found = metrics[part].(map[string]interface{})
 		if !found {
 			return 0

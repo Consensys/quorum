@@ -20,7 +20,7 @@ import (
 	pb "github.com/coreos/etcd/raft/raftpb"
 	"golang.org/x/net/context"
 
-  "github.com/eapache/channels"
+	"github.com/eapache/channels"
 )
 
 type SnapshotStatus int
@@ -29,8 +29,8 @@ const (
 	SnapshotFinish  SnapshotStatus = 1
 	SnapshotFailure SnapshotStatus = 2
 
-  LEADER     = 1
-  NOT_LEADER = 2
+	LEADER     = 1
+	NOT_LEADER = 2
 )
 
 var (
@@ -264,7 +264,7 @@ func newNode() node {
 		done:   make(chan struct{}),
 		stop:   make(chan struct{}),
 		status: make(chan chan Status),
-    rolec:  channels.NewRingChannel(1),
+		rolec:  channels.NewRingChannel(1),
 	}
 }
 

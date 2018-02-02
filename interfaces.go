@@ -18,13 +18,16 @@
 package ethereum
 
 import (
+	"context"
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"golang.org/x/net/context"
 )
+
+// NotFound is returned by API methods if the requested item does not exist.
+var NotFound = errors.New("not found")
 
 // TODO: move subscription to package event
 
@@ -46,6 +49,8 @@ type Subscription interface {
 // blockchain fork that was previously downloaded and processed by the node. The block
 // number argument can be nil to select the latest canonical block. Reading block headers
 // should be preferred over full blocks whenever possible.
+//
+// The returned error is NotFound if the requested item does not exist.
 type ChainReader interface {
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
 	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
@@ -53,7 +58,30 @@ type ChainReader interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 	TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error)
 	TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*types.Transaction, error)
-	TransactionByHash(ctx context.Context, txHash common.Hash) (*types.Transaction, error)
+
+	// This method subscribes to notifications about changes of the head block of
+	// the canonical chain.
+	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (Subscription, error)
+}
+
+// TransactionReader provides access to past transactions and their receipts.
+// Implementations may impose arbitrary restrictions on the transactions and receipts that
+// can be retrieved. Historic transactions may not be available.
+//
+// Avoid relying on this interface if possible. Contract logs (through the LogFilterer
+// interface) are more reliable and usually safer in the presence of chain
+// reorganisations.
+//
+// The returned error is NotFound if the requested item does not exist.
+type TransactionReader interface {
+	// TransactionByHash checks the pool of pending transactions in addition to the
+	// blockchain. The isPending return value indicates whether the transaction has been
+	// mined yet. Note that the transaction may not be part of the canonical chain even if
+	// it's not pending.
+	TransactionByHash(ctx context.Context, txHash common.Hash) (tx *types.Transaction, isPending bool, err error)
+	// TransactionReceipt returns the receipt of a mined transaction. Note that the
+	// transaction may not be included in the current canonical chain even if a receipt
+	// exists.
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
 }
 
@@ -74,18 +102,13 @@ type SyncProgress struct {
 	CurrentBlock  uint64 // Current block number where sync is at
 	HighestBlock  uint64 // Highest alleged block number in the chain
 	PulledStates  uint64 // Number of state trie entries already downloaded
-	KnownStates   uint64 // Total number os state trie entries known about
+	KnownStates   uint64 // Total number of state trie entries known about
 }
 
 // ChainSyncReader wraps access to the node's current sync status. If there's no
 // sync currently running, it returns nil.
 type ChainSyncReader interface {
 	SyncProgress(ctx context.Context) (*SyncProgress, error)
-}
-
-// A ChainHeadEventer returns notifications whenever the canonical head block is updated.
-type ChainHeadEventer interface {
-	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (Subscription, error)
 }
 
 // CallMsg contains parameters for contract calls.
@@ -106,7 +129,7 @@ type ContractCaller interface {
 	CallContract(ctx context.Context, call CallMsg, blockNumber *big.Int) ([]byte, error)
 }
 
-// FilterQuery contains options for contact log filtering.
+// FilterQuery contains options for contract log filtering.
 type FilterQuery struct {
 	FromBlock *big.Int         // beginning of the queried range, nil means genesis block
 	ToBlock   *big.Int         // end of the range, nil means latest block
@@ -128,9 +151,12 @@ type FilterQuery struct {
 
 // LogFilterer provides access to contract log events using a one-off query or continuous
 // event subscription.
+//
+// Logs received through a streaming query subscription may have Removed set to true,
+// indicating that the log was reverted due to a chain reorganisation.
 type LogFilterer interface {
-	FilterLogs(ctx context.Context, q FilterQuery) ([]vm.Log, error)
-	SubscribeFilterLogs(ctx context.Context, q FilterQuery, ch chan<- vm.Log) (Subscription, error)
+	FilterLogs(ctx context.Context, q FilterQuery) ([]types.Log, error)
+	SubscribeFilterLogs(ctx context.Context, q FilterQuery, ch chan<- types.Log) (Subscription, error)
 }
 
 // TransactionSender wraps transaction sending. The SendTransaction method injects a

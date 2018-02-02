@@ -18,18 +18,17 @@ package rpc
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/rs/cors"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -63,9 +62,10 @@ func (hc *httpConn) Close() error {
 	return nil
 }
 
-// DialHTTP creates a new RPC clients that connection to an RPC server over HTTP.
-func DialHTTP(endpoint string) (*Client, error) {
-	req, err := http.NewRequest("POST", endpoint, nil)
+// DialHTTPWithClient creates a new RPC clients that connection to an RPC server over HTTP
+// using the provided HTTP Client.
+func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
+	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +74,13 @@ func DialHTTP(endpoint string) (*Client, error) {
 
 	initctx := context.Background()
 	return newClient(initctx, func(context.Context) (net.Conn, error) {
-		return &httpConn{client: new(http.Client), req: req, closed: make(chan struct{})}, nil
+		return &httpConn{client: client, req: req, closed: make(chan struct{})}, nil
 	})
+}
+
+// DialHTTP creates a new RPC clients that connection to an RPC server over HTTP.
+func DialHTTP(endpoint string) (*Client, error) {
+	return DialHTTPWithClient(endpoint, new(http.Client))
 }
 
 func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) error {
@@ -104,8 +109,8 @@ func (c *Client) sendBatchHTTP(ctx context.Context, op *requestOp, msgs []*jsonr
 	if err := json.NewDecoder(respBody).Decode(&respmsgs); err != nil {
 		return err
 	}
-	for _, respmsg := range respmsgs {
-		op.resp <- &respmsg
+	for i := 0; i < len(respmsgs); i++ {
+		op.resp <- &respmsgs[i]
 	}
 	return nil
 }
@@ -115,11 +120,11 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadClos
 	if err != nil {
 		return nil, err
 	}
-	client, req := requestWithContext(hc.client, hc.req, ctx)
+	req := hc.req.WithContext(ctx)
 	req.Body = ioutil.NopCloser(bytes.NewReader(body))
 	req.ContentLength = int64(len(body))
 
-	resp, err := client.Do(req)
+	resp, err := hc.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +145,8 @@ func (t *httpReadWriteNopCloser) Close() error {
 // NewHTTPServer creates a new HTTP RPC server around an API provider.
 //
 // Deprecated: Server implements http.Handler
-func NewHTTPServer(corsString string, srv *Server) *http.Server {
-	return &http.Server{Handler: newCorsHandler(srv, corsString)}
+func NewHTTPServer(cors []string, srv *Server) *http.Server {
+	return &http.Server{Handler: newCorsHandler(srv, cors)}
 }
 
 // ServeHTTP serves JSON-RPC requests over HTTP.
@@ -162,15 +167,17 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	srv.ServeSingleRequest(codec, OptionMethodInvocation)
 }
 
-func newCorsHandler(srv *Server, corsString string) http.Handler {
-	var allowedOrigins []string
-	for _, domain := range strings.Split(corsString, ",") {
-		allowedOrigins = append(allowedOrigins, strings.TrimSpace(domain))
+func newCorsHandler(srv *Server, allowedOrigins []string) http.Handler {
+	// disable CORS support if user has not specified a custom CORS configuration
+	if len(allowedOrigins) == 0 {
+		return srv
 	}
+
 	c := cors.New(cors.Options{
 		AllowedOrigins: allowedOrigins,
 		AllowedMethods: []string{"POST", "GET"},
 		MaxAge:         600,
+		AllowedHeaders: []string{"*"},
 	})
 	return c.Handler(srv)
 }

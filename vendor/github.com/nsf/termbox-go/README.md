@@ -24,6 +24,8 @@ There are also some interesting projects using termbox-go:
  - [snake-game](https://github.com/DyegoCosta/snake-game) is an implementation of the Snake game.
  - [gone](https://github.com/guillaumebreton/gone) is a CLI pomodoro® timer.
  - [Spoof.go](https://github.com/sabey/spoofgo) controllable movement spoofing from the cli
+ - [lf](https://github.com/gokcehan/lf) is a terminal file manager
+ - [rat](https://github.com/ericfreese/rat) lets you compose shell commands to build terminal applications.
 
 ### API reference
 [godoc.org/github.com/nsf/termbox-go](http://godoc.org/github.com/nsf/termbox-go)

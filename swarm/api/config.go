@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/contracts/ens"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/swarm/network"
 	"github.com/ethereum/go-ethereum/swarm/services/swap"
@@ -32,12 +33,8 @@ import (
 )
 
 const (
-	port = "8500"
-)
-
-//  by default ens root is  north internal
-var (
-	toyNetEnsRoot = common.HexToAddress("0xd344889e0be3e9ef6c26b0f60ef66a32e83c1b69")
+	DefaultHTTPListenAddr = "127.0.0.1"
+	DefaultHTTPPort       = "8500"
 )
 
 // separate bzz directories
@@ -49,19 +46,20 @@ type Config struct {
 	*network.HiveParams
 	Swap *swap.SwapParams
 	*network.SyncParams
-	Path      string
-	Port      string
-	PublicKey string
-	BzzKey    string
-	EnsRoot   common.Address
+	Path       string
+	ListenAddr string
+	Port       string
+	PublicKey  string
+	BzzKey     string
+	EnsRoot    common.Address
+	NetworkId  uint64
 }
 
 // config is agnostic to where private key is coming from
 // so managing accounts is outside swarm and left to wrappers
-func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey) (self *Config, err error) {
-
+func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey, networkId uint64) (self *Config, err error) {
 	address := crypto.PubkeyToAddress(prvKey.PublicKey) // default beneficiary address
-	dirpath := filepath.Join(path, common.Bytes2Hex(address.Bytes()))
+	dirpath := filepath.Join(path, "bzz-"+common.Bytes2Hex(address.Bytes()))
 	err = os.MkdirAll(dirpath, os.ModePerm)
 	if err != nil {
 		return
@@ -70,25 +68,34 @@ func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey) (
 	var data []byte
 	pubkey := crypto.FromECDSAPub(&prvKey.PublicKey)
 	pubkeyhex := common.ToHex(pubkey)
-	keyhex := crypto.Sha3Hash(pubkey).Hex()
+	keyhex := crypto.Keccak256Hash(pubkey).Hex()
 
 	self = &Config{
 		SyncParams:    network.NewSyncParams(dirpath),
 		HiveParams:    network.NewHiveParams(dirpath),
 		ChunkerParams: storage.NewChunkerParams(),
 		StoreParams:   storage.NewStoreParams(dirpath),
-		Port:          port,
+		ListenAddr:    DefaultHTTPListenAddr,
+		Port:          DefaultHTTPPort,
 		Path:          dirpath,
 		Swap:          swap.DefaultSwapParams(contract, prvKey),
 		PublicKey:     pubkeyhex,
 		BzzKey:        keyhex,
-		EnsRoot:       toyNetEnsRoot,
+		EnsRoot:       ens.TestNetAddress,
+		NetworkId:     networkId,
 	}
 	data, err = ioutil.ReadFile(confpath)
+
+	// if not set in function param, then set default for swarm network, will be overwritten by config file if present
+	if networkId == 0 {
+		self.NetworkId = network.NetworkId
+	}
+
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return
 		}
+
 		// file does not exist
 		// write out config file
 		err = self.Save()
@@ -97,6 +104,7 @@ func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey) (
 		}
 		return
 	}
+
 	// file exists, deserialise
 	err = json.Unmarshal(data, self)
 	if err != nil {
@@ -109,10 +117,16 @@ func NewConfig(path string, contract common.Address, prvKey *ecdsa.PrivateKey) (
 	if keyhex != self.BzzKey {
 		return nil, fmt.Errorf("bzz key does not match the one in the config file %v != %v", keyhex, self.BzzKey)
 	}
+
+	// if set in function param, replace id set from config file
+	if networkId != 0 {
+		self.NetworkId = networkId
+	}
+
 	self.Swap.SetKey(prvKey)
 
 	if (self.EnsRoot == common.Address{}) {
-		self.EnsRoot = toyNetEnsRoot
+		self.EnsRoot = ens.TestNetAddress
 	}
 
 	return

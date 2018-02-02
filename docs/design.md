@@ -1,25 +1,6 @@
 
 # Design
 
-## Consensus algorithm
-
-Quorum introduces a new consensus algorithm called QuorumChain, a majority
-voting protocol where a subset of nodes within the network are given the
-`voting` role. The voting role allows a node to vote on which block should be the
-canonical head at a particular height. The block with the most votes will win
-and is considered the canonical head of the chain.
-
-Block creation is only allowed by nodes with the `block maker` role.
-A node with this role can create a block, sign the block and put the signature within the `ExtraData` field of the block.
-On `block import`, nodes can verify if the block was signed by one of the nodes that have the `block maker` role.
-
-Nodes can be given no role, one of the roles or both roles through command line arguments.
-The collection of addresses with special roles is tracked within the QuorumChain smart contract.
-
-QuorumChain is implemented in a smart contract pre-deployed on address `0x0000000000000000000000000000000000000020` and can be found [here](https://github.com/jpmorganchase/quorum/blob/master/core/quorum/block_voting.sol).
-Voters and block makers can be added or removed and the minimum number of votes before a block is selected as winner can be configured.
-
-
 ## Public/Private State
 
 Quorum supports dual state:
@@ -27,7 +8,7 @@ Quorum supports dual state:
 - public state, accessible by all nodes within the network
 - private state, only accessible by nodes with the correct permissions
 
-The difference is made through the use of transactions with encrypted (private) and non-encrypted (public) payloads.
+The difference is made through the use of transactions with encrypted (private) and non-encrypted payloads (public).
 Nodes can determine if a transaction is private by looking at the `v` value of the signature.
 Public transactions have a `v` value of 27 or 28, private transactions have a value of 37 or 38.
 
@@ -48,7 +29,7 @@ S: sender, (X): private, X: public, ->: direction, []: read only mode
 2. S -> (A) -> (B)
 3. S -> (A) -> [B -> C]
 ```
-The following transactions are unsupported:
+The following transaction are unsupported:
 
 ```
 1. (S) -> A

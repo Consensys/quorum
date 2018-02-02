@@ -25,19 +25,21 @@ import (
 
 	"github.com/eapache/channels"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/miner"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // Current state information for building the next block
 type work struct {
-	config       *core.ChainConfig
+	config       *params.ChainConfig
 	publicState  *state.StateDB
 	privateState *state.StateDB
 	Block        *types.Block
@@ -45,10 +47,10 @@ type work struct {
 }
 
 type minter struct {
-	config           *core.ChainConfig
+	config           *params.ChainConfig
 	mu               sync.Mutex
 	mux              *event.TypeMux
-	eth              core.Backend
+	eth              miner.Backend
 	chain            *core.BlockChain
 	chainDb          ethdb.Database
 	coinbase         common.Address
@@ -56,9 +58,15 @@ type minter struct {
 	shouldMine       *channels.RingChannel
 	blockTime        time.Duration
 	speculativeChain *speculativeChain
+
+	invalidRaftOrderingChan chan InvalidRaftOrdering
+	chainHeadChan           chan core.ChainHeadEvent
+	chainHeadSub            event.Subscription
+	txPreChan               chan core.TxPreEvent
+	txPreSub                event.Subscription
 }
 
-func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Duration) *minter {
+func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration) *minter {
 	minter := &minter{
 		config:           config,
 		eth:              eth,
@@ -68,16 +76,18 @@ func newMinter(config *core.ChainConfig, eth core.Backend, blockTime time.Durati
 		shouldMine:       channels.NewRingChannel(1),
 		blockTime:        blockTime,
 		speculativeChain: newSpeculativeChain(),
+
+		invalidRaftOrderingChan: make(chan InvalidRaftOrdering, 1),
+		chainHeadChan:           make(chan core.ChainHeadEvent, 1),
+		txPreChan:               make(chan core.TxPreEvent, 4096),
 	}
-	events := minter.mux.Subscribe(
-		core.ChainHeadEvent{},
-		core.TxPreEvent{},
-		InvalidRaftOrdering{},
-	)
+
+	minter.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(minter.chainHeadChan)
+	minter.txPreSub = eth.TxPool().SubscribeTxPreEvent(minter.txPreChan)
 
 	minter.speculativeChain.clear(minter.chain.CurrentBlock())
 
-	go minter.eventLoop(events)
+	go minter.eventLoop()
 	go minter.mintingLoop()
 
 	return minter
@@ -115,14 +125,14 @@ func (minter *minter) updateSpeculativeChainPerNewHead(newHeadBlock *types.Block
 func (minter *minter) updateSpeculativeChainPerInvalidOrdering(headBlock *types.Block, invalidBlock *types.Block) {
 	invalidHash := invalidBlock.Hash()
 
-	glog.V(logger.Warn).Infof("Handling InvalidRaftOrdering for invalid block %x; current head is %x\n", invalidHash, headBlock.Hash())
+	log.Info("Handling InvalidRaftOrdering", "invalid block", invalidHash, "current head", headBlock.Hash())
 
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
 
 	// 1. if the block is not in our db, exit. someone else mined this.
-	if !minter.chain.HasBlock(invalidHash) {
-		glog.V(logger.Warn).Infof("Someone else mined invalid block %x; ignoring\n", invalidHash)
+	if !minter.chain.HasBlock(invalidHash, invalidBlock.NumberU64()) {
+		log.Info("Someone else mined invalid block; ignoring", "block", invalidHash)
 
 		return
 	}
@@ -130,10 +140,13 @@ func (minter *minter) updateSpeculativeChainPerInvalidOrdering(headBlock *types.
 	minter.speculativeChain.unwindFrom(invalidHash, headBlock)
 }
 
-func (minter *minter) eventLoop(events event.Subscription) {
-	for event := range events.Chan() {
-		switch ev := event.Data.(type) {
-		case core.ChainHeadEvent:
+func (minter *minter) eventLoop() {
+	defer minter.chainHeadSub.Unsubscribe()
+	defer minter.txPreSub.Unsubscribe()
+
+	for {
+		select {
+		case ev := <-minter.chainHeadChan:
 			newHeadBlock := ev.Block
 
 			if atomic.LoadInt32(&minter.minting) == 1 {
@@ -152,16 +165,22 @@ func (minter *minter) eventLoop(events event.Subscription) {
 				minter.mu.Unlock()
 			}
 
-		case core.TxPreEvent:
+		case <-minter.txPreChan:
 			if atomic.LoadInt32(&minter.minting) == 1 {
 				minter.requestMinting()
 			}
 
-		case InvalidRaftOrdering:
+		case ev := <-minter.invalidRaftOrderingChan:
 			headBlock := ev.headBlock
 			invalidBlock := ev.invalidBlock
 
 			minter.updateSpeculativeChainPerInvalidOrdering(headBlock, invalidBlock)
+
+		// system stopped
+		case <-minter.chainHeadSub.Err():
+			return
+		case <-minter.txPreSub.Err():
+			return
 		}
 	}
 }
@@ -231,7 +250,7 @@ func (minter *minter) createWork() *work {
 	header := &types.Header{
 		ParentHash: parent.Hash(),
 		Number:     parentNumber.Add(parentNumber, common.Big1),
-		Difficulty: core.CalcDifficulty(minter.config, uint64(tstamp), parent.Time().Uint64(), parent.Number(), parent.Difficulty()),
+		Difficulty: ethash.CalcDifficulty(minter.config, uint64(tstamp), parent.Header()),
 		GasLimit:   core.CalcGasLimit(parent),
 		GasUsed:    new(big.Int),
 		Coinbase:   minter.coinbase,
@@ -252,17 +271,21 @@ func (minter *minter) createWork() *work {
 }
 
 func (minter *minter) getTransactions() *types.TransactionsByPriceAndNonce {
-	allAddrTxes := minter.eth.TxPool().Pending()
+	allAddrTxes, err := minter.eth.TxPool().Pending()
+	if err != nil { // TODO: handle
+		panic(err)
+	}
 	addrTxes := minter.speculativeChain.withoutProposedTxes(allAddrTxes)
-	return types.NewTransactionsByPriceAndNonce(addrTxes)
+	signer := types.MakeSigner(minter.chain.Config(), minter.chain.CurrentBlock().Number())
+	return types.NewTransactionsByPriceAndNonce(signer, addrTxes)
 }
 
 // Sends-off events asynchronously.
-func (minter *minter) firePendingBlockEvents(logs vm.Logs) {
+func (minter *minter) firePendingBlockEvents(logs []*types.Log) {
 	// Copy logs before we mutate them, adding a block hash.
-	copiedLogs := make(vm.Logs, len(logs))
+	copiedLogs := make([]*types.Log, len(logs))
 	for i, l := range logs {
-		copiedLogs[i] = new(vm.Log)
+		copiedLogs[i] = new(types.Log)
 		*copiedLogs[i] = *l
 	}
 
@@ -283,7 +306,7 @@ func (minter *minter) mintNewBlock() {
 	txCount := len(committedTxes)
 
 	if txCount == 0 {
-		glog.V(logger.Info).Infoln("Not minting a new block since there are no pending transactions")
+		log.Info("Not minting a new block since there are no pending transactions")
 		return
 	}
 
@@ -292,8 +315,8 @@ func (minter *minter) mintNewBlock() {
 	header := work.header
 
 	// commit state root after all state transitions.
-	core.AccumulateRewards(work.publicState, header, nil)
-	header.Root = work.publicState.IntermediateRoot()
+	ethash.AccumulateRewards(minter.chain.Config(), work.publicState, header, nil)
+	header.Root = work.publicState.IntermediateRoot(minter.chain.Config().IsEIP158(work.header.Number))
 
 	// NOTE: < QuorumChain creates a signature here and puts it in header.Extra. >
 
@@ -309,12 +332,13 @@ func (minter *minter) mintNewBlock() {
 
 	block := types.NewBlock(header, committedTxes, nil, publicReceipts)
 
-	glog.V(logger.Info).Infof("Generated next block #%v with [%d txns]", block.Number(), txCount)
+	log.Info("Generated next block", "block num", block.Number(), "num txes", txCount)
 
-	if _, err := work.publicState.Commit(); err != nil {
+	deleteEmptyObjects := minter.chain.Config().IsEIP158(block.Number())
+	if _, err := work.publicState.CommitTo(minter.chainDb, deleteEmptyObjects); err != nil {
 		panic(fmt.Sprint("error committing public state: ", err))
 	}
-	if _, privStateErr := work.privateState.Commit(); privStateErr != nil {
+	if _, privStateErr := work.privateState.CommitTo(minter.chainDb, deleteEmptyObjects); privStateErr != nil {
 		panic(fmt.Sprint("error committing private state: ", privStateErr))
 	}
 
@@ -323,11 +347,11 @@ func (minter *minter) mintNewBlock() {
 	minter.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 	elapsed := time.Since(time.Unix(0, header.Time.Int64()))
-	glog.V(logger.Info).Infof("🔨  Mined block (#%v / %x) in %v", block.Number(), block.Hash().Bytes()[:4], elapsed)
+	log.Info("🔨  Mined block", "number", block.Number(), "hash", fmt.Sprintf("%x", block.Hash().Bytes()[:4]), "elapsed", elapsed)
 }
 
-func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts, types.Receipts, vm.Logs) {
-	var logs vm.Logs
+func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc *core.BlockChain) (types.Transactions, types.Receipts, types.Receipts, []*types.Log) {
+	var allLogs []*types.Log
 	var committedTxes types.Transactions
 	var publicReceipts types.Receipts
 	var privateReceipts types.Receipts
@@ -341,39 +365,39 @@ func (env *work) commitTransactions(txes *types.TransactionsByPriceAndNonce, bc 
 			break
 		}
 
-		env.publicState.StartRecord(tx.Hash(), common.Hash{}, 0)
+		env.publicState.Prepare(tx.Hash(), common.Hash{}, txCount)
 
 		publicReceipt, privateReceipt, err := env.commitTransaction(tx, bc, gp)
 		switch {
 		case err != nil:
-			if glog.V(logger.Detail) {
-				glog.Infof("TX (%x) failed, will be removed: %v\n", tx.Hash().Bytes()[:4], err)
-			}
+			log.Info("TX failed, will be removed", "hash", tx.Hash(), "err", err)
 			txes.Pop() // skip rest of txes from this account
 		default:
 			txCount++
 			committedTxes = append(committedTxes, tx)
 
-			logs = append(logs, publicReceipt.Logs...)
 			publicReceipts = append(publicReceipts, publicReceipt)
+			allLogs = append(allLogs, publicReceipt.Logs...)
 
 			if privateReceipt != nil {
-				logs = append(logs, privateReceipt.Logs...)
 				privateReceipts = append(privateReceipts, privateReceipt)
+				allLogs = append(allLogs, privateReceipt.Logs...)
 			}
 
 			txes.Shift()
 		}
 	}
 
-	return committedTxes, publicReceipts, privateReceipts, logs
+	return committedTxes, publicReceipts, privateReceipts, allLogs
 }
 
 func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, gp *core.GasPool) (*types.Receipt, *types.Receipt, error) {
 	publicSnapshot := env.publicState.Snapshot()
 	privateSnapshot := env.privateState.Snapshot()
 
-	publicReceipt, privateReceipt, _, err := core.ApplyTransaction(env.config, bc, gp, env.publicState, env.privateState, env.header, tx, env.header.GasUsed, env.config.VmConfig)
+	var author *common.Address
+	var vmConf vm.Config
+	publicReceipt, privateReceipt, _, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, env.header.GasUsed, vmConf)
 	if err != nil {
 		env.publicState.RevertToSnapshot(publicSnapshot)
 		env.privateState.RevertToSnapshot(privateSnapshot)

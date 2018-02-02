@@ -1,4 +1,4 @@
-// Copyright 2015 The go-ethereum Authors
+// Copyright 2017 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -17,79 +17,50 @@
 package rpc
 
 import (
-	"bytes"
 	"encoding/json"
-	"math/big"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common/math"
 )
 
-func TestNewHexNumber(t *testing.T) {
-	tests := []interface{}{big.NewInt(123), int64(123), uint64(123), int8(123), uint8(123)}
-
-	for i, v := range tests {
-		hn := NewHexNumber(v)
-		if hn == nil {
-			t.Fatalf("Unable to create hex number instance for tests[%d]", i)
-		}
-		if hn.Int64() != 123 {
-			t.Fatalf("expected %d, got %d on value tests[%d]", 123, hn.Int64(), i)
-		}
+func TestBlockNumberJSONUnmarshal(t *testing.T) {
+	tests := []struct {
+		input    string
+		mustFail bool
+		expected BlockNumber
+	}{
+		0:  {`"0x"`, true, BlockNumber(0)},
+		1:  {`"0x0"`, false, BlockNumber(0)},
+		2:  {`"0X1"`, false, BlockNumber(1)},
+		3:  {`"0x00"`, true, BlockNumber(0)},
+		4:  {`"0x01"`, true, BlockNumber(0)},
+		5:  {`"0x1"`, false, BlockNumber(1)},
+		6:  {`"0x12"`, false, BlockNumber(18)},
+		7:  {`"0x7fffffffffffffff"`, false, BlockNumber(math.MaxInt64)},
+		8:  {`"0x8000000000000000"`, true, BlockNumber(0)},
+		9:  {"0", true, BlockNumber(0)},
+		10: {`"ff"`, true, BlockNumber(0)},
+		11: {`"pending"`, false, PendingBlockNumber},
+		12: {`"latest"`, false, LatestBlockNumber},
+		13: {`"earliest"`, false, EarliestBlockNumber},
+		14: {`someString`, true, BlockNumber(0)},
+		15: {`""`, true, BlockNumber(0)},
+		16: {``, true, BlockNumber(0)},
 	}
 
-	failures := []interface{}{"", nil, []byte{1, 2, 3, 4}}
-	for i, v := range failures {
-		hn := NewHexNumber(v)
-		if hn != nil {
-			t.Fatalf("Creating a nex number instance of %T should fail (failures[%d])", failures[i], i)
+	for i, test := range tests {
+		var num BlockNumber
+		err := json.Unmarshal([]byte(test.input), &num)
+		if test.mustFail && err == nil {
+			t.Errorf("Test %d should fail", i)
+			continue
 		}
-	}
-}
-
-func TestHexNumberUnmarshalJSON(t *testing.T) {
-	tests := []string{`"0x4d2"`, "1234", `"1234"`}
-	for i, v := range tests {
-		var hn HexNumber
-		if err := json.Unmarshal([]byte(v), &hn); err != nil {
-			t.Fatalf("Test %d failed - %s", i, err)
+		if !test.mustFail && err != nil {
+			t.Errorf("Test %d should pass but got err: %v", i, err)
+			continue
 		}
-
-		if hn.Int64() != 1234 {
-			t.Fatalf("Expected %d, got %d for test[%d]", 1234, hn.Int64(), i)
-		}
-	}
-}
-
-func TestHexNumberMarshalJSON(t *testing.T) {
-	hn := NewHexNumber(1234567890)
-	got, err := json.Marshal(hn)
-	if err != nil {
-		t.Fatalf("Unable to marshal hex number - %s", err)
-	}
-
-	exp := []byte(`"0x499602d2"`)
-	if bytes.Compare(exp, got) != 0 {
-		t.Fatalf("Invalid json.Marshal, expected '%s', got '%s'", exp, got)
-	}
-}
-
-var hexBytesTests = []struct{ in, out []byte }{
-	{in: []byte(`"0x"`), out: []byte{}},
-	{in: []byte(`"0x00"`), out: []byte{0}},
-	{in: []byte(`"0x01ff"`), out: []byte{0x01, 0xFF}},
-}
-
-func TestHexBytes(t *testing.T) {
-	for i, test := range hexBytesTests {
-		var dec HexBytes
-		if err := json.Unmarshal(test.in, &dec); err != nil {
-			t.Fatalf("test %d: can't decode: %v", i, err)
-		}
-		enc, _ := json.Marshal(HexBytes(test.out))
-		if !bytes.Equal(dec, test.out) {
-			t.Errorf("test %d: wrong decoded value 0x%x", i, dec)
-		}
-		if !bytes.Equal(enc, test.in) {
-			t.Errorf("test %d: wrong encoded value %#q", i, enc)
+		if num != test.expected {
+			t.Errorf("Test %d got unexpected value, want %d, got %d", i, test.expected, num)
 		}
 	}
 }

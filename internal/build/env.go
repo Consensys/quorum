@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 var (
@@ -29,6 +30,7 @@ var (
 	GitTagFlag      = flag.String("git-tag", "", `Overrides git tag being built`)
 	BuildnumFlag    = flag.String("buildnum", "", `Overrides CI build number`)
 	PullRequestFlag = flag.Bool("pull-request", false, `Overrides pull request status of the build`)
+	CronJobFlag     = flag.Bool("cron-job", false, `Overrides cron job status of the build`)
 )
 
 // Environment contains metadata provided by the build environment.
@@ -38,6 +40,7 @@ type Environment struct {
 	Commit, Branch, Tag string // Git info
 	Buildnum            string
 	IsPullRequest       bool
+	IsCronJob           bool
 }
 
 func (env Environment) String() string {
@@ -58,6 +61,7 @@ func Env() Environment {
 			Tag:           os.Getenv("TRAVIS_TAG"),
 			Buildnum:      os.Getenv("TRAVIS_BUILD_NUMBER"),
 			IsPullRequest: os.Getenv("TRAVIS_PULL_REQUEST") != "false",
+			IsCronJob:     os.Getenv("TRAVIS_EVENT_TYPE") == "cron",
 		}
 	case os.Getenv("CI") == "True" && os.Getenv("APPVEYOR") == "True":
 		return Environment{
@@ -68,6 +72,7 @@ func Env() Environment {
 			Tag:           os.Getenv("APPVEYOR_REPO_TAG_NAME"),
 			Buildnum:      os.Getenv("APPVEYOR_BUILD_NUMBER"),
 			IsPullRequest: os.Getenv("APPVEYOR_PULL_REQUEST_NUMBER") != "",
+			IsCronJob:     os.Getenv("APPVEYOR_SCHEDULED_BUILD") == "True",
 		}
 	default:
 		return LocalEnv()
@@ -88,9 +93,14 @@ func LocalEnv() Environment {
 			env.Branch = b
 		}
 	}
-	// Note that we don't get the current git tag. It would slow down
-	// builds and isn't used by anything.
+	if env.Tag == "" {
+		env.Tag = firstLine(RunGit("tag", "-l", "--points-at", "HEAD"))
+	}
 	return env
+}
+
+func firstLine(s string) string {
+	return strings.Split(s, "\n")[0]
 }
 
 func applyEnvFlags(env Environment) Environment {
@@ -111,6 +121,9 @@ func applyEnvFlags(env Environment) Environment {
 	}
 	if *PullRequestFlag {
 		env.IsPullRequest = true
+	}
+	if *CronJobFlag {
+		env.IsCronJob = true
 	}
 	return env
 }

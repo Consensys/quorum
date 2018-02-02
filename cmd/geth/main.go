@@ -18,29 +18,22 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"runtime"
-	"strconv"
+	"sort"
 	"strings"
 	"time"
 
-	"crypto/ecdsa"
-
-	"github.com/ethereum/ethash"
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/console"
-	"github.com/ethereum/go-ethereum/contracts/release"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/debug"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"gopkg.in/urfave/cli.v1"
@@ -57,72 +50,82 @@ var (
 	relOracle = common.HexToAddress("0xfa7b9770ca4cb04296cac84f37736d4041251cdf")
 	// The app that holds all commands and flags.
 	app = utils.NewApp(gitCommit, "the go-ethereum command line interface")
-)
-
-func init() {
-	// Initialize the CLI app and start Geth
-	app.Action = geth
-	app.HideVersion = true // we have a command to print the version
-	app.Commands = []cli.Command{
-		importCommand,
-		exportCommand,
-		upgradedbCommand,
-		removedbCommand,
-		dumpCommand,
-		monitorCommand,
-		accountCommand,
-		walletCommand,
-		consoleCommand,
-		attachCommand,
-		javascriptCommand,
-		{
-			Action: version,
-			Name:   "version",
-			Usage:  "print ethereum version numbers",
-			Description: `
-The output of this command is supposed to be machine-readable.
-`,
-		},
-		{
-			Action: initGenesis,
-			Name:   "init",
-			Usage:  "bootstraps and initialises a new genesis block (JSON)",
-			Description: `
-The init command initialises a new genesis block and definition for the network.
-This is a destructive action and changes the network in which you will be
-participating.
-`,
-		},
-		{
-			Action: license,
-			Name:   "license",
-			Usage:  "displays geth's license information",
-		},
-	}
-
-	app.Flags = []cli.Flag{
+	// flags that configure the node
+	nodeFlags = []cli.Flag{
 		utils.IdentityFlag,
 		utils.UnlockedAccountFlag,
 		utils.PasswordFileFlag,
 		utils.BootnodesFlag,
+		utils.BootnodesV4Flag,
+		utils.BootnodesV5Flag,
 		utils.DataDirFlag,
 		utils.KeyStoreDirFlag,
-		utils.OlympicFlag,
-		utils.CacheFlag,
+		utils.NoUSBFlag,
+		utils.EthashCacheDirFlag,
+		utils.EthashCachesInMemoryFlag,
+		utils.EthashCachesOnDiskFlag,
+		utils.EthashDatasetDirFlag,
+		utils.EthashDatasetsInMemoryFlag,
+		utils.EthashDatasetsOnDiskFlag,
+		utils.TxPoolNoLocalsFlag,
+		utils.TxPoolJournalFlag,
+		utils.TxPoolRejournalFlag,
+		utils.TxPoolPriceLimitFlag,
+		utils.TxPoolPriceBumpFlag,
+		utils.TxPoolAccountSlotsFlag,
+		utils.TxPoolGlobalSlotsFlag,
+		utils.TxPoolAccountQueueFlag,
+		utils.TxPoolGlobalQueueFlag,
+		utils.TxPoolLifetimeFlag,
+		utils.FastSyncFlag,
+		utils.LightModeFlag,
+		utils.SyncModeFlag,
+		utils.LightServFlag,
+		utils.LightPeersFlag,
 		utils.LightKDFFlag,
+		utils.CacheFlag,
 		utils.TrieCacheGenFlag,
-		utils.JSpathFlag,
 		utils.ListenPortFlag,
 		utils.MaxPeersFlag,
 		utils.MaxPendingPeersFlag,
 		utils.EtherbaseFlag,
-		utils.AutoDAGFlag,
+		utils.GasPriceFlag,
+		utils.MinerThreadsFlag,
+		utils.MiningEnabledFlag,
 		utils.TargetGasLimitFlag,
 		utils.NATFlag,
-		utils.NatspecEnabledFlag,
 		utils.NoDiscoverFlag,
+		utils.DiscoveryV5Flag,
+		utils.NetrestrictFlag,
 		utils.NodeKeyFileFlag,
 		utils.NodeKeyHexFlag,
+		utils.DevModeFlag,
+		utils.TestnetFlag,
+		utils.RinkebyFlag,
+		utils.OttomanFlag,
+		utils.VMEnableDebugFlag,
+		utils.NetworkIdFlag,
+		utils.RPCCORSDomainFlag,
+		utils.EthStatsURLFlag,
+		utils.MetricsEnabledFlag,
+		utils.FakePoWFlag,
+		utils.NoCompactionFlag,
+		utils.GpoBlocksFlag,
+		utils.GpoPercentileFlag,
+		utils.ExtraDataFlag,
+		configFileFlag,
+		utils.EnableNodePermissionFlag,
+		utils.RaftModeFlag,
+		utils.RaftBlockTimeFlag,
+		utils.RaftJoinExistingFlag,
+		utils.RaftPortFlag,
+		utils.EmitCheckpointsFlag,
+		utils.IstanbulRequestTimeoutFlag,
+		utils.IstanbulBlockPeriodFlag,
+		utils.IstanbulBlockPauseTimeFlag,
+	}
+
+	rpcFlags = []cli.Flag{
 		utils.RPCEnabledFlag,
 		utils.RPCListenAddrFlag,
 		utils.RPCPortFlag,
@@ -133,36 +136,54 @@ participating.
 		utils.WSApiFlag,
 		utils.WSAllowedOriginsFlag,
 		utils.IPCDisabledFlag,
-		utils.IPCApiFlag,
 		utils.IPCPathFlag,
-		utils.ExecFlag,
-		utils.PreloadJSFlag,
-		utils.WhisperEnabledFlag,
-		utils.DevModeFlag,
-		utils.TestNetFlag,
-		utils.VMForceJitFlag,
-		utils.VMJitCacheFlag,
-		utils.VMEnableJitFlag,
-		utils.NetworkIdFlag,
-		utils.RPCCORSDomainFlag,
-		utils.MetricsEnabledFlag,
-		utils.FakePoWFlag,
-		utils.SolcPathFlag,
-		utils.ExtraDataFlag,
-		utils.VoteAccountFlag,
-		utils.VoteAccountPasswordFlag,
-		utils.VoteBlockMakerAccountFlag,
-		utils.VoteBlockMakerAccountPasswordFlag,
-		utils.VoteMinBlockTimeFlag,
-		utils.VoteMaxBlockTimeFlag,
-		utils.SingleBlockMakerFlag,
-		utils.EnableNodePermissionFlag,
-		utils.RaftModeFlag,
-		utils.RaftBlockTimeFlag,
-		utils.RaftJoinExistingFlag,
-		utils.RaftPortFlag,
 	}
+
+	whisperFlags = []cli.Flag{
+		utils.WhisperEnabledFlag,
+		utils.WhisperMaxMessageSizeFlag,
+		utils.WhisperMinPOWFlag,
+	}
+)
+
+func init() {
+	// Initialize the CLI app and start Geth
+	app.Action = geth
+	app.HideVersion = true // we have a command to print the version
+	app.Copyright = "Copyright 2013-2017 The go-ethereum Authors"
+	app.Commands = []cli.Command{
+		// See chaincmd.go:
+		initCommand,
+		importCommand,
+		exportCommand,
+		copydbCommand,
+		removedbCommand,
+		dumpCommand,
+		// See monitorcmd.go:
+		monitorCommand,
+		// See accountcmd.go:
+		accountCommand,
+		walletCommand,
+		// See consolecmd.go:
+		consoleCommand,
+		attachCommand,
+		javascriptCommand,
+		// See misccmd.go:
+		makecacheCommand,
+		makedagCommand,
+		versionCommand,
+		bugCommand,
+		licenseCommand,
+		// See config.go
+		dumpConfigCommand,
+	}
+	sort.Sort(cli.CommandsByName(app.Commands))
+
+	app.Flags = append(app.Flags, nodeFlags...)
+	app.Flags = append(app.Flags, rpcFlags...)
+	app.Flags = append(app.Flags, consoleFlags...)
 	app.Flags = append(app.Flags, debug.Flags...)
+	app.Flags = append(app.Flags, whisperFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
 		runtime.GOMAXPROCS(runtime.NumCPU())
@@ -172,18 +193,11 @@ participating.
 		// Start system runtime metrics collection
 		go metrics.CollectProcessMetrics(3 * time.Second)
 
-		// This should be the only place where reporting is enabled
-		// because it is not intended to run while testing.
-		// In addition to this check, bad block reports are sent only
-		// for chains with the main network genesis block and network id 1.
-		eth.EnableBadBlockReporting = true
-
 		utils.SetupNetwork(ctx)
 		return nil
 	}
 
 	app.After = func(ctx *cli.Context) error {
-		logger.Flush()
 		debug.Exit()
 		console.Stdin.Close() // Resets terminal mode.
 		return nil
@@ -207,195 +221,86 @@ func geth(ctx *cli.Context) error {
 	return nil
 }
 
-// initGenesis will initialise the given JSON format genesis file and writes it as
-// the zero'd block (i.e. genesis) or will fail hard if it can't succeed.
-func initGenesis(ctx *cli.Context) error {
-	genesisPath := ctx.Args().First()
-	if len(genesisPath) == 0 {
-		utils.Fatalf("must supply path to genesis JSON file")
-	}
-
-	if ctx.GlobalBool(utils.TestNetFlag.Name) {
-		state.StartingNonce = 1048576 // (2**20)
-	}
-
-	stack := makeFullNode(ctx)
-	chaindb := utils.MakeChainDatabase(ctx, stack)
-
-	genesisFile, err := os.Open(genesisPath)
-	if err != nil {
-		utils.Fatalf("failed to read genesis file: %v", err)
-	}
-
-	block, err := core.WriteGenesisBlock(chaindb, genesisFile)
-	if err != nil {
-		utils.Fatalf("failed to write genesis block: %v", err)
-	}
-	glog.V(logger.Info).Infof("successfully wrote genesis block and/or chain rule set: %x", block.Hash())
-	return nil
-}
-
-func makeFullNode(ctx *cli.Context) *node.Node {
-	stack := utils.MakeNode(ctx, clientIdentifier, gitCommit)
-	utils.RegisterEthService(ctx, stack, utils.MakeDefaultExtraData(clientIdentifier))
-
-	// Whisper must be explicitly enabled, but is auto-enabled in --dev mode.
-	shhEnabled := ctx.GlobalBool(utils.WhisperEnabledFlag.Name)
-	shhAutoEnabled := !ctx.GlobalIsSet(utils.WhisperEnabledFlag.Name) && ctx.GlobalIsSet(utils.DevModeFlag.Name)
-	if shhEnabled || shhAutoEnabled {
-		utils.RegisterShhService(stack)
-	}
-
-	// Add the release oracle service so it boots along with node.
-	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		config := release.Config{
-			Oracle: relOracle,
-			Major:  uint32(utils.VersionMajor),
-			Minor:  uint32(utils.VersionMinor),
-			Patch:  uint32(utils.VersionPatch),
-		}
-		commit, _ := hex.DecodeString(gitCommit)
-		copy(config.Commit[:], commit)
-		return release.NewReleaseService(ctx, config)
-	}); err != nil {
-		utils.Fatalf("Failed to register the Geth release oracle service: %v", err)
-	}
-
-	return stack
-}
-
 // startNode boots up the system node and all registered protocols, after which
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
 func startNode(ctx *cli.Context, stack *node.Node) {
+	log.DoEmitCheckpoints = ctx.GlobalBool(utils.EmitCheckpointsFlag.Name)
+
 	// Start up the node itself
 	utils.StartNode(stack)
 
 	// Unlock any account specifically requested
-	accman := stack.AccountManager()
+	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
+
 	passwords := utils.MakePasswordList(ctx)
-	accounts := strings.Split(ctx.GlobalString(utils.UnlockedAccountFlag.Name), ",")
-	for i, account := range accounts {
+	unlocks := strings.Split(ctx.GlobalString(utils.UnlockedAccountFlag.Name), ",")
+	for i, account := range unlocks {
 		if trimmed := strings.TrimSpace(account); trimmed != "" {
-			unlockAccount(ctx, accman, trimmed, i, passwords)
+			unlockAccount(ctx, ks, trimmed, i, passwords)
 		}
 	}
+	// Register wallet event handlers to open and auto-derive wallets
+	events := make(chan accounts.WalletEvent, 16)
+	stack.AccountManager().Subscribe(events)
 
-	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
-		return
-	}
-
-	// Start auxiliary services for Quorum Chain
-
-	var ethereum *eth.Ethereum
-	if err := stack.Service(&ethereum); err != nil {
-		utils.Fatalf("ethereum service not running: %v", err)
-	}
-
-	client, err := stack.Attach()
-	if err != nil {
-		utils.Fatalf("Unable to attach to node: %v", err)
-	}
-
-	var (
-		voteKey      *ecdsa.PrivateKey
-		blockVoteKey *ecdsa.PrivateKey
-	)
-
-	if addr := ctx.GlobalString(utils.VoteAccountFlag.Name); addr != "" {
-		addr = strings.TrimSpace(addr)
-		var passwd []string
-		if ctx.GlobalIsSet(utils.VoteAccountPasswordFlag.Name) {
-			passwd = append(passwd, ctx.GlobalString(utils.VoteAccountPasswordFlag.Name))
-		}
-
-		unlockAccount(ctx, accman, addr, 0, passwd)
-		// unlockAccounts fatals in case the account could not be unlocked
-		voteKey, err = accman.Key(common.HexToAddress(addr))
+	go func() {
+		// Create an chain state reader for self-derivation
+		rpcClient, err := stack.Attach()
 		if err != nil {
-			utils.Fatalf("Unable to unlock vote key: %v", err)
+			utils.Fatalf("Failed to attach to self: %v", err)
 		}
-	}
+		stateReader := ethclient.NewClient(rpcClient)
 
-	if addr := ctx.GlobalString(utils.VoteBlockMakerAccountFlag.Name); addr != "" {
-		addr = strings.TrimSpace(addr)
-		var passwd []string
-		if ctx.GlobalIsSet(utils.VoteBlockMakerAccountPasswordFlag.Name) {
-			passwd = append(passwd, ctx.GlobalString(utils.VoteBlockMakerAccountPasswordFlag.Name))
-		}
-		unlockAccount(ctx, accman, addr, 0, passwd)
-		// unlockAccounts fatals in case the account could not be unlocked
-		blockVoteKey, err = accman.Key(common.HexToAddress(addr[2:]))
-		if err != nil {
-			utils.Fatalf("Unable to unlock block maker key: %v", err)
-		}
-	}
-
-	if err := ethereum.StartBlockVoting(client, voteKey, blockVoteKey); err != nil {
-		utils.Fatalf("Failed to start block voting: %v", err)
-	}
-}
-
-func makedag(ctx *cli.Context) error {
-	args := ctx.Args()
-	wrongArgs := func() {
-		utils.Fatalf(`Usage: geth makedag <block number> <outputdir>`)
-	}
-	switch {
-	case len(args) == 2:
-		blockNum, err := strconv.ParseUint(args[0], 0, 64)
-		dir := args[1]
-		if err != nil {
-			wrongArgs()
-		} else {
-			dir = filepath.Clean(dir)
-			// seems to require a trailing slash
-			if !strings.HasSuffix(dir, "/") {
-				dir = dir + "/"
+		// Open any wallets already attached
+		for _, wallet := range stack.AccountManager().Wallets() {
+			if err := wallet.Open(""); err != nil {
+				log.Warn("Failed to open wallet", "url", wallet.URL(), "err", err)
 			}
-			_, err = ioutil.ReadDir(dir)
-			if err != nil {
-				utils.Fatalf("Can't find dir")
-			}
-			fmt.Println("making DAG, this could take awhile...")
-			ethash.MakeDAG(blockNum, dir)
 		}
-	default:
-		wrongArgs()
+		// Listen for wallet event till termination
+		for event := range events {
+			switch event.Kind {
+			case accounts.WalletArrived:
+				if err := event.Wallet.Open(""); err != nil {
+					log.Warn("New wallet appeared, failed to open", "url", event.Wallet.URL(), "err", err)
+				}
+			case accounts.WalletOpened:
+				status, _ := event.Wallet.Status()
+				log.Info("New wallet appeared", "url", event.Wallet.URL(), "status", status)
+
+				if event.Wallet.URL().Scheme == "ledger" {
+					event.Wallet.SelfDerive(accounts.DefaultLedgerBaseDerivationPath, stateReader)
+				} else {
+					event.Wallet.SelfDerive(accounts.DefaultBaseDerivationPath, stateReader)
+				}
+
+			case accounts.WalletDropped:
+				log.Info("Old wallet dropped", "url", event.Wallet.URL())
+				event.Wallet.Close()
+			}
+		}
+	}()
+	// Start auxiliary services if enabled
+	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) {
+		// Mining only makes sense if a full Ethereum node is running
+		var ethereum *eth.Ethereum
+		if err := stack.Service(&ethereum); err != nil {
+			utils.Fatalf("ethereum service not running: %v", err)
+		}
+		// Use a reduced number of threads if requested
+		if threads := ctx.GlobalInt(utils.MinerThreadsFlag.Name); threads > 0 {
+			type threaded interface {
+				SetThreads(threads int)
+			}
+			if th, ok := ethereum.Engine().(threaded); ok {
+				th.SetThreads(threads)
+			}
+		}
+		// Set the gas price to the limits from the CLI and start mining
+		ethereum.TxPool().SetGasPrice(utils.GlobalBig(ctx, utils.GasPriceFlag.Name))
+		if err := ethereum.StartMining(true); err != nil {
+			utils.Fatalf("Failed to start mining: %v", err)
+		}
 	}
-	return nil
-}
-
-func version(c *cli.Context) error {
-	fmt.Println(strings.Title(clientIdentifier))
-	fmt.Println("Version:", utils.Version)
-	if gitCommit != "" {
-		fmt.Println("Git Commit:", gitCommit)
-	}
-	fmt.Println("Protocol Versions:", eth.ProtocolVersions)
-	fmt.Println("Network Id:", c.GlobalInt(utils.NetworkIdFlag.Name))
-	fmt.Println("Go Version:", runtime.Version())
-	fmt.Println("OS:", runtime.GOOS)
-	fmt.Printf("GOPATH=%s\n", os.Getenv("GOPATH"))
-	fmt.Printf("GOROOT=%s\n", runtime.GOROOT())
-
-	return nil
-}
-
-func license(c *cli.Context) error {
-	fmt.Println(`Geth is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Geth is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with geth. If not, see <http://www.gnu.org/licenses/>.
-`)
-
-	return nil
 }

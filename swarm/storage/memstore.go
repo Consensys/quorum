@@ -19,7 +19,10 @@
 package storage
 
 import (
+	"fmt"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 const (
@@ -127,10 +130,6 @@ func (s *MemStore) setCapacity(c uint) {
 	s.capacity = c
 }
 
-func (s *MemStore) getEntryCnt() uint {
-	return s.entryCnt
-}
-
 // entry (not its copy) is going to be in MemStore
 func (s *MemStore) Put(entry *Chunk) {
 	if s.capacity == 0 {
@@ -203,8 +202,6 @@ func (s *MemStore) Put(entry *Chunk) {
 	node.lastDBaccess = s.dbAccessCnt
 	node.updateAccess(s.accessCnt)
 	s.entryCnt++
-
-	return
 }
 
 func (s *MemStore) Get(hash Key) (chunk *Chunk, err error) {
@@ -284,7 +281,11 @@ func (s *MemStore) removeOldest() {
 	}
 
 	if node.entry.dbStored != nil {
+		log.Trace(fmt.Sprintf("Memstore Clean: Waiting for chunk %v to be saved", node.entry.Key.Log()))
 		<-node.entry.dbStored
+		log.Trace(fmt.Sprintf("Memstore Clean: Chunk %v saved to DBStore. Ready to clear from mem.", node.entry.Key.Log()))
+	} else {
+		log.Trace(fmt.Sprintf("Memstore Clean: Chunk %v already in DB. Ready to delete.", node.entry.Key.Log()))
 	}
 
 	if node.entry.SData != nil {
@@ -314,3 +315,6 @@ func (s *MemStore) removeOldest() {
 		}
 	}
 }
+
+// Close memstore
+func (s *MemStore) Close() {}

@@ -3,8 +3,7 @@ package raft
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/logger"
-	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/log"
 
 	"gopkg.in/fatih/set.v0"
 	lane "gopkg.in/oleiade/lane.v1"
@@ -68,7 +67,7 @@ func (chain *speculativeChain) accept(acceptedBlock *types.Block) {
 		// Remove the txes in this accepted block from our blacklist.
 		chain.removeProposedTxes(acceptedBlock)
 	} else {
-		glog.V(logger.Warn).Infof("Another node minted %x; Clearing speculative state\n", acceptedBlock.Hash())
+		log.Info("Another node minted; Clearing speculative state", "block", acceptedBlock.Hash())
 
 		chain.clear(acceptedBlock)
 	}
@@ -77,10 +76,10 @@ func (chain *speculativeChain) accept(acceptedBlock *types.Block) {
 // Remove all blocks in the chain from the specified one until the end
 func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *types.Block) {
 
-	// check our "guard" to see if this is a (descendant) block we
+	// check our "guard" to see if this is a (descendant) block we're
 	// expected to be ruled invalid. if we find it, remove from the guard
 	if chain.expectedInvalidBlockHashes.Has(invalidHash) {
-		glog.V(logger.Warn).Infof("Removing expected-invalid block %x from guard.\n", invalidHash)
+		log.Info("Removing expected-invalid block from guard.", "block", invalidHash)
 
 		chain.expectedInvalidBlockHashes.Remove(invalidHash)
 
@@ -93,16 +92,16 @@ func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *ty
 		currBlockI := chain.unappliedBlocks.Pop()
 
 		if nil == currBlockI {
-			glog.V(logger.Warn).Infof("(Popped all blocks from queue.)\n")
+			log.Info("(Popped all blocks from queue.)")
 
 			break
 		}
 
 		currBlock := currBlockI.(*types.Block)
 
-		glog.V(logger.Info).Infof("Popped block %x from queue RHS.\n", currBlock.Hash())
+		log.Info("Popped block from queue RHS.", "block", currBlock.Hash())
 
-		// Maintain invariant: the parent always points to the last speculative block or the head of the blockchain
+		// Maintain invariant: the parent always points the last speculative block or the head of the blockchain
 		// if there are not speculative blocks.
 		if speculativeParentI := chain.unappliedBlocks.Last(); nil != speculativeParentI {
 			chain.head = speculativeParentI.(*types.Block)
@@ -113,7 +112,7 @@ func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *ty
 		chain.removeProposedTxes(currBlock)
 
 		if currBlock.Hash() != invalidHash {
-			glog.V(logger.Warn).Infof("Haven't yet found block %x; adding descendent %x to guard.\n", invalidHash, currBlock.Hash())
+			log.Info("Haven't yet found block; adding descendent to guard.\n", "invalid block", invalidHash, "descendant", currBlock.Hash())
 
 			chain.expectedInvalidBlockHashes.Add(currBlock.Hash())
 		} else {
@@ -138,7 +137,7 @@ func (chain *speculativeChain) recordProposedTransactions(txes types.Transaction
 // Removes txes in block from our "blacklist" of "proposed tx" hashes. When we
 // create a new block and use txes from the tx pool, we ignore those that we
 // have already used ("proposed"), but that haven't yet officially made it into
-// the chain.
+// the chain yet.
 //
 // It's important to remove hashes from this blacklist (once we know we don't
 // need them in there anymore) so that it doesn't grow endlessly.

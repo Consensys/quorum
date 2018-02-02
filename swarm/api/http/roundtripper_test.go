@@ -18,15 +18,13 @@ package http
 
 import (
 	"io/ioutil"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/ethereum/go-ethereum/common/httpclient"
 )
-
-const port = "3222"
 
 func TestRoundTripper(t *testing.T) {
 	serveMux := http.NewServeMux()
@@ -38,13 +36,16 @@ func TestRoundTripper(t *testing.T) {
 			http.Error(w, "Method "+r.Method+" is not supported.", http.StatusMethodNotAllowed)
 		}
 	})
-	go http.ListenAndServe(":"+port, serveMux)
 
-	rt := &RoundTripper{Port: port}
-	client := httpclient.New("/")
-	client.RegisterProtocol("bzz", rt)
+	srv := httptest.NewServer(serveMux)
+	defer srv.Close()
 
-	resp, err := client.Client().Get("bzz://test.com/path")
+	host, port, _ := net.SplitHostPort(srv.Listener.Addr().String())
+	rt := &RoundTripper{Host: host, Port: port}
+	trans := &http.Transport{}
+	trans.RegisterProtocol("bzz", rt)
+	client := &http.Client{Transport: trans}
+	resp, err := client.Get("bzz://test.com/path")
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
 		return

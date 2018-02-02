@@ -50,9 +50,9 @@ func returnHasherToPool(h *hasher) {
 }
 
 // hash collapses a node down into a hash node, also returning a copy of the
-// original node initialzied with the computed hash to replace the original one.
+// original node initialized with the computed hash to replace the original one.
 func (h *hasher) hash(n node, db DatabaseWriter, force bool) (node, node, error) {
-	// If we're not storing the node, just hashing, use avaialble cached data
+	// If we're not storing the node, just hashing, use available cached data
 	if hash, dirty := n.cache(); hash != nil {
 		if db == nil {
 			return hash, n, nil
@@ -76,7 +76,7 @@ func (h *hasher) hash(n node, db DatabaseWriter, force bool) (node, node, error)
 	if err != nil {
 		return hashNode{}, n, err
 	}
-	// Cache the hash of the ndoe for later reuse and remove
+	// Cache the hash of the node for later reuse and remove
 	// the dirty flag in commit mode. It's fine to assign these values directly
 	// without copying the node first because hashChildren copies it.
 	cachedHash, _ := hashed.(hashNode)
@@ -105,7 +105,7 @@ func (h *hasher) hashChildren(original node, db DatabaseWriter) (node, node, err
 	case *shortNode:
 		// Hash the short node's child, caching the newly hashed subtree
 		collapsed, cached := n.copy(), n.copy()
-		collapsed.Key = compactEncode(n.Key)
+		collapsed.Key = hexToCompact(n.Key)
 		cached.Key = common.CopyBytes(n.Key)
 
 		if _, ok := n.Val.(valueNode); !ok {
