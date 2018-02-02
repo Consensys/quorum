@@ -89,20 +89,6 @@ at block: 679 (Tue, 15 Nov 2016 00:01:05 UTC)
  datadir: /home/ubuntu/quorum-examples/7nodes/qdata/dd2
  modules: admin:1.0 debug:1.0 eth:1.0 net:1.0 personal:1.0 quorum:1.0 rpc:1.0 txpool:1.0 web3:1.0
 
-> quorum.nodeInfo
-{
-  blockMakerAccount: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e",
-  blockmakestrategy: {
-    maxblocktime: 10,
-    minblocktime: 3,
-    status: "active",
-    type: "deadline"
-  },
-  canCreateBlocks: true,
-  canVote: true,
-  voteAccount: "0x0fbdc686b912d7722dc86510934589e0aaf3b55a"
-}
-
 # let's look at the private txn created earlier:
 > eth.getTransaction("0xbfb7bfb97ba9bacbf768e67ac8ef05e4ac6960fc1eeb6ab38247db91448b8ec6")
 {
@@ -137,6 +123,7 @@ Further documentation can be found in the [docs](docs/) folder and on the [wiki]
 * [Quorum](https://github.com/jpmorganchase/quorum): this repository
 * [Constellation](https://github.com/jpmorganchase/constellation): peer-to-peer encrypted message exchange for transaction privacy
 * [Raft Consensus Documentation](raft/doc.md)
+* [Istanbul BFT Consensus Documentation](https://github.com/ethereum/EIPs/issues/650): [RPC API](https://github.com/getamis/go-ethereum/wiki/RPC-API) and [technical article](https://medium.com/getamis/istanbul-bft-ibft-c2758b7fe6ff)
 * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) wiki page and [documentation](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
 * [quorum-examples](https://github.com/jpmorganchase/quorum-examples): example quorum clusters
 * [quorum-tools](https://github.com/jpmorganchase/quorum-tools): local cluster orchestration, and integration testing tool
