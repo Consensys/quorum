@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -57,25 +58,6 @@ func RunNode(socketPath string) error {
 	return errors.New("Constellation Node API did not respond to upcheck request")
 }
 
-type SendRequest struct {
-	Payload string   `json:"payload"`
-	From    string   `json:"from,omitempty"`
-	To      []string `json:"to"`
-}
-
-type SendResponse struct {
-	Key string `json:"key"`
-}
-
-type ReceiveRequest struct {
-	Key string `json:"key"`
-	To  string `json:"to"`
-}
-
-type ReceiveResponse struct {
-	Payload string `json:"payload"`
-}
-
 type Client struct {
 	httpClient *http.Client
 }
@@ -99,55 +81,36 @@ func (c *Client) doJson(path string, apiReq interface{}) (*http.Response, error)
 }
 
 func (c *Client) SendPayload(pl []byte, b64From string, b64To []string) ([]byte, error) {
-	var from string
-	if b64From == "" {
-		from = c.b64PublicKey
-	} else {
-		from = b64From
-	}
-	req := &SendRequest{
-		Payload: base64.StdEncoding.EncodeToString(pl),
-		From:    from,
-		To:      b64To,
-	}
-	res, err := c.do("send", req)
+	buf := bytes.NewBuffer(pl)
+	req, err := http.NewRequest("POST", "http+unix://c/sendraw", buf)
 	if err != nil {
 		return nil, err
+	}
+	if b64From != "" {
+		req.Header.Set("c11n-from", b64From)
+	}
+	req.Header.Set("c11n-to", strings.Join(b64To, ","))
+	req.Header.Set("Content-Type", "application/octet-stream")
+	res, err := c.httpClient.Do(req)
+	if err == nil && res.StatusCode != 200 {
+		return nil, fmt.Errorf("Non-200 status code: %+v", res)
 	}
 	defer res.Body.Close()
-	sres := new(SendResponse)
-	err = json.NewDecoder(res.Body).Decode(sres)
-	if err != nil {
-		return nil, err
-	}
-	key, err := base64.StdEncoding.DecodeString(sres.Key)
-	if err != nil {
-		return nil, err
-	}
-	return key, nil
+	return ioutil.ReadAll(res.Body)
 }
 
 func (c *Client) ReceivePayload(key []byte) ([]byte, error) {
-	b64Key := base64.StdEncoding.EncodeToString(key)
-	req := &ReceiveRequest{
-		Key: b64Key,
-		To:  c.b64PublicKey,
-	}
-	res, err := c.do("receive", req)
+	req, err := http.NewRequest("GET", "http+unix://c/receiveraw", nil)
 	if err != nil {
 		return nil, err
+	}
+	req.Header.Set("c11n-key", base64.StdEncoding.EncodeToString(key))
+	res, err := c.httpClient.Do(req)
+	if err == nil && res.StatusCode != 200 {
+		return nil, fmt.Errorf("Non-200 status code: %+v", res)
 	}
 	defer res.Body.Close()
-	rres := new(ReceiveResponse)
-	err = json.NewDecoder(res.Body).Decode(rres)
-	if err != nil {
-		return nil, err
-	}
-	pl, err := base64.StdEncoding.DecodeString(rres.Payload)
-	if err != nil {
-		return nil, err
-	}
-	return pl, nil
+	return ioutil.ReadAll(res.Body)
 }
 
 func NewClient(socketPath string) (*Client, error) {
