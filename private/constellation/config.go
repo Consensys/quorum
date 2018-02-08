@@ -5,12 +5,11 @@ import (
 )
 
 type Config struct {
-	Socket         string   `toml:"socket"`
-	PublicKeys     []string `toml:"publickeys"`
+	Socket  string `toml:"socket"`
+	WorkDir string `toml:"workdir"`
 
 	// Deprecated
-	SocketPath     string   `toml:"socketPath"`
-	PublicKeyPath  string   `toml:"publicKeyPath"`
+	SocketPath string `toml:"socketPath"`
 }
 
 func LoadConfig(configPath string) (*Config, error) {
@@ -21,9 +20,6 @@ func LoadConfig(configPath string) (*Config, error) {
 	// Fall back to Constellation 0.0.1 config format if necessary
 	if cfg.Socket == "" {
 		cfg.Socket = cfg.SocketPath
-	}
-	if len(cfg.PublicKeys) == 0 {
-		cfg.PublicKeys = append(cfg.PublicKeys, cfg.PublicKeyPath)
 	}
 	return cfg, nil
 }
