@@ -135,7 +135,7 @@ type ReceiptsRequest struct {
 
 // StoreResult stores the retrieved data in local database
 func (req *ReceiptsRequest) StoreResult(db ethdb.Database) {
-	core.WriteBlockReceipts(db, req.Hash, req.Number, req.Receipts)
+	core.WriteBlockReceipts(db, req.Hash, req.Number, req.Receipts, false)
 }
 
 // TrieRequest is the ODR request type for state/storage trie entries

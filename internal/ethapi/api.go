@@ -1002,7 +1002,12 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(hash common.Hash) (map[
 	if tx == nil {
 		return nil, nil
 	}
-	receipt, _, _, _ := core.GetReceipt(s.b.ChainDb(), hash) // Old receipts don't have the lookup data available
+
+	// try to get a private receipt first, fall back to public receipt
+	receipt, _, _, _ := core.GetReceipt(s.b.ChainDb(), hash, true)
+	if receipt == nil {
+		receipt, _, _, _ = core.GetReceipt(s.b.ChainDb(), hash, false)
+	}
 
 	var signer types.Signer = types.HomesteadSigner{}
 	if tx.Protected() {
