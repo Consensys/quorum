@@ -762,7 +762,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 		if err := WriteBody(batch, block.Hash(), block.NumberU64(), block.Body()); err != nil {
 			return i, fmt.Errorf("failed to write block body: %v", err)
 		}
-		if err := WriteBlockReceipts(batch, block.Hash(), block.NumberU64(), receipts); err != nil {
+		if err := WriteBlockReceipts(batch, block.Hash(), block.NumberU64(), receipts, false); err != nil {
 			return i, fmt.Errorf("failed to write block receipts: %v", err)
 		}
 		if err := WriteTxLookupEntries(batch, block); err != nil {
@@ -809,7 +809,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 }
 
 // WriteBlock writes the block to the chain.
-func (bc *BlockChain) WriteBlockAndState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) (status WriteStatus, err error) {
+func (bc *BlockChain) WriteBlockAndState(block *types.Block, publicReceipts []*types.Receipt, privateReceipts []*types.Receipt, state *state.StateDB) (status WriteStatus, err error) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
@@ -837,7 +837,10 @@ func (bc *BlockChain) WriteBlockAndState(block *types.Block, receipts []*types.R
 	if _, err := state.CommitTo(batch, bc.config.IsEIP158(block.Number())); err != nil {
 		return NonStatTy, err
 	}
-	if err := WriteBlockReceipts(batch, block.Hash(), block.NumberU64(), receipts); err != nil {
+	if err := WriteBlockReceipts(batch, block.Hash(), block.NumberU64(), publicReceipts, false); err != nil {
+		return NonStatTy, err
+	}
+	if err := WriteBlockReceipts(batch, block.Hash(), block.NumberU64(), privateReceipts, true); err != nil {
 		return NonStatTy, err
 	}
 
@@ -1025,10 +1028,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		}
 		// /Quorum
 
-		allReceipts := append(receipts, privateReceipts...)
 		// Write the block to the chain and get the status.
-		status, err := bc.WriteBlockAndState(block, allReceipts, state)
+		status, err := bc.WriteBlockAndState(block, receipts, privateReceipts, state)
 		if err != nil {
+			return i, events, coalescedLogs, err
+		}
+		if err := WritePrivateBlockBloom(bc.chainDb, block.NumberU64(), privateReceipts); err != nil {
 			return i, events, coalescedLogs, err
 		}
 		switch status {
@@ -1124,7 +1129,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		// These logs are later announced as deleted.
 		collectLogs = func(h common.Hash) {
 			// Coalesce logs and set 'Removed'.
-			receipts := GetBlockReceipts(bc.chainDb, h, bc.hc.GetBlockNumber(h))
+			receipts := GetBlockReceipts(bc.chainDb, h, bc.hc.GetBlockNumber(h), false)
 			for _, receipt := range receipts {
 				for _, log := range receipt.Logs {
 					del := *log

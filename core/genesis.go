@@ -271,7 +271,10 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	if err := WriteBlock(db, block); err != nil {
 		return nil, err
 	}
-	if err := WriteBlockReceipts(db, block.Hash(), block.NumberU64(), nil); err != nil {
+	if err := WriteBlockReceipts(db, block.Hash(), block.NumberU64(), nil, false); err != nil {
+		return nil, err
+	}
+	if err := WriteBlockReceipts(db, block.Hash(), block.NumberU64(), nil, true); err != nil {
 		return nil, err
 	}
 	if err := WriteCanonicalHash(db, block.Hash(), block.NumberU64()); err != nil {

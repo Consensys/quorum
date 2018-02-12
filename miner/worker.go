@@ -318,9 +318,8 @@ func (self *worker) wait() {
 			// write private transacions
 			privateStateRoot, _ := work.privateState.CommitTo(self.chainDb, self.config.IsEIP158(block.Number()))
 			core.WritePrivateStateRoot(self.chainDb, block.Root(), privateStateRoot)
-			allReceipts := append(work.receipts, work.privateReceipts...)
 
-			stat, err := self.chain.WriteBlockAndState(block, allReceipts, work.state)
+			stat, err := self.chain.WriteBlockAndState(block, work.receipts, work.privateReceipts, work.state)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
