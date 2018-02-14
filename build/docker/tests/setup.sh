@@ -261,14 +261,3 @@ networks:
       config:
       - subnet: $subnet
 EOF
-
-
-#### Create pre-populated contracts ####################################
-
-# Private contract - insert Node 2 as the recipient
-cat ../templates/contract_pri.js \
-    | sed s:_NODEKEY_:`cat qdata_2/constellation/tm.pub`:g \
-          > contract_pri.js
-
-# Public contract - no change required
-cp ../templates/contract_pub.js ./
