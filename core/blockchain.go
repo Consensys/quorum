@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -322,11 +321,7 @@ func (bc *BlockChain) GasLimit() *big.Int {
 	bc.mu.RLock()
 	defer bc.mu.RUnlock()
 
-	if bc.Config().IsQuorum {
-		return math.MaxBig256 // HACK(joel) a very large number
-	} else {
-		return bc.currentBlock.GasLimit()
-	}
+	return bc.currentBlock.GasLimit()
 }
 
 // LastBlockHash return the hash of the HEAD block.
