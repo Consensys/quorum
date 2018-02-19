@@ -82,6 +82,18 @@ else
   GETH_ARGS="$COMMON_ARGS $bootnode --raftjoinexisting $raftID"
 fi
 
+#
+# the geth node should not start until constellation started and
+# generated the shared IPC
+#
+while [ ! -f /qdata/constellation/tm.ipc ]
+do
+  sleep 2
+done
+
+#
+# ALL SET!
+#
 if [ ! -d /qdata/ethereum/geth/chaindata ]; then
   echo "[*] Mining Genesis block"
   geth --datadir /qdata/ethereum init /qdata/ethereum/genesis.json
