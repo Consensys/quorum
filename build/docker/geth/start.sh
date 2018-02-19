@@ -86,10 +86,13 @@ fi
 # the geth node should not start until constellation started and
 # generated the shared IPC
 #
-while [ ! -f /qdata/constellation/tm.ipc ]
+while [ ! -f $TMCONF ]
 do
   sleep 2
 done
+
+# sleep an additional 2 seconds to give the constellation node a chance to start
+sleep 5
 
 #
 # ALL SET!
