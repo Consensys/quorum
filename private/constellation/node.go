@@ -96,7 +96,7 @@ func (c *Client) SendPayload(pl []byte, b64From string, b64To []string) ([]byte,
 		return nil, fmt.Errorf("Non-200 status code: %+v", res)
 	}
 	defer res.Body.Close()
-	return ioutil.ReadAll(res.Body)
+	return ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, res.Body))
 }
 
 func (c *Client) ReceivePayload(key []byte) ([]byte, error) {
