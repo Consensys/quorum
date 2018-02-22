@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -46,9 +47,8 @@ func unixClient(socketPath string) *http.Client {
 	}
 }
 
-func RunNode(socketPath string) error {
-	c := unixClient(socketPath)
-	res, err := c.Get("http+unix://c/upcheck")
+func UpCheck(c *Client) error {
+	res, err := c.httpClient.Get(c.BaseURL + "upcheck")
 	if err != nil {
 		return err
 	}
@@ -60,6 +60,7 @@ func RunNode(socketPath string) error {
 
 type Client struct {
 	httpClient *http.Client
+	BaseURL    string
 }
 
 func (c *Client) doJson(path string, apiReq interface{}) (*http.Response, error) {
@@ -68,7 +69,7 @@ func (c *Client) doJson(path string, apiReq interface{}) (*http.Response, error)
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest("POST", "http+unix://c/"+path, buf)
+	req, err := http.NewRequest("POST", c.BaseURL+path, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +83,7 @@ func (c *Client) doJson(path string, apiReq interface{}) (*http.Response, error)
 
 func (c *Client) SendPayload(pl []byte, b64From string, b64To []string) ([]byte, error) {
 	buf := bytes.NewBuffer(pl)
-	req, err := http.NewRequest("POST", "http+unix://c/sendraw", buf)
+	req, err := http.NewRequest("POST", c.BaseURL+"sendraw", buf)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +101,7 @@ func (c *Client) SendPayload(pl []byte, b64From string, b64To []string) ([]byte,
 }
 
 func (c *Client) ReceivePayload(key []byte) ([]byte, error) {
-	req, err := http.NewRequest("GET", "http+unix://c/receiveraw", nil)
+	req, err := http.NewRequest("GET", c.BaseURL+"receiveraw", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -113,8 +114,22 @@ func (c *Client) ReceivePayload(key []byte) ([]byte, error) {
 	return ioutil.ReadAll(res.Body)
 }
 
-func NewClient(socketPath string) (*Client, error) {
+func NewClient(config *Config) (*Client, error) {
+	var client *http.Client
+	var baseURL string
+	if config.Socket != "" {
+		socketPath := filepath.Join(config.WorkDir, config.Socket)
+		client = unixClient(socketPath)
+		baseURL = "http+unix://c/"
+	} else {
+		client = http.DefaultClient
+		baseURL = config.BaseURL
+		if baseURL[len(baseURL)-1:] != "/" {
+			baseURL += "/"
+		}
+	}
 	return &Client{
-		httpClient: unixClient(socketPath),
+		httpClient: client,
+		BaseURL:    baseURL,
 	}, nil
 }
