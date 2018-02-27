@@ -24,9 +24,8 @@ const (
 )
 
 type Config struct {
-	RequestTimeout uint64         `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds. This timeout should be larger than BlockPauseTime
+	RequestTimeout uint64         `toml:",omitempty"` // The timeout for each Istanbul round in milliseconds.
 	BlockPeriod    uint64         `toml:",omitempty"` // Default minimum difference between two consecutive block's timestamps in second
-	BlockPauseTime uint64         `toml:",omitempty"` // Delay time if no tx in block, the value should be larger than BlockPeriod
 	ProposerPolicy ProposerPolicy `toml:",omitempty"` // The policy for proposer selection
 	Epoch          uint64         `toml:",omitempty"` // The number of blocks after which to checkpoint and reset the pending votes
 }
@@ -34,7 +33,6 @@ type Config struct {
 var DefaultConfig = &Config{
 	RequestTimeout: 10000,
 	BlockPeriod:    1,
-	BlockPauseTime: 2,
 	ProposerPolicy: RoundRobin,
 	Epoch:          30000,
 }

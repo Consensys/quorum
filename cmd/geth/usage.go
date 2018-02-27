@@ -22,6 +22,8 @@ import (
 	"io"
 	"sort"
 
+	"strings"
+
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"gopkg.in/urfave/cli.v1"
@@ -225,7 +227,6 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			utils.IstanbulRequestTimeoutFlag,
 			utils.IstanbulBlockPeriodFlag,
-			utils.IstanbulBlockPauseTimeFlag,
 		},
 	},
 }

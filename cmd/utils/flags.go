@@ -534,11 +534,6 @@ var (
 		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
 		Value: eth.DefaultConfig.Istanbul.BlockPeriod,
 	}
-	IstanbulBlockPauseTimeFlag = cli.Uint64Flag{
-		Name:  "istanbul.blockpausetime",
-		Usage: "Pause time when zero tx in previous block, values should be larger than istanbul.blockperiod",
-		Value: eth.DefaultConfig.Istanbul.BlockPauseTime,
-	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -966,9 +961,6 @@ func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
 	}
 	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
 		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
-	}
-	if ctx.GlobalIsSet(IstanbulBlockPauseTimeFlag.Name) {
-		cfg.Istanbul.BlockPauseTime = ctx.GlobalUint64(IstanbulBlockPauseTimeFlag.Name)
 	}
 }
 

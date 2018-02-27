@@ -352,7 +352,7 @@ func TestVoting(t *testing.T) {
 		for j, vote := range tt.votes {
 			headers[j] = &types.Header{
 				Number:     big.NewInt(int64(j) + 1),
-				Time:       big.NewInt(int64(j) * int64(config.BlockPauseTime)),
+				Time:       big.NewInt(int64(j) * int64(config.BlockPeriod)),
 				Coinbase:   accounts.address(vote.voted),
 				Difficulty: defaultDifficulty,
 				MixDigest:  types.IstanbulDigest,
