@@ -31,6 +31,7 @@ import (
 var (
 	Big0                         = big.NewInt(0)
 	errInsufficientBalanceForGas = errors.New("insufficient balance to pay for gas")
+	errConstellationIsntInit     = errors.New("Constellation isn't initialized.")
 )
 
 /*
@@ -232,7 +233,11 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 	publicState := st.state
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
-		data, err = private.P.Receive(st.data)
+		if private.P != nil {
+			data, err = private.P.Receive(st.data)
+		} else {
+			err = errConstellationIsntInit
+		}
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
