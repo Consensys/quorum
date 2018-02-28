@@ -20,10 +20,12 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"math/big"
+	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -398,5 +400,56 @@ func TestVoting(t *testing.T) {
 				t.Errorf("test %d, validator %d: validator mismatch: have %x, want %x", i, j, result[j], validators[j])
 			}
 		}
+	}
+}
+
+func TestSaveAndLoad(t *testing.T) {
+	snap := &Snapshot{
+		Epoch:  5,
+		Number: 10,
+		Hash:   common.HexToHash("1234567890"),
+		Votes: []*Vote{
+			{
+				Validator: common.StringToAddress("1234567891"),
+				Block:     15,
+				Address:   common.StringToAddress("1234567892"),
+				Authorize: false,
+			},
+		},
+		Tally: map[common.Address]Tally{
+			common.StringToAddress("1234567893"): Tally{
+				Authorize: false,
+				Votes:     20,
+			},
+		},
+		ValSet: validator.NewSet([]common.Address{
+			common.StringToAddress("1234567894"),
+			common.StringToAddress("1234567895"),
+		}, istanbul.RoundRobin),
+	}
+	db, _ := ethdb.NewMemDatabase()
+	err := snap.store(db)
+	if err != nil {
+		t.Errorf("store snapshot failed: %v", err)
+	}
+
+	snap1, err := loadSnapshot(snap.Epoch, db, snap.Hash)
+	if err != nil {
+		t.Errorf("load snapshot failed: %v", err)
+	}
+	if snap.Epoch != snap1.Epoch {
+		t.Errorf("epoch mismatch: have %v, want %v", snap1.Epoch, snap.Epoch)
+	}
+	if snap.Hash != snap1.Hash {
+		t.Errorf("hash mismatch: have %v, want %v", snap1.Number, snap.Number)
+	}
+	if !reflect.DeepEqual(snap.Votes, snap.Votes) {
+		t.Errorf("votes mismatch: have %v, want %v", snap1.Votes, snap.Votes)
+	}
+	if !reflect.DeepEqual(snap.Tally, snap.Tally) {
+		t.Errorf("tally mismatch: have %v, want %v", snap1.Tally, snap.Tally)
+	}
+	if !reflect.DeepEqual(snap.ValSet, snap.ValSet) {
+		t.Errorf("validator set mismatch: have %v, want %v", snap1.ValSet, snap.ValSet)
 	}
 }

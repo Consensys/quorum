@@ -33,6 +33,9 @@ func newTestRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet) 
 		Prepares:   newMessageSet(validatorSet),
 		Commits:    newMessageSet(validatorSet),
 		mu:         new(sync.RWMutex),
+		hasBadProposal: func(hash common.Hash) bool {
+			return false
+		},
 	}
 }
 

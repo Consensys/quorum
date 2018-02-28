@@ -41,16 +41,18 @@ func (val *defaultValidator) String() string {
 // ----------------------------------------------------------------------------
 
 type defaultSet struct {
-	validators  istanbul.Validators
+	validators istanbul.Validators
+	policy     istanbul.ProposerPolicy
+
 	proposer    istanbul.Validator
 	validatorMu sync.RWMutex
-
-	selector istanbul.ProposalSelector
+	selector    istanbul.ProposalSelector
 }
 
-func newDefaultSet(addrs []common.Address, selector istanbul.ProposalSelector) *defaultSet {
+func newDefaultSet(addrs []common.Address, policy istanbul.ProposerPolicy) *defaultSet {
 	valSet := &defaultSet{}
 
+	valSet.policy = policy
 	// init validators
 	valSet.validators = make([]istanbul.Validator, len(addrs))
 	for i, addr := range addrs {
@@ -62,8 +64,10 @@ func newDefaultSet(addrs []common.Address, selector istanbul.ProposalSelector) *
 	if valSet.Size() > 0 {
 		valSet.proposer = valSet.GetByIndex(0)
 	}
-	//set proposal selector
-	valSet.selector = selector
+	valSet.selector = roundRobinProposer
+	if policy == istanbul.Sticky {
+		valSet.selector = stickyProposer
+	}
 
 	return valSet
 }
@@ -182,14 +186,16 @@ func (valSet *defaultSet) RemoveValidator(address common.Address) bool {
 }
 
 func (valSet *defaultSet) Copy() istanbul.ValidatorSet {
-	valSet.validatorMu.Lock()
-	defer valSet.validatorMu.Unlock()
+	valSet.validatorMu.RLock()
+	defer valSet.validatorMu.RUnlock()
 
 	addresses := make([]common.Address, 0, len(valSet.validators))
 	for _, v := range valSet.validators {
 		addresses = append(addresses, v.Address())
 	}
-	return newDefaultSet(addresses, valSet.selector)
+	return NewSet(addresses, valSet.policy)
 }
 
 func (valSet *defaultSet) F() int { return int(math.Ceil(float64(valSet.Size())/3)) - 1 }
+
+func (valSet *defaultSet) Policy() istanbul.ProposerPolicy { return valSet.policy }

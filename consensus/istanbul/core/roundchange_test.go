@@ -33,10 +33,9 @@ func TestRoundChangeSet(t *testing.T) {
 		Sequence: big.NewInt(1),
 		Round:    big.NewInt(1),
 	}
-	r := &roundChange{
-		Round:    view.Round,
-		Sequence: view.Sequence,
-		Digest:   common.Hash{},
+	r := &istanbul.Subject{
+		View:   view,
+		Digest: common.Hash{},
 	}
 	m, _ := Encode(r)
 

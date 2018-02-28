@@ -19,15 +19,13 @@ package core
 import (
 	"fmt"
 	"io"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type Engine interface {
-	Start(lastSequence *big.Int, lastProposer common.Address, lastProposal istanbul.Proposal) error
+	Start() error
 	Stop() error
 }
 
@@ -163,35 +161,4 @@ func (m *message) String() string {
 
 func Encode(val interface{}) ([]byte, error) {
 	return rlp.EncodeToBytes(val)
-}
-
-// ----------------------------------------------------------------------------
-
-type roundChange struct {
-	Round    *big.Int
-	Sequence *big.Int
-	Digest   common.Hash
-}
-
-// EncodeRLP serializes rc into the Ethereum RLP format.
-func (rc *roundChange) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{
-		rc.Round,
-		rc.Sequence,
-		rc.Digest,
-	})
-}
-
-// DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
-func (rc *roundChange) DecodeRLP(s *rlp.Stream) error {
-	var rawRoundChange struct {
-		Round    *big.Int
-		Sequence *big.Int
-		Digest   common.Hash
-	}
-	if err := s.Decode(&rawRoundChange); err != nil {
-		return err
-	}
-	rc.Round, rc.Sequence, rc.Digest = rawRoundChange.Round, rawRoundChange.Sequence, rawRoundChange.Digest
-	return nil
 }

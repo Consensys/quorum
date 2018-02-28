@@ -29,11 +29,10 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 func TestSign(t *testing.T) {
-	b, _, _ := newBackend()
+	b := newBackend()
 	data := []byte("Here is a string....")
 	sig, err := b.Sign(data)
 	if err != nil {
@@ -54,7 +53,7 @@ func TestCheckSignature(t *testing.T) {
 	data := []byte("Here is a string....")
 	hashData := crypto.Keccak256([]byte(data))
 	sig, _ := crypto.Sign(hashData, key)
-	b, _, _ := newBackend()
+	b := newBackend()
 	a := getAddress()
 	err := b.CheckSignature(data, a, sig)
 	if err != nil {
@@ -68,7 +67,7 @@ func TestCheckSignature(t *testing.T) {
 }
 
 func TestCheckValidatorSignature(t *testing.T) {
-	_, keys, vset := newBackend()
+	vset, keys := newTestValidatorSet(5)
 
 	// 1. Positive test: sign with validator's key should succeed
 	data := []byte("dummy data")
@@ -113,7 +112,7 @@ func TestCheckValidatorSignature(t *testing.T) {
 }
 
 func TestCommit(t *testing.T) {
-	backend, _, _ := newBackend()
+	backend := newBackend()
 
 	commitCh := make(chan *types.Block)
 	// Case: it's a proposer, so the backend.commit will receive channel result from backend.Commit function
@@ -235,13 +234,9 @@ func (slice Keys) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-func newBackend() (b *backend, validatorKeys Keys, validatorSet istanbul.ValidatorSet) {
+func newBackend() (b *backend) {
+	_, b = newBlockChain(4)
 	key, _ := generatePrivateKey()
-	validatorSet, validatorKeys = newTestValidatorSet(5)
-	b = &backend{
-		privateKey: key,
-		logger:     log.New("backend", "simple"),
-		commitCh:   make(chan *types.Block, 1),
-	}
+	b.privateKey = key
 	return
 }
