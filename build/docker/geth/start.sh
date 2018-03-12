@@ -81,14 +81,17 @@ if [ "$ibft" == YES ]; then
 elif [ "$raftInit" == YES ]; then
   # initial Raft cluster
   GETH_ARGS="$COMMON_ARGS $bootnode $RAFT_ARGS"
-elif [ "$raftID" == "" ]; then
-  # joining and existing Raft cluster, a raft id is required
-  while [ ! -f /qdata/ethereum/raft.id ]
-  do
-    sleep 2
-  done
+else
+  if [ "$raftID" == "" ]; then
+    # joining and existing Raft cluster, a raft id is required
+    while [ ! -f /qdata/ethereum/raft.id ]
+    do
+      sleep 2
+    done
 
-  raftID=`cat /qdata/ethereum/raft.id`
+    raftID=`cat /qdata/ethereum/raft.id`
+  fi
+
   GETH_ARGS="$COMMON_ARGS $bootnode $RAFT_ARGS --raftjoinexisting $raftID"
 fi
 
