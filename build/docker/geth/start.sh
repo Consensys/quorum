@@ -9,9 +9,14 @@ set -e
 ### Configuration Options
 TMCONF=/qdata/constellation/tm.conf
 
-COMMON_ARGS="--datadir /qdata/ethereum --permissioned --rpc --rpcaddr 0.0.0.0 --unlock 0 --password /qdata/ethereum/passwords.txt --verbosity 4 --bootnodes"
-RAFT_ARGS="--raft --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,raft"
-IBFT_ARGS="--syncmode full --mine --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,istanbul"
+COMMON_ARGS="--datadir /qdata/ethereum --permissioned --rpc --rpcport 8545 --rpcaddr 0.0.0.0 --ws --wsport 8546 --wsaddr 0.0.0.0 --unlock 0 --password /qdata/ethereum/passwords.txt --verbosity 4 --bootnodes"
+COMMON_APIS="admin,db,eth,debug,miner,net,shh,txpool,personal,web3"
+RAFT_APIS="$COMMON_APIS,raft"
+RAFT_ARGS="--raft --rpcapi $RAFT_APIS --wsapi $RAFT_APIS"
+IBFT_APIS="$COMMON_APIS,istanbul"
+IBFT_ARGS="--syncmode full --mine --rpcapi $IBFT_APIS --wsapi $IBFT_APIS"
+
+wsOrigins="*"
 
 ###
 ### These are the arguments supported:
@@ -46,6 +51,9 @@ while [ "$1" != "" ]; do
         --bootnode)
             bootnode=$VALUE
             ;;
+        --wsorigins)
+            wsOrigins=$VALUE
+            ;;
         *)
             echo "ERROR: unknown parameter \"$PARAM\""
             exit 1
@@ -58,6 +66,7 @@ echo "bootnode URI          = $bootnode"
 echo "initial Raft cluster? = $raftInit"
 echo "Raft ID               = $raftID"
 echo "Istanbul BFT          = $ibft"
+echo "WS Origins            = $wsOrigins"
 
 #
 # since the bootnode is required, do not proceed until
@@ -94,6 +103,8 @@ else
 
   GETH_ARGS="$COMMON_ARGS $bootnode $RAFT_ARGS --raftjoinexisting $raftID"
 fi
+
+GETH_ARGS="$GETH_ARGS --wsorigins=$wsOrigins"
 
 #
 # the geth node should not start until constellation started and
