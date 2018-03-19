@@ -8,21 +8,15 @@ set -e
 
 ### Configuration Options
 TMCONF=/qdata/constellation/tm.conf
-
-COMMON_ARGS="--datadir /qdata/ethereum --permissioned --rpc --rpcaddr 0.0.0.0 --unlock 0 --password /qdata/ethereum/passwords.txt --verbosity 4 --bootnodes"
-RAFT_ARGS="--raft --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,raft"
-IBFT_ARGS="--syncmode full --mine --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,istanbul"
+COMMON_ARGS="--datadir /qdata/ethereum --permissioned --raft --rpc --rpcaddr 0.0.0.0 --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum,raft --unlock 0 --password /qdata/ethereum/passwords.txt --verbosity 4 --bootnodes"
 
 ###
 ### These are the arguments supported:
 ### bootnode=<enode> - argument is the enode URI of the bootnode
 ### raftInit - to indicate that this node is part of the initial raft quorum/cluster
 ### raftID=<number> - to indicate that this node is joining an existing quorum/cluster
-### ibft - to indicate using Istanbul BFT as the consensus algorithm, instead of Raft
 ###
 ### raftInit and raftID are mutually exclusive
-###
-### if ibft is specified, both raftInit and raftID are ignored
 ###
 ### If the bootnode argument is omitted, the program enters a sleep loop until a file
 ### "bootnode.info" is found.
@@ -34,9 +28,6 @@ while [ "$1" != "" ]; do
     PARAM=`echo $1 | awk -F= '{print $1}'`
     VALUE=`echo $1 | awk -F= '{print $2}'`
     case $PARAM in
-        --ibft)
-            ibft=YES
-            ;;
         --raftInit)
             raftInit=YES
             ;;
@@ -57,7 +48,6 @@ done
 echo "bootnode URI          = $bootnode"
 echo "initial Raft cluster? = $raftInit"
 echo "Raft ID               = $raftID"
-echo "Istanbul BFT          = $ibft"
 
 #
 # since the bootnode is required, do not proceed until
@@ -75,21 +65,21 @@ fi
 #
 # now decide whether to use --raftjoinexisting parameter
 #
-if [ "$ibft" == YES ]; then
-  # using IBFT consensus
-  GETH_ARGS="$COMMON_ARGS $bootnode $IBFT_ARGS"
-elif [ "$raftInit" == YES ]; then
+if [ "$raftInit" == YES ]; then
   # initial Raft cluster
-  GETH_ARGS="$COMMON_ARGS $bootnode $RAFT_ARGS"
-elif [ "$raftID" == "" ]; then
+  GETH_ARGS="$COMMON_ARGS $bootnode"
+else
   # joining and existing Raft cluster, a raft id is required
-  while [ ! -f /qdata/ethereum/raft.id ]
-  do
-    sleep 2
-  done
+  if [ "$raftID" == "" ]; then
+    while [ ! -f /qdata/ethereum/raft.id ]
+    do
+      sleep 2
+    done
 
-  raftID=`cat /qdata/ethereum/raft.id`
-  GETH_ARGS="$COMMON_ARGS $bootnode $RAFT_ARGS --raftjoinexisting $raftID"
+    raftID=`cat /qdata/ethereum/raft.id`
+  fi
+
+  GETH_ARGS="$COMMON_ARGS $bootnode --raftjoinexisting $raftID"
 fi
 
 #
@@ -102,7 +92,7 @@ do
 done
 
 # sleep an additional 2 seconds to give the constellation node a chance to start
-sleep 2
+sleep 5
 
 #
 # ALL SET!
