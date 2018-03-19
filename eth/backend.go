@@ -235,22 +235,11 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *Config, chainConfig
 	}
 
 	// Otherwise assume proof-of-work
-	switch {
-	case config.PowFake:
-		log.Warn("Ethash used in fake mode")
-		return ethash.NewFaker()
-	case config.PowTest:
-		log.Warn("Ethash used in test mode")
-		return ethash.NewTester()
-	case config.PowShared:
-		log.Warn("Ethash used in shared mode")
-		return ethash.NewShared()
-	default:
-		engine := ethash.New(ctx.ResolvePath(config.EthashCacheDir), config.EthashCachesInMem, config.EthashCachesOnDisk,
-			config.EthashDatasetDir, config.EthashDatasetsInMem, config.EthashDatasetsOnDisk)
-		engine.SetThreads(-1) // Disable CPU mining
-		return engine
-	}
+	// For Quorum, Raft run as a separate service, so
+	// the Ethereum service still needs a consensus engine,
+	// use the consensus with the lightest overhead
+	log.Warn("Ethash used in full fake mode")
+	return ethash.NewFullFaker()
 }
 
 // APIs returns the collection of RPC services the ethereum package offers.
