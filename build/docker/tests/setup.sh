@@ -177,7 +177,6 @@ do
 
     cp genesis.json $qd/ethereum/genesis.json
     cp static-nodes.json $qd/ethereum/static-nodes.json
-    cp static-nodes.json $qd/ethereum/permissioned-nodes.json
 
     # Generate Quorum-related keys (used by Constellation)
     docker run -v $pwd/$qd:/qdata -v $pwd/../scripts:/scripts $image_constellation /scripts/generate-keys.sh
