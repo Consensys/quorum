@@ -8,8 +8,6 @@
 .PHONY: geth-darwin geth-darwin-386 geth-darwin-amd64
 .PHONY: geth-windows geth-windows-386 geth-windows-amd64
 
-DOCKER_NS = jpmorganchase
-IMAGES = quorum-builder quorum constellation
 GOBIN = $(shell pwd)/build/bin
 GO ?= latest
 
@@ -39,15 +37,8 @@ ios:
 test: all
 	build/env.sh go run build/ci.go test
 
-%-docker-clean:
-	$(eval TARGET = ${patsubst %-docker-clean,%,${@}})
-	-docker images -q $(DOCKER_NS)/$(TARGET) | xargs -I '{}' docker rmi -f '{}'
-
-docker-clean: $(patsubst %,%-docker-clean, $(IMAGES))
-
-clean: docker-clean
+clean:
 	rm -fr build/_workspace/pkg/ $(GOBIN)/*
-
 
 # The devtools target installs tools required for 'go generate'.
 # You need to put $GOBIN (or $GOPATH/bin) in your PATH to use 'go generate'.
@@ -149,24 +140,3 @@ geth-windows-amd64:
 	build/env.sh go run build/ci.go xgo -- --go=$(GO) --targets=windows/amd64 -v ./cmd/geth
 	@echo "Windows amd64 cross compilation done:"
 	@ls -ld $(GOBIN)/geth-windows-* | grep amd64
-
-# Docker builds
-docker-builder:
-	@echo "Building docker image for builder"
-	docker build -t $(DOCKER_NS)/quorum-builder build/docker/builder
-
-docker-geth: docker-builder
-	@echo "Building docker image for geth"
-	# build geth and bootnode commands
-	docker run -v $(abspath .):/work $(DOCKER_NS)/quorum-builder make all
-	# build the "quorum" docker image
-	docker build -t $(DOCKER_NS)/quorum -f build/docker/geth/Dockerfile .
-
-docker-constellation: docker-builder
-	@echo "Building docker image for constellation"
-	# download the "constellation" binary
-	docker run -v $(abspath .):/work $(DOCKER_NS)/quorum-builder build/docker/constellation/script.sh
-	# build the "constellation" docker image
-	docker build -t $(DOCKER_NS)/constellation -f build/docker/constellation/Dockerfile .
-
-docker: docker-geth docker-constellation
