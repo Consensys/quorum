@@ -18,4 +18,4 @@ if [ ! -d /qdata/dd/geth/chaindata ]; then
 fi
 
 echo "[*] Starting node"
-PRIVATE_CONFIG=$TMCONF nohup /usr/local/bin/geth $GETH_ARGS 2>>/qdata/logs/geth.log
+PRIVATE_CONFIG=$TMCONF nohup /usr/local/bin/geth $GETH_ARGS

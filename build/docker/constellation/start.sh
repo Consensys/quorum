@@ -11,4 +11,4 @@ set -e
 TMCONF=/qdata/tm.conf
 
 echo "[*] Starting Constellation node"
-nohup /usr/local/bin/constellation-node $TMCONF -v3 2>>/qdata/logs/constellation.log
+nohup /usr/local/bin/constellation-node $TMCONF -v3
