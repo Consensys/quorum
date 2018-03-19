@@ -144,8 +144,6 @@ We use Geth's *bootnode* utility to generate the Enode and the private key. By j
 
 ### Create Ethereum accounts and *genesis.json* file
 
-Generates 4 accounts per node. On each node a private key is generated using the password.txt in the qdata dir
-
 To allow nodes to send transactions they will need some Ether. This is required in Quorum, even though gas is zero cost. For simplicity we create an account and private key for each node, and we create the genesis block such that each of the accounts is pre-cherged with a billion Ether (10^27 Wei).
 
 The Geth executable in the Docker image is used to create the accounts. An empty *passwords.txt* file is created which is used when unlocking the (passwordless) Ether account for each node when starting Geth in *start-node.sh*.
