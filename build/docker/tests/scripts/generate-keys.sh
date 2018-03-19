@@ -7,4 +7,4 @@
 #
 
 /usr/local/bin/constellation-node --generatekeys=tm < /dev/null > /dev/null
-mv tm.* /qdata/constellation/
+mv tm.* /qdata/keys/

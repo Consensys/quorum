@@ -9,7 +9,7 @@
 #
 # Run the cluster with "docker-compose up -d"
 #
-# Run a console on Node N with "geth attach qdata_N/ethereum/geth.ipc"
+# Run a console on Node N with "geth attach qdata_N/dd/geth.ipc"
 # (assumes Geth is installed on the host.)
 #
 # Geth and Constellation logfiles for Node N will be in qdata_N/logs/
@@ -60,8 +60,8 @@ n=1
 for ip in ${ips[*]}
 do
     qd=qdata_$n
-    mkdir -p $qd/{logs,constellation}
-    mkdir -p $qd/ethereum/geth
+    mkdir -p $qd/{logs,keys}
+    mkdir -p $qd/dd/geth
 
     let n++
 done
@@ -79,8 +79,8 @@ do
 
     # Generate the node's Enode and key
     bootnode_cmd="docker run -it -v $pwd/$qd:/qdata $image_quorum /usr/local/bin/bootnode"
-    $bootnode_cmd -genkey /qdata/ethereum/nodekey
-    enode=`$bootnode_cmd -nodekey /qdata/ethereum/nodekey -writeaddress | tr -d '[:space:]'`
+    $bootnode_cmd -genkey /qdata/dd/nodekey
+    enode=`$bootnode_cmd -nodekey /qdata/dd/nodekey -writeaddress | tr -d '[:space:]'`
     echo "Node $n id: $enode"
 
     # Add the enode to static-nodes.json
@@ -107,8 +107,8 @@ do
     qd=qdata_$n
 
     # Generate an Ether account for the node
-    touch $qd/ethereum/passwords.txt
-    create_account="docker run -v $pwd/$qd:/qdata $image_quorum /usr/local/bin/geth --datadir=/qdata/ethereum --password /qdata/ethereum/passwords.txt account new"
+    touch $qd/passwords.txt
+    create_account="docker run -v $pwd/$qd:/qdata $image_quorum /usr/local/bin/geth --datadir=/qdata/dd --password /qdata/passwords.txt account new"
     account1=`$create_account | cut -c 11-50`
     account2=`$create_account | cut -c 11-50`
     account3=`$create_account | cut -c 11-50`
@@ -173,14 +173,14 @@ do
     cat ../templates/tm.conf \
         | sed s/_NODEIP_/${cips[$((n-1))]}/g \
         | sed s%_NODELIST_%$nodelist%g \
-              > $qd/constellation/tm.conf
+              > $qd/tm.conf
 
-    cp genesis.json $qd/ethereum/genesis.json
-    cp static-nodes.json $qd/ethereum/static-nodes.json
+    cp genesis.json $qd/genesis.json
+    cp static-nodes.json $qd/dd/static-nodes.json
 
     # Generate Quorum-related keys (used by Constellation)
     docker run -v $pwd/$qd:/qdata -v $pwd/../scripts:/scripts $image_constellation /scripts/generate-keys.sh
-    echo 'Node '$n' public key: '`cat $qd/constellation/tm.pub`
+    echo 'Node '$n' public key: '`cat $qd/keys/tm.pub`
 
     let n++
 done
@@ -243,7 +243,7 @@ EOF
 
 # Private contract - insert Node 2 as the recipient
 cat ../templates/contract_pri.js \
-    | sed s:_NODEKEY_:`cat qdata_2/constellation/tm.pub`:g \
+    | sed s:_NODEKEY_:`cat qdata_2/keys/tm.pub`:g \
           > contract_pri.js
 
 # Public contract - no change required
