@@ -22,7 +22,7 @@
 
 # One Docker container will be configured for each IP address in $ips
 subnet="172.13.0.0/16"
-ips=("172.13.0.3" "172.13.0.5" "172.13.0.7" "172.13.0.9" "172.13.0.11")
+ips=("172.13.0.3" "172.13.0.5")
 
 cips=()
 ## constellation node uses IP address derived from
@@ -213,7 +213,6 @@ for index in ${!ips[*]}; do
     ipc: shareable
 
   node_$n:
-    container_name: node_$n
     image: $image_quorum
     volumes:
       - './$qd:/qdata'
