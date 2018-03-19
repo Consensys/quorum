@@ -52,16 +52,6 @@ fi
 cd tmp
 pwd=`pwd`
 
-#### Create directory for bootnode's configuration ##################
-echo '[0] Configuring for bootnode'
-
-mkdir qdata_0
-bootnode_cmd="docker run -it -v $pwd/qdata_0:/qdata $image_quorum /usr/local/bin/bootnode"
-$bootnode_cmd -genkey /qdata/nodekey
-bootnode_enode=`$bootnode_cmd -nodekey /qdata/nodekey -writeaddress | tr -d '[:space:]'`
-echo "bootnode id: $bootnode_enode"
-
-
 #### Create directories for each node's configuration ##################
 
 echo '[1] Configuring for '$nnodes' nodes.'
@@ -203,16 +193,6 @@ rm -rf genesis.json static-nodes.json
 cat > docker-compose.yml <<EOF
 version: '2'
 services:
-  bootnode:
-    container_name: bootnode
-    image: $image_quorum
-    command: bootnode -nodekey /qdata/nodekey
-    volumes:
-      - './qdata_0:/qdata'
-    networks:
-      quorum_net:
-        ipv4_address: '172.13.0.100'
-
 EOF
 
 for index in ${!ips[*]}; do 
@@ -235,7 +215,6 @@ for index in ${!ips[*]}; do
   node_$n:
     container_name: node_$n
     image: $image_quorum
-    command: start.sh "enode://$bootnode_enode@172.13.0.100:30301"
     volumes:
       - './$qd:/qdata'
     networks:
@@ -245,7 +224,6 @@ for index in ${!ips[*]}; do
       - $((n+22000)):8545
     depends_on:
       - constellation_$n
-      - bootnode
     ipc: container:constellation_$n
 
 EOF
