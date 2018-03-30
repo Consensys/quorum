@@ -172,47 +172,8 @@ func testSubjectWithSignature(t *testing.T) {
 	}
 }
 
-func testRoundChange(t *testing.T) {
-	rc := &roundChange{
-		Round:    big.NewInt(1),
-		Sequence: big.NewInt(2),
-		Digest:   common.StringToHash("1234567890"),
-	}
-	RoundChangePayload, _ := Encode(rc)
-
-	m := &message{
-		Code:    msgRoundChange,
-		Msg:     RoundChangePayload,
-		Address: common.HexToAddress("0x1234567890"),
-	}
-
-	msgPayload, err := m.Payload()
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-
-	decodedMsg := new(message)
-	err = decodedMsg.FromPayload(msgPayload, nil)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-
-	var decodedRC *roundChange
-	err = decodedMsg.Decode(&decodedRC)
-	if err != nil {
-		t.Errorf("error mismatch: have %v, want nil", err)
-	}
-
-	// if block is encoded/decoded by rlp, we cannot to compare interface data type using reflect.DeepEqual. (like istanbul.Proposal)
-	// so individual comparison here.
-	if !reflect.DeepEqual(rc, decodedRC) {
-		t.Errorf("round change mismatch: have %v, want %v", decodedRC, rc)
-	}
-}
-
 func TestMessageEncodeDecode(t *testing.T) {
 	testPreprepare(t)
 	testSubject(t)
 	testSubjectWithSignature(t)
-	testRoundChange(t)
 }

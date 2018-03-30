@@ -125,7 +125,7 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 		handler.SetBroadcaster(manager)
 	}
 
-// Figure out whether to allow fast sync or not
+	// Figure out whether to allow fast sync or not
 	if mode == downloader.FastSync && blockchain.CurrentBlock().NumberU64() > 0 {
 		log.Warn("Blockchain not empty, fast sync disabled")
 		mode = downloader.FullSync
@@ -714,6 +714,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
 	return nil
+}
+
+func (pm *ProtocolManager) Enqueue(id string, block *types.Block) {
+	pm.fetcher.Enqueue(id, block)
 }
 
 // BroadcastBlock will either propagate a block to a subset of it's peers, or

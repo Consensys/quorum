@@ -34,7 +34,7 @@ func newMessageSet(valSet istanbul.ValidatorSet) *messageSet {
 			Sequence: new(big.Int),
 		},
 		messagesMu: new(sync.Mutex),
-		messages:   make(map[common.Hash]*message),
+		messages:   make(map[common.Address]*message),
 		valSet:     valSet,
 	}
 }
@@ -45,7 +45,7 @@ type messageSet struct {
 	view       *istanbul.View
 	valSet     istanbul.ValidatorSet
 	messagesMu *sync.Mutex
-	messages   map[common.Hash]*message
+	messages   map[common.Address]*message
 }
 
 func (ms *messageSet) View() *istanbul.View {
@@ -80,6 +80,12 @@ func (ms *messageSet) Size() int {
 	return len(ms.messages)
 }
 
+func (ms *messageSet) Get(addr common.Address) *message {
+	ms.messagesMu.Lock()
+	defer ms.messagesMu.Unlock()
+	return ms.messages[addr]
+}
+
 // ----------------------------------------------------------------------------
 
 func (ms *messageSet) verify(msg *message) error {
@@ -94,7 +100,7 @@ func (ms *messageSet) verify(msg *message) error {
 }
 
 func (ms *messageSet) addVerifiedMessage(msg *message) error {
-	ms.messages[istanbul.RLPHash(msg)] = msg
+	ms.messages[msg.Address] = msg
 	return nil
 }
 

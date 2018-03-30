@@ -48,10 +48,9 @@ func (c *core) sendRoundChange(round *big.Int) {
 
 	// Now we have the new round number and sequence number
 	cv = c.currentView()
-	rc := &roundChange{
-		Round:    new(big.Int).Set(cv.Round),
-		Sequence: new(big.Int).Set(cv.Sequence),
-		Digest:   common.Hash{},
+	rc := &istanbul.Subject{
+		View:   cv,
+		Digest: common.Hash{},
 	}
 
 	payload, err := Encode(rc)
@@ -70,29 +69,22 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 	logger := c.logger.New("state", c.state, "from", src.Address().Hex())
 
 	// Decode ROUND CHANGE message
-	var rc *roundChange
+	var rc *istanbul.Subject
 	if err := msg.Decode(&rc); err != nil {
 		logger.Error("Failed to decode ROUND CHANGE", "err", err)
 		return errInvalidMessage
 	}
 
+	if err := c.checkMessage(msgRoundChange, rc.View); err != nil {
+		return err
+	}
+
 	cv := c.currentView()
-
-	// We never accept ROUND CHANGE message with different sequence number
-	if rc.Sequence.Cmp(cv.Sequence) != 0 {
-		logger.Warn("Inconsistent sequence number", "expected", cv.Sequence, "got", rc.Sequence)
-		return errInvalidMessage
-	}
-
-	// We never accept ROUND CHANGE message with smaller round number
-	if rc.Round.Cmp(cv.Round) < 0 {
-		logger.Warn("Old round change", "from", src, "expected", cv.Round, "got", rc.Round)
-		return errOldMessage
-	}
+	roundView := rc.View
 
 	// Add the ROUND CHANGE message to its message set and return how many
 	// messages we've got with the same round number and sequence number.
-	num, err := c.roundChangeSet.Add(rc.Round, msg)
+	num, err := c.roundChangeSet.Add(roundView.Round, msg)
 	if err != nil {
 		logger.Warn("Failed to add round change message", "from", src, "msg", msg, "err", err)
 		return err
@@ -102,21 +94,17 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 	// If our round number is smaller than the certificate's round number, we would
 	// try to catch up the round number.
 	if c.waitingForRoundChange && num == int(c.valSet.F()+1) {
-		if cv.Round.Cmp(rc.Round) < 0 {
-			c.sendRoundChange(rc.Round)
+		if cv.Round.Cmp(roundView.Round) < 0 {
+			c.sendRoundChange(roundView.Round)
 		}
 		return nil
-	} else if num == int(2*c.valSet.F()+1) && (c.waitingForRoundChange || cv.Round.Cmp(rc.Round) < 0) {
+	} else if num == int(2*c.valSet.F()+1) && (c.waitingForRoundChange || cv.Round.Cmp(roundView.Round) < 0) {
 		// We've received 2f+1 ROUND CHANGE messages, start a new round immediately.
-		c.startNewRound(&istanbul.View{
-			Round:    new(big.Int).Set(rc.Round),
-			Sequence: new(big.Int).Set(rc.Sequence),
-		}, nil, common.Address{}, true)
+		c.startNewRound(roundView.Round)
 		return nil
-	} else if cv.Round.Cmp(rc.Round) < 0 {
-		// We consider the message with larger round as future messages and not
-		// gossip it to other validators.
-		return errFutureMessage
+	} else if cv.Round.Cmp(roundView.Round) < 0 {
+		// Only gossip the message with current round to other validators.
+		return errIgnored
 	}
 	return nil
 }

@@ -60,7 +60,7 @@ func (c *core) checkRequestMsg(request *istanbul.Request) error {
 func (c *core) storeRequestMsg(request *istanbul.Request) {
 	logger := c.logger.New("state", c.state)
 
-	logger.Trace("Store future request", "request", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
+	logger.Trace("Store future request", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 
 	c.pendingRequestsMu.Lock()
 	defer c.pendingRequestsMu.Unlock()

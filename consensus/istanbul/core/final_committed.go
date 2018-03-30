@@ -16,36 +16,11 @@
 
 package core
 
-import (
-	"math/big"
-	"time"
+import "github.com/ethereum/go-ethereum/common"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
-)
-
-func (c *core) handleFinalCommitted(proposal istanbul.Proposal, proposer common.Address) error {
-	logger := c.logger.New("state", c.state, "number", proposal.Number(), "hash", proposal.Hash())
+func (c *core) handleFinalCommitted() error {
+	logger := c.logger.New("state", c.state)
 	logger.Trace("Received a final committed proposal")
-
-	// Catch up the sequence number
-	if proposal.Number().Cmp(c.current.Sequence()) >= 0 {
-		// Remember to store the proposer since we've accpetted the proposal
-		diff := new(big.Int).Sub(proposal.Number(), c.current.Sequence())
-		c.sequenceMeter.Mark(new(big.Int).Add(diff, common.Big1).Int64())
-
-		if !c.consensusTimestamp.IsZero() {
-			c.consensusTimer.UpdateSince(c.consensusTimestamp)
-			c.consensusTimestamp = time.Time{}
-		}
-
-		c.lastProposer = proposer
-		c.lastProposal = proposal
-		c.startNewRound(&istanbul.View{
-			Sequence: new(big.Int).Add(proposal.Number(), common.Big1),
-			Round:    new(big.Int).Set(common.Big0),
-		}, proposal, proposer, false)
-	}
-
+	c.startNewRound(common.Big0)
 	return nil
 }

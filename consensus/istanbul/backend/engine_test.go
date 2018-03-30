@@ -51,7 +51,7 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 	if err != nil {
 		panic(err)
 	}
-	b.Start(blockchain, blockchain.InsertChain)
+	b.Start(blockchain, blockchain.CurrentBlock, blockchain.HasBadBlock)
 	snap, err := b.snapshot(blockchain, 0, common.Hash{}, nil)
 	if err != nil {
 		panic(err)
@@ -138,7 +138,7 @@ func makeBlock(chain *core.BlockChain, engine *backend, parent *types.Block) *ty
 func makeBlockWithoutSeal(chain *core.BlockChain, engine *backend, parent *types.Block) *types.Block {
 	header := makeHeader(parent, engine.config)
 	engine.Prepare(chain, header)
-	state, _, _ := chain.StateAt(parent.Root())
+	state, _,_ := chain.StateAt(parent.Root())
 	block, _ := engine.Finalize(chain, header, state, nil, nil, nil)
 	return block
 }

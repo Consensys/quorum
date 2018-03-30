@@ -17,24 +17,14 @@
 package core
 
 import (
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 )
 
 // Start implements core.Engine.Start
-func (c *core) Start(lastSequence *big.Int, lastProposer common.Address, lastProposal istanbul.Proposal) error {
-	// Initialize last proposer
-	c.lastProposer = lastProposer
-	c.lastProposal = lastProposal
-	c.valSet = c.backend.Validators(c.lastProposal)
-
+func (c *core) Start() error {
 	// Start a new round from last sequence + 1
-	c.startNewRound(&istanbul.View{
-		Sequence: new(big.Int).Add(lastSequence, common.Big1),
-		Round:    common.Big0,
-	}, lastProposal, lastProposer, false)
+	c.startNewRound(common.Big0)
 
 	// Tests will handle events itself, so we have to make subscribeEvents()
 	// be able to call in test.
@@ -48,6 +38,9 @@ func (c *core) Start(lastSequence *big.Int, lastProposer common.Address, lastPro
 func (c *core) Stop() error {
 	c.stopTimer()
 	c.unsubscribeEvents()
+
+	// Make sure the handler goroutine exits
+	c.handlerWg.Wait()
 	return nil
 }
 
@@ -78,6 +71,14 @@ func (c *core) unsubscribeEvents() {
 }
 
 func (c *core) handleEvents() {
+	// Clear state
+	defer func() {
+		c.current = nil
+		c.handlerWg.Done()
+	}()
+
+	c.handlerWg.Add(1)
+
 	for {
 		select {
 		case event, ok := <-c.events.Chan():
@@ -118,9 +119,9 @@ func (c *core) handleEvents() {
 			if !ok {
 				return
 			}
-			switch ev := event.Data.(type) {
+			switch event.Data.(type) {
 			case istanbul.FinalCommittedEvent:
-				c.handleFinalCommitted(ev.Proposal, ev.Proposer)
+				c.handleFinalCommitted()
 			}
 		}
 	}
@@ -171,7 +172,7 @@ func (c *core) handleCheckedMsg(msg *message, src istanbul.Validator) error {
 	case msgCommit:
 		return testBacklog(c.handleCommit(msg, src))
 	case msgRoundChange:
-		return c.handleRoundChange(msg, src)
+		return testBacklog(c.handleRoundChange(msg, src))
 	default:
 		logger.Error("Invalid message", "msg", msg)
 	}
@@ -191,13 +192,10 @@ func (c *core) handleTimeoutMsg() {
 		}
 	}
 
-	lastProposal, lastProposer := c.backend.LastProposal()
-	if lastProposal != nil && lastProposal.Number().Cmp(c.current.Sequence()) > 0 {
+	lastProposal, _ := c.backend.LastProposal()
+	if lastProposal != nil && lastProposal.Number().Cmp(c.current.Sequence()) >= 0 {
 		c.logger.Trace("round change timeout, catch up latest sequence", "number", lastProposal.Number().Uint64())
-		c.startNewRound(&istanbul.View{
-			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
-			Round:    new(big.Int),
-		}, lastProposal, lastProposer, false)
+		c.startNewRound(common.Big0)
 	} else {
 		c.sendNextRoundChange()
 	}

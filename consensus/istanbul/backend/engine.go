@@ -80,6 +80,8 @@ var (
 	errInvalidCommittedSeals = errors.New("invalid committed seals")
 	// errEmptyCommittedSeals is returned if the field of committed seals is zero.
 	errEmptyCommittedSeals = errors.New("zero committed seals")
+	// errMismatchTxhashes is returned if the TxHash in header is mismatch.
+	errMismatchTxhashes = errors.New("mismatch transcations hashes")
 )
 var (
 	defaultDifficulty = big.NewInt(1)
@@ -364,6 +366,12 @@ func (sb *backend) Prepare(chain consensus.ChainReader, header *types.Header) er
 		return err
 	}
 	header.Extra = extra
+
+	// set header's timestamp
+	header.Time = new(big.Int).Add(parent.Time, new(big.Int).SetUint64(sb.config.BlockPeriod))
+	if header.Time.Int64() < time.Now().Unix() {
+		header.Time = big.NewInt(time.Now().Unix())
+	}
 	return nil
 }
 
@@ -445,21 +453,7 @@ func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, stop <-
 
 // update timestamp and signature of the block based on its number of transactions
 func (sb *backend) updateBlock(parent *types.Header, block *types.Block) (*types.Block, error) {
-	// set block period based the number of tx
-	var period uint64
-	if len(block.Transactions()) == 0 {
-		period = sb.config.BlockPauseTime
-	} else {
-		period = sb.config.BlockPeriod
-	}
-
-	// set header timestamp
 	header := block.Header()
-	header.Time = new(big.Int).Add(parent.Time, new(big.Int).SetUint64(period))
-	time := now().Unix()
-	if header.Time.Int64() < time {
-		header.Time = big.NewInt(time)
-	}
 	// sign the hash
 	seal, err := sb.Sign(sigHash(header).Bytes())
 	if err != nil {
@@ -485,7 +479,7 @@ func (sb *backend) APIs(chain consensus.ChainReader) []rpc.API {
 }
 
 // Start implements consensus.Istanbul.Start
-func (sb *backend) Start(chain consensus.ChainReader, inserter func(types.Blocks) (int, error)) error {
+func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if sb.coreStarted {
@@ -500,23 +494,10 @@ func (sb *backend) Start(chain consensus.ChainReader, inserter func(types.Blocks
 	sb.commitCh = make(chan *types.Block, 1)
 
 	sb.chain = chain
-	sb.inserter = inserter
+	sb.currentBlock = currentBlock
+	sb.hasBadBlock = hasBadBlock
 
-	curHeader := chain.CurrentHeader()
-	lastSequence := new(big.Int).Set(curHeader.Number)
-	lastProposer := common.Address{}
-	// should get proposer if the block is not genesis
-	if lastSequence.Cmp(common.Big0) > 0 {
-		p, err := sb.Author(curHeader)
-		if err != nil {
-			return err
-		}
-		lastProposer = p
-	}
-	// We don't need block body so we create a header only block.
-	// The proposal is only for validator set calculation.
-	lastProposal := types.NewBlockWithHeader(curHeader)
-	if err := sb.core.Start(lastSequence, lastProposer, lastProposal); err != nil {
+	if err := sb.core.Start(); err != nil {
 		return err
 	}
 

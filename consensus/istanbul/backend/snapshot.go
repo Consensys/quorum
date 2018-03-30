@@ -22,6 +22,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 )
@@ -50,11 +51,11 @@ type Tally struct {
 type Snapshot struct {
 	Epoch uint64 // The number of blocks after which to checkpoint and reset the pending votes
 
-	Number uint64                   `json:"number"`     // Block number where the snapshot was created
-	Hash   common.Hash              `json:"hash"`       // Block hash where the snapshot was created
-	Votes  []*Vote                  `json:"votes"`      // List of votes cast in chronological order
-	Tally  map[common.Address]Tally `json:"tally"`      // Current vote tally to avoid recalculating
-	ValSet istanbul.ValidatorSet    `json:"validators"` // Set of authorized validators at this moment
+	Number uint64                   // Block number where the snapshot was created
+	Hash   common.Hash              // Block hash where the snapshot was created
+	Votes  []*Vote                  // List of votes cast in chronological order
+	Tally  map[common.Address]Tally // Current vote tally to avoid recalculating
+	ValSet istanbul.ValidatorSet    // Set of authorized validators at this moment
 }
 
 // newSnapshot create a new snapshot with the specified startup parameters. This
@@ -271,4 +272,50 @@ func (s *Snapshot) validators() []common.Address {
 		}
 	}
 	return validators
+}
+
+type snapshotJSON struct {
+	Epoch  uint64                   `json:"epoch"`
+	Number uint64                   `json:"number"`
+	Hash   common.Hash              `json:"hash"`
+	Votes  []*Vote                  `json:"votes"`
+	Tally  map[common.Address]Tally `json:"tally"`
+
+	// for validator set
+	Validators []common.Address        `json:"validators"`
+	Policy     istanbul.ProposerPolicy `json:"policy"`
+}
+
+func (s *Snapshot) toJSONStruct() *snapshotJSON {
+	return &snapshotJSON{
+		Epoch:      s.Epoch,
+		Number:     s.Number,
+		Hash:       s.Hash,
+		Votes:      s.Votes,
+		Tally:      s.Tally,
+		Validators: s.validators(),
+		Policy:     s.ValSet.Policy(),
+	}
+}
+
+// Unmarshal from a json byte array
+func (s *Snapshot) UnmarshalJSON(b []byte) error {
+	var j snapshotJSON
+	if err := json.Unmarshal(b, &j); err != nil {
+		return err
+	}
+
+	s.Epoch = j.Epoch
+	s.Number = j.Number
+	s.Hash = j.Hash
+	s.Votes = j.Votes
+	s.Tally = j.Tally
+	s.ValSet = validator.NewSet(j.Validators, j.Policy)
+	return nil
+}
+
+// Marshal to a json byte array
+func (s *Snapshot) MarshalJSON() ([]byte, error) {
+	j := s.toJSONStruct()
+	return json.Marshal(j)
 }
