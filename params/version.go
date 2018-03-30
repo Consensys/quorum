@@ -28,7 +28,8 @@ const (
 
 	QuorumVersionMajor = 2
 	QuorumVersionMinor = 0
-	QuorumVersionPatch = 1
+	QuorumVersionPatch = 2
+	QuorumVersionMeta  = "Alastria"
 )
 
 // Version holds the textual version string.
@@ -43,7 +44,11 @@ var Version = func() string {
 
 // Version holds the textual version string.
 var QuorumVersion = func() string {
-	return fmt.Sprintf("%d.%d.%d", QuorumVersionMajor, QuorumVersionMinor, QuorumVersionPatch)
+	v := fmt.Sprintf("%d.%d.%d", QuorumVersionMajor, QuorumVersionMinor, QuorumVersionPatch)
+	if VersionMeta != "" {
+		v += "-" + QuorumVersionMeta
+	}
+	return v
 }()
 
 func VersionWithCommit(gitCommit string) string {
