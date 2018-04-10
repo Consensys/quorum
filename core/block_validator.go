@@ -107,12 +107,12 @@ func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *stat
 // The result may be modified by the caller.
 // This is miner strategy, not consensus protocol.
 func CalcGasLimit(parent *types.Block) *big.Int {
-	// contrib = (parentGasUsed * 3 / 2) / 1024
+	// contrib = (parentGasUsed * 3 / 2) / 4096
 	contrib := new(big.Int).Mul(parent.GasUsed(), big.NewInt(3))
 	contrib = contrib.Div(contrib, big.NewInt(2))
 	contrib = contrib.Div(contrib, params.GasLimitBoundDivisor)
 
-	// decay = parentGasLimit / 1024 -1
+	// decay = parentGasLimit / 4096 - 1
 	decay := new(big.Int).Div(parent.GasLimit(), params.GasLimitBoundDivisor)
 	decay.Sub(decay, big.NewInt(1))
 
@@ -128,7 +128,7 @@ func CalcGasLimit(parent *types.Block) *big.Int {
 	gl.Set(math.BigMax(gl, params.MinGasLimit))
 
 	// however, if we're now below the target (TargetGasLimit) we increase the
-	// limit as much as we can (parentGasLimit / 1024 -1)
+	// limit as much as we can (parentGasLimit / 4096 -1)
 	if gl.Cmp(params.TargetGasLimit) < 0 {
 		gl.Add(parent.GasLimit(), decay)
 		gl.Set(math.BigMin(gl, params.TargetGasLimit))
