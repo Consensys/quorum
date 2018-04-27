@@ -47,6 +47,21 @@ func unixClient(socketPath string) *http.Client {
 	}
 }
 
+func httpTransport() *http.Transport {
+	return &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 100,
+		IdleConnTimeout:     90 * time.Second,
+	}
+}
+
+func httpClient() *http.Client {
+	return &http.Client{
+		Timeout:   time.Second * 5,
+		Transport: httpTransport(),
+	}
+}
+
 func UpCheck(c *Client) error {
 	res, err := c.httpClient.Get(c.BaseURL + "upcheck")
 	if err != nil {
@@ -122,7 +137,7 @@ func NewClient(config *Config) (*Client, error) {
 		client = unixClient(socketPath)
 		baseURL = "http+unix://c/"
 	} else {
-		client = http.DefaultClient
+		client = httpClient()
 		baseURL = config.BaseURL
 		if baseURL[len(baseURL)-1:] != "/" {
 			baseURL += "/"
