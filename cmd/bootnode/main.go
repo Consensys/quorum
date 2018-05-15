@@ -96,12 +96,14 @@ func main() {
 		}
 	}
 
+	var knownNodes []*discover.Node
+
 	if *runv5 {
 		if _, err := discv5.ListenUDP(nodeKey, *listenAddr, natm, "", restrictList); err != nil {
 			utils.Fatalf("%v", err)
 		}
 	} else {
-		if _, err := discover.ListenUDP(nodeKey, *listenAddr, natm, "", restrictList); err != nil {
+		if _, err := discover.ListenUDP(nodeKey, *listenAddr, natm, "", restrictList, knownNodes); err != nil {
 			utils.Fatalf("%v", err)
 		}
 	}

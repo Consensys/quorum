@@ -211,7 +211,7 @@ type reply struct {
 }
 
 // ListenUDP returns a new table that listens for UDP packets on laddr.
-func ListenUDP(priv *ecdsa.PrivateKey, laddr string, natm nat.Interface, nodeDBPath string, netrestrict *netutil.Netlist) (*Table, error) {
+func ListenUDP(priv *ecdsa.PrivateKey, laddr string, natm nat.Interface, nodeDBPath string, netrestrict *netutil.Netlist, knownNodes []*Node) (*Table, error) {
 	addr, err := net.ResolveUDPAddr("udp", laddr)
 	if err != nil {
 		return nil, err
@@ -220,7 +220,7 @@ func ListenUDP(priv *ecdsa.PrivateKey, laddr string, natm nat.Interface, nodeDBP
 	if err != nil {
 		return nil, err
 	}
-	tab, _, err := newUDP(priv, conn, natm, nodeDBPath, netrestrict)
+	tab, _, err := newUDP(priv, conn, natm, nodeDBPath, netrestrict, knownNodes)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func ListenUDP(priv *ecdsa.PrivateKey, laddr string, natm nat.Interface, nodeDBP
 	return tab, nil
 }
 
-func newUDP(priv *ecdsa.PrivateKey, c conn, natm nat.Interface, nodeDBPath string, netrestrict *netutil.Netlist) (*Table, *udp, error) {
+func newUDP(priv *ecdsa.PrivateKey, c conn, natm nat.Interface, nodeDBPath string, netrestrict *netutil.Netlist, knownNodes []*Node) (*Table, *udp, error) {
 	udp := &udp{
 		conn:        c,
 		priv:        priv,
@@ -249,10 +249,20 @@ func newUDP(priv *ecdsa.PrivateKey, c conn, natm nat.Interface, nodeDBPath strin
 	}
 	// TODO: separate TCP port
 	udp.ourEndpoint = makeEndpoint(realaddr, uint16(realaddr.Port))
+
 	tab, err := newTable(udp, PubkeyID(&priv.PublicKey), realaddr, nodeDBPath)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// prepopulate nodes database with the known nodes
+	if nodesLen := len(knownNodes); nodesLen > 0 {
+		log.Info("Adding predefined nodes to node database", "count", nodesLen)
+		tab.mutex.Lock()
+		tab.stuff(knownNodes)
+		tab.mutex.Unlock()
+	}
+
 	udp.Table = tab
 
 	go udp.loop()

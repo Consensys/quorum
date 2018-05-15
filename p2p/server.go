@@ -102,6 +102,10 @@ type Config struct {
 	// allowed to connect, even above the peer limit.
 	TrustedNodes []*discover.Node
 
+	// KnownNodes contains a list of nodes that are used to pre-populate the
+	// node database.
+	KnownNodes []*discover.Node
+
 	// Connectivity can be restricted to certain IP networks.
 	// If this option is set to a non-nil value, only hosts which match one of the
 	// IP networks contained in the list are considered.
@@ -384,9 +388,14 @@ func (srv *Server) Start() (err error) {
 	srv.peerOp = make(chan peerOpFunc)
 	srv.peerOpDone = make(chan struct{})
 
+	knownNodes := append([]*discover.Node(nil), srv.KnownNodes...)
+	if srv.EnableNodePermission {
+		knownNodes = append(knownNodes, parsePermissionedNodes(srv.DataDir)...)
+	}
+
 	// node table
 	if !srv.NoDiscovery {
-		ntab, err := discover.ListenUDP(srv.PrivateKey, srv.ListenAddr, srv.NAT, srv.NodeDatabase, srv.NetRestrict)
+		ntab, err := discover.ListenUDP(srv.PrivateKey, srv.ListenAddr, srv.NAT, srv.NodeDatabase, srv.NetRestrict, knownNodes)
 		if err != nil {
 			return err
 		}
