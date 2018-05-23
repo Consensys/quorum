@@ -40,9 +40,6 @@ type sigCache struct {
 
 // MakeSigner returns a Signer based on the given chain config and block number.
 func MakeSigner(config *params.ChainConfig, blockNumber *big.Int) Signer {
-	if config.IsQuorum {
-		return HomesteadSigner{}
-	}
 	var signer Signer
 	switch {
 	case config.IsEIP155(blockNumber):
@@ -128,6 +125,9 @@ func (s EIP155Signer) Equal(s2 Signer) bool {
 var big8 = big.NewInt(8)
 
 func (s EIP155Signer) Sender(tx *Transaction) (common.Address, error) {
+	if tx.IsPrivate() {
+		return HomesteadSigner{}.Sender(tx)
+	}
 	if !tx.Protected() {
 		return HomesteadSigner{}.Sender(tx)
 	}
@@ -136,12 +136,16 @@ func (s EIP155Signer) Sender(tx *Transaction) (common.Address, error) {
 	}
 	V := new(big.Int).Sub(tx.data.V, s.chainIdMul)
 	V.Sub(V, big8)
-	return recoverPlain(s.Hash(tx), tx.data.R, tx.data.S, V, true, false)
+	return recoverPlain(s.Hash(tx), tx.data.R, tx.data.S, V, true, tx.IsPrivate())
 }
 
 // WithSignature returns a new transaction with the given signature. This signature
 // needs to be in the [R || S || V] format where V is 0 or 1.
 func (s EIP155Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
+	if tx.IsPrivate() {
+		return HomesteadSigner{}.SignatureValues(tx, sig)
+	}
+
 	R, S, V, err = HomesteadSigner{}.SignatureValues(tx, sig)
 	if err != nil {
 		return nil, nil, nil, err
