@@ -74,15 +74,11 @@ type Work struct {
 
 	Block *types.Block // the new block
 
-	header          *types.Header
-	txs             []*types.Transaction
-	receipts        []*types.Receipt
-	privateReceipts []*types.Receipt
+	header   *types.Header
+	txs      []*types.Transaction
+	receipts []*types.Receipt
 
 	createdAt time.Time
-
-	// Leave this publicState named state, add privateState which most code paths can just ignore
-	privateState *state.StateDB
 }
 
 type Result struct {
@@ -121,6 +117,10 @@ type worker struct {
 	currentMu sync.Mutex
 	current   *Work
 
+	snapshotMu    sync.RWMutex
+	snapshotBlock *types.Block
+	snapshotState *state.StateDB
+
 	uncleMu        sync.Mutex
 	possibleUncles map[common.Hash]*types.Block
 
@@ -149,18 +149,15 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase com
 		agents:         make(map[Agent]struct{}),
 		unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
 	}
+	// Subscribe TxPreEvent for tx pool
+	worker.txSub = eth.TxPool().SubscribeTxPreEvent(worker.txCh)
+	// Subscribe events for blockchain
+	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
+	worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
+	go worker.update()
 
-	if _, ok := engine.(consensus.Istanbul); ok || !config.IsQuorum {
-		// Subscribe TxPreEvent for tx pool
-		worker.txSub = eth.TxPool().SubscribeTxPreEvent(worker.txCh)
-		// Subscribe events for blockchain
-		worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
-		worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
-		go worker.update()
-
-		go worker.wait()
-		worker.commitNewWork()
-	}
+	go worker.wait()
+	worker.commitNewWork()
 
 	return worker
 }
@@ -177,33 +174,29 @@ func (self *worker) setExtra(extra []byte) {
 	self.extra = extra
 }
 
-func (self *worker) pending() (*types.Block, *state.StateDB, *state.StateDB) {
+func (self *worker) pending() (*types.Block, *state.StateDB) {
+	if atomic.LoadInt32(&self.mining) == 0 {
+		// return a snapshot to avoid contention on currentMu mutex
+		self.snapshotMu.RLock()
+		defer self.snapshotMu.RUnlock()
+		return self.snapshotBlock, self.snapshotState.Copy()
+	}
+
 	self.currentMu.Lock()
 	defer self.currentMu.Unlock()
-
-	if atomic.LoadInt32(&self.mining) == 0 {
-		return types.NewBlock(
-			self.current.header,
-			self.current.txs,
-			nil,
-			self.current.receipts,
-		), self.current.state.Copy(), self.current.privateState.Copy()
-	}
-	return self.current.Block, self.current.state.Copy(), self.current.privateState.Copy()
+	return self.current.Block, self.current.state.Copy()
 }
 
 func (self *worker) pendingBlock() *types.Block {
+	if atomic.LoadInt32(&self.mining) == 0 {
+		// return a snapshot to avoid contention on currentMu mutex
+		self.snapshotMu.RLock()
+		defer self.snapshotMu.RUnlock()
+		return self.snapshotBlock
+	}
+
 	self.currentMu.Lock()
 	defer self.currentMu.Unlock()
-
-	if atomic.LoadInt32(&self.mining) == 0 {
-		return types.NewBlock(
-			self.current.header,
-			self.current.txs,
-			nil,
-			self.current.receipts,
-		)
-	}
 	return self.current.Block
 }
 
@@ -212,9 +205,6 @@ func (self *worker) start() {
 	defer self.mu.Unlock()
 
 	atomic.StoreInt32(&self.mining, 1)
-	if istanbul, ok := self.engine.(consensus.Istanbul); ok {
-		istanbul.Start(self.chain, self.chain.CurrentBlock, self.chain.HasBadBlock)
-	}
 
 	// spin up agents
 	for agent := range self.agents {
@@ -232,11 +222,6 @@ func (self *worker) stop() {
 			agent.Stop()
 		}
 	}
-
-	if istanbul, ok := self.engine.(consensus.Istanbul); ok {
-		istanbul.Stop()
-	}
-
 	atomic.StoreInt32(&self.mining, 0)
 	atomic.StoreInt32(&self.atWork, 0)
 }
@@ -265,9 +250,6 @@ func (self *worker) update() {
 		select {
 		// Handle ChainHeadEvent
 		case <-self.chainHeadCh:
-			if h, ok := self.engine.(consensus.Handler); ok {
-				h.NewChainHead()
-			}
 			self.commitNewWork()
 
 		// Handle ChainSideEvent
@@ -286,7 +268,13 @@ func (self *worker) update() {
 				txset := types.NewTransactionsByPriceAndNonce(self.current.signer, txs)
 
 				self.current.commitTransactions(self.mux, txset, self.chain, self.coinbase)
+				self.updateSnapshot()
 				self.currentMu.Unlock()
+			} else {
+				// If we're mining, but nothing is being processed, wake on new transactions
+				if self.config.Clique != nil && self.config.Clique.Period == 0 {
+					self.commitNewWork()
+				}
 			}
 
 		// System stopped
@@ -322,13 +310,7 @@ func (self *worker) wait() {
 			for _, log := range work.state.Logs() {
 				log.BlockHash = block.Hash()
 			}
-
-			// write private transacions
-			privateStateRoot, _ := work.privateState.CommitTo(self.chainDb, self.config.IsEIP158(block.Number()))
-			core.WritePrivateStateRoot(self.chainDb, block.Root(), privateStateRoot)
-			allReceipts := append(work.receipts, work.privateReceipts...)
-
-			stat, err := self.chain.WriteBlockAndState(block, allReceipts, work.state)
+			stat, err := self.chain.WriteBlockWithState(block, work.receipts, work.state)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
@@ -375,20 +357,19 @@ func (self *worker) push(work *Work) {
 
 // makeCurrent creates a new environment for the current cycle.
 func (self *worker) makeCurrent(parent *types.Block, header *types.Header) error {
-	publicState, privateState, err := self.chain.StateAt(parent.Root())
+	state, err := self.chain.StateAt(parent.Root())
 	if err != nil {
 		return err
 	}
 	work := &Work{
-		config:       self.config,
-		signer:       types.MakeSigner(self.config, header.Number),
-		state:        publicState,
-		ancestors:    set.New(),
-		family:       set.New(),
-		uncles:       set.New(),
-		header:       header,
-		createdAt:    time.Now(),
-		privateState: privateState,
+		config:    self.config,
+		signer:    types.NewEIP155Signer(self.config.ChainId),
+		state:     state,
+		ancestors: set.New(),
+		family:    set.New(),
+		uncles:    set.New(),
+		header:    header,
+		createdAt: time.Now(),
 	}
 
 	// when 08 is processed ancestors contain 07 (quick block)
@@ -433,7 +414,6 @@ func (self *worker) commitNewWork() {
 		ParentHash: parent.Hash(),
 		Number:     num.Add(num, common.Big1),
 		GasLimit:   core.CalcGasLimit(parent),
-		GasUsed:    new(big.Int),
 		Extra:      self.extra,
 		Time:       big.NewInt(tstamp),
 	}
@@ -510,6 +490,7 @@ func (self *worker) commitNewWork() {
 		self.unconfirmed.Shift(work.Block.NumberU64() - 1)
 	}
 	self.push(work)
+	self.updateSnapshot()
 }
 
 func (self *worker) commitUncle(work *Work, uncle *types.Header) error {
@@ -527,12 +508,30 @@ func (self *worker) commitUncle(work *Work, uncle *types.Header) error {
 	return nil
 }
 
+func (self *worker) updateSnapshot() {
+	self.snapshotMu.Lock()
+	defer self.snapshotMu.Unlock()
+
+	self.snapshotBlock = types.NewBlock(
+		self.current.header,
+		self.current.txs,
+		nil,
+		self.current.receipts,
+	)
+	self.snapshotState = self.current.state.Copy()
+}
+
 func (env *Work) commitTransactions(mux *event.TypeMux, txs *types.TransactionsByPriceAndNonce, bc *core.BlockChain, coinbase common.Address) {
 	gp := new(core.GasPool).AddGas(env.header.GasLimit)
 
 	var coalescedLogs []*types.Log
 
 	for {
+		// If we don't have enough gas for any further transactions then we're done
+		if gp.Gas() < params.TxGas {
+			log.Trace("Not enough gas for further transactions", "gp", gp)
+			break
+		}
 		// Retrieve the next transaction and abort if all done
 		tx := txs.Peek()
 		if tx == nil {
@@ -607,21 +606,14 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txs *types.TransactionsB
 
 func (env *Work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, coinbase common.Address, gp *core.GasPool) (error, []*types.Log) {
 	snap := env.state.Snapshot()
-	privateSnap := env.privateState.Snapshot()
 
-	receipt, privateReceipt, _, err := core.ApplyTransaction(env.config, bc, &coinbase, gp, env.state, env.privateState, env.header, tx, env.header.GasUsed, vm.Config{})
+	receipt, _, err := core.ApplyTransaction(env.config, bc, &coinbase, gp, env.state, env.header, tx, &env.header.GasUsed, vm.Config{})
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
-		env.privateState.RevertToSnapshot(privateSnap)
 		return err, nil
 	}
 	env.txs = append(env.txs, tx)
 	env.receipts = append(env.receipts, receipt)
 
-	logs := receipt.Logs
-	if privateReceipt != nil {
-		logs = append(receipt.Logs, privateReceipt.Logs...)
-		env.privateReceipts = append(env.privateReceipts, privateReceipt)
-	}
-	return nil, logs
+	return nil, receipt.Logs
 }

@@ -32,6 +32,7 @@ type tmplContract struct {
 	Constructor abi.Method             // Contract constructor for deploy parametrization
 	Calls       map[string]*tmplMethod // Contract calls that only read state data
 	Transacts   map[string]*tmplMethod // Contract calls that write state data
+	Events      map[string]*tmplEvent  // Contract events accessors
 }
 
 // tmplMethod is a wrapper around an abi.Method that contains a few preprocessed
@@ -39,7 +40,13 @@ type tmplContract struct {
 type tmplMethod struct {
 	Original   abi.Method // Original method as parsed by the abi package
 	Normalized abi.Method // Normalized version of the parsed method (capitalized names, non-anonymous args/returns)
-	Structured bool       // Whether the returns should be accumulated into a contract
+	Structured bool       // Whether the returns should be accumulated into a struct
+}
+
+// tmplEvent is a wrapper around an a
+type tmplEvent struct {
+	Original   abi.Event // Original event as parsed by the abi package
+	Normalized abi.Event // Normalized version of the parsed fields
 }
 
 // tmplSource is language to template mapping containing all the supported
@@ -75,7 +82,7 @@ package {{.Package}}
 		  if err != nil {
 		    return common.Address{}, nil, nil, err
 		  }
-		  return address, tx, &{{.Type}}{ {{.Type}}Caller: {{.Type}}Caller{contract: contract}, {{.Type}}Transactor: {{.Type}}Transactor{contract: contract} }, nil
+		  return address, tx, &{{.Type}}{ {{.Type}}Caller: {{.Type}}Caller{contract: contract}, {{.Type}}Transactor: {{.Type}}Transactor{contract: contract}, {{.Type}}Filterer: {{.Type}}Filterer{contract: contract} }, nil
 		}
 	{{end}}
 
@@ -83,6 +90,7 @@ package {{.Package}}
 	type {{.Type}} struct {
 	  {{.Type}}Caller     // Read-only binding to the contract
 	  {{.Type}}Transactor // Write-only binding to the contract
+		{{.Type}}Filterer   // Log filterer for contract events
 	}
 
 	// {{.Type}}Caller is an auto generated read-only Go binding around an Ethereum contract.
@@ -92,6 +100,11 @@ package {{.Package}}
 
 	// {{.Type}}Transactor is an auto generated write-only Go binding around an Ethereum contract.
 	type {{.Type}}Transactor struct {
+	  contract *bind.BoundContract // Generic contract wrapper for the low level calls
+	}
+
+	// {{.Type}}Filterer is an auto generated log filtering Go binding around an Ethereum contract events.
+	type {{.Type}}Filterer struct {
 	  contract *bind.BoundContract // Generic contract wrapper for the low level calls
 	}
 
@@ -134,16 +147,16 @@ package {{.Package}}
 
 	// New{{.Type}} creates a new instance of {{.Type}}, bound to a specific deployed contract.
 	func New{{.Type}}(address common.Address, backend bind.ContractBackend) (*{{.Type}}, error) {
-	  contract, err := bind{{.Type}}(address, backend, backend)
+	  contract, err := bind{{.Type}}(address, backend, backend, backend)
 	  if err != nil {
 	    return nil, err
 	  }
-	  return &{{.Type}}{ {{.Type}}Caller: {{.Type}}Caller{contract: contract}, {{.Type}}Transactor: {{.Type}}Transactor{contract: contract} }, nil
+	  return &{{.Type}}{ {{.Type}}Caller: {{.Type}}Caller{contract: contract}, {{.Type}}Transactor: {{.Type}}Transactor{contract: contract}, {{.Type}}Filterer: {{.Type}}Filterer{contract: contract} }, nil
 	}
 
 	// New{{.Type}}Caller creates a new read-only instance of {{.Type}}, bound to a specific deployed contract.
 	func New{{.Type}}Caller(address common.Address, caller bind.ContractCaller) (*{{.Type}}Caller, error) {
-	  contract, err := bind{{.Type}}(address, caller, nil)
+	  contract, err := bind{{.Type}}(address, caller, nil, nil)
 	  if err != nil {
 	    return nil, err
 	  }
@@ -152,20 +165,29 @@ package {{.Package}}
 
 	// New{{.Type}}Transactor creates a new write-only instance of {{.Type}}, bound to a specific deployed contract.
 	func New{{.Type}}Transactor(address common.Address, transactor bind.ContractTransactor) (*{{.Type}}Transactor, error) {
-	  contract, err := bind{{.Type}}(address, nil, transactor)
+	  contract, err := bind{{.Type}}(address, nil, transactor, nil)
 	  if err != nil {
 	    return nil, err
 	  }
 	  return &{{.Type}}Transactor{contract: contract}, nil
 	}
 
+	// New{{.Type}}Filterer creates a new log filterer instance of {{.Type}}, bound to a specific deployed contract.
+ 	func New{{.Type}}Filterer(address common.Address, filterer bind.ContractFilterer) (*{{.Type}}Filterer, error) {
+ 	  contract, err := bind{{.Type}}(address, nil, nil, filterer)
+ 	  if err != nil {
+ 	    return nil, err
+ 	  }
+ 	  return &{{.Type}}Filterer{contract: contract}, nil
+ 	}
+
 	// bind{{.Type}} binds a generic wrapper to an already deployed contract.
-	func bind{{.Type}}(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor) (*bind.BoundContract, error) {
+	func bind{{.Type}}(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
 	  parsed, err := abi.JSON(strings.NewReader({{.Type}}ABI))
 	  if err != nil {
 	    return nil, err
 	  }
-	  return bind.NewBoundContract(address, parsed, caller, transactor), nil
+	  return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
 	}
 
 	// Call invokes the (constant) contract method with params as input values and
@@ -263,6 +285,239 @@ package {{.Package}}
 		  return _{{$contract.Type}}.Contract.{{.Normalized.Name}}(&_{{$contract.Type}}.TransactOpts {{range $i, $_ := .Normalized.Inputs}}, {{.Name}}{{end}})
 		}
 	{{end}}
+
+	{{range .Events}}
+		// {{$contract.Type}}{{.Normalized.Name}}Iterator is returned from Filter{{.Normalized.Name}} and is used to iterate over the raw logs and unpacked data for {{.Normalized.Name}} events raised by the {{$contract.Type}} contract.
+		type {{$contract.Type}}{{.Normalized.Name}}Iterator struct {
+			Event *{{$contract.Type}}{{.Normalized.Name}} // Event containing the contract specifics and raw log
+
+			contract *bind.BoundContract // Generic contract to use for unpacking event data
+			event    string              // Event name to use for unpacking event data
+
+			logs chan types.Log        // Log channel receiving the found contract events
+			sub  ethereum.Subscription // Subscription for errors, completion and termination
+			done bool                  // Whether the subscription completed delivering logs
+			fail error                 // Occurred error to stop iteration
+		}
+		// Next advances the iterator to the subsequent event, returning whether there
+		// are any more events found. In case of a retrieval or parsing error, false is
+		// returned and Error() can be queried for the exact failure.
+		func (it *{{$contract.Type}}{{.Normalized.Name}}Iterator) Next() bool {
+			// If the iterator failed, stop iterating
+			if (it.fail != nil) {
+				return false
+			}
+			// If the iterator completed, deliver directly whatever's available
+			if (it.done) {
+				select {
+				case log := <-it.logs:
+					it.Event = new({{$contract.Type}}{{.Normalized.Name}})
+					if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+						it.fail = err
+						return false
+					}
+					it.Event.Raw = log
+					return true
+
+				default:
+					return false
+				}
+			}
+			// Iterator still in progress, wait for either a data or an error event
+			select {
+			case log := <-it.logs:
+				it.Event = new({{$contract.Type}}{{.Normalized.Name}})
+				if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+					it.fail = err
+					return false
+				}
+				it.Event.Raw = log
+				return true
+
+			case err := <-it.sub.Err():
+				it.done = true
+				it.fail = err
+				return it.Next()
+			}
+		}
+		// Error returns any retrieval or parsing error occurred during filtering.
+		func (it *{{$contract.Type}}{{.Normalized.Name}}Iterator) Error() error {
+			return it.fail
+		}
+		// Close terminates the iteration process, releasing any pending underlying
+		// resources.
+		func (it *{{$contract.Type}}{{.Normalized.Name}}Iterator) Close() error {
+			it.sub.Unsubscribe()
+			return nil
+		}
+
+		// {{$contract.Type}}{{.Normalized.Name}} represents a {{.Normalized.Name}} event raised by the {{$contract.Type}} contract.
+		type {{$contract.Type}}{{.Normalized.Name}} struct { {{range .Normalized.Inputs}}
+			{{capitalise .Name}} {{if .Indexed}}{{bindtopictype .Type}}{{else}}{{bindtype .Type}}{{end}}; {{end}}
+			Raw types.Log // Blockchain specific contextual infos
+		}
+
+		// Filter{{.Normalized.Name}} is a free log retrieval operation binding the contract event 0x{{printf "%x" .Original.Id}}.
+		//
+		// Solidity: {{.Original.String}}
+ 		func (_{{$contract.Type}} *{{$contract.Type}}Filterer) Filter{{.Normalized.Name}}(opts *bind.FilterOpts{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}} []{{bindtype .Type}}{{end}}{{end}}) (*{{$contract.Type}}{{.Normalized.Name}}Iterator, error) {
+			{{range .Normalized.Inputs}}
+			{{if .Indexed}}var {{.Name}}Rule []interface{}
+			for _, {{.Name}}Item := range {{.Name}} {
+				{{.Name}}Rule = append({{.Name}}Rule, {{.Name}}Item)
+			}{{end}}{{end}}
+
+			logs, sub, err := _{{$contract.Type}}.contract.FilterLogs(opts, "{{.Original.Name}}"{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}}Rule{{end}}{{end}})
+			if err != nil {
+				return nil, err
+			}
+			return &{{$contract.Type}}{{.Normalized.Name}}Iterator{contract: _{{$contract.Type}}.contract, event: "{{.Original.Name}}", logs: logs, sub: sub}, nil
+ 		}
+
+		// Watch{{.Normalized.Name}} is a free log subscription operation binding the contract event 0x{{printf "%x" .Original.Id}}.
+		//
+		// Solidity: {{.Original.String}}
+		func (_{{$contract.Type}} *{{$contract.Type}}Filterer) Watch{{.Normalized.Name}}(opts *bind.WatchOpts, sink chan<- *{{$contract.Type}}{{.Normalized.Name}}{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}} []{{bindtype .Type}}{{end}}{{end}}) (event.Subscription, error) {
+			{{range .Normalized.Inputs}}
+			{{if .Indexed}}var {{.Name}}Rule []interface{}
+			for _, {{.Name}}Item := range {{.Name}} {
+				{{.Name}}Rule = append({{.Name}}Rule, {{.Name}}Item)
+			}{{end}}{{end}}
+
+			logs, sub, err := _{{$contract.Type}}.contract.WatchLogs(opts, "{{.Original.Name}}"{{range .Normalized.Inputs}}{{if .Indexed}}, {{.Name}}Rule{{end}}{{end}})
+			if err != nil {
+				return nil, err
+			}
+			return event.NewSubscription(func(quit <-chan struct{}) error {
+				defer sub.Unsubscribe()
+				for {
+					select {
+					case log := <-logs:
+						// New log arrived, parse the event and forward to the user
+						event := new({{$contract.Type}}{{.Normalized.Name}})
+						if err := _{{$contract.Type}}.contract.UnpackLog(event, "{{.Original.Name}}", log); err != nil {
+							return err
+						}
+						event.Raw = log
+
+						select {
+						case sink <- event:
+						case err := <-sub.Err():
+							return err
+						case <-quit:
+							return nil
+						}
+					case err := <-sub.Err():
+						return err
+					case <-quit:
+						return nil
+					}
+				}
+			}), nil
+		}
+ 	{{end}}
+{{end}}
+`
+
+// tmplSourceJava is the Java source template use to generate the contract binding
+// based on.
+const tmplSourceJava = `
+// This file is an automatically generated Java binding. Do not modify as any
+// change will likely be lost upon the next re-generation!
+
+package {{.Package}};
+
+import org.ethereum.geth.*;
+import org.ethereum.geth.internal.*;
+
+{{range $contract := .Contracts}}
+	public class {{.Type}} {
+		// ABI is the input ABI used to generate the binding from.
+		public final static String ABI = "{{.InputABI}}";
+
+		{{if .InputBin}}
+			// BYTECODE is the compiled bytecode used for deploying new contracts.
+			public final static byte[] BYTECODE = "{{.InputBin}}".getBytes();
+
+			// deploy deploys a new Ethereum contract, binding an instance of {{.Type}} to it.
+			public static {{.Type}} deploy(TransactOpts auth, EthereumClient client{{range .Constructor.Inputs}}, {{bindtype .Type}} {{.Name}}{{end}}) throws Exception {
+				Interfaces args = Geth.newInterfaces({{(len .Constructor.Inputs)}});
+				{{range $index, $element := .Constructor.Inputs}}
+				  args.set({{$index}}, Geth.newInterface()); args.get({{$index}}).set{{namedtype (bindtype .Type) .Type}}({{.Name}});
+				{{end}}
+				return new {{.Type}}(Geth.deployContract(auth, ABI, BYTECODE, client, args));
+			}
+
+			// Internal constructor used by contract deployment.
+			private {{.Type}}(BoundContract deployment) {
+				this.Address  = deployment.getAddress();
+				this.Deployer = deployment.getDeployer();
+				this.Contract = deployment;
+			}
+		{{end}}
+
+		// Ethereum address where this contract is located at.
+		public final Address Address;
+
+		// Ethereum transaction in which this contract was deployed (if known!).
+		public final Transaction Deployer;
+
+		// Contract instance bound to a blockchain address.
+		private final BoundContract Contract;
+
+		// Creates a new instance of {{.Type}}, bound to a specific deployed contract.
+		public {{.Type}}(Address address, EthereumClient client) throws Exception {
+			this(Geth.bindContract(address, ABI, client));
+		}
+
+		{{range .Calls}}
+			{{if gt (len .Normalized.Outputs) 1}}
+			// {{capitalise .Normalized.Name}}Results is the output of a call to {{.Normalized.Name}}.
+			public class {{capitalise .Normalized.Name}}Results {
+				{{range $index, $item := .Normalized.Outputs}}public {{bindtype .Type}} {{if ne .Name ""}}{{.Name}}{{else}}Return{{$index}}{{end}};
+				{{end}}
+			}
+			{{end}}
+
+			// {{.Normalized.Name}} is a free data retrieval call binding the contract method 0x{{printf "%x" .Original.Id}}.
+			//
+			// Solidity: {{.Original.String}}
+			public {{if gt (len .Normalized.Outputs) 1}}{{capitalise .Normalized.Name}}Results{{else}}{{range .Normalized.Outputs}}{{bindtype .Type}}{{end}}{{end}} {{.Normalized.Name}}(CallOpts opts{{range .Normalized.Inputs}}, {{bindtype .Type}} {{.Name}}{{end}}) throws Exception {
+				Interfaces args = Geth.newInterfaces({{(len .Normalized.Inputs)}});
+				{{range $index, $item := .Normalized.Inputs}}args.set({{$index}}, Geth.newInterface()); args.get({{$index}}).set{{namedtype (bindtype .Type) .Type}}({{.Name}});
+				{{end}}
+
+				Interfaces results = Geth.newInterfaces({{(len .Normalized.Outputs)}});
+				{{range $index, $item := .Normalized.Outputs}}Interface result{{$index}} = Geth.newInterface(); result{{$index}}.setDefault{{namedtype (bindtype .Type) .Type}}(); results.set({{$index}}, result{{$index}});
+				{{end}}
+
+				if (opts == null) {
+					opts = Geth.newCallOpts();
+				}
+				this.Contract.call(opts, results, "{{.Original.Name}}", args);
+				{{if gt (len .Normalized.Outputs) 1}}
+					{{capitalise .Normalized.Name}}Results result = new {{capitalise .Normalized.Name}}Results();
+					{{range $index, $item := .Normalized.Outputs}}result.{{if ne .Name ""}}{{.Name}}{{else}}Return{{$index}}{{end}} = results.get({{$index}}).get{{namedtype (bindtype .Type) .Type}}();
+					{{end}}
+					return result;
+				{{else}}{{range .Normalized.Outputs}}return results.get(0).get{{namedtype (bindtype .Type) .Type}}();{{end}}
+				{{end}}
+			}
+		{{end}}
+
+		{{range .Transacts}}
+			// {{.Normalized.Name}} is a paid mutator transaction binding the contract method 0x{{printf "%x" .Original.Id}}.
+			//
+			// Solidity: {{.Original.String}}
+			public Transaction {{.Normalized.Name}}(TransactOpts opts{{range .Normalized.Inputs}}, {{bindtype .Type}} {{.Name}}{{end}}) throws Exception {
+				Interfaces args = Geth.newInterfaces({{(len .Normalized.Inputs)}});
+				{{range $index, $item := .Normalized.Inputs}}args.set({{$index}}, Geth.newInterface()); args.get({{$index}}).set{{namedtype (bindtype .Type) .Type}}({{.Name}});
+				{{end}}
+
+				return this.Contract.transact(opts, "{{.Original.Name}}"	, args);
+			}
+		{{end}}
+	}
 {{end}}
 `
 

@@ -127,7 +127,7 @@ type Fetcher struct {
 	// Block cache
 	queue  *prque.Prque            // Queue containing the import operations (block number sorted)
 	queues map[string]int          // Per peer block counts to prevent memory exhaustion
-	queued map[common.Hash]*inject // Set of already queued blocks (to dedup imports)
+	queued map[common.Hash]*inject // Set of already queued blocks (to dedupe imports)
 
 	// Callbacks
 	getBlock       blockRetrievalFn   // Retrieves a block from the local chain
@@ -633,7 +633,7 @@ func (f *Fetcher) enqueue(peer string, block *types.Block) {
 }
 
 // insert spawns a new goroutine to run a block insertion into the chain. If the
-// block's number is at the same height as the current import phase, if updates
+// block's number is at the same height as the current import phase, it updates
 // the phase states accordingly.
 func (f *Fetcher) insert(peer string, block *types.Block) {
 	hash := block.Hash()

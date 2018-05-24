@@ -131,7 +131,7 @@ func gasSStore(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, m
 		// 0 => non 0
 		return params.SstoreSetGas, nil
 	} else if !common.EmptyHash(val) && common.EmptyHash(common.BigToHash(y)) {
-		db.AddRefund(new(big.Int).SetUint64(params.SstoreRefundGas))
+		db.AddRefund(params.SstoreRefundGas)
 
 		return params.SstoreClearGas, nil
 	} else {
@@ -424,7 +424,7 @@ func gasSuicide(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, 
 	}
 
 	if !db.HasSuicided(contract.Address()) {
-		db.AddRefund(new(big.Int).SetUint64(params.SuicideRefundGas))
+		db.AddRefund(params.SuicideRefundGas)
 	}
 	return gas, nil
 }

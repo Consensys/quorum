@@ -57,13 +57,19 @@ type StoreParams struct {
 	Radius        int
 }
 
-func NewStoreParams(path string) (self *StoreParams) {
+//create params with default values
+func NewDefaultStoreParams() (self *StoreParams) {
 	return &StoreParams{
-		ChunkDbPath:   filepath.Join(path, "chunks"),
 		DbCapacity:    defaultDbCapacity,
 		CacheCapacity: defaultCacheCapacity,
 		Radius:        defaultRadius,
 	}
+}
+
+//this can only finally be set after all config options (file, cmd line, env vars)
+//have been evaluated
+func (self *StoreParams) Init(path string) {
+	self.ChunkDbPath = filepath.Join(path, "chunks")
 }
 
 // netstore contructor, takes path argument that is used to initialise dbStore,
@@ -76,11 +82,6 @@ func NewNetStore(hash SwarmHasher, lstore *LocalStore, cloud CloudStore, params 
 		cloud:      cloud,
 	}
 }
-
-const (
-	// maximum number of peers that a retrieved message is delivered to
-	requesterCount = 3
-)
 
 var (
 	// timeout interval before retrieval is timed out

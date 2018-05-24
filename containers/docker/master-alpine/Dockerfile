@@ -1,8 +1,16 @@
+<<<<<<< HEAD
 FROM alpine:3.5
 
 RUN \
   apk add --update go git make gcc musl-dev linux-headers ca-certificates && \
   git clone --depth 1 --branch release/1.7 https://github.com/ethereum/go-ethereum && \
+=======
+FROM alpine:3.7
+
+RUN \
+  apk add --update go git make gcc musl-dev linux-headers ca-certificates && \
+  git clone --depth 1 --branch release/1.8 https://github.com/ethereum/go-ethereum && \
+>>>>>>> core/release/1.8
   (cd go-ethereum && make geth) && \
   cp go-ethereum/build/bin/geth /geth && \
   apk del go git make gcc musl-dev linux-headers && \

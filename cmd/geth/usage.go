@@ -22,6 +22,8 @@ import (
 	"io"
 	"sort"
 
+	"strings"
+
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"gopkg.in/urfave/cli.v1"
@@ -31,7 +33,7 @@ import (
 var AppHelpTemplate = `NAME:
    {{.App.Name}} - {{.App.Usage}}
 
-   Copyright 2013-2017 The go-ethereum Authors
+   Copyright 2013-2018 The go-ethereum Authors
 
 USAGE:
    {{.App.HelpName}} [options]{{if .App.Commands}} command [command options]{{end}} {{if .App.ArgsUsage}}{{.App.ArgsUsage}}{{else}}[arguments...]{{end}}
@@ -75,11 +77,54 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.OttomanFlag,
 			utils.DevModeFlag,
 			utils.SyncModeFlag,
+			utils.GCModeFlag,
 			utils.EthStatsURLFlag,
 			utils.IdentityFlag,
 			utils.LightServFlag,
 			utils.LightPeersFlag,
 			utils.LightKDFFlag,
+		},
+	},
+	{Name: "DEVELOPER CHAIN",
+		Flags: []cli.Flag{
+			utils.DeveloperFlag,
+			utils.DeveloperPeriodFlag,
+		},
+	},
+	{
+		Name: "ETHASH",
+		Flags: []cli.Flag{
+			utils.EthashCacheDirFlag,
+			utils.EthashCachesInMemoryFlag,
+			utils.EthashCachesOnDiskFlag,
+			utils.EthashDatasetDirFlag,
+			utils.EthashDatasetsInMemoryFlag,
+			utils.EthashDatasetsOnDiskFlag,
+		},
+	},
+	//{
+	//	Name: "DASHBOARD",
+	//	Flags: []cli.Flag{
+	//		utils.DashboardEnabledFlag,
+	//		utils.DashboardAddrFlag,
+	//		utils.DashboardPortFlag,
+	//		utils.DashboardRefreshFlag,
+	//		utils.DashboardAssetsFlag,
+	//	},
+	//},
+	{
+		Name: "TRANSACTION POOL",
+		Flags: []cli.Flag{
+			utils.TxPoolNoLocalsFlag,
+			utils.TxPoolJournalFlag,
+			utils.TxPoolRejournalFlag,
+			utils.TxPoolPriceLimitFlag,
+			utils.TxPoolPriceBumpFlag,
+			utils.TxPoolAccountSlotsFlag,
+			utils.TxPoolGlobalSlotsFlag,
+			utils.TxPoolAccountQueueFlag,
+			utils.TxPoolGlobalQueueFlag,
+			utils.TxPoolLifetimeFlag,
 		},
 	},
 	{
@@ -112,6 +157,8 @@ var AppHelpFlagGroups = []flagGroup{
 		Name: "PERFORMANCE TUNING",
 		Flags: []cli.Flag{
 			utils.CacheFlag,
+			utils.CacheDatabaseFlag,
+			utils.CacheGCFlag,
 			utils.TrieCacheGenFlag,
 		},
 	},
@@ -152,6 +199,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.IPCDisabledFlag,
 			utils.IPCPathFlag,
 			utils.RPCCORSDomainFlag,
+			utils.RPCVirtualHostsFlag,
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
@@ -227,6 +275,42 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.IstanbulBlockPeriodFlag,
 		},
 	},
+	{
+		Name: "MISC",
+	},
+}
+
+// byCategory sorts an array of flagGroup by Name in the order
+// defined in AppHelpFlagGroups.
+type byCategory []flagGroup
+
+func (a byCategory) Len() int      { return len(a) }
+func (a byCategory) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a byCategory) Less(i, j int) bool {
+	iCat, jCat := a[i].Name, a[j].Name
+	iIdx, jIdx := len(AppHelpFlagGroups), len(AppHelpFlagGroups) // ensure non categorized flags come last
+
+	for i, group := range AppHelpFlagGroups {
+		if iCat == group.Name {
+			iIdx = i
+		}
+		if jCat == group.Name {
+			jIdx = i
+		}
+	}
+
+	return iIdx < jIdx
+}
+
+func flagCategory(flag cli.Flag) string {
+	for _, category := range AppHelpFlagGroups {
+		for _, flg := range category.Flags {
+			if flg.GetName() == flag.GetName() {
+				return category.Name
+			}
+		}
+	}
+	return "MISC"
 }
 
 // byCategory sorts an array of flagGroup by Name in the order
@@ -286,6 +370,9 @@ func init() {
 			uncategorized := []cli.Flag{}
 			for _, flag := range data.(*cli.App).Flags {
 				if _, ok := categorized[flag.String()]; !ok {
+					if strings.HasPrefix(flag.GetName(), "dashboard") {
+						continue
+					}
 					uncategorized = append(uncategorized, flag)
 				}
 			}

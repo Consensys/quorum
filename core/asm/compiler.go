@@ -17,7 +17,6 @@
 package asm
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -114,7 +113,7 @@ func (c *Compiler) Compile() (string, []error) {
 }
 
 // next returns the next token and increments the
-// posititon.
+// position.
 func (c *Compiler) next() token {
 	token := c.tokens[c.pos]
 	c.pos++
@@ -122,7 +121,7 @@ func (c *Compiler) next() token {
 }
 
 // compile line compiles a single line instruction e.g.
-// "push 1", "jump @labal".
+// "push 1", "jump @label".
 func (c *Compiler) compileLine() error {
 	n := c.next()
 	if n.typ != lineStart {
@@ -237,22 +236,16 @@ func (c *Compiler) pushBin(v interface{}) {
 // isPush returns whether the string op is either any of
 // push(N).
 func isPush(op string) bool {
-	if op == "push" {
-		return true
-	}
-	return false
+	return strings.ToUpper(op) == "PUSH"
 }
 
 // isJump returns whether the string op is jump(i)
 func isJump(op string) bool {
-	return op == "jumpi" || op == "jump"
+	return strings.ToUpper(op) == "JUMPI" || strings.ToUpper(op) == "JUMP"
 }
 
 // toBinary converts text to a vm.OpCode
 func toBinary(text string) vm.OpCode {
-	if isPush(text) {
-		text = "push1"
-	}
 	return vm.StringToOp(strings.ToUpper(text))
 }
 
@@ -266,11 +259,6 @@ type compileError struct {
 func (err compileError) Error() string {
 	return fmt.Sprintf("%d syntax error: unexpected %v, expected %v", err.lineno, err.got, err.want)
 }
-
-var (
-	errExpBol            = errors.New("expected beginning of line")
-	errExpElementOrLabel = errors.New("expected beginning of line")
-)
 
 func compileErr(c token, got, want string) error {
 	return compileError{
