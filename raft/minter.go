@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/jpmorganchase/quorum/crypto"
 )
 
 // Current state information for building the next block
@@ -329,6 +330,16 @@ func (minter *minter) mintNewBlock() {
 	for _, l := range logs {
 		l.BlockHash = headerHash
 	}
+
+	//Sign the block
+	nodeKey := minter.eth.nodeKey
+	sig, err := crypto.Sign(headerHash.Bytes(), nodeKey)
+	if err != nil {
+		log.Warn("Block sealing failed", "err", err)
+	}
+
+	//add signature to header.Extra field
+	copy(header.Extra, sig)
 
 	block := types.NewBlock(header, committedTxes, nil, publicReceipts)
 
