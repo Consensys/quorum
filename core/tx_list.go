@@ -234,7 +234,6 @@ func newTxList(strict bool) *txList {
 		strict:  strict,
 		txs:     newTxSortedMap(),
 		costcap: new(big.Int),
-		gascap:  new(big.Int),
 	}
 }
 

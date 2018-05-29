@@ -34,11 +34,7 @@ import (
 // the block's difficulty requirements.
 func (ethash *Ethash) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
 	// If we're running a fake PoW, simply return a 0 nonce immediately
-<<<<<<< HEAD
-	if ethash.fakeMode {
-=======
 	if ethash.config.PowMode == ModeFake || ethash.config.PowMode == ModeFullFake {
->>>>>>> core/release/1.8
 		header := block.Header()
 		header.Nonce, header.MixDigest = types.BlockNonce{}, common.Hash{}
 		return block.WithSeal(header), nil
@@ -101,16 +97,9 @@ func (ethash *Ethash) Seal(chain consensus.ChainReader, block *types.Block, stop
 func (ethash *Ethash) mine(block *types.Block, id int, seed uint64, abort chan struct{}, found chan *types.Block) {
 	// Extract some data from the header
 	var (
-<<<<<<< HEAD
-		header = block.Header()
-		hash   = header.HashNoNonce().Bytes()
-		target = new(big.Int).Div(maxUint256, header.Difficulty)
-
-=======
 		header  = block.Header()
 		hash    = header.HashNoNonce().Bytes()
 		target  = new(big.Int).Div(maxUint256, header.Difficulty)
->>>>>>> core/release/1.8
 		number  = header.Number.Uint64()
 		dataset = ethash.dataset(number)
 	)
@@ -121,21 +110,14 @@ func (ethash *Ethash) mine(block *types.Block, id int, seed uint64, abort chan s
 	)
 	logger := log.New("miner", id)
 	logger.Trace("Started ethash search for new nonces", "seed", seed)
-<<<<<<< HEAD
-=======
 search:
->>>>>>> core/release/1.8
 	for {
 		select {
 		case <-abort:
 			// Mining terminated, update stats and abort
 			logger.Trace("Ethash nonce search aborted", "attempts", nonce-seed)
 			ethash.hashrate.Mark(attempts)
-<<<<<<< HEAD
-			return
-=======
 			break search
->>>>>>> core/release/1.8
 
 		default:
 			// We don't have to update hash rate on every nonce, so update after after 2^X nonces
@@ -145,11 +127,7 @@ search:
 				attempts = 0
 			}
 			// Compute the PoW value of this nonce
-<<<<<<< HEAD
-			digest, result := hashimotoFull(dataset, hash, nonce)
-=======
 			digest, result := hashimotoFull(dataset.dataset, hash, nonce)
->>>>>>> core/release/1.8
 			if new(big.Int).SetBytes(result).Cmp(target) <= 0 {
 				// Correct nonce found, create a new header with it
 				header = types.CopyHeader(header)
@@ -163,19 +141,12 @@ search:
 				case <-abort:
 					logger.Trace("Ethash nonce found but discarded", "attempts", nonce-seed, "nonce", nonce)
 				}
-<<<<<<< HEAD
-				return
-=======
 				break search
->>>>>>> core/release/1.8
 			}
 			nonce++
 		}
 	}
-<<<<<<< HEAD
-=======
 	// Datasets are unmapped in a finalizer. Ensure that the dataset stays live
 	// during sealing so it's not unmapped while being read.
 	runtime.KeepAlive(dataset)
->>>>>>> core/release/1.8
 }

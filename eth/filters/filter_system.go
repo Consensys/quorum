@@ -390,8 +390,6 @@ func (es *EventSystem) lightFilterNewHead(newHeader *types.Header, callBack func
 				newh = oldh
 			}
 		}
-		logs := filterLogs(unfiltered, nil, nil, addresses, topics)
-		return logs
 	}
 	// roll back old blocks
 	for _, h := range oldHeaders {

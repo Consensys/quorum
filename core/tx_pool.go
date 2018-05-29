@@ -854,7 +854,6 @@ func (pool *TxPool) Status(hashes []common.Hash) []TxStatus {
 				status[i] = TxStatusQueued
 			}
 		}
-		pool.promoteExecutables(addrs)
 	}
 	return status
 }

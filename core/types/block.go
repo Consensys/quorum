@@ -19,6 +19,7 @@ package types
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math/big"
 	"sort"
@@ -167,6 +168,10 @@ type Block struct {
 	// inter-peer block relay.
 	ReceivedAt   time.Time
 	ReceivedFrom interface{}
+}
+
+func (b *Block) String() string {
+	return fmt.Sprintf("{Header: %v}", b.header)
 }
 
 // DeprecatedTd is an old relic for extracting the TD of a block. It is in the

@@ -122,7 +122,18 @@ type Config struct {
 
 	// Miscellaneous options
 	DocRoot string `toml:"-"`
+	PowMode Mode
 }
+
+type Mode uint
+
+const (
+	ModeNormal Mode = iota
+	ModeShared
+	ModeTest
+	ModeFake
+	ModeFullFake
+)
 
 type configMarshaling struct {
 	ExtraData hexutil.Bytes

@@ -17,15 +17,11 @@
 package ethash
 
 import (
-<<<<<<< HEAD
-	"math/big"
-=======
 	"io/ioutil"
 	"math/big"
 	"math/rand"
 	"os"
 	"sync"
->>>>>>> core/release/1.8
 	"testing"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -46,8 +42,6 @@ func TestTestMode(t *testing.T) {
 		t.Fatalf("unexpected verification error: %v", err)
 	}
 }
-<<<<<<< HEAD
-=======
 
 // This test checks that cache lru logic doesn't crash under load.
 // It reproduces https://github.com/ethereum/go-ethereum/issues/14943
@@ -83,4 +77,3 @@ func verifyTest(wg *sync.WaitGroup, e *Ethash, workerIndex, epochs int) {
 		e.VerifySeal(nil, head)
 	}
 }
->>>>>>> core/release/1.8

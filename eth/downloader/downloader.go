@@ -1685,7 +1685,33 @@ func (d *Downloader) syncWithPeerUntil(p *peerConnection, hash common.Hash, td *
 	d.syncStatsChainHeight = remoteHeight
 	d.syncStatsLock.Unlock()
 
-	d.queue.Prepare(localHeight+1, d.mode, uint64(0), remoteHeader)
+	// zekun: HACK
+	latest, err := d.fetchHeight(p)
+	if err != nil {
+		return err
+	}
+	height := latest.Number.Uint64()
+	origin, err := d.findAncestor(p, height)
+	if err != nil {
+		return err
+	}
+	pivot := uint64(0)
+	if d.mode == FastSync {
+		if height <= uint64(fsMinFullBlocks) {
+			origin = 0
+		} else {
+			pivot = height - uint64(fsMinFullBlocks)
+			if pivot <= origin {
+				origin = pivot - 1
+			}
+		}
+	}
+	d.committed = 1
+	if d.mode == FastSync && pivot != 0 {
+		d.committed = 0
+	}
+
+	d.queue.Prepare(localHeight+1, d.mode)
 	if d.syncInitHook != nil {
 		d.syncInitHook(localHeight, remoteHeight)
 	}
@@ -1693,7 +1719,7 @@ func (d *Downloader) syncWithPeerUntil(p *peerConnection, hash common.Hash, td *
 		func() error { return d.fetchBoundedHeaders(p, localHeight+1, remoteHeight) },
 		func() error { return d.fetchBodies(localHeight + 1) },
 		func() error { return d.fetchReceipts(localHeight + 1) }, // Receipts are only retrieved during fast sync
-		func() error { return d.processHeaders(localHeight+1, td) },
+		func() error { return d.processHeaders(localHeight+1, pivot, td) },
 	}
 	return d.spawnSync(fetchers)
 }

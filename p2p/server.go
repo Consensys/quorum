@@ -847,7 +847,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *discover.Node) e
 		}
 
 		if !isNodePermissioned(node, currentNode, srv.DataDir, direction) {
-			return
+			return nil
 		}
 	} else {
 		log.Trace("Node Permissioning is Disabled.")
@@ -891,13 +891,6 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *discover.Node) e
 	// launched by run.
 	clog.Trace("connection set up", "inbound", dialDest == nil)
 	return nil
-}
-
-func truncateName(s string) string {
-	if len(s) > 20 {
-		return s[:20] + "..."
-	}
-	return s
 }
 
 func truncateName(s string) string {

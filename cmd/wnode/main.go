@@ -575,10 +575,6 @@ func sendMsg(payload []byte) common.Hash {
 	if err != nil {
 		utils.Fatalf("failed to create new message: %s", err)
 	}
-<<<<<<< variant A
->>>>>>> variant B
-
-======= end
 	envelope, err := msg.Wrap(&params)
 	if err != nil {
 		fmt.Printf("failed to seal message: %v \n", err)

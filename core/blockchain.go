@@ -350,9 +350,9 @@ func (bc *BlockChain) GasLimit() uint64 {
 	defer bc.mu.RUnlock()
 
 	if bc.Config().IsQuorum {
-		return math.MaxBig256 // HACK(joel) a very large number
+		return math.MaxBig256.Uint64() // HACK(joel) a very large number
 	} else {
-		return bc.currentBlock.GasLimit()
+		return bc.CurrentBlock().GasLimit()
 	}
 }
 
@@ -1186,6 +1186,10 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		} else {
 			parent = chain[i-1]
 		}
+
+		// alias state.New because we introduce a variable named state on the next line
+		stateNew := state.New
+
 		state, err := state.New(parent.Root(), bc.stateCache)
 		if err != nil {
 			return i, events, coalescedLogs, err
@@ -1214,10 +1218,10 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 
 		// Quorum
 		// Write private state changes to database
-		if privateStateRoot, err = privateState.CommitTo(bc.chainDb, bc.config.IsEIP158(block.Number())); err != nil {
+		if privateStateRoot, err = privateState.Commit(bc.Config().IsEIP158(block.Number())); err != nil {
 			return i, events, coalescedLogs, err
 		}
-		if err := WritePrivateStateRoot(bc.chainDb, block.Root(), privateStateRoot); err != nil {
+		if err := WritePrivateStateRoot(bc.db, block.Root(), privateStateRoot); err != nil {
 			return i, events, coalescedLogs, err
 		}
 		// /Quorum

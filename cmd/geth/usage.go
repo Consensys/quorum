@@ -75,7 +75,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.TestnetFlag,
 			utils.RinkebyFlag,
 			utils.OttomanFlag,
-			utils.DevModeFlag,
 			utils.SyncModeFlag,
 			utils.GCModeFlag,
 			utils.EthStatsURLFlag,
@@ -278,39 +277,6 @@ var AppHelpFlagGroups = []flagGroup{
 	{
 		Name: "MISC",
 	},
-}
-
-// byCategory sorts an array of flagGroup by Name in the order
-// defined in AppHelpFlagGroups.
-type byCategory []flagGroup
-
-func (a byCategory) Len() int      { return len(a) }
-func (a byCategory) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a byCategory) Less(i, j int) bool {
-	iCat, jCat := a[i].Name, a[j].Name
-	iIdx, jIdx := len(AppHelpFlagGroups), len(AppHelpFlagGroups) // ensure non categorized flags come last
-
-	for i, group := range AppHelpFlagGroups {
-		if iCat == group.Name {
-			iIdx = i
-		}
-		if jCat == group.Name {
-			jIdx = i
-		}
-	}
-
-	return iIdx < jIdx
-}
-
-func flagCategory(flag cli.Flag) string {
-	for _, category := range AppHelpFlagGroups {
-		for _, flg := range category.Flags {
-			if flg.GetName() == flag.GetName() {
-				return category.Name
-			}
-		}
-	}
-	return "MISC"
 }
 
 // byCategory sorts an array of flagGroup by Name in the order

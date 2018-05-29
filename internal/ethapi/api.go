@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -377,11 +376,27 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		s.nonceLock.LockAddr(args.From)
 		defer s.nonceLock.UnlockAddr(args.From)
 	}
+
+	isPrivate := args.PrivateFor != nil
+
+	if isPrivate {
+		data := []byte(*args.Data)
+		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+		data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		// zekun: HACK
+		d := hexutil.Bytes(data)
+		args.Data = &d
+	}
+
 	signed, err := s.signTransaction(ctx, args, passwd)
 	if err != nil {
 		return common.Hash{}, err
 	}
-	return submitTransaction(ctx, s.b, signed)
+	return submitTransaction(ctx, s.b, signed, isPrivate)
 }
 
 // SignTransaction will create a transaction from the given arguments and
@@ -400,35 +415,15 @@ func (s *PrivateAccountAPI) SignTransaction(ctx context.Context, args SendTxArgs
 	if args.Nonce == nil {
 		return nil, fmt.Errorf("nonce not specified")
 	}
-
-	data := []byte(args.Data)
-	isPrivate := args.PrivateFor != nil
-	if isPrivate {
-		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		if err != nil {
-			return common.Hash{}, err
-		}
-		args.Data = data
-	}
-
-	// Set some sanity defaults and terminate on failure
-	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
-	}
-	// Assemble the transaction and sign with the wallet
-	tx := args.toTransaction()
-
-	var chainID *big.Int
-	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) {
-		chainID = config.ChainId
-	}
-	signed, err := wallet.SignTxWithPassphrase(account, passwd, tx, chainID)
+	signed, err := s.signTransaction(ctx, args, passwd)
 	if err != nil {
 		return nil, err
 	}
-	return submitTransaction(ctx, s.b, signed, isPrivate)
+	data, err := rlp.EncodeToBytes(signed)
+	if err != nil {
+		return nil, err
+	}
+	return &SignTransactionResult{data, signed}, nil
 }
 
 // signHash is a helper function that calculates a hash for the given message that can be
@@ -529,7 +524,7 @@ func (s *PublicBlockChainAPI) GetBalance(ctx context.Context, address common.Add
 		return nil, err
 	}
 	b := state.GetBalance(address)
-	return b, state.Error()
+	return b, nil
 }
 
 // GetBlockByNumber returns the requested block. When blockNr is -1 the chain head is returned. When fullTx is true all
@@ -616,7 +611,7 @@ func (s *PublicBlockChainAPI) GetCode(ctx context.Context, address common.Addres
 		return nil, err
 	}
 	code := state.GetCode(address)
-	return code, state.Error()
+	return code, nil
 }
 
 // GetStorageAt returns the storage from the state at the given address, key and
@@ -628,7 +623,7 @@ func (s *PublicBlockChainAPI) GetStorageAt(ctx context.Context, address common.A
 		return nil, err
 	}
 	res := state.GetState(address, common.HexToHash(key))
-	return res[:], state.Error()
+	return res[:], nil
 }
 
 // CallArgs represents the arguments for a call.
@@ -1031,7 +1026,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, addr
 		return nil, err
 	}
 	nonce := state.GetNonce(address)
-	return (*hexutil.Uint64)(&nonce), state.Error()
+	return (*hexutil.Uint64)(&nonce), nil
 }
 
 // GetTransactionByHash returns the transaction for the given hash
@@ -1248,17 +1243,19 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		defer s.nonceLock.UnlockAddr(args.From)
 	}
 
-	data := []byte(args.Data)
 	isPrivate := args.PrivateFor != nil
 
 	if isPrivate {
+		data := []byte(*args.Data)
 		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
 		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 		if err != nil {
 			return common.Hash{}, err
 		}
-		args.Data = data
+		// zekun: HACK
+		d := hexutil.Bytes(data)
+		args.Data = &d
 	}
 
 	// Set some sanity defaults and terminate on failure
@@ -1583,7 +1580,7 @@ func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs
 		res.Error = err.Error()
 		return
 	}
-	b, err := private.P.Send([]byte(args.Data), args.PrivateFrom, args.PrivateFor)
+	b, err := private.P.Send([]byte(*args.Data), args.PrivateFrom, args.PrivateFor)
 	if err != nil {
 		log.Info("Error running Private.P.Send", "err", err)
 		res.Error = err.Error()
@@ -1607,9 +1604,9 @@ func (a *Async) save(ctx context.Context, s *PublicTransactionPoolAPI, args Send
 	}
 	var tx *types.Transaction
 	if args.To == nil {
-		tx = types.NewContractCreation((uint64)(*args.Nonce), (*big.Int)(args.Value), (*big.Int)(args.Gas), (*big.Int)(args.GasPrice), data)
+		tx = types.NewContractCreation((uint64)(*args.Nonce), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), data)
 	} else {
-		tx = types.NewTransaction((uint64)(*args.Nonce), *args.To, (*big.Int)(args.Value), (*big.Int)(args.Gas), (*big.Int)(args.GasPrice), data)
+		tx = types.NewTransaction((uint64)(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), data)
 	}
 
 	signed, err := s.sign(args.From, tx)

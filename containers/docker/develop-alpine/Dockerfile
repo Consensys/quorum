@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-FROM alpine:3.5
-=======
 FROM alpine:3.7
->>>>>>> core/release/1.8
 
 RUN \
   apk add --update go git make gcc musl-dev linux-headers ca-certificates && \
