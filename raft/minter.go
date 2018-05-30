@@ -35,7 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/jpmorganchase/quorum/crypto"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // Current state information for building the next block
