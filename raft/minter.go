@@ -319,8 +319,6 @@ func (minter *minter) mintNewBlock() {
 	ethash.AccumulateRewards(minter.chain.Config(), work.publicState, header, nil)
 	header.Root = work.publicState.IntermediateRoot(minter.chain.Config().IsEIP158(work.header.Number))
 
-	// NOTE: < QuorumChain creates a signature here and puts it in header.Extra. >
-
 	allReceipts := append(publicReceipts, privateReceipts...)
 	header.Bloom = types.CreateBloom(allReceipts)
 
@@ -331,14 +329,8 @@ func (minter *minter) mintNewBlock() {
 		l.BlockHash = headerHash
 	}
 
-	//Sign the block
-	nodeKey := minter.eth.nodeKey
-	sig, err := crypto.Sign(headerHash.Bytes(), nodeKey)
-	if err != nil {
-		log.Warn("Block sealing failed", "err", err)
-	}
-
 	//add signature to header.Extra field
+	sig := minter.signHeader(headerHash)
 	copy(header.Extra, sig)
 
 	block := types.NewBlock(header, committedTxes, nil, publicReceipts)
@@ -417,4 +409,14 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 	}
 
 	return publicReceipt, privateReceipt, nil
+}
+
+//Sign the headerHash
+func (minter *minter) signHeader(headerHash common.Hash) []byte {
+	nodeKey := minter.eth.nodeKey
+	sig, err := crypto.Sign(headerHash.Bytes(), nodeKey)
+	if err != nil {
+		log.Warn("Block sealing failed", "err", err)
+	}
+	return sig
 }
