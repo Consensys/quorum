@@ -33,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -51,7 +50,7 @@ type minter struct {
 	config           *params.ChainConfig
 	mu               sync.Mutex
 	mux              *event.TypeMux
-	eth              miner.Backend
+	eth              *RaftService
 	chain            *core.BlockChain
 	chainDb          ethdb.Database
 	coinbase         common.Address
