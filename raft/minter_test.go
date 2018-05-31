@@ -32,7 +32,7 @@ func TestSignHeader(t *testing.T){
 	}
 
 	headerHash := header.Hash()
-	sig := minter.signHeader(headerHash)
+	sig := minter.getSignature(headerHash)
 
 	//Identify who signed it
 	pubKey, err := crypto.SigToPub(headerHash.Bytes(), sig)
