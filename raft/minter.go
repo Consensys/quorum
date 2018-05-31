@@ -330,6 +330,7 @@ func (minter *minter) mintNewBlock() {
 
 	//add signature to header.Extra field
 	sig := minter.signHeader(headerHash)
+	header.Extra = make([]byte, len(sig))
 	copy(header.Extra, sig)
 
 	block := types.NewBlock(header, committedTxes, nil, publicReceipts)
