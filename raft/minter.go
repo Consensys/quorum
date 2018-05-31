@@ -37,6 +37,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+var (
+	extraVanity = 32 // Fixed number of extra-data prefix bytes reserved for arbitrary signer vanity
+	extraSeal   = 65 // Fixed number of extra-data suffix bytes reserved for signer seal
+)
+
 // Current state information for building the next block
 type work struct {
 	config       *params.ChainConfig
@@ -329,9 +334,10 @@ func (minter *minter) mintNewBlock() {
 	}
 
 	//add signature to header.Extra field
-	sig := minter.signHeader(headerHash)
-	header.Extra = make([]byte, len(sig))
-	copy(header.Extra, sig)
+	sig := minter.getSignature(headerHash)
+	header.Extra = make([]byte, extraVanity+extraSeal)
+	// Extra Vanity values left blank for now, just add the signature to the end
+	copy(header.Extra[extraVanity:], sig)
 
 	block := types.NewBlock(header, committedTxes, nil, publicReceipts)
 
@@ -412,7 +418,7 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 }
 
 //Sign the headerHash
-func (minter *minter) signHeader(headerHash common.Hash) []byte {
+func (minter *minter) getSignature(headerHash common.Hash) []byte {
 	nodeKey := minter.eth.nodeKey
 	sig, err := crypto.Sign(headerHash.Bytes(), nodeKey)
 	if err != nil {
