@@ -42,19 +42,46 @@ type operation struct {
 	// memorySize returns the memory size required for the operation
 	memorySize memorySizeFunc
 
-	halts   bool // indicates whether the operation shoult halt further execution
+	halts   bool // indicates whether the operation should halt further execution
 	jumps   bool // indicates whether the program counter should not increment
 	writes  bool // determines whether this a state modifying operation
 	valid   bool // indication whether the retrieved operation is valid and known
 	reverts bool // determines whether the operation reverts state (implicitly halts)
-	returns bool // determines whether the opertions sets the return data content
+	returns bool // determines whether the operations sets the return data content
 }
 
 var (
-	frontierInstructionSet  = NewFrontierInstructionSet()
-	homesteadInstructionSet = NewHomesteadInstructionSet()
-	byzantiumInstructionSet = NewByzantiumInstructionSet()
+	frontierInstructionSet       = NewFrontierInstructionSet()
+	homesteadInstructionSet      = NewHomesteadInstructionSet()
+	byzantiumInstructionSet      = NewByzantiumInstructionSet()
+	constantinopleInstructionSet = NewConstantinopleInstructionSet()
 )
+
+// NewConstantinopleInstructionSet returns the frontier, homestead
+// byzantium and contantinople instructions.
+func NewConstantinopleInstructionSet() [256]operation {
+	// instructions that can be executed during the byzantium phase.
+	instructionSet := NewByzantiumInstructionSet()
+	instructionSet[SHL] = operation{
+		execute:       opSHL,
+		gasCost:       constGasFunc(GasFastestStep),
+		validateStack: makeStackFunc(2, 1),
+		valid:         true,
+	}
+	instructionSet[SHR] = operation{
+		execute:       opSHR,
+		gasCost:       constGasFunc(GasFastestStep),
+		validateStack: makeStackFunc(2, 1),
+		valid:         true,
+	}
+	instructionSet[SAR] = operation{
+		execute:       opSAR,
+		gasCost:       constGasFunc(GasFastestStep),
+		validateStack: makeStackFunc(2, 1),
+		valid:         true,
+	}
+	return instructionSet
+}
 
 // NewByzantiumInstructionSet returns the frontier, homestead and
 // byzantium instructions.

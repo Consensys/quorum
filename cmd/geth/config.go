@@ -18,26 +18,25 @@ package main
 
 import (
 	"bufio"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"reflect"
+	"time"
 	"unicode"
 
 	cli "gopkg.in/urfave/cli.v1"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/contracts/release"
+	"github.com/ethereum/go-ethereum/dashboard"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/raft"
-	whisper "github.com/ethereum/go-ethereum/whisper/whisperv5"
+	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	"github.com/naoina/toml"
-	"time"
 )
 
 var (
@@ -79,10 +78,11 @@ type ethstatsConfig struct {
 }
 
 type gethConfig struct {
-	Eth      eth.Config
-	Shh      whisper.Config
-	Node     node.Config
-	Ethstats ethstatsConfig
+	Eth       eth.Config
+	Shh       whisper.Config
+	Node      node.Config
+	Ethstats  ethstatsConfig
+	Dashboard dashboard.Config
 }
 
 func loadConfig(file string, cfg *gethConfig) error {
@@ -113,9 +113,10 @@ func defaultNodeConfig() node.Config {
 func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	// Load defaults.
 	cfg := gethConfig{
-		Eth:  eth.DefaultConfig,
-		Shh:  whisper.DefaultConfig,
-		Node: defaultNodeConfig(),
+		Eth:       eth.DefaultConfig,
+		Shh:       whisper.DefaultConfig,
+		Node:      defaultNodeConfig(),
+		Dashboard: dashboard.DefaultConfig,
 	}
 
 	// Load config file.
@@ -138,6 +139,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 
 	utils.SetShhConfig(ctx, stack, &cfg.Shh)
 	cfg.Eth.RaftMode = ctx.GlobalBool(utils.RaftModeFlag.Name)
+	utils.SetDashboardConfig(ctx, &cfg.Dashboard)
 
 	return stack, cfg
 }
@@ -161,9 +163,13 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		RegisterRaftService(stack, ctx, cfg, ethChan)
 	}
 
+	if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
+		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
+	}
+
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
 	shhEnabled := enableWhisper(ctx)
-	shhAutoEnabled := !ctx.GlobalIsSet(utils.WhisperEnabledFlag.Name) && ctx.GlobalIsSet(utils.DevModeFlag.Name)
+	shhAutoEnabled := !ctx.GlobalIsSet(utils.WhisperEnabledFlag.Name) && ctx.GlobalIsSet(utils.DeveloperFlag.Name)
 	if shhEnabled || shhAutoEnabled {
 		if ctx.GlobalIsSet(utils.WhisperMaxMessageSizeFlag.Name) {
 			cfg.Shh.MaxMessageSize = uint32(ctx.Int(utils.WhisperMaxMessageSizeFlag.Name))
@@ -177,21 +183,6 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	// Add the Ethereum Stats daemon if requested.
 	if cfg.Ethstats.URL != "" {
 		utils.RegisterEthStatsService(stack, cfg.Ethstats.URL)
-	}
-
-	// Add the release oracle service so it boots along with node.
-	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		config := release.Config{
-			Oracle: relOracle,
-			Major:  uint32(params.VersionMajor),
-			Minor:  uint32(params.VersionMinor),
-			Patch:  uint32(params.VersionPatch),
-		}
-		commit, _ := hex.DecodeString(gitCommit)
-		copy(config.Commit[:], commit)
-		return release.NewReleaseService(ctx, config)
-	}); err != nil {
-		utils.Fatalf("Failed to register the Geth release oracle service: %v", err)
 	}
 	return stack
 }

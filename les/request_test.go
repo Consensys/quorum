@@ -22,8 +22,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/light"
 )
@@ -38,11 +39,15 @@ type accessTestFn func(db ethdb.Database, bhash common.Hash, number uint64) ligh
 
 func TestBlockAccessLes1(t *testing.T) { testAccess(t, 1, tfBlockAccess) }
 
+func TestBlockAccessLes2(t *testing.T) { testAccess(t, 2, tfBlockAccess) }
+
 func tfBlockAccess(db ethdb.Database, bhash common.Hash, number uint64) light.OdrRequest {
 	return &light.BlockRequest{Hash: bhash, Number: number}
 }
 
 func TestReceiptsAccessLes1(t *testing.T) { testAccess(t, 1, tfReceiptsAccess) }
+
+func TestReceiptsAccessLes2(t *testing.T) { testAccess(t, 2, tfReceiptsAccess) }
 
 func tfReceiptsAccess(db ethdb.Database, bhash common.Hash, number uint64) light.OdrRequest {
 	return &light.ReceiptsRequest{Hash: bhash, Number: number}
@@ -50,14 +55,25 @@ func tfReceiptsAccess(db ethdb.Database, bhash common.Hash, number uint64) light
 
 func TestTrieEntryAccessLes1(t *testing.T) { testAccess(t, 1, tfTrieEntryAccess) }
 
+func TestTrieEntryAccessLes2(t *testing.T) { testAccess(t, 2, tfTrieEntryAccess) }
+
 func tfTrieEntryAccess(db ethdb.Database, bhash common.Hash, number uint64) light.OdrRequest {
-	return &light.TrieRequest{Id: light.StateTrieID(core.GetHeader(db, bhash, core.GetBlockNumber(db, bhash))), Key: testBankSecureTrieKey}
+	if number := rawdb.ReadHeaderNumber(db, bhash); number != nil {
+		return &light.TrieRequest{Id: light.StateTrieID(rawdb.ReadHeader(db, bhash, *number)), Key: testBankSecureTrieKey}
+	}
+	return nil
 }
 
 func TestCodeAccessLes1(t *testing.T) { testAccess(t, 1, tfCodeAccess) }
 
-func tfCodeAccess(db ethdb.Database, bhash common.Hash, number uint64) light.OdrRequest {
-	header := core.GetHeader(db, bhash, core.GetBlockNumber(db, bhash))
+func TestCodeAccessLes2(t *testing.T) { testAccess(t, 2, tfCodeAccess) }
+
+func tfCodeAccess(db ethdb.Database, bhash common.Hash, num uint64) light.OdrRequest {
+	number := rawdb.ReadHeaderNumber(db, bhash)
+	if number != nil {
+		return nil
+	}
+	header := rawdb.ReadHeader(db, bhash, *number)
 	if header.Number.Uint64() < testContractDeployed {
 		return nil
 	}
@@ -71,9 +87,9 @@ func testAccess(t *testing.T, protocol int, fn accessTestFn) {
 	peers := newPeerSet()
 	dist := newRequestDistributor(peers, make(chan struct{}))
 	rm := newRetrieveManager(peers, dist, nil)
-	db, _ := ethdb.NewMemDatabase()
-	ldb, _ := ethdb.NewMemDatabase()
-	odr := NewLesOdr(ldb, rm)
+	db := ethdb.NewMemDatabase()
+	ldb := ethdb.NewMemDatabase()
+	odr := NewLesOdr(ldb, light.NewChtIndexer(db, true), light.NewBloomTrieIndexer(db, true), eth.NewBloomIndexer(db, light.BloomTrieFrequency), rm)
 
 	pm := newTestProtocolManagerMust(t, false, 4, testChainGen, nil, nil, db)
 	lpm := newTestProtocolManagerMust(t, true, 0, nil, peers, odr, ldb)
@@ -90,7 +106,7 @@ func testAccess(t *testing.T, protocol int, fn accessTestFn) {
 
 	test := func(expFail uint64) {
 		for i := uint64(0); i <= pm.blockchain.CurrentHeader().Number.Uint64(); i++ {
-			bhash := core.GetCanonicalHash(db, i)
+			bhash := rawdb.ReadCanonicalHash(db, i)
 			if req := fn(ldb, bhash, i); req != nil {
 				ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 				defer cancel()

@@ -20,12 +20,10 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -42,15 +40,20 @@ func TestKeccak256Hash(t *testing.T) {
 	checkhash(t, "Sha3-256-array", func(in []byte) []byte { h := Keccak256Hash(in); return h[:] }, msg, exp)
 }
 
+func TestToECDSAErrors(t *testing.T) {
+	if _, err := HexToECDSA("0000000000000000000000000000000000000000000000000000000000000000"); err == nil {
+		t.Fatal("HexToECDSA should've returned error")
+	}
+	if _, err := HexToECDSA("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); err == nil {
+		t.Fatal("HexToECDSA should've returned error")
+	}
+}
+
 func BenchmarkSha3(b *testing.B) {
 	a := []byte("hello world")
-	amount := 1000000
-	start := time.Now()
-	for i := 0; i < amount; i++ {
+	for i := 0; i < b.N; i++ {
 		Keccak256(a)
 	}
-
-	fmt.Println(amount, ":", time.Since(start))
 }
 
 func TestSign(t *testing.T) {
@@ -151,7 +154,7 @@ func TestValidateSignatureValues(t *testing.T) {
 	minusOne := big.NewInt(-1)
 	one := common.Big1
 	zero := common.Big0
-	secp256k1nMinus1 := new(big.Int).Sub(secp256k1_N, common.Big1)
+	secp256k1nMinus1 := new(big.Int).Sub(secp256k1N, common.Big1)
 
 	// correct v,r,s
 	check(true, 0, one, one)
@@ -178,9 +181,9 @@ func TestValidateSignatureValues(t *testing.T) {
 	// correct sig with max r,s
 	check(true, 0, secp256k1nMinus1, secp256k1nMinus1)
 	// correct v, combinations of incorrect r,s at upper limit
-	check(false, 0, secp256k1_N, secp256k1nMinus1)
-	check(false, 0, secp256k1nMinus1, secp256k1_N)
-	check(false, 0, secp256k1_N, secp256k1_N)
+	check(false, 0, secp256k1N, secp256k1nMinus1)
+	check(false, 0, secp256k1nMinus1, secp256k1N)
+	check(false, 0, secp256k1N, secp256k1N)
 
 	// current callers ensures r,s cannot be negative, but let's test for that too
 	// as crypto package could be used stand-alone

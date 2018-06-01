@@ -193,7 +193,6 @@ func (s *Service) loop() {
 			}
 		}
 		close(quitCh)
-		return
 	}()
 	// Loop reporting until termination
 	for {
@@ -374,13 +373,12 @@ func (s *Service) login(conn *websocket.Conn) error {
 	infos := s.server.NodeInfo()
 
 	var network, protocol string
-	p := s.engine.Protocol()
-	if info := infos.Protocols[p.Name]; info != nil {
-		network = fmt.Sprintf("%d", info.(*eth.EthNodeInfo).Network)
-		protocol = fmt.Sprintf("%s/%d", p.Name, p.Versions[0])
+	if info := infos.Protocols["eth"]; info != nil {
+		network = fmt.Sprintf("%d", info.(*eth.NodeInfo).Network)
+		protocol = fmt.Sprintf("eth/%d", eth.ProtocolVersions[0])
 	} else {
-		network = fmt.Sprintf("%d", infos.Protocols["les"].(*eth.EthNodeInfo).Network)
-		protocol = fmt.Sprintf("les/%d", les.ProtocolVersions[0])
+		network = fmt.Sprintf("%d", infos.Protocols["les"].(*les.NodeInfo).Network)
+		protocol = fmt.Sprintf("les/%d", les.ClientProtocolVersions[0])
 	}
 	auth := &authMsg{
 		Id: s.node,
@@ -475,8 +473,8 @@ type blockStats struct {
 	ParentHash common.Hash    `json:"parentHash"`
 	Timestamp  *big.Int       `json:"timestamp"`
 	Miner      common.Address `json:"miner"`
-	GasUsed    *big.Int       `json:"gasUsed"`
-	GasLimit   *big.Int       `json:"gasLimit"`
+	GasUsed    uint64         `json:"gasUsed"`
+	GasLimit   uint64         `json:"gasLimit"`
 	Diff       string         `json:"difficulty"`
 	TotalDiff  string         `json:"totalDifficulty"`
 	Txs        []txStats      `json:"transactions"`
@@ -561,8 +559,8 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 		ParentHash: header.ParentHash,
 		Timestamp:  header.Time,
 		Miner:      author,
-		GasUsed:    new(big.Int).Set(header.GasUsed),
-		GasLimit:   new(big.Int).Set(header.GasLimit),
+		GasUsed:    header.GasUsed,
+		GasLimit:   header.GasLimit,
 		Diff:       header.Difficulty.String(),
 		TotalDiff:  td.String(),
 		Txs:        txs,
@@ -615,6 +613,7 @@ func (s *Service) reportHistory(conn *websocket.Conn, list []uint64) error {
 		}
 		// Ran out of blocks, cut the report short and send
 		history = history[len(history)-i:]
+		break
 	}
 	// Assemble the history report and send it to the server
 	if len(history) > 0 {
@@ -690,7 +689,7 @@ func (s *Service) reportStats(conn *websocket.Conn) error {
 		sync := s.eth.Downloader().Progress()
 		syncing = s.eth.BlockChain().CurrentHeader().Number.Uint64() >= sync.HighestBlock
 
-		price, _ := s.eth.ApiBackend.SuggestPrice(context.Background())
+		price, _ := s.eth.APIBackend.SuggestPrice(context.Background())
 		gasprice = int(price.Uint64())
 	} else {
 		sync := s.les.Downloader().Progress()

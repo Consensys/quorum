@@ -51,7 +51,7 @@ func (a Address) Bin() string {
 /*
 Proximity(x, y) returns the proximity order of the MSB distance between x and y
 
-The distance metric MSB(x, y) of two equal length byte sequences x an y is the
+The distance metric MSB(x, y) of two equal length byte sequences x and y is the
 value of the binary integer cast of the x^y, ie., x and y bitwise xor-ed.
 the binary cast is big endian: most significant bit first (=MSB).
 
@@ -67,7 +67,7 @@ func proximity(one, other Address) (ret int) {
 	for i := 0; i < len(one); i++ {
 		oxo := one[i] ^ other[i]
 		for j := 0; j < 8; j++ {
-			if (uint8(oxo)>>uint8(7-j))&0x01 != 0 {
+			if (oxo>>uint8(7-j))&0x01 != 0 {
 				return i*8 + j
 			}
 		}

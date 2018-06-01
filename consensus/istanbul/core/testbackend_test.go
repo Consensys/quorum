@@ -265,7 +265,7 @@ func (t *testSystem) stop(core bool) {
 
 func (t *testSystem) NewBackend(id uint64) *testSystemBackend {
 	// assume always success
-	ethDB, _ := ethdb.NewMemDatabase()
+	ethDB := ethdb.NewMemDatabase()
 	backend := &testSystemBackend{
 		id:     id,
 		sys:    t,
