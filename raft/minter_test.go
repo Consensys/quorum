@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/rlp"
+	"fmt"
 )
 
 func TestSignHeader(t *testing.T){
@@ -39,11 +40,25 @@ func TestSignHeader(t *testing.T){
 
 	headerHash := header.Hash()
 	extraDataBytes := minter.buildExtraSeal(headerHash)
+	print(extraDataBytes)
 	seal := new(extraSeal)
-	rlp.DecodeBytes(extraDataBytes, *seal)
+	err := rlp.DecodeBytes(extraDataBytes, seal)
+	if err != nil {
+		t.Fatalf("Unable to decode seal: %s", err.Error())
+	}
+	print("\n")
+	fmt.Printf("%v\n", seal)
+	print("\n")
+	print(seal.raftId)
+	print("\n")
+	print(seal.signature)
+	print("\n")
 
 	// Check raftId
-	sealRaftId, _ := strconv.ParseInt(seal.raftId, 16, 64)
+	sealRaftId, err := strconv.ParseInt(string(seal.raftId), 16, 64)
+	if err != nil {
+		t.Errorf("Unable to get RaftId")
+	}
 	if  sealRaftId != int64	(testRaftId) {
 		t.Errorf("RaftID does not match. Expected: %d, Actual: %d", testRaftId, sealRaftId)
 	}
@@ -52,7 +67,7 @@ func TestSignHeader(t *testing.T){
 	sig:= seal.signature
 	pubKey, err := crypto.SigToPub(headerHash.Bytes(), sig)
 	if err != nil {
-		t.Errorf("Unable to get public key from signature: %s", err.Error())
+		t.Fatalf("Unable to get public key from signature: %s", err.Error())
 	}
 
 	//Compare derived public key to original public key

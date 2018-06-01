@@ -73,7 +73,7 @@ type minter struct {
 }
 
 type extraSeal struct {
-	raftId    string  // RaftID of the block minter
+	raftId    []byte  // RaftID of the block minter
 	signature []byte  // Signature of the block minter
 }
 
@@ -436,12 +436,15 @@ func (minter *minter) buildExtraSeal(headerHash common.Hash) []byte {
 	//build the extraSeal struct
 	raftIdString := strconv.FormatInt(int64(minter.eth.raftProtocolManager.raftId), 16)
 	extra := &extraSeal{
-		raftId: raftIdString,
+		raftId: []byte(raftIdString),
 		signature: sig,
 	}
 
 	//encode to byte array for storage
-	extraDataBytes, err := rlp.EncodeToBytes(*extra)
+	extraDataBytes, err := rlp.EncodeToBytes(&extra)
+	print("extraDataBytes: ")
+	print(extraDataBytes)
+	print("\n")
 	if err != nil {
 		log.Warn("Header.Extra Data Encoding failed", "err", err)
 	}
