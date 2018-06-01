@@ -63,7 +63,7 @@ func makeTestState() (Database, common.Hash, []*testAccount) {
 	root, _ := state.Commit(false)
 
 	// Return the generated state
-	return db, mem, root, accounts
+	return db, root, accounts
 }
 
 // checkStateAccounts cross references a reconstructed state with an expected
@@ -136,7 +136,7 @@ func TestIterativeStateSyncBatched(t *testing.T)    { testIterativeStateSync(t, 
 
 func testIterativeStateSync(t *testing.T, batch int) {
 	// Create a random state to copy
-	_, srcMem, srcRoot, srcAccounts := makeTestState()
+	srcDb, srcRoot, srcAccounts := makeTestState()
 
 	// Create a destination state and sync with the scheduler
 	dstDb := ethdb.NewMemDatabase()
@@ -168,7 +168,7 @@ func testIterativeStateSync(t *testing.T, batch int) {
 // partial results are returned, and the others sent only later.
 func TestIterativeDelayedStateSync(t *testing.T) {
 	// Create a random state to copy
-	_, srcMem, srcRoot, srcAccounts := makeTestState()
+	srcDb, srcRoot, srcAccounts := makeTestState()
 
 	// Create a destination state and sync with the scheduler
 	dstDb := ethdb.NewMemDatabase()
@@ -205,7 +205,7 @@ func TestIterativeRandomStateSyncBatched(t *testing.T)    { testIterativeRandomS
 
 func testIterativeRandomStateSync(t *testing.T, batch int) {
 	// Create a random state to copy
-	_, srcMem, srcRoot, srcAccounts := makeTestState()
+	srcDb, srcRoot, srcAccounts := makeTestState()
 
 	// Create a destination state and sync with the scheduler
 	dstDb := ethdb.NewMemDatabase()
@@ -245,7 +245,7 @@ func testIterativeRandomStateSync(t *testing.T, batch int) {
 // partial results are returned (Even those randomly), others sent only later.
 func TestIterativeRandomDelayedStateSync(t *testing.T) {
 	// Create a random state to copy
-	_, srcMem, srcRoot, srcAccounts := makeTestState()
+	srcDb, srcRoot, srcAccounts := makeTestState()
 
 	// Create a destination state and sync with the scheduler
 	dstDb := ethdb.NewMemDatabase()
@@ -290,9 +290,7 @@ func TestIterativeRandomDelayedStateSync(t *testing.T) {
 // the database.
 func TestIncompleteStateSync(t *testing.T) {
 	// Create a random state to copy
-	_, srcMem, srcRoot, srcAccounts := makeTestState()
-
-	checkTrieConsistency(srcMem, srcRoot)
+	srcDb, srcRoot, srcAccounts := makeTestState()
 
 	checkTrieConsistency(srcDb.TrieDB().DiskDB().(ethdb.Database), srcRoot)
 

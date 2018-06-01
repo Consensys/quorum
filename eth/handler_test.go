@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -476,7 +477,7 @@ func testDAOChallenge(t *testing.T, localForked, remoteForked bool, timeout bool
 		genesis       = gspec.MustCommit(db)
 		blockchain, _ = core.NewBlockChain(db, nil, config, pow, vm.Config{})
 	)
-	pm, err := NewProtocolManager(config, downloader.FullSync, DefaultConfig.NetworkId, evmux, new(testTxPool), pow, blockchain, db)
+	pm, err := NewProtocolManager(config, downloader.FullSync, DefaultConfig.NetworkId, evmux, new(testTxPool), pow, blockchain, db, false)
 	if err != nil {
 		t.Fatalf("failed to start test protocol manager: %v", err)
 	}

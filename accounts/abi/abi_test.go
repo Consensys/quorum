@@ -550,8 +550,10 @@ func TestInputFixedArrayAndVariableInputLength(t *testing.T) {
 func TestDefaultFunctionParsing(t *testing.T) {
 	const definition = `[{ "name" : "balance" }]`
 
-	arg0, _ := NewType("uint256")
-	arg1, _ := NewType("address")
+	abi, err := JSON(strings.NewReader(definition))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if _, ok := abi.Methods["balance"]; !ok {
 		t.Error("expected 'balance' to be present")

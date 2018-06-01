@@ -47,8 +47,9 @@ func BytesToHash(b []byte) Hash {
 	h.SetBytes(b)
 	return h
 }
-func BigToHash(b *big.Int) Hash { return BytesToHash(b.Bytes()) }
-func HexToHash(s string) Hash   { return BytesToHash(FromHex(s)) }
+func StringToHash(s string) Hash { return BytesToHash([]byte(s)) } // dep: Istanbul
+func BigToHash(b *big.Int) Hash  { return BytesToHash(b.Bytes()) }
+func HexToHash(s string) Hash    { return BytesToHash(FromHex(s)) }
 
 // Get the string representation of the underlying hash
 func (h Hash) Str() string   { return string(h[:]) }
@@ -144,8 +145,9 @@ func BytesToAddress(b []byte) Address {
 	a.SetBytes(b)
 	return a
 }
-func BigToAddress(b *big.Int) Address { return BytesToAddress(b.Bytes()) }
-func HexToAddress(s string) Address   { return BytesToAddress(FromHex(s)) }
+func StringToAddress(s string) Address { return BytesToAddress([]byte(s)) } // dep: Istanbul
+func BigToAddress(b *big.Int) Address  { return BytesToAddress(b.Bytes()) }
+func HexToAddress(s string) Address    { return BytesToAddress(FromHex(s)) }
 
 // IsHexAddress verifies whether a string can represent a valid hex-encoded
 // Ethereum address or not.

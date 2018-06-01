@@ -54,7 +54,7 @@ var (
 		3,
 		common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b"),
 		big.NewInt(10),
-		big.NewInt(2000),
+		2000,
 		big.NewInt(0),
 		common.FromHex("5544"),
 	).WithSignature(

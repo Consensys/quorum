@@ -123,7 +123,7 @@ func genTxRing(naccounts int) func(int, *BlockGen) {
 				gen.TxNonce(ringAddrs[from]),
 				ringAddrs[to],
 				benchRootFunds,
-				bigTxGas,
+				params.TxGas,
 				nil,
 				nil,
 			)
