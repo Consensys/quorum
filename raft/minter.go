@@ -22,6 +22,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"strconv"
 
 	"github.com/eapache/channels"
 	"github.com/ethereum/go-ethereum/common"
@@ -35,11 +36,11 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 var (
-	extraVanity = 32 // Fixed number of extra-data prefix bytes reserved for arbitrary signer vanity
-	extraSeal   = 65 // Fixed number of extra-data suffix bytes reserved for signer seal
+	extraVanity = 32      // Fixed number of extra-data prefix bytes reserved for arbitrary signer vanity
 )
 
 // Current state information for building the next block
@@ -69,6 +70,11 @@ type minter struct {
 	chainHeadSub            event.Subscription
 	txPreChan               chan core.TxPreEvent
 	txPreSub                event.Subscription
+}
+
+type extraSeal struct {
+	raftId    string  // RaftID of the block minter
+	signature []byte  // Signature of the block minter
 }
 
 func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration) *minter {
@@ -333,11 +339,13 @@ func (minter *minter) mintNewBlock() {
 		l.BlockHash = headerHash
 	}
 
-	//add signature to header.Extra field
-	sig := minter.getSignature(headerHash)
-	header.Extra = make([]byte, extraVanity+extraSeal)
-	// Extra Vanity values left blank for now, just add the signature to the end
-	copy(header.Extra[extraVanity:], sig)
+	//Sign the block and build the extraSeal struct
+	extraSealBytes := minter.buildExtraSeal(headerHash)
+
+	// add vanity and seal to header
+	// NOTE: leaving vanity blank for now as a space for any future data
+	header.Extra = make([]byte, extraVanity+len(extraSealBytes))
+	copy(header.Extra[extraVanity:], extraSealBytes)
 
 	block := types.NewBlock(header, committedTxes, nil, publicReceipts)
 
@@ -417,12 +425,26 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 	return publicReceipt, privateReceipt, nil
 }
 
-//Sign the headerHash
-func (minter *minter) getSignature(headerHash common.Hash) []byte {
+func (minter *minter) buildExtraSeal(headerHash common.Hash) []byte {
+	//Sign the headerHash
 	nodeKey := minter.eth.nodeKey
 	sig, err := crypto.Sign(headerHash.Bytes(), nodeKey)
 	if err != nil {
 		log.Warn("Block sealing failed", "err", err)
 	}
-	return sig
+
+	//build the extraSeal struct
+	raftIdString := strconv.FormatInt(int64(minter.eth.raftProtocolManager.raftId), 16)
+	extra := &extraSeal{
+		raftId: raftIdString,
+		signature: sig,
+	}
+
+	//encode to byte array for storage
+	extraDataBytes, err := rlp.EncodeToBytes(*extra)
+	if err != nil {
+		log.Warn("Header.Extra Data Encoding failed", "err", err)
+	}
+
+	return extraDataBytes
 }

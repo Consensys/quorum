@@ -2,20 +2,26 @@ package raft
 
 import (
 	"testing"
+	"strconv"
+	"math/big"
+	"time"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/node"
-	"math/big"
-	"time"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 func TestSignHeader(t *testing.T){
-	//create only what we need to test the signature
+	//create only what we need to test the seal
+	var testRaftId uint16 = 5
 	config := &node.Config{Name: "unit-test", DataDir: ""}
 
 	nodeKey := config.NodeKey()
-	raftService := &RaftService{nodeKey: nodeKey,}
+
+	raftProtocolManager := &ProtocolManager{raftId:testRaftId}
+	raftService := &RaftService{nodeKey: nodeKey, raftProtocolManager: raftProtocolManager}
 	minter := minter{eth: raftService,}
 
 	//create some fake header to sign
@@ -32,9 +38,18 @@ func TestSignHeader(t *testing.T){
 	}
 
 	headerHash := header.Hash()
-	sig := minter.getSignature(headerHash)
+	extraDataBytes := minter.buildExtraSeal(headerHash)
+	seal := new(extraSeal)
+	rlp.DecodeBytes(extraDataBytes, *seal)
+
+	// Check raftId
+	sealRaftId, _ := strconv.ParseInt(seal.raftId, 16, 64)
+	if  sealRaftId != int64	(testRaftId) {
+		t.Errorf("RaftID does not match. Expected: %d, Actual: %d", testRaftId, sealRaftId)
+	}
 
 	//Identify who signed it
+	sig:= seal.signature
 	pubKey, err := crypto.SigToPub(headerHash.Bytes(), sig)
 	if err != nil {
 		t.Errorf("Unable to get public key from signature: %s", err.Error())
