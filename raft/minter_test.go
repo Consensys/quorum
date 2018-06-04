@@ -2,16 +2,16 @@ package raft
 
 import (
 	"testing"
-	"strconv"
 	"math/big"
 	"time"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/rlp"
-	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 func TestSignHeader(t *testing.T){
@@ -41,30 +41,31 @@ func TestSignHeader(t *testing.T){
 	headerHash := header.Hash()
 	extraDataBytes := minter.buildExtraSeal(headerHash)
 	print(extraDataBytes)
-	seal := new(extraSeal)
-	err := rlp.DecodeBytes(extraDataBytes, seal)
+	var seal *extraSeal
+	err := rlp.DecodeBytes(extraDataBytes[:], &seal)
 	if err != nil {
 		t.Fatalf("Unable to decode seal: %s", err.Error())
 	}
 	print("\n")
 	fmt.Printf("%v\n", seal)
 	print("\n")
-	print(seal.raftId)
+	print(seal.RaftId)
 	print("\n")
-	print(seal.signature)
+	print(seal.Signature)
 	print("\n")
 
 	// Check raftId
-	sealRaftId, err := strconv.ParseInt(string(seal.raftId), 16, 64)
+	//sealRaftId, err := strconv.ParseInt(string(seal.raftId), 16, 64)
+	sealRaftId, err := hexutil.DecodeUint64(string(seal.RaftId))
 	if err != nil {
-		t.Errorf("Unable to get RaftId")
+		t.Errorf("Unable to get RaftId: %s", err.Error())
 	}
-	if  sealRaftId != int64	(testRaftId) {
+	if  sealRaftId != uint64(testRaftId) {
 		t.Errorf("RaftID does not match. Expected: %d, Actual: %d", testRaftId, sealRaftId)
 	}
 
 	//Identify who signed it
-	sig:= seal.signature
+	sig:= seal.Signature
 	pubKey, err := crypto.SigToPub(headerHash.Bytes(), sig)
 	if err != nil {
 		t.Fatalf("Unable to get public key from signature: %s", err.Error())

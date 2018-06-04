@@ -22,7 +22,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"strconv"
 
 	"github.com/eapache/channels"
 	"github.com/ethereum/go-ethereum/common"
@@ -37,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 var (
@@ -73,8 +73,8 @@ type minter struct {
 }
 
 type extraSeal struct {
-	raftId    []byte  // RaftID of the block minter
-	signature []byte  // Signature of the block minter
+	RaftId    []byte  // RaftID of the block minter
+	Signature []byte  // Signature of the block minter
 }
 
 func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration) *minter {
@@ -434,11 +434,16 @@ func (minter *minter) buildExtraSeal(headerHash common.Hash) []byte {
 	}
 
 	//build the extraSeal struct
-	raftIdString := strconv.FormatInt(int64(minter.eth.raftProtocolManager.raftId), 16)
-	extra := &extraSeal{
-		raftId: []byte(raftIdString),
-		signature: sig,
+	raftIdString := hexutil.EncodeUint64(uint64(minter.eth.raftProtocolManager.raftId))
+
+	var extra *extraSeal
+	extra = &extraSeal{
+		RaftId: []byte(raftIdString),
+		Signature: sig,
 	}
+	print("\n")
+	fmt.Printf("%v\n", extra)
+	print("\n")
 
 	//encode to byte array for storage
 	extraDataBytes, err := rlp.EncodeToBytes(&extra)
