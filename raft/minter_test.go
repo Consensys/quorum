@@ -4,7 +4,6 @@ import (
 	"testing"
 	"math/big"
 	"time"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -40,22 +39,13 @@ func TestSignHeader(t *testing.T){
 
 	headerHash := header.Hash()
 	extraDataBytes := minter.buildExtraSeal(headerHash)
-	print(extraDataBytes)
 	var seal *extraSeal
 	err := rlp.DecodeBytes(extraDataBytes[:], &seal)
 	if err != nil {
 		t.Fatalf("Unable to decode seal: %s", err.Error())
 	}
-	print("\n")
-	fmt.Printf("%v\n", seal)
-	print("\n")
-	print(seal.RaftId)
-	print("\n")
-	print(seal.Signature)
-	print("\n")
 
 	// Check raftId
-	//sealRaftId, err := strconv.ParseInt(string(seal.raftId), 16, 64)
 	sealRaftId, err := hexutil.DecodeUint64(string(seal.RaftId))
 	if err != nil {
 		t.Errorf("Unable to get RaftId: %s", err.Error())

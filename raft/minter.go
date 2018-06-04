@@ -441,15 +441,9 @@ func (minter *minter) buildExtraSeal(headerHash common.Hash) []byte {
 		RaftId: []byte(raftIdString),
 		Signature: sig,
 	}
-	print("\n")
-	fmt.Printf("%v\n", extra)
-	print("\n")
 
 	//encode to byte array for storage
 	extraDataBytes, err := rlp.EncodeToBytes(&extra)
-	print("extraDataBytes: ")
-	print(extraDataBytes)
-	print("\n")
 	if err != nil {
 		log.Warn("Header.Extra Data Encoding failed", "err", err)
 	}
