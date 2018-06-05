@@ -46,7 +46,7 @@ func TestSignHeader(t *testing.T){
 	}
 
 	// Check raftId
-	sealRaftId, err := hexutil.DecodeUint64(string(seal.RaftId))
+	sealRaftId, err := hexutil.DecodeUint64("0x"+ string(seal.RaftId)) //add the 0x prefix
 	if err != nil {
 		t.Errorf("Unable to get RaftId: %s", err.Error())
 	}

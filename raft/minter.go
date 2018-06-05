@@ -438,7 +438,7 @@ func (minter *minter) buildExtraSeal(headerHash common.Hash) []byte {
 
 	var extra *extraSeal
 	extra = &extraSeal{
-		RaftId: []byte(raftIdString),
+		RaftId: []byte(raftIdString[2:]), //remove the 0x prefix
 		Signature: sig,
 	}
 
