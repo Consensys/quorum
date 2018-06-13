@@ -583,6 +583,9 @@ func (ethash *Ethash) SetThreads(threads int) {
 // Hashrate implements PoW, returning the measured rate of the search invocations
 // per second over the last minute.
 func (ethash *Ethash) Hashrate() float64 {
+	if(ethash.hashrate == nil){
+		return 0
+	}
 	return ethash.hashrate.Rate1()
 }
 
