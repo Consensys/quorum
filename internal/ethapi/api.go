@@ -1169,10 +1169,9 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	tx := args.toTransaction()
 
 	var chainID *big.Int
-	isQuorum := false
+	isQuorum := tx.IsPrivate()
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !isPrivate {
 		chainID = config.ChainId
-		isQuorum = true
 	}
 	signed, err := wallet.SignTx(account, tx, chainID, isQuorum)
 	if err != nil {
