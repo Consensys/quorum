@@ -250,7 +250,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			to = st.to()
 		}
 		//if input is empty for the smart contract call, return
-		if len(data) == 0 {
+		if len(data) == 0 && isPrivate {
 			return nil, 0, false, nil
 		}
 		ret, st.gas, vmerr = evm.Call(sender, to, data, st.gas, st.value)

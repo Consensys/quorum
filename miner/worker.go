@@ -153,15 +153,18 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase com
 		agents:         make(map[Agent]struct{}),
 		unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
 	}
-	// Subscribe TxPreEvent for tx pool
-	worker.txSub = eth.TxPool().SubscribeTxPreEvent(worker.txCh)
-	// Subscribe events for blockchain
-	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
-	worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
-	go worker.update()
 
-	go worker.wait()
-	worker.commitNewWork()
+	if _, ok := engine.(consensus.Istanbul); ok || !config.IsQuorum {
+		// Subscribe TxPreEvent for tx pool
+		worker.txSub = eth.TxPool().SubscribeTxPreEvent(worker.txCh)
+		// Subscribe events for blockchain
+		worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
+		worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
+		go worker.update()
+
+		go worker.wait()
+		worker.commitNewWork()
+	}
 
 	return worker
 }

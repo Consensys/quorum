@@ -36,7 +36,9 @@ import (
 )
 
 const (
-	defaultDialTimeout = 15 * time.Second
+	defaultDialTimeout      = 15 * time.Second
+	refreshPeersInterval    = 30 * time.Second
+	staticPeerCheckInterval = 15 * time.Second
 
 	// Connectivity defaults.
 	maxActiveDialTasks     = 16
@@ -486,6 +488,9 @@ func (srv *Server) Start() (err error) {
 	}
 
 	dynPeers := srv.maxDialedConns()
+	if srv.NoDiscovery {
+		dynPeers = 0
+	}
 	dialer := newDialState(srv.StaticNodes, srv.BootstrapNodes, srv.ntab, dynPeers, srv.NetRestrict)
 
 	// handshake
