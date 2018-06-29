@@ -50,6 +50,7 @@ type ProtocolManager struct {
 	snapshotIndex uint64 // The index of the latest snapshot.
 
 	// Remote peer state (protected by mu vs concurrent access via JS)
+	leader       uint16
 	peers        map[uint16]*Peer
 	removedPeers *set.Set // *Permanently removed* peers
 
@@ -678,6 +679,9 @@ func (pm *ProtocolManager) eventLoop() {
 		// when the node is first ready it gives us entries to commit and messages
 		// to immediately publish
 		case rd := <-pm.rawNode().Ready():
+			if rd.SoftState != nil && pm.leader != uint16(rd.SoftState.Lead) {
+				pm.updateLeader(rd.SoftState.Lead)
+			}
 			pm.wal.Save(rd.HardState, rd.Entries)
 
 			if snap := rd.Snapshot; !etcdRaft.IsEmptySnap(snap) {
@@ -880,4 +884,18 @@ func (pm *ProtocolManager) advanceAppliedIndex(index uint64) {
 	pm.mu.Lock()
 	pm.appliedIndex = index
 	pm.mu.Unlock()
+}
+
+func (pm *ProtocolManager) updateLeader(leader uint64) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	pm.leader = uint16(leader)
+}
+
+func (pm *ProtocolManager) LeaderAddress() *Address {
+	leaderAddress := pm.address
+	if l, ok := pm.peers[pm.leader]; ok {
+		leaderAddress = l.address
+	}
+	return leaderAddress
 }
