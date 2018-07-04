@@ -295,6 +295,17 @@ func (minter *minter) firePendingBlockEvents(logs []*types.Log) {
 	}()
 }
 
+func (minter *minter) checkSpeculative() {
+	parent := minter.speculativeChain.head 
+	parentNumber := parent.Number() 
+	block := minter.chain.CurrentBlock()
+	blockNumber := block.Number()
+	if checkflag := parentNumber.Cmp(blockNumber) < 0; checkflag{
+		log.Info("Speculative.head.blockNumber < minter.chain.currenBlock.blockNumber")
+		minter.speculativeChain.clear(block)
+	}
+}
+
 func (minter *minter) mintNewBlock() {
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
@@ -307,6 +318,7 @@ func (minter *minter) mintNewBlock() {
 
 	if txCount == 0 {
 		log.Info("Not minting a new block since there are no pending transactions")
+		minter.checkSpeculative()
 		return
 	}
 
