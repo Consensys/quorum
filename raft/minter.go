@@ -296,12 +296,13 @@ func (minter *minter) firePendingBlockEvents(logs []*types.Log) {
 }
 
 func (minter *minter) checkSpeculative() {
-	parent := minter.speculativeChain.head 
-	parentNumber := parent.Number() 
+	parent := minter.speculativeChain.head
+	parentNumber := parent.Number()
 	block := minter.chain.CurrentBlock()
 	blockNumber := block.Number()
-	if checkflag := parentNumber.Cmp(blockNumber) < 0; checkflag{
-		log.Info("Speculative.head.blockNumber < minter.chain.currenBlock.blockNumber")
+
+	if parentNumber.Cmp(blockNumber) < 0 {
+		log.Info("Clearing speculative chain which is behind the master chain")
 		minter.speculativeChain.clear(block)
 	}
 }
