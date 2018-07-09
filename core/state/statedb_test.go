@@ -119,7 +119,8 @@ func TestIntermediateLeaks(t *testing.T) {
 
 func TestStorageRoot(t *testing.T) {
 	var (
-		db, _    = ethdb.NewMemDatabase()
+		mem, _   = ethdb.NewMemDatabase()
+		db       = NewDatabase(mem)
 		state, _ = New(common.Hash{}, db)
 		addr     = common.Address{1}
 		key      = common.Hash{1}
@@ -137,14 +138,14 @@ func TestStorageRoot(t *testing.T) {
 
 	// add a bit of state
 	so.SetState(db, key, value)
-	state.Commit()
+	state.CommitTo(mem, false)
 
 	root := so.storageRoot(db)
 	expected := common.HexToHash("63511abd258fa907afa30cb118b53744a4f49055bb3f531da512c6b866fc2ffb")
 
 	if expected != root {
 		t.Errorf("Invalid storage root, expected %x, got %x", expected, root)
-	}
+	} 
 }
 
 func TestSnapshotRandom(t *testing.T) {
