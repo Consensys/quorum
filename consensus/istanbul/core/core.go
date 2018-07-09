@@ -201,7 +201,7 @@ func (c *core) startNewRound(round *big.Int) {
 			c.consensusTimer.UpdateSince(c.consensusTimestamp)
 			c.consensusTimestamp = time.Time{}
 		}
-		logger.Trace("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
+		logger.Warn("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
 	} else if lastProposal.Number().Cmp(big.NewInt(c.current.Sequence().Int64()-1)) == 0 {
 		if round.Cmp(common.Big0) == 0 {
 			// same seq and round, don't need to start new round
@@ -254,7 +254,7 @@ func (c *core) startNewRound(round *big.Int) {
 	}
 	c.newRoundChangeTimer()
 
-	logger.Debug("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "isProposer", c.isProposer())
+	logger.Info("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "isProposer", c.isProposer())
 }
 
 func (c *core) catchUpRound(view *istanbul.View) {
