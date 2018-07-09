@@ -889,10 +889,14 @@ func (pm *ProtocolManager) advanceAppliedIndex(index uint64) {
 func (pm *ProtocolManager) updateLeader(leader uint64) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
+
 	pm.leader = uint16(leader)
 }
 
 func (pm *ProtocolManager) LeaderAddress() *Address {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
 	leaderAddress := pm.address
 	if l, ok := pm.peers[pm.leader]; ok {
 		leaderAddress = l.address
