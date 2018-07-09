@@ -679,10 +679,11 @@ func (pm *ProtocolManager) eventLoop() {
 		// when the node is first ready it gives us entries to commit and messages
 		// to immediately publish
 		case rd := <-pm.rawNode().Ready():
-			if rd.SoftState != nil && pm.leader != uint16(rd.SoftState.Lead) {
+			pm.wal.Save(rd.HardState, rd.Entries)
+
+			if rd.SoftState != nil {
 				pm.updateLeader(rd.SoftState.Lead)
 			}
-			pm.wal.Save(rd.HardState, rd.Entries)
 
 			if snap := rd.Snapshot; !etcdRaft.IsEmptySnap(snap) {
 				pm.saveRaftSnapshot(snap)
