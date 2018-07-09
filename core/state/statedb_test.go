@@ -133,7 +133,7 @@ func TestStorageRoot(t *testing.T) {
 
 	emptyRoot := so.storageRoot(db)
 	if emptyRoot != empty {
-		t.Errorf("Invalid empty storate root, expected %x, got %x", empty, emptyRoot)
+		t.Errorf("Invalid empty storage root, expected %x, got %x", empty, emptyRoot)
 	}
 
 	// add a bit of state
