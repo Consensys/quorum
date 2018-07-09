@@ -475,6 +475,8 @@ type blockStats struct {
 	ParentHash common.Hash    `json:"parentHash"`
 	Timestamp  *big.Int       `json:"timestamp"`
 	Miner      common.Address `json:"miner"`
+	Validator  *common.Address `json:"validator"`
+	Proposer   *common.Address `json:"proposer"`
 	GasUsed    *big.Int       `json:"gasUsed"`
 	GasLimit   *big.Int       `json:"gasLimit"`
 	Diff       string         `json:"difficulty"`
@@ -555,12 +557,57 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 	// Assemble and return the block stats
 	author, _ := s.engine.Author(header)
 
+	/// IBFT consensus extraction
+	// TODO: Extract to another more appropiate place
+	// FIXME: Verify first if it is on IBFT consensus protocol
+	// FIXME: If we are on light ethereum this don't works
+	var validator *common.Address
+	var proposer *common.Address
+
+	var service *eth.PublicEthereumAPI
+	for cont := 0; cont < len(s.eth.APIs()) || service == nil; cont++ {
+		switch s.eth.APIs()[cont].Service.(type) {
+		case *eth.PublicEthereumAPI:
+			service = s.eth.APIs()[9].Service.(*eth.PublicEthereumAPI)
+		}
+	}
+	if service != nil {
+		coinbase, _ := service.Coinbase()
+
+		var istanbulExtra *types.IstanbulExtra
+
+		istanbulExtra, err := types.ExtractIstanbulExtra(header)
+		if istanbulExtra != nil {
+			if istanbulExtra.Validators != nil {
+				for cont := 0; cont < len(istanbulExtra.Validators) || validator == nil; cont++ {
+					val := istanbulExtra.Validators[cont]
+					if val.Hex() == coinbase.Hex() {
+						validator = &coinbase
+					}
+				}
+			} else {
+				log.Warn("I don't understand, validator's list is empty!")
+			}
+		} else {
+			log.Warn("I don't understand, istanbulExtra is empty!, error: ", err)
+		}
+
+		if coinbase.Hex() == author.Hex() {
+			proposer = &coinbase
+		}
+	} else {
+		log.Warn("I can't obtain coinbase")
+	}
+	/// END - IBFT consensus extraction
+
 	return &blockStats{
 		Number:     header.Number,
 		Hash:       header.Hash(),
 		ParentHash: header.ParentHash,
 		Timestamp:  header.Time,
 		Miner:      author,
+		Validator:  validator,
+		Proposer:   proposer,
 		GasUsed:    new(big.Int).Set(header.GasUsed),
 		GasLimit:   new(big.Int).Set(header.GasLimit),
 		Diff:       header.Difficulty.String(),

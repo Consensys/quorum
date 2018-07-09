@@ -24,12 +24,12 @@ const (
 	VersionMajor = 1        // Major version component of the current release
 	VersionMinor = 7        // Minor version component of the current release
 	VersionPatch = 2        // Patch version component of the current release
-	VersionMeta  = "stable" // Version metadata to append to the version string
+	VersionMeta  = "beta" // Version metadata to append to the version string
 
 	QuorumVersionMajor = 2
 	QuorumVersionMinor = 0
 	QuorumVersionPatch = 2
-	QuorumVersionMeta  = "Alastria"
+	QuorumVersionMeta  = "1.Alastria_EthNetstats_IBFT"
 )
 
 // Version holds the textual version string.
