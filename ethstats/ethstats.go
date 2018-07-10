@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
@@ -54,6 +55,8 @@ const (
 	txChanSize = 4096
 	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
 	chainHeadChanSize = 10
+	// catchupSize is the size of channel listeinig to CatchUpEvent.
+	txCatchUpSize = 10
 )
 
 type txPool interface {
@@ -64,6 +67,10 @@ type txPool interface {
 
 type blockChain interface {
 	SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription
+}
+
+type engine interface {
+	SubscribeCatchUpEvent(chan<- istanbul.CatchUpEvent) event.Subscription
 }
 
 // Service implements an Ethereum netstats reporting daemon that pushes local
@@ -138,12 +145,15 @@ func (s *Service) loop() {
 	// Subscribe to chain events to execute updates on
 	var blockchain blockChain
 	var txpool txPool
+	var ibft engine
 	if s.eth != nil {
 		blockchain = s.eth.BlockChain()
 		txpool = s.eth.TxPool()
+		ibft = s.eth.Engine()
 	} else {
 		blockchain = s.les.BlockChain()
 		txpool = s.les.TxPool()
+		ibft = s.les.Engine()
 	}
 
 	chainHeadCh := make(chan core.ChainHeadEvent, chainHeadChanSize)
@@ -154,11 +164,16 @@ func (s *Service) loop() {
 	txSub := txpool.SubscribeTxPreEvent(txEventCh)
 	defer txSub.Unsubscribe()
 
+	txEventCatchUp := make(chan istanbul.CatchUpEvent, txCatchUpSize)
+	txCatchUp := ibft.SubscribeCatchUpEvent(txEventCatchUp)
+	defer txCatchUp.Unsubscribe()
+
 	// Start a goroutine that exhausts the subsciptions to avoid events piling up
 	var (
-		quitCh = make(chan struct{})
-		headCh = make(chan *types.Block, 1)
-		txCh   = make(chan struct{}, 1)
+		quitCh    = make(chan struct{})
+		headCh    = make(chan *types.Block, 1)
+		txCh      = make(chan struct{}, 1)
+		catchUpCh = make(chan istanbul.CatchUpEvent, 1)
 	)
 	go func() {
 		var lastTx mclock.AbsTime
@@ -173,7 +188,7 @@ func (s *Service) loop() {
 				default:
 				}
 
-			// Notify of new transaction events, but drop if too frequent
+				// Notify of new transaction events, but drop if too frequent
 			case <-txEventCh:
 				if time.Duration(mclock.Now()-lastTx) < time.Second {
 					continue
@@ -185,11 +200,21 @@ func (s *Service) loop() {
 				default:
 				}
 
-			// node stopped
+			// Notify when a istanbul proposer wasn't mine
+			case cuCh := <-txEventCatchUp:
+				select {
+				case catchUpCh <- cuCh:
+				default:
+				}
+
+				// node stopped
 			case <-txSub.Err():
 				break HandleLoop
 			case <-headSub.Err():
 				break HandleLoop
+			case <-txCatchUp.Err():
+				break HandleLoop
+
 			}
 		}
 		close(quitCh)
@@ -266,6 +291,10 @@ func (s *Service) loop() {
 			case <-txCh:
 				if err = s.reportPending(conn); err != nil {
 					log.Warn("Transaction stats report failed", "err", err)
+				}
+			case catchUp := <-catchUpCh:
+				if err = s.reportCatchUp(conn, catchUp); err != nil {
+					log.Warn("Proposer failure report failed", "err", err)
 				}
 			}
 		}
@@ -470,21 +499,21 @@ func (s *Service) reportLatency(conn *websocket.Conn) error {
 
 // blockStats is the information to report about individual blocks.
 type blockStats struct {
-	Number     *big.Int       `json:"number"`
-	Hash       common.Hash    `json:"hash"`
-	ParentHash common.Hash    `json:"parentHash"`
-	Timestamp  *big.Int       `json:"timestamp"`
-	Miner      common.Address `json:"miner"`
+	Number     *big.Int        `json:"number"`
+	Hash       common.Hash     `json:"hash"`
+	ParentHash common.Hash     `json:"parentHash"`
+	Timestamp  *big.Int        `json:"timestamp"`
+	Miner      common.Address  `json:"miner"`
 	Validator  *common.Address `json:"validator"`
 	Proposer   *common.Address `json:"proposer"`
-	GasUsed    *big.Int       `json:"gasUsed"`
-	GasLimit   *big.Int       `json:"gasLimit"`
-	Diff       string         `json:"difficulty"`
-	TotalDiff  string         `json:"totalDifficulty"`
-	Txs        []txStats      `json:"transactions"`
-	TxHash     common.Hash    `json:"transactionsRoot"`
-	Root       common.Hash    `json:"stateRoot"`
-	Uncles     uncleStats     `json:"uncles"`
+	GasUsed    *big.Int        `json:"gasUsed"`
+	GasLimit   *big.Int        `json:"gasLimit"`
+	Diff       string          `json:"difficulty"`
+	TotalDiff  string          `json:"totalDifficulty"`
+	Txs        []txStats       `json:"transactions"`
+	TxHash     common.Hash     `json:"transactionsRoot"`
+	Root       common.Hash     `json:"stateRoot"`
+	Uncles     uncleStats      `json:"uncles"`
 }
 
 // txStats is the information to report about individual transactions.
@@ -757,6 +786,28 @@ func (s *Service) reportStats(conn *websocket.Conn) error {
 			Syncing:  syncing,
 			Uptime:   100,
 		},
+	}
+	report := map[string][]interface{}{
+		"emit": {"stats", stats},
+	}
+	return websocket.JSON.Send(conn, report)
+}
+
+// reportCatchUp raise when a proposer don't generate a new block in time.
+func (s *Service) reportCatchUp(conn *websocket.Conn, catchUp istanbul.CatchUpEvent) error {
+	// Gather the syncing and mining infos from the local miner instance
+	// Assemble the node stats and send it to the server
+	log.Trace("Sending proposer failure to ethstats")
+
+	elem, err := json.Marshal(&catchUp)
+
+	if err != nil {
+		return err
+	}
+
+	stats := map[string]interface{}{
+		"id":      s.node,
+		"catchUp": string(elem),
 	}
 	report := map[string][]interface{}{
 		"emit": {"stats", stats},
