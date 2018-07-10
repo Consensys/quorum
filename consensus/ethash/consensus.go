@@ -27,9 +27,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	set "gopkg.in/fatih/set.v0"
 )
@@ -578,4 +581,13 @@ func AccumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		reward.Add(reward, r)
 	}
 	state.AddBalance(header.Coinbase, reward)
+}
+
+func (ethash *Ethash) SubscribeCatchUpEvent(ch chan<- istanbul.CatchUpEvent) event.Subscription {
+	log.Trace("No implementado.", ch)
+	return nil
+}
+
+func (ethash *Ethash) SendCatchUp(catchUp istanbul.CatchUpEvent) {
+	log.Trace("No implementado.", catchUp)
 }

@@ -29,12 +29,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -663,4 +665,13 @@ func (c *Clique) APIs(chain consensus.ChainReader) []rpc.API {
 // Protocol implements consensus.Engine.Protocol
 func (c *Clique) Protocol() consensus.Protocol {
 	return consensus.EthProtocol
+}
+
+func (c *Clique) SubscribeCatchUpEvent(ch chan<- istanbul.CatchUpEvent) event.Subscription {
+	log.Trace("No implementado.", ch)
+	return nil
+}
+
+func (c *Clique) SendCatchUp(catchUp istanbul.CatchUpEvent) {
+	log.Trace("No implementado.", catchUp)
 }
