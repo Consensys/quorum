@@ -19,8 +19,10 @@ package consensus
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -94,6 +96,8 @@ type Engine interface {
 
 	// Protocol returns the protocol for this consensus
 	Protocol() Protocol
+
+	SubscribeCatchUpEvent(chan<- istanbul.CatchUpEvent) event.Subscription
 }
 
 // Handler should be implemented is the consensus needs to handle and send peer's message
