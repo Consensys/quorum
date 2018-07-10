@@ -70,4 +70,10 @@ type Backend interface {
 
 	// HasBadBlock returns whether the block with the hash is a bad block
 	HasBadProposal(hash common.Hash) bool
+
+	// Subscribe to the events emmited when the proposer fails
+	SubscribeCatchUpEvent(ch chan<- CatchUpEvent) event.Subscription
+
+	// Send an event when the proposer fails
+	SendCatchUp(catchUp CatchUpEvent)
 }
