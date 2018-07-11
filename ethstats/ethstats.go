@@ -608,7 +608,7 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 		istanbulExtra, err := types.ExtractIstanbulExtra(header)
 		if istanbulExtra != nil {
 			if istanbulExtra.Validators != nil {
-				for cont := 0; cont < len(istanbulExtra.Validators) || validator == nil; cont++ {
+				for cont := 0; cont < len(istanbulExtra.Validators) && validator == nil; cont++ {
 					val := istanbulExtra.Validators[cont]
 					if val.Hex() == coinbase.Hex() {
 						validator = &coinbase
@@ -799,6 +799,7 @@ func (s *Service) reportCatchUp(conn *websocket.Conn, catchUp istanbul.CatchUpEv
 	// Assemble the node stats and send it to the server
 	log.Trace("Sending proposer failure to ethstats")
 
+	// FIXME: Check because when i marshall the struct, don't use the annotations.
 	elem, err := json.Marshal(&catchUp)
 
 	if err != nil {

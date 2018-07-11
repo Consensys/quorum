@@ -97,6 +97,7 @@ type Engine interface {
 	// Protocol returns the protocol for this consensus
 	Protocol() Protocol
 
+	// FIXME: Generalize as all consensus possbile event.
 	SubscribeCatchUpEvent(chan<- istanbul.CatchUpEvent) event.Subscription
 }
 
