@@ -1,0 +1,143 @@
+[
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_enodeId",
+				"type": "string"
+			}
+		],
+		"name": "getNodeStatus",
+		"outputs": [
+			{
+				"name": "_status",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_enodeId",
+				"type": "string"
+			}
+		],
+		"name": "ProposeDeactivation",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_enodeId",
+				"type": "string"
+			},
+			{
+				"name": "_canWrite",
+				"type": "bool"
+			},
+			{
+				"name": "_canLead",
+				"type": "bool"
+			}
+		],
+		"name": "ProposeNode",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_enodeId",
+				"type": "string"
+			}
+		],
+		"name": "DeactivateNode",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_enodeId",
+				"type": "string"
+			}
+		],
+		"name": "ApproveNode",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"name": "_enodeId",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"name": "_canWrite",
+				"type": "bool"
+			},
+			{
+				"indexed": false,
+				"name": "_canLead",
+				"type": "bool"
+			}
+		],
+		"name": "NewNodeProposed",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"name": "_enodeId",
+				"type": "string"
+			}
+		],
+		"name": "NodeApproved",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"name": "_enodeId",
+				"type": "string"
+			}
+		],
+		"name": "NodePendingDeactivation",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"name": "_enodeId",
+				"type": "string"
+			}
+		],
+		"name": "NodeDeactivated",
+		"type": "event"
+	}
+]

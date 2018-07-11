@@ -257,6 +257,17 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 	return pool
 }
 
+// Nonce returns the nonce for the given addr from the pending state.
+// Can only be used for local transactions.
+func (pool *TxPool) Nonce(addr common.Address) uint64 {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	if pool.pendingState == nil {
+		pool.lockedReset(nil, nil)
+	}
+	return pool.pendingState.GetNonce(addr)
+}
+
 // loop is the transaction pool's main event loop, waiting for and reacting to
 // outside blockchain events as well as for various reporting and transaction
 // eviction events.
