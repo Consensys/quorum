@@ -30,6 +30,10 @@ func (s *PublicRaftAPI) RemovePeer(raftId uint16) {
 	s.raftService.raftProtocolManager.ProposePeerRemoval(raftId)
 }
 
-func (s *PublicRaftAPI) Leader() string {
-	return s.raftService.raftProtocolManager.LeaderAddress().nodeId.String()
+func (s *PublicRaftAPI) Leader() (string, error) {
+	addr, err := s.raftService.raftProtocolManager.LeaderAddress()
+	if nil != err {
+		return "", err
+	}
+	return addr.nodeId.String(), nil
 }

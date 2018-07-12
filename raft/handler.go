@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -894,13 +895,16 @@ func (pm *ProtocolManager) updateLeader(leader uint64) {
 	pm.leader = uint16(leader)
 }
 
-func (pm *ProtocolManager) LeaderAddress() *Address {
+// The Address for the current leader, or an error if no leader is elected.
+func (pm *ProtocolManager) LeaderAddress() (*Address, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	leaderAddress := pm.address
-	if l, ok := pm.peers[pm.leader]; ok {
-		leaderAddress = l.address
+	if minterRole == pm.role {
+		return pm.address, nil
+	} else if l, ok := pm.peers[pm.leader]; ok {
+		return l.address, nil
 	}
-	return leaderAddress
+	// We expect to reach this if pm.leader is 0, which is how etcd denotes the lack of a leader.
+	return nil, errors.New("no leader is currently elected")
 }
