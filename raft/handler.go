@@ -103,6 +103,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 	manager := &ProtocolManager{
 		bootstrapNodes:      bootstrapNodes,
 		peers:               make(map[uint16]*Peer),
+		leader:              uint16(etcdRaft.None),
 		removedPeers:        set.New(),
 		joinExisting:        joinExisting,
 		blockchain:          blockchain,
