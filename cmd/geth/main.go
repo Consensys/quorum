@@ -255,7 +255,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 
 	//START - QUORUM Permissioning
 	if permissioned := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name); permissioned {
-		permissions.PopulateNodes(ctx, stack)
+		permissions.QuorumPermissioning(ctx, stack)
 	}
 	//END - QUORUM Permissioning
 
