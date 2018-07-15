@@ -118,7 +118,7 @@ func runConstellation() (*osExec.Cmd, error) {
 		constellationErr = constellationCmd.Start()
 	}()
 	// Give the constellation subprocess some time to start.
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Second)
 	if constellationErr != nil {
 		fmt.Println(stdout.String() + stderr.String())
 		return nil, constellationErr
