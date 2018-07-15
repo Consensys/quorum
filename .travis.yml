@@ -15,7 +15,7 @@ matrix:
         - sudo modprobe fuse
         - sudo chmod 666 /dev/fuse
         - sudo chown root:$USER /etc/fuse.conf
-        - ./build/install-constellation-linux.sh
+        - sudo ./build/install-constellation-linux.sh
         - export PATH=$PATH:$(pwd)/constellation-0.3.2-ubuntu1604
         - go run build/ci.go install
         - go run build/ci.go test -coverage
@@ -33,7 +33,7 @@ matrix:
         - sudo modprobe fuse
         - sudo chmod 666 /dev/fuse
         - sudo chown root:$USER /etc/fuse.conf
-        - ./build/install-constellation-linux.sh
+        - sudo ./build/install-constellation-linux.sh
         - export PATH=$PATH:$(pwd)/constellation-0.3.2-ubuntu1604
         - go run build/ci.go install
         - go run build/ci.go test -coverage
