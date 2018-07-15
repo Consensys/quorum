@@ -405,6 +405,7 @@ func gasSuicide(gt params.GasTable, evm *EVM, contract *Contract, stack *Stack, 
 		}
 	}
 
+	db = getDualState(evm, contract.Address())
 	if !db.HasSuicided(contract.Address()) {
 		db.AddRefund(params.SuicideRefundGas)
 	}
