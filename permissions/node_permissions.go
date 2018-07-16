@@ -2,9 +2,11 @@ package permissions
 
 import (
 	"fmt"
+	"encoding/json"
 	"io/ioutil"
 	"math/big"
 	"path/filepath"
+	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -17,6 +19,9 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"gopkg.in/urfave/cli.v1"
 )
+const (
+	PERMISSIONED_CONFIG = "permissioned-nodes.json"
+)
 
 //This function first adds the node list from permissioned-nodes.json to
 //the permissiones contract deployed as a precompile via genesis.json
@@ -28,8 +33,10 @@ func QuorumPermissioning(ctx *cli.Context, stack *node.Node ){
 	//call populate nodes to populate the nodes into contract
 	populateNodesToContract (ctx, stack, e, stateReader)
 
+	dataDir := stack.DataDir()
+
 	//monitor for new nodes addition via smart contract
-	go monitorNewNodeAdd(stateReader)
+	go monitorNewNodeAdd(stateReader, dataDir)
 }
 
 //populates the nodes list from permissioned-nodes.json into the permissions
@@ -82,7 +89,7 @@ func populateNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Ethereum
 
 //This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
-func monitorNewNodeAdd(stateReader *ethclient.Client){
+func monitorNewNodeAdd(stateReader *ethclient.Client, dataDir string ){
 
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
@@ -107,6 +114,7 @@ func monitorNewNodeAdd(stateReader *ethclient.Client){
 		//	newEvent = <-ch
 		var newEvent *PermissionsNewNodeProposed = <-ch
 		log.Info("Found Node add event", "enodeId", newEvent.EnodeId)
+		populatePermissionedNodes(newEvent.EnodeId, dataDir)
     }
 }
 
@@ -150,5 +158,46 @@ func getKeyFromKeyStore(ctx *cli.Context) string {
 	n := len(keyBlob)
 
 	return string(keyBlob[:n])
+
+}
+//this function populates the new node information into the permissioned-nodes.json file
+func populatePermissionedNodes(enodeId string, dataDir string){
+	log.Debug("populatePermissionedNodes", "DataDir", dataDir, "file", PERMISSIONED_CONFIG)
+
+	path := filepath.Join(dataDir, PERMISSIONED_CONFIG)
+	if _, err := os.Stat(path); err != nil {
+		log.Error("Read Error for permissioned-nodes.json file. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present.", "err", err)
+		return 
+	}
+	// Load the nodes from the config file
+	blob, err := ioutil.ReadFile(path)
+	log.Info("blob is before append: ","blob", blob)
+	if err != nil {
+		log.Error("populatePermissionedNodes: Failed to access nodes", "err", err)
+		return
+	}
+
+	nodelist := []string{}
+	if err := json.Unmarshal(blob, &nodelist); err != nil {
+		log.Error("parsePermissionedNodes: Failed to load nodes", "err", err)
+		return 
+	}
+
+	log.Info("node list is: ","nodelist", nodelist)
+
+	newEnodeId := "enode://" + enodeId + "@127.0.0.1:21009?discport=0&raftport=50402"
+	// newEnodeId = append(newEnodeId, enodeId)
+	// newEnodeId = append(newEnodeId, "@127.0.0.1:21009?discport=0&raftport=50402")
+
+	nodelist = append(nodelist, newEnodeId)
+
+	log.Info("node list is after append: ","nodelist", nodelist)
+
+	blob, _ = json.Marshal(nodelist)
+	log.Info("blob is after append: ","blob", blob)
+
+	if err:= ioutil.WriteFile(path, blob, 0644); err!= nil{
+		log.Error("populatePermissionedNodes: Error writing new node info to file", "err", err)
+	}
 
 }
