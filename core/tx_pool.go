@@ -210,7 +210,7 @@ type TxPool struct {
 }
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
-// trnsactions from the network.
+// transactions from the network.
 func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
@@ -277,6 +277,7 @@ func (pool *TxPool) loop() {
 	// Keep waiting for and reacting to the various events
 	for {
 		select {
+
 		// Handle ChainHeadEvent
 		case ev := <-pool.chainHeadCh:
 			if ev.Block != nil {
@@ -289,6 +290,7 @@ func (pool *TxPool) loop() {
 
 				pool.mu.Unlock()
 			}
+
 		// Be unsubscribed due to system stopped
 		case <-pool.chainHeadSub.Err():
 			return
@@ -635,6 +637,9 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // whitelisted, preventing any associated transaction from being dropped out of
 // the pool due to pricing constraints.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
+
+	log.Info("======= tx_pool: add() =======")
+
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
 	if pool.all[hash] != nil {
@@ -813,6 +818,8 @@ func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 	// Try to inject the transaction and update any state
 	replace, err := pool.add(tx, local)
 	if err != nil {
+		log.Info("======= state_transition: error return from add() =======")
+
 		return err
 	}
 	// If we added a new transaction, run promotion checks and return
@@ -834,7 +841,13 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) error {
 // addTxsLocked attempts to queue a batch of transactions if they are valid,
 // whilst assuming the transaction pool lock is already held.
 func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) error {
-	// Add the batch of transaction, tracking the accepted ones
+
+	log.Info("======= tx_pool: addTxsLocked() - add batch of transactions to pool =======")
+
+	log.Info(fmt.Sprintf("======= number of pending transactions: %v", len(pool.pending)))
+	log.Info(fmt.Sprintf("======= number of queued transactions: %v", len(pool.queue)))
+
+	// Add the batch of transactions, tracking the accepted ones
 	dirty := make(map[common.Address]struct{})
 	for _, tx := range txs {
 		if replace, err := pool.add(tx, local); err == nil {
@@ -926,6 +939,9 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			accounts = append(accounts, addr)
 		}
 	}
+
+	log.Info("======= tx_pool: Check for executable transactions to promote =======")
+
 	// Iterate over all accounts and promote any executable transactions
 	for _, addr := range accounts {
 		list := pool.queue[addr]

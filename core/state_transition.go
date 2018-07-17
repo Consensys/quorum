@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
+	"fmt"
 )
 
 var (
@@ -268,6 +269,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 		vmerr error
 	)
 	if contractCreation {
+		log.Info("======= state_transition: creating contract: =======")
+		log.Info(fmt.Sprintf("======= have gas: %v", st.gas))
+		log.Info(fmt.Sprintf("======= need value: %v", st.value))
+
 		ret, _, st.gas, vmerr = evm.Create(sender, data, st.gas, st.value)
 	} else {
 		// Increment the account nonce only if the transaction isn't private.
