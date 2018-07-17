@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 func launchNode(cfgPath string) (*exec.Cmd, error) {
@@ -82,8 +81,6 @@ func (c *Client) doJson(path string, apiReq interface{}) (*http.Response, error)
 }
 
 func (c *Client) SendPayload(pl []byte, b64From string, b64To []string) ([]byte, error) {
-	log.Info("======= node: sendPayload() =======")
-
 	buf := bytes.NewBuffer(pl)
 	req, err := http.NewRequest("POST", "http+unix://c/sendraw", buf)
 	if err != nil {

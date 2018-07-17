@@ -24,8 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/log"
-	"fmt"
 )
 
 // note: Quorum, States, and Value Transfer
@@ -353,20 +351,12 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 // Create creates a new contract using code as deployment code.
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 
-	log.Info("======= evm: entered Create() =======")
-
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
 	if evm.depth > int(params.CallCreateDepth) {
-		log.Info("======= evm: fail on CallCreateDepth =======")
-
 		return nil, common.Address{}, gas, ErrDepth
 	}
 	if !evm.CanTransfer(evm.StateDB, caller.Address(), value) {
-		log.Info(fmt.Sprintf("======= evm: fail on CanTransfer (insufficient balance in account %s), have: %v, require: %v",
-			caller.Address().String(), evm.StateDB.GetBalance(caller.Address()), value))
-
-
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
 
@@ -392,8 +382,6 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	contractAddr = crypto.CreateAddress(caller.Address(), nonce)
 	contractHash := evm.StateDB.GetCodeHash(contractAddr)
 	if evm.StateDB.GetNonce(contractAddr) != 0 || (contractHash != (common.Hash{}) && contractHash != emptyCodeHash) {
-		log.Info("======= evm: fail on ErrContractAddressCollision =======")
-
 		return nil, common.Address{}, 0, ErrContractAddressCollision
 	}
 	// Create a new account on the state
@@ -421,8 +409,6 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	contract.SetCallCode(&contractAddr, crypto.Keccak256Hash(code), code)
 
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
-		log.Info("======= evm: fail on NoRecursion =======")
-
 		return nil, contractAddr, gas, nil
 	}
 	ret, err = run(evm, snapshot, contract, nil)

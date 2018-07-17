@@ -349,9 +349,6 @@ func (pool *TxPool) lockedReset(oldHead, newHead *types.Header) {
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
-
-	log.Info("======= tx_pool: perform reset() =======")
-
 	// If we're reorging an old state, reinject all dropped transactions
 	var reinject types.Transactions
 
@@ -555,55 +552,36 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
-	log.Info("======= tx_pool: validateTx() =======")
-
 	isQuorum := pool.chainconfig.IsQuorum
 
-	log.Info(fmt.Sprintf("======= tx_pool: gas check: gas price = %v, compare with = %v",
-		tx.GasPrice(), common.Big0))
 	if isQuorum && tx.GasPrice().Cmp(common.Big0) != 0 {
-		log.Info("======= tx_pool: returning ErrInvalidGasPrice")
-
 		return ErrInvalidGasPrice
 	}
 	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
 	if tx.Size() > 32*1024 {
-		log.Info("======= tx_pool: returning ErrOversizedData")
-
 		return ErrOversizedData
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
 	if tx.Value().Sign() < 0 {
-		log.Info("======= tx_pool: returning ErrNegativeValue")
-
 		return ErrNegativeValue
 	}
 	// Ensure the transaction doesn't exceed the current block limit gas.
 	if pool.currentMaxGas.Cmp(tx.Gas()) < 0 {
-		log.Info("======= tx_pool: returning ErrGasLimit")
-
 		return ErrGasLimit
 	}
 	// Make sure the transaction is signed properly
 	from, err := types.Sender(pool.signer, tx)
 	if err != nil {
-		log.Info("======= tx_pool: returning ErrInvalidSender")
-
 		return ErrInvalidSender
 	}
 	// Drop non-local transactions under our own minimal accepted gas price
 	local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
 	if !isQuorum && !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
-		log.Info("======= tx_pool: returning ErrUnderpriced")
-
 		return ErrUnderpriced
 	}
 	// Ensure the transaction adheres to nonce ordering
 	if pool.currentState.GetNonce(from) > tx.Nonce() {
-		log.Info(fmt.Sprintf("======= tx_pool: returning ErrNonceTooLow; transaction = %v, expected = %v",
-			tx.Nonce, pool.currentState.GetNonce(from)))
-
 		return ErrNonceTooLow
 	}
 	if tx.IsPrivate() && (tx.Value().Sign() != 0) {
@@ -613,16 +591,11 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	log.Info(fmt.Sprintf("======= tx_pool: funds check: account balance = %v, amount required = %v",
-		pool.currentState.GetBalance(from), tx.Cost()))
 	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-		log.Info("======= tx_pool: returning ErrInsufficientFunds")
-
 		return ErrInsufficientFunds
 	}
 	intrGas := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
-	if !isQuorum && tx.Gas().Cmp(intrGas) < 0 {log.Info("======= tx_pool: returning ErrIntrinsicGas")
-
+	if !isQuorum && tx.Gas().Cmp(intrGas) < 0 {
 		return ErrIntrinsicGas
 	}
 	return nil
@@ -637,9 +610,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // whitelisted, preventing any associated transaction from being dropped out of
 // the pool due to pricing constraints.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
-
-	log.Info("======= tx_pool: add() =======")
-
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
 	if pool.all[hash] != nil {
@@ -810,16 +780,12 @@ func (pool *TxPool) AddRemotes(txs []*types.Transaction) error {
 
 // addTx enqueues a single transaction into the pool if it is valid.
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
-	log.Info("======= tx_pool: addTx() - add single transaction to pool =======")
-
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
 	// Try to inject the transaction and update any state
 	replace, err := pool.add(tx, local)
 	if err != nil {
-		log.Info("======= state_transition: error return from add() =======")
-
 		return err
 	}
 	// If we added a new transaction, run promotion checks and return
@@ -841,12 +807,6 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) error {
 // addTxsLocked attempts to queue a batch of transactions if they are valid,
 // whilst assuming the transaction pool lock is already held.
 func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) error {
-
-	log.Info("======= tx_pool: addTxsLocked() - add batch of transactions to pool =======")
-
-	log.Info(fmt.Sprintf("======= number of pending transactions: %v", len(pool.pending)))
-	log.Info(fmt.Sprintf("======= number of queued transactions: %v", len(pool.queue)))
-
 	// Add the batch of transactions, tracking the accepted ones
 	dirty := make(map[common.Address]struct{})
 	for _, tx := range txs {
@@ -924,8 +884,6 @@ func (pool *TxPool) removeTx(hash common.Hash) {
 // future queue to the set of pending transactions. During this process, all
 // invalidated transactions (low nonce, low balance) are deleted.
 func (pool *TxPool) promoteExecutables(accounts []common.Address) {
-	log.Info("======= tx_pool: promoteExecutables() =======")
-
 	isQuorum := pool.chainconfig.IsQuorum
 	// Init delayed since tx pool could have been started before any state sync
 	if isQuorum && pool.pendingState == nil {
@@ -939,9 +897,6 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			accounts = append(accounts, addr)
 		}
 	}
-
-	log.Info("======= tx_pool: Check for executable transactions to promote =======")
-
 	// Iterate over all accounts and promote any executable transactions
 	for _, addr := range accounts {
 		list := pool.queue[addr]
