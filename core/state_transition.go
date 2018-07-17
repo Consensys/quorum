@@ -207,6 +207,9 @@ func (st *StateTransition) preCheck() error {
 		if nonce < msg.Nonce() {
 			return ErrNonceTooHigh
 		} else if nonce > msg.Nonce() {
+			log.Info(fmt.Sprintf("======= state_transition: returning ErrNonceTooLow; transaction = %v, expected = %v",
+				msg.Nonce(), nonce))
+
 			return ErrNonceTooLow
 		}
 	}

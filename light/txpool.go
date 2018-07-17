@@ -352,6 +352,9 @@ func (pool *TxPool) validateTx(ctx context.Context, tx *types.Transaction) error
 	// Last but not least check for nonce errors
 	currentState := pool.currentState(ctx)
 	if n := currentState.GetNonce(from); n > tx.Nonce() {
+		log.Info(fmt.Sprintf("======= light/txpool: returning ErrNonceTooLow; transaction = %v, expected = %v",
+			tx.Nonce, currentState.GetNonce(from)))
+
 		return core.ErrNonceTooLow
 	}
 
