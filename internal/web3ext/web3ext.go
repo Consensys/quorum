@@ -618,6 +618,10 @@ web3._extend({
                        name: 'removePeer',
                        call: 'raft_removePeer',
                        params: 1
+               }),
+               new web3._extend.Property({
+                       name: 'leader',
+                       getter: 'raft_leader'
                })
        ]
 })
