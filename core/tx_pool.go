@@ -81,9 +81,9 @@ var (
 
 	ErrInvalidGasPrice = errors.New("Gas price not 0")
 
-	// ErrEtherValueUnsupported is returned if a transaction sepcifies an Ether Value
+	// ErrEtherValueUnsupported is returned if a transaction specifies an Ether Value
 	// for a private Quorum transaction.
-	ErrEtherValueUnsupported = errors.New("ether value not supported for private transactions")
+	ErrEtherValueUnsupported = errors.New("ether value is not supported for private transactions")
 )
 
 var (
@@ -585,8 +585,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrNonceTooLow
 	}
 	if tx.IsPrivate() && (tx.Value().Sign() != 0) {
-		log.Info("======= tx_pool: returning ErrEtherValueUnsupported")
-
 		return ErrEtherValueUnsupported;
 	}
 	// Transactor should have enough funds to cover the costs
