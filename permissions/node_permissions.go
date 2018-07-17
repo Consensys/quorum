@@ -26,17 +26,14 @@ const (
 //This function first adds the node list from permissioned-nodes.json to
 //the permissiones contract deployed as a precompile via genesis.json
 func QuorumPermissioning(ctx *cli.Context, stack *node.Node ){
-
 	//Create a new ethclient to for interfacing with the contract
 	e, stateReader := createEthClient(stack)
 
 	//call populate nodes to populate the nodes into contract
 	populateNodesToContract (ctx, stack, e, stateReader)
 
-	dataDir := stack.DataDir()
-
 	//monitor for new nodes addition via smart contract
-	go monitorNewNodeAdd(stateReader, dataDir)
+	go monitorNewNodeAdd(stack, stateReader)
 }
 
 //populates the nodes list from permissioned-nodes.json into the permissions
@@ -47,10 +44,10 @@ func populateNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Ethereum
 	key := getKeyFromKeyStore(ctx)
 
 	permissionsContract, err := NewPermissions(params.QuorumPermissionsContract, stateReader)
-
 	if err != nil {
 		utils.Fatalf("Failed to instantiate a Permissions contract: %v", err)
 	}
+
 	auth, err := bind.NewTransactor(strings.NewReader(key), "")
 	if err != nil {
 		utils.Fatalf("Failed to create authorized transactor: %v", err)
@@ -69,7 +66,8 @@ func populateNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Ethereum
 		},
 	}
 
-	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
+	// datadir := ctx.GlobalString(utils.DataDirFlag.Name)
+	datadir := stack.DataDir()
 
 	nodes := p2p.ParsePermissionedNodes(datadir)
 	for _, node := range nodes {
@@ -89,12 +87,13 @@ func populateNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Ethereum
 
 //This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
-func monitorNewNodeAdd(stateReader *ethclient.Client, dataDir string ){
+func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client){
 
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		utils.Fatalf("Failed to instantiate a Permissions Filterer: %v", err)
 	}
+	datadir := stack.DataDir()
 
 	ch := make(chan *PermissionsNewNodeProposed)
 
@@ -102,19 +101,13 @@ func monitorNewNodeAdd(stateReader *ethclient.Client, dataDir string ){
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
 
-	log.Info("Inside the new func added")
-
 	for {
-		log.Info("Inside the new loop - addNewNode")
-
 		_, err = permissions.WatchNewNodeProposed(opts, ch)
 		if err != nil {
 			log.Info("Failed NewNodeProposed: %v", err)
 		}
-		//	newEvent = <-ch
 		var newEvent *PermissionsNewNodeProposed = <-ch
-		log.Info("Found Node add event", "enodeId", newEvent.EnodeId)
-		populatePermissionedNodes(newEvent.EnodeId, dataDir)
+		populatePermissionedNodes(newEvent.EnodeId, datadir)
     }
 }
 
@@ -144,7 +137,7 @@ func getKeyFromKeyStore(ctx *cli.Context) string {
 		utils.Fatalf("Failed to read keystore directory: %v", err)
 	}
 
-	// (zekun) HACK: here we always use the first key as transactor
+	// HACK: here we always use the first key as transactor
 	var keyPath string
 	for _, f := range files {
 		keyPath = filepath.Join(datadir, "keystore", f.Name())
@@ -154,12 +147,12 @@ func getKeyFromKeyStore(ctx *cli.Context) string {
 	if err != nil {
 		utils.Fatalf("Failed to read key file: %v", err)
 	}
-	// n := bytes.IndexByte(keyBlob, 0)
 	n := len(keyBlob)
 
 	return string(keyBlob[:n])
 
 }
+
 //this function populates the new node information into the permissioned-nodes.json file
 func populatePermissionedNodes(enodeId string, dataDir string){
 	log.Debug("populatePermissionedNodes", "DataDir", dataDir, "file", PERMISSIONED_CONFIG)
@@ -183,19 +176,12 @@ func populatePermissionedNodes(enodeId string, dataDir string){
 		return 
 	}
 
-	log.Info("node list is: ","nodelist", nodelist)
-
-	newEnodeId := "enode://" + enodeId + "@127.0.0.1:21009?discport=0&raftport=50402"
-	// newEnodeId = append(newEnodeId, enodeId)
-	// newEnodeId = append(newEnodeId, "@127.0.0.1:21009?discport=0&raftport=50402")
-
+	// HACK: currently the ip, discpot and raft port are hard coded. Need to enhance the
+	//contract to pass these variables as part of the event and change this
+	newEnodeId := "enode://" + enodeId + "@127.0.0.1:21005?discport=0&raftport=50406"
 	nodelist = append(nodelist, newEnodeId)
 
-	log.Info("node list is after append: ","nodelist", nodelist)
-
 	blob, _ = json.Marshal(nodelist)
-	log.Info("blob is after append: ","blob", blob)
-
 	if err:= ioutil.WriteFile(path, blob, 0644); err!= nil{
 		log.Error("populatePermissionedNodes: Error writing new node info to file", "err", err)
 	}
