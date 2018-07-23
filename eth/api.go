@@ -66,6 +66,33 @@ func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
 	return api.Etherbase()
 }
 
+// StorageRoot returns the storage root of an account on the the given (optional) block height.
+// If block number is not given the latest block is used.
+func (s *PublicEthereumAPI) StorageRoot(addr common.Address, blockNr *rpc.BlockNumber) (common.Hash, error) {
+	var (
+		pub, priv *state.StateDB
+		err       error
+	)
+
+	if blockNr == nil || blockNr.Int64() == rpc.LatestBlockNumber.Int64() {
+		pub, priv, err = s.e.blockchain.State()
+	} else {
+		if ch := s.e.blockchain.GetHeaderByNumber(uint64(blockNr.Int64())); ch != nil {
+			pub, priv, err = s.e.blockchain.StateAt(ch.Root)
+		} else {
+			return common.Hash{}, fmt.Errorf("invalid block number")
+		}
+	}
+
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	if priv.Exist(addr) {
+		return priv.GetStorageRoot(addr)
+	}
+	return pub.GetStorageRoot(addr)
+}
 // Hashrate returns the POW hashrate
 func (api *PublicEthereumAPI) Hashrate() hexutil.Uint64 {
 	return hexutil.Uint64(api.e.Miner().HashRate())
