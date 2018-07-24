@@ -36,7 +36,7 @@ type Backend interface {
 	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
 
-	SubscribeTxPreEvent(chan<- core.TxPreEvent) event.Subscription
+	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
 	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
 	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
@@ -183,15 +183,11 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 	var logs []*types.Log
 
 	for ; f.begin <= int64(end); f.begin++ {
-		blockNumber := rpc.BlockNumber(f.begin)
 		header, err := f.backend.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
 		if header == nil || err != nil {
 			return logs, err
 		}
-
-		bloomMatches := bloomFilter(header.Bloom, f.addresses, f.topics) ||
-			bloomFilter(core.GetPrivateBlockBloom(f.db, uint64(blockNumber)), f.addresses, f.topics)
-		if bloomMatches {
+		if bloomFilter(header.Bloom, f.addresses, f.topics) {
 			found, err := f.checkMatches(ctx, header)
 			if err != nil {
 				return logs, err
@@ -262,9 +258,9 @@ Logs:
 		if len(topics) > len(log.Topics) {
 			continue Logs
 		}
-		for i, topics := range topics {
-			match := len(topics) == 0 // empty rule set == wildcard
-			for _, topic := range topics {
+		for i, sub := range topics {
+			match := len(sub) == 0 // empty rule set == wildcard
+			for _, topic := range sub {
 				if log.Topics[i] == topic {
 					match = true
 					break

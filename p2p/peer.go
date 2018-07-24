@@ -31,6 +31,10 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+var (
+	ErrShuttingDown = errors.New("shutting down")
+)
+
 const (
 	baseProtocolVersion    = 5
 	baseProtocolLength     = uint64(16)
@@ -393,7 +397,7 @@ func (rw *protoRW) WriteMsg(msg Msg) (err error) {
 		// as well but we don't want to rely on that.
 		rw.werr <- err
 	case <-rw.closed:
-		err = fmt.Errorf("shutting down")
+		err = ErrShuttingDown
 	}
 	return err
 }

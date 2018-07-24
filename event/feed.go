@@ -127,6 +127,8 @@ func (f *Feed) remove(sub *feedSub) {
 // Send delivers to all subscribed channels simultaneously.
 // It returns the number of subscribers that the value was sent to.
 func (f *Feed) Send(value interface{}) (nsent int) {
+	rvalue := reflect.ValueOf(value)
+
 	f.once.Do(f.init)
 	<-f.sendLock
 
@@ -134,13 +136,12 @@ func (f *Feed) Send(value interface{}) (nsent int) {
 	f.mu.Lock()
 	f.sendCases = append(f.sendCases, f.inbox...)
 	f.inbox = nil
-	f.mu.Unlock()
 
-	rvalue := reflect.ValueOf(value)
 	if !f.typecheck(rvalue.Type()) {
 		f.sendLock <- struct{}{}
 		panic(feedTypeError{op: "Send", got: rvalue.Type(), want: f.etype})
 	}
+	f.mu.Unlock()
 
 	// Set the sent value on all channels.
 	for i := firstSubSendCase; i < len(f.sendCases); i++ {
@@ -229,3 +230,19 @@ func (cs caseList) deactivate(index int) caseList {
 	cs[index], cs[last] = cs[last], cs[index]
 	return cs[:last]
 }
+
+// func (cs caseList) String() string {
+//     s := "["
+//     for i, cas := range cs {
+//             if i != 0 {
+//                     s += ", "
+//             }
+//             switch cas.Dir {
+//             case reflect.SelectSend:
+//                     s += fmt.Sprintf("%v<-", cas.Chan.Interface())
+//             case reflect.SelectRecv:
+//                     s += fmt.Sprintf("<-%v", cas.Chan.Interface())
+//             }
+//     }
+//     return s + "]"
+// }

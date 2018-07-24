@@ -59,18 +59,18 @@ type trustedCheckpoint struct {
 var (
 	mainnetCheckpoint = trustedCheckpoint{
 		name:          "mainnet",
-		sectionIdx:    170,
-		sectionHead:   common.HexToHash("3bb2c28bcce463d57968f14f56cdb3fbf35349ab7a701f44c1afb57349c9a356"),
-		chtRoot:       common.HexToHash("d92b6d0853455f8439086292338e87f69781921680dd7aa072fb71547b87415e"),
-		bloomTrieRoot: common.HexToHash("e4e8250a2fefddead7ae42daecd848cbf9b66d748a8270f8bbd4370b764bb9e9"),
+		sectionIdx:    179,
+		sectionHead:   common.HexToHash("ae778e455492db1183e566fa0c67f954d256fdd08618f6d5a393b0e24576d0ea"),
+		chtRoot:       common.HexToHash("646b338f9ca74d936225338916be53710ec84020b89946004a8605f04c817f16"),
+		bloomTrieRoot: common.HexToHash("d0f978f5dbc86e5bf931d8dd5b2ecbebbda6dc78f8896af6a27b46a3ced0ac25"),
 	}
 
 	ropstenCheckpoint = trustedCheckpoint{
 		name:          "ropsten",
-		sectionIdx:    97,
-		sectionHead:   common.HexToHash("719448c67c01eb5b9f27833a36a4e34612f66801316d7ff37daf9e77fb4cd095"),
-		chtRoot:       common.HexToHash("a7857afc15930ca6e583b6c3d563a025144011655843d52d28e2fdaadd417bea"),
-		bloomTrieRoot: common.HexToHash("9c71d4b50cbec86dfeaa8e08992de8a4667b81d13c54d6522b17ce2fc5d36416"),
+		sectionIdx:    107,
+		sectionHead:   common.HexToHash("e1988f95399debf45b873e065e5cd61b416ef2e2e5deec5a6f87c3127086e1ce"),
+		chtRoot:       common.HexToHash("15cba18e4de0ab1e95e202625199ba30147aec8b0b70384b66ebea31ba6a18e0"),
+		bloomTrieRoot: common.HexToHash("e00fa6389b2e597d9df52172cd8e936879eed0fca4fa59db99e2c8ed682562f2"),
 	}
 )
 

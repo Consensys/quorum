@@ -389,7 +389,7 @@ type Config struct {
 	PowMode        Mode
 }
 
-// Ethash is a consensus engine based on proot-of-work implementing the ethash
+// Ethash is a consensus engine based on proof-of-work implementing the ethash
 // algorithm.
 type Ethash struct {
 	config Config
@@ -562,9 +562,6 @@ func (ethash *Ethash) SetThreads(threads int) {
 // Hashrate implements PoW, returning the measured rate of the search invocations
 // per second over the last minute.
 func (ethash *Ethash) Hashrate() float64 {
-	if(ethash.hashrate == nil){
-		return 0
-	}
 	return ethash.hashrate.Rate1()
 }
 

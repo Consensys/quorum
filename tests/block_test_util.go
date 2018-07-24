@@ -42,6 +42,7 @@ type BlockTest struct {
 	json btJSON
 }
 
+// UnmarshalJSON implements json.Unmarshaler interface.
 func (t *BlockTest) UnmarshalJSON(in []byte) error {
 	return json.Unmarshal(in, &t.json)
 }
@@ -124,7 +125,7 @@ func (t *BlockTest) Run() error {
 	if common.Hash(t.json.BestBlock) != cmlast {
 		return fmt.Errorf("last block hash validation mismatch: want: %x, have: %x", t.json.BestBlock, cmlast)
 	}
-	newDB, _, err := chain.State()
+	newDB, err := chain.State()
 	if err != nil {
 		return err
 	}

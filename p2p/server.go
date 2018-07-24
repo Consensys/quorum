@@ -486,9 +486,6 @@ func (srv *Server) Start() (err error) {
 	}
 
 	dynPeers := srv.maxDialedConns()
-	if srv.NoDiscovery {
-		dynPeers = 0
-	}
 	dialer := newDialState(srv.StaticNodes, srv.BootstrapNodes, srv.ntab, dynPeers, srv.NetRestrict)
 
 	// handshake
@@ -827,10 +824,12 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *discover.Node) e
 		return err
 	}
 
+	clog := srv.log.New("id", c.id, "addr", c.fd.RemoteAddr(), "conn", c.flags)
+
 	//START - QUORUM Permissioning
 	currentNode := srv.NodeInfo().ID
 	cnodeName := srv.NodeInfo().Name
-	log.Trace("Quorum permissioning",
+	clog.Trace("Quorum permissioning",
 		"EnableNodePermission", srv.EnableNodePermission,
 		"DataDir", srv.DataDir,
 		"Current Node ID", currentNode,
@@ -840,7 +839,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *discover.Node) e
 		"Connection String", c.id.String())
 
 	if srv.EnableNodePermission {
-		log.Trace("Node Permissioning is Enabled.")
+		clog.Trace("Node Permissioning is Enabled.")
 		node := c.id.String()
 		direction := "INCOMING"
 		if dialDest != nil {
@@ -853,7 +852,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *discover.Node) e
 			return nil
 		}
 	} else {
-		log.Trace("Node Permissioning is Disabled.")
+		clog.Trace("Node Permissioning is Disabled.")
 	}
 
 	//END - QUORUM Permissioning

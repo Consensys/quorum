@@ -556,7 +556,7 @@ func opMload(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *St
 func opMstore(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	// pop value of the stack
 	mStart, val := stack.pop(), stack.pop()
-	memory.Set(mStart.Uint64(), 32, math.PaddedBigBytes(val, 32))
+	memory.Set32(mStart.Uint64(), val)
 
 	evm.interpreter.intPool.put(mStart, val)
 	return nil, nil
@@ -570,16 +570,16 @@ func opMstore8(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *
 }
 
 func opSload(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	loc := common.BigToHash(stack.pop())
-	val := getDualState(evm, contract.Address()).GetState(contract.Address(), loc).Big()
-	stack.push(val)
+	loc := stack.peek()
+	val := evm.StateDB.GetState(contract.Address(), common.BigToHash(loc))
+	loc.SetBytes(val.Bytes())
 	return nil, nil
 }
 
 func opSstore(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	loc := common.BigToHash(stack.pop())
 	val := stack.pop()
-	getDualState(evm, contract.Address()).SetState(contract.Address(), loc, common.BigToHash(val))
+	evm.StateDB.SetState(contract.Address(), loc, common.BigToHash(val))
 
 	evm.interpreter.intPool.put(val)
 	return nil, nil
@@ -794,11 +794,10 @@ func opStop(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Sta
 }
 
 func opSuicide(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	db := getDualState(evm, contract.Address())
-	balance := db.GetBalance(contract.Address())
-	db.AddBalance(common.BigToAddress(stack.pop()), balance)
+	balance := evm.StateDB.GetBalance(contract.Address())
+	evm.StateDB.AddBalance(common.BigToAddress(stack.pop()), balance)
 
-	db.Suicide(contract.Address())
+	evm.StateDB.Suicide(contract.Address())
 	return nil, nil
 }
 
@@ -851,7 +850,7 @@ func makePush(size uint64, pushByteSize int) executionFunc {
 	}
 }
 
-// make push instruction function
+// make dup instruction function
 func makeDup(size int64) executionFunc {
 	return func(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 		stack.dup(evm.interpreter.intPool, int(size))
@@ -862,7 +861,7 @@ func makeDup(size int64) executionFunc {
 // make swap instruction function
 func makeSwap(size int64) executionFunc {
 	// switch n + 1 otherwise n would be swapped with n
-	size += 1
+	size++
 	return func(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 		stack.swap(int(size))
 		return nil, nil

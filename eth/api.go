@@ -32,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
@@ -308,38 +307,28 @@ func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 }
 
 // DumpBlock retrieves the entire state of the database at a given block.
-func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ string) (state.Dump, error) {
-	var publicState, privateState *state.StateDB
-	var err error
+func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber) (state.Dump, error) {
 	if blockNr == rpc.PendingBlockNumber {
 		// If we're dumping the pending state, we need to request
 		// both the pending block as well as the pending state from
 		// the miner and operate on those
-		_, publicState, privateState = api.eth.miner.Pending()
+		_, stateDb := api.eth.miner.Pending()
+		return stateDb.RawDump(), nil
+	}
+	var block *types.Block
+	if blockNr == rpc.LatestBlockNumber {
+		block = api.eth.blockchain.CurrentBlock()
 	} else {
-		var block *types.Block
-		if blockNr == rpc.LatestBlockNumber {
-			block = api.eth.blockchain.CurrentBlock()
-		} else {
-			block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
-		}
-		if block == nil {
-			return state.Dump{}, fmt.Errorf("block #%d not found", blockNr)
-		}
-		publicState, privateState, err = api.eth.BlockChain().StateAt(block.Root())
-		if err != nil {
-			return state.Dump{}, err
-		}
+		block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
 	}
-
-	switch typ {
-	case "public":
-		return publicState.RawDump(), nil
-	case "private":
-		return privateState.RawDump(), nil
-	default:
-		return state.Dump{}, fmt.Errorf("unknown type: '%s'", typ)
+	if block == nil {
+		return state.Dump{}, fmt.Errorf("block #%d not found", blockNr)
 	}
+	stateDb, err := api.eth.BlockChain().StateAt(block.Root())
+	if err != nil {
+		return state.Dump{}, err
+	}
+	return stateDb.RawDump(), nil
 }
 
 // PrivateDebugAPI is the collection of Ethereum full node APIs exposed over
@@ -363,10 +352,34 @@ func (api *PrivateDebugAPI) Preimage(ctx context.Context, hash common.Hash) (hex
 	return nil, errors.New("unknown preimage")
 }
 
-// GetBadBLocks returns a list of the last 'bad blocks' that the client has seen on the network
+// BadBlockArgs represents the entries in the list returned when bad blocks are queried.
+type BadBlockArgs struct {
+	Hash  common.Hash            `json:"hash"`
+	Block map[string]interface{} `json:"block"`
+	RLP   string                 `json:"rlp"`
+}
+
+// GetBadBlocks returns a list of the last 'bad blocks' that the client has seen on the network
 // and returns them as a JSON list of block-hashes
-func (api *PrivateDebugAPI) GetBadBlocks(ctx context.Context) ([]core.BadBlockArgs, error) {
-	return api.eth.BlockChain().BadBlocks()
+func (api *PrivateDebugAPI) GetBadBlocks(ctx context.Context) ([]*BadBlockArgs, error) {
+	blocks := api.eth.BlockChain().BadBlocks()
+	results := make([]*BadBlockArgs, len(blocks))
+
+	var err error
+	for i, block := range blocks {
+		results[i] = &BadBlockArgs{
+			Hash: block.Hash(),
+		}
+		if rlpBytes, err := rlp.EncodeToBytes(block); err != nil {
+			results[i].RLP = err.Error() // Hacky, but hey, it works
+		} else {
+			results[i].RLP = fmt.Sprintf("0x%x", rlpBytes)
+		}
+		if results[i].Block, err = ethapi.RPCMarshalBlock(block, true, true); err != nil {
+			results[i].Block = map[string]interface{}{"error": err.Error()}
+		}
+	}
+	return results, nil
 }
 
 // StorageRangeResult is the result of a debug_storageRangeAt API call.
@@ -384,8 +397,7 @@ type storageEntry struct {
 
 // StorageRangeAt returns the storage at the given block height and transaction index.
 func (api *PrivateDebugAPI) StorageRangeAt(ctx context.Context, blockHash common.Hash, txIndex int, contractAddress common.Address, keyStart hexutil.Bytes, maxResult int) (StorageRangeResult, error) {
-	// XXX private state?
-	_, _, _, statedb, err := api.computeTxEnv(blockHash, txIndex, 0)
+	_, _, statedb, err := api.computeTxEnv(blockHash, txIndex, 0)
 	if err != nil {
 		return StorageRangeResult{}, err
 	}
@@ -419,7 +431,7 @@ func storageRangeAt(st state.Trie, start []byte, maxResult int) (StorageRangeRes
 	return result, nil
 }
 
-// GetModifiedAccountsByumber returns all accounts that have changed between the
+// GetModifiedAccountsByNumber returns all accounts that have changed between the
 // two blocks specified. A change is defined as a difference in nonce, balance,
 // code hash, or storage hash.
 //
@@ -500,34 +512,4 @@ func (api *PrivateDebugAPI) getModifiedAccounts(startBlock, endBlock *types.Bloc
 		dirty = append(dirty, common.BytesToAddress(key))
 	}
 	return dirty, nil
-}
-
-// BlockTraceResult is the returned value when replaying a block to check for
-// consensus results and full VM trace logs for all included transactions.
-type BlockTraceResult struct {
-	Validated  bool                  `json:"validated"`
-	StructLogs []ethapi.StructLogRes `json:"structLogs"`
-	Error      string                `json:"error"`
-}
-
-// TraceArgs holds extra parameters to trace functions
-type TraceArgs struct {
-	*vm.LogConfig
-	Tracer  *string
-	Timeout *string
-}
-
-// formatError formats a Go error into either an empty string or the data content
-// of the error itself.
-func formatError(err error) string {
-	if err == nil {
-		return ""
-	}
-	return err.Error()
-}
-
-type timeoutError struct{}
-
-func (t *timeoutError) Error() string {
-	return "Execution time exceeded"
 }

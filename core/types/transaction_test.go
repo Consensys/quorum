@@ -49,18 +49,6 @@ var (
 		HomesteadSigner{},
 		common.Hex2Bytes("98ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4a8887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a301"),
 	)
-
-	rightvrsTx2, _ = NewTransaction(
-		3,
-		common.HexToAddress("b94f5374fce5edbc8e2a8697c15331677e6ebf0b"),
-		big.NewInt(10),
-		2000,
-		big.NewInt(0),
-		common.FromHex("5544"),
-	).WithSignature(
-		HomesteadSigner{},
-		common.Hex2Bytes("98ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4a8887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a301"),
-	)
 )
 
 func TestTransactionSigHash(t *testing.T) {
@@ -79,18 +67,6 @@ func TestTransactionEncode(t *testing.T) {
 		t.Fatalf("encode error: %v", err)
 	}
 	should := common.FromHex("f86103018207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a8255441ca098ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4aa08887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a3")
-	if !bytes.Equal(txb, should) {
-		t.Errorf("encoded RLP mismatch, got %x", txb)
-	}
-}
-
-// Test from the original quorum implementation
-func TestTransactionEncode2(t *testing.T) {
-	txb, err := rlp.EncodeToBytes(rightvrsTx2)
-	if err != nil {
-		t.Fatalf("encode error: %v", err)
-	}
-	should := common.FromHex("f86103808207d094b94f5374fce5edbc8e2a8697c15331677e6ebf0b0a8255441ca098ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4aa08887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a3")
 	if !bytes.Equal(txb, should) {
 		t.Errorf("encoded RLP mismatch, got %x", txb)
 	}
@@ -189,28 +165,13 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 				t.Errorf("invalid nonce ordering: tx #%d (A=%x N=%v) < tx #%d (A=%x N=%v)", i, fromi[:4], txi.Nonce(), i+j, fromj[:4], txj.Nonce())
 			}
 		}
-		// Find the previous and next nonce of this account
-		prev, next := i-1, i+1
-		for j := i - 1; j >= 0; j-- {
-			if fromj, _ := Sender(signer, txs[j]); fromi == fromj {
-				prev = j
-				break
-			}
-		}
-		for j := i + 1; j < len(txs); j++ {
-			if fromj, _ := Sender(signer, txs[j]); fromi == fromj {
-				next = j
-				break
-			}
-		}
-		// Make sure that in between the neighbor nonces, the transaction is correctly positioned price wise
-		for j := prev + 1; j < next; j++ {
-			fromj, _ := Sender(signer, txs[j])
-			if j < i && txs[j].GasPrice().Cmp(txi.GasPrice()) < 0 {
-				t.Errorf("invalid gasprice ordering: tx #%d (A=%x P=%v) < tx #%d (A=%x P=%v)", j, fromj[:4], txs[j].GasPrice(), i, fromi[:4], txi.GasPrice())
-			}
-			if j > i && txs[j].GasPrice().Cmp(txi.GasPrice()) > 0 {
-				t.Errorf("invalid gasprice ordering: tx #%d (A=%x P=%v) > tx #%d (A=%x P=%v)", j, fromj[:4], txs[j].GasPrice(), i, fromi[:4], txi.GasPrice())
+
+		// If the next tx has different from account, the price must be lower than the current one
+		if i+1 < len(txs) {
+			next := txs[i+1]
+			fromNext, _ := Sender(signer, next)
+			if fromi != fromNext && txi.GasPrice().Cmp(next.GasPrice()) < 0 {
+				t.Errorf("invalid gasprice ordering: tx #%d (A=%x P=%v) < tx #%d (A=%x P=%v)", i, fromi[:4], txi.GasPrice(), i+1, fromNext[:4], next.GasPrice())
 			}
 		}
 	}
