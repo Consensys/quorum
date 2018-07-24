@@ -95,7 +95,7 @@ func validateTxPoolInternals(pool *TxPool) error {
 
 	// Ensure the total transaction set is consistent with pending + queued
 	pending, queued := pool.stats()
-	if total := len(pool.all); total != pending+queued {
+	if total := pool.all.Count(); total != pending+queued {
 		return fmt.Errorf("total transaction count %d != %d pending + %d queued", total, pending, queued)
 	}
 	if priced := pool.priced.items.Len() - pool.priced.stales; priced != pending+queued {
@@ -119,7 +119,7 @@ func validateTxPoolInternals(pool *TxPool) error {
 
 // validateEvents checks that the correct number of transaction addition events
 // were fired on the pool's event feed.
-func validateEvents(events chan TxPreEvent, count int) error {
+func validateEvents(events chan NewTxsEvent, count int) error {
 	for i := 0; i < count; i++ {
 		select {
 		case <-events:
@@ -129,7 +129,7 @@ func validateEvents(events chan TxPreEvent, count int) error {
 	}
 	select {
 	case tx := <-events:
-		return fmt.Errorf("more than %d events fired: %v", count, tx.Tx)
+		return fmt.Errorf("more than %d events fired: %v", count, tx.Txs)
 
 	case <-time.After(50 * time.Millisecond):
 		// This branch should be "default", but it's a data race between goroutines,
@@ -484,7 +484,7 @@ func TestTransactionDropping(t *testing.T) {
 		t.Errorf("queued transaction mismatch: have %d, want %d", pool.queue[account].Len(), 3)
 	}
 	if pool.all.Count() != 6 {
-		t.Errorf("total transaction mismatch: have %d, want %d", len(pool.all), 6)
+		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), 6)
 	}
 	pool.lockedReset(nil, nil)
 	if pool.pending[account].Len() != 3 {
@@ -494,7 +494,7 @@ func TestTransactionDropping(t *testing.T) {
 		t.Errorf("queued transaction mismatch: have %d, want %d", pool.queue[account].Len(), 3)
 	}
 	if pool.all.Count() != 6 {
-		t.Errorf("total transaction mismatch: have %d, want %d", len(pool.all), 6)
+		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), 6)
 	}
 	// Reduce the balance of the account, and check that invalidated transactions are dropped
 	pool.currentState.AddBalance(account, big.NewInt(-650))
@@ -611,7 +611,7 @@ func TestTransactionPostponing(t *testing.T) {
 		t.Errorf("queued accounts mismatch: have %d, want %d", len(pool.queue), 0)
 	}
 	if pool.all.Count() != len(txs) {
-		t.Errorf("total transaction mismatch: have %d, want %d", len(pool.all), len(txs))
+		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), len(txs))
 	}
 	pool.lockedReset(nil, nil)
 	if pending := pool.pending[accs[0]].Len() + pool.pending[accs[1]].Len(); pending != len(txs) {
@@ -621,7 +621,7 @@ func TestTransactionPostponing(t *testing.T) {
 		t.Errorf("queued accounts mismatch: have %d, want %d", len(pool.queue), 0)
 	}
 	if pool.all.Count() != len(txs) {
-		t.Errorf("total transaction mismatch: have %d, want %d", len(pool.all), len(txs))
+		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), len(txs))
 	}
 	// Reduce the balance of the account, and check that transactions are reorganised
 	for _, addr := range accs {
@@ -671,7 +671,7 @@ func TestTransactionPostponing(t *testing.T) {
 		}
 	}
 	if pool.all.Count() != len(txs)/2 {
-		t.Errorf("total transaction mismatch: have %d, want %d", len(pool.all), len(txs)/2)
+		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), len(txs)/2)
 	}
 }
 
@@ -763,7 +763,7 @@ func TestTransactionQueueAccountLimiting(t *testing.T) {
 		}
 	}
 	if pool.all.Count() != int(testTxPoolConfig.AccountQueue) {
-		t.Errorf("total transaction mismatch: have %d, want %d", len(pool.all), testTxPoolConfig.AccountQueue)
+		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), testTxPoolConfig.AccountQueue)
 	}
 }
 
@@ -957,7 +957,7 @@ func TestTransactionPendingLimiting(t *testing.T) {
 		}
 	}
 	if pool.all.Count() != int(testTxPoolConfig.AccountQueue+5) {
-		t.Errorf("total transaction mismatch: have %d, want %d", len(pool.all), testTxPoolConfig.AccountQueue+5)
+		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), testTxPoolConfig.AccountQueue+5)
 	}
 	if err := validateEvents(events, int(testTxPoolConfig.AccountQueue+5)); err != nil {
 		t.Fatalf("event firing failed: %v", err)

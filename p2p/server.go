@@ -857,7 +857,6 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *discover.Node) e
 
 	//END - QUORUM Permissioning
 
-	clog := srv.log.New("id", c.id, "addr", c.fd.RemoteAddr(), "conn", c.flags)
 	// For dialed connections, check that the remote public key matches.
 	if dialDest != nil && c.id != dialDest.ID {
 		clog.Trace("Dialed identity mismatch", "want", c, dialDest.ID)

@@ -307,28 +307,38 @@ func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 }
 
 // DumpBlock retrieves the entire state of the database at a given block.
-func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber) (state.Dump, error) {
+func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ string) (state.Dump, error) {
+	var publicState, privateState *state.StateDB
+	var err error
 	if blockNr == rpc.PendingBlockNumber {
 		// If we're dumping the pending state, we need to request
 		// both the pending block as well as the pending state from
 		// the miner and operate on those
-		_, stateDb := api.eth.miner.Pending()
-		return stateDb.RawDump(), nil
-	}
-	var block *types.Block
-	if blockNr == rpc.LatestBlockNumber {
-		block = api.eth.blockchain.CurrentBlock()
+		_, publicState, privateState = api.eth.miner.Pending()
 	} else {
-		block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
+		var block *types.Block
+		if blockNr == rpc.LatestBlockNumber {
+			block = api.eth.blockchain.CurrentBlock()
+		} else {
+			block = api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
+		}
+		if block == nil {
+			return state.Dump{}, fmt.Errorf("block #%d not found", blockNr)
+		}
+		publicState, privateState, err = api.eth.BlockChain().StateAt(block.Root())
+		if err != nil {
+			return state.Dump{}, err
+		}
 	}
-	if block == nil {
-		return state.Dump{}, fmt.Errorf("block #%d not found", blockNr)
+
+	switch typ {
+	case "public":
+		return publicState.RawDump(), nil
+	case "private":
+		return privateState.RawDump(), nil
+	default:
+		return state.Dump{}, fmt.Errorf("unknown type: '%s'", typ)
 	}
-	stateDb, err := api.eth.BlockChain().StateAt(block.Root())
-	if err != nil {
-		return state.Dump{}, err
-	}
-	return stateDb.RawDump(), nil
 }
 
 // PrivateDebugAPI is the collection of Ethereum full node APIs exposed over
@@ -397,7 +407,7 @@ type storageEntry struct {
 
 // StorageRangeAt returns the storage at the given block height and transaction index.
 func (api *PrivateDebugAPI) StorageRangeAt(ctx context.Context, blockHash common.Hash, txIndex int, contractAddress common.Address, keyStart hexutil.Bytes, maxResult int) (StorageRangeResult, error) {
-	_, _, statedb, err := api.computeTxEnv(blockHash, txIndex, 0)
+	_, _, _, statedb, err := api.computeTxEnv(blockHash, txIndex, 0)
 	if err != nil {
 		return StorageRangeResult{}, err
 	}

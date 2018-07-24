@@ -79,7 +79,7 @@ type BlockChain interface {
 	GetHeaderByHash(hash common.Hash) *types.Header
 	CurrentHeader() *types.Header
 	GetTd(hash common.Hash, number uint64) *big.Int
-	State() (*state.StateDB, error)
+	State() (*state.StateDB, *state.StateDB, error)
 	InsertHeaderChain(chain []*types.Header, checkFreq int) (int, error)
 	Rollback(chain []common.Hash)
 	GetHeaderByNumber(number uint64) *types.Header
@@ -605,7 +605,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			// Retrieve the requested state entry, stopping if enough was found
 			if number := rawdb.ReadHeaderNumber(pm.chainDb, req.BHash); number != nil {
 				if header := rawdb.ReadHeader(pm.chainDb, req.BHash, *number); header != nil {
-					statedb, err := pm.blockchain.State()
+					statedb, _, err := pm.blockchain.State()
 					if err != nil {
 						continue
 					}
@@ -736,7 +736,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			// Retrieve the requested state entry, stopping if enough was found
 			if number := rawdb.ReadHeaderNumber(pm.chainDb, req.BHash); number != nil {
 				if header := rawdb.ReadHeader(pm.chainDb, req.BHash, *number); header != nil {
-					statedb, err := pm.blockchain.State()
+					statedb, _, err := pm.blockchain.State()
 					if err != nil {
 						continue
 					}
@@ -796,7 +796,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 				if number := rawdb.ReadHeaderNumber(pm.chainDb, req.BHash); number != nil {
 					if header := rawdb.ReadHeader(pm.chainDb, req.BHash, *number); header != nil {
-						statedb, _ = pm.blockchain.State()
+						statedb, _, _ = pm.blockchain.State()
 						root = header.Root
 					}
 				}
