@@ -183,11 +183,15 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 	var logs []*types.Log
 
 	for ; f.begin <= int64(end); f.begin++ {
+		blockNumber := rpc.BlockNumber(f.begin)
 		header, err := f.backend.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
 		if header == nil || err != nil {
 			return logs, err
 		}
-		if bloomFilter(header.Bloom, f.addresses, f.topics) {
+
+		bloomMatches := bloomFilter(header.Bloom, f.addresses, f.topics) ||
+			bloomFilter(core.GetPrivateBlockBloom(f.db, uint64(blockNumber)), f.addresses, f.topics)
+		if bloomMatches {
 			found, err := f.checkMatches(ctx, header)
 			if err != nil {
 				return logs, err
