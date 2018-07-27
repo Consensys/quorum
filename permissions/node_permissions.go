@@ -231,3 +231,4 @@ func updatePermissionedNodes(enodeId string, dataDir string, operation string){
 	}
 
 }
+

@@ -78,6 +78,10 @@ var (
 	ErrOversizedData = errors.New("oversized data")
 
 	ErrInvalidGasPrice = errors.New("Gas price not 0")
+
+	// ErrUnahorizedAccount is returned if the sender account is not authorized by the
+	// permissions module
+	ErrUnauthorizesAccount = errors.New("Account not authorized for this operation")
 )
 
 var (
@@ -609,6 +613,14 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if !isQuorum && tx.Gas() < intrGas {
 		return ErrIntrinsicGas
 	}
+
+	// Check if the sender account is authorized to perform the transaction
+	if isQuorum {
+		if err := checkAccount(); err != nil {
+			return ErrInvalidGasPrice
+		}
+	}
+
 	return nil
 }
 
@@ -1187,4 +1199,11 @@ func (as *accountSet) containsTx(tx *types.Transaction) bool {
 // add inserts a new address into the set to track.
 func (as *accountSet) add(addr common.Address) {
 	as.accounts[addr] = struct{}{}
+}
+
+
+// checks if the account is permissioned for transaction
+func checkAccount() error {
+	err := errors.New("Cannot do the transaction!!!")
+	return err
 }
