@@ -747,7 +747,7 @@ func TestChainTxReorgs(t *testing.T) {
 		db      = ethdb.NewMemDatabase()
 		gspec   = &Genesis{
 			Config:   params.TestChainConfig,
-			GasLimit: 3141592,
+			GasLimit: 31415920,
 			Alloc: GenesisAlloc{
 				addr1: {Balance: big.NewInt(1000000)},
 				addr2: {Balance: big.NewInt(1000000)},

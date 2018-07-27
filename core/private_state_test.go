@@ -118,9 +118,9 @@ func runConstellation() (*osExec.Cmd, error) {
 		constellationErr = constellationCmd.Start()
 	}()
 	// Give the constellation subprocess some time to start.
-	time.Sleep(1 * time.Second)
+	time.Sleep(5 * time.Second)
+	fmt.Println(stdout.String() + stderr.String())
 	if constellationErr != nil {
-		fmt.Println(stdout.String() + stderr.String())
 		return nil, constellationErr
 	}
 	private.P = constellation.MustNew(cfgFile.Name())
