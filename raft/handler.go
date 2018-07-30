@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -50,6 +51,7 @@ type ProtocolManager struct {
 	snapshotIndex uint64 // The index of the latest snapshot.
 
 	// Remote peer state (protected by mu vs concurrent access via JS)
+	leader       uint16
 	peers        map[uint16]*Peer
 	removedPeers *set.Set // *Permanently removed* peers
 
@@ -101,6 +103,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 	manager := &ProtocolManager{
 		bootstrapNodes:      bootstrapNodes,
 		peers:               make(map[uint16]*Peer),
+		leader:              uint16(etcdRaft.None),
 		removedPeers:        set.New(),
 		joinExisting:        joinExisting,
 		blockchain:          blockchain,
@@ -680,6 +683,10 @@ func (pm *ProtocolManager) eventLoop() {
 		case rd := <-pm.rawNode().Ready():
 			pm.wal.Save(rd.HardState, rd.Entries)
 
+			if rd.SoftState != nil {
+				pm.updateLeader(rd.SoftState.Lead)
+			}
+
 			if snap := rd.Snapshot; !etcdRaft.IsEmptySnap(snap) {
 				pm.saveRaftSnapshot(snap)
 				pm.applyRaftSnapshot(snap)
@@ -880,4 +887,25 @@ func (pm *ProtocolManager) advanceAppliedIndex(index uint64) {
 	pm.mu.Lock()
 	pm.appliedIndex = index
 	pm.mu.Unlock()
+}
+
+func (pm *ProtocolManager) updateLeader(leader uint64) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	pm.leader = uint16(leader)
+}
+
+// The Address for the current leader, or an error if no leader is elected.
+func (pm *ProtocolManager) LeaderAddress() (*Address, error) {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	if minterRole == pm.role {
+		return pm.address, nil
+	} else if l, ok := pm.peers[pm.leader]; ok {
+		return l.address, nil
+	}
+	// We expect to reach this if pm.leader is 0, which is how etcd denotes the lack of a leader.
+	return nil, errors.New("no leader is currently elected")
 }
