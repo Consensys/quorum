@@ -314,19 +314,19 @@ func (self *worker) wait() {
 
 			// Update the block hash in all logs since it is now available and not when the
 			// receipt/log of individual transactions were created.
-			for _, r := range work.receipts {
+			for _, r := range append(work.receipts, work.privateReceipts...) {
 				for _, l := range r.Logs {
 					l.BlockHash = block.Hash()
 				}
 			}
-			for _, log := range work.state.Logs() {
+			for _, log := range append(work.state.Logs(), work.privateState.Logs()...) {
 				log.BlockHash = block.Hash()
 			}
 
 			// write private transacions
 			privateStateRoot, _ := work.privateState.CommitTo(self.chainDb, self.config.IsEIP158(block.Number()))
 			core.WritePrivateStateRoot(self.chainDb, block.Root(), privateStateRoot)
-			allReceipts := append(work.receipts, work.privateReceipts...)
+			allReceipts := mergeReceipts(work.receipts, work.privateReceipts)
 
 			stat, err := self.chain.WriteBlockAndState(block, allReceipts, work.state)
 			if err != nil {
@@ -342,7 +342,7 @@ func (self *worker) wait() {
 			self.mux.Post(core.NewMinedBlockEvent{Block: block})
 			var (
 				events []interface{}
-				logs   = work.state.Logs()
+				logs   = append(work.state.Logs(), work.privateState.Logs()...)
 			)
 			events = append(events, core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
 			if stat == core.CanonStatTy {
@@ -358,6 +358,27 @@ func (self *worker) wait() {
 			}
 		}
 	}
+}
+
+// Given a slice of public receipts and an overlapping (smaller) slice of
+// private receipts, return a new slice where the default for each location is
+// the public receipt but we take the private receipt in each place we have
+// one.
+func mergeReceipts(pub, priv types.Receipts) types.Receipts {
+	m := make(map[common.Hash]*types.Receipt)
+	for _, receipt := range pub {
+		m[receipt.TxHash] = receipt
+	}
+	for _, receipt := range priv {
+		m[receipt.TxHash] = receipt
+	}
+
+	ret := make(types.Receipts, 0, len(pub))
+	for _, pubReceipt := range pub {
+		ret = append(ret, m[pubReceipt.TxHash])
+	}
+
+	return ret
 }
 
 // push sends a new work task to currently live miner agents.
