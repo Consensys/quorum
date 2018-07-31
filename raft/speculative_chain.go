@@ -55,7 +55,7 @@ func (chain *speculativeChain) setHead(block *types.Block) {
 	chain.head = block
 }
 
-// Accept this block, removing it from the head of the speculative chain
+// Accept this block, removing it from the speculative chain
 func (chain *speculativeChain) accept(acceptedBlock *types.Block) {
 	earliestProposedI := chain.unappliedBlocks.Shift()
 	var earliestProposed *types.Block
@@ -63,7 +63,16 @@ func (chain *speculativeChain) accept(acceptedBlock *types.Block) {
 		earliestProposed = earliestProposedI.(*types.Block)
 	}
 
-	if expectedBlock := earliestProposed == nil || earliestProposed.Hash() == acceptedBlock.Hash(); expectedBlock {
+	// There are three possible scenarios:
+	// 1. We don't have a record of this block (or any proposed blocks), meaning someone else minted it and we should
+	//    add it as the new head of our speculative chain. New blocks from the old leader are still coming in.
+	// 2. This block was the first outstanding one we proposed.
+	// 3. This block is different from the block we proposed, (also) meaning new blocks are still coming in from the old
+	//    leader, but unlike the first scenario, we need to clear all of the speculative chain state because the
+	//    `acceptedBlock` takes precedence over our speculative state.
+	if earliestProposed == nil {
+		chain.head = acceptedBlock
+	} else if expectedBlock := earliestProposed.Hash() == acceptedBlock.Hash(); expectedBlock {
 		// Remove the txes in this accepted block from our blacklist.
 		chain.removeProposedTxes(acceptedBlock)
 	} else {
