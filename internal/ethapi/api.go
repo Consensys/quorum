@@ -370,6 +370,7 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args SendTxArgs
 // tries to sign it with the key associated with args.To. If the given passwd isn't
 // able to decrypt the key it fails.
 func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
+	log.Info("inside SendTransaction")
 	if args.Nonce == nil {
 		// Hold the addresse's mutex around signing to prevent concurrent assignment of
 		// the same nonce to multiple accounts.
@@ -396,6 +397,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	if err != nil {
 		return common.Hash{}, err
 	}
+	log.Info("Calling submitTransaction 1")
 	return submitTransaction(ctx, s.b, signed, isPrivate)
 }
 
@@ -1187,6 +1189,7 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 }
 
 func (args *SendTxArgs) toTransaction() *types.Transaction {
+	log.Info("inside toTransaction")
 	var input []byte
 	if args.Data != nil {
 		input = *args.Data
@@ -1194,13 +1197,16 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 		input = *args.Input
 	}
 	if args.To == nil {
+		log.Info("Contract creation call")
 		return types.NewContractCreation(uint64(*args.Nonce), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 	}
+	log.Info("New transaction callcreation call")
 	return types.NewTransaction(uint64(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 }
 
 // submitTransaction is a helper function that submits tx to txPool and logs a message.
 func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction, isPrivate bool) (common.Hash, error) {
+	log.Info("inside submitTransaction")
 	if isPrivate {
 		tx.SetPrivate()
 	}
@@ -1275,6 +1281,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err != nil {
 		return common.Hash{}, err
 	}
+	log.Info("Calling submitTransaction 2")
 	return submitTransaction(ctx, s.b, signed, isPrivate)
 }
 
@@ -1285,6 +1292,7 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encod
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
+	log.Info("Calling submitTransaction 3")
 	return submitTransaction(ctx, s.b, tx, tx.IsPrivate())
 }
 
@@ -1614,6 +1622,7 @@ func (a *Async) save(ctx context.Context, s *PublicTransactionPoolAPI, args Send
 		return common.Hash{}, err
 	}
 
+	log.Info("Calling submitTransaction 4")
 	return submitTransaction(ctx, s.b, signed, args.PrivateFor != nil)
 }
 

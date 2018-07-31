@@ -81,7 +81,7 @@ var (
 
 	// ErrUnahorizedAccount is returned if the sender account is not authorized by the
 	// permissions module
-	ErrUnauthorizesAccount = errors.New("Account not authorized for this operation")
+	ErrUnAuthorizedAccount = errors.New("Account not authorized for this operation")
 )
 
 var (
@@ -569,6 +569,7 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
+	log.Info("Inside validateTx")
 	isQuorum := pool.chainconfig.IsQuorum
 
 	if isQuorum && tx.GasPrice().Cmp(common.Big0) != 0 {
@@ -616,8 +617,9 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 	// Check if the sender account is authorized to perform the transaction
 	if isQuorum {
+		log.Info("Inside if before checkAccount")
 		if err := checkAccount(); err != nil {
-			return ErrInvalidGasPrice
+			return ErrUnAuthorizedAccount
 		}
 	}
 
@@ -633,6 +635,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // whitelisted, preventing any associated transaction from being dropped out of
 // the pool due to pricing constraints.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
+	log.Info("Inside add")
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
 	if pool.all[hash] != nil {
@@ -784,6 +787,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 // the sender as a local one in the mean time, ensuring it goes around the local
 // pricing constraints.
 func (pool *TxPool) AddLocal(tx *types.Transaction) error {
+	log.Info("inside AddLocal")
 	return pool.addTx(tx, !pool.config.NoLocals)
 }
 
@@ -810,6 +814,7 @@ func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 
 // addTx enqueues a single transaction into the pool if it is valid.
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
+	log.Info("inside addTx")
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
