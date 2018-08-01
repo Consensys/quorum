@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
+	"fmt"
 )
 
 var (
@@ -88,13 +89,22 @@ type PrivateMessage interface {
 //
 // TODO convert to uint64
 func IntrinsicGas(data []byte, contractCreation, homestead bool) *big.Int {
+	log.Info(fmt.Sprintf("======= state_transition:IntrinsicGas()"))
+
 	igas := new(big.Int)
 	if contractCreation && homestead {
 		igas.SetUint64(params.TxGasContractCreation)
+		log.Info(fmt.Sprintf("======= contractCreation on homestead: iGas = %v", igas))
+
 	} else {
 		igas.SetUint64(params.TxGas)
+		log.Info(fmt.Sprintf("======= contractCreation where contractCreation = %v && homestead = %v: iGas = %v",
+			contractCreation, homestead, igas))
+
 	}
 	if len(data) > 0 {
+		log.Info(fmt.Sprintf("======= calculating cost of data, data length = %v", len(data)))
+
 		var nz int64
 		for _, byt := range data {
 			if byt != 0 {
@@ -104,9 +114,13 @@ func IntrinsicGas(data []byte, contractCreation, homestead bool) *big.Int {
 		m := big.NewInt(nz)
 		m.Mul(m, new(big.Int).SetUint64(params.TxDataNonZeroGas))
 		igas.Add(igas, m)
+		log.Info(fmt.Sprintf("======= data cost is %v, for %v non-zero bytes... new igas value = %v", m, nz, igas))
+
 		m.SetInt64(int64(len(data)) - nz)
 		m.Mul(m, new(big.Int).SetUint64(params.TxDataZeroGas))
 		igas.Add(igas, m)
+		log.Info(fmt.Sprintf("======= data cost is %v, for %v zero bytes... new igas value = %v", m, int64(len(data)) - nz, igas))
+
 	}
 	return igas
 }
@@ -250,6 +264,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 	// Pay intrinsic gas
 	// TODO convert to uint64
 	intrinsicGas := IntrinsicGas(data, contractCreation, homestead)
+	log.Info(fmt.Sprintf("======= state_transition (homestead = %v): IntrinsicGas = %v, Gas supplied = %v", homestead, intrinsicGas, st.gas))
+
 	if intrinsicGas.BitLen() > 64 {
 		return nil, nil, nil, false, vm.ErrOutOfGas
 	}

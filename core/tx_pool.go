@@ -80,6 +80,10 @@ var (
 	ErrOversizedData = errors.New("oversized data")
 
 	ErrInvalidGasPrice = errors.New("Gas price not 0")
+
+	// ErrEtherValueUnsupported is returned if a transaction specifies an Ether Value
+	// for a private Quorum transaction.
+	ErrEtherValueUnsupported = errors.New("ether value is not supported for private transactions")
 )
 
 var (
@@ -206,7 +210,7 @@ type TxPool struct {
 }
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
-// trnsactions from the network.
+// transactions from the network.
 func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
@@ -273,6 +277,7 @@ func (pool *TxPool) loop() {
 	// Keep waiting for and reacting to the various events
 	for {
 		select {
+
 		// Handle ChainHeadEvent
 		case ev := <-pool.chainHeadCh:
 			if ev.Block != nil {
@@ -285,6 +290,7 @@ func (pool *TxPool) loop() {
 
 				pool.mu.Unlock()
 			}
+
 		// Be unsubscribed due to system stopped
 		case <-pool.chainHeadSub.Err():
 			return
@@ -578,12 +584,18 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if pool.currentState.GetNonce(from) > tx.Nonce() {
 		return ErrNonceTooLow
 	}
+	// Ether value is not currently supported on private transactions
+	if tx.IsPrivate() && (tx.Value().Sign() != 0) {
+		return ErrEtherValueUnsupported;
+	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
 	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
 		return ErrInsufficientFunds
 	}
 	intrGas := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
+	log.Info(fmt.Sprintf("======= tx_pool (homestead = %v): IntrinsicGas = %v, Gas supplied = %v", pool.homestead, intrGas, tx.Gas()))
+
 	if tx.Gas().Cmp(intrGas) < 0 {
 		return ErrIntrinsicGas
 	}
@@ -796,7 +808,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) error {
 // addTxsLocked attempts to queue a batch of transactions if they are valid,
 // whilst assuming the transaction pool lock is already held.
 func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) error {
-	// Add the batch of transaction, tracking the accepted ones
+	// Add the batch of transactions, tracking the accepted ones
 	dirty := make(map[common.Address]struct{})
 	for _, tx := range txs {
 		if replace, err := pool.add(tx, local); err == nil {
