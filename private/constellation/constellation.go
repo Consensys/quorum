@@ -8,22 +8,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/patrickmn/go-cache"
 )
 
 type Constellation struct {
-	node   *Client
-	c      *cache.Cache
-	ignore bool
+	node                 *Client
+	c                    *cache.Cache
+	isConstellationInUse bool
 }
 
 var (
-	ErrConstellationIsntInit = errors.New("ignoreConstellation")
+	ErrConstellationIsntInit = errors.New("Constellation not in use")
 )
 
 func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
-	if g.ignore {
+	if g.isConstellationInUse {
 		return nil, ErrConstellationIsntInit
 	}
 	out, err = g.node.SendPayload(data, from, to)
@@ -35,12 +34,10 @@ func (g *Constellation) Send(data []byte, from string, to []string) (out []byte,
 }
 
 func (g *Constellation) Receive(data []byte) ([]byte, error) {
-	if g.ignore {
-		log.Trace("should ignore", "data", fmt.Sprintf("%v", data))
+	if g.isConstellationInUse {
 		return nil, nil
 	}
 	if len(data) == 0 {
-		log.Trace("data has no length", "data", fmt.Sprintf("%v", data))
 		return data, nil
 	}
 	// Ignore this error since not being a recipient of
@@ -48,15 +45,12 @@ func (g *Constellation) Receive(data []byte) ([]byte, error) {
 	// TODO: Return an error if it's anything OTHER than
 	// 'you are not a recipient.'
 	dataStr := string(data)
-	log.Trace("data being processed", "datastring", fmt.Sprintf("%v", dataStr))
-	log.Trace("data being processed", "datastring", fmt.Sprintf("%v", data))
 	x, found := g.c.Get(dataStr)
 	if found {
 		return x.([]byte), nil
 	}
 	pl, _ := g.node.ReceivePayload(data)
 	g.c.Set(dataStr, pl, cache.DefaultExpiration)
-	log.Trace("data being returned", "data", fmt.Sprintf("%v", pl))
 	return pl, nil
 }
 
@@ -84,18 +78,18 @@ func New(path string) (*Constellation, error) {
 		return nil, err
 	}
 	return &Constellation{
-		node:   n,
-		c:      cache.New(5*time.Minute, 5*time.Minute),
-		ignore: false,
+		node:                 n,
+		c:                    cache.New(5*time.Minute, 5*time.Minute),
+		isConstellationInUse: false,
 	}, nil
 }
 
 func MustNew(path string) *Constellation {
 	if strings.EqualFold(path, "ignore") {
 		return &Constellation{
-			node:   nil,
-			c:      nil,
-			ignore: true,
+			node:                 nil,
+			c:                    nil,
+			isConstellationInUse: true,
 		}
 	}
 	g, err := New(path)
