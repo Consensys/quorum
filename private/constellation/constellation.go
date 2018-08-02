@@ -12,9 +12,9 @@ import (
 )
 
 type Constellation struct {
-	node                 *Client
-	c                    *cache.Cache
-	isConstellationInUse bool
+	node                    *Client
+	c                       *cache.Cache
+	isConstellationNotInUse bool
 }
 
 var (
@@ -22,7 +22,7 @@ var (
 )
 
 func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
-	if g.isConstellationInUse {
+	if g.isConstellationNotInUse {
 		return nil, ErrConstellationIsntInit
 	}
 	out, err = g.node.SendPayload(data, from, to)
@@ -34,7 +34,7 @@ func (g *Constellation) Send(data []byte, from string, to []string) (out []byte,
 }
 
 func (g *Constellation) Receive(data []byte) ([]byte, error) {
-	if g.isConstellationInUse {
+	if g.isConstellationNotInUse {
 		return nil, nil
 	}
 	if len(data) == 0 {
@@ -78,18 +78,18 @@ func New(path string) (*Constellation, error) {
 		return nil, err
 	}
 	return &Constellation{
-		node:                 n,
-		c:                    cache.New(5*time.Minute, 5*time.Minute),
-		isConstellationInUse: false,
+		node: n,
+		c:    cache.New(5*time.Minute, 5*time.Minute),
+		isConstellationNotInUse: false,
 	}, nil
 }
 
 func MustNew(path string) *Constellation {
 	if strings.EqualFold(path, "ignore") {
 		return &Constellation{
-			node:                 nil,
-			c:                    nil,
-			isConstellationInUse: true,
+			node: nil,
+			c:    nil,
+			isConstellationNotInUse: true,
 		}
 	}
 	g, err := New(path)
