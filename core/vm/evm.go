@@ -24,6 +24,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // note: Quorum, States, and Value Transfer
@@ -405,6 +407,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	// initialise a new contract and set the code that is to be used by the
 	// E The contract is a scoped evmironment for this execution context
 	// only.
+	log.Info(fmt.Sprintf("======= evm.go: Creating contract with gas = %v", gas))
 	contract := NewContract(caller, AccountRef(contractAddr), value, gas)
 	contract.SetCallCode(&contractAddr, crypto.Keccak256Hash(code), code)
 
@@ -412,6 +415,8 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 		return nil, contractAddr, gas, nil
 	}
 	ret, err = run(evm, snapshot, contract, nil)
+	log.Info(fmt.Sprintf("======= evm.go: After run(), contract now has gas = %v", contract.Gas))
+
 	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
 	// if the contract creation ran successfully and no errors were returned
@@ -421,8 +426,11 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if err == nil && !maxCodeSizeExceeded {
 		createDataGas := uint64(len(ret)) * params.CreateDataGas
 		if contract.UseGas(createDataGas) {
+			log.Info(fmt.Sprintf("======= evm.go: Deducted %v gas for storage, contract now has gas = %v", createDataGas, contract.Gas))
+
 			evm.StateDB.SetCode(contractAddr, ret)
 		} else {
+			log.Info(fmt.Sprintf("======= evm.go: Could not deducted %v gas for storage from contrßact gas %v", createDataGas, contract.Gas))
 			err = ErrCodeStoreOutOfGas
 		}
 	}

@@ -241,12 +241,19 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 	contractCreation := msg.To() == nil
 	isQuorum := st.evm.ChainConfig().IsQuorum
 
-	var data []byte
+	var data, publicData []byte
 	isPrivate := false
 	publicState := st.state
+	publicData = st.data
+	data = st.data
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
+		// transaction only contains a hash of the private data, so use that to retrieve the actual data
+		// note that NO data will be returned if we are not a participant in the priovate transaction
 		isPrivate = true
 		data, err = private.P.Receive(st.data)
+		log.Info(fmt.Sprintf("======= state_transition: fetched private data = %v", data))
+
+
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -257,13 +264,11 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 		if err != nil {
 			return nil, new(big.Int), new(big.Int), false, nil
 		}
-	} else {
-		data = st.data
 	}
 
-	// Pay intrinsic gas
+	// Pay intrinsic gas, note that for a private transaction this is based on the public hash of the data
 	// TODO convert to uint64
-	intrinsicGas := IntrinsicGas(data, contractCreation, homestead)
+	intrinsicGas := IntrinsicGas(publicData, contractCreation, homestead)
 	log.Info(fmt.Sprintf("======= state_transition (homestead = %v): IntrinsicGas = %v, Gas supplied = %v", homestead, intrinsicGas, st.gas))
 
 	if intrinsicGas.BitLen() > 64 {
@@ -281,7 +286,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 		vmerr error
 	)
 	if contractCreation {
+		log.Info(fmt.Sprintf("======= state_transition: gas prior to contract creation = %v", st.gas))
 		ret, _, st.gas, vmerr = evm.Create(sender, data, st.gas, st.value)
+		log.Info(fmt.Sprintf("======= state_transition: gas after contract creation = %v", st.gas))
+
 	} else {
 		// Increment the account nonce only if the transaction isn't private.
 		// If the transaction is private it has already been incremented on
@@ -295,14 +303,17 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 		} else {
 			to = st.to().Address()
 		}
-		//if input is empty for a private smart contract call, return
+		//input may be empty for a private smart contract where we are not a participant
 		if len(data) == 0 && isPrivate{
 			return nil, new(big.Int), new(big.Int), false, nil
 		}
+		log.Info(fmt.Sprintf("======= state_transition: gas prior to contract call = %v", st.gas))
 		ret, st.gas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
+		log.Info(fmt.Sprintf("======= state_transition: gas after contract call = %v", st.gas))
+
 	}
 	if vmerr != nil {
-		log.Debug("VM returned with error", "err", vmerr)
+		log.Info("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.
@@ -311,6 +322,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 		}
 	}
 	requiredGas = new(big.Int).Set(st.gasUsed())
+	log.Info(fmt.Sprintf("======= state_transition: requiredGas = %v", requiredGas))
 
 	st.refundGas()
 	st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(st.gasUsed(), st.gasPrice))
