@@ -1,6 +1,6 @@
 # Quorum
 
-<a href="https://quorumslack.azurewebsites.net" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://quorumslack.azurewebsites.net/badge.svg" alt="Quorum Slack" /></a>
+<a href="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
 
 Quorum is an Ethereum-based distributed ledger protocol with transaction/contract privacy and new consensus mechanisms.
 
@@ -128,6 +128,7 @@ Further documentation can be found in the [docs](docs/) folder and on the [wiki]
 * [quorum-examples](https://github.com/jpmorganchase/quorum-examples): example quorum clusters
 * [quorum-tools](https://github.com/jpmorganchase/quorum-tools): local cluster orchestration, and integration testing tool
 * [Quorum Wiki](https://github.com/jpmorganchase/quorum/wiki)
+* [Quorum Community Slack Inviter](https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/): Quorum Slack community entry point
 
 ## Third Party Tools/Libraries
 
