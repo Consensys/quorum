@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
-	"fmt"
 )
 
 var (
@@ -89,22 +88,13 @@ type PrivateMessage interface {
 //
 // TODO convert to uint64
 func IntrinsicGas(data []byte, contractCreation, homestead bool) *big.Int {
-	log.Info(fmt.Sprintf("======= state_transition:IntrinsicGas()"))
-
 	igas := new(big.Int)
 	if contractCreation && homestead {
 		igas.SetUint64(params.TxGasContractCreation)
-		log.Info(fmt.Sprintf("======= contractCreation on homestead: iGas = %v", igas))
-
 	} else {
 		igas.SetUint64(params.TxGas)
-		log.Info(fmt.Sprintf("======= contractCreation where contractCreation = %v && homestead = %v: iGas = %v",
-			contractCreation, homestead, igas))
-
 	}
 	if len(data) > 0 {
-		log.Info(fmt.Sprintf("======= calculating cost of data, data length = %v", len(data)))
-
 		var nz int64
 		for _, byt := range data {
 			if byt != 0 {
@@ -114,13 +104,9 @@ func IntrinsicGas(data []byte, contractCreation, homestead bool) *big.Int {
 		m := big.NewInt(nz)
 		m.Mul(m, new(big.Int).SetUint64(params.TxDataNonZeroGas))
 		igas.Add(igas, m)
-		log.Info(fmt.Sprintf("======= data cost is %v, for %v non-zero bytes... new igas value = %v", m, nz, igas))
-
 		m.SetInt64(int64(len(data)) - nz)
 		m.Mul(m, new(big.Int).SetUint64(params.TxDataZeroGas))
 		igas.Add(igas, m)
-		log.Info(fmt.Sprintf("======= data cost is %v, for %v zero bytes... new igas value = %v", m, int64(len(data)) - nz, igas))
-
 	}
 	return igas
 }
@@ -251,8 +237,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 		// note that NO data will be returned if we are not a participant in the private transaction
 		isPrivate = true
 		data, err = private.P.Receive(st.data)
-		log.Info(fmt.Sprintf("======= state_transition: fetched private data = %v", data))
-
 
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
@@ -269,8 +253,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 	// Pay intrinsic gas, note that for a private transaction this is based on the public hash of the data
 	// TODO convert to uint64
 	intrinsicGas := IntrinsicGas(publicData, contractCreation, homestead)
-	log.Info(fmt.Sprintf("======= state_transition (homestead = %v): IntrinsicGas = %v, Gas supplied = %v", homestead, intrinsicGas, st.gas))
-
 	if intrinsicGas.BitLen() > 64 {
 		return nil, nil, nil, false, vm.ErrOutOfGas
 	}
@@ -287,9 +269,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 		stGas uint64
 	)
 	if contractCreation {
-		log.Info(fmt.Sprintf("======= state_transition: gas prior to contract creation = %v", st.gas))
 		ret, _, stGas, vmerr = evm.CreateQuorum(sender, data, st.gas, st.value, isPrivate)
-		log.Info(fmt.Sprintf("======= state_transition: gas after contract creation = %v", stGas))
 
 	} else {
 		// Increment the account nonce only if the transaction isn't private.
@@ -308,9 +288,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 		if len(data) == 0 && isPrivate{
 			return nil, new(big.Int), new(big.Int), false, nil
 		}
-		log.Info(fmt.Sprintf("======= state_transition: gas prior to contract call = %v", st.gas))
 		ret, stGas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
-		log.Info(fmt.Sprintf("======= state_transition: gas after contract call = %v", stGas))
 
 	}
 	// gas calculation for private transactions would be different for participant
@@ -320,7 +298,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 	}
 
 	if vmerr != nil {
-		log.Info("VM returned with error", "err", vmerr)
+		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.
@@ -329,7 +307,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 		}
 	}
 	requiredGas = new(big.Int).Set(st.gasUsed())
-	log.Info(fmt.Sprintf("======= state_transition: requiredGas = %v", requiredGas))
 
 	st.refundGas()
 	st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(st.gasUsed(), st.gasPrice))

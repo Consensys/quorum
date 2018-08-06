@@ -594,8 +594,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrInsufficientFunds
 	}
 	intrGas := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
-	log.Info(fmt.Sprintf("======= tx_pool (homestead = %v): IntrinsicGas = %v, Gas supplied = %v", pool.homestead, intrGas, tx.Gas()))
-
 	if tx.Gas().Cmp(intrGas) < 0 {
 		return ErrIntrinsicGas
 	}

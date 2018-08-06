@@ -853,8 +853,6 @@ func blockExtendsChain(block *types.Block, chain *core.BlockChain) bool {
 }
 
 func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
-	log.Info(fmt.Sprintf("======= handler:applyNewChainHead()"))
-
 	if !blockExtendsChain(block, pm.blockchain) {
 		headBlock := pm.blockchain.CurrentBlock()
 

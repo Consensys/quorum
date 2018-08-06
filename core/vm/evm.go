@@ -24,8 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // note: Quorum, States, and Value Transfer
@@ -366,8 +364,6 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 // we can only calculate gas used for public contracts.
 func (evm *EVM) create(caller ContractRef, code []byte, gas uint64, value *big.Int, isPrivate bool) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 
-	log.Info(fmt.Sprintf("======= evm.go: Entering Create() with code: %v", code))
-
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
 	if evm.depth > int(params.CallCreateDepth) {
@@ -422,27 +418,22 @@ func (evm *EVM) create(caller ContractRef, code []byte, gas uint64, value *big.I
 	// Initialise a new contract and set the code that is to be used by the
 	// EVM. The contract is a scoped environment for this execution context
 	// only.
-	log.Info(fmt.Sprintf("======= evm.go: Creating contract with gas = %v", gas))
 	contract := NewContract(caller, AccountRef(contractAddr), value, gas)
 	contract.SetCallCode(&contractAddr, crypto.Keccak256Hash(code), code)
 
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, contractAddr, gas, nil
 	}
+
 	// If contract code is zero length then don't attempt to run it
 	// (this occurs if it's a private contract and we are not a participant)
 	if len(contract.Code) > 0 {
-		log.Info(fmt.Sprintf("======= evm.go: Running the contract..."))
-
 		//for a private contract we need to ignore out-of-gas error from run()
 		ret, err = run(evm, snapshot, contract, nil)
 		if isPrivate && (err == ErrOutOfGas) {
 			err = nil
 		}
-		log.Info(fmt.Sprintf("======= evm.go: run() returned err %v", err))
-
 	}
-	log.Info(fmt.Sprintf("======= evm.go: After run(), contract now has gas = %v", contract.Gas))
 
 	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
@@ -453,15 +444,11 @@ func (evm *EVM) create(caller ContractRef, code []byte, gas uint64, value *big.I
 	// by the error checking condition below.
 	if err == nil && !maxCodeSizeExceeded {
 		createDataGas := uint64(len(ret)) * params.CreateDataGas
-		log.Info(fmt.Sprintf("======= evm.go: calculated gas storage requirement = %v", createDataGas))
 
-		// for a private contract we don't try to use gas for the contract (as we might not be a participant)
+		// for a private contract we don't try to use gas (as we might not be a participant)
 		if isPrivate || contract.UseGas(createDataGas) {
-			log.Info(fmt.Sprintf("======= evm.go: Contract now has gas = %v", contract.Gas))
-
 			evm.StateDB.SetCode(contractAddr, ret)
 		} else {
-			log.Info(fmt.Sprintf("======= evm.go: Could not deducted gas for storage from contract gas %v", contract.Gas))
 			err = ErrCodeStoreOutOfGas
 		}
 	}
