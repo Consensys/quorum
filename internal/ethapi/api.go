@@ -1267,9 +1267,14 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	isPrivate := args.PrivateFor != nil
-
+	var data []byte
 	if isPrivate {
-		data := []byte(*args.Data)
+		if args.Data != nil {
+			data = []byte(*args.Data)
+		} else {
+			log.Info("args.data is nil")
+		}
+
 		//Send private transaction to local Constellation node
 		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
