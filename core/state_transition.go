@@ -227,9 +227,9 @@ func (st *StateTransition) preCheck() error {
 	return st.buyGas()
 }
 
-// TransitionDb will transition the state by applying the current message and returning the result
-// including the required gas for the operation as well as the used gas. It returns an error if it
-// failed. An error indicates a consensus issue.
+// TransitionDb will transition the state by applying the current message and returning the result,
+// including the required gas for the operation, as well as the used gas.
+// It returns an error if it failed. An error indicates a consensus issue.
 func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big.Int, failed bool, err error) {
 	if err = st.preCheck(); err != nil {
 		return
@@ -248,7 +248,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 	data = st.data
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		// transaction only contains a hash of the private data, so use that to retrieve the actual data
-		// note that NO data will be returned if we are not a participant in the priovate transaction
+		// note that NO data will be returned if we are not a participant in the private transaction
 		isPrivate = true
 		data, err = private.P.Receive(st.data)
 		log.Info(fmt.Sprintf("======= state_transition: fetched private data = %v", data))
@@ -280,15 +280,16 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 
 	var (
 		evm = st.evm
-		// vm errors do not effect consensus and are therefor
+		// vm errors do not effect consensus and are therefore
 		// not assigned to err, except for insufficient balance
 		// error.
 		vmerr error
+		stGas uint64
 	)
 	if contractCreation {
 		log.Info(fmt.Sprintf("======= state_transition: gas prior to contract creation = %v", st.gas))
-		ret, _, st.gas, vmerr = evm.Create(sender, data, st.gas, st.value)
-		log.Info(fmt.Sprintf("======= state_transition: gas after contract creation = %v", st.gas))
+		ret, _, stGas, vmerr = evm.CreateQuorum(sender, data, st.gas, st.value, isPrivate)
+		log.Info(fmt.Sprintf("======= state_transition: gas after contract creation = %v", stGas))
 
 	} else {
 		// Increment the account nonce only if the transaction isn't private.
@@ -308,10 +309,16 @@ func (st *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *big
 			return nil, new(big.Int), new(big.Int), false, nil
 		}
 		log.Info(fmt.Sprintf("======= state_transition: gas prior to contract call = %v", st.gas))
-		ret, st.gas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
-		log.Info(fmt.Sprintf("======= state_transition: gas after contract call = %v", st.gas))
+		ret, stGas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
+		log.Info(fmt.Sprintf("======= state_transition: gas after contract call = %v", stGas))
 
 	}
+	// gas calculation for private transactions would be different for participant
+	// and non-participant, so we can't use it for private contracts
+	if !isPrivate {
+		st.gas = stGas
+	}
+
 	if vmerr != nil {
 		log.Info("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't

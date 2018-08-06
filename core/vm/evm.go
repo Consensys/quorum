@@ -350,8 +350,23 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	return ret, contract.Gas, err
 }
 
-// Create creates a new contract using code as deployment code.
+// Create a new contract using code as deployment code, contract can be public or private.
+func (evm *EVM) CreateQuorum(caller ContractRef, code []byte, gas uint64, value *big.Int, isPrivate bool) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	return evm.create(caller, code, gas, value, isPrivate)
+}
+
+// Create a new contract using code as deployment code.
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	return evm.create(caller, code, gas, value, false)
+}
+
+// Create a new contract.
+// If the contract is private and we are not a participant then we
+// will get nil contract code. Therefore, in order to be consistent with gas usage,
+// we can only calculate gas used for public contracts.
+func (evm *EVM) create(caller ContractRef, code []byte, gas uint64, value *big.Int, isPrivate bool) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+
+	log.Info(fmt.Sprintf("======= evm.go: Entering Create() with code: %v", code))
 
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
@@ -404,8 +419,8 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 		evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value)
 	}
 
-	// initialise a new contract and set the code that is to be used by the
-	// E The contract is a scoped evmironment for this execution context
+	// Initialise a new contract and set the code that is to be used by the
+	// EVM. The contract is a scoped environment for this execution context
 	// only.
 	log.Info(fmt.Sprintf("======= evm.go: Creating contract with gas = %v", gas))
 	contract := NewContract(caller, AccountRef(contractAddr), value, gas)
@@ -414,23 +429,39 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, contractAddr, gas, nil
 	}
-	ret, err = run(evm, snapshot, contract, nil)
+	// If contract code is zero length then don't attempt to run it
+	// (this occurs if it's a private contract and we are not a participant)
+	if len(contract.Code) > 0 {
+		log.Info(fmt.Sprintf("======= evm.go: Running the contract..."))
+
+		//for a private contract we need to ignore out-of-gas error from run()
+		ret, err = run(evm, snapshot, contract, nil)
+		if isPrivate && (err == ErrOutOfGas) {
+			err = nil
+		}
+		log.Info(fmt.Sprintf("======= evm.go: run() returned err %v", err))
+
+	}
 	log.Info(fmt.Sprintf("======= evm.go: After run(), contract now has gas = %v", contract.Gas))
 
 	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
-	// if the contract creation ran successfully and no errors were returned
+
+	// If the contract creation ran successfully and no errors were returned
 	// calculate the gas required to store the code. If the code could not
 	// be stored due to not enough gas set an error and let it be handled
 	// by the error checking condition below.
 	if err == nil && !maxCodeSizeExceeded {
 		createDataGas := uint64(len(ret)) * params.CreateDataGas
-		if contract.UseGas(createDataGas) {
-			log.Info(fmt.Sprintf("======= evm.go: Deducted %v gas for storage, contract now has gas = %v", createDataGas, contract.Gas))
+		log.Info(fmt.Sprintf("======= evm.go: calculated gas storage requirement = %v", createDataGas))
+
+		// for a private contract we don't try to use gas for the contract (as we might not be a participant)
+		if isPrivate || contract.UseGas(createDataGas) {
+			log.Info(fmt.Sprintf("======= evm.go: Contract now has gas = %v", contract.Gas))
 
 			evm.StateDB.SetCode(contractAddr, ret)
 		} else {
-			log.Info(fmt.Sprintf("======= evm.go: Could not deducted %v gas for storage from contrßact gas %v", createDataGas, contract.Gas))
+			log.Info(fmt.Sprintf("======= evm.go: Could not deducted gas for storage from contract gas %v", contract.Gas))
 			err = ErrCodeStoreOutOfGas
 		}
 	}
@@ -440,7 +471,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	// when we're in homestead this also counts for code storage gas errors.
 	if maxCodeSizeExceeded || (err != nil && (evm.ChainConfig().IsHomestead(evm.BlockNumber) || err != ErrCodeStoreOutOfGas)) {
 		evm.StateDB.RevertToSnapshot(snapshot)
-		if err != errExecutionReverted {
+		if err != errExecutionReverted && !isPrivate {
 			contract.UseGas(contract.Gas)
 		}
 	}
@@ -448,6 +479,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if maxCodeSizeExceeded && err == nil {
 		err = errMaxCodeSizeExceeded
 	}
+
 	return ret, contractAddr, contract.Gas, err
 }
 
