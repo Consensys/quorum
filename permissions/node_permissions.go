@@ -175,7 +175,7 @@ func monitorAccountPermissions(stack *node.Node, stateReader *ethclient.Client) 
 
 	var acctAddr = common.HexToAddress(addr)
 
-	types.PutAcctMap(acctAddr, 0)
+	types.AddAccountAccess(acctAddr, 0)
 
 	for {
 		_, err = permissions.WatchAcctAccessModified(opts, ch)
@@ -184,7 +184,7 @@ func monitorAccountPermissions(stack *node.Node, stateReader *ethclient.Client) 
 		}
 		var newEvent *PermissionsAcctAccessModified = <-ch
 		log.Info("caught the event and calling PutAcctMap")
-		types.PutAcctMap(newEvent.AcctId, newEvent.Access)
+		types.AddAccountAccess(newEvent.AcctId, newEvent.Access)
     }
 }
 //Create an RPC client for the contract interface

@@ -1210,7 +1210,7 @@ func (as *accountSet) add(addr common.Address) {
 // checks if the account is permissioned for transaction
 func checkAccount(acctId common.Address) error {
 	log.Info("Inside checkAccount to validate")
-	access := types.GetAcct(acctId)
+	access := types.GetAcctAccess(acctId)
 	if access != 99 {
 		err := errors.New("Account not permissioned")
 		return err
