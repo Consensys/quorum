@@ -78,6 +78,10 @@ var (
 	ErrOversizedData = errors.New("oversized data")
 
 	ErrInvalidGasPrice = errors.New("Gas price not 0")
+
+	// ErrEtherValueUnsupported is returned if a transaction specifies an Ether Value
+	// for a private Quorum transaction.
+	ErrEtherValueUnsupported = errors.New("ether value is not supported for private transactions")
 )
 
 var (
@@ -587,6 +591,10 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if pool.currentState.GetNonce(from) > tx.Nonce() {
 		return ErrNonceTooLow
 	}
+	// Ether value is not currently supported on private transactions
+	if tx.IsPrivate() && (tx.Value().Sign() != 0) {
+		return ErrEtherValueUnsupported;
+	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
 	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
@@ -596,7 +604,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if err != nil {
 		return err
 	}
-	if !isQuorum && tx.Gas() < intrGas {
+	if tx.Gas() < intrGas {
 		return ErrIntrinsicGas
 	}
 	return nil
@@ -626,7 +634,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	// If the transaction pool is full, discard underpriced transactions
 	if uint64(pool.all.Count()) >= pool.config.GlobalSlots+pool.config.GlobalQueue {
 		// If the new transaction is underpriced, don't accept it
-		if !pool.chainconfig.IsQuorum && !local && pool.priced.Underpriced(tx, pool.locals) {
+		if !pool.chainconfig.IsQuorum && pool.priced.Underpriced(tx, pool.locals) {
 			log.Trace("Discarding underpriced transaction", "hash", hash, "price", tx.GasPrice())
 			underpricedTxCounter.Inc(1)
 			return false, ErrUnderpriced
@@ -760,7 +768,6 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	return true
 }
 
-
 // AddLocal enqueues a single transaction into the pool if it is valid, marking
 // the sender as a local one in the mean time, ensuring it goes around the local
 // pricing constraints.
@@ -817,8 +824,8 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) []error {
 
 // addTxsLocked attempts to queue a batch of transactions if they are valid,
 // whilst assuming the transaction pool lock is already held.
-func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) []error {
-	// Add the batch of transaction, tracking the accepted ones
+func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) error {
+	// Add the batch of transactions, tracking the accepted ones
 	dirty := make(map[common.Address]struct{})
 	errs := make([]error, len(txs))
 
@@ -1120,7 +1127,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			log.Trace("Demoting pending transaction", "hash", hash)
 			pool.enqueueTx(hash, tx)
 		}
-		// If there's a gap in front, alert (should never happen) and postpone all transactions
+		// If there's a gap in front, warn (should never happen) and postpone all transactions
 		if list.Len() > 0 && list.txs.Get(nonce) == nil {
 			for _, tx := range list.Cap(0) {
 				hash := tx.Hash()

@@ -433,6 +433,12 @@ web3._extend({
 			params: 2,
 			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, web3._extend.utils.toHex]
 		}),
+		new web3._extend.Method({
+			name: 'storageRoot',
+			call: 'eth_storageRoot',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null]
+		})
 	],
 	properties: [
 		new web3._extend.Property({
@@ -655,6 +661,10 @@ web3._extend({
                        name: 'removePeer',
                        call: 'raft_removePeer',
                        params: 1
+               }),
+               new web3._extend.Property({
+                       name: 'leader',
+                       getter: 'raft_leader'
                })
        ]
 })
