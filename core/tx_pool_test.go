@@ -88,9 +88,9 @@ func setupTxPool() (*TxPool, *ecdsa.PrivateKey) {
 }
 
 func setupQuorumTxPool() (*TxPool, *ecdsa.PrivateKey) {
-	db, _ := ethdb.NewMemDatabase()
+	db := ethdb.NewMemDatabase()
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
-	blockchain := &testBlockChain{statedb, big.NewInt(1000000), new(event.Feed)}
+	blockchain := &testBlockChain{statedb, statedb, 1000000, new(event.Feed)}
 
 	key, _ := crypto.GenerateKey()
 	pool := NewTxPool(testTxPoolConfig, params.QuorumTestChainConfig, blockchain)
@@ -270,21 +270,22 @@ func TestInvalidTransactions(t *testing.T) {
 		t.Error("expected", nil, "; got", err)
 	}
 
-	tooMuchGas := big.NewInt(0).Add(pool.currentMaxGas, big.NewInt(1))
+	tooMuchGas := pool.currentMaxGas + 1
 	tx1 := transaction(2, tooMuchGas, key)
 	if err := pool.AddRemote(tx1); err != ErrGasLimit {
 		t.Error("expected", ErrGasLimit, "; got", err)
 	}
 
 	data := make([]byte, (32*1024)+1)
-	tx2, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), big.NewInt(100000), big.NewInt(1), data), types.HomesteadSigner{}, key)
+	tx2, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100),100000, big.NewInt(1), data), types.HomesteadSigner{}, key)
 	if err := pool.AddRemote(tx2); err != ErrOversizedData {
 		t.Error("expected", ErrOversizedData, "; got", err)
 	}
 
-	tx3, _ := types.SignTx(types.NewTransaction(1, common.Address{}, big.NewInt(100), common.Big0, big.NewInt(0), nil), types.HomesteadSigner{}, key)
+	tx3, _ := types.SignTx(types.NewTransaction(1, common.Address{}, big.NewInt(100), 0, big.NewInt(0), nil), types.HomesteadSigner{}, key)
 
-	balance = new(big.Int).Add(tx3.Value(), new(big.Int).Mul(tx3.Gas(), tx3.GasPrice()))
+	balance = new(big.Int).Add(tx3.Value(), new(big.Int).Mul(new(big.Int).SetUint64(tx3.Gas()), tx3.GasPrice()))
+
 	from, _ = deriveSender(tx3)
 	pool.currentState.AddBalance(from, balance)
 	tx3.SetPrivate()
@@ -298,7 +299,7 @@ func TestQuorumInvalidTransactions(t *testing.T) {
 	pool, key := setupQuorumTxPool()
 	defer pool.Stop()
 
-	tx := transaction(0, common.Big0, key)
+	tx := transaction(0, 0, key)
 	if err := pool.AddRemote(tx); err != ErrInvalidGasPrice {
 		t.Error("expected", ErrInvalidGasPrice, "; got", err)
 	}

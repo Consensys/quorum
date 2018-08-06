@@ -1068,7 +1068,7 @@ func TestEIP155Transition(t *testing.T) {
 		funds      = big.NewInt(1000000000)
 		deleteAddr = common.Address{1}
 		gspec      = &Genesis{
-			Config: &params.ChainConfig{ChainId: big.NewInt(10), EIP155Block: big.NewInt(2), HomesteadBlock: new(big.Int)},
+			Config: &params.ChainConfig{ChainID: big.NewInt(10), EIP155Block: big.NewInt(2), HomesteadBlock: new(big.Int)},
 			Alloc:  GenesisAlloc{address: {Balance: funds}, deleteAddr: {Balance: new(big.Int)}},
 		}
 		genesis = gspec.MustCommit(db)
@@ -1139,7 +1139,7 @@ func TestEIP155Transition(t *testing.T) {
 	}
 
 	// generate an invalid chain id transaction
-	config := &params.ChainConfig{ChainId: big.NewInt(2), EIP155Block: big.NewInt(2), HomesteadBlock: new(big.Int)}
+	config := &params.ChainConfig{ChainID: big.NewInt(2), EIP155Block: big.NewInt(2), HomesteadBlock: new(big.Int)}
 	blocks, _ = GenerateChain(config, blocks[len(blocks)-1], ethash.NewFaker(), db, 4, func(i int, block *BlockGen) {
 		var (
 			tx      *types.Transaction
@@ -1173,7 +1173,7 @@ func TestEIP161AccountRemoval(t *testing.T) {
 		theAddr = common.Address{1}
 		gspec   = &Genesis{
 			Config: &params.ChainConfig{
-				ChainId:        big.NewInt(10),
+				ChainID:        big.NewInt(10),
 				HomesteadBlock: new(big.Int),
 				EIP155Block:    new(big.Int),
 				EIP158Block:    big.NewInt(2),
@@ -1189,7 +1189,7 @@ func TestEIP161AccountRemoval(t *testing.T) {
 		var (
 			tx     *types.Transaction
 			err    error
-			signer = types.NewEIP155Signer(gspec.Config.ChainId)
+			signer = types.NewEIP155Signer(gspec.Config.ChainID)
 		)
 		switch i {
 		case 0:

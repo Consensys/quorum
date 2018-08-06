@@ -634,7 +634,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	// If the transaction pool is full, discard underpriced transactions
 	if uint64(pool.all.Count()) >= pool.config.GlobalSlots+pool.config.GlobalQueue {
 		// If the new transaction is underpriced, don't accept it
-		if !pool.chainconfig.IsQuorum && pool.priced.Underpriced(tx, pool.locals) {
+		if !pool.chainconfig.IsQuorum && !local && pool.priced.Underpriced(tx, pool.locals) {
 			log.Trace("Discarding underpriced transaction", "hash", hash, "price", tx.GasPrice())
 			underpricedTxCounter.Inc(1)
 			return false, ErrUnderpriced
@@ -824,7 +824,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) []error {
 
 // addTxsLocked attempts to queue a batch of transactions if they are valid,
 // whilst assuming the transaction pool lock is already held.
-func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) error {
+func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) []error {
 	// Add the batch of transactions, tracking the accepted ones
 	dirty := make(map[common.Address]struct{})
 	errs := make([]error, len(txs))

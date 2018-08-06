@@ -361,7 +361,7 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args SendTxArgs
 
 	var chainID *big.Int
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) {
-		chainID = config.ChainId
+		chainID = config.ChainID
 	}
 	return wallet.SignTxWithPassphrase(account, passwd, tx, chainID)
 }
@@ -370,6 +370,14 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args SendTxArgs
 // tries to sign it with the key associated with args.To. If the given passwd isn't
 // able to decrypt the key it fails.
 func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
+	// Look up the wallet containing the requested signer
+	account := accounts.Account{Address: args.From}
+
+	wallet, err := s.am.Find(account)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
 	if args.Nonce == nil {
 		// Hold the addresse's mutex around signing to prevent concurrent assignment of
 		// the same nonce to multiple accounts.
@@ -401,10 +409,9 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 
 	var chainID *big.Int
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !isPrivate {
-		chainID = config.ChainId
+		chainID = config.ChainID
 	}
-
-	signed, err := s.signTransaction(ctx, args, passwd)
+	signed, err := wallet.SignTxWithPassphrase(account, passwd, tx, chainID)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -1139,7 +1146,7 @@ func (s *PublicTransactionPoolAPI) sign(addr common.Address, tx *types.Transacti
 	var chainID *big.Int
 	isQuorum := tx.IsPrivate()
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !tx.IsPrivate() {
-		chainID = config.ChainId
+		chainID = config.ChainID
 	}
 	return wallet.SignTx(account, tx, chainID, isQuorum)
 }
@@ -1286,7 +1293,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	var chainID *big.Int
 	isQuorum := tx.IsPrivate()
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !isPrivate {
-		chainID = config.ChainId
+		chainID = config.ChainID
 	}
 	signed, err := wallet.SignTx(account, tx, chainID, isQuorum)
 	if err != nil {

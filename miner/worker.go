@@ -333,16 +333,15 @@ func (self *worker) wait() {
 			for _, log := range append(work.state.Logs(), work.privateState.Logs()...) {
 				log.BlockHash = block.Hash()
 			}
-			stat, err := self.chain.WriteBlockWithState(block, work.receipts, work.state)
 
 			// write private transacions
-			privateStateRoot, _ := work.privateState.CommitTo(self.chainDb, self.config.IsEIP158(block.Number()))
+			privateStateRoot, _ := work.privateState.Commit(self.config.IsEIP158(block.Number()))
 			core.WritePrivateStateRoot(self.chainDb, block.Root(), privateStateRoot)
 			allReceipts := mergeReceipts(work.receipts, work.privateReceipts)
 
-			stat, err := self.chain.WriteBlockAndState(block, allReceipts, work.state)
+			stat, err := self.chain.WriteBlockWithState(block, allReceipts, work.state)
 			if err != nil {
-				log.Error("Failed writing block to chain", "err", err)
+				log.Error("Failed writWriteBlockAndStating block to chain", "err", err)
 				continue
 			}
 			// Broadcast the block and announce chain insertion event
