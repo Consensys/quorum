@@ -1,22 +1,19 @@
 package permissions
 
 import (
-	"fmt"
 	"encoding/json"
 	"io/ioutil"
-	"math/big"
 	"path/filepath"
 	"os"
-	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
 	"gopkg.in/urfave/cli.v1"
 )
 const (
@@ -25,76 +22,89 @@ const (
 
 //This function first adds the node list from permissioned-nodes.json to
 //the permissiones contract deployed as a precompile via genesis.json
-func QuorumPermissioning(ctx *cli.Context, stack *node.Node ){
-	//Create a new ethclient to for interfacing with the contract
-	e, stateReader := createEthClient(stack)
+func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
+	// Create a new ethclient to for interfacing with the contract
+	stateReader, err := createEthClient(stack)
+	if err != nil {
+		return err
+	}
 
-	//call populate nodes to populate the nodes into contract
-	populateNodesToContract (ctx, stack, e, stateReader)
+	// //call populate nodes to populate the nodes into contract
+	// if err := populateNodesToContract (ctx, stack, e, stateReader); err != nil {
+	// 	return err;
+	// }
 
 	//monitor for new nodes addition via smart contract
 	go monitorNewNodeAdd(stack, stateReader)
 
 	//monitor for nodes deletiin via smart contract
 	go monitorNodeDelete(stack, stateReader)
+
+	//monitor for nodes deletiin via smart contract
+	go monitorAccountPermissions(stack, stateReader)
+
+	return nil
 }
 
 //populates the nodes list from permissioned-nodes.json into the permissions
 //smart contract
-func populateNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Ethereum, stateReader *ethclient.Client){
+// func populateNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Ethereum, stateReader *ethclient.Client) error{
 
-	//Read the key file from key store. SHOULD WE MAKE IT CONFIG value
-	key := getKeyFromKeyStore(ctx)
+// 	// datadir := ctx.GlobalString(utils.DataDirFlag.Name)
+// 	datadir := stack.DataDir()
 
-	permissionsContract, err := NewPermissions(params.QuorumPermissionsContract, stateReader)
-	if err != nil {
-		utils.Fatalf("Failed to instantiate a Permissions contract: %v", err)
-	}
+// 	//Read the key file from key store. SHOULD WE MAKE IT CONFIG value
+// 	key, err := getKeyFromKeyStore(ctx, datadir)
 
-	auth, err := bind.NewTransactor(strings.NewReader(key), "")
-	if err != nil {
-		utils.Fatalf("Failed to create authorized transactor: %v", err)
-	}
+// 	permissionsContract, err := NewPermissions(params.QuorumPermissionsContract, stateReader) 
+// 	if err != nil {
+// 		return err
+// 	}
 
-	permissionsSession := &PermissionsSession{
-		Contract: permissionsContract,
-		CallOpts: bind.CallOpts{
-			Pending: true,
-		},
-		TransactOpts: bind.TransactOpts{
-			From:     auth.From,
-			Signer:   auth.Signer,
-			GasLimit: 3558096384,
-			GasPrice: big.NewInt(0),
-		},
-	}
+// 	auth, err := bind.NewTransactor(strings.NewReader(key), "")
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// datadir := ctx.GlobalString(utils.DataDirFlag.Name)
-	datadir := stack.DataDir()
+// 	permissionsSession := &PermissionsSession{
+// 		Contract: permissionsContract,
+// 		CallOpts: bind.CallOpts{
+// 			Pending: true,
+// 		},
+// 		TransactOpts: bind.TransactOpts{
+// 			From:     auth.From,
+// 			Signer:   auth.Signer,
+// 			GasLimit: 3558096384,
+// 			GasPrice: big.NewInt(0),
+// 		},
+// 	}
 
-	nodes := p2p.ParsePermissionedNodes(datadir)
-	for _, node := range nodes {
-		enodeID := fmt.Sprintf("%x", node.ID[:])
-		log.Trace("Adding node to permissions contract", "enodeID", enodeID)
 
-		nonce := e.TxPool().Nonce(permissionsSession.TransactOpts.From)
-		permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
+// 	nodes := p2p.ParsePermissionedNodes(datadir)
+// 	for _, node := range nodes {
+// 		enodeID := fmt.Sprintf("%x", node.ID[:])
+// 		log.Trace("Adding node to permissions contract", "enodeID", enodeID)
 
-		tx, err := permissionsSession.ProposeNode(enodeID, true, true)
-		if err != nil {
-			log.Warn("Failed to propose node", "err", err)
-		}
-		log.Debug("Transaction pending", "tx hash", tx.Hash())
-	}
-}
+// 		nonce := e.TxPool().Nonce(permissionsSession.TransactOpts.From)
+// 		permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
+
+// 		tx, err := permissionsSession.ProposeNode(enodeID, true, true)
+// 		if err != nil {
+// 			log.Warn("Failed to propose node", "err", err)
+// 			return err
+// 		}
+// 		log.Debug("Transaction pending", "tx hash", tx.Hash())
+// 	}
+// 	return nil
+// }
 
 //This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
-func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client){
+func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client) {
 
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
-		utils.Fatalf("Failed to instantiate a Permissions Filterer: %v", err)
+		log.Error ("Failed to monitor new node add : ", "err" , err)
 	}
 	datadir := stack.DataDir()
 
@@ -118,11 +128,11 @@ func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client){
 
 //This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
-func monitorNodeDelete(stack *node.Node, stateReader *ethclient.Client){
+func monitorNodeDelete(stack *node.Node, stateReader *ethclient.Client) {
 
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
-		utils.Fatalf("Failed to instantiate a Permissions Filterer: %v", err)
+		log.Error ("Failed to monitor node delete: ", "err" , err)
 	}
 	datadir := stack.DataDir()
 
@@ -144,47 +154,81 @@ func monitorNodeDelete(stack *node.Node, stateReader *ethclient.Client){
 		updatePermissionedNodes(newEvent.EnodeId, datadir, operation)
     }
 }
+
+// Monitors permissions changes at acount level and uodate the global permissions
+// map with the same
+func monitorAccountPermissions(stack *node.Node, stateReader *ethclient.Client) {
+
+	log.Info("Inside monotorAccountPermissions")
+
+	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
+	if err != nil {
+		log.Error ("Failed to monitor Account permissions : ", "err" , err)
+	}
+	ch := make(chan *PermissionsAcctAccessModified)
+
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+
+	const addr = "ca843569e3427144cead5e4d5999a3d0ccf92b8e"
+
+	var acctAddr = common.HexToAddress(addr)
+
+	types.PutAcctMap(acctAddr, 0)
+
+	for {
+		_, err = permissions.WatchAcctAccessModified(opts, ch)
+		if err != nil {
+			log.Info("Failed NewNodeProposed: %v", err)
+		}
+		var newEvent *PermissionsAcctAccessModified = <-ch
+		log.Info("caught the event and calling PutAcctMap")
+		types.PutAcctMap(newEvent.AcctId, newEvent.Access)
+    }
+}
 //Create an RPC client for the contract interface
-func createEthClient(stack *node.Node ) (*eth.Ethereum, *ethclient.Client){
+// func createEthClient(stack *node.Node ) (*eth.Ethereum, *ethclient.Client, error){
+func createEthClient(stack *node.Node ) (*ethclient.Client, error){
 	var e *eth.Ethereum
 	if err := stack.Service(&e); err != nil {
-		utils.Fatalf("Ethereum service not running: %v", err)
+		return nil, err
 	}
 
 	rpcClient, err := stack.Attach()
 	if err != nil {
-		utils.Fatalf("Failed to attach to self: %v", err)
+		return nil, err
 	}
 
-	return e, ethclient.NewClient(rpcClient)
-
+	return ethclient.NewClient(rpcClient), nil
 }
 
 //This functions reads the first file in key store directory, reads the key
 //value and returns the same
-func getKeyFromKeyStore(ctx *cli.Context) string {
-	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
+// func getKeyFromKeyStore(ctx *cli.Context, datadir string) (string, error) {
+// 	// datadir := ctx.GlobalString(utils.DataDirFlag.Name)
 
-	files, err := ioutil.ReadDir(filepath.Join(datadir, "keystore"))
-	if err != nil {
-		utils.Fatalf("Failed to read keystore directory: %v", err)
-	}
+// 	files, err := ioutil.ReadDir(filepath.Join(datadir, "keystore"))
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	// HACK: here we always use the first key as transactor
-	var keyPath string
-	for _, f := range files {
-		keyPath = filepath.Join(datadir, "keystore", f.Name())
-		break
-	}
-	keyBlob, err := ioutil.ReadFile(keyPath)
-	if err != nil {
-		utils.Fatalf("Failed to read key file: %v", err)
-	}
-	n := len(keyBlob)
+// 	// HACK: here we always use the first key as transactor
+// 	var keyPath string
+// 	for _, f := range files {
+// 		keyPath = filepath.Join(datadir, "keystore", f.Name())
+// 		break
+// 	}
 
-	return string(keyBlob[:n])
+// 	keyBlob, err := ioutil.ReadFile(keyPath)
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	n := len(keyBlob)
 
-}
+// 	return string(keyBlob[:n]), nil
+
+// }
 
 //this function populates the new node information into the permissioned-nodes.json file
 func updatePermissionedNodes(enodeId string, dataDir string, operation string){
@@ -231,4 +275,3 @@ func updatePermissionedNodes(enodeId string, dataDir string, operation string){
 	}
 
 }
-

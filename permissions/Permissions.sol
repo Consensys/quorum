@@ -4,20 +4,33 @@ contract Permissions {
 
   enum NodeStatus { NotInList, PendingApproval, Approved, PendingDeactivation, Deactivated }
 
+  enum AccountAccess { FullAccess, ReadOnly, Transact, ContractDeploy, NoAccess }
+
   struct nodeDetails {
     string enodeId;
     bool canWrite;
     bool canLead;
     NodeStatus status;
   }
-
   mapping (bytes32 => nodeDetails) nodeList;
+
+  struct acctAccess {
+    address acctId;
+    AccountAccess access;
+  }
+  mapping (address => acctAccess) acctAccessList;
 
   event NewNodeProposed (string _enodeId, bool _canWrite, bool _canLead);
   event NodeApproved(string _enodeId);
   event NodePendingDeactivation (string _enodeId);
   event NodeDeactivated (string _enodeId);
+  event AcctAccessModified (address acctId, AccountAccess access);
 
+  // Checks if the Node is already added. If yes then returns true
+  function updateAcctAccess (address _acctId, AccountAccess access) public {
+    acctAccessList[_acctId] = acctAccess (_acctId, access);
+    emit AcctAccessModified(_acctId, access);
+  }
   // Checks if the Node is already added. If yes then returns true
   function getNodeStatus (string _enodeId) public view returns (NodeStatus _status) {
     return nodeList[keccak256(_enodeId)].status;

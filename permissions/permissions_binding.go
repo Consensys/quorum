@@ -15,7 +15,7 @@ import (
 )
 
 // PermissionsABI is the input ABI used to generate the binding from.
-const PermissionsABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"_status\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ProposeDeactivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_canWrite\",\"type\":\"bool\"},{\"name\":\"_canLead\",\"type\":\"bool\"}],\"name\":\"ProposeNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"DeactivateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ApproveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_canWrite\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_canLead\",\"type\":\"bool\"}],\"name\":\"NewNodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"}]"
+const PermissionsABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"_status\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ProposeDeactivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_acctId\",\"type\":\"address\"},{\"name\":\"access\",\"type\":\"uint8\"}],\"name\":\"updateAcctAccess\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_canWrite\",\"type\":\"bool\"},{\"name\":\"_canLead\",\"type\":\"bool\"}],\"name\":\"ProposeNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"DeactivateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ApproveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_canWrite\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_canLead\",\"type\":\"bool\"}],\"name\":\"NewNodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"acctId\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"access\",\"type\":\"uint8\"}],\"name\":\"AcctAccessModified\",\"type\":\"event\"}]"
 
 // Permissions is an auto generated Go binding around an Ethereum contract.
 type Permissions struct {
@@ -267,6 +267,150 @@ func (_Permissions *PermissionsSession) ProposeNode(_enodeId string, _canWrite b
 // Solidity: function ProposeNode(_enodeId string, _canWrite bool, _canLead bool) returns()
 func (_Permissions *PermissionsTransactorSession) ProposeNode(_enodeId string, _canWrite bool, _canLead bool) (*types.Transaction, error) {
 	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _canWrite, _canLead)
+}
+
+// UpdateAcctAccess is a paid mutator transaction binding the contract method 0x913fc7d7.
+//
+// Solidity: function updateAcctAccess(_acctId address, access uint8) returns()
+func (_Permissions *PermissionsTransactor) UpdateAcctAccess(opts *bind.TransactOpts, _acctId common.Address, access uint8) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "updateAcctAccess", _acctId, access)
+}
+
+// UpdateAcctAccess is a paid mutator transaction binding the contract method 0x913fc7d7.
+//
+// Solidity: function updateAcctAccess(_acctId address, access uint8) returns()
+func (_Permissions *PermissionsSession) UpdateAcctAccess(_acctId common.Address, access uint8) (*types.Transaction, error) {
+	return _Permissions.Contract.UpdateAcctAccess(&_Permissions.TransactOpts, _acctId, access)
+}
+
+// UpdateAcctAccess is a paid mutator transaction binding the contract method 0x913fc7d7.
+//
+// Solidity: function updateAcctAccess(_acctId address, access uint8) returns()
+func (_Permissions *PermissionsTransactorSession) UpdateAcctAccess(_acctId common.Address, access uint8) (*types.Transaction, error) {
+	return _Permissions.Contract.UpdateAcctAccess(&_Permissions.TransactOpts, _acctId, access)
+}
+
+// PermissionsAcctAccessModifiedIterator is returned from FilterAcctAccessModified and is used to iterate over the raw logs and unpacked data for AcctAccessModified events raised by the Permissions contract.
+type PermissionsAcctAccessModifiedIterator struct {
+	Event *PermissionsAcctAccessModified // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PermissionsAcctAccessModifiedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PermissionsAcctAccessModified)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PermissionsAcctAccessModified)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PermissionsAcctAccessModifiedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PermissionsAcctAccessModifiedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PermissionsAcctAccessModified represents a AcctAccessModified event raised by the Permissions contract.
+type PermissionsAcctAccessModified struct {
+	AcctId common.Address
+	Access uint8
+	Raw    types.Log // Blockchain specific contextual infos
+}
+
+// FilterAcctAccessModified is a free log retrieval operation binding the contract event 0xb9f8d88def106a1a167b617a197bee4323d3997cb1fa46b785c1a7b9af6e82a8.
+//
+// Solidity: e AcctAccessModified(acctId address, access uint8)
+func (_Permissions *PermissionsFilterer) FilterAcctAccessModified(opts *bind.FilterOpts) (*PermissionsAcctAccessModifiedIterator, error) {
+
+	logs, sub, err := _Permissions.contract.FilterLogs(opts, "AcctAccessModified")
+	if err != nil {
+		return nil, err
+	}
+	return &PermissionsAcctAccessModifiedIterator{contract: _Permissions.contract, event: "AcctAccessModified", logs: logs, sub: sub}, nil
+}
+
+// WatchAcctAccessModified is a free log subscription operation binding the contract event 0xb9f8d88def106a1a167b617a197bee4323d3997cb1fa46b785c1a7b9af6e82a8.
+//
+// Solidity: e AcctAccessModified(acctId address, access uint8)
+func (_Permissions *PermissionsFilterer) WatchAcctAccessModified(opts *bind.WatchOpts, sink chan<- *PermissionsAcctAccessModified) (event.Subscription, error) {
+
+	logs, sub, err := _Permissions.contract.WatchLogs(opts, "AcctAccessModified")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PermissionsAcctAccessModified)
+				if err := _Permissions.contract.UnpackLog(event, "AcctAccessModified", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
 }
 
 // PermissionsNewNodeProposedIterator is returned from FilterNewNodeProposed and is used to iterate over the raw logs and unpacked data for NewNodeProposed events raised by the Permissions contract.

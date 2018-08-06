@@ -618,7 +618,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	// Check if the sender account is authorized to perform the transaction
 	if isQuorum {
 		log.Info("Inside if before checkAccount")
-		if err := checkAccount(); err != nil {
+		if err := checkAccount(from); err != nil {
 			return ErrUnAuthorizedAccount
 		}
 	}
@@ -1208,7 +1208,13 @@ func (as *accountSet) add(addr common.Address) {
 
 
 // checks if the account is permissioned for transaction
-func checkAccount() error {
-	err := errors.New("Cannot do the transaction!!!")
-	return err
+func checkAccount(acctId common.Address) error {
+	log.Info("Inside checkAccount to validate")
+	access := types.GetAcct(acctId)
+	if access != 99 {
+		err := errors.New("Account not permissioned")
+		return err
+	}
+	log.Info("returning null")
+	return nil
 }
