@@ -19,13 +19,8 @@ package core
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"io/ioutil"
 	"math/big"
-	"math/rand"
-	"os"
 	"testing"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -33,6 +28,10 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
+	"math/rand"
+	"time"
+	"io/ioutil"
+	"os"
 )
 
 // testTxPoolConfig is a transaction pool configuration without stateful disk
@@ -84,6 +83,17 @@ func setupTxPool() (*TxPool, *ecdsa.PrivateKey) {
 
 	key, _ := crypto.GenerateKey()
 	pool := NewTxPool(testTxPoolConfig, params.TestChainConfig, blockchain)
+
+	return pool, key
+}
+
+func setupQuorumTxPool() (*TxPool, *ecdsa.PrivateKey) {
+	db, _ := ethdb.NewMemDatabase()
+	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	blockchain := &testBlockChain{statedb, big.NewInt(1000000), new(event.Feed)}
+
+	key, _ := crypto.GenerateKey()
+	pool := NewTxPool(testTxPoolConfig, params.QuorumTestChainConfig, blockchain)
 
 	return pool, key
 }
@@ -200,38 +210,74 @@ func TestStateChangeDuringPoolReset(t *testing.T) {
 	}
 }
 
+//Test for transactions that are invalid on Ethereum
 func TestInvalidTransactions(t *testing.T) {
 	pool, key := setupTxPool()
 	defer pool.Stop()
 
 	tx := transaction(0, big.NewInt(100), key)
+
 	from, _ := deriveSender(tx)
 	pool.currentState.AddBalance(from, big.NewInt(1))
 	if err := pool.AddRemote(tx); err != ErrInsufficientFunds {
-		t.Error("expected", ErrInsufficientFunds)
+		t.Error("expected", ErrInsufficientFunds, "; got", err)
 	}
 
 	balance := new(big.Int).Add(tx.Value(), new(big.Int).Mul(tx.Gas(), tx.GasPrice()))
 	pool.currentState.AddBalance(from, balance)
 	if err := pool.AddRemote(tx); err != ErrIntrinsicGas {
-		t.Error("expected", ErrIntrinsicGas, "got", err)
+		t.Error("expected", ErrIntrinsicGas, "; got", err)
 	}
 
 	pool.currentState.SetNonce(from, 1)
 	pool.currentState.AddBalance(from, big.NewInt(0xffffffffffffff))
 	tx = transaction(0, big.NewInt(100000), key)
 	if err := pool.AddRemote(tx); err != ErrNonceTooLow {
-		t.Error("expected", ErrNonceTooLow)
+		t.Error("expected", ErrNonceTooLow, "; got", err)
 	}
 
 	tx = transaction(1, big.NewInt(100000), key)
 	pool.gasPrice = big.NewInt(1000)
 	if err := pool.AddRemote(tx); err != ErrUnderpriced {
-		t.Error("expected", ErrUnderpriced, "got", err)
+		t.Error("expected", ErrUnderpriced, "; got", err)
 	}
 	if err := pool.AddLocal(tx); err != nil {
-		t.Error("expected", nil, "got", err)
+		t.Error("expected", nil, "; got", err)
 	}
+
+	tooMuchGas := big.NewInt(0).Add(pool.currentMaxGas, big.NewInt(1))
+	tx1 := transaction(2, tooMuchGas, key)
+	if err := pool.AddRemote(tx1); err != ErrGasLimit {
+		t.Error("expected", ErrGasLimit, "; got", err)
+	}
+
+	data := make([]byte, (32*1024)+1)
+	tx2, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), big.NewInt(100000), big.NewInt(1), data), types.HomesteadSigner{}, key)
+	if err := pool.AddRemote(tx2); err != ErrOversizedData {
+		t.Error("expected", ErrOversizedData, "; got", err)
+	}
+
+	tx3, _ := types.SignTx(types.NewTransaction(1, common.Address{}, big.NewInt(100), common.Big0, big.NewInt(0), nil), types.HomesteadSigner{}, key)
+
+	balance = new(big.Int).Add(tx3.Value(), new(big.Int).Mul(tx3.Gas(), tx3.GasPrice()))
+	from, _ = deriveSender(tx3)
+	pool.currentState.AddBalance(from, balance)
+	tx3.SetPrivate()
+	if err := pool.AddRemote(tx3); err != ErrEtherValueUnsupported {
+		t.Error("expected", ErrEtherValueUnsupported, "; got", err)
+	}
+}
+
+//Test for transactions that are only invalid on Quorum
+func TestQuorumInvalidTransactions(t *testing.T) {
+	pool, key := setupQuorumTxPool()
+	defer pool.Stop()
+
+	tx := transaction(0, common.Big0, key)
+	if err := pool.AddRemote(tx); err != ErrInvalidGasPrice {
+		t.Error("expected", ErrInvalidGasPrice, "; got", err)
+	}
+
 }
 
 func TestTransactionQueue(t *testing.T) {
