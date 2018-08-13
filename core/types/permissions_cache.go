@@ -6,9 +6,18 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
+type AccessType uint8
+
+const (
+	FullAccess AccessType = iota
+	ReadOnly
+	Transact
+	ContractDeploy
+)
+
 type PermStruct struct {
 	AcctId common.Address
-	Access uint8
+	AcctAccess AccessType
 }
 
 type PermAccountsMap map[common.Address][] *PermStruct
@@ -21,23 +30,23 @@ func AddAccountAccess(acctId common.Address, access uint8)  {
 	mu := sync.RWMutex{}
 
 	mu.Lock()
-    AcctMap[acctId] = &PermStruct {AcctId : acctId, Access : access}
+    AcctMap[acctId] = &PermStruct {AcctId : acctId, AcctAccess : AccessType(access)}
 	mu.Unlock()
 }
 
-func GetAcctAccess(acctId common.Address) uint8 {
+func GetAcctAccess(acctId common.Address) AccessType {
 	mu := sync.RWMutex{}
 
 	if len(AcctMap) != 0 {
 		if _, ok := AcctMap[acctId]; ok {
-			log.Info("Inside GetAcct sending :", "acctId", AcctMap[acctId].AcctId, "access", AcctMap[acctId].Access)
+			log.Info("Inside GetAcct sending :", "acctId", AcctMap[acctId].AcctId, "access", AcctMap[acctId].AcctAccess)
 
 			mu.RLock()
-			access := AcctMap[acctId].Access
+			acctAccess := AcctMap[acctId].AcctAccess
 			mu.RUnlock()
 
-			return access
+			return acctAccess
 		}
 	}
-	return 99
+	return FullAccess
 }
