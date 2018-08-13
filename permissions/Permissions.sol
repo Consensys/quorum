@@ -42,7 +42,7 @@ contract Permissions {
 
   // Adds a node to the nodeList mapping and emits node added event if successfully and node exists event of node is already present
   function ApproveNode(string _enodeId) public {
-    require(getNodeStatus(_enodeId) != NodeStatus.NotInList, "Node is already in the list");
+    require(getNodeStatus(_enodeId) == NodeStatus.PendingApproval);
 
     bytes32 i;
     i = keccak256(_enodeId);
@@ -65,7 +65,6 @@ contract Permissions {
   //deactivates a given Enode and emits the decativation event
   function DeactivateNode (string _enodeId) public {
     require(getNodeStatus(_enodeId) == NodeStatus.PendingDeactivation, "Node need to be in PendingDeactivation status");
-
     bytes32 i;
     i = keccak256(_enodeId);
     nodeList[i].status = NodeStatus.Deactivated;

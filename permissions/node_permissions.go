@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"os"
-	// "sync"
+	"sync"
 
 	// "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -90,22 +90,24 @@ func monitorNewNodeAdd(stack *node.Node) {
 	}
 	datadir := stack.DataDir()
 
-	ch := make(chan *PermissionsNodeApproved)
+	ch := make(chan *PermissionsNodeApproved, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
+	var nodeAddEvent *PermissionsNodeApproved 
 
 	for {
 		_, err = permissions.WatchNodeApproved(opts, ch)
 		if err != nil {
 			log.Info("Failed NewNodeProposed: %v", err)
 		}
-		var nodeAddEvent *PermissionsNodeApproved = <-ch
 
-		log.Info("calling update permissions, length is", "event", nodeAddEvent)
-
-		updatePermissionedNodes(nodeAddEvent.EnodeId, nodeAddEvent.IpAddrPort, nodeAddEvent.DiscPort, nodeAddEvent.RaftPort, datadir, NodeAdd)
+		select {
+		case nodeAddEvent = <-ch:
+			log.Info("calling update permissions, length is", "event", nodeAddEvent)
+			updatePermissionedNodes(nodeAddEvent.EnodeId, nodeAddEvent.IpAddrPort, nodeAddEvent.DiscPort, nodeAddEvent.RaftPort, datadir, NodeAdd)
+		}
     }
 }
 
@@ -127,12 +129,13 @@ func monitorNodeDelete(stack *node.Node, stateReader *ethclient.Client) {
 
 	for {
 		_, err = permissions.WatchNodeDeactivated(opts, ch)
+
 		if err != nil {
 			log.Info("Failed NodeDeactivated: %v", err)
 		}
-		var newEvent *PermissionsNodeDeactivated = <-ch
+		var newNodeDeleteEvent *PermissionsNodeDeactivated = <-ch
 
-		updatePermissionedNodes(newEvent.EnodeId, newEvent.IpAddrPort, newEvent.DiscPort, newEvent.RaftPort, datadir, NodeDelete)
+		updatePermissionedNodes(newNodeDeleteEvent.EnodeId, newNodeDeleteEvent.IpAddrPort, newNodeDeleteEvent.DiscPort, newNodeDeleteEvent.RaftPort, datadir, NodeDelete)
     }
 }
 
@@ -164,27 +167,36 @@ func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir s
 	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discPort=" + discPort + "&raftport=" + raftPort
 	log.Info("Enode id is : " , "newEnodeId", newEnodeId)
 
-	if (operation == NodeAdd){
-		nodelist = append(nodelist, newEnodeId)
-	} else {
-		index := 0
-		for i, enodeId := range nodelist {
-			if (enodeId == newEnodeId){
-				index = i
-				break
-			}
+	index := 0
+	// HACK: currently seeing the event multiple times on the channel and hence the write to file is
+	// happening multiple times. To avoid this checking to see if the record exists before write
+	// Need to be removed once the proper issue is identified
+	enodeExists := false
+
+	for i, enodeId := range nodelist {
+		if (enodeId == newEnodeId){
+			index = i
+			enodeExists = true
+			break
 		}
+	}
+
+	if (operation == NodeAdd){
+		if enodeExists == false {
+			nodelist = append(nodelist, newEnodeId)
+		}
+	} else {
 		nodelist = append(nodelist[:index], nodelist[index+1:]...)
 	}
 
-	// mu := sync.RWMutex{}
+	mu := sync.RWMutex{}
 	blob, _ = json.Marshal(nodelist)
 
-	// mu.Lock()
+	mu.Lock()
 	if err:= ioutil.WriteFile(path, blob, 0644); err!= nil{
 		log.Error("updatePermissionedNodes: Error writing new node info to file", "err", err)
 	}
-	// mu.Unlock()
+	mu.Unlock()
 
 }
 // Manages account level permissions update
