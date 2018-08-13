@@ -15,7 +15,7 @@ import (
 )
 
 // PermissionsABI is the input ABI used to generate the binding from.
-const PermissionsABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"_status\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ProposeDeactivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_acctId\",\"type\":\"address\"},{\"name\":\"access\",\"type\":\"uint8\"}],\"name\":\"updateAcctAccess\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_canWrite\",\"type\":\"bool\"},{\"name\":\"_canLead\",\"type\":\"bool\"}],\"name\":\"ProposeNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"DeactivateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ApproveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_canWrite\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_canLead\",\"type\":\"bool\"}],\"name\":\"NewNodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"acctId\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"access\",\"type\":\"uint8\"}],\"name\":\"AcctAccessModified\",\"type\":\"event\"}]"
+const PermissionsABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"_status\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_canWrite\",\"type\":\"bool\"},{\"name\":\"_canLead\",\"type\":\"bool\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"ProposeNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ProposeDeactivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_acctId\",\"type\":\"address\"},{\"name\":\"access\",\"type\":\"uint8\"}],\"name\":\"updateAcctAccess\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"DeactivateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ApproveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NewNodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"acctId\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"access\",\"type\":\"uint8\"}],\"name\":\"AcctAccessModified\",\"type\":\"event\"}]"
 
 // Permissions is an auto generated Go binding around an Ethereum contract.
 type Permissions struct {
@@ -248,25 +248,25 @@ func (_Permissions *PermissionsTransactorSession) ProposeDeactivation(_enodeId s
 	return _Permissions.Contract.ProposeDeactivation(&_Permissions.TransactOpts, _enodeId)
 }
 
-// ProposeNode is a paid mutator transaction binding the contract method 0x9e1ebc14.
+// ProposeNode is a paid mutator transaction binding the contract method 0x6b4b4867.
 //
-// Solidity: function ProposeNode(_enodeId string, _canWrite bool, _canLead bool) returns()
-func (_Permissions *PermissionsTransactor) ProposeNode(opts *bind.TransactOpts, _enodeId string, _canWrite bool, _canLead bool) (*types.Transaction, error) {
-	return _Permissions.contract.Transact(opts, "ProposeNode", _enodeId, _canWrite, _canLead)
+// Solidity: function ProposeNode(_enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) returns()
+func (_Permissions *PermissionsTransactor) ProposeNode(opts *bind.TransactOpts, _enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "ProposeNode", _enodeId, _canWrite, _canLead, _ipAddrPort, _discPort, _raftPort)
 }
 
-// ProposeNode is a paid mutator transaction binding the contract method 0x9e1ebc14.
+// ProposeNode is a paid mutator transaction binding the contract method 0x6b4b4867.
 //
-// Solidity: function ProposeNode(_enodeId string, _canWrite bool, _canLead bool) returns()
-func (_Permissions *PermissionsSession) ProposeNode(_enodeId string, _canWrite bool, _canLead bool) (*types.Transaction, error) {
-	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _canWrite, _canLead)
+// Solidity: function ProposeNode(_enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) returns()
+func (_Permissions *PermissionsSession) ProposeNode(_enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
+	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _canWrite, _canLead, _ipAddrPort, _discPort, _raftPort)
 }
 
-// ProposeNode is a paid mutator transaction binding the contract method 0x9e1ebc14.
+// ProposeNode is a paid mutator transaction binding the contract method 0x6b4b4867.
 //
-// Solidity: function ProposeNode(_enodeId string, _canWrite bool, _canLead bool) returns()
-func (_Permissions *PermissionsTransactorSession) ProposeNode(_enodeId string, _canWrite bool, _canLead bool) (*types.Transaction, error) {
-	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _canWrite, _canLead)
+// Solidity: function ProposeNode(_enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) returns()
+func (_Permissions *PermissionsTransactorSession) ProposeNode(_enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
+	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _canWrite, _canLead, _ipAddrPort, _discPort, _raftPort)
 }
 
 // UpdateAcctAccess is a paid mutator transaction binding the contract method 0x913fc7d7.
@@ -482,15 +482,13 @@ func (it *PermissionsNewNodeProposedIterator) Close() error {
 
 // PermissionsNewNodeProposed represents a NewNodeProposed event raised by the Permissions contract.
 type PermissionsNewNodeProposed struct {
-	EnodeId  string
-	CanWrite bool
-	CanLead  bool
-	Raw      types.Log // Blockchain specific contextual infos
+	EnodeId string
+	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterNewNodeProposed is a free log retrieval operation binding the contract event 0xd630d8689250dadadf783ef2b5c310617046e2f16f9cddbb44e8d96801e3a347.
+// FilterNewNodeProposed is a free log retrieval operation binding the contract event 0xe370df14cec622d932b6c03454042c48c2815c9f96d22ab2bdb2e7171d96eb00.
 //
-// Solidity: e NewNodeProposed(_enodeId string, _canWrite bool, _canLead bool)
+// Solidity: e NewNodeProposed(_enodeId string)
 func (_Permissions *PermissionsFilterer) FilterNewNodeProposed(opts *bind.FilterOpts) (*PermissionsNewNodeProposedIterator, error) {
 
 	logs, sub, err := _Permissions.contract.FilterLogs(opts, "NewNodeProposed")
@@ -500,9 +498,9 @@ func (_Permissions *PermissionsFilterer) FilterNewNodeProposed(opts *bind.Filter
 	return &PermissionsNewNodeProposedIterator{contract: _Permissions.contract, event: "NewNodeProposed", logs: logs, sub: sub}, nil
 }
 
-// WatchNewNodeProposed is a free log subscription operation binding the contract event 0xd630d8689250dadadf783ef2b5c310617046e2f16f9cddbb44e8d96801e3a347.
+// WatchNewNodeProposed is a free log subscription operation binding the contract event 0xe370df14cec622d932b6c03454042c48c2815c9f96d22ab2bdb2e7171d96eb00.
 //
-// Solidity: e NewNodeProposed(_enodeId string, _canWrite bool, _canLead bool)
+// Solidity: e NewNodeProposed(_enodeId string)
 func (_Permissions *PermissionsFilterer) WatchNewNodeProposed(opts *bind.WatchOpts, sink chan<- *PermissionsNewNodeProposed) (event.Subscription, error) {
 
 	logs, sub, err := _Permissions.contract.WatchLogs(opts, "NewNodeProposed")
@@ -606,13 +604,16 @@ func (it *PermissionsNodeApprovedIterator) Close() error {
 
 // PermissionsNodeApproved represents a NodeApproved event raised by the Permissions contract.
 type PermissionsNodeApproved struct {
-	EnodeId string
-	Raw     types.Log // Blockchain specific contextual infos
+	EnodeId    string
+	IpAddrPort string
+	DiscPort   string
+	RaftPort   string
+	Raw        types.Log // Blockchain specific contextual infos
 }
 
-// FilterNodeApproved is a free log retrieval operation binding the contract event 0xc8f0c6e7f31c7ba4e6e29615ae2ab658fdda704c49912bb6118db07a4c36d478.
+// FilterNodeApproved is a free log retrieval operation binding the contract event 0xc6d86deaa3b3cf7c374cfd405aae9f08571fce2bf6ccfe8f98a399cda8960a98.
 //
-// Solidity: e NodeApproved(_enodeId string)
+// Solidity: e NodeApproved(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string)
 func (_Permissions *PermissionsFilterer) FilterNodeApproved(opts *bind.FilterOpts) (*PermissionsNodeApprovedIterator, error) {
 
 	logs, sub, err := _Permissions.contract.FilterLogs(opts, "NodeApproved")
@@ -622,9 +623,9 @@ func (_Permissions *PermissionsFilterer) FilterNodeApproved(opts *bind.FilterOpt
 	return &PermissionsNodeApprovedIterator{contract: _Permissions.contract, event: "NodeApproved", logs: logs, sub: sub}, nil
 }
 
-// WatchNodeApproved is a free log subscription operation binding the contract event 0xc8f0c6e7f31c7ba4e6e29615ae2ab658fdda704c49912bb6118db07a4c36d478.
+// WatchNodeApproved is a free log subscription operation binding the contract event 0xc6d86deaa3b3cf7c374cfd405aae9f08571fce2bf6ccfe8f98a399cda8960a98.
 //
-// Solidity: e NodeApproved(_enodeId string)
+// Solidity: e NodeApproved(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string)
 func (_Permissions *PermissionsFilterer) WatchNodeApproved(opts *bind.WatchOpts, sink chan<- *PermissionsNodeApproved) (event.Subscription, error) {
 
 	logs, sub, err := _Permissions.contract.WatchLogs(opts, "NodeApproved")
@@ -728,13 +729,16 @@ func (it *PermissionsNodeDeactivatedIterator) Close() error {
 
 // PermissionsNodeDeactivated represents a NodeDeactivated event raised by the Permissions contract.
 type PermissionsNodeDeactivated struct {
-	EnodeId string
-	Raw     types.Log // Blockchain specific contextual infos
+	EnodeId    string
+	IpAddrPort string
+	DiscPort   string
+	RaftPort   string
+	Raw        types.Log // Blockchain specific contextual infos
 }
 
-// FilterNodeDeactivated is a free log retrieval operation binding the contract event 0xb4551525dafbacbcbad53f3a1ad477e2de2428dcd5832ae46d8edacf8c2959d5.
+// FilterNodeDeactivated is a free log retrieval operation binding the contract event 0xd5fa0ecdea15b332dd0a270c65234bc4aee212edf2ed62eb2fd182ef55ca98a1.
 //
-// Solidity: e NodeDeactivated(_enodeId string)
+// Solidity: e NodeDeactivated(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string)
 func (_Permissions *PermissionsFilterer) FilterNodeDeactivated(opts *bind.FilterOpts) (*PermissionsNodeDeactivatedIterator, error) {
 
 	logs, sub, err := _Permissions.contract.FilterLogs(opts, "NodeDeactivated")
@@ -744,9 +748,9 @@ func (_Permissions *PermissionsFilterer) FilterNodeDeactivated(opts *bind.Filter
 	return &PermissionsNodeDeactivatedIterator{contract: _Permissions.contract, event: "NodeDeactivated", logs: logs, sub: sub}, nil
 }
 
-// WatchNodeDeactivated is a free log subscription operation binding the contract event 0xb4551525dafbacbcbad53f3a1ad477e2de2428dcd5832ae46d8edacf8c2959d5.
+// WatchNodeDeactivated is a free log subscription operation binding the contract event 0xd5fa0ecdea15b332dd0a270c65234bc4aee212edf2ed62eb2fd182ef55ca98a1.
 //
-// Solidity: e NodeDeactivated(_enodeId string)
+// Solidity: e NodeDeactivated(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string)
 func (_Permissions *PermissionsFilterer) WatchNodeDeactivated(opts *bind.WatchOpts, sink chan<- *PermissionsNodeDeactivated) (event.Subscription, error) {
 
 	logs, sub, err := _Permissions.contract.WatchLogs(opts, "NodeDeactivated")
