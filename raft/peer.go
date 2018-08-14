@@ -5,19 +5,20 @@ import (
 	"net"
 
 	"fmt"
+	"log"
+
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/rlp"
-	"log"
 )
 
 // Serializable information about a Peer. Sufficient to build `etcdRaft.Peer`
 // or `discover.Node`.
 type Address struct {
-	raftId   uint16
-	nodeId   discover.NodeID
-	ip       net.IP
-	p2pPort  uint16
-	raftPort uint16
+	raftId   uint16          `json:"raftId"`
+	nodeId   discover.NodeID `json:"nodeId"`
+	ip       net.IP          `json:"ip"`
+	p2pPort  uint16          `json:"p2pPort"`
+	raftPort uint16          `json:"raftPort"`
 }
 
 func newAddress(raftId uint16, raftPort uint16, node *discover.Node) *Address {
@@ -28,6 +29,14 @@ func newAddress(raftId uint16, raftPort uint16, node *discover.Node) *Address {
 		p2pPort:  node.TCP,
 		raftPort: raftPort,
 	}
+}
+
+type RaftPeerInfo struct {
+	raftId   string `json:"raftId"`
+	nodeId   string `json:"nodeId"`
+	ip       string `json:"ip"`
+	p2pPort  string `json:"p2pPort"`
+	raftPort string `json:"raftPort"`
 }
 
 // A peer that we're connected to via both raft's http transport, and ethereum p2p
@@ -77,4 +86,15 @@ func bytesToAddress(bytes []byte) *Address {
 		log.Fatalf("failed to RLP-decode Address: %v", err)
 	}
 	return &addr
+}
+
+func (address *Address) toDisplay() *RaftPeerInfo {
+	info := &RaftPeerInfo{
+		raftId:   fmt.Sprintf("%v", address.raftId),
+		nodeId:   address.nodeId.String(),
+		ip:       address.ip.String(),
+		p2pPort:  fmt.Sprintf("%v", address.p2pPort),
+		raftPort: fmt.Sprintf("%v", address.raftPort),
+	}
+	return info
 }

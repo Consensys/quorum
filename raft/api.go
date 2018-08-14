@@ -37,3 +37,15 @@ func (s *PublicRaftAPI) Leader() (string, error) {
 	}
 	return addr.nodeId.String(), nil
 }
+
+func (s *PublicRaftAPI) Cluster() []*Address {
+	// infos := make([]*RaftPeerInfo, 0, len(s.raftService.raftProtocolManager.NodeInfo().PeerAddresses))
+	// for _, address := range s.raftService.raftProtocolManager.NodeInfo().PeerAddresses {
+	// 	if address != nil {
+	// 		infos = append(infos, address.toDisplay())
+	// 		log.Info("stuff", "raftinfo", fmt.Sprintf("%v", address.toDisplay()))
+	// 	}
+	// }
+	// return infos
+	return s.raftService.raftProtocolManager.NodeInfo().PeerAddresses
+}
