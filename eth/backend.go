@@ -125,6 +125,18 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
+	// changes to manipulate the chain id for migration from 2.0.2 and below version to 2.0.3
+	// version of Quorum  - this is applicable for v2.0.3 onwards
+	if chainConfig.IsQuorum && params.EIP155Version() {
+		if chainConfig.ChainId.Int64() == 1 {
+			if config.NetworkId == 1 {
+				return nil, errors.New("Cannot have chain id and network id as 1.")
+			}
+			log.Info("Overriding chain id with network id")
+			chainConfig.ChainId = big.NewInt(0).SetUint64(config.NetworkId)
+		}
+	}
+
 	eth := &Ethereum{
 		config:         config,
 		chainDb:        chainDb,
