@@ -28,7 +28,7 @@ const (
 
 	QuorumVersionMajor = 2
 	QuorumVersionMinor = 0
-	QuorumVersionPatch = 3
+	QuorumVersionPatch = 2
 )
 
 // Version holds the textual version string.
@@ -53,8 +53,3 @@ func VersionWithCommit(gitCommit string) string {
 	}
 	return vsn
 }
-
-func EIP155Version () bool {
-	return (QuorumVersionMajor >= 2 && QuorumVersionMinor >= 0 && QuorumVersionPatch >= 3)
-}
-
