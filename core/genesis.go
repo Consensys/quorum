@@ -164,6 +164,7 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 			log.Info("Writing custom genesis block")
 		}
 		block, err := genesis.Commit(db)
+		WriteQuorumEIP155Activation(db)
 		return genesis.Config, block.Hash(), err
 	}
 
@@ -194,16 +195,19 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 		return storedcfg, stored, nil
 	}
 
+	isQuorumEIP155Activated := GetIsQuorumEIP155Activated(db)
+
 	// Check config compatibility and write the config. Compatibility errors
 	// are returned to the caller unless we're already at block zero.
 	height := GetBlockNumber(db, GetHeadHeaderHash(db))
 	if height == missingNumber {
 		return newcfg, stored, fmt.Errorf("missing block number for head header hash")
 	}
-	compatErr := storedcfg.CheckCompatible(newcfg, height)
+	compatErr := storedcfg.CheckCompatible(newcfg, height, isQuorumEIP155Activated)
 	if compatErr != nil && height != 0 && compatErr.RewindTo != 0 {
 		return newcfg, stored, compatErr
 	}
+	WriteQuorumEIP155Activation(db)
 	return newcfg, stored, WriteChainConfig(db, stored, newcfg)
 }
 

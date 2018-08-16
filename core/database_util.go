@@ -77,6 +77,8 @@ var (
 	privateblockReceiptsPrefix = []byte("Pr") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 	privateReceiptPrefix       = []byte("Prs")
 	privateBloomPrefix         = []byte("Pb")
+
+	quorumEIP155ActivatedPrefix = []byte("quorum155active")
 )
 
 // txLookupEntry is a positional metadata to help looking up the data content of
@@ -115,6 +117,13 @@ func GetBlockNumber(db DatabaseReader, hash common.Hash) uint64 {
 		return missingNumber
 	}
 	return binary.BigEndian.Uint64(data)
+}
+
+//returns whether we have a chain configuration that can't be updated
+//after the EIP155 HF has happened
+func GetIsQuorumEIP155Activated(db DatabaseReader) bool {
+	data, _ := db.Get(quorumEIP155ActivatedPrefix)
+	return len(data) == 1
 }
 
 // GetHeadHeaderHash retrieves the hash of the current canonical head block's
@@ -592,7 +601,14 @@ func WriteChainConfig(db ethdb.Putter, hash common.Hash, cfg *params.ChainConfig
 		return err
 	}
 
+	db.Put(quorumEIP155ActivatedPrefix, []byte{1})
+
 	return db.Put(append(configPrefix, hash[:]...), jsonChainConfig)
+}
+
+// WriteChainConfig writes the chain config settings to the database.
+func WriteQuorumEIP155Activation(db ethdb.Putter) error {
+	return db.Put(quorumEIP155ActivatedPrefix, []byte{1})
 }
 
 // GetChainConfig will fetch the network settings based on the given hash.
