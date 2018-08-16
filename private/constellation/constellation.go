@@ -1,19 +1,30 @@
 package constellation
 
 import (
+	"errors"
 	"fmt"
-	"github.com/patrickmn/go-cache"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/patrickmn/go-cache"
 )
 
 type Constellation struct {
-	node *Client
-	c    *cache.Cache
+	node                    *Client
+	c                       *cache.Cache
+	isConstellationNotInUse bool
 }
 
+var (
+	ErrConstellationIsntInit = errors.New("Constellation not in use")
+)
+
 func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
+	if g.isConstellationNotInUse {
+		return nil, ErrConstellationIsntInit
+	}
 	out, err = g.node.SendPayload(data, from, to)
 	if err != nil {
 		return nil, err
@@ -23,6 +34,9 @@ func (g *Constellation) Send(data []byte, from string, to []string) (out []byte,
 }
 
 func (g *Constellation) Receive(data []byte) ([]byte, error) {
+	if g.isConstellationNotInUse {
+		return nil, nil
+	}
 	if len(data) == 0 {
 		return data, nil
 	}
@@ -47,7 +61,7 @@ func New(path string) (*Constellation, error) {
 	}
 	// We accept either the socket or a configuration file that points to
 	// a socket.
-	isSocket := info.Mode() & os.ModeSocket != 0
+	isSocket := info.Mode()&os.ModeSocket != 0
 	if !isSocket {
 		cfg, err := LoadConfig(path)
 		if err != nil {
@@ -66,10 +80,18 @@ func New(path string) (*Constellation, error) {
 	return &Constellation{
 		node: n,
 		c:    cache.New(5*time.Minute, 5*time.Minute),
+		isConstellationNotInUse: false,
 	}, nil
 }
 
 func MustNew(path string) *Constellation {
+	if strings.EqualFold(path, "ignore") {
+		return &Constellation{
+			node: nil,
+			c:    nil,
+			isConstellationNotInUse: true,
+		}
+	}
 	g, err := New(path)
 	if err != nil {
 		panic(fmt.Sprintf("MustNew: Failed to connect to Constellation (%s): %v", path, err))
