@@ -1926,12 +1926,12 @@ func TestEIP155SignerOnTxPool(t *testing.T) {
 
 	for _, tt := range flagtests {
 		t.Run("", func(t *testing.T) {
-			db, _ := ethdb.NewMemDatabase()
+			db := ethdb.NewMemDatabase()
 			statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
-			blockchain := &testBlockChain{statedb, big.NewInt(1000000), new(event.Feed)}
+			blockchain := &testBlockChain{statedb, statedb, 1000000, new(event.Feed)}
 
 			chainconfig := &params.ChainConfig{
-				ChainId:        big.NewInt(10),
+				ChainID:        big.NewInt(10),
 				HomesteadBlock: tt.homesteadBlock,
 				EIP150Block:    big.NewInt(0),
 				EIP155Block:    tt.eip155Block,
