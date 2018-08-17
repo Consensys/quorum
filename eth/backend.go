@@ -125,6 +125,9 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
+	//Upon starting the node, write the flag to disallow changing ChainID/EIP155 block after HF
+	core.WriteQuorumEIP155Activation(chainDb)
+
 	eth := &Ethereum{
 		config:         config,
 		chainDb:        chainDb,
