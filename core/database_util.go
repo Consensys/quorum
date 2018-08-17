@@ -601,8 +601,6 @@ func WriteChainConfig(db ethdb.Putter, hash common.Hash, cfg *params.ChainConfig
 		return err
 	}
 
-	db.Put(quorumEIP155ActivatedPrefix, []byte{1})
-
 	return db.Put(append(configPrefix, hash[:]...), jsonChainConfig)
 }
 
