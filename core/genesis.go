@@ -164,7 +164,6 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 			log.Info("Writing custom genesis block")
 		}
 		block, err := genesis.Commit(db)
-		WriteQuorumEIP155Activation(db)
 		return genesis.Config, block.Hash(), err
 	}
 
@@ -207,7 +206,6 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 	if compatErr != nil && height != 0 && compatErr.RewindTo != 0 {
 		return newcfg, stored, compatErr
 	}
-	WriteQuorumEIP155Activation(db)
 	return newcfg, stored, WriteChainConfig(db, stored, newcfg)
 }
 
