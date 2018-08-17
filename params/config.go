@@ -283,7 +283,7 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, head *big.Int, isQuor
 		}
 
 		if !configNumEqual(c.ChainId, newcfg.ChainId){
-			return newCompatError("Quorum EIP155 public activation", c.EIP158Block, newcfg.EIP158Block)
+			return newCompatError("Quorum EIP155 public activation", c.EIP155Block, newcfg.EIP155Block)
 		}
 	}
 	if isForkIncompatible(c.EIP158Block, newcfg.EIP158Block, head) {
