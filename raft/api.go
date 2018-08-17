@@ -30,22 +30,14 @@ func (s *PublicRaftAPI) RemovePeer(raftId uint16) {
 	s.raftService.raftProtocolManager.ProposePeerRemoval(raftId)
 }
 
-func (s *PublicRaftAPI) Leader() (string, error) {
+func (s *PublicRaftAPI) Leader() (*Address, error) {
 	addr, err := s.raftService.raftProtocolManager.LeaderAddress()
 	if nil != err {
-		return "", err
+		return nil, err
 	}
-	return addr.nodeId.String(), nil
+	return addr, nil
 }
 
 func (s *PublicRaftAPI) Cluster() []*Address {
-	// infos := make([]*RaftPeerInfo, 0, len(s.raftService.raftProtocolManager.NodeInfo().PeerAddresses))
-	// for _, address := range s.raftService.raftProtocolManager.NodeInfo().PeerAddresses {
-	// 	if address != nil {
-	// 		infos = append(infos, address.toDisplay())
-	// 		log.Info("stuff", "raftinfo", fmt.Sprintf("%v", address.toDisplay()))
-	// 	}
-	// }
-	// return infos
 	return s.raftService.raftProtocolManager.NodeInfo().PeerAddresses
 }

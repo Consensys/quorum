@@ -14,29 +14,21 @@ import (
 // Serializable information about a Peer. Sufficient to build `etcdRaft.Peer`
 // or `discover.Node`.
 type Address struct {
-	raftId   uint16          `json:"raftId"`
-	nodeId   discover.NodeID `json:"nodeId"`
-	ip       net.IP          `json:"ip"`
-	p2pPort  uint16          `json:"p2pPort"`
-	raftPort uint16          `json:"raftPort"`
+	RaftId   uint16          `json:"raftId"`
+	NodeId   discover.NodeID `json:"nodeId"`
+	Ip       net.IP          `json:"ip"`
+	P2pPort  uint16          `json:"p2pPort"`
+	RaftPort uint16          `json:"raftPort"`
 }
 
 func newAddress(raftId uint16, raftPort uint16, node *discover.Node) *Address {
 	return &Address{
-		raftId:   raftId,
-		nodeId:   node.ID,
-		ip:       node.IP,
-		p2pPort:  node.TCP,
-		raftPort: raftPort,
+		RaftId:   raftId,
+		NodeId:   node.ID,
+		Ip:       node.IP,
+		P2pPort:  node.TCP,
+		RaftPort: raftPort,
 	}
-}
-
-type RaftPeerInfo struct {
-	raftId   string `json:"raftId"`
-	nodeId   string `json:"nodeId"`
-	ip       string `json:"ip"`
-	p2pPort  string `json:"p2pPort"`
-	raftPort string `json:"raftPort"`
 }
 
 // A peer that we're connected to via both raft's http transport, and ethereum p2p
@@ -46,7 +38,7 @@ type Peer struct {
 }
 
 func (addr *Address) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{addr.raftId, addr.nodeId, addr.ip, addr.p2pPort, addr.raftPort})
+	return rlp.Encode(w, []interface{}{addr.RaftId, addr.NodeId, addr.Ip, addr.P2pPort, addr.RaftPort})
 }
 
 func (addr *Address) DecodeRLP(s *rlp.Stream) error {
@@ -62,7 +54,7 @@ func (addr *Address) DecodeRLP(s *rlp.Stream) error {
 	if err := s.Decode(&temp); err != nil {
 		return err
 	} else {
-		addr.raftId, addr.nodeId, addr.ip, addr.p2pPort, addr.raftPort = temp.RaftId, temp.NodeId, temp.Ip, temp.P2pPort, temp.RaftPort
+		addr.RaftId, addr.NodeId, addr.Ip, addr.P2pPort, addr.RaftPort = temp.RaftId, temp.NodeId, temp.Ip, temp.P2pPort, temp.RaftPort
 		return nil
 	}
 }
@@ -86,15 +78,4 @@ func bytesToAddress(bytes []byte) *Address {
 		log.Fatalf("failed to RLP-decode Address: %v", err)
 	}
 	return &addr
-}
-
-func (address *Address) toDisplay() *RaftPeerInfo {
-	info := &RaftPeerInfo{
-		raftId:   fmt.Sprintf("%v", address.raftId),
-		nodeId:   address.nodeId.String(),
-		ip:       address.ip.String(),
-		p2pPort:  fmt.Sprintf("%v", address.p2pPort),
-		raftPort: fmt.Sprintf("%v", address.raftPort),
-	}
-	return info
 }
