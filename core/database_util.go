@@ -606,7 +606,7 @@ func WriteChainConfig(db ethdb.Putter, hash common.Hash, cfg *params.ChainConfig
 	return db.Put(append(configPrefix, hash[:]...), jsonChainConfig)
 }
 
-// WriteChainConfig writes the chain config settings to the database.
+// WriteQuorumEIP155Activation writes a flag to the database saying EIP155 HF is enforced
 func WriteQuorumEIP155Activation(db ethdb.Putter) error {
 	return db.Put(quorumEIP155ActivatedPrefix, []byte{1})
 }
