@@ -629,7 +629,7 @@ web3._extend({
                        name: 'leader',
                        getter: 'raft_leader'
                }),
-							 new web3._extend.Property({
+               new web3._extend.Property({
                        name: 'cluster',
                        getter: 'raft_cluster'
                }),
