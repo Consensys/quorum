@@ -117,6 +117,8 @@ func main() {
 		}
 	}
 
+	var knownNodes []*discover.Node
+
 	if *runv5 {
 		if _, err := discv5.ListenUDP(nodeKey, conn, realaddr, "", restrictList); err != nil {
 			utils.Fatalf("%v", err)
@@ -127,7 +129,7 @@ func main() {
 			AnnounceAddr: realaddr,
 			NetRestrict:  restrictList,
 		}
-		if _, err := discover.ListenUDP(conn, cfg); err != nil {
+		if _, err := discover.ListenUDP(conn, cfg, knownNodes); err != nil {
 			utils.Fatalf("%v", err)
 		}
 	}

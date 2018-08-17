@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/permissions"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -284,6 +285,14 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	// Register wallet event handlers to open and auto-derive wallets
 	events := make(chan accounts.WalletEvent, 16)
 	stack.AccountManager().Subscribe(events)
+
+	//START - QUORUM Permissioning
+	if permissioned := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name); permissioned {
+		if err := permissions.QuorumPermissioning(ctx, stack); err != nil {
+			utils.Fatalf("Failed to start Quorum Permissioning: %v", err)
+		}
+	}
+	//END - QUORUM Permissioning
 
 	go func() {
 		// Create a chain state reader for self-derivation
