@@ -10,7 +10,7 @@ We redefine a shielded note's _spend nullifier_ as `spend_nf = SHA-256(0x01 | rh
 
 No adversary, moreover, can forge a proof using the prover's broadcasted transaction. Its payload reveals, by construction, nothing about the hidden witnesses `rho` and `sk`; the security of this scheme, therefore, reduces to the difficulty of constructing from scratch the ("curried") SHA-256 preimages `rho` and `sk`. (The adversary could of course generate new values `rho` and `sk` and broadcast an altered spend nullifier; however, in this case note commitment integrity would fail.)
 
-This repository contains complete code, including precompiled contracts. The required minor modifications to the ZSL contracts can be found at [benediamond/zsl-q](https://github.com/benediamond/zsl-q).
+This repository contains complete code, including precompiled contracts. The required minor modifications to the ZSL contracts can be found at [benediamond/zsl-q](https://github.com/benediamond/zsl-q). A modified `ztracker.js` file (including re-compiled contract ABIs and bytecodes) can be found [here](https://github.com/benediamond/quorum-examples/blob/zsl_patch/examples/7nodes/ztracker.js). Note finally that the parameters `unshielding.pk` and `unshielding.vk` must be freshly generated, following the instructions [here](https://github.com/jpmorganchase/zsl-q).
 
 # Demonstration
 
