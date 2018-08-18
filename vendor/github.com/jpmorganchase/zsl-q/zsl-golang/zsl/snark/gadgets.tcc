@@ -74,7 +74,7 @@ uint64_t convertVectorToInt(const std::vector<bool>& v) {
 
 std::vector<bool> uint64_to_bool_vector(uint64_t input) {
     auto num_bv = convertIntToVectorLE(input);
-    
+
     return convertBytesVectorToVector(num_bv);
 }
 
@@ -350,6 +350,126 @@ public:
 
         block2.reset(new block_variable<FieldT>(pb, {
             pb_variable_array<FieldT>(sk.begin() + 248, sk.end()),
+            length_padding
+        }, ""));
+
+        pb_linear_combination_array<FieldT> IV2(intermediate->bits);
+
+        hasher2.reset(new sha256_compression_function_gadget<FieldT>(
+            pb,
+            IV2,
+            block2->bits,
+            *result,
+        ""));
+    }
+
+    void generate_r1cs_constraints() {
+        hasher1->generate_r1cs_constraints();
+        hasher2->generate_r1cs_constraints();
+    }
+
+    void generate_r1cs_witness() {
+        hasher1->generate_r1cs_witness();
+        hasher2->generate_r1cs_witness();
+    }
+};
+
+template<typename FieldT>
+class SpendNullifierAuthenticated : gadget<FieldT> {
+private:
+    std::shared_ptr<block_variable<FieldT>> block1;
+    std::shared_ptr<sha256_compression_function_gadget<FieldT>> hasher1;
+    std::shared_ptr<digest_variable<FieldT>> intermediate;
+    std::shared_ptr<block_variable<FieldT>> block2;
+    std::shared_ptr<sha256_compression_function_gadget<FieldT>> hasher2;
+
+public:
+    SpendNullifierAuthenticated(
+        protoboard<FieldT> &pb,
+        pb_variable<FieldT>& ZERO,
+        pb_variable_array<FieldT> rho,
+        pb_variable_array<FieldT> sk,
+        pb_variable_array<FieldT> addr,
+        std::shared_ptr<digest_variable<FieldT>> result
+    ) : gadget<FieldT>(pb) {
+        pb_linear_combination_array<FieldT> IV = SHA256_default_IV(pb);
+
+        pb_variable_array<FieldT> discriminants;
+        discriminants.emplace_back(ZERO);
+        discriminants.emplace_back(ZERO);
+        discriminants.emplace_back(ZERO);
+        discriminants.emplace_back(ZERO);
+        discriminants.emplace_back(ZERO);
+        discriminants.emplace_back(ZERO);
+        discriminants.emplace_back(ZERO);
+        discriminants.emplace_back(ONE);
+
+        block1.reset(new block_variable<FieldT>(pb, {
+            discriminants,
+            rho,
+            pb_variable_array<FieldT>(sk.begin(), sk.begin() + 248)
+        }, ""));
+
+        intermediate.reset(new digest_variable<FieldT>(pb, 256, ""));
+
+        hasher1.reset(new sha256_compression_function_gadget<FieldT>(
+            pb,
+            IV,
+            block1->bits,
+            *intermediate,
+        ""));
+
+        pb_variable_array<FieldT> length_padding =
+            from_bits({
+                // padding
+                1,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,1,0,
+                1,0,1,0,1,0,0,0
+        }, ZERO);
+
+        block2.reset(new block_variable<FieldT>(pb, {
+            pb_variable_array<FieldT>(sk.begin() + 248, sk.end()),
+            addr,
             length_padding
         }, ""));
 
@@ -715,7 +835,7 @@ private:
     std::shared_ptr<NoteCommitment<FieldT>> cm_hasher;
 
     // Spend nullifier hasher
-    std::shared_ptr<SpendNullifier<FieldT>> nf_hasher;
+    std::shared_ptr<SpendNullifierAuthenticated<FieldT>> nf_hasher;
 
     // Merkle tree lookup
     std::shared_ptr<merkle_tree_gadget<FieldT>> merkle_lookup;
@@ -724,8 +844,10 @@ public:
     // The anchor of the tree
     std::shared_ptr<digest_variable<FieldT>> anchor;
 
-    // SHA256(0x01 | rho)
+    // SHA256(0x01 | rho | sk | addr)
     std::shared_ptr<digest_variable<FieldT>> spend_nullifier;
+
+    std::shared_ptr<digest_variable<FieldT>> addr;
 
     UnshieldingCircuit(protoboard<FieldT> &pb) : gadget<FieldT>(pb) {
         // Inputs
@@ -738,6 +860,9 @@ public:
 
             anchor.reset(new digest_variable<FieldT>(pb, 256, ""));
             zk_unpacked_inputs.insert(zk_unpacked_inputs.end(), anchor->bits.begin(), anchor->bits.end());
+
+            addr.reset(new digest_variable<FieldT>(pb, 160, ""));
+            zk_unpacked_inputs.insert(zk_unpacked_inputs.end(), addr->bits.begin(), addr->bits.end());
 
             value.allocate(pb, 64, "");
             zk_unpacked_inputs.insert(zk_unpacked_inputs.end(), value.begin(), value.end());
@@ -762,7 +887,7 @@ public:
 
         key_hasher.reset(new KeyHasher<FieldT>(pb, ZERO, sk->bits, pk));
         cm_hasher.reset(new NoteCommitment<FieldT>(pb, ZERO, rho->bits, pk->bits, value, cm));
-        nf_hasher.reset(new SpendNullifier<FieldT>(pb, ZERO, rho->bits, sk->bits, spend_nullifier));
+        nf_hasher.reset(new SpendNullifierAuthenticated<FieldT>(pb, ZERO, rho->bits, sk->bits, addr->bits, spend_nullifier));
         auto test = ONE;
         merkle_lookup.reset(new merkle_tree_gadget<FieldT>(pb, *cm, *anchor, test));
     }
@@ -773,6 +898,7 @@ public:
 
         rho->generate_r1cs_constraints();
         sk->generate_r1cs_constraints();
+        addr->generate_r1cs_constraints();
 
         key_hasher->generate_r1cs_constraints();
         cm_hasher->generate_r1cs_constraints();
@@ -783,6 +909,7 @@ public:
     void generate_r1cs_witness(
         const std::vector<unsigned char>& witness_rho,
         const std::vector<unsigned char>& witness_sk,
+        const std::vector<unsigned char>& witness_addr,
         uint64_t witness_value,
         size_t path_index,
         const std::vector<std::vector<bool>>& authentication_path
@@ -797,6 +924,11 @@ public:
         sk->bits.fill_with_bits(
             this->pb,
             convertBytesVectorToVector(witness_sk)
+        );
+
+        addr->bits.fill_with_bits(
+            this->pb,
+            convertBytesVectorToVector(witness_addr)
         );
 
         value.fill_with_bits(
@@ -815,16 +947,19 @@ public:
     static r1cs_primary_input<FieldT> witness_map(
         const std::vector<unsigned char> &witness_nf,
         const std::vector<unsigned char> &witness_anchor,
+        const std::vector<unsigned char> &witness_addr,
         uint64_t witness_value
     ) {
         std::vector<bool> verify_inputs;
 
         std::vector<bool> nf_bits = convertBytesVectorToVector(witness_nf);
         std::vector<bool> anchor_bits = convertBytesVectorToVector(witness_anchor);
+        std::vector<bool> addr_bits = convertBytesVectorToVector(witness_addr);
         std::vector<bool> value_bits = uint64_to_bool_vector(witness_value);
 
         verify_inputs.insert(verify_inputs.end(), nf_bits.begin(), nf_bits.end());
         verify_inputs.insert(verify_inputs.end(), anchor_bits.begin(), anchor_bits.end());
+        verify_inputs.insert(verify_inputs.end(), addr_bits.begin(), addr_bits.end());
         verify_inputs.insert(verify_inputs.end(), value_bits.begin(), value_bits.end());
 
         assert(verify_inputs.size() == verifying_input_bit_size());
@@ -842,6 +977,7 @@ public:
 
         acc += 256; // the nullifier
         acc += 256; // the anchor
+        acc += 160; // the address
         acc += 64; // the value of the note
 
         return acc;
@@ -990,7 +1126,7 @@ public:
 
         enforce_input_1.allocate(pb);
         enforce_input_2.allocate(pb);
-        
+
         merkle_lookup_1.reset(new merkle_tree_gadget<FieldT>(pb, *input_cm_1, *anchor, enforce_input_1));
         merkle_lookup_2.reset(new merkle_tree_gadget<FieldT>(pb, *input_cm_2, *anchor, enforce_input_2));
 
