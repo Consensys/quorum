@@ -15,7 +15,7 @@
 #ifndef _ZSL_H_
 #define _ZSL_H_
 
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <inttypes.h>
 #include <stdbool.h>
 
@@ -41,6 +41,7 @@ extern "C" {
     void zsl_prove_unshielding(
         void *rho,
         void *sk,
+        void *addr,
         uint64_t value,
         uint64_t tree_position,
         void *authentication_path,
@@ -49,6 +50,7 @@ extern "C" {
     bool zsl_verify_unshielding(
         void *proof_ptr,
         void *spend_nf_ptr,
+        void *addr_ptr,
         void *rt_ptr,
         uint64_t value
     );

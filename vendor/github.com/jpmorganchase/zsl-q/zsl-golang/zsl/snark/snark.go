@@ -125,6 +125,7 @@ func VerifyShielding(proof [584]byte, send_nf [32]byte, cm [32]byte, value uint6
 
 func ProveUnshielding(rho [32]byte,
 	sk [32]byte,
+	addr [20]byte,
 	value uint64,
 	tree_position uint64,
 	authentication_path [29][32]byte) [584]byte {
@@ -132,6 +133,7 @@ func ProveUnshielding(rho [32]byte,
 
 	C.zsl_prove_unshielding(unsafe.Pointer(&rho[0]),
 		unsafe.Pointer(&sk[0]),
+		unsafe.Pointer(&addr[0]),
 		C.uint64_t(value),
 		C.uint64_t(tree_position),
 		unsafe.Pointer(&authentication_path[0][0]),
@@ -140,10 +142,11 @@ func ProveUnshielding(rho [32]byte,
 	return proof_buf
 }
 
-func VerifyUnshielding(proof [584]byte, spend_nf [32]byte, rt [32]byte, value uint64) bool {
+func VerifyUnshielding(proof [584]byte, spend_nf [32]byte, rt [32]byte, addr [20]byte, value uint64) bool {
 	ret := C.zsl_verify_unshielding(unsafe.Pointer(&proof[0]),
 		unsafe.Pointer(&spend_nf[0]),
 		unsafe.Pointer(&rt[0]),
+		unsafe.Pointer(&addr[0]),
 		C.uint64_t(value))
 
 	if ret {
