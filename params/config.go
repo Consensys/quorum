@@ -344,6 +344,9 @@ func newCompatError(what string, storedblock, newblock *big.Int) *ConfigCompatEr
 }
 
 func (err *ConfigCompatError) Error() string {
+	if err.What == "EIP155 chain ID" {
+		return fmt.Sprintf("mismatching %s in database (have %d, want %d)", err.What, err.StoredConfig, err.NewConfig)
+	}
 	return fmt.Sprintf("mismatching %s in database (have %d, want %d, rewindto %d)", err.What, err.StoredConfig, err.NewConfig, err.RewindTo)
 }
 
