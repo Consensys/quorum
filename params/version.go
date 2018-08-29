@@ -27,8 +27,8 @@ const (
 	VersionMeta  = "stable" // Version metadata to append to the version string
 
 	QuorumVersionMajor = 2
-	QuorumVersionMinor = 0
-	QuorumVersionPatch = 2
+	QuorumVersionMinor = 1
+	QuorumVersionPatch = 0
 )
 
 // Version holds the textual version string.

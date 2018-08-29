@@ -386,3 +386,22 @@ func TestBlockReceiptStorage(t *testing.T) {
 		t.Fatalf("deleted receipts returned: %v", rs)
 	}
 }
+
+// Tests that setting the flag for Quorum EIP155 activation read values correctly
+func TestIsQuorumEIP155Active(t *testing.T) {
+	db, _ := ethdb.NewMemDatabase()
+
+	isQuorumEIP155Active := GetIsQuorumEIP155Activated(db)
+	if isQuorumEIP155Active {
+		t.Fatal("Quorum EIP155 active read to be set, but wasn't set beforehand")
+	}
+
+	dbSet, _ := ethdb.NewMemDatabase()
+	WriteQuorumEIP155Activation(dbSet)
+
+	isQuorumEIP155ActiveAfterSetting := GetIsQuorumEIP155Activated(dbSet)
+	if !isQuorumEIP155ActiveAfterSetting {
+		t.Fatal("Quorum EIP155 active read to be unset, but was set beforehand")
+	}
+}
+
