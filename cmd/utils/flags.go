@@ -535,40 +535,20 @@ var (
 		Value: whisper.DefaultMinimumPoW,
 	}
 
-	// Metrics flags
-	MetricsEnabledFlag = cli.BoolFlag{
-		Name:  metrics.MetricsEnabledFlag,
-		Usage: "Enable metrics collection and reporting",
-	}
-
 	// Raft flags
 	RaftModeFlag = cli.BoolFlag{
 		Name:  "raft",
 		Usage: "If enabled, uses Raft instead of Quorum Chain for consensus",
-	}
-	MetricsEnableInfluxDBFlag = cli.BoolFlag{
-		Name:  "metrics.influxdb",
-		Usage: "Enable metrics export/push to an external InfluxDB database",
 	}
 	RaftBlockTimeFlag = cli.IntFlag{
 		Name:  "raftblocktime",
 		Usage: "Amount of time between raft block creations in milliseconds",
 		Value: 50,
 	}
-	MetricsInfluxDBEndpointFlag = cli.StringFlag{
-		Name:  "metrics.influxdb.endpoint",
-		Usage: "InfluxDB API endpoint to report metrics to",
-		Value: "http://localhost:8086",
-	}
 	RaftJoinExistingFlag = cli.IntFlag{
 		Name:  "raftjoinexisting",
 		Usage: "The raft ID to assume when joining an pre-existing cluster",
 		Value: 0,
-	}
-	MetricsInfluxDBDatabaseFlag = cli.StringFlag{
-		Name:  "metrics.influxdb.database",
-		Usage: "InfluxDB database name to push reported metrics to",
-		Value: "geth",
 	}
 	EmitCheckpointsFlag = cli.BoolFlag{
 		Name:  "emitcheckpoints",
@@ -596,6 +576,26 @@ var (
 		Name:  "istanbul.blockperiod",
 		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
 		Value: eth.DefaultConfig.Istanbul.BlockPeriod,
+	}
+
+	// Metrics flags
+	MetricsEnabledFlag = cli.BoolFlag{
+		Name:  metrics.MetricsEnabledFlag,
+		Usage: "Enable metrics collection and reporting",
+	}
+	MetricsEnableInfluxDBFlag = cli.BoolFlag{
+		Name:  "metrics.influxdb",
+		Usage: "Enable metrics export/push to an external InfluxDB database",
+	}
+	MetricsInfluxDBEndpointFlag = cli.StringFlag{
+		Name:  "metrics.influxdb.endpoint",
+		Usage: "InfluxDB API endpoint to report metrics to",
+		Value: "http://localhost:8086",
+	}
+	MetricsInfluxDBDatabaseFlag = cli.StringFlag{
+		Name:  "metrics.influxdb.database",
+		Usage: "InfluxDB database name to push reported metrics to",
+		Value: "geth",
 	}
 	MetricsInfluxDBUsernameFlag = cli.StringFlag{
 		Name:  "metrics.influxdb.username",
