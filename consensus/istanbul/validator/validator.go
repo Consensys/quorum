@@ -22,7 +22,7 @@ import (
 )
 
 func New(addr common.Address) istanbul.Validator {
-	return &defaultValidator{
+	return defaultValidator{
 		address: addr,
 	}
 }

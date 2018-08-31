@@ -30,11 +30,11 @@ type defaultValidator struct {
 	address common.Address
 }
 
-func (val *defaultValidator) Address() common.Address {
+func (val defaultValidator) Address() common.Address {
 	return val.address
 }
 
-func (val *defaultValidator) String() string {
+func (val defaultValidator) String() string {
 	return val.Address().String()
 }
 
