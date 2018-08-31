@@ -19,6 +19,7 @@ import (
 )
 const (
 	PERMISSIONED_CONFIG = "permissioned-nodes.json"
+	BLACKLIST_CONFIG = "disallowed-nodes.json"
 )
 
 type NodeOperation uint8
@@ -72,17 +73,18 @@ func createEthClient(stack *node.Node ) (*ethclient.Client, error){
 // Manages node addition and decavtivation from network
 func manageNodePermissions(stack *node.Node, stateReader *ethclient.Client) {
 	//monitor for new nodes addition via smart contract
-	go monitorNewNodeAdd(stack)
+	go monitorNewNodeAdd(stack, stateReader)
 
 	//monitor for nodes deletiin via smart contract
 	go monitorNodeDelete(stack, stateReader)
+
+	//monitor for nodes blacklisting via smart contract
+	go monitorNodeBlacklisting(stack, stateReader)
 }
 
 // This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
-func monitorNewNodeAdd(stack *node.Node) {
-
-	stateReader, err := createEthClient(stack)
+func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client) {
 
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
@@ -141,6 +143,36 @@ func monitorNodeDelete(stack *node.Node, stateReader *ethclient.Client) {
 	}
 }
 
+// This function listnes on the channel for any node blacklisting event via smart contract
+// and adds the same disallowed-nodes.json
+func monitorNodeBlacklisting(stack *node.Node, stateReader *ethclient.Client) {
+
+	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
+	if err != nil {
+		log.Error ("failed to monitor new node add : ", "err" , err)
+	}
+	datadir := stack.DataDir()
+
+	ch := make(chan *PermissionsNodeBlacklisted, 1)
+
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+	var nodeBlacklistEvent *PermissionsNodeBlacklisted 
+
+	_, err = permissions.WatchNodeBlacklisted(opts, ch)
+	if err != nil {
+		log.Info("Failed WatchNodeBlacklisted: %v", err)
+	}
+
+	for {
+		select {
+		case nodeBlacklistEvent = <-ch:
+			updateDisallowedNodes(nodeBlacklistEvent.EnodeId, nodeBlacklistEvent.IpAddrPort, nodeBlacklistEvent.DiscPort, nodeBlacklistEvent.RaftPort, datadir)
+		}
+    }
+}
+
 //this function populates the new node information into the permissioned-nodes.json file
 func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir string, operation NodeOperation){
 	log.Debug("updatePermissionedNodes", "DataDir", dataDir, "file", PERMISSIONED_CONFIG)
@@ -159,7 +191,7 @@ func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir s
 
 	nodelist := []string{}
 	if err := json.Unmarshal(blob, &nodelist); err != nil {
-		log.Error("parsePermissionedNodes: Failed to load nodes list", "err", err)
+		log.Error("updatePermissionedNodes: Failed to load nodes list", "err", err)
 		return 
 	}
 
@@ -193,6 +225,48 @@ func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir s
 	mu.Unlock()
 
 }
+
+//this function populates the new node information into the permissioned-nodes.json file
+func updateDisallowedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir string){
+	log.Debug("updateDisallowedNodes", "DataDir", dataDir, "file", BLACKLIST_CONFIG)
+
+	path := filepath.Join(dataDir, BLACKLIST_CONFIG)
+	if _, err := os.Stat(path); err != nil {
+		log.Error("Read Error for disallowed-nodes.json file." , "err", err)
+		if _, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0644); err != nil {
+			log.Error("Failed to create disallowed-nodes.json file ", "err", err)
+			return 
+		}
+	}
+
+	// Load the nodes from the config file
+	blob, err := ioutil.ReadFile(path)
+	if err != nil {
+		log.Error("updateDisallowedNodes Failed to access disallowed-nodes.json", "err", err)
+		return
+	}
+
+	nodelist := []string{}
+	if (blob != nil) {
+		if err := json.Unmarshal(blob, &nodelist); err != nil {
+			log.Error("updateDisallowedNodes: Failed to load nodes list", "err", err)
+			return 
+		}
+	}
+	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discPort=" + discPort + "&raftport=" + raftPort
+	log.Info("Enode id is : " , "newEnodeId", newEnodeId)
+
+	nodelist = append(nodelist, newEnodeId)
+
+	mu := sync.RWMutex{}
+	blob, _ = json.Marshal(nodelist)
+	mu.Lock()
+	if err:= ioutil.WriteFile(path, blob, 0644); err!= nil{
+		log.Error("updateDisallowedNodes: Error writing new node info to file", "err", err)
+	}
+	mu.Unlock()
+}
+
 // Manages account level permissions update
 func manageAccountPermissions(stack *node.Node, stateReader *ethclient.Client) error {
 

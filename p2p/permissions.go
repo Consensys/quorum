@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
@@ -13,6 +14,7 @@ import (
 const (
 	NODE_NAME_LENGTH    = 32
 	PERMISSIONED_CONFIG = "permissioned-nodes.json"
+	BLACKLIST_CONFIG = "disallowed-nodes.json"
 )
 
 // check if a given node is permissioned to connect to the change
@@ -28,6 +30,10 @@ func isNodePermissioned(nodename string, currentNode string, datadir string, dir
 	for _, v := range permissionedList {
 		if v == nodename {
 			log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
+			// check if the node is blacklisted
+			if isNodeBlackListed(nodename, datadir){
+				return false
+			}
 			return true
 		}
 		log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "DENIED-BY", currentNode[:NODE_NAME_LENGTH])
@@ -75,4 +81,34 @@ func ParsePermissionedNodes(DataDir string) []*discover.Node {
 		nodes = append(nodes, node)
 	}
 	return nodes
+}
+
+// This function checks if the node is black-listed
+func isNodeBlackListed (nodeName, dataDir string ) bool {
+	log.Debug("isNodeBlackListed", "DataDir", dataDir, "file", BLACKLIST_CONFIG)
+
+	path := filepath.Join(dataDir, BLACKLIST_CONFIG)
+	if _, err := os.Stat(path); err != nil {
+		log.Error("Read Error for disallowed-nodes.json file. disallowed-nodes.json file is not present.", "err", err)
+		return false
+	}
+	// Load the nodes from the config file
+	blob, err := ioutil.ReadFile(path)
+	if err != nil {
+		log.Error("isNodeBlackListed: Failed to access nodes", "err", err)
+		return false
+	}
+
+	nodelist := []string{}
+	if err := json.Unmarshal(blob, &nodelist); err != nil {
+		log.Error("parsePermissionedNodes: Failed to load nodes", "err", err)
+		return false
+	}
+
+	for _, v := range nodelist {
+		if strings.Contains(v, nodeName) {
+			return true
+		}
+	}
+	return false
 }
