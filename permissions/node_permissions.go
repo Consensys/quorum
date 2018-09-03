@@ -230,36 +230,41 @@ func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir s
 func updateDisallowedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir string){
 	log.Debug("updateDisallowedNodes", "DataDir", dataDir, "file", BLACKLIST_CONFIG)
 
+	fileExisted := true
 	path := filepath.Join(dataDir, BLACKLIST_CONFIG)
+	// Check if the file is existing. If the file is not existing create the file
 	if _, err := os.Stat(path); err != nil {
 		log.Error("Read Error for disallowed-nodes.json file." , "err", err)
 		if _, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0644); err != nil {
 			log.Error("Failed to create disallowed-nodes.json file ", "err", err)
 			return 
 		}
-	}
-
-	// Load the nodes from the config file
-	blob, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Error("updateDisallowedNodes Failed to access disallowed-nodes.json", "err", err)
-		return
+		fileExisted = false
 	}
 
 	nodelist := []string{}
-	if (blob != nil) {
-		if err := json.Unmarshal(blob, &nodelist); err != nil {
-			log.Error("updateDisallowedNodes: Failed to load nodes list", "err", err)
-			return 
+	// Load the nodes from the config file
+	if fileExisted == true {
+		blob, err := ioutil.ReadFile(path)
+		if err != nil {
+			log.Error("updateDisallowedNodes Failed to access disallowed-nodes.json", "err", err)
+			return
+		}
+		if (blob != nil) {
+			if err := json.Unmarshal(blob, &nodelist); err != nil {
+				log.Error("updateDisallowedNodes: Failed to load nodes list", "err", err)
+				return 
+			}
 		}
 	}
+
 	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discPort=" + discPort + "&raftport=" + raftPort
 	log.Info("Enode id is : " , "newEnodeId", newEnodeId)
 
 	nodelist = append(nodelist, newEnodeId)
 
 	mu := sync.RWMutex{}
-	blob, _ = json.Marshal(nodelist)
+	blob, _ := json.Marshal(nodelist)
 	mu.Lock()
 	if err:= ioutil.WriteFile(path, blob, 0644); err!= nil{
 		log.Error("updateDisallowedNodes: Error writing new node info to file", "err", err)
