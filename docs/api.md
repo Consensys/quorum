@@ -85,9 +85,10 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_st
 ```
 
 ```js
+//When block number is provided...
 //Request
 
-curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_storageRoot", "params":["0x1349f3e1b8d71effb47b840594ff27da7e603d17"], "id": 67}'
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_storageRoot", "params":["0x1349f3e1b8d71effb47b840594ff27da7e603d17","0x1"], "id": 67}'
 
 //Response
 
@@ -98,6 +99,22 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_st
   "jsonrpc": "2.0",
 
   "result": "0x81d1fa699f807735499cf6f7df860797cf66f6a66b565cfcda3fae3521eb6861"
+
+}
+//After private state of the contract is changed from '42' to '99'
+//Request
+
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_storageRoot", "params":["0x1349f3e1b8d71effb47b840594ff27da7e603d17","0x2"], "id": 67}'
+
+//Response
+
+{
+
+  "id":67,
+
+  "jsonrpc": "2.0",
+
+  "result": "0x0edb0e520c35df37a0d080d5245c9b8f9e1f9d7efab77c067d1e12c0a71299da"
 
 }
 
