@@ -162,7 +162,7 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_getQ
 
   "jsonrpc": "2.0",
 
-  "result": "0x..."
+  "result": "0x"
 
 }
 ```
