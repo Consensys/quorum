@@ -120,5 +120,23 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_st
 
 ```
 
+***
+
+#### eth_storageRoot
+
+Returns the hash of the storage root of the contract address
+
+##### Parameters
+
+Contract address, block number (hex)
+
+##### Returns
+
+`String` - 32 Bytes storageroot hash as HEX string. It provides history of hash when block number is provided.
+
+##### Example
+
+```js
+//Request
 
 
