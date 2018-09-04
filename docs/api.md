@@ -48,6 +48,7 @@ web3.eth.sendTransaction({
   }
 });
 ```
+***
 
 ## JSON RPC Privacy API Reference
 
@@ -132,7 +133,7 @@ Transaction payload hash in Hex format
 
 ##### Returns
 
-`String` - unencrypted transaction payload in HEx format.
+`String` - unencrypted transaction payload in Hex format.
 
 ##### Example
 
