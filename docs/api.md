@@ -48,3 +48,23 @@ web3.eth.sendTransaction({
   }
 });
 ```
+
+## JSON RPC API Reference
+
+***
+
+#### eth_storageRoot
+
+Returns the hash of the storage root of the contract address
+
+##### Parameters
+
+Contract address, block number (hex)
+
+##### Returns
+
+`String` - 33 Bytes storage roothash as HEX string. It provides history of hash when block number is provided.
+
+
+
+
