@@ -133,7 +133,7 @@ Transaction payload hash in Hex format
 
 ##### Returns
 
-`String` - unencrypted transaction payload in Hex format.
+`String` - unencrypted transaction payload in HEX format.
 
 ##### Example
 
