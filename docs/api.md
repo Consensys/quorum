@@ -62,7 +62,7 @@ Contract address, block number (hex)
 
 ##### Returns
 
-`String` - 32 Bytes storageroot hash as HEX string. It provides history of hash when block number is provided.
+`String` - 32 Bytes storageroot hash as HEX string at latest block height. It provides history of hash when block number is provided.
 
 ##### Example
 
