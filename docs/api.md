@@ -54,7 +54,7 @@ web3.eth.sendTransaction({
 
 #### eth_storageRoot
 
-Returns the hash of the storage root of given address (Contract/Account etc)
+Returns the storage root of given address (Contract/Account etc)
 
 ##### Parameters
 
@@ -62,7 +62,7 @@ address, block number (hex)
 
 ##### Returns
 
-`String` - 32 Bytes storageroot hash as HEX string at latest block height. It provides history of hash when block number is provided.
+`String` - 32 Bytes storageroot hash as HEX string at latest block height. It provides history of storage root hash when block number is provided.
 
 ##### Example
 
