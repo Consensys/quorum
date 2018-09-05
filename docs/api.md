@@ -54,11 +54,11 @@ web3.eth.sendTransaction({
 
 #### eth_storageRoot
 
-Returns the hash of the storage root of the contract address
+Returns the hash of the storage root of given address (Contract/Account etc)
 
 ##### Parameters
 
-Contract address, block number (hex)
+address, block number (hex)
 
 ##### Returns
 
