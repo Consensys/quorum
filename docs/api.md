@@ -52,6 +52,9 @@ web3.eth.sendTransaction({
 
 ## JSON RPC Privacy API Reference
 
+__In addition to the JSON-RPC provided by ethereum, Quorum exposes below two additional API calls.__
+
+
 #### eth_storageRoot
 
 Returns the storage root of given address (Contract/Account etc)
