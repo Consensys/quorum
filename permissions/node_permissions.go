@@ -76,7 +76,7 @@ func manageNodePermissions(stack *node.Node, stateReader *ethclient.Client) {
 	go monitorNewNodeAdd(stack, stateReader)
 
 	//monitor for nodes deletiin via smart contract
-	go monitorNodeDelete(stack, stateReader)
+	go monitorNodeDeactivation(stack, stateReader)
 
 	//monitor for nodes blacklisting via smart contract
 	go monitorNodeBlacklisting(stack, stateReader)
@@ -114,7 +114,7 @@ func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client) {
 
 // This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
-func monitorNodeDelete(stack *node.Node, stateReader *ethclient.Client) {
+func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client) {
 
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
@@ -297,13 +297,13 @@ func populateAcctPermissions(stack *node.Node, stateReader *ethclient.Client) er
 
 	opts := &bind.FilterOpts{}
 
-	pastEvents, err := permissions.FilterAcctAccessModified(opts)
+	pastEvents, err := permissions.FilterAccountAccessModified(opts)
 
 	recExists := true
 	for recExists {
 		recExists = pastEvents.Next()
 		if recExists {
-			types.AddAccountAccess(pastEvents.Event.AcctId, pastEvents.Event.Access)
+			types.AddAccountAccess(pastEvents.Event.Address, pastEvents.Event.Access)
 		}
 	}
 	return nil
@@ -320,14 +320,14 @@ func monitorAccountPermissions(stack *node.Node, stateReader *ethclient.Client) 
 	if err != nil {
 		log.Error ("Failed to monitor Account permissions : ", "err" , err)
 	}
-	ch := make(chan *PermissionsAcctAccessModified)
+	ch := make(chan *PermissionsAccountAccessModified)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newEvent *PermissionsAcctAccessModified
+	var newEvent *PermissionsAccountAccessModified
 
-	_, err = permissions.WatchAcctAccessModified(opts, ch)
+	_, err = permissions.WatchAccountAccessModified(opts, ch)
 	if err != nil {
 		log.Info("Failed NewNodeProposed: %v", err)
 	}
@@ -335,7 +335,7 @@ func monitorAccountPermissions(stack *node.Node, stateReader *ethclient.Client) 
 	for {
 		select {
 		case newEvent = <-ch:
-			types.AddAccountAccess(newEvent.AcctId, newEvent.Access)
+			types.AddAccountAccess(newEvent.Address, newEvent.Access)
 		}
     }
 }

@@ -4,6 +4,7 @@
 package permissions
 
 import (
+	"math/big"
 	"strings"
 
 	ethereum "github.com/ethereum/go-ethereum"
@@ -15,7 +16,7 @@ import (
 )
 
 // PermissionsABI is the input ABI used to generate the binding from.
-const PermissionsABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"BlacklistNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"_status\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_canWrite\",\"type\":\"bool\"},{\"name\":\"_canLead\",\"type\":\"bool\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"ProposeNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ProposeDeactivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_acctId\",\"type\":\"address\"},{\"name\":\"access\",\"type\":\"uint8\"}],\"name\":\"updateAcctAccess\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"DeactivateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ApproveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"ProposeNodeBlacklisting\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NewNodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"acctId\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"access\",\"type\":\"uint8\"}],\"name\":\"AcctAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingBlacklisting\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"}]"
+const PermissionsABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getVoteCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_voter\",\"type\":\"address\"}],\"name\":\"getVoteStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"approveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"BlacklistNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ProposeDeactivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_index\",\"type\":\"uint256\"}],\"name\":\"getEnodeId\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"removeVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"DeactivateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_accountAccess\",\"type\":\"uint8\"}],\"name\":\"updateAccountAccess\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"},{\"name\":\"_canLead\",\"type\":\"bool\"}],\"name\":\"proposeNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_index\",\"type\":\"uint256\"}],\"name\":\"getAccountAddress\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"ProposeNodeBlacklisting\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"addVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NewNodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_accountAddress\",\"type\":\"address\"}],\"name\":\"VoteNodeApproval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_accountAddress\",\"type\":\"address\"}],\"name\":\"VoteNodeDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingBlacklisting\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_accountAddress\",\"type\":\"address\"}],\"name\":\"VoteNodeBlacklisting\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_access\",\"type\":\"uint8\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"NoVotingAccount\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterRemoved\",\"type\":\"event\"}]"
 
 // Permissions is an auto generated Go binding around an Ethereum contract.
 type Permissions struct {
@@ -159,9 +160,61 @@ func (_Permissions *PermissionsTransactorRaw) Transact(opts *bind.TransactOpts, 
 	return _Permissions.Contract.contract.Transact(opts, method, params...)
 }
 
+// GetAccountAddress is a free data retrieval call binding the contract method 0xdb4cf8e6.
+//
+// Solidity: function getAccountAddress(_index uint256) constant returns(address)
+func (_Permissions *PermissionsCaller) GetAccountAddress(opts *bind.CallOpts, _index *big.Int) (common.Address, error) {
+	var (
+		ret0 = new(common.Address)
+	)
+	out := ret0
+	err := _Permissions.contract.Call(opts, out, "getAccountAddress", _index)
+	return *ret0, err
+}
+
+// GetAccountAddress is a free data retrieval call binding the contract method 0xdb4cf8e6.
+//
+// Solidity: function getAccountAddress(_index uint256) constant returns(address)
+func (_Permissions *PermissionsSession) GetAccountAddress(_index *big.Int) (common.Address, error) {
+	return _Permissions.Contract.GetAccountAddress(&_Permissions.CallOpts, _index)
+}
+
+// GetAccountAddress is a free data retrieval call binding the contract method 0xdb4cf8e6.
+//
+// Solidity: function getAccountAddress(_index uint256) constant returns(address)
+func (_Permissions *PermissionsCallerSession) GetAccountAddress(_index *big.Int) (common.Address, error) {
+	return _Permissions.Contract.GetAccountAddress(&_Permissions.CallOpts, _index)
+}
+
+// GetEnodeId is a free data retrieval call binding the contract method 0x769b24f2.
+//
+// Solidity: function getEnodeId(_index uint256) constant returns(string)
+func (_Permissions *PermissionsCaller) GetEnodeId(opts *bind.CallOpts, _index *big.Int) (string, error) {
+	var (
+		ret0 = new(string)
+	)
+	out := ret0
+	err := _Permissions.contract.Call(opts, out, "getEnodeId", _index)
+	return *ret0, err
+}
+
+// GetEnodeId is a free data retrieval call binding the contract method 0x769b24f2.
+//
+// Solidity: function getEnodeId(_index uint256) constant returns(string)
+func (_Permissions *PermissionsSession) GetEnodeId(_index *big.Int) (string, error) {
+	return _Permissions.Contract.GetEnodeId(&_Permissions.CallOpts, _index)
+}
+
+// GetEnodeId is a free data retrieval call binding the contract method 0x769b24f2.
+//
+// Solidity: function getEnodeId(_index uint256) constant returns(string)
+func (_Permissions *PermissionsCallerSession) GetEnodeId(_index *big.Int) (string, error) {
+	return _Permissions.Contract.GetEnodeId(&_Permissions.CallOpts, _index)
+}
+
 // GetNodeStatus is a free data retrieval call binding the contract method 0x397eeccb.
 //
-// Solidity: function getNodeStatus(_enodeId string) constant returns(_status uint8)
+// Solidity: function getNodeStatus(_enodeId string) constant returns(uint8)
 func (_Permissions *PermissionsCaller) GetNodeStatus(opts *bind.CallOpts, _enodeId string) (uint8, error) {
 	var (
 		ret0 = new(uint8)
@@ -173,37 +226,120 @@ func (_Permissions *PermissionsCaller) GetNodeStatus(opts *bind.CallOpts, _enode
 
 // GetNodeStatus is a free data retrieval call binding the contract method 0x397eeccb.
 //
-// Solidity: function getNodeStatus(_enodeId string) constant returns(_status uint8)
+// Solidity: function getNodeStatus(_enodeId string) constant returns(uint8)
 func (_Permissions *PermissionsSession) GetNodeStatus(_enodeId string) (uint8, error) {
 	return _Permissions.Contract.GetNodeStatus(&_Permissions.CallOpts, _enodeId)
 }
 
 // GetNodeStatus is a free data retrieval call binding the contract method 0x397eeccb.
 //
-// Solidity: function getNodeStatus(_enodeId string) constant returns(_status uint8)
+// Solidity: function getNodeStatus(_enodeId string) constant returns(uint8)
 func (_Permissions *PermissionsCallerSession) GetNodeStatus(_enodeId string) (uint8, error) {
 	return _Permissions.Contract.GetNodeStatus(&_Permissions.CallOpts, _enodeId)
 }
 
-// ApproveNode is a paid mutator transaction binding the contract method 0xc1dd1d92.
+// GetNumberOfAccounts is a free data retrieval call binding the contract method 0x309e36ef.
 //
-// Solidity: function ApproveNode(_enodeId string) returns()
-func (_Permissions *PermissionsTransactor) ApproveNode(opts *bind.TransactOpts, _enodeId string) (*types.Transaction, error) {
-	return _Permissions.contract.Transact(opts, "ApproveNode", _enodeId)
+// Solidity: function getNumberOfAccounts() constant returns(uint256)
+func (_Permissions *PermissionsCaller) GetNumberOfAccounts(opts *bind.CallOpts) (*big.Int, error) {
+	var (
+		ret0 = new(*big.Int)
+	)
+	out := ret0
+	err := _Permissions.contract.Call(opts, out, "getNumberOfAccounts")
+	return *ret0, err
 }
 
-// ApproveNode is a paid mutator transaction binding the contract method 0xc1dd1d92.
+// GetNumberOfAccounts is a free data retrieval call binding the contract method 0x309e36ef.
 //
-// Solidity: function ApproveNode(_enodeId string) returns()
-func (_Permissions *PermissionsSession) ApproveNode(_enodeId string) (*types.Transaction, error) {
-	return _Permissions.Contract.ApproveNode(&_Permissions.TransactOpts, _enodeId)
+// Solidity: function getNumberOfAccounts() constant returns(uint256)
+func (_Permissions *PermissionsSession) GetNumberOfAccounts() (*big.Int, error) {
+	return _Permissions.Contract.GetNumberOfAccounts(&_Permissions.CallOpts)
 }
 
-// ApproveNode is a paid mutator transaction binding the contract method 0xc1dd1d92.
+// GetNumberOfAccounts is a free data retrieval call binding the contract method 0x309e36ef.
 //
-// Solidity: function ApproveNode(_enodeId string) returns()
-func (_Permissions *PermissionsTransactorSession) ApproveNode(_enodeId string) (*types.Transaction, error) {
-	return _Permissions.Contract.ApproveNode(&_Permissions.TransactOpts, _enodeId)
+// Solidity: function getNumberOfAccounts() constant returns(uint256)
+func (_Permissions *PermissionsCallerSession) GetNumberOfAccounts() (*big.Int, error) {
+	return _Permissions.Contract.GetNumberOfAccounts(&_Permissions.CallOpts)
+}
+
+// GetNumberOfNodes is a free data retrieval call binding the contract method 0xb81c806a.
+//
+// Solidity: function getNumberOfNodes() constant returns(uint256)
+func (_Permissions *PermissionsCaller) GetNumberOfNodes(opts *bind.CallOpts) (*big.Int, error) {
+	var (
+		ret0 = new(*big.Int)
+	)
+	out := ret0
+	err := _Permissions.contract.Call(opts, out, "getNumberOfNodes")
+	return *ret0, err
+}
+
+// GetNumberOfNodes is a free data retrieval call binding the contract method 0xb81c806a.
+//
+// Solidity: function getNumberOfNodes() constant returns(uint256)
+func (_Permissions *PermissionsSession) GetNumberOfNodes() (*big.Int, error) {
+	return _Permissions.Contract.GetNumberOfNodes(&_Permissions.CallOpts)
+}
+
+// GetNumberOfNodes is a free data retrieval call binding the contract method 0xb81c806a.
+//
+// Solidity: function getNumberOfNodes() constant returns(uint256)
+func (_Permissions *PermissionsCallerSession) GetNumberOfNodes() (*big.Int, error) {
+	return _Permissions.Contract.GetNumberOfNodes(&_Permissions.CallOpts)
+}
+
+// GetVoteCount is a free data retrieval call binding the contract method 0x069953a7.
+//
+// Solidity: function getVoteCount(_enodeId string) constant returns(uint256)
+func (_Permissions *PermissionsCaller) GetVoteCount(opts *bind.CallOpts, _enodeId string) (*big.Int, error) {
+	var (
+		ret0 = new(*big.Int)
+	)
+	out := ret0
+	err := _Permissions.contract.Call(opts, out, "getVoteCount", _enodeId)
+	return *ret0, err
+}
+
+// GetVoteCount is a free data retrieval call binding the contract method 0x069953a7.
+//
+// Solidity: function getVoteCount(_enodeId string) constant returns(uint256)
+func (_Permissions *PermissionsSession) GetVoteCount(_enodeId string) (*big.Int, error) {
+	return _Permissions.Contract.GetVoteCount(&_Permissions.CallOpts, _enodeId)
+}
+
+// GetVoteCount is a free data retrieval call binding the contract method 0x069953a7.
+//
+// Solidity: function getVoteCount(_enodeId string) constant returns(uint256)
+func (_Permissions *PermissionsCallerSession) GetVoteCount(_enodeId string) (*big.Int, error) {
+	return _Permissions.Contract.GetVoteCount(&_Permissions.CallOpts, _enodeId)
+}
+
+// GetVoteStatus is a free data retrieval call binding the contract method 0x0fdc2150.
+//
+// Solidity: function getVoteStatus(_enodeId string, _voter address) constant returns(bool)
+func (_Permissions *PermissionsCaller) GetVoteStatus(opts *bind.CallOpts, _enodeId string, _voter common.Address) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _Permissions.contract.Call(opts, out, "getVoteStatus", _enodeId, _voter)
+	return *ret0, err
+}
+
+// GetVoteStatus is a free data retrieval call binding the contract method 0x0fdc2150.
+//
+// Solidity: function getVoteStatus(_enodeId string, _voter address) constant returns(bool)
+func (_Permissions *PermissionsSession) GetVoteStatus(_enodeId string, _voter common.Address) (bool, error) {
+	return _Permissions.Contract.GetVoteStatus(&_Permissions.CallOpts, _enodeId, _voter)
+}
+
+// GetVoteStatus is a free data retrieval call binding the contract method 0x0fdc2150.
+//
+// Solidity: function getVoteStatus(_enodeId string, _voter address) constant returns(bool)
+func (_Permissions *PermissionsCallerSession) GetVoteStatus(_enodeId string, _voter common.Address) (bool, error) {
+	return _Permissions.Contract.GetVoteStatus(&_Permissions.CallOpts, _enodeId, _voter)
 }
 
 // BlacklistNode is a paid mutator transaction binding the contract method 0x2b6f15a1.
@@ -269,27 +405,6 @@ func (_Permissions *PermissionsTransactorSession) ProposeDeactivation(_enodeId s
 	return _Permissions.Contract.ProposeDeactivation(&_Permissions.TransactOpts, _enodeId)
 }
 
-// ProposeNode is a paid mutator transaction binding the contract method 0x6b4b4867.
-//
-// Solidity: function ProposeNode(_enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) returns()
-func (_Permissions *PermissionsTransactor) ProposeNode(opts *bind.TransactOpts, _enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
-	return _Permissions.contract.Transact(opts, "ProposeNode", _enodeId, _canWrite, _canLead, _ipAddrPort, _discPort, _raftPort)
-}
-
-// ProposeNode is a paid mutator transaction binding the contract method 0x6b4b4867.
-//
-// Solidity: function ProposeNode(_enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) returns()
-func (_Permissions *PermissionsSession) ProposeNode(_enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
-	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _canWrite, _canLead, _ipAddrPort, _discPort, _raftPort)
-}
-
-// ProposeNode is a paid mutator transaction binding the contract method 0x6b4b4867.
-//
-// Solidity: function ProposeNode(_enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) returns()
-func (_Permissions *PermissionsTransactorSession) ProposeNode(_enodeId string, _canWrite bool, _canLead bool, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
-	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _canWrite, _canLead, _ipAddrPort, _discPort, _raftPort)
-}
-
 // ProposeNodeBlacklisting is a paid mutator transaction binding the contract method 0xf06be99b.
 //
 // Solidity: function ProposeNodeBlacklisting(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) returns()
@@ -311,30 +426,114 @@ func (_Permissions *PermissionsTransactorSession) ProposeNodeBlacklisting(_enode
 	return _Permissions.Contract.ProposeNodeBlacklisting(&_Permissions.TransactOpts, _enodeId, _ipAddrPort, _discPort, _raftPort)
 }
 
-// UpdateAcctAccess is a paid mutator transaction binding the contract method 0x913fc7d7.
+// AddVoter is a paid mutator transaction binding the contract method 0xf4ab9adf.
 //
-// Solidity: function updateAcctAccess(_acctId address, access uint8) returns()
-func (_Permissions *PermissionsTransactor) UpdateAcctAccess(opts *bind.TransactOpts, _acctId common.Address, access uint8) (*types.Transaction, error) {
-	return _Permissions.contract.Transact(opts, "updateAcctAccess", _acctId, access)
+// Solidity: function addVoter(_address address) returns()
+func (_Permissions *PermissionsTransactor) AddVoter(opts *bind.TransactOpts, _address common.Address) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "addVoter", _address)
 }
 
-// UpdateAcctAccess is a paid mutator transaction binding the contract method 0x913fc7d7.
+// AddVoter is a paid mutator transaction binding the contract method 0xf4ab9adf.
 //
-// Solidity: function updateAcctAccess(_acctId address, access uint8) returns()
-func (_Permissions *PermissionsSession) UpdateAcctAccess(_acctId common.Address, access uint8) (*types.Transaction, error) {
-	return _Permissions.Contract.UpdateAcctAccess(&_Permissions.TransactOpts, _acctId, access)
+// Solidity: function addVoter(_address address) returns()
+func (_Permissions *PermissionsSession) AddVoter(_address common.Address) (*types.Transaction, error) {
+	return _Permissions.Contract.AddVoter(&_Permissions.TransactOpts, _address)
 }
 
-// UpdateAcctAccess is a paid mutator transaction binding the contract method 0x913fc7d7.
+// AddVoter is a paid mutator transaction binding the contract method 0xf4ab9adf.
 //
-// Solidity: function updateAcctAccess(_acctId address, access uint8) returns()
-func (_Permissions *PermissionsTransactorSession) UpdateAcctAccess(_acctId common.Address, access uint8) (*types.Transaction, error) {
-	return _Permissions.Contract.UpdateAcctAccess(&_Permissions.TransactOpts, _acctId, access)
+// Solidity: function addVoter(_address address) returns()
+func (_Permissions *PermissionsTransactorSession) AddVoter(_address common.Address) (*types.Transaction, error) {
+	return _Permissions.Contract.AddVoter(&_Permissions.TransactOpts, _address)
 }
 
-// PermissionsAcctAccessModifiedIterator is returned from FilterAcctAccessModified and is used to iterate over the raw logs and unpacked data for AcctAccessModified events raised by the Permissions contract.
-type PermissionsAcctAccessModifiedIterator struct {
-	Event *PermissionsAcctAccessModified // Event containing the contract specifics and raw log
+// ApproveNode is a paid mutator transaction binding the contract method 0x21c67088.
+//
+// Solidity: function approveNode(_enodeId string) returns()
+func (_Permissions *PermissionsTransactor) ApproveNode(opts *bind.TransactOpts, _enodeId string) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "approveNode", _enodeId)
+}
+
+// ApproveNode is a paid mutator transaction binding the contract method 0x21c67088.
+//
+// Solidity: function approveNode(_enodeId string) returns()
+func (_Permissions *PermissionsSession) ApproveNode(_enodeId string) (*types.Transaction, error) {
+	return _Permissions.Contract.ApproveNode(&_Permissions.TransactOpts, _enodeId)
+}
+
+// ApproveNode is a paid mutator transaction binding the contract method 0x21c67088.
+//
+// Solidity: function approveNode(_enodeId string) returns()
+func (_Permissions *PermissionsTransactorSession) ApproveNode(_enodeId string) (*types.Transaction, error) {
+	return _Permissions.Contract.ApproveNode(&_Permissions.TransactOpts, _enodeId)
+}
+
+// ProposeNode is a paid mutator transaction binding the contract method 0xd17ee21e.
+//
+// Solidity: function proposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) returns()
+func (_Permissions *PermissionsTransactor) ProposeNode(opts *bind.TransactOpts, _enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "proposeNode", _enodeId, _ipAddrPort, _discPort, _raftPort, _canLead)
+}
+
+// ProposeNode is a paid mutator transaction binding the contract method 0xd17ee21e.
+//
+// Solidity: function proposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) returns()
+func (_Permissions *PermissionsSession) ProposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) (*types.Transaction, error) {
+	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _ipAddrPort, _discPort, _raftPort, _canLead)
+}
+
+// ProposeNode is a paid mutator transaction binding the contract method 0xd17ee21e.
+//
+// Solidity: function proposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) returns()
+func (_Permissions *PermissionsTransactorSession) ProposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) (*types.Transaction, error) {
+	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _ipAddrPort, _discPort, _raftPort, _canLead)
+}
+
+// RemoveVoter is a paid mutator transaction binding the contract method 0x86c1ff68.
+//
+// Solidity: function removeVoter(_address address) returns()
+func (_Permissions *PermissionsTransactor) RemoveVoter(opts *bind.TransactOpts, _address common.Address) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "removeVoter", _address)
+}
+
+// RemoveVoter is a paid mutator transaction binding the contract method 0x86c1ff68.
+//
+// Solidity: function removeVoter(_address address) returns()
+func (_Permissions *PermissionsSession) RemoveVoter(_address common.Address) (*types.Transaction, error) {
+	return _Permissions.Contract.RemoveVoter(&_Permissions.TransactOpts, _address)
+}
+
+// RemoveVoter is a paid mutator transaction binding the contract method 0x86c1ff68.
+//
+// Solidity: function removeVoter(_address address) returns()
+func (_Permissions *PermissionsTransactorSession) RemoveVoter(_address common.Address) (*types.Transaction, error) {
+	return _Permissions.Contract.RemoveVoter(&_Permissions.TransactOpts, _address)
+}
+
+// UpdateAccountAccess is a paid mutator transaction binding the contract method 0xc6962b99.
+//
+// Solidity: function updateAccountAccess(_address address, _accountAccess uint8) returns()
+func (_Permissions *PermissionsTransactor) UpdateAccountAccess(opts *bind.TransactOpts, _address common.Address, _accountAccess uint8) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "updateAccountAccess", _address, _accountAccess)
+}
+
+// UpdateAccountAccess is a paid mutator transaction binding the contract method 0xc6962b99.
+//
+// Solidity: function updateAccountAccess(_address address, _accountAccess uint8) returns()
+func (_Permissions *PermissionsSession) UpdateAccountAccess(_address common.Address, _accountAccess uint8) (*types.Transaction, error) {
+	return _Permissions.Contract.UpdateAccountAccess(&_Permissions.TransactOpts, _address, _accountAccess)
+}
+
+// UpdateAccountAccess is a paid mutator transaction binding the contract method 0xc6962b99.
+//
+// Solidity: function updateAccountAccess(_address address, _accountAccess uint8) returns()
+func (_Permissions *PermissionsTransactorSession) UpdateAccountAccess(_address common.Address, _accountAccess uint8) (*types.Transaction, error) {
+	return _Permissions.Contract.UpdateAccountAccess(&_Permissions.TransactOpts, _address, _accountAccess)
+}
+
+// PermissionsAccountAccessModifiedIterator is returned from FilterAccountAccessModified and is used to iterate over the raw logs and unpacked data for AccountAccessModified events raised by the Permissions contract.
+type PermissionsAccountAccessModifiedIterator struct {
+	Event *PermissionsAccountAccessModified // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -348,7 +547,7 @@ type PermissionsAcctAccessModifiedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *PermissionsAcctAccessModifiedIterator) Next() bool {
+func (it *PermissionsAccountAccessModifiedIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -357,7 +556,7 @@ func (it *PermissionsAcctAccessModifiedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(PermissionsAcctAccessModified)
+			it.Event = new(PermissionsAccountAccessModified)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -372,7 +571,7 @@ func (it *PermissionsAcctAccessModifiedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(PermissionsAcctAccessModified)
+		it.Event = new(PermissionsAccountAccessModified)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -388,42 +587,42 @@ func (it *PermissionsAcctAccessModifiedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *PermissionsAcctAccessModifiedIterator) Error() error {
+func (it *PermissionsAccountAccessModifiedIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *PermissionsAcctAccessModifiedIterator) Close() error {
+func (it *PermissionsAccountAccessModifiedIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// PermissionsAcctAccessModified represents a AcctAccessModified event raised by the Permissions contract.
-type PermissionsAcctAccessModified struct {
-	AcctId common.Address
-	Access uint8
-	Raw    types.Log // Blockchain specific contextual infos
+// PermissionsAccountAccessModified represents a AccountAccessModified event raised by the Permissions contract.
+type PermissionsAccountAccessModified struct {
+	Address common.Address
+	Access  uint8
+	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterAcctAccessModified is a free log retrieval operation binding the contract event 0xb9f8d88def106a1a167b617a197bee4323d3997cb1fa46b785c1a7b9af6e82a8.
+// FilterAccountAccessModified is a free log retrieval operation binding the contract event 0x5c7c83802ef5601aed89f3f4e4ab42298ecf8ac3fe099adad5712fc65ba9676d.
 //
-// Solidity: e AcctAccessModified(acctId address, access uint8)
-func (_Permissions *PermissionsFilterer) FilterAcctAccessModified(opts *bind.FilterOpts) (*PermissionsAcctAccessModifiedIterator, error) {
+// Solidity: e AccountAccessModified(_address address, _access uint8)
+func (_Permissions *PermissionsFilterer) FilterAccountAccessModified(opts *bind.FilterOpts) (*PermissionsAccountAccessModifiedIterator, error) {
 
-	logs, sub, err := _Permissions.contract.FilterLogs(opts, "AcctAccessModified")
+	logs, sub, err := _Permissions.contract.FilterLogs(opts, "AccountAccessModified")
 	if err != nil {
 		return nil, err
 	}
-	return &PermissionsAcctAccessModifiedIterator{contract: _Permissions.contract, event: "AcctAccessModified", logs: logs, sub: sub}, nil
+	return &PermissionsAccountAccessModifiedIterator{contract: _Permissions.contract, event: "AccountAccessModified", logs: logs, sub: sub}, nil
 }
 
-// WatchAcctAccessModified is a free log subscription operation binding the contract event 0xb9f8d88def106a1a167b617a197bee4323d3997cb1fa46b785c1a7b9af6e82a8.
+// WatchAccountAccessModified is a free log subscription operation binding the contract event 0x5c7c83802ef5601aed89f3f4e4ab42298ecf8ac3fe099adad5712fc65ba9676d.
 //
-// Solidity: e AcctAccessModified(acctId address, access uint8)
-func (_Permissions *PermissionsFilterer) WatchAcctAccessModified(opts *bind.WatchOpts, sink chan<- *PermissionsAcctAccessModified) (event.Subscription, error) {
+// Solidity: e AccountAccessModified(_address address, _access uint8)
+func (_Permissions *PermissionsFilterer) WatchAccountAccessModified(opts *bind.WatchOpts, sink chan<- *PermissionsAccountAccessModified) (event.Subscription, error) {
 
-	logs, sub, err := _Permissions.contract.WatchLogs(opts, "AcctAccessModified")
+	logs, sub, err := _Permissions.contract.WatchLogs(opts, "AccountAccessModified")
 	if err != nil {
 		return nil, err
 	}
@@ -433,8 +632,8 @@ func (_Permissions *PermissionsFilterer) WatchAcctAccessModified(opts *bind.Watc
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(PermissionsAcctAccessModified)
-				if err := _Permissions.contract.UnpackLog(event, "AcctAccessModified", log); err != nil {
+				event := new(PermissionsAccountAccessModified)
+				if err := _Permissions.contract.UnpackLog(event, "AccountAccessModified", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -557,6 +756,127 @@ func (_Permissions *PermissionsFilterer) WatchNewNodeProposed(opts *bind.WatchOp
 				// New log arrived, parse the event and forward to the user
 				event := new(PermissionsNewNodeProposed)
 				if err := _Permissions.contract.UnpackLog(event, "NewNodeProposed", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// PermissionsNoVotingAccountIterator is returned from FilterNoVotingAccount and is used to iterate over the raw logs and unpacked data for NoVotingAccount events raised by the Permissions contract.
+type PermissionsNoVotingAccountIterator struct {
+	Event *PermissionsNoVotingAccount // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PermissionsNoVotingAccountIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PermissionsNoVotingAccount)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PermissionsNoVotingAccount)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PermissionsNoVotingAccountIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PermissionsNoVotingAccountIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PermissionsNoVotingAccount represents a NoVotingAccount event raised by the Permissions contract.
+type PermissionsNoVotingAccount struct {
+	Raw types.Log // Blockchain specific contextual infos
+}
+
+// FilterNoVotingAccount is a free log retrieval operation binding the contract event 0x4b3dfc3b006eb0d5d60b3f275b4796aa31ed21a75d2e91fe750fc7549b426f67.
+//
+// Solidity: e NoVotingAccount()
+func (_Permissions *PermissionsFilterer) FilterNoVotingAccount(opts *bind.FilterOpts) (*PermissionsNoVotingAccountIterator, error) {
+
+	logs, sub, err := _Permissions.contract.FilterLogs(opts, "NoVotingAccount")
+	if err != nil {
+		return nil, err
+	}
+	return &PermissionsNoVotingAccountIterator{contract: _Permissions.contract, event: "NoVotingAccount", logs: logs, sub: sub}, nil
+}
+
+// WatchNoVotingAccount is a free log subscription operation binding the contract event 0x4b3dfc3b006eb0d5d60b3f275b4796aa31ed21a75d2e91fe750fc7549b426f67.
+//
+// Solidity: e NoVotingAccount()
+func (_Permissions *PermissionsFilterer) WatchNoVotingAccount(opts *bind.WatchOpts, sink chan<- *PermissionsNoVotingAccount) (event.Subscription, error) {
+
+	logs, sub, err := _Permissions.contract.WatchLogs(opts, "NoVotingAccount")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PermissionsNoVotingAccount)
+				if err := _Permissions.contract.UnpackLog(event, "NoVotingAccount", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1176,6 +1496,619 @@ func (_Permissions *PermissionsFilterer) WatchNodePendingDeactivation(opts *bind
 				// New log arrived, parse the event and forward to the user
 				event := new(PermissionsNodePendingDeactivation)
 				if err := _Permissions.contract.UnpackLog(event, "NodePendingDeactivation", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// PermissionsVoteNodeApprovalIterator is returned from FilterVoteNodeApproval and is used to iterate over the raw logs and unpacked data for VoteNodeApproval events raised by the Permissions contract.
+type PermissionsVoteNodeApprovalIterator struct {
+	Event *PermissionsVoteNodeApproval // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PermissionsVoteNodeApprovalIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PermissionsVoteNodeApproval)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PermissionsVoteNodeApproval)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PermissionsVoteNodeApprovalIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PermissionsVoteNodeApprovalIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PermissionsVoteNodeApproval represents a VoteNodeApproval event raised by the Permissions contract.
+type PermissionsVoteNodeApproval struct {
+	EnodeId        string
+	AccountAddress common.Address
+	Raw            types.Log // Blockchain specific contextual infos
+}
+
+// FilterVoteNodeApproval is a free log retrieval operation binding the contract event 0xffbebd8cfb97304c3b16b9139a3f06e547af483cc4b5111bdbb66ccdf2aa43f3.
+//
+// Solidity: e VoteNodeApproval(_enodeId string, _accountAddress address)
+func (_Permissions *PermissionsFilterer) FilterVoteNodeApproval(opts *bind.FilterOpts) (*PermissionsVoteNodeApprovalIterator, error) {
+
+	logs, sub, err := _Permissions.contract.FilterLogs(opts, "VoteNodeApproval")
+	if err != nil {
+		return nil, err
+	}
+	return &PermissionsVoteNodeApprovalIterator{contract: _Permissions.contract, event: "VoteNodeApproval", logs: logs, sub: sub}, nil
+}
+
+// WatchVoteNodeApproval is a free log subscription operation binding the contract event 0xffbebd8cfb97304c3b16b9139a3f06e547af483cc4b5111bdbb66ccdf2aa43f3.
+//
+// Solidity: e VoteNodeApproval(_enodeId string, _accountAddress address)
+func (_Permissions *PermissionsFilterer) WatchVoteNodeApproval(opts *bind.WatchOpts, sink chan<- *PermissionsVoteNodeApproval) (event.Subscription, error) {
+
+	logs, sub, err := _Permissions.contract.WatchLogs(opts, "VoteNodeApproval")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PermissionsVoteNodeApproval)
+				if err := _Permissions.contract.UnpackLog(event, "VoteNodeApproval", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// PermissionsVoteNodeBlacklistingIterator is returned from FilterVoteNodeBlacklisting and is used to iterate over the raw logs and unpacked data for VoteNodeBlacklisting events raised by the Permissions contract.
+type PermissionsVoteNodeBlacklistingIterator struct {
+	Event *PermissionsVoteNodeBlacklisting // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PermissionsVoteNodeBlacklistingIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PermissionsVoteNodeBlacklisting)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PermissionsVoteNodeBlacklisting)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PermissionsVoteNodeBlacklistingIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PermissionsVoteNodeBlacklistingIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PermissionsVoteNodeBlacklisting represents a VoteNodeBlacklisting event raised by the Permissions contract.
+type PermissionsVoteNodeBlacklisting struct {
+	EnodeId        string
+	AccountAddress common.Address
+	Raw            types.Log // Blockchain specific contextual infos
+}
+
+// FilterVoteNodeBlacklisting is a free log retrieval operation binding the contract event 0x7b47daedb068c066c91497354cad573e606ea26b05754a6a6cb6d4cb753ef089.
+//
+// Solidity: e VoteNodeBlacklisting(_enodeId string, _accountAddress address)
+func (_Permissions *PermissionsFilterer) FilterVoteNodeBlacklisting(opts *bind.FilterOpts) (*PermissionsVoteNodeBlacklistingIterator, error) {
+
+	logs, sub, err := _Permissions.contract.FilterLogs(opts, "VoteNodeBlacklisting")
+	if err != nil {
+		return nil, err
+	}
+	return &PermissionsVoteNodeBlacklistingIterator{contract: _Permissions.contract, event: "VoteNodeBlacklisting", logs: logs, sub: sub}, nil
+}
+
+// WatchVoteNodeBlacklisting is a free log subscription operation binding the contract event 0x7b47daedb068c066c91497354cad573e606ea26b05754a6a6cb6d4cb753ef089.
+//
+// Solidity: e VoteNodeBlacklisting(_enodeId string, _accountAddress address)
+func (_Permissions *PermissionsFilterer) WatchVoteNodeBlacklisting(opts *bind.WatchOpts, sink chan<- *PermissionsVoteNodeBlacklisting) (event.Subscription, error) {
+
+	logs, sub, err := _Permissions.contract.WatchLogs(opts, "VoteNodeBlacklisting")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PermissionsVoteNodeBlacklisting)
+				if err := _Permissions.contract.UnpackLog(event, "VoteNodeBlacklisting", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// PermissionsVoteNodeDeactivationIterator is returned from FilterVoteNodeDeactivation and is used to iterate over the raw logs and unpacked data for VoteNodeDeactivation events raised by the Permissions contract.
+type PermissionsVoteNodeDeactivationIterator struct {
+	Event *PermissionsVoteNodeDeactivation // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PermissionsVoteNodeDeactivationIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PermissionsVoteNodeDeactivation)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PermissionsVoteNodeDeactivation)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PermissionsVoteNodeDeactivationIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PermissionsVoteNodeDeactivationIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PermissionsVoteNodeDeactivation represents a VoteNodeDeactivation event raised by the Permissions contract.
+type PermissionsVoteNodeDeactivation struct {
+	EnodeId        string
+	AccountAddress common.Address
+	Raw            types.Log // Blockchain specific contextual infos
+}
+
+// FilterVoteNodeDeactivation is a free log retrieval operation binding the contract event 0xa5243abad84fa64b3ca3ab0b45c7954a089a38bd40d0797fc3c0e8ee304229e1.
+//
+// Solidity: e VoteNodeDeactivation(_enodeId string, _accountAddress address)
+func (_Permissions *PermissionsFilterer) FilterVoteNodeDeactivation(opts *bind.FilterOpts) (*PermissionsVoteNodeDeactivationIterator, error) {
+
+	logs, sub, err := _Permissions.contract.FilterLogs(opts, "VoteNodeDeactivation")
+	if err != nil {
+		return nil, err
+	}
+	return &PermissionsVoteNodeDeactivationIterator{contract: _Permissions.contract, event: "VoteNodeDeactivation", logs: logs, sub: sub}, nil
+}
+
+// WatchVoteNodeDeactivation is a free log subscription operation binding the contract event 0xa5243abad84fa64b3ca3ab0b45c7954a089a38bd40d0797fc3c0e8ee304229e1.
+//
+// Solidity: e VoteNodeDeactivation(_enodeId string, _accountAddress address)
+func (_Permissions *PermissionsFilterer) WatchVoteNodeDeactivation(opts *bind.WatchOpts, sink chan<- *PermissionsVoteNodeDeactivation) (event.Subscription, error) {
+
+	logs, sub, err := _Permissions.contract.WatchLogs(opts, "VoteNodeDeactivation")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PermissionsVoteNodeDeactivation)
+				if err := _Permissions.contract.UnpackLog(event, "VoteNodeDeactivation", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// PermissionsVoterAddedIterator is returned from FilterVoterAdded and is used to iterate over the raw logs and unpacked data for VoterAdded events raised by the Permissions contract.
+type PermissionsVoterAddedIterator struct {
+	Event *PermissionsVoterAdded // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PermissionsVoterAddedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PermissionsVoterAdded)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PermissionsVoterAdded)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PermissionsVoterAddedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PermissionsVoterAddedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PermissionsVoterAdded represents a VoterAdded event raised by the Permissions contract.
+type PermissionsVoterAdded struct {
+	Address common.Address
+	Raw     types.Log // Blockchain specific contextual infos
+}
+
+// FilterVoterAdded is a free log retrieval operation binding the contract event 0xa636f4a11e2d3ba7f89d042ecb0a6b886716e98cd49d8fd876ee0f73bced42b8.
+//
+// Solidity: e VoterAdded(_address address)
+func (_Permissions *PermissionsFilterer) FilterVoterAdded(opts *bind.FilterOpts) (*PermissionsVoterAddedIterator, error) {
+
+	logs, sub, err := _Permissions.contract.FilterLogs(opts, "VoterAdded")
+	if err != nil {
+		return nil, err
+	}
+	return &PermissionsVoterAddedIterator{contract: _Permissions.contract, event: "VoterAdded", logs: logs, sub: sub}, nil
+}
+
+// WatchVoterAdded is a free log subscription operation binding the contract event 0xa636f4a11e2d3ba7f89d042ecb0a6b886716e98cd49d8fd876ee0f73bced42b8.
+//
+// Solidity: e VoterAdded(_address address)
+func (_Permissions *PermissionsFilterer) WatchVoterAdded(opts *bind.WatchOpts, sink chan<- *PermissionsVoterAdded) (event.Subscription, error) {
+
+	logs, sub, err := _Permissions.contract.WatchLogs(opts, "VoterAdded")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PermissionsVoterAdded)
+				if err := _Permissions.contract.UnpackLog(event, "VoterAdded", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// PermissionsVoterRemovedIterator is returned from FilterVoterRemoved and is used to iterate over the raw logs and unpacked data for VoterRemoved events raised by the Permissions contract.
+type PermissionsVoterRemovedIterator struct {
+	Event *PermissionsVoterRemoved // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PermissionsVoterRemovedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PermissionsVoterRemoved)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PermissionsVoterRemoved)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PermissionsVoterRemovedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PermissionsVoterRemovedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PermissionsVoterRemoved represents a VoterRemoved event raised by the Permissions contract.
+type PermissionsVoterRemoved struct {
+	Address common.Address
+	Raw     types.Log // Blockchain specific contextual infos
+}
+
+// FilterVoterRemoved is a free log retrieval operation binding the contract event 0xa14a79af012d1756818f9bd59ccfc9ad185a71df86b9392d9059d9e6faf6d644.
+//
+// Solidity: e VoterRemoved(_address address)
+func (_Permissions *PermissionsFilterer) FilterVoterRemoved(opts *bind.FilterOpts) (*PermissionsVoterRemovedIterator, error) {
+
+	logs, sub, err := _Permissions.contract.FilterLogs(opts, "VoterRemoved")
+	if err != nil {
+		return nil, err
+	}
+	return &PermissionsVoterRemovedIterator{contract: _Permissions.contract, event: "VoterRemoved", logs: logs, sub: sub}, nil
+}
+
+// WatchVoterRemoved is a free log subscription operation binding the contract event 0xa14a79af012d1756818f9bd59ccfc9ad185a71df86b9392d9059d9e6faf6d644.
+//
+// Solidity: e VoterRemoved(_address address)
+func (_Permissions *PermissionsFilterer) WatchVoterRemoved(opts *bind.WatchOpts, sink chan<- *PermissionsVoterRemoved) (event.Subscription, error) {
+
+	logs, sub, err := _Permissions.contract.WatchLogs(opts, "VoterRemoved")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PermissionsVoterRemoved)
+				if err := _Permissions.contract.UnpackLog(event, "VoterRemoved", log); err != nil {
 					return err
 				}
 				event.Raw = log
