@@ -147,6 +147,7 @@ matrix:
 
         - mkdir -p $GOPATH/src/github.com/ethereum
         - ln -s `pwd` $GOPATH/src/github.com/ethereum/go-ethereum
+        - go get golang.org/x/mobile/cmd/gobind
         - go install golang.org/x/mobile/cmd/gobind
         - go run build/ci.go aar -signer ANDROID_SIGNING_KEY -deploy https://oss.sonatype.org -upload gethstore/builds
 
