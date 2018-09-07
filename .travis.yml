@@ -134,7 +134,7 @@ matrix:
         - azure-android
         - maven-android
       before_install:
-        - curl https://storage.googleapis.com/golang/go1.9.linux-amd64.tar.gz | tar -xz
+        - curl https://storage.googleapis.com/golang/go1.9.7.linux-amd64.tar.gz | tar -xz
         - export PATH=`pwd`/go/bin:$PATH
         - export GOROOT=`pwd`/go
         - export GOPATH=$HOME/go
@@ -147,8 +147,6 @@ matrix:
 
         - mkdir -p $GOPATH/src/github.com/ethereum
         - ln -s `pwd` $GOPATH/src/github.com/ethereum/go-ethereum
-        - go get golang.org/x/mobile/cmd/gobind
-        - go install golang.org/x/mobile/cmd/gobind
         - go run build/ci.go aar -signer ANDROID_SIGNING_KEY -deploy https://oss.sonatype.org -upload gethstore/builds
 
     # This builder does the OSX Azure, iOS CocoaPods and iOS Azure uploads
