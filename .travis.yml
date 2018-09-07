@@ -41,10 +41,10 @@ matrix:
         - go run build/ci.go test -coverage -misspell
 
     - os: osx
-      osx_image: xcode9.4
       go: 1.9.x
       sudo: required
       script:
+        - sudo spctl kext-consent disable
         - brew update
         - brew install caskroom/cask/brew-cask
         - brew cask install osxfuse
