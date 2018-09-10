@@ -299,7 +299,7 @@ func TestCacheFind(t *testing.T) {
 
 func waitForAccounts(wantAccounts []accounts.Account, ks *KeyStore) error {
 	var list []accounts.Account
-	for d := 200 * time.Millisecond; d < 8*time.Second; d *= 2 {
+	for d := 200 * time.Millisecond; d < 16*time.Second; d *= 2 {
 		list = ks.Accounts()
 		if reflect.DeepEqual(list, wantAccounts) {
 			// ks should have also received change notifications
