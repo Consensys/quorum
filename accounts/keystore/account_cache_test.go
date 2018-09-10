@@ -318,6 +318,8 @@ func waitForAccounts(wantAccounts []accounts.Account, ks *KeyStore) error {
 // TestUpdatedKeyfileContents tests that updating the contents of a keystore file
 // is noticed by the watcher, and the account cache is updated accordingly
 func TestUpdatedKeyfileContents(t *testing.T) {
+	t.Parallel()
+
 	// Create a temporary kesytore to test with
 	rand.Seed(time.Now().UnixNano())
 	dir := filepath.Join(os.TempDir(), fmt.Sprintf("eth-keystore-watch-test-%d-%d", os.Getpid(), rand.Int()))
@@ -327,7 +329,7 @@ func TestUpdatedKeyfileContents(t *testing.T) {
 	if len(list) > 0 {
 		t.Error("initial account list not empty:", list)
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(100 * time.Millisecond)
 
 	// Create the directory and copy a key file into it.
 	os.MkdirAll(dir, 0700)
@@ -347,6 +349,9 @@ func TestUpdatedKeyfileContents(t *testing.T) {
 		return
 	}
 
+	// needed so that modTime of `file` is different to its current value after forceCopyFile
+	time.Sleep(1000 * time.Millisecond)
+
 	// Now replace file contents
 	if err := forceCopyFile(file, cachetestAccounts[1].URL.Path); err != nil {
 		t.Fatal(err)
@@ -360,6 +365,9 @@ func TestUpdatedKeyfileContents(t *testing.T) {
 		return
 	}
 
+	// needed so that modTime of `file` is different to its current value after forceCopyFile
+	time.Sleep(1000 * time.Millisecond)
+
 	// Now replace file contents again
 	if err := forceCopyFile(file, cachetestAccounts[2].URL.Path); err != nil {
 		t.Fatal(err)
@@ -372,6 +380,10 @@ func TestUpdatedKeyfileContents(t *testing.T) {
 		t.Error(err)
 		return
 	}
+
+	// needed so that modTime of `file` is different to its current value after ioutil.WriteFile
+	time.Sleep(1000 * time.Millisecond)
+
 	// Now replace file contents with crap
 	if err := ioutil.WriteFile(file, []byte("foo"), 0644); err != nil {
 		t.Fatal(err)
