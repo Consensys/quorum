@@ -25,8 +25,11 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // SignerFn is a signer function callback when a contract requires a method to
@@ -47,6 +50,9 @@ type TransactOpts struct {
 	From   common.Address // Ethereum account to send the transaction from
 	Nonce  *big.Int       // Nonce to use for the transaction execution (nil = use pending state)
 	Signer SignerFn       // Method to use for signing the transaction (mandatory)
+
+	PrivateFrom string   // The public key of the Constellation identity to send this tx from.
+	PrivateFor  []string // The public keys of the Constellation identities this tx is intended for.
 
 	Value    *big.Int // Funds to transfer along along the transaction (nil = 0 = no funds)
 	GasPrice *big.Int // Gas price to use for the transaction execution (nil = gas price oracle)
@@ -205,13 +211,27 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 			return nil, fmt.Errorf("failed to estimate gas needed: %v", err)
 		}
 	}
-	// Create the transaction, sign it and schedule it for execution
+
+	// Create the raw transaction.
 	var rawTx *types.Transaction
 	if contract == nil {
 		rawTx = types.NewContractCreation(nonce, value, gasLimit, gasPrice, input)
 	} else {
 		rawTx = types.NewTransaction(nonce, c.address, value, gasLimit, gasPrice, input)
 	}
+
+	// If this transaction is private, we need to substitute the data payload
+	// with one from constelation.
+	if len(opts.PrivateFor) > 0 {
+		fmt.Printf("prepareing: for %v from %v", opts.PrivateFor, opts.PrivateFrom)
+		rawTx, err = preparePrivateTransaction(
+			ensureContext(opts.Context), rawTx, opts.PrivateFrom, opts.PrivateFor)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Sign the transaction and submit it to the mempool.
 	if opts.Signer == nil {
 		return nil, errors.New("no signer to authorize the transaction with")
 	}
@@ -223,6 +243,49 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		return nil, err
 	}
 	return signedTx, nil
+}
+
+func preparePrivateTransaction(ctx context.Context, tx *types.Transaction, privateFrom string, privateFor []string) (*types.Transaction, error) {
+	raw, _ := rlp.EncodeToBytes(tx)
+
+	privTxBytes, err := sendToPrivateTransactionManager(ctx, raw, privateFrom, privateFor)
+	if err != nil {
+		return nil, err
+	}
+
+	tx = new(types.Transaction)
+	if err := rlp.DecodeBytes(privTxBytes, tx); err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
+func sendToPrivateTransactionManager(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error) {
+	if len(privateFor) == 0 {
+		return nil, errors.New("need at least one private for")
+	}
+	tx := new(types.Transaction)
+	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
+		return nil, err
+	}
+
+	if private.P == nil {
+		return nil, errors.New("constellation not set up")
+	}
+	data, err := private.P.Send(tx.Data(), privateFrom, privateFor)
+	if err != nil {
+		return nil, err
+	}
+
+	tx.SetPrivate()
+	tx.SetData(data)
+	newEncoded, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	return hexutil.Bytes(newEncoded), nil
 }
 
 func ensureContext(ctx context.Context) context.Context {
