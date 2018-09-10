@@ -135,10 +135,9 @@ matrix:
         - maven-android
       before_install:
         - curl https://storage.googleapis.com/golang/go1.9.2.linux-amd64.tar.gz | tar -xz
-        - export PATH=`pwd`/go/bin:$PATH
         - export GOROOT=`pwd`/go
         - export GOPATH=$HOME/go
-        - export PATH=$GOPATH/bin:$PATH
+        - export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
       script:
         # Build the Android archive and upload it to Maven Central and Azure
         - curl https://dl.google.com/android/repository/android-ndk-r14b-linux-x86_64.zip -o android-ndk-r14b.zip
