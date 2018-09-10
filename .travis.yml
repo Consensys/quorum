@@ -20,6 +20,8 @@ matrix:
       sudo: required
       go: 1.8.x
       script:
+        - free || echo
+        - cat /proc/cpuinfo || echo
         - sudo -E apt-get -yq --no-install-suggests --no-install-recommends --force-yes install fuse
         - sudo modprobe fuse
         - sudo chmod 666 /dev/fuse
