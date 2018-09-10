@@ -300,7 +300,7 @@ func TestDeposit(t *testing.T) {
 		t.Fatalf("expected balance %v, got %v", exp, chbook.Balance())
 	}
 
-	time.Sleep(3 * interval)
+	time.Sleep(10 * interval)
 	backend.Commit()
 	if chbook.Balance().Cmp(balance) != 0 {
 		t.Fatalf("expected balance %v, got %v", balance, chbook.Balance())
@@ -317,7 +317,7 @@ func TestDeposit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	time.Sleep(3 * interval)
+	time.Sleep(10 * interval)
 	backend.Commit()
 	if chbook.Balance().Cmp(exp) != 0 {
 		t.Fatalf("expected balance %v, got %v", exp, chbook.Balance())
@@ -327,7 +327,7 @@ func TestDeposit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	time.Sleep(1 * interval)
+	time.Sleep(5 * interval)
 	backend.Commit()
 
 	if chbook.Balance().Cmp(balance) != 0 {
@@ -348,7 +348,7 @@ func TestDeposit(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	time.Sleep(1 * interval)
+	time.Sleep(5 * interval)
 	backend.Commit()
 
 	exp = new(big.Int).SetUint64(39)
