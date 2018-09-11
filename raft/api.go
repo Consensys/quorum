@@ -39,6 +39,6 @@ func (s *PublicRaftAPI) Leader() (string, error) {
 }
 
 func (s *PublicRaftAPI) Cluster() []*Address {
-	return append(s.raftService.raftProtocolManager.NodeInfo().PeerAddresses,
-		s.raftService.raftProtocolManager.NodeInfo().Address)
+	nodeInfo := s.raftService.raftProtocolManager.NodeInfo()
+	return append(nodeInfo.PeerAddresses, nodeInfo.Address)
 }
