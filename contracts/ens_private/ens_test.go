@@ -38,9 +38,11 @@ func TestENS(t *testing.T) {
 	transactOpts := bind.NewKeyedTransactor(key)
 	// Workaround for bug estimating gas in the call to Register
 	transactOpts.GasLimit = big.NewInt(1000000)
+	//set privacy fields
 	privateFrom := "BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo="
-	privateFor := make([]string, 1)
+	privateFor := make([]string, 2)
 	privateFor[0] = "ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="
+	privateFor[1] = "QfeDAys9MPDs2XHExtc84jKGHxZg/aj52DTh0vtA3Xc="
 	transactOpts.PrivateFrom = privateFrom
 	transactOpts.PrivateFor = privateFor
 

@@ -242,6 +242,8 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	return signedTx, nil
 }
 
+// PreparePrivateTransaction replaces the payload data of the transaction with a
+// commitment to turn it into a private tx.
 func (c *BoundContract) preparePrivateTransaction(ctx context.Context, tx *types.Transaction, privateFrom string, privateFor []string) (*types.Transaction, error) {
 	raw, _ := rlp.EncodeToBytes(tx)
 

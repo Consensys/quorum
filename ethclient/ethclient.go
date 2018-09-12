@@ -477,6 +477,8 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", common.ToHex(data))
 }
 
+// PreparePrivateTransaction sends the encoded raw transaction to Constellation,
+// returning the encoded commitment transaction.
 func (ec *Client) PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error) {
 	if len(privateFor) == 0 {
 		return nil, errors.New("need at least one private for")
