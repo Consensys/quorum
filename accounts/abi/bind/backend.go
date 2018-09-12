@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -88,6 +89,8 @@ type ContractTransactor interface {
 	EstimateGas(ctx context.Context, call ethereum.CallMsg) (usedGas *big.Int, err error)
 	// SendTransaction injects the transaction into the pending pool for execution.
 	SendTransaction(ctx context.Context, tx *types.Transaction) error
+
+	PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error)
 }
 
 // ContractBackend defines the methods needed to work with contracts on a read-write basis.

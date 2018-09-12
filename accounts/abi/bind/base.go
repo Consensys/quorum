@@ -25,10 +25,8 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -223,8 +221,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	// If this transaction is private, we need to substitute the data payload
 	// with one from constelation.
 	if len(opts.PrivateFor) > 0 {
-		fmt.Printf("prepareing: for %v from %v", opts.PrivateFor, opts.PrivateFrom)
-		rawTx, err = preparePrivateTransaction(
+		rawTx, err = c.preparePrivateTransaction(
 			ensureContext(opts.Context), rawTx, opts.PrivateFrom, opts.PrivateFor)
 		if err != nil {
 			return nil, err
@@ -245,10 +242,10 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	return signedTx, nil
 }
 
-func preparePrivateTransaction(ctx context.Context, tx *types.Transaction, privateFrom string, privateFor []string) (*types.Transaction, error) {
+func (c *BoundContract) preparePrivateTransaction(ctx context.Context, tx *types.Transaction, privateFrom string, privateFor []string) (*types.Transaction, error) {
 	raw, _ := rlp.EncodeToBytes(tx)
 
-	privTxBytes, err := sendToPrivateTransactionManager(ctx, raw, privateFrom, privateFor)
+	privTxBytes, err := c.transactor.PreparePrivateTransaction(ctx, raw, privateFrom, privateFor)
 	if err != nil {
 		return nil, err
 	}
@@ -257,35 +254,7 @@ func preparePrivateTransaction(ctx context.Context, tx *types.Transaction, priva
 	if err := rlp.DecodeBytes(privTxBytes, tx); err != nil {
 		return nil, err
 	}
-
 	return tx, nil
-}
-
-func sendToPrivateTransactionManager(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error) {
-	if len(privateFor) == 0 {
-		return nil, errors.New("need at least one private for")
-	}
-	tx := new(types.Transaction)
-	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
-		return nil, err
-	}
-
-	if private.P == nil {
-		return nil, errors.New("constellation not set up")
-	}
-	data, err := private.P.Send(tx.Data(), privateFrom, privateFor)
-	if err != nil {
-		return nil, err
-	}
-
-	tx.SetPrivate()
-	tx.SetData(data)
-	newEncoded, err := rlp.EncodeToBytes(tx)
-	if err != nil {
-		return nil, err
-	}
-
-	return hexutil.Bytes(newEncoded), nil
 }
 
 func ensureContext(ctx context.Context) context.Context {
