@@ -339,7 +339,7 @@ func (self *worker) wait() {
 			core.WritePrivateStateRoot(self.chainDb, block.Root(), privateStateRoot)
 			allReceipts := mergeReceipts(work.receipts, work.privateReceipts)
 
-			stat, err := self.chain.WriteBlockWithState(block, allReceipts, work.state)
+			stat, err := self.chain.WriteBlockWithState(block, allReceipts, work.state, nil)
 			if err != nil {
 				log.Error("Failed writWriteBlockAndStating block to chain", "err", err)
 				continue

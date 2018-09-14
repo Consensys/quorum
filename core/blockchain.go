@@ -903,7 +903,7 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block, td *big.Int) (e
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
-func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) (status WriteStatus, err error) {
+func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state , privateState *state.StateDB) (status WriteStatus, err error) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
@@ -929,16 +929,30 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	rawdb.WriteBlock(batch, block)
 
 	root, err := state.Commit(bc.chainConfig.IsEIP158(block.Number()))
+
 	if err != nil {
 		return NonStatTy, err
 	}
 	triedb := bc.stateCache.TrieDB()
+
+	// Explicit commit for privateStateTriedb to handle Raft
+	if privateState != nil {
+		privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
+		if err != nil {
+			return NonStatTy, err
+		}
+		privateTriedb := bc.privateStateCache.TrieDB()
+		if err := privateTriedb.Commit(privateRoot, false); err != nil {
+			return NonStatTy, err
+		}
+	}
 
 	// If we're running an archive node, always flush
 	if bc.cacheConfig.Disabled {
 		if err := triedb.Commit(root, false); err != nil {
 			return NonStatTy, err
 		}
+
 	} else {
 		// Full but not archive node, do proper garbage collection
 		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
@@ -1234,7 +1248,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		proctime := time.Since(bstart)
 
 		// Write the block to the chain and get the status.
-		status, err := bc.WriteBlockWithState(block, allReceipts, state)
+		status, err := bc.WriteBlockWithState(block, allReceipts, state, privateState)
 		if err != nil {
 			return i, events, coalescedLogs, err
 		}
