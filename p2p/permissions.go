@@ -89,19 +89,19 @@ func isNodeBlackListed (nodeName, dataDir string ) bool {
 
 	path := filepath.Join(dataDir, BLACKLIST_CONFIG)
 	if _, err := os.Stat(path); err != nil {
-		log.Error("Read Error for disallowed-nodes.json file. disallowed-nodes.json file is not present.", "err", err)
+		log.Debug("Read Error for disallowed-nodes.json file. disallowed-nodes.json file is not present.", "err", err)
 		return false
 	}
 	// Load the nodes from the config file
 	blob, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Error("isNodeBlackListed: Failed to access nodes", "err", err)
+		log.Debug("isNodeBlackListed: Failed to access nodes", "err", err)
 		return false
 	}
 
 	nodelist := []string{}
 	if err := json.Unmarshal(blob, &nodelist); err != nil {
-		log.Error("parsePermissionedNodes: Failed to load nodes", "err", err)
+		log.Debug("parsePermissionedNodes: Failed to load nodes", "err", err)
 		return false
 	}
 

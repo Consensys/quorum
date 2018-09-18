@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"gopkg.in/urfave/cli.v1"
 )
 const (
@@ -151,8 +152,6 @@ func monitorNodeBlacklisting(stack *node.Node, stateReader *ethclient.Client) {
 	if err != nil {
 		log.Error ("failed to monitor new node add : ", "err" , err)
 	}
-	datadir := stack.DataDir()
-
 	ch := make(chan *PermissionsNodeBlacklisted, 1)
 
 	opts := &bind.WatchOpts{}
@@ -168,7 +167,7 @@ func monitorNodeBlacklisting(stack *node.Node, stateReader *ethclient.Client) {
 	for {
 		select {
 		case nodeBlacklistEvent = <-ch:
-			updateDisallowedNodes(nodeBlacklistEvent.EnodeId, nodeBlacklistEvent.IpAddrPort, nodeBlacklistEvent.DiscPort, nodeBlacklistEvent.RaftPort, datadir)
+			updateDisallowedNodes(nodeBlacklistEvent, stack)
 		}
     }
 }
@@ -227,7 +226,8 @@ func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir s
 }
 
 //this function populates the new node information into the permissioned-nodes.json file
-func updateDisallowedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir string){
+func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack *node.Node){
+	dataDir := stack.DataDir()
 	log.Debug("updateDisallowedNodes", "DataDir", dataDir, "file", BLACKLIST_CONFIG)
 
 	fileExisted := true
@@ -258,7 +258,7 @@ func updateDisallowedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir str
 		}
 	}
 
-	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discPort=" + discPort + "&raftport=" + raftPort
+	newEnodeId := "enode://" + nodeBlacklistEvent.EnodeId + "@" + nodeBlacklistEvent.IpAddrPort + "?discPort=" + nodeBlacklistEvent.DiscPort + "&raftport=" + nodeBlacklistEvent.RaftPort
 	log.Info("Enode id is : " , "newEnodeId", newEnodeId)
 
 	nodelist = append(nodelist, newEnodeId)
@@ -270,6 +270,20 @@ func updateDisallowedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir str
 		log.Error("updateDisallowedNodes: Error writing new node info to file", "err", err)
 	}
 	mu.Unlock()
+
+	// Disconnect the peer if it is already connected
+	server := stack.Server()
+
+	if server != nil {
+		log.Info("Inside updateDisallowedNodes: @ 278")
+		node, err := discover.ParseNode(newEnodeId)
+		if err == nil {
+			log.Info("Inside updateDisallowedNodes: @ 280", "node", node)
+			server.RemovePeer(node)
+		}
+	}
+
+
 }
 
 // Manages account level permissions update
