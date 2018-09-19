@@ -37,3 +37,7 @@ func (s *PublicRaftAPI) Leader() (string, error) {
 	}
 	return addr.nodeId.String(), nil
 }
+
+func (s *PublicRaftAPI) GetRaftId (enodeId string) (uint16, error) {
+	return s.raftService.raftProtocolManager.FetchRaftId(enodeId)
+}

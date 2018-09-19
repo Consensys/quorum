@@ -7,7 +7,6 @@ import (
 	"os"
 	"sync"
 
-	// "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/params"
@@ -15,16 +14,18 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/raft"
 	"gopkg.in/urfave/cli.v1"
 )
 const (
 	PERMISSIONED_CONFIG = "permissioned-nodes.json"
 	BLACKLIST_CONFIG = "disallowed-nodes.json"
+	RAFT = "raft"
+	ISTANBUL = "istanbul"
 )
 
 type NodeOperation uint8
-
 const (
 	NodeAdd NodeOperation = iota
 	NodeDelete
@@ -33,7 +34,6 @@ const (
 // This function first adds the node list from permissioned-nodes.json to
 // the permissiones contract deployed as a precompile via genesis.json
 func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
-
 	// Create a new ethclient to for interfacing with the contract
 	stateReader, err := createEthClient(stack)
 	if err != nil {
@@ -46,9 +46,12 @@ func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
 		log.Error ("Permissions not enabled for the network : ", "err" , err)
 		return nil
 	}
-
+	consensusEngine := ISTANBUL
+	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
+		consensusEngine = RAFT
+	} 
 	// Monitors node addition and decativation from network
-	manageNodePermissions(stack, stateReader);
+	manageNodePermissions(stack, stateReader, consensusEngine);
 
 	// Monitors account level persmissions  update from smart contarct 
 	manageAccountPermissions(stack, stateReader);
@@ -67,12 +70,11 @@ func createEthClient(stack *node.Node ) (*ethclient.Client, error){
 	if err != nil {
 		return nil, err
 	}
-
 	return ethclient.NewClient(rpcClient), nil
 }
 
 // Manages node addition and decavtivation from network
-func manageNodePermissions(stack *node.Node, stateReader *ethclient.Client) {
+func manageNodePermissions(stack *node.Node, stateReader *ethclient.Client, consensusEngine string) {
 	//monitor for new nodes addition via smart contract
 	go monitorNewNodeAdd(stack, stateReader)
 
@@ -80,13 +82,12 @@ func manageNodePermissions(stack *node.Node, stateReader *ethclient.Client) {
 	go monitorNodeDeactivation(stack, stateReader)
 
 	//monitor for nodes blacklisting via smart contract
-	go monitorNodeBlacklisting(stack, stateReader)
+	go monitorNodeBlacklisting(stack, stateReader, consensusEngine)
 }
 
 // This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
 func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client) {
-
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("failed to monitor new node add : ", "err" , err)
@@ -116,7 +117,6 @@ func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client) {
 // This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
 func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client) {
-
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("Failed to monitor node delete: ", "err" , err)
@@ -146,8 +146,7 @@ func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client) {
 
 // This function listnes on the channel for any node blacklisting event via smart contract
 // and adds the same disallowed-nodes.json
-func monitorNodeBlacklisting(stack *node.Node, stateReader *ethclient.Client) {
-
+func monitorNodeBlacklisting(stack *node.Node, stateReader *ethclient.Client, consensusEngine string) {
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("failed to monitor new node add : ", "err" , err)
@@ -167,7 +166,7 @@ func monitorNodeBlacklisting(stack *node.Node, stateReader *ethclient.Client) {
 	for {
 		select {
 		case nodeBlacklistEvent = <-ch:
-			updateDisallowedNodes(nodeBlacklistEvent, stack)
+			updateDisallowedNodes(nodeBlacklistEvent, stack, consensusEngine)
 		}
     }
 }
@@ -193,13 +192,7 @@ func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir s
 		log.Error("updatePermissionedNodes: Failed to load nodes list", "err", err)
 		return 
 	}
-
-	// HACK: currently the ip, discpot and raft port are hard coded. Need to enhance the
-	//contract to pass these variables as part of the event and change this
-	// newEnodeId := "enode://" + enodeId + "@127.0.0.1:21005?discport=0&raftport=50406"
 	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discPort=" + discPort + "&raftport=" + raftPort
-	log.Info("Enode id is : " , "newEnodeId", newEnodeId)
-
 
 	if (operation == NodeAdd){
 		nodelist = append(nodelist, newEnodeId)
@@ -222,11 +215,10 @@ func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir s
 		log.Error("updatePermissionedNodes: Error writing new node info to file", "err", err)
 	}
 	mu.Unlock()
-
 }
 
 //this function populates the new node information into the permissioned-nodes.json file
-func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack *node.Node){
+func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack *node.Node, consensusEngine string){
 	dataDir := stack.DataDir()
 	log.Debug("updateDisallowedNodes", "DataDir", dataDir, "file", BLACKLIST_CONFIG)
 
@@ -257,9 +249,7 @@ func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack
 			}
 		}
 	}
-
 	newEnodeId := "enode://" + nodeBlacklistEvent.EnodeId + "@" + nodeBlacklistEvent.IpAddrPort + "?discPort=" + nodeBlacklistEvent.DiscPort + "&raftport=" + nodeBlacklistEvent.RaftPort
-	log.Info("Enode id is : " , "newEnodeId", newEnodeId)
 
 	nodelist = append(nodelist, newEnodeId)
 
@@ -272,28 +262,26 @@ func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack
 	mu.Unlock()
 
 	// Disconnect the peer if it is already connected
-	server := stack.Server()
+	if consensusEngine == RAFT {
+		var raftService *raft.RaftService
+		if err := stack.Service(&raftService); err == nil {
+			raftApi := raft.NewPublicRaftAPI(raftService)
 
-	if server != nil {
-		log.Info("Inside updateDisallowedNodes: @ 278")
-		node, err := discover.ParseNode(newEnodeId)
-		if err == nil {
-			log.Info("Inside updateDisallowedNodes: @ 280", "node", node)
-			server.RemovePeer(node)
+			//get the raftId for the given enodeId
+			raftId, err := raftApi.GetRaftId(newEnodeId)
+			if err == nil {
+				raftApi.RemovePeer(raftId)
+			}
 		}
 	}
-
-
 }
 
 // Manages account level permissions update
 func manageAccountPermissions(stack *node.Node, stateReader *ethclient.Client) error {
-
 	//call populate nodes to populate the nodes into contract
 	if err := populateAcctPermissions (stack, stateReader); err != nil {
 		return err;
 	}
-
 	//monitor for nodes deletiin via smart contract
 	go monitorAccountPermissions(stack, stateReader)
 	return nil
@@ -302,7 +290,6 @@ func manageAccountPermissions(stack *node.Node, stateReader *ethclient.Client) e
 // populates the nodes list from permissioned-nodes.json into the permissions
 // smart contract
 func populateAcctPermissions(stack *node.Node, stateReader *ethclient.Client) error{
-
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("Failed to monitor node delete: ", "err" , err)
@@ -310,7 +297,6 @@ func populateAcctPermissions(stack *node.Node, stateReader *ethclient.Client) er
 	}
 
 	opts := &bind.FilterOpts{}
-
 	pastEvents, err := permissions.FilterAccountAccessModified(opts)
 
 	recExists := true
@@ -327,9 +313,6 @@ func populateAcctPermissions(stack *node.Node, stateReader *ethclient.Client) er
 // Monitors permissions changes at acount level and uodate the global permissions
 // map with the same
 func monitorAccountPermissions(stack *node.Node, stateReader *ethclient.Client) {
-
-	log.Info("Inside monotorAccountPermissions")
-
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("Failed to monitor Account permissions : ", "err" , err)

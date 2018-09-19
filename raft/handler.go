@@ -909,3 +909,17 @@ func (pm *ProtocolManager) LeaderAddress() (*Address, error) {
 	// We expect to reach this if pm.leader is 0, which is how etcd denotes the lack of a leader.
 	return nil, errors.New("no leader is currently elected")
 }
+
+// Returns the raft id for a given enodeId
+func (pm *ProtocolManager) FetchRaftId (enodeId string) (uint16, error) {
+	node, err := discover.ParseNode(enodeId)
+	if err != nil {
+		return 0, err
+	}
+	for raftId, peer := range pm.peers {
+		if peer.p2pNode.ID == node.ID {
+			return raftId, nil
+		}
+	}
+	return 0, fmt.Errorf("node not found in the cluster: %v", enodeId)
+}
