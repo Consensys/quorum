@@ -462,33 +462,6 @@ func (pool *TxPool) Stop() {
 	if pool.journal != nil {
 		pool.journal.close()
 	}
-	log.Info("Transaction pool stopped")
-}
-
-// SubscribeNewTxsEvent registers a subscription of NewTxsEvent and
-// starts sending event to the given channel.
-func (pool *TxPool) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subscription {
-	return pool.scope.Track(pool.txFeed.Subscribe(ch))
-}
-
-// GasPrice returns the current gas price enforced by the transaction pool.
-func (pool *TxPool) GasPrice() *big.Int {
-	pool.mu.RLock()
-	defer pool.mu.RUnlock()
-
-	return new(big.Int).Set(pool.gasPrice)
-}
-
-// SetGasPrice updates the minimum price required by the transaction pool for a
-// new transaction, and drops all transactions below this threshold.
-func (pool *TxPool) SetGasPrice(price *big.Int) {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-
-	pool.gasPrice = price
-	for _, tx := range pool.priced.Cap(price, pool.locals) {
-		pool.removeTx(tx.Hash(), false)
-	}
 	log.Info("Transaction pool price threshold updated", "price", price)
 }
 
@@ -573,7 +546,6 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
-	log.Info("Inside validateTx")
 	isQuorum := pool.chainconfig.IsQuorum
 
 	if isQuorum && tx.GasPrice().Cmp(common.Big0) != 0 {
@@ -625,7 +597,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 	// Check if the sender account is authorized to perform the transaction
 	if isQuorum {
-		log.Info("Inside if before checkAccount")
 		if err := checkAccount(from, tx.To()); err != nil {
 			return ErrUnAuthorizedAccount
 		}
@@ -643,7 +614,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // whitelisted, preventing any associated transaction from being dropped out of
 // the pool due to pricing constraints.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
-	log.Info("Inside add")
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
 	if pool.all.Get(hash) != nil {
@@ -797,7 +767,6 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 // the sender as a local one in the mean time, ensuring it goes around the local
 // pricing constraints.
 func (pool *TxPool) AddLocal(tx *types.Transaction) error {
-	log.Info("inside AddLocal")
 	return pool.addTx(tx, !pool.config.NoLocals)
 }
 
@@ -824,7 +793,6 @@ func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 
 // addTx enqueues a single transaction into the pool if it is valid.
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
-	log.Info("inside addTx")
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
@@ -1286,22 +1254,18 @@ func (t *txLookup) Remove(hash common.Hash) {
 
 // checks if the account is permissioned for transaction
 func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
-	log.Info("Inside checkAccount to validate")
 	access := types.GetAcctAccess(fromAcct)
 
 	switch access {
 	case types.FullAccess:
-		log.Info("Full Access so no issue")
 		return nil
 
 	case types.ReadOnly:
-		log.Info("Read only access cannot transact")
 		err := errors.New("Account Does not have transaction permissions")
 		return err
 
 	case types.Transact:
 		if toAcct == nil {
-			log.Info("Not entitled for contract create call ")
 			err := errors.New("Account Does not have contract create permissions")
 			return err
 		}else {
@@ -1309,13 +1273,11 @@ func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 		}
 	case types.ContractDeploy:
 		if toAcct != nil {
-			log.Info("Not entitled for transaction call ")
 			err := errors.New("Account Does not have transacte permissions")
 			return err
 		}else {
 			return nil
 		}
 	}
-	log.Info("returning nil")
 	return nil
 }
