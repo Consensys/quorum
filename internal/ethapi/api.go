@@ -1453,41 +1453,47 @@ type AsyncSendTxArgs struct {
 	CallbackUrl string `json:"callbackUrl"`
 }
 
-type AsyncResult struct {
-	TxHash common.Hash `json:"txHash,omitempty"`
-	Error  string      `json:"error,omitempty"`
+type AsyncResultSuccess struct {
 	Id     string	   `json:"id,omitempty"`
+	TxHash common.Hash `json:"txHash"`
+}
+
+type AsyncResultFailure struct {
+	Id     string	   `json:"id,omitempty"`
+	Error  string      `json:"error"`
 }
 
 func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSendTxArgs) {
-	res := new(AsyncResult)
 
-	//don't need to nil check this since id is required for every geth rpc call
-	//even though this is stated in the specification as an "optional" parameter
-	id := ctx.Value("id").(*json.RawMessage)
-	res.Id = string(*id)
+	txHash, err := s.SendTransaction(ctx, asyncArgs.SendTxArgs)
 
 	if asyncArgs.CallbackUrl != "" {
-		defer func() {
-			buf := new(bytes.Buffer)
-			err := json.NewEncoder(buf).Encode(res)
-			if err != nil {
-				log.Info("Error encoding callback JSON: %v", err)
-				return
-			}
-			_, err = http.Post(asyncArgs.CallbackUrl, "application/json", buf)
-			if err != nil {
-				log.Info("Error sending callback: %v", err)
-				return
-			}
-		}()
+
+		//don't need to nil check this since id is required for every geth rpc call
+		//even though this is stated in the specification as an "optional" parameter
+		jsonId := ctx.Value("id").(*json.RawMessage)
+		id := string(*jsonId)
+
+		var resultResponse interface{}
+		if err != nil {
+			resultResponse = &AsyncResultFailure{Id: id, Error: err.Error()}
+		} else {
+			resultResponse = &AsyncResultSuccess{Id: id, TxHash: txHash}
+		}
+
+		buf := new(bytes.Buffer)
+		err := json.NewEncoder(buf).Encode(resultResponse)
+		if err != nil {
+			log.Info("Error encoding callback JSON: %v", err)
+			return
+		}
+		_, err = http.Post(asyncArgs.CallbackUrl, "application/json", buf)
+		if err != nil {
+			log.Info("Error sending callback: %v", err)
+			return
+		}
 	}
 
-	var err error
-	res.TxHash, err = s.SendTransaction(ctx, asyncArgs.SendTxArgs)
-	if err != nil {
-		res.Error = err.Error()
-	}
 }
 
 
