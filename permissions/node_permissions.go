@@ -77,10 +77,10 @@ func createEthClient(stack *node.Node ) (*ethclient.Client, error){
 // Manages node addition and decavtivation from network
 func manageNodePermissions(stack *node.Node, stateReader *ethclient.Client, consensusEngine string) {
 	//monitor for new nodes addition via smart contract
-	go monitorNewNodeAdd(stack, stateReader)
+	go monitorNewNodeAdd(stack, stateReader, consensusEngine)
 
 	//monitor for nodes deletiin via smart contract
-	go monitorNodeDeactivation(stack, stateReader)
+	go monitorNodeDeactivation(stack, stateReader, consensusEngine)
 
 	//monitor for nodes blacklisting via smart contract
 	go monitorNodeBlacklisting(stack, stateReader, consensusEngine)
@@ -88,7 +88,7 @@ func manageNodePermissions(stack *node.Node, stateReader *ethclient.Client, cons
 
 // This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
-func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client) {
+func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client, consensusEngine string) {
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("failed to monitor new node add : ", "err" , err)
@@ -110,14 +110,14 @@ func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client) {
 	for {
 		select {
 		case nodeAddEvent = <-ch:
-			updatePermissionedNodes(nodeAddEvent.EnodeId, nodeAddEvent.IpAddrPort, nodeAddEvent.DiscPort, nodeAddEvent.RaftPort, datadir, NodeAdd)
+			updatePermissionedNodes(nodeAddEvent.EnodeId, nodeAddEvent.IpAddrPort, nodeAddEvent.DiscPort, nodeAddEvent.RaftPort, datadir, consensusEngine, NodeAdd)
 		}
     }
 }
 
 // This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
-func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client) {
+func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client, consensusEngine string) {
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("Failed to monitor node delete: ", "err" , err)
@@ -139,7 +139,7 @@ func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client) {
 	for {
 		select {
 		case newNodeDeleteEvent = <-ch:
-			updatePermissionedNodes(newNodeDeleteEvent.EnodeId, newNodeDeleteEvent.IpAddrPort, newNodeDeleteEvent.DiscPort, newNodeDeleteEvent.RaftPort, datadir, NodeDelete)
+			updatePermissionedNodes(newNodeDeleteEvent.EnodeId, newNodeDeleteEvent.IpAddrPort, newNodeDeleteEvent.DiscPort, newNodeDeleteEvent.RaftPort, datadir, consensusEngine, NodeDelete)
 	  }
 
 	}
@@ -173,7 +173,7 @@ func monitorNodeBlacklisting(stack *node.Node, stateReader *ethclient.Client, co
 }
 
 //this function populates the new node information into the permissioned-nodes.json file
-func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir string, operation NodeOperation){
+func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir, consensusEngine string, operation NodeOperation){
 	log.Debug("updatePermissionedNodes", "DataDir", dataDir, "file", PERMISSIONED_CONFIG)
 
 	path := filepath.Join(dataDir, PERMISSIONED_CONFIG)
@@ -193,7 +193,7 @@ func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir s
 		log.Error("updatePermissionedNodes: Failed to load nodes list", "err", err)
 		return 
 	}
-	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discPort=" + discPort + "&raftport=" + raftPort
+	newEnodeId := formatEnodeId(enodeId, ipAddrPort, discPort, raftPort, consensusEngine)
 
 	if (operation == NodeAdd){
 		nodelist = append(nodelist, newEnodeId)
@@ -251,7 +251,7 @@ func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack
 		}
 	}
 
-	newEnodeId := "enode://" + nodeBlacklistEvent.EnodeId + "@" + nodeBlacklistEvent.IpAddrPort + "?discPort=" + nodeBlacklistEvent.DiscPort + "&raftport=" + nodeBlacklistEvent.RaftPort
+	newEnodeId := formatEnodeId (nodeBlacklistEvent.EnodeId, nodeBlacklistEvent.IpAddrPort, nodeBlacklistEvent.DiscPort, nodeBlacklistEvent.RaftPort, consensusEngine )
 	nodelist = append(nodelist, newEnodeId)
 	mu := sync.RWMutex{}
 	blob, _ := json.Marshal(nodelist)
@@ -349,4 +349,13 @@ func disconnectNode (stack *node.Node, enodeId, consensusEngine string){
 			}
 		}
 	}
+}
+
+// helper function to format EnodeId
+func formatEnodeId( enodeId , ipAddrPort, discPort, raftPort, consensusEngine string) string {
+	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discPort=" + discPort
+	if consensusEngine == RAFT {
+		newEnodeId = enodeId +  "&raftport=" + raftPort
+	}
+	return newEnodeId
 }
