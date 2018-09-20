@@ -16,7 +16,7 @@ import (
 )
 
 // PermissionsABI is the input ABI used to generate the binding from.
-const PermissionsABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getVoteCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_voter\",\"type\":\"address\"}],\"name\":\"getVoteStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"approveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"BlacklistNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"ProposeDeactivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_index\",\"type\":\"uint256\"}],\"name\":\"getEnodeId\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"removeVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"DeactivateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_accountAccess\",\"type\":\"uint8\"}],\"name\":\"updateAccountAccess\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"},{\"name\":\"_canLead\",\"type\":\"bool\"}],\"name\":\"proposeNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_index\",\"type\":\"uint256\"}],\"name\":\"getAccountAddress\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"ProposeNodeBlacklisting\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"addVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NewNodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_accountAddress\",\"type\":\"address\"}],\"name\":\"VoteNodeApproval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_accountAddress\",\"type\":\"address\"}],\"name\":\"VoteNodeDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingBlacklisting\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_accountAddress\",\"type\":\"address\"}],\"name\":\"VoteNodeBlacklisting\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_access\",\"type\":\"uint8\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"NoVotingAccount\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterRemoved\",\"type\":\"event\"}]"
+const PermissionsABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getVoteCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_voter\",\"type\":\"address\"}],\"name\":\"getVoteStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"approveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"deactivateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"proposeDeactivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"blacklistNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"proposeNodeBlacklisting\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_index\",\"type\":\"uint256\"}],\"name\":\"getEnodeId\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"removeVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_accountAccess\",\"type\":\"uint8\"}],\"name\":\"updateAccountAccess\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"proposeNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_index\",\"type\":\"uint256\"}],\"name\":\"getAccountAddress\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"addVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_accountAddress\",\"type\":\"address\"}],\"name\":\"VoteNodeApproval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_accountAddress\",\"type\":\"address\"}],\"name\":\"VoteNodeDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingBlacklist\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_accountAddress\",\"type\":\"address\"}],\"name\":\"VoteNodeBlacklist\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_access\",\"type\":\"uint8\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"NoVotingAccount\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterRemoved\",\"type\":\"event\"}]"
 
 // Permissions is an auto generated Go binding around an Ethereum contract.
 type Permissions struct {
@@ -342,90 +342,6 @@ func (_Permissions *PermissionsCallerSession) GetVoteStatus(_enodeId string, _vo
 	return _Permissions.Contract.GetVoteStatus(&_Permissions.CallOpts, _enodeId, _voter)
 }
 
-// BlacklistNode is a paid mutator transaction binding the contract method 0x2b6f15a1.
-//
-// Solidity: function BlacklistNode(_enodeId string) returns()
-func (_Permissions *PermissionsTransactor) BlacklistNode(opts *bind.TransactOpts, _enodeId string) (*types.Transaction, error) {
-	return _Permissions.contract.Transact(opts, "BlacklistNode", _enodeId)
-}
-
-// BlacklistNode is a paid mutator transaction binding the contract method 0x2b6f15a1.
-//
-// Solidity: function BlacklistNode(_enodeId string) returns()
-func (_Permissions *PermissionsSession) BlacklistNode(_enodeId string) (*types.Transaction, error) {
-	return _Permissions.Contract.BlacklistNode(&_Permissions.TransactOpts, _enodeId)
-}
-
-// BlacklistNode is a paid mutator transaction binding the contract method 0x2b6f15a1.
-//
-// Solidity: function BlacklistNode(_enodeId string) returns()
-func (_Permissions *PermissionsTransactorSession) BlacklistNode(_enodeId string) (*types.Transaction, error) {
-	return _Permissions.Contract.BlacklistNode(&_Permissions.TransactOpts, _enodeId)
-}
-
-// DeactivateNode is a paid mutator transaction binding the contract method 0xbc67f80b.
-//
-// Solidity: function DeactivateNode(_enodeId string) returns()
-func (_Permissions *PermissionsTransactor) DeactivateNode(opts *bind.TransactOpts, _enodeId string) (*types.Transaction, error) {
-	return _Permissions.contract.Transact(opts, "DeactivateNode", _enodeId)
-}
-
-// DeactivateNode is a paid mutator transaction binding the contract method 0xbc67f80b.
-//
-// Solidity: function DeactivateNode(_enodeId string) returns()
-func (_Permissions *PermissionsSession) DeactivateNode(_enodeId string) (*types.Transaction, error) {
-	return _Permissions.Contract.DeactivateNode(&_Permissions.TransactOpts, _enodeId)
-}
-
-// DeactivateNode is a paid mutator transaction binding the contract method 0xbc67f80b.
-//
-// Solidity: function DeactivateNode(_enodeId string) returns()
-func (_Permissions *PermissionsTransactorSession) DeactivateNode(_enodeId string) (*types.Transaction, error) {
-	return _Permissions.Contract.DeactivateNode(&_Permissions.TransactOpts, _enodeId)
-}
-
-// ProposeDeactivation is a paid mutator transaction binding the contract method 0x6dcd03e0.
-//
-// Solidity: function ProposeDeactivation(_enodeId string) returns()
-func (_Permissions *PermissionsTransactor) ProposeDeactivation(opts *bind.TransactOpts, _enodeId string) (*types.Transaction, error) {
-	return _Permissions.contract.Transact(opts, "ProposeDeactivation", _enodeId)
-}
-
-// ProposeDeactivation is a paid mutator transaction binding the contract method 0x6dcd03e0.
-//
-// Solidity: function ProposeDeactivation(_enodeId string) returns()
-func (_Permissions *PermissionsSession) ProposeDeactivation(_enodeId string) (*types.Transaction, error) {
-	return _Permissions.Contract.ProposeDeactivation(&_Permissions.TransactOpts, _enodeId)
-}
-
-// ProposeDeactivation is a paid mutator transaction binding the contract method 0x6dcd03e0.
-//
-// Solidity: function ProposeDeactivation(_enodeId string) returns()
-func (_Permissions *PermissionsTransactorSession) ProposeDeactivation(_enodeId string) (*types.Transaction, error) {
-	return _Permissions.Contract.ProposeDeactivation(&_Permissions.TransactOpts, _enodeId)
-}
-
-// ProposeNodeBlacklisting is a paid mutator transaction binding the contract method 0xf06be99b.
-//
-// Solidity: function ProposeNodeBlacklisting(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) returns()
-func (_Permissions *PermissionsTransactor) ProposeNodeBlacklisting(opts *bind.TransactOpts, _enodeId string, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
-	return _Permissions.contract.Transact(opts, "ProposeNodeBlacklisting", _enodeId, _ipAddrPort, _discPort, _raftPort)
-}
-
-// ProposeNodeBlacklisting is a paid mutator transaction binding the contract method 0xf06be99b.
-//
-// Solidity: function ProposeNodeBlacklisting(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) returns()
-func (_Permissions *PermissionsSession) ProposeNodeBlacklisting(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
-	return _Permissions.Contract.ProposeNodeBlacklisting(&_Permissions.TransactOpts, _enodeId, _ipAddrPort, _discPort, _raftPort)
-}
-
-// ProposeNodeBlacklisting is a paid mutator transaction binding the contract method 0xf06be99b.
-//
-// Solidity: function ProposeNodeBlacklisting(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) returns()
-func (_Permissions *PermissionsTransactorSession) ProposeNodeBlacklisting(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
-	return _Permissions.Contract.ProposeNodeBlacklisting(&_Permissions.TransactOpts, _enodeId, _ipAddrPort, _discPort, _raftPort)
-}
-
 // AddVoter is a paid mutator transaction binding the contract method 0xf4ab9adf.
 //
 // Solidity: function addVoter(_address address) returns()
@@ -468,25 +384,109 @@ func (_Permissions *PermissionsTransactorSession) ApproveNode(_enodeId string) (
 	return _Permissions.Contract.ApproveNode(&_Permissions.TransactOpts, _enodeId)
 }
 
-// ProposeNode is a paid mutator transaction binding the contract method 0xd17ee21e.
+// BlacklistNode is a paid mutator transaction binding the contract method 0x487363f9.
 //
-// Solidity: function proposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) returns()
-func (_Permissions *PermissionsTransactor) ProposeNode(opts *bind.TransactOpts, _enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) (*types.Transaction, error) {
-	return _Permissions.contract.Transact(opts, "proposeNode", _enodeId, _ipAddrPort, _discPort, _raftPort, _canLead)
+// Solidity: function blacklistNode(_enodeId string) returns()
+func (_Permissions *PermissionsTransactor) BlacklistNode(opts *bind.TransactOpts, _enodeId string) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "blacklistNode", _enodeId)
 }
 
-// ProposeNode is a paid mutator transaction binding the contract method 0xd17ee21e.
+// BlacklistNode is a paid mutator transaction binding the contract method 0x487363f9.
 //
-// Solidity: function proposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) returns()
-func (_Permissions *PermissionsSession) ProposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) (*types.Transaction, error) {
-	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _ipAddrPort, _discPort, _raftPort, _canLead)
+// Solidity: function blacklistNode(_enodeId string) returns()
+func (_Permissions *PermissionsSession) BlacklistNode(_enodeId string) (*types.Transaction, error) {
+	return _Permissions.Contract.BlacklistNode(&_Permissions.TransactOpts, _enodeId)
 }
 
-// ProposeNode is a paid mutator transaction binding the contract method 0xd17ee21e.
+// BlacklistNode is a paid mutator transaction binding the contract method 0x487363f9.
 //
-// Solidity: function proposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) returns()
-func (_Permissions *PermissionsTransactorSession) ProposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string, _canLead bool) (*types.Transaction, error) {
-	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _ipAddrPort, _discPort, _raftPort, _canLead)
+// Solidity: function blacklistNode(_enodeId string) returns()
+func (_Permissions *PermissionsTransactorSession) BlacklistNode(_enodeId string) (*types.Transaction, error) {
+	return _Permissions.Contract.BlacklistNode(&_Permissions.TransactOpts, _enodeId)
+}
+
+// DeactivateNode is a paid mutator transaction binding the contract method 0x420c26de.
+//
+// Solidity: function deactivateNode(_enodeId string) returns()
+func (_Permissions *PermissionsTransactor) DeactivateNode(opts *bind.TransactOpts, _enodeId string) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "deactivateNode", _enodeId)
+}
+
+// DeactivateNode is a paid mutator transaction binding the contract method 0x420c26de.
+//
+// Solidity: function deactivateNode(_enodeId string) returns()
+func (_Permissions *PermissionsSession) DeactivateNode(_enodeId string) (*types.Transaction, error) {
+	return _Permissions.Contract.DeactivateNode(&_Permissions.TransactOpts, _enodeId)
+}
+
+// DeactivateNode is a paid mutator transaction binding the contract method 0x420c26de.
+//
+// Solidity: function deactivateNode(_enodeId string) returns()
+func (_Permissions *PermissionsTransactorSession) DeactivateNode(_enodeId string) (*types.Transaction, error) {
+	return _Permissions.Contract.DeactivateNode(&_Permissions.TransactOpts, _enodeId)
+}
+
+// ProposeDeactivation is a paid mutator transaction binding the contract method 0x47b8fe57.
+//
+// Solidity: function proposeDeactivation(_enodeId string) returns()
+func (_Permissions *PermissionsTransactor) ProposeDeactivation(opts *bind.TransactOpts, _enodeId string) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "proposeDeactivation", _enodeId)
+}
+
+// ProposeDeactivation is a paid mutator transaction binding the contract method 0x47b8fe57.
+//
+// Solidity: function proposeDeactivation(_enodeId string) returns()
+func (_Permissions *PermissionsSession) ProposeDeactivation(_enodeId string) (*types.Transaction, error) {
+	return _Permissions.Contract.ProposeDeactivation(&_Permissions.TransactOpts, _enodeId)
+}
+
+// ProposeDeactivation is a paid mutator transaction binding the contract method 0x47b8fe57.
+//
+// Solidity: function proposeDeactivation(_enodeId string) returns()
+func (_Permissions *PermissionsTransactorSession) ProposeDeactivation(_enodeId string) (*types.Transaction, error) {
+	return _Permissions.Contract.ProposeDeactivation(&_Permissions.TransactOpts, _enodeId)
+}
+
+// ProposeNode is a paid mutator transaction binding the contract method 0xc7ab7ccf.
+//
+// Solidity: function proposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) returns()
+func (_Permissions *PermissionsTransactor) ProposeNode(opts *bind.TransactOpts, _enodeId string, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "proposeNode", _enodeId, _ipAddrPort, _discPort, _raftPort)
+}
+
+// ProposeNode is a paid mutator transaction binding the contract method 0xc7ab7ccf.
+//
+// Solidity: function proposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) returns()
+func (_Permissions *PermissionsSession) ProposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
+	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _ipAddrPort, _discPort, _raftPort)
+}
+
+// ProposeNode is a paid mutator transaction binding the contract method 0xc7ab7ccf.
+//
+// Solidity: function proposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) returns()
+func (_Permissions *PermissionsTransactorSession) ProposeNode(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
+	return _Permissions.Contract.ProposeNode(&_Permissions.TransactOpts, _enodeId, _ipAddrPort, _discPort, _raftPort)
+}
+
+// ProposeNodeBlacklisting is a paid mutator transaction binding the contract method 0x60514a5a.
+//
+// Solidity: function proposeNodeBlacklisting(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) returns()
+func (_Permissions *PermissionsTransactor) ProposeNodeBlacklisting(opts *bind.TransactOpts, _enodeId string, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
+	return _Permissions.contract.Transact(opts, "proposeNodeBlacklisting", _enodeId, _ipAddrPort, _discPort, _raftPort)
+}
+
+// ProposeNodeBlacklisting is a paid mutator transaction binding the contract method 0x60514a5a.
+//
+// Solidity: function proposeNodeBlacklisting(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) returns()
+func (_Permissions *PermissionsSession) ProposeNodeBlacklisting(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
+	return _Permissions.Contract.ProposeNodeBlacklisting(&_Permissions.TransactOpts, _enodeId, _ipAddrPort, _discPort, _raftPort)
+}
+
+// ProposeNodeBlacklisting is a paid mutator transaction binding the contract method 0x60514a5a.
+//
+// Solidity: function proposeNodeBlacklisting(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) returns()
+func (_Permissions *PermissionsTransactorSession) ProposeNodeBlacklisting(_enodeId string, _ipAddrPort string, _discPort string, _raftPort string) (*types.Transaction, error) {
+	return _Permissions.Contract.ProposeNodeBlacklisting(&_Permissions.TransactOpts, _enodeId, _ipAddrPort, _discPort, _raftPort)
 }
 
 // RemoveVoter is a paid mutator transaction binding the contract method 0x86c1ff68.
@@ -634,128 +634,6 @@ func (_Permissions *PermissionsFilterer) WatchAccountAccessModified(opts *bind.W
 				// New log arrived, parse the event and forward to the user
 				event := new(PermissionsAccountAccessModified)
 				if err := _Permissions.contract.UnpackLog(event, "AccountAccessModified", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// PermissionsNewNodeProposedIterator is returned from FilterNewNodeProposed and is used to iterate over the raw logs and unpacked data for NewNodeProposed events raised by the Permissions contract.
-type PermissionsNewNodeProposedIterator struct {
-	Event *PermissionsNewNodeProposed // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *PermissionsNewNodeProposedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(PermissionsNewNodeProposed)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(PermissionsNewNodeProposed)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *PermissionsNewNodeProposedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *PermissionsNewNodeProposedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// PermissionsNewNodeProposed represents a NewNodeProposed event raised by the Permissions contract.
-type PermissionsNewNodeProposed struct {
-	EnodeId string
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterNewNodeProposed is a free log retrieval operation binding the contract event 0xe370df14cec622d932b6c03454042c48c2815c9f96d22ab2bdb2e7171d96eb00.
-//
-// Solidity: e NewNodeProposed(_enodeId string)
-func (_Permissions *PermissionsFilterer) FilterNewNodeProposed(opts *bind.FilterOpts) (*PermissionsNewNodeProposedIterator, error) {
-
-	logs, sub, err := _Permissions.contract.FilterLogs(opts, "NewNodeProposed")
-	if err != nil {
-		return nil, err
-	}
-	return &PermissionsNewNodeProposedIterator{contract: _Permissions.contract, event: "NewNodeProposed", logs: logs, sub: sub}, nil
-}
-
-// WatchNewNodeProposed is a free log subscription operation binding the contract event 0xe370df14cec622d932b6c03454042c48c2815c9f96d22ab2bdb2e7171d96eb00.
-//
-// Solidity: e NewNodeProposed(_enodeId string)
-func (_Permissions *PermissionsFilterer) WatchNewNodeProposed(opts *bind.WatchOpts, sink chan<- *PermissionsNewNodeProposed) (event.Subscription, error) {
-
-	logs, sub, err := _Permissions.contract.WatchLogs(opts, "NewNodeProposed")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(PermissionsNewNodeProposed)
-				if err := _Permissions.contract.UnpackLog(event, "NewNodeProposed", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1272,9 +1150,9 @@ func (_Permissions *PermissionsFilterer) WatchNodeDeactivated(opts *bind.WatchOp
 	}), nil
 }
 
-// PermissionsNodePendingBlacklistingIterator is returned from FilterNodePendingBlacklisting and is used to iterate over the raw logs and unpacked data for NodePendingBlacklisting events raised by the Permissions contract.
-type PermissionsNodePendingBlacklistingIterator struct {
-	Event *PermissionsNodePendingBlacklisting // Event containing the contract specifics and raw log
+// PermissionsNodePendingBlacklistIterator is returned from FilterNodePendingBlacklist and is used to iterate over the raw logs and unpacked data for NodePendingBlacklist events raised by the Permissions contract.
+type PermissionsNodePendingBlacklistIterator struct {
+	Event *PermissionsNodePendingBlacklist // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1288,7 +1166,7 @@ type PermissionsNodePendingBlacklistingIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *PermissionsNodePendingBlacklistingIterator) Next() bool {
+func (it *PermissionsNodePendingBlacklistIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1297,7 +1175,7 @@ func (it *PermissionsNodePendingBlacklistingIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(PermissionsNodePendingBlacklisting)
+			it.Event = new(PermissionsNodePendingBlacklist)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1312,7 +1190,7 @@ func (it *PermissionsNodePendingBlacklistingIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(PermissionsNodePendingBlacklisting)
+		it.Event = new(PermissionsNodePendingBlacklist)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1328,41 +1206,41 @@ func (it *PermissionsNodePendingBlacklistingIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *PermissionsNodePendingBlacklistingIterator) Error() error {
+func (it *PermissionsNodePendingBlacklistIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *PermissionsNodePendingBlacklistingIterator) Close() error {
+func (it *PermissionsNodePendingBlacklistIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// PermissionsNodePendingBlacklisting represents a NodePendingBlacklisting event raised by the Permissions contract.
-type PermissionsNodePendingBlacklisting struct {
+// PermissionsNodePendingBlacklist represents a NodePendingBlacklist event raised by the Permissions contract.
+type PermissionsNodePendingBlacklist struct {
 	EnodeId string
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterNodePendingBlacklisting is a free log retrieval operation binding the contract event 0xb72401fcad1677cdc28a305cfafaaec7f95e3be1fdddc2053d10e87e4997532b.
+// FilterNodePendingBlacklist is a free log retrieval operation binding the contract event 0xb249ebebf429f1c79f3c9663998b3e22d45f242de6527c4a95e41d4d28115d74.
 //
-// Solidity: e NodePendingBlacklisting(_enodeId string)
-func (_Permissions *PermissionsFilterer) FilterNodePendingBlacklisting(opts *bind.FilterOpts) (*PermissionsNodePendingBlacklistingIterator, error) {
+// Solidity: e NodePendingBlacklist(_enodeId string)
+func (_Permissions *PermissionsFilterer) FilterNodePendingBlacklist(opts *bind.FilterOpts) (*PermissionsNodePendingBlacklistIterator, error) {
 
-	logs, sub, err := _Permissions.contract.FilterLogs(opts, "NodePendingBlacklisting")
+	logs, sub, err := _Permissions.contract.FilterLogs(opts, "NodePendingBlacklist")
 	if err != nil {
 		return nil, err
 	}
-	return &PermissionsNodePendingBlacklistingIterator{contract: _Permissions.contract, event: "NodePendingBlacklisting", logs: logs, sub: sub}, nil
+	return &PermissionsNodePendingBlacklistIterator{contract: _Permissions.contract, event: "NodePendingBlacklist", logs: logs, sub: sub}, nil
 }
 
-// WatchNodePendingBlacklisting is a free log subscription operation binding the contract event 0xb72401fcad1677cdc28a305cfafaaec7f95e3be1fdddc2053d10e87e4997532b.
+// WatchNodePendingBlacklist is a free log subscription operation binding the contract event 0xb249ebebf429f1c79f3c9663998b3e22d45f242de6527c4a95e41d4d28115d74.
 //
-// Solidity: e NodePendingBlacklisting(_enodeId string)
-func (_Permissions *PermissionsFilterer) WatchNodePendingBlacklisting(opts *bind.WatchOpts, sink chan<- *PermissionsNodePendingBlacklisting) (event.Subscription, error) {
+// Solidity: e NodePendingBlacklist(_enodeId string)
+func (_Permissions *PermissionsFilterer) WatchNodePendingBlacklist(opts *bind.WatchOpts, sink chan<- *PermissionsNodePendingBlacklist) (event.Subscription, error) {
 
-	logs, sub, err := _Permissions.contract.WatchLogs(opts, "NodePendingBlacklisting")
+	logs, sub, err := _Permissions.contract.WatchLogs(opts, "NodePendingBlacklist")
 	if err != nil {
 		return nil, err
 	}
@@ -1372,8 +1250,8 @@ func (_Permissions *PermissionsFilterer) WatchNodePendingBlacklisting(opts *bind
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(PermissionsNodePendingBlacklisting)
-				if err := _Permissions.contract.UnpackLog(event, "NodePendingBlacklisting", log); err != nil {
+				event := new(PermissionsNodePendingBlacklist)
+				if err := _Permissions.contract.UnpackLog(event, "NodePendingBlacklist", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1496,6 +1374,128 @@ func (_Permissions *PermissionsFilterer) WatchNodePendingDeactivation(opts *bind
 				// New log arrived, parse the event and forward to the user
 				event := new(PermissionsNodePendingDeactivation)
 				if err := _Permissions.contract.UnpackLog(event, "NodePendingDeactivation", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// PermissionsNodeProposedIterator is returned from FilterNodeProposed and is used to iterate over the raw logs and unpacked data for NodeProposed events raised by the Permissions contract.
+type PermissionsNodeProposedIterator struct {
+	Event *PermissionsNodeProposed // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PermissionsNodeProposedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PermissionsNodeProposed)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PermissionsNodeProposed)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PermissionsNodeProposedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PermissionsNodeProposedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PermissionsNodeProposed represents a NodeProposed event raised by the Permissions contract.
+type PermissionsNodeProposed struct {
+	EnodeId string
+	Raw     types.Log // Blockchain specific contextual infos
+}
+
+// FilterNodeProposed is a free log retrieval operation binding the contract event 0xaddedf3fcf588a85e0b0c3210c30da3f5597ae35221859f7e19427397a2ba80a.
+//
+// Solidity: e NodeProposed(_enodeId string)
+func (_Permissions *PermissionsFilterer) FilterNodeProposed(opts *bind.FilterOpts) (*PermissionsNodeProposedIterator, error) {
+
+	logs, sub, err := _Permissions.contract.FilterLogs(opts, "NodeProposed")
+	if err != nil {
+		return nil, err
+	}
+	return &PermissionsNodeProposedIterator{contract: _Permissions.contract, event: "NodeProposed", logs: logs, sub: sub}, nil
+}
+
+// WatchNodeProposed is a free log subscription operation binding the contract event 0xaddedf3fcf588a85e0b0c3210c30da3f5597ae35221859f7e19427397a2ba80a.
+//
+// Solidity: e NodeProposed(_enodeId string)
+func (_Permissions *PermissionsFilterer) WatchNodeProposed(opts *bind.WatchOpts, sink chan<- *PermissionsNodeProposed) (event.Subscription, error) {
+
+	logs, sub, err := _Permissions.contract.WatchLogs(opts, "NodeProposed")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PermissionsNodeProposed)
+				if err := _Permissions.contract.UnpackLog(event, "NodeProposed", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1639,9 +1639,9 @@ func (_Permissions *PermissionsFilterer) WatchVoteNodeApproval(opts *bind.WatchO
 	}), nil
 }
 
-// PermissionsVoteNodeBlacklistingIterator is returned from FilterVoteNodeBlacklisting and is used to iterate over the raw logs and unpacked data for VoteNodeBlacklisting events raised by the Permissions contract.
-type PermissionsVoteNodeBlacklistingIterator struct {
-	Event *PermissionsVoteNodeBlacklisting // Event containing the contract specifics and raw log
+// PermissionsVoteNodeBlacklistIterator is returned from FilterVoteNodeBlacklist and is used to iterate over the raw logs and unpacked data for VoteNodeBlacklist events raised by the Permissions contract.
+type PermissionsVoteNodeBlacklistIterator struct {
+	Event *PermissionsVoteNodeBlacklist // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1655,7 +1655,7 @@ type PermissionsVoteNodeBlacklistingIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *PermissionsVoteNodeBlacklistingIterator) Next() bool {
+func (it *PermissionsVoteNodeBlacklistIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1664,7 +1664,7 @@ func (it *PermissionsVoteNodeBlacklistingIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(PermissionsVoteNodeBlacklisting)
+			it.Event = new(PermissionsVoteNodeBlacklist)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1679,7 +1679,7 @@ func (it *PermissionsVoteNodeBlacklistingIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(PermissionsVoteNodeBlacklisting)
+		it.Event = new(PermissionsVoteNodeBlacklist)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1695,42 +1695,42 @@ func (it *PermissionsVoteNodeBlacklistingIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *PermissionsVoteNodeBlacklistingIterator) Error() error {
+func (it *PermissionsVoteNodeBlacklistIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *PermissionsVoteNodeBlacklistingIterator) Close() error {
+func (it *PermissionsVoteNodeBlacklistIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// PermissionsVoteNodeBlacklisting represents a VoteNodeBlacklisting event raised by the Permissions contract.
-type PermissionsVoteNodeBlacklisting struct {
+// PermissionsVoteNodeBlacklist represents a VoteNodeBlacklist event raised by the Permissions contract.
+type PermissionsVoteNodeBlacklist struct {
 	EnodeId        string
 	AccountAddress common.Address
 	Raw            types.Log // Blockchain specific contextual infos
 }
 
-// FilterVoteNodeBlacklisting is a free log retrieval operation binding the contract event 0x7b47daedb068c066c91497354cad573e606ea26b05754a6a6cb6d4cb753ef089.
+// FilterVoteNodeBlacklist is a free log retrieval operation binding the contract event 0xe5db3c593cd193882142dc86075a90f3b5075cbe3df4f433517393e29aa7327f.
 //
-// Solidity: e VoteNodeBlacklisting(_enodeId string, _accountAddress address)
-func (_Permissions *PermissionsFilterer) FilterVoteNodeBlacklisting(opts *bind.FilterOpts) (*PermissionsVoteNodeBlacklistingIterator, error) {
+// Solidity: e VoteNodeBlacklist(_enodeId string, _accountAddress address)
+func (_Permissions *PermissionsFilterer) FilterVoteNodeBlacklist(opts *bind.FilterOpts) (*PermissionsVoteNodeBlacklistIterator, error) {
 
-	logs, sub, err := _Permissions.contract.FilterLogs(opts, "VoteNodeBlacklisting")
+	logs, sub, err := _Permissions.contract.FilterLogs(opts, "VoteNodeBlacklist")
 	if err != nil {
 		return nil, err
 	}
-	return &PermissionsVoteNodeBlacklistingIterator{contract: _Permissions.contract, event: "VoteNodeBlacklisting", logs: logs, sub: sub}, nil
+	return &PermissionsVoteNodeBlacklistIterator{contract: _Permissions.contract, event: "VoteNodeBlacklist", logs: logs, sub: sub}, nil
 }
 
-// WatchVoteNodeBlacklisting is a free log subscription operation binding the contract event 0x7b47daedb068c066c91497354cad573e606ea26b05754a6a6cb6d4cb753ef089.
+// WatchVoteNodeBlacklist is a free log subscription operation binding the contract event 0xe5db3c593cd193882142dc86075a90f3b5075cbe3df4f433517393e29aa7327f.
 //
-// Solidity: e VoteNodeBlacklisting(_enodeId string, _accountAddress address)
-func (_Permissions *PermissionsFilterer) WatchVoteNodeBlacklisting(opts *bind.WatchOpts, sink chan<- *PermissionsVoteNodeBlacklisting) (event.Subscription, error) {
+// Solidity: e VoteNodeBlacklist(_enodeId string, _accountAddress address)
+func (_Permissions *PermissionsFilterer) WatchVoteNodeBlacklist(opts *bind.WatchOpts, sink chan<- *PermissionsVoteNodeBlacklist) (event.Subscription, error) {
 
-	logs, sub, err := _Permissions.contract.WatchLogs(opts, "VoteNodeBlacklisting")
+	logs, sub, err := _Permissions.contract.WatchLogs(opts, "VoteNodeBlacklist")
 	if err != nil {
 		return nil, err
 	}
@@ -1740,8 +1740,8 @@ func (_Permissions *PermissionsFilterer) WatchVoteNodeBlacklisting(opts *bind.Wa
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(PermissionsVoteNodeBlacklisting)
-				if err := _Permissions.contract.UnpackLog(event, "VoteNodeBlacklisting", log); err != nil {
+				event := new(PermissionsVoteNodeBlacklist)
+				if err := _Permissions.contract.UnpackLog(event, "VoteNodeBlacklist", log); err != nil {
 					return err
 				}
 				event.Raw = log
