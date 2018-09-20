@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/raft"
 	"gopkg.in/urfave/cli.v1"
@@ -249,10 +250,9 @@ func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack
 			}
 		}
 	}
+
 	newEnodeId := "enode://" + nodeBlacklistEvent.EnodeId + "@" + nodeBlacklistEvent.IpAddrPort + "?discPort=" + nodeBlacklistEvent.DiscPort + "&raftport=" + nodeBlacklistEvent.RaftPort
-
 	nodelist = append(nodelist, newEnodeId)
-
 	mu := sync.RWMutex{}
 	blob, _ := json.Marshal(nodelist)
 	mu.Lock()
@@ -262,18 +262,7 @@ func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack
 	mu.Unlock()
 
 	// Disconnect the peer if it is already connected
-	if consensusEngine == RAFT {
-		var raftService *raft.RaftService
-		if err := stack.Service(&raftService); err == nil {
-			raftApi := raft.NewPublicRaftAPI(raftService)
-
-			//get the raftId for the given enodeId
-			raftId, err := raftApi.GetRaftId(newEnodeId)
-			if err == nil {
-				raftApi.RemovePeer(raftId)
-			}
-		}
-	}
+	disconnectNode(stack, newEnodeId, consensusEngine)
 }
 
 // Manages account level permissions update
@@ -335,4 +324,29 @@ func monitorAccountPermissions(stack *node.Node, stateReader *ethclient.Client) 
 			types.AddAccountAccess(newEvent.Address, newEvent.Access)
 		}
     }
+}
+
+// Disconnect the node from the network
+func disconnectNode (stack *node.Node, enodeId, consensusEngine string){
+	if consensusEngine == RAFT {
+		var raftService *raft.RaftService
+		if err := stack.Service(&raftService); err == nil {
+			raftApi := raft.NewPublicRaftAPI(raftService)
+
+			//get the raftId for the given enodeId
+			raftId, err := raftApi.GetRaftId(enodeId)
+			if err == nil {
+				raftApi.RemovePeer(raftId)
+			}
+		}
+	} else {
+		// Istanbul - disconnect the peer
+		server := stack.Server()
+		if server != nil {
+			node, err := discover.ParseNode(enodeId)
+			if err == nil {
+				server.RemovePeer(node)
+			}
+		}
+	}
 }
