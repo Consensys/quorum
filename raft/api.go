@@ -35,5 +35,10 @@ func (s *PublicRaftAPI) Leader() (string, error) {
 	if nil != err {
 		return "", err
 	}
-	return addr.nodeId.String(), nil
+	return addr.NodeId.String(), nil
+}
+
+func (s *PublicRaftAPI) Cluster() []*Address {
+	nodeInfo := s.raftService.raftProtocolManager.NodeInfo()
+	return append(nodeInfo.PeerAddresses, nodeInfo.Address)
 }

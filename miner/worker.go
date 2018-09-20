@@ -150,7 +150,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, coinbase com
 		unconfirmed:    newUnconfirmedBlocks(eth.BlockChain(), miningLogAtDepth),
 	}
 
-	if _, ok := engine.(consensus.Istanbul); ok || !config.IsQuorum {
+	if _, ok := engine.(consensus.Istanbul); ok || !config.IsQuorum || config.Clique != nil {
 		// Subscribe TxPreEvent for tx pool
 		worker.txSub = eth.TxPool().SubscribeTxPreEvent(worker.txCh)
 		// Subscribe events for blockchain

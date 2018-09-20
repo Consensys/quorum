@@ -624,17 +624,17 @@ func (pm *ProtocolManager) entriesToApply(allEntries []raftpb.Entry) (entriesToA
 }
 
 func raftUrl(address *Address) string {
-	return fmt.Sprintf("http://%s:%d", address.ip, address.raftPort)
+	return fmt.Sprintf("http://%s:%d", address.Ip, address.RaftPort)
 }
 
 func (pm *ProtocolManager) addPeer(address *Address) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	raftId := address.raftId
+	raftId := address.RaftId
 
 	// Add P2P connection:
-	p2pNode := discover.NewNode(address.nodeId, address.ip, 0, uint16(address.p2pPort))
+	p2pNode := discover.NewNode(address.NodeId, address.Ip, 0, uint16(address.P2pPort))
 	pm.p2pServer.AddPeer(p2pNode)
 
 	// Add raft transport connection:
