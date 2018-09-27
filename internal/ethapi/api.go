@@ -388,10 +388,13 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	isPrivate := args.PrivateFor != nil
 
 	if isPrivate {
+		// Resolve the PrivateFrom - if its a org which is linked multiple constellation keys,
+		// this will fetch the linked constellation ids
+		privateFor := resolvePrivateFor(args.PrivateFor)
 		data := []byte(*args.Data)
-		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
+		data, err := private.P.Send(data, args.PrivateFrom, privateFor)
+		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
 		if err != nil {
 			return common.Hash{}, err
 		}
@@ -1280,10 +1283,13 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 			log.Info("args.data is nil")
 		}
 
+		// Resolve the PrivateFrom - if its a org which is linked multiple constellation keys,
+		// this will fetch the linked constellation ids
+		privateFor := resolvePrivateFor(args.PrivateFor)
 		//Send private transaction to local Constellation node
-		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
+		data, err = private.P.Send(data, args.PrivateFrom, privateFor)
+		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
 		if err != nil {
 			return common.Hash{}, err
 		}
@@ -1710,4 +1716,17 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 		return "", err
 	}
 	return fmt.Sprintf("0x%x", data), nil
+}
+
+func resolvePrivateFor(privateFor []string) []string{
+
+	var newPrivateFor []string
+
+	for _, value := range privateFor {
+		keys := types.ResolvePrivateForKeys(value)
+		newPrivateFor = append(newPrivateFor, keys...)
+	}
+
+	return newPrivateFor
+
 }
