@@ -300,12 +300,29 @@ func TestValidateTx_whenValueNonZeroTransferForPrivateTransaction(t *testing.T) 
 	pool, key := setupQuorumTxPool()
 	defer pool.Stop()
 	arbitraryValue := common.Big3
+	arbitraryTx, balance, from := newPrivateTransaction(arbitraryValue, nil, key)
+	pool.currentState.AddBalance(from, balance)
+
+	if err := pool.AddRemote(arbitraryTx); err != ErrEtherValueUnsupported {
+		t.Error("expected: ", ErrEtherValueUnsupported, "; got:", err)
+	}
+}
+
+func newPrivateTransaction(value *big.Int, data []byte, key *ecdsa.PrivateKey) (*types.Transaction, *big.Int, common.Address) {
 	zeroGasPrice := common.Big0
 	defaultTxPoolGasLimit := big.NewInt(1000000)
-	arbitraryTx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, arbitraryValue, defaultTxPoolGasLimit, zeroGasPrice, nil), types.HomesteadSigner{}, key)
+	arbitraryTx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, value, defaultTxPoolGasLimit, zeroGasPrice, data), types.HomesteadSigner{}, key)
 	arbitraryTx.SetPrivate()
 	balance := new(big.Int).Add(arbitraryTx.Value(), new(big.Int).Mul(arbitraryTx.Gas(), arbitraryTx.GasPrice()))
 	from, _ := deriveSender(arbitraryTx)
+	return arbitraryTx, balance, from
+}
+
+func TestValidateTx_whenValueNonZeroWithSmartContractForPrivateTransaction(t *testing.T) {
+	pool, key := setupQuorumTxPool()
+	defer pool.Stop()
+	arbitraryValue := common.Big3
+	arbitraryTx, balance, from := newPrivateTransaction(arbitraryValue, []byte("arbitrary bytecode"), key)
 	pool.currentState.AddBalance(from, balance)
 
 	if err := pool.AddRemote(arbitraryTx); err != ErrEtherValueUnsupported {

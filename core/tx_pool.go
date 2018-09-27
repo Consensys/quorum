@@ -585,7 +585,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrNonceTooLow
 	}
 	// Ether value is not currently supported on private transactions
-	if tx.IsPrivate() && len(tx.Data()) == 0 {
+	if tx.IsPrivate() && (len(tx.Data()) == 0 || tx.Value().Sign() != 0) {
 		return ErrEtherValueUnsupported
 	}
 	// Transactor should have enough funds to cover the costs
