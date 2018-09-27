@@ -1744,7 +1744,6 @@ func testDeliverHeadersHang(t *testing.T, protocol int, mode SyncMode) {
 			peer:   tester.downloader.peers.peers["peer"].peer,
 			tester: tester,
 		}
-
 		if err := tester.sync("peer", nil, mode); err != nil {
 			t.Errorf("test %d: sync failed: %v", i, err)
 		}

@@ -1,3 +1,5 @@
+# simplifed version of the upstream travis configuration
+
 language: go
 go_import_path: github.com/ethereum/go-ethereum
 sudo: false

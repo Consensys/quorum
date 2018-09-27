@@ -274,17 +274,28 @@ func (pm *ProtocolManager) isRaftIdUsed(raftId uint16) bool {
 	return pm.peers[raftId] != nil
 }
 
-func (pm *ProtocolManager) isP2pNodeInCluster(node *discover.Node) bool {
+func (pm *ProtocolManager) isNodeAlreadyInCluster(node *discover.Node) error {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
 	for _, peer := range pm.peers {
-		if peer.p2pNode.ID == node.ID {
-			return true
+		peerRaftId := peer.address.RaftId
+		peerNode := peer.p2pNode
+
+		if peerNode.ID == node.ID {
+			return fmt.Errorf("node with this enode has already been added to the cluster: %v", node.ID)
+		}
+
+		if peerNode.IP.Equal(node.IP) {
+			if peerNode.TCP == node.TCP {
+				return fmt.Errorf("existing node %v with raft ID %v is already using eth p2p at %v:%v", peerNode.ID, peerRaftId, node.IP, node.TCP)
+			} else if peer.address.RaftPort == node.RaftPort {
+				return fmt.Errorf("existing node %v with raft ID %v is already using raft at %v:%v", peerNode.ID, peerRaftId, node.IP, node.RaftPort)
+			}
 		}
 	}
 
-	return false
+	return nil
 }
 
 func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
@@ -293,16 +304,16 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 		return 0, err
 	}
 
-	if pm.isP2pNodeInCluster(node) {
-		return 0, fmt.Errorf("node is already in the cluster: %v", enodeId)
-	}
-
 	if len(node.IP) != 4 {
 		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP))
 	}
 
 	if !node.HasRaftPort() {
 		return 0, fmt.Errorf("enodeId is missing raftport querystring parameter: %v", enodeId)
+	}
+
+	if err := pm.isNodeAlreadyInCluster(node); err != nil {
+		return 0, err
 	}
 
 	raftId := pm.nextRaftId()
@@ -624,17 +635,17 @@ func (pm *ProtocolManager) entriesToApply(allEntries []raftpb.Entry) (entriesToA
 }
 
 func raftUrl(address *Address) string {
-	return fmt.Sprintf("http://%s:%d", address.ip, address.raftPort)
+	return fmt.Sprintf("http://%s:%d", address.Ip, address.RaftPort)
 }
 
 func (pm *ProtocolManager) addPeer(address *Address) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	raftId := address.raftId
+	raftId := address.RaftId
 
 	// Add P2P connection:
-	p2pNode := discover.NewNode(address.nodeId, address.ip, 0, uint16(address.p2pPort))
+	p2pNode := discover.NewNode(address.NodeId, address.Ip, 0, uint16(address.P2pPort))
 	pm.p2pServer.AddPeer(p2pNode)
 
 	// Add raft transport connection:
