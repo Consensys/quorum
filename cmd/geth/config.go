@@ -265,8 +265,8 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 
 }
 
-// validateConsensus checks if a consensus was used. The node is killed if consensus was not used
-func validateConsensus(stack *node.Node, isRaft bool) {
+// quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
+func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 	var ethereum *eth.Ethereum
 
 	err := stack.Service(&ethereum)

@@ -218,7 +218,7 @@ func geth(ctx *cli.Context) error {
 	startNode(ctx, node)
 
 	// Check if a valid consensus is used
-	validateConsensus(node, ctx.GlobalBool(utils.RaftModeFlag.Name))
+	quorumValidateConsensus(node, ctx.GlobalBool(utils.RaftModeFlag.Name))
 
 	node.Wait()
 	return nil
