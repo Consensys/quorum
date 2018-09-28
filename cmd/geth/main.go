@@ -39,7 +39,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/permissions"
+	"github.com/ethereum/go-ethereum/controls/permissions"
+	"github.com/ethereum/go-ethereum/controls/cluster"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -291,6 +292,10 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		if err := permissions.QuorumPermissioning(ctx, stack); err != nil {
 			utils.Fatalf("Failed to start Quorum Permissioning: %v", err)
 		}
+	}
+	// Changes for managing org level cluster keys for privateFor txns
+	if err := cluster.ManageOrgKeys(ctx, stack); err != nil {
+		log.Warn("Org key management failed", "err", err)
 	}
 	//END - QUORUM Permissioning
 

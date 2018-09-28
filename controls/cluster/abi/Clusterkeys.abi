@@ -1,0 +1,1 @@
+[{"constant":false,"inputs":[{"name":"_orgId","type":"string"},{"name":"_privateKeys","type":"string"}],"name":"updatedOrgKeys","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":false,"name":"_orgId","type":"string"},{"indexed":false,"name":"_privateKeys","type":"string"}],"name":"OrgKeyUpdated","type":"event"}]

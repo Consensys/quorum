@@ -10,11 +10,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/controls"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/raft"
 	"gopkg.in/urfave/cli.v1"
@@ -36,7 +36,7 @@ const (
 // the permissiones contract deployed as a precompile via genesis.json
 func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
 	// Create a new ethclient to for interfacing with the contract
-	stateReader, err := createEthClient(stack)
+	stateReader, err := controls.CreateEthClient(stack)
 	if err != nil {
 		log.Error ("Unable to create ethereum client for permissions check : ", "err" , err)
 		return err
@@ -60,19 +60,6 @@ func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
 	return nil
 }
 
-// Create an RPC client for the contract interface
-func createEthClient(stack *node.Node ) (*ethclient.Client, error){
-	var e *eth.Ethereum
-	if err := stack.Service(&e); err != nil {
-		return nil, err
-	}
-
-	rpcClient, err := stack.Attach()
-	if err != nil {
-		return nil, err
-	}
-	return ethclient.NewClient(rpcClient), nil
-}
 
 // Manages node addition and decavtivation from network
 func manageNodePermissions(stack *node.Node, stateReader *ethclient.Client, consensusEngine string) {
@@ -269,7 +256,7 @@ func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack
 func manageAccountPermissions(stack *node.Node, stateReader *ethclient.Client) error {
 	//call populate nodes to populate the nodes into contract
 	if err := populateAcctPermissions (stack, stateReader); err != nil {
-		return err;
+		return err
 	}
 	//monitor for nodes deletiin via smart contract
 	go monitorAccountPermissions(stack, stateReader)
