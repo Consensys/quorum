@@ -1164,8 +1164,11 @@ type SendTxArgs struct {
 	Data  *hexutil.Bytes `json:"data"`
 	Input *hexutil.Bytes `json:"input"`
 
+	//Quorum
 	PrivateFrom string   `json:"privateFrom"`
 	PrivateFor  []string `json:"privateFor"`
+	PrivateTxType string `json:"restriction"`
+	//End-Quorum
 }
 
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
@@ -1191,21 +1194,11 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 		}
 		args.Nonce = (*hexutil.Uint64)(&nonce)
 	}
-	if args.Data != nil && args.Input != nil && !bytes.Equal(*args.Data, *args.Input) {
-		return errors.New(`Both "data" and "input" are set and not equal. Please use "input" to pass transaction call data.`)
+	//Quorum
+	if args.PrivateTxType == "" {
+		args.PrivateTxType = "restricted"
 	}
-	if args.To == nil {
-		// Contract creation
-		var input []byte
-		if args.Data != nil {
-			input = *args.Data
-		} else if args.Input != nil {
-			input = *args.Input
-		}
-		if len(input) == 0 {
-			return errors.New(`contract creation without any data provided`)
-		}
-	}
+	//End-Quorum
 	return nil
 }
 
@@ -1571,6 +1564,7 @@ func (s *PublicNetAPI) Version() string {
 	return fmt.Sprintf("%d", s.networkVersion)
 }
 
+// Quorum
 // Please note: This is a temporary integration to improve performance in high-latency
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
@@ -1580,85 +1574,49 @@ type AsyncSendTxArgs struct {
 	CallbackUrl string `json:"callbackUrl"`
 }
 
-type AsyncResult struct {
+type AsyncResultSuccess struct {
+	Id     string	   `json:"id,omitempty"`
 	TxHash common.Hash `json:"txHash"`
+}
+
+type AsyncResultFailure struct {
+	Id     string	   `json:"id,omitempty"`
 	Error  string      `json:"error"`
 }
 
-type Async struct {
-	sync.Mutex
-	sem chan struct{}
-}
+func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSendTxArgs) {
 
-func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs AsyncSendTxArgs) {
-	res := new(AsyncResult)
+	txHash, err := s.SendTransaction(ctx, asyncArgs.SendTxArgs)
+
 	if asyncArgs.CallbackUrl != "" {
-		defer func() {
-			buf := new(bytes.Buffer)
-			err := json.NewEncoder(buf).Encode(res)
-			if err != nil {
-				log.Info("Error encoding callback JSON: %v", err)
-				return
-			}
-			_, err = http.Post(asyncArgs.CallbackUrl, "application/json", buf)
-			if err != nil {
-				log.Info("Error sending callback: %v", err)
-				return
-			}
-		}()
-	}
-	args := asyncArgs.SendTxArgs
-	err := args.setDefaults(ctx, s.b)
-	if err != nil {
-		log.Info("Async.send: Error doing setDefaults: %v", err)
-		res.Error = err.Error()
-		return
-	}
-	b, err := private.P.Send([]byte(*args.Data), args.PrivateFrom, args.PrivateFor)
-	if err != nil {
-		log.Info("Error running Private.P.Send", "err", err)
-		res.Error = err.Error()
-		return
-	}
-	res.TxHash, err = a.save(ctx, s, args, b)
-	if err != nil {
-		res.Error = err.Error()
-	}
-}
 
-func (a *Async) save(ctx context.Context, s *PublicTransactionPoolAPI, args SendTxArgs, data []byte) (common.Hash, error) {
-	a.Lock()
-	defer a.Unlock()
-	if args.Nonce == nil {
-		nonce, err := s.b.GetPoolNonce(ctx, args.From)
+		//don't need to nil check this since id is required for every geth rpc call
+		//even though this is stated in the specification as an "optional" parameter
+		jsonId := ctx.Value("id").(*json.RawMessage)
+		id := string(*jsonId)
+
+		var resultResponse interface{}
 		if err != nil {
-			return common.Hash{}, err
+			resultResponse = &AsyncResultFailure{Id: id, Error: err.Error()}
+		} else {
+			resultResponse = &AsyncResultSuccess{Id: id, TxHash: txHash}
 		}
-		args.Nonce = (*hexutil.Uint64)(&nonce)
-	}
-	var tx *types.Transaction
-	if args.To == nil {
-		tx = types.NewContractCreation((uint64)(*args.Nonce), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), data)
-	} else {
-		tx = types.NewTransaction((uint64)(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), data)
+
+		buf := new(bytes.Buffer)
+		err := json.NewEncoder(buf).Encode(resultResponse)
+		if err != nil {
+			log.Info("Error encoding callback JSON: %v", err)
+			return
+		}
+		_, err = http.Post(asyncArgs.CallbackUrl, "application/json", buf)
+		if err != nil {
+			log.Info("Error sending callback: %v", err)
+			return
+		}
 	}
 
-	signed, err := s.sign(args.From, tx)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	return submitTransaction(ctx, s.b, signed, args.PrivateFor != nil)
 }
 
-func newAsync(n int) *Async {
-	a := &Async{
-		sem: make(chan struct{}, n),
-	}
-	return a
-}
-
-var async = newAsync(100)
 
 // SendTransactionAsync creates a transaction for the given argument, signs it, and
 // submits it to the transaction pool. This call returns immediately to allow sending
@@ -1671,12 +1629,9 @@ var async = newAsync(100)
 // Please note: This is a temporary integration to improve performance in high-latency
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
-func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) {
-	async.sem <- struct{}{}
-	go func() {
-		async.send(ctx, s, args)
-		<-async.sem
-	}()
+func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error){
+	go s.send(ctx, args)
+	return common.Hash{}, nil
 }
 
 // GetQuorumPayload returns the contents of a private transaction
@@ -1703,3 +1658,4 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	}
 	return fmt.Sprintf("0x%x", data), nil
 }
+//End-Quorum
