@@ -28,7 +28,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"sync"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
