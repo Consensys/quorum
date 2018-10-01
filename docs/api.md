@@ -4,50 +4,103 @@
 ## Privacy APIs
 
 __To support private transactions in Quorum, the `web3.eth.sendTransaction(object)` API method has been modified.__
-
-```js
-web3.eth.sendTransaction(transactionObject [, callback])
-```
-
-Sends a transaction to the network.
-
-##### Parameters
-
-1. `Object` - The transaction object to send:
-    - `from`: `String` - The address for the sending account. Uses the `web3.eth.defaultAccount` property, if not specified.
-    - `to`: `String` - (optional) The destination address of the message, left undefined for a contract-creation transaction.
-    - `value`: `Number|String|BigNumber` - (optional) The value transferred for the transaction in Wei, also the endowment if it's a contract-creation transaction.
-    - `gas`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The amount of gas to use for the transaction (unused gas is refunded).
-    - <strike>`gasPrice`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The price of gas for this transaction in wei, defaults to the mean network gas price.</strike>
-    - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code.
-    - `nonce`: `Number`  - (optional) Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce.
-    - `privateFrom`: `String`  - (optional) When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, use the default key as configured in the `TransactionManager`.
-    - `privateFor`: `List<String>`  - (optional) When sending a private transaction, an array of the recipients' base64-encoded public keys.
-2. `Function` - (optional) If you pass a callback the HTTP request is made asynchronous.
-
-##### Returns
-
-`String` - The 32 Bytes transaction hash as HEX string.
-
-If the transaction was a contract creation use `web3.eth.getTransactionReceipt()` to get the contract address, after the transaction was mined.
-
-##### Example
-
-```js
-// compiled solidity source code using https://chriseth.github.io/cpp-ethereum/
-var code = "603d80600c6000396000f3007c01000000000000000000000000000000000000000000000000000000006000350463c6888fa18114602d57005b6007600435028060005260206000f3";
-
-web3.eth.sendTransaction({
-    data: code,
-    privateFor: ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]
-  },
-  function(err, address) {
-    if (!err) {
-      console.log(address); // "0x7f9fade1c0d57a7af66ab4ead7c2eb7b11a91385"
-    }
-  }
-});
-```
+ 
+ ```js
+ web3.eth.sendTransaction(transactionObject [, callback])
+ ```
+ 
+ Sends a transaction to the network.
+ 
+ ##### Parameters
+ 
+ 1. `Object` - The transaction object to send:
+     - `from`: `String` - The address for the sending account. Uses the `web3.eth.defaultAccount` property, if not specified.
+     - `to`: `String` - (optional) The destination address of the message, left undefined for a contract-creation transaction.
+     - `value`: `Number|String|BigNumber` - (optional) The value transferred for the transaction in Wei, also the endowment if it's a contract-creation transaction.
+     - `gas`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The amount of gas to use for the transaction (unused gas is refunded).
+     - <strike>`gasPrice`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The price of gas for this transaction in wei, defaults to the mean network gas price.</strike>
+     - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code.
+     - `nonce`: `Number`  - (optional) Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce.
+     - `privateFrom`: `String`  - (optional) When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, use the default key as configured in the `TransactionManager`.
+     - `privateFor`: `List<String>`  - (optional) When sending a private transaction, an array of the recipients' base64-encoded public keys.
+ 2. `Function` - (optional) If you pass a callback the HTTP request is made asynchronous.
+ 
+ ##### Returns
+ 
+ `String` - The 32 Bytes transaction hash as HEX string.
+ 
+ If the transaction was a contract creation use `web3.eth.getTransactionReceipt()` to get the contract address, after the transaction was mined.
+ 
+ ##### Example
+ 
+ ```js
+ // compiled solidity source code using https://chriseth.github.io/cpp-ethereum/
+ var code = "603d80600c6000396000f3007c01000000000000000000000000000000000000000000000000000000006000350463c6888fa18114602d57005b6007600435028060005260206000f3";
+ 
+ web3.eth.sendTransaction({
+     data: code,
+     privateFor: ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]
+   },
+   function(err, address) {
+     if (!err) {
+       console.log(address); // "0x7f9fade1c0d57a7af66ab4ead7c2eb7b11a91385"
+     }
+   }
+ });
+ ```
+ 
+---
+ 
+##### eth_sendTransactionAsync
+ 
+ Sends a transaction to the network asynchronously. This will return immediately, potentially 
+ before the transaction has been submitted to the transaction pool. A callback can be provided
+ to receive the result of submitting the transaction.
+ 
+ ##### Parameters
+ 
+ 1. `Object` - The transaction object to send:
+     - `from`: `String` - The address for the sending account. Uses the `web3.eth.defaultAccount` property, if not specified.
+     - `to`: `String` - (optional) The destination address of the message, left undefined for a contract-creation transaction.
+     - `value`: `Number|String|BigNumber` - (optional) The value transferred for the transaction in Wei, also the endowment if it's a contract-creation transaction.
+     - `gas`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The amount of gas to use for the transaction (unused gas is refunded).
+     - <strike>`gasPrice`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The price of gas for this transaction in wei, defaults to the mean network gas price.</strike>
+     - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code.
+     - `nonce`: `Number`  - (optional) Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce.
+     - `privateFrom`: `String`  - (optional) When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, use the default key as configured in the `TransactionManager`.
+     - `privateFor`: `List<String>`  - (optional) When sending a private transaction, an array of the recipients' base64-encoded public keys.
+     - `callbackUrl`: `String` - (optional) the URL to perform a POST request to to post the result of submitted the transaction
+ 
+ ##### Returns
+ 
+ 1. `String` - The empty hash, defined as `0x0000000000000000000000000000000000000000000000000000000000000000`
+ 
+ The callback URL receives the following object:
+ 
+ 2. `Object` - The result object:
+    - `id`: `String` - the identifier in the original RPC call, used to match this result to the request
+    - `txHash`: `String` -  the transaction hash that was generated, if successful
+    - `error`: `String` - the error that occurred whilst submitting the transaction.
+ 
+ If the transaction was a contract creation use `web3.eth.getTransactionReceipt()` to get the contract address, after the transaction was mined.
+ 
+ ##### Example
+ 
+ ```js
+ // compiled solidity source code using https://chriseth.github.io/cpp-ethereum/
+ var code = "603d80600c6000396000f3007c01000000000000000000000000000000000000000000000000000000006000350463c6888fa18114602d57005b6007600435028060005260206000f3";
+ 
+ web3.eth.sendTransaction({
+     data: code,
+     privateFor: ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]
+   },
+   function(err, address) {
+     if (!err) {
+       console.log(address); // "0x7f9fade1c0d57a7af66ab4ead7c2eb7b11a91385"
+     }
+   }
+ });
+ ```
 ***
 
 ## JSON RPC Privacy API Reference
@@ -61,7 +114,8 @@ Returns the storage root of given address (Contract/Account etc)
 
 ##### Parameters
 
-address, block number (hex)
+1. `address`: `String` - The address to fetch the storage root for in hex
+2. `block`: `String` - (optional) The block number to look at in hex (e.g. `0x15` for block 21). Uses the latest block if not specified. 
 
 ##### Returns
 
@@ -99,7 +153,7 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_st
 // After private state of the contract is changed from '42' to '99'
 // Request
 
-curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_storageRoot", "params":["0x1349f3e1b8d71effb47b840594ff27da7e603d17","0x2"], "id": 67}'
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_storageRoot", "params":["0x1349f3e1b8d71effb47b840594ff27da7e603d17", "0x2"], "id": 67}'
 
 // Response
 {
@@ -117,7 +171,7 @@ Returns the unencrypted payload from Tessera/constellation
 
 ##### Parameters
 
-Transaction payload hash in Hex format
+1. `id`: `String` - the HEX formatted generated Sha3-512 hash of the encrypted payload from the Private Transaction Manager. This is seen in the transaction as the `data` field
 
 ##### Returns
 
