@@ -436,14 +436,14 @@ func (minter *minter) buildExtraSeal(headerHash common.Hash) []byte {
 	//build the extraSeal struct
 	raftIdString := hexutil.EncodeUint64(uint64(minter.eth.raftProtocolManager.raftId))
 
-	var extra *extraSeal
-	extra = &extraSeal{
+	var extra extraSeal
+	extra = extraSeal{
 		RaftId:    []byte(raftIdString[2:]), //remove the 0x prefix
 		Signature: sig,
 	}
 
 	//encode to byte array for storage
-	extraDataBytes, err := rlp.EncodeToBytes(&extra)
+	extraDataBytes, err := rlp.EncodeToBytes(extra)
 	if err != nil {
 		log.Warn("Header.Extra Data Encoding failed", "err", err)
 	}
