@@ -23,6 +23,7 @@ import (
 	"math/big"
 	"strings"
 	"time"
+	"sync"
 
 	"bytes"
 	"encoding/hex"
@@ -1463,6 +1464,11 @@ type AsyncResultFailure struct {
 	Error  string      `json:"error"`
 }
 
+type Async struct {
+	sync.Mutex
+	sem chan struct{}
+}
+
 func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSendTxArgs) {
 
 	txHash, err := s.SendTransaction(ctx, asyncArgs.SendTxArgs)
@@ -1496,6 +1502,14 @@ func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSend
 
 }
 
+func newAsync(n int) *Async {
+	a := &Async{
+		sem: make(chan struct{}, n),
+	}
+	return a
+}
+
+var async = newAsync(100)
 
 // SendTransactionAsync creates a transaction for the given argument, signs it, and
 // submits it to the transaction pool. This call returns immediately to allow sending
@@ -1509,8 +1523,17 @@ func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSend
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
 func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error){
-	go s.send(ctx, args)
-	return common.Hash{}, nil
+
+	select {
+	case async.sem <- struct{}{}:
+		go func() {
+			s.send(ctx, args)
+			<-async.sem
+		}()
+		return common.Hash{}, nil
+	default:
+		return common.Hash{}, errors.New("too many concurrent requests")
+	}
 }
 
 // GetQuorumPayload returns the contents of a private transaction
