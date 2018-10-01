@@ -25,22 +25,22 @@ import (
 
 	"github.com/eapache/channels"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 var (
-	extraVanity = 32      // Fixed number of extra-data prefix bytes reserved for arbitrary signer vanity
+	extraVanity = 32 // Fixed number of extra-data prefix bytes reserved for arbitrary signer vanity
 )
 
 // Current state information for building the next block
@@ -73,8 +73,8 @@ type minter struct {
 }
 
 type extraSeal struct {
-	RaftId    []byte  // RaftID of the block minter
-	Signature []byte  // Signature of the block minter
+	RaftId    []byte // RaftID of the block minter
+	Signature []byte // Signature of the block minter
 }
 
 func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration) *minter {
@@ -438,7 +438,7 @@ func (minter *minter) buildExtraSeal(headerHash common.Hash) []byte {
 
 	var extra *extraSeal
 	extra = &extraSeal{
-		RaftId: []byte(raftIdString[2:]), //remove the 0x prefix
+		RaftId:    []byte(raftIdString[2:]), //remove the 0x prefix
 		Signature: sig,
 	}
 
