@@ -23,12 +23,12 @@ import (
 	"math/big"
 	"strings"
 	"time"
-	"sync"
-
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
