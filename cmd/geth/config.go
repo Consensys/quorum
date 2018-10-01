@@ -264,3 +264,17 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 	}
 
 }
+
+// quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
+func quorumValidateConsensus(stack *node.Node, isRaft bool) {
+	var ethereum *eth.Ethereum
+
+	err := stack.Service(&ethereum)
+	if err != nil {
+		utils.Fatalf("Error retrieving Ethereum service: %v", err)
+	}
+
+	if !isRaft && ethereum.ChainConfig().Istanbul == nil && ethereum.ChainConfig().Clique == nil {
+		utils.Fatalf("Consensus not specified. Exiting!!")
+	}
+}
