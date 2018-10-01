@@ -19,8 +19,14 @@ package core
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"io/ioutil"
 	"math/big"
+	"math/rand"
+	"os"
+	"reflect"
 	"testing"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -28,11 +34,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
-	"math/rand"
-	"time"
-	"io/ioutil"
-	"os"
-	"reflect"
 )
 
 // testTxPoolConfig is a transaction pool configuration without stateful disk
@@ -279,6 +280,54 @@ func TestQuorumInvalidTransactions(t *testing.T) {
 		t.Error("expected", ErrInvalidGasPrice, "; got", err)
 	}
 
+}
+
+func TestValidateTx_whenValueZeroTransferForPrivateTransaction(t *testing.T) {
+	pool, key := setupQuorumTxPool()
+	defer pool.Stop()
+	zeroValue := common.Big0
+	zeroGasPrice := common.Big0
+	defaultTxPoolGasLimit := big.NewInt(1000000)
+	arbitraryTx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, zeroValue, defaultTxPoolGasLimit, zeroGasPrice, nil), types.HomesteadSigner{}, key)
+	arbitraryTx.SetPrivate()
+
+	if err := pool.AddRemote(arbitraryTx); err != ErrEtherValueUnsupported {
+		t.Error("expected:", ErrEtherValueUnsupported, "; got:", err)
+	}
+}
+
+func TestValidateTx_whenValueNonZeroTransferForPrivateTransaction(t *testing.T) {
+	pool, key := setupQuorumTxPool()
+	defer pool.Stop()
+	arbitraryValue := common.Big3
+	arbitraryTx, balance, from := newPrivateTransaction(arbitraryValue, nil, key)
+	pool.currentState.AddBalance(from, balance)
+
+	if err := pool.AddRemote(arbitraryTx); err != ErrEtherValueUnsupported {
+		t.Error("expected: ", ErrEtherValueUnsupported, "; got:", err)
+	}
+}
+
+func newPrivateTransaction(value *big.Int, data []byte, key *ecdsa.PrivateKey) (*types.Transaction, *big.Int, common.Address) {
+	zeroGasPrice := common.Big0
+	defaultTxPoolGasLimit := big.NewInt(1000000)
+	arbitraryTx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, value, defaultTxPoolGasLimit, zeroGasPrice, data), types.HomesteadSigner{}, key)
+	arbitraryTx.SetPrivate()
+	balance := new(big.Int).Add(arbitraryTx.Value(), new(big.Int).Mul(arbitraryTx.Gas(), arbitraryTx.GasPrice()))
+	from, _ := deriveSender(arbitraryTx)
+	return arbitraryTx, balance, from
+}
+
+func TestValidateTx_whenValueNonZeroWithSmartContractForPrivateTransaction(t *testing.T) {
+	pool, key := setupQuorumTxPool()
+	defer pool.Stop()
+	arbitraryValue := common.Big3
+	arbitraryTx, balance, from := newPrivateTransaction(arbitraryValue, []byte("arbitrary bytecode"), key)
+	pool.currentState.AddBalance(from, balance)
+
+	if err := pool.AddRemote(arbitraryTx); err != ErrEtherValueUnsupported {
+		t.Error("expected: ", ErrEtherValueUnsupported, "; got:", err)
+	}
 }
 
 func TestTransactionQueue(t *testing.T) {
@@ -1527,9 +1576,9 @@ func benchmarkPoolBatchInsert(b *testing.B, size int) {
 //Checks that the EIP155 signer is assigned to the TxPool no matter the configuration, even invalid config
 func TestEIP155SignerOnTxPool(t *testing.T) {
 	var flagtests = []struct {
-		name string
-		homesteadBlock  *big.Int
-		eip155Block *big.Int
+		name           string
+		homesteadBlock *big.Int
+		eip155Block    *big.Int
 	}{
 		{"hsnileip155nil", nil, nil},
 		{"hsnileip1550", nil, big.NewInt(0)},
@@ -1567,4 +1616,3 @@ func TestEIP155SignerOnTxPool(t *testing.T) {
 	}
 
 }
-
