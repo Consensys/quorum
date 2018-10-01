@@ -271,7 +271,7 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 
 	err := stack.Service(&ethereum)
 	if err != nil {
-		utils.Fatalf("Error retrieving Ethereum service")
+		utils.Fatalf("Error retrieving Ethereum service: %v", err)
 	}
 
 	if !isRaft && ethereum.ChainConfig().Istanbul == nil && ethereum.ChainConfig().Clique == nil {
