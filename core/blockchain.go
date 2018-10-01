@@ -89,10 +89,10 @@ type BlockChain struct {
 	scope         event.SubscriptionScope
 	genesisBlock  *types.Block
 
-	mu      sync.RWMutex // global mutex for locking chain operations
-	chainmu sync.RWMutex // blockchain insertion lock
-	procmu  sync.RWMutex // block processor lock
-	insertmu sync.Mutex  // block and state insert lock
+	mu       sync.RWMutex // global mutex for locking chain operations
+	chainmu  sync.RWMutex // blockchain insertion lock
+	procmu   sync.RWMutex // block processor lock
+	insertmu sync.Mutex   // block and state insert lock
 
 	checkpoint       int          // checkpoint counts towards the new checkpoint
 	currentBlock     *types.Block // Current head of the block chain
