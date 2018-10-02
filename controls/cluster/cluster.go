@@ -37,7 +37,7 @@ func manageClusterKeys (stack *node.Node, stateReader *ethclient.Client ) error 
 		return err
 	}
 	//monitor for nodes deletiin via smart contract
-	go monitorKeyChanges(stack, stateReader)
+	monitorKeyChanges(stack, stateReader)
 	return nil
 
 }
@@ -50,41 +50,81 @@ func populatePrivateKeys(stack *node.Node, stateReader *ethclient.Client) error{
 	}
 
 	opts := &bind.FilterOpts{}
-	pastEvents, err := cluster.FilterOrgKeyUpdated(opts)
+	pastAddEvents, err := cluster.FilterOrgKeyAdded(opts)
 
 	recExists := true
 	for recExists {
-		recExists = pastEvents.Next()
+		recExists = pastAddEvents.Next()
 		if recExists {
-			types.AddOrgKey(pastEvents.Event.OrgId, pastEvents.Event.PrivateKeys)
+			types.AddOrgKey(pastAddEvents.Event.OrgId, pastAddEvents.Event.PrivateKey )
+		}
+	}
+
+	opts = &bind.FilterOpts{}
+	pastDeleteEvents, err := cluster.FilterOrgKeyDeleted(opts)
+
+	recExists = true
+	for recExists {
+		recExists = pastDeleteEvents.Next()
+		if recExists {
+			types.DeleteOrgKey(pastDeleteEvents.Event.OrgId, pastDeleteEvents.Event.PrivateKey )
 		}
 	}
 	return nil
 }
 
 func monitorKeyChanges(stack *node.Node, stateReader *ethclient.Client) {
+	go monitorKeyAdd(stack, stateReader)
+
+	go monitorKeyDelete(stack, stateReader)
+}
+
+func monitorKeyAdd(stack *node.Node, stateReader *ethclient.Client){
 	cluster, err := NewClusterFilterer(params.PrivateKeyManagementContract, stateReader)
 	if err != nil {
 		log.Error ("Failed to monitor Account cluster : ", "err" , err)
 	}
-	ch := make(chan *ClusterOrgKeyUpdated)
+	ch := make(chan *ClusterOrgKeyAdded)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newEvent *ClusterOrgKeyUpdated
+	var newEvent *ClusterOrgKeyAdded
 
-	_, err = cluster.WatchOrgKeyUpdated(opts, ch)
+	_, err = cluster.WatchOrgKeyAdded(opts, ch)
 	if err != nil {
-		log.Info("Failed NewNodeProposed: %v", err)
+		log.Info("Failed WatchOrgKeyDeleted: %v", err)
 	}
 
 	for {
 		select {
 		case newEvent = <-ch:
-			types.AddOrgKey(newEvent.OrgId, newEvent.PrivateKeys)
+			types.AddOrgKey(newEvent.OrgId, newEvent.PrivateKey)
 		}
     }
 }
 
+func monitorKeyDelete(stack *node.Node, stateReader *ethclient.Client){
+	cluster, err := NewClusterFilterer(params.PrivateKeyManagementContract, stateReader)
+	if err != nil {
+		log.Error ("Failed to monitor Account cluster : ", "err" , err)
+	}
+	ch := make(chan *ClusterOrgKeyDeleted)
 
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+	var newEvent *ClusterOrgKeyDeleted
+
+	_, err = cluster.WatchOrgKeyDeleted(opts, ch)
+	if err != nil {
+		log.Info("Failed WatchOrgKeyDeleted: %v", err)
+	}
+
+	for {
+		select {
+		case newEvent = <-ch:
+			types.DeleteOrgKey(newEvent.OrgId, newEvent.PrivateKey)
+		}
+    }
+}

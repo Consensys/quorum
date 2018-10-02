@@ -1,7 +1,6 @@
 package types
 import (
 	"sync"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -54,24 +53,47 @@ func GetAcctAccess(acctId common.Address) AccessType {
 }
 
 func AddOrgKey(orgId string, keys string){
-	mu := sync.RWMutex{}
 
-	orgKeys := strings.Fields(keys)
-	mu.Lock()
-	OrgKeyMap[orgId] = &OrgStruct {OrgId : orgId, Keys : orgKeys}
-	mu.Unlock()
+	if len(OrgKeyMap) != 0 {
+		if _, ok := OrgKeyMap[orgId]; ok {
+			// Org record exists. Append the key only
+			OrgKeyMap[orgId].Keys = append (OrgKeyMap[orgId].Keys, keys)
+			return
+		}
+	}
+	// first record into the map or firts record for the org
+	var locKeys []string
+	locKeys = append(locKeys, keys);
+	OrgKeyMap[orgId] = &OrgStruct {OrgId : orgId, Keys : locKeys}
+}
+
+func DeleteOrgKey(orgId string, keys string){
+
+	if len(OrgKeyMap) != 0 {
+		if _, ok := OrgKeyMap[orgId]; ok {
+			for i, keyVal := range OrgKeyMap[orgId].Keys{
+				if keyVal == keys {
+					OrgKeyMap[orgId].Keys = append(OrgKeyMap[orgId].Keys[:i], OrgKeyMap[orgId].Keys[i+1:]...)
+					break
+				}
+			}
+		}
+	}
 }
 
 func ResolvePrivateForKeys(orgId string ) []string {
 	var keys []string
 	mu := sync.RWMutex{}
 
-	AddOrgKey("JPMORG", "QfeDAys9MPDs2XHExtc84jKGHxZg/aj52DTh0vtA3Xc= 1iTZde/ndBHvzhcl7V68x44Vx7pl8nwx9LqnM/AfJUg=")
 	if len(OrgKeyMap) != 0 {
 		if _, ok := OrgKeyMap[orgId]; ok {
-			mu.RLock()
-			keys := OrgKeyMap[orgId].Keys
-			mu.RUnlock()
+			if len(OrgKeyMap[orgId].Keys) > 0{
+				mu.RLock()
+				keys = OrgKeyMap[orgId].Keys
+				mu.RUnlock()
+			} else {
+				keys = append(keys, orgId)
+			}
 			return keys
 		}
 	}

@@ -29,7 +29,7 @@ contract Clusterkeys {
   event KeyExists(string _orgId, string _privateKey);
   event Dummy(uint _orgId, bool _keyExists, uint loopCnt );
 
-  function checkIfKeyExists(string _orgId, string _privateKey) internal view returns (bool){
+  function checkIfKeyExists(string _orgId, string _privateKey) internal view returns (bool, uint){
     bool keyExists = false;
     uint locOrgId = getOrgIndex(_orgId);
     for (uint i = 0; i < orgList[locOrgId].privateKey.length; i++){
@@ -38,7 +38,7 @@ contract Clusterkeys {
         break;
       }
     }
-    return keyExists;
+    return (keyExists, i);
   }
 
   function getOrgIndex(string _orgId) internal view returns (uint)
@@ -56,7 +56,10 @@ contract Clusterkeys {
       emit OrgKeyAdded(_orgId, _privateKey);
     }
     else {
-      if (checkIfKeyExists (_orgId, _privateKey)) {
+      bool keyExists = false;
+      uint i = 0;
+      (keyExists, i) = checkIfKeyExists(_orgId, _privateKey);
+      if (keyExists) {
         emit KeyExists(_orgId, _privateKey);
       }
       else {
@@ -78,12 +81,8 @@ contract Clusterkeys {
       uint i = 0;
       bool keyExists = false;
 
-      for (i = 0; i <= orgList[locOrgId].privateKey.length -1; i++){
-        if(keccak256(abi.encodePacked(orgList[locOrgId].privateKey[i])) == keccak256(abi.encodePacked(_privateKey))){
-          keyExists = true;
-          break;
-        }
-      }
+      (keyExists, i) = checkIfKeyExists (_orgId, _privateKey);
+
       if (keyExists == true) {
         for (uint j = i; j <  orgList[locOrgId].privateKey.length -1; j++){
           orgList[locOrgId].privateKey[j] = orgList[locOrgId].privateKey[j+1];
