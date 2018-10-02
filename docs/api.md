@@ -183,20 +183,23 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_getQ
  
  If the transaction was a contract creation use `web3.eth.getTransactionReceipt()` to get the contract address, after the transaction was mined.
  
- ##### Example
- 
- ```js
- // compiled solidity source code using https://chriseth.github.io/cpp-ethereum/
- var code = "603d80600c6000396000f3007c01000000000000000000000000000000000000000000000000000000006000350463c6888fa18114602d57005b6007600435028060005260206000f3";
- 
- web3.eth.sendTransaction({
-     data: code,
-     privateFor: ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]
-   },
-   function(err, address) {
-     if (!err) {
-       console.log(address); // "0x7f9fade1c0d57a7af66ab4ead7c2eb7b11a91385"
-     }
-   }
- });
- ```
+##### Example
+
+```
+// Request
+
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_sendTransactionAsync", "params":[{"from":"0xee9d02e382b34818e88b88a309c7fe71e65f419d", "data": "0x603d80600c6000396000f3007c01000000000000000000000000000000000000000000000000000000006000350463c6888fa18114602d57005b6007600435028060005260206000f3", "gas": "0x47b760", "privateFor": ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]}], "id":67}'
+
+// Response
+{
+  "id": 67,
+  "jsonrpc": "2.0",
+  "result": "0x0000000000000000000000000000000000000000000000000000000000000000"
+}
+
+// In the callback
+{
+  "id":67,
+  "txHash": "0xc3a24a83dc1b4ebb046cc90ffd6b80ac4a6c51d5b810a43f1cabdeabf1dcdc04"
+}
+```
