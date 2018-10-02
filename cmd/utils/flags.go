@@ -746,13 +746,13 @@ func makeDatabaseHandles() int {
 	if err != nil {
 		Fatalf("Failed to retrieve file descriptor allowance: %v", err)
 	}
-	if limit < 2048 {
-		if err := fdlimit.Raise(2048); err != nil {
+	if limit < 4096 {
+		if err := fdlimit.Raise(4096); err != nil {
 			Fatalf("Failed to raise file descriptor allowance: %v", err)
 		}
 	}
-	if limit > 2048 { // cap database file descriptors even if more is available
-		limit = 2048
+	if limit > 4096 { // cap database file descriptors even if more is available
+		limit = 4096
 	}
 	return limit / 2 // Leave half for networking and other stuff
 }
