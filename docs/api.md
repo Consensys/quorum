@@ -118,7 +118,7 @@ Returns the unencrypted payload from Tessera/constellation
 
 ##### Parameters
 
-1. `id`: `String` - the HEX formatted generated Sha3-512 hash of the encrypted payload from the Private Transaction Manager. This is seen in the transaction as the `data` field
+1. `id`: `String` - the HEX formatted generated Sha3-512 hash of the encrypted payload from the Private Transaction Manager. This is seen in the transaction as the `input` field
 
 ##### Returns
 
