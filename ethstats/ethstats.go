@@ -574,6 +574,9 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 
 // reportHistory retrieves the most recent batch of blocks and reports it to the
 // stats server.
+// Note that blocks are reported in the *reverse* of any request from the stats
+// server. Sending it in the actual order requested irreversibly blows the block
+// history inside ethstats (see ethereum issue # 3812).
 func (s *Service) reportHistory(conn *websocket.Conn, list []uint64) error {
 	// Figure out the indexes that need reporting
 	indexes := make([]uint64, 0, historyUpdateRange)
@@ -596,6 +599,7 @@ func (s *Service) reportHistory(conn *websocket.Conn, list []uint64) error {
 			indexes = append(indexes, i)
 		}
 	}
+
 	// Gather the batch of blocks to report
 	history := make([]*blockStats, len(indexes))
 	for i, number := range indexes {
@@ -611,11 +615,13 @@ func (s *Service) reportHistory(conn *websocket.Conn, list []uint64) error {
 		// If we do have the block, add to the history and continue
 		if block != nil {
 			history[len(history)-1-i] = s.assembleBlockStats(block)
-			continue
+		} else {
+			// Ran out of blocks, cut the report short and send
+			history = history[len(history)-i:]
+			break
 		}
-		// Ran out of blocks, cut the report short and send
-		history = history[len(history)-i:]
 	}
+
 	// Assemble the history report and send it to the server
 	if len(history) > 0 {
 		log.Trace("Sending historical blocks to ethstats", "first", history[0].Number, "last", history[len(history)-1].Number)
