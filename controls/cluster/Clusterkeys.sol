@@ -20,6 +20,9 @@ contract Clusterkeys {
   OrgVoterDetails [] private voterList;
   mapping(bytes32 => uint) private VoterOrgIndex;
 
+  mapping (uint => mapping (address => bool)) private voteStatus;
+  mapping (uint => uint) private voteCount;
+
   uint private numberOfOrgs = 0;
 
   uint private orgVoterNum = 0;
@@ -42,6 +45,19 @@ contract Clusterkeys {
 
   event PrintAll(string _orgId, string _privateKey);
   event PrintKey(string _orgId, Operation _pendingOp, string _pendingKey);
+
+  modifier canVote(string _orgId){
+    bool flag = false;
+    uint orgIndex = getOrgIndexVoter(_orgId);
+    for (uint i = 0; i < voterList[orgIndex].orgVoterAccount.length; i++){
+      if ( voterList[orgIndex].orgVoterAccount[i] == msg.sender){
+        flag = true;
+        break;
+      }
+      require(flag, "Account can not vote");
+      _;
+    }
+  }
 
   function getOrgIndex(string _orgId) internal view returns (uint)
   {
@@ -160,6 +176,7 @@ contract Clusterkeys {
         numberOfOrgs++;
         OrgIndex[keccak256(abi.encodePacked(_orgId))] = numberOfOrgs;
         orgList.push( OrgDetails(_orgId, new string[](0), _privateKey, Operation.Add));
+        voterInit(_orgId);
         emit ItemForApproval(_orgId, Operation.Add, _privateKey);
       }
       else {
@@ -179,6 +196,7 @@ contract Clusterkeys {
             //          orgList[orgIndex].privateKey.push(_privateKey);
             orgList[orgIndex].pendingKey = _privateKey;
             orgList[orgIndex].pendingOp = Operation.Add;
+            voterInit(_orgId);
             emit ItemForApproval(_orgId,Operation.Add,  _privateKey);
           }
         }
@@ -205,6 +223,7 @@ contract Clusterkeys {
           if (keyExists == true) {
             orgList[orgIndex].pendingKey = _privateKey;
             orgList[orgIndex].pendingOp = Operation.Delete;
+            voterInit(_orgId);
             emit ItemForApproval(_orgId, Operation.Delete,  _privateKey);
 
           }
@@ -216,33 +235,62 @@ contract Clusterkeys {
     }
   }
 
-  function approvePendingOp(string _orgId) external
+  function voterInit(string _orgId) internal {
+    uint orgIndex = getOrgIndexVoter(_orgId);
+    for (uint i = 0; i < voterList[orgIndex].orgVoterAccount.length; i++){
+      voteStatus[orgIndex][voterList[orgIndex].orgVoterAccount[i]] = false;
+    }
+    voteCount[orgIndex] = 0;
+  }
+
+  function processVote (string _orgId) internal {
+    uint orgIndex = getOrgIndexVoter(_orgId);
+    if (voteStatus[orgIndex][msg.sender] == false ){
+      voteStatus[orgIndex][msg.sender] = true;
+      voteCount[orgIndex]++;
+    }
+  }
+
+  function approvePendingOp(string _orgId) external canVote(_orgId)
   {
     if (checkingPendingOp(_orgId)){
       uint orgIndex = getOrgIndex(_orgId);
-      string storage locKey = orgList[orgIndex].pendingKey;
-      if (orgList[orgIndex].pendingOp == Operation.Add){
-        orgList[orgIndex].pendingOp = Operation.None;
-        orgList[orgIndex].privateKey.push(orgList[orgIndex].pendingKey);
-        orgList[orgIndex].pendingKey = "";
-        emit OrgKeyAdded(_orgId, locKey);
+      processVote(_orgId);
+      processApproval(orgIndex);
+    }
+    else {
+      emit NothingToApprove(_orgId);
+    }
+  }
+
+  function checkEnoughVotes (string _orgId) internal view returns (bool) {
+    uint orgIndex = getOrgIndexVoter(_orgId);
+    if (voteCount[orgIndex] > voterList[orgIndex].orgVoterAccount.length / 2 ){
+      return true;
+    }
+    return false;
+  }
+
+  function processApproval(uint _orgIndex) internal {
+    if(checkEnoughVotes(orgList[_orgIndex].orgId)){
+      string storage locKey = orgList[_orgIndex].pendingKey;
+      if (orgList[_orgIndex].pendingOp == Operation.Add){
+        orgList[_orgIndex].privateKey.push(orgList[_orgIndex].pendingKey);
+        emit OrgKeyAdded(orgList[_orgIndex].orgId, locKey);
       }
       else {
         bool keyExists = false;
         uint i = 0;
-        (keyExists, i) = checkIfKeyExists (_orgId, locKey);
-        for (uint j = i; j <  orgList[orgIndex].privateKey.length -1; j++){
-          orgList[orgIndex].privateKey[j] = orgList[orgIndex].privateKey[j+1];
+        (keyExists, i) = checkIfKeyExists (orgList[_orgIndex].orgId, locKey);
+        for (uint j = i; j <  orgList[_orgIndex].privateKey.length -1; j++){
+          orgList[_orgIndex].privateKey[j] = orgList[_orgIndex].privateKey[j+1];
         }
-        delete orgList[orgIndex].privateKey[orgList[orgIndex].privateKey.length -1];
-        orgList[orgIndex].privateKey.length --;
-        orgList[orgIndex].pendingOp = Operation.None;
-        orgList[orgIndex].pendingKey = "";
-        emit OrgKeyDeleted(_orgId, locKey);
+        delete orgList[_orgIndex].privateKey[orgList[_orgIndex].privateKey.length -1];
+        orgList[_orgIndex].privateKey.length --;
+        emit OrgKeyDeleted(orgList[_orgIndex].orgId, locKey);
       }
-    }
-    else {
-      emit NothingToApprove(_orgId);
+      orgList[_orgIndex].pendingOp = Operation.None;
+      orgList[_orgIndex].pendingKey = "";
     }
   }
 
