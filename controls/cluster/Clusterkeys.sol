@@ -33,7 +33,6 @@ contract Clusterkeys {
   event KeyNotFound(string _privateKey);
   event OrgNotFound(string _orgId);
   event KeyExists(string _orgId, string _privateKey);
-  event Dummy(uint _orgId, bool _keyExists, uint loopCnt );
   event VoterAdded(string _orgId, address _address);
   event VoterExists(string _orgId, address _address);
   event VoterNotFound(string _orgId, address _address);
@@ -44,6 +43,7 @@ contract Clusterkeys {
   event NothingToApprove(string _orgId);
 
   event PrintAll(string _orgId, string _privateKey);
+  event PrintVoter(string _orgId, address _voterAccount);
   event PrintKey(string _orgId, Operation _pendingOp, string _pendingKey);
 
   modifier canVote(string _orgId){
@@ -54,9 +54,9 @@ contract Clusterkeys {
         flag = true;
         break;
       }
-      require(flag, "Account can not vote");
-      _;
     }
+    require(flag, "Account cannot vote");
+    _;
   }
 
   function getOrgIndex(string _orgId) internal view returns (uint)
@@ -294,11 +294,18 @@ contract Clusterkeys {
     }
   }
 
-  function printAll () public {
+  function printAllOrg () public {
     for (uint i = 0; i < orgList.length; i++){
-      emit PrintKey(orgList[i].orgId, orgList[i].pendingOp, orgList[i].pendingKey);
       for (uint j = 0; j < orgList[i].privateKey.length ; j++){
         emit PrintAll(orgList[i].orgId, orgList[i].privateKey[j]);
+      }
+    }
+  }
+
+  function printAllVoter () public {
+    for (uint i = 0; i < voterList.length; i++){
+      for (uint j = 0; j < voterList[i].orgVoterAccount.length ; j++){
+        emit PrintVoter(voterList[i].orgId, voterList[i].orgVoterAccount[j]);
       }
     }
   }
