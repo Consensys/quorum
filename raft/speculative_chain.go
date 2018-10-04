@@ -29,8 +29,8 @@ func newSpeculativeChain() *speculativeChain {
 	return &speculativeChain{
 		head:                       nil,
 		unappliedBlocks:            lane.NewDeque(),
-		expectedInvalidBlockHashes: set.New(),
-		proposedTxes:               set.New(),
+		expectedInvalidBlockHashes: set.New(set.ThreadSafe).(*set.Set),
+		proposedTxes:               set.New(set.ThreadSafe).(*set.Set),
 	}
 }
 

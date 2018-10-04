@@ -100,7 +100,7 @@ func (pm *ProtocolManager) triggerSnapshot(index uint64) {
 }
 
 func confStateIdSet(confState raftpb.ConfState) *set.Set {
-	set := set.New()
+	set := set.New(set.ThreadSafe).(*set.Set)
 	for _, rawRaftId := range confState.Nodes {
 		set.Add(uint16(rawRaftId))
 	}
@@ -115,7 +115,7 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 	// Update tombstones for permanently removed peers. For simplicity we do not
 	// allow the re-use of peer IDs once a peer is removed.
 
-	removedPeers := set.New()
+	removedPeers := set.New(set.ThreadSafe).(*set.Set)
 	for _, removedRaftId := range removedRaftIds {
 		removedPeers.Add(removedRaftId)
 	}

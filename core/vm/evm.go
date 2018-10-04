@@ -439,9 +439,9 @@ func (evm *EVM) create(caller ContractRef, code []byte, gas uint64, value *big.I
 	}
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
-	evm.StateDB.CreateAccount(address)
+	evm.StateDB.CreateAccount(contractAddr)
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
-		evm.StateDB.SetNonce(address, 1)
+		evm.StateDB.SetNonce(contractAddr, 1)
 	}
 	if evm.ChainConfig().IsQuorum {
 		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
@@ -458,15 +458,15 @@ func (evm *EVM) create(caller ContractRef, code []byte, gas uint64, value *big.I
 	// initialise a new contract and set the code that is to be used by the
 	// EVM. The contract is a scoped environment for this execution context
 	// only.
-	contract := NewContract(caller, AccountRef(address), value, gas)
-	contract.SetCallCode(&address, crypto.Keccak256Hash(code), code)
+	contract := NewContract(caller, AccountRef(contractAddr), value, gas)
+	contract.SetCallCode(&contractAddr, crypto.Keccak256Hash(code), code)
 
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
-		return nil, address, gas, nil
+		return nil, contractAddr, gas, nil
 	}
 
 	if evm.vmConfig.Debug && evm.depth == 0 {
-		evm.vmConfig.Tracer.CaptureStart(caller.Address(), address, true, code, gas, value)
+		evm.vmConfig.Tracer.CaptureStart(caller.Address(), contractAddr, true, code, gas, value)
 	}
 	start := time.Now()
 
@@ -481,7 +481,7 @@ func (evm *EVM) create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if err == nil && !maxCodeSizeExceeded {
 		createDataGas := uint64(len(ret)) * params.CreateDataGas
 		if contract.UseGas(createDataGas) {
-			evm.StateDB.SetCode(address, ret)
+			evm.StateDB.SetCode(contractAddr, ret)
 		} else {
 			err = ErrCodeStoreOutOfGas
 		}
@@ -503,7 +503,7 @@ func (evm *EVM) create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if evm.vmConfig.Debug && evm.depth == 0 {
 		evm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
 	}
-	return ret, address, contract.Gas, err
+	return ret, contractAddr, contract.Gas, err
 
 }
 

@@ -31,12 +31,14 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/ethdb"
 )
 
 // Backend wraps all methods required for mining.
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
+	ChainDb() ethdb.Database
 }
 
 // Miner creates blocks and searches for proof-of-work values.

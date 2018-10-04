@@ -544,7 +544,6 @@ func (w *worker) taskLoop() {
 			w.pendingMu.Lock()
 			w.pendingTasks[w.engine.SealHash(task.block.Header())] = task
 			w.pendingMu.Unlock()
-
 			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
 				log.Warn("Block sealing failed", "err", err)
 			}
@@ -597,7 +596,7 @@ func (w *worker) resultLoop() {
 
 			// write private transacions
 			privateStateRoot, _ := task.privateState.Commit(w.config.IsEIP158(block.Number()))
-			core.WritePrivateStateRoot(w.chainDb, block.Root(), privateStateRoot)
+			core.WritePrivateStateRoot(w.eth.ChainDb(), block.Root(), privateStateRoot)
 			allReceipts := mergeReceipts(task.receipts, task.privateReceipts)
 
 
@@ -1014,7 +1013,15 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 		receipts[i] = new(types.Receipt)
 		*receipts[i] = *l
 	}
+
+	privateReceipts := make([]*types.Receipt, len(w.current.privateReceipts))
+	for i, l := range w.current.privateReceipts {
+		receipts[i] = new(types.Receipt)
+		*receipts[i] = *l
+	}
+
 	s := w.current.state.Copy()
+	ps := w.current.privateState.Copy()
 	block, err := w.engine.Finalize(w.chain, w.current.header, s, w.current.txs, uncles, w.current.receipts)
 	if err != nil {
 		return err
@@ -1024,7 +1031,7 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 			interval()
 		}
 		select {
-		case w.taskCh <- &task{receipts: receipts, state: s, block: block, createdAt: time.Now()}:
+		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, privateState: ps, block: block, createdAt: time.Now()}:
 			w.unconfirmed.Shift(block.NumberU64() - 1)
 
 			feesWei := new(big.Int)
