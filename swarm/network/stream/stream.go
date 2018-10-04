@@ -41,8 +41,8 @@ const (
 	Mid
 	High
 	Top
-	PriorityQueue         // number of queues
-	PriorityQueueCap = 32 // queue capacity
+	PriorityQueue    = 4    // number of priority queues - Low, Mid, High, Top
+	PriorityQueueCap = 4096 // queue capacity
 	HashSize         = 32
 )
 
@@ -71,7 +71,7 @@ type RegistryOptions struct {
 }
 
 // NewRegistry is Streamer constructor
-func NewRegistry(addr *network.BzzAddr, delivery *Delivery, db *storage.DBAPI, intervalsStore state.Store, options *RegistryOptions) *Registry {
+func NewRegistry(addr *network.BzzAddr, delivery *Delivery, syncChunkStore storage.SyncChunkStore, intervalsStore state.Store, options *RegistryOptions) *Registry {
 	if options == nil {
 		options = &RegistryOptions{}
 	}
@@ -91,13 +91,13 @@ func NewRegistry(addr *network.BzzAddr, delivery *Delivery, db *storage.DBAPI, i
 	streamer.api = NewAPI(streamer)
 	delivery.getPeer = streamer.getPeer
 	streamer.RegisterServerFunc(swarmChunkServerStreamName, func(_ *Peer, _ string, _ bool) (Server, error) {
-		return NewSwarmChunkServer(delivery.db), nil
+		return NewSwarmChunkServer(delivery.chunkStore), nil
 	})
 	streamer.RegisterClientFunc(swarmChunkServerStreamName, func(p *Peer, t string, live bool) (Client, error) {
-		return NewSwarmSyncerClient(p, delivery.db, false, NewStream(swarmChunkServerStreamName, t, live))
+		return NewSwarmSyncerClient(p, syncChunkStore, NewStream(swarmChunkServerStreamName, t, live))
 	})
-	RegisterSwarmSyncerServer(streamer, db)
-	RegisterSwarmSyncerClient(streamer, db)
+	RegisterSwarmSyncerServer(streamer, syncChunkStore)
+	RegisterSwarmSyncerClient(streamer, syncChunkStore)
 
 	if options.DoSync {
 		// latestIntC function ensures that
@@ -128,7 +128,7 @@ func NewRegistry(addr *network.BzzAddr, delivery *Delivery, db *storage.DBAPI, i
 			// wait for kademlia table to be healthy
 			time.Sleep(options.SyncUpdateDelay)
 
-			kad := streamer.delivery.overlay.(*network.Kademlia)
+			kad := streamer.delivery.kad
 			depthC := latestIntC(kad.NeighbourhoodDepthC())
 			addressBookSizeC := latestIntC(kad.AddrCountC())
 
@@ -235,7 +235,7 @@ func (r *Registry) RequestSubscription(peerId discover.NodeID, s Stream, h *Rang
 		if e, ok := err.(*notFoundError); ok && e.t == "server" {
 			// request subscription only if the server for this stream is not created
 			log.Debug("RequestSubscription ", "peer", peerId, "stream", s, "history", h)
-			return peer.Send(&RequestSubscriptionMsg{
+			return peer.Send(context.TODO(), &RequestSubscriptionMsg{
 				Stream:   s,
 				History:  h,
 				Priority: prio,
@@ -285,7 +285,7 @@ func (r *Registry) Subscribe(peerId discover.NodeID, s Stream, h *Range, priorit
 	}
 	log.Debug("Subscribe ", "peer", peerId, "stream", s, "history", h)
 
-	return peer.SendPriority(msg, priority)
+	return peer.SendPriority(context.TODO(), msg, priority)
 }
 
 func (r *Registry) Unsubscribe(peerId discover.NodeID, s Stream) error {
@@ -299,7 +299,7 @@ func (r *Registry) Unsubscribe(peerId discover.NodeID, s Stream) error {
 	}
 	log.Debug("Unsubscribe ", "peer", peerId, "stream", s)
 
-	if err := peer.Send(msg); err != nil {
+	if err := peer.Send(context.TODO(), msg); err != nil {
 		return err
 	}
 	return peer.removeClient(s)
@@ -320,11 +320,7 @@ func (r *Registry) Quit(peerId discover.NodeID, s Stream) error {
 	}
 	log.Debug("Quit ", "peer", peerId, "stream", s)
 
-	return peer.Send(msg)
-}
-
-func (r *Registry) Retrieve(chunk *storage.Chunk) error {
-	return r.delivery.RequestFromPeers(chunk.Addr[:], r.skipCheck)
+	return peer.Send(context.TODO(), msg)
 }
 
 func (r *Registry) NodeInfo() interface{} {
@@ -390,9 +386,7 @@ func (r *Registry) Run(p *network.BzzPeer) error {
 // and they are no longer required after iteration, request to Quit
 // them will be send to appropriate peers.
 func (r *Registry) updateSyncing() {
-	// if overlay in not Kademlia, panic
-	kad := r.delivery.overlay.(*network.Kademlia)
-
+	kad := r.delivery.kad
 	// map of all SYNC streams for all peers
 	// used at the and of the function to remove servers
 	// that are not needed anymore
@@ -413,8 +407,7 @@ func (r *Registry) updateSyncing() {
 	r.peersMu.RUnlock()
 
 	// request subscriptions for all nodes and bins
-	kad.EachBin(r.addr.Over(), pot.DefaultPof(256), 0, func(conn network.OverlayConn, bin int) bool {
-		p := conn.(network.Peer)
+	kad.EachBin(r.addr.Over(), pot.DefaultPof(256), 0, func(p *network.Peer, bin int) bool {
 		log.Debug(fmt.Sprintf("Requesting subscription by: registry %s from peer %s for bin: %d", r.addr.ID(), p.ID(), bin))
 
 		// bin is always less then 256 and it is safe to convert it to type uint8
@@ -453,18 +446,19 @@ func (r *Registry) updateSyncing() {
 
 func (r *Registry) runProtocol(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 	peer := protocols.NewPeer(p, rw, Spec)
-	bzzPeer := network.NewBzzTestPeer(peer, r.addr)
-	r.delivery.overlay.On(bzzPeer)
-	defer r.delivery.overlay.Off(bzzPeer)
-	return r.Run(bzzPeer)
+	bp := network.NewBzzPeer(peer, r.addr)
+	np := network.NewPeer(bp, r.delivery.kad)
+	r.delivery.kad.On(np)
+	defer r.delivery.kad.Off(np)
+	return r.Run(bp)
 }
 
 // HandleMsg is the message handler that delegates incoming messages
-func (p *Peer) HandleMsg(msg interface{}) error {
+func (p *Peer) HandleMsg(ctx context.Context, msg interface{}) error {
 	switch msg := msg.(type) {
 
 	case *SubscribeMsg:
-		return p.handleSubscribeMsg(msg)
+		return p.handleSubscribeMsg(ctx, msg)
 
 	case *SubscribeErrorMsg:
 		return p.handleSubscribeErrorMsg(msg)
@@ -473,22 +467,22 @@ func (p *Peer) HandleMsg(msg interface{}) error {
 		return p.handleUnsubscribeMsg(msg)
 
 	case *OfferedHashesMsg:
-		return p.handleOfferedHashesMsg(msg)
+		return p.handleOfferedHashesMsg(ctx, msg)
 
 	case *TakeoverProofMsg:
-		return p.handleTakeoverProofMsg(msg)
+		return p.handleTakeoverProofMsg(ctx, msg)
 
 	case *WantedHashesMsg:
-		return p.handleWantedHashesMsg(msg)
+		return p.handleWantedHashesMsg(ctx, msg)
 
 	case *ChunkDeliveryMsg:
-		return p.streamer.delivery.handleChunkDeliveryMsg(p, msg)
+		return p.streamer.delivery.handleChunkDeliveryMsg(ctx, p, msg)
 
 	case *RetrieveRequestMsg:
-		return p.streamer.delivery.handleRetrieveRequestMsg(p, msg)
+		return p.streamer.delivery.handleRetrieveRequestMsg(ctx, p, msg)
 
 	case *RequestSubscriptionMsg:
-		return p.handleRequestSubscription(msg)
+		return p.handleRequestSubscription(ctx, msg)
 
 	case *QuitMsg:
 		return p.handleQuitMsg(msg)
@@ -508,7 +502,7 @@ type server struct {
 // Server interface for outgoing peer Streamer
 type Server interface {
 	SetNextBatch(uint64, uint64) (hashes []byte, from uint64, to uint64, proof *HandoverProof, err error)
-	GetData([]byte) ([]byte, error)
+	GetData(context.Context, []byte) ([]byte, error)
 	Close()
 }
 
@@ -551,7 +545,7 @@ func (c client) NextInterval() (start, end uint64, err error) {
 
 // Client interface for incoming peer Streamer
 type Client interface {
-	NeedData([]byte) func()
+	NeedData(context.Context, []byte) func(context.Context) error
 	BatchDone(Stream, uint64, []byte, []byte) func() (*TakeoverProof, error)
 	Close()
 }
@@ -588,7 +582,7 @@ func (c *client) batchDone(p *Peer, req *OfferedHashesMsg, hashes []byte) error 
 		if err != nil {
 			return err
 		}
-		if err := p.SendPriority(tp, c.priority); err != nil {
+		if err := p.SendPriority(context.TODO(), tp, c.priority); err != nil {
 			return err
 		}
 		if c.to > 0 && tp.Takeover.End >= c.to {
@@ -645,7 +639,7 @@ func (c *clientParams) clientCreated() {
 // Spec is the spec of the streamer protocol
 var Spec = &protocols.Spec{
 	Name:       "stream",
-	Version:    4,
+	Version:    6,
 	MaxMsgSize: 10 * 1024 * 1024,
 	Messages: []interface{}{
 		UnsubscribeMsg{},

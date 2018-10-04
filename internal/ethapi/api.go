@@ -53,7 +53,7 @@ import (
 )
 
 const (
-	defaultGasPrice = 50 * params.Shannon
+	defaultGasPrice = params.GWei
 )
 
 // PublicEthereumAPI provides an API to access Ethereum related information.

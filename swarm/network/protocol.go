@@ -44,7 +44,7 @@ const (
 // BzzSpec is the spec of the generic swarm handshake
 var BzzSpec = &protocols.Spec{
 	Name:       "bzz",
-	Version:    4,
+	Version:    7,
 	MaxMsgSize: 10 * 1024 * 1024,
 	Messages: []interface{}{
 		HandshakeMsg{},
@@ -54,38 +54,12 @@ var BzzSpec = &protocols.Spec{
 // DiscoverySpec is the spec for the bzz discovery subprotocols
 var DiscoverySpec = &protocols.Spec{
 	Name:       "hive",
-	Version:    4,
+	Version:    6,
 	MaxMsgSize: 10 * 1024 * 1024,
 	Messages: []interface{}{
 		peersMsg{},
 		subPeersMsg{},
 	},
-}
-
-// Addr interface that peerPool needs
-type Addr interface {
-	OverlayPeer
-	Over() []byte
-	Under() []byte
-	String() string
-	Update(OverlayAddr) OverlayAddr
-}
-
-// Peer interface represents an live peer connection
-type Peer interface {
-	Addr                   // the address of a peer
-	Conn                   // the live connection (protocols.Peer)
-	LastActive() time.Time // last time active
-}
-
-// Conn interface represents an live peer connection
-type Conn interface {
-	ID() discover.NodeID                                                                  // the key that uniquely identifies the Node for the peerPool
-	Handshake(context.Context, interface{}, func(interface{}) error) (interface{}, error) // can send messages
-	Send(interface{}) error                                                               // can send messages
-	Drop(error)                                                                           // disconnect this peer
-	Run(func(interface{}) error) error                                                    // the run function to run a protocol
-	Off() OverlayAddr
 }
 
 // BzzConfig captures the config params used by the hive
@@ -94,12 +68,14 @@ type BzzConfig struct {
 	UnderlayAddr []byte // node's underlay address
 	HiveParams   *HiveParams
 	NetworkID    uint64
+	LightNode    bool
 }
 
 // Bzz is the swarm protocol bundle
 type Bzz struct {
 	*Hive
 	NetworkID    uint64
+	LightNode    bool
 	localAddr    *BzzAddr
 	mtx          sync.Mutex
 	handshakes   map[discover.NodeID]*HandshakeMsg
@@ -112,10 +88,11 @@ type Bzz struct {
 // * bzz config
 // * overlay driver
 // * peer store
-func NewBzz(config *BzzConfig, kad Overlay, store state.Store, streamerSpec *protocols.Spec, streamerRun func(*BzzPeer) error) *Bzz {
+func NewBzz(config *BzzConfig, kad *Kademlia, store state.Store, streamerSpec *protocols.Spec, streamerRun func(*BzzPeer) error) *Bzz {
 	return &Bzz{
 		Hive:         NewHive(config.HiveParams, kad, store),
 		NetworkID:    config.NetworkID,
+		LightNode:    config.LightNode,
 		localAddr:    &BzzAddr{config.OverlayAddr, config.UnderlayAddr},
 		handshakes:   make(map[discover.NodeID]*HandshakeMsg),
 		streamerRun:  streamerRun,
@@ -128,7 +105,7 @@ func (b *Bzz) UpdateLocalAddr(byteaddr []byte) *BzzAddr {
 	b.localAddr = b.localAddr.Update(&BzzAddr{
 		UAddr: byteaddr,
 		OAddr: b.localAddr.OAddr,
-	}).(*BzzAddr)
+	})
 	return b.localAddr
 }
 
@@ -209,7 +186,11 @@ func (b *Bzz) RunProtocol(spec *protocols.Spec, run func(*BzzPeer) error) func(*
 			localAddr:  b.localAddr,
 			BzzAddr:    handshake.peerAddr,
 			lastActive: time.Now(),
+			LightNode:  handshake.LightNode,
 		}
+
+		log.Debug("peer created", "addr", handshake.peerAddr.String())
+
 		return run(peer)
 	}
 }
@@ -228,6 +209,7 @@ func (b *Bzz) performHandshake(p *protocols.Peer, handshake *HandshakeMsg) error
 		return err
 	}
 	handshake.peerAddr = rsh.(*HandshakeMsg).Addr
+	handshake.LightNode = rsh.(*HandshakeMsg).LightNode
 	return nil
 }
 
@@ -263,19 +245,15 @@ type BzzPeer struct {
 	localAddr       *BzzAddr  // local Peers address
 	*BzzAddr                  // remote address -> implements Addr interface = protocols.Peer
 	lastActive      time.Time // time is updated whenever mutexes are releasing
+	LightNode       bool
 }
 
-func NewBzzTestPeer(p *protocols.Peer, addr *BzzAddr) *BzzPeer {
+func NewBzzPeer(p *protocols.Peer, addr *BzzAddr) *BzzPeer {
 	return &BzzPeer{
 		Peer:      p,
 		localAddr: addr,
 		BzzAddr:   NewAddrFromNodeID(p.ID()),
 	}
-}
-
-// Off returns the overlay peer record for offline persistence
-func (p *BzzPeer) Off() OverlayAddr {
-	return p.BzzAddr
 }
 
 // LastActive returns the time the peer was last active
@@ -294,6 +272,7 @@ type HandshakeMsg struct {
 	Version   uint64
 	NetworkID uint64
 	Addr      *BzzAddr
+	LightNode bool
 
 	// peerAddr is the address received in the peer handshake
 	peerAddr *BzzAddr
@@ -305,7 +284,7 @@ type HandshakeMsg struct {
 
 // String pretty prints the handshake
 func (bh *HandshakeMsg) String() string {
-	return fmt.Sprintf("Handshake: Version: %v, NetworkID: %v, Addr: %v", bh.Version, bh.NetworkID, bh.Addr)
+	return fmt.Sprintf("Handshake: Version: %v, NetworkID: %v, Addr: %v, LightNode: %v, peerAddr: %v", bh.Version, bh.NetworkID, bh.Addr, bh.LightNode, bh.peerAddr)
 }
 
 // Perform initiates the handshake and validates the remote handshake message
@@ -338,6 +317,7 @@ func (b *Bzz) GetHandshake(peerID discover.NodeID) (*HandshakeMsg, bool) {
 			Version:   uint64(BzzSpec.Version),
 			NetworkID: b.NetworkID,
 			Addr:      b.localAddr,
+			LightNode: b.LightNode,
 			init:      make(chan bool, 1),
 			done:      make(chan struct{}),
 		}
@@ -377,8 +357,8 @@ func (a *BzzAddr) ID() discover.NodeID {
 }
 
 // Update updates the underlay address of a peer record
-func (a *BzzAddr) Update(na OverlayAddr) OverlayAddr {
-	return &BzzAddr{a.OAddr, na.(Addr).Under()}
+func (a *BzzAddr) Update(na *BzzAddr) *BzzAddr {
+	return &BzzAddr{a.OAddr, na.UAddr}
 }
 
 // String pretty prints the address
@@ -399,9 +379,9 @@ func RandomAddr() *BzzAddr {
 }
 
 // NewNodeIDFromAddr transforms the underlay address to an adapters.NodeID
-func NewNodeIDFromAddr(addr Addr) discover.NodeID {
-	log.Info(fmt.Sprintf("uaddr=%s", string(addr.Under())))
-	node := discover.MustParseNode(string(addr.Under()))
+func NewNodeIDFromAddr(addr *BzzAddr) discover.NodeID {
+	log.Info(fmt.Sprintf("uaddr=%s", string(addr.UAddr)))
+	node := discover.MustParseNode(string(addr.UAddr))
 	return node.ID
 }
 

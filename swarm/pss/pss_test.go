@@ -334,7 +334,7 @@ func TestHandlerConditions(t *testing.T) {
 			Data:  []byte{0x66, 0x6f, 0x6f},
 		},
 	}
-	if err := ps.handlePssMsg(msg); err != nil {
+	if err := ps.handlePssMsg(context.TODO(), msg); err != nil {
 		t.Fatal(err.Error())
 	}
 	tmr := time.NewTimer(time.Millisecond * 100)
@@ -351,7 +351,7 @@ func TestHandlerConditions(t *testing.T) {
 	// message should pass and queue due to partial length
 	msg.To = addr[0:1]
 	msg.Payload.Data = []byte{0x78, 0x79, 0x80, 0x80, 0x79}
-	if err := ps.handlePssMsg(msg); err != nil {
+	if err := ps.handlePssMsg(context.TODO(), msg); err != nil {
 		t.Fatal(err.Error())
 	}
 	tmr.Reset(time.Millisecond * 100)
@@ -374,7 +374,7 @@ func TestHandlerConditions(t *testing.T) {
 
 	// full address mismatch should put message in queue
 	msg.To[0] = 0xff
-	if err := ps.handlePssMsg(msg); err != nil {
+	if err := ps.handlePssMsg(context.TODO(), msg); err != nil {
 		t.Fatal(err.Error())
 	}
 	tmr.Reset(time.Millisecond * 10)
@@ -397,7 +397,7 @@ func TestHandlerConditions(t *testing.T) {
 
 	// expired message should be dropped
 	msg.Expire = uint32(time.Now().Add(-time.Second).Unix())
-	if err := ps.handlePssMsg(msg); err != nil {
+	if err := ps.handlePssMsg(context.TODO(), msg); err != nil {
 		t.Fatal(err.Error())
 	}
 	tmr.Reset(time.Millisecond * 10)
@@ -417,7 +417,7 @@ func TestHandlerConditions(t *testing.T) {
 	}{
 		pssMsg: &PssMsg{},
 	}
-	if err := ps.handlePssMsg(fckedupmsg); err == nil {
+	if err := ps.handlePssMsg(context.TODO(), fckedupmsg); err == nil {
 		t.Fatalf("expected error from processMsg but error nil")
 	}
 
@@ -427,7 +427,7 @@ func TestHandlerConditions(t *testing.T) {
 		ps.outbox <- msg
 	}
 	msg.Payload.Data = []byte{0x62, 0x61, 0x72}
-	err = ps.handlePssMsg(msg)
+	err = ps.handlePssMsg(context.TODO(), msg)
 	if err == nil {
 		t.Fatal("expected error when mailbox full, but was nil")
 	}
@@ -470,7 +470,7 @@ func TestKeys(t *testing.T) {
 	}
 
 	// make a symmetric key that we will send to peer for encrypting messages to us
-	inkeyid, err := ps.generateSymmetricKey(topicobj, &addr, true)
+	inkeyid, err := ps.GenerateSymmetricKey(topicobj, &addr, true)
 	if err != nil {
 		t.Fatalf("failed to set 'our' incoming symmetric key")
 	}
@@ -556,23 +556,6 @@ OUTER:
 	}
 }
 
-type pssTestPeer struct {
-	*protocols.Peer
-	addr []byte
-}
-
-func (t *pssTestPeer) Address() []byte {
-	return t.addr
-}
-
-func (t *pssTestPeer) Update(addr network.OverlayAddr) network.OverlayAddr {
-	return addr
-}
-
-func (t *pssTestPeer) Off() network.OverlayAddr {
-	return &pssTestPeer{}
-}
-
 // forwarding should skip peers that do not have matching pss capabilities
 func TestMismatch(t *testing.T) {
 
@@ -582,7 +565,7 @@ func TestMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// initialize overlay
+	// initialize kad
 	baseaddr := network.RandomAddr()
 	kad := network.NewKademlia((baseaddr).Over(), network.NewKadParams())
 	rw := &p2p.MsgPipeRW{}
@@ -594,10 +577,10 @@ func TestMismatch(t *testing.T) {
 		Version: 0,
 	}
 	nid, _ := discover.HexID("0x01")
-	wrongpsspeer := &pssTestPeer{
-		Peer: protocols.NewPeer(p2p.NewPeer(nid, common.ToHex(wrongpssaddr.Over()), []p2p.Cap{wrongpsscap}), rw, nil),
-		addr: wrongpssaddr.Over(),
-	}
+	wrongpsspeer := network.NewPeer(&network.BzzPeer{
+		Peer:    protocols.NewPeer(p2p.NewPeer(nid, common.ToHex(wrongpssaddr.Over()), []p2p.Cap{wrongpsscap}), rw, nil),
+		BzzAddr: &network.BzzAddr{OAddr: wrongpssaddr.Over(), UAddr: nil},
+	}, kad)
 
 	// one peer doesn't even have pss (boo!)
 	nopssaddr := network.RandomAddr()
@@ -606,16 +589,16 @@ func TestMismatch(t *testing.T) {
 		Version: 1,
 	}
 	nid, _ = discover.HexID("0x02")
-	nopsspeer := &pssTestPeer{
-		Peer: protocols.NewPeer(p2p.NewPeer(nid, common.ToHex(nopssaddr.Over()), []p2p.Cap{nopsscap}), rw, nil),
-		addr: nopssaddr.Over(),
-	}
+	nopsspeer := network.NewPeer(&network.BzzPeer{
+		Peer:    protocols.NewPeer(p2p.NewPeer(nid, common.ToHex(nopssaddr.Over()), []p2p.Cap{nopsscap}), rw, nil),
+		BzzAddr: &network.BzzAddr{OAddr: nopssaddr.Over(), UAddr: nil},
+	}, kad)
 
 	// add peers to kademlia and activate them
 	// it's safe so don't check errors
-	kad.Register([]network.OverlayAddr{wrongpsspeer})
+	kad.Register(wrongpsspeer.BzzAddr)
 	kad.On(wrongpsspeer)
-	kad.Register([]network.OverlayAddr{nopsspeer})
+	kad.Register(nopsspeer.BzzAddr)
 	kad.On(nopsspeer)
 
 	// create pss
@@ -1296,7 +1279,7 @@ func benchmarkSymKeySend(b *testing.B) {
 	topic := BytesToTopic([]byte("foo"))
 	to := make(PssAddress, 32)
 	copy(to[:], network.RandomAddr().Over())
-	symkeyid, err := ps.generateSymmetricKey(topic, &to, true)
+	symkeyid, err := ps.GenerateSymmetricKey(topic, &to, true)
 	if err != nil {
 		b.Fatalf("could not generate symkey: %v", err)
 	}
@@ -1389,7 +1372,7 @@ func benchmarkSymkeyBruteforceChangeaddr(b *testing.B) {
 	for i := 0; i < int(keycount); i++ {
 		to := make(PssAddress, 32)
 		copy(to[:], network.RandomAddr().Over())
-		keyid, err = ps.generateSymmetricKey(topic, &to, true)
+		keyid, err = ps.GenerateSymmetricKey(topic, &to, true)
 		if err != nil {
 			b.Fatalf("cant generate symkey #%d: %v", i, err)
 		}
@@ -1471,7 +1454,7 @@ func benchmarkSymkeyBruteforceSameaddr(b *testing.B) {
 	topic := BytesToTopic([]byte("foo"))
 	for i := 0; i < int(keycount); i++ {
 		copy(addr[i], network.RandomAddr().Over())
-		keyid, err = ps.generateSymmetricKey(topic, &addr[i], true)
+		keyid, err = ps.GenerateSymmetricKey(topic, &addr[i], true)
 		if err != nil {
 			b.Fatalf("cant generate symkey #%d: %v", i, err)
 		}
@@ -1636,17 +1619,17 @@ func newServices(allowRaw bool) adapters.Services {
 	}
 }
 
-func newTestPss(privkey *ecdsa.PrivateKey, overlay network.Overlay, ppextra *PssParams) *Pss {
+func newTestPss(privkey *ecdsa.PrivateKey, kad *network.Kademlia, ppextra *PssParams) *Pss {
 
 	var nid discover.NodeID
 	copy(nid[:], crypto.FromECDSAPub(&privkey.PublicKey))
 	addr := network.NewAddrFromNodeID(nid)
 
 	// set up routing if kademlia is not passed to us
-	if overlay == nil {
+	if kad == nil {
 		kp := network.NewKadParams()
 		kp.MinProxBinSize = 3
-		overlay = network.NewKademlia(addr.Over(), kp)
+		kad = network.NewKademlia(addr.Over(), kp)
 	}
 
 	// create pss
@@ -1654,7 +1637,7 @@ func newTestPss(privkey *ecdsa.PrivateKey, overlay network.Overlay, ppextra *Pss
 	if ppextra != nil {
 		pp.SymKeyCacheCapacity = ppextra.SymKeyCacheCapacity
 	}
-	ps, err := NewPss(overlay, pp)
+	ps, err := NewPss(kad, pp)
 	if err != nil {
 		return nil
 	}

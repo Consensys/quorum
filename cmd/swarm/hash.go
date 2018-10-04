@@ -18,6 +18,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -38,8 +39,8 @@ func hash(ctx *cli.Context) {
 	defer f.Close()
 
 	stat, _ := f.Stat()
-	fileStore := storage.NewFileStore(storage.NewMapChunkStore(), storage.NewFileStoreParams())
-	addr, _, err := fileStore.Store(f, stat.Size(), false)
+	fileStore := storage.NewFileStore(&storage.FakeChunkStore{}, storage.NewFileStoreParams())
+	addr, _, err := fileStore.Store(context.TODO(), f, stat.Size(), false)
 	if err != nil {
 		utils.Fatalf("%v\n", err)
 	} else {
