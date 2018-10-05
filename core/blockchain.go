@@ -936,16 +936,16 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	triedb := bc.stateCache.TrieDB()
 
 	// Explicit commit for privateStateTriedb to handle Raft
-	if privateState != nil {
-		privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
-		if err != nil {
-			return NonStatTy, err
-		}
-		privateTriedb := bc.privateStateCache.TrieDB()
-		if err := privateTriedb.Commit(privateRoot, false); err != nil {
-			return NonStatTy, err
-		}
-	}
+	// if privateState != nil {
+	// 	privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
+	// 	if err != nil {
+	// 		return NonStatTy, err
+	// 	}
+	// 	privateTriedb := bc.privateStateCache.TrieDB()
+	// 	if err := privateTriedb.Commit(privateRoot, false); err != nil {
+	// 		return NonStatTy, err
+	// 	}
+	// }
 
 	// If we're running an archive node, always flush
 	if bc.cacheConfig.Disabled {
@@ -1213,7 +1213,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		}
 
 		// Quorum
-		privateStateRoot := GetPrivateStateRoot(bc.db, parent.Root())
+		privateStateRoot := rawdb.GetPrivateStateRoot(bc.db, parent.Root())
 		privateState, err := stateNew(privateStateRoot, bc.privateStateCache)
 		if err != nil {
 			return i, events, coalescedLogs, err
@@ -1252,7 +1252,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		if err != nil {
 			return i, events, coalescedLogs, err
 		}
-		if err := WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts); err != nil {
+		if err := rawdb.WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts); err != nil {
 			return i, events, coalescedLogs, err
 		}
 		switch status {
