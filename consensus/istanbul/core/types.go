@@ -27,6 +27,7 @@ import (
 type Engine interface {
 	Start() error
 	Stop() error
+	IsProposer() bool
 }
 
 type State uint64
