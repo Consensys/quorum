@@ -89,10 +89,9 @@ type BlockChain struct {
 	scope         event.SubscriptionScope
 	genesisBlock  *types.Block
 
-	mu       sync.RWMutex // global mutex for locking chain operations
-	chainmu  sync.RWMutex // blockchain insertion lock
-	procmu   sync.RWMutex // block processor lock
-	insertmu sync.Mutex   // block and state insert lock
+	mu      sync.RWMutex // global mutex for locking chain operations
+	chainmu sync.RWMutex // blockchain insertion lock
+	procmu  sync.RWMutex // block processor lock
 
 	checkpoint       int          // checkpoint counts towards the new checkpoint
 	currentBlock     *types.Block // Current head of the block chain
@@ -813,16 +812,6 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 func (bc *BlockChain) WriteBlockAndState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) (status WriteStatus, err error) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
-
-	bc.insertmu.Lock()
-	defer bc.insertmu.Unlock()
-
-	if bc.config.IsQuorum && bc.config.Istanbul != nil {
-		if bc.GetBlockByHash(block.Hash()) != nil {
-			log.Warn("Block already inserted", "number", block.NumberU64(), "hash", block.Hash())
-			return CanonStatTy, nil
-		}
-	}
 
 	// Calculate the total difficulty of the block
 	ptd := bc.GetTd(block.ParentHash(), block.NumberU64()-1)
