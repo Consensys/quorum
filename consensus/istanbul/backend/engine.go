@@ -424,35 +424,35 @@ func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, results
 		results <- nil
 		return nil
 	}
-	go func() {
-		// get the proposed block hash and clear it if the seal() is completed.
-		sb.sealMu.Lock()
-		sb.proposedBlockHash = block.Hash()
-		clear := func() {
-			sb.proposedBlockHash = common.Hash{}
-			sb.sealMu.Unlock()
-		}
-		defer clear()
 
-		// post block into Istanbul engine
-		go sb.EventMux().Post(istanbul.RequestEvent{
-			Proposal: block,
-		})
-		for {
-			select {
-			case result := <-sb.commitCh:
-				// if the block hash and the hash from channel are the same,
-				// return the result. Otherwise, keep waiting the next hash.
-				if block.Hash() == result.Hash() {
-					results <- result
-					return
-				}
-			case <-stop:
-				results <- nil
-				return
+	// get the proposed block hash and clear it if the seal() is completed.
+	sb.sealMu.Lock()
+	sb.proposedBlockHash = block.Hash()
+	clear := func() {
+		sb.proposedBlockHash = common.Hash{}
+		sb.sealMu.Unlock()
+	}
+	defer clear()
+
+	// post block into Istanbul engine
+	go sb.EventMux().Post(istanbul.RequestEvent{
+		Proposal: block,
+	})
+	for {
+		select {
+		case result := <-sb.commitCh:
+			// if the block hash and the hash from channel are the same,
+			// return the result. Otherwise, keep waiting the next hash.
+			if block.Hash() == result.Hash() {
+				results <- result
+				return nil
 			}
+		case <-stop:
+			results <- nil
+			return nil
 		}
-	}()
+	}
+
 	return nil
 }
 

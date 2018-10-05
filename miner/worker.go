@@ -544,13 +544,17 @@ func (w *worker) taskLoop() {
 			w.pendingMu.Lock()
 			w.pendingTasks[w.engine.SealHash(task.block.Header())] = task
 			w.pendingMu.Unlock()
-			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
-				log.Warn("Block sealing failed", "err", err)
-			}
+			go w.seal(task.block, stopCh)
 		case <-w.exitCh:
 			interrupt()
 			return
 		}
+	}
+}
+
+func (w *worker) seal(b *types.Block, stop <-chan struct{}) {
+	if err := w.engine.Seal(w.chain, b, w.resultCh, stop); err != nil {
+		log.Warn("Block sealing failed", "err", err)
 	}
 }
 
@@ -581,8 +585,9 @@ func (w *worker) resultLoop() {
 			}
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var logs     []*types.Log
+			work := w.current
 
-			for _, receipt := range append(task.receipts, task.privateReceipts...) {
+			for _, receipt := range append(work.receipts, work.privateReceipts...) {
 				// Update the block hash in all logs since it is now available and not when the
 				// receipt/log of individual transactions were created.
 				for _, log := range receipt.Logs {
@@ -590,14 +595,14 @@ func (w *worker) resultLoop() {
 				}
 			}
 
-			for _, log := range append(task.state.Logs(), task.privateState.Logs()...) {
+			for _, log := range append(work.state.Logs(), work.privateState.Logs()...) {
 				log.BlockHash = hash
 			}
 
 			// write private transacions
-			privateStateRoot, _ := task.privateState.Commit(w.config.IsEIP158(block.Number()))
+			privateStateRoot, _ := work.privateState.Commit(w.config.IsEIP158(block.Number()))
 			core.WritePrivateStateRoot(w.eth.ChainDb(), block.Root(), privateStateRoot)
-			allReceipts := mergeReceipts(task.receipts, task.privateReceipts)
+			allReceipts := mergeReceipts(work.receipts, work.privateReceipts)
 
 
 			// Commit block and state to database.
@@ -613,7 +618,7 @@ func (w *worker) resultLoop() {
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 			var events []interface{}
-			logs   = append(task.state.Logs(), task.privateState.Logs()...)
+			logs   = append(work.state.Logs(), work.privateState.Logs()...)
 
 			switch stat {
 			case core.CanonStatTy:
