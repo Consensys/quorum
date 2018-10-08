@@ -1,5 +1,5 @@
 # <img src="emailLogo.png" width="100" height="100"/>
-
+This is a fork of the Quorom project and uses primarily IBFT for both testnet and public implementations. Our aim is to keep the source as close to the original ethereum and quorum code as possible.
 
 # <img src="logo.png" width="100" height="100"/>
 
