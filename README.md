@@ -1,7 +1,7 @@
 # <img src="emailLogo.png" width="100" height="100"/>
 This is a fork of the Quorom project and uses primarily IBFT for both testnet and public implementations. Our aim is to keep the source as close to the original ethereum and quorum code as possible.
 
-##Contributing
+## Contributing
 Thank you for considering to help out with the source code! We welcome contributions from anyone on the internet, and are grateful for even the smallest of fixes!
 
 If you'd like to contribute, please fork, fix, commit and send a pull request for the maintainers to review and merge into the main code base. 
