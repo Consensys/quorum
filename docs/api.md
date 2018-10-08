@@ -61,7 +61,8 @@ Returns the storage root of given address (Contract/Account etc)
 
 ##### Parameters
 
-address, block number (hex)
+1. `address`: `String` - The address to fetch the storage root for in hex
+2. `block`: `String` - (optional) The block number to look at in hex (e.g. `0x15` for block 21). Uses the latest block if not specified. 
 
 ##### Returns
 
@@ -99,7 +100,7 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_st
 // After private state of the contract is changed from '42' to '99'
 // Request
 
-curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_storageRoot", "params":["0x1349f3e1b8d71effb47b840594ff27da7e603d17","0x2"], "id": 67}'
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc": "2.0", "method": "eth_storageRoot", "params":["0x1349f3e1b8d71effb47b840594ff27da7e603d17", "0x2"], "id": 67}'
 
 // Response
 {
@@ -117,7 +118,7 @@ Returns the unencrypted payload from Tessera/constellation
 
 ##### Parameters
 
-Transaction payload hash in Hex format
+1. `id`: `String` - the HEX formatted generated Sha3-512 hash of the encrypted payload from the Private Transaction Manager. This is seen in the transaction as the `input` field
 
 ##### Returns
 
@@ -143,5 +144,112 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_getQ
   "id":67,
   "jsonrpc": "2.0",
   "result": "0x"
+}
+```
+
+***
+
+#### eth_sendTransactionAsync
+ 
+ Sends a transaction to the network asynchronously. This will return 
+ immediately, potentially before the transaction has been submitted to the 
+ transaction pool. A callback can be provided to receive the result of 
+ submitting the transaction; a server must be set up to receive POST requests
+ at the given URL.
+ 
+ ##### Parameters
+ 
+ 1. `Object` - The transaction object to send:
+     - `from`: `String` - The address for the sending account. Uses the `web3.eth.defaultAccount` property, if not specified.
+     - `to`: `String` - (optional) The destination address of the message, left undefined for a contract-creation transaction.
+     - `value`: `Number|String|BigNumber` - (optional) The value transferred for the transaction in Wei, also the endowment if it's a contract-creation transaction.
+     - `gas`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The amount of gas to use for the transaction (unused gas is refunded).
+     - <strike>`gasPrice`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The price of gas for this transaction in wei, defaults to the mean network gas price.</strike>
+     - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code.
+     - `nonce`: `Number`  - (optional) Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce.
+     - `privateFrom`: `String`  - (optional) When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, use the default key as configured in the `TransactionManager`.
+     - `privateFor`: `List<String>`  - (optional) When sending a private transaction, an array of the recipients' base64-encoded public keys.
+     - `callbackUrl`: `String` - (optional) the URL to perform a POST request to to post the result of submitted the transaction
+ 
+ ##### Returns
+ 
+ 1. `String` - The empty hash, defined as `0x0000000000000000000000000000000000000000000000000000000000000000`
+ 
+ The callback URL receives the following object:
+ 
+ 2. `Object` - The result object:
+    - `id`: `String` - the identifier in the original RPC call, used to match this result to the request
+    - `txHash`: `String` - the transaction hash that was generated, if successful
+    - `error`: `String` - the error that occurred whilst submitting the transaction.
+ 
+ If the transaction was a contract creation use `web3.eth.getTransactionReceipt()` to get the contract address, after the transaction was mined.
+ 
+##### Example
+
+For the RPC call and the immediate response:
+
+```
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_sendTransactionAsync", "params":[{"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d", "data": "0x6060604052341561000f57600080fd5b604051602080610149833981016040528080519060200190919050505b806000819055505b505b610104806100456000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680632a1afcd914605157806360fe47b11460775780636d4ce63c146097575b600080fd5b3415605b57600080fd5b606160bd565b6040518082815260200191505060405180910390f35b3415608157600080fd5b6095600480803590602001909190505060c3565b005b341560a157600080fd5b60a760ce565b6040518082815260200191505060405180910390f35b60005481565b806000819055505b50565b6000805490505b905600a165627a7a72305820d5851baab720bba574474de3d09dbeaabc674a15f4dd93b974908476542c23f00029000000000000000000000000000000000000000000000000000000000000002a", "gas": "0x47b760", "privateFor": ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]}], "id":67}'
+
+// Response
+{
+  "id": 67,
+  "jsonrpc": "2.0",
+  "result": "0x0000000000000000000000000000000000000000000000000000000000000000"
+}
+
+
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_sendTransactionAsync", "params":[{"from":"0xe2e382b3b8871e65f419d", "data": "0x6060604052341561000f57600080fd5b604051602080610149833981016040528080519060200190919050505b806000819055505b505b610104806100456000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680632a1afcd914605157806360fe47b11460775780636d4ce63c146097575b600080fd5b3415605b57600080fd5b606160bd565b6040518082815260200191505060405180910390f35b3415608157600080fd5b6095600480803590602001909190505060c3565b005b341560a157600080fd5b60a760ce565b6040518082815260200191505060405180910390f35b60005481565b806000819055505b50565b6000805490505b905600a165627a7a72305820d5851baab720bba574474de3d09dbeaabc674a15f4dd93b974908476542c23f00029000000000000000000000000000000000000000000000000000000000000002a", "gas": "0x47b760", "privateFor": ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]}], "id":67}'
+
+//If a syntactic error occured with the RPC call. 
+//In this example the wallet address is the wrong length
+//so the error is it cannot convert the parameter to the correct type
+//it is NOT an error relating the the address not being managed by this node.
+
+//Response
+{
+    "id": 67,
+    "jsonrpc": "2.0",
+    "error": {
+        "code": -32602,
+        "message": "invalid argument 0: json: cannot unmarshal hex string of odd length into Go struct field AsyncSendTxArgs.from of type common.Address"
+    }
+}
+```
+
+If the callback URL is provided, the following response will be received after
+the transaction has been submitted; this example assumes a webserver that can
+be accessed by calling http://localhost:8080 has been set up to accept POST 
+requests:
+
+```
+
+
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_sendTransactionAsync", "params":[{"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d", "data": "0x6060604052341561000f57600080fd5b604051602080610149833981016040528080519060200190919050505b806000819055505b505b610104806100456000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680632a1afcd914605157806360fe47b11460775780636d4ce63c146097575b600080fd5b3415605b57600080fd5b606160bd565b6040518082815260200191505060405180910390f35b3415608157600080fd5b6095600480803590602001909190505060c3565b005b341560a157600080fd5b60a760ce565b6040518082815260200191505060405180910390f35b60005481565b806000819055505b50565b6000805490505b905600a165627a7a72305820d5851baab720bba574474de3d09dbeaabc674a15f4dd93b974908476542c23f00029000000000000000000000000000000000000000000000000000000000000002a", "gas": "0x47b760", "privateFor": ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="], "callbackUrl": "http://localhost:8080"}], "id":67}'
+
+// Response
+//Note that the ID is the same in the callback as the request - this can be used to match the request to the response.
+{
+  "id": 67,
+  "txHash": "0x75ebbf4fbe29355fc8a4b8d1e14ecddf0228b64ef41e6d2fce56047650e2bf17"
+}
+
+
+
+
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_sendTransactionAsync", "params":[{"from":"0xae9bc6cd5145e67fbd1887a5145271fd182f0ee7", "callbackUrl": "http://localhost:8080", "data": "0x6060604052341561000f57600080fd5b604051602080610149833981016040528080519060200190919050505b806000819055505b505b610104806100456000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680632a1afcd914605157806360fe47b11460775780636d4ce63c146097575b600080fd5b3415605b57600080fd5b606160bd565b6040518082815260200191505060405180910390f35b3415608157600080fd5b6095600480803590602001909190505060c3565b005b341560a157600080fd5b60a760ce565b6040518082815260200191505060405180910390f35b60005481565b806000819055505b50565b6000805490505b905600a165627a7a72305820d5851baab720bba574474de3d09dbeaabc674a15f4dd93b974908476542c23f00029000000000000000000000000000000000000000000000000000000000000002a", "gas": "0x47b760", "privateFor": ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]}], "id":67}'
+
+//If a semantic error occured with the RPC call. 
+//In this example the wallet address is not managed by the node
+//So the RPC call will succeed (giving the empty hash), but the callback will show a failure
+
+// In the callback
+{
+    "id": 67,
+    "error":"unknown account"
 }
 ```
