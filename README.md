@@ -1,6 +1,11 @@
 # <img src="emailLogo.png" width="100" height="100"/>
 This is a fork of the Quorom project and uses primarily IBFT for both testnet and public implementations. Our aim is to keep the source as close to the original ethereum and quorum code as possible.
 
+##Contributing
+Thank you for considering to help out with the source code! We welcome contributions from anyone on the internet, and are grateful for even the smallest of fixes!
+
+If you'd like to contribute, please fork, fix, commit and send a pull request for the maintainers to review and merge into the main code base. 
+
 # <img src="logo.png" width="100" height="100"/>
 
 <a href="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
