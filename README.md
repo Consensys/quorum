@@ -1,4 +1,4 @@
-# <img src="emaillogo.png" width="100" height="100"/>
+# <img src="emailLogo.png" width="100" height="100"/>
 
 
 # <img src="logo.png" width="100" height="100"/>
