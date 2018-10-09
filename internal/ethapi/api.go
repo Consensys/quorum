@@ -30,6 +30,8 @@ import (
 	"net/http"
 
 	"github.com/davecgh/go-spew/spew"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -388,11 +390,13 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 
 	if isPrivate {
 		data := []byte(*args.Data)
-		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		if err != nil {
-			return common.Hash{}, err
+		if len(data) > 0 {
+			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			if err != nil {
+				return common.Hash{}, err
+			}
 		}
 		// zekun: HACK
 		d := hexutil.Bytes(data)
@@ -1267,12 +1271,14 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 			log.Info("args.data is nil")
 		}
 
-		//Send private transaction to local Constellation node
-		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		if err != nil {
-			return common.Hash{}, err
+		if len(data) > 0 {
+			//Send private transaction to local Constellation node
+			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			if err != nil {
+				return common.Hash{}, err
+			}
 		}
 		// zekun: HACK
 		d := hexutil.Bytes(data)
@@ -1359,6 +1365,9 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Sen
 	tx, err := s.sign(args.From, args.toTransaction())
 	if err != nil {
 		return nil, err
+	}
+	if args.PrivateFor != nil {
+		tx.SetPrivate()
 	}
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
@@ -1583,6 +1592,11 @@ type AsyncResultFailure struct {
 	Error  string      `json:"error"`
 }
 
+type Async struct {
+	sync.Mutex
+	sem chan struct{}
+}
+
 func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSendTxArgs) {
 
 	txHash, err := s.SendTransaction(ctx, asyncArgs.SendTxArgs)
@@ -1616,6 +1630,14 @@ func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSend
 
 }
 
+func newAsync(n int) *Async {
+	a := &Async{
+		sem: make(chan struct{}, n),
+	}
+	return a
+}
+
+var async = newAsync(100)
 
 // SendTransactionAsync creates a transaction for the given argument, signs it, and
 // submits it to the transaction pool. This call returns immediately to allow sending
@@ -1629,8 +1651,17 @@ func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSend
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
 func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error){
-	go s.send(ctx, args)
-	return common.Hash{}, nil
+
+	select {
+	case async.sem <- struct{}{}:
+		go func() {
+			s.send(ctx, args)
+			<-async.sem
+		}()
+		return common.Hash{}, nil
+	default:
+		return common.Hash{}, errors.New("too many concurrent requests")
+	}
 }
 
 // GetQuorumPayload returns the contents of a private transaction
