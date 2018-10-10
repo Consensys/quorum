@@ -31,8 +31,8 @@ func TestSignHeader(t *testing.T){
 		ParentHash: fakeParentHash,
 		Number:     big.NewInt(1),
 		Difficulty: big.NewInt(1),
-		GasLimit:   new(big.Int),
-		GasUsed:    new(big.Int),
+		GasLimit:   uint64(0),
+		GasUsed:    uint64(0),
 		Coinbase:   minter.coinbase,
 		Time:       big.NewInt(time.Now().UnixNano()),
 	}

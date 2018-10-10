@@ -313,7 +313,7 @@ func TestValidateTx_whenValueZeroTransferForPrivateTransaction(t *testing.T) {
 	defer pool.Stop()
 	zeroValue := common.Big0
 	zeroGasPrice := common.Big0
-	defaultTxPoolGasLimit := big.NewInt(1000000)
+	defaultTxPoolGasLimit := uint64(1000000)
 	arbitraryTx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, zeroValue, defaultTxPoolGasLimit, zeroGasPrice, nil), types.HomesteadSigner{}, key)
 	arbitraryTx.SetPrivate()
 
@@ -336,10 +336,10 @@ func TestValidateTx_whenValueNonZeroTransferForPrivateTransaction(t *testing.T) 
 
 func newPrivateTransaction(value *big.Int, data []byte, key *ecdsa.PrivateKey) (*types.Transaction, *big.Int, common.Address) {
 	zeroGasPrice := common.Big0
-	defaultTxPoolGasLimit := big.NewInt(1000000)
+	defaultTxPoolGasLimit := uint64(1000000)
 	arbitraryTx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, value, defaultTxPoolGasLimit, zeroGasPrice, data), types.HomesteadSigner{}, key)
 	arbitraryTx.SetPrivate()
-	balance := new(big.Int).Add(arbitraryTx.Value(), new(big.Int).Mul(arbitraryTx.Gas(), arbitraryTx.GasPrice()))
+	balance := new(big.Int).Add(arbitraryTx.Value(), new(big.Int).Mul(new(big.Int).SetUint64(arbitraryTx.Gas()), arbitraryTx.GasPrice()))
 	from, _ := deriveSender(arbitraryTx)
 	return arbitraryTx, balance, from
 }
