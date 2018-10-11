@@ -95,10 +95,19 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	if msg.Code == 0x07 && sb.core.IsProposer() { // eth.NewBlockMsg: import cycle
 		// this case is to safeguard the race of similar block which gets propagated from other node while this node is proposing
 		// need to make sure this is the Gossip message from Istanbul peers
+		// as p2p.Msg can only be decoded once, we need to clone it for our own check
 
-		if data, hash, err := sb.decode(msg); err == nil && core.IsIstanbulPayload(data) {
-			if _, ok := sb.knownMessages.Get(hash); ok {
-				return true, nil
+		rPipe, wPipe := p2p.MsgPipe()
+		if err := wPipe.WriteMsg(msg); err != nil {
+			return false, err
+		}
+		if clonedMsg, err := rPipe.ReadMsg(); err != nil {
+			return false, err
+		} else {
+			if data, hash, err := sb.decode(clonedMsg); err == nil && core.IsIstanbulPayload(data) {
+				if _, ok := sb.knownMessages.Get(hash); ok {
+					return true, nil
+				}
 			}
 		}
 	}
