@@ -94,12 +94,10 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	if msg.Code == 0x07 && sb.core.IsProposer() { // eth.NewBlockMsg: import cycle
 		// this case is to safeguard the race of similar block which gets propagated from other node while this node is proposing
 
-		_, hash, err := sb.decode(msg)
-		if err != nil {
-			return true, errDecodeFailed
-		}
-		if _, ok := sb.knownMessages.Get(hash); ok {
-			return true, nil
+		if _, hash, err := sb.decode(msg); err == nil {
+			if _, ok := sb.knownMessages.Get(hash); ok {
+				return true, nil
+			}
 		}
 	}
 	return false, nil
