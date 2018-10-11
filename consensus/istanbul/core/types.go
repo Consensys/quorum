@@ -160,6 +160,15 @@ func (m *message) String() string {
 //
 // helper functions
 
+// Check if a payload is encoded from Istanbul `message` struct
+func IsIstanbulPayload(payload []byte) bool {
+	msg := new(message)
+	if err := msg.FromPayload(payload, nil); err != nil {
+		return false
+	}
+	return true
+}
+
 func Encode(val interface{}) ([]byte, error) {
 	return rlp.EncodeToBytes(val)
 }
