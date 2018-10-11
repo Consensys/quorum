@@ -177,3 +177,40 @@ func TestMessageEncodeDecode(t *testing.T) {
 	testSubject(t)
 	testSubjectWithSignature(t)
 }
+
+func TestIsIstanbulPayload_whenTypical(t *testing.T) {
+	msg := &message{
+		Code: uint64(1),
+		Msg:  []byte{0, 1},
+	}
+	payload, err := Encode(msg)
+	if err != nil {
+		t.Fatalf("unable to encode message %v", err)
+	}
+
+	ok := IsIstanbulPayload(payload)
+
+	if !ok {
+		t.Error("expected true but got false")
+	}
+}
+
+func TestIsIstanbulPayload_whenPayloadIsEmpty(t *testing.T) {
+	var payload []byte
+
+	ok := IsIstanbulPayload(payload)
+
+	if ok {
+		t.Error("expected false but got true")
+	}
+}
+
+func TestIsIstanbulPayload_whenInvalidPayload(t *testing.T) {
+	payload := []byte{0, 1}
+
+	ok := IsIstanbulPayload(payload)
+
+	if ok {
+		t.Error("expected false but got true")
+	}
+}
