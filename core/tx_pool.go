@@ -82,6 +82,9 @@ var (
 	// ErrEtherValueUnsupported is returned if a transaction specifies an Ether Value
 	// for a private Quorum transaction.
 	ErrEtherValueUnsupported = errors.New("ether value is not supported for private transactions")
+	// ErrUnahorizedAccount is returned if the sender account is not authorized by the
+	// permissions module
+	ErrUnAuthorizedAccount = errors.New("Account not authorized for this operation")
 )
 
 var (
@@ -259,6 +262,17 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 	go pool.loop()
 
 	return pool
+}
+
+// Nonce returns the nonce for the given addr from the pending state.
+// Can only be used for local transactions.
+func (pool *TxPool) Nonce(addr common.Address) uint64 {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	if pool.pendingState == nil {
+		pool.lockedReset(nil, nil)
+	}
+	return pool.pendingState.GetNonce(addr)
 }
 
 // loop is the transaction pool's main event loop, waiting for and reacting to
@@ -607,6 +621,14 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if tx.Gas() < intrGas {
 		return ErrIntrinsicGas
 	}
+
+	// Check if the sender account is authorized to perform the transaction
+	if isQuorum {
+		if err := checkAccount(from, tx.To()); err != nil {
+			return ErrUnAuthorizedAccount
+		}
+	}
+
 	return nil
 }
 
@@ -1255,4 +1277,34 @@ func (t *txLookup) Remove(hash common.Hash) {
 	defer t.lock.Unlock()
 
 	delete(t.all, hash)
+}
+
+// checks if the account is permissioned for transaction
+func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
+	access := types.GetAcctAccess(fromAcct)
+
+	switch access {
+	case types.FullAccess:
+		return nil
+
+	case types.ReadOnly:
+		err := errors.New("Account Does not have transaction permissions")
+		return err
+
+	case types.Transact:
+		if toAcct == nil {
+			err := errors.New("Account Does not have contract create permissions")
+			return err
+		}else {
+			return nil
+		}
+	case types.ContractDeploy:
+		if toAcct != nil {
+			err := errors.New("Account Does not have transacte permissions")
+			return err
+		}else {
+			return nil
+		}
+	}
+	return nil
 }

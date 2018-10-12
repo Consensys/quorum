@@ -389,11 +389,14 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	isPrivate := args.PrivateFor != nil
 
 	if isPrivate {
+		// Resolve the PrivateFrom - if its a org which is linked multiple constellation keys,
+		// this will fetch the linked constellation ids
+		privateFor := resolvePrivateFor(args.PrivateFor)
 		data := []byte(*args.Data)
 		if len(data) > 0 {
-			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
 			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
 			if err != nil {
 				return common.Hash{}, err
 			}
@@ -418,6 +421,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	if err != nil {
 		return common.Hash{}, err
 	}
+	log.Info("Calling submitTransaction 1")
 	return submitTransaction(ctx, s.b, signed, isPrivate)
 }
 
@@ -1206,6 +1210,7 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 }
 
 func (args *SendTxArgs) toTransaction() *types.Transaction {
+	log.Info("inside toTransaction")
 	var input []byte
 	if args.Data != nil {
 		input = *args.Data
@@ -1213,13 +1218,16 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 		input = *args.Input
 	}
 	if args.To == nil {
+		log.Info("Contract creation call")
 		return types.NewContractCreation(uint64(*args.Nonce), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 	}
+	log.Info("New transaction callcreation call")
 	return types.NewTransaction(uint64(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 }
 
 // submitTransaction is a helper function that submits tx to txPool and logs a message.
 func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction, isPrivate bool) (common.Hash, error) {
+	log.Info("inside submitTransaction")
 	if isPrivate {
 		tx.SetPrivate()
 	}
@@ -1271,14 +1279,17 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 			log.Info("args.data is nil")
 		}
 
+		// Resolve the PrivateFrom - if its a org which is linked multiple constellation keys,
+		// this will fetch the linked constellation ids
+		privateFor := resolvePrivateFor(args.PrivateFor)
+		//Send private transaction to local Constellation node
 		if len(data) > 0 {
-			//Send private transaction to local Constellation node
-			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			if err != nil {
-				return common.Hash{}, err
-			}
+		  log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
+		  data, err = private.P.Send(data, args.PrivateFrom, privateFor)
+		  log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
+		  if err != nil {
+			  return common.Hash{}, err
+		  }
 		}
 		// zekun: HACK
 		d := hexutil.Bytes(data)
@@ -1302,6 +1313,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err != nil {
 		return common.Hash{}, err
 	}
+	log.Info("Calling submitTransaction 2")
 	return submitTransaction(ctx, s.b, signed, isPrivate)
 }
 
@@ -1312,6 +1324,7 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encod
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
+	log.Info("Calling submitTransaction 3")
 	return submitTransaction(ctx, s.b, tx, tx.IsPrivate())
 }
 
@@ -1689,3 +1702,16 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	return fmt.Sprintf("0x%x", data), nil
 }
 //End-Quorum
+
+func resolvePrivateFor(privateFor []string) []string{
+
+	var newPrivateFor []string
+
+	for _, value := range privateFor {
+		keys := types.ResolvePrivateForKeys(value)
+		newPrivateFor = append(newPrivateFor, keys...)
+	}
+
+	return newPrivateFor
+
+}

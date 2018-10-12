@@ -101,6 +101,10 @@ type Config struct {
 	// allowed to connect, even above the peer limit.
 	TrustedNodes []*discover.Node
 
+	// KnownNodes contains a list of nodes that are used to pre-populate the
+	// node database.
+	KnownNodes []*discover.Node
+
 	// Connectivity can be restricted to certain IP networks.
 	// If this option is set to a non-nil value, only hosts which match one of the
 	// IP networks contained in the list are considered.
@@ -449,6 +453,13 @@ func (srv *Server) Start() (err error) {
 		sconn = &sharedUDPConn{conn, unhandled}
 	}
 
+	knownNodes := append([]*discover.Node(nil), srv.KnownNodes...)
+	if srv.EnableNodePermission {
+		knownNodes = append(knownNodes, ParsePermissionedNodes(srv.DataDir)...)
+	}
+
+	srv.KnownNodes = knownNodes
+
 	// node table
 	if !srv.NoDiscovery {
 		cfg := discover.Config{
@@ -459,7 +470,9 @@ func (srv *Server) Start() (err error) {
 			Bootnodes:    srv.BootstrapNodes,
 			Unhandled:    unhandled,
 		}
-		ntab, err := discover.ListenUDP(conn, cfg)
+		log.Info("calling ListenUDP")
+		ntab, err := discover.ListenUDP(conn, cfg, knownNodes)
+		log.Info("after ListenUDP")
 		if err != nil {
 			return err
 		}

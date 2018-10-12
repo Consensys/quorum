@@ -227,8 +227,9 @@ type Config struct {
 }
 
 // ListenUDP returns a new table that listens for UDP packets on laddr.
-func ListenUDP(c conn, cfg Config) (*Table, error) {
-	tab, _, err := newUDP(c, cfg)
+func ListenUDP(c conn, cfg Config, knownNodes []*Node) (*Table, error) {
+
+	tab, _, err := newUDP(c, cfg, knownNodes)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +237,8 @@ func ListenUDP(c conn, cfg Config) (*Table, error) {
 	return tab, nil
 }
 
-func newUDP(c conn, cfg Config) (*Table, *udp, error) {
+func newUDP(c conn, cfg Config, knownNodes []*Node) (*Table, *udp, error) {
+
 	udp := &udp{
 		conn:        c,
 		priv:        cfg.PrivateKey,
@@ -251,10 +253,18 @@ func newUDP(c conn, cfg Config) (*Table, *udp, error) {
 	}
 	// TODO: separate TCP port
 	udp.ourEndpoint = makeEndpoint(realaddr, uint16(realaddr.Port))
+
 	tab, err := newTable(udp, PubkeyID(&cfg.PrivateKey.PublicKey), realaddr, cfg.NodeDBPath, cfg.Bootnodes)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// prepopulate nodes database with the known nodes
+	if nodesLen := len(knownNodes); nodesLen > 0 {
+		log.Info("Adding predefined nodes to node database", "count", nodesLen)
+		tab.stuff(knownNodes)
+	}
+
 	udp.Table = tab
 
 	go udp.loop()
