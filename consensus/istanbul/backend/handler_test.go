@@ -17,7 +17,12 @@
 package backend
 
 import (
+	"bytes"
+	"io/ioutil"
+	"math/big"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
@@ -69,4 +74,82 @@ func TestIstanbulMessage(t *testing.T) {
 func makeMsg(msgcode uint64, data interface{}) p2p.Msg {
 	size, r, _ := rlp.EncodeToReader(data)
 	return p2p.Msg{Code: msgcode, Size: uint32(size), Payload: r}
+}
+
+func TestHandleNewBlockMessage_whenTypical(t *testing.T) {
+	_, backend := newBlockChain(1)
+	arbitraryAddress := common.StringToAddress("arbitrary")
+	arbitraryBlock, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
+	backend.proposedBlockHash = arbitraryBlock.Hash()
+
+	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
+
+	if err != nil {
+		t.Errorf("expected message being handled successfully but got %s", err)
+	}
+	if !handled {
+		t.Errorf("expected message being handled but not")
+	}
+	if _, err := ioutil.ReadAll(arbitraryP2PMessage.Payload); err != nil {
+		t.Errorf("expected p2p message payload is restored")
+	}
+}
+
+func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
+	_, backend := newBlockChain(1)
+	arbitraryAddress := common.StringToAddress("arbitrary")
+	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
+	backend.proposedBlockHash = common.StringToHash("arbitrary hash")
+
+	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
+
+	if err != nil {
+		t.Errorf("expected message being handled successfully but got %s", err)
+	}
+	if handled {
+		t.Errorf("expected message not being handled")
+	}
+	if _, err := ioutil.ReadAll(arbitraryP2PMessage.Payload); err != nil {
+		t.Errorf("expected p2p message payload is restored")
+	}
+}
+
+func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
+	_, backend := newBlockChain(1)
+	arbitraryAddress := common.StringToAddress("arbitrary")
+	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, true)
+	backend.proposedBlockHash = common.StringToHash("arbitrary hash")
+
+	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
+
+	if err != nil {
+		t.Errorf("expected message being handled successfully but got %s", err)
+	}
+	if handled {
+		t.Errorf("expected message not being handled")
+	}
+	if _, err := ioutil.ReadAll(arbitraryP2PMessage.Payload); err != nil {
+		t.Errorf("expected p2p message payload is restored")
+	}
+}
+
+func buildArbitraryP2PNewBlockMessage(t *testing.T, invalidMsg bool) (*types.Block, p2p.Msg) {
+	arbitraryBlock := types.NewBlock(&types.Header{
+		GasLimit:  big.NewInt(0),
+		MixDigest: types.IstanbulDigest,
+	}, nil, nil, nil)
+	request := []interface{}{&arbitraryBlock, big.NewInt(1)}
+	if invalidMsg {
+		request = []interface{}{"invalid msg"}
+	}
+	size, r, err := rlp.EncodeToReader(request)
+	if err != nil {
+		t.Fatalf("can't encode due to %s", err)
+	}
+	payload, err := ioutil.ReadAll(r)
+	if err != nil {
+		t.Fatalf("can't read payload due to %s", err)
+	}
+	arbitraryP2PMessage := p2p.Msg{Code: 0x07, Size: uint32(size), Payload: bytes.NewReader(payload)}
+	return arbitraryBlock, arbitraryP2PMessage
 }
