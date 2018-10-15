@@ -118,7 +118,7 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 				return false, nil
 			}
 			newRequestedBlock := request.Block
-			if newRequestedBlock.Header().MixDigest == types.IstanbulDigest && newRequestedBlock.Hash() == sb.proposedBlockHash {
+			if newRequestedBlock.Header().MixDigest == types.IstanbulDigest && sb.core.IsCurrentProposal(newRequestedBlock.Hash()) {
 				log.Debug("Proposer already proposed this block", "hash", newRequestedBlock.Hash(), "sender", addr)
 				return true, nil
 			}

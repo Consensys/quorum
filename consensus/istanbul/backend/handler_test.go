@@ -28,7 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 )
 
 func TestIstanbulMessage(t *testing.T) {
@@ -80,7 +80,7 @@ func TestHandleNewBlockMessage_whenTypical(t *testing.T) {
 	_, backend := newBlockChain(1)
 	arbitraryAddress := common.StringToAddress("arbitrary")
 	arbitraryBlock, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
-	backend.proposedBlockHash = arbitraryBlock.Hash()
+	postAndWait(backend, arbitraryBlock, t)
 
 	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
 
@@ -99,7 +99,12 @@ func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
 	_, backend := newBlockChain(1)
 	arbitraryAddress := common.StringToAddress("arbitrary")
 	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
-	backend.proposedBlockHash = common.StringToHash("arbitrary hash")
+	postAndWait(backend, types.NewBlock(&types.Header{
+		Number:    big.NewInt(1),
+		Root:      common.StringToHash("someroot"),
+		GasLimit:  big.NewInt(1),
+		MixDigest: types.IstanbulDigest,
+	}, nil, nil, nil), t)
 
 	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
 
@@ -118,7 +123,11 @@ func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
 	_, backend := newBlockChain(1)
 	arbitraryAddress := common.StringToAddress("arbitrary")
 	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, true)
-	backend.proposedBlockHash = common.StringToHash("arbitrary hash")
+	postAndWait(backend, types.NewBlock(&types.Header{
+		Number:    big.NewInt(1),
+		GasLimit:  big.NewInt(1),
+		MixDigest: types.IstanbulDigest,
+	}, nil, nil, nil), t)
 
 	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
 
@@ -133,8 +142,28 @@ func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
 	}
 }
 
+func postAndWait(backend *backend, block *types.Block, t *testing.T) {
+	eventSub := backend.EventMux().Subscribe(istanbul.RequestEvent{})
+	defer eventSub.Unsubscribe()
+	stop := make(chan struct{}, 1)
+	eventLoop := func() {
+		select {
+		case <-eventSub.Chan():
+			stop <- struct{}{}
+		}
+	}
+	go eventLoop()
+	if err := backend.EventMux().Post(istanbul.RequestEvent{
+		Proposal: block,
+	}); err != nil {
+		t.Fatalf("%s", err)
+	}
+	<-stop
+}
+
 func buildArbitraryP2PNewBlockMessage(t *testing.T, invalidMsg bool) (*types.Block, p2p.Msg) {
 	arbitraryBlock := types.NewBlock(&types.Header{
+		Number:    big.NewInt(1),
 		GasLimit:  big.NewInt(0),
 		MixDigest: types.IstanbulDigest,
 	}, nil, nil, nil)
