@@ -12,7 +12,7 @@ GOBIN = $(shell pwd)/build/bin
 GO ?= latest
 
 geth:
-	build/env.sh go run build/ci.go install -git-commit=${SOURCE_COMMIT} -git-branch=${SOURCE_BRANCH} ./cmd/geth
+	build/env.sh go run build/ci.go install -git-commit=$(SOURCE_COMMIT) -git-branch=$(SOURCE_BRANCH) ./cmd/geth
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."
 
