@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // note: Quorum, States, and Value Transfer
@@ -173,6 +174,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		return nil, gas, nil
 	}
 
+	log.Info("======== evm Call(): getting state for:", "addr", addr)
 	evm.Push(getDualState(evm, addr))
 	defer func() { evm.Pop() }()
 
@@ -208,6 +210,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
 		if value.Sign() != 0 {
 			if evm.quorumReadOnly {
+				log.Info("======== evm Call() 1: disallowing transfer due to read-only flag")
 				return nil, gas, ErrReadOnlyValueTransfer
 			}
 			evm.Transfer(evm.StateDB, caller.Address(), to.Address(), value)
@@ -415,6 +418,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
 		if value.Sign() != 0 {
 			if evm.quorumReadOnly {
+				log.Info("======== evm create() 1: disallowing transfer due to read-only flag")
 				return nil, common.Address{}, gas, ErrReadOnlyValueTransfer
 			}
 			evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value)
@@ -498,7 +502,9 @@ func getDualState(env *EVM, addr common.Address) StateDB {
 func (env *EVM) PublicState() PublicState   { return env.publicState }
 func (env *EVM) PrivateState() PrivateState { return env.privateState }
 func (env *EVM) Push(statedb StateDB) {
+	log.Info("======== evm Push(): ENTRY", "env.privateState", env.privateState, "statedb", statedb)
 	if env.privateState != statedb {
+		log.Info("======== evm Push(): setting quorumReadOnly to TRUE")
 		env.quorumReadOnly = true
 		env.readOnlyDepth = env.currentStateDepth
 	}
@@ -511,8 +517,10 @@ func (env *EVM) Push(statedb StateDB) {
 	env.StateDB = statedb
 }
 func (env *EVM) Pop() {
+	log.Info("======== evm Pop(): ENTRY")
 	env.currentStateDepth--
 	if env.quorumReadOnly && env.currentStateDepth == env.readOnlyDepth {
+		log.Info("======== evm Pop(): setting quorumReadOnly to FALSE")
 		env.quorumReadOnly = false
 	}
 	env.StateDB = env.states[env.currentStateDepth-1]

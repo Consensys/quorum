@@ -660,6 +660,7 @@ func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr
 
 	state, header, err := s.b.StateAndHeaderByNumber(ctx, blockNr)
 	if state == nil || err != nil {
+		log.Info(fmt.Sprintf("======== doCall 1: failure: %v", err))
 		return nil, 0, false, err
 	}
 	// Set sender address or use a default if none specified
@@ -699,6 +700,7 @@ func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr
 	// Get a new instance of the EVM.
 	evm, vmError, err := s.b.GetEVM(ctx, msg, state, header, vmCfg)
 	if err != nil {
+		log.Info(fmt.Sprintf("======== doCall 2: failure: %v", err))
 		return nil, 0, false, err
 	}
 	// Wait for the context to be done and cancel the evm. Even if the
@@ -713,8 +715,10 @@ func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr
 	gp := new(core.GasPool).AddGas(math.MaxUint64)
 	res, gas, failed, err := core.ApplyMessage(evm, msg, gp)
 	if err := vmError(); err != nil {
+		log.Info(fmt.Sprintf("======== doCall 3: failure: %v", err))
 		return nil, 0, false, err
 	}
+	log.Info(fmt.Sprintf("======== doCall 4: returning: failed = %v, err = %v", failed, err))
 	return res, gas, failed, err
 }
 
@@ -736,6 +740,7 @@ func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (h
 	)
 	if uint64(args.Gas) >= params.TxGas {
 		hi = uint64(args.Gas)
+		log.Info(fmt.Sprintf("======== estimateGas 1a: hi = %v, lo = %v", hi, lo))
 	} else {
 		// Retrieve the current pending block to act as the gas ceiling
 		block, err := s.b.BlockByNumber(ctx, rpc.PendingBlockNumber)
@@ -743,6 +748,7 @@ func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (h
 			return 0, err
 		}
 		hi = block.GasLimit()
+		log.Info(fmt.Sprintf("======== estimateGas 1b: hi = %v, lo = %v", hi, lo))
 	}
 	cap = hi
 
@@ -750,8 +756,10 @@ func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (h
 	executable := func(gas uint64) bool {
 		args.Gas = hexutil.Uint64(gas)
 
+		log.Info(fmt.Sprintf("======== estimateGas 3: calling EVM with mid = %v", gas))
 		_, _, failed, err := s.doCall(ctx, args, rpc.PendingBlockNumber, vm.Config{}, 0)
 		if err != nil || failed {
+			log.Info(fmt.Sprintf("======== estimateGas 5: EVM call failed with err %v", err))
 			return false
 		}
 		return true
@@ -760,8 +768,10 @@ func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (h
 	for lo+1 < hi {
 		mid := (hi + lo) / 2
 		if !executable(mid) {
+			log.Info(fmt.Sprintf("======== estimateGas 5b: Call failed, setting lo = %v", mid))
 			lo = mid
 		} else {
+			log.Info(fmt.Sprintf("======== estimateGas 5b: Call succeeded, setting hi = %v", mid))
 			hi = mid
 		}
 	}

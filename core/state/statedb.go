@@ -191,8 +191,10 @@ func (self *StateDB) Empty(addr common.Address) bool {
 func (self *StateDB) GetBalance(addr common.Address) *big.Int {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {
+		log.Info(fmt.Sprintf("======== statedb : ACCOUNT FOUND: %x, with balance = %v", addr, stateObject.Balance()))
 		return stateObject.Balance()
 	}
+	log.Info(fmt.Sprintf("======== statedb : ACCOUNT NOT FOUND: %x", addr))
 	return common.Big0
 }
 
