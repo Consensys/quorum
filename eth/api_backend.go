@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // EthAPIBackend implements ethapi.Backend for full nodes
@@ -142,14 +143,25 @@ func (b *EthAPIBackend) GetTd(blockHash common.Hash) *big.Int {
 	return b.eth.blockchain.GetTdByHash(blockHash)
 }
 
-func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header, vmCfg vm.Config) (*vm.EVM, func() error, error) {
-	statedb := state.(EthAPIState)
+func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, apiState vm.MinimalApiState, header *types.Header, vmCfg vm.Config) (*vm.EVM, func() error, error) {
+	statedb := apiState.(EthAPIState)
+
+	log.Info("======== GetEVM(): ", "msg:", msg)
+	// Need to ensure private state is initialised (similar to state_processor.go), else we get issues
+	// further down the line when checking for calls from private state to public state.
+	var privateState *state.StateDB
+	if msg, ok := msg.(core.PrivateMessage); ok && b.ChainConfig().IsQuorum && msg.IsPrivate() {
+		privateState = statedb.privateState
+	} else {
+		privateState = statedb.state
+	}
+
 	from := statedb.state.GetOrNewStateObject(msg.From())
 	from.SetBalance(math.MaxBig256)
 	vmError := func() error { return nil }
 
 	context := core.NewEVMContext(msg, header, b.eth.BlockChain(), nil)
-	return vm.NewEVM(context, statedb.state, statedb.privateState, b.eth.chainConfig, vmCfg), vmError, nil
+	return vm.NewEVM(context, statedb.state, privateState, b.eth.chainConfig, vmCfg), vmError, nil
 }
 
 func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
