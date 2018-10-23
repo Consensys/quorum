@@ -339,6 +339,7 @@ func disconnectNode (stack *node.Node, enodeId, consensusEngine string){
 }
 
 // helper function to format EnodeId
+// This will format the EnodeId and return
 func formatEnodeId( enodeId , ipAddrPort, discPort, raftPort, consensusEngine string) string {
 	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discPort=" + discPort
 	if consensusEngine == RAFT {
