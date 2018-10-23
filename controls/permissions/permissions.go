@@ -342,7 +342,7 @@ func disconnectNode (stack *node.Node, enodeId, consensusEngine string){
 func formatEnodeId( enodeId , ipAddrPort, discPort, raftPort, consensusEngine string) string {
 	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discPort=" + discPort
 	if consensusEngine == RAFT {
-		newEnodeId = enodeId +  "&raftport=" + raftPort
+		newEnodeId +=  "&raftport=" + raftPort
 	}
 	return newEnodeId
 }
