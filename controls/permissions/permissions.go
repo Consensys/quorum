@@ -1,18 +1,23 @@
 package permissions
 
 import (
+	"fmt"
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
+	"math/big"
 	"os"
 	"sync"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/controls"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -36,7 +41,7 @@ const (
 // the permissiones contract deployed as a precompile via genesis.json
 func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
 	// Create a new ethclient to for interfacing with the contract
-	stateReader, err := controls.CreateEthClient(stack)
+	stateReader, e, err := controls.CreateEthClient(stack)
 	if err != nil {
 		log.Error ("Unable to create ethereum client for permissions check : ", "err" , err)
 		return err
@@ -52,7 +57,7 @@ func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
 		consensusEngine = RAFT
 	} 
 	// Monitors node addition and decativation from network
-	manageNodePermissions(stack, stateReader, consensusEngine);
+	manageNodePermissions(ctx, stack, e, stateReader, consensusEngine);
 
 	// Monitors account level persmissions  update from smart contarct 
 	manageAccountPermissions(stack, stateReader);
@@ -62,7 +67,11 @@ func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
 
 
 // Manages node addition and decavtivation from network
-func manageNodePermissions(stack *node.Node, stateReader *ethclient.Client, consensusEngine string) {
+func manageNodePermissions(ctx *cli.Context, stack *node.Node, e *eth.Ethereum, stateReader *ethclient.Client, consensusEngine string) {
+	// populate the initial list of nodes into the smart contract
+	// from permissioned-nodes.json
+	populateNodesToContract(ctx, stack, e, stateReader)
+
 	//monitor for new nodes addition via smart contract
 	go monitorNewNodeAdd(stack, stateReader, consensusEngine)
 
@@ -346,4 +355,96 @@ func formatEnodeId( enodeId , ipAddrPort, discPort, raftPort, consensusEngine st
 		newEnodeId +=  "&raftport=" + raftPort
 	}
 	return newEnodeId
+}
+//populates the nodes list from permissioned-nodes.json into the permissions
+//smart contract
+func populateNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Ethereum, stateReader *ethclient.Client){
+
+	log.Info("SMK - inside populateNodesToContract @363")
+	//Read the key file from key store. SHOULD WE MAKE IT CONFIG value
+	key := getKeyFromKeyStore(ctx)
+
+	permissionsContract, err := NewPermissions(params.QuorumPermissionsContract, stateReader)
+
+	if err != nil {
+		utils.Fatalf("Failed to instantiate a Permissions contract: %v", err)
+	}
+	auth, err := bind.NewTransactor(strings.NewReader(key), "")
+	if err != nil {
+		utils.Fatalf("Failed to create authorized transactor: %v", err)
+	}
+
+	permissionsSession := &PermissionsSession{
+		Contract: permissionsContract,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     auth.From,
+			Signer:   auth.Signer,
+			GasLimit: 3558096384,
+			GasPrice: big.NewInt(0),
+		},
+	}
+
+	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
+
+	nodes := p2p.ParsePermissionedNodes(datadir)
+	for _, node := range nodes {
+		enodeID := fmt.Sprintf("%x", node.ID[:])
+		ipAddr := fmt.Sprintf("%v", node.IP)
+		port := fmt.Sprintf("%v", node.TCP)
+		discPort := fmt.Sprintf("%v", node.UDP)
+		raftPort := fmt.Sprintf("%v", node.RaftPort) 
+
+		ipAddrPort := ipAddr + ":" + port
+
+		log.Info("SMK-values are : ", "enodeId", enodeID, "ipAddrPort", ipAddrPort, "discPort", discPort, "raftPort", raftPort)
+
+		log.Trace("Adding node to permissions contract", "enodeID", enodeID)
+
+		nonce := e.TxPool().Nonce(permissionsSession.TransactOpts.From)
+		permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
+
+		tx, err := permissionsSession.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
+		if err != nil {
+			log.Warn("Failed to propose node", "err", err)
+		}
+		log.Debug("Transaction pending", "tx hash", tx.Hash())
+	}
+	// update the network boot status to true
+	nonce := e.TxPool().Nonce(permissionsSession.TransactOpts.From)
+	permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
+
+	tx, err := permissionsSession.UpdateNetworkBootStatus()
+	if err != nil {
+		log.Warn("Failed to udpate network boot status ", "err", err)
+	}
+	log.Debug("Transaction pending", "tx hash", tx.Hash())
+}
+
+//This functions reads the first file in key store directory, reads the key
+//value and returns the same
+func getKeyFromKeyStore(ctx *cli.Context) string {
+	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
+
+	files, err := ioutil.ReadDir(filepath.Join(datadir, "keystore"))
+	if err != nil {
+		utils.Fatalf("Failed to read keystore directory: %v", err)
+	}
+
+	// HACK: here we always use the first key as transactor
+	var keyPath string
+	for _, f := range files {
+		keyPath = filepath.Join(datadir, "keystore", f.Name())
+		break
+	}
+	keyBlob, err := ioutil.ReadFile(keyPath)
+	if err != nil {
+		utils.Fatalf("Failed to read key file: %v", err)
+	}
+	// n := bytes.IndexByte(keyBlob, 0)
+	n := len(keyBlob)
+
+	return string(keyBlob[:n])
 }
