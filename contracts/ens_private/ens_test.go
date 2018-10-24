@@ -37,7 +37,7 @@ func TestENS(t *testing.T) {
 	contractBackend := backends.NewSimulatedBackend(core.GenesisAlloc{addr: {Balance: big.NewInt(1000000000)}})
 	transactOpts := bind.NewKeyedTransactor(key)
 	// Workaround for bug estimating gas in the call to Register
-	transactOpts.GasLimit = big.NewInt(1000000)
+	transactOpts.GasLimit = 1000000
 	//set privacy fields
 	privateFrom := "BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo="
 	privateFor := make([]string, 2)
