@@ -220,7 +220,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 	// Pay intrinsic gas
 	gas, err := IntrinsicGas(st.data, contractCreation, homestead)
-	log.Info("======== state_transition.go::TransitionDb(), calculated: ", "intrinsicGas", gas)
 	if err != nil {
 		return nil, 0, false, err
 	}
@@ -257,7 +256,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 		ret, st.gas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
 	}
-	log.Info("======== state_transition.go::TransitionDb(), used gas calculation: ", "st.gas", st.gas)
 	if vmerr != nil {
 		log.Debug("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
