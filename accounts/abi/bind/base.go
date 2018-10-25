@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // SignerFn is a signer function callback when a contract requires a method to
@@ -49,6 +50,9 @@ type TransactOpts struct {
 	From   common.Address // Ethereum account to send the transaction from
 	Nonce  *big.Int       // Nonce to use for the transaction execution (nil = use pending state)
 	Signer SignerFn       // Method to use for signing the transaction (mandatory)
+
+	PrivateFrom string   // The public key of the Constellation identity to send this tx from.
+	PrivateFor  []string // The public keys of the Constellation identities this tx is intended for.
 
 	Value    *big.Int // Funds to transfer along along the transaction (nil = 0 = no funds)
 	GasPrice *big.Int // Gas price to use for the transaction execution (nil = gas price oracle)
@@ -226,13 +230,26 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 			return nil, fmt.Errorf("failed to estimate gas needed: %v", err)
 		}
 	}
-	// Create the transaction, sign it and schedule it for execution
+
+	// Create the raw transaction.
 	var rawTx *types.Transaction
 	if contract == nil {
 		rawTx = types.NewContractCreation(nonce, value, gasLimit, gasPrice, input)
 	} else {
 		rawTx = types.NewTransaction(nonce, c.address, value, gasLimit, gasPrice, input)
 	}
+
+	// If this transaction is private, we need to substitute the data payload
+	// with one from constelation.
+	if len(opts.PrivateFor) > 0 {
+		rawTx, err = c.preparePrivateTransaction(
+			ensureContext(opts.Context), rawTx, opts.PrivateFrom, opts.PrivateFor)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Sign the transaction and submit it to the mempool.
 	if opts.Signer == nil {
 		return nil, errors.New("no signer to authorize the transaction with")
 	}
@@ -341,6 +358,22 @@ func (c *BoundContract) UnpackLog(out interface{}, event string, log types.Log) 
 		}
 	}
 	return parseTopics(out, indexed, log.Topics[1:])
+}
+// PreparePrivateTransaction replaces the payload data of the transaction with a
+// commitment to turn it into a private tx.
+func (c *BoundContract) preparePrivateTransaction(ctx context.Context, tx *types.Transaction, privateFrom string, privateFor []string) (*types.Transaction, error) {
+	raw, _ := rlp.EncodeToBytes(tx)
+
+	privTxBytes, err := c.transactor.PreparePrivateTransaction(ctx, raw, privateFrom, privateFor)
+	if err != nil {
+		return nil, err
+	}
+
+	tx = new(types.Transaction)
+	if err := rlp.DecodeBytes(privTxBytes, tx); err != nil {
+		return nil, err
+	}
+	return tx, nil
 }
 
 // ensureContext is a helper method to ensure a context is not nil, even if the
