@@ -85,9 +85,7 @@ func toCallArgs(msg ethereum.CallMsg) ethapi.CallArgs {
 		To:   msg.To,
 		From: msg.From,
 		Data: msg.Data,
-	}
-	if msg.Gas != nil {
-		args.Gas = hexutil.Big(*msg.Gas)
+		Gas: hexutil.Uint64(msg.Gas),
 	}
 	if msg.GasPrice != nil {
 		args.GasPrice = hexutil.Big(*msg.GasPrice)
@@ -118,7 +116,8 @@ func (b *ContractBackend) PendingNonceAt(ctx context.Context, account common.Add
 // SuggestGasPrice implements bind.ContractTransactor retrieving the currently
 // suggested gas price to allow a timely execution of a transaction.
 func (b *ContractBackend) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
-	return b.eapi.GasPrice(ctx)
+	price, error := b.eapi.GasPrice(ctx)
+	return price.ToInt(), error
 }
 
 // EstimateGasLimit implements bind.ContractTransactor triing to estimate the gas
@@ -128,7 +127,7 @@ func (b *ContractBackend) SuggestGasPrice(ctx context.Context) (*big.Int, error)
 // should provide a basis for setting a reasonable default.
 func (b *ContractBackend) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (*big.Int, error) {
 	out, err := b.bcapi.EstimateGas(ctx, toCallArgs(msg))
-	return out.ToInt(), err
+	return new(big.Int).SetUint64(uint64(out)), err
 }
 
 // SendTransaction implements bind.ContractTransactor injects the transaction
