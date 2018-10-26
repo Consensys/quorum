@@ -18,11 +18,10 @@ const (
 )
 
 // check if a given node is permissioned to connect to the change
-func isNodePermissioned(nodename string, currentNode string, datadir string, direction string) bool {
+func isNodePermissioned(nodename string, currentNode string, datadir string, direction string, knownNodes []*discover.Node ) bool {
 
 	var permissionedList []string
-	nodes := ParsePermissionedNodes(datadir)
-	for _, v := range nodes {
+	for _, v := range knownNodes {
 		permissionedList = append(permissionedList, v.ID.String())
 	}
 

@@ -31,7 +31,7 @@ contract Permissions {
   mapping (uint => uint) private voteCount;
 
   // checks if firts time network boot up has happened or not
-  bool networkBoot = false;
+  bool private networkBoot = false;
 
   // node permission events for new node propose
   event NodeProposed(string _enodeId);
@@ -88,6 +88,12 @@ contract Permissions {
   // view functions
 
   // Get number of nodes
+  function getNetworkBootStatus() public view returns (bool)
+  {
+    return networkBoot;
+  }
+
+  // Get number of nodes
   function getNumberOfNodes() public view returns (uint)
   {
     return numberOfNodes;
@@ -134,9 +140,11 @@ contract Permissions {
 
   // state change functions
   // update the networ boot status as true
-  function updateNetworkBootStatus() external {
+  function updateNetworkBootStatus() external returns (bool)
+  {
     require (networkBoot == false, "Invalid call: Network boot up completed");
     networkBoot = true;
+    return networkBoot;
   }
 
   // propose a new node to the network
