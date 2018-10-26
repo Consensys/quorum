@@ -861,7 +861,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *discover.Node) e
 			log.Trace("Node Permissioning", "Connection Direction", direction)
 		}
 
-		if !isNodePermissioned(node, currentNode, srv.DataDir, direction) {
+		if !isNodePermissioned(node, currentNode, srv.DataDir, direction, srv.KnownNodes) {
 			return nil
 		}
 	} else {

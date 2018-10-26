@@ -27,8 +27,6 @@ import (
 const (
 	PERMISSIONED_CONFIG = "permissioned-nodes.json"
 	BLACKLIST_CONFIG = "disallowed-nodes.json"
-	RAFT = "raft"
-	ISTANBUL = "istanbul"
 )
 
 type NodeOperation uint8
@@ -56,12 +54,16 @@ func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
 		log.Error ("Permissions not enabled for the network : ", "err" , err)
 		return nil
 	}
-	consensusEngine := ISTANBUL
+	isRaft := false
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
-		consensusEngine = RAFT
-	} 
+		isRaft = true
+	}
+
+	// Permissions initialization
+	err = permissionsInit(ctx, stack, e, stateReader, isRaft)
+
 	// Monitors node addition and decativation from network
-	manageNodePermissions(ctx, stack, e, stateReader, consensusEngine);
+	manageNodePermissions(ctx, stack, e, stateReader, isRaft);
 
 	// Monitors account level persmissions  update from smart contarct 
 	manageAccountPermissions(stack, stateReader);
@@ -69,31 +71,49 @@ func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
 	return nil
 }
 
-
-// Manages node addition and decavtivation from network
-func manageNodePermissions(ctx *cli.Context, stack *node.Node, e *eth.Ethereum, stateReader *ethclient.Client, consensusEngine string) {
+// This functions updates the initial  values for the network
+func permissionsInit(ctx *cli.Context, stack *node.Node, e *eth.Ethereum, stateReader *ethclient.Client, isRaft bool) error {
 	// populate the initial list of nodes into the smart contract
 	// from permissioned-nodes.json
-	populateNodesToContract(ctx, stack, e, stateReader)
+	populateStaticNodesToContract(ctx, stack, e, stateReader)
+
+	// populate the account access for the genesis.json accounts. these
+	// accounts will have full access
+	// populateInitAccountAccess()
+
+
+	// call populates the node details from contract to KnownNodes
+	if err := populatePermissionedNodes (stack, stateReader, isRaft); err != nil {
+		return err
+	}
+	// call populates the account permissions based on past history
+	if err := populateAcctPermissions (stack, stateReader); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Manages node addition and decavtivation from network
+func manageNodePermissions(ctx *cli.Context, stack *node.Node, e *eth.Ethereum, stateReader *ethclient.Client, isRaft bool) {
 
 	//monitor for new nodes addition via smart contract
-	go monitorNewNodeAdd(stack, stateReader, consensusEngine)
+	go monitorNewNodeAdd(stack, stateReader, isRaft)
 
 	//monitor for nodes deletiin via smart contract
-	go monitorNodeDeactivation(stack, stateReader, consensusEngine)
+	go monitorNodeDeactivation(stack, stateReader, isRaft)
 
 	//monitor for nodes blacklisting via smart contract
-	go monitorNodeBlacklisting(stack, stateReader, consensusEngine)
+	go monitorNodeBlacklisting(stack, stateReader, isRaft)
 }
 
 // This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
-func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client, consensusEngine string) {
+func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client, isRaft bool) {
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("failed to monitor new node add : ", "err" , err)
 	}
-	datadir := stack.DataDir()
 
 	ch := make(chan *PermissionsNodeApproved, 1)
 
@@ -110,19 +130,18 @@ func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client, consensu
 	for {
 		select {
 		case nodeAddEvent = <-ch:
-			updatePermissionedNodes(nodeAddEvent.EnodeId, nodeAddEvent.IpAddrPort, nodeAddEvent.DiscPort, nodeAddEvent.RaftPort, datadir, consensusEngine, NodeAdd)
+			updatePermissionedNodes(stack, nodeAddEvent.EnodeId, nodeAddEvent.IpAddrPort, nodeAddEvent.DiscPort, nodeAddEvent.RaftPort, isRaft, NodeAdd)
 		}
     }
 }
 
 // This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
-func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client, consensusEngine string) {
+func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client, isRaft bool) {
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("Failed to monitor node delete: ", "err" , err)
 	}
-	datadir := stack.DataDir()
 
 	ch := make(chan *PermissionsNodeDeactivated)
 
@@ -139,7 +158,7 @@ func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client, co
 	for {
 		select {
 		case newNodeDeleteEvent = <-ch:
-			updatePermissionedNodes(newNodeDeleteEvent.EnodeId, newNodeDeleteEvent.IpAddrPort, newNodeDeleteEvent.DiscPort, newNodeDeleteEvent.RaftPort, datadir, consensusEngine, NodeDelete)
+			updatePermissionedNodes(stack, newNodeDeleteEvent.EnodeId, newNodeDeleteEvent.IpAddrPort, newNodeDeleteEvent.DiscPort, newNodeDeleteEvent.RaftPort, isRaft, NodeDelete)
 	  }
 
 	}
@@ -147,7 +166,7 @@ func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client, co
 
 // This function listnes on the channel for any node blacklisting event via smart contract
 // and adds the same disallowed-nodes.json
-func monitorNodeBlacklisting(stack *node.Node, stateReader *ethclient.Client, consensusEngine string) {
+func monitorNodeBlacklisting(stack *node.Node, stateReader *ethclient.Client, isRaft bool) {
 	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("failed to monitor new node add : ", "err" , err)
@@ -167,59 +186,41 @@ func monitorNodeBlacklisting(stack *node.Node, stateReader *ethclient.Client, co
 	for {
 		select {
 		case nodeBlacklistEvent = <-ch:
-			updateDisallowedNodes(nodeBlacklistEvent, stack, consensusEngine)
+			updateDisallowedNodes(nodeBlacklistEvent, stack, isRaft)
 		}
     }
 }
 
 //this function populates the new node information into the permissioned-nodes.json file
-func updatePermissionedNodes(enodeId , ipAddrPort, discPort, raftPort, dataDir, consensusEngine string, operation NodeOperation){
-	log.Debug("updatePermissionedNodes", "DataDir", dataDir, "file", PERMISSIONED_CONFIG)
+func updatePermissionedNodes(stack *node.Node, enodeId , ipAddrPort, discPort, raftPort string, isRaft bool, operation NodeOperation){
+	newEnodeId := formatEnodeId(enodeId, ipAddrPort, discPort, raftPort, isRaft)
 
-	path := filepath.Join(dataDir, PERMISSIONED_CONFIG)
-	if _, err := os.Stat(path); err != nil {
-		log.Error("Read Error for permissioned-nodes.json file. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present.", "err", err)
-		return 
-	}
-	// Load the nodes from the config file
-	blob, err := ioutil.ReadFile(path)
+	//new logic to update the server KnownNodes variable for permissioning
+	server := stack.Server();
+	newNode, err := discover.ParseNode(newEnodeId)
+
 	if err != nil {
-		log.Error("updatePermissionedNodes: Failed to access permissioned-nodes.json", "err", err)
-		return
+		log.Error("updatePermissionedNodes: Node URL", "url", newEnodeId, "err", err)
 	}
-
-	nodelist := []string{}
-	if err := json.Unmarshal(blob, &nodelist); err != nil {
-		log.Error("updatePermissionedNodes: Failed to load nodes list", "err", err)
-		return 
-	}
-	newEnodeId := formatEnodeId(enodeId, ipAddrPort, discPort, raftPort, consensusEngine)
 
 	if (operation == NodeAdd){
-		nodelist = append(nodelist, newEnodeId)
+		// Add the new enode id to server.KnownNodes
+		server.KnownNodes = append(server.KnownNodes, newNode)
 	} else {
+		// delete the new enode id from server.KnownNodes
 		index := 0
-		for i, enodeId := range nodelist {
-			if (enodeId == newEnodeId){
+		for i, node := range server.KnownNodes {
+			if (node.ID == newNode.ID){
 				index = i
-				break
 			}
 		}
-		nodelist = append(nodelist[:index], nodelist[index+1:]...)
+		server.KnownNodes = append (server.KnownNodes[:index], server.KnownNodes[index+1:]...)
 	}
 
-	mu := sync.RWMutex{}
-	blob, _ = json.Marshal(nodelist)
-
-	mu.Lock()
-	if err:= ioutil.WriteFile(path, blob, 0644); err!= nil{
-		log.Error("updatePermissionedNodes: Error writing new node info to file", "err", err)
-	}
-	mu.Unlock()
 }
 
 //this function populates the new node information into the permissioned-nodes.json file
-func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack *node.Node, consensusEngine string){
+func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack *node.Node, isRaft bool){
 	dataDir := stack.DataDir()
 	log.Debug("updateDisallowedNodes", "DataDir", dataDir, "file", BLACKLIST_CONFIG)
 
@@ -251,7 +252,7 @@ func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack
 		}
 	}
 
-	newEnodeId := formatEnodeId (nodeBlacklistEvent.EnodeId, nodeBlacklistEvent.IpAddrPort, nodeBlacklistEvent.DiscPort, nodeBlacklistEvent.RaftPort, consensusEngine )
+	newEnodeId := formatEnodeId (nodeBlacklistEvent.EnodeId, nodeBlacklistEvent.IpAddrPort, nodeBlacklistEvent.DiscPort, nodeBlacklistEvent.RaftPort, isRaft )
 	nodelist = append(nodelist, newEnodeId)
 	mu := sync.RWMutex{}
 	blob, _ := json.Marshal(nodelist)
@@ -262,17 +263,45 @@ func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack
 	mu.Unlock()
 
 	// Disconnect the peer if it is already connected
-	disconnectNode(stack, newEnodeId, consensusEngine)
+	disconnectNode(stack, newEnodeId, isRaft)
 }
 
 // Manages account level permissions update
 func manageAccountPermissions(stack *node.Node, stateReader *ethclient.Client) error {
-	//call populate nodes to populate the nodes into contract
-	if err := populateAcctPermissions (stack, stateReader); err != nil {
-		return err
-	}
 	//monitor for nodes deletiin via smart contract
 	go monitorAccountPermissions(stack, stateReader)
+	return nil
+}
+// populates the nodes list from permissioned-nodes.json into the permissions
+// smart contract
+func populatePermissionedNodes (stack *node.Node, stateReader *ethclient.Client, isRaft bool) error{
+	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
+	if err != nil {
+		log.Error ("Failed to monitor node delete: ", "err" , err)
+		return err
+	}
+
+	opts := &bind.FilterOpts{}
+	pastAddEvent, err := permissions.FilterNodeApproved(opts)
+
+	recExists := true
+	for recExists {
+		recExists = pastAddEvent.Next()
+		if recExists {
+			updatePermissionedNodes(stack, pastAddEvent.Event.EnodeId, pastAddEvent.Event.IpAddrPort, pastAddEvent.Event.DiscPort, pastAddEvent.Event.RaftPort, isRaft, NodeAdd)
+		}
+	}
+
+	opts = &bind.FilterOpts{}
+	pastDelEvent, err := permissions.FilterNodeDeactivated(opts)
+
+	recExists = true
+	for recExists {
+		recExists = pastDelEvent.Next()
+		if recExists {
+			updatePermissionedNodes(stack, pastDelEvent.Event.EnodeId, pastDelEvent.Event.IpAddrPort, pastDelEvent.Event.DiscPort, pastDelEvent.Event.RaftPort, isRaft, NodeDelete)
+		}
+	}
 	return nil
 }
 
@@ -327,8 +356,8 @@ func monitorAccountPermissions(stack *node.Node, stateReader *ethclient.Client) 
 }
 
 // Disconnect the node from the network
-func disconnectNode (stack *node.Node, enodeId, consensusEngine string){
-	if consensusEngine == RAFT {
+func disconnectNode (stack *node.Node, enodeId string, isRaft bool){
+	if isRaft {
 		var raftService *raft.RaftService
 		if err := stack.Service(&raftService); err == nil {
 			raftApi := raft.NewPublicRaftAPI(raftService)
@@ -353,18 +382,17 @@ func disconnectNode (stack *node.Node, enodeId, consensusEngine string){
 
 // helper function to format EnodeId
 // This will format the EnodeId and return
-func formatEnodeId( enodeId , ipAddrPort, discPort, raftPort, consensusEngine string) string {
+func formatEnodeId( enodeId , ipAddrPort, discPort, raftPort string, isRaft bool) string {
 	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discPort=" + discPort
-	if consensusEngine == RAFT {
+	if isRaft {
 		newEnodeId +=  "&raftport=" + raftPort
 	}
 	return newEnodeId
 }
 //populates the nodes list from permissioned-nodes.json into the permissions
 //smart contract
-func populateNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Ethereum, stateReader *ethclient.Client){
+func populateStaticNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Ethereum, stateReader *ethclient.Client){
 
-	log.Info("SMK - inside populateNodesToContract @363")
 	//Read the key file from key store. SHOULD WE MAKE IT CONFIG value
 	key := getKeyFromKeyStore(ctx)
 
@@ -386,45 +414,49 @@ func populateNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Ethereum
 		TransactOpts: bind.TransactOpts{
 			From:     auth.From,
 			Signer:   auth.Signer,
-			GasLimit: 3558096384,
+			GasLimit: 4700000,
 			GasPrice: big.NewInt(0),
 		},
 	}
 
-	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
-
-	nodes := p2p.ParsePermissionedNodes(datadir)
-	for _, node := range nodes {
-		enodeID := fmt.Sprintf("%x", node.ID[:])
-		ipAddr := fmt.Sprintf("%v", node.IP)
-		port := fmt.Sprintf("%v", node.TCP)
-		discPort := fmt.Sprintf("%v", node.UDP)
-		raftPort := fmt.Sprintf("%v", node.RaftPort) 
-
-		ipAddrPort := ipAddr + ":" + port
-
-		log.Info("SMK-values are : ", "enodeId", enodeID, "ipAddrPort", ipAddrPort, "discPort", discPort, "raftPort", raftPort)
-
-		log.Trace("Adding node to permissions contract", "enodeID", enodeID)
-
-		nonce := e.TxPool().Nonce(permissionsSession.TransactOpts.From)
-		permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
-
-		tx, err := permissionsSession.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
-		if err != nil {
-			log.Warn("Failed to propose node", "err", err)
-		}
-		log.Debug("Transaction pending", "tx hash", tx.Hash())
-	}
-	// update the network boot status to true
-	nonce := e.TxPool().Nonce(permissionsSession.TransactOpts.From)
-	permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
-
-	tx, err := permissionsSession.UpdateNetworkBootStatus()
+	tx, err := permissionsSession.GetNetworkBootStatus()
 	if err != nil {
 		log.Warn("Failed to udpate network boot status ", "err", err)
 	}
-	log.Debug("Transaction pending", "tx hash", tx.Hash())
+	if tx != true {
+		datadir := ctx.GlobalString(utils.DataDirFlag.Name)
+
+		nodes := p2p.ParsePermissionedNodes(datadir)
+		for _, node := range nodes {
+
+			enodeID := node.ID.String()
+			ipAddr := node.IP.String()
+			port := fmt.Sprintf("%v", node.TCP)
+			discPort := fmt.Sprintf("%v", node.UDP)
+			raftPort := fmt.Sprintf("%v", node.RaftPort)
+
+			ipAddrPort := ipAddr + ":" + port
+
+			log.Trace("Adding node to permissions contract", "enodeID", enodeID)
+
+			nonce := e.TxPool().Nonce(permissionsSession.TransactOpts.From)
+			permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
+
+			tx, err := permissionsSession.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
+			if err != nil {
+				log.Warn("Failed to propose node", "err", err)
+			}
+			log.Debug("Transaction pending", "tx hash", tx.Hash())
+		}
+		// update the network boot status to true
+		nonce := e.TxPool().Nonce(permissionsSession.TransactOpts.From)
+		permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
+
+		_, err := permissionsSession.UpdateNetworkBootStatus()
+		if err != nil {
+			log.Warn("Failed to udpate network boot status ", "err", err)
+		}
+	}
 }
 
 //This functions reads the first file in key store directory, reads the key
