@@ -30,6 +30,9 @@ contract Permissions {
   // valid vote count
   mapping (uint => uint) private voteCount;
 
+  // checks if firts time network boot up has happened or not
+  bool networkBoot = false;
+
   // node permission events for new node propose
   event NodeProposed(string _enodeId);
   event NodeApproved(string _enodeId, string _ipAddrPort, string _discPort, string _raftPort);
@@ -130,22 +133,34 @@ contract Permissions {
   }
 
   // state change functions
+  // update the networ boot status as true
+  function updateNetworkBootStatus() external {
+    require (networkBoot == false, "Invalid call: Network boot up completed");
+    networkBoot = true;
+  }
 
   // propose a new node to the network
   function proposeNode(string _enodeId, string _ipAddrPort, string _discPort, string _raftPort) external enodeNotInList(_enodeId)
   {
-    if (checkVotingAccountExist()){
-      // increment node number, add node to the list
+    if (!(networkBoot)){
       numberOfNodes++;
       nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
-      nodeList.push(NodeDetails(_enodeId, _ipAddrPort,_discPort, _raftPort, NodeStatus.PendingApproval));
-      // add voting status, numberOfNodes is the index of current proposed node
-      for (uint i = 0; i < accountList.length; i++){
-        voteStatus[numberOfNodes][accountList[i]] = false;
+      nodeList.push(NodeDetails(_enodeId, _ipAddrPort,_discPort, _raftPort, NodeStatus.Approved));
+    }
+    else {
+      if (checkVotingAccountExist()){
+        // increment node number, add node to the list
+        numberOfNodes++;
+        nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
+        nodeList.push(NodeDetails(_enodeId, _ipAddrPort,_discPort, _raftPort, NodeStatus.PendingApproval));
+        // add voting status, numberOfNodes is the index of current proposed node
+        for (uint i = 0; i < accountList.length; i++){
+          voteStatus[numberOfNodes][accountList[i]] = false;
+        }
+        voteCount[numberOfNodes] = 0;
+        // emit event
+        emit NodeProposed(_enodeId);
       }
-      voteCount[numberOfNodes] = 0;
-      // emit event
-      emit NodeProposed(_enodeId);
     }
   }
 

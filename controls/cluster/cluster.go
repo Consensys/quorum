@@ -15,7 +15,7 @@ import (
 // the permissiones contract deployed as a precompile via genesis.json
 func ManageOrgKeys(ctx *cli.Context, stack *node.Node ) error {
 	// Create a new ethclient to for interfacing with the contract
-	stateReader, err := controls.CreateEthClient(stack)
+	stateReader, _, err := controls.CreateEthClient(stack)
 	if err != nil {
 		log.Error ("Unable to create ethereum client for cluster check : ", "err" , err)
 		return err
