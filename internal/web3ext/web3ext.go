@@ -32,6 +32,7 @@ var Modules = map[string]string{
 	"txpool":     TxPool_JS,
 	"raft":       Raft_JS,
 	"istanbul":   Istanbul_JS,
+	"permnode":   PermissionsNode_JS,
 }
 
 const Chequebook_JS = `
@@ -669,6 +670,48 @@ web3._extend({
                new web3._extend.Property({
                        name: 'cluster',
                        getter: 'raft_cluster'
+               }),
+       ]
+})
+`
+
+const PermissionsNode_JS = `
+web3._extend({
+       property: 'permnode',
+       methods:
+       [
+       ],
+       properties:
+       [
+               new web3._extend.Method({
+                       name: 'blacklistNode',
+                       call: 'permnode_blacklistNode',
+					   params: 1
+               }),
+               new web3._extend.Method({
+                       name: 'addVoter',
+                       call: 'permnode_addVoter',
+                       params: 1
+               }),
+               new web3._extend.Method({
+                       name: 'proposeNode',
+                       call: 'permnode_proposeNode',
+                       params: 1
+               }),
+               new web3._extend.Method({
+                       name: 'removeNode',
+                       call: 'permnode_removeNode',
+                       params: 1
+               }),
+               new web3._extend.Method({
+                       name: 'approveNode',
+                       call: 'permnode_approveNode',
+					   params: 1
+               }),
+ 				new web3._extend.Property({
+                       name: 'ValidNodes',
+                       getter: 'permnode_validNodes',
+					   params: 1
                }),
        ]
 })

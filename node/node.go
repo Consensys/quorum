@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/prometheus/util/flock"
+	"github.com/ethereum/go-ethereum/controls/backend"
 )
 
 // Node is a container on which services can be registered.
@@ -257,6 +258,10 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	for _, service := range services {
 		apis = append(apis, service.APIs()...)
 	}
+
+	apis = append(apis, backend.APIs()...)
+	log.Info("AJ-permissions api added")
+
 	// Start the various API endpoints, terminating all in case of errors
 	if err := n.startInProc(apis); err != nil {
 		return err

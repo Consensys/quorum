@@ -32,6 +32,10 @@ const (
 	NodeDelete
 )
 
+func SayHello(n string) string{
+	return "Hello " + n + "!"
+}
+
 // This function first adds the node list from permissioned-nodes.json to
 // the permissiones contract deployed as a precompile via genesis.json
 func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
