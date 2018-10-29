@@ -35,6 +35,12 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/prometheus/util/flock"
 	"github.com/ethereum/go-ethereum/controls/backend"
+/*	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/cmd/utils"*/
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/eth"
 )
 
 // Node is a container on which services can be registered.
@@ -249,6 +255,18 @@ func (n *Node) openDataDir() error {
 	return nil
 }
 
+func createEthClient(stack *Node) (*ethclient.Client, *eth.Ethereum, error){
+	var e *eth.Ethereum
+	if err := stack.Service(&e); err != nil {
+		return nil, nil, err
+	}
+	rpcClient, err := stack.Attach()
+	if err != nil {
+		return nil,  nil, err
+	}
+	return ethclient.NewClient(rpcClient), e, nil
+}
+
 // startRPC is a helper method to start all the various RPC endpoint during node
 // startup. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
@@ -256,11 +274,18 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	// Gather all the possible APIs to surface
 	apis := n.apis()
 	for _, service := range services {
+		//TODO get a ethereum service and pass the config from it to add perm service
 		apis = append(apis, service.APIs()...)
 	}
 
-	apis = append(apis, backend.APIs()...)
-	log.Info("AJ-permissions api added")
+	if n.config.EnableNodePermission {
+		ec, e, err := createEthClient(n)
+		if err != nil {
+			utils.Fatalf("Error creating eth client: %v", err)
+		}
+		apis = append(apis, backend.APIs(ec, e, n.InstanceDir())...)
+		log.Info("AJ-permissions api added")
+	}
 
 	// Start the various API endpoints, terminating all in case of errors
 	if err := n.startInProc(apis); err != nil {

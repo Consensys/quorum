@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/raft"
 	"gopkg.in/urfave/cli.v1"
+	"github.com/ethereum/go-ethereum/controls/permbind"
 )
 const (
 	PERMISSIONED_CONFIG = "permissioned-nodes.json"
@@ -50,7 +51,7 @@ func QuorumPermissioning(ctx *cli.Context, stack *node.Node ) error {
 	}
 
 	// check if permissioning contract is there at address. If not return from here
-	if _ , err = NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader); err != nil {
+	if _ , err = permbind.NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader); err != nil {
 		log.Error ("Permissions not enabled for the network : ", "err" , err)
 		return nil
 	}
@@ -110,17 +111,17 @@ func manageNodePermissions(ctx *cli.Context, stack *node.Node, e *eth.Ethereum, 
 // This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
 func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client, isRaft bool) {
-	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
+	permissions, err := permbind.NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("failed to monitor new node add : ", "err" , err)
 	}
 
-	ch := make(chan *PermissionsNodeApproved, 1)
+	ch := make(chan *permbind.PermissionsNodeApproved, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var nodeAddEvent *PermissionsNodeApproved 
+	var nodeAddEvent *permbind.PermissionsNodeApproved
 
 	_, err = permissions.WatchNodeApproved(opts, ch)
 	if err != nil {
@@ -138,17 +139,17 @@ func monitorNewNodeAdd(stack *node.Node, stateReader *ethclient.Client, isRaft b
 // This functions listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
 func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client, isRaft bool) {
-	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
+	permissions, err := permbind.NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("Failed to monitor node delete: ", "err" , err)
 	}
 
-	ch := make(chan *PermissionsNodeDeactivated)
+	ch := make(chan *permbind.PermissionsNodeDeactivated)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newNodeDeleteEvent *PermissionsNodeDeactivated 
+	var newNodeDeleteEvent *permbind.PermissionsNodeDeactivated
 
 	_, err = permissions.WatchNodeDeactivated(opts, ch)
 	if err != nil {
@@ -167,16 +168,16 @@ func monitorNodeDeactivation(stack *node.Node, stateReader *ethclient.Client, is
 // This function listnes on the channel for any node blacklisting event via smart contract
 // and adds the same disallowed-nodes.json
 func monitorNodeBlacklisting(stack *node.Node, stateReader *ethclient.Client, isRaft bool) {
-	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
+	permissions, err := permbind.NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("failed to monitor new node add : ", "err" , err)
 	}
-	ch := make(chan *PermissionsNodeBlacklisted, 1)
+	ch := make(chan *permbind.PermissionsNodeBlacklisted, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var nodeBlacklistEvent *PermissionsNodeBlacklisted 
+	var nodeBlacklistEvent *permbind.PermissionsNodeBlacklisted
 
 	_, err = permissions.WatchNodeBlacklisted(opts, ch)
 	if err != nil {
@@ -220,7 +221,7 @@ func updatePermissionedNodes(stack *node.Node, enodeId , ipAddrPort, discPort, r
 }
 
 //this function populates the new node information into the permissioned-nodes.json file
-func updateDisallowedNodes(nodeBlacklistEvent *PermissionsNodeBlacklisted, stack *node.Node, isRaft bool){
+func updateDisallowedNodes(nodeBlacklistEvent *permbind.PermissionsNodeBlacklisted, stack *node.Node, isRaft bool){
 	dataDir := stack.DataDir()
 	log.Debug("updateDisallowedNodes", "DataDir", dataDir, "file", BLACKLIST_CONFIG)
 
@@ -275,7 +276,7 @@ func manageAccountPermissions(stack *node.Node, stateReader *ethclient.Client) e
 // populates the nodes list from permissioned-nodes.json into the permissions
 // smart contract
 func populatePermissionedNodes (stack *node.Node, stateReader *ethclient.Client, isRaft bool) error{
-	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
+	permissions, err := permbind.NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("Failed to monitor node delete: ", "err" , err)
 		return err
@@ -308,7 +309,7 @@ func populatePermissionedNodes (stack *node.Node, stateReader *ethclient.Client,
 // populates the nodes list from permissioned-nodes.json into the permissions
 // smart contract
 func populateAcctPermissions(stack *node.Node, stateReader *ethclient.Client) error{
-	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
+	permissions, err := permbind.NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("Failed to monitor node delete: ", "err" , err)
 		return err
@@ -331,16 +332,16 @@ func populateAcctPermissions(stack *node.Node, stateReader *ethclient.Client) er
 // Monitors permissions changes at acount level and uodate the global permissions
 // map with the same
 func monitorAccountPermissions(stack *node.Node, stateReader *ethclient.Client) {
-	permissions, err := NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
+	permissions, err := permbind.NewPermissionsFilterer(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error ("Failed to monitor Account permissions : ", "err" , err)
 	}
-	ch := make(chan *PermissionsAccountAccessModified)
+	ch := make(chan *permbind.PermissionsAccountAccessModified)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newEvent *PermissionsAccountAccessModified
+	var newEvent *permbind.PermissionsAccountAccessModified
 
 	_, err = permissions.WatchAccountAccessModified(opts, ch)
 	if err != nil {
@@ -392,11 +393,10 @@ func formatEnodeId( enodeId , ipAddrPort, discPort, raftPort string, isRaft bool
 //populates the nodes list from permissioned-nodes.json into the permissions
 //smart contract
 func populateStaticNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Ethereum, stateReader *ethclient.Client){
-
 	//Read the key file from key store. SHOULD WE MAKE IT CONFIG value
 	key := getKeyFromKeyStore(ctx)
 
-	permissionsContract, err := NewPermissions(params.QuorumPermissionsContract, stateReader)
+	permissionsContract, err := permbind.NewPermissions(params.QuorumPermissionsContract, stateReader)
 
 	if err != nil {
 		utils.Fatalf("Failed to instantiate a Permissions contract: %v", err)
@@ -406,7 +406,7 @@ func populateStaticNodesToContract(ctx *cli.Context, stack *node.Node, e *eth.Et
 		utils.Fatalf("Failed to create authorized transactor: %v", err)
 	}
 
-	permissionsSession := &PermissionsSession{
+	permissionsSession := &permbind.PermissionsSession{
 		Contract: permissionsContract,
 		CallOpts: bind.CallOpts{
 			Pending: true,
