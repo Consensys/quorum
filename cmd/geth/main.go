@@ -39,9 +39,10 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/controls/permissions"
+	"github.com/ethereum/go-ethereum/controls/permission"
 	"github.com/ethereum/go-ethereum/controls/cluster"
 	"gopkg.in/urfave/cli.v1"
+	"github.com/ethereum/go-ethereum/core/quorum"
 )
 
 const (
@@ -291,18 +292,6 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	events := make(chan accounts.WalletEvent, 16)
 	stack.AccountManager().Subscribe(events)
 
-	//START - QUORUM Permissioning
-	if permissioned := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name); permissioned {
-		if err := permissions.QuorumPermissioning(ctx, stack); err != nil {
-			utils.Fatalf("Failed to start Quorum Permissioning: %v", err)
-		}
-	}
-	// Changes for managing org level cluster keys for privateFor txns
-	if err := cluster.ManageOrgKeys(ctx, stack); err != nil {
-		log.Warn("Org key management failed", "err", err)
-	}
-	//END - QUORUM Permissioning
-
 	go func() {
 		// Create a chain state reader for self-derivation
 		rpcClient, err := stack.Attach()
@@ -340,6 +329,10 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			}
 		}
 	}()
+
+	//START - QUORUM Permissioning
+	startQuorumPermissionOrgKeyService(ctx, stack)
+
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		// Mining only makes sense if a full Ethereum node is running
@@ -364,5 +357,36 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		if err := ethereum.StartMining(true); err != nil {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
+	}
+}
+
+func startQuorumPermissionOrgKeyService(ctx *cli.Context, stack *node.Node) {
+	if permEnabled := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name); permEnabled {
+		v := stack.GetRPC("permnode")
+		if v == nil {
+			utils.Fatalf("Failed to start Quorum Permission API")
+		}
+		papi := v.(*quorum.PermissionAPI)
+		rpcClient, err := stack.Attach()
+		if err != nil {
+			utils.Fatalf("Failed to attach to self: %v", err)
+		}
+		stateReader := ethclient.NewClient(rpcClient)
+		papi.Init(stateReader, stack.InstanceDir())
+		log.Info("Permission API initialized")
+		pctrl, err := permission.NewQuorumPermissionCtrl(ctx, stack)
+		if err != nil {
+			utils.Fatalf("Failed to start Quorum Permission contract service: %v", err)
+		}
+		pctrl.Start()
+		log.Info("Node Permission service started")
+	}
+	// Changes for managing org level cluster keys for privateFor txns
+	kc, err := cluster.NewOrgKeyCtrl(stack)
+	if err != nil {
+		log.Warn("Failed to start quorum Org key management service", "err", err)
+	} else {
+		kc.Start()
+		log.Info("Org key management service started")
 	}
 }

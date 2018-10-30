@@ -52,7 +52,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	)
+	"github.com/ethereum/go-ethereum/core/quorum"
+)
 
 type LesServer interface {
 	Start(srvr *p2p.Server)
@@ -274,6 +275,9 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *Config, chainConfig
 func (s *Ethereum) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.APIBackend)
 
+
+	//TODO add perm service
+
 	// Append any APIs exposed explicitly by the consensus engine
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
 
@@ -323,6 +327,13 @@ func (s *Ethereum) APIs() []rpc.API {
 			Service:   s.netRPCService,
 			Public:    true,
 		},
+		{
+			Namespace: "permnode",
+			Version:   "1.0",
+			Service:   quorum.NewPermissionAPI(s.txPool),
+			Public:    true,
+		},
+
 	}...)
 }
 

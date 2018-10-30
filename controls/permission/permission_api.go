@@ -1,5 +1,5 @@
-package backend
-
+package permission
+/*
 import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/log"
@@ -140,3 +140,4 @@ func (s *PermissionAPI) ValidNodes() []string {
 	log.Info("AJ-called6")
 	return []string{"n1", "n2"}
 }
+*/

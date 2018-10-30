@@ -34,14 +34,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/prometheus/util/flock"
-	"github.com/ethereum/go-ethereum/controls/backend"
-/*	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/cmd/utils"*/
-	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/eth"
-)
+	"github.com/ethereum/go-ethereum/core/quorum"
+	)
 
 // Node is a container on which services can be registered.
 type Node struct {
@@ -78,6 +72,15 @@ type Node struct {
 	lock sync.RWMutex
 
 	log log.Logger
+}
+
+func (n *Node) GetRPC(name string) interface{} {
+	for _, v := range  n.rpcAPIs {
+		if v.Namespace == name {
+			return v.Service
+		}
+	}
+	return nil
 }
 
 // New creates a new P2P node, ready for protocol registration.
@@ -255,17 +258,6 @@ func (n *Node) openDataDir() error {
 	return nil
 }
 
-func createEthClient(stack *Node) (*ethclient.Client, *eth.Ethereum, error){
-	var e *eth.Ethereum
-	if err := stack.Service(&e); err != nil {
-		return nil, nil, err
-	}
-	rpcClient, err := stack.Attach()
-	if err != nil {
-		return nil,  nil, err
-	}
-	return ethclient.NewClient(rpcClient), e, nil
-}
 
 // startRPC is a helper method to start all the various RPC endpoint during node
 // startup. It's not meant to be called at any time afterwards as it makes certain
@@ -275,16 +267,21 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	apis := n.apis()
 	for _, service := range services {
 		//TODO get a ethereum service and pass the config from it to add perm service
-		apis = append(apis, service.APIs()...)
-	}
-
-	if n.config.EnableNodePermission {
-		ec, e, err := createEthClient(n)
-		if err != nil {
-			utils.Fatalf("Error creating eth client: %v", err)
+		tapis := service.APIs()
+		for _, e := range tapis {
+			//initialize quorum's permission API with ethclient and datadir before starting the service
+			if e.Namespace == "permnode" {
+				log.Info("AJ-permnode service found. init the node")
+				v := e.Service.(*quorum.PermissionAPI)
+				log.Info("AJ-permnode", "v", v)
+				/*rpcClient, err := n.Attach()
+				if err != nil {
+					return err
+				}
+				v.Init(ethclient.NewClient(rpcClient), n.InstanceDir())*/
+			}
 		}
-		apis = append(apis, backend.APIs(ec, e, n.InstanceDir())...)
-		log.Info("AJ-permissions api added")
+		apis = append(apis, tapis...)
 	}
 
 	// Start the various API endpoints, terminating all in case of errors
