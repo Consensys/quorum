@@ -32,7 +32,7 @@ var Modules = map[string]string{
 	"txpool":     TxPool_JS,
 	"raft":       Raft_JS,
 	"istanbul":   Istanbul_JS,
-	"permnode":   PermissionsNode_JS,
+	"quorum":   PermissionsNode_JS,
 }
 
 const Chequebook_JS = `
@@ -677,41 +677,43 @@ web3._extend({
 
 const PermissionsNode_JS = `
 web3._extend({
-       property: 'permnode',
+       property: 'quorum',
        methods:
        [
        ],
        properties:
        [
                new web3._extend.Method({
-                       name: 'blacklistNode',
-                       call: 'permnode_blacklistNode',
-					   params: 1
+                       name: 'addVoter',
+                       call: 'quorum_addVoter',
+                       params: 1,
+                       inputFormatter: [web3._extend.formatters.inputAddressFormatter]
                }),
                new web3._extend.Method({
-                       name: 'addVoter',
-                       call: 'permnode_addVoter',
-                       params: 1
+                       name: 'removeVoter',
+                       call: 'quorum_removeVoter',
+                       params: 1,
+                       inputFormatter: [web3._extend.formatters.inputAddressFormatter]
                }),
                new web3._extend.Method({
                        name: 'proposeNode',
-                       call: 'permnode_proposeNode',
-                       params: 1
-               }),
-               new web3._extend.Method({
-                       name: 'removeNode',
-                       call: 'permnode_removeNode',
+                       call: 'quorum_proposeNode',
                        params: 1
                }),
                new web3._extend.Method({
                        name: 'approveNode',
-                       call: 'permnode_approveNode',
+                       call: 'quorum_approveNode',
 					   params: 1
                }),
- 				new web3._extend.Property({
-                       name: 'ValidNodes',
-                       getter: 'permnode_validNodes',
-					   params: 1
+               new web3._extend.Method({
+                       name: 'deactivateNode',
+                       call: 'quorum_deactivateNode',
+                       params: 1
+               }),
+         	   new web3._extend.Method({
+                       name: 'approveDeactivateNode',
+                       call: 'quorum_approveDeactivateNode',
+                       params: 1
                }),
        ]
 })

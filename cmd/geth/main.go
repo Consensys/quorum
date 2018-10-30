@@ -362,7 +362,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 
 func startQuorumPermissionOrgKeyService(ctx *cli.Context, stack *node.Node) {
 	if permEnabled := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name); permEnabled {
-		v := stack.GetRPC("permnode")
+		v := stack.GetRPC("quorum")
 		if v == nil {
 			utils.Fatalf("Failed to start Quorum Permission API")
 		}
@@ -372,7 +372,9 @@ func startQuorumPermissionOrgKeyService(ctx *cli.Context, stack *node.Node) {
 			utils.Fatalf("Failed to attach to self: %v", err)
 		}
 		stateReader := ethclient.NewClient(rpcClient)
-		papi.Init(stateReader, stack.InstanceDir())
+		if ierr := papi.Init(stateReader, stack.DataDir()); ierr != nil {
+			utils.Fatalf("Failed to initialized Quorum API service: %v", err)
+		}
 		log.Info("Permission API initialized")
 		pctrl, err := permission.NewQuorumPermissionCtrl(ctx, stack)
 		if err != nil {
