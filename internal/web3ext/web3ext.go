@@ -32,7 +32,7 @@ var Modules = map[string]string{
 	"txpool":     TxPool_JS,
 	"raft":       Raft_JS,
 	"istanbul":   Istanbul_JS,
-	"quorum":   PermissionsNode_JS,
+	"quorum":     QUORUM_JS,
 }
 
 const Chequebook_JS = `
@@ -675,7 +675,7 @@ web3._extend({
 })
 `
 
-const PermissionsNode_JS = `
+const QUORUM_JS = `
 web3._extend({
        property: 'quorum',
        methods:
@@ -714,6 +714,16 @@ web3._extend({
                        name: 'approveDeactivateNode',
                        call: 'quorum_approveDeactivateNode',
                        params: 1
+               }),
+               new web3._extend.Method({
+                       name: 'addOrgKey',
+                       call: 'quorum_addOrgKey',
+                       params: 2
+               }),
+               new web3._extend.Method({
+                       name: 'removeOrgKey',
+                       call: 'quorum_removeOrgKey',
+                       params: 2
                }),
        ]
 })

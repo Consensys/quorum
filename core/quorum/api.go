@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"math/big"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/controls/permbind"
+	pbind "github.com/ethereum/go-ethereum/controls/bind"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -22,12 +22,13 @@ var defaultGasPrice = big.NewInt(0)
 type PermissionAPI struct {
 	txPool    *core.TxPool
 	ethClnt   *ethclient.Client
-	permContr *permbind.Permissions
 	transOpts *bind.TransactOpts
+	permContr *pbind.Permissions
+	clustContr *pbind.Cluster
 }
 
 func NewPermissionAPI(tp *core.TxPool) *PermissionAPI {
-	pa := &PermissionAPI{tp, nil, nil, nil}
+	pa := &PermissionAPI{tp, nil, nil, nil, nil}
 	return pa
 }
 
@@ -38,11 +39,16 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client, datadir string) error {
 		log.Error("error reading key file", "err", kerr)
 		return kerr
 	}
-	permContr, err := permbind.NewPermissions(params.QuorumPermissionsContract, p.ethClnt)
+	permContr, err := pbind.NewPermissions(params.QuorumPermissionsContract, p.ethClnt)
 	if err != nil {
 		return err
 	}
 	p.permContr = permContr
+	clustContr, err := pbind.NewCluster(params.QuorumPrivateKeyManagementContract, p.ethClnt)
+	if err != nil {
+		return err
+	}
+	p.clustContr = clustContr
 	auth, err := bind.NewTransactor(strings.NewReader(key), "")
 	if err != nil {
 		return err
@@ -171,8 +177,8 @@ func (s *PermissionAPI) ApproveDeactivateNode(nodeId string) bool {
 }
 
 
-func (s *PermissionAPI) newPermSession() *permbind.PermissionsSession {
-	return &permbind.PermissionsSession{
+func (s *PermissionAPI) newPermSession() *pbind.PermissionsSession {
+	return &pbind.PermissionsSession{
 		Contract: s.permContr,
 		CallOpts: bind.CallOpts{
 			Pending: true,
@@ -185,6 +191,47 @@ func (s *PermissionAPI) newPermSession() *permbind.PermissionsSession {
 		},
 	}
 }
+
+func (s *PermissionAPI) newClusterSession() *pbind.ClusterSession {
+	return &pbind.ClusterSession{
+		Contract: s.clustContr,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     s.transOpts.From,
+			Signer:   s.transOpts.Signer,
+			GasLimit: defaultGasLimit,
+			GasPrice: defaultGasPrice,
+		},
+	}
+}
+
+func (s *PermissionAPI) AddOrgKey(orgId string, pvtKey string) bool {
+	cs := s.newClusterSession()
+	tx, err := cs.AddOrgKey(orgId, pvtKey)
+	if err != nil {
+		log.Warn("Failed to add org key", "err", err)
+		return false
+	}
+	txHash := tx.Hash()
+	log.Info("Transaction pending", "tx hash", string(txHash[:]))
+	return true
+}
+
+func (s *PermissionAPI) RemoveOrgKey(orgId string, pvtKey string) bool {
+	cs := s.newClusterSession()
+	tx, err := cs.DeleteOrgKey(orgId, pvtKey)
+	if err != nil {
+		log.Warn("Failed to remove org key", "err", err)
+		return false
+	}
+	txHash := tx.Hash()
+	log.Info("Transaction pending", "tx hash", string(txHash[:]))
+	return true
+}
+
+
 
 func getKeyFromKeyStore(datadir string) (string, error) {
 
