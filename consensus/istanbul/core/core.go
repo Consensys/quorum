@@ -203,8 +203,7 @@ func (c *core) startNewRound(round *big.Int) {
 			c.consensusTimestamp = time.Time{}
 		}
 
-		c.sendCatchUp(lastProposal, lastProposer)
-		logger.Warn("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
+		logger.Debug("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
 	} else if lastProposal.Number().Cmp(big.NewInt(c.current.Sequence().Int64()-1)) == 0 {
 		if round.Cmp(common.Big0) == 0 {
 			// same seq and round, don't need to start new round
@@ -262,17 +261,22 @@ func (c *core) startNewRound(round *big.Int) {
 
 func (c *core) sendCatchUp(lastProposal istanbul.Proposal, lastProposer common.Address) {
 	var validators []string
+	var proposer common.Address
 	validators = make([]string, c.valSet.Size())
 	for cont := 0; cont < len(validators); cont++ {
 		validators[cont] = c.valSet.List()[cont].Address().Hex()
+		if c.valSet.IsProposer(c.valSet.List()[cont].Address()) {
+			proposer = c.valSet.List()[cont].Address()
+		}
 	}
+
 	msg := istanbul.CatchUpEvent{
 		Action: "Catch up",
 		Data: istanbul.DataCatchUp{
 			Address:       c.address,
 			Block:         lastProposal.Number(),
 			OldProposer:   lastProposer,
-			NewProposer:   nil,
+			NewProposer:   &proposer,
 			Validators:    validators,
 			ValidatorSize: c.valSet.Size(),
 		},
@@ -286,6 +290,11 @@ func (c *core) catchUpRound(view *istanbul.View) {
 
 	if view.Round.Cmp(c.current.Round()) > 0 {
 		c.roundMeter.Mark(new(big.Int).Sub(view.Round, c.current.Round()).Int64())
+
+			lastProposal, lastProposer := c.backend.LastProposal()
+			c.sendCatchUp(lastProposal, lastProposer)
+			logger.Warn("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
+
 	}
 	c.waitingForRoundChange = true
 
