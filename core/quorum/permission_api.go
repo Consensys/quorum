@@ -20,36 +20,32 @@ type PermissionAPI struct {
 	ethClnt     *ethclient.Client
 	permContr   *permbind.Permissions
 	transOpts   *bind.TransactOpts
-	initialized bool
 }
 
 func NewPermissionAPI(e *core.TxPool) *PermissionAPI {
-	pa := &PermissionAPI{e, nil, nil, nil, false}
+	pa := &PermissionAPI{e, nil, nil, nil}
 	return pa
 }
 
 func (p *PermissionAPI) Init(ethClnt *ethclient.Client, datadir string) error {
-	if !p.initialized {
-		p.ethClnt = ethClnt
-		key, kerr := getKeyFromKeyStore(datadir)
-		if kerr != nil {
-			log.Error("error reading key file", "err", kerr)
-			return kerr
-		}
-
-		permContr, err := permbind.NewPermissions(params.QuorumPermissionsContract, p.ethClnt)
-		if err != nil {
-			return err
-		}
-		p.permContr = permContr
-		auth, err := bind.NewTransactor(strings.NewReader(key), "")
-		if err != nil {
-			return err
-		}
-		p.transOpts = auth
-		p.initialized = true
-
+	p.ethClnt = ethClnt
+	key, kerr := getKeyFromKeyStore(datadir)
+	if kerr != nil {
+		log.Error("error reading key file", "err", kerr)
+		return kerr
 	}
+
+	permContr, err := permbind.NewPermissions(params.QuorumPermissionsContract, p.ethClnt)
+	if err != nil {
+		return err
+	}
+	p.permContr = permContr
+	auth, err := bind.NewTransactor(strings.NewReader(key), "")
+	if err != nil {
+		return err
+	}
+	p.transOpts = auth
+
 	return nil
 }
 

@@ -41,8 +41,8 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/controls/permission"
 	"github.com/ethereum/go-ethereum/controls/cluster"
-	"gopkg.in/urfave/cli.v1"
 	"github.com/ethereum/go-ethereum/core/quorum"
+	"gopkg.in/urfave/cli.v1"
 )
 
 const (
@@ -331,7 +331,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	}()
 
 	//START - QUORUM Permissioning
-	startQuorumPermissionOrgKeyService(ctx, stack)
+	startQuorumPermissionService(ctx, stack)
 
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
@@ -360,26 +360,15 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	}
 }
 
-func startQuorumPermissionOrgKeyService(ctx *cli.Context, stack *node.Node) {
+func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 	if permEnabled := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name); permEnabled {
-		v := stack.GetRPC("permnode")
-		if v == nil {
-			utils.Fatalf("Failed to start Quorum Permission API")
-		}
-		papi := v.(*quorum.PermissionAPI)
-		rpcClient, err := stack.Attach()
-		if err != nil {
-			utils.Fatalf("Failed to attach to self: %v", err)
-		}
-		stateReader := ethclient.NewClient(rpcClient)
-		papi.Init(stateReader, stack.InstanceDir())
-		log.Info("Permission API initialized")
-		pctrl, err := permission.NewQuorumPermissionCtrl(ctx, stack)
+		// start the permissions management service
+		pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.RaftModeFlag.Name)) 
 		if err != nil {
 			utils.Fatalf("Failed to start Quorum Permission contract service: %v", err)
 		}
-		pctrl.Start()
-		log.Info("Node Permission service started")
+		pc.Start()
+
 	}
 	// Changes for managing org level cluster keys for privateFor txns
 	kc, err := cluster.NewOrgKeyCtrl(stack)
@@ -387,6 +376,20 @@ func startQuorumPermissionOrgKeyService(ctx *cli.Context, stack *node.Node) {
 		log.Warn("Failed to start quorum Org key management service", "err", err)
 	} else {
 		kc.Start()
-		log.Info("Org key management service started")
+		log.Trace("Key management service started")
 	}
+
+	log.Info("Node Permission service started")
+	v := stack.GetRPC("permnode")
+	if v == nil {
+		utils.Fatalf("Failed to start Quorum Permission API")
+	}
+	qapi := v.(*quorum.PermissionAPI)
+	rpcClient, err := stack.Attach()
+	if err != nil {
+		utils.Fatalf("Failed to attach to self: %v", err)
+	}
+	stateReader := ethclient.NewClient(rpcClient)
+	qapi.Init(stateReader, stack.InstanceDir())
+	log.Info("Permission API initialized")
 }

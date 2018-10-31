@@ -17,6 +17,7 @@
 package node
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"net"
@@ -81,6 +82,10 @@ func (n *Node) GetRPC(name string) interface{} {
 		}
 	}
 	return nil
+}
+
+func (n *Node) GetNodeKey () *ecdsa.PrivateKey {
+	return n.config.NodeKey()
 }
 
 // New creates a new P2P node, ready for protocol registration.

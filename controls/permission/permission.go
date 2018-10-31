@@ -1,6 +1,7 @@
 package permission
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"encoding/json"
 	"io/ioutil"
@@ -8,7 +9,6 @@ import (
 	"math/big"
 	"os"
 	"sync"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -22,7 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/controls"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/raft"
-	"gopkg.in/urfave/cli.v1"
 	"github.com/ethereum/go-ethereum/controls/permbind"
 )
 
@@ -43,23 +42,20 @@ type PermissionCtrl struct {
 	ethClnt *ethclient.Client
 	eth     *eth.Ethereum
 	isRaft  bool
-	key     string
+	key     *ecdsa.PrivateKey
 }
 
-func NewQuorumPermissionCtrl(ctx *cli.Context, stack *node.Node) (*PermissionCtrl, error) {
+func NewQuorumPermissionCtrl(stack *node.Node, isRaft bool) (*PermissionCtrl, error) {
 	// Create a new ethclient to for interfacing with the contract
 	stateReader, e, err := controls.CreateEthClient(stack)
 	if err != nil {
 		log.Error("Unable to create ethereum client for permissions check : ", "err", err)
 		return nil, err
 	}
-	isRaft := false
-	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
-		isRaft = true
-	}
-	//Read the key file from key store. SHOULD WE MAKE IT CONFIG value
-	key := getKeyFromKeyStore(ctx)
-	return &PermissionCtrl{stack, stateReader, e, isRaft, key}, nil
+	prvKey := stack.GetNodeKey()
+	log.Info("mykey value is : ", "prvKey", prvKey)
+
+	return &PermissionCtrl{stack, stateReader, e, isRaft, prvKey}, nil
 }
 
 // This function first adds the node list from permissioned-nodes.json to
@@ -410,7 +406,7 @@ func (p *PermissionCtrl) populateStaticNodesToContract() {
 	if err != nil {
 		utils.Fatalf("Failed to instantiate a Permissions contract: %v", err)
 	}
-	auth, err := bind.NewTransactor(strings.NewReader(p.key), "")
+	auth := bind.NewKeyedTransactor(p.key)
 	if err != nil {
 		utils.Fatalf("Failed to create authorized transactor: %v", err)
 	}
@@ -466,30 +462,4 @@ func (p *PermissionCtrl) populateStaticNodesToContract() {
 			log.Warn("Failed to udpate network boot status ", "err", err)
 		}
 	}
-}
-
-//This functions reads the first file in key store directory, reads the key
-//value and returns the same
-func getKeyFromKeyStore(ctx *cli.Context) string {
-	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
-
-	files, err := ioutil.ReadDir(filepath.Join(datadir, "keystore"))
-	if err != nil {
-		utils.Fatalf("Failed to read keystore directory: %v", err)
-	}
-
-	// HACK: here we always use the first key as transactor
-	var keyPath string
-	for _, f := range files {
-		keyPath = filepath.Join(datadir, "keystore", f.Name())
-		break
-	}
-	keyBlob, err := ioutil.ReadFile(keyPath)
-	if err != nil {
-		utils.Fatalf("Failed to read key file: %v", err)
-	}
-	// n := bytes.IndexByte(keyBlob, 0)
-	n := len(keyBlob)
-
-	return string(keyBlob[:n])
 }
