@@ -330,7 +330,7 @@ func (s *Ethereum) APIs() []rpc.API {
 		{
 			Namespace: "quorum",
 			Version:   "1.0",
-			Service:   quorum.NewPermissionAPI(s.txPool),
+			Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
 			Public:    true,
 		},
 

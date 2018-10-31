@@ -88,6 +88,11 @@ contract Permissions {
   // view functions
 
   // Get number of nodes
+  function getNumberofVoters() public view returns (uint)
+  {
+	return accountList.length;
+  }
+  // Get number of nodes
   function getNetworkBootStatus() public view returns (bool)
   {
     return networkBoot;

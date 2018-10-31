@@ -698,7 +698,8 @@ web3._extend({
                new web3._extend.Method({
                        name: 'proposeNode',
                        call: 'quorum_proposeNode',
-                       params: 1
+                       params: 2,
+                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null]
                }),
                new web3._extend.Method({
                        name: 'approveNode',
