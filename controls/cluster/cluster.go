@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/controls"
+	pbind "github.com/ethereum/go-ethereum/controls/bind"
 )
 
 type OrgKeyCtrl struct {
@@ -27,7 +28,7 @@ func NewOrgKeyCtrl(node *node.Node) (*OrgKeyCtrl, error) {
 // the permissiones contract deployed as a precompile via genesis.json
 func (k *OrgKeyCtrl) Start() error {
 
-	_, err := NewClusterFilterer(params.PrivateKeyManagementContract, k.ethClient)
+	_, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	// check if permissioning contract is there at address. If not return from here
 	if err != nil {
 		log.Error("Cluster not enabled for the network : ", "err", err)
@@ -49,7 +50,7 @@ func (k *OrgKeyCtrl) manageClusterKeys() error {
 }
 
 func (k *OrgKeyCtrl) populatePrivateKeys() error {
-	cluster, err := NewClusterFilterer(params.PrivateKeyManagementContract, k.ethClient)
+	cluster, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {
 		log.Error("Failed to monitor node delete: ", "err", err)
 		return err
@@ -86,16 +87,16 @@ func (k *OrgKeyCtrl) monitorKeyChanges() {
 }
 
 func (k *OrgKeyCtrl) monitorKeyAdd() {
-	cluster, err := NewClusterFilterer(params.PrivateKeyManagementContract, k.ethClient)
+	cluster, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {
 		log.Error("Failed to monitor Account cluster : ", "err", err)
 	}
-	ch := make(chan *ClusterOrgKeyAdded)
+	ch := make(chan *pbind.ClusterOrgKeyAdded)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newEvent *ClusterOrgKeyAdded
+	var newEvent *pbind.ClusterOrgKeyAdded
 
 	_, err = cluster.WatchOrgKeyAdded(opts, ch)
 	if err != nil {
@@ -111,16 +112,16 @@ func (k *OrgKeyCtrl) monitorKeyAdd() {
 }
 
 func (k *OrgKeyCtrl) monitorKeyDelete() {
-	cluster, err := NewClusterFilterer(params.PrivateKeyManagementContract, k.ethClient)
+	cluster, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {
 		log.Error("Failed to monitor Account cluster : ", "err", err)
 	}
-	ch := make(chan *ClusterOrgKeyDeleted)
+	ch := make(chan *pbind.ClusterOrgKeyDeleted)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newEvent *ClusterOrgKeyDeleted
+	var newEvent *pbind.ClusterOrgKeyDeleted
 
 	_, err = cluster.WatchOrgKeyDeleted(opts, ch)
 	if err != nil {
