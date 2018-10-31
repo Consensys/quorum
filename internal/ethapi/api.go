@@ -620,8 +620,6 @@ func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr
 		gas = big.NewInt(50000000)
 	}
 
-	// NOTE(joel): let's keep the default gas price 0 for now, but note this as a
-	// spot that might be tweaked in the future.
 	if gasPrice.Sign() == 0 && !s.b.ChainConfig().IsQuorum {
 		gasPrice = new(big.Int).SetUint64(defaultGasPrice)
 	}
