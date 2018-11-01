@@ -2,17 +2,18 @@ package quorum
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	pbind "github.com/ethereum/go-ethereum/controls/bind"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
-	"math/big"
+	pbind "github.com/ethereum/go-ethereum/controls/bind"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var defaultGasLimit = uint64(470000000)
