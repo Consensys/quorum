@@ -2,6 +2,8 @@ package quorum
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,12 +15,15 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
-	"math/big"
 )
 
+//default gas limit to use if not passed in sendTxArgs
 var defaultGasLimit = uint64(470000000)
+
+//default gas price to use if not passed in sendTxArgs
 var defaultGasPrice = big.NewInt(0)
 
+// PermAction represents actions in permission contract
 type PermAction int
 
 const (
@@ -30,6 +35,7 @@ const (
 	RemoveVoter
 )
 
+// OrgKeyAction represents an action in cluster contract
 type OrgKeyAction int
 
 const (
@@ -37,6 +43,7 @@ const (
 	RemoveOrgKey
 )
 
+// PermissionAPI provides an API to access Quorum's node permission and org key management related services
 type PermissionAPI struct {
 	txPool     *core.TxPool
 	ethClnt    *ethclient.Client
@@ -46,6 +53,7 @@ type PermissionAPI struct {
 	clustContr *pbind.Cluster
 }
 
+// txArgs holds arguments required for execute functions
 type txArgs struct {
 	voter  common.Address
 	nodeId string
@@ -54,10 +62,12 @@ type txArgs struct {
 	txa    ethapi.SendTxArgs
 }
 
+// NewPermissionAPI creates a new PermissionAPI to access quorum services
 func NewPermissionAPI(tp *core.TxPool, am *accounts.Manager) *PermissionAPI {
 	return &PermissionAPI{tp, nil, am, nil, nil, nil}
 }
 
+//Init initializes PermissionAPI with eth client, permission contract and org key management control
 func (p *PermissionAPI) Init(ethClnt *ethclient.Client) error {
 	p.ethClnt = ethClnt
 	permContr, err := pbind.NewPermissions(params.QuorumPermissionsContract, p.ethClnt)
@@ -73,43 +83,47 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client) error {
 	return nil
 }
 
-func (s *PermissionAPI) TransInfo(vaddr common.Address, nodeId string, txa ethapi.SendTxArgs) string {
-	log.Info("AJ-TransInfo ", "vaddr", vaddr, "nodeId", nodeId, "txa", txa)
-	return fmt.Sprintf("done addr:%v node:%s txa:%v", vaddr, nodeId, txa)
-}
-
+// AddVoter adds an account to the list of accounts that can approve nodes proposed or deactivated
 func (s *PermissionAPI) AddVoter(vaddr common.Address, txa ethapi.SendTxArgs) bool {
 	return s.executePermAction(AddVoter, txArgs{voter: vaddr, txa: txa})
 }
 
+// RemoveVoter removes an account from the list of accounts that can approve nodes proposed or deactivated
 func (s *PermissionAPI) RemoveVoter(vaddr common.Address, txa ethapi.SendTxArgs) bool {
 	return s.executePermAction(RemoveVoter, txArgs{voter: vaddr, txa: txa})
 }
 
+// ProposeNode proposes a node to join the network
 func (s *PermissionAPI) ProposeNode(nodeId string, txa ethapi.SendTxArgs) bool {
 	return s.executePermAction(ProposeNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
+// ApproveNode approves a proposed node to join the network
 func (s *PermissionAPI) ApproveNode(nodeId string, txa ethapi.SendTxArgs) bool {
 	return s.executePermAction(ApproveNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
+// DeactivateNode requests a node to get deactivated
 func (s *PermissionAPI) DeactivateNode(nodeId string, txa ethapi.SendTxArgs) bool {
 	return s.executePermAction(DeactivateNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
+// ApproveDeactivateNode approves a node to get deactivated
 func (s *PermissionAPI) ApproveDeactivateNode(nodeId string, txa ethapi.SendTxArgs) bool {
 	return s.executePermAction(ApproveDeactivateNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
+// RemoveOrgKey removes an org key combination from the org key map
 func (s *PermissionAPI) RemoveOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) bool {
 	return s.executeOrgKeyAction(RemoveOrgKey, txArgs{txa: txa, orgId: orgId, keyId: pvtKey})
 }
 
+// AddOrgKey adds an org key combination to the org key map
 func (s *PermissionAPI) AddOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) bool {
 	return s.executeOrgKeyAction(AddOrgKey, txArgs{txa: txa, orgId: orgId, keyId: pvtKey})
 }
 
+// executePermAction helps to execute an action in permission contract
 func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 	w, err := s.validateAccount(args.txa.From)
 	if err != nil {
@@ -172,6 +186,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 	return true
 }
 
+// executeOrgKeyAction helps to execute an action in cluster contract
 func (s *PermissionAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) bool {
 	w, err := s.validateAccount(args.txa.From)
 	if err != nil {
@@ -194,6 +209,7 @@ func (s *PermissionAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) bo
 	return true
 }
 
+// validateAccount validates the account and returns the wallet associated with that for signing the transaction
 func (s *PermissionAPI) validateAccount(from common.Address) (accounts.Wallet, error) {
 	acct := accounts.Account{Address: from}
 	w, err := s.acntMgr.Find(acct)
@@ -203,6 +219,7 @@ func (s *PermissionAPI) validateAccount(from common.Address) (accounts.Wallet, e
 	return w, nil
 }
 
+// newPermSession creates a new permission contract session
 func (s *PermissionAPI) newPermSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.PermissionsSession {
 	frmAcct, transactOpts, gasLimit, gasPrice, nonce := s.getTxParams(txa, w)
 	ps := &pbind.PermissionsSession{
@@ -221,6 +238,7 @@ func (s *PermissionAPI) newPermSession(w accounts.Wallet, txa ethapi.SendTxArgs)
 	return ps
 }
 
+// newClusterSession creates a new cluster contract session
 func (s *PermissionAPI) newClusterSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.ClusterSession {
 	frmAcct, transactOpts, gasLimit, gasPrice, nonce := s.getTxParams(txa, w)
 	cs := &pbind.ClusterSession{
@@ -239,6 +257,7 @@ func (s *PermissionAPI) newClusterSession(w accounts.Wallet, txa ethapi.SendTxAr
 	return cs
 }
 
+// getTxParams extracts the transaction related parameters
 func (s *PermissionAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) (accounts.Account, *bind.TransactOpts, uint64, *big.Int, *big.Int) {
 	frmAcct := accounts.Account{Address: txa.From}
 	transactOpts := bind.NewWalletTransactor(w, frmAcct)

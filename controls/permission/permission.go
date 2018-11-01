@@ -2,27 +2,27 @@ package permission
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
-	"path/filepath"
 	"math/big"
 	"os"
+	"path/filepath"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/controls"
+	pbind "github.com/ethereum/go-ethereum/controls/bind"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
-	"github.com/ethereum/go-ethereum/controls"
-	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/raft"
-	pbind "github.com/ethereum/go-ethereum/controls/bind"
 )
 
 const (
@@ -75,7 +75,7 @@ func (p *PermissionCtrl) Start() error {
 	// Monitors node addition and decativation from network
 	p.manageNodePermissions()
 
-	// Monitors account level persmissions  update from smart contarct 
+	// Monitors account level persmissions  update from smart contarct
 	p.manageAccountPermissions()
 	return nil
 }
@@ -204,21 +204,21 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 	newEnodeId := formatEnodeId(enodeId, ipAddrPort, discPort, raftPort, p.isRaft)
 
 	//new logic to update the server KnownNodes variable for permissioning
-	server := p.node.Server();
+	server := p.node.Server()
 	newNode, err := discover.ParseNode(newEnodeId)
 
 	if err != nil {
 		log.Error("updatePermissionedNodes: Node URL", "url", newEnodeId, "err", err)
 	}
 
-	if (operation == NodeAdd) {
+	if operation == NodeAdd {
 		// Add the new enode id to server.KnownNodes
 		server.KnownNodes = append(server.KnownNodes, newNode)
 	} else {
 		// delete the new enode id from server.KnownNodes
 		index := 0
 		for i, node := range server.KnownNodes {
-			if (node.ID == newNode.ID) {
+			if node.ID == newNode.ID {
 				index = i
 			}
 		}
@@ -252,7 +252,7 @@ func (p *PermissionCtrl) updateDisallowedNodes(nodeBlacklistEvent *pbind.Permiss
 			log.Error("updateDisallowedNodes Failed to access disallowed-nodes.json", "err", err)
 			return
 		}
-		if (blob != nil) {
+		if blob != nil {
 			if err := json.Unmarshal(blob, &nodelist); err != nil {
 				log.Error("updateDisallowedNodes: Failed to load nodes list", "err", err)
 				return
