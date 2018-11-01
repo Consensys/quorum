@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
@@ -46,11 +47,11 @@ type PermissionAPI struct {
 }
 
 type txArgs struct {
-	from   common.Address
 	voter  common.Address
 	nodeId string
 	orgId  string
 	keyId  string
+	txa    ethapi.SendTxArgs
 }
 
 func NewPermissionAPI(tp *core.TxPool, am *accounts.Manager) *PermissionAPI {
@@ -72,44 +73,49 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client) error {
 	return nil
 }
 
-func (s *PermissionAPI) AddVoter(from common.Address, vaddr common.Address) bool {
-	return s.executePermAction(AddVoter, txArgs{voter: vaddr, from: from})
+func (s *PermissionAPI) TransInfo(vaddr common.Address, nodeId string, txa ethapi.SendTxArgs) string {
+	log.Info("AJ-TransInfo ", "vaddr", vaddr, "nodeId", nodeId, "txa", txa)
+	return fmt.Sprintf("done addr:%v node:%s txa:%v", vaddr, nodeId, txa)
 }
 
-func (s *PermissionAPI) RemoveVoter(from common.Address, vaddr common.Address) bool {
-	return s.executePermAction(RemoveVoter, txArgs{voter: vaddr, from: from})
+func (s *PermissionAPI) AddVoter(vaddr common.Address, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(AddVoter, txArgs{voter: vaddr, txa: txa})
 }
 
-func (s *PermissionAPI) ProposeNode(from common.Address, nodeId string) bool {
-	return s.executePermAction(ProposeNode, txArgs{nodeId: nodeId, from: from})
+func (s *PermissionAPI) RemoveVoter(vaddr common.Address, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(RemoveVoter, txArgs{voter: vaddr, txa: txa})
 }
 
-func (s *PermissionAPI) ApproveNode(from common.Address, nodeId string) bool {
-	return s.executePermAction(ApproveNode, txArgs{nodeId: nodeId, from: from})
+func (s *PermissionAPI) ProposeNode(nodeId string, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(ProposeNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
-func (s *PermissionAPI) DeactivateNode(from common.Address, nodeId string) bool {
-	return s.executePermAction(DeactivateNode, txArgs{nodeId: nodeId, from: from})
+func (s *PermissionAPI) ApproveNode(nodeId string, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(ApproveNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
-func (s *PermissionAPI) ApproveDeactivateNode(from common.Address, nodeId string) bool {
-	return s.executePermAction(ApproveDeactivateNode, txArgs{nodeId: nodeId, from: from})
+func (s *PermissionAPI) DeactivateNode(nodeId string, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(DeactivateNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
-func (s *PermissionAPI) RemoveOrgKey(from common.Address, orgId string, pvtKey string) bool {
-	return s.executeOrgKeyAction(RemoveOrgKey, txArgs{from: from, orgId: orgId, keyId: pvtKey})
+func (s *PermissionAPI) ApproveDeactivateNode(nodeId string, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(ApproveDeactivateNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
-func (s *PermissionAPI) AddOrgKey(from common.Address, orgId string, pvtKey string) bool {
-	return s.executeOrgKeyAction(AddOrgKey, txArgs{from: from, orgId: orgId, keyId: pvtKey})
+func (s *PermissionAPI) RemoveOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) bool {
+	return s.executeOrgKeyAction(RemoveOrgKey, txArgs{txa: txa, orgId: orgId, keyId: pvtKey})
+}
+
+func (s *PermissionAPI) AddOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) bool {
+	return s.executeOrgKeyAction(AddOrgKey, txArgs{txa: txa, orgId: orgId, keyId: pvtKey})
 }
 
 func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
-	fromAcct, w, err := s.validateAccount(args.from)
+	w, err := s.validateAccount(args.txa.From)
 	if err != nil {
 		return false
 	}
-	ps := s.newPermSession(w, fromAcct)
+	ps := s.newPermSession(w, args.txa)
 	var tx *types.Transaction
 
 	switch action {
@@ -167,11 +173,11 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 }
 
 func (s *PermissionAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) bool {
-	fromAcct, w, err := s.validateAccount(args.from)
+	w, err := s.validateAccount(args.txa.From)
 	if err != nil {
 		return false
 	}
-	ps := s.newClusterSession(w, fromAcct)
+	ps := s.newClusterSession(w, args.txa)
 	var tx *types.Transaction
 
 	switch action {
@@ -188,46 +194,67 @@ func (s *PermissionAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) bo
 	return true
 }
 
-func (s *PermissionAPI) validateAccount(from common.Address) (accounts.Account, accounts.Wallet, error) {
+func (s *PermissionAPI) validateAccount(from common.Address) (accounts.Wallet, error) {
 	acct := accounts.Account{Address: from}
 	w, err := s.acntMgr.Find(acct)
 	if err != nil {
-		return acct, nil, err
+		return nil, err
 	}
-	return acct, w, nil
+	return w, nil
 }
 
-func (s *PermissionAPI) newPermSession(w accounts.Wallet, acct accounts.Account) *pbind.PermissionsSession {
-	transactOpts := bind.NewWalletTransactor(w, acct)
+func (s *PermissionAPI) newPermSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.PermissionsSession {
+	frmAcct, transactOpts, gasLimit, gasPrice, nonce := s.getTxParams(txa, w)
 	ps := &pbind.PermissionsSession{
 		Contract: s.permContr,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 		TransactOpts: bind.TransactOpts{
-			From:     acct.Address,
-			GasLimit: defaultGasLimit,
-			GasPrice: defaultGasPrice,
+			From:     frmAcct.Address,
+			GasLimit: gasLimit,
+			GasPrice: gasPrice,
 			Signer:   transactOpts.Signer,
+			Nonce:    nonce,
 		},
 	}
-	nonce := s.txPool.Nonce(acct.Address)
-	ps.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 	return ps
 }
 
-func (s *PermissionAPI) newClusterSession(w accounts.Wallet, acct accounts.Account) *pbind.ClusterSession {
-	transactOpts := bind.NewWalletTransactor(w, acct)
-	return &pbind.ClusterSession{
+func (s *PermissionAPI) newClusterSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.ClusterSession {
+	frmAcct, transactOpts, gasLimit, gasPrice, nonce := s.getTxParams(txa, w)
+	cs := &pbind.ClusterSession{
 		Contract: s.clustContr,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 		TransactOpts: bind.TransactOpts{
-			From:     acct.Address,
-			GasLimit: defaultGasLimit,
-			GasPrice: defaultGasPrice,
+			From:     frmAcct.Address,
+			GasLimit: gasLimit,
+			GasPrice: gasPrice,
 			Signer:   transactOpts.Signer,
+			Nonce:    nonce,
 		},
 	}
+	return cs
+}
+
+func (s *PermissionAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) (accounts.Account, *bind.TransactOpts, uint64, *big.Int, *big.Int) {
+	frmAcct := accounts.Account{Address: txa.From}
+	transactOpts := bind.NewWalletTransactor(w, frmAcct)
+	gasLimit := defaultGasLimit
+	gasPrice := defaultGasPrice
+	if txa.GasPrice != nil {
+		gasPrice = txa.GasPrice.ToInt()
+	}
+	if txa.Gas != nil {
+		gasLimit = uint64(*txa.Gas)
+	}
+	var nonce *big.Int
+	if txa.Nonce != nil {
+		nonce = new(big.Int).SetUint64(uint64(*txa.Nonce))
+	} else {
+		nonce = new(big.Int).SetUint64(s.txPool.Nonce(frmAcct.Address))
+	}
+	return frmAcct, transactOpts, gasLimit, gasPrice, nonce
 }

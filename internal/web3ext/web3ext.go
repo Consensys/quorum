@@ -687,49 +687,49 @@ web3._extend({
                        name: 'addVoter',
                        call: 'quorum_addVoter',
                        params: 2,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputAddressFormatter]
+                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'removeVoter',
                        call: 'quorum_removeVoter',
                        params: 2,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputAddressFormatter]
+                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'proposeNode',
                        call: 'quorum_proposeNode',
                        params: 2,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null]
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'approveNode',
                        call: 'quorum_approveNode',
 					   params: 2,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null]
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'deactivateNode',
                        call: 'quorum_deactivateNode',
                        params: 2,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null]
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
          	   new web3._extend.Method({
                        name: 'approveDeactivateNode',
                        call: 'quorum_approveDeactivateNode',
                        params: 2,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null]
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'addOrgKey',
                        call: 'quorum_addOrgKey',
                        params: 3,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null,null]
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'removeOrgKey',
                        call: 'quorum_removeOrgKey',
                        params: 3,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null,null]
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
        ]
 })
