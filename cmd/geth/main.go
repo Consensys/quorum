@@ -380,7 +380,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 	}
 
 	log.Info("Node Permission service started")
-	v := stack.GetRPC("permnode")
+	v := stack.GetRPC("quorum")
 	if v == nil {
 		utils.Fatalf("Failed to start Quorum Permission API")
 	}
