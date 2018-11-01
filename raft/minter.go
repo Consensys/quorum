@@ -25,16 +25,22 @@ import (
 
 	"github.com/eapache/channels"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
+)
+
+var (
+	extraVanity = 32 // Fixed number of extra-data prefix bytes reserved for arbitrary signer vanity
 )
 
 // Current state information for building the next block
@@ -50,7 +56,7 @@ type minter struct {
 	config           *params.ChainConfig
 	mu               sync.Mutex
 	mux              *event.TypeMux
-	eth              miner.Backend
+	eth              *RaftService
 	chain            *core.BlockChain
 	chainDb          ethdb.Database
 	coinbase         common.Address
@@ -64,6 +70,11 @@ type minter struct {
 	chainHeadSub            event.Subscription
 	txPreChan               chan core.TxPreEvent
 	txPreSub                event.Subscription
+}
+
+type extraSeal struct {
+	RaftId    []byte // RaftID of the block minter
+	Signature []byte // Signature of the block minter
 }
 
 func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration) *minter {
@@ -318,8 +329,6 @@ func (minter *minter) mintNewBlock() {
 	ethash.AccumulateRewards(minter.chain.Config(), work.publicState, header, nil)
 	header.Root = work.publicState.IntermediateRoot(minter.chain.Config().IsEIP158(work.header.Number))
 
-	// NOTE: < QuorumChain creates a signature here and puts it in header.Extra. >
-
 	allReceipts := append(publicReceipts, privateReceipts...)
 	header.Bloom = types.CreateBloom(allReceipts)
 
@@ -329,6 +338,14 @@ func (minter *minter) mintNewBlock() {
 	for _, l := range logs {
 		l.BlockHash = headerHash
 	}
+
+	//Sign the block and build the extraSeal struct
+	extraSealBytes := minter.buildExtraSeal(headerHash)
+
+	// add vanity and seal to header
+	// NOTE: leaving vanity blank for now as a space for any future data
+	header.Extra = make([]byte, extraVanity+len(extraSealBytes))
+	copy(header.Extra[extraVanity:], extraSealBytes)
 
 	block := types.NewBlock(header, committedTxes, nil, publicReceipts)
 
@@ -406,4 +423,30 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 	}
 
 	return publicReceipt, privateReceipt, nil
+}
+
+func (minter *minter) buildExtraSeal(headerHash common.Hash) []byte {
+	//Sign the headerHash
+	nodeKey := minter.eth.nodeKey
+	sig, err := crypto.Sign(headerHash.Bytes(), nodeKey)
+	if err != nil {
+		log.Warn("Block sealing failed", "err", err)
+	}
+
+	//build the extraSeal struct
+	raftIdString := hexutil.EncodeUint64(uint64(minter.eth.raftProtocolManager.raftId))
+
+	var extra extraSeal
+	extra = extraSeal{
+		RaftId:    []byte(raftIdString[2:]), //remove the 0x prefix
+		Signature: sig,
+	}
+
+	//encode to byte array for storage
+	extraDataBytes, err := rlp.EncodeToBytes(extra)
+	if err != nil {
+		log.Warn("Header.Extra Data Encoding failed", "err", err)
+	}
+
+	return extraDataBytes
 }

@@ -299,9 +299,13 @@ func (s *Server) handle(ctx context.Context, codec ServerCodec, req *serverReque
 		return codec.CreateErrorResponse(&req.id, rpcErr), nil
 	}
 
+	//Quorum
+	//Pass the request ID to the method as part of the context, in case the method needs it later
+	contextWithId := context.WithValue(ctx, "id", req.id)
+	//End-Quorum
 	arguments := []reflect.Value{req.callb.rcvr}
 	if req.callb.hasCtx {
-		arguments = append(arguments, reflect.ValueOf(ctx))
+		arguments = append(arguments, reflect.ValueOf(contextWithId))
 	}
 	if len(req.args) > 0 {
 		arguments = append(arguments, req.args...)
