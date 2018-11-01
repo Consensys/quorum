@@ -33,15 +33,15 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
+	"github.com/ethereum/go-ethereum/controls/cluster"
+	"github.com/ethereum/go-ethereum/controls/permission"
+	"github.com/ethereum/go-ethereum/core/quorum"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/debug"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/controls/permission"
-	"github.com/ethereum/go-ethereum/controls/cluster"
-	"github.com/ethereum/go-ethereum/core/quorum"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -363,7 +363,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 	if permEnabled := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name); permEnabled {
 		// start the permissions management service
-		pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.RaftModeFlag.Name)) 
+		pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.RaftModeFlag.Name))
 		if err != nil {
 			utils.Fatalf("Failed to start Quorum Permission contract service: %v", err)
 		}
@@ -390,6 +390,6 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		utils.Fatalf("Failed to attach to self: %v", err)
 	}
 	stateReader := ethclient.NewClient(rpcClient)
-	qapi.Init(stateReader, stack.InstanceDir())
+	qapi.Init(stateReader)
 	log.Info("Permission API initialized")
 }
