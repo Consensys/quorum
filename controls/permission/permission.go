@@ -45,6 +45,7 @@ type PermissionCtrl struct {
 	key     *ecdsa.PrivateKey
 }
 
+// Creates the controls structure for permissions
 func NewQuorumPermissionCtrl(stack *node.Node, isRaft bool) (*PermissionCtrl, error) {
 	// Create a new ethclient to for interfacing with the contract
 	stateReader, e, err := controls.CreateEthClient(stack)
@@ -454,12 +455,12 @@ func (p *PermissionCtrl) populateStaticNodesToContract() {
 			log.Debug("Transaction pending", "tx hash", tx.Hash())
 		}
 		// update the network boot status to true
-		nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
-		permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
+		// nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
+		// permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 
-		_, err := permissionsSession.UpdateNetworkBootStatus()
-		if err != nil {
-			log.Warn("Failed to udpate network boot status ", "err", err)
-		}
+		// _, err := permissionsSession.UpdateNetworkBootStatus()
+		// if err != nil {
+		// 	log.Warn("Failed to udpate network boot status ", "err", err)
+		// }
 	}
 }
