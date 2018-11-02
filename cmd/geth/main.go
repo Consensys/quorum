@@ -368,6 +368,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 			utils.Fatalf("Failed to start Quorum Permission contract service: %v", err)
 		}
 		pc.Start()
+		log.Info("Node Permission service started")
 
 	}
 	// Changes for managing org level cluster keys for privateFor txns
@@ -379,7 +380,6 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		log.Trace("Key management service started")
 	}
 
-	log.Info("Node Permission service started")
 	v := stack.GetRPC("quorum")
 	if v == nil {
 		utils.Fatalf("Failed to start Quorum Permission API")
