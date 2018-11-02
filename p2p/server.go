@@ -148,6 +148,9 @@ type Config struct {
 	DataDir string `toml:",omitempty"`
 	// Logger is a custom logger to use with the p2p.Server.
 	Logger log.Logger `toml:",omitempty"`
+
+	// Indicates if the new smart contract based perissioning is use or not
+	QuorumPermissions bool
 }
 
 // Server manages all peer connections.
@@ -459,6 +462,7 @@ func (srv *Server) Start() (err error) {
 	}
 
 	srv.KnownNodes = knownNodes
+	srv.QuorumPermissions = false
 
 	// node table
 	if !srv.NoDiscovery {
@@ -861,7 +865,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *discover.Node) e
 			log.Trace("Node Permissioning", "Connection Direction", direction)
 		}
 
-		if !isNodePermissioned(node, currentNode, srv.DataDir, direction, srv.KnownNodes) {
+		if !isNodePermissioned(node, currentNode, srv.DataDir, direction, srv.QuorumPermissions, srv.KnownNodes) {
 			return nil
 		}
 	} else {
