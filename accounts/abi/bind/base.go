@@ -188,7 +188,6 @@ func (c *BoundContract) Transfer(opts *TransactOpts) (*types.Transaction, error)
 // transact executes an actual transaction invocation, first deriving any missing
 // authorization fields, and then scheduling the transaction for execution.
 func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, input []byte) (*types.Transaction, error) {
-	log.Info("Inside transact")
 	var err error
 
 	// Ensure a valid value field and resolve the account nonce
@@ -257,7 +256,6 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	if err != nil {
 		return nil, err
 	}
-	log.Info("calling  SendTransaction in side transact")
 	if err := c.transactor.SendTransaction(ensureContext(opts.Context), signedTx); err != nil {
 		return nil, err
 	}
