@@ -43,7 +43,7 @@ type PermissionCtrl struct {
 	isRaft  bool
 	key     *ecdsa.PrivateKey
 	dataDir string
-	permission *pbind.Permissions
+	pm *pbind.Permissions
 }
 
 // Creates the controls structure for permissions
@@ -56,13 +56,13 @@ func NewQuorumPermissionCtrl(stack *node.Node, isRaft bool) (*PermissionCtrl, er
 	}
 
 	// check if permissioning contract is there at address. If not return from here
-	permissions, err := pbind.NewPermissions(params.QuorumPermissionsContract, stateReader)
+	pm, err := pbind.NewPermissions(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
 		log.Error("Permissions not enabled for the network : ", "err", err)
 		return nil, err
 	}
 
-	return &PermissionCtrl{stack, stateReader, e, isRaft, stack.GetNodeKey(), stack.DataDir(), permissions}, nil
+	return &PermissionCtrl{stack, stateReader, e, isRaft, stack.GetNodeKey(), stack.DataDir(), pm}, nil
 }
 
 // Starts the node permissioning and account access control monitoring
@@ -93,13 +93,13 @@ func (p *PermissionCtrl) init() error {
 		return err
 	}
 
-	// call populates the node details from contract to KnownNodes
-	if err := p.populatePermissionedNodes(); err != nil {
+	// call populates the account permissions based on past history
+	if err := p.populateAcctPermissions(); err != nil {
 		return err
 	}
 
-	// call populates the account permissions based on past history
-	if err := p.populateAcctPermissions(); err != nil {
+	// call populates the node details from contract to KnownNodes
+	if err := p.populatePermissionedNodes(); err != nil {
 		return err
 	}
 
@@ -132,7 +132,7 @@ func (p *PermissionCtrl) monitorNewNodeAdd() {
 	opts.Start = &blockNumber
 	var nodeAddEvent *pbind.PermissionsNodeApproved
 
-	_, err := p.permission.WatchNodeApproved(opts, ch)
+	_, err := p.pm.PermissionsFilterer.WatchNodeApproved(opts, ch)
 	if err != nil {
 		log.Info("Failed WatchNodeApproved: %v", err)
 	}
@@ -153,8 +153,7 @@ func (p *PermissionCtrl) monitorNodeDeactivation() {
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
 	var newNodeDeleteEvent *pbind.PermissionsNodeDeactivated
-
-	_, err := p.permission.WatchNodeDeactivated(opts, ch)
+	_, err := p.pm.PermissionsFilterer.WatchNodeDeactivated(opts, ch)
 	if err != nil {
 		log.Info("Failed NodeDeactivated: %v", err)
 	}
@@ -177,7 +176,7 @@ func (p *PermissionCtrl) monitorNodeActivation() {
 	opts.Start = &blockNumber
 	var nodeActivatedEvent *pbind.PermissionsNodeActivated
 
-	_, err := p.permission.WatchNodeActivated(opts, ch)
+	_, err := p.pm.PermissionsFilterer.WatchNodeActivated(opts, ch)
 	if err != nil {
 		log.Info("Failed WatchNodeActivated: %v", err)
 	}
@@ -199,7 +198,7 @@ func (p *PermissionCtrl) monitorNodeBlacklisting() {
 	opts.Start = &blockNumber
 	var newNodeBlacklistEvent *pbind.PermissionsNodeBlacklisted
 
-	_, err := p.permission.WatchNodeBlacklisted(opts, ch)
+	_, err := p.pm.PermissionsFilterer.WatchNodeBlacklisted(opts, ch)
 	if err != nil {
 		log.Info("Failed NodeBlacklisting: %v", err)
 	}
@@ -297,7 +296,7 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 // smart contract
 func (p *PermissionCtrl) populatePermissionedNodes() error {
 	opts := &bind.FilterOpts{}
-	pastAddEvent, err := p.permission.FilterNodeApproved(opts)
+	pastAddEvent, err := p.pm.PermissionsFilterer.FilterNodeApproved(opts)
 
 	if err != nil {
 		recExists := true
@@ -310,7 +309,7 @@ func (p *PermissionCtrl) populatePermissionedNodes() error {
 	}
 
 	opts = &bind.FilterOpts{}
-	pastDelEvent, err := p.permission.FilterNodeDeactivated(opts)
+	pastDelEvent, err := p.pm.PermissionsFilterer.FilterNodeDeactivated(opts)
 	if err != nil {
 		recExists := true
 		for recExists {
@@ -327,9 +326,9 @@ func (p *PermissionCtrl) populatePermissionedNodes() error {
 // smart contract
 func (p *PermissionCtrl) populateAcctPermissions() error {
 	opts := &bind.FilterOpts{}
-	pastEvents, err := p.permission.FilterAccountAccessModified(opts)
+	pastEvents, err := p.pm.PermissionsFilterer.FilterAccountAccessModified(opts)
 
-	if err != nil {
+	if err == nil {
 		recExists := true
 		for recExists {
 			recExists = pastEvents.Next()
@@ -352,7 +351,7 @@ func (p *PermissionCtrl) monitorAccountPermissions() {
 	opts.Start = &blockNumber
 	var newEvent *pbind.PermissionsAccountAccessModified
 
-	_, err := p.permission.WatchAccountAccessModified(opts, ch)
+	_, err := p.pm.PermissionsFilterer.WatchAccountAccessModified(opts, ch)
 	if err != nil {
 		log.Info("Failed NewNodeProposed: %v", err)
 	}
@@ -402,10 +401,9 @@ func (p *PermissionCtrl) formatEnodeId(enodeId, ipAddrPort, discPort, raftPort s
 //populates the nodes list from permissioned-nodes.json into the permissions
 //smart contract
 func (p *PermissionCtrl) populateInitPermission() error {
-	log.Info("SMK-populateInitAccountAccess @ 405")
 	auth := bind.NewKeyedTransactor(p.key)
 	permissionsSession := &pbind.PermissionsSession{
-		Contract: p.permission,
+		Contract: p.pm,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
@@ -417,29 +415,25 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		},
 	}
 
-	log.Info("SMK-populateInitAccountAccess @ 420 calling GetNetworkBootStatus")
 	tx, err := permissionsSession.GetNetworkBootStatus()
 	if err != nil {
 		log.Warn("Failed to udpate network boot status ", "err", err)
 	}
 
 	if tx != true {
-		// populate the initial node list from static-nodes.json 
-		log.Info("SMK-populateInitAccountAccess @ 428 calling populateStaticNodesToContract")
-		err := p.populateStaticNodesToContract(permissionsSession)
-		if err != nil {
-			return err
-		}
-
 		// populate initial account access to full access
-		log.Info("SMK-populateInitAccountAccess @ 435 calling populateInitAccountAccess")
 		err = p.populateInitAccountAccess(permissionsSession)
 		if err != nil {
 			return err
 		}
 
+		// populate the initial node list from static-nodes.json 
+		err := p.populateStaticNodesToContract(permissionsSession)
+		if err != nil {
+			return err
+		}
+
 		// update network status to boot completed
-		log.Info("SMK-populateInitAccountAccess @ 442 calling updateNetworkStatus")
 		err = p.updateNetworkStatus(permissionsSession)
 		if err != nil {
 			return err
@@ -479,15 +473,12 @@ func (p *PermissionCtrl) populateStaticNodesToContract( permissionsSession *pbin
 
 // Reads the acount from geth keystore and grants full access to these accounts
 func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.PermissionsSession) error {
-	log.Info("SMK-populateInitAccountAccess @ 482")
 	acctman := p.node.AccountManager()
 	for _, wallet := range acctman.Wallets() {
 		for _, account := range wallet.Accounts() {
-			log.Info("SMK-populateInitAccountAccess @486 wallet address is : ", "account", account.Address)
 			nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
 			permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 
-			log.Info("SMK-populateInitAccountAccess @486 calling UpdateAccountAccess ", "access", uint8(types.FullAccess))
 			_, err := permissionsSession.UpdateAccountAccess(account.Address, uint8(types.FullAccess))
 			if err != nil {
 				return err

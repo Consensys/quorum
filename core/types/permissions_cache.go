@@ -3,7 +3,6 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 type AccessType uint8
@@ -33,7 +32,6 @@ var AcctMap = make(map[common.Address] *PermStruct)
 var OrgKeyMap = make(map[string] *OrgStruct)
 
 func AddAccountAccess(acctId common.Address, access uint8)  {
-	log.Info("SMK-AddAccountAccess @36 ", "acct", acctId, "access", access)
 	mu := sync.RWMutex{}
 
 	mu.Lock()
@@ -42,24 +40,18 @@ func AddAccountAccess(acctId common.Address, access uint8)  {
 }
 
 func GetAcctAccess(acctId common.Address) AccessType {
-	log.Info("SMK-GetAcctAccess @44 ")
 	mu := sync.RWMutex{}
 	if len(AcctMap) != 0 {
-		log.Info("SMK-GetAcctAccess @47 in if")
 		if _, ok := AcctMap[acctId]; ok {
-			log.Info("SMK-GetAcctAccess @49 in if")
 			mu.RLock()
 			acctAccess := AcctMap[acctId].AcctAccess
 			mu.RUnlock()
-			log.Info("SMK-GetAcctAccess @53 in if", "acctAccess", acctAccess)
 			return acctAccess
 		}
 	}
 	if len(AcctMap) == 0 {
-		log.Info("SMK-GetAcctAccess @58 in if full access")
 		return FullAccess
 	} else {
-		log.Info("SMK-GetAcctAccess @58 in if else readonly")
 		return ReadOnly
 	}
 }

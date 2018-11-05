@@ -334,6 +334,7 @@ contract Permissions {
   function updateAccountAccess(address _address, AccountAccess _accountAccess) external
   {
     // Check if account already exists
+    emit AccountAccessModified(_address, _accountAccess);
     uint acctIndex = getAcctIndex(_address);
     if (acctToIndex[_address] != 0){
       acctAccessList[acctIndex].acctAccess = _accountAccess;
@@ -343,7 +344,6 @@ contract Permissions {
       acctToIndex[_address] = numberOfAccts;
       acctAccessList.push(AccountAccessDetails(_address, _accountAccess));
     }
-    emit AccountAccessModified(_address, _accountAccess);
   }
 
   // Add voting account
