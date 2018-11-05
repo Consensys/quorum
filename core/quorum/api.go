@@ -29,8 +29,12 @@ type PermAction int
 const (
 	ProposeNode PermAction = iota
 	ApproveNode
-	DeactivateNode
-	ApproveDeactivateNode
+	ProposeNodeDeactivation
+	ApproveNodeDeactivation
+	ProposeNodeActivation
+	ApproveNodeActivation
+	ProposeNodeBlacklisting
+	ApproveNodeBlacklisting
 	AddVoter
 	RemoveVoter
 )
@@ -104,15 +108,34 @@ func (s *PermissionAPI) ApproveNode(nodeId string, txa ethapi.SendTxArgs) bool {
 }
 
 // DeactivateNode requests a node to get deactivated
-func (s *PermissionAPI) DeactivateNode(nodeId string, txa ethapi.SendTxArgs) bool {
-	return s.executePermAction(DeactivateNode, txArgs{nodeId: nodeId, txa: txa})
+func (s *PermissionAPI) ProposeNodeDeactivation(nodeId string, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(ProposeNodeDeactivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // ApproveDeactivateNode approves a node to get deactivated
-func (s *PermissionAPI) ApproveDeactivateNode(nodeId string, txa ethapi.SendTxArgs) bool {
-	return s.executePermAction(ApproveDeactivateNode, txArgs{nodeId: nodeId, txa: txa})
+func (s *PermissionAPI) ApproveNodeDeactivation(nodeId string, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(ApproveNodeDeactivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
+// DeactivateNode requests a node to get deactivated
+func (s *PermissionAPI) ProposeNodeActivation(nodeId string, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(ProposeNodeActivation, txArgs{nodeId: nodeId, txa: txa})
+}
+
+// ApproveDeactivateNode approves a node to get deactivated
+func (s *PermissionAPI) ApproveNodeActivation(nodeId string, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(ApproveNodeActivation, txArgs{nodeId: nodeId, txa: txa})
+}
+
+// DeactivateNode requests a node to get deactivated
+func (s *PermissionAPI) ProposeNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(ProposeNodeBlacklisting, txArgs{nodeId: nodeId, txa: txa})
+}
+
+// ApproveDeactivateNode approves a node to get deactivated
+func (s *PermissionAPI) ApproveNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(ApproveNodeBlacklisting, txArgs{nodeId: nodeId, txa: txa})
+}
 // RemoveOrgKey removes an org key combination from the org key map
 func (s *PermissionAPI) RemoveOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) bool {
 	return s.executeOrgKeyAction(RemoveOrgKey, txArgs{txa: txa, orgId: orgId, keyId: pvtKey})
@@ -138,19 +161,24 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 	case RemoveVoter:
 		tx, err = ps.RemoveVoter(args.voter)
 	case ProposeNode:
-		node, err := discover.ParseNode(args.nodeId)
-		if err != nil {
-			log.Error("invalid node id: %v", err)
+		if checkVoterExists(ps){
+			node, err := discover.ParseNode(args.nodeId)
+			if err != nil {
+				log.Error("invalid node id: %v", err)
+				return false
+			}
+			enodeID := node.ID.String()
+			ipAddr := node.IP.String()
+			port := fmt.Sprintf("%v", node.TCP)
+			discPort := fmt.Sprintf("%v", node.UDP)
+			raftPort := fmt.Sprintf("%v", node.RaftPort)
+			ipAddrPort := ipAddr + ":" + port
+
+			tx, err = ps.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
+
+		} else {
 			return false
 		}
-		enodeID := node.ID.String()
-		ipAddr := node.IP.String()
-		port := fmt.Sprintf("%v", node.TCP)
-		discPort := fmt.Sprintf("%v", node.UDP)
-		raftPort := fmt.Sprintf("%v", node.RaftPort)
-		ipAddrPort := ipAddr + ":" + port
-
-		tx, err = ps.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
 	case ApproveNode:
 		node, err := discover.ParseNode(args.nodeId)
 		if err != nil {
@@ -159,7 +187,19 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.ApproveNode(enodeID)
-	case DeactivateNode:
+	case ProposeNodeDeactivation:
+		if checkVoterExists(ps){
+			node, err := discover.ParseNode(args.nodeId)
+			if err != nil {
+				log.Error("invalid node id: %v", err)
+				return false
+			}
+			enodeID := node.ID.String()
+			tx, err = ps.ProposeDeactivation(enodeID)
+		} else {
+			return false
+		}
+	case ApproveNodeDeactivation:
 		node, err := discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
@@ -167,15 +207,52 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.DeactivateNode(enodeID)
-	case ApproveDeactivateNode:
+	case ProposeNodeActivation:
+		if checkVoterExists(ps){
+			node, err := discover.ParseNode(args.nodeId)
+			if err != nil {
+				log.Error("invalid node id: %v", err)
+				return false
+			}
+			enodeID := node.ID.String()
+			tx, err = ps.ProposeNodeActivation(enodeID)
+		} else {
+			return false
+		}
+	case ApproveNodeActivation:
 		node, err := discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return false
 		}
 		enodeID := node.ID.String()
-		//TODO change to approve deactivate node
-		tx, err = ps.DeactivateNode(enodeID)
+		tx, err = ps.ActivateNode(enodeID)
+	case ProposeNodeBlacklisting:
+		if checkVoterExists(ps){
+			node, err := discover.ParseNode(args.nodeId)
+			if err != nil {
+				log.Error("invalid node id: %v", err)
+				return false
+			}
+			enodeID := node.ID.String()
+			ipAddr := node.IP.String()
+			port := fmt.Sprintf("%v", node.TCP)
+			discPort := fmt.Sprintf("%v", node.UDP)
+			raftPort := fmt.Sprintf("%v", node.RaftPort)
+			ipAddrPort := ipAddr + ":" + port
+
+			tx, err = ps.ProposeNodeBlacklisting(enodeID, ipAddrPort, discPort, raftPort)
+		} else {
+			return false
+		}
+	case ApproveNodeBlacklisting:
+		node, err := discover.ParseNode(args.nodeId)
+		if err != nil {
+			log.Error("invalid node id: %v", err)
+			return false
+		}
+		enodeID := node.ID.String()
+		tx, err = ps.BlacklistNode(enodeID)
 
 	}
 	if err != nil {
@@ -217,6 +294,17 @@ func (s *PermissionAPI) validateAccount(from common.Address) (accounts.Wallet, e
 		return nil, err
 	}
 	return w, nil
+}
+
+// checkVoterExists checks if any vote accounts are there. If yes returns true, else false
+func checkVoterExists(ps *pbind.PermissionsSession) bool {
+	log.Info("SMK-checkVoterExists @230")
+	tx, err := ps.GetNumberOfVoters()
+	if err == nil && tx.Cmp(big.NewInt(0)) > 0 {
+		log.Info("SMK-checkVoterExists @233 voter found")
+		return true
+	}
+	return false
 }
 
 // newPermSession creates a new permission contract session

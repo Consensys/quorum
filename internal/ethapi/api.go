@@ -396,6 +396,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		if len(data) > 0 {
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
 			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
 			if err != nil {
 				return common.Hash{}, err
 			}
@@ -1280,6 +1281,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		if len(data) > 0 {
 		  log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
 		  data, err = private.P.Send(data, args.PrivateFrom, privateFor)
+		  log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
 		  if err != nil {
 			  return common.Hash{}, err
 		  }

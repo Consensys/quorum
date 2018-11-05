@@ -298,7 +298,7 @@ func (p *PermissionCtrl) populatePermissionedNodes() error {
 	opts := &bind.FilterOpts{}
 	pastAddEvent, err := p.pm.PermissionsFilterer.FilterNodeApproved(opts)
 
-	if err != nil {
+	if err == nil {
 		recExists := true
 		for recExists {
 			recExists = pastAddEvent.Next()
@@ -310,7 +310,7 @@ func (p *PermissionCtrl) populatePermissionedNodes() error {
 
 	opts = &bind.FilterOpts{}
 	pastDelEvent, err := p.pm.PermissionsFilterer.FilterNodeDeactivated(opts)
-	if err != nil {
+	if err == nil {
 		recExists := true
 		for recExists {
 			recExists = pastDelEvent.Next()

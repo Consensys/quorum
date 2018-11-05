@@ -708,14 +708,38 @@ web3._extend({
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
-                       name: 'deactivateNode',
-                       call: 'quorum_deactivateNode',
+                       name: 'proposeNodeDeactivation',
+                       call: 'quorum_proposeNodeDeactivation',
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
          	   new web3._extend.Method({
-                       name: 'approveDeactivateNode',
-                       call: 'quorum_approveDeactivateNode',
+                       name: 'approveNodeDeactivation',
+                       call: 'quorum_approveNodeDeactivation',
+                       params: 2,
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'proposeNodeActivation',
+                       call: 'quorum_proposeNodeActivation',
+                       params: 2,
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+         	   new web3._extend.Method({
+                       name: 'approveNodeActivation',
+                       call: 'quorum_approveNodeActivation',
+                       params: 2,
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'proposeNodeBlacklisting',
+                       call: 'quorum_proposeNodeBlacklisting',
+                       params: 2,
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+         	   new web3._extend.Method({
+                       name: 'approveNodeBlacklisting',
+                       call: 'quorum_approveNodeBlacklisting',
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
