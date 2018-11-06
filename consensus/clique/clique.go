@@ -668,10 +668,10 @@ func (c *Clique) Protocol() consensus.Protocol {
 }
 
 func (c *Clique) SubscribeCatchUpEvent(ch chan<- istanbul.CatchUpEvent) event.Subscription {
-	log.Trace("No implementado.", ch)
+	log.Trace("Not implemented.", ch)
 	return nil
 }
 
 func (c *Clique) SendCatchUp(catchUp istanbul.CatchUpEvent) {
-	log.Trace("No implementado.", catchUp)
+	log.Trace("Not implemented.", catchUp)
 }

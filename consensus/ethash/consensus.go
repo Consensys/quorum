@@ -584,10 +584,10 @@ func AccumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 }
 
 func (ethash *Ethash) SubscribeCatchUpEvent(ch chan<- istanbul.CatchUpEvent) event.Subscription {
-	log.Trace("No implementado.", ch)
+	log.Trace("Not implemented.", ch)
 	return nil
 }
 
 func (ethash *Ethash) SendCatchUp(catchUp istanbul.CatchUpEvent) {
-	log.Trace("No implementado.", catchUp)
+	log.Trace("Not implemented.", catchUp)
 }
