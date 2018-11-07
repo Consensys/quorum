@@ -98,6 +98,8 @@ type backend struct {
 
 	recentMessages *lru.ARCCache // the cache of peer's messages
 	knownMessages  *lru.ARCCache // the cache of self messages
+
+	txCachUp event.Feed
 }
 
 // Address implements istanbul.Backend.Address
@@ -309,4 +311,12 @@ func (sb *backend) HasBadProposal(hash common.Hash) bool {
 		return false
 	}
 	return sb.hasBadBlock(hash)
+}
+
+func (sb *backend) SubscribeCatchUpEvent(ch chan<- istanbul.CatchUpEvent) event.Subscription {
+	return sb.txCachUp.Subscribe(ch)
+}
+
+func (sb *backend) SendCatchUp(catchUp istanbul.CatchUpEvent) {
+	sb.txCachUp.Send(catchUp)
 }

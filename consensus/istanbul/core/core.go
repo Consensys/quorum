@@ -67,6 +67,7 @@ type core struct {
 	events                *event.TypeMuxSubscription
 	finalCommittedSub     *event.TypeMuxSubscription
 	timeoutSub            *event.TypeMuxSubscription
+	catchUp	              *event.TypeMuxSubscription
 	futurePreprepareTimer *time.Timer
 
 	valSet                istanbul.ValidatorSet
@@ -201,7 +202,8 @@ func (c *core) startNewRound(round *big.Int) {
 			c.consensusTimer.UpdateSince(c.consensusTimestamp)
 			c.consensusTimestamp = time.Time{}
 		}
-		logger.Warn("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
+
+		logger.Debug("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
 	} else if lastProposal.Number().Cmp(big.NewInt(c.current.Sequence().Int64()-1)) == 0 {
 		if round.Cmp(common.Big0) == 0 {
 			// same seq and round, don't need to start new round
@@ -257,11 +259,42 @@ func (c *core) startNewRound(round *big.Int) {
 	logger.Info("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "isProposer", c.isProposer())
 }
 
+func (c *core) sendCatchUp(lastProposal istanbul.Proposal, lastProposer common.Address) {
+	var validators []string
+	var proposer common.Address
+	validators = make([]string, c.valSet.Size())
+	for cont := 0; cont < len(validators); cont++ {
+		validators[cont] = c.valSet.List()[cont].Address().Hex()
+		if c.valSet.IsProposer(c.valSet.List()[cont].Address()) {
+			proposer = c.valSet.List()[cont].Address()
+		}
+	}
+
+	msg := istanbul.CatchUpEvent{
+		Action: "Catch up",
+		Data: istanbul.DataCatchUp{
+			Address:       c.address,
+			Block:         lastProposal.Number(),
+			OldProposer:   lastProposer,
+			NewProposer:   &proposer,
+			Validators:    validators,
+			ValidatorSize: c.valSet.Size(),
+		},
+	}
+
+	c.backend.SendCatchUp(msg);
+}
+
 func (c *core) catchUpRound(view *istanbul.View) {
 	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.valSet.GetProposer())
 
 	if view.Round.Cmp(c.current.Round()) > 0 {
 		c.roundMeter.Mark(new(big.Int).Sub(view.Round, c.current.Round()).Int64())
+
+			lastProposal, lastProposer := c.backend.LastProposal()
+			c.sendCatchUp(lastProposal, lastProposer)
+			logger.Warn("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
+
 	}
 	c.waitingForRoundChange = true
 

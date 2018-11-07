@@ -16,6 +16,12 @@
 
 package istanbul
 
+import (
+	"fmt"
+	"math/big"
+	"github.com/ethereum/go-ethereum/common"
+)
+
 // RequestEvent is posted to propose a proposal
 type RequestEvent struct {
 	Proposal Proposal
@@ -28,4 +34,36 @@ type MessageEvent struct {
 
 // FinalCommittedEvent is posted when a proposal is committed
 type FinalCommittedEvent struct {
+}
+
+// cachUp is the information to report of a time stamp of proposer time for a block.
+type CatchUpEvent struct {
+	Action string      `json: "action"`
+	Data   DataCatchUp `json: "data"`
+}
+type DataCatchUp struct {
+	Address       common.Address  `json: "address"`
+	Block         *big.Int        `json: "block"`
+	OldProposer   common.Address  `json: "old_proposer"`
+	NewProposer   *common.Address `json: "new_proposer"`
+	Validators    []string        `json: "validators"`
+	ValidatorSize int             `json: "validator_size"`
+}
+
+func (cu *CatchUpEvent) Str() (str string) {
+	str = "{action: '" + cu.Action + "', data: {address: '" + cu.Data.Address.Hex()
+	str += "', block: " + fmt.Sprint(cu.Data.Block) + ", old_proposer: '"
+	str += cu.Data.OldProposer.Hex() + "', "
+	if cu.Data.NewProposer != nil {
+		str += "new_proposer: '" + cu.Data.NewProposer.Hex() + "', "
+	}
+	str += "validators: ["
+	for cont := 0; cont < cu.Data.ValidatorSize; cont++ {
+		str += "'" + cu.Data.Validators[cont] + "'"
+		if cont < (cu.Data.ValidatorSize - 1) {
+			str += ", "
+		}
+	}
+	str += "], validator_size: " + fmt.Sprint(cu.Data.ValidatorSize) + "}"
+	return str
 }
