@@ -3,6 +3,7 @@ package quorum
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -37,6 +38,7 @@ const (
 	ApproveNodeBlacklisting
 	AddVoter
 	RemoveVoter
+	SetAccountAccess
 )
 
 // OrgKeyAction represents an action in cluster contract
@@ -64,6 +66,8 @@ type txArgs struct {
 	orgId  string
 	keyId  string
 	txa    ethapi.SendTxArgs
+	acctId common.Address
+	accessType string
 }
 
 // NewPermissionAPI creates a new PermissionAPI to access quorum services
@@ -144,6 +148,10 @@ func (s *PermissionAPI) RemoveOrgKey(orgId string, pvtKey string, txa ethapi.Sen
 // AddOrgKey adds an org key combination to the org key map
 func (s *PermissionAPI) AddOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) bool {
 	return s.executeOrgKeyAction(AddOrgKey, txArgs{txa: txa, orgId: orgId, keyId: pvtKey})
+}
+
+func (s *PermissionAPI) SetAccountAccess(acct common.Address, access string, txa ethapi.SendTxArgs) bool {
+	return s.executePermAction(SetAccountAccess, txArgs{acctId: acct, accessType: access, txa: txa})
 }
 
 // executePermAction helps to execute an action in permission contract
@@ -253,6 +261,13 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.BlacklistNode(enodeID)
+	case SetAccountAccess:
+		access, err := strconv.ParseUint(args.accessType, 10, 8)
+		if err != nil {
+			return false
+		}
+		log.Info("SMK-SetAccountAccess @ 269", "acctId", args.acctId, "access", uint8(access))
+		tx, err = ps.UpdateAccountAccess(args.acctId, uint8(access))
 
 	}
 	if err != nil {

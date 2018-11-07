@@ -743,6 +743,12 @@ web3._extend({
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
+         	   new web3._extend.Method({
+                       name: 'setAccountAccess',
+                       call: 'quorum_setAccountAccess',
+                       params: 3,
+                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
                new web3._extend.Method({
                        name: 'addOrgKey',
                        call: 'quorum_addOrgKey',
