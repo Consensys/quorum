@@ -43,11 +43,15 @@ type PermissionCtrl struct {
 	isRaft  bool
 	key     *ecdsa.PrivateKey
 	dataDir string
-	pm *pbind.Permissions
+	pm      *pbind.Permissions
 }
 
 // Creates the controls structure for permissions
 func NewQuorumPermissionCtrl(stack *node.Node, isRaft bool) (*PermissionCtrl, error) {
+	if types.AcctMapErr != nil {
+		log.Error("error initializing account access map", "err", types.AcctMapErr)
+		return nil, types.AcctMapErr
+	}
 	// Create a new ethclient to for interfacing with the contract
 	stateReader, e, err := controls.CreateEthClient(stack)
 	if err != nil {
@@ -115,7 +119,7 @@ func (p *PermissionCtrl) manageNodePermissions() {
 	//monitor for nodes deletiin via smart contract
 	go p.monitorNodeDeactivation()
 
-	//monitor for nodes activation from deactivation status 
+	//monitor for nodes activation from deactivation status
 	go p.monitorNodeActivation()
 
 	//monitor for nodes blacklisting via smart contract
@@ -210,6 +214,7 @@ func (p *PermissionCtrl) monitorNodeBlacklisting() {
 
 	}
 }
+
 //this function populates the new node information into the permissioned-nodes.json file
 func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, raftPort string, operation NodeOperation) {
 	newEnodeId := p.formatEnodeId(enodeId, ipAddrPort, discPort, raftPort)
@@ -427,7 +432,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 			return err
 		}
 
-		// populate the initial node list from static-nodes.json 
+		// populate the initial node list from static-nodes.json
 		err := p.populateStaticNodesToContract(permissionsSession)
 		if err != nil {
 			return err
@@ -442,9 +447,8 @@ func (p *PermissionCtrl) populateInitPermission() error {
 	return nil
 }
 
-
 // Reads the node list from static-nodes.json and populates into the contract
-func (p *PermissionCtrl) populateStaticNodesToContract( permissionsSession *pbind.PermissionsSession ) error {
+func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind.PermissionsSession) error {
 	nodes := p2p.ParsePermissionedNodes(p.dataDir)
 	for _, node := range nodes {
 
@@ -489,7 +493,7 @@ func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.Per
 }
 
 // update network boot status to true
-func (p *PermissionCtrl) updateNetworkStatus( permissionsSession *pbind.PermissionsSession ) error {
+func (p *PermissionCtrl) updateNetworkStatus(permissionsSession *pbind.PermissionsSession) error {
 	nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
 	permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 	_, err := permissionsSession.UpdateNetworkBootStatus()

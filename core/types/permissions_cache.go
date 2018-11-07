@@ -38,7 +38,7 @@ func GetAcctAccess(acctId common.Address) AccessType {
 			return vo.AcctAccess
 		}
 	}
-	if len(AcctMap) == 0 {
+	if AcctMap.Len() == 0 {
 		return FullAccess
 	} else {
 		return ReadOnly
