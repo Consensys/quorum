@@ -266,13 +266,12 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		if err != nil {
 			return false
 		}
-		log.Info("SMK-SetAccountAccess @ 269", "acctId", args.acctId, "access", uint8(access))
 		tx, err = ps.UpdateAccountAccess(args.acctId, uint8(access))
 
-	}
-	if err != nil {
-		log.Error("Failed to execute permission action", "action", action, "err", err)
-		return false
+		if err != nil {
+			log.Error("Failed to execute permission action", "action", action, "err", err)
+			return false
+		}
 	}
 	log.Debug("executed permission action", "action", action, "tx", tx)
 	return true
@@ -313,10 +312,8 @@ func (s *PermissionAPI) validateAccount(from common.Address) (accounts.Wallet, e
 
 // checkVoterExists checks if any vote accounts are there. If yes returns true, else false
 func checkVoterExists(ps *pbind.PermissionsSession) bool {
-	log.Info("SMK-checkVoterExists @230")
 	tx, err := ps.GetNumberOfVoters()
 	if err == nil && tx.Cmp(big.NewInt(0)) > 0 {
-		log.Info("SMK-checkVoterExists @233 voter found")
 		return true
 	}
 	return false
