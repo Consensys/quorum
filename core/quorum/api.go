@@ -156,12 +156,15 @@ func (s *PermissionAPI) SetAccountAccess(acct common.Address, access string, txa
 
 // executePermAction helps to execute an action in permission contract
 func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
-	w, err := s.validateAccount(args.txa.From)
+	var err error
+	var w accounts.Wallet
+	w, err = s.validateAccount(args.txa.From)
 	if err != nil {
 		return false
 	}
 	ps := s.newPermSession(w, args.txa)
 	var tx *types.Transaction
+	var node *discover.Node
 
 	switch action {
 	case AddVoter:
@@ -170,7 +173,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		tx, err = ps.RemoveVoter(args.voter)
 	case ProposeNode:
 		if checkVoterExists(ps){
-			node, err := discover.ParseNode(args.nodeId)
+			node, err = discover.ParseNode(args.nodeId)
 			if err != nil {
 				log.Error("invalid node id: %v", err)
 				return false
@@ -188,7 +191,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 			return false
 		}
 	case ApproveNode:
-		node, err := discover.ParseNode(args.nodeId)
+		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return false
@@ -197,7 +200,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		tx, err = ps.ApproveNode(enodeID)
 	case ProposeNodeDeactivation:
 		if checkVoterExists(ps){
-			node, err := discover.ParseNode(args.nodeId)
+			node, err = discover.ParseNode(args.nodeId)
 			if err != nil {
 				log.Error("invalid node id: %v", err)
 				return false
@@ -208,7 +211,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 			return false
 		}
 	case ApproveNodeDeactivation:
-		node, err := discover.ParseNode(args.nodeId)
+		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return false
@@ -217,7 +220,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		tx, err = ps.DeactivateNode(enodeID)
 	case ProposeNodeActivation:
 		if checkVoterExists(ps){
-			node, err := discover.ParseNode(args.nodeId)
+			node, err = discover.ParseNode(args.nodeId)
 			if err != nil {
 				log.Error("invalid node id: %v", err)
 				return false
@@ -228,7 +231,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 			return false
 		}
 	case ApproveNodeActivation:
-		node, err := discover.ParseNode(args.nodeId)
+		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return false
@@ -237,7 +240,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		tx, err = ps.ActivateNode(enodeID)
 	case ProposeNodeBlacklisting:
 		if checkVoterExists(ps){
-			node, err := discover.ParseNode(args.nodeId)
+			node, err = discover.ParseNode(args.nodeId)
 			if err != nil {
 				log.Error("invalid node id: %v", err)
 				return false
@@ -254,7 +257,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 			return false
 		}
 	case ApproveNodeBlacklisting:
-		node, err := discover.ParseNode(args.nodeId)
+		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return false
@@ -262,16 +265,17 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		enodeID := node.ID.String()
 		tx, err = ps.BlacklistNode(enodeID)
 	case SetAccountAccess:
-		access, err := strconv.ParseUint(args.accessType, 10, 8)
+		var access uint64
+		access, err = strconv.ParseUint(args.accessType, 10, 8)
 		if err != nil {
 			return false
 		}
 		tx, err = ps.UpdateAccountAccess(args.acctId, uint8(access))
 
-		if err != nil {
-			log.Error("Failed to execute permission action", "action", action, "err", err)
-			return false
-		}
+	}
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", action, "err", err)
+		return false
 	}
 	log.Debug("executed permission action", "action", action, "tx", tx)
 	return true
