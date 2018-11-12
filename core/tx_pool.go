@@ -624,7 +624,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 	// Check if the sender account is authorized to perform the transaction
 	if isQuorum {
-		log.Info("SMK-validateTx callig checkAccount @627")
 		if err := checkAccount(from, tx.To()); err != nil {
 			return ErrUnAuthorizedAccount
 		}
@@ -750,7 +749,6 @@ func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
 		log.Warn("Failed to journal local transaction", "err", err)
 	}
 }
-
 
 // promoteTx adds a transaction to the pending (processable) list of transactions
 // and returns whether it was inserted or an older was better.
@@ -1235,7 +1233,6 @@ func newTxLookup() *txLookup {
 	}
 }
 
-
 // Range calls f on each key and value present in the map.
 func (t *txLookup) Range(f func(hash common.Hash, tx *types.Transaction) bool) {
 	t.lock.RLock()
@@ -1282,35 +1279,28 @@ func (t *txLookup) Remove(hash common.Hash) {
 
 // checks if the account is permissioned for transaction
 func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
-	log.Info("SMK-checkAccounti @1284")
 	access := types.GetAcctAccess(fromAcct)
-
-	log.Info("SMK-checkAccounti @1287 : ", "acct", fromAcct, "access", access)
 
 	switch access {
 	case types.FullAccess:
-		log.Info("SMK-checkAccounti @1291 case full access")
 		return nil
 
 	case types.ReadOnly:
-		log.Info("SMK-checkAccounti @1291 case read only")
 		err := errors.New("Account Does not have transaction permissions")
 		return err
 
 	case types.Transact:
-		log.Info("SMK-checkAccounti @1300 case transact ")
 		if toAcct == nil {
 			err := errors.New("Account Does not have contract create permissions")
 			return err
-		}else {
+		} else {
 			return nil
 		}
 	case types.ContractDeploy:
-		log.Info("SMK-checkAccounti @1308 case contract ")
 		if toAcct != nil {
 			err := errors.New("Account Does not have transacte permissions")
 			return err
-		}else {
+		} else {
 			return nil
 		}
 	}
