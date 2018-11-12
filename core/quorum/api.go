@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -57,26 +58,37 @@ type PermissionAPI struct {
 	txOpt      *bind.TransactOpts
 	permContr  *pbind.Permissions
 	clustContr *pbind.Cluster
+	server     *p2p.Server
 }
 
 // txArgs holds arguments required for execute functions
 type txArgs struct {
-	voter  common.Address
-	nodeId string
-	orgId  string
-	keyId  string
-	txa    ethapi.SendTxArgs
-	acctId common.Address
+	voter      common.Address
+	nodeId     string
+	orgId      string
+	keyId      string
+	txa        ethapi.SendTxArgs
+	acctId     common.Address
 	accessType string
+}
+
+type nodeStatus struct {
+	Name     string
+	Approved bool
+}
+
+type ExecStatus struct {
+	Status bool
+	Msg    string
 }
 
 // NewPermissionAPI creates a new PermissionAPI to access quorum services
 func NewPermissionAPI(tp *core.TxPool, am *accounts.Manager) *PermissionAPI {
-	return &PermissionAPI{tp, nil, am, nil, nil, nil}
+	return &PermissionAPI{tp, nil, am, nil, nil, nil, nil}
 }
 
 //Init initializes PermissionAPI with eth client, permission contract and org key management control
-func (p *PermissionAPI) Init(ethClnt *ethclient.Client) error {
+func (p *PermissionAPI) Init(ethClnt *ethclient.Client, srv *p2p.Server) error {
 	p.ethClnt = ethClnt
 	permContr, err := pbind.NewPermissions(params.QuorumPermissionsContract, p.ethClnt)
 	if err != nil {
@@ -88,79 +100,95 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client) error {
 		return err
 	}
 	p.clustContr = clustContr
+	p.server = srv
+	p.PermissionNodeList()
 	return nil
 }
 
+func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
+	nodeStatArr := make([]nodeStatus, len(s.server.KnownNodes))
+	for i, v := range s.server.KnownNodes {
+		nodeStatArr[i].Name = v.String()
+		// TODO get the status of the node by calling the smart contract
+		nodeStatArr[i].Approved = true
+	}
+	return nodeStatArr
+}
+
 // AddVoter adds an account to the list of accounts that can approve nodes proposed or deactivated
-func (s *PermissionAPI) AddVoter(vaddr common.Address, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) AddVoter(vaddr common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(AddVoter, txArgs{voter: vaddr, txa: txa})
 }
 
 // RemoveVoter removes an account from the list of accounts that can approve nodes proposed or deactivated
-func (s *PermissionAPI) RemoveVoter(vaddr common.Address, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) RemoveVoter(vaddr common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(RemoveVoter, txArgs{voter: vaddr, txa: txa})
 }
 
 // ProposeNode proposes a node to join the network
-func (s *PermissionAPI) ProposeNode(nodeId string, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) ProposeNode(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ProposeNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // ApproveNode approves a proposed node to join the network
-func (s *PermissionAPI) ApproveNode(nodeId string, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) ApproveNode(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // DeactivateNode requests a node to get deactivated
-func (s *PermissionAPI) ProposeNodeDeactivation(nodeId string, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) ProposeNodeDeactivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ProposeNodeDeactivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // ApproveDeactivateNode approves a node to get deactivated
-func (s *PermissionAPI) ApproveNodeDeactivation(nodeId string, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) ApproveNodeDeactivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveNodeDeactivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // DeactivateNode requests a node to get deactivated
-func (s *PermissionAPI) ProposeNodeActivation(nodeId string, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) ProposeNodeActivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ProposeNodeActivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // ApproveDeactivateNode approves a node to get deactivated
-func (s *PermissionAPI) ApproveNodeActivation(nodeId string, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) ApproveNodeActivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveNodeActivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // DeactivateNode requests a node to get deactivated
-func (s *PermissionAPI) ProposeNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) ProposeNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ProposeNodeBlacklisting, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // ApproveDeactivateNode approves a node to get deactivated
-func (s *PermissionAPI) ApproveNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) ApproveNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveNodeBlacklisting, txArgs{nodeId: nodeId, txa: txa})
 }
+
 // RemoveOrgKey removes an org key combination from the org key map
-func (s *PermissionAPI) RemoveOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) RemoveOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(RemoveOrgKey, txArgs{txa: txa, orgId: orgId, keyId: pvtKey})
 }
 
 // AddOrgKey adds an org key combination to the org key map
-func (s *PermissionAPI) AddOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) AddOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(AddOrgKey, txArgs{txa: txa, orgId: orgId, keyId: pvtKey})
 }
 
-func (s *PermissionAPI) SetAccountAccess(acct common.Address, access string, txa ethapi.SendTxArgs) bool {
+func (s *PermissionAPI) SetAccountAccess(acct common.Address, access string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(SetAccountAccess, txArgs{acctId: acct, accessType: access, txa: txa})
 }
 
 // executePermAction helps to execute an action in permission contract
-func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
+func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
 	var err error
 	var w accounts.Wallet
+	voterErr := ExecStatus{false, "add voter first"}
+	invalidNodeErr := ExecStatus{false, "invalid node id"}
+
 	w, err = s.validateAccount(args.txa.From)
 	if err != nil {
-		return false
+		return ExecStatus{false, err.Error()}
 	}
 	ps := s.newPermSession(w, args.txa)
 	var tx *types.Transaction
@@ -172,11 +200,11 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 	case RemoveVoter:
 		tx, err = ps.RemoveVoter(args.voter)
 	case ProposeNode:
-		if checkVoterExists(ps){
+		if checkVoterExists(ps) {
 			node, err = discover.ParseNode(args.nodeId)
 			if err != nil {
 				log.Error("invalid node id: %v", err)
-				return false
+				return invalidNodeErr
 			}
 			enodeID := node.ID.String()
 			ipAddr := node.IP.String()
@@ -188,62 +216,62 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 			tx, err = ps.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
 
 		} else {
-			return false
+			return voterErr
 		}
 	case ApproveNode:
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return false
+			return invalidNodeErr
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.ApproveNode(enodeID)
 	case ProposeNodeDeactivation:
-		if checkVoterExists(ps){
+		if checkVoterExists(ps) {
 			node, err = discover.ParseNode(args.nodeId)
 			if err != nil {
 				log.Error("invalid node id: %v", err)
-				return false
+				return invalidNodeErr
 			}
 			enodeID := node.ID.String()
 			tx, err = ps.ProposeDeactivation(enodeID)
 		} else {
-			return false
+			return voterErr
 		}
 	case ApproveNodeDeactivation:
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return false
+			return invalidNodeErr
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.DeactivateNode(enodeID)
 	case ProposeNodeActivation:
-		if checkVoterExists(ps){
+		if checkVoterExists(ps) {
 			node, err = discover.ParseNode(args.nodeId)
 			if err != nil {
 				log.Error("invalid node id: %v", err)
-				return false
+				return invalidNodeErr
 			}
 			enodeID := node.ID.String()
 			tx, err = ps.ProposeNodeActivation(enodeID)
 		} else {
-			return false
+			return voterErr
 		}
 	case ApproveNodeActivation:
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return false
+			return invalidNodeErr
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.ActivateNode(enodeID)
 	case ProposeNodeBlacklisting:
-		if checkVoterExists(ps){
+		if checkVoterExists(ps) {
 			node, err = discover.ParseNode(args.nodeId)
 			if err != nil {
 				log.Error("invalid node id: %v", err)
-				return false
+				return invalidNodeErr
 			}
 			enodeID := node.ID.String()
 			ipAddr := node.IP.String()
@@ -254,13 +282,13 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 
 			tx, err = ps.ProposeNodeBlacklisting(enodeID, ipAddrPort, discPort, raftPort)
 		} else {
-			return false
+			return voterErr
 		}
 	case ApproveNodeBlacklisting:
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return false
+			return invalidNodeErr
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.BlacklistNode(enodeID)
@@ -268,24 +296,24 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		var access uint64
 		access, err = strconv.ParseUint(args.accessType, 10, 8)
 		if err != nil {
-			return false
+			return ExecStatus{false, "invalid access type"}
 		}
 		tx, err = ps.UpdateAccountAccess(args.acctId, uint8(access))
 
 	}
 	if err != nil {
 		log.Error("Failed to execute permission action", "action", action, "err", err)
-		return false
+		return ExecStatus{false, err.Error()}
 	}
 	log.Debug("executed permission action", "action", action, "tx", tx)
-	return true
+	return ExecStatus{true, ""}
 }
 
 // executeOrgKeyAction helps to execute an action in cluster contract
-func (s *PermissionAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) bool {
+func (s *PermissionAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) ExecStatus {
 	w, err := s.validateAccount(args.txa.From)
 	if err != nil {
-		return false
+		return ExecStatus{false, err.Error()}
 	}
 	ps := s.newClusterSession(w, args.txa)
 	var tx *types.Transaction
@@ -298,10 +326,10 @@ func (s *PermissionAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) bo
 	}
 	if err != nil {
 		log.Error("Failed to execute orgKey action", "action", action, "err", err)
-		return false
+		return ExecStatus{false, err.Error()}
 	}
 	log.Debug("executed orgKey action", "action", action, "tx", tx)
-	return true
+	return ExecStatus{true, ""}
 }
 
 // validateAccount validates the account and returns the wallet associated with that for signing the transaction
@@ -317,6 +345,7 @@ func (s *PermissionAPI) validateAccount(from common.Address) (accounts.Wallet, e
 // checkVoterExists checks if any vote accounts are there. If yes returns true, else false
 func checkVoterExists(ps *pbind.PermissionsSession) bool {
 	tx, err := ps.GetNumberOfVoters()
+	log.Debug("number of voters", "count", tx)
 	if err == nil && tx.Cmp(big.NewInt(0)) > 0 {
 		return true
 	}
