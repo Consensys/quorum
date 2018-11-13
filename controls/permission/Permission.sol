@@ -136,6 +136,17 @@ contract Permissions {
   {
     return voteStatus[getNodeIndex(_enodeId)][_voter];
   }
+  function isVoter(address _acctid) external view returns (bool)
+  {
+    bool flag = false;
+    for (uint i=0; i<voterAcctList.length; i++){
+      if (voterAcctList[i] == _acctid){
+        flag = true;
+        break;
+      }
+    }
+    return flag;
+  }
   // for potential external use
   // Get enode id by index
   function getEnodeId(uint _index) external view returns (string)

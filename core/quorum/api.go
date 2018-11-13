@@ -169,28 +169,32 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 	switch action {
 	case AddVoter:
 		tx, err = ps.AddVoter(args.voter)
+
 	case RemoveVoter:
 		tx, err = ps.RemoveVoter(args.voter)
+
 	case ProposeNode:
-		if checkVoterExists(ps){
-			node, err = discover.ParseNode(args.nodeId)
-			if err != nil {
-				log.Error("invalid node id: %v", err)
-				return false
-			}
-			enodeID := node.ID.String()
-			ipAddr := node.IP.String()
-			port := fmt.Sprintf("%v", node.TCP)
-			discPort := fmt.Sprintf("%v", node.UDP)
-			raftPort := fmt.Sprintf("%v", node.RaftPort)
-			ipAddrPort := ipAddr + ":" + port
-
-			tx, err = ps.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
-
-		} else {
+		if !checkVoterExists(ps){
 			return false
 		}
+		node, err = discover.ParseNode(args.nodeId)
+		if err != nil {
+			log.Error("invalid node id: %v", err)
+			return false
+		}
+		enodeID := node.ID.String()
+		ipAddr := node.IP.String()
+		port := fmt.Sprintf("%v", node.TCP)
+		discPort := fmt.Sprintf("%v", node.UDP)
+		raftPort := fmt.Sprintf("%v", node.RaftPort)
+		ipAddrPort := ipAddr + ":" + port
+
+		tx, err = ps.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
+
 	case ApproveNode:
+		if !checkIsVoter(ps, args.txa.From){
+			return false
+		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
@@ -198,19 +202,23 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.ApproveNode(enodeID)
+
 	case ProposeNodeDeactivation:
-		if checkVoterExists(ps){
-			node, err = discover.ParseNode(args.nodeId)
-			if err != nil {
-				log.Error("invalid node id: %v", err)
-				return false
-			}
-			enodeID := node.ID.String()
-			tx, err = ps.ProposeDeactivation(enodeID)
-		} else {
+		if !checkVoterExists(ps){
 			return false
 		}
+		node, err = discover.ParseNode(args.nodeId)
+		if err != nil {
+			log.Error("invalid node id: %v", err)
+			return false
+		}
+		enodeID := node.ID.String()
+		tx, err = ps.ProposeDeactivation(enodeID)
+
 	case ApproveNodeDeactivation:
+		if !checkIsVoter(ps, args.txa.From){
+			return false
+		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
@@ -218,19 +226,23 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.DeactivateNode(enodeID)
+
 	case ProposeNodeActivation:
-		if checkVoterExists(ps){
-			node, err = discover.ParseNode(args.nodeId)
-			if err != nil {
-				log.Error("invalid node id: %v", err)
-				return false
-			}
-			enodeID := node.ID.String()
-			tx, err = ps.ProposeNodeActivation(enodeID)
-		} else {
+		if !checkVoterExists(ps){
 			return false
 		}
+		node, err = discover.ParseNode(args.nodeId)
+		if err != nil {
+			log.Error("invalid node id: %v", err)
+			return false
+		}
+		enodeID := node.ID.String()
+		tx, err = ps.ProposeNodeActivation(enodeID)
+
 	case ApproveNodeActivation:
+		if !checkIsVoter(ps, args.txa.From){
+			return false
+		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
@@ -238,25 +250,29 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.ActivateNode(enodeID)
-	case ProposeNodeBlacklisting:
-		if checkVoterExists(ps){
-			node, err = discover.ParseNode(args.nodeId)
-			if err != nil {
-				log.Error("invalid node id: %v", err)
-				return false
-			}
-			enodeID := node.ID.String()
-			ipAddr := node.IP.String()
-			port := fmt.Sprintf("%v", node.TCP)
-			discPort := fmt.Sprintf("%v", node.UDP)
-			raftPort := fmt.Sprintf("%v", node.RaftPort)
-			ipAddrPort := ipAddr + ":" + port
 
-			tx, err = ps.ProposeNodeBlacklisting(enodeID, ipAddrPort, discPort, raftPort)
-		} else {
+	case ProposeNodeBlacklisting:
+		if !checkVoterExists(ps){
 			return false
 		}
+		node, err = discover.ParseNode(args.nodeId)
+		if err != nil {
+			log.Error("invalid node id: %v", err)
+			return false
+		}
+		enodeID := node.ID.String()
+		ipAddr := node.IP.String()
+		port := fmt.Sprintf("%v", node.TCP)
+		discPort := fmt.Sprintf("%v", node.UDP)
+		raftPort := fmt.Sprintf("%v", node.RaftPort)
+		ipAddrPort := ipAddr + ":" + port
+
+		tx, err = ps.ProposeNodeBlacklisting(enodeID, ipAddrPort, discPort, raftPort)
+
 	case ApproveNodeBlacklisting:
+		if !checkIsVoter(ps, args.txa.From){
+			return false
+		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
@@ -264,6 +280,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.BlacklistNode(enodeID)
+
 	case SetAccountAccess:
 		var access uint64
 		access, err = strconv.ParseUint(args.accessType, 10, 8)
@@ -271,8 +288,8 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) bool {
 			return false
 		}
 		tx, err = ps.UpdateAccountAccess(args.acctId, uint8(access))
-
 	}
+
 	if err != nil {
 		log.Error("Failed to execute permission action", "action", action, "err", err)
 		return false
@@ -323,6 +340,14 @@ func checkVoterExists(ps *pbind.PermissionsSession) bool {
 	return false
 }
 
+// checks if any accounts is a valid voter to approve the action
+func checkIsVoter(ps *pbind.PermissionsSession, acctId common.Address) bool {
+	tx, err := ps.IsVoter(acctId)
+	if err == nil && tx {
+		return true
+	}
+	return false
+}
 // newPermSession creates a new permission contract session
 func (s *PermissionAPI) newPermSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.PermissionsSession {
 	frmAcct, transactOpts, gasLimit, gasPrice, nonce := s.getTxParams(txa, w)

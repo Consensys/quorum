@@ -22,11 +22,15 @@ type OrgStruct struct {
 	OrgId string
 	Keys  []string
 }
+var DefaultAccess = FullAccess
 
 var AcctMap, AcctMapErr = lru.NewARC(100)
 
 var OrgKeyMap, OrgKeyMapErr = lru.NewARC(100)
 
+func SetDefaultAccess() {
+	DefaultAccess = ReadOnly
+}
 func AddAccountAccess(acctId common.Address, access uint8) {
 	AcctMap.Add(acctId, &PermStruct{AcctId: acctId, AcctAccess: AccessType(access)})
 }
@@ -38,11 +42,12 @@ func GetAcctAccess(acctId common.Address) AccessType {
 			return vo.AcctAccess
 		}
 	}
-	if AcctMap.Len() == 0 {
-		return FullAccess
-	} else {
-		return ReadOnly
-	}
+	return DefaultAccess
+	// if AcctMap.Len() == 0 {
+	// 	return FullAccess
+	// } else {
+	// 	return ReadOnly
+	// }
 }
 
 func AddOrgKey(orgId string, key string) {

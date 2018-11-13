@@ -361,16 +361,15 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 }
 
 func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
-	if permEnabled := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name); permEnabled {
-		// start the permissions management service
-		pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.RaftModeFlag.Name))
-		if err != nil {
-			utils.Fatalf("Failed to start Quorum Permission contract service: %v", err)
-		}
-		pc.Start()
-		log.Info("Node Permission service started")
-
+	// start the permissions management service
+	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name),ctx.GlobalBool(utils.RaftModeFlag.Name))
+	if err != nil {
+		utils.Fatalf("Failed to start Quorum Permission contract service: %v", err)
 	}
+
+	err = pc.Start()
+	log.Info("Node Permission service started")
+
 	// Changes for managing org level cluster keys for privateFor txns
 	kc, err := cluster.NewOrgKeyCtrl(stack)
 	if err != nil {
