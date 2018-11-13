@@ -87,6 +87,8 @@ type Service struct {
 
 	pongCh chan struct{} // Pong notifications are fed into this channel
 	histCh chan []uint64 // History request block numbers are fed into this channel
+
+	api *eth.PublicEthereumAPI
 }
 
 // New returns a monitoring service ready for stats reporting.
@@ -104,6 +106,16 @@ func New(url string, ethServ *eth.Ethereum, lesServ *les.LightEthereum) (*Servic
 	} else {
 		engine = lesServ.Engine()
 	}
+
+	var api *eth.PublicEthereumAPI
+
+	for cont := 0; cont < len(ethServ.APIs()) || api == nil; cont++ {
+		switch ethServ.APIs()[cont].Service.(type) {
+		case *eth.PublicEthereumAPI:
+			api = ethServ.APIs()[9].Service.(*eth.PublicEthereumAPI)
+		}
+	}
+
 	return &Service{
 		eth:    ethServ,
 		les:    lesServ,
@@ -113,6 +125,7 @@ func New(url string, ethServ *eth.Ethereum, lesServ *les.LightEthereum) (*Servic
 		host:   parts[4],
 		pongCh: make(chan struct{}),
 		histCh: make(chan []uint64, 1),
+		api:    api,
 	}, nil
 }
 
@@ -593,15 +606,8 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 	var validator *common.Address
 	var proposer *common.Address
 
-	var service *eth.PublicEthereumAPI
-	for cont := 0; cont < len(s.eth.APIs()) || service == nil; cont++ {
-		switch s.eth.APIs()[cont].Service.(type) {
-		case *eth.PublicEthereumAPI:
-			service = s.eth.APIs()[9].Service.(*eth.PublicEthereumAPI)
-		}
-	}
-	if service != nil {
-		coinbase, _ := service.Coinbase()
+	if s.api != nil {
+		coinbase, _ := s.api.Coinbase()
 
 		var istanbulExtra *types.IstanbulExtra
 
