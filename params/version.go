@@ -29,7 +29,7 @@ const (
 	QuorumVersionMajor = 2
 	QuorumVersionMinor = 0
 	QuorumVersionPatch = 2
-	QuorumVersionMeta  = "1.Alastria_EthNetstats_IBFT"
+	QuorumVersionMeta  = "2.Alastria_EthNetstats_IBFT"
 )
 
 // Version holds the textual version string.
