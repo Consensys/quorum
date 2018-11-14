@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -59,7 +58,6 @@ type PermissionAPI struct {
 	txOpt      *bind.TransactOpts
 	permContr  *pbind.Permissions
 	clustContr *pbind.Cluster
-	server     *p2p.Server
 	key        *ecdsa.PrivateKey
 }
 
@@ -86,7 +84,7 @@ type ExecStatus struct {
 
 // NewPermissionAPI creates a new PermissionAPI to access quorum services
 func NewPermissionAPI(tp *core.TxPool, am *accounts.Manager) *PermissionAPI {
-	return &PermissionAPI{tp, nil, am, nil, nil, nil, nil, nil}
+	return &PermissionAPI{tp, nil, am, nil, nil, nil, nil}
 }
 
 // helper function decodes the node status to string
@@ -116,7 +114,7 @@ func decodeNodeStatus(nodeStatus uint8) string {
 }
 
 //Init initializes PermissionAPI with eth client, permission contract and org key management control
-func (p *PermissionAPI) Init(ethClnt *ethclient.Client, srv *p2p.Server, key *ecdsa.PrivateKey) error {
+func (p *PermissionAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) error {
 	p.ethClnt = ethClnt
 	permContr, err := pbind.NewPermissions(params.QuorumPermissionsContract, p.ethClnt)
 	if err != nil {
@@ -128,7 +126,6 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client, srv *p2p.Server, key *ec
 		return err
 	}
 	p.clustContr = clustContr
-	p.server = srv
 	p.key = key
 	// p.PermissionNodeList()
 	return nil
