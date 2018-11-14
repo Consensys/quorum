@@ -127,7 +127,6 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) e
 	}
 	p.clustContr = clustContr
 	p.key = key
-	// p.PermissionNodeList()
 	return nil
 }
 
