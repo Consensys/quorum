@@ -362,7 +362,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 
 func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 	// start the permissions management service
-	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name),ctx.GlobalBool(utils.RaftModeFlag.Name))
+	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name))
 	if err != nil {
 		utils.Fatalf("Failed to start Quorum Permission contract service: %v", err)
 	}

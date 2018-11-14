@@ -3,8 +3,8 @@ package permission
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"fmt"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -38,14 +38,14 @@ const (
 )
 
 type PermissionCtrl struct {
-	node    *node.Node
-	ethClnt *ethclient.Client
-	eth     *eth.Ethereum
-	isRaft  bool
+	node             *node.Node
+	ethClnt          *ethclient.Client
+	eth              *eth.Ethereum
+	isRaft           bool
 	permissionedMode bool
-	key     *ecdsa.PrivateKey
-	dataDir string
-	pm      *pbind.Permissions
+	key              *ecdsa.PrivateKey
+	dataDir          string
+	pm               *pbind.Permissions
 }
 
 // Creates the controls structure for permissions
@@ -345,7 +345,7 @@ func (p *PermissionCtrl) populateAcctPermissions() error {
 		for recExists {
 			recExists = pastEvents.Next()
 			if recExists {
-				log.Info("SMK-populateAcctPermissions @344 ", "Account", pastEvents.Event.Address, "access",pastEvents.Event.Access)
+				log.Info("SMK-populateAcctPermissions @344 ", "Account", pastEvents.Event.Address, "access", pastEvents.Event.Access)
 				types.AddAccountAccess(pastEvents.Event.Address, pastEvents.Event.Access)
 			}
 		}
@@ -442,7 +442,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		log.Info("SMK-populateInitPermission @447")
 	}
 
-	if !p.permissionedMode{
+	if !p.permissionedMode {
 		return errors.New("Node started in non-permissioned mode")
 		log.Info("SMK-populateInitPermission @452")
 	}

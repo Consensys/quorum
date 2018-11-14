@@ -73,7 +73,7 @@ type txArgs struct {
 }
 
 type nodeStatus struct {
-	Name     string
+	Name   string
 	Status string
 }
 
@@ -90,7 +90,7 @@ func NewPermissionAPI(tp *core.TxPool, am *accounts.Manager) *PermissionAPI {
 // helper function decodes the node status to string
 func decodeNodeStatus(nodeStatus uint8) string {
 	var status string
-	switch nodeStatus{
+	switch nodeStatus {
 	case 0:
 		status = "Unknown"
 	case 1:
@@ -131,7 +131,7 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) e
 	return nil
 }
 
-// Returns the list of Nodes and status of each 
+// Returns the list of Nodes and status of each
 func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
 	auth := bind.NewKeyedTransactor(s.key)
 	ps := &pbind.PermissionsSession{
@@ -153,9 +153,9 @@ func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
 	// loop for each index and get the node details from the contract
 	if err == nil {
 		i := int64(0)
-		for nodeCnt.Cmp(big.NewInt(i)) > 0{
+		for nodeCnt.Cmp(big.NewInt(i)) > 0 {
 			nodeDtls, _ := ps.GetNodeDetails(big.NewInt(i))
-			nodeStatArr[i].Name = "enode://"+ nodeDtls.EnodeId + "@" +nodeDtls.IpAddrPort
+			nodeStatArr[i].Name = "enode://" + nodeDtls.EnodeId + "@" + nodeDtls.IpAddrPort
 			nodeStatArr[i].Name += "?discport=" + nodeDtls.DiscPort
 			if len(nodeDtls.RaftPort) > 0 {
 				nodeStatArr[i].Name += "&raftport" + nodeDtls.RaftPort
@@ -254,7 +254,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 		tx, err = ps.RemoveVoter(args.voter)
 
 	case ProposeNode:
-		if !checkVoterExists(ps){
+		if !checkVoterExists(ps) {
 			return voterErr
 		}
 		node, err = discover.ParseNode(args.nodeId)
@@ -272,7 +272,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 		tx, err = ps.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
 
 	case ApproveNode:
-		if !checkIsVoter(ps, args.txa.From){
+		if !checkIsVoter(ps, args.txa.From) {
 			return voterErr
 		}
 		node, err = discover.ParseNode(args.nodeId)
@@ -284,7 +284,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 		tx, err = ps.ApproveNode(enodeID)
 
 	case ProposeNodeDeactivation:
-		if !checkVoterExists(ps){
+		if !checkVoterExists(ps) {
 			return voterErr
 		}
 		node, err = discover.ParseNode(args.nodeId)
@@ -296,7 +296,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 		tx, err = ps.ProposeDeactivation(enodeID)
 
 	case ApproveNodeDeactivation:
-		if !checkIsVoter(ps, args.txa.From){
+		if !checkIsVoter(ps, args.txa.From) {
 			return voterErr
 		}
 		node, err = discover.ParseNode(args.nodeId)
@@ -308,7 +308,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 		tx, err = ps.DeactivateNode(enodeID)
 
 	case ProposeNodeActivation:
-		if !checkVoterExists(ps){
+		if !checkVoterExists(ps) {
 			return voterErr
 		}
 		node, err = discover.ParseNode(args.nodeId)
@@ -320,7 +320,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 		tx, err = ps.ProposeNodeActivation(enodeID)
 
 	case ApproveNodeActivation:
-		if !checkIsVoter(ps, args.txa.From){
+		if !checkIsVoter(ps, args.txa.From) {
 			return voterErr
 		}
 		node, err = discover.ParseNode(args.nodeId)
@@ -332,7 +332,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 		tx, err = ps.ActivateNode(enodeID)
 
 	case ProposeNodeBlacklisting:
-		if !checkVoterExists(ps){
+		if !checkVoterExists(ps) {
 			return voterErr
 		}
 		node, err = discover.ParseNode(args.nodeId)
@@ -349,7 +349,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 
 		tx, err = ps.ProposeNodeBlacklisting(enodeID, ipAddrPort, discPort, raftPort)
 	case ApproveNodeBlacklisting:
-		if !checkIsVoter(ps, args.txa.From){
+		if !checkIsVoter(ps, args.txa.From) {
 			return voterErr
 		}
 		node, err = discover.ParseNode(args.nodeId)
@@ -428,6 +428,7 @@ func checkIsVoter(ps *pbind.PermissionsSession, acctId common.Address) bool {
 	}
 	return false
 }
+
 // newPermSession creates a new permission contract session
 func (s *PermissionAPI) newPermSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.PermissionsSession {
 	frmAcct, transactOpts, gasLimit, gasPrice, nonce := s.getTxParams(txa, w)
