@@ -69,14 +69,12 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool) (*
 
 // Starts the node permissioning and account access control monitoring
 func (p *PermissionCtrl) Start() error {
-	log.Info("SMK-Inside Start @ 77")
 	// At node level update QuorumPermissions to indicate new permissioning is in use
 	server := p.node.Server()
 	server.QuorumPermissions = true
 
 	// Permissions initialization
 	if err := p.init(); err != nil {
-		log.Info("SMK-Inside init error @ 84")
 		log.Error("Permissions init failed : ", "err", err)
 		return err
 	}
@@ -92,22 +90,18 @@ func (p *PermissionCtrl) Start() error {
 
 // This functions updates the initial  values for the network
 func (p *PermissionCtrl) init() error {
-	log.Info("SMK-init @100")
 	// populate the initial list of permissioned nodes and account accesses
 	if err := p.populateInitPermission(); err != nil {
-		log.Info("SMK-init @103 error")
 		return err
 	}
 
 	// call populates the account permissions based on past history
 	if err := p.populateAcctPermissions(); err != nil {
-		log.Info("SMK-init @109 error")
 		return err
 	}
 
 	// call populates the node details from contract to KnownNodes
 	if err := p.populatePermissionedNodes(); err != nil {
-		log.Info("SMK-init @1115 error")
 		return err
 	}
 
@@ -334,18 +328,14 @@ func (p *PermissionCtrl) populatePermissionedNodes() error {
 // populates the nodes list from permissioned-nodes.json into the permissions
 // smart contract
 func (p *PermissionCtrl) populateAcctPermissions() error {
-	log.Info("SMK-populateAcctPermissions @336 ")
 	opts := &bind.FilterOpts{}
 	pastEvents, err := p.pm.PermissionsFilterer.FilterAccountAccessModified(opts)
 
-	log.Info("SMK-populateAcctPermissions @337 ", "err", err, "pastEvents", pastEvents)
 	if err == nil {
 		recExists := true
-		log.Info("SMK-populateAcctPermissions @340 ")
 		for recExists {
 			recExists = pastEvents.Next()
 			if recExists {
-				log.Info("SMK-populateAcctPermissions @344 ", "Account", pastEvents.Event.Address, "access", pastEvents.Event.Access)
 				types.AddAccountAccess(pastEvents.Event.Address, pastEvents.Event.Access)
 			}
 		}
@@ -427,11 +417,9 @@ func (p *PermissionCtrl) populateInitPermission() error {
 			GasPrice: big.NewInt(0),
 		},
 	}
-	log.Info("SMK-populateInitPermission @429")
 
 	tx, err := permissionsSession.GetNetworkBootStatus()
 	if err != nil {
-		log.Info("SMK-populateInitPermission @433", "err", err)
 		log.Warn("Failed to udpate network boot status ", "err", err)
 	}
 
@@ -439,34 +427,27 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		// Network is initialized with permissions and node is joining in a non-permissioned
 		// option. stop the node from coming up
 		types.SetDefaultAccess()
-		log.Info("SMK-populateInitPermission @447")
 	}
 
 	if !p.permissionedMode {
 		return errors.New("Node started in non-permissioned mode")
-		log.Info("SMK-populateInitPermission @452")
 	}
 	if tx != true {
 		// populate initial account access to full access
-		log.Info("SMK-populateInitPermission @456")
 		err = p.populateInitAccountAccess(permissionsSession)
 		if err != nil {
-			log.Info("SMK-populateInitPermission @459 error")
 			return err
 		}
 
 		// populate the initial node list from static-nodes.json
 		err := p.populateStaticNodesToContract(permissionsSession)
 		if err != nil {
-			log.Info("SMK-populateInitPermission @466 error")
 			return err
 		}
 
 		// update network status to boot completed
-		log.Info("SMK-populateInitPermission @466 calling updateNetworkStatus")
 		err = p.updateNetworkStatus(permissionsSession)
 		if err != nil {
-			log.Info("SMK-populateInitPermission @474 updateNetworkStatus error")
 			return err
 		}
 	}
@@ -508,7 +489,6 @@ func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.Per
 		for _, account := range wallet.Accounts() {
 			nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
 			permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
-			log.Info("SMK-populateInitPermission adding @485", "account", account.Address)
 
 			_, err := permissionsSession.UpdateAccountAccess(account.Address, uint8(types.FullAccess))
 			if err != nil {
