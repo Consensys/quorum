@@ -111,6 +111,11 @@ contract Permissions {
     return networkBoot;
   }
 
+  // Get node details given index
+  function getNodeDetails(uint nodeIndex) public view returns (string _enodeId, string _ipAddrPort, string _discPort, string _raftPort, NodeStatus _nodeStatus)
+  {
+    return (nodeList[nodeIndex].enodeId, nodeList[nodeIndex].ipAddrPort, nodeList[nodeIndex].discPort, nodeList[nodeIndex].raftPort, nodeList[nodeIndex].status);
+  }
   // Get number of nodes
   function getNumberOfNodes() public view returns (uint)
   {

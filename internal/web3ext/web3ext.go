@@ -646,6 +646,10 @@ web3._extend({
        property: 'raft',
        methods:
        [
+			   new web3._extend.Method({
+                       name: 'add1',
+                       call: 'raft_add1'
+               }),
        ],
        properties:
        [
@@ -671,6 +675,10 @@ web3._extend({
                        name: 'cluster',
                        getter: 'raft_cluster'
                }),
+			   new web3._extend.Property({
+                       name: 'add2',
+                       getter: 'raft_add2'
+               }),
        ]
 })
 `
@@ -679,9 +687,6 @@ const QUORUM_JS = `
 web3._extend({
        property: 'quorum',
        methods:
-       [
-       ],
-       properties:
        [
                new web3._extend.Method({
                        name: 'addVoter',
@@ -761,6 +766,13 @@ web3._extend({
                        params: 3,
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
+       ],
+       properties:
+       [
+			   new web3._extend.Property({
+					   name: 'permissionNodeList',
+				       getter: 'quorum_permissionNodeList'
+			  }),  
        ]
 })
 `

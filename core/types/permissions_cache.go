@@ -3,6 +3,7 @@ package types
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/golang-lru"
+	"sync"
 )
 
 type AccessType uint8
@@ -24,9 +25,14 @@ type OrgStruct struct {
 }
 var DefaultAccess = FullAccess
 
-var AcctMap, AcctMapErr = lru.NewARC(100)
+const acctMapLimit = 100
+const orgKeyMapLimit = 100
 
-var OrgKeyMap, OrgKeyMapErr = lru.NewARC(100)
+var AcctMap, _ = lru.New(acctMapLimit)
+
+var OrgKeyMap, _ = lru.New(orgKeyMapLimit)
+
+var orgKeyLock sync.Mutex
 
 func SetDefaultAccess() {
 	DefaultAccess = ReadOnly
@@ -51,8 +57,10 @@ func GetAcctAccess(acctId common.Address) AccessType {
 }
 
 func AddOrgKey(orgId string, key string) {
+	defer orgKeyLock.Unlock()
 	if OrgKeyMap.Len() != 0 {
 		if val, ok := OrgKeyMap.Get(orgId); ok {
+			orgKeyLock.Lock()
 			// Org record exists. Append the key only
 			vo := val.(*OrgStruct)
 			vo.Keys = append(vo.Keys, key)
@@ -63,7 +71,9 @@ func AddOrgKey(orgId string, key string) {
 }
 
 func DeleteOrgKey(orgId string, key string) {
+	defer orgKeyLock.Unlock()
 	if val, ok := OrgKeyMap.Get(orgId); ok {
+		orgKeyLock.Lock()
 		vo := val.(*OrgStruct)
 		for i, keyVal := range vo.Keys {
 			if keyVal == key {

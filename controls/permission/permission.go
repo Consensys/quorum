@@ -50,10 +50,6 @@ type PermissionCtrl struct {
 
 // Creates the controls structure for permissions
 func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool) (*PermissionCtrl, error) {
-	if types.AcctMapErr != nil {
-		log.Error("error initializing account access map", "err", types.AcctMapErr)
-		return nil, types.AcctMapErr
-	}
 	// Create a new ethclient to for interfacing with the contract
 	stateReader, e, err := controls.CreateEthClient(stack)
 	if err != nil {

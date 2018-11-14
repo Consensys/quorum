@@ -389,6 +389,6 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		utils.Fatalf("Failed to attach to self: %v", err)
 	}
 	stateReader := ethclient.NewClient(rpcClient)
-	qapi.Init(stateReader)
+	qapi.Init(stateReader, stack.Server(), stack.GetNodeKey())
 	log.Info("Permission API initialized")
 }
