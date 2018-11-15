@@ -361,8 +361,16 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 }
 
 func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
+
+	var quorumApis []string
+	if ctx.GlobalBool(utils.EnableNodePermissionFlag.Name) {
+		//default quorum api list
+		quorumApis = []string{"quorumNodeMgmt", "quorumAcctMgmt", "quorumKeyMgmt"}
+	} else {
+		quorumApis = []string{"quorumKeyMgmt"}
+	}
 	// start the permissions management service
-	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name),ctx.GlobalBool(utils.RaftModeFlag.Name))
+	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name))
 	if err != nil {
 		utils.Fatalf("Failed to start Quorum Permission contract service: %v", err)
 	}
@@ -379,16 +387,20 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		log.Trace("Key management service started")
 	}
 
-	v := stack.GetRPC("quorum")
-	if v == nil {
-		utils.Fatalf("Failed to start Quorum Permission API")
+	for _, apiName := range quorumApis {
+		v := stack.GetRPC(apiName)
+		if v == nil {
+			utils.Fatalf("Failed to start Quorum Permission API %s", apiName)
+		}
+		qapi := v.(*quorum.PermissionAPI)
+		rpcClient, err := stack.Attach()
+		if err != nil {
+			utils.Fatalf("Failed to attach to self: %v", err)
+		}
+		stateReader := ethclient.NewClient(rpcClient)
+		qapi.Init(stateReader, stack.GetNodeKey())
+		log.Info("Permission API started.", "apiName", apiName)
 	}
-	qapi := v.(*quorum.PermissionAPI)
-	rpcClient, err := stack.Attach()
-	if err != nil {
-		utils.Fatalf("Failed to attach to self: %v", err)
-	}
-	stateReader := ethclient.NewClient(rpcClient)
-	qapi.Init(stateReader, stack.GetNodeKey())
+
 	log.Info("Permission API initialized")
 }

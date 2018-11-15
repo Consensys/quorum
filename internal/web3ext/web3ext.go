@@ -18,21 +18,23 @@
 package web3ext
 
 var Modules = map[string]string{
-	"admin":      Admin_JS,
-	"chequebook": Chequebook_JS,
-	"clique":     Clique_JS,
-	"debug":      Debug_JS,
-	"eth":        Eth_JS,
-	"miner":      Miner_JS,
-	"net":        Net_JS,
-	"personal":   Personal_JS,
-	"rpc":        RPC_JS,
-	"shh":        Shh_JS,
-	"swarmfs":    SWARMFS_JS,
-	"txpool":     TxPool_JS,
-	"raft":       Raft_JS,
-	"istanbul":   Istanbul_JS,
-	"quorum":     QUORUM_JS,
+	"admin":          Admin_JS,
+	"chequebook":     Chequebook_JS,
+	"clique":         Clique_JS,
+	"debug":          Debug_JS,
+	"eth":            Eth_JS,
+	"miner":          Miner_JS,
+	"net":            Net_JS,
+	"personal":       Personal_JS,
+	"rpc":            RPC_JS,
+	"shh":            Shh_JS,
+	"swarmfs":        SWARMFS_JS,
+	"txpool":         TxPool_JS,
+	"raft":           Raft_JS,
+	"istanbul":       Istanbul_JS,
+	"quorumNodeMgmt": QUORUM_NODE_JS,
+	"quorumAcctMgmt": QUORUM_ACCT_JS,
+	"quorumKeyMgmt":  QUORUM_KEY_JS,
 }
 
 const Chequebook_JS = `
@@ -683,96 +685,120 @@ web3._extend({
 })
 `
 
-const QUORUM_JS = `
+const QUORUM_NODE_JS = `
 web3._extend({
-       property: 'quorum',
+       property: 'quorumNodeMgmt',
        methods:
        [
                new web3._extend.Method({
                        name: 'addVoter',
-                       call: 'quorum_addVoter',
+                       call: 'quorumNodeMgmt_addVoter',
                        params: 2,
                        inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'removeVoter',
-                       call: 'quorum_removeVoter',
+                       call: 'quorumNodeMgmt_removeVoter',
                        params: 2,
                        inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'proposeNode',
-                       call: 'quorum_proposeNode',
+                       call: 'quorumNodeMgmt_proposeNode',
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'approveNode',
-                       call: 'quorum_approveNode',
+                       call: 'quorumNodeMgmt_approveNode',
 					   params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'proposeNodeDeactivation',
-                       call: 'quorum_proposeNodeDeactivation',
+                       call: 'quorumNodeMgmt_proposeNodeDeactivation',
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
          	   new web3._extend.Method({
                        name: 'approveNodeDeactivation',
-                       call: 'quorum_approveNodeDeactivation',
+                       call: 'quorumNodeMgmt_approveNodeDeactivation',
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'proposeNodeActivation',
-                       call: 'quorum_proposeNodeActivation',
+                       call: 'quorumNodeMgmt_proposeNodeActivation',
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
          	   new web3._extend.Method({
                        name: 'approveNodeActivation',
-                       call: 'quorum_approveNodeActivation',
+                       call: 'quorumNodeMgmt_approveNodeActivation',
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'proposeNodeBlacklisting',
-                       call: 'quorum_proposeNodeBlacklisting',
+                       call: 'quorumNodeMgmt_proposeNodeBlacklisting',
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
          	   new web3._extend.Method({
                        name: 'approveNodeBlacklisting',
-                       call: 'quorum_approveNodeBlacklisting',
+                       call: 'quorumNodeMgmt_approveNodeBlacklisting',
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
-               }),
-         	   new web3._extend.Method({
-                       name: 'setAccountAccess',
-                       call: 'quorum_setAccountAccess',
-                       params: 3,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null,web3._extend.formatters.inputTransactionFormatter]
-               }),
-               new web3._extend.Method({
-                       name: 'addOrgKey',
-                       call: 'quorum_addOrgKey',
-                       params: 3,
-                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
-               }),
-               new web3._extend.Method({
-                       name: 'removeOrgKey',
-                       call: 'quorum_removeOrgKey',
-                       params: 3,
-                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
        ],
        properties:
        [
 			   new web3._extend.Property({
 					   name: 'permissionNodeList',
-				       getter: 'quorum_permissionNodeList'
+				       getter: 'quorumNodeMgmt_permissionNodeList'
 			  }),  
+       ]
+})
+`
+
+const QUORUM_ACCT_JS = `
+web3._extend({
+       property: 'quorumAcctMgmt',
+       methods:
+       [
+         	   new web3._extend.Method({
+                       name: 'setAccountAccess',
+                       call: 'quorumAcctMgmt_setAccountAccess',
+                       params: 3,
+                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+       ],
+       properties:
+       [
+       ]
+})
+`
+
+const QUORUM_KEY_JS = `
+web3._extend({
+       property: 'quorumKeyMgmt',
+       methods:
+       [
+                new web3._extend.Method({
+                       name: 'addOrgKey',
+                       call: 'quorumKeyMgmt_addOrgKey',
+                       params: 3,
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'removeOrgKey',
+                       call: 'quorumKeyMgmt_removeOrgKey',
+                       params: 3,
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+       ],
+       properties:
+       [
        ]
 })
 `

@@ -3,8 +3,8 @@ package permission
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"fmt"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -38,14 +38,14 @@ const (
 )
 
 type PermissionCtrl struct {
-	node    *node.Node
-	ethClnt *ethclient.Client
-	eth     *eth.Ethereum
-	isRaft  bool
+	node             *node.Node
+	ethClnt          *ethclient.Client
+	eth              *eth.Ethereum
+	isRaft           bool
 	permissionedMode bool
-	key     *ecdsa.PrivateKey
-	dataDir string
-	pm      *pbind.Permissions
+	key              *ecdsa.PrivateKey
+	dataDir          string
+	pm               *pbind.Permissions
 }
 
 // Creates the controls structure for permissions
@@ -429,7 +429,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		utils.Fatalf("Joining a permissioned network in non-permissioned mode. Bring up get with --permissioned.")
 	}
 
-	if !p.permissionedMode{
+	if !p.permissionedMode {
 		return errors.New("Node started in non-permissioned mode")
 	}
 	if tx != true {

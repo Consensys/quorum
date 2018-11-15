@@ -35,6 +35,7 @@ import (
 	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/quorum"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -52,7 +53,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/core/quorum"
 )
 
 type LesServer interface {
@@ -275,14 +275,13 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *Config, chainConfig
 func (s *Ethereum) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.APIBackend)
 
-
 	//TODO add perm service
 
 	// Append any APIs exposed explicitly by the consensus engine
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
 
 	// Append all the local APIs and return
-	return append(apis, []rpc.API{
+	apis = append(apis, []rpc.API{
 		{
 			Namespace: "eth",
 			Version:   "1.0",
@@ -328,13 +327,51 @@ func (s *Ethereum) APIs() []rpc.API {
 			Public:    true,
 		},
 		{
-			Namespace: "quorum",
+			Namespace: "quorumNodeMgmt",
 			Version:   "1.0",
 			Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
 			Public:    true,
 		},
-
+		{
+			Namespace: "quorumAcctMgmt",
+			Version:   "1.0",
+			Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
+			Public:    true,
+		},
+		{
+			Namespace: "quorumKeyMgmt",
+			Version:   "1.0",
+			Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
+			Public:    true,
+		},
 	}...)
+
+	if s.config.EnableNodePermission {
+		apis = append(apis, []rpc.API{
+			{
+				Namespace: "quorumNodeMgmt",
+				Version:   "1.0",
+				Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
+				Public:    true,
+			},
+			{
+				Namespace: "quorumAcctMgmt",
+				Version:   "1.0",
+				Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
+				Public:    true,
+			},
+		}...)
+	}
+	apis = append(apis, []rpc.API{
+		{
+			Namespace: "quorumKeyMgmt",
+			Version:   "1.0",
+			Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
+			Public:    true,
+		},
+	}...)
+
+	return apis
 }
 
 func (s *Ethereum) ResetWithGenesisBlock(gb *types.Block) {
