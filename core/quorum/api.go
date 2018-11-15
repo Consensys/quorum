@@ -82,6 +82,17 @@ type ExecStatus struct {
 	Msg    string
 }
 
+var nodeApproveStatus = map[uint8]string{
+	0: "Unknown",
+	1: "PendingApproval",
+	2: "Approved",
+	3: "PendingDeactivation",
+	4: "Deactivated",
+	5: "PendingActivation",
+	6: "PendingBlacklisting",
+	7: "Blacklisted",
+}
+
 // NewPermissionAPI creates a new PermissionAPI to access quorum services
 func NewPermissionAPI(tp *core.TxPool, am *accounts.Manager) *PermissionAPI {
 	return &PermissionAPI{tp, nil, am, nil, nil, nil, nil}
@@ -89,28 +100,10 @@ func NewPermissionAPI(tp *core.TxPool, am *accounts.Manager) *PermissionAPI {
 
 // helper function decodes the node status to string
 func decodeNodeStatus(nodeStatus uint8) string {
-	var status string
-	switch nodeStatus {
-	case 0:
-		status = "Unknown"
-	case 1:
-		status = "PendingApproval"
-	case 2:
-		status = "Approved"
-	case 3:
-		status = "PendingDeactivation"
-	case 4:
-		status = "Deactivated"
-	case 5:
-		status = "PendingActivation"
-	case 6:
-		status = "PendingBlacklisting"
-	case 7:
-		status = "Blacklisted"
-	default:
-		status = "Unknown"
+	if status, ok := nodeApproveStatus[nodeStatus]; ok {
+		return status
 	}
-	return status
+	return "Unknown"
 }
 
 //Init initializes PermissionAPI with eth client, permission contract and org key management control
@@ -147,12 +140,12 @@ func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
 	}
 	// get the total number of nodes on the contract
 	nodeCnt, err := ps.GetNumberOfNodes()
-
-	nodeStatArr := make([]nodeStatus, nodeCnt.Uint64())
+	nodeCntI := nodeCnt.Int64()
+	nodeStatArr := make([]nodeStatus, nodeCntI)
 	// loop for each index and get the node details from the contract
 	if err == nil {
 		i := int64(0)
-		for nodeCnt.Cmp(big.NewInt(i)) > 0 {
+		for i < nodeCntI {
 			nodeDtls, _ := ps.GetNodeDetails(big.NewInt(i))
 			nodeStatArr[i].Name = "enode://" + nodeDtls.EnodeId + "@" + nodeDtls.IpAddrPort
 			nodeStatArr[i].Name += "?discport=" + nodeDtls.DiscPort
