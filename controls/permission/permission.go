@@ -426,7 +426,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 	if tx && !p.permissionedMode {
 		// Network is initialized with permissions and node is joining in a non-permissioned
 		// option. stop the node from coming up
-		types.SetDefaultAccess()
+		utils.Fatalf("Joining a permissioned network in non-permissioned mode. Bring up get with --permissioned.")
 	}
 
 	if !p.permissionedMode{
@@ -442,7 +442,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		// populate the initial node list from static-nodes.json
 		err := p.populateStaticNodesToContract(permissionsSession)
 		if err != nil {
-			return err
+			return err 
 		}
 
 		// update network status to boot completed
