@@ -12,9 +12,9 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/controls"
 	pbind "github.com/ethereum/go-ethereum/controls/bind"
-	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -443,7 +443,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		// populate the initial node list from static-nodes.json
 		err := p.populateStaticNodesToContract(permissionsSession)
 		if err != nil {
-			return err 
+			return err
 		}
 
 		// update network status to boot completed
@@ -485,17 +485,10 @@ func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind
 
 // Reads the acount from geth keystore and grants full access to these accounts
 func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.PermissionsSession) error {
-	acctman := p.node.AccountManager()
-	for _, wallet := range acctman.Wallets() {
-		for _, account := range wallet.Accounts() {
-			nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
-			permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
-
-			_, err := permissionsSession.UpdateAccountAccess(account.Address, uint8(types.FullAccess))
-			if err != nil {
-				return err
-			}
-		}
+	_, err := permissionsSession.InitAccounts()
+	if err != nil {
+		log.Error("calling init accounts failed", "err", err)
+		return err
 	}
 	return nil
 }

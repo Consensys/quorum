@@ -1,7 +1,15 @@
 pragma solidity ^0.4.23;
 
 contract Permissions {
-
+  //initialAcctList - is used to initialize accounts at network start up first time. it is populated by genesis file, don't populate it in the contract
+  // Example genesis storage population:
+  // "storage": {
+  //        "0x0000000000000000000000000000000000000000000000000000000000000000" : "0x0000000000000000000000000000000000000003",
+  //        "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563" : "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e",
+  //        "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e564" : "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
+  //        "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e565" : "0x0fbdc686b912d7722dc86510934589e0aaf3b55a"
+  //      },
+  address[] initialAcctList;
   // enum and struct declaration
   enum NodeStatus {NotInList, PendingApproval, Approved, PendingDeactivation, Deactivated, PendingActivation, PendingBlacklisting, Blacklisted }
   struct NodeDetails {
@@ -11,6 +19,7 @@ contract Permissions {
     string raftPort;
     NodeStatus status;
   }
+
 
   enum AccountAccess { FullAccess, ReadOnly, Transact, ContractDeploy }
   struct AccountAccessDetails {
@@ -27,6 +36,8 @@ contract Permissions {
   uint private numberOfNodes;
 
   AccountAccessDetails[] private acctAccessList;
+
+
   mapping (address => uint) private acctToIndex;
   uint private numberOfAccts;
   // use an array to store account details
@@ -38,8 +49,12 @@ contract Permissions {
   // valid vote count
   mapping (uint => uint) private voteCount;
 
-  // checks if firts time network boot up has happened or not
+  // checks if first time network boot up has happened or not
   bool private networkBoot = false;
+
+  // checks if first time network boot up for accounts has happened or not
+  bool private networkBootAccount = false;
+
 
   // node permission events for new node propose
   event NodeProposed(string _enodeId);
@@ -105,6 +120,8 @@ contract Permissions {
   {
 	return voterAcctList.length;
   }
+
+
 
   // Get voter
   function getVoter(uint i) public view returns (address _addr)
@@ -386,6 +403,20 @@ contract Permissions {
       return false;
     }
   }
+
+  function InitAccounts() external
+    {
+      require(networkBootAccount == false, "network accounts already boot up");
+      for (uint i=0; i<initialAcctList.length; i++){
+         numberOfAccts ++;
+         acctToIndex[initialAcctList[i]] = numberOfAccts;
+         acctAccessList.push(AccountAccessDetails(initialAcctList[i], AccountAccess.FullAccess));
+         emit AccountAccessModified(initialAcctList[i], AccountAccess.FullAccess);
+      }
+      networkBootAccount = true;
+    }
+
+
   // Checks if the Node is already added. If yes then returns true
   function updateAccountAccess(address _address, AccountAccess _accountAccess) external
   {
