@@ -753,9 +753,13 @@ web3._extend({
        ],
        properties:
        [
-			   new web3._extend.Property({
+				new web3._extend.Property({
 					   name: 'permissionNodeList',
 				       getter: 'quorumNodeMgmt_permissionNodeList'
+			  }),  
+		      new web3._extend.Property({
+					   name: 'voterList',
+				       getter: 'quorumNodeMgmt_voterList'
 			  }),  
        ]
 })

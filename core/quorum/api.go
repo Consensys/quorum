@@ -149,19 +149,7 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) e
 
 // Returns the list of Nodes and status of each
 func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
-	auth := bind.NewKeyedTransactor(s.key)
-	ps := &pbind.PermissionsSession{
-		Contract: s.permContr,
-		CallOpts: bind.CallOpts{
-			Pending: true,
-		},
-		TransactOpts: bind.TransactOpts{
-			From:     auth.From,
-			Signer:   auth.Signer,
-			GasLimit: 4700000,
-			GasPrice: big.NewInt(0),
-		},
-	}
+	ps := s.newPermSessionWithNodeKeySigner()
 	// get the total number of nodes on the contract
 	nodeCnt, err := ps.GetNumberOfNodes()
 	if err != nil {
@@ -190,19 +178,7 @@ func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
 }
 
 func (s *PermissionAPI) PermissionAccountList() []accountInfo {
-	auth := bind.NewKeyedTransactor(s.key)
-	ps := &pbind.PermissionsSession{
-		Contract: s.permContr,
-		CallOpts: bind.CallOpts{
-			Pending: true,
-		},
-		TransactOpts: bind.TransactOpts{
-			From:     auth.From,
-			Signer:   auth.Signer,
-			GasLimit: 4700000,
-			GasPrice: big.NewInt(0),
-		},
-	}
+	ps := s.newPermSessionWithNodeKeySigner()
 	// get the total number of accounts with permissions
 	acctCnt, err := ps.GetNumberOfAccounts()
 	if err != nil {
@@ -224,6 +200,47 @@ func (s *PermissionAPI) PermissionAccountList() []accountInfo {
 		i++
 	}
 	return acctInfoArr
+}
+
+func (s *PermissionAPI) VoterList() []string {
+	ps := s.newPermSessionWithNodeKeySigner()
+	// get the total number of accounts with permissions
+	voterCnt, err := ps.GetNumberOfVoters()
+	if err != nil {
+		return nil
+	}
+	voterCntI := voterCnt.Int64()
+	log.Debug("total voters", "count", voterCntI)
+	voterArr := make([]string, voterCntI)
+	// loop for each index and get the node details from the contract
+	i := int64(0)
+	for i < voterCntI {
+		a, err := ps.GetVoter(big.NewInt(i))
+		if err != nil {
+			log.Error("error getting voter info", "err", err)
+		} else {
+			voterArr[i] = a.String()
+		}
+		i++
+	}
+	return voterArr
+}
+
+func (s *PermissionAPI) newPermSessionWithNodeKeySigner() *pbind.PermissionsSession {
+	auth := bind.NewKeyedTransactor(s.key)
+	ps := &pbind.PermissionsSession{
+		Contract: s.permContr,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     auth.From,
+			Signer:   auth.Signer,
+			GasLimit: 4700000,
+			GasPrice: big.NewInt(0),
+		},
+	}
+	return ps
 }
 
 func decodeAccountPermission(access uint8) string {

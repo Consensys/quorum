@@ -105,6 +105,13 @@ contract Permissions {
   {
 	return voterAcctList.length;
   }
+
+  // Get voter
+  function getVoter(uint i) public view returns (address _addr)
+  {
+  	return voterAcctList[i];
+  }
+
   // Get number of nodes
   function getNetworkBootStatus() public view returns (bool)
   {
