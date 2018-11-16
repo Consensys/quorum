@@ -1283,6 +1283,7 @@ func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 
 	switch access {
 	case types.FullAccess:
+	case types.ContractDeploy:
 		return nil
 
 	case types.ReadOnly:
@@ -1296,13 +1297,13 @@ func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 		} else {
 			return nil
 		}
-	case types.ContractDeploy:
-		if toAcct != nil {
-			err := errors.New("Account Does not have transacte permissions")
-			return err
-		} else {
-			return nil
-		}
+	// case types.ContractDeploy:
+	// 	if toAcct != nil {
+	// 		err := errors.New("Account Does not have transacte permissions")
+	// 		return err
+	// 	} else {
+	// 		return nil
+	// 	}
 	}
 	return nil
 }

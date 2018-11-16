@@ -81,6 +81,16 @@ type ExecStatus struct {
 	Status bool
 	Msg    string
 }
+var (
+	ErrNoVoterAccount = ExecStatus{false, "No voter account registered. Add voter first"}
+	ErrInvalidNode = ExecStatus{false, "Invalid node id"}
+	ErrAccountNotAVoter = ExecStatus{false, "Account is not a voter. Action cannot be approved"}
+	ErrInvalidAccount = ExecStatus{false, "Invalid account id"}
+	ErrInvalidAccountAccess = ExecStatus{false, "Invalid account access"}
+	ErrFailedExecution = ExecStatus{false, "Failed to execute permission action"}
+	ExecSuccess = ExecStatus{true, "Action completed successfully"}
+)
+
 
 var nodeApproveStatus = map[uint8]string{
 	0: "Unknown",
@@ -140,21 +150,22 @@ func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
 	}
 	// get the total number of nodes on the contract
 	nodeCnt, err := ps.GetNumberOfNodes()
+	if err != nil {
+		return nil
+	}
 	nodeCntI := nodeCnt.Int64()
 	nodeStatArr := make([]nodeStatus, nodeCntI)
 	// loop for each index and get the node details from the contract
-	if err == nil {
-		i := int64(0)
-		for i < nodeCntI {
-			nodeDtls, _ := ps.GetNodeDetails(big.NewInt(i))
-			nodeStatArr[i].Name = "enode://" + nodeDtls.EnodeId + "@" + nodeDtls.IpAddrPort
-			nodeStatArr[i].Name += "?discport=" + nodeDtls.DiscPort
-			if len(nodeDtls.RaftPort) > 0 {
-				nodeStatArr[i].Name += "&raftport" + nodeDtls.RaftPort
-			}
-			nodeStatArr[i].Status = decodeNodeStatus(nodeDtls.NodeStatus)
-			i++
+	i := int64(0)
+	for i < nodeCntI {
+		nodeDtls, _ := ps.GetNodeDetails(big.NewInt(i))
+		nodeStatArr[i].Name = "enode://" + nodeDtls.EnodeId + "@" + nodeDtls.IpAddrPort
+		nodeStatArr[i].Name += "?discport=" + nodeDtls.DiscPort
+		if len(nodeDtls.RaftPort) > 0 {
+			nodeStatArr[i].Name += "&raftport=" + nodeDtls.RaftPort
 		}
+		nodeStatArr[i].Status = decodeNodeStatus(nodeDtls.NodeStatus)
+		i++
 	}
 	return nodeStatArr
 }
@@ -227,12 +238,10 @@ func (s *PermissionAPI) SetAccountAccess(acct common.Address, access string, txa
 func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
 	var err error
 	var w accounts.Wallet
-	voterErr := ExecStatus{false, "add voter first"}
-	invalidNodeErr := ExecStatus{false, "invalid node id"}
 
 	w, err = s.validateAccount(args.txa.From)
 	if err != nil {
-		return ExecStatus{false, err.Error()}
+		return ErrInvalidAccount
 	}
 	ps := s.newPermSession(w, args.txa)
 	var tx *types.Transaction
@@ -247,12 +256,12 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 
 	case ProposeNode:
 		if !checkVoterExists(ps) {
-			return voterErr
+			return ErrNoVoterAccount
 		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return invalidNodeErr
+			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
 		ipAddr := node.IP.String()
@@ -265,72 +274,72 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 
 	case ApproveNode:
 		if !checkIsVoter(ps, args.txa.From) {
-			return voterErr
+			return ErrAccountNotAVoter
 		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return invalidNodeErr
+			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.ApproveNode(enodeID)
 
 	case ProposeNodeDeactivation:
 		if !checkVoterExists(ps) {
-			return voterErr
+			return ErrNoVoterAccount
 		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return invalidNodeErr
+			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.ProposeDeactivation(enodeID)
 
 	case ApproveNodeDeactivation:
 		if !checkIsVoter(ps, args.txa.From) {
-			return voterErr
+			return ErrAccountNotAVoter
 		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return invalidNodeErr
+			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.DeactivateNode(enodeID)
 
 	case ProposeNodeActivation:
 		if !checkVoterExists(ps) {
-			return voterErr
+			return ErrNoVoterAccount
 		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return invalidNodeErr
+			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.ProposeNodeActivation(enodeID)
 
 	case ApproveNodeActivation:
 		if !checkIsVoter(ps, args.txa.From) {
-			return voterErr
+			return ErrAccountNotAVoter
 		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return invalidNodeErr
+			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.ActivateNode(enodeID)
 
 	case ProposeNodeBlacklisting:
 		if !checkVoterExists(ps) {
-			return voterErr
+			return ErrNoVoterAccount
 		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return invalidNodeErr
+			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
 		ipAddr := node.IP.String()
@@ -342,12 +351,12 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 		tx, err = ps.ProposeNodeBlacklisting(enodeID, ipAddrPort, discPort, raftPort)
 	case ApproveNodeBlacklisting:
 		if !checkIsVoter(ps, args.txa.From) {
-			return voterErr
+			return ErrAccountNotAVoter
 		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
-			return invalidNodeErr
+			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
 		tx, err = ps.BlacklistNode(enodeID)
@@ -356,17 +365,17 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 		var access uint64
 		access, err = strconv.ParseUint(args.accessType, 10, 8)
 		if err != nil {
-			return ExecStatus{false, "invalid access type"}
+			return ErrInvalidAccountAccess
 		}
 		tx, err = ps.UpdateAccountAccess(args.acctId, uint8(access))
 	}
 
 	if err != nil {
 		log.Error("Failed to execute permission action", "action", action, "err", err)
-		return ExecStatus{false, err.Error()}
+		return ErrFailedExecution
 	}
 	log.Debug("executed permission action", "action", action, "tx", tx)
-	return ExecStatus{true, ""}
+	return ExecSuccess
 }
 
 // executeOrgKeyAction helps to execute an action in cluster contract

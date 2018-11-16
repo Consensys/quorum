@@ -363,20 +363,20 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 
 	var quorumApis []string
-	if ctx.GlobalBool(utils.EnableNodePermissionFlag.Name) {
-		//default quorum api list
-		quorumApis = []string{"quorumNodeMgmt", "quorumAcctMgmt", "quorumKeyMgmt"}
-	} else {
-		quorumApis = []string{"quorumKeyMgmt"}
-	}
+
 	// start the permissions management service
 	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name))
 	if err != nil {
-		utils.Fatalf("Failed to start Quorum Permission contract service: %v", err)
-	}
+		log.Error("Failed to start Quorum Permission contract service: %v", err)
+	} else {
+		err = pc.Start()
+		if err ==nil {
+			quorumApis = []string{"quorumNodeMgmt", "quorumAcctMgmt"}
 
-	err = pc.Start()
-	log.Info("Node Permission service started")
+		} else {
+			log.Error("Failed to start Quorum Permission contract service: %v", err)
+		}
+	}
 
 	// Changes for managing org level cluster keys for privateFor txns
 	kc, err := cluster.NewOrgKeyCtrl(stack)
@@ -385,6 +385,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 	} else {
 		kc.Start()
 		log.Trace("Key management service started")
+		quorumApis = append(quorumApis, "quorumKeyMgmt")
 	}
 
 	for _, apiName := range quorumApis {

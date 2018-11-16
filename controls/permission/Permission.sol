@@ -346,11 +346,37 @@ contract Permissions {
   }
 
 
+  // validate if the sender can set the access.
+  // Accounts with Full Access can assign any access
+  // Accounts with Contract access can assign contract or transact
+  // Account with transact can assign transact only
+  function checkOpAllowed(address _from, AccountAccess _accountAccess) internal view returns (bool) {
+    if (!(networkBoot)){
+      return true;
+    }
+    uint acctIndex = getAcctIndex(_from);
+    if (acctToIndex[_from] == 0){
+      return false;
+    }
+    AccountAccess senderAccess = acctAccessList[acctIndex].acctAccess;
+    if (senderAccess == AccountAccess.FullAccess){
+      return true;
+    }
+    else if ((senderAccess == AccountAccess.ContractDeploy) && (_accountAccess != AccountAccess.FullAccess)){
+      return true;
+    }
+    else if ((senderAccess == AccountAccess.Transact) && (_accountAccess == AccountAccess.Transact || _accountAccess == AccountAccess.ReadOnly)){
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
   // Checks if the Node is already added. If yes then returns true
   function updateAccountAccess(address _address, AccountAccess _accountAccess) external
   {
+    require(checkOpAllowed(msg.sender, _accountAccess) == true, "Sender account does not have appropriate access");
     // Check if account already exists
-    emit AccountAccessModified(_address, _accountAccess);
     uint acctIndex = getAcctIndex(_address);
     if (acctToIndex[_address] != 0){
       acctAccessList[acctIndex].acctAccess = _accountAccess;
@@ -360,6 +386,7 @@ contract Permissions {
       acctToIndex[_address] = numberOfAccts;
       acctAccessList.push(AccountAccessDetails(_address, _accountAccess));
     }
+    emit AccountAccessModified(_address, _accountAccess);
   }
 
   // Add voting account
