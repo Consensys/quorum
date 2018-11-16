@@ -125,6 +125,8 @@ type TxPoolConfig struct {
 	Journal   string        // Journal of local transactions to survive node restarts
 	Rejournal time.Duration // Time interval to regenerate the local transaction journal
 
+	SizeLimit uint64 // Maximum size allowed for valid transaction (in KB)
+
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
 
@@ -141,6 +143,8 @@ type TxPoolConfig struct {
 var DefaultTxPoolConfig = TxPoolConfig{
 	Journal:   "transactions.rlp",
 	Rejournal: time.Hour,
+
+	SizeLimit: 32,
 
 	PriceLimit: 1,
 	PriceBump:  10,
@@ -160,6 +164,10 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 	if conf.Rejournal < time.Second {
 		log.Warn("Sanitizing invalid txpool journal time", "provided", conf.Rejournal, "updated", time.Second)
 		conf.Rejournal = time.Second
+	}
+	if conf.SizeLimit < 32 || conf.SizeLimit > 128 {
+		log.Warn("Sanitizing invalid txpool size limit", "provided", conf.SizeLimit, "updated", DefaultTxPoolConfig.SizeLimit)
+		conf.SizeLimit = DefaultTxPoolConfig.SizeLimit
 	}
 	if conf.PriceLimit < 1 {
 		log.Warn("Sanitizing invalid txpool price limit", "provided", conf.PriceLimit, "updated", DefaultTxPoolConfig.PriceLimit)
@@ -557,8 +565,8 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if isQuorum && tx.GasPrice().Cmp(common.Big0) != 0 {
 		return ErrInvalidGasPrice
 	}
-	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
-	if tx.Size() > 32*1024 {
+	// Reject transactions over 32KB (or manually set limit) to prevent DOS attacks
+	if float64(tx.Size()) > float64(pool.config.SizeLimit*1024) {
 		return ErrOversizedData
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
