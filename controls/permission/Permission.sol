@@ -121,6 +121,13 @@ contract Permissions {
   {
     return numberOfNodes;
   }
+
+  // Get account details given index
+    function getAccountDetails(uint acctIndex) public view returns (address _acct, AccountAccess _acctAccess)
+    {
+      return (acctAccessList[acctIndex].acctId, acctAccessList[acctIndex].acctAccess);
+    }
+
   // Get number of accounts and voting accounts
   function getNumberOfAccounts() public view returns (uint)
   {

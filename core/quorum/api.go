@@ -77,31 +77,45 @@ type nodeStatus struct {
 	Status string
 }
 
+type accountInfo struct {
+	Address string
+	Access  string
+}
+
 type ExecStatus struct {
 	Status bool
 	Msg    string
 }
+
 var (
-	ErrNoVoterAccount = ExecStatus{false, "No voter account registered. Add voter first"}
-	ErrInvalidNode = ExecStatus{false, "Invalid node id"}
-	ErrAccountNotAVoter = ExecStatus{false, "Account is not a voter. Action cannot be approved"}
-	ErrInvalidAccount = ExecStatus{false, "Invalid account id"}
+	ErrNoVoterAccount       = ExecStatus{false, "No voter account registered. Add voter first"}
+	ErrInvalidNode          = ExecStatus{false, "Invalid node id"}
+	ErrAccountNotAVoter     = ExecStatus{false, "Account is not a voter. Action cannot be approved"}
+	ErrInvalidAccount       = ExecStatus{false, "Invalid account id"}
 	ErrInvalidAccountAccess = ExecStatus{false, "Invalid account access"}
-	ErrFailedExecution = ExecStatus{false, "Failed to execute permission action"}
-	ExecSuccess = ExecStatus{true, "Action completed successfully"}
+	ErrFailedExecution      = ExecStatus{false, "Failed to execute permission action"}
+	ExecSuccess             = ExecStatus{true, "Action completed successfully"}
 )
 
+var (
+	nodeApproveStatus = map[uint8]string{
+		0: "Unknown",
+		1: "PendingApproval",
+		2: "Approved",
+		3: "PendingDeactivation",
+		4: "Deactivated",
+		5: "PendingActivation",
+		6: "PendingBlacklisting",
+		7: "Blacklisted",
+	}
 
-var nodeApproveStatus = map[uint8]string{
-	0: "Unknown",
-	1: "PendingApproval",
-	2: "Approved",
-	3: "PendingDeactivation",
-	4: "Deactivated",
-	5: "PendingActivation",
-	6: "PendingBlacklisting",
-	7: "Blacklisted",
-}
+	accountPermMap = map[uint8]string{
+		0: "FullAccess",
+		1: "ReadOnly",
+		2: "Transact",
+		3: "ContractDeploy",
+	}
+)
 
 // NewPermissionAPI creates a new PermissionAPI to access quorum services
 func NewPermissionAPI(tp *core.TxPool, am *accounts.Manager) *PermissionAPI {
@@ -158,16 +172,65 @@ func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
 	// loop for each index and get the node details from the contract
 	i := int64(0)
 	for i < nodeCntI {
-		nodeDtls, _ := ps.GetNodeDetails(big.NewInt(i))
-		nodeStatArr[i].Name = "enode://" + nodeDtls.EnodeId + "@" + nodeDtls.IpAddrPort
-		nodeStatArr[i].Name += "?discport=" + nodeDtls.DiscPort
-		if len(nodeDtls.RaftPort) > 0 {
-			nodeStatArr[i].Name += "&raftport=" + nodeDtls.RaftPort
+		nodeDtls, err := ps.GetNodeDetails(big.NewInt(i))
+		if err != nil {
+			log.Error("error getting node details", "err", err)
+		} else {
+			nodeStatArr[i].Name = "enode://" + nodeDtls.EnodeId + "@" + nodeDtls.IpAddrPort
+			nodeStatArr[i].Name += "?discport=" + nodeDtls.DiscPort
+			if len(nodeDtls.RaftPort) > 0 {
+				nodeStatArr[i].Name += "&raftport=" + nodeDtls.RaftPort
+			}
+			nodeStatArr[i].Status = decodeNodeStatus(nodeDtls.NodeStatus)
 		}
-		nodeStatArr[i].Status = decodeNodeStatus(nodeDtls.NodeStatus)
+
 		i++
 	}
 	return nodeStatArr
+}
+
+func (s *PermissionAPI) PermissionAccountList() []accountInfo {
+	auth := bind.NewKeyedTransactor(s.key)
+	ps := &pbind.PermissionsSession{
+		Contract: s.permContr,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     auth.From,
+			Signer:   auth.Signer,
+			GasLimit: 4700000,
+			GasPrice: big.NewInt(0),
+		},
+	}
+	// get the total number of accounts with permissions
+	acctCnt, err := ps.GetNumberOfAccounts()
+	if err != nil {
+		return nil
+	}
+	acctCntI := acctCnt.Int64()
+	log.Debug("total permission accounts", "count", acctCntI)
+	acctInfoArr := make([]accountInfo, acctCntI)
+	// loop for each index and get the node details from the contract
+	i := int64(0)
+	for i < acctCntI {
+		a, err := ps.GetAccountDetails(big.NewInt(i))
+		if err != nil {
+			log.Error("error getting account info", "err", err)
+		} else {
+			acctInfoArr[i].Address = a.Acct.String()
+			acctInfoArr[i].Access = decodeAccountPermission(a.AcctAccess)
+		}
+		i++
+	}
+	return acctInfoArr
+}
+
+func decodeAccountPermission(access uint8) string {
+	if status, ok := accountPermMap[access]; ok {
+		return status
+	}
+	return "Unknown"
 }
 
 // AddVoter adds an account to the list of accounts that can approve nodes proposed or deactivated
