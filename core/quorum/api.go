@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -59,6 +60,7 @@ type PermissionAPI struct {
 	permContr  *pbind.Permissions
 	clustContr *pbind.Cluster
 	key        *ecdsa.PrivateKey
+	enabled    bool
 }
 
 // txArgs holds arguments required for execute functions
@@ -94,6 +96,8 @@ var (
 	ErrInvalidAccount       = ExecStatus{false, "Invalid account id"}
 	ErrInvalidAccountAccess = ExecStatus{false, "Invalid account access"}
 	ErrFailedExecution      = ExecStatus{false, "Failed to execute permission action"}
+	ErrNodeDetailsMismatch  = ExecStatus{false, "Node details mismatch"}
+	ErrPermissionDisabled   = ExecStatus{false, "Permissions control not enabled"}
 	ExecSuccess             = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -119,7 +123,7 @@ var (
 
 // NewPermissionAPI creates a new PermissionAPI to access quorum services
 func NewPermissionAPI(tp *core.TxPool, am *accounts.Manager) *PermissionAPI {
-	return &PermissionAPI{tp, nil, am, nil, nil, nil, nil}
+	return &PermissionAPI{tp, nil, am, nil, nil, nil, nil, false}
 }
 
 // helper function decodes the node status to string
@@ -144,6 +148,7 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) e
 	}
 	p.clustContr = clustContr
 	p.key = key
+	p.enabled = true
 	return nil
 }
 
@@ -160,7 +165,7 @@ func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
 	// loop for each index and get the node details from the contract
 	i := int64(0)
 	for i < nodeCntI {
-		nodeDtls, err := ps.GetNodeDetails(big.NewInt(i))
+		nodeDtls, err := ps.GetNodeDetailsFromIndex(big.NewInt(i))
 		if err != nil {
 			log.Error("error getting node details", "err", err)
 		} else {
@@ -316,6 +321,9 @@ func (s *PermissionAPI) SetAccountAccess(acct common.Address, access string, txa
 
 // executePermAction helps to execute an action in permission contract
 func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
+	if !s.enabled {
+		return ErrPermissionDisabled
+	}
 	var err error
 	var w accounts.Wallet
 
@@ -362,6 +370,10 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
+
+		if !checkNodeDetails(ps, enodeID, node) {
+			return ErrNodeDetailsMismatch
+		}
 		tx, err = ps.ApproveNode(enodeID)
 
 	case ProposeNodeDeactivation:
@@ -386,6 +398,9 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
+		if !checkNodeDetails(ps, enodeID, node) {
+			return ErrNodeDetailsMismatch
+		}
 		tx, err = ps.DeactivateNode(enodeID)
 
 	case ProposeNodeActivation:
@@ -410,6 +425,9 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
+		if !checkNodeDetails(ps, enodeID, node) {
+			return ErrNodeDetailsMismatch
+		}
 		tx, err = ps.ActivateNode(enodeID)
 
 	case ProposeNodeBlacklisting:
@@ -439,6 +457,9 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
+		if !checkNodeDetails(ps, enodeID, node) {
+			return ErrNodeDetailsMismatch
+		}
 		tx, err = ps.BlacklistNode(enodeID)
 
 	case SetAccountAccess:
@@ -460,6 +481,9 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 
 // executeOrgKeyAction helps to execute an action in cluster contract
 func (s *PermissionAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) ExecStatus {
+	if !s.enabled {
+		return ErrPermissionDisabled
+	}
 	w, err := s.validateAccount(args.txa.From)
 	if err != nil {
 		return ExecStatus{false, err.Error()}
@@ -567,4 +591,22 @@ func (s *PermissionAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) (a
 		nonce = new(big.Int).SetUint64(s.txPool.Nonce(frmAcct.Address))
 	}
 	return frmAcct, transactOpts, gasLimit, gasPrice, nonce
+}
+
+// checks if the input node details for approval is matching with details stored
+// in contract
+func checkNodeDetails (ps *pbind.PermissionsSession, enodeID string, node *discover.Node ) bool {
+	ipAddr := node.IP.String()
+	port := fmt.Sprintf("%v", node.TCP)
+	discPort := fmt.Sprintf("%v", node.UDP)
+	raftPort := fmt.Sprintf("%v", node.RaftPort)
+	ipAddrPort := ipAddr + ":" + port
+
+	cnode, err := ps.GetNodeDetails(enodeID)
+	if err == nil {
+		if strings.Compare(ipAddrPort, cnode.IpAddrPort) == 0 && strings.Compare(discPort, cnode.DiscPort) == 0 && strings.Compare(raftPort, cnode.RaftPort) == 0 {
+			return true
+		}
+	}
+	return false
 }

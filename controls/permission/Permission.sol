@@ -1,14 +1,6 @@
 pragma solidity ^0.4.23;
 
 contract Permissions {
-  //initialAcctList - is used to initialize accounts at network start up first time. it is populated by genesis file, don't populate it in the contract
-  // Example genesis storage population:
-  // "storage": {
-  //        "0x0000000000000000000000000000000000000000000000000000000000000000" : "0x0000000000000000000000000000000000000003",
-  //        "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563" : "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e",
-  //        "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e564" : "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
-  //        "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e565" : "0x0fbdc686b912d7722dc86510934589e0aaf3b55a"
-  //      },
   address[] initialAcctList;
   // enum and struct declaration
   enum NodeStatus {NotInList, PendingApproval, Approved, PendingDeactivation, Deactivated, PendingActivation, PendingBlacklisting, Blacklisted }
@@ -51,10 +43,6 @@ contract Permissions {
 
   // checks if first time network boot up has happened or not
   bool private networkBoot = false;
-
-  // checks if first time network boot up for accounts has happened or not
-  bool private networkBootAccount = false;
-
 
   // node permission events for new node propose
   event NodeProposed(string _enodeId);
@@ -135,8 +123,14 @@ contract Permissions {
     return networkBoot;
   }
 
+  // Get node details given enode Id
+  function getNodeDetails(string enodeId) public view returns (string _enodeId, string _ipAddrPort, string _discPort, string _raftPort, NodeStatus _nodeStatus)
+  {
+    uint nodeIndex = getNodeIndex(enodeId);
+    return (nodeList[nodeIndex].enodeId, nodeList[nodeIndex].ipAddrPort, nodeList[nodeIndex].discPort, nodeList[nodeIndex].raftPort, nodeList[nodeIndex].status);
+  }
   // Get node details given index
-  function getNodeDetails(uint nodeIndex) public view returns (string _enodeId, string _ipAddrPort, string _discPort, string _raftPort, NodeStatus _nodeStatus)
+  function getNodeDetailsFromIndex(uint nodeIndex) public view returns (string _enodeId, string _ipAddrPort, string _discPort, string _raftPort, NodeStatus _nodeStatus)
   {
     return (nodeList[nodeIndex].enodeId, nodeList[nodeIndex].ipAddrPort, nodeList[nodeIndex].discPort, nodeList[nodeIndex].raftPort, nodeList[nodeIndex].status);
   }
@@ -146,7 +140,7 @@ contract Permissions {
     return numberOfNodes;
   }
 
-  // Get account details given index
+  // Get account details given index 
     function getAccountDetails(uint acctIndex) public view returns (address _acct, AccountAccess _acctAccess)
     {
       return (acctAccessList[acctIndex].acctId, acctAccessList[acctIndex].acctAccess);
@@ -404,16 +398,15 @@ contract Permissions {
     }
   }
 
-  function InitAccounts() external
+  function initAccounts() external
     {
-      require(networkBootAccount == false, "network accounts already boot up");
+      require(networkBoot == false, "network accounts already boot up");
       for (uint i=0; i<initialAcctList.length; i++){
          numberOfAccts ++;
          acctToIndex[initialAcctList[i]] = numberOfAccts;
          acctAccessList.push(AccountAccessDetails(initialAcctList[i], AccountAccess.FullAccess));
          emit AccountAccessModified(initialAcctList[i], AccountAccess.FullAccess);
       }
-      networkBootAccount = true;
     }
 
 

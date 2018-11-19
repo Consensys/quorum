@@ -345,32 +345,6 @@ func (s *Ethereum) APIs() []rpc.API {
 			Public:    true,
 		},
 	}...)
-
-	if s.config.EnableNodePermission {
-		apis = append(apis, []rpc.API{
-			{
-				Namespace: "quorumNodeMgmt",
-				Version:   "1.0",
-				Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
-				Public:    true,
-			},
-			{
-				Namespace: "quorumAcctMgmt",
-				Version:   "1.0",
-				Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
-				Public:    true,
-			},
-		}...)
-	}
-	apis = append(apis, []rpc.API{
-		{
-			Namespace: "quorumKeyMgmt",
-			Version:   "1.0",
-			Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
-			Public:    true,
-		},
-	}...)
-
 	return apis
 }
 
