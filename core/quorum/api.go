@@ -154,21 +154,27 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) e
 
 // Returns the list of Nodes and status of each
 func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
+	log.Info("SMK-PermissionNodeList @ 157")
 	ps := s.newPermSessionWithNodeKeySigner()
 	// get the total number of nodes on the contract
 	nodeCnt, err := ps.GetNumberOfNodes()
 	if err != nil {
+		log.Info("SMK-PermissionNodeList @ 162")
 		return nil
 	}
 	nodeCntI := nodeCnt.Int64()
 	nodeStatArr := make([]nodeStatus, nodeCntI)
 	// loop for each index and get the node details from the contract
 	i := int64(0)
+	log.Info("SMK-PermissionNodeList @ 162 node count is ", "nodeCount", nodeCntI)
 	for i < nodeCntI {
+		log.Info("SMK-PermissionNodeList inside for @ 171", "i", i)
 		nodeDtls, err := ps.GetNodeDetailsFromIndex(big.NewInt(i))
 		if err != nil {
+			log.Info("SMK-PermissionNodeList @ 174 inside ", "err", err)
 			log.Error("error getting node details", "err", err)
 		} else {
+			log.Info("SMK-PermissionNodeList @ 174 inside ", "enode", nodeDtls.EnodeId, "IP", nodeDtls.IpAddrPort, "discport", nodeDtls.DiscPort, "raftport", nodeDtls.RaftPort)
 			nodeStatArr[i].Name = "enode://" + nodeDtls.EnodeId + "@" + nodeDtls.IpAddrPort
 			nodeStatArr[i].Name += "?discport=" + nodeDtls.DiscPort
 			if len(nodeDtls.RaftPort) > 0 {
@@ -321,6 +327,7 @@ func (s *PermissionAPI) SetAccountAccess(acct common.Address, access string, txa
 
 // executePermAction helps to execute an action in permission contract
 func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
+
 	if !s.enabled {
 		return ErrPermissionDisabled
 	}

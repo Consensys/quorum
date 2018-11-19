@@ -106,10 +106,8 @@ contract Permissions {
   // Get number of nodes
   function getNumberOfVoters() public view returns (uint)
   {
-	return voterAcctList.length;
+    return voterAcctList.length;
   }
-
-
 
   // Get voter
   function getVoter(uint i) public view returns (address _addr)
@@ -449,6 +447,7 @@ contract Permissions {
           voterAcctList[j] = voterAcctList[j+1];
         }
         delete voterAcctList[voterAcctList.length - 1];
+        voterAcctList.length --;
         emit VoterRemoved(_address);
       }
     }
