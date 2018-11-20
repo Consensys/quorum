@@ -70,10 +70,6 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool) (*
 
 // Starts the node permissioning and account access control monitoring
 func (p *PermissionCtrl) Start() error {
-	// At node level update QuorumPermissions to indicate new permissioning is in use
-	server := p.node.Server()
-	server.QuorumPermissions = true
-
 	// Permissions initialization
 	if err := p.init(); err != nil {
 		log.Error("Permissions init failed : ", "err", err)
@@ -216,30 +212,49 @@ func (p *PermissionCtrl) monitorNodeBlacklisting() {
 
 //this function populates the new node information into the permissioned-nodes.json file
 func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, raftPort string, operation NodeOperation) {
+	log.Debug("updatePermissionedNodes", "DataDir", p.dataDir, "file", PERMISSIONED_CONFIG)
+
+	path := filepath.Join(p.dataDir, PERMISSIONED_CONFIG)
+	if _, err := os.Stat(path); err != nil {
+		log.Error("Read Error for permissioned-nodes.json file. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present.", "err", err)
+		return 
+	}
+	// Load the nodes from the config file
+	blob, err := ioutil.ReadFile(path)
+	if err != nil {
+		log.Error("updatePermissionedNodes: Failed to access permissioned-nodes.json", "err", err)
+		return
+	}
+
+	nodelist := []string{}
+	if err := json.Unmarshal(blob, &nodelist); err != nil {
+		log.Error("updatePermissionedNodes: Failed to load nodes list", "err", err)
+		return 
+	}
+
 	newEnodeId := p.formatEnodeId(enodeId, ipAddrPort, discPort, raftPort)
 
-	//new logic to update the server KnownNodes variable for permissioning
-	server := p.node.Server()
-	newNode, err := discover.ParseNode(newEnodeId)
-	if err != nil {
-		log.Error("updatePermissionedNodes: Node URL", "url", newEnodeId, "err", err)
-	}
-
-	if operation == NodeAdd {
-		// Add the new enode id to server.KnownNodes
-		server.KnownNodes = append(server.KnownNodes, newNode)
+	// logic to update the permissioned-nodes.json file based on action
+	if (operation == NodeAdd){
+		nodelist = append(nodelist, newEnodeId)
 	} else {
-		// delete the new enode id from server.KnownNodes
 		index := 0
-		for i, node := range server.KnownNodes {
-			if node.ID == newNode.ID {
+		for i, enodeId := range nodelist {
+			if (enodeId == newEnodeId){
 				index = i
+				break
 			}
 		}
-		server.KnownNodes = append(server.KnownNodes[:index], server.KnownNodes[index+1:]...)
-		p.disconnectNode(newEnodeId)
+		nodelist = append(nodelist[:index], nodelist[index+1:]...)
 	}
+	mu := sync.RWMutex{}
+	blob, _ = json.Marshal(nodelist)
 
+	mu.Lock()
+	if err:= ioutil.WriteFile(path, blob, 0644); err!= nil{
+		log.Error("updatePermissionedNodes: Error writing new node info to file", "err", err)
+	}
+	mu.Unlock()
 }
 
 //this function populates the new node information into the permissioned-nodes.json file

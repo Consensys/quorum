@@ -94,10 +94,11 @@ var (
 	ErrInvalidNode          = ExecStatus{false, "Invalid node id"}
 	ErrAccountNotAVoter     = ExecStatus{false, "Account is not a voter. Action cannot be approved"}
 	ErrInvalidAccount       = ExecStatus{false, "Invalid account id"}
-	ErrInvalidAccountAccess = ExecStatus{false, "Invalid account access"}
+	ErrInvalidAccountAccess = ExecStatus{false, "Invalid account access type"}
 	ErrFailedExecution      = ExecStatus{false, "Failed to execute permission action"}
 	ErrNodeDetailsMismatch  = ExecStatus{false, "Node details mismatch"}
 	ErrPermissionDisabled   = ExecStatus{false, "Permissions control not enabled"}
+	ErrAccountAccess        = ExecStatus{false, "Account does not have sufficient access for operation"}
 	ExecSuccess             = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -475,6 +476,9 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 		if err != nil {
 			return ErrInvalidAccountAccess
 		}
+		if !checkAccountAccess(args.txa.From, uint8(access)) {
+			return ErrAccountAccess
+		}
 		tx, err = ps.UpdateAccountAccess(args.acctId, uint8(access))
 	}
 
@@ -614,6 +618,20 @@ func checkNodeDetails (ps *pbind.PermissionsSession, enodeID string, node *disco
 		if strings.Compare(ipAddrPort, cnode.IpAddrPort) == 0 && strings.Compare(discPort, cnode.DiscPort) == 0 && strings.Compare(raftPort, cnode.RaftPort) == 0 {
 			return true
 		}
+	}
+	return false
+}
+
+// checks if the account performing the operation has sufficient access privileges
+func checkAccountAccess (from common.Address, accessType uint8) bool {
+	acctAccess := types.GetAcctAccess(from)
+
+	if acctAccess == types.FullAccess {
+		return true
+	} else if acctAccess == types.ContractDeploy && accessType != uint8(types.FullAccess) {
+		return true
+	} else if acctAccess == types.Transact && (accessType == uint8(types.Transact) || accessType == uint8(types.ReadOnly)) {
+		return true
 	}
 	return false
 }
