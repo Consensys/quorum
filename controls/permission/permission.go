@@ -443,7 +443,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 	if tx && !p.permissionedMode {
 		// Network is initialized with permissions and node is joining in a non-permissioned
 		// option. stop the node from coming up
-		utils.Fatalf("Joining a permissioned network in non-permissioned mode. Bring up get with --permissioned.")
+		utils.Fatalf("Joining a permissioned network in non-permissioned mode. Bring up geth with --permissioned.")
 	}
 
 	if !p.permissionedMode {

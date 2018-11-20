@@ -219,6 +219,11 @@ func (s *PermissionAPI) PermissionAccountList() []accountInfo {
 }
 
 func (s *PermissionAPI) VoterList() []string {
+	if !s.enabled {
+		voterArr := make([]string, 1)
+		voterArr[0] = "Permissions control not enabled for the network"
+		return voterArr
+	}
 	ps := s.newPermSessionWithNodeKeySigner()
 	// get the total number of accounts with permissions
 	voterCnt, err := ps.GetNumberOfVoters()
