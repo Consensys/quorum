@@ -156,6 +156,11 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) e
 
 // Returns the list of Nodes and status of each
 func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
+	if !s.enabled {
+		nodeStatArr := make([]nodeStatus, 1)
+		nodeStatArr[0].EnodeId = "Permisssions control not enabled for network"
+		return nodeStatArr
+	}
 	ps := s.newPermSessionWithNodeKeySigner()
 	// get the total number of nodes on the contract
 	nodeCnt, err := ps.GetNumberOfNodes()
@@ -184,6 +189,11 @@ func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
 }
 
 func (s *PermissionAPI) PermissionAccountList() []accountInfo {
+	if !s.enabled {
+		acctInfoArr := make([]accountInfo, 1)
+		acctInfoArr[0].Address = "Account access control not enable for the network"
+		return acctInfoArr
+	}
 	ps := s.newPermSessionWithNodeKeySigner()
 	// get the total number of accounts with permissions
 	acctCnt, err := ps.GetNumberOfAccounts()
