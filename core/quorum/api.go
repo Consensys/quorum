@@ -75,8 +75,8 @@ type txArgs struct {
 }
 
 type nodeStatus struct {
-	Name   string
-	Status string
+	EnodeId   string
+	Status    string
 }
 
 type accountInfo struct {
@@ -99,6 +99,7 @@ var (
 	ErrNodeDetailsMismatch  = ExecStatus{false, "Node details mismatch"}
 	ErrPermissionDisabled   = ExecStatus{false, "Permissions control not enabled"}
 	ErrAccountAccess        = ExecStatus{false, "Account does not have sufficient access for operation"}
+	ErrVoterAccountAccess   = ExecStatus{false, "Voter account does not have sufficient access"}
 	ExecSuccess             = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -155,35 +156,28 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) e
 
 // Returns the list of Nodes and status of each
 func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
-	log.Info("SMK-PermissionNodeList @ 157")
 	ps := s.newPermSessionWithNodeKeySigner()
 	// get the total number of nodes on the contract
 	nodeCnt, err := ps.GetNumberOfNodes()
 	if err != nil {
-		log.Info("SMK-PermissionNodeList @ 162")
 		return nil
 	}
 	nodeCntI := nodeCnt.Int64()
 	nodeStatArr := make([]nodeStatus, nodeCntI)
 	// loop for each index and get the node details from the contract
 	i := int64(0)
-	log.Info("SMK-PermissionNodeList @ 162 node count is ", "nodeCount", nodeCntI)
 	for i < nodeCntI {
-		log.Info("SMK-PermissionNodeList inside for @ 171", "i", i)
 		nodeDtls, err := ps.GetNodeDetailsFromIndex(big.NewInt(i))
 		if err != nil {
-			log.Info("SMK-PermissionNodeList @ 174 inside ", "err", err)
 			log.Error("error getting node details", "err", err)
 		} else {
-			log.Info("SMK-PermissionNodeList @ 174 inside ", "enode", nodeDtls.EnodeId, "IP", nodeDtls.IpAddrPort, "discport", nodeDtls.DiscPort, "raftport", nodeDtls.RaftPort)
-			nodeStatArr[i].Name = "enode://" + nodeDtls.EnodeId + "@" + nodeDtls.IpAddrPort
-			nodeStatArr[i].Name += "?discport=" + nodeDtls.DiscPort
+			nodeStatArr[i].EnodeId = "enode://" + nodeDtls.EnodeId + "@" + nodeDtls.IpAddrPort
+			nodeStatArr[i].EnodeId += "?discport=" + nodeDtls.DiscPort
 			if len(nodeDtls.RaftPort) > 0 {
-				nodeStatArr[i].Name += "&raftport=" + nodeDtls.RaftPort
+				nodeStatArr[i].EnodeId += "&raftport=" + nodeDtls.RaftPort
 			}
 			nodeStatArr[i].Status = decodeNodeStatus(nodeDtls.NodeStatus)
 		}
-
 		i++
 	}
 	return nodeStatArr
@@ -345,6 +339,9 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 
 	switch action {
 	case AddVoter:
+		if !checkVoterAccountAccess(args.voter){
+			return ErrVoterAccountAccess
+		}
 		tx, err = ps.AddVoter(args.voter)
 
 	case RemoveVoter:
@@ -634,4 +631,13 @@ func checkAccountAccess (from common.Address, accessType uint8) bool {
 		return true
 	}
 	return false
+}
+
+// checks if the account performing the operation has sufficient access privileges
+func checkVoterAccountAccess (account common.Address) bool {
+	acctAccess := types.GetAcctAccess(account)
+	if acctAccess == types.ReadOnly {
+		return false
+	}
+	return true
 }

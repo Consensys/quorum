@@ -235,7 +235,7 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 	newEnodeId := p.formatEnodeId(enodeId, ipAddrPort, discPort, raftPort)
 
 	// logic to update the permissioned-nodes.json file based on action
-	if (operation == NodeAdd){
+	if operation == NodeAdd {
 		nodelist = append(nodelist, newEnodeId)
 	} else {
 		index := 0
@@ -246,6 +246,7 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 			}
 		}
 		nodelist = append(nodelist[:index], nodelist[index+1:]...)
+		p.disconnectNode(newEnodeId)
 	}
 	mu := sync.RWMutex{}
 	blob, _ = json.Marshal(nodelist)
