@@ -12,7 +12,6 @@ contract Permissions {
     NodeStatus status;
   }
 
-
   enum AccountAccess { FullAccess, ReadOnly, Transact, ContractDeploy }
   struct AccountAccessDetails {
     address acctId;
@@ -28,7 +27,6 @@ contract Permissions {
   uint private numberOfNodes;
 
   AccountAccessDetails[] private acctAccessList;
-
 
   mapping (address => uint) private acctToIndex;
   uint private numberOfAccts;
@@ -47,30 +45,21 @@ contract Permissions {
   // node permission events for new node propose
   event NodeProposed(string _enodeId);
   event NodeApproved(string _enodeId, string _ipAddrPort, string _discPort, string _raftPort);
-  event VoteNodeApproval(string _enodeId, address _accountAddress);
 
   // node permission events for node decativation
   event NodePendingDeactivation (string _enodeId);
   event NodeDeactivated(string _enodeId, string _ipAddrPort, string _discPort, string _raftPort);
-  event VoteNodeDeactivation(string _enodeId, address _accountAddress);
 
   // node permission events for node activation 
   event NodePendingActivation(string _enodeId);
   event NodeActivated(string _enodeId, string _ipAddrPort, string _discPort, string _raftPort);
-  event VoteNodeActivation(string _enodeId, address _accountAddress);
 
   // node permission events for node blacklist 
   event NodePendingBlacklist(string _enodeId);
   event NodeBlacklisted(string _enodeId, string _ipAddrPort, string _discPort, string _raftPort);
-  event VoteNodeBlacklist(string _enodeId, address _accountAddress);
 
   // account permission events
   event AccountAccessModified(address _address, AccountAccess _access);
-
-  // events related to voting accounts for majority voting
-  event NoVotingAccount();
-  event VoterAdded(address _address);
-  event VoterRemoved(address _address);
 
   // Checks if the given enode exists
   modifier enodeInList(string _enodeId)
@@ -139,10 +128,10 @@ contract Permissions {
   }
 
   // Get account details given index 
-    function getAccountDetails(uint acctIndex) public view returns (address _acct, AccountAccess _acctAccess)
-    {
-      return (acctAccessList[acctIndex].acctId, acctAccessList[acctIndex].acctAccess);
-    }
+  function getAccountDetails(uint acctIndex) public view returns (address _acct, AccountAccess _acctAccess)
+  {
+    return (acctAccessList[acctIndex].acctId, acctAccessList[acctIndex].acctAccess);
+  }
 
   // Get number of accounts and voting accounts
   function getNumberOfAccounts() public view returns (uint)
@@ -154,16 +143,7 @@ contract Permissions {
   {
     return nodeList[getNodeIndex(_enodeId)].status;
   }
-  // Get vote count by enode id
-  function getVoteCount(string _enodeId) public view enodeInList(_enodeId) returns (uint)
-  {
-    return voteCount[getNodeIndex(_enodeId)];
-  }
-  // Get vote status by enode id and voter address
-  function getVoteStatus(string _enodeId, address _voter) public view enodeInList(_enodeId) returns (bool)
-  {
-    return voteStatus[getNodeIndex(_enodeId)][_voter];
-  }
+
   function isVoter(address _acctid) external view returns (bool)
   {
     bool flag = false;
@@ -175,27 +155,7 @@ contract Permissions {
     }
     return flag;
   }
-  // for potential external use
-  // Get enode id by index
-  function getEnodeId(uint _index) external view returns (string)
-  {
-    if (_index <= numberOfNodes){
-      return nodeList[_index].enodeId;
-    } else {
-      return "";
-    }
-  }
-  // Get account address by index
-  function getAccountAddress(uint _index) external view returns (address)
-  {
-    if (_index <= voterAcctList.length){
-      return voterAcctList[_index];
-    } else {
-      return address(0);
-    }
-  }
 
-  // state change functions
   // update the networ boot status as true
   function updateNetworkBootStatus() external returns (bool)
   {
@@ -256,7 +216,6 @@ contract Permissions {
       // vote node
       updateVoteStatus(nodeIndex);
       // emit event
-      emit VoteNodeApproval(_enodeId, msg.sender);
       // check if node vote reach majority
       if (checkEnoughVotes(nodeIndex)) {
         nodeList[nodeIndex].status = NodeStatus.Approved;
@@ -287,7 +246,6 @@ contract Permissions {
     // vote node
     updateVoteStatus(nodeIndex);
     // emit event
-    emit VoteNodeDeactivation(_enodeId, msg.sender);
     // check if node vote reach majority
     if (checkEnoughVotes(nodeIndex)) {
       nodeList[nodeIndex].status = NodeStatus.Deactivated;
@@ -318,7 +276,6 @@ contract Permissions {
     // vote node
     updateVoteStatus(nodeIndex);
     // emit event
-    emit VoteNodeDeactivation(_enodeId, msg.sender);
     // check if node vote reach majority
     if (checkEnoughVotes(nodeIndex)) {
       nodeList[nodeIndex].status = NodeStatus.Approved;
@@ -360,7 +317,6 @@ contract Permissions {
     voteStatus[nodeIndex][msg.sender] = true;
     voteCount[nodeIndex]++;
     // emit event
-    emit VoteNodeBlacklist(_enodeId, msg.sender);
     // check if node vote reach majority
     if (checkEnoughVotes(nodeIndex)) {
       nodeList[nodeIndex].status = NodeStatus.Blacklisted;
@@ -368,50 +324,20 @@ contract Permissions {
     }
   }
 
-
-  // validate if the sender can set the access.
-  // Accounts with Full Access can assign any access
-  // Accounts with Contract access can assign contract or transact
-  // Account with transact can assign transact only
-  function checkOpAllowed(address _from, AccountAccess _accountAccess) internal view returns (bool) {
-    if (!(networkBoot)){
-      return true;
-    }
-    uint acctIndex = getAcctIndex(_from);
-    if (acctToIndex[_from] == 0){
-      return false;
-    }
-    AccountAccess senderAccess = acctAccessList[acctIndex].acctAccess;
-    if (senderAccess == AccountAccess.FullAccess){
-      return true;
-    }
-    else if ((senderAccess == AccountAccess.ContractDeploy) && (_accountAccess != AccountAccess.FullAccess)){
-      return true;
-    }
-    else if ((senderAccess == AccountAccess.Transact) && (_accountAccess == AccountAccess.Transact || _accountAccess == AccountAccess.ReadOnly)){
-      return true;
-    }
-    else {
-      return false;
+  function initAccounts() external
+  {
+    require(networkBoot == false, "network accounts already boot up");
+    for (uint i=0; i<initialAcctList.length; i++){
+        numberOfAccts ++;
+        acctToIndex[initialAcctList[i]] = numberOfAccts;
+        acctAccessList.push(AccountAccessDetails(initialAcctList[i], AccountAccess.FullAccess));
+        emit AccountAccessModified(initialAcctList[i], AccountAccess.FullAccess);
     }
   }
-
-  function initAccounts() external
-    {
-      require(networkBoot == false, "network accounts already boot up");
-      for (uint i=0; i<initialAcctList.length; i++){
-         numberOfAccts ++;
-         acctToIndex[initialAcctList[i]] = numberOfAccts;
-         acctAccessList.push(AccountAccessDetails(initialAcctList[i], AccountAccess.FullAccess));
-         emit AccountAccessModified(initialAcctList[i], AccountAccess.FullAccess);
-      }
-    }
-
 
   // Checks if the Node is already added. If yes then returns true
   function updateAccountAccess(address _address, AccountAccess _accountAccess) external
   {
-    require(checkOpAllowed(msg.sender, _accountAccess) == true, "Sender account does not have appropriate access");
     // Check if account already exists
     uint acctIndex = getAcctIndex(_address);
     if (acctToIndex[_address] != 0){
@@ -435,7 +361,6 @@ contract Permissions {
       }
     }
     voterAcctList.push(_address);
-    emit VoterAdded(_address);
   }
   // Remove voting account
   function removeVoter(address _address) external
@@ -448,7 +373,6 @@ contract Permissions {
         }
         delete voterAcctList[voterAcctList.length - 1];
         voterAcctList.length --;
-        emit VoterRemoved(_address);
       }
     }
   }
@@ -465,10 +389,9 @@ contract Permissions {
     return acctToIndex[_acct] - 1;
   }
 
-  function checkVotingAccountExist() internal returns (bool)
+  function checkVotingAccountExist() internal view returns (bool)
   {
     if (voterAcctList.length == 0){
-      emit NoVotingAccount();
       return false;
     } else {
       return true;
