@@ -333,6 +333,12 @@ func (self *worker) wait() {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
 			}
+
+			if err := core.WritePrivateBlockBloom(self.chainDb, block.NumberU64(), work.privateReceipts); err != nil {
+				log.Error("Failed writing private block bloom", "err", err)
+				continue
+			}
+
 			// check if canon block and write transactions
 			if stat == core.CanonStatTy {
 				// implicit by posting ChainHeadEvent
