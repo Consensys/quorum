@@ -253,7 +253,7 @@ func TestInvalidTransactions(t *testing.T) {
 		t.Error("expected", ErrGasLimit, "; got", err)
 	}
 
-	data := make([]byte, (32*1024)+1)
+	data := make([]byte, (64*1024)+1)
 	tx2, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), big.NewInt(100000), big.NewInt(1), data), types.HomesteadSigner{}, key)
 	if err := pool.AddRemote(tx2); err != ErrOversizedData {
 		t.Error("expected", ErrOversizedData, "; got", err)
