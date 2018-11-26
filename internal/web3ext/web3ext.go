@@ -665,7 +665,7 @@ web3._extend({
 			params: 1
 		}),
 		new web3._extend.Method({
-			name: 'propose',
+			name: 'proposeNull',
 			call: 'istanbul_propose',
 			params: 2
 		}),
