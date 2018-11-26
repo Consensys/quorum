@@ -6,7 +6,7 @@ contract Clusterkeys {
   enum Operation {None, Add, Delete}
   struct OrgDetails {
     string orgId;
-    string vorgId;
+    string morgId;
     string [] privateKey;
     string pendingKey;
     Operation pendingOp;
@@ -15,13 +15,13 @@ contract Clusterkeys {
   mapping(bytes32 => uint) private OrgIndex;
 
   // Struct for managing the voter accounst for the org 
-  struct OrgVoterDetails {
+  struct MasterOrgDetails {
     string orgId;
     address [] orgVoterAccount;
     string [] privateKey;
   }
-  OrgVoterDetails [] private voterList;
-  mapping(bytes32 => uint) private VoterOrgIndex;
+  MasterOrgDetails [] private morgList;
+  mapping(bytes32 => uint) private MasterOrgIndex;
 
   // mapping to monitor the voting status for each acount and
   // overall voting count
@@ -51,8 +51,8 @@ contract Clusterkeys {
   event VoterExists(string _orgId, address _address);
 
   // events related to helper functions to print all org keys and voter keys
-  event PrintAll(string _orgId, string _privateKey);
-  event PrintVoter(string _orgId, address _voterAccount);
+  /* event PrintAll(string _orgId, string _privateKey); */
+  /* event PrintVoter(string _orgId, address _voterAccount); */
 
   // returns the org index for the org list
   function getOrgIndex(string _orgId) internal view returns (uint)
@@ -61,18 +61,18 @@ contract Clusterkeys {
   }
 
   // returns the voter index for the org from voter list
-  function getOrgIndexVoter(string _orgId) internal view returns (uint)
+  function getMasterIndex(string _orgId) internal view returns (uint)
   {
-    return VoterOrgIndex[keccak256(abi.encodePacked(_orgId))] - 1;
+    return MasterOrgIndex[keccak256(abi.encodePacked(_orgId))] - 1;
   }
 
   // checks if the sender is one of the registered voter account for the org
   modifier canVote(string _orgId){
     bool flag = false;
     uint orgIndex = getOrgIndex(_orgId);
-    uint vorgIndex = getOrgIndexVoter(orgList[orgIndex].vorgId);
-    for (uint i = 0; i < voterList[vorgIndex].orgVoterAccount.length; i++){
-      if ( voterList[vorgIndex].orgVoterAccount[i] == msg.sender){
+    uint morgIndex = getMasterIndex(orgList[orgIndex].morgId);
+    for (uint i = 0; i < morgList[morgIndex].orgVoterAccount.length; i++){
+      if ( morgList[morgIndex].orgVoterAccount[i] == msg.sender){
         flag = true;
         break;
       }
@@ -81,14 +81,13 @@ contract Clusterkeys {
     _;
   }
 
-
   // checks if the org has any voter accounts set up or not
   function checkIfVoterExists(string _orgId, address _address) internal view returns (bool, uint){
     bool keyExists = false;
     uint orgIndex = getOrgIndex(_orgId);
-    uint voterIndex = getOrgIndexVoter(orgList[orgIndex].vorgId);
-    for (uint i = 0; i < voterList[voterIndex].orgVoterAccount.length; i++){
-      if(keccak256(abi.encodePacked(voterList[voterIndex].orgVoterAccount[i])) == keccak256(abi.encodePacked(_address))){
+    uint voterIndex = getMasterIndex(orgList[orgIndex].morgId);
+    for (uint i = 0; i < morgList[voterIndex].orgVoterAccount.length; i++){
+      if(keccak256(abi.encodePacked(morgList[voterIndex].orgVoterAccount[i])) == keccak256(abi.encodePacked(_address))){
         keyExists = true;
         break;
       }
@@ -101,12 +100,12 @@ contract Clusterkeys {
   {
 
     uint orgIndex = getOrgIndex(_orgId);
-    if (VoterOrgIndex[keccak256(abi.encodePacked(orgList[orgIndex].vorgId))] == 0){
+    if (MasterOrgIndex[keccak256(abi.encodePacked(orgList[orgIndex].morgId))] == 0){
       emit NoVotingAccount(_orgId);
       return false;
     }
-    uint vorgIndex = getOrgIndexVoter(orgList[orgIndex].vorgId);
-    if (voterList[vorgIndex].orgVoterAccount.length == 0) {
+    uint morgIndex = getMasterIndex(orgList[orgIndex].morgId);
+    if (morgList[morgIndex].orgVoterAccount.length == 0) {
       emit NoVotingAccount(_orgId);
       return false;
     }
@@ -142,11 +141,11 @@ contract Clusterkeys {
   // function for adding a voter account to a master org
   function addVoter(string _orgId, address _address) external
   {
-    if (VoterOrgIndex[keccak256(abi.encodePacked(_orgId))] == 0) {
+    if (MasterOrgIndex[keccak256(abi.encodePacked(_orgId))] == 0) {
       orgVoterNum++;
-      VoterOrgIndex[keccak256(abi.encodePacked(_orgId))] = orgVoterNum;
-      voterList.push( OrgVoterDetails(_orgId, new address[](0), new string[](0)));
-      voterList[orgVoterNum - 1].orgVoterAccount.push(_address);
+      MasterOrgIndex[keccak256(abi.encodePacked(_orgId))] = orgVoterNum;
+      morgList.push( MasterOrgDetails(_orgId, new address[](0), new string[](0)));
+      morgList[orgVoterNum - 1].orgVoterAccount.push(_address);
       emit VoterAdded(_orgId, _address);
     }
     else {
@@ -157,8 +156,8 @@ contract Clusterkeys {
         emit VoterExists(_orgId, _address);
       }
       else {
-        uint voterIndex = getOrgIndexVoter(_orgId);
-        voterList[voterIndex].orgVoterAccount.push(_address);
+        uint voterIndex = getMasterIndex(_orgId);
+        morgList[voterIndex].orgVoterAccount.push(_address);
         emit VoterAdded(_orgId, _address);
       }
     }
@@ -167,25 +166,33 @@ contract Clusterkeys {
   // function for deleting a voter account to a master org
   function deleteVoter(string _orgId, address _address) external
   {
-    if (VoterOrgIndex[keccak256(abi.encodePacked(_orgId))] == 0) {
+    if (MasterOrgIndex[keccak256(abi.encodePacked(_orgId))] == 0) {
       emit OrgNotFound(_orgId);
     }
     else {
-      uint voterIndex = getOrgIndexVoter(_orgId);
+      uint voterIndex = getMasterIndex(_orgId);
       (bool voterExists, uint i) = checkIfVoterExists(_orgId, _address);
 
       if (voterExists == true) {
-        for (uint j = i; j <  voterList[voterIndex].orgVoterAccount.length -1; j++){
-          voterList[voterIndex].orgVoterAccount[j] = voterList[voterIndex].orgVoterAccount[j+1];
+        for (uint j = i; j <  morgList[voterIndex].orgVoterAccount.length -1; j++){
+          morgList[voterIndex].orgVoterAccount[j] = morgList[voterIndex].orgVoterAccount[j+1];
         }
-        delete voterList[voterIndex].orgVoterAccount[voterList[voterIndex].orgVoterAccount.length -1];
-        voterList[voterIndex].orgVoterAccount.length --;
+        delete morgList[voterIndex].orgVoterAccount[morgList[voterIndex].orgVoterAccount.length -1];
+        morgList[voterIndex].orgVoterAccount.length --;
         emit VoterAccountDeleted(_orgId, _address);
       }
       else {
         emit VoterNotFound(_orgId, _address);
       }
     }
+  }
+
+  // function to create master org
+  function addMasterOrg(string _orgId) external
+  {
+    require (MasterOrgIndex[keccak256(abi.encodePacked(_orgId))] == 0);
+
+
   }
 
   // function for adding a private key for the org. Thsi will be added once
@@ -274,9 +281,9 @@ contract Clusterkeys {
   // new item is initiated for approval
   function voterInit(string _orgId) internal {
     uint orgIndex = getOrgIndex(_orgId);
-    uint vorgIndex = getOrgIndexVoter(orgList[orgIndex].vorgId);
-    for (uint i = 0; i < voterList[vorgIndex].orgVoterAccount.length; i++){
-      voteStatus[orgIndex][voterList[vorgIndex].orgVoterAccount[i]] = false;
+    uint morgIndex = getMasterIndex(orgList[orgIndex].morgId);
+    for (uint i = 0; i < morgList[morgIndex].orgVoterAccount.length; i++){
+      voteStatus[orgIndex][morgList[morgIndex].orgVoterAccount[i]] = false;
     }
     voteCount[orgIndex] = 0;
   }
@@ -294,19 +301,19 @@ contract Clusterkeys {
   // returns true
   function checkEnoughVotes (string _orgId) internal view returns (bool) {
     uint orgIndex = getOrgIndex(_orgId);
-    if (voteCount[orgIndex] > voterList[orgIndex].orgVoterAccount.length / 2 ){
+    if (voteCount[orgIndex] > morgList[orgIndex].orgVoterAccount.length / 2 ){
       return true;
     }
     return false;
   }
 
-  function checkKeyInUse(string _orgId, string _vorgId, string _key) internal view returns (bool) {
+  function checkKeyInUse(string _orgId, string _morgId, string _key) internal view returns (bool) {
     bool keyInUse = false;
     for (uint i = 0; i < orgList.length; i++){
       if (keccak256(abi.encodePacked(orgList[i].orgId)) == keccak256(abi.encodePacked(_orgId))){
         continue;
       }
-      if (keccak256(abi.encodePacked(orgList[i].vorgId)) == keccak256(abi.encodePacked(_vorgId))){
+      if (keccak256(abi.encodePacked(orgList[i].morgId)) == keccak256(abi.encodePacked(_morgId))){
         for (uint j = 0; j < orgList[i].privateKey.length; j++){
           if (keccak256(abi.encodePacked(orgList[i].privateKey[j])) == keccak256(abi.encodePacked(_key))){
             keyInUse = true;
@@ -321,36 +328,36 @@ contract Clusterkeys {
     return false;
   }
   // updates the master keys list with the key being added or deleted
-  function masterKeyUpdate(string _orgId, string _vorgId, string _key, Operation _op) internal {
-    uint vorgIndex = getOrgIndexVoter(_vorgId);
+  function masterKeyUpdate(string _orgId, string _morgId, string _key, Operation _op) internal {
+    uint morgIndex = getMasterIndex(_morgId);
     if (_op == Operation.Add) {
       // check if the key is existing. if yes ignore else add to master list
       bool keyExists = false;
-      for (uint i = 0; i < voterList[vorgIndex].privateKey.length; i++){
-        if(keccak256(abi.encodePacked(orgList[vorgIndex].privateKey[i])) == keccak256(abi.encodePacked(_key))){
+      for (uint i = 0; i < morgList[morgIndex].privateKey.length; i++){
+        if(keccak256(abi.encodePacked(orgList[morgIndex].privateKey[i])) == keccak256(abi.encodePacked(_key))){
           keyExists = true;
           break;
         }
       }
       if (keyExists == false ){
-        voterList[vorgIndex].privateKey.push(_key);
+        morgList[morgIndex].privateKey.push(_key);
       }
     }
     else {
       // the key can be deleted from master list only when none of the suborgs have the
       // key in the private keys
-      if (!(checkKeyInUse(_orgId, _vorgId, _key))){
+      if (!(checkKeyInUse(_orgId, _morgId, _key))){
         uint index;
-        for (index = 0; i < voterList[vorgIndex].privateKey.length; index++) {
-          if(keccak256(abi.encodePacked(voterList[vorgIndex].privateKey[index])) == keccak256(abi.encodePacked(_key))) {
+        for (index = 0; i < morgList[morgIndex].privateKey.length; index++) {
+          if(keccak256(abi.encodePacked(morgList[morgIndex].privateKey[index])) == keccak256(abi.encodePacked(_key))) {
             break;
           }
         }
-        for (uint j = index; j <  voterList[vorgIndex].privateKey.length -1; j++){
-          voterList[vorgIndex].privateKey[j] = voterList[vorgIndex].privateKey[j+1];
+        for (uint j = index; j <  morgList[morgIndex].privateKey.length -1; j++){
+          morgList[morgIndex].privateKey[j] = morgList[morgIndex].privateKey[j+1];
         }
-        delete voterList[vorgIndex].privateKey[voterList[vorgIndex].privateKey.length -1];
-        voterList[vorgIndex].privateKey.length --;
+        delete morgList[morgIndex].privateKey[morgList[morgIndex].privateKey.length -1];
+        morgList[morgIndex].privateKey.length --;
       }
     }
   }
@@ -361,7 +368,7 @@ contract Clusterkeys {
       string storage locKey = orgList[_orgIndex].pendingKey;
       if (orgList[_orgIndex].pendingOp == Operation.Add){
         orgList[_orgIndex].privateKey.push(orgList[_orgIndex].pendingKey);
-        masterKeyUpdate(orgList[_orgIndex].orgId, orgList[_orgIndex].vorgId, orgList[_orgIndex].pendingKey, Operation.Add);
+        masterKeyUpdate(orgList[_orgIndex].orgId, orgList[_orgIndex].morgId, orgList[_orgIndex].pendingKey, Operation.Add);
         emit OrgKeyAdded(orgList[_orgIndex].orgId, locKey);
       }
       else {
@@ -373,7 +380,7 @@ contract Clusterkeys {
         }
         delete orgList[_orgIndex].privateKey[orgList[_orgIndex].privateKey.length -1];
         orgList[_orgIndex].privateKey.length --;
-        masterKeyUpdate(orgList[_orgIndex].orgId, orgList[_orgIndex].vorgId, orgList[_orgIndex].pendingKey, Operation.Delete);
+        masterKeyUpdate(orgList[_orgIndex].orgId, orgList[_orgIndex].morgId, orgList[_orgIndex].pendingKey, Operation.Delete);
         emit OrgKeyDeleted(orgList[_orgIndex].orgId, locKey);
       }
       orgList[_orgIndex].pendingOp = Operation.None;
@@ -381,22 +388,22 @@ contract Clusterkeys {
     }
   }
 
-  // helper function to print all privates keys for an org
-  function printAllOrg () public {
-    for (uint i = 0; i < orgList.length; i++){
-      for (uint j = 0; j < orgList[i].privateKey.length ; j++){
-        emit PrintAll(orgList[i].orgId, orgList[i].privateKey[j]);
-      }
-    }
-  }
+  /* // helper function to print all privates keys for an org */
+  /* function printAllOrg () public { */
+  /*   for (uint i = 0; i < orgList.length; i++){ */
+  /*     for (uint j = 0; j < orgList[i].privateKey.length ; j++){ */
+  /*       emit PrintAll(orgList[i].orgId, orgList[i].privateKey[j]); */
+  /*     } */
+  /*   } */
+  /* } */
 
-  // helper function to print all voters accounts for an org
-  function printAllVoter () public {
-    for (uint i = 0; i < voterList.length; i++){
-      for (uint j = 0; j < voterList[i].orgVoterAccount.length ; j++){
-        emit PrintVoter(voterList[i].orgId, voterList[i].orgVoterAccount[j]);
-      }
-    }
-  }
+  /* // helper function to print all voters accounts for an org */
+  /* function printAllVoter () public { */
+  /*   for (uint i = 0; i < morgList.length; i++){ */
+  /*     for (uint j = 0; j < morgList[i].orgVoterAccount.length ; j++){ */
+  /*       emit PrintVoter(morgList[i].orgId, morgList[i].orgVoterAccount[j]); */
+  /*     } */
+  /*   } */
+  /* } */
 
 }
