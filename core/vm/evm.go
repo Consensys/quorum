@@ -467,7 +467,10 @@ func getDualState(env *EVM, addr common.Address) StateDB {
 func (env *EVM) PublicState() PublicState   { return env.publicState }
 func (env *EVM) PrivateState() PrivateState { return env.privateState }
 func (env *EVM) Push(statedb StateDB) {
-	if env.privateState != statedb {
+	// Quorum : the read only depth to be set up only once for the entire
+	// op code execution. This will be set first time transition from
+	// private state to public state happens
+	if !env.quorumReadOnly && env.privateState != statedb {
 		env.quorumReadOnly = true
 		env.readOnlyDepth = env.currentStateDepth
 	}
