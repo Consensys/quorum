@@ -16,7 +16,7 @@ var dualStateTestHeader = types.Header{
 	Number:     new(big.Int),
 	Time:       new(big.Int).SetUint64(43),
 	Difficulty: new(big.Int).SetUint64(1000488),
-	GasLimit:   new(big.Int).SetUint64(4700000),
+	GasLimit:   4700000,
 }
 
 //[1] PUSH1 0x01 (out size)
@@ -36,7 +36,7 @@ var dualStateTestHeader = types.Header{
 func TestDualStatePrivateToPublicCall(t *testing.T) {
 	callAddr := common.Address{1}
 
-	db, _ := ethdb.NewMemDatabase()
+	db := ethdb.NewMemDatabase()
 	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	publicState.SetCode(common.Address{2}, common.Hex2Bytes("600a6000526001601ff300"))
 
@@ -48,14 +48,14 @@ func TestDualStatePrivateToPublicCall(t *testing.T) {
 		addr:     author,
 		to:       &callAddr,
 		value:    big.NewInt(1),
-		gas:      big.NewInt(1000000),
+		gas:      1000000,
 		gasPrice: new(big.Int),
 		data:     nil,
 	}
 
 	ctx := NewEVMContext(msg, &dualStateTestHeader, nil, &author)
 	env := vm.NewEVM(ctx, publicState, privateState, &params.ChainConfig{}, vm.Config{})
-	env.Call(vm.AccountRef(author), callAddr, msg.data, msg.gas.Uint64(), new(big.Int))
+	env.Call(vm.AccountRef(author), callAddr, msg.data, msg.gas, new(big.Int))
 
 	if value := privateState.GetState(callAddr, common.Hash{}); value != (common.Hash{10}) {
 		t.Errorf("expected 10 got %x", value)
@@ -65,7 +65,7 @@ func TestDualStatePrivateToPublicCall(t *testing.T) {
 func TestDualStatePublicToPrivateCall(t *testing.T) {
 	callAddr := common.Address{1}
 
-	db, _ := ethdb.NewMemDatabase()
+	db := ethdb.NewMemDatabase()
 	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	privateState.SetCode(common.Address{2}, common.Hex2Bytes("600a6000526001601ff300"))
 
@@ -77,14 +77,14 @@ func TestDualStatePublicToPrivateCall(t *testing.T) {
 		addr:     author,
 		to:       &callAddr,
 		value:    big.NewInt(1),
-		gas:      big.NewInt(1000000),
+		gas:      1000000,
 		gasPrice: new(big.Int),
 		data:     nil,
 	}
 
 	ctx := NewEVMContext(msg, &dualStateTestHeader, nil, &author)
 	env := vm.NewEVM(ctx, publicState, publicState, &params.ChainConfig{}, vm.Config{})
-	env.Call(vm.AccountRef(author), callAddr, msg.data, msg.gas.Uint64(), new(big.Int))
+	env.Call(vm.AccountRef(author), callAddr, msg.data, msg.gas, new(big.Int))
 
 	if value := publicState.GetState(callAddr, common.Hash{}); value != (common.Hash{}) {
 		t.Errorf("expected 0 got %x", value)
@@ -94,7 +94,7 @@ func TestDualStatePublicToPrivateCall(t *testing.T) {
 func TestDualStateReadOnly(t *testing.T) {
 	callAddr := common.Address{1}
 
-	db, _ := ethdb.NewMemDatabase()
+	db := ethdb.NewMemDatabase()
 	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	publicState.SetCode(common.Address{2}, common.Hex2Bytes("600a60005500"))
 
@@ -106,14 +106,14 @@ func TestDualStateReadOnly(t *testing.T) {
 		addr:     author,
 		to:       &callAddr,
 		value:    big.NewInt(1),
-		gas:      big.NewInt(1000000),
+		gas:      1000000,
 		gasPrice: new(big.Int),
 		data:     nil,
 	}
 
 	ctx := NewEVMContext(msg, &dualStateTestHeader, nil, &author)
 	env := vm.NewEVM(ctx, publicState, privateState, &params.ChainConfig{}, vm.Config{})
-	env.Call(vm.AccountRef(author), callAddr, msg.data, msg.gas.Uint64(), new(big.Int))
+	env.Call(vm.AccountRef(author), callAddr, msg.data, msg.gas, new(big.Int))
 
 	if value := publicState.GetState(common.Address{2}, common.Hash{}); value != (common.Hash{0}) {
 		t.Errorf("expected 0 got %x", value)

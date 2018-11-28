@@ -17,8 +17,6 @@
 package core
 
 import (
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
@@ -55,14 +53,14 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *types.Block, statedb, privateState *state.StateDB, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, *big.Int, error) {
+func (p *StateProcessor) Process(block *types.Block, statedb, privateState *state.StateDB, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, uint64, error) {
 
 	var (
-		receipts     types.Receipts
-		totalUsedGas = big.NewInt(0)
-		header       = block.Header()
-		allLogs      []*types.Log
-		gp           = new(GasPool).AddGas(block.GasLimit())
+		receipts types.Receipts
+		usedGas  = new(uint64)
+		header   = block.Header()
+		allLogs  []*types.Log
+		gp       = new(GasPool).AddGas(block.GasLimit())
 
 		privateReceipts types.Receipts
 	)
@@ -75,9 +73,9 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		privateState.Prepare(tx.Hash(), block.Hash(), i)
 
-		receipt, privateReceipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, totalUsedGas, cfg)
+		receipt, privateReceipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, usedGas, cfg)
 		if err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, 0, err
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
@@ -92,25 +90,25 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
 
-	return receipts, privateReceipts, allLogs, totalUsedGas, nil
+	return receipts, privateReceipts, allLogs, *usedGas, nil
 }
 
 // ApplyTransaction attempts to apply a transaction to the given state database
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *big.Int, cfg vm.Config) (*types.Receipt, *types.Receipt, *big.Int, error) {
+func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, *types.Receipt, uint64, error) {
 	if !config.IsQuorum || !tx.IsPrivate() {
 		privateState = statedb
 	}
 
 	if config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
-		return nil, nil, nil, ErrInvalidGasPrice
+		return nil, nil, 0, ErrInvalidGasPrice
 	}
 
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, 0, err
 	}
 	// Create a new context to be used in the EVM environment
 	context := NewEVMContext(msg, header, bc, author)
@@ -121,9 +119,8 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	// Apply the transaction to the current state (included in the env)
 	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, 0, err
 	}
-
 	// Update the state with pending changes
 	var root []byte
 	if config.IsByzantium(header.Number) {
@@ -131,7 +128,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	} else {
 		root = statedb.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
 	}
-	usedGas.Add(usedGas, gas)
+	*usedGas += gas
 
 	// If this is a private transaction, the public receipt should always
 	// indicate success.
@@ -139,14 +136,13 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx
 	// based on the eip phase, we're passing wether the root touch-delete accounts.
-	receipt := types.NewReceipt(root, publicFailed, usedGas)
+	receipt := types.NewReceipt(root, publicFailed, *usedGas)
 	receipt.TxHash = tx.Hash()
-	receipt.GasUsed = new(big.Int).Set(gas)
+	receipt.GasUsed = gas
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
 		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
 	}
-
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
@@ -159,9 +155,9 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		} else {
 			privateRoot = privateState.IntermediateRoot(config.IsEIP158(header.Number)).Bytes()
 		}
-		privateReceipt = types.NewReceipt(privateRoot, failed, usedGas)
+		privateReceipt = types.NewReceipt(privateRoot, failed, *usedGas)
 		privateReceipt.TxHash = tx.Hash()
-		privateReceipt.GasUsed = new(big.Int).Set(gas)
+		privateReceipt.GasUsed = gas
 		if msg.To() == nil {
 			privateReceipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
 		}

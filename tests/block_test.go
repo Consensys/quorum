@@ -36,9 +36,6 @@ func TestBlockchain(t *testing.T) {
 	// Still failing tests
 	bt.skipLoad(`^bcWalletTest.*_Byzantium$`)
 
-	// TODO(joel): fix Byzantium tests for Quorum
-	bt.skipLoad(`Byzantium`)
-
 	bt.walk(t, blockTestDir, func(t *testing.T, name string, test *BlockTest) {
 		if err := bt.checkFailure(t, name, test.Run()); err != nil {
 			t.Error(err)

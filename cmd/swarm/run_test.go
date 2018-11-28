@@ -1,4 +1,4 @@
-// Copyright 2016 The go-ethereum Authors
+// Copyright 2017 The go-ethereum Authors
 // This file is part of go-ethereum.
 //
 // go-ethereum is free software: you can redistribute it and/or modify
@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/internal/cmdtest"
 	"github.com/ethereum/go-ethereum/node"
@@ -80,6 +81,7 @@ type testCluster struct {
 //
 // When starting more than one node, they are connected together using the
 // admin SetPeer RPC method.
+
 func newTestCluster(t *testing.T, size int) *testCluster {
 	cluster := &testCluster{}
 	defer func() {
@@ -95,18 +97,7 @@ func newTestCluster(t *testing.T, size int) *testCluster {
 	cluster.TmpDir = tmpdir
 
 	// start the nodes
-	cluster.Nodes = make([]*testNode, 0, size)
-	for i := 0; i < size; i++ {
-		dir := filepath.Join(cluster.TmpDir, fmt.Sprintf("swarm%02d", i))
-		if err := os.Mkdir(dir, 0700); err != nil {
-			t.Fatal(err)
-		}
-
-		node := newTestNode(t, dir)
-		node.Name = fmt.Sprintf("swarm%02d", i)
-
-		cluster.Nodes = append(cluster.Nodes, node)
-	}
+	cluster.StartNewNodes(t, size)
 
 	if size == 1 {
 		return cluster
@@ -144,21 +135,58 @@ func (c *testCluster) Shutdown() {
 	os.RemoveAll(c.TmpDir)
 }
 
+func (c *testCluster) Stop() {
+	for _, node := range c.Nodes {
+		node.Shutdown()
+	}
+}
+
+func (c *testCluster) StartNewNodes(t *testing.T, size int) {
+	c.Nodes = make([]*testNode, 0, size)
+	for i := 0; i < size; i++ {
+		dir := filepath.Join(c.TmpDir, fmt.Sprintf("swarm%02d", i))
+		if err := os.Mkdir(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+
+		node := newTestNode(t, dir)
+		node.Name = fmt.Sprintf("swarm%02d", i)
+
+		c.Nodes = append(c.Nodes, node)
+	}
+}
+
+func (c *testCluster) StartExistingNodes(t *testing.T, size int, bzzaccount string) {
+	c.Nodes = make([]*testNode, 0, size)
+	for i := 0; i < size; i++ {
+		dir := filepath.Join(c.TmpDir, fmt.Sprintf("swarm%02d", i))
+		node := existingTestNode(t, dir, bzzaccount)
+		node.Name = fmt.Sprintf("swarm%02d", i)
+
+		c.Nodes = append(c.Nodes, node)
+	}
+}
+
+func (c *testCluster) Cleanup() {
+	os.RemoveAll(c.TmpDir)
+}
+
 type testNode struct {
-	Name   string
-	Addr   string
-	URL    string
-	Enode  string
-	Dir    string
-	Client *rpc.Client
-	Cmd    *cmdtest.TestCmd
+	Name    string
+	Addr    string
+	URL     string
+	Enode   string
+	Dir     string
+	IpcPath string
+	Client  *rpc.Client
+	Cmd     *cmdtest.TestCmd
 }
 
 const testPassphrase = "swarm-test-passphrase"
 
-func newTestNode(t *testing.T, dir string) *testNode {
+func getTestAccount(t *testing.T, dir string) (conf *node.Config, account accounts.Account) {
 	// create key
-	conf := &node.Config{
+	conf = &node.Config{
 		DataDir: dir,
 		IPCPath: "bzzd.ipc",
 		NoUSB:   true,
@@ -167,17 +195,89 @@ func newTestNode(t *testing.T, dir string) *testNode {
 	if err != nil {
 		t.Fatal(err)
 	}
-	account, err := n.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore).NewAccount(testPassphrase)
+	account, err = n.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore).NewAccount(testPassphrase)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	node := &testNode{Dir: dir}
 
 	// use a unique IPCPath when running tests on Windows
 	if runtime.GOOS == "windows" {
 		conf.IPCPath = fmt.Sprintf("bzzd-%s.ipc", account.Address.String())
 	}
+
+	return conf, account
+}
+
+func existingTestNode(t *testing.T, dir string, bzzaccount string) *testNode {
+	conf, _ := getTestAccount(t, dir)
+	node := &testNode{Dir: dir}
+
+	// use a unique IPCPath when running tests on Windows
+	if runtime.GOOS == "windows" {
+		conf.IPCPath = fmt.Sprintf("bzzd-%s.ipc", bzzaccount)
+	}
+
+	// assign ports
+	httpPort, err := assignTCPPort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p2pPort, err := assignTCPPort()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// start the node
+	node.Cmd = runSwarm(t,
+		"--port", p2pPort,
+		"--nodiscover",
+		"--datadir", dir,
+		"--ipcpath", conf.IPCPath,
+		"--ens-api", "",
+		"--bzzaccount", bzzaccount,
+		"--bzznetworkid", "321",
+		"--bzzport", httpPort,
+		"--verbosity", "6",
+	)
+	node.Cmd.InputLine(testPassphrase)
+	defer func() {
+		if t.Failed() {
+			node.Shutdown()
+		}
+	}()
+
+	// wait for the node to start
+	for start := time.Now(); time.Since(start) < 10*time.Second; time.Sleep(50 * time.Millisecond) {
+		node.Client, err = rpc.Dial(conf.IPCEndpoint())
+		if err == nil {
+			break
+		}
+	}
+	if node.Client == nil {
+		t.Fatal(err)
+	}
+
+	// load info
+	var info swarm.Info
+	if err := node.Client.Call(&info, "bzz_info"); err != nil {
+		t.Fatal(err)
+	}
+	node.Addr = net.JoinHostPort("127.0.0.1", info.Port)
+	node.URL = "http://" + node.Addr
+
+	var nodeInfo p2p.NodeInfo
+	if err := node.Client.Call(&nodeInfo, "admin_nodeInfo"); err != nil {
+		t.Fatal(err)
+	}
+	node.Enode = fmt.Sprintf("enode://%s@127.0.0.1:%s", nodeInfo.ID, p2pPort)
+
+	return node
+}
+
+func newTestNode(t *testing.T, dir string) *testNode {
+
+	conf, account := getTestAccount(t, dir)
+	node := &testNode{Dir: dir}
 
 	// assign ports
 	httpPort, err := assignTCPPort()
@@ -232,6 +332,7 @@ func newTestNode(t *testing.T, dir string) *testNode {
 		t.Fatal(err)
 	}
 	node.Enode = fmt.Sprintf("enode://%s@127.0.0.1:%s", nodeInfo.ID, p2pPort)
+	node.IpcPath = conf.IPCPath
 
 	return node
 }
