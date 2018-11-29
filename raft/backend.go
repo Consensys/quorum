@@ -1,9 +1,9 @@
 package raft
 
 import (
+	"crypto/ecdsa"
 	"sync"
 	"time"
-	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core"

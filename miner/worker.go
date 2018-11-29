@@ -104,7 +104,7 @@ type task struct {
 	block     *types.Block
 	createdAt time.Time
 
-	privateReceipts  []*types.Receipt
+	privateReceipts []*types.Receipt
 	// Leave this publicState named state, add privateState which most code paths can just ignore
 	privateState *state.StateDB
 }
@@ -584,7 +584,7 @@ func (w *worker) resultLoop() {
 				continue
 			}
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
-			var logs     []*types.Log
+			var logs []*types.Log
 			work := w.current
 
 			for _, receipt := range append(work.receipts, work.privateReceipts...) {
@@ -603,7 +603,6 @@ func (w *worker) resultLoop() {
 			privateStateRoot, _ := work.privateState.Commit(w.config.IsEIP158(block.Number()))
 			core.WritePrivateStateRoot(w.eth.ChainDb(), block.Root(), privateStateRoot)
 			allReceipts := mergeReceipts(work.receipts, work.privateReceipts)
-
 
 			// Commit block and state to database.
 			stat, err := w.chain.WriteBlockWithState(block, allReceipts, work.state, nil)
@@ -624,7 +623,7 @@ func (w *worker) resultLoop() {
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 			var events []interface{}
-			logs   = append(work.state.Logs(), work.privateState.Logs()...)
+			logs = append(work.state.Logs(), work.privateState.Logs()...)
 
 			switch stat {
 			case core.CanonStatTy:
@@ -643,7 +642,6 @@ func (w *worker) resultLoop() {
 		}
 	}
 }
-
 
 // Given a slice of public receipts and an overlapping (smaller) slice of
 // private receipts, return a new slice where the default for each location is
@@ -665,9 +663,6 @@ func mergeReceipts(pub, priv types.Receipts) types.Receipts {
 
 	return ret
 }
-
-
-
 
 // makeCurrent creates a new environment for the current cycle.
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
@@ -752,12 +747,11 @@ func (w *worker) updateSnapshot() {
 	w.snapshotState = w.current.state.Copy()
 }
 
-
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
 	snap := w.current.state.Snapshot()
 	privateSnap := w.current.privateState.Snapshot()
 
-	receipt, privateReceipt, _, err := core.ApplyTransaction(w.config, w.chain, &coinbase, w.current.gasPool, w.current.state,w.current.privateState,  w.current.header, tx, &w.current.header.GasUsed, vm.Config{})
+	receipt, privateReceipt, _, err := core.ApplyTransaction(w.config, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.privateState, w.current.header, tx, &w.current.header.GasUsed, vm.Config{})
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
 		w.current.privateState.RevertToSnapshot(privateSnap)

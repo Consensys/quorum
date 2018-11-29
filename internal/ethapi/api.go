@@ -1168,9 +1168,9 @@ type SendTxArgs struct {
 	Input *hexutil.Bytes `json:"input"`
 
 	//Quorum
-	PrivateFrom string   `json:"privateFrom"`
-	PrivateFor  []string `json:"privateFor"`
-	PrivateTxType string `json:"restriction"`
+	PrivateFrom   string   `json:"privateFrom"`
+	PrivateFor    []string `json:"privateFor"`
+	PrivateTxType string   `json:"restriction"`
 	//End-Quorum
 }
 
@@ -1583,13 +1583,13 @@ type AsyncSendTxArgs struct {
 }
 
 type AsyncResultSuccess struct {
-	Id     string	   `json:"id,omitempty"`
+	Id     string      `json:"id,omitempty"`
 	TxHash common.Hash `json:"txHash"`
 }
 
 type AsyncResultFailure struct {
-	Id     string	   `json:"id,omitempty"`
-	Error  string      `json:"error"`
+	Id    string `json:"id,omitempty"`
+	Error string `json:"error"`
 }
 
 type Async struct {
@@ -1650,7 +1650,7 @@ var async = newAsync(100)
 // Please note: This is a temporary integration to improve performance in high-latency
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
-func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error){
+func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error) {
 
 	select {
 	case async.sem <- struct{}{}:
@@ -1688,4 +1688,5 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	}
 	return fmt.Sprintf("0x%x", data), nil
 }
+
 //End-Quorum
