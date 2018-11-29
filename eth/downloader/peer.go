@@ -548,10 +548,10 @@ func (ps *peerSet) idlePeers(minProtocol, maxProtocol int, idleCheck func(*peerC
 	return idle, total
 }
 
-// medianRTT returns the median RTT of te peerset, considering only the tuning
+// medianRTT returns the median RTT of the peerset, considering only the tuning
 // peers if there are more peers available.
 func (ps *peerSet) medianRTT() time.Duration {
-	// Gather all the currnetly measured round trip times
+	// Gather all the currently measured round trip times
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 

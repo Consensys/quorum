@@ -19,7 +19,6 @@ package filters
 import (
 	"context"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -35,8 +34,9 @@ type Backend interface {
 	EventMux() *event.TypeMux
 	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Header, error)
 	GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error)
+	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
 
-	SubscribeTxPreEvent(chan<- core.TxPreEvent) event.Subscription
+	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 	SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription
 	SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription
 	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
@@ -136,11 +136,11 @@ func (f *Filter) indexedLogs(ctx context.Context, end uint64) ([]*types.Log, err
 	// Create a matcher session and request servicing from the backend
 	matches := make(chan uint64, 64)
 
-	session, err := f.matcher.Start(uint64(f.begin), end, matches)
+	session, err := f.matcher.Start(ctx, uint64(f.begin), end, matches)
 	if err != nil {
 		return nil, err
 	}
-	defer session.Close(time.Second)
+	defer session.Close()
 
 	f.backend.ServiceFilter(ctx, session)
 
@@ -152,9 +152,14 @@ func (f *Filter) indexedLogs(ctx context.Context, end uint64) ([]*types.Log, err
 		case number, ok := <-matches:
 			// Abort if all matches have been fulfilled
 			if !ok {
-				f.begin = int64(end) + 1
-				return logs, nil
+				err := session.Error()
+				if err == nil {
+					f.begin = int64(end) + 1
+				}
+				return logs, err
 			}
+			f.begin = int64(number) + 1
+
 			// Retrieve the suggested block and pull any truly matching logs
 			header, err := f.backend.HeaderByNumber(ctx, rpc.BlockNumber(number))
 			if header == nil || err != nil {
@@ -179,7 +184,7 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 
 	for ; f.begin <= int64(end); f.begin++ {
 		blockNumber := rpc.BlockNumber(f.begin)
-		header, err := f.backend.HeaderByNumber(ctx, blockNumber)
+		header, err := f.backend.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
 		if header == nil || err != nil {
 			return logs, err
 		}
@@ -201,16 +206,28 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 // match the filter criteria. This function is called when the bloom filter signals a potential match.
 func (f *Filter) checkMatches(ctx context.Context, header *types.Header) (logs []*types.Log, err error) {
 	// Get the logs of the block
-	receipts, err := f.backend.GetReceipts(ctx, header.Hash())
+	logsList, err := f.backend.GetLogs(ctx, header.Hash())
 	if err != nil {
 		return nil, err
 	}
 	var unfiltered []*types.Log
-	for _, receipt := range receipts {
-		unfiltered = append(unfiltered, ([]*types.Log)(receipt.Logs)...)
+	for _, logs := range logsList {
+		unfiltered = append(unfiltered, logs...)
 	}
 	logs = filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
 	if len(logs) > 0 {
+		// We have matching logs, check if we need to resolve full logs via the light client
+		if logs[0].TxHash == (common.Hash{}) {
+			receipts, err := f.backend.GetReceipts(ctx, header.Hash())
+			if err != nil {
+				return nil, err
+			}
+			unfiltered = unfiltered[:0]
+			for _, receipt := range receipts {
+				unfiltered = append(unfiltered, receipt.Logs...)
+			}
+			logs = filterLogs(unfiltered, nil, nil, f.addresses, f.topics)
+		}
 		return logs, nil
 	}
 	return nil, nil
@@ -245,9 +262,9 @@ Logs:
 		if len(topics) > len(log.Topics) {
 			continue Logs
 		}
-		for i, topics := range topics {
-			match := len(topics) == 0 // empty rule set == wildcard
-			for _, topic := range topics {
+		for i, sub := range topics {
+			match := len(sub) == 0 // empty rule set == wildcard
+			for _, topic := range sub {
 				if log.Topics[i] == topic {
 					match = true
 					break

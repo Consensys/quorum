@@ -31,8 +31,8 @@ func makeBlock(number int64) *types.Block {
 	header := &types.Header{
 		Difficulty: big.NewInt(0),
 		Number:     big.NewInt(number),
-		GasLimit:   big.NewInt(0),
-		GasUsed:    big.NewInt(0),
+		GasLimit:   0,
+		GasUsed:    0,
 		Time:       big.NewInt(0),
 	}
 	block := &types.Block{}

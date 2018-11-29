@@ -22,9 +22,11 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -34,21 +36,25 @@ import (
 
 // DefaultConfig contains default settings for use on the Ethereum main net.
 var DefaultConfig = Config{
-	SyncMode:             downloader.FastSync,
-	EthashCacheDir:       "ethash",
-	EthashCachesInMem:    2,
-	EthashCachesOnDisk:   3,
-	EthashDatasetsInMem:  1,
-	EthashDatasetsOnDisk: 2,
-	NetworkId:            1337,
-	LightPeers:           20,
-	DatabaseCache:        128,
-	GasPrice:             big.NewInt(18 * params.Shannon),
+	SyncMode: downloader.FastSync,
+	Ethash: ethash.Config{
+		CacheDir:       "ethash",
+		CachesInMem:    2,
+		CachesOnDisk:   3,
+		DatasetsInMem:  1,
+		DatasetsOnDisk: 2,
+	},
+	NetworkId:     1337,
+	LightPeers:    100,
+	DatabaseCache: 768,
+	TrieCache:     256,
+	TrieTimeout:   60 * time.Minute,
+	GasPrice:      big.NewInt(18 * params.Shannon),
 
 	TxPool: core.DefaultTxPoolConfig,
 	GPO: gasprice.Config{
-		Blocks:     10,
-		Percentile: 50,
+		Blocks:     20,
+		Percentile: 60,
 	},
 
 	Istanbul: *istanbul.DefaultConfig,
@@ -62,9 +68,9 @@ func init() {
 		}
 	}
 	if runtime.GOOS == "windows" {
-		DefaultConfig.EthashDatasetDir = filepath.Join(home, "AppData", "Ethash")
+		DefaultConfig.Ethash.DatasetDir = filepath.Join(home, "AppData", "Ethash")
 	} else {
-		DefaultConfig.EthashDatasetDir = filepath.Join(home, ".ethash")
+		DefaultConfig.Ethash.DatasetDir = filepath.Join(home, ".ethash")
 	}
 }
 
@@ -78,6 +84,7 @@ type Config struct {
 	// Protocol options
 	NetworkId uint64 // Network ID to use for selecting peers to connect to
 	SyncMode  downloader.SyncMode
+	NoPruning bool
 
 	// Light client options
 	LightServ  int `toml:",omitempty"` // Maximum percentage of time allowed for serving LES requests
@@ -87,6 +94,8 @@ type Config struct {
 	SkipBcVersionCheck bool `toml:"-"`
 	DatabaseHandles    int  `toml:"-"`
 	DatabaseCache      int
+	TrieCache          int
+	TrieTimeout        time.Duration
 
 	// Mining-related options
 	Etherbase    common.Address `toml:",omitempty"`
@@ -95,12 +104,7 @@ type Config struct {
 	GasPrice     *big.Int
 
 	// Ethash options
-	EthashCacheDir       string
-	EthashCachesInMem    int
-	EthashCachesOnDisk   int
-	EthashDatasetDir     string
-	EthashDatasetsInMem  int
-	EthashDatasetsOnDisk int
+	Ethash ethash.Config
 
 	// Transaction pool options
 	TxPool core.TxPoolConfig
@@ -117,11 +121,19 @@ type Config struct {
 	Istanbul istanbul.Config
 
 	// Miscellaneous options
-	DocRoot   string `toml:"-"`
-	PowFake   bool   `toml:"-"`
-	PowTest   bool   `toml:"-"`
-	PowShared bool   `toml:"-"`
+	DocRoot string `toml:"-"`
+	PowMode Mode
 }
+
+type Mode uint
+
+const (
+	ModeNormal Mode = iota
+	ModeShared
+	ModeTest
+	ModeFake
+	ModeFullFake
+)
 
 type configMarshaling struct {
 	ExtraData hexutil.Bytes
