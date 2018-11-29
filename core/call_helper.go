@@ -44,10 +44,10 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	cg.header.Number = new(big.Int)
 	cg.header.Time = new(big.Int).SetUint64(43)
 	cg.header.Difficulty = new(big.Int).SetUint64(1000488)
-	cg.header.GasLimit = new(big.Int).SetUint64(4700000)
+	cg.header.GasLimit = 4700000
 
 	signer := types.MakeSigner(params.QuorumTestChainConfig, cg.header.Number)
-	tx, err := types.SignTx(types.NewTransaction(cg.TxNonce(from), to, new(big.Int), big.NewInt(1000000), new(big.Int), input), signer, key)
+	tx, err := types.SignTx(types.NewTransaction(cg.TxNonce(from), to, new(big.Int), 1000000, new(big.Int), input), signer, key)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	}
 
 	// TODO(joel): can we just pass nil instead of bc?
-	bc, _ := NewBlockChain(cg.db, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{})
+	bc, _ := NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{})
 	context := NewEVMContext(msg, &cg.header, bc, &from)
 	vmenv := vm.NewEVM(context, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})
 	_, _, _, err = ApplyMessage(vmenv, msg, cg.gp)
@@ -77,7 +77,7 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 
 // MakeCallHelper returns a new callHelper
 func MakeCallHelper() *callHelper {
-	memdb, _ := ethdb.NewMemDatabase()
+	memdb := ethdb.NewMemDatabase()
 	db := state.NewDatabase(memdb)
 
 	publicState, err := state.New(common.Hash{}, db)
@@ -91,7 +91,7 @@ func MakeCallHelper() *callHelper {
 	cg := &callHelper{
 		db:           memdb,
 		nonces:       make(map[common.Address]uint64),
-		gp:           new(GasPool).AddGas(big.NewInt(5000000)),
+		gp:           new(GasPool).AddGas(5000000),
 		PublicState:  publicState,
 		PrivateState: privateState,
 	}

@@ -18,6 +18,7 @@ package common
 
 import (
 	"encoding/json"
+
 	"math/big"
 	"strings"
 	"testing"
@@ -32,6 +33,30 @@ func TestBytesConversion(t *testing.T) {
 
 	if hash != exp {
 		t.Errorf("expected %x got %x", exp, hash)
+	}
+}
+
+func TestIsHexAddress(t *testing.T) {
+	tests := []struct {
+		str string
+		exp bool
+	}{
+		{"0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed", true},
+		{"5aaeb6053f3e94c9b9a09f33669435e7ef1beaed", true},
+		{"0X5aaeb6053f3e94c9b9a09f33669435e7ef1beaed", true},
+		{"0XAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", true},
+		{"0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", true},
+		{"0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed1", false},
+		{"0x5aaeb6053f3e94c9b9a09f33669435e7ef1beae", false},
+		{"5aaeb6053f3e94c9b9a09f33669435e7ef1beaed11", false},
+		{"0xxaaeb6053f3e94c9b9a09f33669435e7ef1beaed", false},
+	}
+
+	for _, test := range tests {
+		if result := IsHexAddress(test.str); result != test.exp {
+			t.Errorf("IsHexAddress(%s) == %v; expected %v",
+				test.str, result, test.exp)
+		}
 	}
 }
 
@@ -124,4 +149,47 @@ func BenchmarkAddressHex(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		testAddr.Hex()
 	}
+}
+
+func TestMixedcaseAccount_Address(t *testing.T) {
+
+	// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-55.md
+	// Note: 0X{checksum_addr} is not valid according to spec above
+
+	var res []struct {
+		A     MixedcaseAddress
+		Valid bool
+	}
+	if err := json.Unmarshal([]byte(`[
+		{"A" : "0xae967917c465db8578ca9024c205720b1a3651A9", "Valid": false},
+		{"A" : "0xAe967917c465db8578ca9024c205720b1a3651A9", "Valid": true},
+		{"A" : "0XAe967917c465db8578ca9024c205720b1a3651A9", "Valid": false},
+		{"A" : "0x1111111111111111111112222222222223333323", "Valid": true}
+		]`), &res); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, r := range res {
+		if got := r.A.ValidChecksum(); got != r.Valid {
+			t.Errorf("Expected checksum %v, got checksum %v, input %v", r.Valid, got, r.A.String())
+		}
+	}
+
+	//These should throw exceptions:
+	var r2 []MixedcaseAddress
+	for _, r := range []string{
+		`["0x11111111111111111111122222222222233333"]`,     // Too short
+		`["0x111111111111111111111222222222222333332"]`,    // Too short
+		`["0x11111111111111111111122222222222233333234"]`,  // Too long
+		`["0x111111111111111111111222222222222333332344"]`, // Too long
+		`["1111111111111111111112222222222223333323"]`,     // Missing 0x
+		`["x1111111111111111111112222222222223333323"]`,    // Missing 0
+		`["0xG111111111111111111112222222222223333323"]`,   //Non-hex
+	} {
+		if err := json.Unmarshal([]byte(r), &r2); err == nil {
+			t.Errorf("Expected failure, input %v", r)
+		}
+
+	}
+
 }

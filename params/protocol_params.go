@@ -18,7 +18,15 @@ package params
 
 import "math/big"
 
+var (
+	TargetGasLimit = GenesisGasLimit // The artificial target
+)
+
 const (
+	GasLimitBoundDivisor uint64 = 4096      // The bound divisor of the gas limit, used in update calculations.
+	MinGasLimit          uint64 = 700000000 // Minimum the gas limit may ever be.
+	GenesisGasLimit      uint64 = 800000000 // Gas limit of the Genesis block.
+
 	MaximumExtraDataSize  uint64 = 32    // Maximum size extra data may be after Genesis.
 	ExpByteGas            uint64 = 10    // Times ceil(log256(exponent)) for the EXP instruction.
 	SloadGas              uint64 = 50    // Multiplied by the number of 32-byte words that are copied (round up) for any *COPY operation and added.
@@ -57,31 +65,26 @@ const (
 
 	// Precompiled contract gas prices
 
-	EcrecoverGas            uint64 = 3000   // Elliptic curve sender recovery gas price
-	Sha256BaseGas           uint64 = 60     // Base price for a SHA256 operation
-	Sha256PerWordGas        uint64 = 12     // Per-word price for a SHA256 operation
-	Ripemd160BaseGas        uint64 = 600    // Base price for a RIPEMD160 operation
-	Ripemd160PerWordGas     uint64 = 120    // Per-word price for a RIPEMD160 operation
-	IdentityBaseGas         uint64 = 15     // Base price for a data copy operation
-	IdentityPerWordGas      uint64 = 3      // Per-work price for a data copy operation
-	ModExpQuadCoeffDiv      uint64 = 20     // Divisor for the quadratic particle of the big int modular exponentiation
-	Bn256AddGas             uint64 = 500    // Gas needed for an elliptic curve addition
-	Bn256ScalarMulGas       uint64 = 40000  // Gas needed for an elliptic curve scalar multiplication
-	Bn256PairingBaseGas     uint64 = 100000 // Base price for an elliptic curve pairing check
-	Bn256PairingPerPointGas uint64 = 80000  // Per-point price for an elliptic curve pairing check
-
-	QuorumMaximumExtraDataSize uint64 = 65 // Maximum size extra data may be after Genesis.
+	EcrecoverGas               uint64 = 3000   // Elliptic curve sender recovery gas price
+	Sha256BaseGas              uint64 = 60     // Base price for a SHA256 operation
+	Sha256PerWordGas           uint64 = 12     // Per-word price for a SHA256 operation
+	Ripemd160BaseGas           uint64 = 600    // Base price for a RIPEMD160 operation
+	Ripemd160PerWordGas        uint64 = 120    // Per-word price for a RIPEMD160 operation
+	IdentityBaseGas            uint64 = 15     // Base price for a data copy operation
+	IdentityPerWordGas         uint64 = 3      // Per-work price for a data copy operation
+	ModExpQuadCoeffDiv         uint64 = 20     // Divisor for the quadratic particle of the big int modular exponentiation
+	Bn256AddGas                uint64 = 500    // Gas needed for an elliptic curve addition
+	Bn256ScalarMulGas          uint64 = 40000  // Gas needed for an elliptic curve scalar multiplication
+	Bn256PairingBaseGas        uint64 = 100000 // Base price for an elliptic curve pairing check
+	Bn256PairingPerPointGas    uint64 = 80000  // Per-point price for an elliptic curve pairing check
+	QuorumMaximumExtraDataSize uint64 = 65     // Maximum size extra data may be after Genesis.
 )
 
 var (
-	GasLimitBoundDivisor   = big.NewInt(4096)                  // The bound divisor of the gas limit, used in update calculations.
-	MinGasLimit            = big.NewInt(700000000)                  // Minimum the gas limit may ever be.
-	GenesisGasLimit        = big.NewInt(800000000)               // Gas limit of the Genesis block.
-	TargetGasLimit         = new(big.Int).Set(GenesisGasLimit) // The artificial target
-	DifficultyBoundDivisor = big.NewInt(2048)                  // The bound divisor of the difficulty, used in the update calculations.
-	GenesisDifficulty      = big.NewInt(131072)                // Difficulty of the Genesis block.
-	MinimumDifficulty      = big.NewInt(131072)                // The minimum that the difficulty may ever be.
-	DurationLimit          = big.NewInt(13)                    // The decision boundary on the blocktime duration used to determine whether difficulty should go up or not.
+	DifficultyBoundDivisor = big.NewInt(2048)   // The bound divisor of the difficulty, used in the update calculations.
+	GenesisDifficulty      = big.NewInt(131072) // Difficulty of the Genesis block.
+	MinimumDifficulty      = big.NewInt(131072) // The minimum that the difficulty may ever be.
+	DurationLimit          = big.NewInt(13)     // The decision boundary on the blocktime duration used to determine whether difficulty should go up or not.
 )
 
 func GetMaximumExtraDataSize(isQuorum bool) uint64 {
