@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
@@ -82,6 +83,9 @@ var (
 	// ErrEtherValueUnsupported is returned if a transaction specifies an Ether Value
 	// for a private Quorum transaction.
 	ErrEtherValueUnsupported = errors.New("ether value is not supported for private transactions")
+
+	// ErrPrivateDataNotFound is returned if payload is not found for private transaction
+	ErrPrivateDataNotFound = errors.New("private data payload not found in Transaction Manager")
 )
 
 var (
@@ -601,7 +605,16 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
 		return ErrInsufficientFunds
 	}
-	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
+
+	data := tx.Data()
+	if tx.IsPrivate() {
+		privateData, err := private.P.Receive(tx.Data())
+		if err != nil {
+			return ErrPrivateDataNotFound
+		}
+		data = privateData
+	}
+	intrGas, err := IntrinsicGas(data, tx.To() == nil, pool.homestead)
 	if err != nil {
 		return err
 	}
@@ -728,7 +741,6 @@ func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
 		log.Warn("Failed to journal local transaction", "err", err)
 	}
 }
-
 
 // promoteTx adds a transaction to the pending (processable) list of transactions
 // and returns whether it was inserted or an older was better.
@@ -1212,7 +1224,6 @@ func newTxLookup() *txLookup {
 		all: make(map[common.Hash]*types.Transaction),
 	}
 }
-
 
 // Range calls f on each key and value present in the map.
 func (t *txLookup) Range(f func(hash common.Hash, tx *types.Transaction) bool) {

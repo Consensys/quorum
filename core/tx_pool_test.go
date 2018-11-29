@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private"
 )
 
 // testTxPoolConfig is a transaction pool configuration without stateful disk
@@ -50,6 +51,21 @@ type testBlockChain struct {
 	privateStateDb *state.StateDB
 	gasLimit       uint64
 	chainHeadFeed  *event.Feed
+}
+
+// MockPrivateTransactionManager implements PrivateTransactionManager
+type MockPrivateTransactionManager struct {
+	originalPTM private.PrivateTransactionManager
+}
+
+func (mp MockPrivateTransactionManager) revertTransactionManager() {
+	private.P = mp.originalPTM
+}
+func (mp MockPrivateTransactionManager) Send(data []byte, from string, to []string) ([]byte, error) {
+	return data, nil
+}
+func (mp MockPrivateTransactionManager) Receive(data []byte) ([]byte, error) {
+	return data, nil
 }
 
 func (bc *testBlockChain) CurrentBlock() *types.Block {
@@ -331,6 +347,24 @@ func TestValidateTx_whenValueNonZeroTransferForPrivateTransaction(t *testing.T) 
 
 	if err := pool.AddRemote(arbitraryTx); err != ErrEtherValueUnsupported {
 		t.Error("expected: ", ErrEtherValueUnsupported, "; got:", err)
+	}
+}
+
+// TestValidTx_whenValueZeroAndDataTransferForPrivateTransaction creates a private transaction with data transfer and adds it to quorum txn pool
+func TestValidTx_whenValueZeroAndDataTransferForPrivateTransaction(t *testing.T) {
+	mockPTM := MockPrivateTransactionManager{originalPTM: private.P}
+	defer mockPTM.revertTransactionManager()
+	// Set PrivateTransactionManager as MockPrivateTransactionManager
+	private.P = mockPTM
+	pool, key := setupQuorumTxPool()
+	defer pool.Stop()
+	zeroValue := common.Big0
+	zeroGasPrice := common.Big0
+	defaultTxPoolGasLimit := uint64(100)
+	arbitraryTx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, zeroValue, defaultTxPoolGasLimit, zeroGasPrice, []byte("arbitrary bytecode")), types.HomesteadSigner{}, key)
+	arbitraryTx.SetPrivate()
+	if err := pool.AddRemote(arbitraryTx); err != ErrIntrinsicGas {
+		t.Error("expected:", ErrIntrinsicGas, "; got:", err)
 	}
 }
 
