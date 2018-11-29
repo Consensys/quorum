@@ -275,6 +275,10 @@ func geth(ctx *cli.Context) error {
 	}
 	node := makeFullNode(ctx)
 	startNode(ctx, node)
+
+	// Check if a valid consensus is used
+	quorumValidateConsensus(node, ctx.GlobalBool(utils.RaftModeFlag.Name))
+
 	node.Wait()
 	return nil
 }

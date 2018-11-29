@@ -941,7 +941,7 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	}
 	triedb := bc.stateCache.TrieDB()
 
-	// Explicit commit for privateStateTriedb to handle Raft
+	// Explicit commit for privateStateTriedb to handle Raft db issues
 	if privateState != nil {
 		privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
 		if err != nil {

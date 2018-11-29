@@ -611,6 +611,12 @@ func (w *worker) resultLoop() {
 				log.Error("Failed writWriteBlockAndStating block to chain", "err", err)
 				continue
 			}
+
+			if err := core.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), work.privateReceipts); err != nil {
+				log.Error("Failed writing private block bloom", "err", err)
+				continue
+			}
+
 			log.Info("Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
 				"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
 

@@ -578,7 +578,8 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrInvalidGasPrice
 	}
 	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
-	if tx.Size() > 32*1024 {
+	// UPDATED to 64KB to support the deployment of bigger contract due to the pressing need for sophisticated/complex contract in financial/capital markets - Nathan Aw
+	if tx.Size() > 64*1024 {
 		return ErrOversizedData
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
@@ -605,8 +606,8 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrNonceTooLow
 	}
 	// Ether value is not currently supported on private transactions
-	if tx.IsPrivate() && (tx.Value().Sign() != 0) {
-		return ErrEtherValueUnsupported;
+	if tx.IsPrivate() && (len(tx.Data()) == 0 || tx.Value().Sign() != 0) {
+		return ErrEtherValueUnsupported
 	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL

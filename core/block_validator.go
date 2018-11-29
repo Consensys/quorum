@@ -103,15 +103,13 @@ func (v *BlockValidator) ValidateState(block, parent *types.Block, statedb *stat
 	return nil
 }
 
-// CalcGasLimit computes the gas limit of the next block after parent. It aims
-// to keep the baseline gas above the provided floor, and increase it towards the
-// ceil if the blocks are full. If the ceil is exceeded, it will always decrease
-// the gas allowance.
+// CalcGasLimit computes the gas limit of the next block after parent.
+// This is miner strategy, not consensus protocol.
 func CalcGasLimit(parent *types.Block, gasFloor, gasCeil uint64) uint64 {
-	// contrib = (parentGasUsed * 3 / 2) / 1024
+	// contrib = (parentGasUsed * 3 / 2) / 4096
 	contrib := (parent.GasUsed() + parent.GasUsed()/2) / params.GasLimitBoundDivisor
 
-	// decay = parentGasLimit / 1024 -1
+	// decay = parentGasLimit / 4096 -1
 	decay := parent.GasLimit()/params.GasLimitBoundDivisor - 1
 
 	/*
@@ -125,7 +123,8 @@ func CalcGasLimit(parent *types.Block, gasFloor, gasCeil uint64) uint64 {
 	if limit < params.MinGasLimit {
 		limit = params.MinGasLimit
 	}
-	// If we're outside our allowed gas range, we try to hone towards them
+	// however, if we're now below the target (TargetGasLimit) we increase the
+	// limit as much as we can (parentGasLimit / 4096 -1)
 	if limit < gasFloor {
 		limit = parent.GasLimit() + decay
 		if limit > gasFloor {
