@@ -612,7 +612,9 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		if err != nil {
 			return ErrPrivateDataNotFound
 		}
-		data = privateData
+		if privateData != nil {
+			data = privateData
+		}
 	}
 	intrGas, err := IntrinsicGas(data, tx.To() == nil, pool.homestead)
 	if err != nil {
