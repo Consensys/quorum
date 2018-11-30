@@ -263,14 +263,6 @@ func runTestFunc(runTest interface{}, t *testing.T, name string, m reflect.Value
 }
 
 func TestMain(m *testing.M) {
-	backupMinGasLimit := params.MinGasLimit
-	backupGasLimitBoundDivisor := params.GasLimitBoundDivisor
-	backupGenesisGasLimit := params.GenesisGasLimit
-	defer func() {
-		params.GasLimitBoundDivisor = backupGasLimitBoundDivisor
-		params.MinGasLimit = backupMinGasLimit
-		params.GenesisGasLimit = backupGenesisGasLimit
-	}()
 	params.GasLimitBoundDivisor = 1024
 	params.MinGasLimit = 5000
 	params.GenesisGasLimit = 4712388
