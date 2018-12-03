@@ -21,15 +21,18 @@ import "math/big"
 var (
 	TargetGasLimit = GenesisGasLimit // The artificial target
 
-	// the followings are modified by Quorum and purposely moved from `const` section
-	// so to faclitate the execution of Ethereum Tests
-	// @see tests/init_test.go#TestMain
-	GasLimitBoundDivisor uint64 = 4096      // The bound divisor of the gas limit, used in update calculations.
-	MinGasLimit          uint64 = 700000000 // Minimum the gas limit may ever be.
-	GenesisGasLimit      uint64 = 800000000 // Gas limit of the Genesis block.
 )
 
 const (
+	// these are original values from upstream Geth, used in ethash consensus
+	OriginnalMinGasLimit         uint64 = 5000 // The bound divisor of the gas limit, used in update calculations.
+	OriginalGasLimitBoundDivisor uint64 = 1024 // Minimum the gas limit may ever be.
+
+	// modified values for Quorum
+	GasLimitBoundDivisor uint64 = 4096      // The bound divisor of the gas limit, used in update calculations.
+	MinGasLimit          uint64 = 700000000 // Minimum the gas limit may ever be.
+	GenesisGasLimit      uint64 = 800000000 // Gas limit of the Genesis block.
+
 	MaximumExtraDataSize  uint64 = 32    // Maximum size extra data may be after Genesis.
 	ExpByteGas            uint64 = 10    // Times ceil(log256(exponent)) for the EXP instruction.
 	SloadGas              uint64 = 50    // Multiplied by the number of 32-byte words that are copied (round up) for any *COPY operation and added.

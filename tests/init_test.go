@@ -261,12 +261,3 @@ func runTestFunc(runTest interface{}, t *testing.T, name string, m reflect.Value
 		m.MapIndex(reflect.ValueOf(key)),
 	})
 }
-
-func TestMain(m *testing.M) {
-	params.GasLimitBoundDivisor = 1024
-	params.MinGasLimit = 5000
-	params.GenesisGasLimit = 4712388
-
-	retCode := m.Run()
-	os.Exit(retCode)
-}
