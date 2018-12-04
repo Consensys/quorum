@@ -105,8 +105,7 @@ out:
 
 func (self *Miner) Start(coinbase common.Address) {
 	atomic.StoreInt32(&self.shouldStart, 1)
-	self.worker.setEtherbase(coinbase)
-	self.coinbase = coinbase
+	self.SetEtherbase(coinbase)
 
 	if atomic.LoadInt32(&self.canStart) == 0 {
 		log.Info("Network syncing, will start miner afterwards")
@@ -156,8 +155,8 @@ func (self *Miner) HashRate() (tot int64) {
 }
 
 func (self *Miner) SetExtra(extra []byte) error {
-	if uint64(len(extra)) > params.GetMaximumExtraDataSize(self.worker.chain.Config().IsQuorum) {
-		return fmt.Errorf("Extra exceeds max length. %d > %v", len(extra), params.GetMaximumExtraDataSize(self.worker.chain.Config().IsQuorum))
+	if uint64(len(extra)) > params.MaximumExtraDataSize {
+		return fmt.Errorf("Extra exceeds max length. %d > %v", len(extra), params.MaximumExtraDataSize)
 	}
 	self.worker.setExtra(extra)
 	return nil

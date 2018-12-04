@@ -50,7 +50,7 @@ const (
 	// history request.
 	historyUpdateRange = 50
 
-	// txChanSize is the size of channel listening to TxPreEvent.
+	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
 	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
@@ -60,9 +60,9 @@ const (
 )
 
 type txPool interface {
-	// SubscribeTxPreEvent should return an event subscription of
-	// TxPreEvent and send events to the given channel.
-	SubscribeTxPreEvent(chan<- core.TxPreEvent) event.Subscription
+	// SubscribeNewTxsEvent should return an event subscription of
+	// NewTxsEvent and send events to the given channel.
+	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 }
 
 type blockChain interface {
@@ -173,8 +173,8 @@ func (s *Service) loop() {
 	headSub := blockchain.SubscribeChainHeadEvent(chainHeadCh)
 	defer headSub.Unsubscribe()
 
-	txEventCh := make(chan core.TxPreEvent, txChanSize)
-	txSub := txpool.SubscribeTxPreEvent(txEventCh)
+	txEventCh := make(chan core.NewTxsEvent, txChanSize)
+	txSub := txpool.SubscribeNewTxsEvent(txEventCh)
 	defer txSub.Unsubscribe()
 
 	txEventCatchUp := make(chan istanbul.CatchUpEvent, txCatchUpSize)
@@ -201,7 +201,7 @@ func (s *Service) loop() {
 				default:
 				}
 
-				// Notify of new transaction events, but drop if too frequent
+			// Notify of new transaction events, but drop if too frequent
 			case <-txEventCh:
 				if time.Duration(mclock.Now()-lastTx) < time.Second {
 					continue
@@ -231,7 +231,6 @@ func (s *Service) loop() {
 			}
 		}
 		close(quitCh)
-		return
 	}()
 	// Loop reporting until termination
 	for {
@@ -405,7 +404,7 @@ type nodeInfo struct {
 
 // authMsg is the authentication infos needed to login to a monitoring server.
 type authMsg struct {
-	Id     string   `json:"id"`
+	ID     string   `json:"id"`
 	Info   nodeInfo `json:"info"`
 	Secret string   `json:"secret"`
 }
@@ -416,16 +415,17 @@ func (s *Service) login(conn *websocket.Conn) error {
 	infos := s.server.NodeInfo()
 
 	var network, protocol string
+	//must pass engine protocol name for quorum
 	p := s.engine.Protocol()
 	if info := infos.Protocols[p.Name]; info != nil {
-		network = fmt.Sprintf("%d", info.(*eth.EthNodeInfo).Network)
-		protocol = fmt.Sprintf("%s/%d", p.Name, p.Versions[0])
+		network = fmt.Sprintf("%d", info.(*eth.NodeInfo).Network)
+		protocol = fmt.Sprintf("eth/%d", eth.ProtocolVersions[0])
 	} else {
-		network = fmt.Sprintf("%d", infos.Protocols["les"].(*eth.EthNodeInfo).Network)
-		protocol = fmt.Sprintf("les/%d", les.ProtocolVersions[0])
+		network = fmt.Sprintf("%d", infos.Protocols["les"].(*les.NodeInfo).Network)
+		protocol = fmt.Sprintf("les/%d", les.ClientProtocolVersions[0])
 	}
 	auth := &authMsg{
-		Id: s.node,
+		ID: s.node,
 		Info: nodeInfo{
 			Name:     s.node,
 			Node:     infos.Name,
@@ -512,21 +512,21 @@ func (s *Service) reportLatency(conn *websocket.Conn) error {
 
 // blockStats is the information to report about individual blocks.
 type blockStats struct {
-	Number     *big.Int        `json:"number"`
-	Hash       common.Hash     `json:"hash"`
-	ParentHash common.Hash     `json:"parentHash"`
-	Timestamp  *big.Int        `json:"timestamp"`
-	Miner      common.Address  `json:"miner"`
+	Number     *big.Int       `json:"number"`
+	Hash       common.Hash    `json:"hash"`
+	ParentHash common.Hash    `json:"parentHash"`
+	Timestamp  *big.Int       `json:"timestamp"`
+	Miner      common.Address `json:"miner"`
 	Validator  *common.Address `json:"validator"`
 	Proposer   *common.Address `json:"proposer"`
-	GasUsed    *big.Int        `json:"gasUsed"`
-	GasLimit   *big.Int        `json:"gasLimit"`
-	Diff       string          `json:"difficulty"`
-	TotalDiff  string          `json:"totalDifficulty"`
-	Txs        []txStats       `json:"transactions"`
-	TxHash     common.Hash     `json:"transactionsRoot"`
-	Root       common.Hash     `json:"stateRoot"`
-	Uncles     uncleStats      `json:"uncles"`
+	GasUsed    uint64         `json:"gasUsed"`
+	GasLimit   uint64         `json:"gasLimit"`
+	Diff       string         `json:"difficulty"`
+	TotalDiff  string         `json:"totalDifficulty"`
+	Txs        []txStats      `json:"transactions"`
+	TxHash     common.Hash    `json:"transactionsRoot"`
+	Root       common.Hash    `json:"stateRoot"`
+	Uncles     uncleStats     `json:"uncles"`
 }
 
 // txStats is the information to report about individual transactions.
@@ -545,7 +545,7 @@ func (s uncleStats) MarshalJSON() ([]byte, error) {
 	return []byte("[]"), nil
 }
 
-// reportBlock retrieves the current chain head and repors it to the stats server.
+// reportBlock retrieves the current chain head and reports it to the stats server.
 func (s *Service) reportBlock(conn *websocket.Conn, block *types.Block) error {
 	// Gather the block details from the header or block chain
 	details := s.assembleBlockStats(block)
@@ -643,8 +643,8 @@ func (s *Service) assembleBlockStats(block *types.Block) *blockStats {
 		Miner:      author,
 		Validator:  validator,
 		Proposer:   proposer,
-		GasUsed:    new(big.Int).Set(header.GasUsed),
-		GasLimit:   new(big.Int).Set(header.GasLimit),
+		GasUsed:    header.GasUsed,
+		GasLimit:   header.GasLimit,
 		Diff:       header.Difficulty.String(),
 		TotalDiff:  td.String(),
 		Txs:        txs,
@@ -697,6 +697,7 @@ func (s *Service) reportHistory(conn *websocket.Conn, list []uint64) error {
 		}
 		// Ran out of blocks, cut the report short and send
 		history = history[len(history)-i:]
+		break
 	}
 	// Assemble the history report and send it to the server
 	if len(history) > 0 {
@@ -772,7 +773,7 @@ func (s *Service) reportStats(conn *websocket.Conn) error {
 		sync := s.eth.Downloader().Progress()
 		syncing = s.eth.BlockChain().CurrentHeader().Number.Uint64() >= sync.HighestBlock
 
-		price, _ := s.eth.ApiBackend.SuggestPrice(context.Background())
+		price, _ := s.eth.APIBackend.SuggestPrice(context.Background())
 		gasprice = int(price.Uint64())
 	} else {
 		sync := s.les.Downloader().Progress()

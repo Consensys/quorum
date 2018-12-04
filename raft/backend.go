@@ -3,6 +3,7 @@ package raft
 import (
 	"sync"
 	"time"
+	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core"
@@ -32,6 +33,7 @@ type RaftService struct {
 	// we need an event mux to instantiate the blockchain
 	eventMux *event.TypeMux
 	minter   *minter
+	nodeKey  *ecdsa.PrivateKey
 }
 
 func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftId, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*discover.Node, datadir string) (*RaftService, error) {
@@ -43,6 +45,7 @@ func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftId, raft
 		accountManager: e.AccountManager(),
 		downloader:     e.Downloader(),
 		startPeers:     startPeers,
+		nodeKey:        ctx.NodeKey(),
 	}
 
 	service.minter = newMinter(chainConfig, service, blockTime)

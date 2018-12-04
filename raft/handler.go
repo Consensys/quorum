@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -50,6 +51,7 @@ type ProtocolManager struct {
 	snapshotIndex uint64 // The index of the latest snapshot.
 
 	// Remote peer state (protected by mu vs concurrent access via JS)
+	leader       uint16
 	peers        map[uint16]*Peer
 	removedPeers *set.Set // *Permanently removed* peers
 
@@ -101,6 +103,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 	manager := &ProtocolManager{
 		bootstrapNodes:      bootstrapNodes,
 		peers:               make(map[uint16]*Peer),
+		leader:              uint16(etcdRaft.None),
 		removedPeers:        set.New(),
 		joinExisting:        joinExisting,
 		blockchain:          blockchain,
@@ -271,17 +274,28 @@ func (pm *ProtocolManager) isRaftIdUsed(raftId uint16) bool {
 	return pm.peers[raftId] != nil
 }
 
-func (pm *ProtocolManager) isP2pNodeInCluster(node *discover.Node) bool {
+func (pm *ProtocolManager) isNodeAlreadyInCluster(node *discover.Node) error {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
 	for _, peer := range pm.peers {
-		if peer.p2pNode.ID == node.ID {
-			return true
+		peerRaftId := peer.address.RaftId
+		peerNode := peer.p2pNode
+
+		if peerNode.ID == node.ID {
+			return fmt.Errorf("node with this enode has already been added to the cluster: %v", node.ID)
+		}
+
+		if peerNode.IP.Equal(node.IP) {
+			if peerNode.TCP == node.TCP {
+				return fmt.Errorf("existing node %v with raft ID %v is already using eth p2p at %v:%v", peerNode.ID, peerRaftId, node.IP, node.TCP)
+			} else if peer.address.RaftPort == node.RaftPort {
+				return fmt.Errorf("existing node %v with raft ID %v is already using raft at %v:%v", peerNode.ID, peerRaftId, node.IP, node.RaftPort)
+			}
 		}
 	}
 
-	return false
+	return nil
 }
 
 func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
@@ -290,16 +304,16 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 		return 0, err
 	}
 
-	if pm.isP2pNodeInCluster(node) {
-		return 0, fmt.Errorf("node is already in the cluster: %v", enodeId)
-	}
-
 	if len(node.IP) != 4 {
 		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP))
 	}
 
 	if !node.HasRaftPort() {
 		return 0, fmt.Errorf("enodeId is missing raftport querystring parameter: %v", enodeId)
+	}
+
+	if err := pm.isNodeAlreadyInCluster(node); err != nil {
+		return 0, err
 	}
 
 	raftId := pm.nextRaftId()
@@ -621,17 +635,17 @@ func (pm *ProtocolManager) entriesToApply(allEntries []raftpb.Entry) (entriesToA
 }
 
 func raftUrl(address *Address) string {
-	return fmt.Sprintf("http://%s:%d", address.ip, address.raftPort)
+	return fmt.Sprintf("http://%s:%d", address.Ip, address.RaftPort)
 }
 
 func (pm *ProtocolManager) addPeer(address *Address) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	raftId := address.raftId
+	raftId := address.RaftId
 
 	// Add P2P connection:
-	p2pNode := discover.NewNode(address.nodeId, address.ip, 0, uint16(address.p2pPort))
+	p2pNode := discover.NewNode(address.NodeId, address.Ip, 0, uint16(address.P2pPort))
 	pm.p2pServer.AddPeer(p2pNode)
 
 	// Add raft transport connection:
@@ -679,6 +693,10 @@ func (pm *ProtocolManager) eventLoop() {
 		// to immediately publish
 		case rd := <-pm.rawNode().Ready():
 			pm.wal.Save(rd.HardState, rd.Entries)
+
+			if rd.SoftState != nil {
+				pm.updateLeader(rd.SoftState.Lead)
+			}
 
 			if snap := rd.Snapshot; !etcdRaft.IsEmptySnap(snap) {
 				pm.saveRaftSnapshot(snap)
@@ -880,4 +898,25 @@ func (pm *ProtocolManager) advanceAppliedIndex(index uint64) {
 	pm.mu.Lock()
 	pm.appliedIndex = index
 	pm.mu.Unlock()
+}
+
+func (pm *ProtocolManager) updateLeader(leader uint64) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	pm.leader = uint16(leader)
+}
+
+// The Address for the current leader, or an error if no leader is elected.
+func (pm *ProtocolManager) LeaderAddress() (*Address, error) {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	if minterRole == pm.role {
+		return pm.address, nil
+	} else if l, ok := pm.peers[pm.leader]; ok {
+		return l.address, nil
+	}
+	// We expect to reach this if pm.leader is 0, which is how etcd denotes the lack of a leader.
+	return nil, errors.New("no leader is currently elected")
 }

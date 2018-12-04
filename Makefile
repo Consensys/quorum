@@ -16,6 +16,10 @@ geth:
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."
 
+bootnode:
+	build/env.sh go run build/ci.go install ./cmd/bootnode
+	@echo "Done building bootnode."
+
 swarm:
 	build/env.sh go run build/ci.go install ./cmd/swarm
 	@echo "Done building."
@@ -37,6 +41,9 @@ ios:
 test: all
 	build/env.sh go run build/ci.go test
 
+lint: ## Run linters.
+	build/env.sh go run build/ci.go lint
+
 clean:
 	rm -fr build/_workspace/pkg/ $(GOBIN)/*
 
@@ -45,9 +52,13 @@ clean:
 
 devtools:
 	env GOBIN= go get -u golang.org/x/tools/cmd/stringer
-	env GOBIN= go get -u github.com/jteeuwen/go-bindata/go-bindata
+	env GOBIN= go get -u github.com/kevinburke/go-bindata/go-bindata
 	env GOBIN= go get -u github.com/fjl/gencodec
+	env GOBIN= go get -u github.com/golang/protobuf/protoc-gen-go
 	env GOBIN= go install ./cmd/abigen
+	@type "npm" 2> /dev/null || echo 'Please install node.js and npm'
+	@type "solc" 2> /dev/null || echo 'Please install solc'
+	@type "protoc" 2> /dev/null || echo 'Please install protoc'
 
 # Cross Compilation Targets (xgo)
 

@@ -50,7 +50,7 @@ var (
 var KeyStoreType = reflect.TypeOf(&KeyStore{})
 
 // KeyStoreScheme is the protocol scheme prefixing account and wallet URLs.
-var KeyStoreScheme = "keystore"
+const KeyStoreScheme = "keystore"
 
 // Maximum time between wallet refreshes (if filesystem notifications don't work).
 const walletRefreshCycle = 3 * time.Second
@@ -278,7 +278,7 @@ func (ks *KeyStore) SignTx(a accounts.Account, tx *types.Transaction, chainID *b
 		return nil, ErrLocked
 	}
 	// Depending on the presence of the chain ID, sign with EIP155 or homestead
-	if chainID != nil && !isQuorum {
+	if chainID != nil && !tx.IsPrivate() {
 		return types.SignTx(tx, types.NewEIP155Signer(chainID), unlockedKey.PrivateKey)
 	}
 	return types.SignTx(tx, types.HomesteadSigner{}, unlockedKey.PrivateKey)

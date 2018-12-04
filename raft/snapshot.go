@@ -30,7 +30,7 @@ type ByRaftId []Address
 
 func (a ByRaftId) Len() int           { return len(a) }
 func (a ByRaftId) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByRaftId) Less(i, j int) bool { return a[i].raftId < a[j].raftId }
+func (a ByRaftId) Less(i, j int) bool { return a[i].RaftId < a[j].RaftId }
 
 func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	pm.mu.RLock()
@@ -140,17 +140,17 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 	for _, tempAddress := range addresses {
 		address := tempAddress // Allocate separately on the heap for each iteration.
 
-		if address.raftId == pm.raftId {
+		if address.RaftId == pm.raftId {
 			// If we're a newcomer to an existing cluster, this is where we learn
 			// our own Address.
 			pm.setLocalAddress(&address)
 		} else {
 			pm.mu.RLock()
-			existingPeer := pm.peers[address.raftId]
+			existingPeer := pm.peers[address.RaftId]
 			pm.mu.RUnlock()
 
 			if existingPeer == nil {
-				log.Info("adding new raft peer", "raft id", address.raftId)
+				log.Info("adding new raft peer", "raft id", address.RaftId)
 				pm.addPeer(&address)
 			}
 		}

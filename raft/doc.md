@@ -75,7 +75,7 @@ Consider the following example where this might occur, where Raft entries attemp
 
 `[ 0xbeda Parent: 0xacaa ]`
 
-Where `0xbeda` is the ID of new block, and `0xaa` is the ID of its parent. Here, the initial minter (node 1) is partitioned, and node 2 takes over as the minter.
+Where `0xbeda` is the ID of new block, and `0xacaa` is the ID of its parent. Here, the initial minter (node 1) is partitioned, and node 2 takes over as the minter.
 
 ```
  time                   block submissions
@@ -89,7 +89,7 @@ Where `0xbeda` is the ID of new block, and `0xaa` is the ID of its parent. Here,
   |
   |   -- 1 rejoins --
   |
-  v                              [ 0x8b37 Parent: 0x8b37 ]
+  v                              [ 0x8b37 Parent: 0x839c ]
 ```
 
 Once the partition heals, at the Raft layer node1 will resubmit `0x2c52`, and the resulting serialized log might look as follows:
@@ -99,7 +99,7 @@ Once the partition heals, at the Raft layer node1 will resubmit `0x2c52`, and th
 [ 0xf0ec Parent: 0xbeda - Extends! ]  (due to node 2; let's call this the "winner")
 [ 0x839c Parent: 0xf0ec - Extends! ]  (due to node 2)
 [ 0x2c52 Parent: 0xbeda - NO-OP.   ]  (due to node 1; let's call this the "loser")
-[ 0x8b37 Parent: 0x8b37 - Extends! ]  (due to node 2)
+[ 0x8b37 Parent: 0x839c - Extends! ]  (due to node 2)
 ```
 
 Due to being serialized after the "winner," the "loser" entry will not extend the chain, because its parent (`0xbeda`) is no longer at the head of the chain when we apply the entry. The "winner" extended the same parent (`0xbeda`) earlier (and then `0x839c` extended it further.)
@@ -145,6 +145,8 @@ There is currently no limit to the length of these speculative chains, but we pl
 We communicate blocks over the HTTP transport layer built in to etcd Raft. It's also (at least theoretically) possible to use p2p protocol built-in to Ethereum as a transport for Raft. In our testing we found the default etcd HTTP transport to be more reliable than the p2p (at least as implemented in geth) under high load.
 
 Quorum listens on port 50400 by default for the raft transport, but this is configurable with the `--raftport` flag.
+
+Default number of peers is set to be 25. Max number of peers is configurable with the `--maxpeers N` where N is expected size of the cluster. 
 
 ## Initial configuration, and enacting membership changes
 
