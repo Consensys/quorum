@@ -70,8 +70,8 @@ var (
 
 	ErrChainConfigNotFound = errors.New("ChainConfig not found") // general config not found error
 
-	preimageCounter    = metrics.NewCounter("db/preimage/total")
-	preimageHitCounter = metrics.NewCounter("db/preimage/hits")
+	preimageCounter    = metrics.NewCounter()
+	preimageHitCounter = metrics.NewCounter()
 
 	privateRootPrefix          = []byte("P")
 	privateblockReceiptsPrefix = []byte("Pr") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
@@ -675,3 +675,5 @@ func GetPrivateBlockBloom(db ethdb.Database, number uint64) (bloom types.Bloom) 
 	}
 	return bloom
 }
+
+

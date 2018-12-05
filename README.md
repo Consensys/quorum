@@ -42,8 +42,8 @@ The official docker containers can be found under https://hub.docker.com/u/quoru
    * [Constellation](https://github.com/jpmorganchase/constellation): Haskell implementation of peer-to-peer encrypted message exchange for transaction privacy
    * [Tessera](https://github.com/jpmorganchase/tessera): Java implementation of peer-to-peer encrypted message exchange for transaction privacy
 * Quorum supported consensuses
-   * [Raft Consensus Documentation](raft/doc.md)
-   * [Istanbul BFT Consensus Documentation](https://github.com/ethereum/EIPs/issues/650): [RPC API](https://github.com/getamis/go-ethereum/wiki/RPC-API) and [technical article](https://medium.com/getamis/istanbul-bft-ibft-c2758b7fe6ff)
+   * [Raft Consensus Documentation](docs/raft.md)
+   * [Istanbul BFT Consensus Documentation](https://github.com/ethereum/EIPs/issues/650): [RPC API](https://github.com/jpmorganchase/quorum/blob/master/docs/istanbul-rpc-api.md) and [technical article](https://medium.com/getamis/istanbul-bft-ibft-c2758b7fe6ff). <span style="background-color: #ffffbf">Please note</span> that updated istanbul-tools is now hosted in [this](https://github.com/jpmorganchase/istanbul-tools/) repository
    * [Clique POA Consensus Documentation](https://github.com/ethereum/EIPs/issues/225) and a [guide to setup clique json](https://modalduality.org/posts/puppeth/) with [puppeth](https://blog.ethereum.org/2017/04/14/geth-1-6-puppeth-master/)
 * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) wiki page and [documentation](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
 * [quorum-tools](https://github.com/jpmorganchase/quorum-tools): local cluster orchestration, and integration testing tool
