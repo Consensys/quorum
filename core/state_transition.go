@@ -162,9 +162,7 @@ func (st *StateTransition) buyGas() error {
 	if st.state.GetBalance(st.msg.From()).Cmp(mgval) < 0 {
 		return errInsufficientBalanceForGas
 	}
-	log.Info("======== Attempting to subtract gas", "gasToSubtract", st.msg.Gas(), "gas", st.gp.Gas())
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
-		log.Info("======== Subtraction failed!!!", "err", err)
 		return err
 	}
 	st.gas += st.msg.Gas()
@@ -220,7 +218,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		data = st.data
 	}
 
-	log.Info("======== remaining gas prior to IntrinsicGas()", "gas", st.gas)
 	// Pay intrinsic gas. For a private contract this is done using the public hash passed in,
 	// not the private data retrieved above. This is because we need any (participant) validator
 	// node to get the same result as a (non-participant) minter node, to avoid out-of-gas issues.
@@ -231,7 +228,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if err = st.useGas(gas); err != nil {
 		return nil, 0, false, err
 	}
-	log.Info("======== remaining gas after IntrinsicGas()", "gas", st.gas)
 
 	var (
 		leftoverGas uint64
@@ -273,20 +269,16 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 	}
 
-	//Pay gas used during contract creation or execution (st.gas tracks remaining gas)
-	//However, if private contract then we don't want to do this else we could
-	//have a mismatch between a (non-participant) minter and (participant) validator,
-	//which can cause a 'BAD BLOCK' crash.
+	// Pay gas used during contract creation or execution (st.gas tracks remaining gas)
+	// However, if private contract then we don't want to do this else we can get
+	// a mismatch between a (non-participant) minter and (participant) validator,
+	// which can cause a 'BAD BLOCK' crash.
 	if !isPrivate {
 		st.gas = leftoverGas
-		log.Info("======== setting leftoverGas for public transaction after Create or Call", "gas", st.gas)
 	}
-	log.Info("======== left over gas to be refunded", "gas", st.gas)
 
-	log.Info("======== remaining gas prior to refundGas()", "gas", st.gas)
 	st.refundGas()
 	st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
-	log.Info("======== remaining gas after refundGas()", "gas", st.gas)
 
 	if isPrivate {
 		return ret, 0, vmerr != nil, err
