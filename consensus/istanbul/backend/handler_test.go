@@ -102,7 +102,7 @@ func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
 	postAndWait(backend, types.NewBlock(&types.Header{
 		Number:    big.NewInt(1),
 		Root:      common.StringToHash("someroot"),
-		GasLimit:  big.NewInt(1),
+		GasLimit:  1,
 		MixDigest: types.IstanbulDigest,
 	}, nil, nil, nil), t)
 
@@ -125,7 +125,7 @@ func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
 	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, true)
 	postAndWait(backend, types.NewBlock(&types.Header{
 		Number:    big.NewInt(1),
-		GasLimit:  big.NewInt(1),
+		GasLimit:  1,
 		MixDigest: types.IstanbulDigest,
 	}, nil, nil, nil), t)
 
@@ -164,7 +164,7 @@ func postAndWait(backend *backend, block *types.Block, t *testing.T) {
 func buildArbitraryP2PNewBlockMessage(t *testing.T, invalidMsg bool) (*types.Block, p2p.Msg) {
 	arbitraryBlock := types.NewBlock(&types.Header{
 		Number:    big.NewInt(1),
-		GasLimit:  big.NewInt(0),
+		GasLimit:  0,
 		MixDigest: types.IstanbulDigest,
 	}, nil, nil, nil)
 	request := []interface{}{&arbitraryBlock, big.NewInt(1)}
