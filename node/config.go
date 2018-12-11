@@ -105,6 +105,15 @@ type Config struct {
 	// useless for custom HTTP clients.
 	HTTPCors []string `toml:",omitempty"`
 
+	// HTTPVirtualHosts is the list of virtual hostnames which are allowed on incoming requests.
+	// This is by default {'localhost'}. Using this prevents attacks like
+	// DNS rebinding, which bypasses SOP by simply masquerading as being within the same
+	// origin. These attacks do not utilize CORS, since they are not cross-domain.
+	// By explicitly checking the Host-header, the server will not allow requests
+	// made against the server with a malicious host domain.
+	// Requests using ip address directly are not affected
+	HTTPVirtualHosts []string `toml:",omitempty"`
+
 	// HTTPModules is a list of API modules to expose via the HTTP RPC interface.
 	// If the module list is empty, all RPC API endpoints designated public will be
 	// exposed.
@@ -137,6 +146,8 @@ type Config struct {
 	WSExposeAll bool `toml:",omitempty"`
 
 	EnableNodePermission bool `toml:",omitempty"`
+	// Logger is a custom logger to use with the p2p.Server.
+	Logger log.Logger `toml:",omitempty"`
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
@@ -199,7 +210,7 @@ func DefaultHTTPEndpoint() string {
 	return config.HTTPEndpoint()
 }
 
-// WSEndpoint resolves an websocket endpoint based on the configured host interface
+// WSEndpoint resolves a websocket endpoint based on the configured host interface
 // and port parameters.
 func (c *Config) WSEndpoint() string {
 	if c.WSHost == "" {
@@ -362,35 +373,43 @@ func (c *Config) parsePersistentNodes(path string) []*discover.Node {
 	return nodes
 }
 
-func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
+// AccountConfig determines the settings for scrypt and keydirectory
+func (c *Config) AccountConfig() (int, int, string, error) {
 	scryptN := keystore.StandardScryptN
 	scryptP := keystore.StandardScryptP
-	if conf.UseLightweightKDF {
+	if c.UseLightweightKDF {
 		scryptN = keystore.LightScryptN
 		scryptP = keystore.LightScryptP
 	}
 
 	var (
-		keydir    string
-		ephemeral string
-		err       error
+		keydir string
+		err    error
 	)
 	switch {
-	case filepath.IsAbs(conf.KeyStoreDir):
-		keydir = conf.KeyStoreDir
-	case conf.DataDir != "":
-		if conf.KeyStoreDir == "" {
-			keydir = filepath.Join(conf.DataDir, datadirDefaultKeyStore)
+	case filepath.IsAbs(c.KeyStoreDir):
+		keydir = c.KeyStoreDir
+	case c.DataDir != "":
+		if c.KeyStoreDir == "" {
+			keydir = filepath.Join(c.DataDir, datadirDefaultKeyStore)
 		} else {
-			keydir, err = filepath.Abs(conf.KeyStoreDir)
+			keydir, err = filepath.Abs(c.KeyStoreDir)
 		}
-	case conf.KeyStoreDir != "":
-		keydir, err = filepath.Abs(conf.KeyStoreDir)
-	default:
+	case c.KeyStoreDir != "":
+		keydir, err = filepath.Abs(c.KeyStoreDir)
+	}
+	return scryptN, scryptP, keydir, err
+}
+
+func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
+	scryptN, scryptP, keydir, err := conf.AccountConfig()
+	var ephemeral string
+	if keydir == "" {
 		// There is no datadir.
 		keydir, err = ioutil.TempDir("", "go-ethereum-keystore")
 		ephemeral = keydir
 	}
+
 	if err != nil {
 		return nil, "", err
 	}

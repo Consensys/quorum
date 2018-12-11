@@ -34,7 +34,6 @@ package secp256k1
 import (
 	"crypto/elliptic"
 	"math/big"
-	"sync"
 	"unsafe"
 
 	"github.com/ethereum/go-ethereum/common/math"
@@ -42,7 +41,7 @@ import (
 
 /*
 #include "libsecp256k1/include/secp256k1.h"
-extern int secp256k1_pubkey_scalar_mul(const secp256k1_context* ctx, const unsigned char *point, const unsigned char *scalar);
+extern int secp256k1_ext_scalar_mul(const secp256k1_context* ctx, const unsigned char *point, const unsigned char *scalar);
 */
 import "C"
 
@@ -78,7 +77,7 @@ func (BitCurve *BitCurve) Params() *elliptic.CurveParams {
 	}
 }
 
-// IsOnBitCurve returns true if the given (x,y) lies on the BitCurve.
+// IsOnCurve returns true if the given (x,y) lies on the BitCurve.
 func (BitCurve *BitCurve) IsOnCurve(x, y *big.Int) bool {
 	// y² = x³ + b
 	y2 := new(big.Int).Mul(y, y) //y²
@@ -236,7 +235,7 @@ func (BitCurve *BitCurve) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, 
 	math.ReadBits(By, point[32:])
 	pointPtr := (*C.uchar)(unsafe.Pointer(&point[0]))
 	scalarPtr := (*C.uchar)(unsafe.Pointer(&scalar[0]))
-	res := C.secp256k1_pubkey_scalar_mul(context, pointPtr, scalarPtr)
+	res := C.secp256k1_ext_scalar_mul(context, pointPtr, scalarPtr)
 
 	// Unpack the result and clear temporaries.
 	x := new(big.Int).SetBytes(point[:32])
@@ -263,14 +262,10 @@ func (BitCurve *BitCurve) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
 // X9.62.
 func (BitCurve *BitCurve) Marshal(x, y *big.Int) []byte {
 	byteLen := (BitCurve.BitSize + 7) >> 3
-
 	ret := make([]byte, 1+2*byteLen)
-	ret[0] = 4 // uncompressed point
-
-	xBytes := x.Bytes()
-	copy(ret[1+byteLen-len(xBytes):], xBytes)
-	yBytes := y.Bytes()
-	copy(ret[1+2*byteLen-len(yBytes):], yBytes)
+	ret[0] = 4 // uncompressed point flag
+	math.ReadBits(x, ret[1:1+byteLen])
+	math.ReadBits(y, ret[1+byteLen:])
 	return ret
 }
 
@@ -289,24 +284,21 @@ func (BitCurve *BitCurve) Unmarshal(data []byte) (x, y *big.Int) {
 	return
 }
 
-var (
-	initonce sync.Once
-	theCurve *BitCurve
-)
+var theCurve = new(BitCurve)
 
-// S256 returns a BitCurve which implements secp256k1 (see SEC 2 section 2.7.1)
+func init() {
+	// See SEC 2 section 2.7.1
+	// curve parameters taken from:
+	// http://www.secg.org/collateral/sec2_final.pdf
+	theCurve.P = math.MustParseBig256("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F")
+	theCurve.N = math.MustParseBig256("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141")
+	theCurve.B = math.MustParseBig256("0x0000000000000000000000000000000000000000000000000000000000000007")
+	theCurve.Gx = math.MustParseBig256("0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798")
+	theCurve.Gy = math.MustParseBig256("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8")
+	theCurve.BitSize = 256
+}
+
+// S256 returns a BitCurve which implements secp256k1.
 func S256() *BitCurve {
-	initonce.Do(func() {
-		// See SEC 2 section 2.7.1
-		// curve parameters taken from:
-		// http://www.secg.org/collateral/sec2_final.pdf
-		theCurve = new(BitCurve)
-		theCurve.P, _ = new(big.Int).SetString("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 16)
-		theCurve.N, _ = new(big.Int).SetString("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 16)
-		theCurve.B, _ = new(big.Int).SetString("0000000000000000000000000000000000000000000000000000000000000007", 16)
-		theCurve.Gx, _ = new(big.Int).SetString("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 16)
-		theCurve.Gy, _ = new(big.Int).SetString("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 16)
-		theCurve.BitSize = 256
-	})
 	return theCurve
 }
