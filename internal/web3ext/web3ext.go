@@ -793,16 +793,46 @@ web3._extend({
        methods:
        [
                 new web3._extend.Method({
-                       name: 'addOrgKey',
-                       call: 'quorumKeyMgmt_addOrgKey',
+                       name: 'addMasterOrg',
+                       call: 'quorumKeyMgmt_addMasterOrg',
+                       params: 2,
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+                new web3._extend.Method({
+                       name: 'addSubOrg',
+                       call: 'quorumKeyMgmt_addSubOrg',
                        params: 3,
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
-               new web3._extend.Method({
-                       name: 'removeOrgKey',
-                       call: 'quorumKeyMgmt_removeOrgKey',
+                new web3._extend.Method({
+                       name: 'addVoter',
+                       call: 'quorumKeyMgmt_addOrgVoter',
                        params: 3,
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+                new web3._extend.Method({
+                       name: 'deleteVoter',
+                       call: 'quorumKeyMgmt_deleteOrgVoter',
+                       params: 3,
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+                new web3._extend.Method({
+                       name: 'addOrgKey',
+                       call: 'quorumKeyMgmt_addOrgKey',
+                       params: 2,
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'deleteOrgKey',
+                       call: 'quorumKeyMgmt_deleteOrgKey',
+                       params: 2,
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'approvePendingOp',
+                       call: 'quorumKeyMgmt_approvePendingOp',
+                       params: 2,
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
        ],
        properties:

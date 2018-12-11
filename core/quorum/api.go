@@ -47,12 +47,17 @@ const (
 type OrgKeyAction int
 
 const (
-	AddOrgKey OrgKeyAction = iota
-	RemoveOrgKey
+	AddMasterOrg OrgKeyAction = iota
+	AddSubOrg
+	AddOrgVoter
+	DeleteOrgVoter
+	AddOrgKey 
+	DeleteOrgKey
+	ApprovePendingOp
 )
 
-// PermissionAPI provides an API to access Quorum's node permission and org key management related services
-type PermissionAPI struct {
+// QuorumControlsAPI provides an API to access Quorum's node permission and org key management related services
+type QuorumControlsAPI struct {
 	txPool     *core.TxPool
 	ethClnt    *ethclient.Client
 	acntMgr    *accounts.Manager
@@ -68,7 +73,8 @@ type txArgs struct {
 	voter      common.Address
 	nodeId     string
 	orgId      string
-	keyId      string
+	morgId     string
+	tmKey      string
 	txa        ethapi.SendTxArgs
 	acctId     common.Address
 	accessType string
@@ -100,6 +106,7 @@ var (
 	ErrPermissionDisabled   = ExecStatus{false, "Permissions control not enabled"}
 	ErrAccountAccess        = ExecStatus{false, "Account does not have sufficient access for operation"}
 	ErrVoterAccountAccess   = ExecStatus{false, "Voter account does not have sufficient access"}
+	ErrMasterOrgExists      = ExecStatus{false, "Master org already exists"}
 	ExecSuccess             = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -123,9 +130,9 @@ var (
 	}
 )
 
-// NewPermissionAPI creates a new PermissionAPI to access quorum services
-func NewPermissionAPI(tp *core.TxPool, am *accounts.Manager) *PermissionAPI {
-	return &PermissionAPI{tp, nil, am, nil, nil, nil, nil, false}
+// NewQuorumControlsAPI creates a new QuorumControlsAPI to access quorum services
+func NewQuorumControlsAPI(tp *core.TxPool, am *accounts.Manager) *QuorumControlsAPI {
+	return &QuorumControlsAPI{tp, nil, am, nil, nil, nil, nil, false}
 }
 
 // helper function decodes the node status to string
@@ -136,8 +143,8 @@ func decodeNodeStatus(nodeStatus uint8) string {
 	return "Unknown"
 }
 
-//Init initializes PermissionAPI with eth client, permission contract and org key management control
-func (p *PermissionAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) error {
+//Init initializes QuorumControlsAPI with eth client, permission contract and org key management control
+func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) error {
 	p.ethClnt = ethClnt
 	permContr, err := pbind.NewPermissions(params.QuorumPermissionsContract, p.ethClnt)
 	if err != nil {
@@ -155,7 +162,7 @@ func (p *PermissionAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) e
 }
 
 // Returns the list of Nodes and status of each
-func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
+func (s *QuorumControlsAPI) PermissionNodeList() []nodeStatus {
 	if !s.enabled {
 		nodeStatArr := make([]nodeStatus, 1)
 		nodeStatArr[0].EnodeId = "Permisssions control not enabled for network"
@@ -188,7 +195,7 @@ func (s *PermissionAPI) PermissionNodeList() []nodeStatus {
 	return nodeStatArr
 }
 
-func (s *PermissionAPI) PermissionAccountList() []accountInfo {
+func (s *QuorumControlsAPI) PermissionAccountList() []accountInfo {
 	if !s.enabled {
 		acctInfoArr := make([]accountInfo, 1)
 		acctInfoArr[0].Address = "Account access control not enable for the network"
@@ -218,7 +225,7 @@ func (s *PermissionAPI) PermissionAccountList() []accountInfo {
 	return acctInfoArr
 }
 
-func (s *PermissionAPI) VoterList() []string {
+func (s *QuorumControlsAPI) VoterList() []string {
 	if !s.enabled {
 		voterArr := make([]string, 1)
 		voterArr[0] = "Permissions control not enabled for the network"
@@ -247,7 +254,7 @@ func (s *PermissionAPI) VoterList() []string {
 	return voterArr
 }
 
-func (s *PermissionAPI) newPermSessionWithNodeKeySigner() *pbind.PermissionsSession {
+func (s *QuorumControlsAPI) newPermSessionWithNodeKeySigner() *pbind.PermissionsSession {
 	auth := bind.NewKeyedTransactor(s.key)
 	ps := &pbind.PermissionsSession{
 		Contract: s.permContr,
@@ -272,71 +279,90 @@ func decodeAccountPermission(access uint8) string {
 }
 
 // AddVoter adds an account to the list of accounts that can approve nodes proposed or deactivated
-func (s *PermissionAPI) AddVoter(vaddr common.Address, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) AddVoter(vaddr common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(AddVoter, txArgs{voter: vaddr, txa: txa})
 }
 
 // RemoveVoter removes an account from the list of accounts that can approve nodes proposed or deactivated
-func (s *PermissionAPI) RemoveVoter(vaddr common.Address, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) RemoveVoter(vaddr common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(RemoveVoter, txArgs{voter: vaddr, txa: txa})
 }
 
 // ProposeNode proposes a node to join the network
-func (s *PermissionAPI) ProposeNode(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) ProposeNode(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ProposeNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // ApproveNode approves a proposed node to join the network
-func (s *PermissionAPI) ApproveNode(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) ApproveNode(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveNode, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // DeactivateNode requests a node to get deactivated
-func (s *PermissionAPI) ProposeNodeDeactivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) ProposeNodeDeactivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ProposeNodeDeactivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // ApproveDeactivateNode approves a node to get deactivated
-func (s *PermissionAPI) ApproveNodeDeactivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) ApproveNodeDeactivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveNodeDeactivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // DeactivateNode requests a node to get deactivated
-func (s *PermissionAPI) ProposeNodeActivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) ProposeNodeActivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ProposeNodeActivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // ApproveDeactivateNode approves a node to get deactivated
-func (s *PermissionAPI) ApproveNodeActivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) ApproveNodeActivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveNodeActivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // DeactivateNode requests a node to get deactivated
-func (s *PermissionAPI) ProposeNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) ProposeNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ProposeNodeBlacklisting, txArgs{nodeId: nodeId, txa: txa})
 }
 
 // ApproveDeactivateNode approves a node to get deactivated
-func (s *PermissionAPI) ApproveNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) ApproveNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveNodeBlacklisting, txArgs{nodeId: nodeId, txa: txa})
 }
 
+// AddMasterOrg adds an new master organization to the contract
+func (s *QuorumControlsAPI) AddMasterOrg(morgId string, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executeOrgKeyAction(AddMasterOrg, txArgs{txa: txa, morgId: morgId})
+}
+
 // RemoveOrgKey removes an org key combination from the org key map
-func (s *PermissionAPI) RemoveOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executeOrgKeyAction(RemoveOrgKey, txArgs{txa: txa, orgId: orgId, keyId: pvtKey})
+func (s *QuorumControlsAPI) AddSubOrg(orgId string, morgId string, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executeOrgKeyAction(AddSubOrg, txArgs{txa: txa, orgId: orgId, morgId: morgId})
 }
-
 // AddOrgKey adds an org key combination to the org key map
-func (s *PermissionAPI) AddOrgKey(orgId string, pvtKey string, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executeOrgKeyAction(AddOrgKey, txArgs{txa: txa, orgId: orgId, keyId: pvtKey})
+func (s *QuorumControlsAPI) AddOrgVoter(morgId string, acctId common.Address,  txa ethapi.SendTxArgs) ExecStatus {
+	return s.executeOrgKeyAction(AddOrgVoter, txArgs{txa: txa, morgId: morgId, acctId: acctId})
 }
 
-func (s *PermissionAPI) SetAccountAccess(acct common.Address, access string, txa ethapi.SendTxArgs) ExecStatus {
+// RemoveOrgKey removes an org key combination from the org key map
+func (s *QuorumControlsAPI) DeleteOrgVoter(morgId string, acctId common.Address,  txa ethapi.SendTxArgs) ExecStatus {
+	return s.executeOrgKeyAction(DeleteOrgVoter, txArgs{txa: txa, morgId: morgId, acctId: acctId})
+}
+
+func (s *QuorumControlsAPI) AddOrgKey(orgId string, tmKey string, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executeOrgKeyAction(AddOrgKey, txArgs{txa: txa, orgId: orgId, tmKey: tmKey})
+}
+
+// RemoveOrgKey removes an org key combination from the org key map
+func (s *QuorumControlsAPI) DeleteOrgKey(orgId string, tmKey string, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executeOrgKeyAction(DeleteOrgKey, txArgs{txa: txa, orgId: orgId, tmKey: tmKey})
+}
+
+
+func (s *QuorumControlsAPI) SetAccountAccess(acct common.Address, access string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(SetAccountAccess, txArgs{acctId: acct, accessType: access, txa: txa})
 }
 
 // executePermAction helps to execute an action in permission contract
-func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
+func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
 
 	if !s.enabled {
 		return ErrPermissionDisabled
@@ -503,7 +529,7 @@ func (s *PermissionAPI) executePermAction(action PermAction, args txArgs) ExecSt
 }
 
 // executeOrgKeyAction helps to execute an action in cluster contract
-func (s *PermissionAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) ExecStatus {
+func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) ExecStatus {
 	if !s.enabled {
 		return ErrPermissionDisabled
 	}
@@ -515,21 +541,37 @@ func (s *PermissionAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) Ex
 	var tx *types.Transaction
 
 	switch action {
+	case AddMasterOrg:
+		// check if the master org exists. if yes throw error
+		ret, err := ps.CheckMasterOrgExists(args.morgId)
+		log.Info("SMK-executeOrgKeyAction @547 index is ", "ret", ret, "morgId", args.morgId, "err", err)
+		if (ret) {
+			return ErrMasterOrgExists
+		}
+		tx, err = ps.AddMasterOrg(args.morgId)
+	case AddSubOrg:
+		tx, err = ps.AddSubOrg(args.orgId, args.morgId)
+	case AddOrgVoter:
+		tx, err = ps.AddVoter(args.morgId, args.acctId)
+	case DeleteOrgVoter:
+		tx, err = ps.DeleteVoter(args.morgId, args.acctId)
 	case AddOrgKey:
-		tx, err = ps.AddOrgKey(args.orgId, args.keyId)
-	case RemoveOrgKey:
-		tx, err = ps.DeleteOrgKey(args.orgId, args.keyId)
+		tx, err = ps.AddOrgKey(args.orgId, args.tmKey)
+	case DeleteOrgKey:
+		tx, err = ps.DeleteOrgKey(args.orgId, args.tmKey)
+	case ApprovePendingOp:
+		tx, err = ps.ApprovePendingOp(args.orgId)
 	}
 	if err != nil {
 		log.Error("Failed to execute orgKey action", "action", action, "err", err)
 		return ExecStatus{false, err.Error()}
 	}
 	log.Debug("executed orgKey action", "action", action, "tx", tx)
-	return ExecStatus{true, ""}
+	return ExecSuccess
 }
 
 // validateAccount validates the account and returns the wallet associated with that for signing the transaction
-func (s *PermissionAPI) validateAccount(from common.Address) (accounts.Wallet, error) {
+func (s *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Wallet, error) {
 	acct := accounts.Account{Address: from}
 	w, err := s.acntMgr.Find(acct)
 	if err != nil {
@@ -558,7 +600,7 @@ func checkIsVoter(ps *pbind.PermissionsSession, acctId common.Address) bool {
 }
 
 // newPermSession creates a new permission contract session
-func (s *PermissionAPI) newPermSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.PermissionsSession {
+func (s *QuorumControlsAPI) newPermSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.PermissionsSession {
 	frmAcct, transactOpts, gasLimit, gasPrice, nonce := s.getTxParams(txa, w)
 	ps := &pbind.PermissionsSession{
 		Contract: s.permContr,
@@ -577,7 +619,7 @@ func (s *PermissionAPI) newPermSession(w accounts.Wallet, txa ethapi.SendTxArgs)
 }
 
 // newClusterSession creates a new cluster contract session
-func (s *PermissionAPI) newClusterSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.ClusterSession {
+func (s *QuorumControlsAPI) newClusterSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.ClusterSession {
 	frmAcct, transactOpts, gasLimit, gasPrice, nonce := s.getTxParams(txa, w)
 	cs := &pbind.ClusterSession{
 		Contract: s.clustContr,
@@ -596,7 +638,7 @@ func (s *PermissionAPI) newClusterSession(w accounts.Wallet, txa ethapi.SendTxAr
 }
 
 // getTxParams extracts the transaction related parameters
-func (s *PermissionAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) (accounts.Account, *bind.TransactOpts, uint64, *big.Int, *big.Int) {
+func (s *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) (accounts.Account, *bind.TransactOpts, uint64, *big.Int, *big.Int) {
 	frmAcct := accounts.Account{Address: txa.From}
 	transactOpts := bind.NewWalletTransactor(w, frmAcct)
 	gasLimit := defaultGasLimit

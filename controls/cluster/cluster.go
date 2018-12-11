@@ -63,7 +63,7 @@ func (k *OrgKeyCtrl) populatePrivateKeys() error {
 	for recExists {
 		recExists = pastAddEvents.Next()
 		if recExists {
-			types.AddOrgKey(pastAddEvents.Event.OrgId, pastAddEvents.Event.PrivateKey)
+			types.AddOrgKey(pastAddEvents.Event.OrgId, pastAddEvents.Event.TmKey)
 		}
 	}
 
@@ -74,7 +74,7 @@ func (k *OrgKeyCtrl) populatePrivateKeys() error {
 	for recExists {
 		recExists = pastDeleteEvents.Next()
 		if recExists {
-			types.DeleteOrgKey(pastDeleteEvents.Event.OrgId, pastDeleteEvents.Event.PrivateKey)
+			types.DeleteOrgKey(pastDeleteEvents.Event.OrgId, pastDeleteEvents.Event.TmKey)
 		}
 	}
 	return nil
@@ -106,7 +106,7 @@ func (k *OrgKeyCtrl) monitorKeyAdd() {
 	for {
 		select {
 		case newEvent = <-ch:
-			types.AddOrgKey(newEvent.OrgId, newEvent.PrivateKey)
+			types.AddOrgKey(newEvent.OrgId, newEvent.TmKey)
 		}
 	}
 }
@@ -131,7 +131,7 @@ func (k *OrgKeyCtrl) monitorKeyDelete() {
 	for {
 		select {
 		case newEvent = <-ch:
-			types.DeleteOrgKey(newEvent.OrgId, newEvent.PrivateKey)
+			types.DeleteOrgKey(newEvent.OrgId, newEvent.TmKey)
 		}
 	}
 }

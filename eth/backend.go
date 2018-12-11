@@ -329,19 +329,19 @@ func (s *Ethereum) APIs() []rpc.API {
 		{
 			Namespace: "quorumNodeMgmt",
 			Version:   "1.0",
-			Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
+			Service:   quorum.NewQuorumControlsAPI(s.txPool, s.accountManager),
 			Public:    true,
 		},
 		{
 			Namespace: "quorumAcctMgmt",
 			Version:   "1.0",
-			Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
+			Service:   quorum.NewQuorumControlsAPI(s.txPool, s.accountManager),
 			Public:    true,
 		},
 		{
 			Namespace: "quorumKeyMgmt",
 			Version:   "1.0",
-			Service:   quorum.NewPermissionAPI(s.txPool, s.accountManager),
+			Service:   quorum.NewQuorumControlsAPI(s.txPool, s.accountManager),
 			Public:    true,
 		},
 	}...)

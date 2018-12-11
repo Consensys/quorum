@@ -393,7 +393,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		if v == nil {
 			utils.Fatalf("Failed to start Quorum Permission API %s", apiName)
 		}
-		qapi := v.(*quorum.PermissionAPI)
+		qapi := v.(*quorum.QuorumControlsAPI)
 		rpcClient, err := stack.Attach()
 		if err != nil {
 			utils.Fatalf("Failed to attach to self: %v", err)

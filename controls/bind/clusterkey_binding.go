@@ -15,7 +15,7 @@ import (
 )
 
 // ClusterABI is the input ABI used to generate the binding from.
-const ClusterABI = "[{\"constant\":false,\"inputs\":[],\"name\":\"printAllOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"approvePendingOp\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_privateKey\",\"type\":\"string\"}],\"name\":\"deleteOrgKey\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"addVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"deleteVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"printAllVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_privateKey\",\"type\":\"string\"}],\"name\":\"addOrgKey\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_privateKey\",\"type\":\"string\"}],\"name\":\"OrgKeyAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_privateKey\",\"type\":\"string\"}],\"name\":\"OrgKeyDeleted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_voterAccount\",\"type\":\"string\"}],\"name\":\"orgVoterAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_privateKey\",\"type\":\"string\"}],\"name\":\"KeyNotFound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"OrgNotFound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_privateKey\",\"type\":\"string\"}],\"name\":\"KeyExists\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterExists\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterNotFound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterAccountDeleted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NoVotingAccount\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"PendingApproval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_pendingOp\",\"type\":\"uint8\"},{\"indexed\":false,\"name\":\"_privateKey\",\"type\":\"string\"}],\"name\":\"ItemForApproval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NothingToApprove\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_privateKey\",\"type\":\"string\"}],\"name\":\"PrintAll\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_voterAccount\",\"type\":\"address\"}],\"name\":\"PrintVoter\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_pendingOp\",\"type\":\"uint8\"},{\"indexed\":false,\"name\":\"_pendingKey\",\"type\":\"string\"}],\"name\":\"PrintKey\",\"type\":\"event\"}]"
+const ClusterABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_morgId\",\"type\":\"string\"}],\"name\":\"addSubOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"approvePendingOp\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_tmKey\",\"type\":\"string\"}],\"name\":\"deleteOrgKey\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_morgId\",\"type\":\"string\"},{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"addVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_morgId\",\"type\":\"string\"},{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"deleteVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_morgId\",\"type\":\"string\"}],\"name\":\"addMasterOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_tmKey\",\"type\":\"string\"}],\"name\":\"addOrgKey\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_morgId\",\"type\":\"string\"}],\"name\":\"checkMasterOrgExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"MasterOrgAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"MasterOrgExists\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"MasterOrgNotFound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"SubOrgAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"SubOrgExists\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"SubOrgNotFound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_tmKey\",\"type\":\"string\"}],\"name\":\"OrgKeyAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_tmKey\",\"type\":\"string\"}],\"name\":\"OrgKeyDeleted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_tmKey\",\"type\":\"string\"}],\"name\":\"KeyNotFound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_tmKey\",\"type\":\"string\"}],\"name\":\"KeyExists\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"OrgNotFound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"PendingApproval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_pendingOp\",\"type\":\"uint8\"},{\"indexed\":false,\"name\":\"_tmKey\",\"type\":\"string\"}],\"name\":\"ItemForApproval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NothingToApprove\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NoVotingAccount\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterNotFound\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterDeleted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterExists\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_tmKey\",\"type\":\"string\"}],\"name\":\"PrintAll\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_voterAccount\",\"type\":\"address\"}],\"name\":\"PrintVoter\",\"type\":\"event\"}]"
 
 // Cluster is an auto generated Go binding around an Ethereum contract.
 type Cluster struct {
@@ -159,46 +159,114 @@ func (_Cluster *ClusterTransactorRaw) Transact(opts *bind.TransactOpts, method s
 	return _Cluster.Contract.contract.Transact(opts, method, params...)
 }
 
-// AddOrgKey is a paid mutator transaction binding the contract method 0xd88ce6bb.
+// CheckMasterOrgExists is a free data retrieval call binding the contract method 0xd912967a.
 //
-// Solidity: function addOrgKey(_orgId string, _privateKey string) returns()
-func (_Cluster *ClusterTransactor) AddOrgKey(opts *bind.TransactOpts, _orgId string, _privateKey string) (*types.Transaction, error) {
-	return _Cluster.contract.Transact(opts, "addOrgKey", _orgId, _privateKey)
+// Solidity: function checkMasterOrgExists(_morgId string) constant returns(bool)
+func (_Cluster *ClusterCaller) CheckMasterOrgExists(opts *bind.CallOpts, _morgId string) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _Cluster.contract.Call(opts, out, "checkMasterOrgExists", _morgId)
+	return *ret0, err
+}
+
+// CheckMasterOrgExists is a free data retrieval call binding the contract method 0xd912967a.
+//
+// Solidity: function checkMasterOrgExists(_morgId string) constant returns(bool)
+func (_Cluster *ClusterSession) CheckMasterOrgExists(_morgId string) (bool, error) {
+	return _Cluster.Contract.CheckMasterOrgExists(&_Cluster.CallOpts, _morgId)
+}
+
+// CheckMasterOrgExists is a free data retrieval call binding the contract method 0xd912967a.
+//
+// Solidity: function checkMasterOrgExists(_morgId string) constant returns(bool)
+func (_Cluster *ClusterCallerSession) CheckMasterOrgExists(_morgId string) (bool, error) {
+	return _Cluster.Contract.CheckMasterOrgExists(&_Cluster.CallOpts, _morgId)
+}
+
+// AddMasterOrg is a paid mutator transaction binding the contract method 0xc7304f3f.
+//
+// Solidity: function addMasterOrg(_morgId string) returns()
+func (_Cluster *ClusterTransactor) AddMasterOrg(opts *bind.TransactOpts, _morgId string) (*types.Transaction, error) {
+	return _Cluster.contract.Transact(opts, "addMasterOrg", _morgId)
+}
+
+// AddMasterOrg is a paid mutator transaction binding the contract method 0xc7304f3f.
+//
+// Solidity: function addMasterOrg(_morgId string) returns()
+func (_Cluster *ClusterSession) AddMasterOrg(_morgId string) (*types.Transaction, error) {
+	return _Cluster.Contract.AddMasterOrg(&_Cluster.TransactOpts, _morgId)
+}
+
+// AddMasterOrg is a paid mutator transaction binding the contract method 0xc7304f3f.
+//
+// Solidity: function addMasterOrg(_morgId string) returns()
+func (_Cluster *ClusterTransactorSession) AddMasterOrg(_morgId string) (*types.Transaction, error) {
+	return _Cluster.Contract.AddMasterOrg(&_Cluster.TransactOpts, _morgId)
 }
 
 // AddOrgKey is a paid mutator transaction binding the contract method 0xd88ce6bb.
 //
-// Solidity: function addOrgKey(_orgId string, _privateKey string) returns()
-func (_Cluster *ClusterSession) AddOrgKey(_orgId string, _privateKey string) (*types.Transaction, error) {
-	return _Cluster.Contract.AddOrgKey(&_Cluster.TransactOpts, _orgId, _privateKey)
+// Solidity: function addOrgKey(_orgId string, _tmKey string) returns()
+func (_Cluster *ClusterTransactor) AddOrgKey(opts *bind.TransactOpts, _orgId string, _tmKey string) (*types.Transaction, error) {
+	return _Cluster.contract.Transact(opts, "addOrgKey", _orgId, _tmKey)
 }
 
 // AddOrgKey is a paid mutator transaction binding the contract method 0xd88ce6bb.
 //
-// Solidity: function addOrgKey(_orgId string, _privateKey string) returns()
-func (_Cluster *ClusterTransactorSession) AddOrgKey(_orgId string, _privateKey string) (*types.Transaction, error) {
-	return _Cluster.Contract.AddOrgKey(&_Cluster.TransactOpts, _orgId, _privateKey)
+// Solidity: function addOrgKey(_orgId string, _tmKey string) returns()
+func (_Cluster *ClusterSession) AddOrgKey(_orgId string, _tmKey string) (*types.Transaction, error) {
+	return _Cluster.Contract.AddOrgKey(&_Cluster.TransactOpts, _orgId, _tmKey)
+}
+
+// AddOrgKey is a paid mutator transaction binding the contract method 0xd88ce6bb.
+//
+// Solidity: function addOrgKey(_orgId string, _tmKey string) returns()
+func (_Cluster *ClusterTransactorSession) AddOrgKey(_orgId string, _tmKey string) (*types.Transaction, error) {
+	return _Cluster.Contract.AddOrgKey(&_Cluster.TransactOpts, _orgId, _tmKey)
+}
+
+// AddSubOrg is a paid mutator transaction binding the contract method 0x1f953480.
+//
+// Solidity: function addSubOrg(_orgId string, _morgId string) returns()
+func (_Cluster *ClusterTransactor) AddSubOrg(opts *bind.TransactOpts, _orgId string, _morgId string) (*types.Transaction, error) {
+	return _Cluster.contract.Transact(opts, "addSubOrg", _orgId, _morgId)
+}
+
+// AddSubOrg is a paid mutator transaction binding the contract method 0x1f953480.
+//
+// Solidity: function addSubOrg(_orgId string, _morgId string) returns()
+func (_Cluster *ClusterSession) AddSubOrg(_orgId string, _morgId string) (*types.Transaction, error) {
+	return _Cluster.Contract.AddSubOrg(&_Cluster.TransactOpts, _orgId, _morgId)
+}
+
+// AddSubOrg is a paid mutator transaction binding the contract method 0x1f953480.
+//
+// Solidity: function addSubOrg(_orgId string, _morgId string) returns()
+func (_Cluster *ClusterTransactorSession) AddSubOrg(_orgId string, _morgId string) (*types.Transaction, error) {
+	return _Cluster.Contract.AddSubOrg(&_Cluster.TransactOpts, _orgId, _morgId)
 }
 
 // AddVoter is a paid mutator transaction binding the contract method 0x5607395b.
 //
-// Solidity: function addVoter(_orgId string, _address address) returns()
-func (_Cluster *ClusterTransactor) AddVoter(opts *bind.TransactOpts, _orgId string, _address common.Address) (*types.Transaction, error) {
-	return _Cluster.contract.Transact(opts, "addVoter", _orgId, _address)
+// Solidity: function addVoter(_morgId string, _address address) returns()
+func (_Cluster *ClusterTransactor) AddVoter(opts *bind.TransactOpts, _morgId string, _address common.Address) (*types.Transaction, error) {
+	return _Cluster.contract.Transact(opts, "addVoter", _morgId, _address)
 }
 
 // AddVoter is a paid mutator transaction binding the contract method 0x5607395b.
 //
-// Solidity: function addVoter(_orgId string, _address address) returns()
-func (_Cluster *ClusterSession) AddVoter(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _Cluster.Contract.AddVoter(&_Cluster.TransactOpts, _orgId, _address)
+// Solidity: function addVoter(_morgId string, _address address) returns()
+func (_Cluster *ClusterSession) AddVoter(_morgId string, _address common.Address) (*types.Transaction, error) {
+	return _Cluster.Contract.AddVoter(&_Cluster.TransactOpts, _morgId, _address)
 }
 
 // AddVoter is a paid mutator transaction binding the contract method 0x5607395b.
 //
-// Solidity: function addVoter(_orgId string, _address address) returns()
-func (_Cluster *ClusterTransactorSession) AddVoter(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _Cluster.Contract.AddVoter(&_Cluster.TransactOpts, _orgId, _address)
+// Solidity: function addVoter(_morgId string, _address address) returns()
+func (_Cluster *ClusterTransactorSession) AddVoter(_morgId string, _address common.Address) (*types.Transaction, error) {
+	return _Cluster.Contract.AddVoter(&_Cluster.TransactOpts, _morgId, _address)
 }
 
 // ApprovePendingOp is a paid mutator transaction binding the contract method 0x35dc4772.
@@ -224,86 +292,44 @@ func (_Cluster *ClusterTransactorSession) ApprovePendingOp(_orgId string) (*type
 
 // DeleteOrgKey is a paid mutator transaction binding the contract method 0x49379c50.
 //
-// Solidity: function deleteOrgKey(_orgId string, _privateKey string) returns()
-func (_Cluster *ClusterTransactor) DeleteOrgKey(opts *bind.TransactOpts, _orgId string, _privateKey string) (*types.Transaction, error) {
-	return _Cluster.contract.Transact(opts, "deleteOrgKey", _orgId, _privateKey)
+// Solidity: function deleteOrgKey(_orgId string, _tmKey string) returns()
+func (_Cluster *ClusterTransactor) DeleteOrgKey(opts *bind.TransactOpts, _orgId string, _tmKey string) (*types.Transaction, error) {
+	return _Cluster.contract.Transact(opts, "deleteOrgKey", _orgId, _tmKey)
 }
 
 // DeleteOrgKey is a paid mutator transaction binding the contract method 0x49379c50.
 //
-// Solidity: function deleteOrgKey(_orgId string, _privateKey string) returns()
-func (_Cluster *ClusterSession) DeleteOrgKey(_orgId string, _privateKey string) (*types.Transaction, error) {
-	return _Cluster.Contract.DeleteOrgKey(&_Cluster.TransactOpts, _orgId, _privateKey)
+// Solidity: function deleteOrgKey(_orgId string, _tmKey string) returns()
+func (_Cluster *ClusterSession) DeleteOrgKey(_orgId string, _tmKey string) (*types.Transaction, error) {
+	return _Cluster.Contract.DeleteOrgKey(&_Cluster.TransactOpts, _orgId, _tmKey)
 }
 
 // DeleteOrgKey is a paid mutator transaction binding the contract method 0x49379c50.
 //
-// Solidity: function deleteOrgKey(_orgId string, _privateKey string) returns()
-func (_Cluster *ClusterTransactorSession) DeleteOrgKey(_orgId string, _privateKey string) (*types.Transaction, error) {
-	return _Cluster.Contract.DeleteOrgKey(&_Cluster.TransactOpts, _orgId, _privateKey)
+// Solidity: function deleteOrgKey(_orgId string, _tmKey string) returns()
+func (_Cluster *ClusterTransactorSession) DeleteOrgKey(_orgId string, _tmKey string) (*types.Transaction, error) {
+	return _Cluster.Contract.DeleteOrgKey(&_Cluster.TransactOpts, _orgId, _tmKey)
 }
 
 // DeleteVoter is a paid mutator transaction binding the contract method 0x59cbd6fe.
 //
-// Solidity: function deleteVoter(_orgId string, _address address) returns()
-func (_Cluster *ClusterTransactor) DeleteVoter(opts *bind.TransactOpts, _orgId string, _address common.Address) (*types.Transaction, error) {
-	return _Cluster.contract.Transact(opts, "deleteVoter", _orgId, _address)
+// Solidity: function deleteVoter(_morgId string, _address address) returns()
+func (_Cluster *ClusterTransactor) DeleteVoter(opts *bind.TransactOpts, _morgId string, _address common.Address) (*types.Transaction, error) {
+	return _Cluster.contract.Transact(opts, "deleteVoter", _morgId, _address)
 }
 
 // DeleteVoter is a paid mutator transaction binding the contract method 0x59cbd6fe.
 //
-// Solidity: function deleteVoter(_orgId string, _address address) returns()
-func (_Cluster *ClusterSession) DeleteVoter(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _Cluster.Contract.DeleteVoter(&_Cluster.TransactOpts, _orgId, _address)
+// Solidity: function deleteVoter(_morgId string, _address address) returns()
+func (_Cluster *ClusterSession) DeleteVoter(_morgId string, _address common.Address) (*types.Transaction, error) {
+	return _Cluster.Contract.DeleteVoter(&_Cluster.TransactOpts, _morgId, _address)
 }
 
 // DeleteVoter is a paid mutator transaction binding the contract method 0x59cbd6fe.
 //
-// Solidity: function deleteVoter(_orgId string, _address address) returns()
-func (_Cluster *ClusterTransactorSession) DeleteVoter(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _Cluster.Contract.DeleteVoter(&_Cluster.TransactOpts, _orgId, _address)
-}
-
-// PrintAllOrg is a paid mutator transaction binding the contract method 0x2bbc5084.
-//
-// Solidity: function printAllOrg() returns()
-func (_Cluster *ClusterTransactor) PrintAllOrg(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _Cluster.contract.Transact(opts, "printAllOrg")
-}
-
-// PrintAllOrg is a paid mutator transaction binding the contract method 0x2bbc5084.
-//
-// Solidity: function printAllOrg() returns()
-func (_Cluster *ClusterSession) PrintAllOrg() (*types.Transaction, error) {
-	return _Cluster.Contract.PrintAllOrg(&_Cluster.TransactOpts)
-}
-
-// PrintAllOrg is a paid mutator transaction binding the contract method 0x2bbc5084.
-//
-// Solidity: function printAllOrg() returns()
-func (_Cluster *ClusterTransactorSession) PrintAllOrg() (*types.Transaction, error) {
-	return _Cluster.Contract.PrintAllOrg(&_Cluster.TransactOpts)
-}
-
-// PrintAllVoter is a paid mutator transaction binding the contract method 0x73f9cee0.
-//
-// Solidity: function printAllVoter() returns()
-func (_Cluster *ClusterTransactor) PrintAllVoter(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _Cluster.contract.Transact(opts, "printAllVoter")
-}
-
-// PrintAllVoter is a paid mutator transaction binding the contract method 0x73f9cee0.
-//
-// Solidity: function printAllVoter() returns()
-func (_Cluster *ClusterSession) PrintAllVoter() (*types.Transaction, error) {
-	return _Cluster.Contract.PrintAllVoter(&_Cluster.TransactOpts)
-}
-
-// PrintAllVoter is a paid mutator transaction binding the contract method 0x73f9cee0.
-//
-// Solidity: function printAllVoter() returns()
-func (_Cluster *ClusterTransactorSession) PrintAllVoter() (*types.Transaction, error) {
-	return _Cluster.Contract.PrintAllVoter(&_Cluster.TransactOpts)
+// Solidity: function deleteVoter(_morgId string, _address address) returns()
+func (_Cluster *ClusterTransactorSession) DeleteVoter(_morgId string, _address common.Address) (*types.Transaction, error) {
+	return _Cluster.Contract.DeleteVoter(&_Cluster.TransactOpts, _morgId, _address)
 }
 
 // ClusterItemForApprovalIterator is returned from FilterItemForApproval and is used to iterate over the raw logs and unpacked data for ItemForApproval events raised by the Cluster contract.
@@ -375,15 +401,15 @@ func (it *ClusterItemForApprovalIterator) Close() error {
 
 // ClusterItemForApproval represents a ItemForApproval event raised by the Cluster contract.
 type ClusterItemForApproval struct {
-	OrgId      string
-	PendingOp  uint8
-	PrivateKey string
-	Raw        types.Log // Blockchain specific contextual infos
+	OrgId     string
+	PendingOp uint8
+	TmKey     string
+	Raw       types.Log // Blockchain specific contextual infos
 }
 
 // FilterItemForApproval is a free log retrieval operation binding the contract event 0x4475befcee492797e02530076fd7e138aa058eb3bcd028a9df5c0f2815ba9f4a.
 //
-// Solidity: e ItemForApproval(_orgId string, _pendingOp uint8, _privateKey string)
+// Solidity: e ItemForApproval(_orgId string, _pendingOp uint8, _tmKey string)
 func (_Cluster *ClusterFilterer) FilterItemForApproval(opts *bind.FilterOpts) (*ClusterItemForApprovalIterator, error) {
 
 	logs, sub, err := _Cluster.contract.FilterLogs(opts, "ItemForApproval")
@@ -395,7 +421,7 @@ func (_Cluster *ClusterFilterer) FilterItemForApproval(opts *bind.FilterOpts) (*
 
 // WatchItemForApproval is a free log subscription operation binding the contract event 0x4475befcee492797e02530076fd7e138aa058eb3bcd028a9df5c0f2815ba9f4a.
 //
-// Solidity: e ItemForApproval(_orgId string, _pendingOp uint8, _privateKey string)
+// Solidity: e ItemForApproval(_orgId string, _pendingOp uint8, _tmKey string)
 func (_Cluster *ClusterFilterer) WatchItemForApproval(opts *bind.WatchOpts, sink chan<- *ClusterItemForApproval) (event.Subscription, error) {
 
 	logs, sub, err := _Cluster.contract.WatchLogs(opts, "ItemForApproval")
@@ -499,14 +525,14 @@ func (it *ClusterKeyExistsIterator) Close() error {
 
 // ClusterKeyExists represents a KeyExists event raised by the Cluster contract.
 type ClusterKeyExists struct {
-	OrgId      string
-	PrivateKey string
-	Raw        types.Log // Blockchain specific contextual infos
+	OrgId string
+	TmKey string
+	Raw   types.Log // Blockchain specific contextual infos
 }
 
 // FilterKeyExists is a free log retrieval operation binding the contract event 0xfd2bb3c1cfc78c051cb1f0ed88147fb9348eba128a594dc66fbf35dc63fe692d.
 //
-// Solidity: e KeyExists(_orgId string, _privateKey string)
+// Solidity: e KeyExists(_orgId string, _tmKey string)
 func (_Cluster *ClusterFilterer) FilterKeyExists(opts *bind.FilterOpts) (*ClusterKeyExistsIterator, error) {
 
 	logs, sub, err := _Cluster.contract.FilterLogs(opts, "KeyExists")
@@ -518,7 +544,7 @@ func (_Cluster *ClusterFilterer) FilterKeyExists(opts *bind.FilterOpts) (*Cluste
 
 // WatchKeyExists is a free log subscription operation binding the contract event 0xfd2bb3c1cfc78c051cb1f0ed88147fb9348eba128a594dc66fbf35dc63fe692d.
 //
-// Solidity: e KeyExists(_orgId string, _privateKey string)
+// Solidity: e KeyExists(_orgId string, _tmKey string)
 func (_Cluster *ClusterFilterer) WatchKeyExists(opts *bind.WatchOpts, sink chan<- *ClusterKeyExists) (event.Subscription, error) {
 
 	logs, sub, err := _Cluster.contract.WatchLogs(opts, "KeyExists")
@@ -622,13 +648,13 @@ func (it *ClusterKeyNotFoundIterator) Close() error {
 
 // ClusterKeyNotFound represents a KeyNotFound event raised by the Cluster contract.
 type ClusterKeyNotFound struct {
-	PrivateKey string
-	Raw        types.Log // Blockchain specific contextual infos
+	TmKey string
+	Raw   types.Log // Blockchain specific contextual infos
 }
 
 // FilterKeyNotFound is a free log retrieval operation binding the contract event 0x1625cf45f71f82c8ccf66926c15856f85b1e08dbe285065512100db776fdeb28.
 //
-// Solidity: e KeyNotFound(_privateKey string)
+// Solidity: e KeyNotFound(_tmKey string)
 func (_Cluster *ClusterFilterer) FilterKeyNotFound(opts *bind.FilterOpts) (*ClusterKeyNotFoundIterator, error) {
 
 	logs, sub, err := _Cluster.contract.FilterLogs(opts, "KeyNotFound")
@@ -640,7 +666,7 @@ func (_Cluster *ClusterFilterer) FilterKeyNotFound(opts *bind.FilterOpts) (*Clus
 
 // WatchKeyNotFound is a free log subscription operation binding the contract event 0x1625cf45f71f82c8ccf66926c15856f85b1e08dbe285065512100db776fdeb28.
 //
-// Solidity: e KeyNotFound(_privateKey string)
+// Solidity: e KeyNotFound(_tmKey string)
 func (_Cluster *ClusterFilterer) WatchKeyNotFound(opts *bind.WatchOpts, sink chan<- *ClusterKeyNotFound) (event.Subscription, error) {
 
 	logs, sub, err := _Cluster.contract.WatchLogs(opts, "KeyNotFound")
@@ -655,6 +681,372 @@ func (_Cluster *ClusterFilterer) WatchKeyNotFound(opts *bind.WatchOpts, sink cha
 				// New log arrived, parse the event and forward to the user
 				event := new(ClusterKeyNotFound)
 				if err := _Cluster.contract.UnpackLog(event, "KeyNotFound", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ClusterMasterOrgAddedIterator is returned from FilterMasterOrgAdded and is used to iterate over the raw logs and unpacked data for MasterOrgAdded events raised by the Cluster contract.
+type ClusterMasterOrgAddedIterator struct {
+	Event *ClusterMasterOrgAdded // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ClusterMasterOrgAddedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ClusterMasterOrgAdded)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ClusterMasterOrgAdded)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ClusterMasterOrgAddedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ClusterMasterOrgAddedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ClusterMasterOrgAdded represents a MasterOrgAdded event raised by the Cluster contract.
+type ClusterMasterOrgAdded struct {
+	OrgId string
+	Raw   types.Log // Blockchain specific contextual infos
+}
+
+// FilterMasterOrgAdded is a free log retrieval operation binding the contract event 0xfe62f8d1508aa8ddbb57fd8a6d631f4418cfcbafa90c6ce6d4b8105da5609729.
+//
+// Solidity: e MasterOrgAdded(_orgId string)
+func (_Cluster *ClusterFilterer) FilterMasterOrgAdded(opts *bind.FilterOpts) (*ClusterMasterOrgAddedIterator, error) {
+
+	logs, sub, err := _Cluster.contract.FilterLogs(opts, "MasterOrgAdded")
+	if err != nil {
+		return nil, err
+	}
+	return &ClusterMasterOrgAddedIterator{contract: _Cluster.contract, event: "MasterOrgAdded", logs: logs, sub: sub}, nil
+}
+
+// WatchMasterOrgAdded is a free log subscription operation binding the contract event 0xfe62f8d1508aa8ddbb57fd8a6d631f4418cfcbafa90c6ce6d4b8105da5609729.
+//
+// Solidity: e MasterOrgAdded(_orgId string)
+func (_Cluster *ClusterFilterer) WatchMasterOrgAdded(opts *bind.WatchOpts, sink chan<- *ClusterMasterOrgAdded) (event.Subscription, error) {
+
+	logs, sub, err := _Cluster.contract.WatchLogs(opts, "MasterOrgAdded")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ClusterMasterOrgAdded)
+				if err := _Cluster.contract.UnpackLog(event, "MasterOrgAdded", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ClusterMasterOrgExistsIterator is returned from FilterMasterOrgExists and is used to iterate over the raw logs and unpacked data for MasterOrgExists events raised by the Cluster contract.
+type ClusterMasterOrgExistsIterator struct {
+	Event *ClusterMasterOrgExists // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ClusterMasterOrgExistsIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ClusterMasterOrgExists)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ClusterMasterOrgExists)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ClusterMasterOrgExistsIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ClusterMasterOrgExistsIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ClusterMasterOrgExists represents a MasterOrgExists event raised by the Cluster contract.
+type ClusterMasterOrgExists struct {
+	OrgId string
+	Raw   types.Log // Blockchain specific contextual infos
+}
+
+// FilterMasterOrgExists is a free log retrieval operation binding the contract event 0x5c3bfabea6adb09ab9fcc026934927d15573bb92c42edcf1a4052b2342089f5e.
+//
+// Solidity: e MasterOrgExists(_orgId string)
+func (_Cluster *ClusterFilterer) FilterMasterOrgExists(opts *bind.FilterOpts) (*ClusterMasterOrgExistsIterator, error) {
+
+	logs, sub, err := _Cluster.contract.FilterLogs(opts, "MasterOrgExists")
+	if err != nil {
+		return nil, err
+	}
+	return &ClusterMasterOrgExistsIterator{contract: _Cluster.contract, event: "MasterOrgExists", logs: logs, sub: sub}, nil
+}
+
+// WatchMasterOrgExists is a free log subscription operation binding the contract event 0x5c3bfabea6adb09ab9fcc026934927d15573bb92c42edcf1a4052b2342089f5e.
+//
+// Solidity: e MasterOrgExists(_orgId string)
+func (_Cluster *ClusterFilterer) WatchMasterOrgExists(opts *bind.WatchOpts, sink chan<- *ClusterMasterOrgExists) (event.Subscription, error) {
+
+	logs, sub, err := _Cluster.contract.WatchLogs(opts, "MasterOrgExists")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ClusterMasterOrgExists)
+				if err := _Cluster.contract.UnpackLog(event, "MasterOrgExists", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ClusterMasterOrgNotFoundIterator is returned from FilterMasterOrgNotFound and is used to iterate over the raw logs and unpacked data for MasterOrgNotFound events raised by the Cluster contract.
+type ClusterMasterOrgNotFoundIterator struct {
+	Event *ClusterMasterOrgNotFound // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ClusterMasterOrgNotFoundIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ClusterMasterOrgNotFound)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ClusterMasterOrgNotFound)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ClusterMasterOrgNotFoundIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ClusterMasterOrgNotFoundIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ClusterMasterOrgNotFound represents a MasterOrgNotFound event raised by the Cluster contract.
+type ClusterMasterOrgNotFound struct {
+	OrgId string
+	Raw   types.Log // Blockchain specific contextual infos
+}
+
+// FilterMasterOrgNotFound is a free log retrieval operation binding the contract event 0xa4f69f0a4296104a861bac36ea23551d6d71a4b2d9f788ea28468eef956b4e57.
+//
+// Solidity: e MasterOrgNotFound(_orgId string)
+func (_Cluster *ClusterFilterer) FilterMasterOrgNotFound(opts *bind.FilterOpts) (*ClusterMasterOrgNotFoundIterator, error) {
+
+	logs, sub, err := _Cluster.contract.FilterLogs(opts, "MasterOrgNotFound")
+	if err != nil {
+		return nil, err
+	}
+	return &ClusterMasterOrgNotFoundIterator{contract: _Cluster.contract, event: "MasterOrgNotFound", logs: logs, sub: sub}, nil
+}
+
+// WatchMasterOrgNotFound is a free log subscription operation binding the contract event 0xa4f69f0a4296104a861bac36ea23551d6d71a4b2d9f788ea28468eef956b4e57.
+//
+// Solidity: e MasterOrgNotFound(_orgId string)
+func (_Cluster *ClusterFilterer) WatchMasterOrgNotFound(opts *bind.WatchOpts, sink chan<- *ClusterMasterOrgNotFound) (event.Subscription, error) {
+
+	logs, sub, err := _Cluster.contract.WatchLogs(opts, "MasterOrgNotFound")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ClusterMasterOrgNotFound)
+				if err := _Cluster.contract.UnpackLog(event, "MasterOrgNotFound", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -988,14 +1380,14 @@ func (it *ClusterOrgKeyAddedIterator) Close() error {
 
 // ClusterOrgKeyAdded represents a OrgKeyAdded event raised by the Cluster contract.
 type ClusterOrgKeyAdded struct {
-	OrgId      string
-	PrivateKey string
-	Raw        types.Log // Blockchain specific contextual infos
+	OrgId string
+	TmKey string
+	Raw   types.Log // Blockchain specific contextual infos
 }
 
 // FilterOrgKeyAdded is a free log retrieval operation binding the contract event 0x6f4d370520782587dabc737a258f46de81ad45d733a42cd5a0045cff1e46deb4.
 //
-// Solidity: e OrgKeyAdded(_orgId string, _privateKey string)
+// Solidity: e OrgKeyAdded(_orgId string, _tmKey string)
 func (_Cluster *ClusterFilterer) FilterOrgKeyAdded(opts *bind.FilterOpts) (*ClusterOrgKeyAddedIterator, error) {
 
 	logs, sub, err := _Cluster.contract.FilterLogs(opts, "OrgKeyAdded")
@@ -1007,7 +1399,7 @@ func (_Cluster *ClusterFilterer) FilterOrgKeyAdded(opts *bind.FilterOpts) (*Clus
 
 // WatchOrgKeyAdded is a free log subscription operation binding the contract event 0x6f4d370520782587dabc737a258f46de81ad45d733a42cd5a0045cff1e46deb4.
 //
-// Solidity: e OrgKeyAdded(_orgId string, _privateKey string)
+// Solidity: e OrgKeyAdded(_orgId string, _tmKey string)
 func (_Cluster *ClusterFilterer) WatchOrgKeyAdded(opts *bind.WatchOpts, sink chan<- *ClusterOrgKeyAdded) (event.Subscription, error) {
 
 	logs, sub, err := _Cluster.contract.WatchLogs(opts, "OrgKeyAdded")
@@ -1111,14 +1503,14 @@ func (it *ClusterOrgKeyDeletedIterator) Close() error {
 
 // ClusterOrgKeyDeleted represents a OrgKeyDeleted event raised by the Cluster contract.
 type ClusterOrgKeyDeleted struct {
-	OrgId      string
-	PrivateKey string
-	Raw        types.Log // Blockchain specific contextual infos
+	OrgId string
+	TmKey string
+	Raw   types.Log // Blockchain specific contextual infos
 }
 
 // FilterOrgKeyDeleted is a free log retrieval operation binding the contract event 0x2e0a2dc845dce9ef7206b8fe38f3dacaad17ba74d7be9fba469c9858ae16a5d6.
 //
-// Solidity: e OrgKeyDeleted(_orgId string, _privateKey string)
+// Solidity: e OrgKeyDeleted(_orgId string, _tmKey string)
 func (_Cluster *ClusterFilterer) FilterOrgKeyDeleted(opts *bind.FilterOpts) (*ClusterOrgKeyDeletedIterator, error) {
 
 	logs, sub, err := _Cluster.contract.FilterLogs(opts, "OrgKeyDeleted")
@@ -1130,7 +1522,7 @@ func (_Cluster *ClusterFilterer) FilterOrgKeyDeleted(opts *bind.FilterOpts) (*Cl
 
 // WatchOrgKeyDeleted is a free log subscription operation binding the contract event 0x2e0a2dc845dce9ef7206b8fe38f3dacaad17ba74d7be9fba469c9858ae16a5d6.
 //
-// Solidity: e OrgKeyDeleted(_orgId string, _privateKey string)
+// Solidity: e OrgKeyDeleted(_orgId string, _tmKey string)
 func (_Cluster *ClusterFilterer) WatchOrgKeyDeleted(opts *bind.WatchOpts, sink chan<- *ClusterOrgKeyDeleted) (event.Subscription, error) {
 
 	logs, sub, err := _Cluster.contract.WatchLogs(opts, "OrgKeyDeleted")
@@ -1478,14 +1870,14 @@ func (it *ClusterPrintAllIterator) Close() error {
 
 // ClusterPrintAll represents a PrintAll event raised by the Cluster contract.
 type ClusterPrintAll struct {
-	OrgId      string
-	PrivateKey string
-	Raw        types.Log // Blockchain specific contextual infos
+	OrgId string
+	TmKey string
+	Raw   types.Log // Blockchain specific contextual infos
 }
 
 // FilterPrintAll is a free log retrieval operation binding the contract event 0x3d030f7cce2619e90f621cb560eb4327f74d9a412c2daa8bed5a892d759187ec.
 //
-// Solidity: e PrintAll(_orgId string, _privateKey string)
+// Solidity: e PrintAll(_orgId string, _tmKey string)
 func (_Cluster *ClusterFilterer) FilterPrintAll(opts *bind.FilterOpts) (*ClusterPrintAllIterator, error) {
 
 	logs, sub, err := _Cluster.contract.FilterLogs(opts, "PrintAll")
@@ -1497,7 +1889,7 @@ func (_Cluster *ClusterFilterer) FilterPrintAll(opts *bind.FilterOpts) (*Cluster
 
 // WatchPrintAll is a free log subscription operation binding the contract event 0x3d030f7cce2619e90f621cb560eb4327f74d9a412c2daa8bed5a892d759187ec.
 //
-// Solidity: e PrintAll(_orgId string, _privateKey string)
+// Solidity: e PrintAll(_orgId string, _tmKey string)
 func (_Cluster *ClusterFilterer) WatchPrintAll(opts *bind.WatchOpts, sink chan<- *ClusterPrintAll) (event.Subscription, error) {
 
 	logs, sub, err := _Cluster.contract.WatchLogs(opts, "PrintAll")
@@ -1512,130 +1904,6 @@ func (_Cluster *ClusterFilterer) WatchPrintAll(opts *bind.WatchOpts, sink chan<-
 				// New log arrived, parse the event and forward to the user
 				event := new(ClusterPrintAll)
 				if err := _Cluster.contract.UnpackLog(event, "PrintAll", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ClusterPrintKeyIterator is returned from FilterPrintKey and is used to iterate over the raw logs and unpacked data for PrintKey events raised by the Cluster contract.
-type ClusterPrintKeyIterator struct {
-	Event *ClusterPrintKey // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *ClusterPrintKeyIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(ClusterPrintKey)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(ClusterPrintKey)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *ClusterPrintKeyIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *ClusterPrintKeyIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// ClusterPrintKey represents a PrintKey event raised by the Cluster contract.
-type ClusterPrintKey struct {
-	OrgId      string
-	PendingOp  uint8
-	PendingKey string
-	Raw        types.Log // Blockchain specific contextual infos
-}
-
-// FilterPrintKey is a free log retrieval operation binding the contract event 0x5ac991854acd1b6419820adc1e7485528b0ad28b55d18e070e9bcd63786e7ff8.
-//
-// Solidity: e PrintKey(_orgId string, _pendingOp uint8, _pendingKey string)
-func (_Cluster *ClusterFilterer) FilterPrintKey(opts *bind.FilterOpts) (*ClusterPrintKeyIterator, error) {
-
-	logs, sub, err := _Cluster.contract.FilterLogs(opts, "PrintKey")
-	if err != nil {
-		return nil, err
-	}
-	return &ClusterPrintKeyIterator{contract: _Cluster.contract, event: "PrintKey", logs: logs, sub: sub}, nil
-}
-
-// WatchPrintKey is a free log subscription operation binding the contract event 0x5ac991854acd1b6419820adc1e7485528b0ad28b55d18e070e9bcd63786e7ff8.
-//
-// Solidity: e PrintKey(_orgId string, _pendingOp uint8, _pendingKey string)
-func (_Cluster *ClusterFilterer) WatchPrintKey(opts *bind.WatchOpts, sink chan<- *ClusterPrintKey) (event.Subscription, error) {
-
-	logs, sub, err := _Cluster.contract.WatchLogs(opts, "PrintKey")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(ClusterPrintKey)
-				if err := _Cluster.contract.UnpackLog(event, "PrintKey", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1779,9 +2047,9 @@ func (_Cluster *ClusterFilterer) WatchPrintVoter(opts *bind.WatchOpts, sink chan
 	}), nil
 }
 
-// ClusterVoterAccountDeletedIterator is returned from FilterVoterAccountDeleted and is used to iterate over the raw logs and unpacked data for VoterAccountDeleted events raised by the Cluster contract.
-type ClusterVoterAccountDeletedIterator struct {
-	Event *ClusterVoterAccountDeleted // Event containing the contract specifics and raw log
+// ClusterSubOrgAddedIterator is returned from FilterSubOrgAdded and is used to iterate over the raw logs and unpacked data for SubOrgAdded events raised by the Cluster contract.
+type ClusterSubOrgAddedIterator struct {
+	Event *ClusterSubOrgAdded // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1795,7 +2063,7 @@ type ClusterVoterAccountDeletedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *ClusterVoterAccountDeletedIterator) Next() bool {
+func (it *ClusterSubOrgAddedIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1804,7 +2072,7 @@ func (it *ClusterVoterAccountDeletedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(ClusterVoterAccountDeleted)
+			it.Event = new(ClusterSubOrgAdded)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1819,7 +2087,7 @@ func (it *ClusterVoterAccountDeletedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(ClusterVoterAccountDeleted)
+		it.Event = new(ClusterSubOrgAdded)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1835,42 +2103,41 @@ func (it *ClusterVoterAccountDeletedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *ClusterVoterAccountDeletedIterator) Error() error {
+func (it *ClusterSubOrgAddedIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *ClusterVoterAccountDeletedIterator) Close() error {
+func (it *ClusterSubOrgAddedIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// ClusterVoterAccountDeleted represents a VoterAccountDeleted event raised by the Cluster contract.
-type ClusterVoterAccountDeleted struct {
-	OrgId   string
-	Address common.Address
-	Raw     types.Log // Blockchain specific contextual infos
+// ClusterSubOrgAdded represents a SubOrgAdded event raised by the Cluster contract.
+type ClusterSubOrgAdded struct {
+	OrgId string
+	Raw   types.Log // Blockchain specific contextual infos
 }
 
-// FilterVoterAccountDeleted is a free log retrieval operation binding the contract event 0x192eeefa7720f7067bcc0a3f5bbcc2941c417a8761ec8b795d2941f3b0d2be17.
+// FilterSubOrgAdded is a free log retrieval operation binding the contract event 0xd734c07873f32f0735016e51dc718e21a48a3bec999d5be38cf3af363fbfedab.
 //
-// Solidity: e VoterAccountDeleted(_orgId string, _address address)
-func (_Cluster *ClusterFilterer) FilterVoterAccountDeleted(opts *bind.FilterOpts) (*ClusterVoterAccountDeletedIterator, error) {
+// Solidity: e SubOrgAdded(_orgId string)
+func (_Cluster *ClusterFilterer) FilterSubOrgAdded(opts *bind.FilterOpts) (*ClusterSubOrgAddedIterator, error) {
 
-	logs, sub, err := _Cluster.contract.FilterLogs(opts, "VoterAccountDeleted")
+	logs, sub, err := _Cluster.contract.FilterLogs(opts, "SubOrgAdded")
 	if err != nil {
 		return nil, err
 	}
-	return &ClusterVoterAccountDeletedIterator{contract: _Cluster.contract, event: "VoterAccountDeleted", logs: logs, sub: sub}, nil
+	return &ClusterSubOrgAddedIterator{contract: _Cluster.contract, event: "SubOrgAdded", logs: logs, sub: sub}, nil
 }
 
-// WatchVoterAccountDeleted is a free log subscription operation binding the contract event 0x192eeefa7720f7067bcc0a3f5bbcc2941c417a8761ec8b795d2941f3b0d2be17.
+// WatchSubOrgAdded is a free log subscription operation binding the contract event 0xd734c07873f32f0735016e51dc718e21a48a3bec999d5be38cf3af363fbfedab.
 //
-// Solidity: e VoterAccountDeleted(_orgId string, _address address)
-func (_Cluster *ClusterFilterer) WatchVoterAccountDeleted(opts *bind.WatchOpts, sink chan<- *ClusterVoterAccountDeleted) (event.Subscription, error) {
+// Solidity: e SubOrgAdded(_orgId string)
+func (_Cluster *ClusterFilterer) WatchSubOrgAdded(opts *bind.WatchOpts, sink chan<- *ClusterSubOrgAdded) (event.Subscription, error) {
 
-	logs, sub, err := _Cluster.contract.WatchLogs(opts, "VoterAccountDeleted")
+	logs, sub, err := _Cluster.contract.WatchLogs(opts, "SubOrgAdded")
 	if err != nil {
 		return nil, err
 	}
@@ -1880,8 +2147,252 @@ func (_Cluster *ClusterFilterer) WatchVoterAccountDeleted(opts *bind.WatchOpts, 
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(ClusterVoterAccountDeleted)
-				if err := _Cluster.contract.UnpackLog(event, "VoterAccountDeleted", log); err != nil {
+				event := new(ClusterSubOrgAdded)
+				if err := _Cluster.contract.UnpackLog(event, "SubOrgAdded", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ClusterSubOrgExistsIterator is returned from FilterSubOrgExists and is used to iterate over the raw logs and unpacked data for SubOrgExists events raised by the Cluster contract.
+type ClusterSubOrgExistsIterator struct {
+	Event *ClusterSubOrgExists // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ClusterSubOrgExistsIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ClusterSubOrgExists)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ClusterSubOrgExists)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ClusterSubOrgExistsIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ClusterSubOrgExistsIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ClusterSubOrgExists represents a SubOrgExists event raised by the Cluster contract.
+type ClusterSubOrgExists struct {
+	OrgId string
+	Raw   types.Log // Blockchain specific contextual infos
+}
+
+// FilterSubOrgExists is a free log retrieval operation binding the contract event 0x2b24431229489a8557abb42bd24fcf95defc95e5c1277f2b08c4860e7f62ee35.
+//
+// Solidity: e SubOrgExists(_orgId string)
+func (_Cluster *ClusterFilterer) FilterSubOrgExists(opts *bind.FilterOpts) (*ClusterSubOrgExistsIterator, error) {
+
+	logs, sub, err := _Cluster.contract.FilterLogs(opts, "SubOrgExists")
+	if err != nil {
+		return nil, err
+	}
+	return &ClusterSubOrgExistsIterator{contract: _Cluster.contract, event: "SubOrgExists", logs: logs, sub: sub}, nil
+}
+
+// WatchSubOrgExists is a free log subscription operation binding the contract event 0x2b24431229489a8557abb42bd24fcf95defc95e5c1277f2b08c4860e7f62ee35.
+//
+// Solidity: e SubOrgExists(_orgId string)
+func (_Cluster *ClusterFilterer) WatchSubOrgExists(opts *bind.WatchOpts, sink chan<- *ClusterSubOrgExists) (event.Subscription, error) {
+
+	logs, sub, err := _Cluster.contract.WatchLogs(opts, "SubOrgExists")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ClusterSubOrgExists)
+				if err := _Cluster.contract.UnpackLog(event, "SubOrgExists", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ClusterSubOrgNotFoundIterator is returned from FilterSubOrgNotFound and is used to iterate over the raw logs and unpacked data for SubOrgNotFound events raised by the Cluster contract.
+type ClusterSubOrgNotFoundIterator struct {
+	Event *ClusterSubOrgNotFound // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ClusterSubOrgNotFoundIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ClusterSubOrgNotFound)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ClusterSubOrgNotFound)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ClusterSubOrgNotFoundIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ClusterSubOrgNotFoundIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ClusterSubOrgNotFound represents a SubOrgNotFound event raised by the Cluster contract.
+type ClusterSubOrgNotFound struct {
+	OrgId string
+	Raw   types.Log // Blockchain specific contextual infos
+}
+
+// FilterSubOrgNotFound is a free log retrieval operation binding the contract event 0xbdc2f111e14dcb54d9904c6194c792ff3d70aec9d1c642165aa04e89a28536cd.
+//
+// Solidity: e SubOrgNotFound(_orgId string)
+func (_Cluster *ClusterFilterer) FilterSubOrgNotFound(opts *bind.FilterOpts) (*ClusterSubOrgNotFoundIterator, error) {
+
+	logs, sub, err := _Cluster.contract.FilterLogs(opts, "SubOrgNotFound")
+	if err != nil {
+		return nil, err
+	}
+	return &ClusterSubOrgNotFoundIterator{contract: _Cluster.contract, event: "SubOrgNotFound", logs: logs, sub: sub}, nil
+}
+
+// WatchSubOrgNotFound is a free log subscription operation binding the contract event 0xbdc2f111e14dcb54d9904c6194c792ff3d70aec9d1c642165aa04e89a28536cd.
+//
+// Solidity: e SubOrgNotFound(_orgId string)
+func (_Cluster *ClusterFilterer) WatchSubOrgNotFound(opts *bind.WatchOpts, sink chan<- *ClusterSubOrgNotFound) (event.Subscription, error) {
+
+	logs, sub, err := _Cluster.contract.WatchLogs(opts, "SubOrgNotFound")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ClusterSubOrgNotFound)
+				if err := _Cluster.contract.UnpackLog(event, "SubOrgNotFound", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -2005,6 +2516,129 @@ func (_Cluster *ClusterFilterer) WatchVoterAdded(opts *bind.WatchOpts, sink chan
 				// New log arrived, parse the event and forward to the user
 				event := new(ClusterVoterAdded)
 				if err := _Cluster.contract.UnpackLog(event, "VoterAdded", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ClusterVoterDeletedIterator is returned from FilterVoterDeleted and is used to iterate over the raw logs and unpacked data for VoterDeleted events raised by the Cluster contract.
+type ClusterVoterDeletedIterator struct {
+	Event *ClusterVoterDeleted // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ClusterVoterDeletedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ClusterVoterDeleted)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ClusterVoterDeleted)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ClusterVoterDeletedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ClusterVoterDeletedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ClusterVoterDeleted represents a VoterDeleted event raised by the Cluster contract.
+type ClusterVoterDeleted struct {
+	OrgId   string
+	Address common.Address
+	Raw     types.Log // Blockchain specific contextual infos
+}
+
+// FilterVoterDeleted is a free log retrieval operation binding the contract event 0x654cd85d9b2abaf3affef0a047625d088e6e4d0448935c9b5016b5f5aa0ca3b6.
+//
+// Solidity: e VoterDeleted(_orgId string, _address address)
+func (_Cluster *ClusterFilterer) FilterVoterDeleted(opts *bind.FilterOpts) (*ClusterVoterDeletedIterator, error) {
+
+	logs, sub, err := _Cluster.contract.FilterLogs(opts, "VoterDeleted")
+	if err != nil {
+		return nil, err
+	}
+	return &ClusterVoterDeletedIterator{contract: _Cluster.contract, event: "VoterDeleted", logs: logs, sub: sub}, nil
+}
+
+// WatchVoterDeleted is a free log subscription operation binding the contract event 0x654cd85d9b2abaf3affef0a047625d088e6e4d0448935c9b5016b5f5aa0ca3b6.
+//
+// Solidity: e VoterDeleted(_orgId string, _address address)
+func (_Cluster *ClusterFilterer) WatchVoterDeleted(opts *bind.WatchOpts, sink chan<- *ClusterVoterDeleted) (event.Subscription, error) {
+
+	logs, sub, err := _Cluster.contract.WatchLogs(opts, "VoterDeleted")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ClusterVoterDeleted)
+				if err := _Cluster.contract.UnpackLog(event, "VoterDeleted", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -2251,129 +2885,6 @@ func (_Cluster *ClusterFilterer) WatchVoterNotFound(opts *bind.WatchOpts, sink c
 				// New log arrived, parse the event and forward to the user
 				event := new(ClusterVoterNotFound)
 				if err := _Cluster.contract.UnpackLog(event, "VoterNotFound", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ClusterOrgVoterAddedIterator is returned from FilterOrgVoterAdded and is used to iterate over the raw logs and unpacked data for OrgVoterAdded events raised by the Cluster contract.
-type ClusterOrgVoterAddedIterator struct {
-	Event *ClusterOrgVoterAdded // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *ClusterOrgVoterAddedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(ClusterOrgVoterAdded)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(ClusterOrgVoterAdded)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *ClusterOrgVoterAddedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *ClusterOrgVoterAddedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// ClusterOrgVoterAdded represents a OrgVoterAdded event raised by the Cluster contract.
-type ClusterOrgVoterAdded struct {
-	OrgId        string
-	VoterAccount string
-	Raw          types.Log // Blockchain specific contextual infos
-}
-
-// FilterOrgVoterAdded is a free log retrieval operation binding the contract event 0x29f608001a67850240567b3e8b7e23bcef793f113a446763600384c00899c04c.
-//
-// Solidity: e orgVoterAdded(_orgId string, _voterAccount string)
-func (_Cluster *ClusterFilterer) FilterOrgVoterAdded(opts *bind.FilterOpts) (*ClusterOrgVoterAddedIterator, error) {
-
-	logs, sub, err := _Cluster.contract.FilterLogs(opts, "orgVoterAdded")
-	if err != nil {
-		return nil, err
-	}
-	return &ClusterOrgVoterAddedIterator{contract: _Cluster.contract, event: "orgVoterAdded", logs: logs, sub: sub}, nil
-}
-
-// WatchOrgVoterAdded is a free log subscription operation binding the contract event 0x29f608001a67850240567b3e8b7e23bcef793f113a446763600384c00899c04c.
-//
-// Solidity: e orgVoterAdded(_orgId string, _voterAccount string)
-func (_Cluster *ClusterFilterer) WatchOrgVoterAdded(opts *bind.WatchOpts, sink chan<- *ClusterOrgVoterAdded) (event.Subscription, error) {
-
-	logs, sub, err := _Cluster.contract.WatchLogs(opts, "orgVoterAdded")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(ClusterOrgVoterAdded)
-				if err := _Cluster.contract.UnpackLog(event, "orgVoterAdded", log); err != nil {
 					return err
 				}
 				event.Raw = log
