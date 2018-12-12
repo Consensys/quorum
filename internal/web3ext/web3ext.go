@@ -819,14 +819,14 @@ web3._extend({
                 new web3._extend.Method({
                        name: 'addOrgKey',
                        call: 'quorumKeyMgmt_addOrgKey',
-                       params: 2,
-                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+                       params: 3,
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'deleteOrgKey',
                        call: 'quorumKeyMgmt_deleteOrgKey',
-                       params: 2,
-                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+                       params: 3,
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'approvePendingOp',

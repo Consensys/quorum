@@ -58,13 +58,13 @@ func GetAcctAccess(acctId common.Address) AccessType {
 }
 
 func AddOrgKey(orgId string, key string) {
-	defer orgKeyLock.Unlock()
 	if OrgKeyMap.Len() != 0 {
 		if val, ok := OrgKeyMap.Get(orgId); ok {
 			orgKeyLock.Lock()
 			// Org record exists. Append the key only
 			vo := val.(*OrgStruct)
 			vo.Keys = append(vo.Keys, key)
+			orgKeyLock.Unlock()
 			return
 		}
 	}

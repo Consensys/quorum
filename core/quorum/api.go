@@ -107,6 +107,15 @@ var (
 	ErrAccountAccess        = ExecStatus{false, "Account does not have sufficient access for operation"}
 	ErrVoterAccountAccess   = ExecStatus{false, "Voter account does not have sufficient access"}
 	ErrMasterOrgExists      = ExecStatus{false, "Master org already exists"}
+	ErrInvalidMasterOrg     = ExecStatus{false, "Master org does not exist. Add master org first."}
+	ErrInvalidOrg           = ExecStatus{false, "Org does not exist. Add org first."}
+	ErrOrgExists            = ExecStatus{false, "Org already exists"}
+	ErrVoterExists          = ExecStatus{false, "Voter exists"}
+	ErrPendingApprovals     = ExecStatus{false, "Pending approvals for the organization. Approve first"}
+	ErrKeyExists            = ExecStatus{false, "Key exists for the organization"}
+	ErrKeyInUse             = ExecStatus{false, "Key already in use in another master organization"}
+	ErrKeyNotFound          = ExecStatus{false, "Key not found for the organization"}
+	ErrNothingToApprove     = ExecStatus{false, "Nothing to approve"}
 	ExecSuccess             = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -356,6 +365,10 @@ func (s *QuorumControlsAPI) DeleteOrgKey(orgId string, tmKey string, txa ethapi.
 	return s.executeOrgKeyAction(DeleteOrgKey, txArgs{txa: txa, orgId: orgId, tmKey: tmKey})
 }
 
+// RemoveOrgKey removes an org key combination from the org key map
+func (s *QuorumControlsAPI) ApprovePendingOp (orgId string, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executeOrgKeyAction(ApprovePendingOp, txArgs{txa: txa, orgId: orgId})
+}
 
 func (s *QuorumControlsAPI) SetAccountAccess(acct common.Address, access string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(SetAccountAccess, txArgs{acctId: acct, accessType: access, txa: txa})
@@ -538,30 +551,109 @@ func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs
 		return ExecStatus{false, err.Error()}
 	}
 	ps := s.newClusterSession(w, args.txa)
+
 	var tx *types.Transaction
 
 	switch action {
 	case AddMasterOrg:
 		// check if the master org exists. if yes throw error
-		ret, err := ps.CheckMasterOrgExists(args.morgId)
-		log.Info("SMK-executeOrgKeyAction @547 index is ", "ret", ret, "morgId", args.morgId, "err", err)
-		if (ret) {
+		ret, _ := ps.CheckMasterOrgExists(args.morgId)
+		if ret {
 			return ErrMasterOrgExists
 		}
 		tx, err = ps.AddMasterOrg(args.morgId)
+
 	case AddSubOrg:
+		ret, _ := ps.CheckMasterOrgExists(args.morgId)
+		if !ret {
+			return ErrInvalidMasterOrg
+		}
+		ret, err = ps.CheckOrgExists(args.orgId)
+		if ret {
+			return ErrOrgExists
+		}
 		tx, err = ps.AddSubOrg(args.orgId, args.morgId)
+
 	case AddOrgVoter:
+		ret, _ := ps.CheckMasterOrgExists(args.morgId)
+		if !ret {
+			return ErrInvalidMasterOrg
+		}
+		ret, _, _ = ps.CheckIfVoterExists(args.morgId, args.acctId)
+		if ret {
+			return ErrVoterExists;
+		}
 		tx, err = ps.AddVoter(args.morgId, args.acctId)
+
 	case DeleteOrgVoter:
+		ret, _ := ps.CheckMasterOrgExists(args.morgId)
+		if !ret {
+			return ErrInvalidMasterOrg
+		}
+		ret, _, _ = ps.CheckIfVoterExists(args.morgId, args.acctId)
+		if !ret {
+			return ErrInvalidAccount;
+		}
 		tx, err = ps.DeleteVoter(args.morgId, args.acctId)
+
 	case AddOrgKey:
+		ret, _ := ps.CheckOrgExists(args.orgId)
+		if !ret {
+			return ErrInvalidOrg
+		}
+		ret, _ = ps.CheckVotingAccountExists(args.orgId)
+		if !ret {
+			return ErrNoVoterAccount
+		}
+		ret, _ = ps.CheckOrgPendingOp(args.orgId)
+		if ret {
+			return ErrPendingApprovals
+		}
+		ret, _, _ = ps.CheckIfKeyExists(args.orgId, args.tmKey)
+		if ret {
+			return ErrKeyExists
+		}
+		ret, _ = ps.CheckKeyClash(args.orgId, args.tmKey)
+		if ret {
+			return ErrKeyInUse
+		}
 		tx, err = ps.AddOrgKey(args.orgId, args.tmKey)
+
 	case DeleteOrgKey:
+		ret, _ := ps.CheckOrgExists(args.orgId)
+		if !ret {
+			return ErrInvalidOrg
+		}
+		ret, _ = ps.CheckVotingAccountExists(args.orgId)
+		if !ret {
+			return ErrNoVoterAccount
+		}
+		ret, _ = ps.CheckOrgPendingOp(args.orgId)
+		if ret {
+			return ErrPendingApprovals
+		}
+		ret, _, _ = ps.CheckIfKeyExists(args.orgId, args.tmKey)
+		if !ret {
+			return ErrKeyNotFound
+		}
 		tx, err = ps.DeleteOrgKey(args.orgId, args.tmKey)
+
 	case ApprovePendingOp:
+		ret, _ := ps.CheckOrgExists(args.orgId)
+		if !ret {
+			return ErrInvalidOrg
+		}
+		ret, _ = ps.IsVoter(args.orgId, args.txa.From)
+		if !ret {
+			return ErrAccountNotAVoter
+		}
+		ret, _ = ps.CheckOrgPendingOp(args.orgId)
+		if !ret {
+			return ErrNothingToApprove
+		}
 		tx, err = ps.ApprovePendingOp(args.orgId)
 	}
+
 	if err != nil {
 		log.Error("Failed to execute orgKey action", "action", action, "err", err)
 		return ExecStatus{false, err.Error()}
