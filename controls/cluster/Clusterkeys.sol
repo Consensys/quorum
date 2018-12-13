@@ -213,6 +213,15 @@ contract Clusterkeys {
   }
   // All extenal view functions
 
+  // returns the number of orgs
+  function getNumberOfOrgs() external view returns (uint){
+    return orgNum;
+  }
+
+  function getOrgInfo(uint _orgIndex) external view returns (string, string){
+    return (orgList[_orgIndex].orgId, orgList[_orgIndex].morgId);
+  }
+
   // checks if the sender is one of the registered voter account for the org
   function isVoter (string _orgId, address account) external view returns (bool){
     bool flag = false;

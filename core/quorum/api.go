@@ -90,6 +90,12 @@ type accountInfo struct {
 	Access  string
 }
 
+type orgInfo struct {
+	MasterOrgId    string
+	SubOrgId       string
+	SubOrgKeyList  []string 
+}
+
 type ExecStatus struct {
 	Status bool
 	Msg    string
@@ -280,6 +286,22 @@ func (s *QuorumControlsAPI) newPermSessionWithNodeKeySigner() *pbind.Permissions
 	return ps
 }
 
+func (s *QuorumControlsAPI) newOrgKeySessionWithNodeKeySigner() *pbind.ClusterSession {
+	auth := bind.NewKeyedTransactor(s.key)
+	cs := &pbind.ClusterSession{
+		Contract: s.clustContr,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     auth.From,
+			Signer:   auth.Signer,
+			GasLimit: 4700000,
+			GasPrice: big.NewInt(0),
+		},
+	}
+	return cs
+}
 func decodeAccountPermission(access uint8) string {
 	if status, ok := accountPermMap[access]; ok {
 		return status
@@ -539,6 +561,34 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 	}
 	log.Debug("executed permission action", "action", action, "tx", tx)
 	return ExecSuccess
+}
+
+func (s *QuorumControlsAPI) AllOrgList() []orgInfo {
+	log.Info("SMK-AllOrgList @ 566")
+	ps := s.newOrgKeySessionWithNodeKeySigner()
+	// get the total number of accounts with permissions
+	orgCnt, err := ps.GetNumberOfOrgs()
+	if err != nil {
+		return nil
+	}
+	orgCntI := orgCnt.Int64()
+	log.Debug("total orgs", "count", orgCntI)
+	log.Info("SMK-AllOrgList total orgs", "count", orgCntI)
+	orgArr := make([]orgInfo, orgCntI)
+	// loop for each index and get the node details from the contract
+	i := int64(0)
+	for i < orgCntI {
+		log.Info("SMK-AllOrgList  inside loop", "i", i)
+		orgId, morgId, err := ps.GetOrgInfo(big.NewInt(i))
+		if err != nil {
+			log.Error("error getting voter info", "err", err)
+		} else {
+			orgArr[i].OrgId = orgId
+			orgArr[i].MasterOrgId = morgId
+		}
+		i++
+	}
+	return orgArr
 }
 
 // executeOrgKeyAction helps to execute an action in cluster contract
