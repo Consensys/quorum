@@ -95,9 +95,10 @@ contract Clusterkeys {
 
   // checks if enough votes have been cast for the pending operation. If yes
   // returns true
-  function checkEnoughVotes (string _orgId) internal view returns (bool) {
+  function checkEnoughVotes (string _orgId, string _morgId) internal view returns (bool) {
     uint orgIndex = getOrgIndex(_orgId);
-    if (voteCount[orgIndex] > masterOrgList[orgIndex].voterAccount.length / 2 ){
+    uint morgIndex = getMasterOrgIndex(_morgId);
+    if (voteCount[orgIndex] > masterOrgList[morgIndex].voterAccount.length / 2 ){
       return true;
     }
     return false;
@@ -160,7 +161,7 @@ contract Clusterkeys {
 
   // function to process the approavl for add or delete
   function processApproval(uint _orgIndex) internal {
-    if(checkEnoughVotes(orgList[_orgIndex].orgId)){
+    if(checkEnoughVotes(orgList[_orgIndex].orgId, orgList[_orgIndex].morgId)){
       string storage locKey = orgList[_orgIndex].pendingKey;
       if (orgList[_orgIndex].pendingOp == Operation.Add){
         orgList[_orgIndex].tmKey.push(orgList[_orgIndex].pendingKey);
