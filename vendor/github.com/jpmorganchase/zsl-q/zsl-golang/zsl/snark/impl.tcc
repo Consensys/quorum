@@ -107,11 +107,13 @@ bool zsl_verify_unshielding(
     void *proof_ptr,
     void *spend_nf_ptr,
     void *rt_ptr,
+    void *addr_ptr,
     uint64_t value
 )
 {
     unsigned char *spend_nf = reinterpret_cast<unsigned char *>(spend_nf_ptr);
     unsigned char *rt = reinterpret_cast<unsigned char *>(rt_ptr);
+    unsigned char *addr = reinterpret_cast<unsigned char *>(addr_ptr);
     unsigned char *proof = reinterpret_cast<unsigned char *>(proof_ptr);
 
     std::vector<unsigned char> proof_v(proof, proof+584);
@@ -131,6 +133,7 @@ bool zsl_verify_unshielding(
     auto witness_map = UnshieldingCircuit<FieldT>::witness_map(
         std::vector<unsigned char>(spend_nf, spend_nf+32),
         std::vector<unsigned char>(rt, rt+32),
+        std::vector<unsigned char>(addr, addr+20),
         value
     );
 
@@ -146,7 +149,8 @@ bool zsl_verify_unshielding(
 
 void zsl_prove_unshielding(
     void *rho_ptr,
-    void *pk_ptr,
+    void *sk_ptr,
+    void *addr_ptr,
     uint64_t value,
     uint64_t tree_position,
     void *authentication_path_ptr,
@@ -154,7 +158,8 @@ void zsl_prove_unshielding(
 )
 {
     unsigned char *rho = reinterpret_cast<unsigned char *>(rho_ptr);
-    unsigned char *pk = reinterpret_cast<unsigned char *>(pk_ptr);
+    unsigned char *sk = reinterpret_cast<unsigned char *>(sk_ptr);
+    unsigned char *addr = reinterpret_cast<unsigned char *>(addr_ptr);
     unsigned char *output_proof = reinterpret_cast<unsigned char *>(output_proof_ptr);
     unsigned char *authentication_path = reinterpret_cast<unsigned char *>(authentication_path_ptr);
 
@@ -171,7 +176,8 @@ void zsl_prove_unshielding(
 
     g.generate_r1cs_witness(
         std::vector<unsigned char>(rho, rho + 32),
-        std::vector<unsigned char>(pk, pk + 32),
+        std::vector<unsigned char>(sk, sk + 32),
+        std::vector<unsigned char>(addr, addr + 20),
         value,
         tree_position,
         auth_path

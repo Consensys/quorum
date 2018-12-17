@@ -767,7 +767,7 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'createUnshielding',
 			call: 'zsl_createUnshielding',
-			params: 5
+			params: 6
 		}),
 		new web3._extend.Method({
 			name: 'createShieldedTransfer',
@@ -787,7 +787,7 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'verifyUnshielding',
 			call: 'zsl_verifyUnshielding',
-			params: 4
+			params: 5
 		}),
 		new web3._extend.Method({
 			name: 'getNewAddress',
