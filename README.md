@@ -1,32 +1,3 @@
-# NOTE
-
-This branch patches a vulnerability described in the [Quorum ZSL Wiki](https://github.com/jpmorganchase/quorum/wiki/ZSL) and exploited in the [zsl_adversary](https://github.com/benediamond/quorum/tree/zsl_adversary) branch of this repository. In this branch, no `unshield` transaction can be mis-appropriated, even if an adversary intercepts, re-signs, and re-broadcasts its payload.
-
-The solution involves introducing a cryptographic link between each `unshield` proof and its prover's Ethereum account. Previously, an unshielder broadcasted a proof demonstrating that, given a public _committment_ `cm` (established by a prior `shield` transaction), a _spend nullifier_ `spend_nf`, and a _value_ `val`, the prover knows a _secret random nonce_ `rho` and a _spending key_ `sk` for which `spend_nf = SHA-256(0x01 | rho | sk)` and `cm = SHA-256(rho | pk | val)` (where `pk = SHA-256(sk)`).
-
-This proof, of course, asserts nothing about the _Ethereum_ identity of the prover, and should in fact be considered a secret: a malicious Raft leader, upon rebroadcasting the proof as his own, may steal its corresponding funds.
-
-We redefine a shielded note's _spend nullifier_ as `spend_nf = SHA-256(0x01 | rho | sk | addr)`, where `addr` is the _public Ethereum address of the prover_. A prover, then, demonstrates in zero knowledge that he knows `rho`, `sk` for which the public `spend_nf = SHA-256(0x01 | rho | sk | addr)`. The on-chain verifier verifies this proof by supplying `msg.sender` as `addr`. Under expected usage, the proof will authenticate; if `msg.sender` differs from the address supplied by the prover during proof generation, the verification will fail.
-
-No adversary, moreover, can forge a proof using the prover's broadcasted transaction. Its payload reveals, by construction, nothing about the hidden witnesses `rho` and `sk`; the security of this scheme, therefore, reduces to the difficulty of constructing from scratch the ("curried") SHA-256 preimages `rho` and `sk`. (The adversary could of course generate new values `rho` and `sk` and broadcast an altered spend nullifier; however, in this case note commitment integrity would fail.)
-
-This repository contains complete code, including precompiled contracts. The required minor modifications to the ZSL contracts can be found at [benediamond/zsl-q](https://github.com/benediamond/zsl-q). A modified `ztracker.js` file (including re-compiled contract ABIs and bytecodes) can be found [here](https://github.com/benediamond/quorum-examples/blob/zsl_patch/examples/7nodes/ztracker.js). Note finally that the parameters `unshielding.pk` and `unshielding.vk` must be freshly generated, following the instructions [here](https://github.com/jpmorganchase/zsl-q).
-
-# Demonstration
-
-The instructions at `zsl_adversary`'s [README](https://github.com/benediamond/quorum/blob/zsl_adversary/README.md) should be followed exactly as before, except for the unshielding proof generation step:
-
-```javascript
-result = zsl.createUnshielding(rho, sk, value, treeIndex, authPath)
-```
-should be replaced with
-```javascript
-result = zsl.createUnshielding(rho, sk, eth.accounts[0], value, treeIndex, authPath)
-```
-The call to `ztoken.unshield`, on the other hand, proceeds as before. Notice that a replay of the `unshield`ing transaction will fail to credit the adversary's balance; a properly authorized `unshield` will succeed.
-
-A general unshielding test suite can be accessed through `zsl.debugUnshielding()`.
-
 # Quorum
 
 Quorum is an Ethereum-based distributed ledger protocol with transaction/contract privacy and a new consensus mechanism.
