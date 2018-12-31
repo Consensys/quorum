@@ -108,11 +108,6 @@ func (api *API) Propose(address common.Address, auth bool) {
 	api.istanbul.candidates[address] = auth
 }
 
-// ProposeNull is a noop function to invalidate instanbul_propose calls from web3
-func (api *API) ProposeNull(address common.Address, auth bool) {
-	return
-}
-
 // Discard drops a currently running candidate, stopping the validator from casting
 // further votes (either for or against).
 func (api *API) Discard(address common.Address) {

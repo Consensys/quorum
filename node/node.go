@@ -374,7 +374,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	handler := rpc.NewServer()
 	for _, api := range apis {
 		if whitelist[api.Namespace] || (len(whitelist) == 0 && api.Public) {
-			if err := handler.RegisterNameRes(api.Namespace, api.Service); err != nil {
+			if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
 				return err
 			}
 			log.Debug(fmt.Sprintf("HTTP registered %T under '%s'", api.Service, api.Namespace))

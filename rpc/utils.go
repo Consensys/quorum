@@ -22,7 +22,6 @@ import (
 	crand "crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"math/rand"
 	"reflect"
@@ -118,95 +117,6 @@ func isHexNum(t reflect.Type) bool {
 	}
 
 	return t == bigIntType
-}
-
-
-func suitableCallbacksRes(rcvr reflect.Value, typ reflect.Type) (callbacks, subscriptions) {
-	callbacks := make(callbacks)
-	subscriptions := make(subscriptions)
-
-METHODS:
-	for m := 0; m < typ.NumMethod(); m++ {
-		method := typ.Method(m)
-		mtype := method.Type
-		mname := formatName(method.Name)
-		if method.PkgPath != "" { // method must be exported
-			continue
-		}
-		fmt.Printf("mname", mname)
-		if(strings.Compare(mname, "propose") == 0 ){
-			continue
-		}
-
-		var h callback
-		h.isSubscribe = isPubSub(mtype)
-		h.rcvr = rcvr
-		h.method = method
-		h.errPos = -1
-
-		firstArg := 1
-		numIn := mtype.NumIn()
-		if numIn >= 2 && mtype.In(1) == contextType {
-			h.hasCtx = true
-			firstArg = 2
-		}
-
-		if h.isSubscribe {
-			h.argTypes = make([]reflect.Type, numIn-firstArg) // skip rcvr type
-			for i := firstArg; i < numIn; i++ {
-				argType := mtype.In(i)
-				if isExportedOrBuiltinType(argType) {
-					h.argTypes[i-firstArg] = argType
-				} else {
-					continue METHODS
-				}
-			}
-
-			subscriptions[mname] = &h
-			continue METHODS
-		}
-
-		// determine method arguments, ignore first arg since it's the receiver type
-		// Arguments must be exported or builtin types
-		h.argTypes = make([]reflect.Type, numIn-firstArg)
-		for i := firstArg; i < numIn; i++ {
-			argType := mtype.In(i)
-			if !isExportedOrBuiltinType(argType) {
-				continue METHODS
-			}
-			h.argTypes[i-firstArg] = argType
-		}
-
-		// check that all returned values are exported or builtin types
-		for i := 0; i < mtype.NumOut(); i++ {
-			if !isExportedOrBuiltinType(mtype.Out(i)) {
-				continue METHODS
-			}
-		}
-
-		// when a method returns an error it must be the last returned value
-		h.errPos = -1
-		for i := 0; i < mtype.NumOut(); i++ {
-			if isErrorType(mtype.Out(i)) {
-				h.errPos = i
-				break
-			}
-		}
-
-		if h.errPos >= 0 && h.errPos != mtype.NumOut()-1 {
-			continue METHODS
-		}
-
-		switch mtype.NumOut() {
-		case 0, 1, 2:
-			if mtype.NumOut() == 2 && h.errPos == -1 { // method must one return value and 1 error
-				continue METHODS
-			}
-			callbacks[mname] = &h
-		}
-	}
-
-	return callbacks, subscriptions
 }
 
 // suitableCallbacks iterates over the methods of the given type. It will determine if a method satisfies the criteria
