@@ -1342,6 +1342,8 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 				return common.Hash{}, err
 			}
 		}
+	} else {
+		return common.Hash{}, fmt.Errorf("transaction is not private")
 	}
 
 	return submitTransaction(ctx, s.b, tx, isPrivate)
