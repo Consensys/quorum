@@ -12,14 +12,11 @@
 // source file.
 //
 // On top of filesystem watchers notify maintains a watchpoint tree, which provides
-// a strategy for creating and closing filesystem watches and dispatching filesystem
+// strategy for creating and closing filesystem watches and dispatching filesystem
 // events to user channels.
 //
 // An event set is just an event list joint using bitwise OR operator
 // into a single event value.
-// Both the platform-independent (see Constants) and specific events can be used.
-// Refer to the event_*.go source files for information about the available
-// events.
 //
 // A filesystem watch or just a watch is platform-specific entity which represents
 // a single path registered for notifications for specific event set. Setting a watch
@@ -38,6 +35,6 @@
 // A watchpoint is a list of user channel and event set pairs for particular
 // path (watchpoint tree's node). A single watchpoint can contain multiple
 // different user channels registered to listen for one or more events. A single
-// user channel can be registered in one or more watchpoints, recursive and
+// user channel can be registered in one or more watchpoints, recurisve and
 // non-recursive ones as well.
 package notify

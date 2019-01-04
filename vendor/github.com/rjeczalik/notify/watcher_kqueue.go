@@ -36,9 +36,16 @@ type kq struct {
 
 // watched is a data structure representing watched file/directory.
 type watched struct {
-	trgWatched
+	// p is a path to watched file/directory.
+	p string
 	// fd is a file descriptor for watched file/directory.
 	fd int
+	// fi provides information about watched file/dir.
+	fi os.FileInfo
+	// eDir represents events watched directly.
+	eDir Event
+	// eNonDir represents events watched indirectly.
+	eNonDir Event
 }
 
 // Stop implements trigger.
@@ -59,10 +66,7 @@ func (*kq) NewWatched(p string, fi os.FileInfo) (*watched, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &watched{
-		trgWatched: trgWatched{p: p, fi: fi},
-		fd:         fd,
-	}, nil
+	return &watched{fd: fd, p: p, fi: fi}, nil
 }
 
 // Record implements trigger.

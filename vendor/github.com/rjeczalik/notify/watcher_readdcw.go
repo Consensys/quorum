@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018 The Notify Authors. All rights reserved.
+// Copyright (c) 2014-2015 The Notify Authors. All rights reserved.
 // Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
@@ -22,7 +22,7 @@ import (
 const readBufferSize = 4096
 
 // Since all operations which go through the Windows completion routine are done
-// asynchronously, filter may set one of the constants below. They were defined
+// asynchronously, filter may set one of the constants belor. They were defined
 // in order to distinguish whether current folder should be re-registered in
 // ReadDirectoryChangesW function or some control operations need to be executed.
 const (
@@ -109,13 +109,8 @@ func (g *grip) register(cph syscall.Handle) (err error) {
 // buffer. Directory changes that occur between calls to this function are added
 // to the buffer and then, returned with the next call.
 func (g *grip) readDirChanges() error {
-	handle := syscall.Handle(atomic.LoadUintptr((*uintptr)(&g.handle)))
-	if handle == syscall.InvalidHandle {
-		return nil // Handle was closed.
-	}
-
 	return syscall.ReadDirectoryChanges(
-		handle,
+		g.handle,
 		&g.buffer[0],
 		uint32(unsafe.Sizeof(g.buffer)),
 		g.recursive,
@@ -225,27 +220,12 @@ func (wd *watched) updateGrip(idx int, cph syscall.Handle, reset bool,
 // returned from the operating system kernel.
 func (wd *watched) closeHandle() (err error) {
 	for _, g := range wd.digrip {
-		if g == nil {
-			continue
-		}
-
-		for {
-			handle := syscall.Handle(atomic.LoadUintptr((*uintptr)(&g.handle)))
-			if handle == syscall.InvalidHandle {
-				break // Already closed.
-			}
-
-			e := syscall.CloseHandle(handle)
-			if e != nil && err == nil {
-				err = e
-			}
-
-			// Set invalid handle even when CloseHandle fails. This will leak
-			// the handle but, since we can't close it anyway, there won't be
-			// any difference.
-			if atomic.CompareAndSwapUintptr((*uintptr)(&g.handle),
-				(uintptr)(handle), (uintptr)(syscall.InvalidHandle)) {
-				break
+		if g != nil && g.handle != syscall.InvalidHandle {
+			switch suberr := syscall.CloseHandle(g.handle); {
+			case suberr == nil:
+				g.handle = syscall.InvalidHandle
+			case err == nil:
+				err = suberr
 			}
 		}
 	}
@@ -292,49 +272,48 @@ func (r *readdcw) RecursiveWatch(path string, event Event) error {
 // watch inserts a directory to the group of watched folders. If watched folder
 // already exists, function tries to rewatch it with new filters(NOT VALID). Moreover,
 // watch starts the main event loop goroutine when called for the first time.
-func (r *readdcw) watch(path string, event Event, recursive bool) error {
+func (r *readdcw) watch(path string, event Event, recursive bool) (err error) {
 	if event&^(All|fileNotifyChangeAll) != 0 {
 		return errors.New("notify: unknown event")
 	}
-
 	r.Lock()
-	defer r.Unlock()
-
-	if wd, ok := r.m[path]; ok {
-		dbgprint("watch: already exists")
-		wd.filter &^= stateUnwatch
-		return nil
+	wd, ok := r.m[path]
+	r.Unlock()
+	if !ok {
+		if err = r.lazyinit(); err != nil {
+			return
+		}
+		r.Lock()
+		if wd, ok = r.m[path]; ok {
+			r.Unlock()
+			return
+		}
+		if wd, err = newWatched(r.cph, uint32(event), recursive, path); err != nil {
+			r.Unlock()
+			return
+		}
+		r.m[path] = wd
+		r.Unlock()
 	}
-
-	if err := r.lazyinit(); err != nil {
-		return err
-	}
-
-	wd, err := newWatched(r.cph, uint32(event), recursive, path)
-	if err != nil {
-		return err
-	}
-
-	r.m[path] = wd
-	dbgprint("watch: new watch added")
-
 	return nil
 }
 
-// lazyinit creates an I/O completion port and starts the main event loop.
+// lazyinit creates an I/O completion port and starts the main event processing
+// loop. This method uses Double-Checked Locking optimization.
 func (r *readdcw) lazyinit() (err error) {
 	invalid := uintptr(syscall.InvalidHandle)
-
 	if atomic.LoadUintptr((*uintptr)(&r.cph)) == invalid {
-		cph := syscall.InvalidHandle
-		if cph, err = syscall.CreateIoCompletionPort(cph, 0, 0, 0); err != nil {
-			return
+		r.Lock()
+		defer r.Unlock()
+		if atomic.LoadUintptr((*uintptr)(&r.cph)) == invalid {
+			cph := syscall.InvalidHandle
+			if cph, err = syscall.CreateIoCompletionPort(cph, 0, 0, 0); err != nil {
+				return
+			}
+			r.cph, r.start = cph, true
+			go r.loop()
 		}
-
-		r.cph, r.start = cph, true
-		go r.loop()
 	}
-
 	return
 }
 
@@ -358,33 +337,33 @@ func (r *readdcw) loop() {
 			continue
 		}
 		overEx := (*overlappedEx)(unsafe.Pointer(overlapped))
-		if n != 0 {
+		if n == 0 {
+			r.loopstate(overEx)
+		} else {
 			r.loopevent(n, overEx)
 			if err = overEx.parent.readDirChanges(); err != nil {
 				// TODO: error handling
 			}
 		}
-		r.loopstate(overEx)
 	}
 }
 
 // TODO(pknap) : doc
 func (r *readdcw) loopstate(overEx *overlappedEx) {
-	r.Lock()
-	defer r.Unlock()
-	filter := overEx.parent.parent.filter
+	filter := atomic.LoadUint32(&overEx.parent.parent.filter)
 	if filter&onlyMachineStates == 0 {
 		return
 	}
 	if overEx.parent.parent.count--; overEx.parent.parent.count == 0 {
 		switch filter & onlyMachineStates {
 		case stateRewatch:
-			dbgprint("loopstate rewatch")
+			r.Lock()
 			overEx.parent.parent.recreate(r.cph)
+			r.Unlock()
 		case stateUnwatch:
-			dbgprint("loopstate unwatch")
-			overEx.parent.parent.closeHandle()
+			r.Lock()
 			delete(r.m, syscall.UTF16ToString(overEx.parent.pathw))
+			r.Unlock()
 		case stateCPClose:
 		default:
 			panic(`notify: windows loopstate logic error`)
@@ -471,8 +450,8 @@ func (r *readdcw) rewatch(path string, oldevent, newevent uint32, recursive bool
 	}
 	var wd *watched
 	r.Lock()
-	defer r.Unlock()
-	if wd, err = r.nonStateWatchedLocked(path); err != nil {
+	if wd, err = r.nonStateWatched(path); err != nil {
+		r.Unlock()
 		return
 	}
 	if wd.filter&(onlyNotifyChanges|onlyNGlobalEvents) != oldevent {
@@ -483,19 +462,21 @@ func (r *readdcw) rewatch(path string, oldevent, newevent uint32, recursive bool
 	if err = wd.closeHandle(); err != nil {
 		wd.filter = oldevent
 		wd.recursive = recursive
+		r.Unlock()
 		return
 	}
+	r.Unlock()
 	return
 }
 
 // TODO : pknap
-func (r *readdcw) nonStateWatchedLocked(path string) (wd *watched, err error) {
+func (r *readdcw) nonStateWatched(path string) (wd *watched, err error) {
 	wd, ok := r.m[path]
 	if !ok || wd == nil {
 		err = errors.New(`notify: ` + path + ` path is unwatched`)
 		return
 	}
-	if wd.filter&onlyMachineStates != 0 {
+	if filter := atomic.LoadUint32(&wd.filter); filter&onlyMachineStates != 0 {
 		err = errors.New(`notify: another re/unwatching operation in progress`)
 		return
 	}
@@ -515,30 +496,18 @@ func (r *readdcw) RecursiveUnwatch(path string) error {
 // TODO : pknap
 func (r *readdcw) unwatch(path string) (err error) {
 	var wd *watched
-
 	r.Lock()
-	defer r.Unlock()
-	if wd, err = r.nonStateWatchedLocked(path); err != nil {
+	if wd, err = r.nonStateWatched(path); err != nil {
+		r.Unlock()
 		return
 	}
-
 	wd.filter |= stateUnwatch
-	dbgprint("unwatch: set unwatch state")
-
-	if _, attrErr := syscall.GetFileAttributes(&wd.pathw[0]); attrErr != nil {
-		for _, g := range wd.digrip {
-			if g == nil {
-				continue
-			}
-
-			dbgprint("unwatch: posting")
-			if err = syscall.PostQueuedCompletionStatus(r.cph, 0, 0, (*syscall.Overlapped)(unsafe.Pointer(g.ovlapped))); err != nil {
-				wd.filter &^= stateUnwatch
-				return
-			}
-		}
+	if err = wd.closeHandle(); err != nil {
+		wd.filter &^= stateUnwatch
+		r.Unlock()
+		return
 	}
-
+	r.Unlock()
 	return
 }
 
