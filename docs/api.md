@@ -60,7 +60,7 @@ __To support sending raw transactions in Quorum, the `web3.eth.sendRawPrivateTra
 web3.eth.sendRawPrivateTransaction(signedTransactionData [, privateData] [, callback])
 ```
 
-Sends an already signed transaction. For example can be signed using: https://github.com/SilentCicero/ethereumjs-accounts
+Sends a pre-signed transaction. For example can be signed using: https://github.com/SilentCicero/ethereumjs-accounts
 
 __Important:__ Please note that before calling this API, a `storeraw` api need to be called first to Quorum's private transaction manager. Instructions on how to do this can be found [here](https://github.com/jpmorganchase/tessera/wiki/Interface-&-API).
 
