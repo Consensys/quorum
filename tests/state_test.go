@@ -1,4 +1,4 @@
-// Copyright 2017 The go-ethereum Authors
+// Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -36,22 +36,7 @@ func TestState(t *testing.T) {
 	st.skipLoad(`^stTransactionTest/zeroSigTransa[^/]*\.json`) // EIP-86 is not supported yet
 	// Expected failures:
 	st.fails(`^stRevertTest/RevertPrecompiledTouch\.json/EIP158`, "bug in test")
-	st.fails(`^stRevertTest/RevertPrefoundEmptyOOG\.json/EIP158`, "bug in test")
 	st.fails(`^stRevertTest/RevertPrecompiledTouch\.json/Byzantium`, "bug in test")
-	st.fails(`^stRevertTest/RevertPrefoundEmptyOOG\.json/Byzantium`, "bug in test")
-	st.fails(`^stRandom/randomStatetest645\.json/EIP150/.*`, "known bug #15119")
-	st.fails(`^stRandom/randomStatetest645\.json/Frontier/.*`, "known bug #15119")
-	st.fails(`^stRandom/randomStatetest645\.json/Homestead/.*`, "known bug #15119")
-	st.fails(`^stRandom/randomStatetest644\.json/EIP150/.*`, "known bug #15119")
-	st.fails(`^stRandom/randomStatetest644\.json/Frontier/.*`, "known bug #15119")
-	st.fails(`^stRandom/randomStatetest644\.json/Homestead/.*`, "known bug #15119")
-	st.fails(`^stCreateTest/TransactionCollisionToEmpty\.json/EIP158/2`, "known bug ")
-	st.fails(`^stCreateTest/TransactionCollisionToEmpty\.json/EIP158/3`, "known bug ")
-	st.fails(`^stCreateTest/TransactionCollisionToEmpty\.json/Byzantium/2`, "known bug ")
-	st.fails(`^stCreateTest/TransactionCollisionToEmpty\.json/Byzantium/3`, "known bug ")
-
-	// Skip invalid receipt root hash / invalid nonce quorum failures
-	st.skipLoad(`(StoreClearsAndInternlCallStoreClearsOOG|TransactionSendingToZero|SuicidesAndInternlCallSuicidesOOG|SuicidesAndInternlCallSuicidesSuccess|SuicidesAndInternlCallSuicidesBonusGasAtCallFailed|SuicidesAndInternlCallSuicidesBonusGasAtCall|StoreClearsAndInternlCallStoreClearsSuccess|InternlCallStoreClearsSucces|InternlCallStoreClearsOOG|failed_tx_xcf416c53|CallContractToCreateContractOOG)\.json`) // EIP-86 is not supported yet
 
 	st.walk(t, stateTestDir, func(t *testing.T, name string, test *StateTest) {
 		for _, subtest := range test.Subtests() {
@@ -72,8 +57,7 @@ func TestState(t *testing.T) {
 }
 
 // Transactions with gasLimit above this value will not get a VM trace on failure.
-//const traceErrorLimit = 400000
-const traceErrorLimit = 0
+const traceErrorLimit = 400000
 
 func withTrace(t *testing.T, gasLimit uint64, test func(vm.Config) error) {
 	err := test(vm.Config{})
@@ -97,4 +81,6 @@ func withTrace(t *testing.T, gasLimit uint64, test func(vm.Config) error) {
 	} else {
 		t.Log("EVM operation log:\n" + buf.String())
 	}
+	t.Logf("EVM output: 0x%x", tracer.Output())
+	t.Logf("EVM error: %v", tracer.Error())
 }

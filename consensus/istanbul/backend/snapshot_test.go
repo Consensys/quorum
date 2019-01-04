@@ -335,11 +335,11 @@ func TestVoting(t *testing.T) {
 			Difficulty: defaultDifficulty,
 			Mixhash:    types.IstanbulDigest,
 		}
-		b, _ := genesis.ToBlock()
+		b := genesis.ToBlock(nil)
 		extra, _ := prepareExtra(b.Header(), validators)
 		genesis.ExtraData = extra
 		// Create a pristine blockchain with the genesis injected
-		db, _ := ethdb.NewMemDatabase()
+		db := ethdb.NewMemDatabase()
 		genesis.Commit(db)
 
 		config := istanbul.DefaultConfig
@@ -347,7 +347,7 @@ func TestVoting(t *testing.T) {
 			config.Epoch = tt.epoch
 		}
 		engine := New(config, accounts.accounts[tt.validators[0]], db).(*backend)
-		chain, err := core.NewBlockChain(db, genesis.Config, engine, vm.Config{})
+		chain, err := core.NewBlockChain(db, nil, genesis.Config, engine, vm.Config{})
 
 		// Assemble a chain of headers from the cast votes
 		headers := make([]*types.Header, len(tt.votes))
@@ -427,7 +427,7 @@ func TestSaveAndLoad(t *testing.T) {
 			common.StringToAddress("1234567895"),
 		}, istanbul.RoundRobin),
 	}
-	db, _ := ethdb.NewMemDatabase()
+	db := ethdb.NewMemDatabase()
 	err := snap.store(db)
 	if err != nil {
 		t.Errorf("store snapshot failed: %v", err)
