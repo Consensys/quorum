@@ -48,7 +48,7 @@ var wg sync.WaitGroup      // used to wait until the runloop starts
 // started and is ready via the wg. It also serves purpose of a dummy source,
 // thanks to it the runloop does not return as it also has at least one source
 // registered.
-var source = C.CFRunLoopSourceCreate(C.kCFAllocatorDefault, 0, &C.CFRunLoopSourceContext{
+var source = C.CFRunLoopSourceCreate(nil, 0, &C.CFRunLoopSourceContext{
 	perform: (C.CFRunLoopPerformCallBack)(C.gosource),
 })
 
@@ -90,10 +90,6 @@ func gostream(_, info uintptr, n C.size_t, paths, flags, ids uintptr) {
 	if n == 0 {
 		return
 	}
-	fn := streamFuncs.get(info)
-	if fn == nil {
-		return
-	}
 	ev := make([]FSEvent, 0, int(n))
 	for i := uintptr(0); i < uintptr(n); i++ {
 		switch flags := *(*uint32)(unsafe.Pointer((flags + i*offflag))); {
@@ -108,7 +104,7 @@ func gostream(_, info uintptr, n C.size_t, paths, flags, ids uintptr) {
 		}
 
 	}
-	fn(ev)
+	streamFuncs.get(info)(ev)
 }
 
 // StreamFunc is a callback called when stream receives file events.
@@ -166,8 +162,8 @@ func (s *stream) Start() error {
 		return nil
 	}
 	wg.Wait()
-	p := C.CFStringCreateWithCStringNoCopy(C.kCFAllocatorDefault, C.CString(s.path), C.kCFStringEncodingUTF8, C.kCFAllocatorDefault)
-	path := C.CFArrayCreate(C.kCFAllocatorDefault, (*unsafe.Pointer)(unsafe.Pointer(&p)), 1, nil)
+	p := C.CFStringCreateWithCStringNoCopy(nil, C.CString(s.path), C.kCFStringEncodingUTF8, nil)
+	path := C.CFArrayCreate(nil, (*unsafe.Pointer)(unsafe.Pointer(&p)), 1, nil)
 	ctx := C.FSEventStreamContext{}
 	ref := C.EventStreamCreate(&ctx, C.uintptr_t(s.info), path, C.FSEventStreamEventId(atomic.LoadUint64(&since)), latency, flags)
 	if ref == nilstream {

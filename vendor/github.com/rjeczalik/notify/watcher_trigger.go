@@ -106,8 +106,7 @@ func newWatcher(c chan<- EventInfo) watcher {
 	}
 	t.t = newTrigger(t.pthLkp)
 	if err := t.t.Init(); err != nil {
-		t.Close()
-		return watcherStub{fmt.Errorf("failed setting up watcher: %v", err)}
+		panic(err)
 	}
 	go t.monitor()
 	return t

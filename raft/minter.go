@@ -68,7 +68,7 @@ type minter struct {
 	invalidRaftOrderingChan chan InvalidRaftOrdering
 	chainHeadChan           chan core.ChainHeadEvent
 	chainHeadSub            event.Subscription
-	txPreChan               chan core.TxPreEvent
+	txPreChan               chan core.NewTxsEvent
 	txPreSub                event.Subscription
 }
 
@@ -90,11 +90,11 @@ func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Dura
 
 		invalidRaftOrderingChan: make(chan InvalidRaftOrdering, 1),
 		chainHeadChan:           make(chan core.ChainHeadEvent, 1),
-		txPreChan:               make(chan core.TxPreEvent, 4096),
+		txPreChan:               make(chan core.NewTxsEvent, 4096),
 	}
 
 	minter.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(minter.chainHeadChan)
-	minter.txPreSub = eth.TxPool().SubscribeTxPreEvent(minter.txPreChan)
+	minter.txPreSub = eth.TxPool().SubscribeNewTxsEvent(minter.txPreChan)
 
 	minter.speculativeChain.clear(minter.chain.CurrentBlock())
 
@@ -263,7 +263,7 @@ func (minter *minter) createWork() *work {
 		Number:     parentNumber.Add(parentNumber, common.Big1),
 		Difficulty: ethash.CalcDifficulty(minter.config, uint64(tstamp), parent.Header()),
 		GasLimit:   core.CalcGasLimit(parent),
-		GasUsed:    new(big.Int),
+		GasUsed:    0,
 		Coinbase:   minter.coinbase,
 		Time:       big.NewInt(tstamp),
 	}
@@ -352,10 +352,10 @@ func (minter *minter) mintNewBlock() {
 	log.Info("Generated next block", "block num", block.Number(), "num txes", txCount)
 
 	deleteEmptyObjects := minter.chain.Config().IsEIP158(block.Number())
-	if _, err := work.publicState.CommitTo(minter.chainDb, deleteEmptyObjects); err != nil {
+	if _, err := work.publicState.Commit(deleteEmptyObjects); err != nil {
 		panic(fmt.Sprint("error committing public state: ", err))
 	}
-	if _, privStateErr := work.privateState.CommitTo(minter.chainDb, deleteEmptyObjects); privStateErr != nil {
+	if _, privStateErr := work.privateState.Commit(deleteEmptyObjects); privStateErr != nil {
 		panic(fmt.Sprint("error committing private state: ", privStateErr))
 	}
 
@@ -414,7 +414,7 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 
 	var author *common.Address
 	var vmConf vm.Config
-	publicReceipt, privateReceipt, _, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, env.header.GasUsed, vmConf)
+	publicReceipt, privateReceipt, _, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf)
 	if err != nil {
 		env.publicState.RevertToSnapshot(publicSnapshot)
 		env.privateState.RevertToSnapshot(privateSnapshot)
