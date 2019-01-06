@@ -3,6 +3,8 @@
 
 ## Privacy APIs
 
+#### eth.sendTransaction
+
 __To support private transactions in Quorum, the `web3.eth.sendTransaction(object)` API method has been modified.__
 
 ```js
@@ -49,6 +51,55 @@ web3.eth.sendTransaction({
 });
 ```
 ***
+
+#### eth.sendRawPrivateTransaction
+
+__To support sending raw transactions in Quorum, the `web3.eth.sendRawPrivateTransaction(string, object)` API method has been created.__
+
+```js
+web3.eth.sendRawPrivateTransaction(signedTransactionData [, privateData] [, callback])
+```
+
+Sends a pre-signed transaction. For example can be signed using: https://github.com/SilentCicero/ethereumjs-accounts
+
+__Important:__ Please note that before calling this API, a `storeraw` api need to be called first to Quorum's private transaction manager. Instructions on how to do this can be found [here](https://github.com/jpmorganchase/tessera/wiki/Interface-&-API).
+
+##### Parameters
+ 1. `String` - Signed transaction data in HEX format
+ 2. `Object` - Private data to send
+    - `privateFor`: `List<String>`  - When sending a private transaction, an array of the recipients' base64-encoded public keys.
+3. `Function` - (optional) If you pass a callback the HTTP request is made asynchronous. See [this note](#using-callbacks) for details.
+
+ ##### Returns
+ `String` - The 32 Bytes transaction hash as HEX string.
+ If the transaction was a contract creation use [web3.eth.getTransactionReceipt()](#web3ethgettransactionreceipt) to get the contract address, after the transaction was mined.
+ 
+ 
+ ##### Example
+  ```js
+ var Tx = require('ethereumjs-tx');
+ var privateKey = new Buffer('e331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109', 'hex')
+  var rawTx = {
+   nonce: '0x00',
+   gasPrice: '0x09184e72a000', 
+   gasLimit: '0x2710',
+   to: '0x0000000000000000000000000000000000000000', 
+   value: '0x00', 
+   // This data should be the hex value of the hash returned by Quorum's privacy transaction manager after invoking storeraw api
+   data: '0x7f7465737432000000000000000000000000000000000000000000000000000000600057'
+ }
+  var tx = new Tx(rawTx);
+ tx.sign(privateKey);
+  var serializedTx = tx.serialize();
+  //console.log(serializedTx.toString('hex'));
+ //f889808609184e72a00082271094000000000000000000000000000000000000000080a47f74657374320000000000000000000000000000000000000000000000000000006000571ca08a8bbf888cfa37bbf0bb965423625641fc956967b81d12e23709cead01446075a01ce999b56a8a88504be365442ea61239198e23d1fce7d00fcfc5cd3b44b7215f
+  web3.eth.sendRawPrivateTransaction('0x' + serializedTx.toString('hex'), {privateFor: ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]}, function(err, hash) {
+   if (!err)
+     console.log(hash); // "0x7f9fade1c0d57a7af66ab4ead79fade1c0d57a7af66ab4ead7c2c2eb7b11a91385"
+ });
+ ```
+ 
+ 
 
 ## JSON RPC Privacy API Reference
 
