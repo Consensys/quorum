@@ -385,7 +385,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 	} else {
 		kc.Start()
 		log.Trace("Key management service started")
-		quorumApis = append(quorumApis, "quorumKeyMgmt")
+		quorumApis = append(quorumApis, "quorumOrgMgmt")
 	}
 
 	for _, apiName := range quorumApis {

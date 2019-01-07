@@ -96,6 +96,11 @@ type orgInfo struct {
 	SubOrgKeyList  []string 
 }
 
+type PendingOpInfo struct {
+	PendingKey  string
+	PendingOp   string
+}
+
 type ExecStatus struct {
 	Status bool
 	Msg    string
@@ -143,6 +148,12 @@ var (
 		2: "Transact",
 		3: "ContractDeploy",
 	}
+
+	pendingOpMap = map[uint8]string {
+		0: "None",
+		1: "Add",
+		2: "Delete",
+	}
 )
 
 // NewQuorumControlsAPI creates a new QuorumControlsAPI to access quorum services
@@ -154,6 +165,14 @@ func NewQuorumControlsAPI(tp *core.TxPool, am *accounts.Manager) *QuorumControls
 func decodeNodeStatus(nodeStatus uint8) string {
 	if status, ok := nodeApproveStatus[nodeStatus]; ok {
 		return status
+	}
+	return "Unknown"
+}
+
+// helper function decodes the node status to string
+func decodePendingOp(pendingOp uint8) string {
+	if desc, ok := pendingOpMap[pendingOp]; ok {
+		return desc
 	}
 	return "Unknown"
 }
@@ -563,8 +582,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 	return ExecSuccess
 }
 
-func (s *QuorumControlsAPI) AllOrgList() []orgInfo {
-	log.Info("SMK-AllOrgList @ 566")
+func (s *QuorumControlsAPI) OrgKeyInfo() []orgInfo {
 	ps := s.newOrgKeySessionWithNodeKeySigner()
 	// get the total number of accounts with permissions
 	orgCnt, err := ps.GetNumberOfOrgs()
@@ -573,22 +591,58 @@ func (s *QuorumControlsAPI) AllOrgList() []orgInfo {
 	}
 	orgCntI := orgCnt.Int64()
 	log.Debug("total orgs", "count", orgCntI)
-	log.Info("SMK-AllOrgList total orgs", "count", orgCntI)
 	orgArr := make([]orgInfo, orgCntI)
 	// loop for each index and get the node details from the contract
 	i := int64(0)
 	for i < orgCntI {
-		log.Info("SMK-AllOrgList  inside loop", "i", i)
 		orgId, morgId, err := ps.GetOrgInfo(big.NewInt(i))
 		if err != nil {
 			log.Error("error getting voter info", "err", err)
 		} else {
-			orgArr[i].OrgId = orgId
+			orgArr[i].SubOrgId = orgId
 			orgArr[i].MasterOrgId = morgId
+			// get the list of keys for the organization
+			keyCnt, err := ps.GetOrgKeyCount(orgId)
+			if err != nil {
+				return nil
+			}
+			keyCntI := keyCnt.Int64()
+			log.Debug("total keys", "count", keyCntI)
+			keyArr := make([]string, keyCntI)
+			// loop for each index and get the node details from the contract
+			j := int64(0)
+			for j < keyCntI {
+				key, err := ps.GetOrgKey(orgId, big.NewInt(j))
+				if err != nil {
+					log.Error("error key info", "err", err)
+				} else {
+					keyArr[j] = key
+				}
+				j++
+			}
+			orgArr[i].SubOrgKeyList = keyArr
 		}
 		i++
 	}
 	return orgArr
+}
+
+// this function returns the approval pending action at sub org level
+func (s *QuorumControlsAPI) GetPendingOpDetails(orgId string) PendingOpInfo {
+	ps := s.newOrgKeySessionWithNodeKeySigner()
+	ret, _ := ps.CheckOrgExists(orgId)
+	if ret {
+		// get the total number of accounts with permissions
+		pendingKey, pendingOp,  err := ps.GetOrgPendingOp(orgId)
+		if err == nil {
+			pendOpInfo := PendingOpInfo{pendingKey, decodePendingOp(pendingOp)}
+			return pendOpInfo
+		} else {
+			return PendingOpInfo{"Info not found", "None"}
+		}
+	} else {
+		return PendingOpInfo{"Org not found", "None"}
+	}
 }
 
 // executeOrgKeyAction helps to execute an action in cluster contract

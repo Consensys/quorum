@@ -34,7 +34,7 @@ var Modules = map[string]string{
 	"istanbul":       Istanbul_JS,
 	"quorumNodeMgmt": QUORUM_NODE_JS,
 	"quorumAcctMgmt": QUORUM_ACCT_JS,
-	"quorumKeyMgmt":  QUORUM_KEY_JS,
+	"quorumOrgMgmt":  QUORUM_ORG_JS,
 }
 
 const Chequebook_JS = `
@@ -787,59 +787,65 @@ web3._extend({
 })
 `
 
-const QUORUM_KEY_JS = `
+const QUORUM_ORG_JS = `
 web3._extend({
-       property: 'quorumKeyMgmt',
+       property: 'quorumOrgMgmt',
        methods:
        [
                 new web3._extend.Method({
                        name: 'addMasterOrg',
-                       call: 'quorumKeyMgmt_addMasterOrg',
+                       call: 'quorumOrgMgmt_addMasterOrg',
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
                 new web3._extend.Method({
                        name: 'addSubOrg',
-                       call: 'quorumKeyMgmt_addSubOrg',
+                       call: 'quorumOrgMgmt_addSubOrg',
                        params: 3,
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                 new web3._extend.Method({
                        name: 'addVoter',
-                       call: 'quorumKeyMgmt_addOrgVoter',
+                       call: 'quorumOrgMgmt_addOrgVoter',
                        params: 3,
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                 new web3._extend.Method({
                        name: 'deleteVoter',
-                       call: 'quorumKeyMgmt_deleteOrgVoter',
+                       call: 'quorumOrgMgmt_deleteOrgVoter',
                        params: 3,
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                 new web3._extend.Method({
                        name: 'addOrgKey',
-                       call: 'quorumKeyMgmt_addOrgKey',
+                       call: 'quorumOrgMgmt_addOrgKey',
                        params: 3,
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'deleteOrgKey',
-                       call: 'quorumKeyMgmt_deleteOrgKey',
+                       call: 'quorumOrgMgmt_deleteOrgKey',
                        params: 3,
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'approvePendingOp',
-                       call: 'quorumKeyMgmt_approvePendingOp',
+                       call: 'quorumOrgMgmt_approvePendingOp',
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'getPendingOpDetails',
+                       call: 'quorumOrgMgmt_getPendingOpDetails',
+                       params: 1,
+                       inputFormatter: [null]
                }),
        ],
        properties:
        [
 			   new web3._extend.Property({
-					   name: 'AllOrgList',
-				       getter: 'quorumKeyMgmt_allOrgList'
+					   name: 'orgKeyInfo',
+				       getter: 'quorumOrgMgmt_orgKeyInfo'
 			  }),
        ]
 })

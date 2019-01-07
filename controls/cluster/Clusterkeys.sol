@@ -218,6 +218,14 @@ contract Clusterkeys {
     return orgNum;
   }
 
+  function getOrgKeyCount(string _orgId) external view returns (uint){
+    return orgList[getOrgIndex(_orgId)].tmKey.length;
+  }
+
+  function getOrgKey(string _orgId, uint _keyIndex) external view returns (string){
+    return orgList[getOrgIndex(_orgId)].tmKey[_keyIndex];
+  }
+
   function getOrgInfo(uint _orgIndex) external view returns (string, string){
     return (orgList[_orgIndex].orgId, orgList[_orgIndex].morgId);
   }
@@ -276,6 +284,12 @@ contract Clusterkeys {
     return false;
   }
 
+  // function for checking if org exists and if there are any pending ops
+  function getOrgPendingOp (string _orgId) external view returns (string, Operation) {
+    uint orgIndex = getOrgIndex(_orgId);
+    return (orgList[orgIndex].pendingKey, orgList[orgIndex].pendingOp);
+  }
+
   // this function checks of the key proposed is in use in another master org
   function checkKeyClash (string _orgId, string _key) external view returns (bool) {
     bool ret = false;
@@ -300,7 +314,9 @@ contract Clusterkeys {
     }
     // check if the key is pending approval for any of the orgs
     for (uint k = 0; k < orgList.length; k++){
-      if (keccak256(abi.encodePacked(orgList[k].orgId)) != keccak256(abi.encodePacked(_orgId))){
+      if ((keccak256(abi.encodePacked(orgList[k].orgId)) != keccak256(abi.encodePacked(_orgId))) &&
+        (keccak256(abi.encodePacked(orgList[k].morgId)) != keccak256(abi.encodePacked(orgList[orgIndex].morgId))))
+        {
         if ((orgList[k].pendingOp == Operation.Add) &&
             (keccak256(abi.encodePacked(orgList[k].pendingKey)) == keccak256(abi.encodePacked(_key)))){
           ret = true;
