@@ -3,13 +3,9 @@
 // license that can be found in the LICENSE file.
 
 // +build windows
-// +build go1.4
+// +build !go1.3
 
-package windows
+package svc
 
-import "syscall"
-
-func Unsetenv(key string) error {
-	// This was added in Go 1.4.
-	return syscall.Unsetenv(key)
-}
+// from go12.c
+func getServiceMain(r *uintptr)
