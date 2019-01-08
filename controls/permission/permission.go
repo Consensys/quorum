@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/controls"
-	pbind "github.com/ethereum/go-ethereum/controls/bind"
+	pbind "github.com/ethereum/go-ethereum/controls/bind/permission"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"

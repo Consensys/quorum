@@ -10,7 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	pbind "github.com/ethereum/go-ethereum/controls/bind"
+	pbind "github.com/ethereum/go-ethereum/controls/bind/permission"
+	obind "github.com/ethereum/go-ethereum/controls/bind/cluster"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -63,9 +64,10 @@ type QuorumControlsAPI struct {
 	acntMgr    *accounts.Manager
 	txOpt      *bind.TransactOpts
 	permContr  *pbind.Permissions
-	clustContr *pbind.Cluster
+	clustContr *obind.Cluster
 	key        *ecdsa.PrivateKey
-	enabled    bool
+	permEnabled    bool
+	orgEnabled     bool
 }
 
 // txArgs holds arguments required for execute functions
@@ -115,6 +117,7 @@ var (
 	ErrFailedExecution      = ExecStatus{false, "Failed to execute permission action"}
 	ErrNodeDetailsMismatch  = ExecStatus{false, "Node details mismatch"}
 	ErrPermissionDisabled   = ExecStatus{false, "Permissions control not enabled"}
+	ErrOrgDisabled          = ExecStatus{false, "Org management control not enabled"}
 	ErrAccountAccess        = ExecStatus{false, "Account does not have sufficient access for operation"}
 	ErrVoterAccountAccess   = ExecStatus{false, "Voter account does not have sufficient access"}
 	ErrMasterOrgExists      = ExecStatus{false, "Master org already exists"}
@@ -158,7 +161,7 @@ var (
 
 // NewQuorumControlsAPI creates a new QuorumControlsAPI to access quorum services
 func NewQuorumControlsAPI(tp *core.TxPool, am *accounts.Manager) *QuorumControlsAPI {
-	return &QuorumControlsAPI{tp, nil, am, nil, nil, nil, nil, false}
+	return &QuorumControlsAPI{tp, nil, am, nil, nil, nil, nil, false, false}
 }
 
 // helper function decodes the node status to string
@@ -178,26 +181,32 @@ func decodePendingOp(pendingOp uint8) string {
 }
 
 //Init initializes QuorumControlsAPI with eth client, permission contract and org key management control
-func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey) error {
+func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey, apiName string) error {
 	p.ethClnt = ethClnt
-	permContr, err := pbind.NewPermissions(params.QuorumPermissionsContract, p.ethClnt)
-	if err != nil {
-		return err
+	if apiName == "quorumNodeMgmt" || apiName == "quorumAcctMgmt" {
+		permContr, err := pbind.NewPermissions(params.QuorumPermissionsContract, p.ethClnt)
+		if err != nil {
+			return err
+		}
+		p.permContr = permContr
+		p.permEnabled = true
+	} else {
+		clustContr, err := obind.NewCluster(params.QuorumPrivateKeyManagementContract, p.ethClnt)
+		if err != nil {
+			return err
+		}
+		if clustContr == nil {
+		}
+		p.clustContr = clustContr
+		p.orgEnabled = true
 	}
-	p.permContr = permContr
-	clustContr, err := pbind.NewCluster(params.QuorumPrivateKeyManagementContract, p.ethClnt)
-	if err != nil {
-		return err
-	}
-	p.clustContr = clustContr
 	p.key = key
-	p.enabled = true
 	return nil
 }
 
 // Returns the list of Nodes and status of each
 func (s *QuorumControlsAPI) PermissionNodeList() []nodeStatus {
-	if !s.enabled {
+	if !s.permEnabled {
 		nodeStatArr := make([]nodeStatus, 1)
 		nodeStatArr[0].EnodeId = "Permisssions control not enabled for network"
 		return nodeStatArr
@@ -230,7 +239,7 @@ func (s *QuorumControlsAPI) PermissionNodeList() []nodeStatus {
 }
 
 func (s *QuorumControlsAPI) PermissionAccountList() []accountInfo {
-	if !s.enabled {
+	if !s.permEnabled {
 		acctInfoArr := make([]accountInfo, 1)
 		acctInfoArr[0].Address = "Account access control not enable for the network"
 		return acctInfoArr
@@ -260,7 +269,7 @@ func (s *QuorumControlsAPI) PermissionAccountList() []accountInfo {
 }
 
 func (s *QuorumControlsAPI) VoterList() []string {
-	if !s.enabled {
+	if !s.permEnabled {
 		voterArr := make([]string, 1)
 		voterArr[0] = "Permissions control not enabled for the network"
 		return voterArr
@@ -305,9 +314,9 @@ func (s *QuorumControlsAPI) newPermSessionWithNodeKeySigner() *pbind.Permissions
 	return ps
 }
 
-func (s *QuorumControlsAPI) newOrgKeySessionWithNodeKeySigner() *pbind.ClusterSession {
+func (s *QuorumControlsAPI) newOrgKeySessionWithNodeKeySigner() *obind.ClusterSession {
 	auth := bind.NewKeyedTransactor(s.key)
-	cs := &pbind.ClusterSession{
+	cs := &obind.ClusterSession{
 		Contract: s.clustContr,
 		CallOpts: bind.CallOpts{
 			Pending: true,
@@ -418,7 +427,7 @@ func (s *QuorumControlsAPI) SetAccountAccess(acct common.Address, access string,
 // executePermAction helps to execute an action in permission contract
 func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
 
-	if !s.enabled {
+	if !s.permEnabled {
 		return ErrPermissionDisabled
 	}
 	var err error
@@ -583,6 +592,11 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 }
 
 func (s *QuorumControlsAPI) OrgKeyInfo() []orgInfo {
+	if !s.orgEnabled {
+		orgInfoArr := make([]orgInfo, 1)
+		orgInfoArr[0].MasterOrgId = "Org key management not enabled for the network"
+		return orgInfoArr
+	}
 	ps := s.newOrgKeySessionWithNodeKeySigner()
 	// get the total number of accounts with permissions
 	orgCnt, err := ps.GetNumberOfOrgs()
@@ -629,6 +643,9 @@ func (s *QuorumControlsAPI) OrgKeyInfo() []orgInfo {
 
 // this function returns the approval pending action at sub org level
 func (s *QuorumControlsAPI) GetPendingOpDetails(orgId string) PendingOpInfo {
+	if !s.orgEnabled {
+		return PendingOpInfo{"Org key management not enabled for the network", "None"}
+	}
 	ps := s.newOrgKeySessionWithNodeKeySigner()
 	ret, _ := ps.CheckOrgExists(orgId)
 	if ret {
@@ -647,8 +664,8 @@ func (s *QuorumControlsAPI) GetPendingOpDetails(orgId string) PendingOpInfo {
 
 // executeOrgKeyAction helps to execute an action in cluster contract
 func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs) ExecStatus {
-	if !s.enabled {
-		return ErrPermissionDisabled
+	if !s.orgEnabled {
+		return ErrOrgDisabled
 	}
 	w, err := s.validateAccount(args.txa.From)
 	if err != nil {
@@ -815,9 +832,9 @@ func (s *QuorumControlsAPI) newPermSession(w accounts.Wallet, txa ethapi.SendTxA
 }
 
 // newClusterSession creates a new cluster contract session
-func (s *QuorumControlsAPI) newClusterSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.ClusterSession {
+func (s *QuorumControlsAPI) newClusterSession(w accounts.Wallet, txa ethapi.SendTxArgs) *obind.ClusterSession {
 	frmAcct, transactOpts, gasLimit, gasPrice, nonce := s.getTxParams(txa, w)
-	cs := &pbind.ClusterSession{
+	cs := &obind.ClusterSession{
 		Contract: s.clustContr,
 		CallOpts: bind.CallOpts{
 			Pending: true,

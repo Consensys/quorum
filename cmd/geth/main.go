@@ -388,18 +388,19 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		quorumApis = append(quorumApis, "quorumOrgMgmt")
 	}
 
+	rpcClient, err := stack.Attach()
+	stateReader := ethclient.NewClient(rpcClient)
+
 	for _, apiName := range quorumApis {
 		v := stack.GetRPC(apiName)
 		if v == nil {
 			utils.Fatalf("Failed to start Quorum Permission API %s", apiName)
 		}
 		qapi := v.(*quorum.QuorumControlsAPI)
-		rpcClient, err := stack.Attach()
 		if err != nil {
 			utils.Fatalf("Failed to attach to self: %v", err)
 		}
-		stateReader := ethclient.NewClient(rpcClient)
-		qapi.Init(stateReader, stack.GetNodeKey())
+		qapi.Init(stateReader, stack.GetNodeKey(), apiName)
 		log.Info("Permission API started.", "apiName", apiName)
 	}
 

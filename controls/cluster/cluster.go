@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/controls"
-	pbind "github.com/ethereum/go-ethereum/controls/bind"
+	pbind "github.com/ethereum/go-ethereum/controls/bind/cluster"
 )
 
 type OrgKeyCtrl struct {
