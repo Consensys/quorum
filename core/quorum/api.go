@@ -591,6 +591,35 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 	return ExecSuccess
 }
 
+func (s *QuorumControlsAPI) GetOrgVoterList(morgId string) []string {
+	if !s.orgEnabled {
+		voterArr := make([]string, 1)
+		voterArr[0] = "Permissions control not enabled for the network"
+		return voterArr
+	}
+	ps := s.newOrgKeySessionWithNodeKeySigner()
+	// get the total number of accounts with permissions
+	voterCnt, err := ps.GetNumberOfVoters(morgId)
+	if err != nil {
+		return nil
+	}
+	voterCntI := voterCnt.Int64()
+	log.Debug("total voters", "count", voterCntI)
+	voterArr := make([]string, voterCntI)
+	// loop for each index and get the node details from the contract
+	i := int64(0)
+	for i < voterCntI {
+		a, err := ps.GetVoter(morgId, big.NewInt(i))
+		if err != nil {
+			log.Error("error getting voter info", "err", err)
+		} else {
+			voterArr[i] = a.String()
+		}
+		i++
+	}
+	return voterArr
+}
+
 func (s *QuorumControlsAPI) OrgKeyInfo() []orgInfo {
 	if !s.orgEnabled {
 		orgInfoArr := make([]orgInfo, 1)
@@ -611,7 +640,7 @@ func (s *QuorumControlsAPI) OrgKeyInfo() []orgInfo {
 	for i < orgCntI {
 		orgId, morgId, err := ps.GetOrgInfo(big.NewInt(i))
 		if err != nil {
-			log.Error("error getting voter info", "err", err)
+			log.Error("error getting org info", "err", err)
 		} else {
 			orgArr[i].SubOrgId = orgId
 			orgArr[i].MasterOrgId = morgId

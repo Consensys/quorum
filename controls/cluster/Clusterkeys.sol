@@ -213,6 +213,17 @@ contract Clusterkeys {
   }
   // All extenal view functions
 
+  // Get number of voters
+  function getNumberOfVoters(string _morgId) public view returns (uint)
+  {
+    return masterOrgList[getMasterOrgIndex(_morgId)].voterAccount.length;
+  }
+
+  // Get voter
+  function getVoter(string _morgId, uint i) public view returns (address _addr)
+  {
+  	return masterOrgList[getMasterOrgIndex(_morgId)].voterAccount[i];
+  }
   // returns the number of orgs
   function getNumberOfOrgs() external view returns (uint){
     return orgNum;

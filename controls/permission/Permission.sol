@@ -92,7 +92,7 @@ contract Permissions {
   /* public and external functions */
   // view functions
 
-  // Get number of nodes
+  // Get number of voters
   function getNumberOfVoters() public view returns (uint)
   {
     return voterAcctList.length;
