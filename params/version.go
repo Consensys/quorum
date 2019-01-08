@@ -22,12 +22,12 @@ import (
 
 const (
 	VersionMajor = 1        // Major version component of the current release
-	VersionMinor = 7        // Minor version component of the current release
-	VersionPatch = 2        // Patch version component of the current release
+	VersionMinor = 8        // Minor version component of the current release
+	VersionPatch = 12        // Patch version component of the current release
 	VersionMeta  = "stable" // Version metadata to append to the version string
 
 	QuorumVersionMajor = 2
-	QuorumVersionMinor = 1
+	QuorumVersionMinor = 2
 	QuorumVersionPatch = 0
 )
 
@@ -37,7 +37,6 @@ var Version = func() string {
 	if VersionMeta != "" {
 		v += "-" + VersionMeta
 	}
-
 	return v
 }()
 

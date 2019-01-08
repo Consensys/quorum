@@ -100,6 +100,11 @@ type backend struct {
 	knownMessages  *lru.ARCCache // the cache of self messages
 }
 
+// zekun: HACK
+func (sb *backend) CalcDifficulty(chain consensus.ChainReader, time uint64, parent *types.Header) *big.Int {
+	return new(big.Int)
+}
+
 // Address implements istanbul.Backend.Address
 func (sb *backend) Address() common.Address {
 	return sb.address

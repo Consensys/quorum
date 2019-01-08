@@ -1,3 +1,11 @@
+# <img src="emailLogo.png" width="100" height="100"/>
+This is a fork of the Quorom project and uses primarily IBFT for both testnet and public implementations. Our aim is to keep the source as close to the original ethereum and quorum code as possible.
+
+## Contributing
+Thank you for considering to help out with the source code! We welcome contributions from anyone on the internet, and are grateful for even the smallest of fixes!
+
+If you'd like to contribute, please fork, fix, commit and send a pull request for the maintainers to review and merge into the main code base. 
+
 # <img src="logo.png" width="100" height="100"/>
 
 <a href="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
@@ -26,8 +34,11 @@ The above diagram is a high-level overview of the privacy architecture used by Q
 The quickest way to get started with Quorum is by following instructions in the [Quorum Examples](https://github.com/jpmorganchase/quorum-examples) repository.  This allows you to quickly create a network of Quorum nodes, and includes a step-by-step demonstration of the privacy features of Quorum.
 
 ## Further Reading
-
 Further documentation can be found in the [docs](docs/) folder and on the [wiki](https://github.com/jpmorganchase/quorum/wiki).
+
+## Official Docker Containers
+The official docker containers can be found under https://hub.docker.com/u/quorumengineering/ 
+
 
 ## See also
 
@@ -39,8 +50,8 @@ Further documentation can be found in the [docs](docs/) folder and on the [wiki]
    * [Constellation](https://github.com/jpmorganchase/constellation): Haskell implementation of peer-to-peer encrypted message exchange for transaction privacy
    * [Tessera](https://github.com/jpmorganchase/tessera): Java implementation of peer-to-peer encrypted message exchange for transaction privacy
 * Quorum supported consensuses
-   * [Raft Consensus Documentation](raft/doc.md)
-   * [Istanbul BFT Consensus Documentation](https://github.com/ethereum/EIPs/issues/650): [RPC API](https://github.com/getamis/go-ethereum/wiki/RPC-API) and [technical article](https://medium.com/getamis/istanbul-bft-ibft-c2758b7fe6ff)
+   * [Raft Consensus Documentation](docs/raft.md)
+   * [Istanbul BFT Consensus Documentation](https://github.com/ethereum/EIPs/issues/650): [RPC API](https://github.com/jpmorganchase/quorum/blob/master/docs/istanbul-rpc-api.md) and [technical article](https://medium.com/getamis/istanbul-bft-ibft-c2758b7fe6ff). <span style="background-color: #ffffbf">Please note</span> that updated istanbul-tools is now hosted in [this](https://github.com/jpmorganchase/istanbul-tools/) repository
    * [Clique POA Consensus Documentation](https://github.com/ethereum/EIPs/issues/225) and a [guide to setup clique json](https://modalduality.org/posts/puppeth/) with [puppeth](https://blog.ethereum.org/2017/04/14/geth-1-6-puppeth-master/)
 * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) wiki page and [documentation](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
 * [quorum-tools](https://github.com/jpmorganchase/quorum-tools): local cluster orchestration, and integration testing tool
