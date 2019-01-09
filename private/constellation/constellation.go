@@ -33,6 +33,18 @@ func (g *Constellation) Send(data []byte, from string, to []string) (out []byte,
 	return out, nil
 }
 
+func (g *Constellation) SendSignedTx(data []byte, to []string) (out []byte, err error) {
+	if g.isConstellationNotInUse {
+		return nil, ErrConstellationIsntInit
+	}
+	out, err = g.node.SendSignedPayload(data, to)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+
 func (g *Constellation) Receive(data []byte) ([]byte, error) {
 	if g.isConstellationNotInUse {
 		return nil, nil

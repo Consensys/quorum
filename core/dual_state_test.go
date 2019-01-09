@@ -119,3 +119,95 @@ func TestDualStateReadOnly(t *testing.T) {
 		t.Errorf("expected 0 got %x", value)
 	}
 }
+
+var (
+	calleeAddress      = common.Address{2}
+	calleeContractCode = "600a6000526001601ff300" // a function that returns 10
+	callerAddress      = common.Address{1}
+	// a functionn that calls the callee's function at its address and return the same value
+	//000000: PUSH1 0x01
+	//000002: PUSH1 0x00
+	//000004: PUSH1 0x00
+	//000006: PUSH1 0x00
+	//000008: PUSH20 0x0200000000000000000000000000000000000000
+	//000029: PUSH3 0x0186a0
+	//000033: STATICCALL
+	//000034: PUSH1 0x01
+	//000036: PUSH1 0x00
+	//000038: RETURN
+	//000039: STOP
+	callerContractCode = "6001600060006000730200000000000000000000000000000000000000620186a0fa60016000f300"
+)
+
+func verifyStaticCall(t *testing.T, privateState *state.StateDB, publicState *state.StateDB, expectedHash common.Hash) {
+	author := common.Address{}
+	msg := callmsg{
+		addr:     author,
+		to:       &callerAddress,
+		value:    big.NewInt(1),
+		gas:      1000000,
+		gasPrice: new(big.Int),
+		data:     nil,
+	}
+
+	ctx := NewEVMContext(msg, &dualStateTestHeader, nil, &author)
+	env := vm.NewEVM(ctx, publicState, privateState, &params.ChainConfig{
+		ByzantiumBlock: new(big.Int),
+	}, vm.Config{})
+
+	ret, _, err := env.Call(vm.AccountRef(author), callerAddress, msg.data, msg.gas, new(big.Int))
+
+	if err != nil {
+		t.Fatalf("Call error: %s", err)
+	}
+	value := common.Hash{ret[0]}
+	if value != expectedHash {
+		t.Errorf("expected %x got %x", expectedHash, value)
+	}
+}
+
+func TestStaticCall_whenPublicToPublic(t *testing.T) {
+	db := ethdb.NewMemDatabase()
+
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	publicState.SetCode(callerAddress, common.Hex2Bytes(callerContractCode))
+	publicState.SetCode(calleeAddress, common.Hex2Bytes(calleeContractCode))
+
+	verifyStaticCall(t, publicState, publicState, common.Hash{10})
+}
+
+func TestStaticCall_whenPublicToPrivateInTheParty(t *testing.T) {
+	db := ethdb.NewMemDatabase()
+
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	privateState.SetCode(calleeAddress, common.Hex2Bytes(calleeContractCode))
+
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	publicState.SetCode(callerAddress, common.Hex2Bytes(callerContractCode))
+
+	verifyStaticCall(t, privateState, publicState, common.Hash{10})
+}
+
+func TestStaticCall_whenPublicToPrivateNotInTheParty(t *testing.T) {
+
+	db := ethdb.NewMemDatabase()
+
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	publicState.SetCode(callerAddress, common.Hex2Bytes(callerContractCode))
+
+	verifyStaticCall(t, privateState, publicState, common.Hash{0})
+}
+
+func TestStaticCall_whenPrivateToPublic(t *testing.T) {
+	db := ethdb.NewMemDatabase()
+
+	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	privateState.SetCode(callerAddress, common.Hex2Bytes(callerContractCode))
+
+	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	publicState.SetCode(calleeAddress, common.Hex2Bytes(calleeContractCode))
+
+	verifyStaticCall(t, privateState, publicState, common.Hash{10})
+}
