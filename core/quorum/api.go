@@ -10,8 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	pbind "github.com/ethereum/go-ethereum/controls/bind/permission"
 	obind "github.com/ethereum/go-ethereum/controls/bind/cluster"
+	pbind "github.com/ethereum/go-ethereum/controls/bind/permission"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -52,22 +52,22 @@ const (
 	AddSubOrg
 	AddOrgVoter
 	DeleteOrgVoter
-	AddOrgKey 
+	AddOrgKey
 	DeleteOrgKey
 	ApprovePendingOp
 )
 
 // QuorumControlsAPI provides an API to access Quorum's node permission and org key management related services
 type QuorumControlsAPI struct {
-	txPool     *core.TxPool
-	ethClnt    *ethclient.Client
-	acntMgr    *accounts.Manager
-	txOpt      *bind.TransactOpts
-	permContr  *pbind.Permissions
-	clustContr *obind.Cluster
-	key        *ecdsa.PrivateKey
-	permEnabled    bool
-	orgEnabled     bool
+	txPool      *core.TxPool
+	ethClnt     *ethclient.Client
+	acntMgr     *accounts.Manager
+	txOpt       *bind.TransactOpts
+	permContr   *pbind.Permissions
+	clustContr  *obind.Cluster
+	key         *ecdsa.PrivateKey
+	permEnabled bool
+	orgEnabled  bool
 }
 
 // txArgs holds arguments required for execute functions
@@ -83,29 +83,29 @@ type txArgs struct {
 }
 
 type nodeStatus struct {
-	EnodeId   string
-	Status    string
+	EnodeId string `json:"enodeId"`
+	Status  string `json:"status"`
 }
 
 type accountInfo struct {
-	Address string
-	Access  string
+	Address string `json:"address"`
+	Access  string `json:"access"`
 }
 
 type orgInfo struct {
-	MasterOrgId    string
-	SubOrgId       string
-	SubOrgKeyList  []string 
+	MasterOrgId   string   `json:"masterOrgId"`
+	SubOrgId      string   `json:"subOrgId"`
+	SubOrgKeyList []string `json:"subOrgKeyList"`
 }
 
 type PendingOpInfo struct {
-	PendingKey  string
-	PendingOp   string
+	PendingKey string `json:"pendingKey"`
+	PendingOp  string `json:"pendingOp"`
 }
 
 type ExecStatus struct {
-	Status bool
-	Msg    string
+	Status bool   `json:"status"`
+	Msg    string `json:"msg"`
 }
 
 var (
@@ -152,7 +152,7 @@ var (
 		3: "ContractDeploy",
 	}
 
-	pendingOpMap = map[uint8]string {
+	pendingOpMap = map[uint8]string{
 		0: "None",
 		1: "Add",
 		2: "Delete",
@@ -396,13 +396,14 @@ func (s *QuorumControlsAPI) AddMasterOrg(morgId string, txa ethapi.SendTxArgs) E
 func (s *QuorumControlsAPI) AddSubOrg(orgId string, morgId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(AddSubOrg, txArgs{txa: txa, orgId: orgId, morgId: morgId})
 }
+
 // AddOrgKey adds an org key combination to the org key map
-func (s *QuorumControlsAPI) AddOrgVoter(morgId string, acctId common.Address,  txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) AddOrgVoter(morgId string, acctId common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(AddOrgVoter, txArgs{txa: txa, morgId: morgId, acctId: acctId})
 }
 
 // RemoveOrgKey removes an org key combination from the org key map
-func (s *QuorumControlsAPI) DeleteOrgVoter(morgId string, acctId common.Address,  txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) DeleteOrgVoter(morgId string, acctId common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(DeleteOrgVoter, txArgs{txa: txa, morgId: morgId, acctId: acctId})
 }
 
@@ -416,7 +417,7 @@ func (s *QuorumControlsAPI) DeleteOrgKey(orgId string, tmKey string, txa ethapi.
 }
 
 // RemoveOrgKey removes an org key combination from the org key map
-func (s *QuorumControlsAPI) ApprovePendingOp (orgId string, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) ApprovePendingOp(orgId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(ApprovePendingOp, txArgs{txa: txa, orgId: orgId})
 }
 
@@ -443,7 +444,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 	switch action {
 	case AddVoter:
-		if !checkVoterAccountAccess(args.voter){
+		if !checkVoterAccountAccess(args.voter) {
 			return ErrVoterAccountAccess
 		}
 		tx, err = ps.AddVoter(args.voter)
@@ -679,7 +680,7 @@ func (s *QuorumControlsAPI) GetPendingOpDetails(orgId string) PendingOpInfo {
 	ret, _ := ps.CheckOrgExists(orgId)
 	if ret {
 		// get the total number of accounts with permissions
-		pendingKey, pendingOp,  err := ps.GetOrgPendingOp(orgId)
+		pendingKey, pendingOp, err := ps.GetOrgPendingOp(orgId)
 		if err == nil {
 			pendOpInfo := PendingOpInfo{pendingKey, decodePendingOp(pendingOp)}
 			return pendOpInfo
@@ -731,7 +732,7 @@ func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs
 		}
 		ret, _, _ = ps.CheckIfVoterExists(args.morgId, args.acctId)
 		if ret {
-			return ErrVoterExists;
+			return ErrVoterExists
 		}
 		tx, err = ps.AddVoter(args.morgId, args.acctId)
 
@@ -742,7 +743,7 @@ func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs
 		}
 		ret, _, _ = ps.CheckIfVoterExists(args.morgId, args.acctId)
 		if !ret {
-			return ErrInvalidAccount;
+			return ErrInvalidAccount
 		}
 		tx, err = ps.DeleteVoter(args.morgId, args.acctId)
 
@@ -902,7 +903,7 @@ func (s *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet
 
 // checks if the input node details for approval is matching with details stored
 // in contract
-func checkNodeDetails (ps *pbind.PermissionsSession, enodeID string, node *discover.Node ) bool {
+func checkNodeDetails(ps *pbind.PermissionsSession, enodeID string, node *discover.Node) bool {
 	ipAddr := node.IP.String()
 	port := fmt.Sprintf("%v", node.TCP)
 	discPort := fmt.Sprintf("%v", node.UDP)
@@ -919,7 +920,7 @@ func checkNodeDetails (ps *pbind.PermissionsSession, enodeID string, node *disco
 }
 
 // checks if the account performing the operation has sufficient access privileges
-func checkAccountAccess (from common.Address, accessType uint8) bool {
+func checkAccountAccess(from common.Address, accessType uint8) bool {
 	acctAccess := types.GetAcctAccess(from)
 
 	if acctAccess == types.FullAccess {
@@ -933,7 +934,7 @@ func checkAccountAccess (from common.Address, accessType uint8) bool {
 }
 
 // checks if the account performing the operation has sufficient access privileges
-func checkVoterAccountAccess (account common.Address) bool {
+func checkVoterAccountAccess(account common.Address) bool {
 	acctAccess := types.GetAcctAccess(account)
 	if acctAccess == types.ReadOnly {
 		return false
