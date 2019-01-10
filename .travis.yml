@@ -8,7 +8,7 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
-      go: 1.9.x
+      go: 1.11.x
       script:
         - sudo modprobe fuse
         - sudo chmod 666 /dev/fuse
@@ -18,7 +18,7 @@ matrix:
 
     - os: osx
       osx_image: xcode9.2 # so we don't have to deal with Kernel Extension Consent UI which is never possible in CI
-      go: 1.9.x
+      go: 1.11.x
       sudo: required
       script:
         - brew update
