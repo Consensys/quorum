@@ -98,9 +98,11 @@ func (p *PermissionCtrl) init() error {
 	}
 
 	// call populates the node details from contract to KnownNodes
-	if err := p.populatePermissionedNodes(); err != nil {
-		return err
-	}
+	// this is not required as the permissioned node info is persisted at
+	// file level
+	// if err := p.populatePermissionedNodes(); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
@@ -204,6 +206,7 @@ func (p *PermissionCtrl) monitorNodeBlacklisting() {
 	for {
 		select {
 		case newNodeBlacklistEvent = <-ch:
+			p.updatePermissionedNodes(newNodeBlacklistEvent.EnodeId, newNodeBlacklistEvent.IpAddrPort, newNodeBlacklistEvent.DiscPort, newNodeBlacklistEvent.RaftPort, NodeDelete)
 			p.updateDisallowedNodes(newNodeBlacklistEvent)
 		}
 
@@ -239,13 +242,17 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 		nodelist = append(nodelist, newEnodeId)
 	} else {
 		index := 0
+		recExists := false
 		for i, enodeId := range nodelist {
 			if (enodeId == newEnodeId){
 				index = i
+				recExists = true
 				break
 			}
 		}
-		nodelist = append(nodelist[:index], nodelist[index+1:]...)
+		if recExists {
+			nodelist = append(nodelist[:index], nodelist[index+1:]...)
+		}
 		p.disconnectNode(newEnodeId)
 	}
 	mu := sync.RWMutex{}
@@ -258,7 +265,7 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 	mu.Unlock()
 }
 
-//this function populates the new node information into the permissioned-nodes.json file
+//this function populates the black listed node information into the permissioned-nodes.json file
 func (p *PermissionCtrl) updateDisallowedNodes(nodeBlacklistEvent *pbind.PermissionsNodeBlacklisted) {
 	log.Debug("updateDisallowedNodes", "DataDir", p.dataDir, "file", BLACKLIST_CONFIG)
 
