@@ -391,7 +391,10 @@ func opAddress(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *
 
 func opBalance(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	slot := stack.peek()
-	slot.Set(evm.StateDB.GetBalance(common.BigToAddress(slot)))
+	addr := common.BigToAddress(slot)
+	// Quorum: get public/private state db based on addr
+	balance := getDualState(evm, addr).GetBalance(addr)
+	slot.Set(balance)
 	return nil, nil
 }
 
@@ -457,7 +460,9 @@ func opReturnDataCopy(pc *uint64, evm *EVM, contract *Contract, memory *Memory, 
 
 func opExtCodeSize(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	slot := stack.peek()
-	slot.SetUint64(uint64(evm.StateDB.GetCodeSize(common.BigToAddress(slot))))
+	addr := common.BigToAddress(slot)
+	// Quorum: get public/private state db based on addr
+	slot.SetUint64(uint64(getDualState(evm, addr).GetCodeSize(addr)))
 
 	return nil, nil
 }
@@ -489,7 +494,8 @@ func opExtCodeCopy(pc *uint64, evm *EVM, contract *Contract, memory *Memory, sta
 		codeOffset = stack.pop()
 		length     = stack.pop()
 	)
-	codeCopy := getDataBig(evm.StateDB.GetCode(addr), codeOffset, length)
+	// Quorum: get public/private state db based on addr
+	codeCopy := getDataBig(getDualState(evm, addr).GetCode(addr), codeOffset, length)
 	memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
 
 	evm.interpreter.intPool.put(memOffset, codeOffset, length)
@@ -571,7 +577,8 @@ func opMstore8(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *
 
 func opSload(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	loc := stack.peek()
-	val := evm.StateDB.GetState(contract.Address(), common.BigToHash(loc))
+	// Quorum: get public/private state db based on addr
+	val := getDualState(evm, contract.Address()).GetState(contract.Address(), common.BigToHash(loc))
 	loc.SetBytes(val.Bytes())
 	return nil, nil
 }
@@ -579,7 +586,8 @@ func opSload(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *St
 func opSstore(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	loc := common.BigToHash(stack.pop())
 	val := stack.pop()
-	evm.StateDB.SetState(contract.Address(), loc, common.BigToHash(val))
+	// Quorum: get public/private state db based on addr
+	getDualState(evm, contract.Address()).SetState(contract.Address(), loc, common.BigToHash(val))
 
 	evm.interpreter.intPool.put(val)
 	return nil, nil
@@ -794,10 +802,12 @@ func opStop(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Sta
 }
 
 func opSuicide(pc *uint64, evm *EVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	balance := evm.StateDB.GetBalance(contract.Address())
-	evm.StateDB.AddBalance(common.BigToAddress(stack.pop()), balance)
+	// Quorum: get public/private state db based on addr
+	db := getDualState(evm, contract.Address())
+	balance := db.GetBalance(contract.Address())
+	db.AddBalance(common.BigToAddress(stack.pop()), balance)
 
-	evm.StateDB.Suicide(contract.Address())
+	db.Suicide(contract.Address())
 	return nil, nil
 }
 

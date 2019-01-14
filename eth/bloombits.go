@@ -121,10 +121,14 @@ func (b *BloomIndexer) Reset(section uint64, lastSectionHead common.Hash) error 
 	return err
 }
 
-// Process implements core.ChainIndexerBackend, adding a new header's bloom into
-// the index.
+// Process implements core.ChainIndexerBackend, executes an Or operation on header.bloom and private bloom
+// (header.bloom | private bloom) and adds to index
 func (b *BloomIndexer) Process(header *types.Header) {
-	b.gen.AddBloom(uint(header.Number.Uint64()-b.section*b.size), header.Bloom)
+	publicBloom := header.Bloom
+	privateBloom := core.GetPrivateBlockBloom(b.db, header.Number.Uint64())
+	publicBloom.OrBloom(privateBloom.Bytes())
+
+	b.gen.AddBloom(uint(header.Number.Uint64()-b.section*b.size), publicBloom)
 	b.head = header.Hash()
 }
 
