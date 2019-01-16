@@ -28,12 +28,17 @@ cache:
   directories:
   - $HOME/.m2
 before_install:
+  - pwd
   - wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
   - sudo unzip -o gauge.zip -d /usr/local/bin
   - wget https://releases.hashicorp.com/terraform/0.11.8/terraform_0.11.8_linux_amd64.zip -O terraform.zip -q
   - unzip terraform.zip
+  - cd terraform
+  - pwd
+  - echo "$TERRAFORM_CMD"
+  - cd ..
   - git clone https://github.com/jpmorganchase/quorum-cloud.git
-  - git clone https://github.com/jpmorganchase/quorum-acceptance-test.git
+  - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git
 install:
   - sudo apt-get install oracle-java8-installer
   - gauge telemetry off
