@@ -36,6 +36,7 @@ before_install:
   - git clone https://github.com/jpmorganchase/quorum-cloud.git
   - git clone https://github.com/jpmorganchase/quorum-acceptance-test.git
 install:
+  - sudo apt-get install oracle-java8-installer
   - gauge telemetry off
   - gauge install
 
