@@ -106,6 +106,30 @@ func (c *Client) SendPayload(pl []byte, b64From string, b64To []string) ([]byte,
 	return ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, res.Body))
 }
 
+func (c *Client) SendSignedPayload(signedPayload []byte, b64To []string) ([]byte, error) {
+	buf := bytes.NewBuffer(signedPayload)
+	req, err := http.NewRequest("POST", "http+unix://c/sendsignedtx", buf)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("c11n-to", strings.Join(b64To, ","))
+	req.Header.Set("Content-Type", "application/octet-stream")
+	res, err := c.httpClient.Do(req)
+
+	if res != nil {
+		defer res.Body.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Non-200 status code: %+v", res)
+	}
+
+	return ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, res.Body))
+}
+
 func (c *Client) ReceivePayload(key []byte) ([]byte, error) {
 	req, err := http.NewRequest("GET", "http+unix://c/receiveraw", nil)
 	if err != nil {

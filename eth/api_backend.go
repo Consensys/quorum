@@ -149,7 +149,19 @@ func (b *EthAPIBackend) GetEVM(ctx context.Context, msg core.Message, state vm.M
 	vmError := func() error { return nil }
 
 	context := core.NewEVMContext(msg, header, b.eth.BlockChain(), nil)
-	return vm.NewEVM(context, statedb.state, statedb.privateState, b.eth.chainConfig, vmCfg), vmError, nil
+
+	// Set the private state to public state if contract address is not present in the private state
+	to := common.Address{}
+	if msg.To() != nil {
+		to = *msg.To()
+	}
+
+	privateState := statedb.privateState
+	if !privateState.Exist(to) {
+		privateState = statedb.state
+	}
+
+	return vm.NewEVM(context, statedb.state, privateState, b.eth.chainConfig, vmCfg), vmError, nil
 }
 
 func (b *EthAPIBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
