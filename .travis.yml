@@ -2,19 +2,104 @@
 
 language: go
 go_import_path: github.com/ethereum/go-ethereum
-sudo: false
+sudo: true
+env:
+    global:
+    - TERRAFORM_CMD="$TRAVIS_BUILD_DIR/terraform"
+    - QUORUM_CLOUD_TEMPLATES_DIR=quorum-cloud/aws/templates
+    - QUORUM_SOCKSPROXY_HOST=localhost
+    - QUORUM_SOCKSPROXY_PORT=5000
+    # Terraform Variables
+    - TF_VAR_region=us-east-1
+    - TF_VAR_is_igw_subnets=false
+    - TF_VAR_subnet_ids="[\"subnet-4c30c605\",\"subnet-4c30c605\",\"subnet-09263334\",\"subnet-5236300a\"]"
+    - TF_VAR_bastion_public_subnet_id="subnet-3a8d8707"
+    - TF_VAR_access_bastion_cidr_blocks="[$(dig +short nat.travisci.net | sed -e 's/$/\/32\"/g' | sed -e 's/^/\"/g' | paste -s -d, -)]"
+    # - TF_VAR_access_bastion_cidr_blocks="[\"$(curl -s ipecho.net/plain)/32\"]"
+    # AWS Configuration
+    - secure: "SXNLe/u/hd+PqzLFQ23cwwsXCN14oK3wpubc03MTIJrQwYeJiXin1f9UosvMM1WTS//bHxyTVHF1skWMES82AcCXBJgLzv0K2iymLCuJS7OvQwXdtiiXroxeFUDfbYgfXn6isgASIy74oNcybh5efQThV01S4dOmCkpUwaMfslJtYxReEcm9tvm3+TGKXbO9mN1ulQE0vOcB4EDXZWIvFBamKA+ytGKL1g9z2eBiCzhZdXSkF7u+s1oaBFYVYE5VLiCrBZN7VtGQcjJY3zzbZZUagM140Ip6es7ZKNa9KFlLjPe/fLnLuET/3ybCLoRbiMESwpV2JYefNarivL/zHu2I9KW0X8p+zPFdWXqGUakpaZYPgaTaomyES4e20d/09eNx5swHsTsF8GzSrBlEtC615mOPCWRSs4J8++BO9ry/yVzYpBqo1/g8OFJP6NhIVoPCxJ72KshmanKlmPa6UA7igKh6szeVYgTf7dWmFqhirJw3ovkovhf2gjrWGAAdkA915miGiVIG43nBDRqqzmA6ul6xjWBG81DuHu8VOrOK3C94aalaepwg3Fb1ofcLvS3phj02ovuWL6YwJ6ZUslVpJk8p3ZXJQFAyiO3kWkUL9avTLyVTueyUBNY1Cl0GkuBX7BCReeLgyQy+WZtnxVw0TBJeOVcwYTHGWPQ6zxw="
+    - secure: "Lc1lX3K8LEIPX+qzs/UTGn74jEEVop5Pw7zJHsFBUGasW8kY8o94lGN0JNJ9wUFNjxNjkIB/wrIzF4LF+lBTIyINsUONqVHRyDISj5Dlt9Mtig426oiy7USuKgohfp2ub2HV9Jr8xtCCLWExJvT6NRP6c2j28UEYEEPJowV0c5kf0C597gDKrZZ9ZRgK82kQpbG3fM0MnJXUHUt11eeIZofaHyPYJ54fr1u9D5iN8vxUYOv+5XQqRxo1yneyxtNycAIRdh6HLXZeNg5AGUWUQYNpy4FLs8Vz8b+XyIS7r7nrcsLesRIMmbrJQkvWNd7V+4AsBJReD8xHWf7TatRFVTLZTidBO+oflLGkLzVmpxAFv1iUHpudftYy4bZllN+MImK//0EpP0wuj22j6Dkoc+UvanE/KdUPVYp7MM7YW9zRQlY24PlLlxtfdla9bLD1UVA/atThGTyCz44e/GoZaZm+i/SEjUcX4Havk8FJfSJSaZ+MNgeKksJpF/PbFLTQx/IKzUjK46pSYV5nFULE/0UBRx7xinhnHxeb3Rh/hZWjMCqHfK3tbRMvG0Kwx0L/wBv71FIQK50+jjv0J3xfDQgBlePRfnop5YIoUwIdc0y9Kmljb6DP75EkQJ1VFGCt62JwY0HkZIDGKBYflTZh55TcfVHwJXx/M7sXTapSJXk="
+    # Github Page configuration to publish test report
+    - secure: "rO5mn5nK3LPjggc2Yid+VC0F37vCsQVUxKlOP4llVbv7JnoLuBp4uYq3swp0XF3i58GOoGdU6s/K28b1f8hYEHV0G67epSNObCKPBBahaAYoNiW/vB4kh1D/4GQ5aJwmhoT889IAf/Uy4EonDiTerOrsxM7V1l6X0cZOl2Opin0AB2AvZCnpVfppPftlS18Xm/q+tp4/UVXhF4u4BI7HqbDJmctWwpytIm+9tjT8pUDKTEOjAj/HgoG3p6CHZh5ucR8uZBEHu2a8wmPhxh8beuJPBLKslB/yqjws0+XzICHsvWoc43FbgB2e1BZlaNsAzbE3FLE7RxZ/sIigQewJf50ms+NA2rjD2LHvGj+bBlluvrxtGfZaN0Cb3xgh03NguKwsWUkCUiQrgt0rhCm0//PwXxDnF83m1DFMTre3JhQAUDa0DjvEaPwiOLLRuYyL6yTloMOV/q1tRnL3VzQxpc8qjChKA4mMtB7jNYJ5mCDEjBSFOdzeLEyq/oWoj4tKY+j36QC0VhvOWEkazBurufWnXCxC58KlmEJDXBzYGDuW5HsqeQvNUM5Ozd3ugpXSn/CckVdElX4z8brXmEVpGRuxZQd4djJ4tuXGXmcWwCKhtmL8khtOy9KXy3EmsM/oN0o7lYglTG9M8MKgUits9Yaiv01Fd4HCMS104dFL3LY="
+    - REPO_NAME=jpmorganchase.github.io
+    - REPO_OWNER=jpmorganchase
+    - GITHUB_USERNAME=trung
+cache:
+  directories:
+  - $HOME/.m2
+before_install:
+  - wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
+  - sudo unzip -o gauge.zip -d /usr/local/bin
+  - wget https://releases.hashicorp.com/terraform/0.11.8/terraform_0.11.8_linux_amd64.zip -O terraform.zip -q
+  - unzip terraform.zip
+  - $TERRAFORM_CMD version
+  - git clone https://github.com/jpmorganchase/quorum-cloud.git
+  - git clone https://github.com/jpmorganchase/quorum-acceptance-test.git
+install:
+  - gauge telemetry off
+  - gauge install
+
+addons:
+    apt:
+        update: true
+        sources:
+        - sourceline: ppa:ethereum/ethereum
+        packages:
+        - dpkg # fixes issue with dpkg-deb error due to travis image issue
+        - openssh-client
+        - dnsutils
+        - maven
+        - solc
+        - jq
+        - curl
+        - oraclejdk9
 matrix:
   include:
+    - name: raft
     - os: linux
       dist: trusty
       sudo: required
       go: 1.9.x
+      env:
+        - TF_VAR_consensus_mechanism=raft
+        - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
       script:
         - sudo modprobe fuse
         - sudo chmod 666 /dev/fuse
         - sudo chown root:$USER /etc/fuse.conf
         - go run build/ci.go install
         - go run build/ci.go test -coverage $TEST_PACKAGES
+        - cd $TRAVIS_BUILD_DIR/quorum-acceptance-test
+        - ./src/travis/start_quorum.sh
+        - set +e
+        - ./src/travis/run_tests.sh
+        - set +e
+        - ./src/travis/stop_quorum.sh
+        - set +e
+        - ./src/travis/upload_test_report.sh
+
+    - name: istanbul
+    - os: linux
+      dist: trusty
+      sudo: required
+      go: 1.9.x
+      env:
+        - TF_VAR_consensus_mechanism=istanbul
+        - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
+      script:
+          - sudo modprobe fuse
+          - sudo chmod 666 /dev/fuse
+          - sudo chown root:$USER /etc/fuse.conf
+          - go run build/ci.go install
+          - go run build/ci.go test -coverage $TEST_PACKAGES
+          - cd $TRAVIS_BUILD_DIR/quorum-acceptance-test
+          - ./src/travis/start_quorum.sh
+          - set +e
+          - ./src/travis/run_tests.sh
+          - set +e
+          - ./src/travis/stop_quorum.sh
+          - set +e
+          - ./src/travis/upload_test_report.sh
 
     - os: osx
       osx_image: xcode9.2 # so we don't have to deal with Kernel Extension Consent UI which is never possible in CI
@@ -26,3 +111,20 @@ matrix:
         - brew cask install osxfuse
         - go run build/ci.go install
         - go run build/ci.go test -coverage $TEST_PACKAGES
+
+
+notifications:
+  email:
+  - amalraj.mani@gmail.com
+  slack:
+      rooms:
+      - secure: "C2sbBrFdBIL7kY2j/5pE19/e1QbfMJ58HcN2OhK6+RSGyv08W3UQsCSBPE3SNUmgYPkS5Oo46ikwm0N8CLtapOhc1rdIZV6ikxJQBs5gYUya8+8umlUMCZAV6fRRUxz1KXGMvwfvSmeivWm5oI4iEL6RkM8Sy2LTfLAzqxTCwyx18T4JTvgPyv8pQ+ZGsynQykkBaSFmLS6XQjmMlWOTuMdv7LsLofqn1ivSl7B+kR0eDJggUGGNm/B+JRySuroUo2Cwf9/DdpSCwfs76sEHuXcCeHKmCfkzUVAqve2XBGfsAdPXwvjoGo285e07FraIq2J+4oQSaNyWuExK/RQCNln5zZKNILObEUH7qF/oaJpBt82M0NreaPsczuB98eRvkoM9t5ki3rLk7GKSGL87QraZe1gxZ0TLe/cnb0OsHbhUKnW71WuTS/s+s9vUchCr/Dmer+Cr0sqbS4+cRD4yWAuYEfsAR50yAWymxg0pmRKlffCJpU1pmcEmcOLsnJEdvh8TZu/S9RFoZBPvzQxc+EbifMaY6AWPHT1NmFcXlGzHWrLmj2S/hhngr+rRiqE704pBk/odf7jV3H/P7sPXZPiK4y0+Pj0UvupDeAGUj/Et8Nt3+6VW3OzXgOIrpYCmxlS9GUleecz9JQ/dP513/R3v/GutYNU5P+XRhYMm4EQ="
+      on_success: always
+      on_failure: always
+      on_pull_requests: false
+      template:
+      - "Build <%{build_url}|#%{build_number}> of %{repository_slug}@%{branch}"
+      - "%{result} in %{duration}"
+      - "<https://jpmorganchase.github.io/%{repository_name}/docs/html/|Test Specifications>"
+      - "Execution reports: <https://jpmorganchase.github.io/%{repository_name}/raft/|Raft> - <https://jpmorganchase.github.io/%{repository_name}/istanbul/|Istanbul>"
+
