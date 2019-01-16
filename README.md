@@ -1,7 +1,8 @@
-# <img src="logo.png" width="100" height="100"/>
+# <img src="https://raw.githubusercontent.com/jpmorganchase/quorum/master/logo.png" width="100" height="100"/>
 
 <a href="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
 [![Build Status](https://travis-ci.org/jpmorganchase/quorum.svg?branch=master)](https://travis-ci.org/jpmorganchase/quorum)
+[![Download](https://api.bintray.com/packages/quorumengineering/quorum/geth/images/download.svg)](https://bintray.com/quorumengineering/quorum/geth/_latestVersion)
 
 Quorum is an Ethereum-based distributed ledger protocol with transaction/contract privacy and new consensus mechanisms.
 
