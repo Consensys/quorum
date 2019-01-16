@@ -32,11 +32,9 @@ before_install:
   - sudo unzip -o gauge.zip -d /usr/local/bin
   - wget https://releases.hashicorp.com/terraform/0.11.8/terraform_0.11.8_linux_amd64.zip -O terraform.zip -q
   - unzip terraform.zip
-  - echo "$TERRAFORM_CMD"
   - git clone https://github.com/jpmorganchase/quorum-cloud.git
   - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git
 install:
-  - sudo apt-get install oracle-java8-installer
   - gauge telemetry off
   - gauge install
 
