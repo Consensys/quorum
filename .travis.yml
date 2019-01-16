@@ -52,7 +52,7 @@ addons:
         - solc
         - jq
         - curl
-        - oracle-java8-installer
+        - openjdk8
 matrix:
   include:
     - name: raft
