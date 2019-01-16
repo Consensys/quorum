@@ -2,27 +2,94 @@
 
 language: go
 go_import_path: github.com/ethereum/go-ethereum
-sudo: false
+go: 1.9.x
+sudo: true
+branches:
+  only:
+    - /.*/ # everything including tags
+env:
+  global:
+    - BINTRAY_ORGANIZATION=trun9
+    - BINTRAY_USER=erolagnab
+    # Bintray API Key
+    - secure: "N4Zs5/HFhiuCmOFQotpFMBMaKAUpNv5h1NCpthkTWLBpa1LbQWxOQZ6xxQayPM7z3uCyoZ/+U/u6tQ+OsiAO/QQ16zpOxPjPwbwBm6FHAiQuRHWuCp9FGBoqBfCDi+s9vZn/6cm8kXU7QUN+bzOg5THHmHkJItusLrTtia/gQZI4//bc2IKsLz6X5DVv33Pr10Vk+4k+E6Wb55NTbbgcc9wWh01n0Q+xv60UFfGEpdcfAX9+PG3Hu+y7ufCItCFyJI2euv50usJXHszDdPnizWL0vTEf9DpNU9LeCHZJ9g9azsEztr1lWc38LZzHv5tSad5ahfdwO8P0YldSO/o0JefzlG3eqraNv6oxaNvXtPUjnEWBrp/hkBDoPl649ZT5gqe7EqhQiQnRWSMXpqSQ2UXTTarRg0Qp2hCz0qT3x92o/qmaJm+lUmfHhvUg3aT379G2K8layWCCkTa+1NONShmRMk+OTrUd7wyrvKFQQEY5TUFtNruN29wxjMGDSn5l99hrhri5ImJdVPTP2FjLfYhBwhTXiXOgOpbhYQ/aPEgllS1w5rpIr4XycRUx0ZSz4bcJwP51jF5lBBwK6b16wK7lFGS4/veJ2RNecvp894MWNY8dYS31CpMs5lbwwm5YHUUwYyY3NRKWokK9lvYHC7zzFeDov8hdVenGahL/0jA="
 matrix:
   include:
-    - os: linux
+    - if: tag IS blank
+      os: linux
       dist: trusty
-      sudo: required
-      go: 1.9.x
       script:
         - sudo modprobe fuse
         - sudo chmod 666 /dev/fuse
         - sudo chown root:$USER /etc/fuse.conf
         - go run build/ci.go install
         - go run build/ci.go test -coverage $TEST_PACKAGES
-
-    - os: osx
+    - if: tag IS blank
+      os: osx
       osx_image: xcode9.2 # so we don't have to deal with Kernel Extension Consent UI which is never possible in CI
-      go: 1.9.x
-      sudo: required
       script:
         - brew update
         - brew install caskroom/cask/brew-cask
         - brew cask install osxfuse
         - go run build/ci.go install
         - go run build/ci.go test -coverage $TEST_PACKAGES
+
+    - if: tag IS present
+      os: linux
+      dist: xenial
+      env: OUTPUT_FILE=geth_${TRAVIS_TAG}_linux_amd64.tar.gz
+      script:
+        - build/env.sh go run build/ci.go install ./cmd/geth
+        - sudo mkdir -p /dist
+        - cd build/bin
+        - sudo tar cfvz /dist/${OUTPUT_FILE} geth
+    - if: tag IS present
+      os: osx
+      osx_image: xcode9.2
+      env: OUTPUT_FILE=geth_${TRAVIS_TAG}_darwin_amd64.tar.gz
+      script:
+        - build/env.sh go run build/ci.go install ./cmd/geth
+        - sudo mkdir -p /dist
+        - cd build/bin
+        - sudo tar cfvz /dist/${OUTPUT_FILE} geth
+
+before_deploy:
+  - |
+    echo "Prepare Bintray descriptor"
+    export GETH_VERSION=$(cat ${TRAVIS_BUILD_DIR}/VERSION)
+    export RELEASED_DATE=$(date +'%Y-%m-%d')
+    sed -e "s/_TRAVIS_TAG_/${TRAVIS_TAG}/g" \
+        -e "s/_TRAVIS_BUILD_NUMBER_/${TRAVIS_BUILD_NUMBER}/g" \
+        -e "s/_GETH_VERSION_/${GETH_VERSION}/g" \
+        -e "s/_RELEASED_DATE_/${RELEASED_DATE}/g" \
+        -e "s/_TRAVIS_COMMIT_/${TRAVIS_COMMIT}/g" \
+        -e "s/_TRAVIS_JOB_WEB_URL_/${TRAVIS_JOB_WEB_URL//\//\\/}/g" \
+        -e "s/_ORGANIZATION_/${BINTRAY_ORGANIZATION}/g" \
+        ${TRAVIS_BUILD_DIR}/.bintray.json > /tmp/bintray.json
+after_deploy:
+  - |
+    published=""
+    while [ "$published" == "" ]; do
+      echo "Sleep 5s to wait until ${OUTPUT_FILE} is published"
+      sleep 5
+      result=$(curl -u ${BINTRAY_USER}:${BINTRAY_API_KEY} "https://api.bintray.com/packages/${BINTRAY_ORGANIZATION}/quorum/geth/versions/${TRAVIS_TAG}/files")
+      echo "$result"
+      if [[ "$result" == *"${OUTPUT_FILE}"* ]]; then
+        published="done"
+      fi
+    done
+  - |
+    echo "Add ${OUTPUT_FILE} to Download List"
+    curl -u ${BINTRAY_USER}:${BINTRAY_API_KEY} \
+        -H "Content-type: application/json" \
+        -X PUT \
+        --data "{\"list_in_downloads\": true}" \
+        https://api.bintray.com/file_metadata/${BINTRAY_ORGANIZATION}/quorum/${TRAVIS_TAG}/${OUTPUT_FILE}
+deploy:
+  provider: bintray
+  file: /tmp/bintray.json
+  user: ${BINTRAY_USER}
+  key: ${BINTRAY_API_KEY}
+  skip_cleanup: true
+  on:
+    tags: true
