@@ -131,11 +131,46 @@ The api details for node permissioning are as below:
 
 ## Account Access Control
 The following account access controls are being introduced as a part of this feature:
-* Read Only: Accounts with this access will be able to perform only read activities and will not be able to deploy contracts or transactions. By defaulyt any account which is not permissioned will have a read only access. 
+* Read Only: Accounts with this access will be able to perform only read activities and will not be able to deploy contracts or transactions. By default any account which is not permissioned will have a read only access. 
 * Transact: Accounts with transact access will be able to commit transactions but will not be able to deploy contracts
 * Contract Deploy: Accounts with this access will be able to deploy contracts and commit transactions
 * Full Access: Similar to "Contract Deploy" access, accounts with this access will be able to deploy contracts and perform transactions
 Currently there is not any differences in the access types "Full Access" and "Contract Deploy". 
+
+There are two apis available for managing the account permissions in the network:
+* `quorumAcctMgmt.permissionAccountList` list the permissioned account list and the access that each account is having
+```
+> quorumAcctMgmt.permissionAccountList
+[{
+    access: "FullAccess",
+    address: "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e"
+}, {
+    access: "Transact",
+    address: "0xed9d02e382b34818e88B88a309c7fe71E65f419d"
+}, {
+    access: "ContractDeploy",
+    address: "0x0fBDc686b912d7722dc86510934589E0AAf3b55A"
+}, {
+    access: "ReadOnly",
+    address: "0x9186eb3d20Cbd1F5f992a950d808C4495153ABd5"
+}
+```
+* To set the account access to a particula value `quorumAcctMgmt.setAccountAccess` can be used.
+```
+> quorumAcctMgmt.setAccountAccess("0x9186eb3d20cbd1f5f992a950d808c4495153abd5", "0", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+The table below indicates the numeric value for each account access type.
+| AccessType      |           Value |
+| :-------------: | :-------------: |
+| Full Access     |               0 |
+| ReadOnly        |               1 |
+| Transact        |               2 |
+| ContractDeploy  |               3 |
+
 olons can be used to align columns.
 
 | Tables        | Are           | Cool  |
