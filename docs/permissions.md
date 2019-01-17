@@ -26,9 +26,39 @@ Node permissioning and Account access control is managed by a smart contract [Pe
     "balance": "1000000000000000000000000000"
   },
 ```
-In the above set up, accounts "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e", "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e", "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e" will have full access when the network boot is completed. 
+In the above set up, accounts `"0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e", "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e", "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e"` will have full access when the network boot is completed. 
 
-Further, if the initial set of network nodes are brought up with `--permissioned` mode and a new approved node is joining the networl without `--permissioned` flag in the `geth` start commmand, system will not allow the new `geth` node to come and a fatal error `Joining a permissioned network in non-permissioned mode. Bring up geth with --permissioned."`.
+Further, if the initial set of network nodes are brought up with `--permissioned` mode and a new approved node is joining the network without `--permissioned` flag in the `geth` start commmand, system will not allow the new `geth` node to come and a fatal error `Joining a permissioned network in non-permissioned mode. Bring up geth with --permissioned."` will be thrown.
 ## Node Permissioning 
+In a permissioned network any node can be in one of the following status:
+* Proposed - The node has been proposed to join the network and pending majority voting to be marked as `Approved`
+* Approved - The node is approved and is part of the network
+* PendingDeactivation - The node has been proposed for deatvation from network and is pending majority approval
+* Deactivated - The node has been deactivated from the network. Any node in this status will be disconnected from the network and block sync with this node will stop
+* PendingActivation - A deactivated node has been proposed for activation and is pending majority approval. Once approved the node will move to `Approved` status
+* PendingBlacklisting - The node has been proposed for blacklisting and is pending majority approval
+* Blacklisted - The node has been blacklisted. If the node was an active node on the network, the node will be disconnected from the network and block sync will stop
 
+It should be noted that deactication is temporary in nature and as such the node can join back the network at a later point in time. However blacklisting is permanent in nature. A blacklisted node will never be able to join back the network. Further blacklisting can be proposed for a node which is in the network or a new node which is currently not part fof the network. 
+
+At the time network boot up, all the nodes present in `static-nodes.json` file are added to the permissioned nodes list maintained in the smart contract. Once the initila network is up, these nodes can then propose and approve new nodes to join the network. 
+
+The api details for node permissioning are as below:
+* `quorumNodeMgmt.permissionNodeList` returns the list of all enodes and their status
+```
+> quorumNodeMgmt.permissionNodeList
+[{
+    enodeId: "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@127.0.0.1:21000?discport=0&raftport=50401",
+    status: "Approved"
+}, {
+    enodeId: "enode://0ba6b9f606a43a95edc6247cdb1c1e105145817be7bcafd6b2c0ba15d58145f0dc1a194f70ba73cd6f4cdd6864edc7687f311254c7555cc32e4d45aeb1b80416@127.0.0.1:21001?discport=0&raftport=50402",
+    status: "Approved"
+}, {
+    enodeId: "enode://579f786d4e2830bbcc02815a27e8a9bacccc9605df4dc6f20bcc1a6eb391e7225fff7cb83e5b4ecd1f3a94d8b733803f2f66b7e871961e7b029e22c155c3a778@127.0.0.1:21002?discport=0&raftport=50403",
+    status: "Approved"
+}, {
+    enodeId: "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404",
+    status: "Approved"
+}]
+```
 ## Account Access Control
