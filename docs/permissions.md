@@ -94,4 +94,44 @@ The api details for node permissioning are as below:
   status: true
 }
 ```
+* For proposing a node for deactivation and approving the node deactivation the following two apis can be used - `quorumNodeMgmt.proposeNodeDeactivation` and `quorumNodeMgmt.approveNodeDeactivation` 
+```
+> quorumNodeMgmt.proposeNodeDeactivation("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumNodeMgmt.approveNodeDeactivation("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+* To propose activation of a deactivated node `quorumNodeMgmt.proposeNodeActivation` can be used. The same can be approved using `quorumNodeMgmt.approveNodeActivation` api.
+```
+> quorumNodeMgmt.proposeNodeActivation("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumNodeMgmt.approveNodeActivation("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+* To propose a node for blacklisting `quorumNodeMgmt.proposeNodeBlacklisting` can be used. Node blacklisting can be approved using the api `quorumNodeMgmt.approveNodeBlacklisting`
+```
+> quorumNodeMgmt.proposeNodeBlacklisting("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumNodeMgmt.approveNodeBlacklisting("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+
 ## Account Access Control
