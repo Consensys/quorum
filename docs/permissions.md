@@ -1,12 +1,12 @@
 # Overview
-At present when Quorum is brought `--permissionoed` mode, for establishing p2p connectivity, the nodes checked `permissioned-nodes.json` file. If the enode id of the node requesting connection is present in this file, the connection is established else it is declined. The `permissioned-nodes.json` file is updated procedurally whenever a new node joins the network. Node permissioning feature will allow the existing nodes to propose a new node to join the network and once majority voting is done on the proposal, it will update the `permissioned-nodes.json` automatically. Further the existing nodes can propose any node for deactivation, blacklisting and activating back from a deactivated status.
+Currently when Quorum geth is brought up in `--permissionoed` mode, for establishing p2p connectivity, the nodes check `permissioned-nodes.json` file. If the enode id of the node requesting connection is present in this file, the connection is established else it is declined. The `permissioned-nodes.json` file is updated procedurally whenever a new node joins the network. Node permissioning feature will allow the existing nodes to propose a new node to join the network and once majority voting is done on the proposal, it will update the `permissioned-nodes.json` automatically. Further the existing nodes can propose any node for deactivation, blacklisting and activating back from a deactivated status.
 
-Account permissioning feature introduces controls at account level and controls the type of transactions that can be performed by an account. 
+Account permissioning feature introduces controls at account level. This will control the type of transactions that a particular account can perform.
 
 It should be noted that both the above features will be available when Quorum geth is brought in `--permissioned` mode.
 
 ## Set up
-Node permissioning and Account access control is managed by a smart contract [Permission.sol](../controls/permission/Permission.sol). This is deployed as precompiled contract at the time of initial network bootup. The precompiled contract is deployed at address `0x000000000000000000032`. The binding of the precompiled byte code with the address is in `genesis.json`. The initial set of account which will have full access when the network is up, should given as a part of `genesis.json` as shown below:
+Node permissioning and Account access control is managed by a smart contract [Permission.sol](../controls/permission/Permission.sol). The precompiled smart contract is deployed at address `0x000000000000000000032` in network bootup process. The binding of the precompiled byte code with the address is in `genesis.json`. The initial set of account which will have full access when the network is up, should given as a part of `genesis.json` as shown below:
 ```
 {
   "alloc": {
@@ -24,19 +24,20 @@ Node permissioning and Account access control is managed by a smart contract [Pe
 In the above set up, accounts `"0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e", "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e", "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e"` will have full access when the network boot is completed. 
 
 Further, if the initial set of network nodes are brought up with `--permissioned` mode and a new approved node is joining the network without `--permissioned` flag in the `geth` start commmand, system will not allow the new `geth` node to come and a fatal error `Joining a permissioned network in non-permissioned mode. Bring up geth with --permissioned."` will be thrown.
+
 ## Node Permissioning 
 In a permissioned network any node can be in one of the following status:
 * Proposed - The node has been proposed to join the network and pending majority voting to be marked as `Approved`
 * Approved - The node is approved and is part of the network
 * PendingDeactivation - The node has been proposed for deatvation from network and is pending majority approval
-* Deactivated - The node has been deactivated from the network. Any node in this status will be disconnected from the network and block sync with this node will stop
+* Deactivated - The node has been deactivated from the network. Any node in this status will be disconnected from the network and block sync with this node will not happen
 * PendingActivation - A deactivated node has been proposed for activation and is pending majority approval. Once approved the node will move to `Approved` status
 * PendingBlacklisting - The node has been proposed for blacklisting and is pending majority approval
 * Blacklisted - The node has been blacklisted. If the node was an active node on the network, the node will be disconnected from the network and block sync will stop
 
-It should be noted that deactication is temporary in nature and as such the node can join back the network at a later point in time. However blacklisting is permanent in nature. A blacklisted node will never be able to join back the network. Further blacklisting can be proposed for a node which is in the network or a new node which is currently not part fof the network. 
+It should be noted that deactivation is temporary in nature and hence the node can join back the network at a later point in time. However blacklisting is permanent in nature. A blacklisted node will never be able to join back the network. Further blacklisting can be proposed for a node which is in the network or a new node which is currently not part fof the network. 
 
-At the time network boot up, all the nodes present in `static-nodes.json` file are added to the permissioned nodes list maintained in the smart contract. Once the initila network is up, these nodes can then propose and approve new nodes to join the network. 
+When the network is started for the first time, all the nodes present in `static-nodes.json` file are added to the permissioned nodes list maintained in the smart contract. Once the initila network is up, these nodes can then propose and approve new nodes to join the network. 
 
 The api details for node permissioning are as below:
 * `quorumNodeMgmt.permissionNodeList` returns the list of all enodes and their status
@@ -130,11 +131,13 @@ The api details for node permissioning are as below:
 ```
 
 ## Account Access Control
-The following account access controls are being introduced as a part of this feature:
-* Read Only: Accounts with this access will be able to perform only read activities and will not be able to deploy contracts or transactions. By default any account which is not permissioned will have a read only access. 
+The following account access types are being introduced as a part of this feature:
+
+* ReadOnly: Accounts with this access will be able to perform only read activities and will not be able to deploy contracts or transactions. By default any account which is not permissioned will have a read only access. 
 * Transact: Accounts with transact access will be able to commit transactions but will not be able to deploy contracts
 * Contract Deploy: Accounts with this access will be able to deploy contracts and commit transactions
-* Full Access: Similar to "Contract Deploy" access, accounts with this access will be able to deploy contracts and perform transactions
+* FullAccess: Similar to "Contract Deploy" access, accounts with this access will be able to deploy contracts and perform transactions
+
 Currently there is not any differences in the access types "Full Access" and "Contract Deploy". 
 
 There are two apis available for managing the account permissions in the network:
@@ -186,4 +189,3 @@ If an account having lower privileges tries to assign a higher privilege to an a
   status: false
 }
 ```
-
