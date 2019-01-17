@@ -57,7 +57,7 @@ addons:
 matrix:
   include:
     - name: raft
-    - os: linux
+      os: linux
       dist: trusty
       sudo: required
       go: 1.9.x
@@ -80,7 +80,7 @@ matrix:
         - ./src/travis/upload_test_report.sh
 
     - name: istanbul
-    - os: linux
+      os: linux
       dist: trusty
       sudo: required
       go: 1.9.x
