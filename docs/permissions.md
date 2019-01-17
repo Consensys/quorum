@@ -61,4 +61,37 @@ The api details for node permissioning are as below:
     status: "Approved"
 }]
 ```
+* Before any new nodes can be proposed to the network, network level voters have to be added. To manage voters at the networ level, there are two apis. `quorumNodeMgmt.addVoter` allows an account to be added as a voter. `quorumNodeMgmt.removeVoter` allows an account to be removed from the voter list. `quorumNodeMgmt.voterList` displays the list of all voters at network level
+```
+> quorumNodeMgmt.addVoter("0x0fBDc686b912d7722dc86510934589E0AAf3b55A", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumNodeMgmt.voterList
+["0xed9d02e382b34818e88B88a309c7fe71E65f419d", "0x0fBDc686b912d7722dc86510934589E0AAf3b55A"]
+> quorumNodeMgmt.removeVoter("0x0fBDc686b912d7722dc86510934589E0AAf3b55A", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumNodeMgmt.voterList
+["0xed9d02e382b34818e88B88a309c7fe71E65f419d"]
+```
+* `quorumNodeMgmt.proposeNode` allows a new node to be propsoed into the network.
+```
+> quorumNodeMgmt.proposeNode("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+* `quorumNodeMgmt.approveNode` allows approval of a new node proposed to be part of the network. This api will be execyed by the accounts marked as voters and once majority voter accounts invoke the api, the node will be marked and move to `Approved` status
+```
+> quorumNodeMgmt.approveNode("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
 ## Account Access Control
