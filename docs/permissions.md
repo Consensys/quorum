@@ -167,15 +167,23 @@ The table below indicates the numeric value for each account access type.
 
 | AccessType      |           Value |
 | :-------------: | :-------------: |
-| Full Access     |               0 |
+| FullAccess      |               0 |
 | ReadOnly        |               1 |
 | Transact        |               2 |
 | ContractDeploy  |               3 |
 
-olons can be used to align columns.
+Further while setting the account access, system checks if the account which is setting the access has sufficient privileges to perform the activity. For example a read only account cannot grant full access accounyt access to another account. The allowed access set ups are as below:
+* Accounts with `FullAccess` can grant any access type ( FullAccess, Transact, ContractDeploy or ReadOnly) to any other account
+* Accounts with `ContractDeploy` can grant only `Transact`, `ContractDeploy` or `ReadOnly` access to other accounts
+* Accounts with `Transact` access grant only `Transact` or `ReadOnly` access to other accounts
+* Accounts with `ReadOnly` access cannot grant any access
 
-| Tables        | Are           | Cool  |
-| ------------- |:-------------:| -----:|
-| col 3 is      | right-aligned | $1600 |
-| col 2 is      | centered      |   $12 |
-| zebra stripes | are neat      |    $1 |
+If an account having lower privileges tries to assign a higher privilege to an account, system will not allow the operation and will throw the an error as shown below:
+```
+> quorumAcctMgmt.setAccountAccess("0xAE9bc6cD5145e67FbD1887A5145271fd182F0eE7", "0", {from: eth.accounts[0]})
+{
+  msg: "Account does not have sufficient access for operation",
+  status: false
+}
+```
+
