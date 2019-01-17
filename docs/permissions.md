@@ -164,6 +164,7 @@ There are two apis available for managing the account permissions in the network
 }
 ```
 The table below indicates the numeric value for each account access type.
+
 | AccessType      |           Value |
 | :-------------: | :-------------: |
 | Full Access     |               0 |
