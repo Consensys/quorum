@@ -1,0 +1,2 @@
+# Transaction Manager key management at Organization level
+Currently when private transactions are done Quorum, the individual transaction manager (Tessera or Constellation) public keys have to be mentioned in the `privateFor` attribute. This feature allows multiple transaction manager keys to be grouped under a single organization name and at transaction level, the organization id can be passed in `privateFor` attribute instead of the keys.
