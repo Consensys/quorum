@@ -61,7 +61,7 @@ The api details for node permissioning are as below:
     status: "Approved"
 }]
 ```
-* Before any new nodes can be proposed to the network, network level voters have to be added. To manage voters at the networ level, there are two apis. `quorumNodeMgmt.addVoter` allows an account to be added as a voter. `quorumNodeMgmt.removeVoter` allows an account to be removed from the voter list. `quorumNodeMgmt.voterList` displays the list of all voters at network level
+* Before any new nodes can be proposed to the network, network level voters have to be added. To manage voters at the network level, the following apis are there. `quorumNodeMgmt.addVoter` allows an account to be added as a voter. `quorumNodeMgmt.removeVoter` allows an account to be removed from the voter list. `quorumNodeMgmt.voterList` displays the list of all voters at network level
 ```
 > quorumNodeMgmt.addVoter("0x0fBDc686b912d7722dc86510934589E0AAf3b55A", {from: eth.accounts[0]})
 {
