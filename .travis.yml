@@ -36,7 +36,7 @@ before_install:
   - git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_BUILD_DIR/quorum-cloud
   - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_BUILD_DIR/quorum-acceptance-tests
 install:
-  - cd $TRAVIS_BUILD_DIR/quorum-acceptance-test
+  - cd $TRAVIS_BUILD_DIR/quorum-acceptance-tests
   - gauge telemetry off
   - gauge install
 
