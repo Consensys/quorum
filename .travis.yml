@@ -17,7 +17,7 @@ matrix:
   include:
     - if: tag IS blank
       os: linux
-      dist: trusty
+      dist: xenial
       script:
         - sudo modprobe fuse
         - sudo chmod 666 /dev/fuse
