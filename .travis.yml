@@ -45,8 +45,9 @@ addons:
         update: true
         sources:
         - sourceline: ppa:ethereum/ethereum
+        - sourceline: ppa:openjdk-r/ppa
         packages:
-        - oraclejdk11
+        - openjdk-8-jdk
         - dpkg # fixes issue with dpkg-deb error due to travis image issue
         - openssh-client
         - dnsutils
