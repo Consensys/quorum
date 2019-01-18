@@ -58,6 +58,7 @@ matrix:
         - sudo chown root:$USER /etc/fuse.conf
         - cd $TRAVIS_BUILD_DIR
         - go run build/ci.go install
+        - export PATH=$GOPATH/bin:$PATH
         - cd $TRAVIS_BUILD_DIR/quorum-acceptance-tests/src/travis/7nodes
         - ./raft-init.sh
         - set +e
