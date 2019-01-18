@@ -76,31 +76,18 @@ matrix:
         - sudo chown root:$USER /etc/fuse.conf
         - go run build/ci.go install
         - go run build/ci.go test -coverage $TEST_PACKAGES
-        - cd $TRAVIS_BUILD_DIR/quorum-acceptance-test
-        - ./src/travis/7nodes/raft-init.sh
-        - ./src/travis/7nodes/raft-start.sh tessera
+        - cd $TRAVIS_BUILD_DIR/quorum-acceptance-test/src/travis/7nodes
+        - ./raft-init.sh
         - set +e
+        - ./raft-start.sh tessera
+        - set +e
+        - cd $TRAVIS_BUILD_DIR/quorum-acceptance-test
         - ./src/travis/run_tests.sh
         - set +e
-        - ./src/travis/7nodes/stop.sh
+        - $TRAVIS_BUILD_DIR/quorum-acceptance-test/src/travis/7nodes/stop.sh
         - set +e
         - cd $TRAVIS_BUILD_DIR
         - go run build/ci.go test -coverage $TEST_PACKAGES
-
-    - name: istanbul
-      os: linux
-      dist: trusty
-      sudo: required
-      go: 1.9.x
-      env:
-        - TF_VAR_consensus_mechanism=istanbul
-        - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
-      script:
-          - sudo modprobe fuse
-          - sudo chmod 666 /dev/fuse
-          - sudo chown root:$USER /etc/fuse.conf
-          - go run build/ci.go install
-          - go run build/ci.go test -coverage $TEST_PACKAGES
 
     - os: osx
       osx_image: xcode9.2 # so we don't have to deal with Kernel Extension Consent UI which is never possible in CI
