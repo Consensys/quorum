@@ -53,6 +53,9 @@ matrix:
         - TF_VAR_consensus_mechanism=raft
         - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
       script:
+        - set +e
+        - cd `java -version`
+        - cd `env`
         - sudo modprobe fuse
         - sudo chmod 666 /dev/fuse
         - sudo chown root:$USER /etc/fuse.conf
@@ -69,6 +72,7 @@ matrix:
         - ./src/travis/run_tests.sh
         - set +e
         - $TRAVIS_BUILD_DIR/quorum-acceptance-tests/src/travis/7nodes/stop.sh
+        - set +e
         - cd $TRAVIS_BUILD_DIR
         - go run build/ci.go test -coverage $TEST_PACKAGES
 
