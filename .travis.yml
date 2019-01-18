@@ -17,8 +17,8 @@ env:
     - TF_VAR_access_bastion_cidr_blocks="[$(dig +short nat.travisci.net | sed -e 's/$/\/32\"/g' | sed -e 's/^/\"/g' | paste -s -d, -)]"
     # - TF_VAR_access_bastion_cidr_blocks="[\"$(curl -s ipecho.net/plain)/32\"]"
     # AWS Configuration
-    - secure: "SXNLe/u/hd+PqzLFQ23cwwsXCN14oK3wpubc03MTIJrQwYeJiXin1f9UosvMM1WTS//bHxyTVHF1skWMES82AcCXBJgLzv0K2iymLCuJS7OvQwXdtiiXroxeFUDfbYgfXn6isgASIy74oNcybh5efQThV01S4dOmCkpUwaMfslJtYxReEcm9tvm3+TGKXbO9mN1ulQE0vOcB4EDXZWIvFBamKA+ytGKL1g9z2eBiCzhZdXSkF7u+s1oaBFYVYE5VLiCrBZN7VtGQcjJY3zzbZZUagM140Ip6es7ZKNa9KFlLjPe/fLnLuET/3ybCLoRbiMESwpV2JYefNarivL/zHu2I9KW0X8p+zPFdWXqGUakpaZYPgaTaomyES4e20d/09eNx5swHsTsF8GzSrBlEtC615mOPCWRSs4J8++BO9ry/yVzYpBqo1/g8OFJP6NhIVoPCxJ72KshmanKlmPa6UA7igKh6szeVYgTf7dWmFqhirJw3ovkovhf2gjrWGAAdkA915miGiVIG43nBDRqqzmA6ul6xjWBG81DuHu8VOrOK3C94aalaepwg3Fb1ofcLvS3phj02ovuWL6YwJ6ZUslVpJk8p3ZXJQFAyiO3kWkUL9avTLyVTueyUBNY1Cl0GkuBX7BCReeLgyQy+WZtnxVw0TBJeOVcwYTHGWPQ6zxw="
-    - secure: "Lc1lX3K8LEIPX+qzs/UTGn74jEEVop5Pw7zJHsFBUGasW8kY8o94lGN0JNJ9wUFNjxNjkIB/wrIzF4LF+lBTIyINsUONqVHRyDISj5Dlt9Mtig426oiy7USuKgohfp2ub2HV9Jr8xtCCLWExJvT6NRP6c2j28UEYEEPJowV0c5kf0C597gDKrZZ9ZRgK82kQpbG3fM0MnJXUHUt11eeIZofaHyPYJ54fr1u9D5iN8vxUYOv+5XQqRxo1yneyxtNycAIRdh6HLXZeNg5AGUWUQYNpy4FLs8Vz8b+XyIS7r7nrcsLesRIMmbrJQkvWNd7V+4AsBJReD8xHWf7TatRFVTLZTidBO+oflLGkLzVmpxAFv1iUHpudftYy4bZllN+MImK//0EpP0wuj22j6Dkoc+UvanE/KdUPVYp7MM7YW9zRQlY24PlLlxtfdla9bLD1UVA/atThGTyCz44e/GoZaZm+i/SEjUcX4Havk8FJfSJSaZ+MNgeKksJpF/PbFLTQx/IKzUjK46pSYV5nFULE/0UBRx7xinhnHxeb3Rh/hZWjMCqHfK3tbRMvG0Kwx0L/wBv71FIQK50+jjv0J3xfDQgBlePRfnop5YIoUwIdc0y9Kmljb6DP75EkQJ1VFGCt62JwY0HkZIDGKBYflTZh55TcfVHwJXx/M7sXTapSJXk="
+    - secure: "N0zq0g0OUCYFJ7L3Kxibv7+lqEACfuBqMBVicpG3Thq/RtL7J/+LlGjYiDtMrHZyCG9vQVDnug6iSh9v6mixelDYaOXLiz2DqiYkc5r7rB3Z8J+eS2CzG+jcYs6tgmP6CtvlWjvldFf5F/w9T36RHP/WfF5DjcKqk9gF8KeHR7j9SAD91wUcp5ZWzoeASSk3mvaaVoGeTvgMtr+HbgEiAaCNwxZn7P14eC5dFJ8Oyihem2bW2+DOxTaEOQeMxtTxh+0ve2IWEqt+y0F6qWMp7H93CuehsvMHbzNhG4Xb9HVMj6ik0xiktWYAVlIqBPfWPVTy3wHlSPrA1hMZTXJ8/JtNT4Xx14WiBqN1X14W26YionmMtWHKYpDCqBkwVcSjT/raeeIT4k7CR7lY0mTwm+oGSxLPHvbPetWGdMSq9X9YO8+rqGJoKUHnSsU7Z0cniFnnhZdPSqZjSeOCz3++sHbaUiXgSvWEWEM3kB24uFS3jspI8E6nzENwEYtMq7qz3dFVwZPGB7WAmAc6Dv8vgfVH4la5TLW8ko3qyycCPVqcBNQjMUQeCNCJyfujC3mBc5eZ8WI2Rm/fg14XPgdjRr02gYYx6k3WQYu/hXRYHC/LbkVfCixGTVS0NNoPGdX+O8gNwT44+7AhZS7477P+otvVrAYSTNfwpGcskbbWtWg="
+    - secure: "VhDu25BY2jglaEYyFXDIDSrwtne1A98fGI4fgrBddyEfVo/qUKjYFsj/QPiN7rdmuvUQZuy4TYsC6rEnVfehesQQZ2PEvaMRVKU0LRm7uOlA0pV3VRggt8jClXGG9i3Nbe8UMhC9zZDbrY9vtErkI47Z8NHxy9O2mJMYmgoTmBgaFm4Gk4vUz5IXbMmoZmKLO36ODJqqAbwKVtWT8fbK8C7k/Gm2p8CoeNFYsFsR9AtJUP8vAcq9mOngPdTCRb9je3DQkdrF2nCMD9pHpEJXvnCZyQ/dFfGwlVRS++gh31ieCGmIhjWVtpIRTBZOaHAiPUXaAI/fvFYxkiW4TYA+hm58sIxCQ5XcOTq1DUIGGnNTbFSqvR3Y33PB3SwEG6cnE7PdBIXqRNvb2sarkWtUipWMwLRx0FeHkZv0UESorL+Ell4aQN/Kwn8VnnLNFyWiI1uCjZ1LriSmmldX2eCFHW0MNMNb2sSsrCufT56N62JlfvsoFipz0nugthJGPPWAvxCKL/oUAzlAq4iSPf6iJB/93Y/eTcaf7sS18iZcOCjrkLl7I/1DW/2NfVX1OJeZWgRgubweDwvcD00ofXDvG22ZxNLEcLRWIf9j6UlPJb+AL24XwKmD1fDu0aPpGjbJ5L+9DbMF0Lw1N9Zy8lWjTDMggdGKFJ+5agCgJgtqGVc="
     # Github Page configuration to publish test report
     - secure: "rO5mn5nK3LPjggc2Yid+VC0F37vCsQVUxKlOP4llVbv7JnoLuBp4uYq3swp0XF3i58GOoGdU6s/K28b1f8hYEHV0G67epSNObCKPBBahaAYoNiW/vB4kh1D/4GQ5aJwmhoT889IAf/Uy4EonDiTerOrsxM7V1l6X0cZOl2Opin0AB2AvZCnpVfppPftlS18Xm/q+tp4/UVXhF4u4BI7HqbDJmctWwpytIm+9tjT8pUDKTEOjAj/HgoG3p6CHZh5ucR8uZBEHu2a8wmPhxh8beuJPBLKslB/yqjws0+XzICHsvWoc43FbgB2e1BZlaNsAzbE3FLE7RxZ/sIigQewJf50ms+NA2rjD2LHvGj+bBlluvrxtGfZaN0Cb3xgh03NguKwsWUkCUiQrgt0rhCm0//PwXxDnF83m1DFMTre3JhQAUDa0DjvEaPwiOLLRuYyL6yTloMOV/q1tRnL3VzQxpc8qjChKA4mMtB7jNYJ5mCDEjBSFOdzeLEyq/oWoj4tKY+j36QC0VhvOWEkazBurufWnXCxC58KlmEJDXBzYGDuW5HsqeQvNUM5Ozd3ugpXSn/CckVdElX4z8brXmEVpGRuxZQd4djJ4tuXGXmcWwCKhtmL8khtOy9KXy3EmsM/oN0o7lYglTG9M8MKgUits9Yaiv01Fd4HCMS104dFL3LY="
     - REPO_NAME=jpmorganchase.github.io
@@ -31,10 +31,12 @@ before_install:
   - wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
   - sudo unzip -o gauge.zip -d /usr/local/bin
   - wget https://releases.hashicorp.com/terraform/0.11.8/terraform_0.11.8_linux_amd64.zip -O terraform.zip -q
-  - unzip terraform.zip
+  - sudo unzip terraform.zip -d /usr/local/bin
+  - terraform version
   - git clone https://github.com/jpmorganchase/quorum-cloud.git
   - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git
 install:
+  - cd $TRAVIS_BUILD_DIR/quorum-acceptance-test
   - gauge telemetry off
   - gauge install
 
