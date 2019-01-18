@@ -5,7 +5,7 @@ go_import_path: github.com/ethereum/go-ethereum
 sudo: true
 env:
     global:
-    - TERRAFORM_CMD="$TRAVIS_BUILD_DIR/terraform"
+    - TERRAFORM_CMD="/usr/local/bin/terraform"
     - QUORUM_CLOUD_TEMPLATES_DIR=quorum-cloud/aws/templates
     - QUORUM_SOCKSPROXY_HOST=localhost
     - QUORUM_SOCKSPROXY_PORT=5000
@@ -33,12 +33,10 @@ before_install:
   - wget https://releases.hashicorp.com/terraform/0.11.8/terraform_0.11.8_linux_amd64.zip -O terraform.zip -q
   - sudo unzip terraform.zip -d /usr/local/bin
   - terraform version
-  - git clone https://github.com/jpmorganchase/quorum-cloud.git
-  - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git
+  - git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_BUILD_DIR/quorum-cloud
+  - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_BUILD_DIR/quorum-acceptance-tests
 install:
-  - pwd
-  - ls -ltr
-  - cd $HOME/quorum-acceptance-test
+  - cd $TRAVIS_BUILD_DIR/quorum-acceptance-test
   - gauge telemetry off
   - gauge install
 
@@ -119,8 +117,6 @@ matrix:
 
 
 notifications:
-  email:
-  - amalraj.mani@gmail.com
   slack:
       rooms:
       - secure: "C2sbBrFdBIL7kY2j/5pE19/e1QbfMJ58HcN2OhK6+RSGyv08W3UQsCSBPE3SNUmgYPkS5Oo46ikwm0N8CLtapOhc1rdIZV6ikxJQBs5gYUya8+8umlUMCZAV6fRRUxz1KXGMvwfvSmeivWm5oI4iEL6RkM8Sy2LTfLAzqxTCwyx18T4JTvgPyv8pQ+ZGsynQykkBaSFmLS6XQjmMlWOTuMdv7LsLofqn1ivSl7B+kR0eDJggUGGNm/B+JRySuroUo2Cwf9/DdpSCwfs76sEHuXcCeHKmCfkzUVAqve2XBGfsAdPXwvjoGo285e07FraIq2J+4oQSaNyWuExK/RQCNln5zZKNILObEUH7qF/oaJpBt82M0NreaPsczuB98eRvkoM9t5ki3rLk7GKSGL87QraZe1gxZ0TLe/cnb0OsHbhUKnW71WuTS/s+s9vUchCr/Dmer+Cr0sqbS4+cRD4yWAuYEfsAR50yAWymxg0pmRKlffCJpU1pmcEmcOLsnJEdvh8TZu/S9RFoZBPvzQxc+EbifMaY6AWPHT1NmFcXlGzHWrLmj2S/hhngr+rRiqE704pBk/odf7jV3H/P7sPXZPiK4y0+Pj0UvupDeAGUj/Et8Nt3+6VW3OzXgOIrpYCmxlS9GUleecz9JQ/dP513/R3v/GutYNU5P+XRhYMm4EQ="
