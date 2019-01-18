@@ -57,6 +57,14 @@ const (
 	ApprovePendingOp
 )
 
+// return values for checkNodeDetails function
+type NodeCheckRetVal int
+
+const (
+	Success NodeCheckRetVal = iota
+	DetailsMismatch
+	NothingToApprove
+)
 // QuorumControlsAPI provides an API to access Quorum's node permission and org key management related services
 type QuorumControlsAPI struct {
 	txPool      *core.TxPool
@@ -460,7 +468,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return ErrInvalidNode
-		}
+		} 
 		enodeID := node.ID.String()
 		ipAddr := node.IP.String()
 		port := fmt.Sprintf("%v", node.TCP)
@@ -481,8 +489,13 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 		enodeID := node.ID.String()
 
-		if !checkNodeDetails(ps, enodeID, node) {
-			return ErrNodeDetailsMismatch
+		retVal := checkNodeDetails(ps, enodeID, node, action)
+		if retVal != Success {
+			if retVal == DetailsMismatch {
+				return ErrNodeDetailsMismatch
+			} else if retVal == NothingToApprove {
+				return ErrNothingToApprove
+			}
 		}
 		tx, err = ps.ApproveNode(enodeID)
 
@@ -508,9 +521,16 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
-		if !checkNodeDetails(ps, enodeID, node) {
-			return ErrNodeDetailsMismatch
+
+		retVal := checkNodeDetails(ps, enodeID, node, action) 
+		if retVal != Success {
+			if retVal == DetailsMismatch {
+				return ErrNodeDetailsMismatch
+			} else if retVal == NothingToApprove {
+				return ErrNothingToApprove
+			}
 		}
+
 		tx, err = ps.DeactivateNode(enodeID)
 
 	case ProposeNodeActivation:
@@ -535,9 +555,16 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
-		if !checkNodeDetails(ps, enodeID, node) {
-			return ErrNodeDetailsMismatch
+
+		retVal := checkNodeDetails(ps, enodeID, node, action) 
+		if retVal != Success {
+			if retVal == DetailsMismatch {
+				return ErrNodeDetailsMismatch
+			} else if retVal == NothingToApprove {
+				return ErrNothingToApprove
+			}
 		}
+
 		tx, err = ps.ActivateNode(enodeID)
 
 	case ProposeNodeBlacklisting:
@@ -567,9 +594,16 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return ErrInvalidNode
 		}
 		enodeID := node.ID.String()
-		if !checkNodeDetails(ps, enodeID, node) {
-			return ErrNodeDetailsMismatch
+
+		retVal := checkNodeDetails(ps, enodeID, node, action) 
+		if retVal != Success {
+			if retVal == DetailsMismatch {
+				return ErrNodeDetailsMismatch
+			} else if retVal == NothingToApprove {
+				return ErrNothingToApprove
+			}
 		}
+
 		tx, err = ps.BlacklistNode(enodeID)
 
 	case SetAccountAccess:
@@ -903,7 +937,7 @@ func (s *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet
 
 // checks if the input node details for approval is matching with details stored
 // in contract
-func checkNodeDetails(ps *pbind.PermissionsSession, enodeID string, node *discover.Node) bool {
+func checkNodeDetails(ps *pbind.PermissionsSession, enodeID string, node *discover.Node, action PermAction)  NodeCheckRetVal {
 	ipAddr := node.IP.String()
 	port := fmt.Sprintf("%v", node.TCP)
 	discPort := fmt.Sprintf("%v", node.UDP)
@@ -911,12 +945,21 @@ func checkNodeDetails(ps *pbind.PermissionsSession, enodeID string, node *discov
 	ipAddrPort := ipAddr + ":" + port
 
 	cnode, err := ps.GetNodeDetails(enodeID)
+	
 	if err == nil {
-		if strings.Compare(ipAddrPort, cnode.IpAddrPort) == 0 && strings.Compare(discPort, cnode.DiscPort) == 0 && strings.Compare(raftPort, cnode.RaftPort) == 0 {
-			return true
+		if !(strings.Compare(ipAddrPort, cnode.IpAddrPort) == 0 && strings.Compare(discPort, cnode.DiscPort) == 0 && strings.Compare(raftPort, cnode.RaftPort) == 0) {
+			return DetailsMismatch
 		}
+		nodeStatus := decodeNodeStatus(cnode.NodeStatus)
+		if (action == ApproveNode && nodeStatus != "PendingApproval") ||
+			(action == ApproveNodeDeactivation && nodeStatus != "PendingDeactivation") ||
+			(action == ApproveNodeActivation && nodeStatus != "PendingActivation") ||
+			(action == ApproveNodeBlacklisting && nodeStatus != "PendingBlacklisting") {
+			return NothingToApprove
+		}
+
 	}
-	return false
+	return Success
 }
 
 // checks if the account performing the operation has sufficient access privileges
