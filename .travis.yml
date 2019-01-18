@@ -55,7 +55,7 @@ matrix:
       script:
         - set +e
         - cd `java -version`
-        - cd `env`
+        - cd `ls -ltr $TESSERA_JAR`
         - sudo modprobe fuse
         - sudo chmod 666 /dev/fuse
         - sudo chown root:$USER /etc/fuse.conf
