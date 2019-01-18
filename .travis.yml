@@ -6,20 +6,6 @@ sudo: true
 env:
     global:
     - TESSERA_JAR="$HOME/tessera.jar"
-    - TERRAFORM_CMD="/usr/local/bin/terraform"
-    - QUORUM_CLOUD_TEMPLATES_DIR=quorum-cloud/aws/templates
-    - QUORUM_SOCKSPROXY_HOST=localhost
-    - QUORUM_SOCKSPROXY_PORT=5000
-    # Terraform Variables
-    - TF_VAR_region=us-east-1
-    - TF_VAR_is_igw_subnets=false
-    - TF_VAR_subnet_ids="[\"subnet-4c30c605\",\"subnet-4c30c605\",\"subnet-09263334\",\"subnet-5236300a\"]"
-    - TF_VAR_bastion_public_subnet_id="subnet-3a8d8707"
-    - TF_VAR_access_bastion_cidr_blocks="[$(dig +short nat.travisci.net | sed -e 's/$/\/32\"/g' | sed -e 's/^/\"/g' | paste -s -d, -)]"
-    # - TF_VAR_access_bastion_cidr_blocks="[\"$(curl -s ipecho.net/plain)/32\"]"
-    # AWS Configuration
-    - secure: "N0zq0g0OUCYFJ7L3Kxibv7+lqEACfuBqMBVicpG3Thq/RtL7J/+LlGjYiDtMrHZyCG9vQVDnug6iSh9v6mixelDYaOXLiz2DqiYkc5r7rB3Z8J+eS2CzG+jcYs6tgmP6CtvlWjvldFf5F/w9T36RHP/WfF5DjcKqk9gF8KeHR7j9SAD91wUcp5ZWzoeASSk3mvaaVoGeTvgMtr+HbgEiAaCNwxZn7P14eC5dFJ8Oyihem2bW2+DOxTaEOQeMxtTxh+0ve2IWEqt+y0F6qWMp7H93CuehsvMHbzNhG4Xb9HVMj6ik0xiktWYAVlIqBPfWPVTy3wHlSPrA1hMZTXJ8/JtNT4Xx14WiBqN1X14W26YionmMtWHKYpDCqBkwVcSjT/raeeIT4k7CR7lY0mTwm+oGSxLPHvbPetWGdMSq9X9YO8+rqGJoKUHnSsU7Z0cniFnnhZdPSqZjSeOCz3++sHbaUiXgSvWEWEM3kB24uFS3jspI8E6nzENwEYtMq7qz3dFVwZPGB7WAmAc6Dv8vgfVH4la5TLW8ko3qyycCPVqcBNQjMUQeCNCJyfujC3mBc5eZ8WI2Rm/fg14XPgdjRr02gYYx6k3WQYu/hXRYHC/LbkVfCixGTVS0NNoPGdX+O8gNwT44+7AhZS7477P+otvVrAYSTNfwpGcskbbWtWg="
-    - secure: "VhDu25BY2jglaEYyFXDIDSrwtne1A98fGI4fgrBddyEfVo/qUKjYFsj/QPiN7rdmuvUQZuy4TYsC6rEnVfehesQQZ2PEvaMRVKU0LRm7uOlA0pV3VRggt8jClXGG9i3Nbe8UMhC9zZDbrY9vtErkI47Z8NHxy9O2mJMYmgoTmBgaFm4Gk4vUz5IXbMmoZmKLO36ODJqqAbwKVtWT8fbK8C7k/Gm2p8CoeNFYsFsR9AtJUP8vAcq9mOngPdTCRb9je3DQkdrF2nCMD9pHpEJXvnCZyQ/dFfGwlVRS++gh31ieCGmIhjWVtpIRTBZOaHAiPUXaAI/fvFYxkiW4TYA+hm58sIxCQ5XcOTq1DUIGGnNTbFSqvR3Y33PB3SwEG6cnE7PdBIXqRNvb2sarkWtUipWMwLRx0FeHkZv0UESorL+Ell4aQN/Kwn8VnnLNFyWiI1uCjZ1LriSmmldX2eCFHW0MNMNb2sSsrCufT56N62JlfvsoFipz0nugthJGPPWAvxCKL/oUAzlAq4iSPf6iJB/93Y/eTcaf7sS18iZcOCjrkLl7I/1DW/2NfVX1OJeZWgRgubweDwvcD00ofXDvG22ZxNLEcLRWIf9j6UlPJb+AL24XwKmD1fDu0aPpGjbJ5L+9DbMF0Lw1N9Zy8lWjTDMggdGKFJ+5agCgJgtqGVc="
     # Github Page configuration to publish test report
     - secure: "rO5mn5nK3LPjggc2Yid+VC0F37vCsQVUxKlOP4llVbv7JnoLuBp4uYq3swp0XF3i58GOoGdU6s/K28b1f8hYEHV0G67epSNObCKPBBahaAYoNiW/vB4kh1D/4GQ5aJwmhoT889IAf/Uy4EonDiTerOrsxM7V1l6X0cZOl2Opin0AB2AvZCnpVfppPftlS18Xm/q+tp4/UVXhF4u4BI7HqbDJmctWwpytIm+9tjT8pUDKTEOjAj/HgoG3p6CHZh5ucR8uZBEHu2a8wmPhxh8beuJPBLKslB/yqjws0+XzICHsvWoc43FbgB2e1BZlaNsAzbE3FLE7RxZ/sIigQewJf50ms+NA2rjD2LHvGj+bBlluvrxtGfZaN0Cb3xgh03NguKwsWUkCUiQrgt0rhCm0//PwXxDnF83m1DFMTre3JhQAUDa0DjvEaPwiOLLRuYyL6yTloMOV/q1tRnL3VzQxpc8qjChKA4mMtB7jNYJ5mCDEjBSFOdzeLEyq/oWoj4tKY+j36QC0VhvOWEkazBurufWnXCxC58KlmEJDXBzYGDuW5HsqeQvNUM5Ozd3ugpXSn/CckVdElX4z8brXmEVpGRuxZQd4djJ4tuXGXmcWwCKhtmL8khtOy9KXy3EmsM/oN0o7lYglTG9M8MKgUits9Yaiv01Fd4HCMS104dFL3LY="
     - REPO_NAME=jpmorganchase.github.io
@@ -29,15 +15,11 @@ cache:
   directories:
   - $HOME/.m2
 before_install:
-  - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.6/tessera-app-0.6-app.jar --O tessera.jar -q
+  - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.6/tessera-app-0.6-app.jar -O tessera.jar -q
   - sudo cp tessera.jar $HOME
   - sudo chmod 755 $HOME/tessera.jar
   - wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
   - sudo unzip -o gauge.zip -d /usr/local/bin
-  - wget https://releases.hashicorp.com/terraform/0.11.8/terraform_0.11.8_linux_amd64.zip -O terraform.zip -q
-  - sudo unzip terraform.zip -d /usr/local/bin
-  - terraform version
-  - git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_BUILD_DIR/quorum-cloud
   - git clone https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_BUILD_DIR/quorum-acceptance-tests
 install:
   - cd $TRAVIS_BUILD_DIR/quorum-acceptance-tests
@@ -82,6 +64,7 @@ matrix:
         - ./raft-start.sh tessera
         - set +e
         - cd $TRAVIS_BUILD_DIR/quorum-acceptance-test
+        - cp config/application-local.7nodes.yml config/application-local.yml
         - ./src/travis/run_tests.sh
         - set +e
         - $TRAVIS_BUILD_DIR/quorum-acceptance-test/src/travis/7nodes/stop.sh
