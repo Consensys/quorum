@@ -9,10 +9,10 @@ branches:
     - /.*/ # everything including tags
 env:
   global:
-    - BINTRAY_ORGANIZATION=trun9
-    - BINTRAY_USER=erolagnab
+    - BINTRAY_ORGANIZATION=quorumengineering
+    - BINTRAY_USER=quorumbot
     # Bintray API Key
-    - secure: "N4Zs5/HFhiuCmOFQotpFMBMaKAUpNv5h1NCpthkTWLBpa1LbQWxOQZ6xxQayPM7z3uCyoZ/+U/u6tQ+OsiAO/QQ16zpOxPjPwbwBm6FHAiQuRHWuCp9FGBoqBfCDi+s9vZn/6cm8kXU7QUN+bzOg5THHmHkJItusLrTtia/gQZI4//bc2IKsLz6X5DVv33Pr10Vk+4k+E6Wb55NTbbgcc9wWh01n0Q+xv60UFfGEpdcfAX9+PG3Hu+y7ufCItCFyJI2euv50usJXHszDdPnizWL0vTEf9DpNU9LeCHZJ9g9azsEztr1lWc38LZzHv5tSad5ahfdwO8P0YldSO/o0JefzlG3eqraNv6oxaNvXtPUjnEWBrp/hkBDoPl649ZT5gqe7EqhQiQnRWSMXpqSQ2UXTTarRg0Qp2hCz0qT3x92o/qmaJm+lUmfHhvUg3aT379G2K8layWCCkTa+1NONShmRMk+OTrUd7wyrvKFQQEY5TUFtNruN29wxjMGDSn5l99hrhri5ImJdVPTP2FjLfYhBwhTXiXOgOpbhYQ/aPEgllS1w5rpIr4XycRUx0ZSz4bcJwP51jF5lBBwK6b16wK7lFGS4/veJ2RNecvp894MWNY8dYS31CpMs5lbwwm5YHUUwYyY3NRKWokK9lvYHC7zzFeDov8hdVenGahL/0jA="
+    - secure: "QHiPcd3zQoJEsT3VSpxoLVTYwbiYzS8H18EpY7Tk0EqCIfswS2AvRlyRXUxNvCf9ktzpaeXV4b5cPYJ67dwdp5V/O/ARaK5AL6ZjjrTPR1avPnmz/X2VeQEP0aWk1UGMs1nBUj5rzMbIIxlVhpbiITTLAI4Ao0+xRcBi215mDbv271Z7mACEZfXxjaoJA0/3IkbKz9pu1nC7bTjaaExCDAeLp2p8fHi2YQPnBll/7dkn/m1rnsIY9M3KWNCx6xBmQOr1hulrrB6tZoHwFBoDsVTFJFLckPfrWUZsYUgtfWJMQWc6ntv1gFl0f9x6s5fYEphCU2m1JYjEczlQ03B5ro9EyPGKjO7vQxAaFd5nVd2Xf34ZbssEIyXxlSnP/4Gv1GXl9L9aU1Hth9ckYvT5gYP5t/Nw3CDbKD0HelPBvkf8jZwfdlotzFPS2bOZNdl/rJLWgQrX18a/mC3BH9l4TSRz13tbRfo6YcC3Y/uOvG1n4GxzcVaWojAxn86SkknOczPTf2pk9F3JOcGVSYA2R4kGQAe+ErJH2X5g2sh1D5cCYDjQyl5rzWg6P3eK//HYW+mg2+TQ8k2iQVVSwFwrR0Yn4P+5cRDCW9mjtktgq1rTtslj41gSH49Avqr9oXGM2rqdcJPdN8dnmLMrAtmeSUNMMoexiRMmlF2OQKLrW3k="
 matrix:
   include:
     - if: tag IS blank
