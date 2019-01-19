@@ -1,4 +1,5 @@
 # simplifed version of the upstream travis configuration
+# no change commit for ledgerium fork.
 
 language: go
 go_import_path: github.com/ethereum/go-ethereum
