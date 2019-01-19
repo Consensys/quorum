@@ -2,7 +2,7 @@
 This is a fork of the Quorom project and uses primarily IBFT for both testnet and public implementations. Our aim is to keep the source as close to the original ethereum and quorum code as possible.
 
 [![Build Status](https://travis-ci.org/ledgerium/ledgeriumcore.svg?branch=main)](https://travis-ci.org/ledgerium/ledgeriumcore)
-[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gitterHQ/gitter)
+[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/ledgerium/community)
 
 ## Contributing
 Thank you for considering to help out with the source code! We welcome contributions from anyone on the internet, and are grateful for even the smallest of fixes!
