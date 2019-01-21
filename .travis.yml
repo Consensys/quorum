@@ -41,7 +41,7 @@ matrix:
         - curl
 
       before_install:
-        - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.6/tessera-app-0.6-app.jar -O tessera.jar -q
+        - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.8/tessera-app-0.8-app.jar -O tessera.jar -q
         - sudo cp tessera.jar $HOME
         - sudo chmod 755 $HOME/tessera.jar
         - wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
@@ -70,8 +70,6 @@ matrix:
         - ./src/travis/run_tests.sh
         - set +e
         - $TRAVIS_HOME/quorum-acceptance-tests/src/travis/7nodes/stop.sh
-        - set +e
-          - ./src/travis/upload_test_report.sh
         - set +e
         - cd $TRAVIS_BUILD_DIR
         - go run build/ci.go test -coverage $TEST_PACKAGES
@@ -112,7 +110,7 @@ matrix:
         - curl
 
       before_install:
-      - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.6/tessera-app-0.6-app.jar -O tessera.jar -q
+      - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.8/tessera-app-0.8-app.jar -O tessera.jar -q
       - sudo cp tessera.jar $HOME
       - sudo chmod 755 $HOME/tessera.jar
       - wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
@@ -141,8 +139,6 @@ matrix:
       - ./src/travis/run_tests.sh
       - set +e
       - $TRAVIS_HOME/quorum-acceptance-tests/src/travis/7nodes/stop.sh
-      - set +e
-        - ./src/travis/upload_test_report.sh
       - set +e
       - cd $TRAVIS_BUILD_DIR
       - go run build/ci.go test -coverage $TEST_PACKAGES
@@ -182,7 +178,7 @@ matrix:
         - curl
 
       before_install:
-      - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.6/tessera-app-0.6-app.jar -O tessera.jar -q
+      - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.8/tessera-app-0.8-app.jar -O tessera.jar -q
       - sudo cp tessera.jar $HOME
       - sudo chmod 755 $HOME/tessera.jar
       - wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
@@ -211,8 +207,6 @@ matrix:
       - ./src/travis/run_tests.sh
       - set +e
       - $TRAVIS_HOME/quorum-acceptance-tests/src/travis/7nodes/stop.sh
-      - set +e
-        - ./src/travis/upload_test_report.sh
       - set +e
       - cd $TRAVIS_BUILD_DIR
       - go run build/ci.go test -coverage $TEST_PACKAGES
