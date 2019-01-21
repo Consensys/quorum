@@ -48,6 +48,9 @@ contract Clusterkeys {
 
 
   // functions to test
+  function checkOrgContractExists() external pure returns (bool){
+    return true;
+  }
   function getOrgVoteCount(string _orgId) external view returns (uint) {
     return voteCount[getOrgIndex(_orgId)];
   }

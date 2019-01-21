@@ -444,7 +444,11 @@ func (p *PermissionCtrl) populateInitPermission() error {
 
 	tx, err := permissionsSession.GetNetworkBootStatus()
 	if err != nil {
-		log.Warn("Failed to udpate network boot status ", "err", err)
+		// handle the scenario of no contract code.
+		if err.Error() == "no contract code at given address"{
+			return err
+		}
+		log.Warn("Failed to retrieve network boot status ", "err", err)
 	}
 
 	if tx && !p.permissionedMode {

@@ -1,6 +1,9 @@
 package cluster
 
 import (
+	"crypto/ecdsa"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/params"
@@ -13,6 +16,8 @@ import (
 
 type OrgKeyCtrl struct {
 	ethClient *ethclient.Client
+	key       *ecdsa.PrivateKey
+	km        *pbind.Cluster
 }
 
 func NewOrgKeyCtrl(node *node.Node) (*OrgKeyCtrl, error) {
@@ -21,7 +26,13 @@ func NewOrgKeyCtrl(node *node.Node) (*OrgKeyCtrl, error) {
 		log.Error("Unable to create ethereum client for cluster check : ", "err", err)
 		return nil, err
 	}
-	return &OrgKeyCtrl{stateReader}, nil
+	// check if permissioning contract is there at address. If not return from here
+	km, err := pbind.NewCluster(params.QuorumPrivateKeyManagementContract, stateReader)
+	if err != nil {
+		log.Error("Permissions not enabled for the network : ", "err", err)
+		return nil, err
+	}
+	return &OrgKeyCtrl{stateReader, node.GetNodeKey(), km}, nil
 }
 
 // This function first adds the node list from permissioned-nodes.json to
@@ -34,8 +45,35 @@ func (k *OrgKeyCtrl) Start() error {
 		log.Error("Cluster not enabled for the network : ", "err", err)
 		return nil
 	}
+	err = k.checkIfContractExists()
+	if (err != nil ){
+		return err
+	}
 	k.manageClusterKeys()
-	return err
+	return nil
+}
+
+func(k *OrgKeyCtrl) checkIfContractExists() error {
+	auth := bind.NewKeyedTransactor(k.key)
+	clusterSession := &pbind.ClusterSession{
+		Contract: k.km,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     auth.From,
+			Signer:   auth.Signer,
+			GasLimit: 4700000,
+			GasPrice: big.NewInt(0),
+		},
+	}
+
+	_, err := clusterSession.CheckOrgContractExists()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (k *OrgKeyCtrl) manageClusterKeys() error {
@@ -58,6 +96,10 @@ func (k *OrgKeyCtrl) populatePrivateKeys() error {
 
 	opts := &bind.FilterOpts{}
 	pastAddEvents, err := cluster.FilterOrgKeyAdded(opts)
+
+	if err != nil && err.Error() == "no contract code at given address" {
+		return err
+	}
 
 	recExists := true
 	for recExists {

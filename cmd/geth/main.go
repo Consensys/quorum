@@ -374,7 +374,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 			quorumApis = []string{"quorumNodeMgmt", "quorumAcctMgmt"}
 
 		} else {
-			log.Error("Failed to start Quorum Permission contract service: %v", err)
+			log.Error("Failed to start Quorum Permission contract service", "error", err)
 		}
 	}
 
@@ -383,9 +383,13 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 	if err != nil {
 		log.Warn("Failed to start quorum Org key management service", "err", err)
 	} else {
-		kc.Start()
-		log.Trace("Key management service started")
-		quorumApis = append(quorumApis, "quorumOrgMgmt")
+		err = kc.Start()
+		if err == nil {
+			log.Trace("Key management service started")
+			quorumApis = append(quorumApis, "quorumOrgMgmt")
+		} else {
+			log.Error("Failed to start Quorum Org key management contract service", "error", err)
+		}
 	}
 
 	rpcClient, err := stack.Attach()
