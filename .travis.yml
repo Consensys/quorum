@@ -2,32 +2,30 @@
 
 language: go
 go_import_path: github.com/ethereum/go-ethereum
-sudo: true
-env:
-    global:
-    - TESSERA_JAR="$HOME/tessera.jar"
-    # Github Page configuration to publish test report
-    - secure: "rO5mn5nK3LPjggc2Yid+VC0F37vCsQVUxKlOP4llVbv7JnoLuBp4uYq3swp0XF3i58GOoGdU6s/K28b1f8hYEHV0G67epSNObCKPBBahaAYoNiW/vB4kh1D/4GQ5aJwmhoT889IAf/Uy4EonDiTerOrsxM7V1l6X0cZOl2Opin0AB2AvZCnpVfppPftlS18Xm/q+tp4/UVXhF4u4BI7HqbDJmctWwpytIm+9tjT8pUDKTEOjAj/HgoG3p6CHZh5ucR8uZBEHu2a8wmPhxh8beuJPBLKslB/yqjws0+XzICHsvWoc43FbgB2e1BZlaNsAzbE3FLE7RxZ/sIigQewJf50ms+NA2rjD2LHvGj+bBlluvrxtGfZaN0Cb3xgh03NguKwsWUkCUiQrgt0rhCm0//PwXxDnF83m1DFMTre3JhQAUDa0DjvEaPwiOLLRuYyL6yTloMOV/q1tRnL3VzQxpc8qjChKA4mMtB7jNYJ5mCDEjBSFOdzeLEyq/oWoj4tKY+j36QC0VhvOWEkazBurufWnXCxC58KlmEJDXBzYGDuW5HsqeQvNUM5Ozd3ugpXSn/CckVdElX4z8brXmEVpGRuxZQd4djJ4tuXGXmcWwCKhtmL8khtOy9KXy3EmsM/oN0o7lYglTG9M8MKgUits9Yaiv01Fd4HCMS104dFL3LY="
-    - REPO_NAME=jpmorganchase.github.io
-    - REPO_OWNER=jpmorganchase
-    - GITHUB_USERNAME=trung
-cache:
-  directories:
-  - $HOME/.m2
-before_install:
-  - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.6/tessera-app-0.6-app.jar -O tessera.jar -q
-  - sudo cp tessera.jar $HOME
-  - sudo chmod 755 $HOME/tessera.jar
-  - wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
-  - sudo unzip -o gauge.zip -d /usr/local/bin
-  - git clone https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-install:
-  - cd $TRAVIS_HOME/quorum-acceptance-tests
-  - gauge telemetry off
-  - gauge install
+sudo: false
 
-addons:
-    apt:
+matrix:
+  include:
+    - name: linux-raft
+      os: linux
+      dist: trusty
+      sudo: required
+      go: 1.9.x
+      env:
+        - TF_VAR_consensus_mechanism=raft
+        - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
+        - TESSERA_JAR="$HOME/tessera.jar"
+    # Github Page configuration to publish test report
+        - secure: "rO5mn5nK3LPjggc2Yid+VC0F37vCsQVUxKlOP4llVbv7JnoLuBp4uYq3swp0XF3i58GOoGdU6s/K28b1f8hYEHV0G67epSNObCKPBBahaAYoNiW/vB4kh1D/4GQ5aJwmhoT889IAf/Uy4EonDiTerOrsxM7V1l6X0cZOl2Opin0AB2AvZCnpVfppPftlS18Xm/q+tp4/UVXhF4u4BI7HqbDJmctWwpytIm+9tjT8pUDKTEOjAj/HgoG3p6CHZh5ucR8uZBEHu2a8wmPhxh8beuJPBLKslB/yqjws0+XzICHsvWoc43FbgB2e1BZlaNsAzbE3FLE7RxZ/sIigQewJf50ms+NA2rjD2LHvGj+bBlluvrxtGfZaN0Cb3xgh03NguKwsWUkCUiQrgt0rhCm0//PwXxDnF83m1DFMTre3JhQAUDa0DjvEaPwiOLLRuYyL6yTloMOV/q1tRnL3VzQxpc8qjChKA4mMtB7jNYJ5mCDEjBSFOdzeLEyq/oWoj4tKY+j36QC0VhvOWEkazBurufWnXCxC58KlmEJDXBzYGDuW5HsqeQvNUM5Ozd3ugpXSn/CckVdElX4z8brXmEVpGRuxZQd4djJ4tuXGXmcWwCKhtmL8khtOy9KXy3EmsM/oN0o7lYglTG9M8MKgUits9Yaiv01Fd4HCMS104dFL3LY="
+        - REPO_NAME=jpmorganchase.github.io
+        - REPO_OWNER=jpmorganchase
+        - GITHUB_USERNAME=trung
+      cache:
+      directories:
+      - $HOME/.m2
+
+      addons:
+      apt:
         update: true
         sources:
         - sourceline: ppa:ethereum/ethereum
@@ -42,16 +40,18 @@ addons:
         - jq
         - curl
 
-matrix:
-  include:
-    - name: raft
-      os: linux
-      dist: trusty
-      sudo: required
-      go: 1.9.x
-      env:
-        - TF_VAR_consensus_mechanism=raft
-        - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
+      before_install:
+        - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.6/tessera-app-0.6-app.jar -O tessera.jar -q
+        - sudo cp tessera.jar $HOME
+        - sudo chmod 755 $HOME/tessera.jar
+        - wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
+        - sudo unzip -o gauge.zip -d /usr/local/bin
+        - git clone https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+      install:
+        - cd $TRAVIS_HOME/quorum-acceptance-tests
+        - gauge telemetry off
+        - gauge install
+
       script:
         - set +e
         - sudo modprobe fuse
@@ -70,6 +70,8 @@ matrix:
         - ./src/travis/run_tests.sh
         - set +e
         - $TRAVIS_HOME/quorum-acceptance-tests/src/travis/7nodes/stop.sh
+        - set +e
+          - ./src/travis/upload_test_report.sh
         - set +e
         - cd $TRAVIS_BUILD_DIR
         - go run build/ci.go test -coverage $TEST_PACKAGES
