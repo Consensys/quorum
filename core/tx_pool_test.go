@@ -300,7 +300,6 @@ func TestValidateTx_whenValueZeroTransferForPrivateTransaction(t *testing.T) {
 	pool, key := setupQuorumTxPool()
 	defer pool.Stop()
 	zeroValue := common.Big0
-	//zeroGasPrice := common.Big0
 	gasPrice := common.Big2
 
 	defaultTxPoolGasLimit := uint64(1000000)
@@ -325,7 +324,6 @@ func TestValidateTx_whenValueNonZeroTransferForPrivateTransaction(t *testing.T) 
 }
 
 func newPrivateTransaction(value *big.Int, data []byte, key *ecdsa.PrivateKey) (*types.Transaction, *big.Int, common.Address) {
-	//zeroGasPrice := common.Big0
 	gasPrice := common.Big2
 
 	defaultTxPoolGasLimit := uint64(1000000)
