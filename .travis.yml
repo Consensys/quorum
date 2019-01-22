@@ -1,5 +1,5 @@
 # simplifed version of the upstream travis configuration.
-# it runs acceptance test for different consensus algorithms
+# it runs acceptance test for different consensus like raft, istanbul and clique
 
 language: go
 go_import_path: github.com/ethereum/go-ethereum
