@@ -77,6 +77,8 @@ var (
 	// making the transaction invalid, rather a DOS protection.
 	ErrOversizedData = errors.New("oversized data")
 
+	ErrInvalidGasPrice = errors.New("Gas price not 0")
+
 	// ErrEtherValueUnsupported is returned if a transaction specifies an Ether Value
 	// for a private Quorum transaction.
 	ErrEtherValueUnsupported = errors.New("ether value is not supported for private transactions")
