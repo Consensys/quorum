@@ -1,4 +1,5 @@
-# simplifed version of the upstream travis configuration
+# simplifed version of the upstream travis configuration.
+# it runs acceptance test
 
 language: go
 go_import_path: github.com/ethereum/go-ethereum
