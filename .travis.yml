@@ -13,6 +13,7 @@ before_install:
 matrix:
   include:
     - name: linux-raft
+      if: branch = ^(?i)(master|feature\-raft|feature\-core)
       os: linux
       dist: trusty
       sudo: true
@@ -47,6 +48,7 @@ matrix:
 
 
     - name: linux-istanbul
+      if: branch = ^(?i)(master|feature\-istanbul|feature\-core)
       os: linux
       dist: trusty
       sudo: true
@@ -80,6 +82,7 @@ matrix:
       script: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh istanbul
 
     - name: linux-clique
+      if: branch = ^(?i)(master|feature\-clique|feature\-core)
       os: linux
       dist: trusty
       sudo: true
@@ -111,6 +114,18 @@ matrix:
       install: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
 
       script: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh clique
+
+    - os: linux
+      dist: trusty
+      sudo: required
+      go: 1.9.x
+      script:
+      - sudo modprobe fuse
+      - sudo chmod 666 /dev/fuse
+      - sudo chown root:$USER /etc/fuse.conf
+      - go run build/ci.go install
+      - go run build/ci.go test -coverage $TEST_PACKAGES
+
 
     - os: osx
       osx_image: xcode9.2 # so we don't have to deal with Kernel Extension Consent UI which is never possible in CI
