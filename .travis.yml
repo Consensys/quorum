@@ -13,7 +13,7 @@ before_install:
 matrix:
   include:
     - name: linux-raft
-      if: branch = ^(?i)(master|feature\-raft|feature\-core)
+      if: branch ~= ^(?i)(master|feature\-raft|feature\-core)
       os: linux
       dist: trusty
       sudo: true
@@ -48,7 +48,7 @@ matrix:
 
 
     - name: linux-istanbul
-      if: branch = ^(?i)(master|feature\-istanbul|feature\-core)
+      if: branch ~= ^(?i)(master|feature\-istanbul|feature\-core)
       os: linux
       dist: trusty
       sudo: true
@@ -82,7 +82,7 @@ matrix:
       script: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh istanbul
 
     - name: linux-clique
-      if: branch = ^(?i)(master|feature\-clique|feature\-core)
+      if: branch ~= ^(?i)(master|feature\-clique|feature\-core)
       os: linux
       dist: trusty
       sudo: true
