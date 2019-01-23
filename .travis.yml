@@ -46,9 +46,9 @@ matrix:
         - sudo chmod 755 $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
         - sudo chmod 755 $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh
 
-      install: sudo $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
+      install: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
 
-      script: sudo $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh raft
+      script: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh raft
 
 
     - name: linux-istanbul
