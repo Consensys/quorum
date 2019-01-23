@@ -10,7 +10,7 @@ before_install:
     - sudo chmod 755 $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
     - sudo chmod 755 $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh
 
-matrix:
+jobs:
   include:
     - name: linux-raft
       if: branch =~ ^(?i)(master|feature\-raft|feature\-core)
