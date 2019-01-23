@@ -43,10 +43,12 @@ matrix:
 
       before_install:
         - git clone https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+        - sudo chmod 755 $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
+        - sudo chmod 755 $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh
 
-      install: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
+      install: sudo $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
 
-      script: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh raft
+      script: sudo $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh raft
 
 
     - name: linux-istanbul
