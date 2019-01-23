@@ -5,6 +5,11 @@ language: go
 go_import_path: github.com/ethereum/go-ethereum
 sudo: false
 
+before_install:
+    - git clone https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+    - sudo chmod 755 $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
+    - sudo chmod 755 $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh
+
 matrix:
   include:
     - name: linux-raft
@@ -16,11 +21,6 @@ matrix:
         - TF_VAR_consensus_mechanism=raft
         - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
         - TESSERA_JAR="$HOME/tessera.jar"
-    # Github Page configuration to publish test report
-        - secure: "rO5mn5nK3LPjggc2Yid+VC0F37vCsQVUxKlOP4llVbv7JnoLuBp4uYq3swp0XF3i58GOoGdU6s/K28b1f8hYEHV0G67epSNObCKPBBahaAYoNiW/vB4kh1D/4GQ5aJwmhoT889IAf/Uy4EonDiTerOrsxM7V1l6X0cZOl2Opin0AB2AvZCnpVfppPftlS18Xm/q+tp4/UVXhF4u4BI7HqbDJmctWwpytIm+9tjT8pUDKTEOjAj/HgoG3p6CHZh5ucR8uZBEHu2a8wmPhxh8beuJPBLKslB/yqjws0+XzICHsvWoc43FbgB2e1BZlaNsAzbE3FLE7RxZ/sIigQewJf50ms+NA2rjD2LHvGj+bBlluvrxtGfZaN0Cb3xgh03NguKwsWUkCUiQrgt0rhCm0//PwXxDnF83m1DFMTre3JhQAUDa0DjvEaPwiOLLRuYyL6yTloMOV/q1tRnL3VzQxpc8qjChKA4mMtB7jNYJ5mCDEjBSFOdzeLEyq/oWoj4tKY+j36QC0VhvOWEkazBurufWnXCxC58KlmEJDXBzYGDuW5HsqeQvNUM5Ozd3ugpXSn/CckVdElX4z8brXmEVpGRuxZQd4djJ4tuXGXmcWwCKhtmL8khtOy9KXy3EmsM/oN0o7lYglTG9M8MKgUits9Yaiv01Fd4HCMS104dFL3LY="
-        - REPO_NAME=jpmorganchase.github.io
-        - REPO_OWNER=jpmorganchase
-        - GITHUB_USERNAME=trung
       cache:
       directories:
       - $HOME/.m2
@@ -40,11 +40,6 @@ matrix:
         - solc
         - jq
         - curl
-
-      before_install:
-        - git clone https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-        - sudo chmod 755 $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
-        - sudo chmod 755 $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh
 
       install: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
 
@@ -60,11 +55,6 @@ matrix:
       - TF_VAR_consensus_mechanism=istanbul
       - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
       - TESSERA_JAR="$HOME/tessera.jar"
-      # Github Page configuration to publish test report
-      - secure: "rO5mn5nK3LPjggc2Yid+VC0F37vCsQVUxKlOP4llVbv7JnoLuBp4uYq3swp0XF3i58GOoGdU6s/K28b1f8hYEHV0G67epSNObCKPBBahaAYoNiW/vB4kh1D/4GQ5aJwmhoT889IAf/Uy4EonDiTerOrsxM7V1l6X0cZOl2Opin0AB2AvZCnpVfppPftlS18Xm/q+tp4/UVXhF4u4BI7HqbDJmctWwpytIm+9tjT8pUDKTEOjAj/HgoG3p6CHZh5ucR8uZBEHu2a8wmPhxh8beuJPBLKslB/yqjws0+XzICHsvWoc43FbgB2e1BZlaNsAzbE3FLE7RxZ/sIigQewJf50ms+NA2rjD2LHvGj+bBlluvrxtGfZaN0Cb3xgh03NguKwsWUkCUiQrgt0rhCm0//PwXxDnF83m1DFMTre3JhQAUDa0DjvEaPwiOLLRuYyL6yTloMOV/q1tRnL3VzQxpc8qjChKA4mMtB7jNYJ5mCDEjBSFOdzeLEyq/oWoj4tKY+j36QC0VhvOWEkazBurufWnXCxC58KlmEJDXBzYGDuW5HsqeQvNUM5Ozd3ugpXSn/CckVdElX4z8brXmEVpGRuxZQd4djJ4tuXGXmcWwCKhtmL8khtOy9KXy3EmsM/oN0o7lYglTG9M8MKgUits9Yaiv01Fd4HCMS104dFL3LY="
-      - REPO_NAME=jpmorganchase.github.io
-      - REPO_OWNER=jpmorganchase
-      - GITHUB_USERNAME=trung
       cache:
       directories:
       - $HOME/.m2
@@ -85,39 +75,9 @@ matrix:
         - jq
         - curl
 
-      before_install:
-      - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.8/tessera-app-0.8-app.jar -O tessera.jar -q
-      - sudo cp tessera.jar $HOME
-      - sudo chmod 755 $HOME/tessera.jar
-      - wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
-      - sudo unzip -o gauge.zip -d /usr/local/bin
-      - git clone https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-      install:
-      - cd $TRAVIS_HOME/quorum-acceptance-tests
-      - gauge telemetry off
-      - gauge install
+      install: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
 
-      script:
-      - set +e
-      - sudo modprobe fuse
-      - sudo chmod 666 /dev/fuse
-      - sudo chown root:$USER /etc/fuse.conf
-      - cd $TRAVIS_BUILD_DIR
-      - go run build/ci.go install
-      - export PATH=$TRAVIS_BUILD_DIR/build/bin:$PATH
-      - cd $TRAVIS_HOME/quorum-acceptance-tests/src/travis/7nodes
-      - ./istanbul-init.sh
-      - set +e
-      - ./istanbul-start.sh tessera
-      - set +e
-      - cd $TRAVIS_HOME/quorum-acceptance-tests
-      - cp config/application-local.7nodes.yml config/application-local.yml
-      - ./src/travis/run_tests.sh
-      - set +e
-      - $TRAVIS_HOME/quorum-acceptance-tests/src/travis/7nodes/stop.sh
-      - set +e
-      - cd $TRAVIS_BUILD_DIR
-      - go run build/ci.go test -coverage $TEST_PACKAGES
+      script: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh istanbul
 
     - name: linux-clique
       os: linux
@@ -128,11 +88,6 @@ matrix:
       - TF_VAR_consensus_mechanism=clique
       - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
       - TESSERA_JAR="$HOME/tessera.jar"
-      # Github Page configuration to publish test report
-      - secure: "rO5mn5nK3LPjggc2Yid+VC0F37vCsQVUxKlOP4llVbv7JnoLuBp4uYq3swp0XF3i58GOoGdU6s/K28b1f8hYEHV0G67epSNObCKPBBahaAYoNiW/vB4kh1D/4GQ5aJwmhoT889IAf/Uy4EonDiTerOrsxM7V1l6X0cZOl2Opin0AB2AvZCnpVfppPftlS18Xm/q+tp4/UVXhF4u4BI7HqbDJmctWwpytIm+9tjT8pUDKTEOjAj/HgoG3p6CHZh5ucR8uZBEHu2a8wmPhxh8beuJPBLKslB/yqjws0+XzICHsvWoc43FbgB2e1BZlaNsAzbE3FLE7RxZ/sIigQewJf50ms+NA2rjD2LHvGj+bBlluvrxtGfZaN0Cb3xgh03NguKwsWUkCUiQrgt0rhCm0//PwXxDnF83m1DFMTre3JhQAUDa0DjvEaPwiOLLRuYyL6yTloMOV/q1tRnL3VzQxpc8qjChKA4mMtB7jNYJ5mCDEjBSFOdzeLEyq/oWoj4tKY+j36QC0VhvOWEkazBurufWnXCxC58KlmEJDXBzYGDuW5HsqeQvNUM5Ozd3ugpXSn/CckVdElX4z8brXmEVpGRuxZQd4djJ4tuXGXmcWwCKhtmL8khtOy9KXy3EmsM/oN0o7lYglTG9M8MKgUits9Yaiv01Fd4HCMS104dFL3LY="
-      - REPO_NAME=jpmorganchase.github.io
-      - REPO_OWNER=jpmorganchase
-      - GITHUB_USERNAME=trung
       cache:
       directories:
       - $HOME/.m2
@@ -153,39 +108,9 @@ matrix:
         - jq
         - curl
 
-      before_install:
-      - wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.8/tessera-app-0.8-app.jar -O tessera.jar -q
-      - sudo cp tessera.jar $HOME
-      - sudo chmod 755 $HOME/tessera.jar
-      - wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
-      - sudo unzip -o gauge.zip -d /usr/local/bin
-      - git clone https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-      install:
-      - cd $TRAVIS_HOME/quorum-acceptance-tests
-      - gauge telemetry off
-      - gauge install
+      install: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
 
-      script:
-      - set +e
-      - sudo modprobe fuse
-      - sudo chmod 666 /dev/fuse
-      - sudo chown root:$USER /etc/fuse.conf
-      - cd $TRAVIS_BUILD_DIR
-      - go run build/ci.go install
-      - export PATH=$TRAVIS_BUILD_DIR/build/bin:$PATH
-      - cd $TRAVIS_HOME/quorum-acceptance-tests/src/travis/7nodes
-      - ./clique-init.sh
-      - set +e
-      - ./clique-start.sh tessera
-      - set +e
-      - cd $TRAVIS_HOME/quorum-acceptance-tests
-      - cp config/application-local.7nodes.yml config/application-local.yml
-      - ./src/travis/run_tests.sh
-      - set +e
-      - $TRAVIS_HOME/quorum-acceptance-tests/src/travis/7nodes/stop.sh
-      - set +e
-      - cd $TRAVIS_BUILD_DIR
-      - go run build/ci.go test -coverage $TEST_PACKAGES
+      script: $TRAVIS_HOME/quorum-acceptance-tests/src/travis/script-linux.sh clique
 
     - os: osx
       osx_image: xcode9.2 # so we don't have to deal with Kernel Extension Consent UI which is never possible in CI
@@ -197,19 +122,4 @@ matrix:
         - brew cask install osxfuse
         - go run build/ci.go install
         - go run build/ci.go test -coverage $TEST_PACKAGES
-
-
-
-notifications:
-  slack:
-      rooms:
-      - secure: "C2sbBrFdBIL7kY2j/5pE19/e1QbfMJ58HcN2OhK6+RSGyv08W3UQsCSBPE3SNUmgYPkS5Oo46ikwm0N8CLtapOhc1rdIZV6ikxJQBs5gYUya8+8umlUMCZAV6fRRUxz1KXGMvwfvSmeivWm5oI4iEL6RkM8Sy2LTfLAzqxTCwyx18T4JTvgPyv8pQ+ZGsynQykkBaSFmLS6XQjmMlWOTuMdv7LsLofqn1ivSl7B+kR0eDJggUGGNm/B+JRySuroUo2Cwf9/DdpSCwfs76sEHuXcCeHKmCfkzUVAqve2XBGfsAdPXwvjoGo285e07FraIq2J+4oQSaNyWuExK/RQCNln5zZKNILObEUH7qF/oaJpBt82M0NreaPsczuB98eRvkoM9t5ki3rLk7GKSGL87QraZe1gxZ0TLe/cnb0OsHbhUKnW71WuTS/s+s9vUchCr/Dmer+Cr0sqbS4+cRD4yWAuYEfsAR50yAWymxg0pmRKlffCJpU1pmcEmcOLsnJEdvh8TZu/S9RFoZBPvzQxc+EbifMaY6AWPHT1NmFcXlGzHWrLmj2S/hhngr+rRiqE704pBk/odf7jV3H/P7sPXZPiK4y0+Pj0UvupDeAGUj/Et8Nt3+6VW3OzXgOIrpYCmxlS9GUleecz9JQ/dP513/R3v/GutYNU5P+XRhYMm4EQ="
-      on_success: always
-      on_failure: always
-      on_pull_requests: false
-      template:
-      - "Build <%{build_url}|#%{build_number}> of %{repository_slug}@%{branch}"
-      - "%{result} in %{duration}"
-      - "<https://jpmorganchase.github.io/%{repository_name}/docs/html/|Test Specifications>"
-      - "Execution reports: <https://jpmorganchase.github.io/%{repository_name}/raft/|Raft> - <https://jpmorganchase.github.io/%{repository_name}/istanbul/|Istanbul>"
 
