@@ -328,10 +328,12 @@ contract Permissions {
   {
     require(networkBoot == false, "network accounts already boot up");
     for (uint i=0; i<initialAcctList.length; i++){
+      if (acctToIndex[initialAcctList[i]] == 0){
         numberOfAccts ++;
         acctToIndex[initialAcctList[i]] = numberOfAccts;
         acctAccessList.push(AccountAccessDetails(initialAcctList[i], AccountAccess.FullAccess));
         emit AccountAccessModified(initialAcctList[i], AccountAccess.FullAccess);
+      }
     }
   }
 
