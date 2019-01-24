@@ -5,6 +5,14 @@ language: go
 go_import_path: github.com/ethereum/go-ethereum
 sudo: false
 
+env:
+    global:
+      - TESSERA_JAR="$HOME/tessera.jar"
+
+cache:
+  directories:
+    - $HOME/.m2
+
 before_install:
     - git clone https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
     - sudo chmod 755 $TRAVIS_HOME/quorum-acceptance-tests/src/travis/install-linux.sh
@@ -20,10 +28,6 @@ matrix:
       env:
         - TF_VAR_consensus_mechanism=raft
         - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
-        - TESSERA_JAR="$HOME/tessera.jar"
-      cache:
-      directories:
-      - $HOME/.m2
 
       addons:
       apt:
@@ -54,10 +58,6 @@ matrix:
       env:
       - TF_VAR_consensus_mechanism=istanbul
       - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
-      - TESSERA_JAR="$HOME/tessera.jar"
-      cache:
-      directories:
-      - $HOME/.m2
 
       addons:
       apt:
@@ -87,10 +87,6 @@ matrix:
       env:
       - TF_VAR_consensus_mechanism=clique
       - TF_VAR_network_name=ci-${TF_VAR_consensus_mechanism}-${TRAVIS_COMMIT::6}
-      - TESSERA_JAR="$HOME/tessera.jar"
-      cache:
-      directories:
-      - $HOME/.m2
 
       addons:
       apt:
