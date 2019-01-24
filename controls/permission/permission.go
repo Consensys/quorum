@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -238,18 +239,20 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 	newEnodeId := p.formatEnodeId(enodeId, ipAddrPort, discPort, raftPort)
 
 	// logic to update the permissioned-nodes.json file based on action
-	if operation == NodeAdd {
-		nodelist = append(nodelist, newEnodeId)
-	} else {
-		index := 0
-		recExists := false
-		for i, enodeId := range nodelist {
-			if (enodeId == newEnodeId){
-				index = i
-				recExists = true
-				break
-			}
+	index := 0
+	recExists := false
+	for i, enodeId := range nodelist {
+		if strings.EqualFold(enodeId, newEnodeId){
+			index = i
+			recExists = true
+			break
 		}
+	}
+	if operation == NodeAdd {
+		if !recExists {
+			nodelist = append(nodelist, newEnodeId)
+		}
+	} else {
 		if recExists {
 			nodelist = append(nodelist[:index], nodelist[index+1:]...)
 		}
