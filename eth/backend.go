@@ -421,12 +421,13 @@ func (s *Ethereum) shouldPreserve(block *types.Block) bool {
 // SetEtherbase sets the mining reward address.
 func (s *Ethereum) SetEtherbase(etherbase common.Address) {
 	s.lock.Lock()
+	defer s.lock.Unlock()
 	if _, ok := s.engine.(consensus.Istanbul); ok {
 		log.Error("Cannot set etherbase in Istanbul consensus")
 		return
 	}
 	s.etherbase = etherbase
-	s.lock.Unlock()
+
 
 	s.miner.SetEtherbase(etherbase)
 }

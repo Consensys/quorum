@@ -489,6 +489,9 @@ func (tx *Transaction) IsPrivate() bool {
 }
 
 func (tx *Transaction) SetPrivate() {
+	if tx.IsPrivate() {
+		return
+	}
 	if tx.data.V.Int64() == 28 {
 		tx.data.V.SetUint64(38)
 	} else {

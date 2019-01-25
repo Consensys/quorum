@@ -1174,6 +1174,11 @@ type SendTxArgs struct {
 	//End-Quorum
 }
 
+// SendRawTxArgs represents the arguments to submit a new signed private transaction into the transaction pool.
+type SendRawTxArgs struct {
+	PrivateFor []string `json:"privateFor"`
+}
+
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
 func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 	if args.Gas == nil {
@@ -1313,6 +1318,35 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, encod
 		return common.Hash{}, err
 	}
 	return submitTransaction(ctx, s.b, tx, tx.IsPrivate())
+}
+
+// SendRawPrivateTransaction will add the signed transaction to the transaction pool.
+// The sender is responsible for signing the transaction and using the correct nonce.
+func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, args SendRawTxArgs) (common.Hash, error) {
+
+	tx := new(types.Transaction)
+	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
+		return common.Hash{}, err
+	}
+
+	txHash := []byte(tx.Data())
+	isPrivate := args.PrivateFor != nil
+
+	if isPrivate {
+		if len(txHash) > 0 {
+			//Send private transaction to privacy manager
+			log.Info("sending private tx", "data", fmt.Sprintf("%x", txHash), "privatefor", args.PrivateFor)
+			result, err := private.P.SendSignedTx(txHash, args.PrivateFor)
+			log.Info("sent private tx", "result", fmt.Sprintf("%x", result), "privatefor", args.PrivateFor)
+			if err != nil {
+				return common.Hash{}, err
+			}
+		}
+	} else {
+		return common.Hash{}, fmt.Errorf("transaction is not private")
+	}
+
+	return submitTransaction(ctx, s.b, tx, isPrivate)
 }
 
 // Sign calculates an ECDSA signature for:
