@@ -57,8 +57,7 @@ var (
 	// Specification EIP-649: https://eips.ethereum.org/EIPS/eip-649
 	calcDifficultyByzantium = makeDifficultyCalculator(big.NewInt(3000000))
 	nanosecond2017Timestamp = mustParseRfc3339("2017-01-01T00:00:00+00:00").UnixNano()
-
-	)
+)
 
 // Various error messages to mark blocks invalid. These should be private to
 // prevent engine specific errors from being referenced in the remainder of the

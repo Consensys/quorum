@@ -428,7 +428,6 @@ func (s *Ethereum) SetEtherbase(etherbase common.Address) {
 	}
 	s.etherbase = etherbase
 
-
 	s.miner.SetEtherbase(etherbase)
 }
 
