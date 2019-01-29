@@ -154,7 +154,7 @@ var (
 
 var (
 	nodeApproveStatus = map[uint8]string{
-		0: "Unknown",
+		0: "NotInNetwork",
 		1: "PendingApproval",
 		2: "Approved",
 		3: "PendingDeactivation",
@@ -165,10 +165,10 @@ var (
 	}
 
 	accountPermMap = map[uint8]string{
-		0: "FullAccess",
-		1: "ReadOnly",
-		2: "Transact",
-		3: "ContractDeploy",
+		0: "ReadOnly",
+		1: "Transact",
+		2: "ContractDeploy",
+		3: "FullAccess",
 	}
 
 	pendingOpMap = map[uint8]string{
