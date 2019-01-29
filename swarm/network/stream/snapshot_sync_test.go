@@ -17,9 +17,7 @@ package stream
 
 import (
 	"context"
-	crand "crypto/rand"
 	"fmt"
-	"io"
 	"os"
 	"runtime"
 	"sync"
@@ -30,7 +28,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/simulations"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 	"github.com/ethereum/go-ethereum/swarm/network"
 	"github.com/ethereum/go-ethereum/swarm/network/simulation"
@@ -38,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/swarm/state"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	mockdb "github.com/ethereum/go-ethereum/swarm/storage/mock/db"
+	"github.com/ethereum/go-ethereum/swarm/testutil"
 )
 
 const MaxTimeout = 600
@@ -45,14 +45,25 @@ const MaxTimeout = 600
 type synctestConfig struct {
 	addrs         [][]byte
 	hashes        []storage.Address
-	idToChunksMap map[discover.NodeID][]int
+	idToChunksMap map[enode.ID][]int
 	//chunksToNodesMap map[string][]int
-	addrToIDMap map[string]discover.NodeID
+	addrToIDMap map[string]enode.ID
 }
+
+const (
+	// EventTypeNode is the type of event emitted when a node is either
+	// created, started or stopped
+	EventTypeChunkCreated   simulations.EventType = "chunkCreated"
+	EventTypeChunkOffered   simulations.EventType = "chunkOffered"
+	EventTypeChunkWanted    simulations.EventType = "chunkWanted"
+	EventTypeChunkDelivered simulations.EventType = "chunkDelivered"
+	EventTypeChunkArrived   simulations.EventType = "chunkArrived"
+	EventTypeSimTerminated  simulations.EventType = "simTerminated"
+)
 
 // Tests in this file should not request chunks from peers.
 // This function will panic indicating that there is a problem if request has been made.
-func dummyRequestFromPeers(_ context.Context, req *network.Request) (*discover.NodeID, chan struct{}, error) {
+func dummyRequestFromPeers(_ context.Context, req *network.Request) (*enode.ID, chan struct{}, error) {
 	panic(fmt.Sprintf("unexpected request: address %s, source %s", req.Addr.String(), req.Source.String()))
 }
 
@@ -131,51 +142,56 @@ func TestSyncingViaDirectSubscribe(t *testing.T) {
 	}
 }
 
-func testSyncingViaGlobalSync(t *testing.T, chunkCount int, nodeCount int) {
-	sim := simulation.New(map[string]simulation.ServiceFunc{
-		"streamer": func(ctx *adapters.ServiceContext, bucket *sync.Map) (s node.Service, cleanup func(), err error) {
+var simServiceMap = map[string]simulation.ServiceFunc{
+	"streamer": streamerFunc,
+}
 
-			id := ctx.Config.ID
-			addr := network.NewAddrFromNodeID(id)
-			store, datadir, err := createTestLocalStorageForID(id, addr)
-			if err != nil {
-				return nil, nil, err
-			}
-			bucket.Store(bucketKeyStore, store)
-			localStore := store.(*storage.LocalStore)
-			netStore, err := storage.NewNetStore(localStore, nil)
-			if err != nil {
-				return nil, nil, err
-			}
-			kad := network.NewKademlia(addr.Over(), network.NewKadParams())
-			delivery := NewDelivery(kad, netStore)
-			netStore.NewNetFetcherFunc = network.NewFetcherFactory(dummyRequestFromPeers, true).New
+func streamerFunc(ctx *adapters.ServiceContext, bucket *sync.Map) (s node.Service, cleanup func(), err error) {
+	n := ctx.Config.Node()
+	addr := network.NewAddr(n)
+	store, datadir, err := createTestLocalStorageForID(n.ID(), addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	bucket.Store(bucketKeyStore, store)
+	localStore := store.(*storage.LocalStore)
+	netStore, err := storage.NewNetStore(localStore, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	kad := network.NewKademlia(addr.Over(), network.NewKadParams())
+	delivery := NewDelivery(kad, netStore)
+	netStore.NewNetFetcherFunc = network.NewFetcherFactory(dummyRequestFromPeers, true).New
 
-			r := NewRegistry(addr, delivery, netStore, state.NewInmemoryStore(), &RegistryOptions{
-				DoSync:          true,
-				SyncUpdateDelay: 3 * time.Second,
-			})
-			bucket.Store(bucketKeyRegistry, r)
-
-			cleanup = func() {
-				os.RemoveAll(datadir)
-				netStore.Close()
-				r.Close()
-			}
-
-			return r, cleanup, nil
-
-		},
+	r := NewRegistry(addr.ID(), delivery, netStore, state.NewInmemoryStore(), &RegistryOptions{
+		Retrieval:       RetrievalDisabled,
+		Syncing:         SyncingAutoSubscribe,
+		SyncUpdateDelay: 3 * time.Second,
 	})
+
+	bucket.Store(bucketKeyRegistry, r)
+
+	cleanup = func() {
+		os.RemoveAll(datadir)
+		netStore.Close()
+		r.Close()
+	}
+
+	return r, cleanup, nil
+
+}
+
+func testSyncingViaGlobalSync(t *testing.T, chunkCount int, nodeCount int) {
+	sim := simulation.New(simServiceMap)
 	defer sim.Close()
 
 	log.Info("Initializing test config")
 
 	conf := &synctestConfig{}
 	//map of discover ID to indexes of chunks expected at that ID
-	conf.idToChunksMap = make(map[discover.NodeID][]int)
+	conf.idToChunksMap = make(map[enode.ID][]int)
 	//map of overlay address to discover ID
-	conf.addrToIDMap = make(map[string]discover.NodeID)
+	conf.addrToIDMap = make(map[string]enode.ID)
 	//array where the generated chunk hashes will be stored
 	conf.hashes = make([]storage.Address, 0)
 
@@ -205,15 +221,25 @@ func testSyncingViaGlobalSync(t *testing.T, chunkCount int, nodeCount int) {
 		}
 	}()
 
-	result := sim.Run(ctx, func(ctx context.Context, sim *simulation.Simulation) error {
+	result := runSim(conf, ctx, sim, chunkCount)
+
+	if result.Error != nil {
+		t.Fatal(result.Error)
+	}
+	log.Info("Simulation ended")
+}
+
+func runSim(conf *synctestConfig, ctx context.Context, sim *simulation.Simulation, chunkCount int) simulation.Result {
+
+	return sim.Run(ctx, func(ctx context.Context, sim *simulation.Simulation) error {
 		nodeIDs := sim.UpNodeIDs()
 		for _, n := range nodeIDs {
 			//get the kademlia overlay address from this ID
-			a := network.ToOverlayAddr(n.Bytes())
+			a := n.Bytes()
 			//append it to the array of all overlay addresses
 			conf.addrs = append(conf.addrs, a)
 			//the proximity calculation is on overlay addr,
-			//the p2p/simulations check func triggers on discover.NodeID,
+			//the p2p/simulations check func triggers on enode.ID,
 			//so we need to know which overlay addr maps to which nodeID
 			conf.addrToIDMap[string(a)] = n
 		}
@@ -230,12 +256,19 @@ func testSyncingViaGlobalSync(t *testing.T, chunkCount int, nodeCount int) {
 		if err != nil {
 			return err
 		}
+		for _, h := range hashes {
+			evt := &simulations.Event{
+				Type: EventTypeChunkCreated,
+				Node: sim.Net.GetNode(node.ID),
+				Data: h.String(),
+			}
+			sim.Net.Events().Send(evt)
+		}
 		conf.hashes = append(conf.hashes, hashes...)
 		mapKeysToNodes(conf)
 
 		// File retrieval check is repeated until all uploaded files are retrieved from all nodes
 		// or until the timeout is reached.
-		allSuccess := false
 		var gDir string
 		var globalStore *mockdb.GlobalStore
 		if *useMockStore {
@@ -251,12 +284,11 @@ func testSyncingViaGlobalSync(t *testing.T, chunkCount int, nodeCount int) {
 				}
 			}()
 		}
-		for !allSuccess {
-			allSuccess = true
+	REPEAT:
+		for {
 			for _, id := range nodeIDs {
 				//for each expected chunk, check if it is in the local store
 				localChunks := conf.idToChunksMap[id]
-				localSuccess := true
 				for _, ch := range localChunks {
 					//get the real chunk by the index in the index array
 					chunk := conf.hashes[ch]
@@ -277,30 +309,23 @@ func testSyncingViaGlobalSync(t *testing.T, chunkCount int, nodeCount int) {
 						_, err = lstore.Get(ctx, chunk)
 					}
 					if err != nil {
-						log.Warn(fmt.Sprintf("Chunk %s NOT found for id %s", chunk, id))
-						localSuccess = false
+						log.Debug(fmt.Sprintf("Chunk %s NOT found for id %s", chunk, id))
 						// Do not get crazy with logging the warn message
 						time.Sleep(500 * time.Millisecond)
-					} else {
-						log.Debug(fmt.Sprintf("Chunk %s IS FOUND for id %s", chunk, id))
+						continue REPEAT
 					}
-				}
-				if !localSuccess {
-					allSuccess = false
-					break
+					evt := &simulations.Event{
+						Type: EventTypeChunkArrived,
+						Node: sim.Net.GetNode(id),
+						Data: chunk.String(),
+					}
+					sim.Net.Events().Send(evt)
+					log.Debug(fmt.Sprintf("Chunk %s IS FOUND for id %s", chunk, id))
 				}
 			}
+			return nil
 		}
-		if !allSuccess {
-			return fmt.Errorf("Not all chunks succeeded!")
-		}
-		return nil
 	})
-
-	if result.Error != nil {
-		t.Fatal(result.Error)
-	}
-	log.Info("Simulation ended")
 }
 
 /*
@@ -317,10 +342,9 @@ kademlia network. The snapshot should have 'streamer' in its service list.
 func testSyncingViaDirectSubscribe(t *testing.T, chunkCount int, nodeCount int) error {
 	sim := simulation.New(map[string]simulation.ServiceFunc{
 		"streamer": func(ctx *adapters.ServiceContext, bucket *sync.Map) (s node.Service, cleanup func(), err error) {
-
-			id := ctx.Config.ID
-			addr := network.NewAddrFromNodeID(id)
-			store, datadir, err := createTestLocalStorageForID(id, addr)
+			n := ctx.Config.Node()
+			addr := network.NewAddr(n)
+			store, datadir, err := createTestLocalStorageForID(n.ID(), addr)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -334,7 +358,10 @@ func testSyncingViaDirectSubscribe(t *testing.T, chunkCount int, nodeCount int) 
 			delivery := NewDelivery(kad, netStore)
 			netStore.NewNetFetcherFunc = network.NewFetcherFactory(dummyRequestFromPeers, true).New
 
-			r := NewRegistry(addr, delivery, netStore, state.NewInmemoryStore(), nil)
+			r := NewRegistry(addr.ID(), delivery, netStore, state.NewInmemoryStore(), &RegistryOptions{
+				Retrieval: RetrievalDisabled,
+				Syncing:   SyncingRegisterOnly,
+			})
 			bucket.Store(bucketKeyRegistry, r)
 
 			fileStore := storage.NewFileStore(netStore, storage.NewFileStoreParams())
@@ -357,9 +384,9 @@ func testSyncingViaDirectSubscribe(t *testing.T, chunkCount int, nodeCount int) 
 
 	conf := &synctestConfig{}
 	//map of discover ID to indexes of chunks expected at that ID
-	conf.idToChunksMap = make(map[discover.NodeID][]int)
+	conf.idToChunksMap = make(map[enode.ID][]int)
 	//map of overlay address to discover ID
-	conf.addrToIDMap = make(map[string]discover.NodeID)
+	conf.addrToIDMap = make(map[string]enode.ID)
 	//array where the generated chunk hashes will be stored
 	conf.hashes = make([]storage.Address, 0)
 
@@ -390,11 +417,11 @@ func testSyncingViaDirectSubscribe(t *testing.T, chunkCount int, nodeCount int) 
 		nodeIDs := sim.UpNodeIDs()
 		for _, n := range nodeIDs {
 			//get the kademlia overlay address from this ID
-			a := network.ToOverlayAddr(n.Bytes())
+			a := n.Bytes()
 			//append it to the array of all overlay addresses
 			conf.addrs = append(conf.addrs, a)
 			//the proximity calculation is on overlay addr,
-			//the p2p/simulations check func triggers on discover.NodeID,
+			//the p2p/simulations check func triggers on enode.ID,
 			//so we need to know which overlay addr maps to which nodeID
 			conf.addrToIDMap[string(a)] = n
 		}
@@ -461,13 +488,11 @@ func testSyncingViaDirectSubscribe(t *testing.T, chunkCount int, nodeCount int) 
 		}
 		// File retrieval check is repeated until all uploaded files are retrieved from all nodes
 		// or until the timeout is reached.
-		allSuccess := false
-		for !allSuccess {
-			allSuccess = true
+	REPEAT:
+		for {
 			for _, id := range nodeIDs {
 				//for each expected chunk, check if it is in the local store
 				localChunks := conf.idToChunksMap[id]
-				localSuccess := true
 				for _, ch := range localChunks {
 					//get the real chunk by the index in the index array
 					chunk := conf.hashes[ch]
@@ -488,24 +513,16 @@ func testSyncingViaDirectSubscribe(t *testing.T, chunkCount int, nodeCount int) 
 						_, err = lstore.Get(ctx, chunk)
 					}
 					if err != nil {
-						log.Warn(fmt.Sprintf("Chunk %s NOT found for id %s", chunk, id))
-						localSuccess = false
+						log.Debug(fmt.Sprintf("Chunk %s NOT found for id %s", chunk, id))
 						// Do not get crazy with logging the warn message
 						time.Sleep(500 * time.Millisecond)
-					} else {
-						log.Debug(fmt.Sprintf("Chunk %s IS FOUND for id %s", chunk, id))
+						continue REPEAT
 					}
-				}
-				if !localSuccess {
-					allSuccess = false
-					break
+					log.Debug(fmt.Sprintf("Chunk %s IS FOUND for id %s", chunk, id))
 				}
 			}
+			return nil
 		}
-		if !allSuccess {
-			return fmt.Errorf("Not all chunks succeeded!")
-		}
-		return nil
 	})
 
 	if result.Error != nil {
@@ -525,9 +542,8 @@ func startSyncing(r *Registry, conf *synctestConfig) (int, error) {
 	kad := r.delivery.kad
 	subCnt := 0
 	//iterate over each bin and solicit needed subscription to bins
-	kad.EachBin(r.addr.Over(), pof, 0, func(conn *network.Peer, po int) bool {
+	kad.EachBin(r.addr[:], pof, 0, func(conn *network.Peer, po int) bool {
 		//identify begin and start index of the bin(s) we want to subscribe to
-
 		subCnt++
 		err = r.RequestSubscription(conf.addrToIDMap[string(conn.Address())], NewStream("SYNC", FormatSyncBinKey(uint8(po)), true), NewRange(0, 0), High)
 		if err != nil {
@@ -580,13 +596,13 @@ func mapKeysToNodes(conf *synctestConfig) {
 }
 
 //upload a file(chunks) to a single local node store
-func uploadFileToSingleNodeStore(id discover.NodeID, chunkCount int, lstore *storage.LocalStore) ([]storage.Address, error) {
+func uploadFileToSingleNodeStore(id enode.ID, chunkCount int, lstore *storage.LocalStore) ([]storage.Address, error) {
 	log.Debug(fmt.Sprintf("Uploading to node id: %s", id))
 	fileStore := storage.NewFileStore(lstore, storage.NewFileStoreParams())
 	size := chunkSize
 	var rootAddrs []storage.Address
 	for i := 0; i < chunkCount; i++ {
-		rk, wait, err := fileStore.Store(context.TODO(), io.LimitReader(crand.Reader, int64(size)), int64(size), false)
+		rk, wait, err := fileStore.Store(context.TODO(), testutil.RandomReader(i, size), int64(size), false)
 		if err != nil {
 			return nil, err
 		}

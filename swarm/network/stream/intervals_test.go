@@ -18,10 +18,8 @@ package stream
 
 import (
 	"context"
-	crand "crypto/rand"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"os"
 	"sync"
 	"testing"
@@ -30,12 +28,13 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 	"github.com/ethereum/go-ethereum/swarm/network"
 	"github.com/ethereum/go-ethereum/swarm/network/simulation"
 	"github.com/ethereum/go-ethereum/swarm/state"
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	"github.com/ethereum/go-ethereum/swarm/testutil"
 )
 
 func TestIntervalsLive(t *testing.T) {
@@ -62,10 +61,9 @@ func testIntervals(t *testing.T, live bool, history *Range, skipCheck bool) {
 
 	sim := simulation.New(map[string]simulation.ServiceFunc{
 		"intervalsStreamer": func(ctx *adapters.ServiceContext, bucket *sync.Map) (s node.Service, cleanup func(), err error) {
-
-			id := ctx.Config.ID
-			addr := network.NewAddrFromNodeID(id)
-			store, datadir, err := createTestLocalStorageForID(id, addr)
+			n := ctx.Config.Node()
+			addr := network.NewAddr(n)
+			store, datadir, err := createTestLocalStorageForID(n.ID(), addr)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -83,7 +81,9 @@ func testIntervals(t *testing.T, live bool, history *Range, skipCheck bool) {
 			delivery := NewDelivery(kad, netStore)
 			netStore.NewNetFetcherFunc = network.NewFetcherFactory(delivery.RequestFromPeers, true).New
 
-			r := NewRegistry(addr, delivery, netStore, state.NewInmemoryStore(), &RegistryOptions{
+			r := NewRegistry(addr.ID(), delivery, netStore, state.NewInmemoryStore(), &RegistryOptions{
+				Retrieval: RetrievalDisabled,
+				Syncing:   SyncingRegisterOnly,
 				SkipCheck: skipCheck,
 			})
 			bucket.Store(bucketKeyRegistry, r)
@@ -129,7 +129,8 @@ func testIntervals(t *testing.T, live bool, history *Range, skipCheck bool) {
 		fileStore := item.(*storage.FileStore)
 
 		size := chunkCount * chunkSize
-		_, wait, err := fileStore.Store(ctx, io.LimitReader(crand.Reader, int64(size)), int64(size), false)
+
+		_, wait, err := fileStore.Store(ctx, testutil.RandomReader(1, size), int64(size), false)
 		if err != nil {
 			log.Error("Store error: %v", "err", err)
 			t.Fatal(err)
@@ -281,7 +282,7 @@ func testIntervals(t *testing.T, live bool, history *Range, skipCheck bool) {
 	}
 }
 
-func getHashes(ctx context.Context, r *Registry, peerID discover.NodeID, s Stream) (chan []byte, error) {
+func getHashes(ctx context.Context, r *Registry, peerID enode.ID, s Stream) (chan []byte, error) {
 	peer := r.getPeer(peerID)
 
 	client, err := peer.getClient(ctx, s)
@@ -294,7 +295,7 @@ func getHashes(ctx context.Context, r *Registry, peerID discover.NodeID, s Strea
 	return c.hashes, nil
 }
 
-func enableNotifications(r *Registry, peerID discover.NodeID, s Stream) error {
+func enableNotifications(r *Registry, peerID enode.ID, s Stream) error {
 	peer := r.getPeer(peerID)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -346,8 +347,6 @@ func (c *testExternalClient) BatchDone(Stream, uint64, []byte, []byte) func() (*
 
 func (c *testExternalClient) Close() {}
 
-const testExternalServerBatchSize = 10
-
 type testExternalServer struct {
 	t         string
 	keyFunc   func(key []byte, index uint64)
@@ -367,17 +366,11 @@ func newTestExternalServer(t string, sessionAt, maxKeys uint64, keyFunc func(key
 	}
 }
 
+func (s *testExternalServer) SessionIndex() (uint64, error) {
+	return s.sessionAt, nil
+}
+
 func (s *testExternalServer) SetNextBatch(from uint64, to uint64) ([]byte, uint64, uint64, *HandoverProof, error) {
-	if from == 0 && to == 0 {
-		from = s.sessionAt
-		to = s.sessionAt + testExternalServerBatchSize
-	}
-	if to-from > testExternalServerBatchSize {
-		to = from + testExternalServerBatchSize - 1
-	}
-	if from >= s.maxKeys && to > s.maxKeys {
-		return nil, 0, 0, nil, io.EOF
-	}
 	if to > s.maxKeys {
 		to = s.maxKeys
 	}
