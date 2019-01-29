@@ -255,6 +255,7 @@ func (b *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	}
 }
 
+// used by Quorum
 type EthAPIState struct {
 	state, privateState *state.StateDB
 }
@@ -285,6 +286,27 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 		return s.privateState.GetNonce(addr)
 	}
 	return s.state.GetNonce(addr)
+}
+
+// TODO: implement the following methods for Quorum
+func (s EthAPIState) GetProof(common.Address) ([][]byte, error) {
+	return nil, nil
+}
+
+func (s EthAPIState) GetStorageProof(common.Address, common.Hash) ([][]byte, error) {
+	return nil, nil
+}
+
+func (s EthAPIState) StorageTrie(addr common.Address) state.Trie {
+	return nil
+}
+
+func (s EthAPIState) Error() error {
+	return nil
+}
+
+func (s EthAPIState) GetCodeHash(common.Address) common.Hash {
+	return common.Hash{}
 }
 
 //func (s MinimalApiState) Error

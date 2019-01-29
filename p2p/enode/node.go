@@ -82,6 +82,20 @@ func (n *Node) UDP() int {
 	return int(port)
 }
 
+// RAFTPORT returns the RAFT PORT of the node
+func (n *Node) RAFTPORT() int {
+	var port enr.RAFTPORT
+	err := n.Load(&port)
+	if err != nil {
+		return 0
+	}
+	return int(port)
+}
+
+func (n *Node) HasRaftPort() bool {
+	return n.RAFTPORT() > 0
+}
+
 // UDP returns the TCP port of the node.
 func (n *Node) TCP() int {
 	var port enr.TCP

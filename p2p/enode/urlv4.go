@@ -28,6 +28,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 )
 
@@ -72,14 +73,14 @@ func ParseV4(rawurl string) (*Node, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid node ID (%v)", err)
 		}
-		return NewV4(id, nil, 0, 0), nil
+		return NewV4(id, nil, 0, 0, 0), nil
 	}
 	return parseComplete(rawurl)
 }
 
 // NewV4 creates a node from discovery v4 node information. The record
 // contained in the node has a zero-length signature.
-func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp int) *Node {
+func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp, raftPort int) *Node {
 	var r enr.Record
 	if ip != nil {
 		r.Set(enr.IP(ip))
@@ -90,11 +91,17 @@ func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp int) *Node {
 	if tcp != 0 {
 		r.Set(enr.TCP(tcp))
 	}
+
+	if raftPort != 0 {
+		r.Set(enr.RAFTPORT(tcp))
+	}
+
 	signV4Compat(&r, pubkey)
 	n, err := New(v4CompatID{}, &r)
 	if err != nil {
 		panic(err)
 	}
+	log.Info("NewV4", "raftPort", raftPort, "nodeId", n.ID().String(), "NodeId.bytes", n.ID().Bytes())
 	return n
 }
 
@@ -115,9 +122,11 @@ func parseComplete(rawurl string) (*Node, error) {
 	if u.User == nil {
 		return nil, errors.New("does not contain node ID")
 	}
+	log.Info("AJ-parseComplete1", "u.User", u.User.String())
 	if id, err = parsePubkey(u.User.String()); err != nil {
 		return nil, fmt.Errorf("invalid node ID (%v)", err)
 	}
+	log.Info("AJ-parseComplete2", "id", id)
 	// Parse the IP address.
 	host, port, err := net.SplitHostPort(u.Host)
 	if err != nil {
@@ -142,7 +151,28 @@ func parseComplete(rawurl string) (*Node, error) {
 			return nil, errors.New("invalid discport in query")
 		}
 	}
-	return NewV4(id, ip, int(tcpPort), int(udpPort)), nil
+
+	var node *Node
+
+	if qv.Get("raftport") != "" {
+		raftPort, err := strconv.ParseUint(qv.Get("raftport"), 10, 16)
+		if err != nil {
+			return nil, errors.New("invalid raftport in query")
+		}
+		node = NewV4(id, ip, int(tcpPort), int(udpPort), int(raftPort))
+	} else {
+		node = NewV4(id, ip, int(tcpPort), int(udpPort), 0)
+	}
+	return node, nil
+
+}
+
+func HexPubkey(h string) (*ecdsa.PublicKey, error) {
+	k, err := parsePubkey(h)
+	if err != nil {
+		return nil, err
+	}
+	return k, err
 }
 
 // parsePubkey parses a hex-encoded secp256k1 public key.
@@ -157,7 +187,8 @@ func parsePubkey(in string) (*ecdsa.PublicKey, error) {
 	return crypto.UnmarshalPubkey(b)
 }
 
-func (n *Node) v4URL() string {
+// TODO: Amal to review it - added for RAFT
+func (n *Node) EnodeID() string {
 	var (
 		scheme enr.ID
 		nodeid string
@@ -171,6 +202,25 @@ func (n *Node) v4URL() string {
 	default:
 		nodeid = fmt.Sprintf("%s.%x", scheme, n.id[:])
 	}
+	return nodeid
+}
+
+func (n *Node) v4URL() string {
+	var (
+		scheme enr.ID
+		nodeid string
+		key    ecdsa.PublicKey
+	)
+	n.Load(&scheme)
+	n.Load((*Secp256k1)(&key))
+	switch {
+	case scheme == "v4" || key != ecdsa.PublicKey{}:
+		log.Info("AJ-schemeV4")
+		nodeid = fmt.Sprintf("%x", crypto.FromECDSAPub(&key)[1:])
+	default:
+		log.Info("AJ-NOT schemeV4")
+		nodeid = fmt.Sprintf("%s.%x", scheme, n.id[:])
+	}
 	u := url.URL{Scheme: "enode"}
 	if n.Incomplete() {
 		u.Host = nodeid
@@ -180,6 +230,15 @@ func (n *Node) v4URL() string {
 		u.Host = addr.String()
 		if n.UDP() != n.TCP() {
 			u.RawQuery = "discport=" + strconv.Itoa(n.UDP())
+		}
+		raftPort := n.RAFTPORT()
+		if raftPort != 0 {
+			raftQuery := "raftport=" + strconv.Itoa(raftPort)
+			if len(u.RawQuery) > 0 {
+				u.RawQuery = u.RawQuery + "&" + raftQuery
+			} else {
+				u.RawQuery = raftQuery
+			}
 		}
 	}
 	return u.String()

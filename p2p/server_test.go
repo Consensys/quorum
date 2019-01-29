@@ -147,7 +147,7 @@ func TestServerDial(t *testing.T) {
 
 	// tell the server to connect
 	tcpAddr := listener.Addr().(*net.TCPAddr)
-	node := enode.NewV4(remid, tcpAddr.IP, tcpAddr.Port, 0)
+	node := enode.NewV4(remid, tcpAddr.IP, tcpAddr.Port, 0, 0)
 	srv.AddPeer(node)
 
 	select {
@@ -417,7 +417,7 @@ func TestServerAtCap(t *testing.T) {
 func TestServerPeerLimits(t *testing.T) {
 	srvkey := newkey()
 	clientkey := newkey()
-	clientnode := enode.NewV4(&clientkey.PublicKey, nil, 0, 0)
+	clientnode := enode.NewV4(&clientkey.PublicKey, nil, 0, 0, 0)
 
 	var tp = &setupTransport{
 		pubkey: &clientkey.PublicKey,
@@ -507,21 +507,21 @@ func TestServerSetupConn(t *testing.T) {
 		},
 		{
 			tt:           &setupTransport{pubkey: clientpub},
-			dialDest:     enode.NewV4(&newkey().PublicKey, nil, 0, 0),
+			dialDest:     enode.NewV4(&newkey().PublicKey, nil, 0, 0, 0),
 			flags:        dynDialedConn,
 			wantCalls:    "doEncHandshake,close,",
 			wantCloseErr: DiscUnexpectedIdentity,
 		},
 		{
 			tt:           &setupTransport{pubkey: clientpub, phs: protoHandshake{ID: randomID().Bytes()}},
-			dialDest:     enode.NewV4(clientpub, nil, 0, 0),
+			dialDest:     enode.NewV4(clientpub, nil, 0, 0, 0),
 			flags:        dynDialedConn,
 			wantCalls:    "doEncHandshake,doProtoHandshake,close,",
 			wantCloseErr: DiscUnexpectedIdentity,
 		},
 		{
 			tt:           &setupTransport{pubkey: clientpub, protoHandshakeErr: errors.New("foo")},
-			dialDest:     enode.NewV4(clientpub, nil, 0, 0),
+			dialDest:     enode.NewV4(clientpub, nil, 0, 0, 0),
 			flags:        dynDialedConn,
 			wantCalls:    "doEncHandshake,doProtoHandshake,close,",
 			wantCloseErr: errors.New("foo"),

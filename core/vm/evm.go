@@ -428,6 +428,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		return nil, common.Address{}, gas, ErrInsufficientBalance
 	}
 
+	// Quorum
 	// Get the right state in case of a dual state environment. If a sender
 	// is a transaction (depth == 0) use the public state to derive the address
 	// and increment the nonce of the public state. If the sender is a contract
@@ -447,16 +448,15 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	creatorStateDb.SetNonce(caller.Address(), nonce+1)
 
 	// Ensure there's no existing contract already at the designated address
-	contractAddr := crypto.CreateAddress(caller.Address(), nonce)
-	contractHash := evm.StateDB.GetCodeHash(contractAddr)
-	if evm.StateDB.GetNonce(contractAddr) != 0 || (contractHash != (common.Hash{}) && contractHash != emptyCodeHash) {
+	contractHash := evm.StateDB.GetCodeHash(address)
+	if evm.StateDB.GetNonce(address) != 0 || (contractHash != (common.Hash{}) && contractHash != emptyCodeHash) {
 		return nil, common.Address{}, 0, ErrContractAddressCollision
 	}
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
-	evm.StateDB.CreateAccount(contractAddr)
+	evm.StateDB.CreateAccount(address)
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
-		evm.StateDB.SetNonce(contractAddr, 1)
+		evm.StateDB.SetNonce(address, 1)
 	}
 	if evm.ChainConfig().IsQuorum {
 		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
@@ -464,10 +464,10 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 			if evm.quorumReadOnly {
 				return nil, common.Address{}, gas, ErrReadOnlyValueTransfer
 			}
-			evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value)
+			evm.Transfer(evm.StateDB, caller.Address(), address, value)
 		}
 	} else {
-		evm.Transfer(evm.StateDB, caller.Address(), contractAddr, value)
+		evm.Transfer(evm.StateDB, caller.Address(), address, value)
 	}
 
 	// initialise a new contract and set the code that is to be used by the
@@ -477,7 +477,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	contract.SetCodeOptionalHash(&address, codeAndHash)
 
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
-		return nil, contractAddr, gas, nil
+		return nil, address, gas, nil
 	}
 
 	if evm.vmConfig.Debug && evm.depth == 0 {
@@ -496,7 +496,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	if err == nil && !maxCodeSizeExceeded {
 		createDataGas := uint64(len(ret)) * params.CreateDataGas
 		if contract.UseGas(createDataGas) {
-			evm.StateDB.SetCode(contractAddr, ret)
+			evm.StateDB.SetCode(address, ret)
 		} else {
 			err = ErrCodeStoreOutOfGas
 		}
@@ -518,13 +518,31 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	if evm.vmConfig.Debug && evm.depth == 0 {
 		evm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
 	}
-	return ret, contractAddr, contract.Gas, err
+	return ret, address, contract.Gas, err
 
 }
 
 // Create creates a new contract using code as deployment code.
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	contractAddr = crypto.CreateAddress(caller.Address(), evm.StateDB.GetNonce(caller.Address()))
+	// Quorum
+	// Get the right state in case of a dual state environment. If a sender
+	// is a transaction (depth == 0) use the public state to derive the address
+	// and increment the nonce of the public state. If the sender is a contract
+	// (depth > 0) use the private state to derive the nonce and increment the
+	// nonce on the private state only.
+	//
+	// If the transaction went to a public contract the private and public state
+	// are the same.
+	var creatorStateDb StateDB
+	if evm.depth > 0 {
+		creatorStateDb = evm.privateState
+	} else {
+		creatorStateDb = evm.publicState
+	}
+
+	// Ensure there's no existing contract already at the designated address
+	nonce := creatorStateDb.GetNonce(caller.Address())
+	contractAddr = crypto.CreateAddress(caller.Address(), nonce)
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 
@@ -581,6 +599,8 @@ func (env *EVM) Pop() {
 	}
 	env.StateDB = env.states[env.currentStateDepth-1]
 }
+
+func (env *EVM) Depth() int { return env.depth }
 
 // We only need to revert the current state because when we call from private
 // public state it's read only, there wouldn't be anything to reset.

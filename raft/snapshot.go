@@ -37,6 +37,8 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	defer pm.mu.RUnlock()
 
 	numNodes := len(pm.confState.Nodes)
+	log.Info("AJ-numNodes", "nodesSize", numNodes, "nodes", pm.confState.Nodes)
+	log.Info("AJ-peers", "pm.peers", pm.peers)
 	numRemovedNodes := pm.removedPeers.Size()
 
 	snapshot := &Snapshot{
@@ -298,8 +300,8 @@ func (pm *ProtocolManager) syncBlockchainUntil(hash common.Hash) {
 		for peerId, peer := range peerMap {
 			log.Info("synchronizing with peer", "peer id", peerId, "hash", hash)
 
-			peerId := peer.p2pNode.ID.String()
-			peerIdPrefix := fmt.Sprintf("%x", peer.p2pNode.ID[:8])
+			peerId := peer.p2pNode.ID().String()
+			peerIdPrefix := fmt.Sprintf("%x", peer.p2pNode.ID().Bytes()[:8])
 
 			if err := pm.downloader.Synchronise(peerIdPrefix, hash, big.NewInt(0), downloader.BoundedFullSync); err != nil {
 				log.Info("failed to synchronize with peer", "peer id", peerId)

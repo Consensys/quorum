@@ -360,10 +360,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			return nil
 		}
 	} else if handler, ok := pm.engine.(consensus.Handler); ok {
-		pubKey, err := p.ID().Pubkey()
-		if err != nil {
-			return err
-		}
+		pubKey := p.Node().Pubkey()
 		addr := crypto.PubkeyToAddress(*pubKey)
 		handled, err := handler.HandleMsg(addr, msg)
 		if handled {
@@ -777,7 +774,6 @@ func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 	}
 }
 
-
 // BroadcastTxs will propagate a batch of transactions to all peers which are not known to
 // already have the given transaction.
 func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
@@ -852,10 +848,7 @@ func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 func (self *ProtocolManager) FindPeers(targets map[common.Address]bool) map[common.Address]consensus.Peer {
 	m := make(map[common.Address]consensus.Peer)
 	for _, p := range self.peers.Peers() {
-		pubKey, err := p.ID().Pubkey()
-		if err != nil {
-			continue
-		}
+		pubKey := p.Node().Pubkey()
 		addr := crypto.PubkeyToAddress(*pubKey)
 		if targets[addr] {
 			m[addr] = p

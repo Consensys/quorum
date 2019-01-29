@@ -77,6 +77,11 @@ type IP net.IP
 
 func (v IP) ENRKey() string { return "ip" }
 
+// RaftPort is the "raftport" key, which holds the raftport of the node
+type RAFTPORT uint16
+
+func (v RAFTPORT) ENRKey() string { return "raftport" }
+
 // EncodeRLP implements rlp.Encoder.
 func (v IP) EncodeRLP(w io.Writer) error {
 	if ip4 := net.IP(v).To4(); ip4 != nil {

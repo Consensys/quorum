@@ -673,7 +673,7 @@ func (ethash *Ethash) SetThreads(threads int) {
 // Note the returned hashrate includes local hashrate, but also includes the total
 // hashrate of all remote miner.
 func (ethash *Ethash) Hashrate() float64 {
-	if(ethash.hashrate == nil){
+	if ethash.hashrate == nil {
 		return 0
 	}
 	// Short circuit if we are run the ethash in normal/test mode.

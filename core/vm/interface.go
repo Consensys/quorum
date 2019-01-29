@@ -20,6 +20,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -30,6 +31,11 @@ type MinimalApiState interface {
 	GetCode(addr common.Address) []byte
 	GetState(a common.Address, b common.Hash) common.Hash
 	GetNonce(addr common.Address) uint64
+	GetProof(common.Address) ([][]byte, error)
+	GetStorageProof(common.Address, common.Hash) ([][]byte, error)
+	StorageTrie(addr common.Address) state.Trie
+	Error() error
+	GetCodeHash(common.Address) common.Hash
 }
 
 // StateDB is an EVM database for full state querying.
@@ -44,7 +50,7 @@ type StateDB interface {
 	//GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)
 
-	GetCodeHash(common.Address) common.Hash
+	//GetCodeHash(common.Address) common.Hash
 	//GetCode(common.Address) []byte
 	SetCode(common.Address, []byte)
 	GetCodeSize(common.Address) int

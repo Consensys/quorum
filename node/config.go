@@ -368,7 +368,9 @@ func (c *Config) parsePersistentNodes(path string) []*enode.Node {
 		if url == "" {
 			continue
 		}
+		log.Info("AJ-parsePersistentNodes1", "url", url)
 		node, err := enode.ParseV4(url)
+		log.Info("AJ-parsePersistentNodes2", "url", url, "ID", node.ID().String(), "EnodeID", node.EnodeID())
 		if err != nil {
 			log.Error(fmt.Sprintf("Node URL %s: %v\n", url, err))
 			continue

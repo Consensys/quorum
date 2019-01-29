@@ -360,7 +360,7 @@ func (srv *Server) Self() *enode.Node {
 	srv.lock.Unlock()
 
 	if ln == nil {
-		return enode.NewV4(&srv.PrivateKey.PublicKey, net.ParseIP("0.0.0.0"), 0, 0)
+		return enode.NewV4(&srv.PrivateKey.PublicKey, net.ParseIP("0.0.0.0"), 0, 0, 0)
 	}
 	return ln.Node()
 }
@@ -916,6 +916,17 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 		return err
 	}
 
+	if dialDest != nil {
+		// For dialed connections, check that the remote public key matches.
+		if dialPubkey.X.Cmp(remotePubkey.X) != 0 || dialPubkey.Y.Cmp(remotePubkey.Y) != 0 {
+			return DiscUnexpectedIdentity
+		}
+		c.node = dialDest
+	} else {
+		c.node = nodeFromConn(remotePubkey, c.fd)
+	}
+	log.Info("AJ-setupConn1", "remotePubkey", remotePubkey)
+	log.Info("AJ-setupConn2", "c.node.ID", c.node.ID(), "c.node.ID.Bytes", c.node.ID().Bytes(), "node", c.node.String())
 	clog := srv.log.New("id", c.node.ID(), "addr", c.fd.RemoteAddr(), "conn", c.flags)
 
 	//START - QUORUM Permissioning
@@ -948,16 +959,6 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	}
 
 	//END - QUORUM Permissioning
-
-	if dialDest != nil {
-		// For dialed connections, check that the remote public key matches.
-		if dialPubkey.X.Cmp(remotePubkey.X) != 0 || dialPubkey.Y.Cmp(remotePubkey.Y) != 0 {
-			return DiscUnexpectedIdentity
-		}
-		c.node = dialDest
-	} else {
-		c.node = nodeFromConn(remotePubkey, c.fd)
-	}
 
 	if conn, ok := c.fd.(*meteredConn); ok {
 		conn.handshakeDone(c.node.ID())
@@ -997,7 +998,7 @@ func nodeFromConn(pubkey *ecdsa.PublicKey, conn net.Conn) *enode.Node {
 		ip = tcp.IP
 		port = tcp.Port
 	}
-	return enode.NewV4(pubkey, ip, port, port)
+	return enode.NewV4(pubkey, ip, port, port, 0)
 }
 
 func truncateName(s string) string {
