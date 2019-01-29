@@ -42,6 +42,7 @@ const (
 	AddVoter
 	RemoveVoter
 	SetAccountAccess
+	CancelPendingOperation
 )
 
 // OrgKeyAction represents an action in cluster contract
@@ -64,6 +65,7 @@ const (
 	Success NodeCheckRetVal = iota
 	DetailsMismatch
 	NothingToApprove
+	NothingToCancel
 )
 
 // Voter access type
@@ -146,6 +148,7 @@ var (
 	ErrKeyInUse             = ExecStatus{false, "Key already in use in another master organization"}
 	ErrKeyNotFound          = ExecStatus{false, "Key not found for the organization"}
 	ErrNothingToApprove     = ExecStatus{false, "Nothing to approve"}
+	ErrNothingToCancel		= ExecStatus{false, "Nothing to cancel"}
 	ExecSuccess             = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -405,6 +408,11 @@ func (s *QuorumControlsAPI) ApproveNodeBlacklisting(nodeId string, txa ethapi.Se
 	return s.executePermAction(ApproveNodeBlacklisting, txArgs{nodeId: nodeId, txa: txa})
 }
 
+// CancelPendingOperation cancels a pending operation
+func (s *QuorumControlsAPI) CancelPendingOperation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executePermAction(CancelPendingOperation, txArgs{nodeId: nodeId, txa: txa})
+}
+
 // AddMasterOrg adds an new master organization to the contract
 func (s *QuorumControlsAPI) AddMasterOrg(morgId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(AddMasterOrg, txArgs{txa: txa, morgId: morgId})
@@ -508,6 +516,8 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 				return ErrNodeDetailsMismatch
 			} else if retVal == NothingToApprove {
 				return ErrNothingToApprove
+			} else if retVal == NothingToCancel {
+				return ErrNothingToCancel
 			}
 		}
 		tx, err = ps.ApproveNode(enodeID)
@@ -541,9 +551,10 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 				return ErrNodeDetailsMismatch
 			} else if retVal == NothingToApprove {
 				return ErrNothingToApprove
+			} else if retVal == NothingToCancel {
+				return ErrNothingToCancel
 			}
 		}
-
 		tx, err = ps.DeactivateNode(enodeID)
 
 	case ProposeNodeActivation:
@@ -575,9 +586,10 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 				return ErrNodeDetailsMismatch
 			} else if retVal == NothingToApprove {
 				return ErrNothingToApprove
+			} else if retVal == NothingToCancel {
+				return ErrNothingToCancel
 			}
 		}
-
 		tx, err = ps.ActivateNode(enodeID)
 
 	case ProposeNodeBlacklisting:
@@ -614,9 +626,10 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 				return ErrNodeDetailsMismatch
 			} else if retVal == NothingToApprove {
 				return ErrNothingToApprove
+			} else if retVal == NothingToCancel {
+				return ErrNothingToCancel
 			}
 		}
-
 		tx, err = ps.BlacklistNode(enodeID)
 
 	case SetAccountAccess:
@@ -629,6 +642,30 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return ErrAccountAccess
 		}
 		tx, err = ps.UpdateAccountAccess(args.acctId, uint8(access))
+
+	case CancelPendingOperation:
+		if !checkIsVoter(ps, args.txa.From) {
+			return ErrAccountNotAVoter
+		}
+		node, err = discover.ParseNode(args.nodeId)
+		if err != nil {
+			log.Error("invalid node id: %v", err)
+			return ErrInvalidNode
+		}
+		enodeID := node.ID.String()
+
+		retVal := checkNodeDetails(ps, enodeID, node, action)
+		if retVal != Success {
+			if retVal == DetailsMismatch {
+				return ErrNodeDetailsMismatch
+			} else if retVal == NothingToApprove {
+				return ErrNothingToApprove
+			} else if retVal == NothingToCancel {
+				return ErrNothingToCancel
+			}
+		}
+		tx, err = ps.CancelPendingOperation(enodeID)
+
 	}
 
 	if err != nil {
@@ -969,6 +1006,11 @@ func checkNodeDetails(ps *pbind.PermissionsSession, enodeID string, node *discov
 			(action == ApproveNodeActivation && nodeStatus != "PendingActivation") ||
 			(action == ApproveNodeBlacklisting && nodeStatus != "PendingBlacklisting") {
 			return NothingToApprove
+		}
+		if (action == CancelPendingOperation && nodeStatus != "PendingApproval" &&
+			nodeStatus != "PendingDeactivation" && nodeStatus != "PendingActivation" &&
+			nodeStatus != "PendingBlacklisting") {
+			return NothingToCancel
 		}
 
 	}

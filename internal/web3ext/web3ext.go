@@ -756,6 +756,12 @@ web3._extend({
                        params: 2,
                        inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
                }),
+         	   new web3._extend.Method({
+                       name: 'cancelPendingOperation',
+                       call: 'quorumNodeMgmt_cancelPendingOperation',
+                       params: 2,
+                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+               }),
        ],
        properties:
        [

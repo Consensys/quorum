@@ -9,10 +9,10 @@ import (
 type AccessType uint8
 
 const (
-	FullAccess AccessType = iota
-	ReadOnly
+	ReadOnly AccessType = iota
 	Transact
 	ContractDeploy
+	FullAccess 
 )
 
 type PermStruct struct {
