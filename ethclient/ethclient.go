@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -488,6 +489,35 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 		return err
 	}
 	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", common.ToHex(data))
+}
+
+// PreparePrivateTransaction sends the encoded raw transaction to Constellation,
+// returning the encoded commitment transaction.
+func (ec *Client) PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error) {
+	if len(privateFor) == 0 {
+		return nil, errors.New("need at least one private for")
+	}
+	tx := new(types.Transaction)
+	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
+		return nil, err
+	}
+
+	if private.P == nil {
+		return nil, errors.New("constellation not set up")
+	}
+	data, err := private.P.Send(tx.Data(), privateFrom, privateFor)
+	if err != nil {
+		return nil, err
+	}
+
+	tx.SetPrivate()
+	tx.SetData(data)
+	newEncoded, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	return hexutil.Bytes(newEncoded), nil
 }
 
 func toCallArg(msg ethereum.CallMsg) interface{} {
