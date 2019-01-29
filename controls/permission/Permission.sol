@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.5.3;
 
 contract Permissions {
   address[] initialAcctList;
@@ -11,28 +11,34 @@ contract Permissions {
     string raftPort;
     NodeStatus status;
   }
-
-  enum AccountAccess { FullAccess, ReadOnly, Transact, ContractDeploy }
-  struct AccountAccessDetails {
-    address acctId;
-    AccountAccess acctAccess;
-  }
   // use an array to store node details
   // if we want to list all node one day, mapping is not capable
   NodeDetails[] private nodeList;
-
   // use a mapping of enodeid to array index to track node
   mapping (bytes32 => uint) private nodeIdToIndex;
   // keep track of node number
   uint private numberOfNodes;
 
+  enum AccountAccess { ReadOnly, Transact, ContractDeploy, FullAccess}
+  struct AccountAccessDetails {
+    address acctId;
+    AccountAccess acctAccess;
+  }
   AccountAccessDetails[] private acctAccessList;
-
   mapping (address => uint) private acctToIndex;
   uint private numberOfAccts;
+
   // use an array to store account details
   // if we want to list all account one day, mapping is not capable
-  address[] private voterAcctList;
+  enum VoterStatus { Active, Inactive }
+  struct VoterAcctDetails {
+    address voterAcct;
+    VoterStatus voterStatus;
+  }
+  VoterAcctDetails[] private voterAcctList;
+  mapping (address => uint) private voterAcctIndex;
+  uint private numberOfVoters;
+  uint private numberOfValidVoters;
 
   // store node approval, deactivation and blacklisting vote status (prevent double vote)
   mapping (uint => mapping (address => bool)) private voteStatus;
@@ -62,14 +68,14 @@ contract Permissions {
   event AccountAccessModified(address _address, AccountAccess _access);
 
   // Checks if the given enode exists
-  modifier enodeInList(string _enodeId)
+  modifier enodeInList(string memory _enodeId)
   {
     require(nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] != 0, "Enode is not in the list");
     _;
   }
 
   // Checks if the given enode does not exists
-  modifier enodeNotInList(string _enodeId)
+  modifier enodeNotInList(string memory _enodeId)
   {
     require(nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] == 0, "Enode is in the list");
     _;
@@ -79,11 +85,9 @@ contract Permissions {
   modifier canVote()
   {
     bool flag = false;
-    for (uint i=0; i<voterAcctList.length; i++){
-      if (voterAcctList[i] == msg.sender){
-        flag = true;
-        break;
-      }
+    uint voterIndex = getVoterIndex(msg.sender);
+    if ((voterAcctIndex[msg.sender] != 0) && (voterAcctList[voterIndex].voterStatus == VoterStatus.Active)) {
+      flag = true;
     }
     require(flag, "Account can not vote");
     _;
@@ -95,13 +99,13 @@ contract Permissions {
   // Get number of voters
   function getNumberOfVoters() public view returns (uint)
   {
-    return voterAcctList.length;
+    return numberOfValidVoters;
   }
 
   // Get voter
-  function getVoter(uint i) public view returns (address _addr)
+  function getVoter(uint i) public view returns (address _addr, VoterStatus _voterStatus)
   {
-  	return voterAcctList[i];
+  	return (voterAcctList[i].voterAcct, voterAcctList[i].voterStatus);
   }
 
   // Get number of nodes
@@ -111,13 +115,13 @@ contract Permissions {
   }
 
   // Get node details given enode Id
-  function getNodeDetails(string enodeId) public view returns (string _enodeId, string _ipAddrPort, string _discPort, string _raftPort, NodeStatus _nodeStatus)
+  function getNodeDetails(string memory enodeId) public view returns (string memory _enodeId, string memory _ipAddrPort, string memory _discPort, string memory _raftPort, NodeStatus _nodeStatus)
   {
     uint nodeIndex = getNodeIndex(enodeId);
     return (nodeList[nodeIndex].enodeId, nodeList[nodeIndex].ipAddrPort, nodeList[nodeIndex].discPort, nodeList[nodeIndex].raftPort, nodeList[nodeIndex].status);
   }
   // Get node details given index
-  function getNodeDetailsFromIndex(uint nodeIndex) public view returns (string _enodeId, string _ipAddrPort, string _discPort, string _raftPort, NodeStatus _nodeStatus)
+  function getNodeDetailsFromIndex(uint nodeIndex) public view returns (string memory _enodeId, string memory _ipAddrPort, string memory _discPort, string memory _raftPort, NodeStatus _nodeStatus)
   {
     return (nodeList[nodeIndex].enodeId, nodeList[nodeIndex].ipAddrPort, nodeList[nodeIndex].discPort, nodeList[nodeIndex].raftPort, nodeList[nodeIndex].status);
   }
@@ -139,21 +143,18 @@ contract Permissions {
     return acctAccessList.length;
   }
   // Get node status by enode id
-  function getNodeStatus(string _enodeId) public view enodeInList(_enodeId) returns (NodeStatus)
+  function getNodeStatus(string memory _enodeId) public view enodeInList(_enodeId) returns (NodeStatus)
   {
     return nodeList[getNodeIndex(_enodeId)].status;
   }
 
   function isVoter(address _acctid) external view returns (bool)
   {
-    bool flag = false;
-    for (uint i=0; i<voterAcctList.length; i++){
-      if (voterAcctList[i] == _acctid){
-        flag = true;
-        break;
-      }
+    if ((voterAcctIndex[_acctid] != 0) &&
+        (voterAcctList[getVoterIndex(_acctid)].voterStatus == VoterStatus.Active)) {
+      return true;
     }
-    return flag;
+    return false;
   }
 
   // update the networ boot status as true
@@ -167,7 +168,9 @@ contract Permissions {
   function initNodeVoteStatus(uint nodeIndex) internal {
     voteCount[nodeIndex] = 0;
     for (uint i = 0; i < voterAcctList.length; i++){
-      voteStatus[nodeIndex][voterAcctList[i]] = false;
+      if (voterAcctList[i].voterStatus == VoterStatus.Active){
+        voteStatus[nodeIndex][voterAcctList[i].voterAcct] = false;
+      }
     }
   }
 
@@ -178,14 +181,14 @@ contract Permissions {
 
   function checkEnoughVotes(uint nodeIndex) internal view returns (bool) {
     bool approvalStatus = false;
-    if (voteCount[nodeIndex] > voterAcctList.length / 2){
+    if (voteCount[nodeIndex] > numberOfValidVoters/2){
       approvalStatus = true;
     }
     return approvalStatus;
   }
 
   // propose a new node to the network
-  function proposeNode(string _enodeId, string _ipAddrPort, string _discPort, string _raftPort) external enodeNotInList(_enodeId)
+  function proposeNode(string calldata _enodeId, string calldata _ipAddrPort, string calldata _discPort, string calldata _raftPort) external enodeNotInList(_enodeId)
   {
     if (!(networkBoot)){
       numberOfNodes++;
@@ -208,7 +211,7 @@ contract Permissions {
   }
 
   // Adds a node to the nodeList mapping and emits node added event if successfully and node exists event of node is already present
-  function approveNode(string _enodeId) external canVote
+  function approveNode(string calldata _enodeId) external canVote
   {
       require(getNodeStatus(_enodeId) == NodeStatus.PendingApproval, "Node need to be in PendingApproval status");
       uint nodeIndex = getNodeIndex(_enodeId);
@@ -224,7 +227,7 @@ contract Permissions {
   }
 
   // Propose a node for deactivation from network
-  function proposeDeactivation(string _enodeId) external enodeInList(_enodeId)
+  function proposeDeactivation(string calldata _enodeId) external enodeInList(_enodeId)
   {
     if (checkVotingAccountExist()){
       require(getNodeStatus(_enodeId) == NodeStatus.Approved, "Node need to be in Approved status");
@@ -238,7 +241,7 @@ contract Permissions {
   }
 
   //deactivates a given Enode and emits the decativation event
-  function deactivateNode(string _enodeId) external canVote
+  function deactivateNode(string calldata _enodeId) external canVote
   {
     require(getNodeStatus(_enodeId) == NodeStatus.PendingDeactivation, "Node need to be in PendingDeactivation status");
     uint nodeIndex = getNodeIndex(_enodeId);
@@ -254,7 +257,7 @@ contract Permissions {
   }
 
   // Propose node for blacklisting
-  function proposeNodeActivation(string _enodeId) external
+  function proposeNodeActivation(string calldata _enodeId) external
   {
     if (checkVotingAccountExist()){
       require(getNodeStatus(_enodeId) == NodeStatus.Deactivated, "Node need to be in Deactivated status");
@@ -268,7 +271,7 @@ contract Permissions {
   }
 
   //deactivates a given Enode and emits the decativation event
-  function activateNode(string _enodeId) external canVote
+  function activateNode(string calldata _enodeId) external canVote
   {
     require(getNodeStatus(_enodeId) == NodeStatus.PendingActivation, "Node need to be in PendingActivation status");
     uint nodeIndex = getNodeIndex(_enodeId);
@@ -284,7 +287,7 @@ contract Permissions {
   }
 
   // Propose node for blacklisting
-  function proposeNodeBlacklisting(string _enodeId, string _ipAddrPort, string _discPort, string _raftPort) external
+  function proposeNodeBlacklisting(string calldata _enodeId, string calldata _ipAddrPort, string calldata _discPort, string calldata _raftPort) external
   {
     if (checkVotingAccountExist()){
       uint nodeIndex = getNodeIndex(_enodeId);
@@ -308,7 +311,7 @@ contract Permissions {
   }
 
   //Approve node blacklisting
-  function blacklistNode(string _enodeId) external canVote
+  function blacklistNode(string calldata _enodeId) external canVote
   {
     require(getNodeStatus(_enodeId) == NodeStatus.PendingBlacklisting, "Node need to be in PendingBlacklisting status");
     uint nodeIndex = getNodeIndex(_enodeId);
@@ -356,31 +359,47 @@ contract Permissions {
   // Add voting account
   function addVoter(address _address) external
   {
-    // Check if account already exists
-    for (uint i=0; i<voterAcctList.length; i++){
-      if (voterAcctList[i] == _address){
-        return;
+    uint vId = getVoterIndex(_address);
+    if (voterAcctIndex[_address] != 0) {
+      if (voterAcctList[vId].voterStatus == VoterStatus.Inactive){
+        voterAcctList[vId].voterStatus = VoterStatus.Active;
+        numberOfValidVoters ++;
       }
     }
-    voterAcctList.push(_address);
+    else {
+      numberOfVoters ++;
+      voterAcctIndex[_address] = numberOfVoters;
+      voterAcctList.push(VoterAcctDetails(_address, VoterStatus.Active));
+      numberOfValidVoters ++;
+    }
   }
   // Remove voting account
   function removeVoter(address _address) external
   {
-    // Check if account already exists
-    for (uint i=0; i<voterAcctList.length; i++){
-      if (voterAcctList[i] == _address){
-        for (uint j=i; j<voterAcctList.length -1; j++){
-          voterAcctList[j] = voterAcctList[j+1];
-        }
-        delete voterAcctList[voterAcctList.length - 1];
-        voterAcctList.length --;
-      }
+    uint vId = getVoterIndex(_address);
+    if (voterAcctIndex[_address] != 0) {
+      voterAcctList[vId].voterStatus = VoterStatus.Inactive;
+      numberOfValidVoters --;
     }
   }
 
+  function getVoteStatus(string memory _enodeId, address _address) public view returns (bool){
+    uint nodeIndex = getNodeIndex(_enodeId);
+    return voteStatus[nodeIndex][_address];
+  }
+  function getVoterCount() public view returns (uint, uint)
+  {
+    return (numberOfVoters,numberOfValidVoters);
+  }
+
+  function getVoteCount(string memory _enodeId) public view returns (uint)
+  {
+    uint nodeIndex = getNodeIndex(_enodeId);
+    return voteCount[nodeIndex];
+  }
+
   /* private functions */
-  function getNodeIndex(string _enodeId) internal view returns (uint)
+  function getNodeIndex(string memory _enodeId) internal view returns (uint)
   {
     return nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] - 1;
   }
@@ -391,9 +410,15 @@ contract Permissions {
     return acctToIndex[_acct] - 1;
   }
 
+  /* private functions */
+  function getVoterIndex(address _acct) internal view returns (uint)
+  {
+    return voterAcctIndex[_acct] - 1;
+  }
+
   function checkVotingAccountExist() internal view returns (bool)
   {
-    if (voterAcctList.length == 0){
+    if (numberOfValidVoters == 0) {
       return false;
     } else {
       return true;

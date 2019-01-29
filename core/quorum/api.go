@@ -65,6 +65,14 @@ const (
 	DetailsMismatch
 	NothingToApprove
 )
+
+// Voter access type
+type VoterAccessType uint8
+
+const (
+	Active VoterAccessType = iota
+	Inactive
+)
 // QuorumControlsAPI provides an API to access Quorum's node permission and org key management related services
 type QuorumControlsAPI struct {
 	txPool      *core.TxPool
@@ -294,11 +302,13 @@ func (s *QuorumControlsAPI) VoterList() []string {
 	// loop for each index and get the node details from the contract
 	i := int64(0)
 	for i < voterCntI {
-		a, err := ps.GetVoter(big.NewInt(i))
+		voter, err := ps.GetVoter(big.NewInt(i))
 		if err != nil {
 			log.Error("error getting voter info", "err", err)
 		} else {
-			voterArr[i] = a.String()
+			if voter.VoterStatus == uint8(Active){
+				voterArr[i] = voter.Addr.String()
+			}
 		}
 		i++
 	}
@@ -452,10 +462,13 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 	switch action {
 	case AddVoter:
+		log.Info("SMK-executePermAction addVoter @ 457")
 		if !checkVoterAccountAccess(args.voter) {
 			return ErrVoterAccountAccess
 		}
+		log.Info("SMK-executePermAction before contract call @ 461")
 		tx, err = ps.AddVoter(args.voter)
+		log.Info("SMK-executePermAction after contract call @ 463", "err", err)
 
 	case RemoveVoter:
 		tx, err = ps.RemoveVoter(args.voter)
@@ -612,7 +625,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		if err != nil {
 			return ErrInvalidAccountAccess
 		}
-		if !checkAccountAccess(args.txa.From, uint8(access)) {
+		if !checkAccountAccess(args.txa.From, args.acctId, uint8(access)) {
 			return ErrAccountAccess
 		}
 		tx, err = ps.UpdateAccountAccess(args.acctId, uint8(access))
@@ -963,23 +976,38 @@ func checkNodeDetails(ps *pbind.PermissionsSession, enodeID string, node *discov
 }
 
 // checks if the account performing the operation has sufficient access privileges
-func checkAccountAccess(from common.Address, accessType uint8) bool {
-	acctAccess := types.GetAcctAccess(from)
+func checkAccountAccess(from, targetAcct common.Address, accessType uint8) bool {
+	fromAcctAccess := types.GetAcctAccess(from)
+	targetAcctAccess := types.GetAcctAccess(targetAcct)
 
-	if acctAccess == types.FullAccess {
-		return true
-	} else if acctAccess == types.ContractDeploy && accessType != uint8(types.FullAccess) {
-		return true
-	} else if acctAccess == types.Transact && (accessType == uint8(types.Transact) || accessType == uint8(types.ReadOnly)) {
-		return true
+	retVal := false
+
+	// Check if the from account is sufficient access rights to set the access
+	if fromAcctAccess == types.FullAccess {
+		retVal = true
+	} else if fromAcctAccess == types.ContractDeploy && accessType != uint8(types.FullAccess) {
+		retVal = true
+	} else if fromAcctAccess == types.Transact && (accessType == uint8(types.Transact) || accessType == uint8(types.ReadOnly)) {
+		retVal = true
 	}
-	return false
+
+	if retVal && fromAcctAccess != types.FullAccess {
+		if ((fromAcctAccess == types.ContractDeploy && targetAcctAccess == types.FullAccess) ||
+			(fromAcctAccess == types.Transact &&
+			(targetAcctAccess == types.ContractDeploy || targetAcctAccess == types.FullAccess))){
+			retVal = false
+		}
+
+	}
+	return retVal
 }
 
 // checks if the account performing the operation has sufficient access privileges
 func checkVoterAccountAccess(account common.Address) bool {
 	acctAccess := types.GetAcctAccess(account)
-	if acctAccess == types.ReadOnly {
+	// if acctAccess == types.ReadOnly {
+	// only accounts with full access will be allowed to manage voters
+	if acctAccess != types.FullAccess {
 		return false
 	}
 	return true

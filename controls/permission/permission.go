@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -242,7 +241,7 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 	index := 0
 	recExists := false
 	for i, enodeId := range nodelist {
-		if strings.EqualFold(enodeId, newEnodeId){
+		if enodeId == newEnodeId {
 			index = i
 			recExists = true
 			break
@@ -421,7 +420,7 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 
 // helper function to format EnodeId
 func (p *PermissionCtrl) formatEnodeId(enodeId, ipAddrPort, discPort, raftPort string) string {
-	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discPort=" + discPort
+	newEnodeId := "enode://" + enodeId + "@" + ipAddrPort + "?discport=" + discPort
 	if p.isRaft {
 		newEnodeId += "&raftport=" + raftPort
 	}

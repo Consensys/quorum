@@ -16,7 +16,7 @@ import (
 )
 
 // PermissionsABI is the input ABI used to generate the binding from.
-const PermissionsABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"activateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"approveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"acctIndex\",\"type\":\"uint256\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_acctAccess\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"enodeId\",\"type\":\"string\"}],\"name\":\"getNodeDetails\",\"outputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"deactivateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"updateNetworkBootStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"proposeDeactivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"blacklistNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"initAccounts\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNetworkBootStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"proposeNodeBlacklisting\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfVoters\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"removeVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"nodeIndex\",\"type\":\"uint256\"}],\"name\":\"getNodeDetailsFromIndex\",\"outputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acctid\",\"type\":\"address\"}],\"name\":\"isVoter\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_accountAccess\",\"type\":\"uint8\"}],\"name\":\"updateAccountAccess\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"proposeNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"i\",\"type\":\"uint256\"}],\"name\":\"getVoter\",\"outputs\":[{\"name\":\"_addr\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"proposeNodeActivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"addVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingActivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeActivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingBlacklist\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_access\",\"type\":\"uint8\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"}]"
+const PermissionsABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getVoteCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"getVoteStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getVoterCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"activateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"approveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"acctIndex\",\"type\":\"uint256\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_acctAccess\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"enodeId\",\"type\":\"string\"}],\"name\":\"getNodeDetails\",\"outputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"deactivateNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"updateNetworkBootStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"proposeDeactivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"blacklistNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"initAccounts\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNetworkBootStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"proposeNodeBlacklisting\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfVoters\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"removeVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"nodeIndex\",\"type\":\"uint256\"}],\"name\":\"getNodeDetailsFromIndex\",\"outputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acctid\",\"type\":\"address\"}],\"name\":\"isVoter\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_accountAccess\",\"type\":\"uint8\"}],\"name\":\"updateAccountAccess\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"name\":\"_discPort\",\"type\":\"string\"},{\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"proposeNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"i\",\"type\":\"uint256\"}],\"name\":\"getVoter\",\"outputs\":[{\"name\":\"_addr\",\"type\":\"address\"},{\"name\":\"_voterStatus\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"proposeNodeActivation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"addVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingActivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeActivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingBlacklist\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ipAddrPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_discPort\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_raftPort\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_access\",\"type\":\"uint8\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"}]"
 
 // Permissions is an auto generated Go binding around an Ethereum contract.
 type Permissions struct {
@@ -422,30 +422,122 @@ func (_Permissions *PermissionsCallerSession) GetNumberOfVoters() (*big.Int, err
 	return _Permissions.Contract.GetNumberOfVoters(&_Permissions.CallOpts)
 }
 
-// GetVoter is a free data retrieval call binding the contract method 0xd07bff0c.
+// GetVoteCount is a free data retrieval call binding the contract method 0x069953a7.
 //
-// Solidity: function getVoter(i uint256) constant returns(_addr address)
-func (_Permissions *PermissionsCaller) GetVoter(opts *bind.CallOpts, i *big.Int) (common.Address, error) {
+// Solidity: function getVoteCount(_enodeId string) constant returns(uint256)
+func (_Permissions *PermissionsCaller) GetVoteCount(opts *bind.CallOpts, _enodeId string) (*big.Int, error) {
 	var (
-		ret0 = new(common.Address)
+		ret0 = new(*big.Int)
 	)
 	out := ret0
-	err := _Permissions.contract.Call(opts, out, "getVoter", i)
+	err := _Permissions.contract.Call(opts, out, "getVoteCount", _enodeId)
 	return *ret0, err
 }
 
+// GetVoteCount is a free data retrieval call binding the contract method 0x069953a7.
+//
+// Solidity: function getVoteCount(_enodeId string) constant returns(uint256)
+func (_Permissions *PermissionsSession) GetVoteCount(_enodeId string) (*big.Int, error) {
+	return _Permissions.Contract.GetVoteCount(&_Permissions.CallOpts, _enodeId)
+}
+
+// GetVoteCount is a free data retrieval call binding the contract method 0x069953a7.
+//
+// Solidity: function getVoteCount(_enodeId string) constant returns(uint256)
+func (_Permissions *PermissionsCallerSession) GetVoteCount(_enodeId string) (*big.Int, error) {
+	return _Permissions.Contract.GetVoteCount(&_Permissions.CallOpts, _enodeId)
+}
+
+// GetVoteStatus is a free data retrieval call binding the contract method 0x0fdc2150.
+//
+// Solidity: function getVoteStatus(_enodeId string, _address address) constant returns(bool)
+func (_Permissions *PermissionsCaller) GetVoteStatus(opts *bind.CallOpts, _enodeId string, _address common.Address) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _Permissions.contract.Call(opts, out, "getVoteStatus", _enodeId, _address)
+	return *ret0, err
+}
+
+// GetVoteStatus is a free data retrieval call binding the contract method 0x0fdc2150.
+//
+// Solidity: function getVoteStatus(_enodeId string, _address address) constant returns(bool)
+func (_Permissions *PermissionsSession) GetVoteStatus(_enodeId string, _address common.Address) (bool, error) {
+	return _Permissions.Contract.GetVoteStatus(&_Permissions.CallOpts, _enodeId, _address)
+}
+
+// GetVoteStatus is a free data retrieval call binding the contract method 0x0fdc2150.
+//
+// Solidity: function getVoteStatus(_enodeId string, _address address) constant returns(bool)
+func (_Permissions *PermissionsCallerSession) GetVoteStatus(_enodeId string, _address common.Address) (bool, error) {
+	return _Permissions.Contract.GetVoteStatus(&_Permissions.CallOpts, _enodeId, _address)
+}
+
 // GetVoter is a free data retrieval call binding the contract method 0xd07bff0c.
 //
-// Solidity: function getVoter(i uint256) constant returns(_addr address)
-func (_Permissions *PermissionsSession) GetVoter(i *big.Int) (common.Address, error) {
+// Solidity: function getVoter(i uint256) constant returns(_addr address, _voterStatus uint8)
+func (_Permissions *PermissionsCaller) GetVoter(opts *bind.CallOpts, i *big.Int) (struct {
+	Addr        common.Address
+	VoterStatus uint8
+}, error) {
+	ret := new(struct {
+		Addr        common.Address
+		VoterStatus uint8
+	})
+	out := ret
+	err := _Permissions.contract.Call(opts, out, "getVoter", i)
+	return *ret, err
+}
+
+// GetVoter is a free data retrieval call binding the contract method 0xd07bff0c.
+//
+// Solidity: function getVoter(i uint256) constant returns(_addr address, _voterStatus uint8)
+func (_Permissions *PermissionsSession) GetVoter(i *big.Int) (struct {
+	Addr        common.Address
+	VoterStatus uint8
+}, error) {
 	return _Permissions.Contract.GetVoter(&_Permissions.CallOpts, i)
 }
 
 // GetVoter is a free data retrieval call binding the contract method 0xd07bff0c.
 //
-// Solidity: function getVoter(i uint256) constant returns(_addr address)
-func (_Permissions *PermissionsCallerSession) GetVoter(i *big.Int) (common.Address, error) {
+// Solidity: function getVoter(i uint256) constant returns(_addr address, _voterStatus uint8)
+func (_Permissions *PermissionsCallerSession) GetVoter(i *big.Int) (struct {
+	Addr        common.Address
+	VoterStatus uint8
+}, error) {
 	return _Permissions.Contract.GetVoter(&_Permissions.CallOpts, i)
+}
+
+// GetVoterCount is a free data retrieval call binding the contract method 0x11174a29.
+//
+// Solidity: function getVoterCount() constant returns(uint256, uint256)
+func (_Permissions *PermissionsCaller) GetVoterCount(opts *bind.CallOpts) (*big.Int, *big.Int, error) {
+	var (
+		ret0 = new(*big.Int)
+		ret1 = new(*big.Int)
+	)
+	out := &[]interface{}{
+		ret0,
+		ret1,
+	}
+	err := _Permissions.contract.Call(opts, out, "getVoterCount")
+	return *ret0, *ret1, err
+}
+
+// GetVoterCount is a free data retrieval call binding the contract method 0x11174a29.
+//
+// Solidity: function getVoterCount() constant returns(uint256, uint256)
+func (_Permissions *PermissionsSession) GetVoterCount() (*big.Int, *big.Int, error) {
+	return _Permissions.Contract.GetVoterCount(&_Permissions.CallOpts)
+}
+
+// GetVoterCount is a free data retrieval call binding the contract method 0x11174a29.
+//
+// Solidity: function getVoterCount() constant returns(uint256, uint256)
+func (_Permissions *PermissionsCallerSession) GetVoterCount() (*big.Int, *big.Int, error) {
+	return _Permissions.Contract.GetVoterCount(&_Permissions.CallOpts)
 }
 
 // IsVoter is a free data retrieval call binding the contract method 0xa7771ee3.
