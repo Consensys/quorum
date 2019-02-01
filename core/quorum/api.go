@@ -3,8 +3,8 @@ package quorum
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"errors"
 	"math/big"
-	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -97,7 +97,7 @@ type txArgs struct {
 	tmKey      string
 	txa        ethapi.SendTxArgs
 	acctId     common.Address
-	accessType string
+	accessType uint8
 }
 
 type nodeStatus struct {
@@ -139,16 +139,20 @@ var (
 	ErrAccountAccess        = ExecStatus{false, "Account does not have sufficient access for operation"}
 	ErrVoterAccountAccess   = ExecStatus{false, "Voter account does not have sufficient access"}
 	ErrMasterOrgExists      = ExecStatus{false, "Master org already exists"}
-	ErrInvalidMasterOrg     = ExecStatus{false, "Master org does not exist. Add master org first."}
-	ErrInvalidOrg           = ExecStatus{false, "Org does not exist. Add org first."}
+	ErrInvalidMasterOrg     = ExecStatus{false, "Master org does not exist. Add master org first"}
+	ErrInvalidOrg           = ExecStatus{false, "Org does not exist. Add org first"}
 	ErrOrgExists            = ExecStatus{false, "Org already exists"}
-	ErrVoterExists          = ExecStatus{false, "Voter exists"}
+	ErrVoterExists          = ExecStatus{false, "Voter account exists"}
 	ErrPendingApprovals     = ExecStatus{false, "Pending approvals for the organization. Approve first"}
 	ErrKeyExists            = ExecStatus{false, "Key exists for the organization"}
 	ErrKeyInUse             = ExecStatus{false, "Key already in use in another master organization"}
 	ErrKeyNotFound          = ExecStatus{false, "Key not found for the organization"}
 	ErrNothingToApprove     = ExecStatus{false, "Nothing to approve"}
 	ErrNothingToCancel		= ExecStatus{false, "Nothing to cancel"}
+	ErrNodeProposed		    = ExecStatus{false, "Node already proposed for the action"}
+	ErrAccountIsNotVoter    = ExecStatus{false, "Not a voter account"}
+	ErrBlacklistedNode      = ExecStatus{false, "Blacklisted node. Operation not allowed"}
+	ErrOpNotAllowed         = ExecStatus{false, "Operation not allowed"}
 	ExecSuccess             = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -301,7 +305,7 @@ func (s *QuorumControlsAPI) VoterList() []string {
 	}
 	voterCntI := voterCnt.Int64()
 	log.Debug("total voters", "count", voterCntI)
-	voterArr := make([]string, voterCntI)
+	var voterArr []string
 	// loop for each index and get the node details from the contract
 	i := int64(0)
 	for i < voterCntI {
@@ -310,7 +314,7 @@ func (s *QuorumControlsAPI) VoterList() []string {
 			log.Error("error getting voter info", "err", err)
 		} else {
 			if voter.VoterStatus == uint8(Active){
-				voterArr[i] = voter.Addr.String()
+				voterArr = append(voterArr, voter.Addr.String())
 			}
 		}
 		i++
@@ -429,7 +433,7 @@ func (s *QuorumControlsAPI) AddOrgVoter(morgId string, acctId common.Address, tx
 }
 
 // RemoveOrgKey removes an org key combination from the org key map
-func (s *QuorumControlsAPI) DeleteOrgVoter(morgId string, acctId common.Address, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) RemoveOrgVoter(morgId string, acctId common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(DeleteOrgVoter, txArgs{txa: txa, morgId: morgId, acctId: acctId})
 }
 
@@ -447,10 +451,102 @@ func (s *QuorumControlsAPI) ApprovePendingOp(orgId string, txa ethapi.SendTxArgs
 	return s.executeOrgKeyAction(ApprovePendingOp, txArgs{txa: txa, orgId: orgId})
 }
 
-func (s *QuorumControlsAPI) SetAccountAccess(acct common.Address, access string, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) SetAccountAccess(acct common.Address, access uint8, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(SetAccountAccess, txArgs{acctId: acct, accessType: access, txa: txa})
 }
 
+
+func getNodeDetailsFromEnode(nodeId string) (string, string, string, string, error){
+	node, err := discover.ParseNode(nodeId)
+	if err != nil {
+		log.Error("invalid node id: %v", err)
+		return "", "", "", "", err
+	} 
+	enodeID := node.ID.String()
+	ipAddr := node.IP.String()
+	port := fmt.Sprintf("%v", node.TCP)
+	discPort := fmt.Sprintf("%v", node.UDP)
+	raftPort := fmt.Sprintf("%v", node.RaftPort)
+	ipAddrPort := ipAddr + ":" + port
+
+	return enodeID, discPort, raftPort, ipAddrPort, nil
+}
+
+// checks if the input node details for approval is matching with details stored
+// in contract
+func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAction)  (error, ExecStatus){
+	enodeID, discPort, raftPort, ipAddrPort, err := getNodeDetailsFromEnode(nodeId)
+
+	cnode, err := ps.GetNodeDetails(enodeID)
+	
+	if err == nil {
+		if !(strings.Compare(ipAddrPort, cnode.IpAddrPort) == 0 && strings.Compare(discPort, cnode.DiscPort) == 0 && strings.Compare(raftPort, cnode.RaftPort) == 0) {
+			return errors.New("Details Mismtach"), ErrNodeDetailsMismatch
+		}
+
+		nodeStatus := decodeNodeStatus(cnode.NodeStatus)
+		// if node status is Blacklisted no activities are allowed on the same.
+		if nodeStatus == "Blacklisted" {
+			return errors.New("Cannot propose blacklisted node"), ErrBlacklistedNode
+		}
+
+		// if propose action, check if node status allows the operation
+		if ((action == ProposeNode && nodeStatus != "NotInNetwork") ||
+			(action == ProposeNodeDeactivation && nodeStatus != "Approved") ||
+			(action == ProposeNodeActivation && nodeStatus != "Deactivated")) {
+			return errors.New("operation cannot be performed"), ErrOpNotAllowed
+		}
+
+		// if approval action, check if anything pendinga approval
+		if (action == ApproveNode && nodeStatus != "PendingApproval") ||
+			(action == ApproveNodeDeactivation && nodeStatus != "PendingDeactivation") ||
+			(action == ApproveNodeActivation && nodeStatus != "PendingActivation") ||
+			(action == ApproveNodeBlacklisting && nodeStatus != "PendingBlacklisting") {
+			return errors.New("Nothing to approve"), ErrNothingToApprove
+		}
+
+		if (action == CancelPendingOperation && nodeStatus != "PendingApproval" &&
+			nodeStatus != "PendingDeactivation" && nodeStatus != "PendingActivation" &&
+			nodeStatus != "PendingBlacklisting") {
+			return errors.New("Nothing to cancel"), ErrNothingToCancel
+		}
+
+		if (action == ProposeNode && nodeStatus == "PendingApproval") ||
+			(action == ProposeNodeDeactivation && nodeStatus == "PendingDeactivation") ||
+			(action == ProposeNodeActivation && nodeStatus == "PendingActivation") ||
+			(action == ProposeNodeBlacklisting && nodeStatus == "PendingBlacklisting") {
+			return errors.New("Node already proposed"), ErrNodeProposed
+		}
+
+
+
+	}
+	return nil, ExecSuccess
+}
+
+func(s *QuorumControlsAPI) validateOpDetails(ps *pbind.PermissionsSession, enodeID string, from common.Address, action PermAction) (error, ExecStatus) {
+
+	// check if  the input node is fine
+	err, execStatus := checkNodeDetails(ps, enodeID, action)
+	if err != nil {
+		return errors.New("Node details mismatch"), execStatus
+	}
+
+	// if action is propose type then check if voter nodes are there in the network
+	if (action == ProposeNode || action == ProposeNodeDeactivation || action == ProposeNodeActivation || action == ProposeNodeBlacklisting){
+		if 	!checkVoterExists(ps){
+			return errors.New("No voter account"), ErrNoVoterAccount
+		}
+	}
+
+	// if approval process, check if the account is a voter account
+	if (action == ApproveNode || action == ApproveNodeDeactivation || action == ApproveNodeActivation || action == ApproveNodeBlacklisting || action == CancelPendingOperation){
+		if !checkIsVoter(ps, from) {
+			return errors.New("Not a voter account"), ErrAccountNotAVoter
+		}
+	}
+	return nil, ExecSuccess
+}
 // executePermAction helps to execute an action in permission contract
 func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
 
@@ -467,42 +563,44 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 	ps := s.newPermSession(w, args.txa)
 	var tx *types.Transaction
 	var node *discover.Node
+	var execStatus ExecStatus
+
+	if action != SetAccountAccess {
+		err, execStatus = s.validateOpDetails(ps, args.nodeId, args.txa.From, action)
+		if err != nil {
+			return execStatus
+		}
+	}
 
 	switch action {
 	case AddVoter:
-		log.Info("SMK-executePermAction addVoter @ 457")
 		if !checkVoterAccountAccess(args.voter) {
 			return ErrVoterAccountAccess
 		}
-		log.Info("SMK-executePermAction before contract call @ 461")
+		if checkIsVoter(ps, args.voter){
+			return ErrVoterExists
+		}
 		tx, err = ps.AddVoter(args.voter)
-		log.Info("SMK-executePermAction after contract call @ 463", "err", err)
 
 	case RemoveVoter:
+		if !checkVoterAccountAccess(args.voter) {
+			return ErrVoterAccountAccess
+		}
+		if !checkIsVoter(ps, args.voter){
+			return ErrAccountIsNotVoter
+		}
 		tx, err = ps.RemoveVoter(args.voter)
 
 	case ProposeNode:
-		if !checkVoterExists(ps) {
-			return ErrNoVoterAccount
-		}
-		node, err = discover.ParseNode(args.nodeId)
-		if err != nil {
+		enodeID, discPort, raftPort, ipAddrPort, locerr := getNodeDetailsFromEnode(args.nodeId)
+		if locerr != nil {
 			log.Error("invalid node id: %v", err)
 			return ErrInvalidNode
 		} 
-		enodeID := node.ID.String()
-		ipAddr := node.IP.String()
-		port := fmt.Sprintf("%v", node.TCP)
-		discPort := fmt.Sprintf("%v", node.UDP)
-		raftPort := fmt.Sprintf("%v", node.RaftPort)
-		ipAddrPort := ipAddr + ":" + port
 
 		tx, err = ps.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
 
 	case ApproveNode:
-		if !checkIsVoter(ps, args.txa.From) {
-			return ErrAccountNotAVoter
-		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
@@ -510,22 +608,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 		enodeID := node.ID.String()
 
-		retVal := checkNodeDetails(ps, enodeID, node, action)
-		if retVal != Success {
-			if retVal == DetailsMismatch {
-				return ErrNodeDetailsMismatch
-			} else if retVal == NothingToApprove {
-				return ErrNothingToApprove
-			} else if retVal == NothingToCancel {
-				return ErrNothingToCancel
-			}
-		}
 		tx, err = ps.ApproveNode(enodeID)
 
 	case ProposeNodeDeactivation:
-		if !checkVoterExists(ps) {
-			return ErrNoVoterAccount
-		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
@@ -535,9 +620,6 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = ps.ProposeDeactivation(enodeID)
 
 	case ApproveNodeDeactivation:
-		if !checkIsVoter(ps, args.txa.From) {
-			return ErrAccountNotAVoter
-		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
@@ -545,22 +627,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 		enodeID := node.ID.String()
 
-		retVal := checkNodeDetails(ps, enodeID, node, action) 
-		if retVal != Success {
-			if retVal == DetailsMismatch {
-				return ErrNodeDetailsMismatch
-			} else if retVal == NothingToApprove {
-				return ErrNothingToApprove
-			} else if retVal == NothingToCancel {
-				return ErrNothingToCancel
-			}
-		}
 		tx, err = ps.DeactivateNode(enodeID)
 
 	case ProposeNodeActivation:
-		if !checkVoterExists(ps) {
-			return ErrNoVoterAccount
-		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
@@ -570,9 +639,6 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = ps.ProposeNodeActivation(enodeID)
 
 	case ApproveNodeActivation:
-		if !checkIsVoter(ps, args.txa.From) {
-			return ErrAccountNotAVoter
-		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
@@ -580,39 +646,16 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 		enodeID := node.ID.String()
 
-		retVal := checkNodeDetails(ps, enodeID, node, action) 
-		if retVal != Success {
-			if retVal == DetailsMismatch {
-				return ErrNodeDetailsMismatch
-			} else if retVal == NothingToApprove {
-				return ErrNothingToApprove
-			} else if retVal == NothingToCancel {
-				return ErrNothingToCancel
-			}
-		}
 		tx, err = ps.ActivateNode(enodeID)
 
 	case ProposeNodeBlacklisting:
-		if !checkVoterExists(ps) {
-			return ErrNoVoterAccount
-		}
-		node, err = discover.ParseNode(args.nodeId)
-		if err != nil {
+		enodeID, discPort, raftPort, ipAddrPort, locerr := getNodeDetailsFromEnode(args.nodeId)
+		if locerr != nil {
 			log.Error("invalid node id: %v", err)
 			return ErrInvalidNode
 		}
-		enodeID := node.ID.String()
-		ipAddr := node.IP.String()
-		port := fmt.Sprintf("%v", node.TCP)
-		discPort := fmt.Sprintf("%v", node.UDP)
-		raftPort := fmt.Sprintf("%v", node.RaftPort)
-		ipAddrPort := ipAddr + ":" + port
-
 		tx, err = ps.ProposeNodeBlacklisting(enodeID, ipAddrPort, discPort, raftPort)
 	case ApproveNodeBlacklisting:
-		if !checkIsVoter(ps, args.txa.From) {
-			return ErrAccountNotAVoter
-		}
 		node, err = discover.ParseNode(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
@@ -620,28 +663,16 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 		enodeID := node.ID.String()
 
-		retVal := checkNodeDetails(ps, enodeID, node, action) 
-		if retVal != Success {
-			if retVal == DetailsMismatch {
-				return ErrNodeDetailsMismatch
-			} else if retVal == NothingToApprove {
-				return ErrNothingToApprove
-			} else if retVal == NothingToCancel {
-				return ErrNothingToCancel
-			}
-		}
 		tx, err = ps.BlacklistNode(enodeID)
 
 	case SetAccountAccess:
-		var access uint64
-		access, err = strconv.ParseUint(args.accessType, 10, 8)
-		if err != nil {
+		if (args.accessType > 4){
 			return ErrInvalidAccountAccess
 		}
-		if !checkAccountAccess(args.txa.From, args.acctId, uint8(access)) {
+		if !checkAccountAccess(args.txa.From, args.acctId, args.accessType) {
 			return ErrAccountAccess
 		}
-		tx, err = ps.UpdateAccountAccess(args.acctId, uint8(access))
+		tx, err = ps.UpdateAccountAccess(args.acctId, args.accessType)
 
 	case CancelPendingOperation:
 		if !checkIsVoter(ps, args.txa.From) {
@@ -654,16 +685,6 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 		enodeID := node.ID.String()
 
-		retVal := checkNodeDetails(ps, enodeID, node, action)
-		if retVal != Success {
-			if retVal == DetailsMismatch {
-				return ErrNodeDetailsMismatch
-			} else if retVal == NothingToApprove {
-				return ErrNothingToApprove
-			} else if retVal == NothingToCancel {
-				return ErrNothingToCancel
-			}
-		}
 		tx, err = ps.CancelPendingOperation(enodeID)
 
 	}
@@ -983,38 +1004,6 @@ func (s *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet
 		nonce = new(big.Int).SetUint64(s.txPool.Nonce(frmAcct.Address))
 	}
 	return frmAcct, transactOpts, gasLimit, gasPrice, nonce
-}
-
-// checks if the input node details for approval is matching with details stored
-// in contract
-func checkNodeDetails(ps *pbind.PermissionsSession, enodeID string, node *discover.Node, action PermAction)  NodeCheckRetVal {
-	ipAddr := node.IP.String()
-	port := fmt.Sprintf("%v", node.TCP)
-	discPort := fmt.Sprintf("%v", node.UDP)
-	raftPort := fmt.Sprintf("%v", node.RaftPort)
-	ipAddrPort := ipAddr + ":" + port
-
-	cnode, err := ps.GetNodeDetails(enodeID)
-	
-	if err == nil {
-		if !(strings.Compare(ipAddrPort, cnode.IpAddrPort) == 0 && strings.Compare(discPort, cnode.DiscPort) == 0 && strings.Compare(raftPort, cnode.RaftPort) == 0) {
-			return DetailsMismatch
-		}
-		nodeStatus := decodeNodeStatus(cnode.NodeStatus)
-		if (action == ApproveNode && nodeStatus != "PendingApproval") ||
-			(action == ApproveNodeDeactivation && nodeStatus != "PendingDeactivation") ||
-			(action == ApproveNodeActivation && nodeStatus != "PendingActivation") ||
-			(action == ApproveNodeBlacklisting && nodeStatus != "PendingBlacklisting") {
-			return NothingToApprove
-		}
-		if (action == CancelPendingOperation && nodeStatus != "PendingApproval" &&
-			nodeStatus != "PendingDeactivation" && nodeStatus != "PendingActivation" &&
-			nodeStatus != "PendingBlacklisting") {
-			return NothingToCancel
-		}
-
-	}
-	return Success
 }
 
 // checks if the account performing the operation has sufficient access privileges

@@ -823,8 +823,8 @@ web3._extend({
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                 new web3._extend.Method({
-                       name: 'deleteVoter',
-                       call: 'quorumOrgMgmt_deleteOrgVoter',
+                       name: 'removeVoter',
+                       call: 'quorumOrgMgmt_removeOrgVoter',
                        params: 3,
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),

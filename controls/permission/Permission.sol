@@ -104,7 +104,7 @@ contract Permissions {
   // Get number of voters
   function getNumberOfVoters() public view returns (uint)
   {
-    return numberOfValidVoters;
+    return numberOfVoters;
   }
 
   // Get voter
