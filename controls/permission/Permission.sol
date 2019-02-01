@@ -107,6 +107,11 @@ contract Permissions {
     return numberOfVoters;
   }
 
+  // Get number of valid voters
+  function getNumberOfValidVoters() public view returns (uint)
+  {
+    return numberOfValidVoters;
+  }
   // Get voter
   function getVoter(uint i) public view returns (address _addr, VoterStatus _voterStatus)
   {

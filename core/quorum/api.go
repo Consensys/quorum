@@ -930,7 +930,7 @@ func (s *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Walle
 
 // checkVoterExists checks if any vote accounts are there. If yes returns true, else false
 func checkVoterExists(ps *pbind.PermissionsSession) bool {
-	tx, err := ps.GetNumberOfVoters()
+	tx, err := ps.GetNumberOfValidVoters()
 	log.Debug("number of voters", "count", tx)
 	if err == nil && tx.Cmp(big.NewInt(0)) > 0 {
 		return true
