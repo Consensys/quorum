@@ -300,9 +300,9 @@ func TestValidateTx_whenValueZeroTransferForPrivateTransaction(t *testing.T) {
 	pool, key := setupQuorumTxPool()
 	defer pool.Stop()
 	zeroValue := common.Big0
-	gasPrice := common.Big2
+	zeroGasPrice := common.Big0
 	defaultTxPoolGasLimit := uint64(1000000)
-	arbitraryTx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, zeroValue, defaultTxPoolGasLimit, gasPrice, nil), types.HomesteadSigner{}, key)
+	arbitraryTx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, zeroValue, defaultTxPoolGasLimit, zeroGasPrice, nil), types.HomesteadSigner{}, key)
 	arbitraryTx.SetPrivate()
 
 	if err := pool.AddRemote(arbitraryTx); err != ErrEtherValueUnsupported {
@@ -323,9 +323,9 @@ func TestValidateTx_whenValueNonZeroTransferForPrivateTransaction(t *testing.T) 
 }
 
 func newPrivateTransaction(value *big.Int, data []byte, key *ecdsa.PrivateKey) (*types.Transaction, *big.Int, common.Address) {
-	gasPrice := common.Big2
+	zeroGasPrice := common.Big0
 	defaultTxPoolGasLimit := uint64(1000000)
-	arbitraryTx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, value, defaultTxPoolGasLimit, gasPrice, data), types.HomesteadSigner{}, key)
+	arbitraryTx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, value, defaultTxPoolGasLimit, zeroGasPrice, data), types.HomesteadSigner{}, key)
 	arbitraryTx.SetPrivate()
 	balance := new(big.Int).Add(arbitraryTx.Value(), new(big.Int).Mul(new(big.Int).SetUint64(arbitraryTx.Gas()), arbitraryTx.GasPrice()))
 	from, _ := deriveSender(arbitraryTx)
