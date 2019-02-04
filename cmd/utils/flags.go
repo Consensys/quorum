@@ -820,12 +820,17 @@ func setIPC(ctx *cli.Context, cfg *node.Config) {
 // makeDatabaseHandles raises out the number of allowed file handles per process
 // for Geth and returns half of the allowance to assign to the database.
 func makeDatabaseHandles() int {
-	limit, err := fdlimit.Maximum()
+	limit, err := fdlimit.Current()
 	if err != nil {
 		Fatalf("Failed to retrieve file descriptor allowance: %v", err)
 	}
-	if err := fdlimit.Raise(uint64(limit)); err != nil {
-		Fatalf("Failed to raise file descriptor allowance: %v", err)
+	if limit < 4096 {
+		if err := fdlimit.Raise(4096); err != nil {
+			Fatalf("Failed to raise file descriptor allowance: %v", err)
+		}
+	}
+	if limit > 4096 { // cap database file descriptors even if more is available
+		limit = 4096
 	}
 	return limit / 2 // Leave half for networking and other stuff
 }
