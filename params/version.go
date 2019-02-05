@@ -28,7 +28,7 @@ const (
 
 	QuorumVersionMajor = 2
 	QuorumVersionMinor = 2
-	QuorumVersionPatch = 0
+	QuorumVersionPatch = 1
 )
 
 // Version holds the textual version string.
@@ -50,5 +50,8 @@ func VersionWithCommit(gitCommit string) string {
 	if len(gitCommit) >= 8 {
 		vsn += "-" + gitCommit[:8]
 	}
+
+	vsn += "(quorum-v" + QuorumVersion + ")"
+
 	return vsn
 }
