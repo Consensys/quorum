@@ -1,12 +1,12 @@
 # Overview
-Currently when Quorum geth is brought up in `--permissionoed` mode, for establishing p2p connectivity, the nodes check `permissioned-nodes.json` file. If the enode id of the node requesting connection is present in this file, the connection is established else it is declined. The `permissioned-nodes.json` file is updated procedurally whenever a new node joins the network. Node permissioning feature will allow the existing nodes to propose a new node to join the network and once majority voting is done on the proposal, it will update the `permissioned-nodes.json` automatically. Further the existing nodes can propose any node for deactivation, blacklisting and activating back from a deactivated status.
+Currently when Quorum geth is brought up in `--permissioned` mode, for establishing p2p connectivity the nodes check `permissioned-nodes.json` file. If the enode id of the node requesting connection is present in this file, the p2p connection is established else it is declined. The `permissioned-nodes.json` file is updated procedurally whenever a new node joins the network. Node permissioning feature will allow the existing nodes to propose a new node to join the network and once majority voting is done on the proposal, it will update the `permissioned-nodes.json` automatically. Further the existing nodes can propose any node for deactivation, blacklisting and activating a node back from a deactivated status.
 
-Account permissioning feature introduces controls at account level. This will control the type of transactions that a particular account can perform.
+Account permissioning feature introduces controls at account level. This will control the type of activities that a particular account can perform in the network.
 
-It should be noted that both the above features will be available when Quorum geth is brought in `--permissioned` mode.
+It should be noted that both the above features will be available when Quorum geth is brought in `--permissioned` mode with the set up as described in the next section. 
 
 ## Set up
-Node permissioning and Account access control is managed by a smart contract [Permission.sol](../controls/permission/Permission.sol). The precompiled smart contract is deployed at address `0x000000000000000000032` in network bootup process. The binding of the precompiled byte code with the address is in `genesis.json`. The initial set of account which will have full access when the network is up, should given as a part of `genesis.json` as shown below:
+Node permissioning and account access control is managed by a smart contract [Permission.sol](../controls/permission/Permission.sol). The precompiled bytecode of the smart contract is deployed at address `0x000000000000000000020` in network bootup process. The binding of the precompiled byte code with the address is in `genesis.json`. The initial set of account that will have full access when the network is up, should given as a part of `genesis.json` as shown below:
 ```
 {
   "alloc": {
@@ -21,7 +21,9 @@ Node permissioning and Account access control is managed by a smart contract [Pe
     "balance": "1000000000000000000000000000"
   },
 ```
-In the above set up, accounts `"0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e", "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e", "0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e"` will have full access when the network boot is completed. 
+In the above set up, accounts `"0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e", "0xed9d02e382b34818e88b88a309c7fe71e65f419d", "0x0fbdc686b912d7722dc86510934589e0aaf3b55a"` will have full access when the network boot is completed. The default access for any other account in the network will be `ReadOnly`
+
+If the network is brought up with permissions control byte code and no accounts are given as a part of storage, then geth start up will fail with error `Permissioned network being brought up with zero accounts having full access. Add permissioned full access accounts in genesis.json and bring up the network`
 
 Further, if the initial set of network nodes are brought up with `--permissioned` mode and a new approved node is joining the network without `--permissioned` flag in the `geth` start commmand, system will not allow the new `geth` node to come and a fatal error `Joining a permissioned network in non-permissioned mode. Bring up geth with --permissioned."` will be thrown.
 
@@ -35,12 +37,15 @@ In a permissioned network any node can be in one of the following status:
 * PendingBlacklisting - The node has been proposed for blacklisting and is pending majority approval
 * Blacklisted - The node has been blacklisted. If the node was an active node on the network, the node will be disconnected from the network and block sync will stop
 
-It should be noted that deactivation is temporary in nature and hence the node can join back the network at a later point in time. However blacklisting is permanent in nature. A blacklisted node will never be able to join back the network. Further blacklisting can be proposed for a node which is in the network or a new node which is currently not part fof the network. 
+It should be noted that deactivation is temporary in nature and hence the node can join back the network at a later point in time. However blacklisting is permanent in nature. A blacklisted node will never be able to join back the network. Further blacklisting can be proposed for a node which is in the network or a new node which is currently not part of the network. 
 
 When the network is started for the first time, all the nodes present in `static-nodes.json` file are added to the permissioned nodes list maintained in the smart contract. Once the initila network is up, these nodes can then propose and approve new nodes to join the network. 
 
-The api details for node permissioning are as below:
-* `quorumNodeMgmt.permissionNodeList` returns the list of all enodes and their status
+### Node Permission APIs
+#### quorumNodeMgmt.permissionNodeList 
+Input: None
+Output: Returns the list of all enodes and their status 
+Example:
 ```
 > quorumNodeMgmt.permissionNodeList
 [{
