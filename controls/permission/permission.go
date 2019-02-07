@@ -475,11 +475,15 @@ func (p *PermissionCtrl) populateInitPermission() error {
 			return err
 		}
 
+
 		// update network status to boot completed
 		err = p.updateNetworkStatus(permissionsSession)
 		if err != nil {
 			return err
 		}
+
+		// set the default access to ReadOnly
+		types.SetDefaultAccess()
 	}
 	return nil
 }

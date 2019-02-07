@@ -49,12 +49,12 @@ func GetAcctAccess(acctId common.Address) AccessType {
 			return vo.AcctAccess
 		}
 	}
-	// return DefaultAccess
-	if AcctMap.Len() == 0 {
-		return FullAccess
-	} else {
-		return ReadOnly
-	}
+	return DefaultAccess
+	// if AcctMap.Len() == 0 {
+	// 	return FullAccess
+	// } else {
+	// 	return ReadOnly
+	// }
 }
 
 func AddOrgKey(orgId string, key string) {

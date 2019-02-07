@@ -478,16 +478,34 @@ func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAc
 	enodeID, discPort, raftPort, ipAddrPort, err := getNodeDetailsFromEnode(nodeId)
 
 	cnode, err := ps.GetNodeDetails(enodeID)
-	
 	if err == nil {
-		if !(strings.Compare(ipAddrPort, cnode.IpAddrPort) == 0 && strings.Compare(discPort, cnode.DiscPort) == 0 && strings.Compare(raftPort, cnode.RaftPort) == 0) {
-			return errors.New("Details Mismtach"), ErrNodeDetailsMismatch
-		}
-
 		nodeStatus := decodeNodeStatus(cnode.NodeStatus)
 		// if node status is Blacklisted no activities are allowed on the same.
 		if nodeStatus == "Blacklisted" {
 			return errors.New("Cannot propose blacklisted node"), ErrBlacklistedNode
+		}
+
+		if nodeStatus == "NotInNetwork" && (action == ProposeNodeDeactivation || action == ProposeNodeActivation){
+			return errors.New("operation cannot be performed"), ErrOpNotAllowed
+		}
+
+		newNode := false;
+		if nodeStatus == "NotInNetwork" && len(cnode.IpAddrPort) == 0{
+			newNode = true
+		}
+		detailsMatch := false;
+		if strings.Compare(ipAddrPort, cnode.IpAddrPort) == 0 && strings.Compare(discPort, cnode.DiscPort) == 0 && strings.Compare(raftPort, cnode.RaftPort) == 0 {
+			detailsMatch = true
+		}
+		// if the node is not in network and is being proposed for blacklisting or as a new node
+		// allow the operation. For anyother operation, the node will be in the network and all details
+		// should match
+		if action == ProposeNode || action == ProposeNodeBlacklisting {
+			if !newNode && !detailsMatch {
+				return errors.New("Details Mismtach"), ErrNodeDetailsMismatch
+			}
+		} else if !detailsMatch {
+			return errors.New("Details Mismtach"), ErrNodeDetailsMismatch
 		}
 
 		// if propose action, check if node status allows the operation
@@ -518,9 +536,8 @@ func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAc
 			return errors.New("Node already proposed"), ErrNodeProposed
 		}
 
+	} 
 
-
-	}
 	return nil, ExecSuccess
 }
 
@@ -666,7 +683,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = ps.BlacklistNode(enodeID)
 
 	case SetAccountAccess:
-		if (args.accessType > 4){
+		if (args.accessType > 3){
 			return ErrInvalidAccountAccess
 		}
 		if !checkAccountAccess(args.txa.From, args.acctId, args.accessType) {

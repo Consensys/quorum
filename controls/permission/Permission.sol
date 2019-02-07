@@ -128,7 +128,12 @@ contract Permissions {
   function getNodeDetails(string memory enodeId) public view returns (string memory _enodeId, string memory _ipAddrPort, string memory _discPort, string memory _raftPort, NodeStatus _nodeStatus)
   {
     uint nodeIndex = getNodeIndex(enodeId);
-    return (nodeList[nodeIndex].enodeId, nodeList[nodeIndex].ipAddrPort, nodeList[nodeIndex].discPort, nodeList[nodeIndex].raftPort, nodeList[nodeIndex].status);
+    if (nodeIdToIndex[keccak256(abi.encodePacked(enodeId))] != 0){
+      return (nodeList[nodeIndex].enodeId, nodeList[nodeIndex].ipAddrPort, nodeList[nodeIndex].discPort, nodeList[nodeIndex].raftPort, nodeList[nodeIndex].status);
+    }
+    else {
+      return (enodeId, "", "", "", NodeStatus.NotInList);
+    }
   }
   // Get node details given index
   function getNodeDetailsFromIndex(uint nodeIndex) public view returns (string memory _enodeId, string memory _ipAddrPort, string memory _discPort, string memory _raftPort, NodeStatus _nodeStatus)
