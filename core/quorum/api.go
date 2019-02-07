@@ -478,14 +478,16 @@ func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAc
 	enodeID, discPort, raftPort, ipAddrPort, err := getNodeDetailsFromEnode(nodeId)
 
 	cnode, err := ps.GetNodeDetails(enodeID)
+	log.Info("SMK-checkNodeDetails @481", "err", err, "nodeStatus", cnode.NodeStatus)
 	if err == nil {
+		log.Info("SMK-checkNodeDetails @483")
 		nodeStatus := decodeNodeStatus(cnode.NodeStatus)
 		// if node status is Blacklisted no activities are allowed on the same.
 		if nodeStatus == "Blacklisted" {
 			return errors.New("Cannot propose blacklisted node"), ErrBlacklistedNode
 		}
 
-		if nodeStatus == "NotInNetwork" && (action == ProposeNodeDeactivation || action == ProposeNodeActivation){
+		if nodeStatus == "NotInNetwork" && action != ProposeNode && action != ProposeNodeBlacklisting {
 			return errors.New("operation cannot be performed"), ErrOpNotAllowed
 		}
 
@@ -582,7 +584,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 	var node *discover.Node
 	var execStatus ExecStatus
 
-	if action != SetAccountAccess {
+	if action != SetAccountAccess  && action != AddVoter && action != RemoveVoter {
 		err, execStatus = s.validateOpDetails(ps, args.nodeId, args.txa.From, action)
 		if err != nil {
 			return execStatus
