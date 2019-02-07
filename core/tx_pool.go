@@ -80,6 +80,8 @@ var (
 	// ErrEtherValueUnsupported is returned if a transaction specifies an Ether Value
 	// for a private Quorum transaction.
 	ErrEtherValueUnsupported = errors.New("ether value is not supported for private transactions")
+	
+	ErrInvalidGasPrice = errors.New("Gas price not 0")
 )
 
 var (
