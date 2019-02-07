@@ -388,8 +388,8 @@ func (b *SimulatedBackend) SubscribeFilterLogs(ctx context.Context, query ethere
 // PreparePrivateTransaction replaces the payload data of the transaction with a
 // commitment to turn it into a private tx.
 func (b *SimulatedBackend) PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error) {
-	if len(privateFor) == 0 {
-		return nil, errors.New("need at least one private for")
+	if privateFor == nil {
+		return nil, errors.New("privateFor cannot be nil")
 	}
 	tx := new(types.Transaction)
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {

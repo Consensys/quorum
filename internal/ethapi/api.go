@@ -1468,7 +1468,7 @@ func (s *PublicTransactionPoolAPI) Resend(ctx context.Context, sendArgs SendTxAr
 				sendArgs.Gas = gasLimit
 			}
 			newTx := sendArgs.toTransaction()
-			if len(sendArgs.PrivateFor) > 0 {
+			if sendArgs.PrivateFor != nil {
 				newTx.SetPrivate()
 			}
 

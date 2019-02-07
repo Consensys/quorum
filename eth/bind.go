@@ -141,8 +141,8 @@ func (b *ContractBackend) SendTransaction(ctx context.Context, tx *types.Transac
 // PreparePrivateTransaction sends the encoded raw transaction to Constellation,
 // returning the encoded commitment transaction.
 func (b *ContractBackend) PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error) {
-	if len(privateFor) == 0 {
-		return nil, errors.New("need at least one private for")
+	if privateFor == nil {
+		return nil, errors.New("privateFor cannot be nil")
 	}
 	tx := new(types.Transaction)
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {

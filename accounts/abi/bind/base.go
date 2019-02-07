@@ -239,7 +239,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 
 	// If this transaction is private, we need to substitute the data payload
 	// with one from constelation.
-	if len(opts.PrivateFor) > 0 {
+	if opts.PrivateFor != nil {
 		rawTx, err = c.preparePrivateTransaction(
 			ensureContext(opts.Context), rawTx, opts.PrivateFrom, opts.PrivateFor)
 		if err != nil {
