@@ -145,29 +145,46 @@ API for approving node for deactivation. The node gets deactivated once majority
 ```
 #### quorumNodeMgmt.proposeNodeActivation 
 API for proposing a activating a deactivated node for deactivation. The node must be `Approved` state and there should be at least one voter account present at network.
-* Input: enode to be deavtivated, transaction object
+* Input: enode to be activated, transaction object
 * Output: Status of the operation
 * Example:
-* To propose activation of a deactivated node `quorumNodeMgmt.proposeNodeActivation` can be used. The same can be approved using `quorumNodeMgmt.approveNodeActivation` api.
 ```
 > quorumNodeMgmt.proposeNodeActivation("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
+```
+#### quorumNodeMgmt.approveNodeActivation 
+API for approval of activating a deactivated node. The node gets activated once majority votes from the voter accoynts is received
+* Input: enode to be activated, transaction object
+* Output: Status of the operation
+* Example:
+```
 > quorumNodeMgmt.approveNodeActivation("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
 ```
-* To propose a node for blacklisting `quorumNodeMgmt.proposeNodeBlacklisting` can be used. Node blacklisting can be approved using the api `quorumNodeMgmt.approveNodeBlacklisting`
+#### quorumNodeMgmt.proposeNodeBlacklisting 
+API for blacklisting a node from the network. Any node (irrespective of node status or a node which is not part of network) can be proposed for blacklisting. Blacklisting takes precedence on any other proposal. 
+* Input: enode to be blacklisted, transaction object
+* Output: Status of the operation
+* Example:
 ```
 > quorumNodeMgmt.proposeNodeBlacklisting("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
+```
+#### quorumNodeMgmt.approveNodeBlacklisting 
+API for approving node blacklisting. The node is blacklisted once majority votes from the voter accounts. Once the node is blacklisted, it cannot rejoin the network.
+* Input: enode to be blacklisted, transaction object
+* Output: Status of the operation
+* Example:
+```
 > quorumNodeMgmt.approveNodeBlacklisting("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
@@ -180,13 +197,14 @@ The following account access types are being introduced as a part of this featur
 
 * ReadOnly: Accounts with this access will be able to perform only read activities and will not be able to deploy contracts or transactions. By default any account which is not permissioned will have a read only access. 
 * Transact: Accounts with transact access will be able to commit transactions but will not be able to deploy contracts
-* Contract Deploy: Accounts with this access will be able to deploy contracts and commit transactions
-* FullAccess: Similar to "Contract Deploy" access, accounts with this access will be able to deploy contracts and perform transactions
+* Contract deploy: Accounts with this access will be able to deploy contracts and commit transactions
+* Full access: Similar to "Contract deploy" access, accounts with this access will be able to deploy contracts and perform transactions. Further only an account with Full access can add voters to the network. 
 
-Currently there is not any differences in the access types "Full Access" and "Contract Deploy". 
-
-There are two apis available for managing the account permissions in the network:
-* `quorumAcctMgmt.permissionAccountList` list the permissioned account list and the access that each account is having
+### Account Access APIs
+#### quorumAcctMgmt.permissionAccountList
+* Input: None
+* Output: Returns the list of all permissoned accounts with acciunt access for each 
+* Example:
 ```
 > quorumAcctMgmt.permissionAccountList
 [{
@@ -203,24 +221,28 @@ There are two apis available for managing the account permissions in the network
     address: "0x9186eb3d20Cbd1F5f992a950d808C4495153ABd5"
 }
 ```
-* To set the account access to a particula value `quorumAcctMgmt.setAccountAccess` can be used.
+#### quorumAcctMgmt.setAccountAccess
+* Input: Account, access type for the account and transaction object
+* Output: Status of the operation
+* Example:
 ```
-> quorumAcctMgmt.setAccountAccess("0x9186eb3d20cbd1f5f992a950d808c4495153abd5", "0", {from: eth.accounts[0]})
+> quorumAcctMgmt.setAccountAccess("0x9186eb3d20cbd1f5f992a950d808c4495153abd5", 2, {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
 ```
+### General validations for account access
 The table below indicates the numeric value for each account access type.
 
 | AccessType      |           Value |
 | :-------------: | :-------------: |
-| FullAccess      |               0 |
-| ReadOnly        |               1 |
-| Transact        |               2 |
-| ContractDeploy  |               3 |
+| ReadOnly        |               0 |
+| Transact        |               1 |
+| Contract deploy |               2 |
+| Full access     |               3 |
 
-Further while setting the account access, system checks if the account which is setting the access has sufficient privileges to perform the activity. For example a read only account cannot grant full access accounyt access to another account. The allowed access set ups are as below:
+While setting the account access, system checks if the account which is setting the access has sufficient privileges to perform the activity. 
 * Accounts with `FullAccess` can grant any access type ( FullAccess, Transact, ContractDeploy or ReadOnly) to any other account
 * Accounts with `ContractDeploy` can grant only `Transact`, `ContractDeploy` or `ReadOnly` access to other accounts
 * Accounts with `Transact` access grant only `Transact` or `ReadOnly` access to other accounts
