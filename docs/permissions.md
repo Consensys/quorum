@@ -95,7 +95,11 @@ Allows a voter account to be removed from the network. Only an account with `Ful
 ["0xed9d02e382b34818e88B88a309c7fe71E65f419d", "0x0fBDc686b912d7722dc86510934589E0AAf3b55A"]
 ```
 
-* `quorumNodeMgmt.proposeNode` allows a new node to be propsoed into the network.
+#### quorumNodeMgmt.proposeNode 
+Allows a new enode to be proposed to the network. This operation will be allowed only if at least one voter account is present in the network.
+* Input: enode to be proposed, transaction object
+* Output: Status of the operation
+* Example:
 ```
 > quorumNodeMgmt.proposeNode("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
 {
@@ -103,7 +107,11 @@ Allows a voter account to be removed from the network. Only an account with `Ful
   status: true
 }
 ```
-* `quorumNodeMgmt.approveNode` allows approval of a new node proposed to be part of the network. This api will be execyed by the accounts marked as voters and once majority voter accounts invoke the api, the node will be marked and move to `Approved` status
+#### quorumNodeMgmt.approveNode 
+API for approving a proposed node. The node gets approved once majority votes from the voter accounts is received.
+* Input: enode to be approved, transaction object
+* Output: Status of the operation
+* Example:
 ```
 > quorumNodeMgmt.approveNode("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
 {
@@ -111,19 +119,35 @@ Allows a voter account to be removed from the network. Only an account with `Ful
   status: true
 }
 ```
-* For proposing a node for deactivation and approving the node deactivation the following two apis can be used - `quorumNodeMgmt.proposeNodeDeactivation` and `quorumNodeMgmt.approveNodeDeactivation` 
+#### quorumNodeMgmt.proposeNodeDeactivation 
+API for proposing a node for deactivation. The node must be `Approved` state and there should be at least one voter account present at network.
+* Input: enode to be deavtivated, transaction object
+* Output: Status of the operation
+* Example:
 ```
 > quorumNodeMgmt.proposeNodeDeactivation("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
+```
+#### quorumNodeMgmt.approveNodeDeactivation
+API for approving node for deactivation. The node gets deactivated once majority votes from the voter accounts is received
+* Input: enode to be deavtivated, transaction object
+* Output: Status of the operation
+* Example:
+```
 > quorumNodeMgmt.approveNodeDeactivation("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
 ```
+#### quorumNodeMgmt.proposeNodeActivation 
+API for proposing a activating a deactivated node for deactivation. The node must be `Approved` state and there should be at least one voter account present at network.
+* Input: enode to be deavtivated, transaction object
+* Output: Status of the operation
+* Example:
 * To propose activation of a deactivated node `quorumNodeMgmt.proposeNodeActivation` can be used. The same can be approved using `quorumNodeMgmt.approveNodeActivation` api.
 ```
 > quorumNodeMgmt.proposeNodeActivation("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
