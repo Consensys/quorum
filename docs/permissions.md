@@ -62,23 +62,39 @@ When the network is started for the first time, all the nodes present in `static
     status: "Approved"
 }]
 ```
-* Before any new nodes can be proposed to the network, network level voters have to be added. To manage voters at the network level, the following apis are there. `quorumNodeMgmt.addVoter` allows an account to be added as a voter. `quorumNodeMgmt.removeVoter` allows an account to be removed from the voter list. `quorumNodeMgmt.voterList` displays the list of all voters at network level
+#### quorumNodeMgmt.addVoter 
+Before a new node can be proposed to the network, the network should have valid voters. This api allows an account to be added as voter to the network. Only an account with `FullAccess` can perform this activity.
+* Input: Account to be added as voter, transaction object
+* Output: Status of the operation
+* Example:
 ```
 > quorumNodeMgmt.addVoter("0x0fBDc686b912d7722dc86510934589E0AAf3b55A", {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
-> quorumNodeMgmt.voterList
-["0xed9d02e382b34818e88B88a309c7fe71E65f419d", "0x0fBDc686b912d7722dc86510934589E0AAf3b55A"]
+```
+#### quorumNodeMgmt.removeVoter 
+Allows a voter account to be removed from the network. Only an account with `FullAccess` can perform this activity.
+* Input: Account to be removed, transaction object
+* Output: Status of the operation
+* Example:
+```
 > quorumNodeMgmt.removeVoter("0x0fBDc686b912d7722dc86510934589E0AAf3b55A", {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
-> quorumNodeMgmt.voterList
-["0xed9d02e382b34818e88B88a309c7fe71E65f419d"]
 ```
+#### quorumNodeMgmt.voterList 
+* Input: None
+* Output: List of all voters on the network
+* Example:
+```
+> quorumNodeMgmt.voterList
+["0xed9d02e382b34818e88B88a309c7fe71E65f419d", "0x0fBDc686b912d7722dc86510934589E0AAf3b55A"]
+```
+
 * `quorumNodeMgmt.proposeNode` allows a new node to be propsoed into the network.
 ```
 > quorumNodeMgmt.proposeNode("enode://3701f007bfa4cb26512d7df18e6bbd202e8484a6e11d387af6e482b525fa25542d46ff9c99db87bd419b980c24a086117a397f6d8f88e74351b41693880ea0cb@127.0.0.1:21004?discport=0&raftport=50405", {from: eth.accounts[0]})
