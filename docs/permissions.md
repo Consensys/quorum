@@ -43,9 +43,9 @@ When the network is started for the first time, all the nodes present in `static
 
 ### Node Permission APIs
 #### quorumNodeMgmt.permissionNodeList 
-Input: None
-Output: Returns the list of all enodes and their status 
-Example:
+* Input: None
+* Output: Returns the list of all enodes and their status 
+* Example:
 ```
 > quorumNodeMgmt.permissionNodeList
 [{
