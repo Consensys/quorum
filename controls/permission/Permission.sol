@@ -101,25 +101,29 @@ contract Permissions {
   /* public and external functions */
   // view functions
 
+  // get number of accounts in the init list given as per genesis.json
+  function getInitAccountsCount() external view returns (uint){
+    return initialAcctList.length;
+  }
   // Get number of voters
-  function getNumberOfVoters() public view returns (uint)
+  function getNumberOfVoters() external view returns (uint)
   {
     return numberOfVoters;
   }
 
   // Get number of valid voters
-  function getNumberOfValidVoters() public view returns (uint)
+  function getNumberOfValidVoters() external view returns (uint)
   {
     return numberOfValidVoters;
   }
   // Get voter
-  function getVoter(uint i) public view returns (address _addr, VoterStatus _voterStatus)
+  function getVoter(uint i) external view returns (address _addr, VoterStatus _voterStatus)
   {
   	return (voterAcctList[i].voterAcct, voterAcctList[i].voterStatus);
   }
 
   // Get number of nodes
-  function getNetworkBootStatus() public view returns (bool)
+  function getNetworkBootStatus() external view returns (bool)
   {
     return networkBoot;
   }

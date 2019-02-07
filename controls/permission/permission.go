@@ -443,7 +443,6 @@ func (p *PermissionCtrl) populateInitPermission() error {
 			GasPrice: big.NewInt(0),
 		},
 	}
-
 	tx, err := permissionsSession.GetNetworkBootStatus()
 	if err != nil {
 		// handle the scenario of no contract code.
@@ -463,6 +462,15 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		return errors.New("Node started in non-permissioned mode")
 	}
 	if tx != true {
+		// Ensure that there is at least one account given as a part of genesis.json
+		// which will have full access. If not throw a fatal error
+		// Do not want a network with no access
+		initAcctCnt, err := permissionsSession.GetInitAccountsCount()
+
+		log.Info("SMK-populateInitPermission @471 ", "err", err, "initAcctCnt", initAcctCnt)
+		if err == nil && initAcctCnt.Cmp(big.NewInt(0)) == 0 {
+			utils.Fatalf("Permissioned network being brought up with zero accounts having full access. Add accounts as a part of genesis.json and bring up the network")
+		}
 		// populate initial account access to full access
 		err = p.populateInitAccountAccess(permissionsSession)
 		if err != nil {
@@ -470,7 +478,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		}
 
 		// populate the initial node list from static-nodes.json
-		err := p.populateStaticNodesToContract(permissionsSession)
+		err = p.populateStaticNodesToContract(permissionsSession)
 		if err != nil {
 			return err
 		}
