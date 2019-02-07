@@ -469,7 +469,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 
 		log.Info("SMK-populateInitPermission @471 ", "err", err, "initAcctCnt", initAcctCnt)
 		if err == nil && initAcctCnt.Cmp(big.NewInt(0)) == 0 {
-			utils.Fatalf("Permissioned network being brought up with zero accounts having full access. Add accounts as a part of genesis.json and bring up the network")
+			utils.Fatalf("Permissioned network being brought up with zero accounts having full access. Add permissioned full access accounts in genesis.json and bring up the network")
 		}
 		// populate initial account access to full access
 		err = p.populateInitAccountAccess(permissionsSession)
