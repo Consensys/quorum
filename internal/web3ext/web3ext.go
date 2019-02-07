@@ -835,8 +835,8 @@ web3._extend({
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
-                       name: 'deleteOrgKey',
-                       call: 'quorumOrgMgmt_deleteOrgKey',
+                       name: 'removeOrgKey',
+                       call: 'quorumOrgMgmt_removeOrgKey',
                        params: 3,
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),

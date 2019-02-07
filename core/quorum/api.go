@@ -52,9 +52,9 @@ const (
 	AddMasterOrg OrgKeyAction = iota
 	AddSubOrg
 	AddOrgVoter
-	DeleteOrgVoter
+	RemoveOrgVoter
 	AddOrgKey
-	DeleteOrgKey
+	RemoveOrgKey
 	ApprovePendingOp
 )
 
@@ -135,7 +135,7 @@ var (
 	ErrFailedExecution      = ExecStatus{false, "Failed to execute permission action"}
 	ErrNodeDetailsMismatch  = ExecStatus{false, "Node details mismatch"}
 	ErrPermissionDisabled   = ExecStatus{false, "Permissions control not enabled"}
-	ErrOrgDisabled          = ExecStatus{false, "Org management control not enabled"}
+	ErrOrgDisabled          = ExecStatus{false, "Org key management not enabled for the network"}
 	ErrAccountAccess        = ExecStatus{false, "Account does not have sufficient access for operation"}
 	ErrVoterAccountAccess   = ExecStatus{false, "Voter account does not have sufficient access"}
 	ErrMasterOrgExists      = ExecStatus{false, "Master org already exists"}
@@ -178,7 +178,7 @@ var (
 	pendingOpMap = map[uint8]string{
 		0: "None",
 		1: "Add",
-		2: "Delete",
+		2: "Remove",
 	}
 )
 
@@ -434,7 +434,7 @@ func (s *QuorumControlsAPI) AddOrgVoter(morgId string, acctId common.Address, tx
 
 // RemoveOrgKey removes an org key combination from the org key map
 func (s *QuorumControlsAPI) RemoveOrgVoter(morgId string, acctId common.Address, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executeOrgKeyAction(DeleteOrgVoter, txArgs{txa: txa, morgId: morgId, acctId: acctId})
+	return s.executeOrgKeyAction(RemoveOrgVoter, txArgs{txa: txa, morgId: morgId, acctId: acctId})
 }
 
 func (s *QuorumControlsAPI) AddOrgKey(orgId string, tmKey string, txa ethapi.SendTxArgs) ExecStatus {
@@ -442,8 +442,8 @@ func (s *QuorumControlsAPI) AddOrgKey(orgId string, tmKey string, txa ethapi.Sen
 }
 
 // RemoveOrgKey removes an org key combination from the org key map
-func (s *QuorumControlsAPI) DeleteOrgKey(orgId string, tmKey string, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executeOrgKeyAction(DeleteOrgKey, txArgs{txa: txa, orgId: orgId, tmKey: tmKey})
+func (s *QuorumControlsAPI) RemoveOrgKey(orgId string, tmKey string, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executeOrgKeyAction(RemoveOrgKey, txArgs{txa: txa, orgId: orgId, tmKey: tmKey})
 }
 
 // RemoveOrgKey removes an org key combination from the org key map
@@ -841,7 +841,7 @@ func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs
 		}
 		tx, err = ps.AddVoter(args.morgId, args.acctId)
 
-	case DeleteOrgVoter:
+	case RemoveOrgVoter:
 		ret, _ := ps.CheckMasterOrgExists(args.morgId)
 		if !ret {
 			return ErrInvalidMasterOrg
@@ -875,7 +875,7 @@ func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs
 		}
 		tx, err = ps.AddOrgKey(args.orgId, args.tmKey)
 
-	case DeleteOrgKey:
+	case RemoveOrgKey:
 		ret, _ := ps.CheckOrgExists(args.orgId)
 		if !ret {
 			return ErrInvalidOrg
@@ -1020,7 +1020,7 @@ func checkAccountAccess(from, targetAcct common.Address, accessType uint8) bool 
 		retVal = true
 	} else if fromAcctAccess == types.Transact && (accessType == uint8(types.Transact) || accessType == uint8(types.ReadOnly)) {
 		retVal = true
-	}
+	} 
 
 	if retVal && fromAcctAccess != types.FullAccess {
 		if ((fromAcctAccess == types.ContractDeploy && targetAcctAccess == types.FullAccess) ||
