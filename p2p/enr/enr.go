@@ -40,7 +40,6 @@ import (
 	"io"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -121,7 +120,6 @@ func (r *Record) Load(e Entry) error {
 		if err := rlp.DecodeBytes(r.pairs[i].v, e); err != nil {
 			return &KeyError{Key: e.ENRKey(), Err: err}
 		}
-		log.Info("AJ-Load", "key", e.ENRKey(), "value", r.pairs[i].v)
 		return nil
 	}
 	return &KeyError{Key: e.ENRKey(), Err: errNotFound}

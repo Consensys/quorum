@@ -23,17 +23,16 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 
-	"crypto/ecdsa"
 	"github.com/coreos/etcd/etcdserver/stats"
 	raftTypes "github.com/coreos/etcd/pkg/types"
 	etcdRaft "github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/rafthttp"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/syndtr/goleveldb/leveldb"
-	"gopkg.in/fatih/set.v0"
+
+	"github.com/deckarep/golang-set"
 )
 
 type ProtocolManager struct {
@@ -56,7 +55,7 @@ type ProtocolManager struct {
 	// Remote peer state (protected by mu vs concurrent access via JS)
 	leader       uint16
 	peers        map[uint16]*Peer
-	removedPeers *set.Set // *Permanently removed* peers
+	removedPeers mapset.Set // *Permanently removed* peers
 
 	// P2P transport
 	p2pServer *p2p.Server // Initialized in start()
@@ -107,7 +106,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 		bootstrapNodes:      bootstrapNodes,
 		peers:               make(map[uint16]*Peer),
 		leader:              uint16(etcdRaft.None),
-		removedPeers:        set.New(set.ThreadSafe).(*set.Set),
+		removedPeers:        mapset.NewSet(),
 		joinExisting:        joinExisting,
 		blockchain:          blockchain,
 		eventMux:            mux,
@@ -201,10 +200,12 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 		peerIdx += 1
 	}
 
-	removedPeerIfaces := pm.removedPeers.List()
-	removedPeerIds := make([]uint16, len(removedPeerIfaces))
-	for i, removedIface := range removedPeerIfaces {
+	removedPeerIfaces := pm.removedPeers
+	removedPeerIds := make([]uint16, removedPeerIfaces.Cardinality())
+	i := 0
+	for removedIface := range removedPeerIfaces.Iterator().C {
 		removedPeerIds[i] = removedIface.(uint16)
+		i++
 	}
 
 	//
@@ -247,8 +248,8 @@ func (pm *ProtocolManager) nextRaftId() uint16 {
 		}
 	}
 
-	removedPeerIfaces := pm.removedPeers.List()
-	for _, removedIface := range removedPeerIfaces {
+	removedPeerIfaces := pm.removedPeers
+	for removedIface := range removedPeerIfaces.Iterator().C {
 		removedId := removedIface.(uint16)
 
 		if maxId < removedId {
@@ -263,7 +264,7 @@ func (pm *ProtocolManager) isRaftIdRemoved(id uint16) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	return pm.removedPeers.Has(id)
+	return pm.removedPeers.Contains(id)
 }
 
 func (pm *ProtocolManager) isRaftIdUsed(raftId uint16) bool {
@@ -286,14 +287,14 @@ func (pm *ProtocolManager) isNodeAlreadyInCluster(node *enode.Node) error {
 		peerNode := peer.p2pNode
 
 		if peerNode.ID() == node.ID() {
-			return fmt.Errorf("node with this enode has already been added to the cluster: %v", node.ID)
+			return fmt.Errorf("node with this enode has already been added to the cluster: %s", node.ID())
 		}
 
 		if peerNode.IP().Equal(node.IP()) {
 			if peerNode.TCP() == node.TCP() {
-				return fmt.Errorf("existing node %v with raft ID %v is already using eth p2p at %v:%v", peerNode.ID, peerRaftId, node.IP, node.TCP)
+				return fmt.Errorf("existing node %v with raft ID %v is already using eth p2p at %v:%v", peerNode.ID(), peerRaftId, node.IP(), node.TCP())
 			} else if peer.address.RaftPort == enr.RAFTPORT(node.RAFTPORT()) {
-				return fmt.Errorf("existing node %v with raft ID %v is already using raft at %v:%v", peerNode.ID, peerRaftId, node.IP, node.RAFTPORT())
+				return fmt.Errorf("existing node %v with raft ID %v is already using raft at %v:%v", peerNode.ID(), peerRaftId, node.IP(), node.RAFTPORT())
 			}
 		}
 	}
@@ -641,31 +642,21 @@ func raftUrl(address *Address) string {
 	return fmt.Sprintf("http://%s:%d", address.Ip, address.RaftPort)
 }
 
-func decodePubkey64(b []byte) (*ecdsa.PublicKey, error) {
-	return crypto.UnmarshalPubkey(append([]byte{0x04}, b...))
-}
-
 func (pm *ProtocolManager) addPeer(address *Address) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
 	raftId := address.RaftId
 
-	log.Info("AJ-addPeer:", "raftId", raftId, "nodeId", address.NodeId.String(), "bytes", address.NodeId.Bytes(), "address", address)
-
-	//TODO: Amal to confirm if this decoding is correct
-	//pubKey, err := decodePubkey64(address.NodeId.Bytes())
-
-	/*if err != nil {
-		log.Error("AJ-error decoding pub key", "nodeId", address.NodeId.String(), "err", err)
-		return
-	}*/
-
-	log.Info("addPeer: decoded pub key", "pubKey", address.PubKey)
+	//TODO(Amal): to review
+	pubKey, err := enode.HexPubkey(address.NodeId.String())
+	if err != nil {
+		log.Error("error decoding pub key from enodeId", "enodeId", address.NodeId.String(), "err", err)
+		panic(err)
+	}
 
 	// Add P2P connection:
-	p2pNode := enode.NewV4(address.PubKey, address.Ip, 0, int(address.P2pPort), 0)
-	log.Info("AJ-p2pNode", "ID1", address.NodeId.String(), "ID2", p2pNode.ID().String())
+	p2pNode := enode.NewV4(pubKey, address.Ip, 0, int(address.P2pPort), int(address.RaftPort))
 	pm.p2pServer.AddPeer(p2pNode)
 
 	// Add raft transport connection:
@@ -858,7 +849,6 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		// requiring the use of static peers for the initial set, and load them from e.g. another JSON file which
 		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
 		address := newAddress(raftId, node.RAFTPORT(), node)
-
 		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
 			Context: address.toBytes(),

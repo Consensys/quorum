@@ -288,7 +288,7 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 	return s.state.GetNonce(addr)
 }
 
-// TODO: implement the following methods for Quorum
+// TODO(Amal): implement the following methods for Quorum
 func (s EthAPIState) GetProof(common.Address) ([][]byte, error) {
 	return nil, nil
 }

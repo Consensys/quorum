@@ -925,8 +925,6 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	} else {
 		c.node = nodeFromConn(remotePubkey, c.fd)
 	}
-	log.Info("AJ-setupConn1", "remotePubkey", remotePubkey)
-	log.Info("AJ-setupConn2", "c.node.ID", c.node.ID(), "c.node.ID.Bytes", c.node.ID().Bytes(), "node", c.node.String())
 	clog := srv.log.New("id", c.node.ID(), "addr", c.fd.RemoteAddr(), "conn", c.flags)
 
 	//START - QUORUM Permissioning

@@ -82,6 +82,7 @@ func (n *Node) UDP() int {
 	return int(port)
 }
 
+//TODO: Amal to review
 // RAFTPORT returns the RAFT PORT of the node
 func (n *Node) RAFTPORT() int {
 	var port enr.RAFTPORT
@@ -194,6 +195,34 @@ func (n *ID) UnmarshalText(text []byte) error {
 	return nil
 }
 
+// ID is a unique identifier for each node used by RAFT
+type EnodeID [64]byte
+
+// ID prints as a long hexadecimal number.
+func (n EnodeID) String() string {
+	return fmt.Sprintf("%x", n[:])
+}
+
+// The Go syntax representation of a ID is a call to HexID.
+func (n EnodeID) GoString() string {
+	return fmt.Sprintf("enode.HexID(\"%x\")", n[:])
+}
+
+// MarshalText implements the encoding.TextMarshaler interface.
+func (n EnodeID) MarshalText() ([]byte, error) {
+	return []byte(hex.EncodeToString(n[:])), nil
+}
+
+// UnmarshalText implements the encoding.TextUnmarshaler interface.
+func (n *EnodeID) UnmarshalText(text []byte) error {
+	id, err := RaftHexID(string(text))
+	if err != nil {
+		return err
+	}
+	*n = id
+	return nil
+}
+
 // HexID converts a hex string to an ID.
 // The string may be prefixed with 0x.
 // It panics if the string is not a valid ID.
@@ -203,6 +232,20 @@ func HexID(in string) ID {
 		panic(err)
 	}
 	return id
+}
+
+//TODO(Amal): to review
+func RaftHexID(in string) (EnodeID, error) {
+	var id EnodeID
+	b, err := hex.DecodeString(strings.TrimPrefix(in, "0x"))
+	if err != nil {
+		return id, err
+	} else if len(b) != len(id) {
+		return id, fmt.Errorf("wrong length, want %d hex chars", len(id)*2)
+	}
+
+	copy(id[:], b)
+	return id, nil
 }
 
 func parseID(in string) (ID, error) {

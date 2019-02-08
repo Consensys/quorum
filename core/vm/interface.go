@@ -26,6 +26,7 @@ import (
 
 // Quorum uses a cut-down StateDB, MinimalApiState. We leave the methods in StateDB commented out so they'll produce a
 // conflict when upstream changes.
+//TODO(Amal): to be reviewed
 type MinimalApiState interface {
 	GetBalance(addr common.Address) *big.Int
 	GetCode(addr common.Address) []byte

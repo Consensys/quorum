@@ -5,38 +5,35 @@ import (
 	"net"
 
 	"fmt"
-	"log"
-
-	"crypto/ecdsa"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rlp"
+	"log"
 )
-
-const nodeIDBits = 512
-
-type EnodeID [nodeIDBits / 8]byte
 
 // Serializable information about a Peer. Sufficient to build `etcdRaft.Peer`
 // or `discover.Node`.
 type Address struct {
-	RaftId   uint16       `json:"raftId"`
-	NodeId   [64]byte     `json:"nodeId"`
-	Ip       net.IP       `json:"ip"`
-	P2pPort  enr.TCP      `json:"p2pPort"`
-	RaftPort enr.RAFTPORT `json:"raftPort"`
-	PubKey   *ecdsa.PublicKey
+	RaftId   uint16        `json:"raftId"`
+	NodeId   enode.EnodeID `json:"nodeId"`
+	Ip       net.IP        `json:"ip"`
+	P2pPort  enr.TCP       `json:"p2pPort"`
+	RaftPort enr.RAFTPORT  `json:"raftPort"`
 }
 
+// TODO(Amal): to review
+
 func newAddress(raftId uint16, raftPort int, node *enode.Node) *Address {
-	node.ID().Bytes()
+	id, err := enode.RaftHexID(node.EnodeID())
+	if err != nil {
+		panic(err)
+	}
 	return &Address{
 		RaftId:   raftId,
-		NodeId:   []byte(node.EnodeID()),
+		NodeId:   id,
 		Ip:       node.IP(),
 		P2pPort:  enr.TCP(node.TCP()),
 		RaftPort: enr.RAFTPORT(raftPort),
-		PubKey:   node.Pubkey(),
 	}
 }
 
@@ -54,7 +51,7 @@ func (addr *Address) DecodeRLP(s *rlp.Stream) error {
 	// These fields need to be public:
 	var temp struct {
 		RaftId   uint16
-		NodeId   enode.ID
+		NodeId   enode.EnodeID
 		Ip       net.IP
 		P2pPort  enr.TCP
 		RaftPort enr.RAFTPORT
