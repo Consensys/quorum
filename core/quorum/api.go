@@ -594,8 +594,8 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 	switch action {
 	case AddVoter:
-		if !checkVoterAccountAccess(args.voter) {
-			return ErrVoterAccountAccess
+		if locErr, execStatus := valAccountAccessVoter(args.txa.From, args.voter); locErr != nil{
+			return execStatus
 		}
 		if checkIsVoter(ps, args.voter){
 			return ErrVoterExists
@@ -603,8 +603,8 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = ps.AddVoter(args.voter)
 
 	case RemoveVoter:
-		if !checkVoterAccountAccess(args.voter) {
-			return ErrVoterAccountAccess
+		if locErr, execStatus := valAccountAccessVoter(args.txa.From, common.Address{}); locErr != nil{
+			return execStatus
 		}
 		if !checkIsVoter(ps, args.voter){
 			return ErrAccountIsNotVoter
@@ -851,6 +851,9 @@ func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs
 		tx, err = ps.AddSubOrg(args.orgId, args.morgId)
 
 	case AddOrgVoter:
+		if locErr, execStatus := valAccountAccessVoter(args.txa.From, args.acctId); locErr != nil{
+			return execStatus
+		}
 		ret, _ := ps.CheckMasterOrgExists(args.morgId)
 		if !ret {
 			return ErrInvalidMasterOrg
@@ -862,6 +865,9 @@ func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs
 		tx, err = ps.AddVoter(args.morgId, args.acctId)
 
 	case RemoveOrgVoter:
+		if locErr, execStatus := valAccountAccessVoter(args.txa.From, common.Address{}); locErr != nil{
+			return execStatus
+		}
 		ret, _ := ps.CheckMasterOrgExists(args.morgId)
 		if !ret {
 			return ErrInvalidMasterOrg
@@ -1064,12 +1070,18 @@ func validateAccoutOp(ps *pbind.PermissionsSession, from, targetAcct common.Addr
 }
 
 // checks if the account performing the operation has sufficient access privileges
-func checkVoterAccountAccess(account common.Address) bool {
-	acctAccess := types.GetAcctAccess(account)
+func valAccountAccessVoter(fromAcct, targetAcct common.Address) (error, ExecStatus) {
+	acctAccess := types.GetAcctAccess(fromAcct)
 	// if acctAccess == types.ReadOnly {
 	// only accounts with full access will be allowed to manage voters
 	if acctAccess != types.FullAccess {
-		return false
+		return errors.New("Account performing the operation does not have sufficient access"), ErrAccountAccess
 	}
-	return true
+	if targetAcct.String() != "" {
+		acctAccess = types.GetAcctAccess(targetAcct)
+		if acctAccess == types.ReadOnly {
+			return errors.New("Voter account does not have sufficient access"), ErrVoterAccountAccess
+		}
+	}
+	return nil, ExecSuccess
 }
