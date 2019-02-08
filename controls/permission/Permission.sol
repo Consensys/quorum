@@ -27,6 +27,7 @@ contract Permissions {
   AccountAccessDetails[] private acctAccessList;
   mapping (address => uint) private acctToIndex;
   uint private numberOfAccts;
+  uint private numFullAccessAccts;
 
   // use an array to store account details
   // if we want to list all account one day, mapping is not capable
@@ -101,9 +102,12 @@ contract Permissions {
   /* public and external functions */
   // view functions
 
-  // get number of accounts in the init list given as per genesis.json
   function getInitAccountsCount() external view returns (uint){
     return initialAcctList.length;
+  }
+  // get number of accounts in the init list given as per genesis.json
+  function getFullAccessAccountCount() external view returns (uint){
+    return numFullAccessAccts;
   }
   // Get number of voters
   function getNumberOfVoters() external view returns (uint)
@@ -378,6 +382,7 @@ contract Permissions {
     for (uint i=0; i<initialAcctList.length; i++){
       if (acctToIndex[initialAcctList[i]] == 0){
         numberOfAccts ++;
+        numFullAccessAccts ++;
         acctToIndex[initialAcctList[i]] = numberOfAccts;
         acctAccessList.push(AccountAccessDetails(initialAcctList[i], AccountAccess.FullAccess));
         emit AccountAccessModified(initialAcctList[i], AccountAccess.FullAccess);
@@ -391,11 +396,19 @@ contract Permissions {
     // Check if account already exists
     uint acctIndex = getAcctIndex(_address);
     if (acctToIndex[_address] != 0){
-      acctAccessList[acctIndex].acctAccess = _accountAccess;
+      if (acctAccessList[acctIndex].acctAccess == AccountAccess.FullAccess &&
+          _accountAccess != AccountAccess.FullAccess &&
+          numFullAccessAccts > 1){
+        numFullAccessAccts --;
+        acctAccessList[acctIndex].acctAccess = _accountAccess;
+      }
     }
     else{
       numberOfAccts ++;
       acctToIndex[_address] = numberOfAccts;
+      if (_accountAccess == AccountAccess.FullAccess) {
+        numFullAccessAccts ++;
+      }
       acctAccessList.push(AccountAccessDetails(_address, _accountAccess));
     }
     emit AccountAccessModified(_address, _accountAccess);

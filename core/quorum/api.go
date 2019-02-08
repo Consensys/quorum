@@ -153,6 +153,7 @@ var (
 	ErrAccountIsNotVoter    = ExecStatus{false, "Not a voter account"}
 	ErrBlacklistedNode      = ExecStatus{false, "Blacklisted node. Operation not allowed"}
 	ErrOpNotAllowed         = ExecStatus{false, "Operation not allowed"}
+	ErrLastFullAccessAcct   = ExecStatus{false, "Last account with full access. Operation not allowed"}
 	ExecSuccess             = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -688,8 +689,8 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		if (args.accessType > 3){
 			return ErrInvalidAccountAccess
 		}
-		if !checkAccountAccess(args.txa.From, args.acctId, args.accessType) {
-			return ErrAccountAccess
+		if locErr, execStatus := validateAccoutOp(ps, args.txa.From, args.acctId, args.accessType); locErr != nil {
+			return execStatus
 		}
 		tx, err = ps.UpdateAccountAccess(args.acctId, args.accessType)
 
@@ -1026,7 +1027,8 @@ func (s *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet
 }
 
 // checks if the account performing the operation has sufficient access privileges
-func checkAccountAccess(from, targetAcct common.Address, accessType uint8) bool {
+// and if at least on full access account will be left after the operation
+func validateAccoutOp(ps *pbind.PermissionsSession, from, targetAcct common.Address, accessType uint8) (error, ExecStatus) {
 	fromAcctAccess := types.GetAcctAccess(from)
 	targetAcctAccess := types.GetAcctAccess(targetAcct)
 
@@ -1049,7 +1051,16 @@ func checkAccountAccess(from, targetAcct common.Address, accessType uint8) bool 
 		}
 
 	}
-	return retVal
+	if !retVal {
+		return errors.New("Account does not have sufficient access"), ErrAccountAccess
+	}
+	if targetAcctAccess == types.FullAccess && accessType != uint8(types.FullAccess) {
+		numFullAccessAcct, err := ps.GetFullAccessAccountCount()
+		if err == nil && numFullAccessAcct.Cmp(big.NewInt(1)) == 0 {
+			return errors.New("Last account with full access. Operation not allowed"), ErrLastFullAccessAcct
+		}
+	}
+	return nil, ExecSuccess
 }
 
 // checks if the account performing the operation has sufficient access privileges
