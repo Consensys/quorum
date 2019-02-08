@@ -1,15 +1,16 @@
 # Transaction Manager key management at Organization level
-Currently when private transactions are done Quorum, the individual transaction manager (Tessera or Constellation) public keys have to be mentioned in the `privateFor` attribute. This feature allows multiple transaction manager keys to be grouped under a single organization name and at transaction level, the organization id can be passed in `privateFor` attribute instead of the keys.
+For sending private transactions in Quorum, the individual transaction manager (Tessera or Constellation) public keys have to be mentioned in the `privateFor` attribute. If the private transaction is intended for multiple nodes, this sometimes becomes challenging to manage. This feature allows multiple transaction manager keys to be grouped under a single organization name. The organization name can then be used in `privateFor` attribute instead of individual transaction manager keys. 
 
-Further, it will be possible to define a hierarchy of master organization and multiple sub organizations under the master org. e.g. There can be a master org "ABC" having 10 nodes and hence 10 keys. However there may be subset of nodes which are participating in various private transactions. These subsets can be set up as suborgs with in the master org with each suborg having a distincy identifier. While sending the private transaction, the suborg identifier can be give as a part of `privateFor` attribute.
-
+Further this feature allows to define a hierarchy of master organization and multiple sub organizations under the master org. e.g. There can be a master org "ABC" having 10 nodes and hence 10 keys. However there may be subset of nodes which are participating in various private transactions. These subsets can be set up as suborgs with in the master org with each suborg having a distincy identifier. While sending the private transaction, the suborg identifier can be give as a part of `privateFor` attribute.
 
 ## Set up
-Organization level key management is  managed by a smart contract [Clusterkeys.sol](../controls/cluster/Clusterkeys.sol). The precompiled smart contract is deployed at address `0x000000000000000000034` in network bootup process. The binding of the precompiled byte code with the address is in `genesis.json`. 
+Organization level key management is  managed by a smart contract [Clusterkeys.sol](../controls/cluster/Clusterkeys.sol). The precompiled smart contract is deployed at address `0x000000000000000000022` in network bootup process. The binding of the precompiled byte code with the address is in `genesis.json`. 
 
-## Organization level key management
-The following apis are available for managing the organization level keys:
-* For adding a new master organization, `quorumOrgMgmt.addMasterOrg` api to be used. The usage is as shown below. The input to this api are the name of the master org and transaction object.
+## APIs for organization level key management
+### quorumOrgMgmt.addMasterOrg
+* Input: saster org id and transaction object. The master org name has to be unique
+* Output: status of operation
+* Example:
 ```
 > quorumOrgMgmt.addMasterOrg("ABC", {from:eth.accounts[0]})
 {
@@ -17,42 +18,54 @@ The following apis are available for managing the organization level keys:
   status: true
 }
 ```
-* For adding a new sub org under a master org, `quorumOrgMgmt.addSubOrg` api to be used. The usage is as shown below. The input to this api are - unique sub org name, masgter org to which it belongs and transaction object. The call will fail if the master org is not existing. It should be noted that the sub org identifiers are unique across master organizations. 
+### quorumOrgMgmt.addSubOrg
+* Input: Sub org id, master org id for the sub org and transaction object. The sub org name is unique across master organizations
+* Output: status of operation
+* Example:
 ```
 > quorumOrgMgmt.addSubOrg("ENTITY1", "ABC", {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
-> quorumOrgMgmt.addSubOrg("ENTITY1", "DEF", {from: eth.accounts[0]})
-{
-  msg: "Master org does not exist. Add master org first.",
-  status: false
-}
 ```
-* Voters for approving the key management activity can be added at master org level using api `quorumOrgMgmt.addVoter`. This api takes the master org name, account to be added voter and transaction object as input. To check the list of voters for any master organizations, `quorumOrgMgmt.getOrgVoterList` api can be used. This api takes the master org identifier as input. To remove an account from the voter list for a master org `quorumOrgMgmt.getOrgVoterList` can be used. This takes master org name, account to be added voter and transaction object as input. Further adding a key or removing a key from an sub org can be performed only when there are voter accounts for the organization. If there are no voter accounts, system will allow the key add or delete operation. 
+### quorumOrgMgmt.addVoter
+Before any keys can be added to a sub org id, there need to be voters at master org to which the sub org is linked. This API is used for adding a voter to the master org. Only an account with full access can perform this actvity. 
+* Input: master org id, voter account id, transaction object 
+* Output: status of operation
+* Example:
 ```
 > quorumOrgMgmt.addVoter("ABC", eth.accounts[0], {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
-> quorumOrgMgmt.getOrgVoterList("ABC")
-["0xed9d02e382b34818e88B88a309c7fe71E65f419d"]
-> quorumOrgMgmt.deleteVoter("ABC", eth.accounts[0], {from: eth.accounts[0]})
+```
+### quorumOrgMgmt.removeVoter
+This API is used for removing a voter to the master org. Only an account with full access can perform this activity.
+* Input: master org id, voter account id, transaction object 
+* Output: status of operation
+* Example:
+```
+> quorumOrgMgmt.removeVoter("ABC", eth.accounts[0], {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
-> quorumOrgMgmt.getOrgVoterList("ABC")
-[]
-> quorumOrgMgmt.addOrgKey("ENTITY1", "1iTZde/ndBHvzhcl7V68x44Vx7pl8nwx9LqnM/AfJUg=", {from: eth.accounts[0]})
-{
-  msg: "No voter account registered. Add voter first",
-  status: false
-}
 ```
-* For adding a tansaction manager key to a sub org, the api `quorumOrgMgmt.addOrgKey` can be used. This api takes, the sub org name, transaction manager public key and transaction object as input. It should be noted that, the same key can be used across multiple sub org with in a master org. However the same key cannot be used across master organizations. If the key is already used with in another master org, the key add operation will fail. Once the key add operation is successful, it goes into a pending approval state and awaits approval from the voters. To check the pending operations at an sub org level, `quorumOrgMgmt.getPendingOpDetails`. System will not allow new key add or delete of an existing key if there are any pending approval activities at the sub org level. 
+### quorumOrgMgmt.getOrgVoterList
+* Input: master org id
+* Output: list of voters accounts for the master org
+* Example:
+```
+> quorumOrgMgmt.getOrgVoterList("ABC")
+["0xed9d02e382b34818e88B88a309c7fe71E65f419d"]
+```
+### quorumOrgMgmt.addOrgKey
+For adding a key to a sub org, there should be valid voters at master org level to which the sub org belongs. Further the key should not be in use in any of the other master orgs. Onec the key is added successfully, it goes into pending approval status and awaits approval from voters at master org level.
+* Input: sub org id, transaction manager public key, transaction object
+* Output: status of the operation
+* Example:
 ```
 > quorumOrgMgmt.addOrgKey("ENTITY1", "BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo=", {from:eth.accounts[0]})
 {
@@ -64,32 +77,34 @@ The following apis are available for managing the organization level keys:
   msg: "Key already in use in another master organization",
   status: false
 }
+```
+### quorumOrgMgmt.getPendingOpDetails
+* Input: sub org id
+* Output: pending operation(add/delete), key 
+* Example:
+```
 > quorumOrgMgmt.getPendingOpDetails("ENTITY1")
 {
   pendingKey: "BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo=",
   pendingOp: "Add"
 }
-> quorumOrgMgmt.addOrgKey("ENTITY1", "QfeDAys9MPDs2XHExtc84jKGHxZg/aj52DTh0vtA3Xc=", {from: eth.accounts[0]})
-{
-  msg: "Pending approvals for the organization. Approve first",
-  status: false
-}
 ```
-* The voter accounts can approve any pending approval activities by using `quorumOrgMgmt.approvePendingOp`. This api takes the sub org identifier and the transaction object. 
+### quorumOrgMgmt.approvePendingOp
+Any valid voter account at master org level can invoke this API to approve the pending key add/delete operation. 
+* Input: sub org id
+* Output: status of the activity
+* Example:
 ```
 > quorumOrgMgmt.approvePendingOp("ENTITY1", {from:eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
-> quorumOrgMgmt.approvePendingOp("ENTITY1", {from:eth.accounts[0]})
-{
-  msg: "Nothing to approve",
-  status: false
-}
->
 ```
-* To get the list of all master orgs, sub orgs and the keys at each sub org level, `quorumOrgMgmt.orgKeyInfo` api can be used. This api outputs the list of all master orgs, sub orgs and keys at each sub org level. 
+### quorumOrgMgmt.orgKeyInfo
+* Input: none
+* Output: list of all master org ids, sub org ids and keys at each sub org id level
+* Example:
 ```
 > quorumOrgMgmt.orgKeyInfo
 [{
