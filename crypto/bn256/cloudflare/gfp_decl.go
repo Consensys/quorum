@@ -11,13 +11,6 @@ import (
 //nolint:varcheck
 var hasBMI2 = cpu.X86.HasBMI2
 
-import (
-	"golang.org/x/sys/cpu"
-)
-
-//nolint:varcheck
-var hasBMI2 = cpu.X86.HasBMI2
-
 // go:noescape
 func gfpNeg(c, a *gfP)
 
