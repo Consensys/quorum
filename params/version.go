@@ -69,5 +69,8 @@ func VersionWithCommit(gitCommit string) string {
 	if len(gitCommit) >= 8 {
 		vsn += "-" + gitCommit[:8]
 	}
+
+	vsn += "(quorum-v" + QuorumVersion + ")"
+
 	return vsn
 }
