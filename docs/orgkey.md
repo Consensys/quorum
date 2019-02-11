@@ -30,7 +30,7 @@ Organization level key management is  managed by a smart contract [Clusterkeys.s
 }
 ```
 ### quorumOrgMgmt.addVoter
-Before any keys can be added to a sub org id, there need to be voters at master org to which the sub org is linked. This API is used for adding a voter to the master org. Only an account with full access can perform this actvity. 
+Before any keys can be added to a sub org id, voters need to be added at master org level to which the sub org is linked. This API is used for adding a voter to the master org. Only an account with full access can perform this actvity. 
 * Input: master org id, voter account id, transaction object 
 * Output: status of operation
 * Example:

@@ -6,7 +6,7 @@ Account permissioning feature introduces controls at account level. This will co
 It should be noted that both the above features will be available when Quorum geth is brought in `--permissioned` mode with the set up as described in the next section. 
 
 ## Set up
-Node permissioning and account access control is managed by a smart contract [Permission.sol](../controls/permission/Permission.sol). The precompiled bytecode of the smart contract is deployed at address `0x000000000000000000020` in network bootup process. The binding of the precompiled byte code with the address is in `genesis.json`. The initial set of account that will have full access when the network is up, should given as a part of `genesis.json` as shown below:
+Node permissioning and account access control is managed by a smart contract [Permission.sol](../controls/permission/Permission.sol). The precompiled byte code of the smart contract is deployed at address `0x000000000000000000020` in network boot-up process. The binding of the precompiled byte code with the address is in `genesis.json`. The initial set of account that will have full access when the network is up, should given as a part of `genesis.json` as shown below:
 ```
 {
   "alloc": {
@@ -25,13 +25,13 @@ In the above set up, accounts `"0xcA843569e3427144cEad5e4d5999a3D0cCF92B8e", "0x
 
 If the network is brought up with permissions control byte code and no accounts are given as a part of storage, then geth start up will fail with error `Permissioned network being brought up with zero accounts having full access. Add permissioned full access accounts in genesis.json and bring up the network`
 
-Further, if the initial set of network nodes are brought up with `--permissioned` mode and a new approved node is joining the network without `--permissioned` flag in the `geth` start commmand, system will not allow the new `geth` node to come and a fatal error `Joining a permissioned network in non-permissioned mode. Bring up geth with --permissioned."` will be thrown.
+Further, if the initial set of network nodes are brought up with `--permissioned` mode and a new approved node is joining the network without `--permissioned` flag in the `geth` start command, system will not allow the new `geth` node to come and a fatal error `Joining a permissioned network in non-permissioned mode. Bring up geth with --permissioned."` will be thrown.
 
 ## Node Permissioning 
 In a permissioned network any node can be in one of the following status:
 * Proposed - The node has been proposed to join the network and pending majority voting to be marked as `Approved`
 * Approved - The node is approved and is part of the network
-* PendingDeactivation - The node has been proposed for deatvation from network and is pending majority approval
+* PendingDeactivation - The node has been proposed for deactivation from network and is pending majority approval
 * Deactivated - The node has been deactivated from the network. Any node in this status will be disconnected from the network and block sync with this node will not happen
 * PendingActivation - A deactivated node has been proposed for activation and is pending majority approval. Once approved the node will move to `Approved` status
 * PendingBlacklisting - The node has been proposed for blacklisting and is pending majority approval
@@ -39,7 +39,7 @@ In a permissioned network any node can be in one of the following status:
 
 It should be noted that deactivation is temporary in nature and hence the node can join back the network at a later point in time. However blacklisting is permanent in nature. A blacklisted node will never be able to join back the network. Further blacklisting can be proposed for a node which is in the network or a new node which is currently not part of the network. 
 
-When the network is started for the first time, all the nodes present in `static-nodes.json` file are added to the permissioned nodes list maintained in the smart contract. Once the initila network is up, these nodes can then propose and approve new nodes to join the network. 
+When the network is started for the first time, all the nodes present in `static-nodes.json` file are added to the permissioned nodes list maintained in the smart contract. Once the initial network is up, these nodes can then propose and approve new nodes to join the network. 
 
 ### Node Permission APIs
 #### quorumNodeMgmt.permissionNodeList 
@@ -121,7 +121,7 @@ API for approving a proposed node. The node gets approved once majority votes fr
 ```
 #### quorumNodeMgmt.proposeNodeDeactivation 
 API for proposing a node for deactivation. The node must be `Approved` state and there should be at least one voter account present at network.
-* Input: enode to be deavtivated, transaction object
+* Input: enode to be deactivated, transaction object
 * Output: Status of the operation
 * Example:
 ```
@@ -133,7 +133,7 @@ API for proposing a node for deactivation. The node must be `Approved` state and
 ```
 #### quorumNodeMgmt.approveNodeDeactivation
 API for approving node for deactivation. The node gets deactivated once majority votes from the voter accounts is received
-* Input: enode to be deavtivated, transaction object
+* Input: enode to be deactivated, transaction object
 * Output: Status of the operation
 * Example:
 ```
@@ -144,7 +144,7 @@ API for approving node for deactivation. The node gets deactivated once majority
 }
 ```
 #### quorumNodeMgmt.proposeNodeActivation 
-API for proposing a activating a deactivated node for deactivation. The node must be `Approved` state and there should be at least one voter account present at network.
+API for proposing activation of a deactivated node. The node must be in `Deactivated` state and there should be at least one voter account present at network.
 * Input: enode to be activated, transaction object
 * Output: Status of the operation
 * Example:
@@ -156,7 +156,7 @@ API for proposing a activating a deactivated node for deactivation. The node mus
 }
 ```
 #### quorumNodeMgmt.approveNodeActivation 
-API for approval of activating a deactivated node. The node gets activated once majority votes from the voter accoynts is received
+API for approval of activating a deactivated node. The node gets activated once majority votes from the voter accounts is received
 * Input: enode to be activated, transaction object
 * Output: Status of the operation
 * Example:
@@ -203,7 +203,7 @@ The following account access types are being introduced as a part of this featur
 ### Account Access APIs
 #### quorumAcctMgmt.permissionAccountList
 * Input: None
-* Output: Returns the list of all permissoned accounts with acciunt access for each 
+* Output: Returns the list of all permissioned accounts with account access for each 
 * Example:
 ```
 > quorumAcctMgmt.permissionAccountList
