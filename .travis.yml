@@ -20,6 +20,7 @@ matrix:
   include:
   #raft consensus
   - if: tag IS blank
+    name: acceptance-test-raft
     os: linux
     dist: trusty
     git:
@@ -47,6 +48,7 @@ matrix:
 
   #istanbul consensus
   - if: tag IS blank
+    name: acceptance-test-istanbul
     os: linux
     dist: trusty
     git:
@@ -74,6 +76,7 @@ matrix:
 
   #clique consensus
   - if: tag IS blank
+    name: acceptance-test-clique
     os: linux
     dist: trusty
     git:
