@@ -776,15 +776,13 @@ func (s *QuorumControlsAPI) OrgKeyInfo() []orgInfo {
 			}
 			keyCntI := keyCnt.Int64()
 			log.Debug("total keys", "count", keyCntI)
-			keyArr := make([]string, keyCntI)
+			var keyArr []string
 			// loop for each index and get the node details from the contract
 			j := int64(0)
 			for j < keyCntI {
-				key, err := ps.GetOrgKey(orgId, big.NewInt(j))
-				if err != nil {
-					log.Error("error key info", "err", err)
-				} else {
-					keyArr[j] = key
+				key, status, err := ps.GetOrgKey(orgId, big.NewInt(j))
+				if err == nil && status {
+					keyArr = append(keyArr, key)
 				}
 				j++
 			}
@@ -890,7 +888,7 @@ func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs
 		if ret {
 			return ErrPendingApprovals
 		}
-		ret, _, _ = ps.CheckIfKeyExists(args.orgId, args.tmKey)
+		ret, _ = ps.CheckIfKeyExists(args.orgId, args.tmKey)
 		if ret {
 			return ErrKeyExists
 		}
@@ -913,7 +911,7 @@ func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs
 		if ret {
 			return ErrPendingApprovals
 		}
-		ret, _, _ = ps.CheckIfKeyExists(args.orgId, args.tmKey)
+		ret, _ = ps.CheckIfKeyExists(args.orgId, args.tmKey)
 		if !ret {
 			return ErrKeyNotFound
 		}

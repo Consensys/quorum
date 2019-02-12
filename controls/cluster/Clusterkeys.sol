@@ -4,12 +4,19 @@ contract Clusterkeys {
 
   // Struct for managing the org details
   enum Operation {None, Add, Delete}
+  struct OrgKeyDetails {
+    string tmKey;
+    bool active;
+  }
   struct OrgDetails {
     string orgId;
     string morgId;
-    string [] tmKey;
     string pendingKey;
     Operation pendingOp;
+    uint keyCount;
+    OrgKeyDetails []orgKeys;
+    mapping (bytes32 => uint) orgKeyIndex;
+
   }
   OrgDetails [] private orgList;
   mapping(bytes32 => uint) private OrgIndex;
@@ -100,7 +107,13 @@ contract Clusterkeys {
     return MasterOrgIndex[keccak256(abi.encodePacked(_orgId))] - 1;
   }
 
-  // returns the org index for the org list
+  // returns the key index for the key usage list
+  function getOrgKeyIndex(uint _orgIndex, string memory _tmKey) internal view returns (uint)
+  {
+    return orgList[_orgIndex].orgKeyIndex[keccak256(abi.encodePacked(_tmKey))] - 1;
+  }
+
+  // returns the key index for the key usage list
   function getKeyIndex(string memory _tmKey) internal view returns (uint)
   {
     return KeyIndex[keccak256(abi.encodePacked(_tmKey))] - 1;
@@ -156,21 +169,24 @@ contract Clusterkeys {
     if(checkEnoughVotes(orgList[_orgIndex].orgId, orgList[_orgIndex].morgId)){
       string storage locKey = orgList[_orgIndex].pendingKey;
       if (orgList[_orgIndex].pendingOp == Operation.Add){
-        orgList[_orgIndex].tmKey.push(orgList[_orgIndex].pendingKey);
-        updateKeyUsage(orgList[_orgIndex].pendingKey, orgList[_orgIndex].morgId, orgList[_orgIndex].pendingOp);
+        if (checkIfKeyExists(orgList[_orgIndex].orgId, locKey)){
+          uint keyIndex = getOrgKeyIndex(_orgIndex, locKey);
+          orgList[_orgIndex].orgKeys[keyIndex].active = true;
+        }
+        else {
+          orgList[_orgIndex].keyCount++;
+          orgList[_orgIndex].orgKeyIndex[keccak256(abi.encodePacked(locKey))] = orgList[_orgIndex].keyCount;
+          orgList[_orgIndex].orgKeys.push(OrgKeyDetails(locKey, true));
+          updateKeyUsage(orgList[_orgIndex].pendingKey, orgList[_orgIndex].morgId, orgList[_orgIndex].pendingOp);
+        }
         emit OrgKeyAdded(orgList[_orgIndex].orgId, locKey);
       }
       else {
-        bool keyExists = false;
-        uint i = 0;
-        (keyExists, i) = checkIfKeyExists (orgList[_orgIndex].orgId, locKey);
-        for (uint j = i; j <  orgList[_orgIndex].tmKey.length -1; j++){
-          orgList[_orgIndex].tmKey[j] = orgList[_orgIndex].tmKey[j+1];
+        if (checkIfKeyExists (orgList[_orgIndex].orgId, locKey)){
+          uint keyIndex = getOrgKeyIndex(_orgIndex, locKey);
+          orgList[_orgIndex].orgKeys[keyIndex].active = false;
+          emit OrgKeyDeleted(orgList[_orgIndex].orgId, locKey);
         }
-        delete orgList[_orgIndex].tmKey[orgList[_orgIndex].tmKey.length -1];
-        orgList[_orgIndex].tmKey.length --;
-        updateKeyUsage(orgList[_orgIndex].pendingKey, orgList[_orgIndex].morgId, orgList[_orgIndex].pendingOp);
-        emit OrgKeyDeleted(orgList[_orgIndex].orgId, locKey);
       }
       orgList[_orgIndex].pendingOp = Operation.None;
       orgList[_orgIndex].pendingKey = "";
@@ -192,17 +208,16 @@ contract Clusterkeys {
   }
 
   // checks if there the key is already in the list of private keys for the org
-  function checkIfKeyExists(string memory _orgId, string memory _tmKey) public view returns (bool, uint){
-    bool keyExists = false;
+  function checkIfKeyExists(string memory _orgId, string memory _tmKey) public view returns (bool){
     uint orgIndex = getOrgIndex(_orgId);
-    uint i;
-    for (i = 0; i < orgList[orgIndex].tmKey.length; i++){
-      if(keccak256(abi.encodePacked(orgList[orgIndex].tmKey[i])) == keccak256(abi.encodePacked(_tmKey))){
-        keyExists = true;
-        break;
-      }
+    if (orgList[orgIndex].orgKeyIndex[keccak256(abi.encodePacked(_tmKey))] == 0){
+      return false;
     }
-    return (keyExists, i);
+    uint keyIndex = getOrgKeyIndex(orgIndex, _tmKey);
+    if (!orgList[orgIndex].orgKeys[keyIndex].active){
+      return false;
+    }
+    return true;
   }
   // All extenal view functions
 
@@ -224,11 +239,12 @@ contract Clusterkeys {
   }
 
   function getOrgKeyCount(string calldata _orgId) external view returns (uint){
-    return orgList[getOrgIndex(_orgId)].tmKey.length;
+    return orgList[getOrgIndex(_orgId)].orgKeys.length;
   }
 
-  function getOrgKey(string calldata _orgId, uint _keyIndex) external view returns (string memory ){
-    return orgList[getOrgIndex(_orgId)].tmKey[_keyIndex];
+  function getOrgKey(string calldata _orgId, uint _keyIndex) external view returns (string memory, bool){
+    uint orgIndex = getOrgIndex(_orgId);
+    return (orgList[orgIndex].orgKeys[_keyIndex].tmKey,orgList[orgIndex].orgKeys[_keyIndex].active);
   }
 
   function getOrgInfo(uint _orgIndex) external view returns (string memory, string memory){
@@ -326,7 +342,12 @@ contract Clusterkeys {
   {
     orgNum++;
     OrgIndex[keccak256(abi.encodePacked(_orgId))] = orgNum;
-    orgList.push( OrgDetails(_orgId, _morgId, new string[](0), new string(0), Operation.None ));
+    uint id = orgList.length++;
+    orgList[id].orgId = _orgId;
+    orgList[id].morgId = _morgId;
+    orgList[id].keyCount = 0;
+    orgList[id].pendingKey = "";
+    orgList[id].pendingOp = Operation.None;
     emit SubOrgAdded(_morgId);
   }
 
@@ -359,25 +380,22 @@ contract Clusterkeys {
   function addOrgKey(string calldata _orgId, string calldata _tmKey) external
   {
     uint orgIndex = getOrgIndex(_orgId);
-    uint i = 0;
-    bool keyExists = false;
-    (keyExists, i) = checkIfKeyExists (_orgId, _tmKey);
-    if (!keyExists) {
-        orgList[orgIndex].pendingKey = _tmKey;
-        orgList[orgIndex].pendingOp = Operation.Add;
-        voterInit(_orgId);
-        // add key to key usage list for tracking
-        uint keyIndex = getKeyIndex(_tmKey);
-        if (KeyIndex[keccak256(abi.encodePacked(_tmKey))] == 0){
-          keyNum ++;
-          KeyIndex[keccak256(abi.encodePacked(_tmKey))] = keyNum;
-          keyUsage.push(KeyUsageDetails(_tmKey, orgList[orgIndex].morgId, 0, true));
-        }
-        else {
-          keyUsage[keyIndex].pending = true;
-        }
+    if (!checkIfKeyExists (_orgId, _tmKey)){
+      orgList[orgIndex].pendingKey = _tmKey;
+      orgList[orgIndex].pendingOp = Operation.Add;
+      voterInit(_orgId);
+      // add key to key usage list for tracking
+      uint keyIndex = getKeyIndex(_tmKey);
+      if (KeyIndex[keccak256(abi.encodePacked(_tmKey))] == 0){
+        keyNum ++;
+        KeyIndex[keccak256(abi.encodePacked(_tmKey))] = keyNum;
+        keyUsage.push(KeyUsageDetails(_tmKey, orgList[orgIndex].morgId, 0, true));
+      }
+      else {
+        keyUsage[keyIndex].pending = true;
+      }
 
-        emit ItemForApproval(_orgId,Operation.Add,  _tmKey);
+      emit ItemForApproval(_orgId,Operation.Add,  _tmKey);
     }
   }
 
@@ -386,10 +404,7 @@ contract Clusterkeys {
   function deleteOrgKey(string calldata _orgId, string calldata _tmKey) external
   {
     uint orgIndex = getOrgIndex(_orgId);
-    uint i = 0;
-    bool keyExists = false;
-    (keyExists, i) = checkIfKeyExists (_orgId, _tmKey);
-    if (keyExists) {
+    if (checkIfKeyExists(_orgId, _tmKey)) {
       orgList[orgIndex].pendingKey = _tmKey;
       orgList[orgIndex].pendingOp = Operation.Delete;
       voterInit(_orgId);
