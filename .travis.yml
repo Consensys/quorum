@@ -19,7 +19,7 @@ env:
 matrix:
   include:
   #raft consensus
-  - if: tag IS blank
+  - if: tag IS blank AND type = pull_request
     name: acceptance-test-raft
     os: linux
     dist: trusty
@@ -47,7 +47,7 @@ matrix:
       - $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
 
   #istanbul consensus
-  - if: tag IS blank
+  - if: tag IS blank AND type = pull_request
     name: acceptance-test-istanbul
     os: linux
     dist: trusty
@@ -75,7 +75,7 @@ matrix:
       - $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
 
   #clique consensus
-  - if: tag IS blank
+  - if: tag IS blank AND type = pull_request
     name: acceptance-test-clique
     os: linux
     dist: trusty
