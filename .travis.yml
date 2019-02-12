@@ -31,10 +31,8 @@ matrix:
     env:
       - TF_VAR_consensus_mechanism=raft
     install:
-      - git clone --branch=quorum-travis-ci-accept-test-integ https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-      - git clone --branch=travis-ci-integ https://github.com/QuorumEngineering/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
-      #- git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-      #- git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
+      - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+      - git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
       - $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
@@ -59,10 +57,8 @@ matrix:
     env:
       - TF_VAR_consensus_mechanism=istanbul
     install:
-      - git clone --branch=quorum-travis-ci-accept-test-integ https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-      - git clone --branch=travis-ci-integ https://github.com/QuorumEngineering/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
-      #- git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-      #- git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
+      - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+      - git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
       - $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
@@ -87,10 +83,8 @@ matrix:
     env:
       - TF_VAR_consensus_mechanism=clique
     install:
-      - git clone --branch=quorum-travis-ci-accept-test-integ https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-      - git clone --branch=travis-ci-integ https://github.com/QuorumEngineering/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
-      #- git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-      #- git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
+      - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+      - git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
       - $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
