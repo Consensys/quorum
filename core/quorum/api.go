@@ -721,7 +721,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 func (s *QuorumControlsAPI) GetOrgVoterList(morgId string) []string {
 	if !s.orgEnabled {
 		voterArr := make([]string, 1)
-		voterArr[0] = "Permissions control not enabled for the network"
+		voterArr[0] = "Org management control not enabled for the network"
 		return voterArr
 	}
 	ps := s.newOrgKeySessionWithNodeKeySigner()
@@ -732,15 +732,13 @@ func (s *QuorumControlsAPI) GetOrgVoterList(morgId string) []string {
 	}
 	voterCntI := voterCnt.Int64()
 	log.Debug("total voters", "count", voterCntI)
-	voterArr := make([]string, voterCntI)
+	var voterArr []string
 	// loop for each index and get the node details from the contract
 	i := int64(0)
 	for i < voterCntI {
-		a, err := ps.GetVoter(morgId, big.NewInt(i))
-		if err != nil {
-			log.Error("error getting voter info", "err", err)
-		} else {
-			voterArr[i] = a.String()
+		voter, err := ps.GetVoter(morgId, big.NewInt(i))
+		if err == nil && voter.Active {
+			voterArr = append(voterArr, voter.Addr.String())
 		}
 		i++
 	}
@@ -1073,12 +1071,13 @@ func validateAccoutOp(ps *pbind.PermissionsSession, from, targetAcct common.Addr
 // checks if the account performing the operation has sufficient access privileges
 func valAccountAccessVoter(fromAcct, targetAcct common.Address) (error, ExecStatus) {
 	acctAccess := types.GetAcctAccess(fromAcct)
-	// if acctAccess == types.ReadOnly {
 	// only accounts with full access will be allowed to manage voters
 	if acctAccess != types.FullAccess {
 		return errors.New("Account performing the operation does not have sufficient access"), ErrAccountAccess
 	}
-	if targetAcct.String() != "" {
+
+	// An account with minimum of transact access can be a voter
+	if targetAcct != (common.Address{}) {
 		acctAccess = types.GetAcctAccess(targetAcct)
 		if acctAccess == types.ReadOnly {
 			return errors.New("Voter account does not have sufficient access"), ErrVoterAccountAccess
