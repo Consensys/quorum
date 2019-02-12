@@ -60,7 +60,7 @@ func (srv *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
 		Handshake: wsHandshakeValidator(allowedOrigins),
 		Handler: func(conn *websocket.Conn) {
 			// Create a custom encode/decode pair to enforce payload size and number encoding
-			conn.MaxPayloadBytes = maxRequestContentLength
+			// conn.MaxPayloadBytes = maxRequestContentLength
 
 			encoder := func(v interface{}) error {
 				return websocketJSONCodec.Send(conn, v)
