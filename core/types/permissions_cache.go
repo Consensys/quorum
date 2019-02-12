@@ -12,7 +12,7 @@ const (
 	ReadOnly AccessType = iota
 	Transact
 	ContractDeploy
-	FullAccess 
+	FullAccess
 )
 
 type PermStruct struct {
@@ -50,11 +50,6 @@ func GetAcctAccess(acctId common.Address) AccessType {
 		}
 	}
 	return DefaultAccess
-	// if AcctMap.Len() == 0 {
-	// 	return FullAccess
-	// } else {
-	// 	return ReadOnly
-	// }
 }
 
 func AddOrgKey(orgId string, key string) {

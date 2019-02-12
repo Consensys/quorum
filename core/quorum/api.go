@@ -2,8 +2,8 @@ package quorum
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -75,6 +75,7 @@ const (
 	Active VoterAccessType = iota
 	Inactive
 )
+
 // QuorumControlsAPI provides an API to access Quorum's node permission and org key management related services
 type QuorumControlsAPI struct {
 	txPool      *core.TxPool
@@ -148,8 +149,8 @@ var (
 	ErrKeyInUse             = ExecStatus{false, "Key already in use in another master organization"}
 	ErrKeyNotFound          = ExecStatus{false, "Key not found for the organization"}
 	ErrNothingToApprove     = ExecStatus{false, "Nothing to approve"}
-	ErrNothingToCancel		= ExecStatus{false, "Nothing to cancel"}
-	ErrNodeProposed		    = ExecStatus{false, "Node already proposed for the action"}
+	ErrNothingToCancel      = ExecStatus{false, "Nothing to cancel"}
+	ErrNodeProposed         = ExecStatus{false, "Node already proposed for the action"}
 	ErrAccountIsNotVoter    = ExecStatus{false, "Not a voter account"}
 	ErrBlacklistedNode      = ExecStatus{false, "Blacklisted node. Operation not allowed"}
 	ErrOpNotAllowed         = ExecStatus{false, "Operation not allowed"}
@@ -314,7 +315,7 @@ func (s *QuorumControlsAPI) VoterList() []string {
 		if err != nil {
 			log.Error("error getting voter info", "err", err)
 		} else {
-			if voter.VoterStatus == uint8(Active){
+			if voter.VoterStatus == uint8(Active) {
 				voterArr = append(voterArr, voter.Addr.String())
 			}
 		}
@@ -456,13 +457,12 @@ func (s *QuorumControlsAPI) SetAccountAccess(acct common.Address, access uint8, 
 	return s.executePermAction(SetAccountAccess, txArgs{acctId: acct, accessType: access, txa: txa})
 }
 
-
-func getNodeDetailsFromEnode(nodeId string) (string, string, string, string, error){
+func getNodeDetailsFromEnode(nodeId string) (string, string, string, string, error) {
 	node, err := discover.ParseNode(nodeId)
 	if err != nil {
 		log.Error("invalid node id: %v", err)
 		return "", "", "", "", err
-	} 
+	}
 	enodeID := node.ID.String()
 	ipAddr := node.IP.String()
 	port := fmt.Sprintf("%v", node.TCP)
@@ -475,7 +475,7 @@ func getNodeDetailsFromEnode(nodeId string) (string, string, string, string, err
 
 // checks if the input node details for approval is matching with details stored
 // in contract
-func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAction)  (error, ExecStatus){
+func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAction) (error, ExecStatus) {
 	enodeID, discPort, raftPort, ipAddrPort, err := getNodeDetailsFromEnode(nodeId)
 
 	cnode, err := ps.GetNodeDetails(enodeID)
@@ -492,11 +492,11 @@ func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAc
 			return errors.New("operation cannot be performed"), ErrOpNotAllowed
 		}
 
-		newNode := false;
-		if nodeStatus == "NotInNetwork" && len(cnode.IpAddrPort) == 0{
+		newNode := false
+		if nodeStatus == "NotInNetwork" && len(cnode.IpAddrPort) == 0 {
 			newNode = true
 		}
-		detailsMatch := false;
+		detailsMatch := false
 		if strings.Compare(ipAddrPort, cnode.IpAddrPort) == 0 && strings.Compare(discPort, cnode.DiscPort) == 0 && strings.Compare(raftPort, cnode.RaftPort) == 0 {
 			detailsMatch = true
 		}
@@ -512,9 +512,9 @@ func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAc
 		}
 
 		// if propose action, check if node status allows the operation
-		if ((action == ProposeNode && nodeStatus != "NotInNetwork") ||
+		if (action == ProposeNode && nodeStatus != "NotInNetwork") ||
 			(action == ProposeNodeDeactivation && nodeStatus != "Approved") ||
-			(action == ProposeNodeActivation && nodeStatus != "Deactivated")) {
+			(action == ProposeNodeActivation && nodeStatus != "Deactivated") {
 			return errors.New("operation cannot be performed"), ErrOpNotAllowed
 		}
 
@@ -526,9 +526,9 @@ func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAc
 			return errors.New("Nothing to approve"), ErrNothingToApprove
 		}
 
-		if (action == CancelPendingOperation && nodeStatus != "PendingApproval" &&
+		if action == CancelPendingOperation && nodeStatus != "PendingApproval" &&
 			nodeStatus != "PendingDeactivation" && nodeStatus != "PendingActivation" &&
-			nodeStatus != "PendingBlacklisting") {
+			nodeStatus != "PendingBlacklisting" {
 			return errors.New("Nothing to cancel"), ErrNothingToCancel
 		}
 
@@ -539,12 +539,12 @@ func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAc
 			return errors.New("Node already proposed"), ErrNodeProposed
 		}
 
-	} 
+	}
 
 	return nil, ExecSuccess
 }
 
-func(s *QuorumControlsAPI) validateOpDetails(ps *pbind.PermissionsSession, enodeID string, from common.Address, action PermAction) (error, ExecStatus) {
+func (s *QuorumControlsAPI) validateOpDetails(ps *pbind.PermissionsSession, enodeID string, from common.Address, action PermAction) (error, ExecStatus) {
 
 	// check if  the input node is fine
 	err, execStatus := checkNodeDetails(ps, enodeID, action)
@@ -553,20 +553,21 @@ func(s *QuorumControlsAPI) validateOpDetails(ps *pbind.PermissionsSession, enode
 	}
 
 	// if action is propose type then check if voter nodes are there in the network
-	if (action == ProposeNode || action == ProposeNodeDeactivation || action == ProposeNodeActivation || action == ProposeNodeBlacklisting){
-		if 	!checkVoterExists(ps){
+	if action == ProposeNode || action == ProposeNodeDeactivation || action == ProposeNodeActivation || action == ProposeNodeBlacklisting {
+		if !checkVoterExists(ps) {
 			return errors.New("No voter account"), ErrNoVoterAccount
 		}
 	}
 
 	// if approval process, check if the account is a voter account
-	if (action == ApproveNode || action == ApproveNodeDeactivation || action == ApproveNodeActivation || action == ApproveNodeBlacklisting || action == CancelPendingOperation){
+	if action == ApproveNode || action == ApproveNodeDeactivation || action == ApproveNodeActivation || action == ApproveNodeBlacklisting || action == CancelPendingOperation {
 		if !checkIsVoter(ps, from) {
 			return errors.New("Not a voter account"), ErrAccountNotAVoter
 		}
 	}
 	return nil, ExecSuccess
 }
+
 // executePermAction helps to execute an action in permission contract
 func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
 
@@ -585,7 +586,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 	var node *discover.Node
 	var execStatus ExecStatus
 
-	if action != SetAccountAccess  && action != AddVoter && action != RemoveVoter {
+	if action != SetAccountAccess && action != AddVoter && action != RemoveVoter {
 		err, execStatus = s.validateOpDetails(ps, args.nodeId, args.txa.From, action)
 		if err != nil {
 			return execStatus
@@ -594,19 +595,19 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 	switch action {
 	case AddVoter:
-		if locErr, execStatus := valAccountAccessVoter(args.txa.From, args.voter); locErr != nil{
+		if locErr, execStatus := valAccountAccessVoter(args.txa.From, args.voter); locErr != nil {
 			return execStatus
 		}
-		if checkIsVoter(ps, args.voter){
+		if checkIsVoter(ps, args.voter) {
 			return ErrVoterExists
 		}
 		tx, err = ps.AddVoter(args.voter)
 
 	case RemoveVoter:
-		if locErr, execStatus := valAccountAccessVoter(args.txa.From, common.Address{}); locErr != nil{
+		if locErr, execStatus := valAccountAccessVoter(args.txa.From, common.Address{}); locErr != nil {
 			return execStatus
 		}
-		if !checkIsVoter(ps, args.voter){
+		if !checkIsVoter(ps, args.voter) {
 			return ErrAccountIsNotVoter
 		}
 		tx, err = ps.RemoveVoter(args.voter)
@@ -616,7 +617,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		if locerr != nil {
 			log.Error("invalid node id: %v", err)
 			return ErrInvalidNode
-		} 
+		}
 
 		tx, err = ps.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
 
@@ -686,7 +687,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = ps.BlacklistNode(enodeID)
 
 	case SetAccountAccess:
-		if (args.accessType > 3){
+		if args.accessType > 3 {
 			return ErrInvalidAccountAccess
 		}
 		if locErr, execStatus := validateAccoutOp(ps, args.txa.From, args.acctId, args.accessType); locErr != nil {
@@ -851,28 +852,28 @@ func (s *QuorumControlsAPI) executeOrgKeyAction(action OrgKeyAction, args txArgs
 		tx, err = ps.AddSubOrg(args.orgId, args.morgId)
 
 	case AddOrgVoter:
-		if locErr, execStatus := valAccountAccessVoter(args.txa.From, args.acctId); locErr != nil{
+		if locErr, execStatus := valAccountAccessVoter(args.txa.From, args.acctId); locErr != nil {
 			return execStatus
 		}
 		ret, _ := ps.CheckMasterOrgExists(args.morgId)
 		if !ret {
 			return ErrInvalidMasterOrg
 		}
-		ret, _, _ = ps.CheckIfVoterExists(args.morgId, args.acctId)
+		ret, _ = ps.CheckIfVoterExists(args.morgId, args.acctId)
 		if ret {
 			return ErrVoterExists
 		}
 		tx, err = ps.AddVoter(args.morgId, args.acctId)
 
 	case RemoveOrgVoter:
-		if locErr, execStatus := valAccountAccessVoter(args.txa.From, common.Address{}); locErr != nil{
+		if locErr, execStatus := valAccountAccessVoter(args.txa.From, common.Address{}); locErr != nil {
 			return execStatus
 		}
 		ret, _ := ps.CheckMasterOrgExists(args.morgId)
 		if !ret {
 			return ErrInvalidMasterOrg
 		}
-		ret, _, _ = ps.CheckIfVoterExists(args.morgId, args.acctId)
+		ret, _ = ps.CheckIfVoterExists(args.morgId, args.acctId)
 		if !ret {
 			return ErrInvalidAccount
 		}
@@ -1047,12 +1048,12 @@ func validateAccoutOp(ps *pbind.PermissionsSession, from, targetAcct common.Addr
 		retVal = true
 	} else if fromAcctAccess == types.Transact && (accessType == uint8(types.Transact) || accessType == uint8(types.ReadOnly)) {
 		retVal = true
-	} 
+	}
 
 	if retVal && fromAcctAccess != types.FullAccess {
-		if ((fromAcctAccess == types.ContractDeploy && targetAcctAccess == types.FullAccess) ||
+		if (fromAcctAccess == types.ContractDeploy && targetAcctAccess == types.FullAccess) ||
 			(fromAcctAccess == types.Transact &&
-			(targetAcctAccess == types.ContractDeploy || targetAcctAccess == types.FullAccess))){
+				(targetAcctAccess == types.ContractDeploy || targetAcctAccess == types.FullAccess)) {
 			retVal = false
 		}
 

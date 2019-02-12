@@ -31,7 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // Client defines typed wrappers for the Ethereum RPC API.
@@ -485,7 +484,6 @@ func (ec *Client) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64
 // If the transaction was a contract creation use the TransactionReceipt method to get the
 // contract address after the transaction has been mined.
 func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) error {
-	log.Info("Inside SendTransaction")
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
 		return err

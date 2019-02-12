@@ -97,6 +97,9 @@ func (p *PermissionCtrl) init() error {
 		return err
 	}
 
+	// set the default access to ReadOnly
+	types.SetDefaultAccess()
+
 	// call populates the node details from contract to KnownNodes
 	// this is not required as the permissioned node info is persisted at
 	// file level
@@ -220,7 +223,7 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 	path := filepath.Join(p.dataDir, PERMISSIONED_CONFIG)
 	if _, err := os.Stat(path); err != nil {
 		log.Error("Read Error for permissioned-nodes.json file. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present.", "err", err)
-		return 
+		return
 	}
 	// Load the nodes from the config file
 	blob, err := ioutil.ReadFile(path)
@@ -232,7 +235,7 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 	nodelist := []string{}
 	if err := json.Unmarshal(blob, &nodelist); err != nil {
 		log.Error("updatePermissionedNodes: Failed to load nodes list", "err", err)
-		return 
+		return
 	}
 
 	newEnodeId := p.formatEnodeId(enodeId, ipAddrPort, discPort, raftPort)
@@ -261,7 +264,7 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 	blob, _ = json.Marshal(nodelist)
 
 	mu.Lock()
-	if err:= ioutil.WriteFile(path, blob, 0644); err!= nil{
+	if err := ioutil.WriteFile(path, blob, 0644); err != nil {
 		log.Error("updatePermissionedNodes: Error writing new node info to file", "err", err)
 	}
 	mu.Unlock()
@@ -446,7 +449,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 	tx, err := permissionsSession.GetNetworkBootStatus()
 	if err != nil {
 		// handle the scenario of no contract code.
-		if err.Error() == "no contract code at given address"{
+		if err.Error() == "no contract code at given address" {
 			return err
 		}
 		log.Warn("Failed to retrieve network boot status ", "err", err)
@@ -482,15 +485,12 @@ func (p *PermissionCtrl) populateInitPermission() error {
 			return err
 		}
 
-
 		// update network status to boot completed
 		err = p.updateNetworkStatus(permissionsSession)
 		if err != nil {
 			return err
 		}
 
-		// set the default access to ReadOnly
-		types.SetDefaultAccess()
 	}
 	return nil
 }

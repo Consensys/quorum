@@ -4,14 +4,14 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/controls"
+	pbind "github.com/ethereum/go-ethereum/controls/bind/cluster"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/controls"
-	pbind "github.com/ethereum/go-ethereum/controls/bind/cluster"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 type OrgKeyCtrl struct {
@@ -46,14 +46,14 @@ func (k *OrgKeyCtrl) Start() error {
 		return nil
 	}
 	err = k.checkIfContractExists()
-	if (err != nil ){
+	if err != nil {
 		return err
 	}
 	k.manageClusterKeys()
 	return nil
 }
 
-func(k *OrgKeyCtrl) checkIfContractExists() error {
+func (k *OrgKeyCtrl) checkIfContractExists() error {
 	auth := bind.NewKeyedTransactor(k.key)
 	clusterSession := &pbind.ClusterSession{
 		Contract: k.km,
@@ -110,7 +110,7 @@ func (k *OrgKeyCtrl) populatePrivateKeys() error {
 	}
 
 	opts = &bind.FilterOpts{}
-	pastDeleteEvents, err := cluster.FilterOrgKeyDeleted(opts)
+	pastDeleteEvents, _ := cluster.FilterOrgKeyDeleted(opts)
 
 	recExists = true
 	for recExists {

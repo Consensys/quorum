@@ -1288,23 +1288,14 @@ func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 		return nil
 
 	case types.ReadOnly:
-		err := errors.New("Account Does not have transaction permissions")
-		return err
+		return errors.New("Account does not have transaction permissions")
 
 	case types.Transact:
 		if toAcct == nil {
-			err := errors.New("Account Does not have contract create permissions")
-			return err
+			return errors.New("Account does not have contract create permissions")
 		} else {
 			return nil
 		}
-	// case types.ContractDeploy:
-	// 	if toAcct != nil {
-	// 		err := errors.New("Account Does not have transacte permissions")
-	// 		return err
-	// 	} else {
-	// 		return nil
-	// 	}
 	}
 	return nil
 }
