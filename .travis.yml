@@ -30,12 +30,20 @@ matrix:
     env:
       - TF_VAR_consensus_mechanism=raft
     install:
-      - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-      - git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
+      - git clone --branch=quorum-travis-ci-accept-test-integ https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+      - git clone --branch=travis-ci-integ https://github.com/QuorumEngineering/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
+      #- git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+      #- git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
       - $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
-    script: $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
+    script:
+      - sudo modprobe fuse
+      - sudo chmod 666 /dev/fuse
+      - sudo chown root:$USER /etc/fuse.conf
+      - go run build/ci.go install
+      - export PATH=$TRAVIS_BUILD_DIR/build/bin:$PATH
+      - $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
 
   #istanbul consensus
   - if: tag IS blank
@@ -49,12 +57,20 @@ matrix:
     env:
       - TF_VAR_consensus_mechanism=istanbul
     install:
-      - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-      - git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
+      - git clone --branch=quorum-travis-ci-accept-test-integ https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+      - git clone --branch=travis-ci-integ https://github.com/QuorumEngineering/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
+      #- git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+      #- git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
       - $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
-    script: $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
+    script:
+      - sudo modprobe fuse
+      - sudo chmod 666 /dev/fuse
+      - sudo chown root:$USER /etc/fuse.conf
+      - go run build/ci.go install
+      - export PATH=$TRAVIS_BUILD_DIR/build/bin:$PATH
+      - $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
 
   #clique consensus
   - if: tag IS blank
@@ -68,13 +84,20 @@ matrix:
     env:
       - TF_VAR_consensus_mechanism=clique
     install:
-      - git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-      - git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
+      - git clone --branch=quorum-travis-ci-accept-test-integ https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+      - git clone --branch=travis-ci-integ https://github.com/QuorumEngineering/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
+      #- git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+      #- git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
       - sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
       - $TRAVIS_HOME/quorum-cloud/travis/install-linux.sh
-    script: $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
-
+    script:
+      - sudo modprobe fuse
+      - sudo chmod 666 /dev/fuse
+      - sudo chown root:$USER /etc/fuse.conf
+      - go run build/ci.go install
+      - export PATH=$TRAVIS_BUILD_DIR/build/bin:$PATH
+      - $TRAVIS_HOME/quorum-cloud/travis/script-linux.sh
 
   - if: tag IS blank
     os: linux
