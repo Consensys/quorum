@@ -1,11 +1,9 @@
 #!/bin/bash
 echo "install started..."
 set -e
-#git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
 echo "cloning quorum-acceptance-test finished"
-#git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
-git clone --branch=quorum-travis-ci-accept-test-integ https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-git clone --branch=travis-ci-integ https://github.com/QuorumEngineering/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
+git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
 echo "cloning quorum-cloud finished"
 sudo chmod 755 $TRAVIS_HOME/quorum-cloud/travis/start-network-linux.sh
 sudo apt update
