@@ -360,6 +360,9 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	}
 }
 
+// Starts all permissioning and key management related services
+// permissioning services will come up only when geth is brought up in
+// --permissioned mode. Key management service is independent of this
 func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 
 	var quorumApis []string
@@ -370,7 +373,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		log.Error("Failed to start Quorum Permission contract service: %v", err)
 	} else {
 		err = pc.Start()
-		if err ==nil {
+		if err == nil {
 			quorumApis = []string{"quorumNodeMgmt", "quorumAcctMgmt"}
 
 		} else {
@@ -378,7 +381,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		}
 	}
 
-	// Changes for managing org level cluster keys for privateFor txns
+	// start the key management service
 	kc, err := cluster.NewOrgKeyCtrl(stack)
 	if err != nil {
 		log.Warn("Failed to start quorum Org key management service", "err", err)

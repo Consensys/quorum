@@ -146,10 +146,8 @@ contract Clusterkeys {
   function checkEnoughVotes (string memory _orgId, string memory _morgId) internal view returns (bool) {
     uint orgIndex = getOrgIndex(_orgId);
     uint morgIndex = getMasterOrgIndex(_morgId);
-    if (voteCount[orgIndex] > masterOrgList[morgIndex].validVoterCount / 2 ){
-      return true;
-    }
-    return false;
+
+    return (voteCount[orgIndex] > masterOrgList[morgIndex].validVoterCount / 2 );
   }
 
   function updateKeyUsage(string memory _tmKey, string memory _morgId, Operation op) internal {
@@ -201,10 +199,7 @@ contract Clusterkeys {
       return false;
     }
     uint voterIndex = getVoterIndex(_morgId, _address);
-    if (!masterOrgList[morgIndex].voterList[voterIndex].active){
-      return false;
-    }
-    return true;
+    return masterOrgList[morgIndex].voterList[voterIndex].active;
   }
 
   // checks if there the key is already in the list of private keys for the org
@@ -214,10 +209,7 @@ contract Clusterkeys {
       return false;
     }
     uint keyIndex = getOrgKeyIndex(orgIndex, _tmKey);
-    if (!orgList[orgIndex].orgKeys[keyIndex].active){
-      return false;
-    }
-    return true;
+    return orgList[orgIndex].orgKeys[keyIndex].active;
   }
   // All extenal view functions
 
@@ -255,10 +247,7 @@ contract Clusterkeys {
   function isVoter (string calldata _orgId, address account) external view returns (bool){
     uint orgIndex = getOrgIndex(_orgId);
     uint morgIndex = getMasterOrgIndex(orgList[orgIndex].morgId);
-    if (masterOrgList[morgIndex].voterIndex[account] == 0){
-      return false;
-    }
-    return true;
+    return (masterOrgList[morgIndex].voterIndex[account] == 0);
   }
 
   // checks if the voter account is already in the voter accounts list for the org
@@ -266,39 +255,23 @@ contract Clusterkeys {
   {
     uint orgIndex = getOrgIndex(_orgId);
     uint vorgIndex = getMasterOrgIndex(orgList[orgIndex].morgId);
-    if (masterOrgList[vorgIndex].validVoterCount > 0) {
-      return true;
-    }
-    return false;
+    return (masterOrgList[vorgIndex].validVoterCount > 0); 
   }
 
   // function to check if morg exists
   function checkMasterOrgExists (string calldata _morgId) external view returns (bool) {
-    if (MasterOrgIndex[keccak256(abi.encodePacked(_morgId))] == 0) {
-      return false;
-    }
-    else {
-      return true;
-    }
+    return (!(MasterOrgIndex[keccak256(abi.encodePacked(_morgId))] == 0));
   }
 
   // function to check if morg exists
   function checkOrgExists (string calldata _orgId) external view returns (bool) {
-    if (OrgIndex[keccak256(abi.encodePacked(_orgId))] == 0) {
-      return false;
-    }
-    else {
-      return true;
-    }
+    return(!(OrgIndex[keccak256(abi.encodePacked(_orgId))] == 0));
   }
 
   // function for checking if org exists and if there are any pending ops
   function checkOrgPendingOp (string calldata _orgId) external view returns (bool) {
     uint orgIndex = getOrgIndex(_orgId);
-    if (orgList[orgIndex].pendingOp != Operation.None) {
-      return true;
-    }
-    return false;
+    return (orgList[orgIndex].pendingOp != Operation.None); 
   }
 
   // function for checking if org exists and if there are any pending ops

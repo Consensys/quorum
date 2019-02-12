@@ -173,11 +173,8 @@ contract Permissions {
 
   function isVoter(address _acctid) external view returns (bool)
   {
-    if ((voterAcctIndex[_acctid] != 0) &&
-        (voterAcctList[getVoterIndex(_acctid)].voterStatus == VoterStatus.Active)) {
-      return true;
-    }
-    return false;
+    return ((voterAcctIndex[_acctid] != 0) &&
+            (voterAcctList[getVoterIndex(_acctid)].voterStatus == VoterStatus.Active));
   }
 
   // update the networ boot status as true
@@ -476,11 +473,7 @@ contract Permissions {
 
   function checkVotingAccountExist() internal view returns (bool)
   {
-    if (numberOfValidVoters == 0) {
-      return false;
-    } else {
-      return true;
-    }
+    return (!(numberOfValidVoters == 0));
   }
 
 }
