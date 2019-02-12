@@ -289,24 +289,39 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 }
 
 // TODO(Amal): implement the following methods for Quorum
-func (s EthAPIState) GetProof(common.Address) ([][]byte, error) {
-	return nil, nil
+func (s EthAPIState) GetProof(addr common.Address) ([][]byte, error) {
+	if s.privateState.Exist(addr) {
+		return s.privateState.GetProof(addr)
+	}
+	return s.state.GetProof(addr)
 }
 
-func (s EthAPIState) GetStorageProof(common.Address, common.Hash) ([][]byte, error) {
-	return nil, nil
+func (s EthAPIState) GetStorageProof(addr common.Address, h common.Hash) ([][]byte, error) {
+	if s.privateState.Exist(addr) {
+		return s.privateState.GetStorageProof(addr, h)
+	}
+	return s.state.GetStorageProof(addr, h)
 }
 
 func (s EthAPIState) StorageTrie(addr common.Address) state.Trie {
-	return nil
+	if s.privateState.Exist(addr) {
+		return s.privateState.StorageTrie(addr)
+	}
+	return s.state.StorageTrie(addr)
 }
 
 func (s EthAPIState) Error() error {
-	return nil
+	if s.privateState.Error() != nil {
+		return s.privateState.Error()
+	}
+	return s.state.Error()
 }
 
-func (s EthAPIState) GetCodeHash(common.Address) common.Hash {
-	return common.Hash{}
+func (s EthAPIState) GetCodeHash(addr common.Address) common.Hash {
+	if s.privateState.Exist(addr) {
+		return s.privateState.GetCodeHash(addr)
+	}
+	return s.state.GetCodeHash(addr)
 }
 
 //func (s MinimalApiState) Error
