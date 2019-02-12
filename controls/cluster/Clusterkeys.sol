@@ -247,7 +247,7 @@ contract Clusterkeys {
   function isVoter (string calldata _orgId, address account) external view returns (bool){
     uint orgIndex = getOrgIndex(_orgId);
     uint morgIndex = getMasterOrgIndex(orgList[orgIndex].morgId);
-    return (masterOrgList[morgIndex].voterIndex[account] == 0);
+    return (!(masterOrgList[morgIndex].voterIndex[account] == 0));
   }
 
   // checks if the voter account is already in the voter accounts list for the org
