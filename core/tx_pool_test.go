@@ -284,28 +284,28 @@ func TestInvalidTransactions(t *testing.T) {
 		t.Error("expected", ErrOversizedData, "; got", err)
 	}
 
-	db, _ := ethdb.NewMemDatabase()
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
-	blockchain := &testBlockChain{statedb, big.NewInt(1000000), new(event.Feed)}
-	config := testTxPoolConfig
-	config.SizeLimit = 128
-	pool2 := NewTxPool(config, params.TestChainConfig, blockchain)
+	statedb, _ := state.New(common.Hash{}, state.NewDatabase(ethdb.NewMemDatabase()))
+	blockchain := &testBlockChain{statedb, statedb, 1000000, new(event.Feed)}
+	params.TestChainConfig.SizeLimit = 128
+	pool2 := NewTxPool(testTxPoolConfig, params.TestChainConfig, blockchain)
+
 	pool2.currentState.AddBalance(from, big.NewInt(0xffffffffffffff))
 	data2 := make([]byte, (127 * 1024))
 
-	tx3, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), big.NewInt(100000), big.NewInt(1), data2), types.HomesteadSigner{}, key)
+	tx3, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), 100000, big.NewInt(1), data2), types.HomesteadSigner{}, key)
 	if err := pool2.AddRemote(tx3); err != ErrIntrinsicGas {
 		t.Error("expected", ErrIntrinsicGas, "; got", err)
 	}
 
 	data3 := make([]byte, (128*1024)+1)
-	tx4, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), big.NewInt(100000), big.NewInt(1), data3), types.HomesteadSigner{}, key)
+	tx4, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), 100000, big.NewInt(1), data3), types.HomesteadSigner{}, key)
 	if err := pool2.AddRemote(tx4); err != ErrOversizedData {
 		t.Error("expected", ErrOversizedData, "; got", err)
 	}
 
-	tx5, _ := types.SignTx(types.NewTransaction(1, common.Address{}, big.NewInt(100), common.Big0, big.NewInt(0), nil), types.HomesteadSigner{}, key)
-	balance = new(big.Int).Add(tx5.Value(), new(big.Int).Mul(tx5.Gas(), tx5.GasPrice()))
+	tx5, _ := types.SignTx(types.NewTransaction(1, common.Address{}, big.NewInt(100), 0, big.NewInt(0), nil), types.HomesteadSigner{}, key)
+	balance = new(big.Int).Add(tx5.Value(), new(big.Int).Mul(new(big.Int).SetUint64(tx5.Gas()), tx5.GasPrice()))
+
 	from, _ = deriveSender(tx5)
 	pool.currentState.AddBalance(from, balance)
 	tx5.SetPrivate()
