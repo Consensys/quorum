@@ -63,7 +63,7 @@ When the network is started for the first time, all the nodes present in `static
 }]
 ```
 #### quorumNodeMgmt.addVoter 
-Before a new node can be proposed to the network, the network should have valid voters. This api allows an account to be added as voter to the network. Only an account with `FullAccess` can perform this activity.
+Before a new node can be proposed to the network, the network should have valid voters. This api allows an account to be added as voter to the network. Only an account with full access can add another account as voter. Further the account being added as voter account should have at least transact permission. 
 * Input: Account to be added as voter, transaction object
 * Output: Status of the operation
 * Example:
