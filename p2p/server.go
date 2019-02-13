@@ -471,9 +471,7 @@ func (srv *Server) Start() (err error) {
 			Bootnodes:    srv.BootstrapNodes,
 			Unhandled:    unhandled,
 		}
-		log.Info("calling ListenUDP")
 		ntab, err := discover.ListenUDP(conn, cfg, knownNodes)
-		log.Info("after ListenUDP")
 		if err != nil {
 			return err
 		}
