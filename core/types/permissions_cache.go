@@ -35,13 +35,18 @@ var OrgKeyMap, _ = lru.New(orgKeyMapLimit)
 
 var orgKeyLock sync.Mutex
 
+// sets default access to ReadOnly
 func SetDefaultAccess() {
 	DefaultAccess = ReadOnly
 }
+
+// Adds account access to the cache
 func AddAccountAccess(acctId common.Address, access uint8) {
 	AcctMap.Add(acctId, &PermStruct{AcctId: acctId, AcctAccess: AccessType(access)})
 }
 
+// Returns the access type for an account. If not found returns
+// default access
 func GetAcctAccess(acctId common.Address) AccessType {
 	if AcctMap.Len() != 0 {
 		if val, ok := AcctMap.Get(acctId); ok {
@@ -52,24 +57,27 @@ func GetAcctAccess(acctId common.Address) AccessType {
 	return DefaultAccess
 }
 
+// Adds org key details to cache
 func AddOrgKey(orgId string, key string) {
 	if OrgKeyMap.Len() != 0 {
 		if val, ok := OrgKeyMap.Get(orgId); ok {
 			orgKeyLock.Lock()
+			defer orgKeyLock.Unlock()
 			// Org record exists. Append the key only
 			vo := val.(*OrgStruct)
 			vo.Keys = append(vo.Keys, key)
-			orgKeyLock.Unlock()
 			return
 		}
 	}
 	OrgKeyMap.Add(orgId, &OrgStruct{OrgId: orgId, Keys: []string{key}})
 }
 
+
+// deletes org key details from cache
 func DeleteOrgKey(orgId string, key string) {
-	defer orgKeyLock.Unlock()
 	if val, ok := OrgKeyMap.Get(orgId); ok {
 		orgKeyLock.Lock()
+		defer orgKeyLock.Unlock()
 		vo := val.(*OrgStruct)
 		for i, keyVal := range vo.Keys {
 			if keyVal == key {
@@ -80,6 +88,7 @@ func DeleteOrgKey(orgId string, key string) {
 	}
 }
 
+// Givens a orgid returns the linked keys for the org
 func ResolvePrivateForKeys(orgId string) []string {
 	var keys []string
 	if val, ok := OrgKeyMap.Get(orgId); ok {
