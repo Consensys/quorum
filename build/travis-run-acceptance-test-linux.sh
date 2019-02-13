@@ -2,6 +2,7 @@
 # start network and run acceptance tests
 set -e
 echo "start quorum network for consensus ${TF_VAR_consensus_mechanism} ..."
+export PATH=$TRAVIS_BUILD_DIR/build/bin:$PATH
 cd $TRAVIS_HOME/quorum-cloud/travis/4nodes
 ./init.sh ${TF_VAR_consensus_mechanism}
 ./start.sh ${TF_VAR_consensus_mechanism} tessera
