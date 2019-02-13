@@ -24,6 +24,8 @@ matrix:
       name: acceptance-tests-raft
       os: linux
       dist: xenial
+      jdk:
+        - oraclejdk11
       git:
         submodules: false
       cache:
@@ -41,6 +43,8 @@ matrix:
       name: acceptance-tests-istanbul
       os: linux
       dist: xenial
+      jdk:
+        - oraclejdk11
       git:
         submodules: false
       cache:
@@ -58,6 +62,8 @@ matrix:
       name: acceptance-tests-clique
       os: linux
       dist: xenial
+      jdk:
+        - oraclejdk11
       git:
         submodules: false
       cache:
