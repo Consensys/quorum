@@ -10,8 +10,6 @@ go run build/ci.go install
 echo "---> building geth done"
 
 echo "---> installing tools ..."
-sudo apt update
-sudo apt-get -y install dpkg maven software-properties-common
 java -version
 mvn --version
 echo "---> tools installation done"
