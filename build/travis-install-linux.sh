@@ -10,8 +10,7 @@ go run build/ci.go install
 export PATH=$TRAVIS_BUILD_DIR/build/bin:$PATH
 echo "building geth finished"
 
-#git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-git clone --branch=quorum-travis-ci-accept-test-integ https://github.com/amalrajmani/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
+git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
 echo "cloning quorum-acceptance-test finished"
 
 git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
