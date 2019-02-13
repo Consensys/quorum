@@ -1,57 +1,43 @@
 #!/bin/bash
-# install geth and dependencies for acceptance test
-echo "install started..."
 set -e
-echo "building geth..."
+# install geth and dependencies for acceptance tests
+echo "---> install started ..."
+echo "---> building geth ..."
 sudo modprobe fuse
 sudo chmod 666 /dev/fuse
-sudo chown root:$USER /etc/fuse.conf
+sudo chown root:${USER} /etc/fuse.conf
 go run build/ci.go install
-export PATH=$TRAVIS_BUILD_DIR/build/bin:$PATH
-echo "building geth finished"
+echo "---> building geth done"
 
-git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git $TRAVIS_HOME/quorum-acceptance-tests
-echo "cloning quorum-acceptance-test finished"
-
-git clone https://github.com/jpmorganchase/quorum-cloud.git $TRAVIS_HOME/quorum-cloud
-echo "cloning quorum-cloud finished"
-
+echo "---> installing tools ..."
 sudo apt update
-sudo apt -y install dpkg
-echo "installing jre 8.."
-sudo apt -y install openjdk-8-jre-headless
+sudo apt-get -y install dpkg openjdk-8-jre-headless maven software-properties-common
 java -version
-echo "jre 8 installation done"
-echo "installing maven.."
-sudo apt -y install maven
 mvn --version
-echo "maven installation done"
+echo "---> tools installation done"
 
-sudo apt-get -y install software-properties-common
+echo "---> installing solidity compiler ..."
 sudo add-apt-repository -y ppa:ethereum/ethereum
 sudo apt update
-
-echo "installing solidity.."
 sudo apt-get -y install solc
 solc --version
-echo "solidity installation done"
+echo "---> solidity compiler installation done"
 
-echo "getting tessera jar..."
-wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.8/tessera-app-0.8-app.jar -O tessera.jar -q
-sudo cp tessera.jar $HOME
-sudo chmod 755 $HOME/tessera.jar
-echo "tessera done"
+echo "---> cloning quorum-cloud and quorum-acceptance-tests ..."
+git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git ${TRAVIS_HOME}/quorum-acceptance-tests
+git clone https://github.com/jpmorganchase/quorum-cloud.git ${TRAVIS_HOME}/quorum-cloud
+echo "---> cloning done"
 
-echo "getting gauge jar..."
-wget https://github.com/getgauge/gauge/releases/download/v1.0.3/gauge-1.0.3-linux.x86_64.zip -O gauge.zip -q
-echo "gauge done"
+echo "---> getting tessera jar ..."
+wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.8/tessera-app-0.8-app.jar -O $HOME/tessera.jar -q
+echo "---> tessera done"
 
+echo "---> getting gauge jar ..."
+wget https://github.com/getgauge/gauge/releases/download/v1.0.4/gauge-1.0.4-linux.x86_64.zip -O gauge.zip -q
 sudo unzip -o gauge.zip -d /usr/local/bin
-
-echo "installing gauge..."
-cd $TRAVIS_HOME/quorum-acceptance-tests
 gauge telemetry off
+cd ${TRAVIS_HOME}/quorum-acceptance-tests
 gauge install
-echo "gauge installation done"
+echo "---> gauge installation done"
 
-echo "install done"
+echo "---> install done"
