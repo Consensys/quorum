@@ -17,13 +17,18 @@
 package backend
 
 import (
+	"bytes"
+	"io/ioutil"
+	"math/big"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 )
 
 func TestIstanbulMessage(t *testing.T) {
@@ -69,4 +74,111 @@ func TestIstanbulMessage(t *testing.T) {
 func makeMsg(msgcode uint64, data interface{}) p2p.Msg {
 	size, r, _ := rlp.EncodeToReader(data)
 	return p2p.Msg{Code: msgcode, Size: uint32(size), Payload: r}
+}
+
+func TestHandleNewBlockMessage_whenTypical(t *testing.T) {
+	_, backend := newBlockChain(1)
+	arbitraryAddress := common.StringToAddress("arbitrary")
+	arbitraryBlock, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
+	postAndWait(backend, arbitraryBlock, t)
+
+	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
+
+	if err != nil {
+		t.Errorf("expected message being handled successfully but got %s", err)
+	}
+	if !handled {
+		t.Errorf("expected message being handled but not")
+	}
+	if _, err := ioutil.ReadAll(arbitraryP2PMessage.Payload); err != nil {
+		t.Errorf("expected p2p message payload is restored")
+	}
+}
+
+func TestHandleNewBlockMessage_whenNotAProposedBlock(t *testing.T) {
+	_, backend := newBlockChain(1)
+	arbitraryAddress := common.StringToAddress("arbitrary")
+	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, false)
+	postAndWait(backend, types.NewBlock(&types.Header{
+		Number:    big.NewInt(1),
+		Root:      common.StringToHash("someroot"),
+		GasLimit:  1,
+		MixDigest: types.IstanbulDigest,
+	}, nil, nil, nil), t)
+
+	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
+
+	if err != nil {
+		t.Errorf("expected message being handled successfully but got %s", err)
+	}
+	if handled {
+		t.Errorf("expected message not being handled")
+	}
+	if _, err := ioutil.ReadAll(arbitraryP2PMessage.Payload); err != nil {
+		t.Errorf("expected p2p message payload is restored")
+	}
+}
+
+func TestHandleNewBlockMessage_whenFailToDecode(t *testing.T) {
+	_, backend := newBlockChain(1)
+	arbitraryAddress := common.StringToAddress("arbitrary")
+	_, arbitraryP2PMessage := buildArbitraryP2PNewBlockMessage(t, true)
+	postAndWait(backend, types.NewBlock(&types.Header{
+		Number:    big.NewInt(1),
+		GasLimit:  1,
+		MixDigest: types.IstanbulDigest,
+	}, nil, nil, nil), t)
+
+	handled, err := backend.HandleMsg(arbitraryAddress, arbitraryP2PMessage)
+
+	if err != nil {
+		t.Errorf("expected message being handled successfully but got %s", err)
+	}
+	if handled {
+		t.Errorf("expected message not being handled")
+	}
+	if _, err := ioutil.ReadAll(arbitraryP2PMessage.Payload); err != nil {
+		t.Errorf("expected p2p message payload is restored")
+	}
+}
+
+func postAndWait(backend *backend, block *types.Block, t *testing.T) {
+	eventSub := backend.EventMux().Subscribe(istanbul.RequestEvent{})
+	defer eventSub.Unsubscribe()
+	stop := make(chan struct{}, 1)
+	eventLoop := func() {
+		select {
+		case <-eventSub.Chan():
+			stop <- struct{}{}
+		}
+	}
+	go eventLoop()
+	if err := backend.EventMux().Post(istanbul.RequestEvent{
+		Proposal: block,
+	}); err != nil {
+		t.Fatalf("%s", err)
+	}
+	<-stop
+}
+
+func buildArbitraryP2PNewBlockMessage(t *testing.T, invalidMsg bool) (*types.Block, p2p.Msg) {
+	arbitraryBlock := types.NewBlock(&types.Header{
+		Number:    big.NewInt(1),
+		GasLimit:  0,
+		MixDigest: types.IstanbulDigest,
+	}, nil, nil, nil)
+	request := []interface{}{&arbitraryBlock, big.NewInt(1)}
+	if invalidMsg {
+		request = []interface{}{"invalid msg"}
+	}
+	size, r, err := rlp.EncodeToReader(request)
+	if err != nil {
+		t.Fatalf("can't encode due to %s", err)
+	}
+	payload, err := ioutil.ReadAll(r)
+	if err != nil {
+		t.Fatalf("can't read payload due to %s", err)
+	}
+	arbitraryP2PMessage := p2p.Msg{Code: 0x07, Size: uint32(size), Payload: bytes.NewReader(payload)}
+	return arbitraryBlock, arbitraryP2PMessage
 }
