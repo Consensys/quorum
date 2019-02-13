@@ -25,7 +25,7 @@ matrix:
       os: linux
       dist: xenial
       jdk:
-        - oraclejdk11
+        - oraclejdk8
       git:
         submodules: false
       cache:
@@ -44,7 +44,7 @@ matrix:
       os: linux
       dist: xenial
       jdk:
-        - oraclejdk11
+        - oraclejdk8
       git:
         submodules: false
       cache:
@@ -63,7 +63,7 @@ matrix:
       os: linux
       dist: xenial
       jdk:
-        - oraclejdk11
+        - oraclejdk8
       git:
         submodules: false
       cache:
