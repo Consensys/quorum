@@ -2,13 +2,6 @@
 set -e
 # install geth and dependencies for acceptance tests
 echo "---> install started ..."
-echo "---> building geth ..."
-sudo modprobe fuse
-sudo chmod 666 /dev/fuse
-sudo chown root:${USER} /etc/fuse.conf
-go run build/ci.go install
-echo "---> building geth done"
-
 echo "---> installing tools ..."
 mvn --version
 jdk_switcher use openjdk8
@@ -18,6 +11,13 @@ sudo apt update
 sudo apt-get -y install solc
 solc --version
 echo "---> tools installation done"
+
+echo "---> building geth ..."
+sudo modprobe fuse
+sudo chmod 666 /dev/fuse
+sudo chown root:${USER} /etc/fuse.conf
+go run build/ci.go install
+echo "---> building geth done"
 
 echo "---> cloning quorum-cloud and quorum-acceptance-tests ..."
 git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git ${TRAVIS_HOME}/quorum-acceptance-tests
