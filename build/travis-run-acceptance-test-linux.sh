@@ -1,4 +1,5 @@
 #!/bin/bash
+# start network and run acceptance tests
 set -e
 echo "start quorum network for consensus ${TF_VAR_consensus_mechanism} ..."
 cd $TRAVIS_HOME/quorum-cloud/travis/4nodes

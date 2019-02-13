@@ -1,4 +1,5 @@
 #!/bin/bash
+# install geth and dependencies
 echo "install started..."
 set -e
 echo "building geth..."
