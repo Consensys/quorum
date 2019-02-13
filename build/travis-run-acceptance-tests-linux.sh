@@ -10,7 +10,7 @@ cd ${TRAVIS_HOME}/quorum-cloud/travis/4nodes
 echo "---> network started"
 cd ${TRAVIS_HOME}/quorum-acceptance-tests
 cp config/application-local.4nodes.yml config/application-local.yml
-echo "---> run acceptance tests for consensus $consensus ..."
+echo "---> run acceptance tests for consensus ${TF_VAR_consensus_mechanism} ..."
 ./src/travis/run_tests.sh
 echo "---> acceptance tests finished"
 echo "---> stop the network..."

@@ -4,7 +4,10 @@ set -e
 echo "---> install started ..."
 echo "---> installing tools ..."
 sudo apt-get update
-sudo apt-get -y install dpkg software-properties-common
+# upgrade dpkg to fix issue with trusty: dpkg-deb: error
+sudo apt-get -y install dpkg
+# Travis pre-installs jdk11 by default.
+# However, Tessera 0.8 requires jre8 to run so we use jdk_switcher utility from Travis
 if test -f ${HOME}/.jdk_switcher_rc; then
     . ${HOME}/.jdk_switcher_rc
 fi
