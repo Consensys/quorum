@@ -10,12 +10,12 @@ go run build/ci.go install
 echo "---> building geth done"
 
 echo "---> installing tools ..."
-sudo add-apt-repository -y ppa:ethereum/ethereum
-sudo add-apt-repository -y ppa:openjdk-r/ppa
-sudo apt update
-sudo apt-get -y install solc openjdk-8-jre-headless
-java -version
 mvn --version
+jdk_switcher use openjdk8
+java -version
+sudo add-apt-repository -y ppa:ethereum/ethereum
+sudo apt update
+sudo apt-get -y install solc
 solc --version
 echo "---> tools installation done"
 
