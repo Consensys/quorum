@@ -3,7 +3,8 @@ set -e
 # install geth and dependencies for acceptance tests
 echo "---> install started ..."
 echo "---> installing tools ..."
-mvn --version
+sudo apt-get update
+sudo apt-get -y install dpkg software-properties-common
 if test -f ${HOME}/.jdk_switcher_rc; then
     . ${HOME}/.jdk_switcher_rc
 fi
@@ -12,6 +13,7 @@ if test -f /opt/jdk_switcher/jdk_switcher.sh; then
 fi
 jdk_switcher use openjdk8
 java -version
+mvn --version
 sudo add-apt-repository -y ppa:ethereum/ethereum
 sudo apt update
 sudo apt-get -y install solc
