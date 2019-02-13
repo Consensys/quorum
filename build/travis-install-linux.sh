@@ -10,16 +10,14 @@ go run build/ci.go install
 echo "---> building geth done"
 
 echo "---> installing tools ..."
+sudo add-apt-repository -y ppa:ethereum/ethereum
+sudo add-apt-repository ppa:openjdk-r/ppa
+sudo apt update
+sudo apt-get -y install solc openjdk-8-jre-headless
 java -version
 mvn --version
-echo "---> tools installation done"
-
-echo "---> installing solidity compiler ..."
-sudo add-apt-repository -y ppa:ethereum/ethereum
-sudo apt update
-sudo apt-get -y install solc
 solc --version
-echo "---> solidity compiler installation done"
+echo "---> tools installation done"
 
 echo "---> cloning quorum-cloud and quorum-acceptance-tests ..."
 git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git ${TRAVIS_HOME}/quorum-acceptance-tests
