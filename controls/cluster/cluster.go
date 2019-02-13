@@ -20,6 +20,7 @@ type OrgKeyCtrl struct {
 	km        *pbind.Cluster
 }
 
+// Creates the controls structure for org key management
 func NewOrgKeyCtrl(node *node.Node) (*OrgKeyCtrl, error) {
 	stateReader, _, err := controls.CreateEthClient(node)
 	if err != nil {
@@ -35,24 +36,27 @@ func NewOrgKeyCtrl(node *node.Node) (*OrgKeyCtrl, error) {
 	return &OrgKeyCtrl{stateReader, node.GetNodeKey(), km}, nil
 }
 
-// This function first adds the node list from permissioned-nodes.json to
-// the permissiones contract deployed as a precompile via genesis.json
+// starts the org key management services
 func (k *OrgKeyCtrl) Start() error {
 
 	_, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
-	// check if permissioning contract is there at address. If not return from here
 	if err != nil {
 		log.Error("Cluster not enabled for the network : ", "err", err)
 		return nil
 	}
+
+	// check if permissioning contract is there at address. If not return from here
 	err = k.checkIfContractExists()
 	if err != nil {
 		return err
 	}
+
+	// start the service
 	k.manageClusterKeys()
 	return nil
 }
 
+// checks if the contract is deployed for org key management
 func (k *OrgKeyCtrl) checkIfContractExists() error {
 	auth := bind.NewKeyedTransactor(k.key)
 	clusterSession := &pbind.ClusterSession{
@@ -68,6 +72,7 @@ func (k *OrgKeyCtrl) checkIfContractExists() error {
 		},
 	}
 
+	// dummy call to contrat to check if the contract is deployed
 	_, err := clusterSession.CheckOrgContractExists()
 	if err != nil {
 		return err
@@ -76,6 +81,8 @@ func (k *OrgKeyCtrl) checkIfContractExists() error {
 	return nil
 }
 
+// in case of geth restart firts checks for historical key update events and
+// populates the cache, then starts the key change monitoring service
 func (k *OrgKeyCtrl) manageClusterKeys() error {
 	//call populate nodes to populate the nodes into contract
 	if err := k.populatePrivateKeys(); err != nil {
@@ -87,6 +94,7 @@ func (k *OrgKeyCtrl) manageClusterKeys() error {
 
 }
 
+// populates cache based on the historical key change events.
 func (k *OrgKeyCtrl) populatePrivateKeys() error {
 	cluster, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {
@@ -122,12 +130,14 @@ func (k *OrgKeyCtrl) populatePrivateKeys() error {
 	return nil
 }
 
+// service to monitor key change events
 func (k *OrgKeyCtrl) monitorKeyChanges() {
 	go k.monitorKeyAdd()
 
 	go k.monitorKeyDelete()
 }
 
+// monitors for new key added event and updates caches based on the same
 func (k *OrgKeyCtrl) monitorKeyAdd() {
 	cluster, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {
@@ -153,6 +163,7 @@ func (k *OrgKeyCtrl) monitorKeyAdd() {
 	}
 }
 
+// monitors for new key delete event and updates caches based on the same
 func (k *OrgKeyCtrl) monitorKeyDelete() {
 	cluster, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {

@@ -72,7 +72,6 @@ func AddOrgKey(orgId string, key string) {
 	OrgKeyMap.Add(orgId, &OrgStruct{OrgId: orgId, Keys: []string{key}})
 }
 
-
 // deletes org key details from cache
 func DeleteOrgKey(orgId string, key string) {
 	if val, ok := OrgKeyMap.Get(orgId); ok {

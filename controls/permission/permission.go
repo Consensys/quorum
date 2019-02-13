@@ -85,7 +85,7 @@ func (p *PermissionCtrl) Start() error {
 	return nil
 }
 
-// This functions updates the initial  values for the network
+// Sets the initial values for the network
 func (p *PermissionCtrl) init() error {
 	// populate the initial list of permissioned nodes and account accesses
 	if err := p.populateInitPermission(); err != nil {
@@ -100,13 +100,6 @@ func (p *PermissionCtrl) init() error {
 	// set the default access to ReadOnly
 	types.SetDefaultAccess()
 
-	// call populates the node details from contract to KnownNodes
-	// this is not required as the permissioned node info is persisted at
-	// file level
-	// if err := p.populatePermissionedNodes(); err != nil {
-	// 	return err
-	// }
-
 	return nil
 }
 
@@ -116,7 +109,7 @@ func (p *PermissionCtrl) manageNodePermissions() {
 	//monitor for new nodes addition via smart contract
 	go p.monitorNewNodeAdd()
 
-	//monitor for nodes deletiin via smart contract
+	//monitor for nodes deletion via smart contract
 	go p.monitorNodeDeactivation()
 
 	//monitor for nodes activation from deactivation status
@@ -126,7 +119,7 @@ func (p *PermissionCtrl) manageNodePermissions() {
 	go p.monitorNodeBlacklisting()
 }
 
-// This functions listens on the channel for new node approval via smart contract and
+// Listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
 func (p *PermissionCtrl) monitorNewNodeAdd() {
 	ch := make(chan *pbind.PermissionsNodeApproved, 1)
@@ -148,8 +141,8 @@ func (p *PermissionCtrl) monitorNewNodeAdd() {
 	}
 }
 
-// This functions listens on the channel for new node approval via smart contract and
-// adds the same into permissioned-nodes.json
+// Listens on the channel for new node deactivation via smart contract
+// and removes the same from permissioned-nodes.json
 func (p *PermissionCtrl) monitorNodeDeactivation() {
 	ch := make(chan *pbind.PermissionsNodeDeactivated)
 
@@ -170,8 +163,8 @@ func (p *PermissionCtrl) monitorNodeDeactivation() {
 	}
 }
 
-// This function listnes on the channel for any node blacklisting event via smart contract
-// and adds the same disallowed-nodes.json
+// Listnes on the channel for any node activation via smart contract
+// and adds the same permissioned-nodes.json
 func (p *PermissionCtrl) monitorNodeActivation() {
 	ch := make(chan *pbind.PermissionsNodeActivated, 1)
 
@@ -192,7 +185,7 @@ func (p *PermissionCtrl) monitorNodeActivation() {
 	}
 }
 
-// This functions listens on the channel for node blacklisting via smart contract and
+// Listens on the channel for node blacklisting via smart contract and
 // adds the same into disallowed-nodes.json
 func (p *PermissionCtrl) monitorNodeBlacklisting() {
 	ch := make(chan *pbind.PermissionsNodeBlacklisted)
@@ -216,7 +209,7 @@ func (p *PermissionCtrl) monitorNodeBlacklisting() {
 	}
 }
 
-//this function populates the new node information into the permissioned-nodes.json file
+// Populates the new node information into the permissioned-nodes.json file
 func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, raftPort string, operation NodeOperation) {
 	log.Debug("updatePermissionedNodes", "DataDir", p.dataDir, "file", PERMISSIONED_CONFIG)
 
@@ -270,7 +263,7 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 	mu.Unlock()
 }
 
-//this function populates the black listed node information into the permissioned-nodes.json file
+//this function populates the black listed node information into the disallowed-nodes.json file
 func (p *PermissionCtrl) updateDisallowedNodes(nodeBlacklistEvent *pbind.PermissionsNodeBlacklisted) {
 	log.Debug("updateDisallowedNodes", "DataDir", p.dataDir, "file", BLACKLIST_CONFIG)
 
@@ -324,8 +317,7 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 	return
 }
 
-// populates the nodes list from permissioned-nodes.json into the permissions
-// smart contract
+// populates the nodes list from permissioned-nodes.json into the permissions smart contract
 func (p *PermissionCtrl) populatePermissionedNodes() error {
 	opts := &bind.FilterOpts{}
 	pastAddEvent, err := p.pm.PermissionsFilterer.FilterNodeApproved(opts)
@@ -354,8 +346,7 @@ func (p *PermissionCtrl) populatePermissionedNodes() error {
 	return nil
 }
 
-// populates the nodes list from permissioned-nodes.json into the permissions
-// smart contract
+// populates the account permissions cache from past account access update events
 func (p *PermissionCtrl) populateAcctPermissions() error {
 	opts := &bind.FilterOpts{}
 	pastEvents, err := p.pm.PermissionsFilterer.FilterAccountAccessModified(opts)
@@ -373,8 +364,7 @@ func (p *PermissionCtrl) populateAcctPermissions() error {
 	return nil
 }
 
-// Monitors permissions changes at acount level and uodate the global permissions
-// map with the same
+// Monitors permissions changes at acount level and uodate the account permissions cache
 func (p *PermissionCtrl) monitorAccountPermissions() {
 	ch := make(chan *pbind.PermissionsAccountAccessModified)
 
@@ -430,8 +420,10 @@ func (p *PermissionCtrl) formatEnodeId(enodeId, ipAddrPort, discPort, raftPort s
 	return newEnodeId
 }
 
-//populates the nodes list from permissioned-nodes.json into the permissions
-//smart contract
+// Thus function checks if the its the initial network boot up and if yes
+// populates the initial network enode details from static-nodes.json into
+// smart contracts. Sets the accounts access to full access for the initial
+// initial list of accounts as given in genesis.json file
 func (p *PermissionCtrl) populateInitPermission() error {
 	auth := bind.NewKeyedTransactor(p.key)
 	permissionsSession := &pbind.PermissionsSession{
@@ -523,7 +515,8 @@ func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind
 	return nil
 }
 
-// Reads the acount from geth keystore and grants full access to these accounts
+// Invokes the initAccounts function of smart contract to set the initial
+// set of accounts access to full access
 func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.PermissionsSession) error {
 	_, err := permissionsSession.InitAccounts()
 	if err != nil {
@@ -533,7 +526,7 @@ func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.Per
 	return nil
 }
 
-// update network boot status to true
+// updates network boot status to true
 func (p *PermissionCtrl) updateNetworkStatus(permissionsSession *pbind.PermissionsSession) error {
 	nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
 	permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)

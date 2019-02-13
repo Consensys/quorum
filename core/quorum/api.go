@@ -263,6 +263,7 @@ func (s *QuorumControlsAPI) PermissionNodeList() []nodeStatus {
 	return nodeStatArr
 }
 
+// Returns the list of permissioned accounts and access type of each
 func (s *QuorumControlsAPI) PermissionAccountList() []accountInfo {
 	if !s.permEnabled {
 		acctInfoArr := make([]accountInfo, 1)
@@ -293,6 +294,7 @@ func (s *QuorumControlsAPI) PermissionAccountList() []accountInfo {
 	return acctInfoArr
 }
 
+// Returns the list of voters for node management
 func (s *QuorumControlsAPI) VoterList() []string {
 	if !s.permEnabled {
 		voterArr := make([]string, 1)
@@ -394,22 +396,22 @@ func (s *QuorumControlsAPI) ApproveNodeDeactivation(nodeId string, txa ethapi.Se
 	return s.executePermAction(ApproveNodeDeactivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
-// DeactivateNode requests a node to get deactivated
+// ActivateNode requests a deactivated node to get activated
 func (s *QuorumControlsAPI) ProposeNodeActivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ProposeNodeActivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
-// ApproveDeactivateNode approves a node to get deactivated
+// ApproveNodeActivation approves a node to get activated back
 func (s *QuorumControlsAPI) ApproveNodeActivation(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveNodeActivation, txArgs{nodeId: nodeId, txa: txa})
 }
 
-// DeactivateNode requests a node to get deactivated
+// Request a node to be blacklisted
 func (s *QuorumControlsAPI) ProposeNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ProposeNodeBlacklisting, txArgs{nodeId: nodeId, txa: txa})
 }
 
-// ApproveDeactivateNode approves a node to get deactivated
+// Approves blacklisting of a node proposed for blacklisting
 func (s *QuorumControlsAPI) ApproveNodeBlacklisting(nodeId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveNodeBlacklisting, txArgs{nodeId: nodeId, txa: txa})
 }
@@ -424,21 +426,22 @@ func (s *QuorumControlsAPI) AddMasterOrg(morgId string, txa ethapi.SendTxArgs) E
 	return s.executeOrgKeyAction(AddMasterOrg, txArgs{txa: txa, morgId: morgId})
 }
 
-// RemoveOrgKey removes an org key combination from the org key map
+// AddSubOrg ass a sub org to the master org
 func (s *QuorumControlsAPI) AddSubOrg(orgId string, morgId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(AddSubOrg, txArgs{txa: txa, orgId: orgId, morgId: morgId})
 }
 
-// AddOrgKey adds an org key combination to the org key map
+// AddOrgVoter adds voter account to a master org
 func (s *QuorumControlsAPI) AddOrgVoter(morgId string, acctId common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(AddOrgVoter, txArgs{txa: txa, morgId: morgId, acctId: acctId})
 }
 
-// RemoveOrgKey removes an org key combination from the org key map
+// RemoveOrgVoter removes voter account to a master org
 func (s *QuorumControlsAPI) RemoveOrgVoter(morgId string, acctId common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(RemoveOrgVoter, txArgs{txa: txa, morgId: morgId, acctId: acctId})
 }
 
+// AddOrgKey adds an org key to the org id
 func (s *QuorumControlsAPI) AddOrgKey(orgId string, tmKey string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(AddOrgKey, txArgs{txa: txa, orgId: orgId, tmKey: tmKey})
 }
@@ -448,15 +451,17 @@ func (s *QuorumControlsAPI) RemoveOrgKey(orgId string, tmKey string, txa ethapi.
 	return s.executeOrgKeyAction(RemoveOrgKey, txArgs{txa: txa, orgId: orgId, tmKey: tmKey})
 }
 
-// RemoveOrgKey removes an org key combination from the org key map
+// ApprovePendingOp approves any key add or delete activity
 func (s *QuorumControlsAPI) ApprovePendingOp(orgId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executeOrgKeyAction(ApprovePendingOp, txArgs{txa: txa, orgId: orgId})
 }
 
+// SetAccountAccess sets the account access to the given type
 func (s *QuorumControlsAPI) SetAccountAccess(acct common.Address, access uint8, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(SetAccountAccess, txArgs{acctId: acct, accessType: access, txa: txa})
 }
 
+// returns node details given the enode id
 func getNodeDetailsFromEnode(nodeId string) (string, string, string, string, error) {
 	node, err := discover.ParseNode(nodeId)
 	if err != nil {
@@ -473,8 +478,7 @@ func getNodeDetailsFromEnode(nodeId string) (string, string, string, string, err
 	return enodeID, discPort, raftPort, ipAddrPort, nil
 }
 
-// checks if the input node details for approval is matching with details stored
-// in contract
+// checks if the input node details for approval is matching with details stored in contract
 func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAction) (error, ExecStatus) {
 	enodeID, discPort, raftPort, ipAddrPort, err := getNodeDetailsFromEnode(nodeId)
 
@@ -544,6 +548,7 @@ func checkNodeDetails(ps *pbind.PermissionsSession, nodeId string, action PermAc
 	return nil, ExecSuccess
 }
 
+// performs all necessary validation before the request can be processed
 func (s *QuorumControlsAPI) validateOpDetails(ps *pbind.PermissionsSession, enodeID string, from common.Address, action PermAction) (error, ExecStatus) {
 
 	// check if  the input node is fine
@@ -718,6 +723,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 	return ExecSuccess
 }
 
+// returns the voter list for a given organization
 func (s *QuorumControlsAPI) GetOrgVoterList(morgId string) []string {
 	if !s.orgEnabled {
 		voterArr := make([]string, 1)
@@ -745,6 +751,7 @@ func (s *QuorumControlsAPI) GetOrgVoterList(morgId string) []string {
 	return voterArr
 }
 
+// returns the master org, org and linked key details
 func (s *QuorumControlsAPI) OrgKeyInfo() []orgInfo {
 	if !s.orgEnabled {
 		orgInfoArr := make([]orgInfo, 1)
@@ -955,19 +962,14 @@ func (s *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Walle
 func checkVoterExists(ps *pbind.PermissionsSession) bool {
 	tx, err := ps.GetNumberOfValidVoters()
 	log.Debug("number of voters", "count", tx)
-	if err == nil && tx.Cmp(big.NewInt(0)) > 0 {
-		return true
-	}
-	return false
+
+	return (err == nil && tx.Cmp(big.NewInt(0)) > 0)
 }
 
 // checks if any accounts is a valid voter to approve the action
 func checkIsVoter(ps *pbind.PermissionsSession, acctId common.Address) bool {
 	tx, err := ps.IsVoter(acctId)
-	if err == nil && tx {
-		return true
-	}
-	return false
+	return (err == nil && tx)
 }
 
 // newPermSession creates a new permission contract session

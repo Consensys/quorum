@@ -1,7 +1,6 @@
 pragma solidity ^0.5.3;
 
 contract Clusterkeys {
-
   // Struct for managing the org details
   enum Operation {None, Add, Delete}
   struct OrgKeyDetails {
@@ -16,7 +15,6 @@ contract Clusterkeys {
     uint keyCount;
     OrgKeyDetails []orgKeys;
     mapping (bytes32 => uint) orgKeyIndex;
-
   }
   OrgDetails [] private orgList;
   mapping(bytes32 => uint) private OrgIndex;
@@ -72,42 +70,48 @@ contract Clusterkeys {
   event VoterDeleted(string _orgId, address _address);
 
 
-  // functions to test
+  /* public and external functions */
+  // view functions
+
+  // dummy function called from geth interface to check of the contract is deployed
   function checkOrgContractExists() external pure returns (bool){
     return true;
   }
+
+  // returns voter count for a given org
   function getOrgVoteCount(string calldata _orgId) external view returns (uint) {
     return voteCount[getOrgIndex(_orgId)];
   }
 
+  // returns pending operation details
   function getPendingOp(string calldata _orgId) external view returns (string memory, Operation) {
     uint i = getOrgIndex(_orgId);
     return (orgList[i].pendingKey, orgList[i].pendingOp);
   }
 
-  function getVoteStatus(string calldata _orgId) external view returns (bool){
-    return voteStatus[getOrgIndex(_orgId)][msg.sender];
-  }
   // All internal functions
+
+  // returns the voter index
   function getVoterIndex(string memory _morgId, address _vAccount) internal view returns (uint)
   {
     uint morgIndex = getMasterOrgIndex(_morgId);
     return masterOrgList[morgIndex].voterIndex[_vAccount] - 1;
 
   }
+
   // returns the org index for the org list
   function getOrgIndex(string memory _orgId) internal view returns (uint)
   {
     return OrgIndex[keccak256(abi.encodePacked(_orgId))] - 1;
   }
 
-  // returns the voter index for the org from voter list
+  // returns the master org index for the org from voter list
   function getMasterOrgIndex(string memory _orgId) internal view returns (uint)
   {
     return MasterOrgIndex[keccak256(abi.encodePacked(_orgId))] - 1;
   }
 
-  // returns the key index for the key usage list
+  // returns the key index from org key list
   function getOrgKeyIndex(uint _orgIndex, string memory _tmKey) internal view returns (uint)
   {
     return orgList[_orgIndex].orgKeyIndex[keccak256(abi.encodePacked(_tmKey))] - 1;
@@ -119,8 +123,8 @@ contract Clusterkeys {
     return KeyIndex[keccak256(abi.encodePacked(_tmKey))] - 1;
   }
 
-  // initialize the voter account votes to false. This will be called when a
-  // new item is initiated for approval
+  // initialize the voter account votes to false. This will be called
+  // when a new item is initiated for approval
   function voterInit(string memory _orgId) internal {
     uint orgIndex = getOrgIndex(_orgId);
     uint morgIndex = getMasterOrgIndex(orgList[orgIndex].morgId);
@@ -141,8 +145,8 @@ contract Clusterkeys {
     }
   }
 
-  // checks if enough votes have been cast for the pending operation. If yes
-  // returns true
+  // checks if enough votes have been cast for the pending operation.
+  // If yes returns true
   function checkEnoughVotes (string memory _orgId, string memory _morgId) internal view returns (bool) {
     uint orgIndex = getOrgIndex(_orgId);
     uint morgIndex = getMasterOrgIndex(_morgId);
@@ -150,6 +154,7 @@ contract Clusterkeys {
     return (voteCount[orgIndex] > masterOrgList[morgIndex].validVoterCount / 2 );
   }
 
+  // function to update key usage details at master org level for a key
   function updateKeyUsage(string memory _tmKey, string memory _morgId, Operation op) internal {
     uint keyIndex = getKeyIndex(_tmKey);
     keyUsage[keyIndex].pending = false;
@@ -214,31 +219,35 @@ contract Clusterkeys {
   // All extenal view functions
 
   // Get number of voters
-  function getNumberOfVoters(string memory _morgId) public view returns (uint)
+  function getNumberOfVoters(string calldata _morgId) external view returns (uint)
   {
     return masterOrgList[getMasterOrgIndex(_morgId)].voterCount;
   }
 
-  // Get voter
-  function getVoter(string memory _morgId, uint i) public view returns (address _addr, bool _active)
+  // Get voter details
+  function getVoter(string calldata _morgId, uint i) external view returns (address _addr, bool _active)
   {
     uint morgIndex = getMasterOrgIndex(_morgId);
   	return (masterOrgList[morgIndex].voterList[i].vAccount, masterOrgList[morgIndex].voterList[i].active);
   }
+
   // returns the number of orgs
   function getNumberOfOrgs() external view returns (uint){
     return orgNum;
   }
 
+  // returns the total number of keys for a given org
   function getOrgKeyCount(string calldata _orgId) external view returns (uint){
     return orgList[getOrgIndex(_orgId)].orgKeys.length;
   }
 
+  // returns org key details based on org id and key index
   function getOrgKey(string calldata _orgId, uint _keyIndex) external view returns (string memory, bool){
     uint orgIndex = getOrgIndex(_orgId);
     return (orgList[orgIndex].orgKeys[_keyIndex].tmKey,orgList[orgIndex].orgKeys[_keyIndex].active);
   }
 
+  // returns org and master org details based on org index
   function getOrgInfo(uint _orgIndex) external view returns (string memory, string memory){
     return (orgList[_orgIndex].orgId, orgList[_orgIndex].morgId);
   }
@@ -250,12 +259,12 @@ contract Clusterkeys {
     return (!(masterOrgList[morgIndex].voterIndex[account] == 0));
   }
 
-  // checks if the voter account is already in the voter accounts list for the org
+  // checks if the voting accounts exists for the org
   function checkVotingAccountExists(string calldata _orgId) external view returns (bool)
   {
     uint orgIndex = getOrgIndex(_orgId);
-    uint vorgIndex = getMasterOrgIndex(orgList[orgIndex].morgId);
-    return (masterOrgList[vorgIndex].validVoterCount > 0); 
+    uint morgIndex = getMasterOrgIndex(orgList[orgIndex].morgId);
+    return (masterOrgList[morgIndex].validVoterCount > 0); 
   }
 
   // function to check if morg exists
