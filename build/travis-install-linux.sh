@@ -11,7 +11,7 @@ echo "---> building geth done"
 
 echo "---> installing tools ..."
 sudo add-apt-repository -y ppa:ethereum/ethereum
-sudo add-apt-repository ppa:openjdk-r/ppa
+sudo add-apt-repository -y ppa:openjdk-r/ppa
 sudo apt update
 sudo apt-get -y install solc openjdk-8-jre-headless
 java -version
