@@ -33,12 +33,6 @@ matrix:
     install:
       - $TRAVIS_BUILD_DIR/build/travis-install-linux.sh
     script:
-      - sudo modprobe fuse
-      - sudo chmod 666 /dev/fuse
-      - sudo chown root:$USER /etc/fuse.conf
-      - go run build/ci.go install
-      - export PATH=$TRAVIS_BUILD_DIR/build/bin:$PATH
-      - $TRAVIS_HOME/quorum-cloud/travis/start-network-linux.sh
       - $TRAVIS_BUILD_DIR/build/travis-run-acceptance-test-linux.sh
 
   #istanbul consensus
@@ -56,12 +50,6 @@ matrix:
     install:
       - $TRAVIS_BUILD_DIR/build/travis-install-linux.sh
     script:
-      - sudo modprobe fuse
-      - sudo chmod 666 /dev/fuse
-      - sudo chown root:$USER /etc/fuse.conf
-      - go run build/ci.go install
-      - export PATH=$TRAVIS_BUILD_DIR/build/bin:$PATH
-      - $TRAVIS_HOME/quorum-cloud/travis/start-network-linux.sh
       - $TRAVIS_BUILD_DIR/build/travis-run-acceptance-test-linux.sh
   #clique consensus
   - if: tag IS blank AND type = pull_request
@@ -78,12 +66,6 @@ matrix:
     install:
       - $TRAVIS_BUILD_DIR/build/travis-install-linux.sh
     script:
-      - sudo modprobe fuse
-      - sudo chmod 666 /dev/fuse
-      - sudo chown root:$USER /etc/fuse.conf
-      - go run build/ci.go install
-      - export PATH=$TRAVIS_BUILD_DIR/build/bin:$PATH
-      - $TRAVIS_HOME/quorum-cloud/travis/start-network-linux.sh
       - $TRAVIS_BUILD_DIR/build/travis-run-acceptance-test-linux.sh
 
   - if: tag IS blank
