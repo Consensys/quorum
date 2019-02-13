@@ -4,6 +4,12 @@ set -e
 echo "---> install started ..."
 echo "---> installing tools ..."
 mvn --version
+if test -f ${HOME}/.jdk_switcher_rc; then
+    . ${HOME}/.jdk_switcher_rc
+fi
+if test -f /opt/jdk_switcher/jdk_switcher.sh; then
+    . /opt/jdk_switcher/jdk_switcher.sh
+fi 
 jdk_switcher use openjdk8
 java -version
 sudo add-apt-repository -y ppa:ethereum/ethereum
