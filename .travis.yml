@@ -23,7 +23,7 @@ matrix:
     - if: tag IS blank AND type = pull_request
       name: acceptance-tests-raft
       os: linux
-      dist: trusty
+      dist: xenial
       git:
         submodules: false
       cache:
@@ -40,7 +40,7 @@ matrix:
     - if: tag IS blank AND type = pull_request
       name: acceptance-tests-istanbul
       os: linux
-      dist: trusty
+      dist: xenial
       git:
         submodules: false
       cache:
@@ -57,7 +57,7 @@ matrix:
     - if: tag IS blank AND type = pull_request
       name: acceptance-tests-clique
       os: linux
-      dist: trusty
+      dist: xenial
       git:
         submodules: false
       cache:

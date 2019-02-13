@@ -9,7 +9,7 @@ if test -f ${HOME}/.jdk_switcher_rc; then
 fi
 if test -f /opt/jdk_switcher/jdk_switcher.sh; then
     . /opt/jdk_switcher/jdk_switcher.sh
-fi 
+fi
 jdk_switcher use openjdk8
 java -version
 sudo add-apt-repository -y ppa:ethereum/ethereum
