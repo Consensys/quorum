@@ -54,14 +54,14 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool) (*
 	// Create a new ethclient to for interfacing with the contract
 	stateReader, e, err := controls.CreateEthClient(stack)
 	if err != nil {
-		log.Error("Unable to create ethereum client for permissions check : ", "err", err)
+		log.Error("Unable to create ethereum client for permissions check", "err", err)
 		return nil, err
 	}
 
 	// check if permissioning contract is there at address. If not return from here
 	pm, err := pbind.NewPermissions(params.QuorumPermissionsContract, stateReader)
 	if err != nil {
-		log.Error("Permissions not enabled for the network : ", "err", err)
+		log.Error("Permissions not enabled for the network", "err", err)
 		return nil, err
 	}
 
@@ -72,7 +72,7 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool) (*
 func (p *PermissionCtrl) Start() error {
 	// Permissions initialization
 	if err := p.init(); err != nil {
-		log.Error("Permissions init failed : ", "err", err)
+		log.Error("Permissions init failed", "err", err)
 		return err
 	}
 
@@ -215,7 +215,7 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 
 	path := filepath.Join(p.dataDir, PERMISSIONED_CONFIG)
 	if _, err := os.Stat(path); err != nil {
-		log.Error("Read Error for permissioned-nodes.json file. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present.", "err", err)
+		log.Error("Read Error for permissioned-nodes.json file. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present", "err", err)
 		return
 	}
 	// Load the nodes from the config file
@@ -271,9 +271,9 @@ func (p *PermissionCtrl) updateDisallowedNodes(nodeBlacklistEvent *pbind.Permiss
 	path := filepath.Join(p.dataDir, BLACKLIST_CONFIG)
 	// Check if the file is existing. If the file is not existing create the file
 	if _, err := os.Stat(path); err != nil {
-		log.Error("Read Error for disallowed-nodes.json file.", "err", err)
+		log.Error("Read Error for disallowed-nodes.json file", "err", err)
 		if _, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0644); err != nil {
-			log.Error("Failed to create disallowed-nodes.json file ", "err", err)
+			log.Error("Failed to create disallowed-nodes.json file", "err", err)
 			return
 		}
 		fileExisted = false

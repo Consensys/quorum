@@ -24,13 +24,13 @@ type OrgKeyCtrl struct {
 func NewOrgKeyCtrl(node *node.Node) (*OrgKeyCtrl, error) {
 	stateReader, _, err := controls.CreateEthClient(node)
 	if err != nil {
-		log.Error("Unable to create ethereum client for cluster check : ", "err", err)
+		log.Error("Unable to create ethereum client for cluster check", "err", err)
 		return nil, err
 	}
 	// check if permissioning contract is there at address. If not return from here
 	km, err := pbind.NewCluster(params.QuorumPrivateKeyManagementContract, stateReader)
 	if err != nil {
-		log.Error("Permissions not enabled for the network : ", "err", err)
+		log.Error("Permissions not enabled for the network", "err", err)
 		return nil, err
 	}
 	return &OrgKeyCtrl{stateReader, node.GetNodeKey(), km}, nil
@@ -41,7 +41,7 @@ func (k *OrgKeyCtrl) Start() error {
 
 	_, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {
-		log.Error("Cluster not enabled for the network : ", "err", err)
+		log.Error("Cluster not enabled for the network", "err", err)
 		return nil
 	}
 
@@ -98,7 +98,7 @@ func (k *OrgKeyCtrl) manageClusterKeys() error {
 func (k *OrgKeyCtrl) populatePrivateKeys() error {
 	cluster, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {
-		log.Error("Failed to monitor node delete: ", "err", err)
+		log.Error("Failed to monitor node delete", "err", err)
 		return err
 	}
 
@@ -141,7 +141,7 @@ func (k *OrgKeyCtrl) monitorKeyChanges() {
 func (k *OrgKeyCtrl) monitorKeyAdd() {
 	cluster, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {
-		log.Error("Failed to monitor Account cluster : ", "err", err)
+		log.Error("Failed to monitor Account cluster", "err", err)
 	}
 	ch := make(chan *pbind.ClusterOrgKeyAdded)
 
@@ -167,7 +167,7 @@ func (k *OrgKeyCtrl) monitorKeyAdd() {
 func (k *OrgKeyCtrl) monitorKeyDelete() {
 	cluster, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {
-		log.Error("Failed to monitor Account cluster : ", "err", err)
+		log.Error("Failed to monitor Account cluster", "err", err)
 	}
 	ch := make(chan *pbind.ClusterOrgKeyDeleted)
 
