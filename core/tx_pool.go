@@ -133,7 +133,7 @@ type TxPoolConfig struct {
 	Journal   string        // Journal of local transactions to survive node restarts
 	Rejournal time.Duration // Time interval to regenerate the local transaction journal
 
-	SizeLimit uint64 // Maximum size allowed for valid transaction (in KB)
+	TransactionSizeLimit uint64 // Maximum size allowed for valid transaction (in KB)
 
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
@@ -152,7 +152,7 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	Journal:   "transactions.rlp",
 	Rejournal: time.Hour,
 
-	SizeLimit: 64,
+	TransactionSizeLimit: 64,
 
 	PriceLimit: 1,
 	PriceBump:  10,
@@ -564,7 +564,7 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	isQuorum := pool.chainconfig.IsQuorum
-	sizeLimit := pool.chainconfig.SizeLimit
+	sizeLimit := pool.chainconfig.TransactionSizeLimit
 
 	if isQuorum && tx.GasPrice().Cmp(common.Big0) != 0 {
 		return ErrInvalidGasPrice

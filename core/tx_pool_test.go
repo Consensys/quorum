@@ -286,7 +286,7 @@ func TestInvalidTransactions(t *testing.T) {
 
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(ethdb.NewMemDatabase()))
 	blockchain := &testBlockChain{statedb, statedb, 1000000, new(event.Feed)}
-	params.TestChainConfig.SizeLimit = 128
+	params.TestChainConfig.TransactionSizeLimit = 128
 	pool2 := NewTxPool(testTxPoolConfig, params.TestChainConfig, blockchain)
 
 	pool2.currentState.AddBalance(from, big.NewInt(0xffffffffffffff))

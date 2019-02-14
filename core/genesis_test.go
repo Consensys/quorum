@@ -89,7 +89,7 @@ func TestSetupGenesis(t *testing.T) {
 		{
 			name: "genesis with incorrect SizeLimit",
 			fn: func(db ethdb.Database) (*params.ChainConfig, common.Hash, error) {
-				customg.Config.SizeLimit = 100000
+				customg.Config.TransactionSizeLimit = 100000
 				return SetupGenesisBlock(db, &customg)
 			},
 			wantErr: errors.New("Genesis transaction size limit must be between 32 and 128"),

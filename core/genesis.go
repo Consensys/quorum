@@ -166,8 +166,8 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 		}
 
 		// Set default transaction size limit if not set in genesis
-		if genesis.Config.SizeLimit == 0 {
-			genesis.Config.SizeLimit = DefaultTxPoolConfig.SizeLimit
+		if genesis.Config.TransactionSizeLimit == 0 {
+			genesis.Config.TransactionSizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
 		}
 
 		// Check transaction size limit

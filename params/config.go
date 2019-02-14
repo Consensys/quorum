@@ -148,7 +148,7 @@ type ChainConfig struct {
 	Istanbul *IstanbulConfig `json:"istanbul,omitempty"`
 
 	IsQuorum bool `json:"isQuorum"`
-	SizeLimit uint64 `json:"txnSizeLimit"`
+	TransactionSizeLimit uint64 `json:"txnSizeLimit"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -210,7 +210,7 @@ func (c *ChainConfig) String() string {
 }
 
 func (c *ChainConfig) IsValid() error {
-	if c.SizeLimit < 32 || c.SizeLimit > 128 {
+	if c.TransactionSizeLimit < 32 || c.TransactionSizeLimit > 128 {
 		return errors.New("Genesis transaction size limit must be between 32 and 128")
 	}
 
