@@ -396,6 +396,9 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 	}
 
 	rpcClient, err := stack.Attach()
+	if err != nil {
+		utils.Fatalf("Unable to connnect to the node: %v", err)
+	}
 	stateReader := ethclient.NewClient(rpcClient)
 
 	for _, apiName := range quorumApis {

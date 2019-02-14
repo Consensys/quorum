@@ -83,15 +83,13 @@ func (k *OrgKeyCtrl) checkIfContractExists() error {
 
 // in case of geth restart firts checks for historical key update events and
 // populates the cache, then starts the key change monitoring service
-func (k *OrgKeyCtrl) manageClusterKeys() error {
+func (k *OrgKeyCtrl) manageClusterKeys() {
 	//call populate nodes to populate the nodes into contract
 	if err := k.populatePrivateKeys(); err != nil {
-		return err
+		return 
 	}
 	//monitor for nodes deletiin via smart contract
 	k.monitorKeyChanges()
-	return nil
-
 }
 
 // populates cache based on the historical key change events.
@@ -141,7 +139,7 @@ func (k *OrgKeyCtrl) monitorKeyChanges() {
 func (k *OrgKeyCtrl) monitorKeyAdd() {
 	cluster, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {
-		log.Error("Failed to monitor Account cluster", "err", err)
+		log.Error("Failed to monitor key action", "err", err)
 	}
 	ch := make(chan *pbind.ClusterOrgKeyAdded)
 
@@ -167,7 +165,7 @@ func (k *OrgKeyCtrl) monitorKeyAdd() {
 func (k *OrgKeyCtrl) monitorKeyDelete() {
 	cluster, err := pbind.NewClusterFilterer(params.QuorumPrivateKeyManagementContract, k.ethClient)
 	if err != nil {
-		log.Error("Failed to monitor Account cluster", "err", err)
+		log.Error("Failed to monitor key action", "err", err)
 	}
 	ch := make(chan *pbind.ClusterOrgKeyDeleted)
 

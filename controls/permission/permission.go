@@ -26,11 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/raft"
 )
 
-const (
-	PERMISSIONED_CONFIG = "permissioned-nodes.json"
-	BLACKLIST_CONFIG    = "disallowed-nodes.json"
-)
-
 type NodeOperation uint8
 
 const (
@@ -211,9 +206,9 @@ func (p *PermissionCtrl) monitorNodeBlacklisting() {
 
 // Populates the new node information into the permissioned-nodes.json file
 func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, raftPort string, operation NodeOperation) {
-	log.Debug("updatePermissionedNodes", "DataDir", p.dataDir, "file", PERMISSIONED_CONFIG)
+	log.Debug("updatePermissionedNodes", "DataDir", p.dataDir, "file", params.PERMISSIONED_CONFIG)
 
-	path := filepath.Join(p.dataDir, PERMISSIONED_CONFIG)
+	path := filepath.Join(p.dataDir, params.PERMISSIONED_CONFIG)
 	if _, err := os.Stat(path); err != nil {
 		log.Error("Read Error for permissioned-nodes.json file. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present", "err", err)
 		return
@@ -265,10 +260,10 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 
 //this function populates the black listed node information into the disallowed-nodes.json file
 func (p *PermissionCtrl) updateDisallowedNodes(nodeBlacklistEvent *pbind.PermissionsNodeBlacklisted) {
-	log.Debug("updateDisallowedNodes", "DataDir", p.dataDir, "file", BLACKLIST_CONFIG)
+	log.Debug("updateDisallowedNodes", "DataDir", p.dataDir, "file", params.BLACKLIST_CONFIG)
 
 	fileExisted := true
-	path := filepath.Join(p.dataDir, BLACKLIST_CONFIG)
+	path := filepath.Join(p.dataDir, params.BLACKLIST_CONFIG)
 	// Check if the file is existing. If the file is not existing create the file
 	if _, err := os.Stat(path); err != nil {
 		log.Error("Read Error for disallowed-nodes.json file", "err", err)
