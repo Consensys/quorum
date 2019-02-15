@@ -407,12 +407,12 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 			utils.Fatalf("Failed to start Quorum Permission API %s", apiName)
 		}
 		qapi := v.(*quorum.QuorumControlsAPI)
-		if err != nil {
-			utils.Fatalf("Failed to attach to self: %v", err)
-		}
-		qapi.Init(stateReader, stack.GetNodeKey(), apiName)
-		log.Info("Permission API started.", "apiName", apiName)
-	}
 
-	log.Info("Permission API initialized")
+		err = qapi.Init(stateReader, stack.GetNodeKey(), apiName)
+		if err != nil {
+			log.Info("Failed to starts API", "apiName", apiName)
+		} else {
+			log.Info("API started", "apiName", apiName)
+		}
+	}
 }
