@@ -157,12 +157,16 @@ func (c *core) currentView() *istanbul.View {
 	}
 }
 
-func (c *core) isProposer() bool {
+func (c *core) IsProposer() bool {
 	v := c.valSet
 	if v == nil {
 		return false
 	}
 	return v.IsProposer(c.backend.Address())
+}
+
+func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
+	return c.current.pendingRequest != nil && c.current.pendingRequest.Proposal.Hash() == blockHash
 }
 
 func (c *core) commit() {
@@ -245,7 +249,7 @@ func (c *core) startNewRound(round *big.Int) {
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 	c.waitingForRoundChange = false
 	c.setState(StateAcceptRequest)
-	if roundChange && c.isProposer() && c.current != nil {
+	if roundChange && c.IsProposer() && c.current != nil {
 		// If it is locked, propose the old proposal
 		// If we have pending request, propose pending request
 		if c.current.IsHashLocked() {
@@ -259,7 +263,7 @@ func (c *core) startNewRound(round *big.Int) {
 	}
 	c.newRoundChangeTimer()
 
-	logger.Debug("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "isProposer", c.isProposer())
+	logger.Debug("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "IsProposer", c.IsProposer())
 }
 
 func (c *core) catchUpRound(view *istanbul.View) {
