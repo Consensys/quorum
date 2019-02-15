@@ -45,8 +45,8 @@ Let's follow the lifecycle of a typical transaction:
 #### on the minter:
 
 3. It reaches the minter, where it's included in the next block (see `mintNewBlock`) via the transaction pool.
-4. Block creation triggers a [`NewMinedBlockEvent`](https://godoc.org/github.com/jpmorganchase/quorum/core#NewMinedBlockEvent), which the Raft protocol manager receives via its subscription `minedBlockSub`. The `minedBroadcastLoop` (in raft/handler.go) puts this new block to the `ProtocolManager.proposeC` channel.
-5. `serveInternal` is waiting at the other end of the channel. Its job is to RLP-encode blocks and propose them to Raft. Once it flows through Raft, this block will likely become the new head of the blockchain (on all nodes.)
+4. Block creation triggers a [`NewMinedBlockEvent`](https://godoc.org/github.com/jpmorganchase/quorum/core#NewMinedBlockEvent), which the Raft protocol manager receives via its subscription `minedBlockSub`. The `minedBroadcastLoop` (in raft/handler.go) puts this new block to the `ProtocolManager.blockProposalC` channel.
+5. `serveLocalProposals` is waiting at the other end of the channel. Its job is to RLP-encode blocks and propose them to Raft. Once it flows through Raft, this block will likely become the new head of the blockchain (on all nodes.)
 
 #### on every node:
 

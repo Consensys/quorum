@@ -584,7 +584,7 @@ func (pm *ProtocolManager) serveLocalProposals() {
 		select {
 		case block, ok := <-pm.blockProposalC:
 			if !ok {
-				log.Info("error: read from proposeC failed")
+				log.Info("error: read from blockProposalC failed")
 				return
 			}
 
@@ -599,7 +599,7 @@ func (pm *ProtocolManager) serveLocalProposals() {
 			pm.rawNode().Propose(context.TODO(), buffer)
 		case cc, ok := <-pm.confChangeProposalC:
 			if !ok {
-				log.Info("error: read from confChangeC failed")
+				log.Info("error: read from confChangeProposalC failed")
 				return
 			}
 
