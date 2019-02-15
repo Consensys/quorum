@@ -220,8 +220,6 @@ func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKe
 		if err != nil {
 			return err
 		}
-		if clustContr == nil {
-		}
 		p.clustContr = clustContr
 		p.orgEnabled = true
 	}
