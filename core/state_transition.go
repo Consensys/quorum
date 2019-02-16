@@ -218,7 +218,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		data = st.data
 	}
 
-	// Pay intrinsic gas
+	// Pay intrinsic gas. For a private contract this is done using the public hash passed in,
+	// not the private data retrieved above. This is because we need any (participant) validator
+	// node to get the same result as a (non-participant) minter node, to avoid out-of-gas issues.
 	gas, err := IntrinsicGas(st.data, contractCreation, homestead)
 	if err != nil {
 		return nil, 0, false, err
@@ -228,14 +230,15 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 
 	var (
-		evm = st.evm
+		leftoverGas uint64
+		evm         = st.evm
 		// vm errors do not effect consensus and are therefor
 		// not assigned to err, except for insufficient balance
 		// error.
 		vmerr error
 	)
 	if contractCreation {
-		ret, _, st.gas, vmerr = evm.Create(sender, data, st.gas, st.value)
+		ret, _, leftoverGas, vmerr = evm.Create(sender, data, st.gas, st.value)
 	} else {
 		// Increment the account nonce only if the transaction isn't private.
 		// If the transaction is private it has already been incremented on
@@ -254,7 +257,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return nil, 0, false, nil
 		}
 
-		ret, st.gas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
+		ret, leftoverGas, vmerr = evm.Call(sender, to, data, st.gas, st.value)
 	}
 	if vmerr != nil {
 		log.Info("VM returned with error", "err", vmerr)
@@ -265,10 +268,17 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return nil, 0, false, vmerr
 		}
 	}
+
+	// Pay gas used during contract creation or execution (st.gas tracks remaining gas)
+	// However, if private contract then we don't want to do this else we can get
+	// a mismatch between a (non-participant) minter and (participant) validator,
+	// which can cause a 'BAD BLOCK' crash.
 	if !isPrivate {
-		st.refundGas()
-		st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
+		st.gas = leftoverGas
 	}
+
+	st.refundGas()
+	st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 
 	if isPrivate {
 		return ret, 0, vmerr != nil, err
