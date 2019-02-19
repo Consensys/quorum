@@ -405,6 +405,9 @@ contract Permissions {
         numFullAccessAccts --;
         acctAccessList[acctIndex].acctAccess = _accountAccess;
       }
+      else {
+        acctAccessList[acctIndex].acctAccess = _accountAccess;
+      }
     }
     else{
       numberOfAccts ++;
