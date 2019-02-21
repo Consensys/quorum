@@ -783,10 +783,6 @@ func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (h
 	//still run
 	//This makes the return value a potential over-estimate of gas, rather than the exact cost to run right now
 
-	//There is still one edge case: if the transaction has a low intrinsic gas cost, but a high execution cost, then
-	//it the addition of the extra gas needed to make it private may push it over the maximum gas allowed, but this
-	//wouldn't matter since we weren't planning to make it private
-
 	//if the transaction has a value then it cannot be private, so we can skip this check
 	if args.Value.ToInt().Cmp(big.NewInt(0)) == 0 {
 
@@ -796,7 +792,7 @@ func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (h
 
 		if intrinsicGasPrivate > intrinsicGasPublic {
 			if math.MaxUint64 - hi < intrinsicGasPrivate - intrinsicGasPublic {
-				return 0, fmt.Errorf("gas required exceeds allowance or always failing transaction")
+				return 0, fmt.Errorf("private intrinsic gas addition exceeds allowance")
 			}
 			return hexutil.Uint64(hi + (intrinsicGasPrivate - intrinsicGasPublic)), nil
 		}
