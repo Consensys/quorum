@@ -648,7 +648,7 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 
 	raftId := address.RaftId
 
-	//TODO(Amal): to review
+	//Quorum - RAFT - derive pubkey from nodeId
 	pubKey, err := enode.HexPubkey(address.NodeId.String())
 	if err != nil {
 		log.Error("error decoding pub key from enodeId", "enodeId", address.NodeId.String(), "err", err)

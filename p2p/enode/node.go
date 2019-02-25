@@ -82,8 +82,7 @@ func (n *Node) UDP() int {
 	return int(port)
 }
 
-//TODO: Amal to review
-// RAFTPORT returns the RAFT PORT of the node
+// used by Quorum RAFT - returns the Raft port of the node
 func (n *Node) RaftPort() int {
 	var port enr.RaftPort
 	err := n.Load(&port)
@@ -234,7 +233,7 @@ func HexID(in string) ID {
 	return id
 }
 
-//TODO(Amal): to review
+// used by Quorum RAFT
 func RaftHexID(in string) (EnodeID, error) {
 	var id EnodeID
 	b, err := hex.DecodeString(strings.TrimPrefix(in, "0x"))

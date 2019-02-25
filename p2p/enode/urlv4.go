@@ -183,7 +183,7 @@ func parsePubkey(in string) (*ecdsa.PublicKey, error) {
 	return crypto.UnmarshalPubkey(b)
 }
 
-// TODO(Amal): to review it - added for RAFT
+// used by Quorum RAFT - to derive enodeID
 func (n *Node) EnodeID() string {
 	var (
 		scheme enr.ID

@@ -288,7 +288,6 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 	return s.state.GetNonce(addr)
 }
 
-// TODO(Amal): implement the following methods for Quorum
 func (s EthAPIState) GetProof(addr common.Address) ([][]byte, error) {
 	if s.privateState.Exist(addr) {
 		return s.privateState.GetProof(addr)

@@ -21,9 +21,8 @@ type Address struct {
 	RaftPort enr.RaftPort  `json:"raftPort"`
 }
 
-// TODO(Amal): to review
-
 func newAddress(raftId uint16, raftPort int, node *enode.Node) *Address {
+	// derive 64 byte nodeID from 128 byte enodeID
 	id, err := enode.RaftHexID(node.EnodeID())
 	if err != nil {
 		panic(err)
