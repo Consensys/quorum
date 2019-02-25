@@ -1,4 +1,6 @@
-# simplifed version of the upstream travis configuration
+# simplified version of the upstream travis configuration with additional features
+# 1. Distribute binaries to bintray from Tag
+# 2. Run quorum-acceptance-tests for Pull Requests
 
 language: go
 go_import_path: github.com/ethereum/go-ethereum
@@ -7,14 +9,67 @@ sudo: true
 branches:
   only:
     - /.*/ # everything including tags
+
 env:
   global:
     - BINTRAY_ORGANIZATION=quorumengineering
     - BINTRAY_USER=quorumbot
     # Bintray API Key
     - secure: "QHiPcd3zQoJEsT3VSpxoLVTYwbiYzS8H18EpY7Tk0EqCIfswS2AvRlyRXUxNvCf9ktzpaeXV4b5cPYJ67dwdp5V/O/ARaK5AL6ZjjrTPR1avPnmz/X2VeQEP0aWk1UGMs1nBUj5rzMbIIxlVhpbiITTLAI4Ao0+xRcBi215mDbv271Z7mACEZfXxjaoJA0/3IkbKz9pu1nC7bTjaaExCDAeLp2p8fHi2YQPnBll/7dkn/m1rnsIY9M3KWNCx6xBmQOr1hulrrB6tZoHwFBoDsVTFJFLckPfrWUZsYUgtfWJMQWc6ntv1gFl0f9x6s5fYEphCU2m1JYjEczlQ03B5ro9EyPGKjO7vQxAaFd5nVd2Xf34ZbssEIyXxlSnP/4Gv1GXl9L9aU1Hth9ckYvT5gYP5t/Nw3CDbKD0HelPBvkf8jZwfdlotzFPS2bOZNdl/rJLWgQrX18a/mC3BH9l4TSRz13tbRfo6YcC3Y/uOvG1n4GxzcVaWojAxn86SkknOczPTf2pk9F3JOcGVSYA2R4kGQAe+ErJH2X5g2sh1D5cCYDjQyl5rzWg6P3eK//HYW+mg2+TQ8k2iQVVSwFwrR0Yn4P+5cRDCW9mjtktgq1rTtslj41gSH49Avqr9oXGM2rqdcJPdN8dnmLMrAtmeSUNMMoexiRMmlF2OQKLrW3k="
+
 matrix:
   include:
+    #raft consensus
+    - if: tag IS blank AND type = pull_request
+      name: acceptance-tests-raft
+      os: linux
+      dist: trusty
+      git:
+        submodules: false
+      cache:
+        directories:
+          - $HOME/.m2
+      env:
+        - TF_VAR_consensus_mechanism=raft
+      install:
+        - $TRAVIS_BUILD_DIR/build/travis-install-linux.sh
+      script:
+        - $TRAVIS_BUILD_DIR/build/travis-run-acceptance-tests-linux.sh
+
+    #istanbul consensus
+    - if: tag IS blank AND type = pull_request
+      name: acceptance-tests-istanbul
+      os: linux
+      dist: trusty
+      git:
+        submodules: false
+      cache:
+        directories:
+          - $HOME/.m2
+      env:
+        - TF_VAR_consensus_mechanism=istanbul
+      install:
+        - $TRAVIS_BUILD_DIR/build/travis-install-linux.sh
+      script:
+        - $TRAVIS_BUILD_DIR/build/travis-run-acceptance-tests-linux.sh
+
+    #clique consensus
+    - if: tag IS blank AND type = pull_request
+      name: acceptance-tests-clique
+      os: linux
+      dist: trusty
+      git:
+        submodules: false
+      cache:
+        directories:
+          - $HOME/.m2
+      env:
+        - TF_VAR_consensus_mechanism=clique
+      install:
+        - $TRAVIS_BUILD_DIR/build/travis-install-linux.sh
+      script:
+        - $TRAVIS_BUILD_DIR/build/travis-run-acceptance-tests-linux.sh
+
     - if: tag IS blank
       os: linux
       dist: xenial
@@ -43,6 +98,7 @@ matrix:
         - sudo mkdir -p /dist
         - cd build/bin
         - sudo tar cfvz /dist/${OUTPUT_FILE} geth
+
     - if: tag IS present
       os: osx
       osx_image: xcode9.2
