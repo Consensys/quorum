@@ -293,8 +293,8 @@ func (pm *ProtocolManager) isNodeAlreadyInCluster(node *enode.Node) error {
 		if peerNode.IP().Equal(node.IP()) {
 			if peerNode.TCP() == node.TCP() {
 				return fmt.Errorf("existing node %v with raft ID %v is already using eth p2p at %v:%v", peerNode.ID(), peerRaftId, node.IP(), node.TCP())
-			} else if peer.address.RaftPort == enr.RAFTPORT(node.RAFTPORT()) {
-				return fmt.Errorf("existing node %v with raft ID %v is already using raft at %v:%v", peerNode.ID(), peerRaftId, node.IP(), node.RAFTPORT())
+			} else if peer.address.RaftPort == enr.RaftPort(node.RaftPort()) {
+				return fmt.Errorf("existing node %v with raft ID %v is already using raft at %v:%v", peerNode.ID(), peerRaftId, node.IP(), node.RaftPort())
 			}
 		}
 	}
@@ -321,7 +321,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 	}
 
 	raftId := pm.nextRaftId()
-	address := newAddress(raftId, node.RAFTPORT(), node)
+	address := newAddress(raftId, node.RaftPort(), node)
 
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddNode,
@@ -848,7 +848,7 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		// We initially get the raftPort from the enode ID's query string. As an alternative, we can move away from
 		// requiring the use of static peers for the initial set, and load them from e.g. another JSON file which
 		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
-		address := newAddress(raftId, node.RAFTPORT(), node)
+		address := newAddress(raftId, node.RaftPort(), node)
 		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
 			Context: address.toBytes(),

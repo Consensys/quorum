@@ -92,7 +92,7 @@ func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp, raftPort int) *Node {
 	}
 
 	if raftPort != 0 {
-		r.Set(enr.RAFTPORT(raftPort))
+		r.Set(enr.RaftPort(raftPort))
 	}
 
 	signV4Compat(&r, pubkey)
@@ -225,7 +225,7 @@ func (n *Node) v4URL() string {
 		if n.UDP() != n.TCP() {
 			u.RawQuery = "discport=" + strconv.Itoa(n.UDP())
 		}
-		raftPort := n.RAFTPORT()
+		raftPort := n.RaftPort()
 		if raftPort != 0 {
 			raftQuery := "raftport=" + strconv.Itoa(raftPort)
 			if len(u.RawQuery) > 0 {

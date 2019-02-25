@@ -18,7 +18,7 @@ type Address struct {
 	NodeId   enode.EnodeID `json:"nodeId"`
 	Ip       net.IP        `json:"ip"`
 	P2pPort  enr.TCP       `json:"p2pPort"`
-	RaftPort enr.RAFTPORT  `json:"raftPort"`
+	RaftPort enr.RaftPort  `json:"raftPort"`
 }
 
 // TODO(Amal): to review
@@ -33,7 +33,7 @@ func newAddress(raftId uint16, raftPort int, node *enode.Node) *Address {
 		NodeId:   id,
 		Ip:       node.IP(),
 		P2pPort:  enr.TCP(node.TCP()),
-		RaftPort: enr.RAFTPORT(raftPort),
+		RaftPort: enr.RaftPort(raftPort),
 	}
 }
 
@@ -54,7 +54,7 @@ func (addr *Address) DecodeRLP(s *rlp.Stream) error {
 		NodeId   enode.EnodeID
 		Ip       net.IP
 		P2pPort  enr.TCP
-		RaftPort enr.RAFTPORT
+		RaftPort enr.RaftPort
 	}
 
 	if err := s.Decode(&temp); err != nil {
