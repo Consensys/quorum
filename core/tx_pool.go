@@ -77,9 +77,9 @@ var (
 	// making the transaction invalid, rather a DOS protection.
 	ErrOversizedData = errors.New("oversized data")
 
-	// ErrEtherValueUnsupported is returned if a transaction specifies an Ether Value
+	// ErrEtherValueUnsupported is returned if a transaction specifies an Xlg Value
 	// for a private Quorum transaction.
-	ErrEtherValueUnsupported = errors.New("ether value is not supported for private transactions")
+	ErrEtherValueUnsupported = errors.New("xlg value is not supported for private transactions")
 	
 	ErrInvalidGasPrice = errors.New("Gas price not 0")
 )
@@ -587,7 +587,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if pool.currentState.GetNonce(from) > tx.Nonce() {
 		return ErrNonceTooLow
 	}
-	// Ether value is not currently supported on private transactions
+	// Xlg value is not currently supported on private transactions
 	if tx.IsPrivate() && (len(tx.Data()) == 0 || tx.Value().Sign() != 0) {
 		return ErrEtherValueUnsupported
 	}
