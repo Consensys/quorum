@@ -12,7 +12,8 @@ import (
 )
 
 // Serializable information about a Peer. Sufficient to build `etcdRaft.Peer`
-// or `discover.Node`.
+// or `enode.Node`.
+// As NodeId is mainly used to derive the `ecdsa.pubkey` to build `enode.Node` it is kept as [64]byte instead of ID [32]byte used by `enode.Node`.
 type Address struct {
 	RaftId   uint16        `json:"raftId"`
 	NodeId   enode.EnodeID `json:"nodeId"`

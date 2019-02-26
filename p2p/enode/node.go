@@ -233,7 +233,7 @@ func HexID(in string) ID {
 	return id
 }
 
-// used by Quorum RAFT
+// used by Quorum RAFT to derive 64 byte nodeId from 128 byte enodeID
 func RaftHexID(in string) (EnodeID, error) {
 	var id EnodeID
 	b, err := hex.DecodeString(strings.TrimPrefix(in, "0x"))
