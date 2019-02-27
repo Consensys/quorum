@@ -4,7 +4,7 @@ Thank you for your interest in contributing to Quorum!
 We welcome contributions from anyone on the internet, and are grateful for even the 
 smallest of fixes!
 
-If you'd like to contribute to go-ethereum please fork, fix, commit and
+If you'd like to contribute to quorum please fork, fix, commit and
 send a pull request. Commits which do not comply with the coding standards
 are ignored.
 
@@ -26,7 +26,7 @@ Please make sure your contributions adhere to our coding guidelines:
 Before you submit a feature request, please check and make sure that it isn't 
 possible through some other means. The JavaScript-enabled console is a powerful 
 feature in the right hands. Please check our 
-[Wiki page](https://github.com/ethereum/go-ethereum/wiki) for more info
+[Wiki page](https://github.com/jpmorganchase/quorum/wiki) for more info
 and help.
 
 ## Configuration, dependencies, and tests
