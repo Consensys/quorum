@@ -21,36 +21,40 @@ var (
 	ErrConstellationIsntInit = errors.New("Constellation not in use")
 )
 
-func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
+type PayloadWithExtra struct {
+	payload  []byte
+	execHash string
+}
+
+func (g *Constellation) Send(data []byte, from string, to []string, execHash string) (out []byte, err error) {
 	if g.isConstellationNotInUse {
 		return nil, ErrConstellationIsntInit
 	}
-	out, err = g.node.SendPayload(data, from, to)
+	out, err = g.node.SendPayload(data, from, to, execHash)
 	if err != nil {
 		return nil, err
 	}
-	g.c.Set(string(out), data, cache.DefaultExpiration)
+	g.c.Set(string(out), PayloadWithExtra{data, execHash}, cache.DefaultExpiration)
 	return out, nil
 }
 
-func (g *Constellation) SendSignedTx(data []byte, to []string) (out []byte, err error) {
+func (g *Constellation) SendSignedTx(data []byte, to []string, execHash string) (out []byte, err error) {
 	if g.isConstellationNotInUse {
 		return nil, ErrConstellationIsntInit
 	}
-	out, err = g.node.SendSignedPayload(data, to)
+	out, err = g.node.SendSignedPayload(data, to, execHash)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-
-func (g *Constellation) Receive(data []byte) ([]byte, error) {
+func (g *Constellation) Receive(data []byte) ([]byte, string, error) {
 	if g.isConstellationNotInUse {
-		return nil, nil
+		return nil, "", nil
 	}
 	if len(data) == 0 {
-		return data, nil
+		return data, "", nil
 	}
 	// Ignore this error since not being a recipient of
 	// a payload isn't an error.
@@ -59,11 +63,12 @@ func (g *Constellation) Receive(data []byte) ([]byte, error) {
 	dataStr := string(data)
 	x, found := g.c.Get(dataStr)
 	if found {
-		return x.([]byte), nil
+		payloadWithExtra, _ := x.(PayloadWithExtra)
+		return payloadWithExtra.payload, payloadWithExtra.execHash, nil
 	}
-	pl, _ := g.node.ReceivePayload(data)
-	g.c.Set(dataStr, pl, cache.DefaultExpiration)
-	return pl, nil
+	pl, execHash, _ := g.node.ReceivePayload(data)
+	g.c.Set(dataStr, PayloadWithExtra{pl, execHash}, cache.DefaultExpiration)
+	return pl, execHash, nil
 }
 
 func New(path string) (*Constellation, error) {

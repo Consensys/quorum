@@ -392,7 +392,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		data := []byte(*args.Data)
 		if len(data) > 0 {
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor, "test")
 			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			if err != nil {
 				return common.Hash{}, err
@@ -1279,7 +1279,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		if len(data) > 0 {
 			//Send private transaction to local Constellation node
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor, "test")
 			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			if err != nil {
 				return common.Hash{}, err
@@ -1336,7 +1336,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		if len(txHash) > 0 {
 			//Send private transaction to privacy manager
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", txHash), "privatefor", args.PrivateFor)
-			result, err := private.P.SendSignedTx(txHash, args.PrivateFor)
+			result, err := private.P.SendSignedTx(txHash, args.PrivateFor, "test")
 			log.Info("sent private tx", "result", fmt.Sprintf("%x", result), "privatefor", args.PrivateFor)
 			if err != nil {
 				return common.Hash{}, err
@@ -1617,13 +1617,13 @@ type AsyncSendTxArgs struct {
 }
 
 type AsyncResultSuccess struct {
-	Id     string	   `json:"id,omitempty"`
+	Id     string      `json:"id,omitempty"`
 	TxHash common.Hash `json:"txHash"`
 }
 
 type AsyncResultFailure struct {
-	Id     string	   `json:"id,omitempty"`
-	Error  string      `json:"error"`
+	Id    string `json:"id,omitempty"`
+	Error string `json:"error"`
 }
 
 type Async struct {
@@ -1684,7 +1684,7 @@ var async = newAsync(100)
 // Please note: This is a temporary integration to improve performance in high-latency
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
-func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error){
+func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error) {
 
 	select {
 	case async.sem <- struct{}{}:
@@ -1716,7 +1716,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != 64 {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	data, err := private.P.Receive(b)
+	data, _, err := private.P.Receive(b)
 	if err != nil {
 		return "", err
 	}
