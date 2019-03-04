@@ -242,6 +242,7 @@ func (re *JSRE) Stop(waitForCallbacks bool) {
 // Exec(file) loads and runs the contents of a file
 // if a relative path is given, the jsre's assetPath is used
 func (re *JSRE) Exec(file string) error {
+	fmt.Println("jsre:Exec ", re.assetPath, "file -", file)
 	code, err := ioutil.ReadFile(common.AbsolutePath(re.assetPath, file))
 	if err != nil {
 		return err
@@ -254,6 +255,7 @@ func (re *JSRE) Exec(file string) error {
 		}
 		_, err = vm.Run(script)
 	})
+	fmt.Println("jsre:Exec error -", err)
 	return err
 }
 
@@ -307,7 +309,7 @@ func (re *JSRE) loadScript(call otto.FunctionCall) otto.Value {
 // stream.
 func (re *JSRE) Evaluate(code string, w io.Writer) error {
 	var fail error
-
+	fmt.Println("rahul:jsre:Evaluate ", code)
 	re.Do(func(vm *otto.Otto) {
 		val, err := vm.Run(code)
 		if err != nil {
