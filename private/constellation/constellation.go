@@ -21,36 +21,40 @@ var (
 	ErrConstellationIsntInit = errors.New("Constellation not in use")
 )
 
-func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
+type PayloadWithAffectedCATransactions struct {
+	payload     []byte
+	affectedCAs []string
+}
+
+func (g *Constellation) Send(data []byte, from string, to []string, affectedCATransactions []string) (out []byte, err error) {
 	if g.isConstellationNotInUse {
 		return nil, ErrConstellationIsntInit
 	}
-	out, err = g.node.SendPayload(data, from, to)
+	out, err = g.node.SendPayload(data, from, to, affectedCATransactions)
 	if err != nil {
 		return nil, err
 	}
-	g.c.Set(string(out), data, cache.DefaultExpiration)
+	g.c.Set(string(out), PayloadWithAffectedCATransactions{data, affectedCATransactions}, cache.DefaultExpiration)
 	return out, nil
 }
 
-func (g *Constellation) SendSignedTx(data []byte, to []string) (out []byte, err error) {
+func (g *Constellation) SendSignedTx(data []byte, to []string, affectedCATransactions []string) (out []byte, err error) {
 	if g.isConstellationNotInUse {
 		return nil, ErrConstellationIsntInit
 	}
-	out, err = g.node.SendSignedPayload(data, to)
+	out, err = g.node.SendSignedPayload(data, to, affectedCATransactions)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-
-func (g *Constellation) Receive(data []byte) ([]byte, error) {
+func (g *Constellation) Receive(data []byte) ([]byte, []string, error) {
 	if g.isConstellationNotInUse {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if len(data) == 0 {
-		return data, nil
+		return data, nil, nil
 	}
 	// Ignore this error since not being a recipient of
 	// a payload isn't an error.
@@ -59,11 +63,12 @@ func (g *Constellation) Receive(data []byte) ([]byte, error) {
 	dataStr := string(data)
 	x, found := g.c.Get(dataStr)
 	if found {
-		return x.([]byte), nil
+		plWithAffectedCATxns, _ := x.(PayloadWithAffectedCATransactions)
+		return plWithAffectedCATxns.payload, plWithAffectedCATxns.affectedCAs, nil
 	}
-	pl, _ := g.node.ReceivePayload(data)
-	g.c.Set(dataStr, pl, cache.DefaultExpiration)
-	return pl, nil
+	pl, affectedCATransactions, _ := g.node.ReceivePayload(data)
+	g.c.Set(dataStr, PayloadWithAffectedCATransactions{pl, affectedCATransactions}, cache.DefaultExpiration)
+	return pl, affectedCATransactions, nil
 }
 
 func New(path string) (*Constellation, error) {
@@ -90,8 +95,8 @@ func New(path string) (*Constellation, error) {
 		return nil, err
 	}
 	return &Constellation{
-		node: n,
-		c:    cache.New(5*time.Minute, 5*time.Minute),
+		node:                    n,
+		c:                       cache.New(5*time.Minute, 5*time.Minute),
 		isConstellationNotInUse: false,
 	}, nil
 }
@@ -99,8 +104,8 @@ func New(path string) (*Constellation, error) {
 func MustNew(path string) *Constellation {
 	if strings.EqualFold(path, "ignore") {
 		return &Constellation{
-			node: nil,
-			c:    nil,
+			node:                    nil,
+			c:                       nil,
 			isConstellationNotInUse: true,
 		}
 	}

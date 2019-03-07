@@ -291,4 +291,18 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 	return s.state.GetNonce(addr)
 }
 
+func (s EthAPIState) GetOrigTx(addr common.Address) []byte {
+	if s.privateState.Exist(addr) {
+		return s.privateState.GetOrigTx(addr)
+	}
+	return s.state.GetOrigTx(addr)
+}
+
+func (s EthAPIState) GetOrigTxHash(addr common.Address) []byte {
+	if s.privateState.Exist(addr) {
+		return s.privateState.GetOrigTxHash(addr)
+	}
+	return s.state.GetOrigTxHash(addr)
+}
+
 //func (s MinimalApiState) Error

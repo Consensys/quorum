@@ -17,6 +17,7 @@
 package core
 
 import (
+	"encoding/base64"
 	"errors"
 	"math"
 	"math/big"
@@ -26,6 +27,10 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
+)
+
+const (
+	TxHashLength = 64
 )
 
 var (
@@ -185,6 +190,23 @@ func (st *StateTransition) preCheck() error {
 	return st.buyGas()
 }
 
+// TODO - should this reside in types.go (besides Address and Hash)?
+type TxHash [TxHashLength]byte
+
+func BytesToTxHash(b []byte) TxHash {
+	var h TxHash
+	h.SetBytes(b)
+	return h
+}
+
+func (h *TxHash) SetBytes(b []byte) {
+	if len(b) > len(h) {
+		b = b[len(b)-TxHashLength:]
+	}
+
+	copy(h[TxHashLength-len(b):], b)
+}
+
 // TransitionDb will transition the state by applying the current message and
 // returning the result including the the used gas. It returns an error if it
 // failed. An error indicates a consensus issue.
@@ -199,11 +221,17 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	isQuorum := st.evm.ChainConfig().IsQuorum
 
 	var data []byte
+	var preCheckedAffectedCATransactions = make(map[TxHash]string)
 	isPrivate := false
 	publicState := st.state
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
-		data, err = private.P.Receive(st.data)
+		var affectedCATransactionsB64 []string
+		data, affectedCATransactionsB64, err = private.P.Receive(st.data)
+		for _, v := range affectedCATransactionsB64 {
+			TXN, _ := base64.StdEncoding.DecodeString(v)
+			preCheckedAffectedCATransactions[BytesToTxHash(TXN)] = v
+		}
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -231,7 +259,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 	var (
 		leftoverGas uint64
-		evm = st.evm
+		evm         = st.evm
 		// vm errors do not effect consensus and are therefor
 		// not assigned to err, except for insufficient balance
 		// error.
@@ -266,6 +294,28 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		// balance transfer may never fail.
 		if vmerr == vm.ErrInsufficientBalance {
 			return nil, 0, false, vmerr
+		}
+	}
+
+	//If the list of affected CA Transactions by the time evm executes is different from the list of affected contract transactions returned from Tessera
+	//an Error should be thrown and the state should not be updated
+	//This validation is to prevent cases where the list of affected contract will have changed by the time the evm actually executes transaction
+	if isPrivate {
+		actualAffectedCAs := evm.AffectedContracts()
+		for _, v := range actualAffectedCAs {
+			txnForContractBytes := evm.StateDB.GetOrigTxHash(v)
+			// TODO - what do we do when we can't find a transaction for a contract??? - Probably an error
+			if txnForContractBytes != nil {
+				txnForContract := BytesToTxHash(txnForContractBytes)
+				_, ok := preCheckedAffectedCATransactions[txnForContract]
+				if !ok {
+					log.Debug("Affected Contract Transactions check failed. Ignoring transaction. One affected CA not recognized amongst the pre-checked CAs",
+						"affected CA", v.String(),
+						"tx", base64.StdEncoding.EncodeToString(st.data))
+					// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
+					return ret, 0, vmerr != nil, err
+				}
+			}
 		}
 	}
 

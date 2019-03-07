@@ -19,6 +19,7 @@ package ethapi
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"math/big"
@@ -386,13 +387,19 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		defer s.nonceLock.UnlockAddr(args.From)
 	}
 
+	// Set some sanity defaults and terminate on failure
+	if err := args.setDefaults(ctx, s.b); err != nil {
+		return common.Hash{}, err
+	}
+
 	isPrivate := args.PrivateFor != nil
 
 	if isPrivate {
 		data := []byte(*args.Data)
 		if len(data) > 0 {
+			affectedCATransactions, _ := s.GetAffectedContractTransactions(ctx, args)
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor, affectedCATransactions)
 			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			if err != nil {
 				return common.Hash{}, err
@@ -403,10 +410,6 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		args.Data = &d
 	}
 
-	// Set some sanity defaults and terminate on failure
-	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
-	}
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
 
@@ -1056,6 +1059,24 @@ func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, addr
 	return (*hexutil.Uint64)(&nonce), nil
 }
 
+func (s *PublicTransactionPoolAPI) GetContractOrigTransaction(ctx context.Context, address common.Address) (hexutil.Bytes, error) {
+	state, _, err := s.b.StateAndHeaderByNumber(ctx, rpc.LatestBlockNumber)
+	if state == nil || err != nil {
+		return nil, err
+	}
+	origTx := state.GetOrigTx(address)
+	return origTx, nil
+}
+
+func (s *PublicTransactionPoolAPI) GetContractOrigTransactionHash(ctx context.Context, address common.Address) (hexutil.Bytes, error) {
+	state, _, err := s.b.StateAndHeaderByNumber(ctx, rpc.LatestBlockNumber)
+	if state == nil || err != nil {
+		return nil, err
+	}
+	origTx := state.GetOrigTxHash(address)
+	return origTx, nil
+}
+
 // GetTransactionByHash returns the transaction for the given hash
 func (s *PublicTransactionPoolAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) *RPCTransaction {
 	// Try to return an already finalized transaction
@@ -1267,6 +1288,11 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		defer s.nonceLock.UnlockAddr(args.From)
 	}
 
+	// Set some sanity defaults and terminate on failure
+	if err := args.setDefaults(ctx, s.b); err != nil {
+		return common.Hash{}, err
+	}
+
 	isPrivate := args.PrivateFor != nil
 	var data []byte
 	if isPrivate {
@@ -1278,8 +1304,9 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 		if len(data) > 0 {
 			//Send private transaction to local Constellation node
+			affectedCATransactions, _ := s.GetAffectedContractTransactions(ctx, args)
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor, affectedCATransactions)
 			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			if err != nil {
 				return common.Hash{}, err
@@ -1288,11 +1315,6 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		// zekun: HACK
 		d := hexutil.Bytes(data)
 		args.Data = &d
-	}
-
-	// Set some sanity defaults and terminate on failure
-	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
 	}
 
 	// Assemble the transaction and sign with the wallet
@@ -1334,9 +1356,12 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 
 	if isPrivate {
 		if len(txHash) > 0 {
+			// TODO - add an api to retrieve the raw transaction payload from tessera and invoke
+			//  GetAffectedContractTransactions
+			var affectedCATransactions []string
 			//Send private transaction to privacy manager
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", txHash), "privatefor", args.PrivateFor)
-			result, err := private.P.SendSignedTx(txHash, args.PrivateFor)
+			result, err := private.P.SendSignedTx(txHash, args.PrivateFor, affectedCATransactions)
 			log.Info("sent private tx", "result", fmt.Sprintf("%x", result), "privatefor", args.PrivateFor)
 			if err != nil {
 				return common.Hash{}, err
@@ -1617,13 +1642,13 @@ type AsyncSendTxArgs struct {
 }
 
 type AsyncResultSuccess struct {
-	Id     string	   `json:"id,omitempty"`
+	Id     string      `json:"id,omitempty"`
 	TxHash common.Hash `json:"txHash"`
 }
 
 type AsyncResultFailure struct {
-	Id     string	   `json:"id,omitempty"`
-	Error  string      `json:"error"`
+	Id    string `json:"id,omitempty"`
+	Error string `json:"error"`
 }
 
 type Async struct {
@@ -1684,7 +1709,7 @@ var async = newAsync(100)
 // Please note: This is a temporary integration to improve performance in high-latency
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
-func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error){
+func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error) {
 
 	select {
 	case async.sem <- struct{}{}:
@@ -1716,11 +1741,121 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != 64 {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	data, err := private.P.Receive(b)
+	data, _, err := private.P.Receive(b)
 	if err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("0x%x", data), nil
+}
+
+func (s *PublicTransactionPoolAPI) GetAffectedContractTransactions(ctx context.Context, args SendTxArgs) ([]string, error) {
+	start := time.Now()
+	blockNumber := s.b.CurrentBlock().Number().Uint64()
+	state, header, err := s.b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
+	if state == nil || err != nil {
+		return nil, err
+	}
+	data := []byte(*args.Data)
+	msg := types.NewMessage(args.From, args.To, uint64(*args.Nonce), args.Value.ToInt(), uint64(*args.Gas), args.GasPrice.ToInt(), *args.Data, false)
+
+	// Setup context with timeout as gas un-metered
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, time.Second*5)
+	// Make sure the context is cancelled when the call has completed
+	// this makes sure resources are cleaned up.
+	defer func() { cancel() }()
+
+	// Get a new instance of the EVM.
+	evm, _, err := s.b.GetEVM(ctx, msg, state, header, vm.Config{})
+	if err != nil {
+		return nil, err
+	}
+	// Wait for the context to be done and cancel the evm. Even if the
+	// EVM has finished, cancelling may be done (repeatedly)
+	go func() {
+		<-ctx.Done()
+		evm.Cancel()
+	}()
+
+	// even the creation of a contract (init code) can invoke other contracts
+	if args.To != nil {
+		_, _, err = evm.Call(vm.AccountRef(args.From), *args.To, data, msg.Gas(), big.NewInt(0))
+	} else {
+		_, _, _, err = evm.Create(vm.AccountRef(args.From), data, msg.Gas(), big.NewInt(0))
+	}
+
+	if err != nil {
+		log.Debug("Error occurs during pre-execution of a message", "error", err)
+		return nil, err
+	}
+	var affectedCATransactions []string
+	affectedContracts := evm.AffectedContracts()
+	for _, v := range affectedContracts {
+		affectedCATxn := evm.StateDB.GetOrigTxHash(v)
+		log.Debug("Affected ", "CA", v.Hex(), "OrigTXHash", hexutil.Encode(affectedCATxn))
+
+		affectedCATransactions = append(affectedCATransactions, base64.StdEncoding.EncodeToString(affectedCATxn))
+	}
+
+	log.Debug("Pre-execution of transaction finished", "runtime", time.Since(start))
+
+	return affectedCATransactions, nil
+
+}
+
+func (s *PrivateAccountAPI) GetAffectedContractTransactions(ctx context.Context, args SendTxArgs) ([]string, error) {
+	start := time.Now()
+	blockNumber := s.b.CurrentBlock().Number().Uint64()
+	state, header, err := s.b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
+	if state == nil || err != nil {
+		return nil, err
+	}
+	data := []byte(*args.Data)
+	msg := types.NewMessage(args.From, args.To, uint64(*args.Nonce), args.Value.ToInt(), uint64(*args.Gas), args.GasPrice.ToInt(), *args.Data, false)
+
+	// Setup context with timeout as gas un-metered
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, time.Second*5)
+	// Make sure the context is cancelled when the call has completed
+	// this makes sure resources are cleaned up.
+	defer func() { cancel() }()
+
+	// Get a new instance of the EVM.
+	evm, _, err := s.b.GetEVM(ctx, msg, state, header, vm.Config{})
+	if err != nil {
+		return nil, err
+	}
+	// Wait for the context to be done and cancel the evm. Even if the
+	// EVM has finished, cancelling may be done (repeatedly)
+	go func() {
+		<-ctx.Done()
+		evm.Cancel()
+	}()
+
+	// even the creation of a contract (init code) can invoke other contracts
+	if args.To != nil {
+		_, _, err = evm.Call(vm.AccountRef(args.From), *args.To, data, msg.Gas(), big.NewInt(0))
+	} else {
+		_, _, _, err = evm.Create(vm.AccountRef(args.From), data, msg.Gas(), big.NewInt(0))
+	}
+
+	if err != nil {
+		log.Debug("Error occurs during pre-execution of a message", "error", err)
+		return nil, err
+	}
+	var affectedCATransactions []string
+	affectedContracts := evm.AffectedContracts()
+	for _, v := range affectedContracts {
+		affectedCATxn := evm.StateDB.GetOrigTxHash(v)
+		log.Debug("Affected ", "CA", v.Hex(), "OrigTXHash", hexutil.Encode(affectedCATxn))
+
+		affectedCATransactions = append(affectedCATransactions, base64.StdEncoding.EncodeToString(affectedCATxn))
+	}
+
+	log.Debug("Pre-execution of transaction finished", "runtime", time.Since(start))
+
+	return affectedCATransactions, nil
+
 }
 
 //End-Quorum

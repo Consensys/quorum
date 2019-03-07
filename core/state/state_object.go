@@ -101,6 +101,11 @@ type Account struct {
 	Balance  *big.Int
 	Root     common.Hash // merkle root of the storage trie
 	CodeHash []byte
+	// TODO maybe these should be stored in a way in which it does not affect any of the ethereum structures.
+	// As it stands right now these extra fields affect the state trie
+	// TODO Trung/Angela/Peter/Nam - please check this (and provide alternatives)!
+	OrigTx     []byte
+	OrigTxHash []byte
 }
 
 // newObject creates a state object.
@@ -345,6 +350,14 @@ func (self *stateObject) setNonce(nonce uint64) {
 	self.data.Nonce = nonce
 }
 
+func (self *stateObject) setOrigTx(tx []byte) {
+	self.data.OrigTx = tx
+}
+
+func (self *stateObject) setOrigTxHash(txHash []byte) {
+	self.data.OrigTxHash = txHash
+}
+
 func (self *stateObject) CodeHash() []byte {
 	return self.data.CodeHash
 }
@@ -355,6 +368,14 @@ func (self *stateObject) Balance() *big.Int {
 
 func (self *stateObject) Nonce() uint64 {
 	return self.data.Nonce
+}
+
+func (self *stateObject) OrigTx() []byte {
+	return self.data.OrigTx
+}
+
+func (self *stateObject) OrigTxHash() []byte {
+	return self.data.OrigTxHash
 }
 
 // Never called, but must be present to allow stateObject to be used

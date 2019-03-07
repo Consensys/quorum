@@ -403,6 +403,16 @@ web3._extend({
 			inputFormatter: [null, null]
 		}),
 		new web3._extend.Method({
+			name: 'getContractOrigTransaction',
+			call: 'eth_getContractOrigTransaction',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'getContractOrigTransactionHash',
+			call: 'eth_getContractOrigTransactionHash',
+			params: 1
+		}),
+		new web3._extend.Method({
 			name: 'sign',
 			call: 'eth_sign',
 			params: 2,
