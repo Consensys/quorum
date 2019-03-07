@@ -17,9 +17,8 @@ fi
 jdk_switcher use openjdk8
 java -version
 mvn --version
-sudo add-apt-repository -y ppa:ethereum/ethereum
-sudo apt update
-sudo apt-get -y install solc
+sudo wget https://github.com/ethereum/solidity/releases/download/v0.5.4/solc-static-linux -O /usr/local/bin/solc
+sudo chmod +x /usr/local/bin/solc
 solc --version
 echo "---> tools installation done"
 
