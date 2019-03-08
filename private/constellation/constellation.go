@@ -67,7 +67,11 @@ func (g *Constellation) Receive(data []byte) ([]byte, []string, string, error) {
 		plWithAffectedCATxns, _ := x.(PayloadWithAffectedCATransactions)
 		return plWithAffectedCATxns.payload, plWithAffectedCATxns.affectedCAs, plWithAffectedCATxns.execHash, nil
 	}
-	pl, affectedCATransactions, execHash, _ := g.node.ReceivePayload(data)
+	pl, affectedCATransactions, execHash, err := g.node.ReceivePayload(data)
+	// TODO why wasn't this error checked here already?!?!?!?
+	if nil != err {
+		return nil, nil, "", err
+	}
 	g.c.Set(dataStr, PayloadWithAffectedCATransactions{pl, affectedCATransactions, execHash}, cache.DefaultExpiration)
 	return pl, affectedCATransactions, execHash, nil
 }

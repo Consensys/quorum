@@ -1787,7 +1787,11 @@ func (s *PublicTransactionPoolAPI) GetAffectedContractTransactions(ctx context.C
 
 	// even the creation of a contract (init code) can invoke other contracts
 	if args.To != nil {
-		_, _, err = evm.Call(vm.AccountRef(args.From), *args.To, data, msg.Gas(), big.NewInt(0))
+		if !evm.StateDB.Exist(*args.To) {
+			err = errors.New("The current node does not have access to contract: " + hexutil.Encode(args.To.Bytes()))
+		} else {
+			_, _, err = evm.Call(vm.AccountRef(args.From), *args.To, data, msg.Gas(), big.NewInt(0))
+		}
 	} else {
 		_, _, _, err = evm.Create(vm.AccountRef(args.From), data, msg.Gas(), big.NewInt(0))
 	}
@@ -1842,7 +1846,11 @@ func (s *PrivateAccountAPI) GetAffectedContractTransactions(ctx context.Context,
 
 	// even the creation of a contract (init code) can invoke other contracts
 	if args.To != nil {
-		_, _, err = evm.Call(vm.AccountRef(args.From), *args.To, data, msg.Gas(), big.NewInt(0))
+		if !evm.StateDB.Exist(*args.To) {
+			err = errors.New("The current node does not have access to contract: " + hexutil.Encode(args.To.Bytes()))
+		} else {
+			_, _, err = evm.Call(vm.AccountRef(args.From), *args.To, data, msg.Gas(), big.NewInt(0))
+		}
 	} else {
 		_, _, _, err = evm.Create(vm.AccountRef(args.From), data, msg.Gas(), big.NewInt(0))
 	}
