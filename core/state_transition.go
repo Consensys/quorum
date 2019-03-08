@@ -221,13 +221,15 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	isQuorum := st.evm.ChainConfig().IsQuorum
 
 	var data []byte
+	var execHash []byte
 	var preCheckedAffectedCATransactions = make(map[TxHash]string)
 	isPrivate := false
 	publicState := st.state
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
 		var affectedCATransactionsB64 []string
-		data, affectedCATransactionsB64, err = private.P.Receive(st.data)
+		data, affectedCATransactionsB64, execHashStr, err = private.P.Receive(st.data)
+		execHash = base64.StdEncoding.DecodeString(execHashStr)
 		for _, v := range affectedCATransactionsB64 {
 			TXN, _ := base64.StdEncoding.DecodeString(v)
 			preCheckedAffectedCATransactions[BytesToTxHash(TXN)] = v
@@ -316,6 +318,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 					return ret, 0, vmerr != nil, err
 				}
 			}
+			verifyExecutionHash(evm, execHash)
 		}
 	}
 

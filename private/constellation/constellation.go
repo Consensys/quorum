@@ -24,37 +24,38 @@ var (
 type PayloadWithAffectedCATransactions struct {
 	payload     []byte
 	affectedCAs []string
+	execHash string
 }
 
-func (g *Constellation) Send(data []byte, from string, to []string, affectedCATransactions []string) (out []byte, err error) {
+func (g *Constellation) Send(data []byte, from string, to []string, affectedCATransactions []string, execHash string) (out []byte, err error) {
 	if g.isConstellationNotInUse {
 		return nil, ErrConstellationIsntInit
 	}
-	out, err = g.node.SendPayload(data, from, to, affectedCATransactions)
+	out, err = g.node.SendPayload(data, from, to, affectedCATransactions, execHash)
 	if err != nil {
 		return nil, err
 	}
-	g.c.Set(string(out), PayloadWithAffectedCATransactions{data, affectedCATransactions}, cache.DefaultExpiration)
+	g.c.Set(string(out), PayloadWithAffectedCATransactions{data, affectedCATransactions, execHash}, cache.DefaultExpiration)
 	return out, nil
 }
 
-func (g *Constellation) SendSignedTx(data []byte, to []string, affectedCATransactions []string) (out []byte, err error) {
+func (g *Constellation) SendSignedTx(data []byte, to []string, affectedCATransactions []string, execHash string) (out []byte, err error) {
 	if g.isConstellationNotInUse {
 		return nil, ErrConstellationIsntInit
 	}
-	out, err = g.node.SendSignedPayload(data, to, affectedCATransactions)
+	out, err = g.node.SendSignedPayload(data, to, affectedCATransactions, execHash string)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (g *Constellation) Receive(data []byte) ([]byte, []string, error) {
+func (g *Constellation) Receive(data []byte) ([]byte, []string, string, error) {
 	if g.isConstellationNotInUse {
-		return nil, nil, nil
+		return nil, nil, "", nil
 	}
 	if len(data) == 0 {
-		return data, nil, nil
+		return data, nil, "", nil
 	}
 	// Ignore this error since not being a recipient of
 	// a payload isn't an error.
@@ -64,11 +65,11 @@ func (g *Constellation) Receive(data []byte) ([]byte, []string, error) {
 	x, found := g.c.Get(dataStr)
 	if found {
 		plWithAffectedCATxns, _ := x.(PayloadWithAffectedCATransactions)
-		return plWithAffectedCATxns.payload, plWithAffectedCATxns.affectedCAs, nil
+		return plWithAffectedCATxns.payload, plWithAffectedCATxns.affectedCAs, plWithAffectedCATxns.execHash, nil
 	}
-	pl, affectedCATransactions, _ := g.node.ReceivePayload(data)
-	g.c.Set(dataStr, PayloadWithAffectedCATransactions{pl, affectedCATransactions}, cache.DefaultExpiration)
-	return pl, affectedCATransactions, nil
+	pl, affectedCATransactions, execHash, _ := g.node.ReceivePayload(data)
+	g.c.Set(dataStr, PayloadWithAffectedCATransactions{pl, affectedCATransactions, execHash}, cache.DefaultExpiration)
+	return pl, affectedCATransactions, execHash, nil
 }
 
 func New(path string) (*Constellation, error) {

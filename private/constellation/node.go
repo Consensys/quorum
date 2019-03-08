@@ -80,7 +80,7 @@ func (c *Client) doJson(path string, apiReq interface{}) (*http.Response, error)
 	return res, err
 }
 
-func (c *Client) SendPayload(pl []byte, b64From string, b64To []string, b64AffectedCATransactions []string) ([]byte, error) {
+func (c *Client) SendPayload(pl []byte, b64From string, b64To []string, b64AffectedCATransactions []string, b64ExecHash string) ([]byte, error) {
 	buf := bytes.NewBuffer(pl)
 	req, err := http.NewRequest("POST", "http+unix://c/sendraw", buf)
 	if err != nil {
@@ -92,6 +92,7 @@ func (c *Client) SendPayload(pl []byte, b64From string, b64To []string, b64Affec
 	req.Header.Set("c11n-to", strings.Join(b64To, ","))
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("c11n-ACT", strings.Join(b64AffectedCATransactions, ","))
+	req.Header.Set("c11n-EH", b64ExecHash)
 	res, err := c.httpClient.Do(req)
 
 	if res != nil {
@@ -107,7 +108,7 @@ func (c *Client) SendPayload(pl []byte, b64From string, b64To []string, b64Affec
 	return ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, res.Body))
 }
 
-func (c *Client) SendSignedPayload(signedPayload []byte, b64To []string, b64AffectedCATransactions []string) ([]byte, error) {
+func (c *Client) SendSignedPayload(signedPayload []byte, b64To []string, b64AffectedCATransactions []string, b64ExecHash string) ([]byte, error) {
 	buf := bytes.NewBuffer(signedPayload)
 	req, err := http.NewRequest("POST", "http+unix://c/sendsignedtx", buf)
 	if err != nil {
@@ -117,6 +118,7 @@ func (c *Client) SendSignedPayload(signedPayload []byte, b64To []string, b64Affe
 	req.Header.Set("c11n-to", strings.Join(b64To, ","))
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("c11n-ACT", strings.Join(b64AffectedCATransactions, ","))
+	req.Header.Set("c11n-EH", b64ExecHash)
 	res, err := c.httpClient.Do(req)
 
 	if res != nil {
@@ -132,10 +134,10 @@ func (c *Client) SendSignedPayload(signedPayload []byte, b64To []string, b64Affe
 	return ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, res.Body))
 }
 
-func (c *Client) ReceivePayload(key []byte) ([]byte, []string, error) {
+func (c *Client) ReceivePayload(key []byte) ([]byte, []string, string, error) {
 	req, err := http.NewRequest("GET", "http+unix://c/receiveraw", nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	req.Header.Set("c11n-key", base64.StdEncoding.EncodeToString(key))
 	res, err := c.httpClient.Do(req)
@@ -144,10 +146,10 @@ func (c *Client) ReceivePayload(key []byte) ([]byte, []string, error) {
 		defer res.Body.Close()
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	if res.StatusCode != 200 {
-		return nil, nil, fmt.Errorf("Non-200 status code: %+v", res)
+		return nil, nil, "", fmt.Errorf("Non-200 status code: %+v", res)
 	}
 
 	affectedContractTransactions := res.Header.Get("c11n-ACT")
@@ -157,7 +159,7 @@ func (c *Client) ReceivePayload(key []byte) ([]byte, []string, error) {
 		return nil, nil, err
 	}
 
-	return payload, strings.Split(affectedContractTransactions, ","), nil
+	return payload, strings.Split(affectedContractTransactions, ","), res.Header.Get("c11n-EH"), nil
 }
 
 func NewClient(socketPath string) (*Client, error) {

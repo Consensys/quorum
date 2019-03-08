@@ -7,9 +7,9 @@ import (
 )
 
 type PrivateTransactionManager interface {
-	Send(data []byte, from string, to []string, affectedCATransactions []string) ([]byte, error)
-	SendSignedTx(data []byte, to []string, affectedCATransactions []string) ([]byte, error)
-	Receive(data []byte) ([]byte, []string, error)
+	Send(data []byte, from string, to []string, affectedCATransactions []string, execHash string) ([]byte, error)
+	SendSignedTx(data []byte, to []string, affectedCATransactions []string, execHash string) ([]byte, error)
+	Receive(data []byte) ([]byte, []string, string, error)
 }
 
 func FromEnvironmentOrNil(name string) PrivateTransactionManager {
