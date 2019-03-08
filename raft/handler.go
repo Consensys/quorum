@@ -932,13 +932,13 @@ func (pm *ProtocolManager) LeaderAddress() (*Address, error) {
 }
 
 // Returns the raft id for a given enodeId
-func (pm *ProtocolManager) FetchRaftId (enodeId string) (uint16, error) {
-	node, err := discover.ParseNode(enodeId)
+func (pm *ProtocolManager) FetchRaftId(enodeId string) (uint16, error) {
+	node, err := enode.ParseV4(enodeId)
 	if err != nil {
 		return 0, err
 	}
 	for raftId, peer := range pm.peers {
-		if peer.p2pNode.ID == node.ID {
+		if peer.p2pNode.ID() == node.ID() {
 			return raftId, nil
 		}
 	}

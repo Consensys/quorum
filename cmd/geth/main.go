@@ -137,6 +137,7 @@ var (
 		utils.EVMInterpreterFlag,
 		configFileFlag,
 		utils.EnableNodePermissionFlag,
+		utils.PermissionContractAddressFlag,
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,
@@ -383,7 +384,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 	var quorumApis []string
 
 	// start the permissions management service
-	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name))
+	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name), ctx.GlobalString(utils.PermissionContractAddressFlag.Name))
 	if err != nil {
 		log.Error("Failed to start Quorum Permission contract service: %v", err)
 	} else {

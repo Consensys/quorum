@@ -1356,12 +1356,12 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		privateFor := resolvePrivateFor(args.PrivateFor)
 		//Send private transaction to local Constellation node
 		if len(data) > 0 {
-		  log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
-		  data, err = private.P.Send(data, args.PrivateFrom, privateFor)
-		  log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
-		  if err != nil {
-			  return common.Hash{}, err
-		  }
+			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
+			data, err = private.P.Send(data, args.PrivateFrom, privateFor)
+			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", privateFor)
+			if err != nil {
+				return common.Hash{}, err
+			}
 		}
 		// zekun: HACK
 		d := hexutil.Bytes(data)
@@ -1803,7 +1803,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 
 //End-Quorum
 
-func resolvePrivateFor(privateFor []string) []string{
+func resolvePrivateFor(privateFor []string) []string {
 
 	var newPrivateFor []string
 

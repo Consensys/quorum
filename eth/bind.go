@@ -85,7 +85,7 @@ func toCallArgs(msg ethereum.CallMsg) ethapi.CallArgs {
 		To:   msg.To,
 		From: msg.From,
 		Data: msg.Data,
-		Gas: hexutil.Uint64(msg.Gas),
+		Gas:  hexutil.Uint64(msg.Gas),
 	}
 	if msg.GasPrice != nil {
 		args.GasPrice = hexutil.Big(*msg.GasPrice)

@@ -61,7 +61,7 @@ type udpTest struct {
 	sent                [][]byte
 	localkey, remotekey *ecdsa.PrivateKey
 	remoteaddr          *net.UDPAddr
-	knownNodes          []*Node
+	knownNodes          []*enode.Node
 }
 
 func newUDPTest(t *testing.T) *udpTest {
@@ -74,7 +74,7 @@ func newUDPTest(t *testing.T) *udpTest {
 	}
 	db, _ := enode.OpenDB("")
 	ln := enode.NewLocalNode(db, test.localkey)
-	test.table, test.udp, _ = newUDP(test.pipe, ln, Config{PrivateKey: test.localkey})
+	test.table, test.udp, _ = newUDP(test.pipe, ln, Config{PrivateKey: test.localkey}, test.knownNodes)
 	// Wait for initial refresh so the table doesn't send unexpected findnode.
 	<-test.table.initDone
 	return test

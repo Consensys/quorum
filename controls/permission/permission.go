@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -21,7 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/raft"
 )
@@ -45,7 +46,7 @@ type PermissionCtrl struct {
 }
 
 // Creates the controls structure for permissions
-func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool) (*PermissionCtrl, error) {
+func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, permissionCtrAddress string) (*PermissionCtrl, error) {
 	// Create a new ethclient to for interfacing with the contract
 	stateReader, e, err := controls.CreateEthClient(stack)
 	if err != nil {
@@ -53,8 +54,17 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool) (*
 		return nil, err
 	}
 
+	var permissionContractAddress common.Address
+	if permissionCtrAddress != "0x" {
+		log.Info("AJ-1bootstrapping permission via command line passed permission contract")
+		permissionContractAddress = common.HexToAddress(permissionCtrAddress)
+	} else {
+		log.Info("AJ-2bootstrapping permission via genesis.json permission contract")
+		permissionContractAddress = params.QuorumPermissionsContract
+	}
+	log.Info("AJ-3permission", "contract address", permissionContractAddress)
 	// check if permissioning contract is there at address. If not return from here
-	pm, err := pbind.NewPermissions(params.QuorumPermissionsContract, stateReader)
+	pm, err := pbind.NewPermissions(permissionContractAddress, stateReader)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
 		return nil, err
@@ -398,7 +408,7 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 		// Istanbul - disconnect the peer
 		server := p.node.Server()
 		if server != nil {
-			node, err := discover.ParseNode(enodeId)
+			node, err := enode.ParseV4(enodeId)
 			if err == nil {
 				server.RemovePeer(node)
 			}
@@ -487,8 +497,8 @@ func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind
 	nodes := p2p.ParsePermissionedNodes(p.dataDir)
 	for _, node := range nodes {
 
-		enodeID := node.ID.String()
-		ipAddr := node.IP.String()
+		enodeID := node.EnodeID()
+		ipAddr := node.IP().String()
 		port := fmt.Sprintf("%v", node.TCP)
 		discPort := fmt.Sprintf("%v", node.UDP)
 		raftPort := fmt.Sprintf("%v", node.RaftPort)

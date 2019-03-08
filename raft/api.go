@@ -44,6 +44,6 @@ func (s *PublicRaftAPI) Cluster() []*Address {
 	return append(nodeInfo.PeerAddresses, nodeInfo.Address)
 }
 
-func (s *PublicRaftAPI) GetRaftId (enodeId string) (uint16, error) {
+func (s *PublicRaftAPI) GetRaftId(enodeId string) (uint16, error) {
 	return s.raftService.raftProtocolManager.FetchRaftId(enodeId)
 }

@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 const (
-	NODE_NAME_LENGTH    = 32
+	NODE_NAME_LENGTH = 32
 )
 
 // check if a given node is permissioned to connect to the change
@@ -29,7 +29,7 @@ func isNodePermissioned(nodename string, currentNode string, datadir string, dir
 		if v == nodename {
 			log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
 			// check if the node is blacklisted
-			if isNodeBlackListed(nodename, datadir){
+			if isNodeBlackListed(nodename, datadir) {
 				return false
 			}
 			return true
@@ -42,7 +42,7 @@ func isNodePermissioned(nodename string, currentNode string, datadir string, dir
 //this is a shameless copy from the config.go. It is a duplication of the code
 //for the timebeing to allow reload of the permissioned nodes while the server is running
 
-func parsePermissionedNodes(DataDir string) []*enode.Node {
+func ParsePermissionedNodes(DataDir string) []*enode.Node {
 
 	log.Debug("parsePermissionedNodes", "DataDir", DataDir, "file", params.PERMISSIONED_CONFIG)
 
@@ -81,7 +81,7 @@ func parsePermissionedNodes(DataDir string) []*enode.Node {
 }
 
 // This function checks if the node is black-listed
-func isNodeBlackListed (nodeName, dataDir string ) bool {
+func isNodeBlackListed(nodeName, dataDir string) bool {
 	log.Debug("isNodeBlackListed", "DataDir", dataDir, "file", params.BLACKLIST_CONFIG)
 
 	path := filepath.Join(dataDir, params.BLACKLIST_CONFIG)

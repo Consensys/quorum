@@ -9,5 +9,5 @@ var (
 
 const (
 	PERMISSIONED_CONFIG = "permissioned-nodes.json"
-	BLACKLIST_CONFIG = "disallowed-nodes.json"
+	BLACKLIST_CONFIG    = "disallowed-nodes.json"
 )

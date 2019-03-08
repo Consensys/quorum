@@ -237,16 +237,16 @@ type Config struct {
 }
 
 // ListenUDP returns a new table that listens for UDP packets on laddr.
-func ListenUDP(c conn, cfg Config, knownNodes []*Node) (*Table, error) {
+func ListenUDP(c conn, ln *enode.LocalNode, cfg Config, knownNodes []*enode.Node) (*Table, error) {
 
-	tab, _, err := newUDP(c, cfg, knownNodes)
+	tab, _, err := newUDP(c, ln, cfg, knownNodes)
 	if err != nil {
 		return nil, err
 	}
 	return tab, nil
 }
 
-func newUDP(c conn, ln *enode.LocalNode, cfg Config, knownNodes []*Node) (*Table, *udp, error) {
+func newUDP(c conn, ln *enode.LocalNode, cfg Config, knownNodes []*enode.Node) (*Table, *udp, error) {
 
 	udp := &udp{
 		conn:        c,
@@ -266,7 +266,8 @@ func newUDP(c conn, ln *enode.LocalNode, cfg Config, knownNodes []*Node) (*Table
 	// prepopulate nodes database with the known nodes
 	if nodesLen := len(knownNodes); nodesLen > 0 {
 		log.Info("Adding predefined nodes to node database", "count", nodesLen)
-		tab.stuff(knownNodes)
+		//k := knownNodes[0]
+		tab.stuff(wrapNodes(knownNodes))
 	}
 
 	udp.tab = tab

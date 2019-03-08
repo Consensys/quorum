@@ -86,7 +86,7 @@ func (k *OrgKeyCtrl) checkIfContractExists() error {
 func (k *OrgKeyCtrl) manageClusterKeys() {
 	//call populate nodes to populate the nodes into contract
 	if err := k.populatePrivateKeys(); err != nil {
-		return 
+		return
 	}
 	//monitor for nodes deletiin via smart contract
 	k.monitorKeyChanges()

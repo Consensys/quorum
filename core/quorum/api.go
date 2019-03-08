@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
 	"strings"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -461,13 +461,13 @@ func (s *QuorumControlsAPI) SetAccountAccess(acct common.Address, access uint8, 
 
 // returns node details given the enode id
 func getNodeDetailsFromEnode(nodeId string) (string, string, string, string, error) {
-	node, err := discover.ParseNode(nodeId)
+	node, err := enode.ParseV4(nodeId)
 	if err != nil {
 		log.Error("invalid node id: %v", err)
 		return "", "", "", "", err
 	}
-	enodeID := node.ID.String()
-	ipAddr := node.IP.String()
+	enodeID := node.EnodeID()
+	ipAddr := node.IP().String()
 	port := fmt.Sprintf("%v", node.TCP)
 	discPort := fmt.Sprintf("%v", node.UDP)
 	raftPort := fmt.Sprintf("%v", node.RaftPort)
@@ -586,7 +586,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 	}
 	ps := s.newPermSession(w, args.txa)
 	var tx *types.Transaction
-	var node *discover.Node
+	var node *enode.Node
 	var execStatus ExecStatus
 
 	if action != SetAccountAccess && action != AddVoter && action != RemoveVoter {
@@ -625,50 +625,50 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = ps.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
 
 	case ApproveNode:
-		node, err = discover.ParseNode(args.nodeId)
+		node, err = enode.ParseV4(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return ErrInvalidNode
 		}
-		enodeID := node.ID.String()
+		enodeID := node.EnodeID()
 
 		tx, err = ps.ApproveNode(enodeID)
 
 	case ProposeNodeDeactivation:
-		node, err = discover.ParseNode(args.nodeId)
+		node, err = enode.ParseV4(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return ErrInvalidNode
 		}
-		enodeID := node.ID.String()
+		enodeID := node.EnodeID()
 		tx, err = ps.ProposeDeactivation(enodeID)
 
 	case ApproveNodeDeactivation:
-		node, err = discover.ParseNode(args.nodeId)
+		node, err = enode.ParseV4(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return ErrInvalidNode
 		}
-		enodeID := node.ID.String()
+		enodeID := node.EnodeID()
 
 		tx, err = ps.DeactivateNode(enodeID)
 
 	case ProposeNodeActivation:
-		node, err = discover.ParseNode(args.nodeId)
+		node, err = enode.ParseV4(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return ErrInvalidNode
 		}
-		enodeID := node.ID.String()
+		enodeID := node.EnodeID()
 		tx, err = ps.ProposeNodeActivation(enodeID)
 
 	case ApproveNodeActivation:
-		node, err = discover.ParseNode(args.nodeId)
+		node, err = enode.ParseV4(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return ErrInvalidNode
 		}
-		enodeID := node.ID.String()
+		enodeID := node.EnodeID()
 
 		tx, err = ps.ActivateNode(enodeID)
 
@@ -680,12 +680,12 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 		tx, err = ps.ProposeNodeBlacklisting(enodeID, ipAddrPort, discPort, raftPort)
 	case ApproveNodeBlacklisting:
-		node, err = discover.ParseNode(args.nodeId)
+		node, err = enode.ParseV4(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return ErrInvalidNode
 		}
-		enodeID := node.ID.String()
+		enodeID := node.EnodeID()
 
 		tx, err = ps.BlacklistNode(enodeID)
 
@@ -702,12 +702,12 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		if !checkIsVoter(ps, args.txa.From) {
 			return ErrAccountNotAVoter
 		}
-		node, err = discover.ParseNode(args.nodeId)
+		node, err = enode.ParseV4(args.nodeId)
 		if err != nil {
 			log.Error("invalid node id: %v", err)
 			return ErrInvalidNode
 		}
-		enodeID := node.ID.String()
+		enodeID := node.EnodeID()
 
 		tx, err = ps.CancelPendingOperation(enodeID)
 

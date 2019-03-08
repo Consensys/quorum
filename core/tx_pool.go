@@ -602,6 +602,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrNegativeValue
 	}
 	// Ensure the transaction doesn't exceed the current block limit gas.
+	log.Info("AJ-current MAX GAS ", "gas", pool.currentMaxGas, "tx gas", tx.Gas())
 	if pool.currentMaxGas < tx.Gas() {
 		return ErrGasLimit
 	}
@@ -1318,15 +1319,15 @@ func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 	case types.ContractDeploy:
 		return nil
 
-	case types.ReadOnly:
-		return errors.New("Account does not have transaction permissions")
+		/*	case types.ReadOnly:
+				return errors.New("Account does not have transaction permissions")
 
-	case types.Transact:
-		if toAcct == nil {
-			return errors.New("Account does not have contract create permissions")
-		} else {
-			return nil
-		}
+			case types.Transact:
+				if toAcct == nil {
+					return errors.New("Account does not have contract create permissions")
+				} else {
+					return nil
+				}*/
 	}
 	return nil
 }

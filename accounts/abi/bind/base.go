@@ -356,6 +356,7 @@ func (c *BoundContract) UnpackLog(out interface{}, event string, log types.Log) 
 	}
 	return parseTopics(out, indexed, log.Topics[1:])
 }
+
 // PreparePrivateTransaction replaces the payload data of the transaction with a
 // commitment to turn it into a private tx.
 func (c *BoundContract) preparePrivateTransaction(ctx context.Context, tx *types.Transaction, privateFrom string, privateFor []string) (*types.Transaction, error) {
