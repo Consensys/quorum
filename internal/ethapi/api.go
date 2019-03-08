@@ -397,7 +397,11 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	if isPrivate {
 		data := []byte(*args.Data)
 		if len(data) > 0 {
-			affectedCATransactions, execHash, _ := s.GetAffectedContractTransactions(ctx, args)
+			affectedCATransactions, execHash, err := s.GetAffectedContractTransactions(ctx, args)
+			// TODO check if this error needs to be wrapped to make it clear it happened during preemptive checks
+			if err != nil {
+				return common.Hash{}, err
+			}
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor, affectedCATransactions, execHash)
 			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
@@ -1304,7 +1308,11 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 		if len(data) > 0 {
 			//Send private transaction to local Constellation node
-			affectedCATransactions, execHash, _ := s.GetAffectedContractTransactions(ctx, args)
+			affectedCATransactions, execHash, err := s.GetAffectedContractTransactions(ctx, args)
+			// TODO check if this error needs to be wrapped to make it clear it happened during preemptive checks
+			if err != nil {
+				return common.Hash{}, err
+			}
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor, affectedCATransactions, execHash)
 			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
