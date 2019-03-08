@@ -182,6 +182,19 @@ func (evm *EVM) isNewlyCreatedContract(addr common.Address) bool {
 	return false
 }
 
+func (evm *EVM) CalculateExecutionHash() common.Hash {
+	// TODO Trung - add your affected contracts root trie here
+	var allContracts []byte
+	for _, c := range evm.createdContracts {
+		allContracts = append(allContracts, c.Bytes()...)
+	}
+	for _, c := range evm.affectedContracts {
+		allContracts = append(allContracts, c.Bytes()...)
+	}
+
+	return crypto.Keccak256Hash(allContracts)
+}
+
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an

@@ -221,15 +221,17 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	isQuorum := st.evm.ChainConfig().IsQuorum
 
 	var data []byte
-	var execHash []byte
+	var execHash common.Hash
 	var preCheckedAffectedCATransactions = make(map[TxHash]string)
 	isPrivate := false
 	publicState := st.state
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
 		var affectedCATransactionsB64 []string
-		data, affectedCATransactionsB64, execHashStr, err = private.P.Receive(st.data)
-		execHash = base64.StdEncoding.DecodeString(execHashStr)
+		var execHashB64 string
+		data, affectedCATransactionsB64, execHashB64, err = private.P.Receive(st.data)
+		execHashBytes, _ := base64.StdEncoding.DecodeString(execHashB64)
+		execHash = common.BytesToHash(execHashBytes)
 		for _, v := range affectedCATransactionsB64 {
 			TXN, _ := base64.StdEncoding.DecodeString(v)
 			preCheckedAffectedCATransactions[BytesToTxHash(TXN)] = v
@@ -315,10 +317,14 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 						"affected CA", v.String(),
 						"tx", base64.StdEncoding.EncodeToString(st.data))
 					// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
-					return ret, 0, vmerr != nil, err
+					return nil, 0, false, nil
 				}
 			}
-			verifyExecutionHash(evm, execHash)
+		}
+		if !verifyExecutionHash(evm, execHash) {
+			log.Info("Execution hash check failed! Ignoring transaction.")
+			// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
+			return nil, 0, false, nil
 		}
 	}
 
@@ -337,6 +343,17 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		return ret, 0, vmerr != nil, err
 	}
 	return ret, st.gasUsed(), vmerr != nil, err
+}
+
+func verifyExecutionHash(evm *vm.EVM, targetExecHash common.Hash) bool {
+	// TODO trung - add more fancy stuff here
+	calculatedExecHash := evm.CalculateExecutionHash()
+	if calculatedExecHash == targetExecHash {
+		log.Info("Execution hash check succssful", "execHash", calculatedExecHash)
+		return true
+	}
+	log.Info("Execution hash check failed", "calculatedExecHash", calculatedExecHash, "targetExecHash", targetExecHash)
+	return false
 }
 
 func (st *StateTransition) refundGas() {

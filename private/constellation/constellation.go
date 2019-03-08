@@ -24,7 +24,7 @@ var (
 type PayloadWithAffectedCATransactions struct {
 	payload     []byte
 	affectedCAs []string
-	execHash string
+	execHash    string
 }
 
 func (g *Constellation) Send(data []byte, from string, to []string, affectedCATransactions []string, execHash string) (out []byte, err error) {
@@ -43,7 +43,7 @@ func (g *Constellation) SendSignedTx(data []byte, to []string, affectedCATransac
 	if g.isConstellationNotInUse {
 		return nil, ErrConstellationIsntInit
 	}
-	out, err = g.node.SendSignedPayload(data, to, affectedCATransactions, execHash string)
+	out, err = g.node.SendSignedPayload(data, to, affectedCATransactions, execHash)
 	if err != nil {
 		return nil, err
 	}

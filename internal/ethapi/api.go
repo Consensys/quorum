@@ -397,9 +397,9 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	if isPrivate {
 		data := []byte(*args.Data)
 		if len(data) > 0 {
-			affectedCATransactions, _ := s.GetAffectedContractTransactions(ctx, args)
+			affectedCATransactions, execHash, _ := s.GetAffectedContractTransactions(ctx, args)
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor, affectedCATransactions, "test")
+			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor, affectedCATransactions, execHash)
 			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			if err != nil {
 				return common.Hash{}, err
@@ -1304,9 +1304,9 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 		if len(data) > 0 {
 			//Send private transaction to local Constellation node
-			affectedCATransactions, _ := s.GetAffectedContractTransactions(ctx, args)
+			affectedCATransactions, execHash, _ := s.GetAffectedContractTransactions(ctx, args)
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor, affectedCATransactions, "test")
+			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor, affectedCATransactions, execHash)
 			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			if err != nil {
 				return common.Hash{}, err
@@ -1709,7 +1709,7 @@ var async = newAsync(100)
 // Please note: This is a temporary integration to improve performance in high-latency
 // environments when sending many private transactions. It will be removed at a later
 // date when account management is handled outside Ethereum.
-func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error){
+func (s *PublicTransactionPoolAPI) SendTransactionAsync(ctx context.Context, args AsyncSendTxArgs) (common.Hash, error) {
 
 	select {
 	case async.sem <- struct{}{}:
@@ -1741,19 +1741,19 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != 64 {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	data, _, err := private.P.Receive(b)
+	data, _, _, err := private.P.Receive(b)
 	if err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("0x%x", data), nil
 }
 
-func (s *PublicTransactionPoolAPI) GetAffectedContractTransactions(ctx context.Context, args SendTxArgs) ([]string, error) {
+func (s *PublicTransactionPoolAPI) GetAffectedContractTransactions(ctx context.Context, args SendTxArgs) ([]string, string, error) {
 	start := time.Now()
 	blockNumber := s.b.CurrentBlock().Number().Uint64()
 	state, header, err := s.b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
 	if state == nil || err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	data := []byte(*args.Data)
 	msg := types.NewMessage(args.From, args.To, uint64(*args.Nonce), args.Value.ToInt(), uint64(*args.Gas), args.GasPrice.ToInt(), *args.Data, false)
@@ -1768,7 +1768,7 @@ func (s *PublicTransactionPoolAPI) GetAffectedContractTransactions(ctx context.C
 	// Get a new instance of the EVM.
 	evm, _, err := s.b.GetEVM(ctx, msg, state, header, vm.Config{})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
@@ -1786,7 +1786,7 @@ func (s *PublicTransactionPoolAPI) GetAffectedContractTransactions(ctx context.C
 
 	if err != nil {
 		log.Debug("Error occurs during pre-execution of a message", "error", err)
-		return nil, err
+		return nil, "", err
 	}
 	var affectedCATransactions []string
 	affectedContracts := evm.AffectedContracts()
@@ -1799,16 +1799,16 @@ func (s *PublicTransactionPoolAPI) GetAffectedContractTransactions(ctx context.C
 
 	log.Debug("Pre-execution of transaction finished", "runtime", time.Since(start))
 
-	return affectedCATransactions, nil
+	return affectedCATransactions, base64.StdEncoding.EncodeToString(evm.CalculateExecutionHash().Bytes()), nil
 
 }
 
-func (s *PrivateAccountAPI) GetAffectedContractTransactions(ctx context.Context, args SendTxArgs) ([]string, error) {
+func (s *PrivateAccountAPI) GetAffectedContractTransactions(ctx context.Context, args SendTxArgs) ([]string, string, error) {
 	start := time.Now()
 	blockNumber := s.b.CurrentBlock().Number().Uint64()
 	state, header, err := s.b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
 	if state == nil || err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	data := []byte(*args.Data)
 	msg := types.NewMessage(args.From, args.To, uint64(*args.Nonce), args.Value.ToInt(), uint64(*args.Gas), args.GasPrice.ToInt(), *args.Data, false)
@@ -1823,7 +1823,7 @@ func (s *PrivateAccountAPI) GetAffectedContractTransactions(ctx context.Context,
 	// Get a new instance of the EVM.
 	evm, _, err := s.b.GetEVM(ctx, msg, state, header, vm.Config{})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
@@ -1841,7 +1841,7 @@ func (s *PrivateAccountAPI) GetAffectedContractTransactions(ctx context.Context,
 
 	if err != nil {
 		log.Debug("Error occurs during pre-execution of a message", "error", err)
-		return nil, err
+		return nil, "", err
 	}
 	var affectedCATransactions []string
 	affectedContracts := evm.AffectedContracts()
@@ -1854,7 +1854,7 @@ func (s *PrivateAccountAPI) GetAffectedContractTransactions(ctx context.Context,
 
 	log.Debug("Pre-execution of transaction finished", "runtime", time.Since(start))
 
-	return affectedCATransactions, nil
+	return affectedCATransactions, base64.StdEncoding.EncodeToString(evm.CalculateExecutionHash().Bytes()), nil
 
 }
 

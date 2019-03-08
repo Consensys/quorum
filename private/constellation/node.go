@@ -156,7 +156,7 @@ func (c *Client) ReceivePayload(key []byte) ([]byte, []string, string, error) {
 
 	payload, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	return payload, strings.Split(affectedContractTransactions, ","), res.Header.Get("c11n-EH"), nil
