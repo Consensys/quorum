@@ -32,6 +32,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
+	"github.com/ethereum/go-ethereum/controls/cluster"
+	"github.com/ethereum/go-ethereum/controls/permission"
+	"github.com/ethereum/go-ethereum/core/quorum"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/debug"
@@ -341,6 +344,10 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			}
 		}
 	}()
+
+	//START - QUORUM Permissioning
+	startQuorumPermissionService(ctx, stack)
+
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		// Mining only makes sense if a full Ethereum node is running
@@ -364,6 +371,63 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 		if err := ethereum.StartMining(threads); err != nil {
 			utils.Fatalf("Failed to start mining: %v", err)
+		}
+	}
+}
+
+// Starts all permissioning and key management related services
+// permissioning services will come up only when geth is brought up in
+// --permissioned mode. Key management service is independent of this
+func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
+
+	var quorumApis []string
+
+	// start the permissions management service
+	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name))
+	if err != nil {
+		log.Error("Failed to start Quorum Permission contract service: %v", err)
+	} else {
+		err = pc.Start()
+		if err == nil {
+			quorumApis = []string{"quorumNodeMgmt", "quorumAcctMgmt"}
+
+		} else {
+			log.Error("Failed to start Quorum Permission contract service", "error", err)
+		}
+	}
+
+	// start the key management service
+	kc, err := cluster.NewOrgKeyCtrl(stack)
+	if err != nil {
+		log.Warn("Failed to start quorum Org key management service", "err", err)
+	} else {
+		err = kc.Start()
+		if err == nil {
+			log.Trace("Key management service started")
+			quorumApis = append(quorumApis, "quorumOrgMgmt")
+		} else {
+			log.Error("Failed to start Quorum Org key management contract service", "error", err)
+		}
+	}
+
+	rpcClient, err := stack.Attach()
+	if err != nil {
+		utils.Fatalf("Unable to connnect to the node: %v", err)
+	}
+	stateReader := ethclient.NewClient(rpcClient)
+
+	for _, apiName := range quorumApis {
+		v := stack.GetRPC(apiName)
+		if v == nil {
+			utils.Fatalf("Failed to start Quorum Permission API %s", apiName)
+		}
+		qapi := v.(*quorum.QuorumControlsAPI)
+
+		err = qapi.Init(stateReader, stack.GetNodeKey(), apiName)
+		if err != nil {
+			log.Info("Failed to starts API", "apiName", apiName)
+		} else {
+			log.Info("API started", "apiName", apiName)
 		}
 	}
 }

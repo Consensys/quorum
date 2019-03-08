@@ -35,6 +35,7 @@ import (
 	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/quorum"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -285,11 +286,13 @@ func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainCo
 func (s *Ethereum) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.APIBackend)
 
+	//TODO add perm service
+
 	// Append any APIs exposed explicitly by the consensus engine
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
 
 	// Append all the local APIs and return
-	return append(apis, []rpc.API{
+	apis = append(apis, []rpc.API{
 		{
 			Namespace: "eth",
 			Version:   "1.0",
@@ -334,7 +337,26 @@ func (s *Ethereum) APIs() []rpc.API {
 			Service:   s.netRPCService,
 			Public:    true,
 		},
+		{
+			Namespace: "quorumNodeMgmt",
+			Version:   "1.0",
+			Service:   quorum.NewQuorumControlsAPI(s.txPool, s.accountManager),
+			Public:    true,
+		},
+		{
+			Namespace: "quorumAcctMgmt",
+			Version:   "1.0",
+			Service:   quorum.NewQuorumControlsAPI(s.txPool, s.accountManager),
+			Public:    true,
+		},
+		{
+			Namespace: "quorumOrgMgmt",
+			Version:   "1.0",
+			Service:   quorum.NewQuorumControlsAPI(s.txPool, s.accountManager),
+			Public:    true,
+		},
 	}...)
+	return apis
 }
 
 func (s *Ethereum) ResetWithGenesisBlock(gb *types.Block) {

@@ -17,6 +17,7 @@
 package node
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"net"
@@ -71,6 +72,19 @@ type Node struct {
 	lock sync.RWMutex
 
 	log log.Logger
+}
+
+func (n *Node) GetRPC(name string) interface{} {
+	for _, v := range n.rpcAPIs {
+		if v.Namespace == name {
+			return v.Service
+		}
+	}
+	return nil
+}
+
+func (n *Node) GetNodeKey() *ecdsa.PrivateKey {
+	return n.config.NodeKey()
 }
 
 // New creates a new P2P node, ready for protocol registration.
@@ -257,6 +271,7 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	for _, service := range services {
 		apis = append(apis, service.APIs()...)
 	}
+
 	// Start the various API endpoints, terminating all in case of errors
 	if err := n.startInProc(apis); err != nil {
 		return err

@@ -61,6 +61,7 @@ type udpTest struct {
 	sent                [][]byte
 	localkey, remotekey *ecdsa.PrivateKey
 	remoteaddr          *net.UDPAddr
+	knownNodes          []*Node
 }
 
 func newUDPTest(t *testing.T) *udpTest {

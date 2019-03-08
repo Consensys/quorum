@@ -26,7 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-)
+	"github.com/ethereum/go-ethereum/accounts"
+	)
 
 // NewTransactor is a utility method to easily create a transaction signer from
 // an encrypted json key stream and the associated passphrase.
@@ -53,6 +54,21 @@ func NewKeyedTransactor(key *ecdsa.PrivateKey) *TransactOpts {
 				return nil, errors.New("not authorized to sign this account")
 			}
 			signature, err := crypto.Sign(signer.Hash(tx).Bytes(), key)
+			if err != nil {
+				return nil, err
+			}
+			return tx.WithSignature(signer, signature)
+		},
+	}
+}
+
+// NewWalletTransactor is a utility method to easily create a transaction signer
+// from a wallet account
+func NewWalletTransactor(w accounts.Wallet, from accounts.Account) *TransactOpts {
+	return &TransactOpts{
+		From: from.Address,
+		Signer: func(signer types.Signer, address common.Address, tx *types.Transaction) (*types.Transaction, error) {
+			signature, err := w.SignHash(from, signer.Hash(tx).Bytes())
 			if err != nil {
 				return nil, err
 			}

@@ -109,6 +109,10 @@ type Config struct {
 	// allowed to connect, even above the peer limit.
 	TrustedNodes []*enode.Node
 
+	// KnownNodes contains a list of nodes that are used to pre-populate the
+	// node database.
+	KnownNodes []*discover.Node
+
 	// Connectivity can be restricted to certain IP networks.
 	// If this option is set to a non-nil value, only hosts which match one of the
 	// IP networks contained in the list are considered.
@@ -152,6 +156,7 @@ type Config struct {
 	DataDir string `toml:",omitempty"`
 	// Logger is a custom logger to use with the p2p.Server.
 	Logger log.Logger `toml:",omitempty"`
+
 }
 
 // Server manages all peer connections.
@@ -536,6 +541,15 @@ func (srv *Server) setupDiscovery() error {
 	// Discovery V4
 	var unhandled chan discover.ReadPacket
 	var sconn *sharedUDPConn
+
+	knownNodes := append([]*discover.Node(nil), srv.KnownNodes...)
+	if srv.EnableNodePermission {
+		knownNodes = append(knownNodes, ParsePermissionedNodes(srv.DataDir)...)
+	}
+
+	srv.KnownNodes = knownNodes
+
+
 	if !srv.NoDiscovery {
 		if srv.DiscoveryV5 {
 			unhandled = make(chan discover.ReadPacket, 100)
@@ -547,7 +561,7 @@ func (srv *Server) setupDiscovery() error {
 			Bootnodes:   srv.BootstrapNodes,
 			Unhandled:   unhandled,
 		}
-		ntab, err := discover.ListenUDP(conn, srv.localnode, cfg)
+		ntab, err := discover.ListenUDP(conn, knownNodes, cfg)
 		if err != nil {
 			return err
 		}
