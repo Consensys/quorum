@@ -307,7 +307,6 @@ func (re *JSRE) loadScript(call otto.FunctionCall) otto.Value {
 // stream.
 func (re *JSRE) Evaluate(code string, w io.Writer) error {
 	var fail error
-
 	re.Do(func(vm *otto.Otto) {
 		val, err := vm.Run(code)
 		if err != nil {
