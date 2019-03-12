@@ -382,9 +382,15 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 
 	var quorumApis []string
+	dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
+
+	permissionConfig, perr := permission.ParsePermissionConifg(dataDir)
+	if perr != nil {
+		utils.Fatalf("parsing permission-config.json failed", perr)
+	}
 
 	// start the permissions management service
-	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name), ctx.GlobalString(utils.PermissionContractAddressFlag.Name))
+	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name), &permissionConfig)
 	if err != nil {
 		log.Error("Failed to start Quorum Permission contract service: %v", err)
 	} else {
@@ -424,7 +430,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		}
 		qapi := v.(*quorum.QuorumControlsAPI)
 
-		err = qapi.Init(stateReader, stack.GetNodeKey(), apiName)
+		err = qapi.Init(stateReader, stack.GetNodeKey(), apiName, &permissionConfig)
 		if err != nil {
 			log.Info("Failed to starts API", "apiName", apiName)
 		} else {

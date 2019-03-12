@@ -43,10 +43,34 @@ type PermissionCtrl struct {
 	key              *ecdsa.PrivateKey
 	dataDir          string
 	pm               *pbind.Permissions
+	permConfig       *types.PermissionConfig
+}
+
+func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
+	fileName := "permission-config.json"
+	fullPath := filepath.Join(dir, fileName)
+	if _, err := os.Stat(fullPath); err != nil {
+		log.Error("permission-config.json file is missing", err)
+		return types.PermissionConfig{}, err
+	}
+
+	blob, err := ioutil.ReadFile(fullPath)
+
+	if err != nil {
+		log.Error("error reading permission-config.json file", err)
+		return types.PermissionConfig{}, err
+	}
+	var permConfig types.PermissionConfig
+	err = json.Unmarshal(blob, &permConfig)
+	if err != nil {
+		log.Error("error unmarshalling permission-config.json file", err)
+		return types.PermissionConfig{}, err
+	}
+	return permConfig, nil
 }
 
 // Creates the controls structure for permissions
-func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, permissionCtrAddress string) (*PermissionCtrl, error) {
+func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
 	// Create a new ethclient to for interfacing with the contract
 	stateReader, e, err := controls.CreateEthClient(stack)
 	if err != nil {
@@ -55,14 +79,11 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pe
 	}
 
 	var permissionContractAddress common.Address
-	if permissionCtrAddress != "0x" {
-		log.Info("AJ-1bootstrapping permission via command line passed permission contract")
-		permissionContractAddress = common.HexToAddress(permissionCtrAddress)
+	if pconfig.ContractAddress != "" {
+		permissionContractAddress = common.HexToAddress(pconfig.ContractAddress)
 	} else {
-		log.Info("AJ-2bootstrapping permission via genesis.json permission contract")
 		permissionContractAddress = params.QuorumPermissionsContract
 	}
-	log.Info("AJ-3permission", "contract address", permissionContractAddress)
 	// check if permissioning contract is there at address. If not return from here
 	pm, err := pbind.NewPermissions(permissionContractAddress, stateReader)
 	if err != nil {
@@ -70,7 +91,7 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pe
 		return nil, err
 	}
 
-	return &PermissionCtrl{stack, stateReader, e, isRaft, permissionedMode, stack.GetNodeKey(), stack.DataDir(), pm}, nil
+	return &PermissionCtrl{stack, stateReader, e, isRaft, permissionedMode, stack.GetNodeKey(), stack.DataDir(), pm, pconfig}, nil
 }
 
 // Starts the node permissioning and account access control monitoring
@@ -80,10 +101,8 @@ func (p *PermissionCtrl) Start() error {
 		log.Error("Permissions init failed", "err", err)
 		return err
 	}
-
 	// Monitors node addition and decativation from network
 	p.manageNodePermissions()
-
 	// Monitors account level persmissions  update from smart contarct
 	p.manageAccountPermissions()
 
@@ -468,7 +487,8 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		initAcctCnt, err := permissionsSession.GetInitAccountsCount()
 
 		if err == nil && initAcctCnt.Cmp(big.NewInt(0)) == 0 {
-			utils.Fatalf("Permissioned network being brought up with zero accounts having full access. Add permissioned full access accounts in genesis.json and bring up the network")
+			//TODO to be uncommented
+			//utils.Fatalf("Permissioned network being brought up with zero accounts having full access. Add permissioned full access accounts in genesis.json and bring up the network")
 		}
 		// populate initial account access to full access
 		err = p.populateInitAccountAccess(permissionsSession)
@@ -481,7 +501,6 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		if err != nil {
 			return err
 		}
-
 		// update network status to boot completed
 		err = p.updateNetworkStatus(permissionsSession)
 		if err != nil {

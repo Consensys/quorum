@@ -87,6 +87,7 @@ type QuorumControlsAPI struct {
 	key         *ecdsa.PrivateKey
 	permEnabled bool
 	orgEnabled  bool
+	permConfig  *types.PermissionConfig
 }
 
 // txArgs holds arguments required for execute functions
@@ -186,7 +187,7 @@ var (
 
 // NewQuorumControlsAPI creates a new QuorumControlsAPI to access quorum services
 func NewQuorumControlsAPI(tp *core.TxPool, am *accounts.Manager) *QuorumControlsAPI {
-	return &QuorumControlsAPI{tp, nil, am, nil, nil, nil, nil, false, false}
+	return &QuorumControlsAPI{tp, nil, am, nil, nil, nil, nil, false, false, nil}
 }
 
 // helper function decodes the node status to string
@@ -206,13 +207,20 @@ func decodePendingOp(pendingOp uint8) string {
 }
 
 //Init initializes QuorumControlsAPI with eth client, permission contract and org key management control
-func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey, apiName string) error {
+func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey, apiName string, pconfig *types.PermissionConfig) error {
 	p.ethClnt = ethClnt
 	if apiName == "quorumNodeMgmt" || apiName == "quorumAcctMgmt" {
-		permContr, err := pbind.NewPermissions(params.QuorumPermissionsContract, p.ethClnt)
+		var contractAddress common.Address
+		if pconfig.ContractAddress != "" {
+			contractAddress = common.HexToAddress(pconfig.ContractAddress)
+		} else {
+			contractAddress = params.QuorumPermissionsContract
+		}
+		permContr, err := pbind.NewPermissions(contractAddress, p.ethClnt)
 		if err != nil {
 			return err
 		}
+		p.permConfig = pconfig
 		p.permContr = permContr
 		p.permEnabled = true
 	} else {

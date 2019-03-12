@@ -24,6 +24,12 @@ type OrgStruct struct {
 	Keys  []string
 }
 
+// permission config for bootstrapping
+type PermissionConfig struct {
+	ContractAddress string
+	Accounts        []string //initial list of account that need full access
+}
+
 var DefaultAccess = FullAccess
 
 const acctMapLimit = 100
@@ -37,7 +43,7 @@ var orgKeyLock sync.Mutex
 
 // sets default access to ReadOnly
 func SetDefaultAccess() {
-	DefaultAccess = ReadOnly
+	DefaultAccess = FullAccess //TODO to be changed to readOnly
 }
 
 // Adds account access to the cache
