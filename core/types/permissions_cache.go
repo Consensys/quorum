@@ -41,6 +41,10 @@ var OrgKeyMap, _ = lru.New(orgKeyMapLimit)
 
 var orgKeyLock sync.Mutex
 
+func (pc *PermissionConfig) IsEmpty() bool {
+	return pc.ContractAddress == ""
+}
+
 // sets default access to ReadOnly
 func SetDefaultAccess() {
 	DefaultAccess = FullAccess //TODO to be changed to readOnly

@@ -50,8 +50,8 @@ func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	fileName := "permission-config.json"
 	fullPath := filepath.Join(dir, fileName)
 	if _, err := os.Stat(fullPath); err != nil {
-		log.Error("permission-config.json file is missing", err)
-		return types.PermissionConfig{}, err
+		log.Warn("permission-config.json file is missing", err)
+		return types.PermissionConfig{}, nil
 	}
 
 	blob, err := ioutil.ReadFile(fullPath)
@@ -79,10 +79,10 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pc
 	}
 
 	var permissionContractAddress common.Address
-	if pconfig.ContractAddress != "" {
-		permissionContractAddress = common.HexToAddress(pconfig.ContractAddress)
-	} else {
+	if pconfig.IsEmpty() {
 		permissionContractAddress = params.QuorumPermissionsContract
+	} else {
+		permissionContractAddress = common.HexToAddress(pconfig.ContractAddress)
 	}
 	// check if permissioning contract is there at address. If not return from here
 	pm, err := pbind.NewPermissions(permissionContractAddress, stateReader)
