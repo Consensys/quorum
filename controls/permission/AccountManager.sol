@@ -1,6 +1,8 @@
 pragma solidity ^0.5.3;
+import "./PermissionsUpgradable.sol";
 
 contract AccountManager {
+    PermissionsImplUpgradeable private permUpgradable;
 //    enum AccountStatus {0-NotInList, 1-PendingApproval, 2-Active, 3-Inactive}
     struct AccountAccessDetails {
         address acctId;
@@ -22,6 +24,16 @@ contract AccountManager {
     // account permission events
     event AccountAccessModified(address _address, string _roleId);
     event AccountAccessRevoked(address _address, string _roleId);
+
+    modifier onlyImpl
+    {
+        require(msg.sender == permUpgradable.getPermImpl());
+        _;
+    }
+
+    constructor (address _permUpgradable) public {
+        permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
+    }
 
     // Get account details given index
 

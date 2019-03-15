@@ -1,7 +1,9 @@
 pragma solidity ^0.5.3;
+import "./PermissionsUpgradable.sol";
+
 
 contract NodeManager {
-    address[] initialAcctList;
+    PermissionsImplUpgradeable private permUpgradable;
     // enum and struct declaration
     // changing node status to integer (0-NotInList, 1- PendingApproval, 2-Approved,
     //      PendingDeactivation, Deactivated, PendingActivation, PendingBlacklisting, Blacklisted)
@@ -36,6 +38,12 @@ contract NodeManager {
     event NodePendingBlacklist(string _enodeId);
     event NodeBlacklisted(string);
 
+    modifier onlyImpl
+    {
+        require(msg.sender == permUpgradable.getPermImpl());
+        _;
+    }
+
     // Checks if the given enode exists
     modifier enodeInList(string memory _enodeId)
     {
@@ -48,6 +56,10 @@ contract NodeManager {
     {
         require(nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] == 0, "Enode is in the list");
         _;
+    }
+
+    constructor (address _permUpgradable) public {
+        permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
     }
 
     // Get node details given enode Id
@@ -76,14 +88,20 @@ contract NodeManager {
         return nodeList[getNodeIndex(_enodeId)].status;
     }
 
-    function addNode(string calldata _enodeId, string calldata _orgId) external enodeNotInList(_enodeId){
+    function addNode(string calldata _enodeId, string calldata _orgId) external
+    onlyImpl
+    enodeNotInList(_enodeId)
+    {
         numberOfNodes++;
         nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
         nodeList.push(NodeDetails(_enodeId, _orgId,  1));
         emit NodeProposed(_enodeId);
     }
 
-    function addOrgNode(string calldata _enodeId, string calldata _orgId) external enodeNotInList(_enodeId){
+    function addOrgNode(string calldata _enodeId, string calldata _orgId) external
+    onlyImpl
+    enodeNotInList(_enodeId)
+    {
         numberOfNodes++;
         nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
         nodeList.push(NodeDetails(_enodeId, _orgId,  2));
@@ -91,7 +109,8 @@ contract NodeManager {
     }
 
     // Adds a node to the nodeList mapping and emits node added event if successfully and node exists event of node is already present
-    function approveNode(string calldata _enodeId) external 
+    function approveNode(string calldata _enodeId) external
+    onlyImpl
     {
         require(getNodeStatus(_enodeId) == 1, "Node need to be in PendingApproval status");
         uint nodeIndex = getNodeIndex(_enodeId);

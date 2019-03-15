@@ -1,6 +1,9 @@
 pragma solidity ^0.5.3;
+import "./PermissionsUpgradable.sol";
+
 
 contract VoterManager {
+    PermissionsImplUpgradeable private permUpgradable;
 //    enum PendingOpType {0-None, 1-OrgAdd, 2-OrgSuspension, 3-OrgRevokeSuspension, 4-AddOrgAdmin}
     struct PendingOpDetails {
         string orgId;
@@ -38,9 +41,19 @@ contract VoterManager {
 
     event Dummy(string _msg);
 
+    modifier onlyImpl
+    {
+        require(msg.sender == permUpgradable.getPermImpl());
+        _;
+    }
+
     modifier voterExists(string memory _orgId, address _address) {
         require(checkIfVoterExists(_orgId, _address) == true, "must be a voter");
         _;
+    }
+
+    constructor (address _permUpgradable) public {
+        permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
     }
 
     // returns the voter index

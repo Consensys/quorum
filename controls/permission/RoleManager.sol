@@ -1,6 +1,9 @@
 pragma solidity ^0.5.3;
+import "./PermissionsUpgradable.sol";
+
 
 contract RoleManager {
+    PermissionsImplUpgradeable private permUpgradable;
     struct RoleDetails {
         string roleId;
         string orgId;
@@ -15,6 +18,16 @@ contract RoleManager {
 
     event RoleCreated(string _roleId, string _orgId);
     event RoleRevoked(string _roleId, string _orgId);
+
+    modifier onlyImpl
+    {
+        require(msg.sender == permUpgradable.getPermImpl());
+        _;
+    }
+
+    constructor (address _permUpgradable) public {
+        permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
+    }
 
     function roleExists(string memory _roleId, string memory _orgId) public view returns(bool)
     {

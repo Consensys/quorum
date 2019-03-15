@@ -5,6 +5,7 @@ import "./AccountManager.sol";
 import "./VoterManager.sol";
 import "./NodeManager.sol";
 import "./OrgManager.sol";
+import "./PermissionsUpgradable.sol";
 
 contract PermissionsImplementation {
     AccountManager private accounts;
@@ -12,6 +13,7 @@ contract PermissionsImplementation {
     VoterManager private voter;
     NodeManager private nodes;
     OrgManager private org;
+    PermissionsImplUpgradeable private permUpgradable;
 
     string private adminOrg;
     string private adminRole;
@@ -21,6 +23,12 @@ contract PermissionsImplementation {
 
     // checks if first time network boot up has happened or not
     bool private networkBoot = false;
+
+    modifier onlyProxy
+    {
+        require(msg.sender == permUpgradable.getPermInterface(), "can be called by proxy only");
+        _;
+    }
 
     // Checks if the given network boot up is pending exists
     modifier networkBootUpPending()
@@ -61,8 +69,12 @@ contract PermissionsImplementation {
         _;
     }
 
+    constructor (address _permUpgradable) public {
+        permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
+    }
 
     function setPolicy(string calldata _nwAdminOrg, string calldata _nwAdminRole, string calldata _oAdminRole) external
+    onlyProxy
     networkBootUpPending()
     {
         adminOrg = _nwAdminOrg;
@@ -71,6 +83,7 @@ contract PermissionsImplementation {
     }
 
     function init(address _orgManager, address _rolesManager, address _acctManager, address _voterManager, address _nodeManager) external
+    onlyProxy
     networkBootUpPending()
     {
         org = OrgManager(_orgManager);
@@ -85,6 +98,7 @@ contract PermissionsImplementation {
     }
 
     function addAdminNodes(string calldata _enodeId) external
+    onlyProxy
     networkBootUpPending()
     {
         nodes.addNode(_enodeId, adminOrg);
@@ -92,6 +106,7 @@ contract PermissionsImplementation {
     }
 
     function addAdminAccounts(address _acct) external
+    onlyProxy
     networkBootUpPending()
     {
         // add the account as a voter for the admin org
@@ -102,6 +117,7 @@ contract PermissionsImplementation {
 
     // update the network boot status as true
     function updateNetworkBootStatus() external
+    onlyProxy
     networkBootUpPending()
     returns (bool)
     {
@@ -109,14 +125,16 @@ contract PermissionsImplementation {
         return networkBoot;
     }
 
-    //    // Get network boot status
-    function getNetworkBootStatus() external view returns (bool)
+//    Get network boot status
+    function getNetworkBootStatus() external view
+    returns (bool)
     {
         return networkBoot;
     }
 
     // function for adding a new master org
     function addOrg(string calldata _orgId, string calldata _enodeId) external
+    onlyProxy
     networkBootUpDone()
     orgNotExists(_orgId)
     networkAdmin(msg.sender)
@@ -129,6 +147,7 @@ contract PermissionsImplementation {
     }
 
     function approveOrg(string calldata _orgId, string calldata _enodeId) external
+    onlyProxy
     networkBootUpDone()
     networkAdmin(msg.sender)
     {
@@ -140,6 +159,7 @@ contract PermissionsImplementation {
     }
 
     function updateOrgStatus(string calldata _orgId, uint _status) external
+    onlyProxy
     networkBootUpDone()
     orgExists(_orgId)
     networkAdmin(msg.sender)
@@ -161,6 +181,7 @@ contract PermissionsImplementation {
     }
 
     function approveOrgStatus(string calldata _orgId, uint _status) external
+    onlyProxy
     networkBootUpDone()
     orgExists(_orgId)
     networkAdmin(msg.sender)
@@ -179,13 +200,16 @@ contract PermissionsImplementation {
         }
     }
     // returns org and master org details based on org index
-    function getOrgInfo(uint _orgIndex) external view returns (string memory, uint)
+    function getOrgInfo(uint _orgIndex) external view
+    returns (string memory, uint)
+
     {
         return org.getOrgInfo(_orgIndex);
     }
 
     // Role related functions
     function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter) external
+    onlyProxy
     orgApproved(_orgId)
     orgAdmin(msg.sender, _orgId)
     {
@@ -194,25 +218,29 @@ contract PermissionsImplementation {
     }
 
     function removeRole(string calldata _roleId, string calldata _orgId) external
+    onlyProxy
     orgApproved(_orgId)
     orgAdmin(msg.sender, _orgId)
     {
         roles.removeRole(_roleId, _orgId);
     }
 
-    function getRoleDetails(string calldata _roleId, string calldata _orgId) external view returns (string memory, string memory, uint, bool, bool)
+    function getRoleDetails(string calldata _roleId, string calldata _orgId) external view
+    returns (string memory, string memory, uint, bool, bool)
     {
         return roles.getRoleDetails(_roleId, _orgId);
 
     }
 
     // Org voter related functions
-    function getNumberOfVoters(string calldata _orgId) external view returns (uint){
+    function getNumberOfVoters(string calldata _orgId) external view
+    returns (uint){
 
         return voter.getNumberOfValidVoters(_orgId);
     }
 
-    function checkIfVoterExists(string calldata _orgId, address _acct) external view returns (bool)
+    function checkIfVoterExists(string calldata _orgId, address _acct) external view
+    returns (bool)
     {
         return voter.checkIfVoterExists(_orgId, _acct);
     }
@@ -222,12 +250,14 @@ contract PermissionsImplementation {
         return voter.getVoteCount(_orgId);
     }
 
-    function getPendingOp(string calldata _orgId) external view returns (string memory, string memory, address, uint)
+    function getPendingOp(string calldata _orgId) external view
+    returns (string memory, string memory, address, uint)
     {
         return voter.getPendingOpDetails(_orgId);
     }
 
     function assignOrgAdminAccount(string calldata _orgId, address _account) external
+    onlyProxy
     networkBootUpDone()
     networkAdmin(msg.sender)
     orgExists(_orgId)
@@ -241,6 +271,7 @@ contract PermissionsImplementation {
     }
 
     function approveOrgAdminAccount(address _account) external
+    onlyProxy
     networkBootUpDone()
     networkAdmin(msg.sender)
     {
@@ -252,6 +283,7 @@ contract PermissionsImplementation {
 
 
     function assignAccountRole(address _acct, string memory _orgId, string memory _roleId) public
+    onlyProxy
     networkBootUpDone()
     orgApproved(_orgId)
     orgAdmin(msg.sender, _orgId)
@@ -288,6 +320,7 @@ contract PermissionsImplementation {
     }
 
     function addNode(string calldata _orgId, string calldata _enodeId) external
+    onlyProxy
     networkBootUpDone()
     orgApproved(_orgId)
     orgAdmin(msg.sender, _orgId)
@@ -297,27 +330,32 @@ contract PermissionsImplementation {
         nodes.addOrgNode(_enodeId, _orgId);
     }
 
-    function getNodeStatus(string memory _enodeId) public view returns (uint)
+    function getNodeStatus(string memory _enodeId) public view
+    returns (uint)
     {
         return (nodes.getNodeStatus(_enodeId));
     }
 
-    function isNetworkAdmin(address _account) public view returns (bool)
+    function isNetworkAdmin(address _account) public view
+    returns (bool)
     {
         return (keccak256(abi.encodePacked(accounts.getAccountRole(_account))) == keccak256(abi.encodePacked(adminRole)));
     }
 
-    function isOrgAdmin(address _account, string memory _orgId) public view returns (bool)
+    function isOrgAdmin(address _account, string memory _orgId) public view
+    returns (bool)
     {
         return (accounts.checkOrgAdmin(_account, _orgId));
     }
 
-    function validateAccount(address _account, string memory _orgId) public view returns (bool)
+    function validateAccount(address _account, string memory _orgId) public view
+    returns (bool)
     {
         return (accounts.valAcctAccessChange(_account, _orgId));
     }
 
-    function getAccountDetails(address _acct) external view returns (address, string memory, string memory, uint, bool)
+    function getAccountDetails(address _acct) external view
+    returns (address, string memory, string memory, uint, bool)
     {
         return  accounts.getAccountDetails(_acct);
     }

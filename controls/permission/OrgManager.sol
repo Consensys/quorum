@@ -40,7 +40,7 @@ contract OrgManager {
         _;
     }
 
-    function setUpgradable (address _permUpgradable) external {
+    constructor (address _permUpgradable) public {
         permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
     }
 

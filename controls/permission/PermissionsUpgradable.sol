@@ -2,18 +2,15 @@ pragma solidity ^0.5.3;
 
 import "./PermissionsInterface.sol";
 
-contract PermissionsImplUpgradeable {
+contract PermissionsUpgradeable {
 
     address private custodian;
     address private permImpl;
-    // store the instances in the contract because upgradeable will setCoinImpl for them
-    PermissionsInterface private permInterface;
+    address private permInterface;
 
-    constructor (address _custodian, address _permInterface, address _permImpl) public {
+    constructor (address _custodian) public
+    {
         custodian = _custodian;
-        permImpl = _permImpl;
-        permInterface = PermissionsInterface(_permInterface);
-        setImpl(_permImpl);
     }
 
     modifier onlyCustodian {
@@ -21,23 +18,41 @@ contract PermissionsImplUpgradeable {
         _;
     }
 
+    function init (address _permInterface, address _permImpl) external
+    onlyCustodian
+    {
+        permImpl = _permImpl;
+        permInterface = _permInterface;
+        setImpl(permImpl);
+    }
+
     // custodian can potentially become a contract
     // implementation change and custodian change are sending from custodian
-    function confirmImplChange(address _proposedImpl) public onlyCustodian {
+    function confirmImplChange(address _proposedImpl) public
+    onlyCustodian
+    {
         permImpl = _proposedImpl;
         setImpl(permImpl);
     }
 
-    function getCustodian() public view returns(address) {
+    function getCustodian() public view returns(address)
+    {
         return custodian;
     }
 
-    function getPermImpl() public view returns(address) {
+    function getPermImpl() public view returns(address)
+    {
         return permImpl;
     }
 
-    function setImpl(address _permImpl) private {
-        permInterface.setPermImplementation(_permImpl);
+    function getPermInterface() public view returns(address)
+    {
+        return permInterface;
+    }
+
+    function setImpl(address _permImpl) private
+    {
+        PermissionsInterface(permInterface).setPermImplementation(_permImpl);
     }
 
 }
