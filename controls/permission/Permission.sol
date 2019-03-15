@@ -420,7 +420,7 @@ contract Permissions {
     emit AccountAccessModified(_address, _accountAccess);
   }
 
-  // Add voting account to the network
+  // Add voting account to the current network
   function addVoter(address _address) external
   {
     uint vId = getVoterIndex(_address);
