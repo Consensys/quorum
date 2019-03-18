@@ -375,14 +375,6 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args SendTxArgs
 // tries to sign it with the key associated with args.To. If the given passwd isn't
 // able to decrypt the key it fails.
 func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
-	// Look up the wallet containing the requested signer
-	account := accounts.Account{Address: args.From}
-
-	wallet, err := s.am.Find(account)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
 	if args.Nonce == nil {
 		// Hold the addresse's mutex around signing to prevent concurrent assignment of
 		// the same nonce to multiple accounts.
@@ -394,40 +386,17 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
-
-	isPrivate := args.PrivateFor != nil
-
+	isPrivate, data, err := handlePrivateTransaction(ctx, args.toTransaction(), args.PrivateTxArgs, false)
 	if isPrivate {
-		data := []byte(*args.Data)
-		if len(data) > 0 {
-			affectedCATransactions, execHash, err := s.GetAffectedContractTransactions(ctx, args)
-			// TODO check if this error needs to be wrapped to make it clear it happened during preemptive checks
-			if err != nil {
-				return common.Hash{}, err
-			}
-			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor, affectedCATransactions, execHash)
-			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			if err != nil {
-				return common.Hash{}, err
-			}
-		}
-		// zekun: HACK
-		d := hexutil.Bytes(data)
-		args.Data = &d
+		// replace the original payload with encrypted payload hash
+		args.Data = data
 	}
 
-	// Assemble the transaction and sign with the wallet
-	tx := args.toTransaction()
-
-	var chainID *big.Int
-	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !isPrivate {
-		chainID = config.ChainID
-	}
-	signed, err := wallet.SignTxWithPassphrase(account, passwd, tx, chainID)
+	signed, err := s.signTransaction(ctx, args, passwd)
 	if err != nil {
 		return common.Hash{}, err
 	}
+
 	return submitTransaction(ctx, s.b, signed, isPrivate)
 }
 
@@ -798,7 +767,7 @@ func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (h
 		intrinsicGasPrivate, _ := core.IntrinsicGas(common.Hex2Bytes(maxPrivateIntrinsicDataHex), args.To == nil, isHomestead)
 
 		if intrinsicGasPrivate > intrinsicGasPublic {
-			if math.MaxUint64 - hi < intrinsicGasPrivate - intrinsicGasPublic {
+			if math.MaxUint64-hi < intrinsicGasPrivate-intrinsicGasPublic {
 				return 0, fmt.Errorf("private intrinsic gas addition exceeds allowance")
 			}
 			return hexutil.Uint64(hi + (intrinsicGasPrivate - intrinsicGasPublic)), nil
@@ -1211,6 +1180,7 @@ func (s *PublicTransactionPoolAPI) sign(addr common.Address, tx *types.Transacti
 
 // SendTxArgs represents the arguments to sumbit a new transaction into the transaction pool.
 type SendTxArgs struct {
+	*PrivateTxArgs
 	From     common.Address  `json:"from"`
 	To       *common.Address `json:"to"`
 	Gas      *hexutil.Uint64 `json:"gas"`
@@ -1221,17 +1191,19 @@ type SendTxArgs struct {
 	// newer name and should be preferred by clients.
 	Data  *hexutil.Bytes `json:"data"`
 	Input *hexutil.Bytes `json:"input"`
-
-	//Quorum
-	PrivateFrom   string   `json:"privateFrom"`
-	PrivateFor    []string `json:"privateFor"`
-	PrivateTxType string   `json:"restriction"`
-	//End-Quorum
 }
 
 // SendRawTxArgs represents the arguments to submit a new signed private transaction into the transaction pool.
 type SendRawTxArgs struct {
-	PrivateFor []string `json:"privateFor"`
+	*PrivateTxArgs
+}
+
+// Additional arguments dedicated to private transactions
+type PrivateTxArgs struct {
+	PrivateFrom            string   `json:"privateFrom"`
+	PrivateFor             []string `json:"privateFor"`
+	PrivateTxType          string   `json:"restriction"`
+	PrivateStateValidation bool     `json:"psv"`
 }
 
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
@@ -1326,33 +1298,10 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
-
-	isPrivate := args.PrivateFor != nil
-	var data []byte
+	isPrivate, data, err := handlePrivateTransaction(ctx, args.toTransaction(), args.PrivateTxArgs, false)
 	if isPrivate {
-		if args.Data != nil {
-			data = []byte(*args.Data)
-		} else {
-			log.Info("args.data is nil")
-		}
-
-		if len(data) > 0 {
-			//Send private transaction to local Constellation node
-			affectedCATransactions, execHash, err := s.GetAffectedContractTransactions(ctx, args)
-			// TODO check if this error needs to be wrapped to make it clear it happened during preemptive checks
-			if err != nil {
-				return common.Hash{}, err
-			}
-			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor, affectedCATransactions, execHash)
-			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			if err != nil {
-				return common.Hash{}, err
-			}
-		}
-		// zekun: HACK
-		d := hexutil.Bytes(data)
-		args.Data = &d
+		// replace the original payload with encrypted payload hash
+		args.Data = data
 	}
 
 	// Assemble the transaction and sign with the wallet
@@ -1389,23 +1338,11 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		return common.Hash{}, err
 	}
 
-	txHash := []byte(tx.Data())
-	isPrivate := args.PrivateFor != nil
-
-	if isPrivate {
-		if len(txHash) > 0 {
-			// TODO - add an api to retrieve the raw transaction payload from tessera and invoke
-			//  GetAffectedContractTransactions
-			var affectedCATransactions []string
-			//Send private transaction to privacy manager
-			log.Info("sending private tx", "data", fmt.Sprintf("%x", txHash), "privatefor", args.PrivateFor)
-			result, err := private.P.SendSignedTx(txHash, args.PrivateFor, affectedCATransactions, "test")
-			log.Info("sent private tx", "result", fmt.Sprintf("%x", result), "privatefor", args.PrivateFor)
-			if err != nil {
-				return common.Hash{}, err
-			}
-		}
-	} else {
+	isPrivate, _, err := handlePrivateTransaction(ctx, tx, args.PrivateTxArgs, true)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if !isPrivate {
 		return common.Hash{}, fmt.Errorf("transaction is not private")
 	}
 
@@ -1902,6 +1839,41 @@ func (s *PrivateAccountAPI) GetAffectedContractTransactions(ctx context.Context,
 
 	return affectedCATransactions, base64.StdEncoding.EncodeToString(evm.CalculateExecutionHash().Bytes()), nil
 
+}
+
+// If transaction is raw, the tx payload is indeed the hash of the encrypted payload
+//
+// For private transaction, run a simulated execution in order to
+// 1. Find all affected private contract accounts then retrieve encrypted payload hases of their creation txs
+// 2. Calculate Merkle Root as the result of the simulated execution
+// The above information along with private originating payload are sent to Transaction Manager
+// to obtain hash of the encrypted private payload
+func handlePrivateTransaction(ctx context.Context, tx *types.Transaction, privateTxArgs *PrivateTxArgs, isRaw bool) (isPrivate bool, encryptedPayloadHash *hexutil.Bytes, err error) {
+	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
+	if isPrivate {
+		data := tx.Data()
+		if len(data) > 0 { // only support non-value-transfer transaction
+			var creationTxEncryptedPayloadHashes []string // of affected contract accounts
+			var merkleRoot string                         // result from EVM simulated execution
+			// TODO implements privacy enhancements here
+			log.Info("sending private tx", "isRaw", isRaw, "data", fmt.Sprintf("%x", data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor)
+			if isRaw {
+				data, err = private.P.SendSignedTx(data, privateTxArgs.PrivateFor, creationTxEncryptedPayloadHashes, merkleRoot)
+				d := hexutil.Bytes(tx.Data())
+				encryptedPayloadHash = &d
+			} else {
+				data, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, creationTxEncryptedPayloadHashes, merkleRoot)
+				// zekun: HACK
+				d := hexutil.Bytes(data)
+				encryptedPayloadHash = &d
+			}
+			log.Info("sent private tx", "isRaw", isRaw, "data", fmt.Sprintf("%x", data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor)
+			if err != nil {
+				return isPrivate, nil, err
+			}
+		}
+	}
+	return
 }
 
 //End-Quorum
