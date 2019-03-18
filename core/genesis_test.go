@@ -20,6 +20,7 @@ import (
 	"math/big"
 	"reflect"
 	"testing"
+	"errors"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
@@ -84,6 +85,15 @@ func TestSetupGenesis(t *testing.T) {
 			},
 			wantHash:   params.MainnetGenesisHash,
 			wantConfig: params.MainnetChainConfig,
+		},
+		{
+			name: "genesis with incorrect SizeLimit",
+			fn: func(db ethdb.Database) (*params.ChainConfig, common.Hash, error) {
+				customg.Config.TransactionSizeLimit = 100000
+				return SetupGenesisBlock(db, &customg)
+			},
+			wantErr: errors.New("Genesis transaction size limit must be between 32 and 128"),
+			wantConfig: customg.Config,
 		},
 		// {
 		// 	name: "custom block in DB, genesis == nil",
