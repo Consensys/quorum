@@ -863,7 +863,7 @@ func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (h
 		intrinsicGasPrivate, _ := core.IntrinsicGas(common.Hex2Bytes(maxPrivateIntrinsicDataHex), args.To == nil, isHomestead)
 
 		if intrinsicGasPrivate > intrinsicGasPublic {
-			if math.MaxUint64 - hi < intrinsicGasPrivate - intrinsicGasPublic {
+			if math.MaxUint64-hi < intrinsicGasPrivate-intrinsicGasPublic {
 				return 0, fmt.Errorf("private intrinsic gas addition exceeds allowance")
 			}
 			return hexutil.Uint64(hi + (intrinsicGasPrivate - intrinsicGasPublic)), nil

@@ -17,10 +17,10 @@
 package params
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
-	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -188,7 +188,7 @@ type ChainConfig struct {
 	Clique   *CliqueConfig   `json:"clique,omitempty"`
 	Istanbul *IstanbulConfig `json:"istanbul,omitempty"`
 
-	IsQuorum bool `json:"isQuorum"`
+	IsQuorum             bool   `json:"isQuorum"`
 	TransactionSizeLimit uint64 `json:"txnSizeLimit"`
 }
 

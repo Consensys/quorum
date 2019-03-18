@@ -583,7 +583,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrInvalidGasPrice
 	}
 	// Reject transactions over 32KB (or manually set limit) to prevent DOS attacks
-	if float64(tx.Size()) > float64(sizeLimit * 1024) {
+	if float64(tx.Size()) > float64(sizeLimit*1024) {
 		return ErrOversizedData
 	}
 	// Transactions can't be negative. This may never happen using RLP decoded
