@@ -386,7 +386,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
-	isPrivate, data, err := handlePrivateTransaction(ctx, args.toTransaction(), args.PrivateTxArgs, false)
+	isPrivate, data, err := handlePrivateTransaction(ctx, args.toTransaction(), &args.PrivateTxArgs, false)
 	if isPrivate {
 		// replace the original payload with encrypted payload hash
 		args.Data = data
@@ -1180,7 +1180,7 @@ func (s *PublicTransactionPoolAPI) sign(addr common.Address, tx *types.Transacti
 
 // SendTxArgs represents the arguments to sumbit a new transaction into the transaction pool.
 type SendTxArgs struct {
-	*PrivateTxArgs
+	PrivateTxArgs
 	From     common.Address  `json:"from"`
 	To       *common.Address `json:"to"`
 	Gas      *hexutil.Uint64 `json:"gas"`
@@ -1195,7 +1195,7 @@ type SendTxArgs struct {
 
 // SendRawTxArgs represents the arguments to submit a new signed private transaction into the transaction pool.
 type SendRawTxArgs struct {
-	*PrivateTxArgs
+	PrivateTxArgs
 }
 
 // Additional arguments dedicated to private transactions
@@ -1298,7 +1298,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
-	isPrivate, data, err := handlePrivateTransaction(ctx, args.toTransaction(), args.PrivateTxArgs, false)
+	isPrivate, data, err := handlePrivateTransaction(ctx, args.toTransaction(), &args.PrivateTxArgs, false)
 	if isPrivate {
 		// replace the original payload with encrypted payload hash
 		args.Data = data
@@ -1338,7 +1338,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		return common.Hash{}, err
 	}
 
-	isPrivate, _, err := handlePrivateTransaction(ctx, tx, args.PrivateTxArgs, true)
+	isPrivate, _, err := handlePrivateTransaction(ctx, tx, &args.PrivateTxArgs, true)
 	if err != nil {
 		return common.Hash{}, err
 	}

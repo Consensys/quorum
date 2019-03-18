@@ -141,12 +141,13 @@ func (c *Client) ReceivePayload(key []byte) ([]byte, []string, string, error) {
 	}
 	req.Header.Set("c11n-key", base64.StdEncoding.EncodeToString(key))
 	res, err := c.httpClient.Do(req)
-
-	if res != nil {
-		defer res.Body.Close()
-	}
 	if err != nil {
 		return nil, nil, "", err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode == 404 { // payload not found
+		return nil, nil, "", nil // empty payload
 	}
 	if res.StatusCode != 200 {
 		return nil, nil, "", fmt.Errorf("Non-200 status code: %+v", res)
