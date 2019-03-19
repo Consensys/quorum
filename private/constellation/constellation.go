@@ -44,7 +44,6 @@ func (g *Constellation) SendSignedTx(data []byte, to []string) (out []byte, err 
 	return out, nil
 }
 
-
 func (g *Constellation) Receive(data []byte) ([]byte, error) {
 	if g.isConstellationNotInUse {
 		return nil, nil

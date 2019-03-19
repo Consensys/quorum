@@ -21,7 +21,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/rlp"
 
 	"github.com/coreos/etcd/etcdserver/stats"
@@ -29,8 +28,11 @@ import (
 	etcdRaft "github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/rafthttp"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/syndtr/goleveldb/leveldb"
-	"gopkg.in/fatih/set.v0"
+
+	"github.com/deckarep/golang-set"
 )
 
 type ProtocolManager struct {
@@ -40,7 +42,7 @@ type ProtocolManager struct {
 
 	// Static configuration
 	joinExisting   bool // Whether to join an existing cluster when a WAL doesn't already exist
-	bootstrapNodes []*discover.Node
+	bootstrapNodes []*enode.Node
 	raftId         uint16
 	raftPort       uint16
 
@@ -53,7 +55,7 @@ type ProtocolManager struct {
 	// Remote peer state (protected by mu vs concurrent access via JS)
 	leader       uint16
 	peers        map[uint16]*Peer
-	removedPeers *set.Set // *Permanently removed* peers
+	removedPeers mapset.Set // *Permanently removed* peers
 
 	// P2P transport
 	p2pServer *p2p.Server // Initialized in start()
@@ -95,7 +97,7 @@ type ProtocolManager struct {
 // Public interface
 //
 
-func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*discover.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
+func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -104,7 +106,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 		bootstrapNodes:      bootstrapNodes,
 		peers:               make(map[uint16]*Peer),
 		leader:              uint16(etcdRaft.None),
-		removedPeers:        set.New(),
+		removedPeers:        mapset.NewSet(),
 		joinExisting:        joinExisting,
 		blockchain:          blockchain,
 		eventMux:            mux,
@@ -198,10 +200,12 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 		peerIdx += 1
 	}
 
-	removedPeerIfaces := pm.removedPeers.List()
-	removedPeerIds := make([]uint16, len(removedPeerIfaces))
-	for i, removedIface := range removedPeerIfaces {
+	removedPeerIfaces := pm.removedPeers
+	removedPeerIds := make([]uint16, removedPeerIfaces.Cardinality())
+	i := 0
+	for removedIface := range removedPeerIfaces.Iterator().C {
 		removedPeerIds[i] = removedIface.(uint16)
+		i++
 	}
 
 	//
@@ -244,8 +248,8 @@ func (pm *ProtocolManager) nextRaftId() uint16 {
 		}
 	}
 
-	removedPeerIfaces := pm.removedPeers.List()
-	for _, removedIface := range removedPeerIfaces {
+	removedPeerIfaces := pm.removedPeers
+	for removedIface := range removedPeerIfaces.Iterator().C {
 		removedId := removedIface.(uint16)
 
 		if maxId < removedId {
@@ -260,7 +264,7 @@ func (pm *ProtocolManager) isRaftIdRemoved(id uint16) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	return pm.removedPeers.Has(id)
+	return pm.removedPeers.Contains(id)
 }
 
 func (pm *ProtocolManager) isRaftIdUsed(raftId uint16) bool {
@@ -274,7 +278,7 @@ func (pm *ProtocolManager) isRaftIdUsed(raftId uint16) bool {
 	return pm.peers[raftId] != nil
 }
 
-func (pm *ProtocolManager) isNodeAlreadyInCluster(node *discover.Node) error {
+func (pm *ProtocolManager) isNodeAlreadyInCluster(node *enode.Node) error {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
@@ -282,15 +286,15 @@ func (pm *ProtocolManager) isNodeAlreadyInCluster(node *discover.Node) error {
 		peerRaftId := peer.address.RaftId
 		peerNode := peer.p2pNode
 
-		if peerNode.ID == node.ID {
-			return fmt.Errorf("node with this enode has already been added to the cluster: %v", node.ID)
+		if peerNode.ID() == node.ID() {
+			return fmt.Errorf("node with this enode has already been added to the cluster: %s", node.ID())
 		}
 
-		if peerNode.IP.Equal(node.IP) {
-			if peerNode.TCP == node.TCP {
-				return fmt.Errorf("existing node %v with raft ID %v is already using eth p2p at %v:%v", peerNode.ID, peerRaftId, node.IP, node.TCP)
-			} else if peer.address.RaftPort == node.RaftPort {
-				return fmt.Errorf("existing node %v with raft ID %v is already using raft at %v:%v", peerNode.ID, peerRaftId, node.IP, node.RaftPort)
+		if peerNode.IP().Equal(node.IP()) {
+			if peerNode.TCP() == node.TCP() {
+				return fmt.Errorf("existing node %v with raft ID %v is already using eth p2p at %v:%v", peerNode.ID(), peerRaftId, node.IP(), node.TCP())
+			} else if peer.address.RaftPort == enr.RaftPort(node.RaftPort()) {
+				return fmt.Errorf("existing node %v with raft ID %v is already using raft at %v:%v", peerNode.ID(), peerRaftId, node.IP(), node.RaftPort())
 			}
 		}
 	}
@@ -299,13 +303,13 @@ func (pm *ProtocolManager) isNodeAlreadyInCluster(node *discover.Node) error {
 }
 
 func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
-	node, err := discover.ParseNode(enodeId)
+	node, err := enode.ParseV4(enodeId)
 	if err != nil {
 		return 0, err
 	}
 
-	if len(node.IP) != 4 {
-		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP))
+	if len(node.IP()) != 4 {
+		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
 	}
 
 	if !node.HasRaftPort() {
@@ -317,7 +321,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 	}
 
 	raftId := pm.nextRaftId()
-	address := newAddress(raftId, node.RaftPort, node)
+	address := newAddress(raftId, node.RaftPort(), node)
 
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddNode,
@@ -644,8 +648,15 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 
 	raftId := address.RaftId
 
+	//Quorum - RAFT - derive pubkey from nodeId
+	pubKey, err := enode.HexPubkey(address.NodeId.String())
+	if err != nil {
+		log.Error("error decoding pub key from enodeId", "enodeId", address.NodeId.String(), "err", err)
+		panic(err)
+	}
+
 	// Add P2P connection:
-	p2pNode := discover.NewNode(address.NodeId, address.Ip, 0, uint16(address.P2pPort))
+	p2pNode := enode.NewV4(pubKey, address.Ip, 0, int(address.P2pPort), int(address.RaftPort))
 	pm.p2pServer.AddPeer(p2pNode)
 
 	// Add raft transport connection:
@@ -837,8 +848,7 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		// We initially get the raftPort from the enode ID's query string. As an alternative, we can move away from
 		// requiring the use of static peers for the initial set, and load them from e.g. another JSON file which
 		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
-		address := newAddress(raftId, node.RaftPort, node)
-
+		address := newAddress(raftId, node.RaftPort(), node)
 		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
 			Context: address.toBytes(),

@@ -26,13 +26,13 @@ import (
 	"time"
 	"unicode"
 
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/dashboard"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/raft"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
@@ -177,6 +177,9 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		if ctx.GlobalIsSet(utils.WhisperMinPOWFlag.Name) {
 			cfg.Shh.MinimumAcceptedPOW = ctx.Float64(utils.WhisperMinPOWFlag.Name)
 		}
+		if ctx.GlobalIsSet(utils.WhisperRestrictConnectionBetweenLightClientsFlag.Name) {
+			cfg.Shh.RestrictConnectionBetweenLightClients = true
+		}
 		utils.RegisterShhService(stack, &cfg.Shh)
 	}
 
@@ -215,7 +218,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 		privkey := cfg.Node.NodeKey()
-		strId := discover.PubkeyID(&privkey.PublicKey).String()
+		strId := enode.PubkeyToIDV4(&privkey.PublicKey).String()
 		blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
 		peers := cfg.Node.StaticNodes()
 
@@ -235,7 +238,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 					utils.Fatalf("raftport querystring parameter not specified in static-node enode ID: %v. please check your static-nodes.json file.", peer.String())
 				}
 
-				peerId := peer.ID.String()
+				peerId := peer.ID().String()
 				peerIds[peerIdx] = peerId
 				if peerId == strId {
 					myId = uint16(peerIdx) + 1
