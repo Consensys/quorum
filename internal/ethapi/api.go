@@ -1837,10 +1837,12 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	addresses := evm.AffectedContracts()
 	for _, addr := range addresses {
 		privacyMetadata := evm.StateDB.GetPrivacyMetadata(addr)
+		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
+		// when we run simulation, it's possible that affected contracts may contain public ones
+		// public contract will not have any privacyMetadata attached
 		if privacyMetadata == nil {
-			continue // TODO
+			continue
 		}
-		log.Debug("Found affected contract", "address", addr.Hex(), "creationTxHash", privacyMetadata.CreationTxHash.Hex())
 		affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
 	}
 

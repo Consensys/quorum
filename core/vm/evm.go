@@ -17,7 +17,6 @@
 package vm
 
 import (
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -57,20 +56,18 @@ type (
 
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
 func run(evm *EVM, contract *Contract, input []byte) ([]byte, error) {
-	addr := &common.Address{}
 	if contract.CodeAddr != nil {
-		addr = contract.CodeAddr
-	}
-	log.Debug("Run EVM", "contract.address", contract.Address().Hex(), "contract.CodeAddr", addr.Hex())
-	if contract.CodeAddr != nil {
-		if _, ok := evm.affectedContracts[*contract.CodeAddr]; !ok {
-			evm.affectedContracts[*contract.CodeAddr] = MessageCall
+		// Using CodeAddr is favour over contract.Address()
+		// During DelegateCall() CodeAddr is the address of the delegated account
+		address := *contract.CodeAddr
+		if _, ok := evm.affectedContracts[address]; !ok {
+			evm.affectedContracts[address] = MessageCall
 		}
 		precompiles := PrecompiledContractsHomestead
 		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
 			precompiles = PrecompiledContractsByzantium
 		}
-		if p := precompiles[*contract.CodeAddr]; p != nil {
+		if p := precompiles[address]; p != nil {
 			return RunPrecompiledContract(p, input, contract)
 		}
 	}
