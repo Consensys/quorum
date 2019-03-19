@@ -108,6 +108,12 @@ type Account struct {
 	OrigTxHash []byte
 }
 
+//attached to every private contract account
+type PrivacyMetadata struct {
+	CreationTxHash         []byte //hash of encrypted payload of creation tx
+	PrivateStateValidation bool
+}
+
 // newObject creates a state object.
 func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	if data.Balance == nil {

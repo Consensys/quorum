@@ -221,6 +221,10 @@ func (self *StateDB) GetOrigTxHash(addr common.Address) []byte {
 	return nil
 }
 
+func (self *StateDB) GetPrivacyMetadata(addr common.Address) *PrivacyMetadata {
+	return nil
+}
+
 func (self *StateDB) GetCode(addr common.Address) []byte {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {
