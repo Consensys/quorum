@@ -47,7 +47,7 @@ func (pc *PermissionConfig) IsEmpty() bool {
 
 // sets default access to ReadOnly
 func SetDefaultAccess() {
-	DefaultAccess = FullAccess //TODO to be changed to readOnly
+	DefaultAccess = ReadOnly
 }
 
 // Adds account access to the cache

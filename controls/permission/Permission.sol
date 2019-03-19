@@ -1,4 +1,4 @@
-pragma solidity ^0.5.3;
+pragma solidity ^0.5.0;
 
 contract Permissions {
   address[] initialAcctList;
@@ -375,6 +375,11 @@ contract Permissions {
     uint nodeIndex = getNodeIndex(_enodeId);
     nodeList[nodeIndex].status = prependingStatus[nodeIndex];
     emit PendingOperationCancelled(_enodeId);
+  }
+
+  function addInitAccount(address _addr) external {
+    require(networkBoot == false, "network accounts already boot up");
+    initialAcctList.push(_addr);
   }
 
   // sets the account access to full access for the initial list of accounts

@@ -484,16 +484,18 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		// Ensure that there is at least one account given as a part of genesis.json
 		// which will have full access. If not throw a fatal error
 		// Do not want a network with no access
-		initAcctCnt, err := permissionsSession.GetInitAccountsCount()
 
-		if err == nil && initAcctCnt.Cmp(big.NewInt(0)) == 0 {
-			//TODO to be uncommented
-			//utils.Fatalf("Permissioned network being brought up with zero accounts having full access. Add permissioned full access accounts in genesis.json and bring up the network")
-		}
 		// populate initial account access to full access
 		err = p.populateInitAccountAccess(permissionsSession)
 		if err != nil {
 			return err
+		}
+
+		initAcctCnt, err := permissionsSession.GetInitAccountsCount()
+
+		if err == nil && initAcctCnt.Cmp(big.NewInt(0)) == 0 {
+
+			//utils.Fatalf("Permissioned network being brought up with zero accounts having full access. Add permissioned full access accounts in genesis.json and bring up the network")
 		}
 
 		// populate the initial node list from static-nodes.json
@@ -518,9 +520,9 @@ func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind
 
 		enodeID := node.EnodeID()
 		ipAddr := node.IP().String()
-		port := fmt.Sprintf("%v", node.TCP)
-		discPort := fmt.Sprintf("%v", node.UDP)
-		raftPort := fmt.Sprintf("%v", node.RaftPort)
+		port := fmt.Sprintf("%v", node.TCP())
+		discPort := fmt.Sprintf("%v", node.UDP())
+		raftPort := fmt.Sprintf("%v", node.RaftPort())
 
 		ipAddrPort := ipAddr + ":" + port
 
@@ -542,6 +544,22 @@ func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind
 // Invokes the initAccounts function of smart contract to set the initial
 // set of accounts access to full access
 func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.PermissionsSession) error {
+
+	if !p.permConfig.IsEmpty() {
+		log.Info("AJ-add initial account list ...")
+		for _, a := range p.permConfig.Accounts {
+			log.Info("AJ-adding account ", "A", a)
+			nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
+			permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
+			_, er := permissionsSession.AddInitAccount(common.HexToAddress(a))
+			if er != nil {
+				utils.Fatalf("error adding permission initial account list account: %s, error:%v", a, er)
+			}
+		}
+		log.Info("AJ-add initial account list ...done")
+	}
+	nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
+	permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 	_, err := permissionsSession.InitAccounts()
 	if err != nil {
 		log.Error("calling init accounts failed", "err", err)
