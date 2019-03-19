@@ -17,7 +17,6 @@
 package core
 
 import (
-	"encoding/base64"
 	"errors"
 	"math"
 	"math/big"
@@ -27,10 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
-)
-
-const (
-	TxHashLength = 64
 )
 
 var (
@@ -190,23 +185,6 @@ func (st *StateTransition) preCheck() error {
 	return st.buyGas()
 }
 
-// TODO - should this reside in types.go (besides Address and Hash)?
-type TxHash [TxHashLength]byte
-
-func BytesToTxHash(b []byte) TxHash {
-	var h TxHash
-	h.SetBytes(b)
-	return h
-}
-
-func (h *TxHash) SetBytes(b []byte) {
-	if len(b) > len(h) {
-		b = b[len(b)-TxHashLength:]
-	}
-
-	copy(h[TxHashLength-len(b):], b)
-}
-
 // TransitionDb will transition the state by applying the current message and
 // returning the result including the the used gas. It returns an error if it
 // failed. An error indicates a consensus issue.
@@ -221,21 +199,13 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	isQuorum := st.evm.ChainConfig().IsQuorum
 
 	var data []byte
-	var execHash common.Hash
-	var preCheckedAffectedCATransactions = make(map[TxHash]string)
+	var expectedACMerkleRoot common.Hash
+	var expectedACHashes common.EncryptedPayloadHashes
 	isPrivate := false
 	publicState := st.state
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
-		var affectedCATransactionsB64 []string
-		var execHashB64 string
-		data, affectedCATransactionsB64, execHashB64, err = private.P.Receive(st.data)
-		execHashBytes, _ := base64.StdEncoding.DecodeString(execHashB64)
-		execHash = common.BytesToHash(execHashBytes)
-		for _, v := range affectedCATransactionsB64 {
-			TXN, _ := base64.StdEncoding.DecodeString(v)
-			preCheckedAffectedCATransactions[BytesToTxHash(TXN)] = v
-		}
+		data, expectedACHashes, expectedACMerkleRoot, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -305,24 +275,24 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	//an Error should be thrown and the state should not be updated
 	//This validation is to prevent cases where the list of affected contract will have changed by the time the evm actually executes transaction
 	if isPrivate {
-		actualAffectedCAs := evm.AffectedContracts()
-		for _, v := range actualAffectedCAs {
-			txnForContractBytes := evm.StateDB.GetOrigTxHash(v)
-			// TODO - what do we do when we can't find a transaction for a contract??? - Probably an error
-			if txnForContractBytes != nil {
-				txnForContract := BytesToTxHash(txnForContractBytes)
-				_, ok := preCheckedAffectedCATransactions[txnForContract]
-				if !ok {
-					log.Debug("Affected Contract Transactions check failed. Ignoring transaction. One affected CA not recognized amongst the pre-checked CAs",
-						"affected CA", v.String(),
-						"tx", base64.StdEncoding.EncodeToString(st.data))
-					// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
-					return nil, 0, false, nil
-				}
+		actualACAddresses := evm.AffectedContracts()
+		for _, addr := range actualACAddresses {
+			actualPrivacyMetadata := evm.StateDB.GetPrivacyMetadata(addr)
+			if actualPrivacyMetadata == nil {
+				continue // TODO
+			}
+			if expectedACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
+				log.Error("Participation check failed",
+					"affectedContractAddress", addr.Hex(),
+					"missingCreationTxHash", actualPrivacyMetadata.CreationTxHash)
+				// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
+				return nil, 0, false, nil
 			}
 		}
-		if !verifyExecutionHash(evm, execHash) {
-			log.Info("Execution hash check failed! Ignoring transaction.")
+		// TODO need to check for PSV before performing the actual check
+		actualACMerkleRoot := evm.CalculateMerkleRoot()
+		if actualACMerkleRoot != expectedACMerkleRoot {
+			log.Error("Merkle Root check failed", "actual", actualACMerkleRoot, "expect", expectedACMerkleRoot)
 			// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
 			return nil, 0, false, nil
 		}
@@ -343,17 +313,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		return ret, 0, vmerr != nil, err
 	}
 	return ret, st.gasUsed(), vmerr != nil, err
-}
-
-func verifyExecutionHash(evm *vm.EVM, targetExecHash common.Hash) bool {
-	// TODO trung - add more fancy stuff here
-	calculatedExecHash := evm.CalculateExecutionHash()
-	if calculatedExecHash == targetExecHash {
-		log.Info("Execution hash check succssful", "execHash", calculatedExecHash)
-		return true
-	}
-	log.Info("Execution hash check failed", "calculatedExecHash", calculatedExecHash, "targetExecHash", targetExecHash)
-	return false
 }
 
 func (st *StateTransition) refundGas() {

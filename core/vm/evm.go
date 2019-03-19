@@ -17,10 +17,12 @@
 package vm
 
 import (
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -55,9 +57,14 @@ type (
 
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
 func run(evm *EVM, contract *Contract, input []byte) ([]byte, error) {
+	addr := &common.Address{}
 	if contract.CodeAddr != nil {
-		if !evm.isNewlyCreatedContract(*contract.CodeAddr) {
-			evm.affectedContracts = append(evm.affectedContracts, *contract.CodeAddr)
+		addr = contract.CodeAddr
+	}
+	log.Debug("Run EVM", "contract.address", contract.Address().Hex(), "contract.CodeAddr", addr.Hex())
+	if contract.CodeAddr != nil {
+		if _, ok := evm.affectedContracts[*contract.CodeAddr]; !ok {
+			evm.affectedContracts[*contract.CodeAddr] = MessageCall
 		}
 		precompiles := PrecompiledContractsHomestead
 		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
@@ -137,15 +144,22 @@ type EVM struct {
 	states            [1027]*state.StateDB // TODO(joel) we should be able to get away with 1024 or maybe 1025
 	currentStateDepth uint
 
-	currentTx *types.Transaction
-
 	// This flag has different semantics from the `Interpreter:readOnly` flag (though they interact and could maybe
 	// be simplified). This is set by Quorum when it's inside a Private State -> Public State read.
-	quorumReadOnly    bool
-	readOnlyDepth     uint
-	affectedContracts []common.Address
-	createdContracts  []common.Address
+	quorumReadOnly bool
+	readOnlyDepth  uint
+
+	// these are for privacy enhancements
+	affectedContracts map[common.Address]AffectedType // affected contract account address -> type
+	currentTx         *types.Transaction              // transaction currently being applied on this EVM
 }
+
+type AffectedType byte
+
+const (
+	Creation AffectedType = iota
+	MessageCall
+)
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
@@ -159,6 +173,8 @@ func NewEVM(ctx Context, statedb, privateState StateDB, chainConfig *params.Chai
 
 		publicState:  statedb,
 		privateState: privateState,
+
+		affectedContracts: make(map[common.Address]AffectedType),
 	}
 
 	evm.Push(privateState)
@@ -171,28 +187,6 @@ func NewEVM(ctx Context, statedb, privateState StateDB, chainConfig *params.Chai
 // it's safe to be called multiple times.
 func (evm *EVM) Cancel() {
 	atomic.StoreInt32(&evm.abort, 1)
-}
-
-func (evm *EVM) isNewlyCreatedContract(addr common.Address) bool {
-	for _, a := range evm.createdContracts {
-		if a == addr {
-			return true
-		}
-	}
-	return false
-}
-
-func (evm *EVM) CalculateExecutionHash() common.Hash {
-	// TODO Trung - add your affected contracts root trie here
-	var allContracts []byte
-	for _, c := range evm.createdContracts {
-		allContracts = append(allContracts, c.Bytes()...)
-	}
-	for _, c := range evm.affectedContracts {
-		allContracts = append(allContracts, c.Bytes()...)
-	}
-
-	return crypto.Keccak256Hash(allContracts)
 }
 
 // Call executes the contract associated with the addr with the given input as
@@ -442,7 +436,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	snapshot := evm.StateDB.Snapshot()
 	evm.StateDB.CreateAccount(contractAddr)
 
-	evm.createdContracts = append(evm.createdContracts, contractAddr)
+	evm.affectedContracts[contractAddr] = Creation
 
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
 		evm.StateDB.SetNonce(contractAddr, 1)
@@ -538,7 +532,6 @@ func getDualState(env *EVM, addr common.Address) StateDB {
 
 func (env *EVM) PublicState() PublicState           { return env.publicState }
 func (env *EVM) PrivateState() PrivateState         { return env.privateState }
-func (env *EVM) CurrentTX() *types.Transaction      { return env.currentTx }
 func (env *EVM) SetCurrentTX(tx *types.Transaction) { env.currentTx = tx }
 func (env *EVM) Push(statedb StateDB) {
 	// Quorum : the read only depth to be set up only once for the entire
@@ -574,6 +567,19 @@ func (self *EVM) RevertToSnapshot(snapshot int) {
 	self.StateDB.RevertToSnapshot(snapshot)
 }
 
-func (env *EVM) AffectedContracts() []common.Address {
-	return env.affectedContracts
+// Returns all affected contracts that are NOT due to creation transaction
+func (evm *EVM) AffectedContracts() []common.Address {
+	addr := make([]common.Address, 0, len(evm.affectedContracts))
+	for a, t := range evm.affectedContracts {
+		if t == MessageCall {
+			addr = append(addr, a)
+		}
+	}
+	return addr
+}
+
+// Return MerkleRoot of all affected contracts that are NOT due to creation transaction
+func (evm *EVM) CalculateMerkleRoot() common.Hash {
+	// TODO Trung - add your affected contracts root trie here
+	return common.Hash{}
 }

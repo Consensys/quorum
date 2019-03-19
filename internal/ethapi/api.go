@@ -19,7 +19,6 @@ package ethapi
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"math/big"
@@ -30,8 +29,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/davecgh/go-spew/spew"
 	"sync"
+
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -386,10 +386,10 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
-	isPrivate, data, err := handlePrivateTransaction(ctx, args.toTransaction(), &args.PrivateTxArgs, false)
+	isPrivate, data, err := handlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, false)
 	if isPrivate {
 		// replace the original payload with encrypted payload hash
-		args.Data = data
+		args.Data = data.BytesTypeRef()
 	}
 
 	signed, err := s.signTransaction(ctx, args, passwd)
@@ -1298,10 +1298,10 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
-	isPrivate, data, err := handlePrivateTransaction(ctx, args.toTransaction(), &args.PrivateTxArgs, false)
+	isPrivate, data, err := handlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, false)
 	if isPrivate {
 		// replace the original payload with encrypted payload hash
-		args.Data = data
+		args.Data = data.BytesTypeRef()
 	}
 
 	// Assemble the transaction and sign with the wallet
@@ -1337,8 +1337,8 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
-
-	isPrivate, _, err := handlePrivateTransaction(ctx, tx, &args.PrivateTxArgs, true)
+	log.Debug("Raw transaction", "tx", tx)
+	isPrivate, _, err := handlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, true)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -1716,129 +1716,11 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != 64 {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	data, _, _, err := private.P.Receive(b)
+	data, _, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
 	if err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("0x%x", data), nil
-}
-
-func (s *PublicTransactionPoolAPI) GetAffectedContractTransactions(ctx context.Context, args SendTxArgs) ([]string, string, error) {
-	start := time.Now()
-	blockNumber := s.b.CurrentBlock().Number().Uint64()
-	state, header, err := s.b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
-	if state == nil || err != nil {
-		return nil, "", err
-	}
-	data := []byte(*args.Data)
-	msg := types.NewMessage(args.From, args.To, uint64(*args.Nonce), args.Value.ToInt(), uint64(*args.Gas), args.GasPrice.ToInt(), *args.Data, false)
-
-	// Setup context with timeout as gas un-metered
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, time.Second*5)
-	// Make sure the context is cancelled when the call has completed
-	// this makes sure resources are cleaned up.
-	defer func() { cancel() }()
-
-	// Get a new instance of the EVM.
-	evm, _, err := s.b.GetEVM(ctx, msg, state, header, vm.Config{})
-	if err != nil {
-		return nil, "", err
-	}
-	// Wait for the context to be done and cancel the evm. Even if the
-	// EVM has finished, cancelling may be done (repeatedly)
-	go func() {
-		<-ctx.Done()
-		evm.Cancel()
-	}()
-
-	// even the creation of a contract (init code) can invoke other contracts
-	if args.To != nil {
-		if !evm.StateDB.Exist(*args.To) {
-			err = errors.New("The current node does not have access to contract: " + hexutil.Encode(args.To.Bytes()))
-		} else {
-			_, _, err = evm.Call(vm.AccountRef(args.From), *args.To, data, msg.Gas(), big.NewInt(0))
-		}
-	} else {
-		_, _, _, err = evm.Create(vm.AccountRef(args.From), data, msg.Gas(), big.NewInt(0))
-	}
-
-	if err != nil {
-		log.Debug("Error occurs during pre-execution of a message", "error", err)
-		return nil, "", err
-	}
-	var affectedCATransactions []string
-	affectedContracts := evm.AffectedContracts()
-	for _, v := range affectedContracts {
-		affectedCATxn := evm.StateDB.GetOrigTxHash(v)
-		log.Debug("Affected ", "CA", v.Hex(), "OrigTXHash", hexutil.Encode(affectedCATxn))
-
-		affectedCATransactions = append(affectedCATransactions, base64.StdEncoding.EncodeToString(affectedCATxn))
-	}
-
-	log.Debug("Pre-execution of transaction finished", "runtime", time.Since(start))
-
-	return affectedCATransactions, base64.StdEncoding.EncodeToString(evm.CalculateExecutionHash().Bytes()), nil
-
-}
-
-func (s *PrivateAccountAPI) GetAffectedContractTransactions(ctx context.Context, args SendTxArgs) ([]string, string, error) {
-	start := time.Now()
-	blockNumber := s.b.CurrentBlock().Number().Uint64()
-	state, header, err := s.b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
-	if state == nil || err != nil {
-		return nil, "", err
-	}
-	data := []byte(*args.Data)
-	msg := types.NewMessage(args.From, args.To, uint64(*args.Nonce), args.Value.ToInt(), uint64(*args.Gas), args.GasPrice.ToInt(), *args.Data, false)
-
-	// Setup context with timeout as gas un-metered
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, time.Second*5)
-	// Make sure the context is cancelled when the call has completed
-	// this makes sure resources are cleaned up.
-	defer func() { cancel() }()
-
-	// Get a new instance of the EVM.
-	evm, _, err := s.b.GetEVM(ctx, msg, state, header, vm.Config{})
-	if err != nil {
-		return nil, "", err
-	}
-	// Wait for the context to be done and cancel the evm. Even if the
-	// EVM has finished, cancelling may be done (repeatedly)
-	go func() {
-		<-ctx.Done()
-		evm.Cancel()
-	}()
-
-	// even the creation of a contract (init code) can invoke other contracts
-	if args.To != nil {
-		if !evm.StateDB.Exist(*args.To) {
-			err = errors.New("The current node does not have access to contract: " + hexutil.Encode(args.To.Bytes()))
-		} else {
-			_, _, err = evm.Call(vm.AccountRef(args.From), *args.To, data, msg.Gas(), big.NewInt(0))
-		}
-	} else {
-		_, _, _, err = evm.Create(vm.AccountRef(args.From), data, msg.Gas(), big.NewInt(0))
-	}
-
-	if err != nil {
-		log.Debug("Error occurs during pre-execution of a message", "error", err)
-		return nil, "", err
-	}
-	var affectedCATransactions []string
-	affectedContracts := evm.AffectedContracts()
-	for _, v := range affectedContracts {
-		affectedCATxn := evm.StateDB.GetOrigTxHash(v)
-		log.Debug("Affected ", "CA", v.Hex(), "OrigTXHash", hexutil.Encode(affectedCATxn))
-
-		affectedCATransactions = append(affectedCATransactions, base64.StdEncoding.EncodeToString(affectedCATxn))
-	}
-
-	log.Debug("Pre-execution of transaction finished", "runtime", time.Since(start))
-
-	return affectedCATransactions, base64.StdEncoding.EncodeToString(evm.CalculateExecutionHash().Bytes()), nil
-
 }
 
 // If transaction is raw, the tx payload is indeed the hash of the encrypted payload
@@ -1848,32 +1730,121 @@ func (s *PrivateAccountAPI) GetAffectedContractTransactions(ctx context.Context,
 // 2. Calculate Merkle Root as the result of the simulated execution
 // The above information along with private originating payload are sent to Transaction Manager
 // to obtain hash of the encrypted private payload
-func handlePrivateTransaction(ctx context.Context, tx *types.Transaction, privateTxArgs *PrivateTxArgs, isRaw bool) (isPrivate bool, encryptedPayloadHash *hexutil.Bytes, err error) {
+func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, isRaw bool) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
 	if isPrivate {
 		data := tx.Data()
 		if len(data) > 0 { // only support non-value-transfer transaction
-			var creationTxEncryptedPayloadHashes []string // of affected contract accounts
-			var merkleRoot string                         // result from EVM simulated execution
-			// TODO implements privacy enhancements here
-			log.Info("sending private tx", "isRaw", isRaw, "data", fmt.Sprintf("%x", data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor)
+			var creationTxEncryptedPayloadHashes common.EncryptedPayloadHashes // of affected contract accounts
+			var merkleRoot common.Hash                                         // result from EVM simulated execution
+			log.Info("sending private tx", "isRaw", isRaw, "data", common.BytesToHash(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psv", privateTxArgs.PrivateStateValidation)
 			if isRaw {
-				data, err = private.P.SendSignedTx(data, privateTxArgs.PrivateFor, creationTxEncryptedPayloadHashes, merkleRoot)
-				d := hexutil.Bytes(tx.Data())
-				encryptedPayloadHash = &d
+				hash = common.BytesToEncryptedPayloadHash(data)
+				/*
+					privatePayload, _, _, revErr := private.P.Receive<TODO need new API to retrieve payload>(data)
+					if revErr != nil {
+						return isPrivate, nil, revErr
+					}
+					var privateTx *types.Transaction
+					if tx.To() == nil {
+						privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
+					} else {
+						privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
+					}
+					creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, privateTx)
+					if err != nil {
+						return
+					}
+				*/
+				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, creationTxEncryptedPayloadHashes, merkleRoot)
 			} else {
-				data, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, creationTxEncryptedPayloadHashes, merkleRoot)
-				// zekun: HACK
-				d := hexutil.Bytes(data)
-				encryptedPayloadHash = &d
+				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx)
+				if err != nil {
+					return
+				}
+				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, creationTxEncryptedPayloadHashes, merkleRoot)
 			}
-			log.Info("sent private tx", "isRaw", isRaw, "data", fmt.Sprintf("%x", data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor)
+			log.Info("sent private tx", "isRaw", isRaw, "data", common.BytesToHash(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psv", privateTxArgs.PrivateStateValidation)
 			if err != nil {
-				return isPrivate, nil, err
+				return isPrivate, common.EncryptedPayloadHash{}, err
 			}
 		}
 	}
 	return
+}
+
+// Simulate excution of a private transaction
+// Returns hashes of encrypted payload of creation transactions for all affected contract accounts
+// and the merkle root combining all affected contract accounts after the simulation
+//
+func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction) (common.EncryptedPayloadHashes, common.Hash, error) {
+	defer func(start time.Time) {
+		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
+	}(time.Now())
+	blockNumber := b.CurrentBlock().Number().Uint64()
+	state, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
+	if state == nil || err != nil {
+		return nil, common.Hash{}, err
+	}
+	// Set sender address or use a default if none specified
+	addr := from
+	if addr == (common.Address{}) {
+		if wallets := b.AccountManager().Wallets(); len(wallets) > 0 {
+			if accounts := wallets[0].Accounts(); len(accounts) > 0 {
+				addr = accounts[0].Address
+			}
+		}
+	}
+
+	// Create new call message
+	msg := types.NewMessage(addr, privateTx.To(), privateTx.Nonce(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), privateTx.Data(), false)
+
+	// Setup context with timeout as gas un-metered
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, time.Second*5)
+	// Make sure the context is cancelled when the call has completed
+	// this makes sure resources are cleaned up.
+	defer func() { cancel() }()
+
+	// Get a new instance of the EVM.
+	evm, _, err := b.GetEVM(ctx, msg, state, header, vm.Config{})
+	if err != nil {
+		return nil, common.Hash{}, err
+	}
+	// Wait for the context to be done and cancel the evm. Even if the
+	// EVM has finished, cancelling may be done (repeatedly)
+	go func() {
+		<-ctx.Done()
+		evm.Cancel()
+	}()
+
+	// even the creation of a contract (init code) can invoke other contracts
+	if privateTx.To() != nil {
+		if !evm.StateDB.Exist(*privateTx.To()) {
+			err = fmt.Errorf("no access to contract account %s", privateTx.To().Hex())
+		} else {
+			_, _, err = evm.Call(vm.AccountRef(addr), *privateTx.To(), privateTx.Data(), privateTx.Gas(), privateTx.Value())
+		}
+	} else {
+		_, _, _, err = evm.Create(vm.AccountRef(addr), privateTx.Data(), privateTx.Gas(), privateTx.Value())
+	}
+
+	if err != nil {
+		log.Error("Simulated execution", "error", err)
+		return nil, common.Hash{}, err
+	}
+	affectedContractsHashes := make(common.EncryptedPayloadHashes)
+	addresses := evm.AffectedContracts()
+	for _, addr := range addresses {
+		privacyMetadata := evm.StateDB.GetPrivacyMetadata(addr)
+		if privacyMetadata == nil {
+			continue // TODO
+		}
+		log.Debug("Found affected contract", "address", addr.Hex(), "creationTxHash", privacyMetadata.CreationTxHash.Hex())
+		affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
+	}
+
+	return affectedContractsHashes, evm.CalculateMerkleRoot(), nil
 }
 
 //End-Quorum

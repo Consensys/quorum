@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/patrickmn/go-cache"
 )
 
@@ -21,59 +23,70 @@ var (
 	ErrConstellationIsntInit = errors.New("Constellation not in use")
 )
 
-type PayloadWithAffectedCATransactions struct {
-	payload     []byte
-	affectedCAs []string
-	execHash    string
+type PrivateCacheItem struct {
+	payload      []byte
+	acHashes     common.EncryptedPayloadHashes // hashes of affected contracts
+	acMerkleRoot common.Hash                   // merkle root of all affected contracts
 }
 
-func (g *Constellation) Send(data []byte, from string, to []string, affectedCATransactions []string, execHash string) (out []byte, err error) {
+func (g *Constellation) Send(data []byte, from string, to []string, acHashes common.EncryptedPayloadHashes, acMerkleRoot common.Hash) (out common.EncryptedPayloadHash, err error) {
 	if g.isConstellationNotInUse {
-		return nil, ErrConstellationIsntInit
+		return common.EncryptedPayloadHash{}, ErrConstellationIsntInit
 	}
-	out, err = g.node.SendPayload(data, from, to, affectedCATransactions, execHash)
+	out, err = g.node.SendPayload(data, from, to, acHashes, acMerkleRoot)
 	if err != nil {
-		return nil, err
+		return common.EncryptedPayloadHash{}, err
 	}
-	g.c.Set(string(out), PayloadWithAffectedCATransactions{data, affectedCATransactions, execHash}, cache.DefaultExpiration)
+	cacheKey := string(out.Bytes())
+	g.c.Set(cacheKey, PrivateCacheItem{
+		payload:      data,
+		acHashes:     acHashes,
+		acMerkleRoot: acMerkleRoot,
+	}, cache.DefaultExpiration)
 	return out, nil
 }
 
-func (g *Constellation) SendSignedTx(data []byte, to []string, affectedCATransactions []string, execHash string) (out []byte, err error) {
+func (g *Constellation) SendSignedTx(data common.EncryptedPayloadHash, to []string, acHashes common.EncryptedPayloadHashes, acMerkleRoot common.Hash) (out []byte, err error) {
 	if g.isConstellationNotInUse {
 		return nil, ErrConstellationIsntInit
 	}
-	out, err = g.node.SendSignedPayload(data, to, affectedCATransactions, execHash)
+	out, err = g.node.SendSignedPayload(data, to, acHashes, acMerkleRoot)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (g *Constellation) Receive(data []byte) ([]byte, []string, string, error) {
+func (g *Constellation) Receive(data common.EncryptedPayloadHash) ([]byte, common.EncryptedPayloadHashes, common.Hash, error) {
 	if g.isConstellationNotInUse {
-		return nil, nil, "", nil
+		return nil, nil, common.Hash{}, nil
 	}
-	if len(data) == 0 {
-		return data, nil, "", nil
+	if common.EmptyEncryptedPayloadHash(data) {
+		return data.Bytes(), nil, common.Hash{}, nil
 	}
 	// Ignore this error since not being a recipient of
 	// a payload isn't an error.
 	// TODO: Return an error if it's anything OTHER than
 	// 'you are not a recipient.'
-	dataStr := string(data)
-	x, found := g.c.Get(dataStr)
+	cacheKey := string(data.Bytes())
+	x, found := g.c.Get(cacheKey)
 	if found {
-		plWithAffectedCATxns, _ := x.(PayloadWithAffectedCATransactions)
-		return plWithAffectedCATxns.payload, plWithAffectedCATxns.affectedCAs, plWithAffectedCATxns.execHash, nil
+		cacheItem, ok := x.(PrivateCacheItem)
+		if !ok {
+			return nil, nil, common.Hash{}, fmt.Errorf("unknown cache item. expected type PrivateCacheItem")
+		}
+		return cacheItem.payload, cacheItem.acHashes, cacheItem.acMerkleRoot, nil
 	}
-	pl, affectedCATransactions, execHash, err := g.node.ReceivePayload(data)
-	// TODO why wasn't this error checked here already?!?!?!?
+	privatePayload, acHashes, acMerkleRoot, err := g.node.ReceivePayload(data)
 	if nil != err {
-		return nil, nil, "", err
+		return nil, nil, common.Hash{}, err
 	}
-	g.c.Set(dataStr, PayloadWithAffectedCATransactions{pl, affectedCATransactions, execHash}, cache.DefaultExpiration)
-	return pl, affectedCATransactions, execHash, nil
+	g.c.Set(cacheKey, PrivateCacheItem{
+		payload:      privatePayload,
+		acHashes:     acHashes,
+		acMerkleRoot: acMerkleRoot,
+	}, cache.DefaultExpiration)
+	return privatePayload, acHashes, acMerkleRoot, nil
 }
 
 func New(path string) (*Constellation, error) {
