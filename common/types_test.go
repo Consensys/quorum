@@ -17,8 +17,8 @@
 package common
 
 import (
+	"encoding/base64"
 	"encoding/json"
-
 	"math/big"
 	"strings"
 	"testing"
@@ -192,4 +192,77 @@ func TestMixedcaseAccount_Address(t *testing.T) {
 
 	}
 
+}
+
+func TestEmptyEncryptedPayloadHash(t *testing.T) {
+	emptyHash := EncryptedPayloadHash{}
+
+	if !EmptyEncryptedPayloadHash(emptyHash) {
+		t.Errorf("expected empty encrypted payload hash is true")
+	}
+}
+
+func TestBytesToEncryptedPayloadHash_whenTypical(t *testing.T) {
+	arbitraryBytes := []byte{10}
+	var expected EncryptedPayloadHash
+	expected[EncryptedPayloadHashLength-1] = 10
+
+	actual := BytesToEncryptedPayloadHash(arbitraryBytes)
+
+	if expected != actual {
+		t.Errorf("expected %x but got %x", expected, actual)
+	}
+}
+
+func TestEncryptedPayloadHash_Bytes(t *testing.T) {
+	arbitraryBytes := []byte{10}
+	h := BytesToEncryptedPayloadHash(arbitraryBytes)
+
+	actual := h.Bytes()
+
+	if actual[EncryptedPayloadHashLength-1] != arbitraryBytes[0] {
+		t.Errorf("expected %x but got %x", arbitraryBytes, actual)
+	}
+}
+
+func TestEncryptedPayloadHash_BytesTypeRef(t *testing.T) {
+	arbitraryBytes := []byte{10}
+	h := BytesToEncryptedPayloadHash(arbitraryBytes)
+	expected := h.Hex()
+
+	bt := h.BytesTypeRef()
+	actual := bt.String()
+
+	if actual != expected {
+		t.Errorf("expected %s but got %s", expected, actual)
+	}
+}
+
+func TestEncryptedPayloadHash_ToBase64(t *testing.T) {
+	arbitraryBytes := []byte{10}
+	h := BytesToEncryptedPayloadHash(arbitraryBytes)
+	expected := base64.StdEncoding.EncodeToString(h.Bytes())
+
+	actual := h.ToBase64()
+
+	if actual != expected {
+		t.Errorf("expected %s but got %s", expected, actual)
+	}
+}
+
+func TestEncryptedPayloadHashes_whenTypical(t *testing.T) {
+	arbitraryBytes1 := []byte{10}
+	arbitraryBytes2 := []byte{5}
+	h, err := Base64sToEncryptedPayloadHashes([]string{base64.StdEncoding.EncodeToString(arbitraryBytes1), base64.StdEncoding.EncodeToString(arbitraryBytes2)})
+	if err != nil {
+		t.Fatalf("must be able to convert but fail due to %s", err)
+	}
+
+	arbitraryBytes3 := []byte{7}
+	newItem := BytesToEncryptedPayloadHash(arbitraryBytes3)
+	h.Add(newItem)
+
+	if h.NotExist(newItem) {
+		t.Errorf("expected %s to exist in the hashes", newItem)
+	}
 }
