@@ -3,7 +3,7 @@ import "./PermissionsUpgradable.sol";
 
 
 contract VoterManager {
-    PermissionsImplUpgradeable private permUpgradable;
+    PermissionsUpgradable private permUpgradable;
 //    enum PendingOpType {0-None, 1-OrgAdd, 2-OrgSuspension, 3-OrgRevokeSuspension, 4-AddOrgAdmin}
     struct PendingOpDetails {
         string orgId;
@@ -53,7 +53,7 @@ contract VoterManager {
     }
 
     constructor (address _permUpgradable) public {
-        permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
+        permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
     // returns the voter index
@@ -157,7 +157,8 @@ contract VoterManager {
         orgVoterList[id].pendingOp.enodeId = _enodeId;
         orgVoterList[id].pendingOp.account = _account;
         orgVoterList[id].pendingOp.opType = _pendingOp;
-        // init vote status
+        emit Dummy("at 1");
+//        init vote status
         for (uint i = 0; i < orgVoterList[id].voterList.length; i++) {
             if (orgVoterList[id].voterList[i].active) {
                 orgVoterList[id].votingStatus[id][orgVoterList[id].voterList[i].vAccount] = false;

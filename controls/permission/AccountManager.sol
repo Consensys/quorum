@@ -2,7 +2,7 @@ pragma solidity ^0.5.3;
 import "./PermissionsUpgradable.sol";
 
 contract AccountManager {
-    PermissionsImplUpgradeable private permUpgradable;
+    PermissionsUpgradable private permUpgradable;
 //    enum AccountStatus {0-NotInList, 1-PendingApproval, 2-Active, 3-Inactive}
     struct AccountAccessDetails {
         address acctId;
@@ -32,7 +32,7 @@ contract AccountManager {
     }
 
     constructor (address _permUpgradable) public {
-        permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
+        permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
     // Get account details given index

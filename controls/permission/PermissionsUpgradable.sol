@@ -2,7 +2,7 @@ pragma solidity ^0.5.3;
 
 import "./PermissionsInterface.sol";
 
-contract PermissionsUpgradeable {
+contract PermissionsUpgradable {
 
     address private custodian;
     address private permImpl;

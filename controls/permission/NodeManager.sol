@@ -3,7 +3,7 @@ import "./PermissionsUpgradable.sol";
 
 
 contract NodeManager {
-    PermissionsImplUpgradeable private permUpgradable;
+    PermissionsUpgradable private permUpgradable;
     // enum and struct declaration
     // changing node status to integer (0-NotInList, 1- PendingApproval, 2-Approved,
     //      PendingDeactivation, Deactivated, PendingActivation, PendingBlacklisting, Blacklisted)
@@ -59,7 +59,7 @@ contract NodeManager {
     }
 
     constructor (address _permUpgradable) public {
-        permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
+        permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
     // Get node details given enode Id

@@ -13,7 +13,9 @@ contract PermissionsImplementation {
     VoterManager private voter;
     NodeManager private nodes;
     OrgManager private org;
-    PermissionsImplUpgradeable private permUpgradable;
+    PermissionsUpgradable private permUpgradable;
+
+    event Dummy(string _msg);
 
     string private adminOrg;
     string private adminRole;
@@ -70,7 +72,7 @@ contract PermissionsImplementation {
     }
 
     constructor (address _permUpgradable) public {
-        permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
+        permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
     function setPolicy(string calldata _nwAdminOrg, string calldata _nwAdminRole, string calldata _oAdminRole) external
@@ -133,72 +135,70 @@ contract PermissionsImplementation {
     }
 
     // function for adding a new master org
-    function addOrg(string calldata _orgId, string calldata _enodeId) external
+    function addOrg(string calldata _orgId, string calldata _enodeId, address _caller) external
     onlyProxy
     networkBootUpDone()
     orgNotExists(_orgId)
-    networkAdmin(msg.sender)
+    networkAdmin(_caller)
     {
-        org.addOrg(_orgId);
-        // add the node to permissioned node list
-        nodes.addNode(_enodeId, _orgId);
-        // org add has to be approved by network admin org. create an item for approval
         voter.addVotingItem(adminOrg, _orgId, _enodeId, address(0), 1);
+        org.addOrg(_orgId);
+        nodes.addNode(_enodeId, _orgId);
     }
 
-    function approveOrg(string calldata _orgId, string calldata _enodeId) external
+    function approveOrg(string calldata _orgId, string calldata _enodeId, address _caller) external
     onlyProxy
     networkBootUpDone()
-    networkAdmin(msg.sender)
+    networkAdmin(_caller)
     {
         require(org.checkOrgStatus(_orgId, 1) == true, "Nothing to approve");
-        if ((voter.processVote(adminOrg, msg.sender, 1))) {
+        if ((voter.processVote(adminOrg, _caller, 1))) {
             org.approveOrg(_orgId);
             nodes.approveNode(_enodeId);
         }
     }
 
-    function updateOrgStatus(string calldata _orgId, uint _status) external
-    onlyProxy
-    networkBootUpDone()
-    orgExists(_orgId)
-    networkAdmin(msg.sender)
-    {
-        require ((_status == 3 || _status == 5), "Operation not allowed");
-        uint reqStatus;
-        uint pendingOp;
-        if (_status == 3) {
-            reqStatus = 2;
-            pendingOp = 2;
-        }
-        else if (_status == 5) {
-            reqStatus = 4;
-            pendingOp = 3;
-        }
-        require(org.checkOrgStatus(_orgId, reqStatus) == true, "Operation not allowed");
-        org.updateOrg(_orgId, _status);
-        voter.addVotingItem(adminOrg, _orgId, "", address(0), pendingOp);
-    }
-
-    function approveOrgStatus(string calldata _orgId, uint _status) external
-    onlyProxy
-    networkBootUpDone()
-    orgExists(_orgId)
-    networkAdmin(msg.sender)
-    {
-        require ((_status == 3 || _status == 5), "Operation not allowed");
-        uint pendingOp;
-        if (_status == 3) {
-            pendingOp = 2;
-        }
-        else if (_status == 5) {
-            pendingOp = 3;
-        }
-        require(org.checkOrgStatus(_orgId, _status) == true, "Operation not allowed");
-        if ((voter.processVote(adminOrg, msg.sender, pendingOp))) {
-            org.approveOrgStatusUpdate(_orgId, _status);
-        }
-    }
+//    function updateOrgStatus(string calldata _orgId, uint _status) external
+//    onlyProxy
+//    networkBootUpDone()
+//    orgExists(_orgId)
+//    networkAdmin(msg.sender)
+//    {
+//        require ((_status == 3 || _status == 5), "Operation not allowed");
+//        uint reqStatus;
+//        uint pendingOp;
+//        if (_status == 3) {
+//            reqStatus = 2;
+//            pendingOp = 2;
+//        }
+//        else if (_status == 5) {
+//            reqStatus = 4;
+//            pendingOp = 3;
+//        }
+//        require(org.checkOrgStatus(_orgId, reqStatus) == true, "Operation not allowed");
+//        org.updateOrg(_orgId, _status);
+//        voter.addVotingItem(adminOrg, _orgId, "", address(0), pendingOp);
+//    }
+//
+//    function approveOrgStatus(string calldata _orgId, uint _status) external
+//    onlyProxy
+//    networkBootUpDone()
+//    orgExists(_orgId)
+//    networkAdmin(msg.sender)
+//    {
+//        require ((_status == 3 || _status == 5), "Operation not allowed");
+//        uint pendingOp;
+//        if (_status == 3) {
+//            pendingOp = 2;
+//        }
+//        else if (_status == 5) {
+//            pendingOp = 3;
+//        }
+//        require(org.checkOrgStatus(_orgId, _status) == true, "Operation not allowed");
+//        if ((voter.processVote(adminOrg, msg.sender, pendingOp))) {
+//            org.approveOrgStatusUpdate(_orgId, _status);
+//        }
+//    }
     // returns org and master org details based on org index
     function getOrgInfo(uint _orgIndex) external view
     returns (string memory, uint)
@@ -256,10 +256,10 @@ contract PermissionsImplementation {
         return voter.getPendingOpDetails(_orgId);
     }
 
-    function assignOrgAdminAccount(string calldata _orgId, address _account) external
+    function assignOrgAdminAccount(string calldata _orgId, address _account, address _caller) external
     onlyProxy
     networkBootUpDone()
-    networkAdmin(msg.sender)
+    networkAdmin(_caller)
     orgExists(_orgId)
     {
         // check if orgAdmin already exists if yes then op cannot be performed
@@ -270,13 +270,13 @@ contract PermissionsImplementation {
         voter.addVotingItem(adminOrg, _orgId, "", _account, 4);
     }
 
-    function approveOrgAdminAccount(address _account) external
+    function approveOrgAdminAccount(address _account, address _caller) external
     onlyProxy
     networkBootUpDone()
-    networkAdmin(msg.sender)
+    networkAdmin(_caller)
     {
-        require(isNetworkAdmin(msg.sender) == true, "can be called from network admin only");
-        if ((voter.processVote(adminOrg, msg.sender, 4))) {
+        require(isNetworkAdmin(_caller) == true, "can be called from network admin only");
+        if ((voter.processVote(adminOrg, _caller, 4))) {
             accounts.approveOrgAdminAccount(_account);
         }
     }

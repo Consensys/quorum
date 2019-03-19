@@ -6,8 +6,10 @@ import "./PermissionsUpgradable.sol";
 
 contract PermissionsInterface {
     PermissionsImplementation private permImplementation;
-    PermissionsImplUpgradeable private permUpgradable;
+    PermissionsUpgradable private permUpgradable;
     address private permImplUpgradeable;
+
+    event Dummy(string _msg);
 
     constructor(address _permImplUpgradeable) public {
         permImplUpgradeable = _permImplUpgradeable;
@@ -65,23 +67,23 @@ contract PermissionsInterface {
     // function for adding a new master org
     function addOrg(string calldata _orgId, string calldata _enodeId) external
     {
-        permImplementation.addOrg(_orgId, _enodeId);
+        permImplementation.addOrg(_orgId, _enodeId, msg.sender);
     }
 
     function approveOrg(string calldata _orgId, string calldata _enodeId) external
     {
-        permImplementation.approveOrg(_orgId, _enodeId);
+        permImplementation.approveOrg(_orgId, _enodeId, msg.sender);
     }
 
-    function updateOrgStatus(string calldata _orgId, uint _status) external
-    {
-        permImplementation.updateOrgStatus(_orgId, _status);
-    }
-
-    function approveOrgStatus(string calldata _orgId, uint _status) external
-    {
-        permImplementation.approveOrgStatus(_orgId, _status);
-    }
+//    function updateOrgStatus(string calldata _orgId, uint _status) external
+//    {
+//        permImplementation.updateOrgStatus(_orgId, _status);
+//    }
+//
+//    function approveOrgStatus(string calldata _orgId, uint _status) external
+//    {
+//        permImplementation.approveOrgStatus(_orgId, _status);
+//    }
     // returns org and master org details based on org index
     function getOrgInfo(uint _orgIndex) external view returns (string memory, uint)
     {
@@ -127,13 +129,13 @@ contract PermissionsInterface {
 
     function assignOrgAdminAccount(string calldata _orgId, address _account) external
     {
-        permImplementation.assignOrgAdminAccount(_orgId, _account);
+        permImplementation.assignOrgAdminAccount(_orgId, _account, msg.sender);
 
     }
 
     function approveOrgAdminAccount(address _account) external
     {
-        permImplementation.approveOrgAdminAccount(_account);
+        permImplementation.approveOrgAdminAccount(_account, msg.sender);
 
     }
 

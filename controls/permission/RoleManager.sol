@@ -3,7 +3,7 @@ import "./PermissionsUpgradable.sol";
 
 
 contract RoleManager {
-    PermissionsImplUpgradeable private permUpgradable;
+    PermissionsUpgradable private permUpgradable;
     struct RoleDetails {
         string roleId;
         string orgId;
@@ -26,7 +26,7 @@ contract RoleManager {
     }
 
     constructor (address _permUpgradable) public {
-        permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
+        permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
     function roleExists(string memory _roleId, string memory _orgId) public view returns(bool)

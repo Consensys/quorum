@@ -4,7 +4,7 @@ import "./PermissionsUpgradable.sol";
 
 contract OrgManager {
     string private adminOrgId;
-    PermissionsImplUpgradeable private permUpgradable;
+    PermissionsUpgradable private permUpgradable;
     // checks if first time network boot up has happened or not
     bool private networkBoot = false;
     //    enum OrgStatus {0- NotInList, 1- Proposed, 2- Approved, 3- PendingSuspension, 4- Suspended, 5- RevokeSuspension}
@@ -41,7 +41,11 @@ contract OrgManager {
     }
 
     constructor (address _permUpgradable) public {
-        permUpgradable = PermissionsImplUpgradeable(_permUpgradable);
+        permUpgradable = PermissionsUpgradable(_permUpgradable);
+    }
+
+    function getImpl() public view returns (address) {
+        return permUpgradable.getPermImpl();
     }
 
     function addAdminOrg(string calldata _orgId) external
