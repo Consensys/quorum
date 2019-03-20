@@ -1343,7 +1343,6 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
-	log.Debug("Raw transaction", "tx", tx)
 	isPrivate, _, err := handlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, true)
 	if err != nil {
 		return common.Hash{}, err

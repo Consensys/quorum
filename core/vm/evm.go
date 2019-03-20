@@ -17,10 +17,11 @@
 package vm
 
 import (
-	"github.com/ethereum/go-ethereum/trie"
 	"math/big"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/ethereum/go-ethereum/log"
 
