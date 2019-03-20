@@ -225,6 +225,14 @@ func (self *StateDB) GetPrivacyMetadata(addr common.Address) *PrivacyMetadata {
 	return nil
 }
 
+func (self *StateDB) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
+	stateObject := self.getStateObject(addr)
+	if stateObject == nil {
+		return nil, fmt.Errorf("no state found for %s", addr.Hex())
+	}
+	return rlp.EncodeToBytes(stateObject)
+}
+
 func (self *StateDB) GetCode(addr common.Address) []byte {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {

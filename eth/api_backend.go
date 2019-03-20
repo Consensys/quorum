@@ -315,4 +315,12 @@ func (s EthAPIState) GetPrivacyMetadata(addr common.Address) *state.PrivacyMetad
 	return s.state.GetPrivacyMetadata(addr)
 }
 
+func (s EthAPIState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
+	getFunc := s.state.GetRLPEncodedStateObject
+	if s.privateState.Exist(addr) {
+		getFunc = s.privateState.GetRLPEncodedStateObject
+	}
+	return getFunc(addr)
+}
+
 //func (s MinimalApiState) Error

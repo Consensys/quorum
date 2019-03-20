@@ -17,9 +17,12 @@
 package vm
 
 import (
+	"github.com/ethereum/go-ethereum/trie"
 	"math/big"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/core/types"
 
@@ -254,6 +257,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}()
 	}
 	ret, err = run(evm, contract, input)
+	log.Trace("EVM Error", "error", err)
 
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
@@ -576,7 +580,17 @@ func (evm *EVM) AffectedContracts() []common.Address {
 }
 
 // Return MerkleRoot of all affected contracts that are NOT due to creation transaction
-func (evm *EVM) CalculateMerkleRoot() common.Hash {
-	// TODO Trung - add your affected contracts root trie here
-	return common.Hash{}
+func (evm *EVM) CalculateMerkleRoot() (common.Hash, error) {
+	combined := new(trie.Trie)
+	addresses := evm.AffectedContracts()
+	for _, addr := range addresses {
+		data, err := getDualState(evm, addr).GetRLPEncodedStateObject(addr)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		if err := combined.TryUpdate(addr.Bytes(), data); err != nil {
+			return common.Hash{}, err
+		}
+	}
+	return combined.Hash(), nil
 }

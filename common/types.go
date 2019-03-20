@@ -222,6 +222,19 @@ func Base64sToEncryptedPayloadHashes(b64s []string) (EncryptedPayloadHashes, err
 	return ephs, nil
 }
 
+// Print hex but only first 3 and last 3 bytes
+func FormatTerminalString(data []byte) string {
+	l := len(data)
+	if l > 0 {
+		if l > 6 {
+			return fmt.Sprintf("%x…%x", data[:3], data[l-3:])
+		} else {
+			return fmt.Sprintf("%x", data[:])
+		}
+	}
+	return ""
+}
+
 /////////// Address
 
 // Address represents the 20 byte address of an Ethereum account.

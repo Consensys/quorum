@@ -276,6 +276,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	//This validation is to prevent cases where the list of affected contract will have changed by the time the evm actually executes transaction
 	if isPrivate {
 		actualACAddresses := evm.AffectedContracts()
+		log.Trace("Verify hashes of affected contracts", "hashes", expectedACHashes)
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata := evm.StateDB.GetPrivacyMetadata(addr)
 			if actualPrivacyMetadata == nil {
@@ -286,16 +287,23 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 					"affectedContractAddress", addr.Hex(),
 					"missingCreationTxHash", actualPrivacyMetadata.CreationTxHash)
 				// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
-				return nil, 0, false, nil
+				return nil, 0, vmerr != nil, nil
 			}
 		}
 		// TODO need to check for PSV before performing the actual check
-		actualACMerkleRoot := evm.CalculateMerkleRoot()
-		if actualACMerkleRoot != expectedACMerkleRoot {
-			log.Error("Merkle Root check failed", "actual", actualACMerkleRoot, "expect", expectedACMerkleRoot)
-			// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
-			return nil, 0, false, nil
-		}
+		log.Trace("Verify merkle root", "merkleRoot", expectedACMerkleRoot)
+		/*
+			actualACMerkleRoot, err := evm.CalculateMerkleRoot()
+			if err != nil {
+				log.Error("Calculate Merkle Root failed", "error", err)
+				return nil, 0, vmerr != nil, err
+			}
+			if actualACMerkleRoot != expectedACMerkleRoot {
+				log.Error("Merkle Root check failed", "actual", actualACMerkleRoot, "expect", expectedACMerkleRoot)
+				// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
+				return nil, 0, vmerr != nil, nil
+			}
+		*/
 	}
 
 	// Pay gas used during contract creation or execution (st.gas tracks remaining gas)
