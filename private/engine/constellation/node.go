@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,7 +14,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/tv42/httpunix"
 )
 
 func launchNode(cfgPath string) (*exec.Cmd, error) {
@@ -30,34 +28,6 @@ func launchNode(cfgPath string) (*exec.Cmd, error) {
 	}
 	time.Sleep(100 * time.Millisecond)
 	return cmd, nil
-}
-
-func unixTransport(socketPath string) *httpunix.Transport {
-	t := &httpunix.Transport{
-		DialTimeout:           1 * time.Second,
-		RequestTimeout:        5 * time.Second,
-		ResponseHeaderTimeout: 5 * time.Second,
-	}
-	t.RegisterLocation("c", socketPath)
-	return t
-}
-
-func unixClient(socketPath string) *http.Client {
-	return &http.Client{
-		Transport: unixTransport(socketPath),
-	}
-}
-
-func RunNode(socketPath string) error {
-	c := unixClient(socketPath)
-	res, err := c.Get("http+unix://c/upcheck")
-	if err != nil {
-		return err
-	}
-	if res.StatusCode == 200 {
-		return nil
-	}
-	return errors.New("Constellation Node API did not respond to upcheck request")
 }
 
 type Client struct {
@@ -170,10 +140,4 @@ func (c *Client) ReceivePayload(key common.EncryptedPayloadHash) ([]byte, common
 		return nil, nil, common.Hash{}, err
 	}
 	return payload, acHashes, common.BytesToHash([]byte(res.Header.Get("c11n-EH"))), nil
-}
-
-func NewClient(socketPath string) (*Client, error) {
-	return &Client{
-		httpClient: unixClient(socketPath),
-	}, nil
 }

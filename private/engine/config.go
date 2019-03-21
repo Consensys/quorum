@@ -1,4 +1,4 @@
-package constellation
+package engine
 
 import (
 	"github.com/BurntSushi/toml"
