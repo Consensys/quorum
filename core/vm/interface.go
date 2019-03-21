@@ -34,9 +34,6 @@ type MinimalApiState interface {
 	GetOrigTx(addr common.Address) []byte
 	GetOrigTxHash(addr common.Address) []byte
 	GetPrivacyMetadata(addr common.Address) *state.PrivacyMetadata
-	// Put all the state objects in the given addresses to a trie
-	// Return trie root hash
-	// CalculateMerkleRoot(addresses []common.Address) (common.Hash, error)
 	// RLP-encoded of the state object in a given address
 	// Throw error if no state object is found
 	GetRLPEncodedStateObject(addr common.Address) ([]byte, error)
