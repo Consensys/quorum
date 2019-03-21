@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/private/engine"
+
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -1721,7 +1723,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != common.EncryptedPayloadHashLength {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	data, _, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
+	data, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
 	if err != nil {
 		return "", err
 	}
@@ -1764,13 +1766,21 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 						return
 					}
 				*/
-				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, creationTxEncryptedPayloadHashes, merkleRoot)
+				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
+					ACHashes:               creationTxEncryptedPayloadHashes,
+					ACMerkleRoot:           merkleRoot,
+					PrivateStateValidation: privateTxArgs.PrivateStateValidation,
+				})
 			} else {
 				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx)
 				if err != nil {
 					return
 				}
-				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, creationTxEncryptedPayloadHashes, merkleRoot)
+				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
+					ACHashes:               creationTxEncryptedPayloadHashes,
+					ACMerkleRoot:           merkleRoot,
+					PrivateStateValidation: privateTxArgs.PrivateStateValidation,
+				})
 			}
 			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psv", privateTxArgs.PrivateStateValidation, "error", err)
 			if err != nil {

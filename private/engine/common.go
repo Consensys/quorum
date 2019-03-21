@@ -14,18 +14,27 @@ var (
 
 type NotInUsePrivateTxManager struct{}
 
-func (dn *NotInUsePrivateTxManager) Send(data []byte, from string, to []string, acHashes common.EncryptedPayloadHashes, acMerkleRoot common.Hash) (common.EncryptedPayloadHash, error) {
+func (dn *NotInUsePrivateTxManager) Send(data []byte, from string, to []string, extra *ExtraMetadata) (common.EncryptedPayloadHash, error) {
 	return common.EncryptedPayloadHash{}, ErrPrivateTxManagerNotinUse
 }
 
-func (dn *NotInUsePrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, acHashes common.EncryptedPayloadHashes, acMerkleRoot common.Hash) ([]byte, error) {
+func (dn *NotInUsePrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *ExtraMetadata) ([]byte, error) {
 	return nil, ErrPrivateTxManagerNotinUse
 }
 
-func (dn *NotInUsePrivateTxManager) Receive(data common.EncryptedPayloadHash) ([]byte, common.EncryptedPayloadHashes, common.Hash, error) {
-	return nil, common.EncryptedPayloadHashes{}, common.Hash{}, ErrPrivateTxManagerNotinUse
+func (dn *NotInUsePrivateTxManager) Receive(data common.EncryptedPayloadHash) ([]byte, *ExtraMetadata, error) {
+	return nil, nil, ErrPrivateTxManagerNotinUse
 }
 
 func (dn *NotInUsePrivateTxManager) Name() string {
 	return "NotInUse"
+}
+
+// Additional information for the private transaction that Private Transaction Manager carries
+type ExtraMetadata struct {
+	// Hashes of affected Contracts
+	ACHashes common.EncryptedPayloadHashes
+	// Root Hash of a Merkle Trie containing all affected contract account in state objects
+	ACMerkleRoot           common.Hash
+	PrivateStateValidation bool
 }

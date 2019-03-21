@@ -1,9 +1,8 @@
 package cache
 
 import (
+	"github.com/ethereum/go-ethereum/private/engine"
 	"time"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -12,7 +11,6 @@ const (
 )
 
 type PrivateCacheItem struct {
-	Payload      []byte
-	ACHashes     common.EncryptedPayloadHashes // hashes of affected contracts
-	ACMerkleRoot common.Hash                   // merkle root of all affected contracts
+	Payload []byte
+	Extra   engine.ExtraMetadata
 }

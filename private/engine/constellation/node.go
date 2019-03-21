@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -110,34 +111,38 @@ func (c *Client) SendSignedPayload(signedPayload common.EncryptedPayloadHash, b6
 	return ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, res.Body))
 }
 
-func (c *Client) ReceivePayload(key common.EncryptedPayloadHash) ([]byte, common.EncryptedPayloadHashes, common.Hash, error) {
+func (c *Client) ReceivePayload(key common.EncryptedPayloadHash) ([]byte, common.EncryptedPayloadHashes, common.Hash, bool, error) {
 	req, err := http.NewRequest("GET", "http+unix://c/receiveraw", nil)
 	if err != nil {
-		return nil, nil, common.Hash{}, err
+		return nil, nil, common.Hash{}, false, err
 	}
 	req.Header.Set("c11n-key", key.ToBase64())
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, nil, common.Hash{}, err
+		return nil, nil, common.Hash{}, false, err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode == 404 { // payload not found
-		return nil, nil, common.Hash{}, nil // empty payload
+		return nil, nil, common.Hash{}, false, nil // empty payload
 	}
 	if res.StatusCode != 200 {
-		return nil, nil, common.Hash{}, fmt.Errorf("Non-200 status code: %+v", res)
+		return nil, nil, common.Hash{}, false, fmt.Errorf("Non-200 status code: %+v", res)
 	}
 
 	acHashesB64s := strings.Split(res.Header.Get("c11n-ACT"), ",")
 
 	payload, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, nil, common.Hash{}, err
+		return nil, nil, common.Hash{}, false, err
 	}
 	acHashes, err := common.Base64sToEncryptedPayloadHashes(acHashesB64s)
 	if err != nil {
-		return nil, nil, common.Hash{}, err
+		return nil, nil, common.Hash{}, false, err
 	}
-	return payload, acHashes, common.BytesToHash([]byte(res.Header.Get("c11n-EH"))), nil
+	psv, err := strconv.ParseBool(res.Header.Get("c11n-PSV"))
+	if err != nil {
+		return nil, nil, common.Hash{}, false, err
+	}
+	return payload, acHashes, common.BytesToHash([]byte(res.Header.Get("c11n-EH"))), psv, nil
 }
