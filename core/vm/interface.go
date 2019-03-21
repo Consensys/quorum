@@ -31,7 +31,7 @@ type MinimalApiState interface {
 	GetCode(addr common.Address) []byte
 	GetState(a common.Address, b common.Hash) common.Hash
 	GetNonce(addr common.Address) uint64
-	GetPrivacyMetadata(addr common.Address) *state.PrivacyMetadata
+	GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error)
 	// Put all the state objects in the given addresses to a trie
 	// Return trie root hash
 	// CalculateMerkleRoot(addresses []common.Address) (common.Hash, error)
@@ -52,7 +52,7 @@ type StateDB interface {
 	//GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)
 
-	SetPrivacyMetadata(common.Address, *state.PrivacyMetadata)
+	SetPrivacyMetadata(common.Address, *state.PrivacyMetadata) error
 
 	GetCodeHash(common.Address) common.Hash
 	//GetCode(common.Address) []byte

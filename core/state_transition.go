@@ -278,8 +278,11 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		actualACAddresses := evm.AffectedContracts()
 		log.Trace("Verify hashes of affected contracts", "hashes", expectedACHashes)
 		for _, addr := range actualACAddresses {
-			actualPrivacyMetadata := evm.StateDB.GetPrivacyMetadata(addr)
+			actualPrivacyMetadata, err := evm.StateDB.GetPrivacyMetadata(addr)
 			log.Trace("Get Privacy Metadata", "privacyMetadata", actualPrivacyMetadata)
+			if err != nil {
+				//TODO - issue with getting/decoding privacymetadata
+			}
 			if actualPrivacyMetadata == nil {
 				continue // TODO
 			}

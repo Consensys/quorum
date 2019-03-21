@@ -110,11 +110,11 @@ func (self *StateDB) setError(err error) {
 	}
 }
 
-func (self *StateDB) GetDb() ethdb.Database {
+func (self *StateDB) GetPersistentEthdb() ethdb.Database {
 	return self.ethdb
 }
 
-func (self *StateDB) SetDb(ethdb ethdb.Database) {
+func (self *StateDB) SetPersistentEthdb(ethdb ethdb.Database) {
 	self.ethdb = ethdb
 }
 
@@ -216,12 +216,12 @@ func (self *StateDB) GetNonce(addr common.Address) uint64 {
 	return 0
 }
 
-func (self *StateDB) GetPrivacyMetadata(addr common.Address) *PrivacyMetadata {
+func (self *StateDB) GetPrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.PrivacyMetadata()
 	}
-	return nil
+	return nil, nil
 }
 
 func (self *StateDB) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
@@ -338,11 +338,12 @@ func (self *StateDB) SetNonce(addr common.Address, nonce uint64) {
 	}
 }
 
-func (self *StateDB) SetPrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) {
+func (self *StateDB) SetPrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) error {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.setPrivacyMetadata(metadata)
+		return stateObject.setPrivacyMetadata(metadata)
 	}
+	return nil
 }
 
 func (self *StateDB) SetCode(addr common.Address, code []byte) {

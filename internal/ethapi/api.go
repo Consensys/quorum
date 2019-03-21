@@ -1070,7 +1070,10 @@ func (s *PublicTransactionPoolAPI) GetContractOrigTransactionHash(ctx context.Co
 	if state == nil || err != nil {
 		return nil, err
 	}
-	origTx := state.GetPrivacyMetadata(address)
+	origTx, err := state.GetPrivacyMetadata(address)
+	if origTx == nil || err != nil {
+		return nil, err
+	}
 	return origTx.CreationTxHash.Bytes(), nil
 }
 
@@ -1832,10 +1835,13 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	addresses := evm.AffectedContracts()
 	for _, addr := range addresses {
-		privacyMetadata := evm.StateDB.GetPrivacyMetadata(addr)
+		privacyMetadata, err := evm.StateDB.GetPrivacyMetadata(addr)
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
 		// when we run simulation, it's possible that affected contracts may contain public ones
 		// public contract will not have any privacyMetadata attached
+		if err != nil {
+			//TODO - if decoding privacyMetadata fails
+		}
 		if privacyMetadata == nil {
 			continue
 		}

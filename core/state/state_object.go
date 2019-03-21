@@ -29,6 +29,7 @@ import (
 )
 
 var emptyCodeHash = crypto.Keccak256(nil)
+var privacyMetadataPrefix = []byte("PRIVACYMETADATA-")
 
 type Code []byte
 
@@ -357,15 +358,17 @@ func (self *stateObject) setNonce(nonce uint64) {
 	self.data.Nonce = nonce
 }
 
-func (self *stateObject) setPrivacyMetadata(metadata *PrivacyMetadata) {
-	key := append([]byte("PRIVACYMETADATA-"), self.address.Bytes()...)
+func (self *stateObject) setPrivacyMetadata(metadata *PrivacyMetadata) error {
+	key := make([]byte, 0, len(privacyMetadataPrefix)+len(self.address.Bytes()))
+	key = append(privacyMetadataPrefix, self.address.Bytes()...)
 
 	var b bytes.Buffer
 	e := gob.NewEncoder(&b)
 	if err := e.Encode(metadata); err != nil {
-		panic(fmt.Errorf("can't encode object at %x: %v", self.address[:], err))
+		return err
 	}
 	self.db.ethdb.Put(key, b.Bytes())
+	return nil
 }
 
 func (self *stateObject) CodeHash() []byte {
@@ -380,19 +383,21 @@ func (self *stateObject) Nonce() uint64 {
 	return self.data.Nonce
 }
 
-func (self *stateObject) PrivacyMetadata() *PrivacyMetadata {
-	key := append([]byte("PRIVACYMETADATA-"), self.address.Bytes()...)
+func (self *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
+	key := make([]byte, 0, len(privacyMetadataPrefix)+len(self.address.Bytes()))
+	key = append(privacyMetadataPrefix, self.address.Bytes()...)
+
 	val, err := self.db.ethdb.Get(key)
 
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	var data *PrivacyMetadata
 	d := gob.NewDecoder(bytes.NewBuffer(val))
 	if err := d.Decode(&data); err != nil {
-		return nil
+		return nil, err
 	}
-	return data
+	return data, nil
 }
 
 // Never called, but must be present to allow stateObject to be used

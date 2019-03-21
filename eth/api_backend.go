@@ -291,7 +291,7 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 	return s.state.GetNonce(addr)
 }
 
-func (s EthAPIState) GetPrivacyMetadata(addr common.Address) *state.PrivacyMetadata {
+func (s EthAPIState) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	if s.privateState.Exist(addr) {
 		return s.privateState.GetPrivacyMetadata(addr)
 	}

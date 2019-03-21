@@ -479,7 +479,7 @@ func dump(ctx *cli.Context) error {
 			utils.Fatalf("block not found")
 		} else {
 			state, err := state.New(block.Root(), state.NewDatabase(chainDb))
-			state.SetDb(chainDb)
+			state.SetPersistentEthdb(chainDb)
 			if err != nil {
 				utils.Fatalf("could not create new state: %v", err)
 			}

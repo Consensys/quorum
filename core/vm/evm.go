@@ -443,11 +443,14 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
 		evm.StateDB.SetNonce(contractAddr, 1)
 	}
-	if nil != evm.currentTx {
+	if nil != evm.currentTx && evm.currentTx.IsPrivate() {
 		// for calls (reading contract state) or finding the affected contracts there is no transaction
 		pm := state.NewPrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()))
-		evm.StateDB.SetPrivacyMetadata(contractAddr, pm)
+		err := evm.StateDB.SetPrivacyMetadata(contractAddr, pm)
 		log.Trace("Set Privacy Metadata", "key", contractAddr, "privacyMetadata", pm)
+		if err != nil {
+			return nil, common.Address{}, 0, err
+		}
 	}
 	if evm.ChainConfig().IsQuorum {
 		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
