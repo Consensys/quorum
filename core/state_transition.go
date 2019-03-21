@@ -21,6 +21,8 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/private/engine"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
@@ -205,7 +207,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	publicState := st.state
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
-		data, expectedACHashes, expectedACMerkleRoot, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
+		var extraMetadata *engine.ExtraMetadata
+		data, extraMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
+		expectedACHashes = extraMetadata.ACHashes
+		expectedACMerkleRoot = extraMetadata.ACMerkleRoot
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call

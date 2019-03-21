@@ -31,10 +31,7 @@ type MinimalApiState interface {
 	GetCode(addr common.Address) []byte
 	GetState(a common.Address, b common.Hash) common.Hash
 	GetNonce(addr common.Address) uint64
-	GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error)
-	// Put all the state objects in the given addresses to a trie
-	// Return trie root hash
-	// CalculateMerkleRoot(addresses []common.Address) (common.Hash, error)
+	GetPrivacyMetadata(addr common.Address) *state.PrivacyMetadata
 	// RLP-encoded of the state object in a given address
 	// Throw error if no state object is found
 	GetRLPEncodedStateObject(addr common.Address) ([]byte, error)
