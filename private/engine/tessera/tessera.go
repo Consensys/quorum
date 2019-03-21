@@ -5,8 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/private/engine"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/private/cache"
@@ -47,7 +45,11 @@ func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, ac
 	}
 	defer res.Body.Close()
 
-	hashBytes, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, res.Body))
+	sendRes := new(sendResponse)
+	if err := json.NewDecoder(res.Body).Decode(sendRes); err != nil {
+		return common.EncryptedPayloadHash{}, err
+	}
+	hashBytes, err := base64.StdEncoding.DecodeString(sendRes.Key)
 	if err != nil {
 		return common.EncryptedPayloadHash{}, err
 	}
@@ -64,7 +66,29 @@ func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, ac
 }
 
 func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, acHashes common.EncryptedPayloadHashes, acMerkleRoot common.Hash) ([]byte, error) {
-	return nil, engine.ErrPrivateTxManagerNotSupported
+	req, err := newJSONRequest("POST", "/sendsignedtx", &sendSignedTxRequest{
+		Hash:                         data.Bytes(),
+		To:                           to,
+		AffectedContractTransactions: acHashes.ToBase64s(),
+		ExecHash:                     base64.StdEncoding.EncodeToString(acMerkleRoot.Bytes()),
+	})
+	if err != nil {
+		return nil, err
+	}
+	res, err := t.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	sendSignedTxRes := new(sendSignedTxResponse)
+	if err := json.NewDecoder(res.Body).Decode(sendSignedTxRes); err != nil {
+		return nil, err
+	}
+	hashBytes, err := base64.StdEncoding.DecodeString(sendSignedTxRes.Key)
+	if err != nil {
+		return nil, err
+	}
+	return hashBytes, err
 }
 
 func (t *tesseraPrivateTxManager) Receive(data common.EncryptedPayloadHash) ([]byte, common.EncryptedPayloadHashes, common.Hash, error) {

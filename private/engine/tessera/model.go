@@ -42,3 +42,17 @@ type receiveResponse struct {
 
 	PrivateStateValidation bool `json:"privateStateValidation"`
 }
+
+type sendSignedTxRequest struct {
+	Hash []byte   `json:"hash"`
+	To   []string `json:"to"`
+	// Transactions' encrypted payload hashes for affected contracts
+	AffectedContractTransactions []string `json:"affectedContractTransactions"`
+	// Merkle root for affected contracts
+	ExecHash               string `json:"execHash"`
+	PrivateStateValidation bool   `json:"privateStateValidation"`
+}
+
+type sendSignedTxResponse struct {
+	*sendResponse
+}
