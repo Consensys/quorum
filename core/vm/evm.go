@@ -445,8 +445,9 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	}
 	if nil != evm.currentTx {
 		// for calls (reading contract state) or finding the affected contracts there is no transaction
-		evm.StateDB.SetOrigTx(contractAddr, evm.currentTx.Hash().Bytes())
-		evm.StateDB.SetOrigTxHash(contractAddr, evm.currentTx.Data())
+		pm := state.NewPrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()))
+		evm.StateDB.SetPrivacyMetadata(contractAddr, pm)
+		log.Trace("Set Privacy Metadata", "key", contractAddr, "privacyMetadata", pm)
 	}
 	if evm.ChainConfig().IsQuorum {
 		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)

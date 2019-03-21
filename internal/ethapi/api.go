@@ -1065,22 +1065,13 @@ func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, addr
 	return (*hexutil.Uint64)(&nonce), nil
 }
 
-func (s *PublicTransactionPoolAPI) GetContractOrigTransaction(ctx context.Context, address common.Address) (hexutil.Bytes, error) {
-	state, _, err := s.b.StateAndHeaderByNumber(ctx, rpc.LatestBlockNumber)
-	if state == nil || err != nil {
-		return nil, err
-	}
-	origTx := state.GetOrigTx(address)
-	return origTx, nil
-}
-
 func (s *PublicTransactionPoolAPI) GetContractOrigTransactionHash(ctx context.Context, address common.Address) (hexutil.Bytes, error) {
 	state, _, err := s.b.StateAndHeaderByNumber(ctx, rpc.LatestBlockNumber)
 	if state == nil || err != nil {
 		return nil, err
 	}
-	origTx := state.GetOrigTxHash(address)
-	return origTx, nil
+	origTx := state.GetPrivacyMetadata(address)
+	return origTx.CreationTxHash.Bytes(), nil
 }
 
 // GetTransactionByHash returns the transaction for the given hash

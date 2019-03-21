@@ -88,6 +88,8 @@ func MakeCallHelper() *callHelper {
 	if err != nil {
 		panic(err)
 	}
+	publicState.SetDb(memdb)
+	privateState.SetDb(memdb)
 	cg := &callHelper{
 		db:           memdb,
 		nonces:       make(map[common.Address]uint64),

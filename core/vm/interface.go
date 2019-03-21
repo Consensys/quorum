@@ -31,8 +31,6 @@ type MinimalApiState interface {
 	GetCode(addr common.Address) []byte
 	GetState(a common.Address, b common.Hash) common.Hash
 	GetNonce(addr common.Address) uint64
-	GetOrigTx(addr common.Address) []byte
-	GetOrigTxHash(addr common.Address) []byte
 	GetPrivacyMetadata(addr common.Address) *state.PrivacyMetadata
 	// Put all the state objects in the given addresses to a trie
 	// Return trie root hash
@@ -54,8 +52,7 @@ type StateDB interface {
 	//GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)
 
-	SetOrigTx(common.Address, []byte)
-	SetOrigTxHash(common.Address, []byte)
+	SetPrivacyMetadata(common.Address, *state.PrivacyMetadata)
 
 	GetCodeHash(common.Address) common.Hash
 	//GetCode(common.Address) []byte

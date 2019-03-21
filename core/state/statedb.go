@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -50,6 +51,8 @@ var (
 // * Contracts
 // * Accounts
 type StateDB struct {
+	ethdb ethdb.Database
+
 	db   Database
 	trie Trie
 
@@ -105,6 +108,14 @@ func (self *StateDB) setError(err error) {
 	if self.dbErr == nil {
 		self.dbErr = err
 	}
+}
+
+func (self *StateDB) GetDb() ethdb.Database {
+	return self.ethdb
+}
+
+func (self *StateDB) SetDb(ethdb ethdb.Database) {
+	self.ethdb = ethdb
 }
 
 func (self *StateDB) Error() error {
@@ -205,23 +216,11 @@ func (self *StateDB) GetNonce(addr common.Address) uint64 {
 	return 0
 }
 
-func (self *StateDB) GetOrigTx(addr common.Address) []byte {
-	stateObject := self.getStateObject(addr)
-	if stateObject != nil {
-		return stateObject.OrigTx()
-	}
-	return nil
-}
-
-func (self *StateDB) GetOrigTxHash(addr common.Address) []byte {
-	stateObject := self.getStateObject(addr)
-	if stateObject != nil {
-		return stateObject.OrigTxHash()
-	}
-	return nil
-}
-
 func (self *StateDB) GetPrivacyMetadata(addr common.Address) *PrivacyMetadata {
+	stateObject := self.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.PrivacyMetadata()
+	}
 	return nil
 }
 
@@ -339,17 +338,10 @@ func (self *StateDB) SetNonce(addr common.Address, nonce uint64) {
 	}
 }
 
-func (self *StateDB) SetOrigTx(addr common.Address, tx []byte) {
+func (self *StateDB) SetPrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.setOrigTx(tx)
-	}
-}
-
-func (self *StateDB) SetOrigTxHash(addr common.Address, txHash []byte) {
-	stateObject := self.GetOrNewStateObject(addr)
-	if stateObject != nil {
-		stateObject.setOrigTxHash(txHash)
+		stateObject.setPrivacyMetadata(metadata)
 	}
 }
 

@@ -412,6 +412,9 @@ func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *state.StateDB,
 		return nil, nil, privateStateDbErr
 	}
 
+	publicStateDb.SetDb(bc.db)
+	privateStateDb.SetDb(bc.db)
+
 	return publicStateDb, privateStateDb, nil
 }
 
@@ -1208,6 +1211,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		stateNew := state.New
 
 		state, err := state.New(parent.Root(), bc.stateCache)
+		state.SetDb(bc.db)
 		if err != nil {
 			return i, events, coalescedLogs, err
 		}
@@ -1215,6 +1219,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		// Quorum
 		privateStateRoot := GetPrivateStateRoot(bc.db, parent.Root())
 		privateState, err := stateNew(privateStateRoot, bc.privateStateCache)
+		privateState.SetDb(bc.db)
 		if err != nil {
 			return i, events, coalescedLogs, err
 		}

@@ -101,10 +101,13 @@ func runCmd(ctx *cli.Context) error {
 		db := ethdb.NewMemDatabase()
 		genesis := gen.ToBlock(db)
 		statedb, _ = state.New(genesis.Root(), state.NewDatabase(db))
+		statedb.SetDb(db)
 		chainConfig = gen.Config
 		blockNumber = gen.Number
 	} else {
-		statedb, _ = state.New(common.Hash{}, state.NewDatabase(ethdb.NewMemDatabase()))
+		db := ethdb.NewMemDatabase()
+		statedb, _ = state.New(common.Hash{}, state.NewDatabase(db))
+		statedb.SetDb(db)
 	}
 	if ctx.GlobalString(SenderFlag.Name) != "" {
 		sender = common.HexToAddress(ctx.GlobalString(SenderFlag.Name))

@@ -18,6 +18,7 @@ package state
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
 	"io"
 	"math/big"
@@ -101,17 +102,11 @@ type Account struct {
 	Balance  *big.Int
 	Root     common.Hash // merkle root of the storage trie
 	CodeHash []byte
-	// TODO maybe these should be stored in a way in which it does not affect any of the ethereum structures.
-	// As it stands right now these extra fields affect the state trie
-	// TODO Trung/Angela/Peter/Nam - please check this (and provide alternatives)!
-	OrigTx     []byte
-	OrigTxHash []byte
 }
 
 //attached to every private contract account
 type PrivacyMetadata struct {
-	CreationTxHash         common.EncryptedPayloadHash //hash of encrypted payload of creation tx
-	PrivateStateValidation bool
+	CreationTxHash common.EncryptedPayloadHash //hash of encrypted payload of creation tx
 }
 
 // newObject creates a state object.
@@ -129,6 +124,12 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 		data:          data,
 		cachedStorage: make(Storage),
 		dirtyStorage:  make(Storage),
+	}
+}
+
+func NewPrivacyMetadata(creationTxHash common.EncryptedPayloadHash) *PrivacyMetadata {
+	return &PrivacyMetadata{
+		CreationTxHash: creationTxHash,
 	}
 }
 
@@ -356,12 +357,15 @@ func (self *stateObject) setNonce(nonce uint64) {
 	self.data.Nonce = nonce
 }
 
-func (self *stateObject) setOrigTx(tx []byte) {
-	self.data.OrigTx = tx
-}
+func (self *stateObject) setPrivacyMetadata(metadata *PrivacyMetadata) {
+	key := append([]byte("PRIVACYMETADATA-"), self.address.Bytes()...)
 
-func (self *stateObject) setOrigTxHash(txHash []byte) {
-	self.data.OrigTxHash = txHash
+	var b bytes.Buffer
+	e := gob.NewEncoder(&b)
+	if err := e.Encode(metadata); err != nil {
+		panic(fmt.Errorf("can't encode object at %x: %v", self.address[:], err))
+	}
+	self.db.ethdb.Put(key, b.Bytes())
 }
 
 func (self *stateObject) CodeHash() []byte {
@@ -376,12 +380,19 @@ func (self *stateObject) Nonce() uint64 {
 	return self.data.Nonce
 }
 
-func (self *stateObject) OrigTx() []byte {
-	return self.data.OrigTx
-}
+func (self *stateObject) PrivacyMetadata() *PrivacyMetadata {
+	key := append([]byte("PRIVACYMETADATA-"), self.address.Bytes()...)
+	val, err := self.db.ethdb.Get(key)
 
-func (self *stateObject) OrigTxHash() []byte {
-	return self.data.OrigTxHash
+	if err != nil {
+		return nil
+	}
+	var data *PrivacyMetadata
+	d := gob.NewDecoder(bytes.NewBuffer(val))
+	if err := d.Decode(&data); err != nil {
+		return nil
+	}
+	return data
 }
 
 // Never called, but must be present to allow stateObject to be used
