@@ -412,6 +412,9 @@ func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *state.StateDB,
 		return nil, nil, privateStateDbErr
 	}
 
+	publicStateDb.SetPersistentEthdb(bc.db)
+	privateStateDb.SetPersistentEthdb(bc.db)
+
 	return publicStateDb, privateStateDb, nil
 }
 
@@ -903,7 +906,7 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block, td *big.Int) (e
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
-func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state , privateState *state.StateDB) (status WriteStatus, err error) {
+func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state, privateState *state.StateDB) (status WriteStatus, err error) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
@@ -1208,6 +1211,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		stateNew := state.New
 
 		state, err := state.New(parent.Root(), bc.stateCache)
+		state.SetPersistentEthdb(bc.db)
 		if err != nil {
 			return i, events, coalescedLogs, err
 		}
@@ -1215,6 +1219,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		// Quorum
 		privateStateRoot := GetPrivateStateRoot(bc.db, parent.Root())
 		privateState, err := stateNew(privateStateRoot, bc.privateStateCache)
+		privateState.SetPersistentEthdb(bc.db)
 		if err != nil {
 			return i, events, coalescedLogs, err
 		}

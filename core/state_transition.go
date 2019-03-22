@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -219,6 +220,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return nil, 0, false, nil
 		}
 		hasPrivatePayload = data != nil
+		if extraPrivateMetadata != nil {
+			privMetadata := types.NewTxPrivacyMetadata(!common.EmptyHash(extraPrivateMetadata.ACMerkleRoot))
+			st.evm.SetTxPrivacyMetadata(privMetadata)
+		}
 	} else {
 		data = st.data
 	}
@@ -279,9 +284,12 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	//This validation is to prevent cases where the list of affected contract will have changed by the time the evm actually executes transaction
 	if isPrivate && hasPrivatePayload {
 		actualACAddresses := evm.AffectedContracts()
-		log.Trace("Verify hashes of affected contracts", "expectedHashes", extraPrivateMetadata.ACHashes)
+		log.Trace("Verify hashes of affected contracts", "expectedHashes", extraPrivateMetadata.ACHashes, "actual", actualACAddresses)
 		for _, addr := range actualACAddresses {
-			actualPrivacyMetadata := evm.StateDB.GetPrivacyMetadata(addr)
+			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
+			if err != nil {
+				//TODO - issue with getting/decoding privacymetadata
+			}
 			if actualPrivacyMetadata == nil {
 				continue // public contracts don't have privacy metadata
 			}
@@ -292,6 +300,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 				// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
 				return nil, 0, vmerr != nil, nil
 			}
+			log.Trace("Get Privacy Metadata-affected", "privacyMetadata", actualPrivacyMetadata)
 		}
 		if !common.EmptyHash(extraPrivateMetadata.ACMerkleRoot) {
 			log.Trace("Verify merkle root", "merkleRoot", extraPrivateMetadata.ACMerkleRoot)

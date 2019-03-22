@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -50,6 +51,8 @@ var (
 // * Contracts
 // * Accounts
 type StateDB struct {
+	ethdb ethdb.Database
+
 	db   Database
 	trie Trie
 
@@ -105,6 +108,14 @@ func (self *StateDB) setError(err error) {
 	if self.dbErr == nil {
 		self.dbErr = err
 	}
+}
+
+func (self *StateDB) GetPersistentEthdb() ethdb.Database {
+	return self.ethdb
+}
+
+func (self *StateDB) SetPersistentEthdb(ethdb ethdb.Database) {
+	self.ethdb = ethdb
 }
 
 func (self *StateDB) Error() error {
@@ -205,24 +216,12 @@ func (self *StateDB) GetNonce(addr common.Address) uint64 {
 	return 0
 }
 
-func (self *StateDB) GetOrigTx(addr common.Address) []byte {
+func (self *StateDB) GetStatePrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.OrigTx()
+		return stateObject.PrivacyMetadata()
 	}
-	return nil
-}
-
-func (self *StateDB) GetOrigTxHash(addr common.Address) []byte {
-	stateObject := self.getStateObject(addr)
-	if stateObject != nil {
-		return stateObject.OrigTxHash()
-	}
-	return nil
-}
-
-func (self *StateDB) GetPrivacyMetadata(addr common.Address) *PrivacyMetadata {
-	return nil
+	return nil, nil
 }
 
 func (self *StateDB) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
@@ -339,18 +338,12 @@ func (self *StateDB) SetNonce(addr common.Address, nonce uint64) {
 	}
 }
 
-func (self *StateDB) SetOrigTx(addr common.Address, tx []byte) {
+func (self *StateDB) SetStatePrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) error {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.setOrigTx(tx)
+		return stateObject.setStatePrivacyMetadata(metadata)
 	}
-}
-
-func (self *StateDB) SetOrigTxHash(addr common.Address, txHash []byte) {
-	stateObject := self.GetOrNewStateObject(addr)
-	if stateObject != nil {
-		stateObject.setOrigTxHash(txHash)
-	}
+	return nil
 }
 
 func (self *StateDB) SetCode(addr common.Address, code []byte) {

@@ -443,10 +443,14 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
 		evm.StateDB.SetNonce(contractAddr, 1)
 	}
-	if nil != evm.currentTx {
+	if nil != evm.currentTx && evm.currentTx.IsPrivate() && evm.currentTx.PrivacyMetadata() != nil {
 		// for calls (reading contract state) or finding the affected contracts there is no transaction
-		evm.StateDB.SetOrigTx(contractAddr, evm.currentTx.Hash().Bytes())
-		evm.StateDB.SetOrigTxHash(contractAddr, evm.currentTx.Data())
+		pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivateStateValidation)
+		err := evm.StateDB.SetStatePrivacyMetadata(contractAddr, pm)
+		log.Trace("Set Privacy Metadata", "key", contractAddr, "privacyMetadata", pm)
+		if err != nil {
+			return nil, common.Address{}, 0, err
+		}
 	}
 	if evm.ChainConfig().IsQuorum {
 		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
@@ -535,6 +539,9 @@ func getDualState(env *EVM, addr common.Address) StateDB {
 func (env *EVM) PublicState() PublicState           { return env.publicState }
 func (env *EVM) PrivateState() PrivateState         { return env.privateState }
 func (env *EVM) SetCurrentTX(tx *types.Transaction) { env.currentTx = tx }
+func (env *EVM) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
+	env.currentTx.SetTxPrivacyMetadata(pm)
+}
 func (env *EVM) Push(statedb StateDB) {
 	// Quorum : the read only depth to be set up only once for the entire
 	// op code execution. This will be set first time transition from
@@ -580,10 +587,20 @@ func (evm *EVM) AffectedContracts() []common.Address {
 	return addr
 }
 
-// Return MerkleRoot of all affected contracts that are NOT due to creation transaction
+func (evm *EVM) CreatedContracts() []common.Address {
+	addr := make([]common.Address, 0, len(evm.affectedContracts))
+	for a, t := range evm.affectedContracts {
+		if t == Creation {
+			addr = append(addr, a)
+		}
+	}
+	return addr
+}
+
+// Return MerkleRoot of all affected contracts
 func (evm *EVM) CalculateMerkleRoot() (common.Hash, error) {
 	combined := new(trie.Trie)
-	addresses := evm.AffectedContracts()
+	addresses := append(evm.AffectedContracts(), evm.CreatedContracts()...)
 	for _, addr := range addresses {
 		data, err := getDualState(evm, addr).GetRLPEncodedStateObject(addr)
 		if err != nil {

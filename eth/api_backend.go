@@ -33,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -292,27 +291,11 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 	return s.state.GetNonce(addr)
 }
 
-func (s EthAPIState) GetOrigTx(addr common.Address) []byte {
+func (s EthAPIState) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	if s.privateState.Exist(addr) {
-		return s.privateState.GetOrigTx(addr)
+		return s.privateState.GetStatePrivacyMetadata(addr)
 	}
-	return s.state.GetOrigTx(addr)
-}
-
-func (s EthAPIState) GetOrigTxHash(addr common.Address) []byte {
-	if s.privateState.Exist(addr) {
-		log.Trace("GETOrigTxHash - private")
-		return s.privateState.GetOrigTxHash(addr)
-	}
-	log.Trace("GETOrigTxHash - public")
-	return s.state.GetOrigTxHash(addr)
-}
-
-func (s EthAPIState) GetPrivacyMetadata(addr common.Address) *state.PrivacyMetadata {
-	if s.privateState.Exist(addr) {
-		return s.privateState.GetPrivacyMetadata(addr)
-	}
-	return s.state.GetPrivacyMetadata(addr)
+	return s.state.GetStatePrivacyMetadata(addr)
 }
 
 func (s EthAPIState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
