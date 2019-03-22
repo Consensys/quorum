@@ -107,7 +107,8 @@ type Account struct {
 
 //attached to every private contract account
 type PrivacyMetadata struct {
-	CreationTxHash common.EncryptedPayloadHash //hash of encrypted payload of creation tx
+	CreationTxHash         common.EncryptedPayloadHash //hash of encrypted payload of creation tx
+	PrivateStateValidation bool
 }
 
 // newObject creates a state object.

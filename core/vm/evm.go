@@ -584,6 +584,16 @@ func (evm *EVM) AffectedContracts() []common.Address {
 	return addr
 }
 
+func (evm *EVM) CreatedContracts() []common.Address {
+	addr := make([]common.Address, 0, len(evm.affectedContracts))
+	for a, t := range evm.affectedContracts {
+		if t == Creation {
+			addr = append(addr, a)
+		}
+	}
+	return addr
+}
+
 // Return MerkleRoot of all affected contracts that are NOT due to creation transaction
 func (evm *EVM) CalculateMerkleRoot() (common.Hash, error) {
 	combined := new(trie.Trie)

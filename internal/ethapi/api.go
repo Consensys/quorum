@@ -1298,6 +1298,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		return common.Hash{}, err
 	}
 	isPrivate, data, err := handlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, false)
+	log.Trace("sendTransaction", "datafromtessera", data)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -1737,11 +1738,13 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 	}(time.Now())
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
 	if isPrivate {
+		isMessageCall := tx.To() != nil
 		data := tx.Data()
+		var validationFlag bool
 		if len(data) > 0 { // only support non-value-transfer transaction
 			var creationTxEncryptedPayloadHashes common.EncryptedPayloadHashes // of affected contract accounts
 			var merkleRoot common.Hash                                         // result from EVM simulated execution
-			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psv", privateTxArgs.PrivateStateValidation)
+			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psv", privateTxArgs.PrivateStateValidation, "messageCall", isMessageCall)
 			if isRaw {
 				hash = common.BytesToEncryptedPayloadHash(data)
 				/*
@@ -1760,23 +1763,32 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 						return
 					}
 				*/
+
+				//TODO: how to send correct psv without simulation??
 				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 					ACHashes:               creationTxEncryptedPayloadHashes,
 					ACMerkleRoot:           merkleRoot,
 					PrivateStateValidation: privateTxArgs.PrivateStateValidation,
 				})
 			} else {
-				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx)
-				if err != nil {
+				creationTxEncryptedPayloadHashes, merkleRoot, psv, err2 := simulateExecution(ctx, b, from, tx)
+				//TODO: reveiw this
+				log.Trace("data returned from sim", "creationPayloadHashes", creationTxEncryptedPayloadHashes, "MR", merkleRoot, "psv", psv, "err", err2)
+				if err2 != nil {
 					return
 				}
+				//if message call, use psv back from tessera, if creation use from privateTxArgs
+				if validationFlag = privateTxArgs.PrivateStateValidation; isMessageCall {
+					validationFlag = psv
+				}
+
 				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 					ACHashes:               creationTxEncryptedPayloadHashes,
 					ACMerkleRoot:           merkleRoot,
-					PrivateStateValidation: privateTxArgs.PrivateStateValidation,
+					PrivateStateValidation: validationFlag,
 				})
 			}
-			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psv", privateTxArgs.PrivateStateValidation, "error", err)
+			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psv", validationFlag, "error", err, "hash", hash)
 			if err != nil {
 				return isPrivate, common.EncryptedPayloadHash{}, err
 			}
@@ -1789,14 +1801,14 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts
 // and the merkle root combining all affected contract accounts after the simulation
 //
-func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction) (common.EncryptedPayloadHashes, common.Hash, error) {
+func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction) (common.EncryptedPayloadHashes, common.Hash, bool, error) {
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())
 	blockNumber := b.CurrentBlock().Number().Uint64()
 	state, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
 	if state == nil || err != nil {
-		return nil, common.Hash{}, err
+		return nil, common.Hash{}, false, err
 	}
 	// Set sender address or use a default if none specified
 	addr := from
@@ -1821,7 +1833,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	// Get a new instance of the EVM.
 	evm, _, err := b.GetEVM(ctx, msg, state, header, vm.Config{})
 	if err != nil {
-		return nil, common.Hash{}, err
+		return nil, common.Hash{}, false, err
 	}
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
@@ -1843,10 +1855,11 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 
 	if err != nil {
 		log.Error("Simulated execution", "error", err)
-		return nil, common.Hash{}, err
+		return nil, common.Hash{}, false, err
 	}
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	addresses := evm.AffectedContracts()
+	psv := true
 	for _, addr := range addresses {
 		privacyMetadata, err := evm.StateDB.GetPrivacyMetadata(addr)
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
@@ -1859,13 +1872,17 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			continue
 		}
 		affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
+		//if one of affected contracts is psv=false, entire transaction is psv=false
+		if !privacyMetadata.PrivateStateValidation {
+			psv = false
+		}
 	}
 
 	merkleRoot, err := evm.CalculateMerkleRoot()
 	if err != nil {
-		return nil, common.Hash{}, err
+		return nil, common.Hash{}, false, err
 	}
-	return affectedContractsHashes, merkleRoot, nil
+	return affectedContractsHashes, merkleRoot, psv, nil
 }
 
 //End-Quorum

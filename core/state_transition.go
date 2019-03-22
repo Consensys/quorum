@@ -205,12 +205,15 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	var expectedACHashes common.EncryptedPayloadHashes
 	isPrivate := false
 	publicState := st.state
+	var psv bool
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
 		var extraMetadata *engine.ExtraMetadata
 		data, extraMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
+		log.Trace("Transitiondb-received tessera data", "payloadhash", st.data, "data", data, "metadata", extraMetadata, "err", err)
 		expectedACHashes = extraMetadata.ACHashes
 		expectedACMerkleRoot = extraMetadata.ACMerkleRoot
+		psv = extraMetadata.PrivateStateValidation
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -281,10 +284,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	//This validation is to prevent cases where the list of affected contract will have changed by the time the evm actually executes transaction
 	if isPrivate {
 		actualACAddresses := evm.AffectedContracts()
-		log.Trace("Verify hashes of affected contracts", "hashes", expectedACHashes)
+		log.Trace("Verify hashes of affected contracts", "expected", expectedACHashes, "actual", actualACAddresses)
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata, err := evm.StateDB.GetPrivacyMetadata(addr)
-			log.Trace("Get Privacy Metadata", "privacyMetadata", actualPrivacyMetadata)
 			if err != nil {
 				//TODO - issue with getting/decoding privacymetadata
 			}
@@ -298,6 +300,22 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 				// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
 				return nil, 0, vmerr != nil, nil
 			}
+			log.Trace("Get Privacy Metadata-affected", "privacyMetadata", actualPrivacyMetadata)
+		}
+		createdACAddresses := evm.CreatedContracts()
+		log.Trace("Add PSV flag to created contracts", "addresses", createdACAddresses)
+		for _, addr := range createdACAddresses {
+			pm, err := evm.StateDB.GetPrivacyMetadata(addr)
+			if err != nil {
+				//TODO - issue with getting/decoding privacymetadata
+			}
+			if pm == nil {
+				continue // TODO
+			}
+			pm.PrivateStateValidation = psv
+			evm.StateDB.SetPrivacyMetadata(addr, pm)
+
+			log.Trace("Update Privacy Metadata-created", "privacyMetadata", pm)
 		}
 		// TODO need to check for PSV before performing the actual check
 		log.Trace("Verify merkle root", "merkleRoot", expectedACMerkleRoot)
