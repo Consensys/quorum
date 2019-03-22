@@ -54,5 +54,6 @@ type sendSignedTxRequest struct {
 }
 
 type sendSignedTxResponse struct {
-	*sendResponse
+	// Base64-encoded
+	Key string `json:"key"`
 }

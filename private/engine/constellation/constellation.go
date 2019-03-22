@@ -2,7 +2,6 @@ package constellation
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/ethereum/go-ethereum/private/engine"
 
@@ -17,10 +16,10 @@ type constellation struct {
 	c    *gocache.Cache
 }
 
-func New(client *http.Client) *constellation {
+func New(client *engine.Client) *constellation {
 	return &constellation{
 		node: &Client{
-			httpClient: client,
+			httpClient: client.HttpClient,
 		},
 		c: gocache.New(cache.DefaultExpiration, cache.CleanupInterval),
 	}
