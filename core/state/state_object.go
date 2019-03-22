@@ -129,9 +129,10 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	}
 }
 
-func NewPrivacyMetadata(creationTxHash common.EncryptedPayloadHash) *PrivacyMetadata {
+func NewStatePrivacyMetadata(creationTxHash common.EncryptedPayloadHash, psv bool) *PrivacyMetadata {
 	return &PrivacyMetadata{
-		CreationTxHash: creationTxHash,
+		CreationTxHash:         creationTxHash,
+		PrivateStateValidation: psv,
 	}
 }
 
@@ -359,7 +360,7 @@ func (self *stateObject) setNonce(nonce uint64) {
 	self.data.Nonce = nonce
 }
 
-func (self *stateObject) setPrivacyMetadata(metadata *PrivacyMetadata) error {
+func (self *stateObject) setStatePrivacyMetadata(metadata *PrivacyMetadata) error {
 	key := make([]byte, 0, len(privacyMetadataPrefix)+len(self.address.Bytes()))
 	key = append(privacyMetadataPrefix, self.address.Bytes()...)
 

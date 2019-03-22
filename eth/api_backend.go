@@ -291,11 +291,11 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 	return s.state.GetNonce(addr)
 }
 
-func (s EthAPIState) GetPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+func (s EthAPIState) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	if s.privateState.Exist(addr) {
-		return s.privateState.GetPrivacyMetadata(addr)
+		return s.privateState.GetStatePrivacyMetadata(addr)
 	}
-	return s.state.GetPrivacyMetadata(addr)
+	return s.state.GetStatePrivacyMetadata(addr)
 }
 
 func (s EthAPIState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {

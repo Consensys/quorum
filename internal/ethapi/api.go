@@ -1072,7 +1072,7 @@ func (s *PublicTransactionPoolAPI) GetContractOrigTransactionHash(ctx context.Co
 	if state == nil || err != nil {
 		return nil, err
 	}
-	origTx, err := state.GetPrivacyMetadata(address)
+	origTx, err := state.GetStatePrivacyMetadata(address)
 	if origTx == nil || err != nil {
 		return nil, err
 	}
@@ -1765,9 +1765,8 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 
 				//TODO: how to send correct psv without simulation??
 				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-					ACHashes:               creationTxEncryptedPayloadHashes,
-					ACMerkleRoot:           merkleRoot,
-					PrivateStateValidation: privateTxArgs.PrivateStateValidation,
+					ACHashes:     creationTxEncryptedPayloadHashes,
+					ACMerkleRoot: merkleRoot,
 				})
 			} else {
 				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx)
@@ -1858,7 +1857,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	addresses := evm.AffectedContracts()
 	psv := true
 	for _, addr := range addresses {
-		privacyMetadata, err := evm.StateDB.GetPrivacyMetadata(addr)
+		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
 		// when we run simulation, it's possible that affected contracts may contain public ones
 		// public contract will not have any privacyMetadata attached

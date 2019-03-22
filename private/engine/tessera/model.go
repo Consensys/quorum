@@ -13,22 +13,13 @@ type sendRequest struct {
 	AffectedContractTransactions []string `json:"affectedContractTransactions"`
 
 	// Merkle root for affected contracts
-	ExecHash string `json:"execHash"`
-
-	PrivateStateValidation bool `json:"privateStateValidation"`
+	ExecHash string `json:"execHash,omitempty"`
 }
 
 // response object for /send API
 type sendResponse struct {
 	// Base64-encoded
 	Key string `json:"key"`
-}
-
-type receiveRequest struct {
-	// Base64-encoded
-	Key string `json:"key"`
-
-	To string `json:"to"`
 }
 
 type receiveResponse struct {
@@ -49,10 +40,10 @@ type sendSignedTxRequest struct {
 	// Transactions' encrypted payload hashes for affected contracts
 	AffectedContractTransactions []string `json:"affectedContractTransactions"`
 	// Merkle root for affected contracts
-	ExecHash               string `json:"execHash"`
-	PrivateStateValidation bool   `json:"privateStateValidation"`
+	ExecHash string `json:"execHash,omitempty"`
 }
 
 type sendSignedTxResponse struct {
-	*sendResponse
+	// Base64-encoded
+	Key string `json:"key"`
 }

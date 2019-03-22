@@ -443,10 +443,10 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
 		evm.StateDB.SetNonce(contractAddr, 1)
 	}
-	if nil != evm.currentTx && evm.currentTx.IsPrivate() {
+	if nil != evm.currentTx && evm.currentTx.IsPrivate() && evm.currentTx.PrivacyMetadata() != nil {
 		// for calls (reading contract state) or finding the affected contracts there is no transaction
-		pm := state.NewPrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()))
-		err := evm.StateDB.SetPrivacyMetadata(contractAddr, pm)
+		pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivateStateValidation)
+		err := evm.StateDB.SetStatePrivacyMetadata(contractAddr, pm)
 		log.Trace("Set Privacy Metadata", "key", contractAddr, "privacyMetadata", pm)
 		if err != nil {
 			return nil, common.Address{}, 0, err
@@ -539,6 +539,9 @@ func getDualState(env *EVM, addr common.Address) StateDB {
 func (env *EVM) PublicState() PublicState           { return env.publicState }
 func (env *EVM) PrivateState() PrivateState         { return env.privateState }
 func (env *EVM) SetCurrentTX(tx *types.Transaction) { env.currentTx = tx }
+func (env *EVM) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
+	env.currentTx.SetTxPrivacyMetadata(pm)
+}
 func (env *EVM) Push(statedb StateDB) {
 	// Quorum : the read only depth to be set up only once for the entire
 	// op code execution. This will be set first time transition from

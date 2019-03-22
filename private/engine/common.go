@@ -2,8 +2,9 @@ package engine
 
 import (
 	"errors"
-
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"net/http"
 )
 
 var (
@@ -35,6 +36,18 @@ type ExtraMetadata struct {
 	// Hashes of affected Contracts
 	ACHashes common.EncryptedPayloadHashes
 	// Root Hash of a Merkle Trie containing all affected contract account in state objects
-	ACMerkleRoot           common.Hash
-	PrivateStateValidation bool
+	ACMerkleRoot common.Hash
+}
+
+type Client struct {
+	HttpClient *http.Client
+	BaseURL    string
+}
+
+func (c *Client) FullPath(path string) string {
+	return fmt.Sprintf("%s%s", c.BaseURL, path)
+}
+
+func (c *Client) Get(path string) (*http.Response, error) {
+	return c.HttpClient.Get(c.FullPath(path))
 }

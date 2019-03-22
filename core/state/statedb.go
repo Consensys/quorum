@@ -216,7 +216,7 @@ func (self *StateDB) GetNonce(addr common.Address) uint64 {
 	return 0
 }
 
-func (self *StateDB) GetPrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
+func (self *StateDB) GetStatePrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.PrivacyMetadata()
@@ -338,10 +338,10 @@ func (self *StateDB) SetNonce(addr common.Address, nonce uint64) {
 	}
 }
 
-func (self *StateDB) SetPrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) error {
+func (self *StateDB) SetStatePrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) error {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		return stateObject.setPrivacyMetadata(metadata)
+		return stateObject.setStatePrivacyMetadata(metadata)
 	}
 	return nil
 }
