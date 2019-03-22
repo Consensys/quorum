@@ -1298,7 +1298,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		return common.Hash{}, err
 	}
 	isPrivate, data, err := handlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, false)
-	log.Trace("sendTransaction", "datafromtessera", data)
+
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -1743,9 +1743,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 		if len(data) > 0 { // only support non-value-transfer transaction
 			var creationTxEncryptedPayloadHashes common.EncryptedPayloadHashes // of affected contract accounts
 			var merkleRoot common.Hash
-			var psv bool // result from EVM simulated execution
-			var validationFlag bool
-			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psv", privateTxArgs.PrivateStateValidation, "messageCall", isMessageCall)
+			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psvsender", privateTxArgs.PrivateStateValidation, "messageCall", isMessageCall)
 			if isRaw {
 				hash = common.BytesToEncryptedPayloadHash(data)
 				/*
@@ -1772,36 +1770,22 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 					PrivateStateValidation: privateTxArgs.PrivateStateValidation,
 				})
 			} else {
-				creationTxEncryptedPayloadHashes, merkleRoot, psv, err = simulateExecution(ctx, b, from, tx)
-				//TODO: reveiw this
-				if validationFlag = privateTxArgs.PrivateStateValidation; isMessageCall {
-					validationFlag = psv
+				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx)
+
+				//if creation and psv=false, dont send merkleRoot
+				if !isMessageCall && !privateTxArgs.PrivateStateValidation {
+					merkleRoot = common.Hash{}
 				}
-				log.Trace("data returned from sim", "creationPayloadHashes", creationTxEncryptedPayloadHashes, "MR", merkleRoot, "psv", psv, "err", err)
+				log.Trace("data returned from sim", "creationPayloadHashes", creationTxEncryptedPayloadHashes, "MR", merkleRoot, "err", err)
 				if err != nil {
 					return
 				}
-				//if message call, use psv back from tessera, if creation use from privateTxArgs
-
-				// if validationFlag = privateTxArgs.PrivateStateValidation; isMessageCall {
-				// 	validationFlag = psv
-				// }
-				if !validationFlag {
-					log.Trace("notpsv")
-					hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-						ACHashes:               creationTxEncryptedPayloadHashes,
-						PrivateStateValidation: validationFlag,
-					})
-				} else {
-					log.Trace("yespsv")
-					hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-						ACHashes:               creationTxEncryptedPayloadHashes,
-						ACMerkleRoot:           merkleRoot,
-						PrivateStateValidation: validationFlag,
-					})
-				}
+				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
+					ACHashes:     creationTxEncryptedPayloadHashes,
+					ACMerkleRoot: merkleRoot,
+				})
 			}
-			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "merkleroot", merkleRoot, "ismessagecall", isMessageCall, "senderpsv", validationFlag, "error", err, "hash", hash)
+			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "merkleroot", merkleRoot, "ismessagecall", isMessageCall, "error", err, "hash", hash)
 			if err != nil {
 				return isPrivate, common.EncryptedPayloadHash{}, err
 			}
@@ -1814,14 +1798,14 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts
 // and the merkle root combining all affected contract accounts after the simulation
 //
-func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction) (common.EncryptedPayloadHashes, common.Hash, bool, error) {
+func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction) (common.EncryptedPayloadHashes, common.Hash, error) {
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())
 	blockNumber := b.CurrentBlock().Number().Uint64()
 	state, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
 	if state == nil || err != nil {
-		return nil, common.Hash{}, false, err
+		return nil, common.Hash{}, err
 	}
 	// Set sender address or use a default if none specified
 	addr := from
@@ -1846,7 +1830,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	// Get a new instance of the EVM.
 	evm, _, err := b.GetEVM(ctx, msg, state, header, vm.Config{})
 	if err != nil {
-		return nil, common.Hash{}, false, err
+		return nil, common.Hash{}, err
 	}
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
@@ -1868,7 +1852,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 
 	if err != nil {
 		log.Error("Simulated execution", "error", err)
-		return nil, common.Hash{}, false, err
+		return nil, common.Hash{}, err
 	}
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	addresses := evm.AffectedContracts()
@@ -1890,12 +1874,16 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			psv = false
 		}
 	}
-
-	merkleRoot, err := evm.CalculateMerkleRoot()
-	if err != nil {
-		return nil, common.Hash{}, false, err
+	var merkleRoot common.Hash
+	//psv true if creation (no affecteds) or if all affecteds of a message call are psv
+	if psv {
+		merkleRoot, err = evm.CalculateMerkleRoot()
+		if err != nil {
+			return nil, common.Hash{}, err
+		}
 	}
-	return affectedContractsHashes, merkleRoot, psv, nil
+	log.Trace("simulation end", "mr", merkleRoot)
+	return affectedContractsHashes, merkleRoot, nil
 }
 
 //End-Quorum

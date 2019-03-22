@@ -213,7 +213,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		log.Trace("Transitiondb-received tessera data", "payloadhash", st.data, "data", data, "metadata", extraMetadata, "err", err)
 		expectedACHashes = extraMetadata.ACHashes
 		expectedACMerkleRoot = extraMetadata.ACMerkleRoot
-		psv = extraMetadata.PrivateStateValidation
+		psv = !common.EmptyHash(expectedACMerkleRoot)
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
