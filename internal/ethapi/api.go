@@ -1767,9 +1767,8 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 					}
 				*/
 				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-					ACHashes:               creationTxEncryptedPayloadHashes,
-					ACMerkleRoot:           merkleRoot,
-					PrivateStateValidation: privateTxArgs.PrivateStateValidation,
+					ACHashes:     creationTxEncryptedPayloadHashes,
+					ACMerkleRoot: merkleRoot,
 				})
 			} else {
 				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx)
@@ -1777,9 +1776,8 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 					return
 				}
 				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-					ACHashes:               creationTxEncryptedPayloadHashes,
-					ACMerkleRoot:           merkleRoot,
-					PrivateStateValidation: privateTxArgs.PrivateStateValidation,
+					ACHashes:     creationTxEncryptedPayloadHashes,
+					ACMerkleRoot: merkleRoot,
 				})
 			}
 			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psv", privateTxArgs.PrivateStateValidation, "error", err)

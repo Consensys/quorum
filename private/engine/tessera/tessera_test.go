@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -16,15 +18,16 @@ import (
 )
 
 var (
-	arbitraryHash           = common.BytesToEncryptedPayloadHash([]byte("arbitrary"))
-	arbitraryHash1          = common.BytesToEncryptedPayloadHash([]byte("arbitrary1"))
-	arbitraryPrivatePayload = []byte("arbitrary private payload")
-	arbitraryFrom           = "arbitraryFrom"
-	arbitraryTo             = []string{"arbitraryTo1", "arbitraryTo2"}
-	arbitraryExtra          = &engine.ExtraMetadata{
-		ACHashes:               Must(common.Base64sToEncryptedPayloadHashes([]string{arbitraryHash.ToBase64()})).(common.EncryptedPayloadHashes),
-		ACMerkleRoot:           common.StringToHash("arbitrary root hash"),
-		PrivateStateValidation: true,
+	arbitraryHash                  = common.BytesToEncryptedPayloadHash([]byte("arbitrary"))
+	arbitraryHash1                 = common.BytesToEncryptedPayloadHash([]byte("arbitrary1"))
+	arbitraryNotFoundHash          = common.BytesToEncryptedPayloadHash([]byte("not found"))
+	arbitraryHashNoPrivateMetadata = common.BytesToEncryptedPayloadHash([]byte("no private extra data"))
+	arbitraryPrivatePayload        = []byte("arbitrary private payload")
+	arbitraryFrom                  = "arbitraryFrom"
+	arbitraryTo                    = []string{"arbitraryTo1", "arbitraryTo2"}
+	arbitraryExtra                 = &engine.ExtraMetadata{
+		ACHashes:     Must(common.Base64sToEncryptedPayloadHashes([]string{arbitraryHash.ToBase64()})).(common.EncryptedPayloadHashes),
+		ACMerkleRoot: common.StringToHash("arbitrary root hash"),
 	}
 
 	testServer *httptest.Server
@@ -57,9 +60,9 @@ func Must(o interface{}, err error) interface{} {
 
 func setup() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/send", SendAPIHandlerFunc)
-	mux.HandleFunc("/receive", ReceiveAPIHandlerFunc)
-	mux.HandleFunc("/sendsignedtx", SendSignedTxAPIHandlerFunc)
+	mux.HandleFunc("/send", MockSendAPIHandlerFunc)
+	mux.HandleFunc("/transaction/", MockReceiveAPIHandlerFunc)
+	mux.HandleFunc("/sendsignedtx", MockSendSignedTxAPIHandlerFunc)
 
 	testServer = httptest.NewServer(mux)
 
@@ -69,7 +72,7 @@ func setup() {
 	})
 }
 
-func SendAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
+func MockSendAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
 	actualRequest := new(sendRequest)
 	if err := json.NewDecoder(request.Body).Decode(actualRequest); err != nil {
 		go func(o *capturedRequest) { sendRequestCaptor <- o }(&capturedRequest{err: err})
@@ -82,27 +85,35 @@ func SendAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
 	}
 }
 
-func ReceiveAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
-	actualRequest := new(receiveRequest)
-	if err := json.NewDecoder(request.Body).Decode(actualRequest); err != nil {
-		go func(o *capturedRequest) {
-			receiveRequestCaptor <- o
-		}(&capturedRequest{err: err})
+func MockReceiveAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
+	actualRequest, err := url.PathUnescape(strings.TrimPrefix(request.RequestURI, "/transaction/"))
+	if err != nil {
+		go func(o *capturedRequest) { sendRequestCaptor <- o }(&capturedRequest{err: err})
 	} else {
 		go func(o *capturedRequest) {
 			receiveRequestCaptor <- o
 		}(&capturedRequest{request: actualRequest, header: request.Header})
-		data, _ := json.Marshal(&receiveResponse{
-			Payload:                      arbitraryPrivatePayload,
-			ExecHash:                     base64.StdEncoding.EncodeToString(arbitraryExtra.ACMerkleRoot.Bytes()),
-			PrivateStateValidation:       arbitraryExtra.PrivateStateValidation,
-			AffectedContractTransactions: arbitraryExtra.ACHashes.ToBase64s(),
-		})
-		response.Write(data)
+		if actualRequest == arbitraryNotFoundHash.ToBase64() {
+			response.WriteHeader(http.StatusNotFound)
+		} else {
+			var data []byte
+			if actualRequest == arbitraryHashNoPrivateMetadata.ToBase64() {
+				data, _ = json.Marshal(&receiveResponse{
+					Payload: arbitraryPrivatePayload,
+				})
+			} else {
+				data, _ = json.Marshal(&receiveResponse{
+					Payload:                      arbitraryPrivatePayload,
+					ExecHash:                     base64.StdEncoding.EncodeToString(arbitraryExtra.ACMerkleRoot.Bytes()),
+					AffectedContractTransactions: arbitraryExtra.ACHashes.ToBase64s(),
+				})
+			}
+			response.Write(data)
+		}
 	}
 }
 
-func SendSignedTxAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
+func MockSendSignedTxAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
 	actualRequest := new(sendSignedTxRequest)
 	if err := json.NewDecoder(request.Body).Decode(actualRequest); err != nil {
 		go func(o *capturedRequest) { sendSignedTxRequestCaptor <- o }(&capturedRequest{err: err})
@@ -156,10 +167,6 @@ func TestSend_whenTypical(t *testing.T) {
 		t.Errorf("To: expected %v but got %v", arbitraryTo, actualRequest.To)
 	}
 
-	if actualRequest.PrivateStateValidation != arbitraryExtra.PrivateStateValidation {
-		t.Errorf("PrivateStateValidation: expected %v but got %v", arbitraryExtra.PrivateStateValidation, actualRequest.PrivateStateValidation)
-	}
-
 	expectedACHashes := arbitraryExtra.ACHashes.ToBase64s()
 	if !reflect.DeepEqual(actualRequest.AffectedContractTransactions, expectedACHashes) {
 		t.Errorf("AffectedContractTransactions: expected %v but got %v", expectedACHashes, actualRequest.AffectedContractTransactions)
@@ -188,22 +195,70 @@ func TestReceive_whenTypical(t *testing.T) {
 
 	verifyRequetHeader(capturedRequest.header, t)
 
-	actualRequest := capturedRequest.request.(*receiveRequest)
+	actualRequest := capturedRequest.request.(string)
 
-	if actualRequest.Key != arbitraryHash1.ToBase64() {
-		t.Errorf("Key: expected %s but got %s", arbitraryHash1.ToBase64(), actualRequest.Key)
+	if actualRequest != arbitraryHash1.ToBase64() {
+		t.Errorf("Key: expected %s but got %s", arbitraryHash1.ToBase64(), actualRequest)
 	}
 
 	if !reflect.DeepEqual(actualExtra.ACHashes, arbitraryExtra.ACHashes) {
 		t.Errorf("ACHashes: expected %v but got %v", arbitraryExtra.ACHashes, actualExtra.ACHashes)
 	}
 
-	if actualExtra.PrivateStateValidation != arbitraryExtra.PrivateStateValidation {
-		t.Errorf("PrivateStateValidation: expected %v but got %v", arbitraryExtra.PrivateStateValidation, actualExtra.PrivateStateValidation)
-	}
-
 	if actualExtra.ACMerkleRoot.Hex() != arbitraryExtra.ACMerkleRoot.Hex() {
 		t.Errorf("MerkelRoot: expected %s but got %s", arbitraryExtra.ACMerkleRoot.Hex(), actualExtra.ACMerkleRoot.Hex())
+	}
+}
+
+func TestReceive_whenPayloadNotFound(t *testing.T) {
+	data, _, err := testObject.Receive(arbitraryNotFoundHash)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	capturedRequest := <-receiveRequestCaptor
+
+	if capturedRequest.err != nil {
+		t.Fatalf("%s", capturedRequest.err)
+	}
+
+	verifyRequetHeader(capturedRequest.header, t)
+
+	actualRequest := capturedRequest.request.(string)
+
+	if actualRequest != arbitraryNotFoundHash.ToBase64() {
+		t.Errorf("Key: expected %s but got %s", arbitraryNotFoundHash.ToBase64(), actualRequest)
+	}
+
+	if data != nil {
+		t.Errorf("Payload: expected nil but got %v", data)
+	}
+}
+
+func TestReceive_whenHavingPayloadButNoPrivateExtraMetadata(t *testing.T) {
+	_, actualExtra, err := testObject.Receive(arbitraryHashNoPrivateMetadata)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	capturedRequest := <-receiveRequestCaptor
+
+	if capturedRequest.err != nil {
+		t.Fatalf("%s", capturedRequest.err)
+	}
+
+	verifyRequetHeader(capturedRequest.header, t)
+
+	actualRequest := capturedRequest.request.(string)
+
+	if actualRequest != arbitraryHashNoPrivateMetadata.ToBase64() {
+		t.Errorf("Key: expected %s but got %s", arbitraryHashNoPrivateMetadata.ToBase64(), actualRequest)
+	}
+
+	if actualExtra.ACHashes == nil || len(actualExtra.ACHashes) > 0 {
+		t.Errorf("ACHashes: expected empty and not nil but got %v", actualExtra.ACHashes)
+	}
+
+	if !common.EmptyHash(actualExtra.ACMerkleRoot) {
+		t.Errorf("MerkelRoot: expected empty hash but got %s", actualExtra.ACMerkleRoot.Hex())
 	}
 }
 
@@ -224,10 +279,6 @@ func TestSendSignedTx_whenTypical(t *testing.T) {
 
 	if !reflect.DeepEqual(actualRequest.To, arbitraryTo) {
 		t.Errorf("To: expected %v but got %v", arbitraryTo, actualRequest.To)
-	}
-
-	if actualRequest.PrivateStateValidation != arbitraryExtra.PrivateStateValidation {
-		t.Errorf("PrivateStateValidation: expected %v but got %v", arbitraryExtra.PrivateStateValidation, actualRequest.PrivateStateValidation)
 	}
 
 	expectedACHashes := arbitraryExtra.ACHashes.ToBase64s()

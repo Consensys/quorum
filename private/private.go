@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/private/engine/tessera"
+
 	"github.com/ethereum/go-ethereum/private/engine/constellation"
 
 	"github.com/ethereum/go-ethereum/private/engine"
@@ -31,6 +33,7 @@ type PrivateTransactionManager interface {
 
 	Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error)
 	SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error)
+	// Returns nil payload if not found
 	Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error)
 }
 
@@ -108,13 +111,11 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 	defer func() {
 		log.Info("Target Private Tx Manager", "name", privateTxManager.Name(), "version", version)
 	}()
-	privateTxManager = constellation.New(client) // temporarily until Tessera client is fully implemented
-	/*
-		if res.StatusCode != 200 {
-			// Constellation doesn't have /version endpoint
-			privateTxManager = constellation.New(client)
-		}
+	if res.StatusCode != 200 {
+		// Constellation doesn't have /version endpoint
+		privateTxManager = constellation.New(client)
+	} else {
 		privateTxManager = tessera.New(client)
-	*/
+	}
 	return privateTxManager, nil
 }

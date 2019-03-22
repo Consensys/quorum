@@ -3,9 +3,8 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"net/http"
-
 	"github.com/ethereum/go-ethereum/common"
+	"net/http"
 )
 
 var (
@@ -37,8 +36,7 @@ type ExtraMetadata struct {
 	// Hashes of affected Contracts
 	ACHashes common.EncryptedPayloadHashes
 	// Root Hash of a Merkle Trie containing all affected contract account in state objects
-	ACMerkleRoot           common.Hash
-	PrivateStateValidation bool
+	ACMerkleRoot common.Hash
 }
 
 type Client struct {

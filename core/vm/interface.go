@@ -33,6 +33,7 @@ type MinimalApiState interface {
 	GetNonce(addr common.Address) uint64
 	GetOrigTx(addr common.Address) []byte
 	GetOrigTxHash(addr common.Address) []byte
+	// Return nil if for public contract
 	GetPrivacyMetadata(addr common.Address) *state.PrivacyMetadata
 	// RLP-encoded of the state object in a given address
 	// Throw error if no state object is found

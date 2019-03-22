@@ -16,6 +16,11 @@ type constellation struct {
 	c    *gocache.Cache
 }
 
+func Is(ptm interface{}) bool {
+	_, ok := ptm.(*constellation)
+	return ok
+}
+
 func New(client *engine.Client) *constellation {
 	return &constellation{
 		node: &Client{
@@ -39,11 +44,7 @@ func (g *constellation) Send(data []byte, from string, to []string, extra *engin
 }
 
 func (g *constellation) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) (out []byte, err error) {
-	out, err = g.node.SendSignedPayload(data, to, extra.ACHashes, extra.ACMerkleRoot)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+	return nil, engine.ErrPrivateTxManagerNotSupported
 }
 
 func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
@@ -63,14 +64,13 @@ func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engi
 		}
 		return cacheItem.Payload, &cacheItem.Extra, nil
 	}
-	privatePayload, acHashes, acMerkleRoot, psv, err := g.node.ReceivePayload(data)
+	privatePayload, acHashes, acMerkleRoot, err := g.node.ReceivePayload(data)
 	if nil != err {
 		return nil, nil, err
 	}
 	extra := engine.ExtraMetadata{
-		ACHashes:               acHashes,
-		ACMerkleRoot:           acMerkleRoot,
-		PrivateStateValidation: psv,
+		ACHashes:     acHashes,
+		ACMerkleRoot: acMerkleRoot,
 	}
 	g.c.Set(cacheKey, cache.PrivateCacheItem{
 		Payload: privatePayload,

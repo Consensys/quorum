@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/ethereum/go-ethereum/private/engine"
 
@@ -24,6 +25,11 @@ type tesseraPrivateTxManager struct {
 	cache  *gocache.Cache
 }
 
+func Is(ptm interface{}) bool {
+	_, ok := ptm.(*tesseraPrivateTxManager)
+	return ok
+}
+
 func New(client *engine.Client) *tesseraPrivateTxManager {
 	return &tesseraPrivateTxManager{
 		client: client,
@@ -31,35 +37,38 @@ func New(client *engine.Client) *tesseraPrivateTxManager {
 	}
 }
 
-func (t *tesseraPrivateTxManager) submitJSON(method, path string, request interface{}, response interface{}) error {
-	req, err := newJSONRequest(method, t.client.FullPath(path), request)
+func (t *tesseraPrivateTxManager) submitJSON(method, path string, request interface{}, response interface{}) (int, error) {
+	req, err := newOptionalJSONRequest(method, t.client.FullPath(path), request)
 	if err != nil {
-		return err
+		return -1, err
 	}
 	res, err := t.client.HttpClient.Do(req)
 	if err != nil {
-		return err
+		return -1, err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 200 {
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
 		body, _ := ioutil.ReadAll(res.Body)
-		return fmt.Errorf("%d status: %s", res.StatusCode, string(body))
+		return res.StatusCode, fmt.Errorf("%d status: %s", res.StatusCode, string(body))
 	}
 	if err := json.NewDecoder(res.Body).Decode(response); err != nil {
-		return err
+		return res.StatusCode, err
 	}
-	return nil
+	return res.StatusCode, nil
 }
 
 func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
 	response := new(sendResponse)
-	if err := t.submitJSON("POST", "/send", &sendRequest{
+	acMerkleRoot := ""
+	if !common.EmptyHash(extra.ACMerkleRoot) {
+		acMerkleRoot = base64.StdEncoding.EncodeToString(extra.ACMerkleRoot.Bytes())
+	}
+	if _, err := t.submitJSON("POST", "/send", &sendRequest{
 		Payload:                      data,
 		From:                         from,
 		To:                           to,
 		AffectedContractTransactions: extra.ACHashes.ToBase64s(),
-		ExecHash:                     base64.StdEncoding.EncodeToString(extra.ACMerkleRoot.Bytes()),
-		PrivateStateValidation:       extra.PrivateStateValidation,
+		ExecHash:                     acMerkleRoot,
 	}, response); err != nil {
 		return common.EncryptedPayloadHash{}, err
 	}
@@ -81,12 +90,15 @@ func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, ex
 
 func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
 	response := new(sendSignedTxResponse)
-	if err := t.submitJSON("POST", "/sendsignedtx", &sendSignedTxRequest{
+	acMerkleRoot := ""
+	if !common.EmptyHash(extra.ACMerkleRoot) {
+		acMerkleRoot = base64.StdEncoding.EncodeToString(extra.ACMerkleRoot.Bytes())
+	}
+	if _, err := t.submitJSON("POST", "/sendsignedtx", &sendSignedTxRequest{
 		Hash:                         data.Bytes(),
 		To:                           to,
 		AffectedContractTransactions: extra.ACHashes.ToBase64s(),
-		ExecHash:                     base64.StdEncoding.EncodeToString(extra.ACMerkleRoot.Bytes()),
-		PrivateStateValidation:       extra.PrivateStateValidation,
+		ExecHash:                     acMerkleRoot,
 	}, response); err != nil {
 		return nil, err
 	}
@@ -112,24 +124,29 @@ func (t *tesseraPrivateTxManager) Receive(data common.EncryptedPayloadHash) ([]b
 	}
 
 	response := new(receiveResponse)
-	if err := t.submitJSON("GET", "/receive", &receiveRequest{
-		Key: data.ToBase64(),
-	}, response); err != nil {
-		return nil, nil, err
+	if statusCode, err := t.submitJSON("GET", fmt.Sprintf("/transaction/%s", url.PathEscape(data.ToBase64())), nil, response); err != nil {
+		if statusCode == http.StatusNotFound {
+			return nil, nil, nil
+		} else {
+			return nil, nil, err
+		}
 	}
 
 	acHashes, err := common.Base64sToEncryptedPayloadHashes(response.AffectedContractTransactions)
 	if err != nil {
 		return nil, nil, err
 	}
-	acMerkleRootInBytes, err := base64.StdEncoding.DecodeString(response.ExecHash)
-	if err != nil {
-		return nil, nil, err
+	acMerkleRoot := common.Hash{}
+	if response.ExecHash != "" {
+		acMerkleRootInBytes, err := base64.StdEncoding.DecodeString(response.ExecHash)
+		if err != nil {
+			return nil, nil, err
+		}
+		acMerkleRoot = common.BytesToHash(acMerkleRootInBytes)
 	}
 	extra := &engine.ExtraMetadata{
-		ACHashes:               acHashes,
-		ACMerkleRoot:           common.BytesToHash(acMerkleRootInBytes),
-		PrivateStateValidation: response.PrivateStateValidation,
+		ACHashes:     acHashes,
+		ACMerkleRoot: acMerkleRoot,
 	}
 
 	t.cache.Set(cacheKey, cache.PrivateCacheItem{
@@ -144,11 +161,14 @@ func (t *tesseraPrivateTxManager) Name() string {
 	return "Tessera"
 }
 
-func newJSONRequest(method string, path string, body interface{}) (*http.Request, error) {
+// don't serialize body if nil
+func newOptionalJSONRequest(method string, path string, body interface{}) (*http.Request, error) {
 	buf := new(bytes.Buffer)
-	err := json.NewEncoder(buf).Encode(body)
-	if err != nil {
-		return nil, err
+	if body != nil {
+		err := json.NewEncoder(buf).Encode(body)
+		if err != nil {
+			return nil, err
+		}
 	}
 	request, err := http.NewRequest(method, path, buf)
 	if err != nil {

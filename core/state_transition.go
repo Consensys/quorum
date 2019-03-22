@@ -201,16 +201,13 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	isQuorum := st.evm.ChainConfig().IsQuorum
 
 	var data []byte
-	var expectedACMerkleRoot common.Hash
-	var expectedACHashes common.EncryptedPayloadHashes
+	var extraPrivateMetadata *engine.ExtraMetadata
+	hasPrivatePayload := false
 	isPrivate := false
 	publicState := st.state
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
-		var extraMetadata *engine.ExtraMetadata
-		data, extraMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
-		expectedACHashes = extraMetadata.ACHashes
-		expectedACMerkleRoot = extraMetadata.ACMerkleRoot
+		data, extraPrivateMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -221,6 +218,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		if err != nil {
 			return nil, 0, false, nil
 		}
+		hasPrivatePayload = data != nil
 	} else {
 		data = st.data
 	}
@@ -279,15 +277,15 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	//If the list of affected CA Transactions by the time evm executes is different from the list of affected contract transactions returned from Tessera
 	//an Error should be thrown and the state should not be updated
 	//This validation is to prevent cases where the list of affected contract will have changed by the time the evm actually executes transaction
-	if isPrivate {
+	if isPrivate && hasPrivatePayload {
 		actualACAddresses := evm.AffectedContracts()
-		log.Trace("Verify hashes of affected contracts", "hashes", expectedACHashes)
+		log.Trace("Verify hashes of affected contracts", "expectedHashes", extraPrivateMetadata.ACHashes)
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata := evm.StateDB.GetPrivacyMetadata(addr)
 			if actualPrivacyMetadata == nil {
-				continue // TODO
+				continue // public contracts don't have privacy metadata
 			}
-			if expectedACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
+			if extraPrivateMetadata.ACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
 				log.Error("Participation check failed",
 					"affectedContractAddress", addr.Hex(),
 					"missingCreationTxHash", actualPrivacyMetadata.CreationTxHash)
@@ -295,20 +293,21 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 				return nil, 0, vmerr != nil, nil
 			}
 		}
-		// TODO need to check for PSV before performing the actual check
-		log.Trace("Verify merkle root", "merkleRoot", expectedACMerkleRoot)
-		/*
-			actualACMerkleRoot, err := evm.CalculateMerkleRoot()
-			if err != nil {
-				log.Error("Calculate Merkle Root failed", "error", err)
-				return nil, 0, vmerr != nil, err
-			}
-			if actualACMerkleRoot != expectedACMerkleRoot {
-				log.Error("Merkle Root check failed", "actual", actualACMerkleRoot, "expect", expectedACMerkleRoot)
-				// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
-				return nil, 0, vmerr != nil, nil
-			}
-		*/
+		if !common.EmptyHash(extraPrivateMetadata.ACMerkleRoot) {
+			log.Trace("Verify merkle root", "merkleRoot", extraPrivateMetadata.ACMerkleRoot)
+			/*
+				actualACMerkleRoot, err := evm.CalculateMerkleRoot()
+				if err != nil {
+					log.Error("Calculate Merkle Root failed", "error", err)
+					return nil, 0, vmerr != nil, err
+				}
+				if actualACMerkleRoot != expectedACMerkleRoot {
+					log.Error("Merkle Root check failed", "actual", actualACMerkleRoot, "expect", expectedACMerkleRoot)
+					// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
+					return nil, 0, vmerr != nil, nil
+				}
+			*/
+		}
 	}
 
 	// Pay gas used during contract creation or execution (st.gas tracks remaining gas)
