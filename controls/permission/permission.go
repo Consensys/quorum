@@ -3,7 +3,6 @@ package permission
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -42,7 +41,9 @@ type PermissionCtrl struct {
 	permissionedMode bool
 	key              *ecdsa.PrivateKey
 	dataDir          string
-	pm               *pbind.Permissions
+	permInterf       *pbind.PermInterface
+	permNode         *pbind.NodeManager
+	permAcct         *pbind.AcctManager
 	permConfig       *types.PermissionConfig
 }
 
@@ -51,7 +52,7 @@ func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	fullPath := filepath.Join(dir, fileName)
 	if _, err := os.Stat(fullPath); err != nil {
 		log.Warn("permission-config.json file is missing", err)
-		return types.PermissionConfig{}, nil
+		return types.PermissionConfig{}, err
 	}
 
 	blob, err := ioutil.ReadFile(fullPath)
@@ -78,20 +79,29 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pc
 		return nil, err
 	}
 
-	var permissionContractAddress common.Address
 	if pconfig.IsEmpty() {
-		permissionContractAddress = params.QuorumPermissionsContract
-	} else {
-		permissionContractAddress = common.HexToAddress(pconfig.ContractAddress)
+		utils.Fatalf("permission-config.json is missing contract address")
 	}
 	// check if permissioning contract is there at address. If not return from here
-	pm, err := pbind.NewPermissions(permissionContractAddress, stateReader)
+	pm, err := pbind.NewPermInterface(common.HexToAddress(pconfig.InterfAddress), stateReader)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
 		return nil, err
 	}
 
-	return &PermissionCtrl{stack, stateReader, e, isRaft, permissionedMode, stack.GetNodeKey(), stack.DataDir(), pm, pconfig}, nil
+	pmAcct, err := pbind.NewAcctManager(common.HexToAddress(pconfig.AccountAddress), stateReader)
+	if err != nil {
+		log.Error("Permissions not enabled for the network", "err", err)
+		return nil, err
+	}
+
+	pmNode, err := pbind.NewNodeManager(common.HexToAddress(pconfig.NodeAddress), stateReader)
+	if err != nil {
+		log.Error("Permissions not enabled for the network", "err", err)
+		return nil, err
+	}
+	log.Info("AJ-permission contracts initialized")
+	return &PermissionCtrl{stack, stateReader, e, isRaft, permissionedMode, stack.GetNodeKey(), stack.DataDir(), pm, pmNode, pmAcct, pconfig}, nil
 }
 
 // Starts the node permissioning and account access control monitoring
@@ -129,7 +139,7 @@ func (p *PermissionCtrl) init() error {
 
 // Manages node addition, decavtivation and activation from network
 func (p *PermissionCtrl) manageNodePermissions() {
-
+	log.Info("AJ-permission start")
 	//monitor for new nodes addition via smart contract
 	go p.monitorNewNodeAdd()
 
@@ -146,21 +156,24 @@ func (p *PermissionCtrl) manageNodePermissions() {
 // Listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
 func (p *PermissionCtrl) monitorNewNodeAdd() {
-	ch := make(chan *pbind.PermissionsNodeApproved, 1)
+	log.Info("AJ-new node approved")
+	ch := make(chan *pbind.NodeManagerNodeApproved, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var nodeAddEvent *pbind.PermissionsNodeApproved
+	var nodeAddEvent *pbind.NodeManagerNodeApproved
 
-	_, err := p.pm.PermissionsFilterer.WatchNodeApproved(opts, ch)
+	_, err := p.permNode.NodeManagerFilterer.WatchNodeApproved(opts, ch)
 	if err != nil {
 		log.Info("Failed WatchNodeApproved: %v", err)
 	}
 	for {
+		log.Info("AJ-new node approved waiting for events...")
 		select {
 		case nodeAddEvent = <-ch:
-			p.updatePermissionedNodes(nodeAddEvent.EnodeId, nodeAddEvent.IpAddrPort, nodeAddEvent.DiscPort, nodeAddEvent.RaftPort, NodeAdd)
+			log.Info("AJ-newNodeApproved", "node", nodeAddEvent.EnodeId)
+			p.updatePermissionedNodes(nodeAddEvent.EnodeId, NodeAdd)
 		}
 	}
 }
@@ -168,20 +181,20 @@ func (p *PermissionCtrl) monitorNewNodeAdd() {
 // Listens on the channel for new node deactivation via smart contract
 // and removes the same from permissioned-nodes.json
 func (p *PermissionCtrl) monitorNodeDeactivation() {
-	ch := make(chan *pbind.PermissionsNodeDeactivated)
+	ch := make(chan *pbind.NodeManagerNodeDeactivated)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newNodeDeleteEvent *pbind.PermissionsNodeDeactivated
-	_, err := p.pm.PermissionsFilterer.WatchNodeDeactivated(opts, ch)
+	var newNodeDeleteEvent *pbind.NodeManagerNodeDeactivated
+	_, err := p.permNode.NodeManagerFilterer.WatchNodeDeactivated(opts, ch)
 	if err != nil {
 		log.Info("Failed NodeDeactivated: %v", err)
 	}
 	for {
 		select {
 		case newNodeDeleteEvent = <-ch:
-			p.updatePermissionedNodes(newNodeDeleteEvent.EnodeId, newNodeDeleteEvent.IpAddrPort, newNodeDeleteEvent.DiscPort, newNodeDeleteEvent.RaftPort, NodeDelete)
+			p.updatePermissionedNodes(newNodeDeleteEvent.EnodeId, NodeDelete)
 		}
 
 	}
@@ -190,21 +203,21 @@ func (p *PermissionCtrl) monitorNodeDeactivation() {
 // Listnes on the channel for any node activation via smart contract
 // and adds the same permissioned-nodes.json
 func (p *PermissionCtrl) monitorNodeActivation() {
-	ch := make(chan *pbind.PermissionsNodeActivated, 1)
+	ch := make(chan *pbind.NodeManagerNodeActivated, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var nodeActivatedEvent *pbind.PermissionsNodeActivated
+	var nodeActivatedEvent *pbind.NodeManagerNodeActivated
 
-	_, err := p.pm.PermissionsFilterer.WatchNodeActivated(opts, ch)
+	_, err := p.permNode.NodeManagerFilterer.WatchNodeActivated(opts, ch)
 	if err != nil {
 		log.Info("Failed WatchNodeActivated: %v", err)
 	}
 	for {
 		select {
 		case nodeActivatedEvent = <-ch:
-			p.updatePermissionedNodes(nodeActivatedEvent.EnodeId, nodeActivatedEvent.IpAddrPort, nodeActivatedEvent.DiscPort, nodeActivatedEvent.RaftPort, NodeAdd)
+			p.updatePermissionedNodes(nodeActivatedEvent.EnodeId, NodeAdd)
 		}
 	}
 }
@@ -212,29 +225,30 @@ func (p *PermissionCtrl) monitorNodeActivation() {
 // Listens on the channel for node blacklisting via smart contract and
 // adds the same into disallowed-nodes.json
 func (p *PermissionCtrl) monitorNodeBlacklisting() {
-	ch := make(chan *pbind.PermissionsNodeBlacklisted)
+	ch := make(chan *pbind.NodeManagerNodeBlacklisted)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newNodeBlacklistEvent *pbind.PermissionsNodeBlacklisted
+	var newNodeBlacklistEvent *pbind.NodeManagerNodeBlacklisted
 
-	_, err := p.pm.PermissionsFilterer.WatchNodeBlacklisted(opts, ch)
+	_, err := p.permNode.NodeManagerFilterer.WatchNodeBlacklisted(opts, ch)
 	if err != nil {
 		log.Info("Failed NodeBlacklisting: %v", err)
 	}
 	for {
 		select {
 		case newNodeBlacklistEvent = <-ch:
-			p.updatePermissionedNodes(newNodeBlacklistEvent.EnodeId, newNodeBlacklistEvent.IpAddrPort, newNodeBlacklistEvent.DiscPort, newNodeBlacklistEvent.RaftPort, NodeDelete)
-			p.updateDisallowedNodes(newNodeBlacklistEvent)
+			log.Info("AJ-nodeBlackListed", "event", newNodeBlacklistEvent)
+			//p.updatePermissionedNodes(newNodeBlacklistEvent., newNodeBlacklistEvent.IpAddrPort, newNodeBlacklistEvent.DiscPort, newNodeBlacklistEvent.RaftPort, NodeDelete)
+			//p.updateDisallowedNodes(newNodeBlacklistEvent)
 		}
 
 	}
 }
 
 // Populates the new node information into the permissioned-nodes.json file
-func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, raftPort string, operation NodeOperation) {
+func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeOperation) {
 	log.Debug("updatePermissionedNodes", "DataDir", p.dataDir, "file", params.PERMISSIONED_CONFIG)
 
 	path := filepath.Join(p.dataDir, params.PERMISSIONED_CONFIG)
@@ -255,13 +269,11 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 		return
 	}
 
-	newEnodeId := p.formatEnodeId(enodeId, ipAddrPort, discPort, raftPort)
-
 	// logic to update the permissioned-nodes.json file based on action
 	index := 0
 	recExists := false
-	for i, enodeId := range nodelist {
-		if enodeId == newEnodeId {
+	for i, eid := range nodelist {
+		if eid == enodeId {
 			index = i
 			recExists = true
 			break
@@ -269,13 +281,13 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId, ipAddrPort, discPort, 
 	}
 	if operation == NodeAdd {
 		if !recExists {
-			nodelist = append(nodelist, newEnodeId)
+			nodelist = append(nodelist, enodeId)
 		}
 	} else {
 		if recExists {
 			nodelist = append(nodelist[:index], nodelist[index+1:]...)
 		}
-		p.disconnectNode(newEnodeId)
+		p.disconnectNode(enodeId)
 	}
 	mu := sync.RWMutex{}
 	blob, _ = json.Marshal(nodelist)
@@ -344,26 +356,26 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 // populates the nodes list from permissioned-nodes.json into the permissions smart contract
 func (p *PermissionCtrl) populatePermissionedNodes() error {
 	opts := &bind.FilterOpts{}
-	pastAddEvent, err := p.pm.PermissionsFilterer.FilterNodeApproved(opts)
+	pastAddEvent, err := p.permNode.NodeManagerFilterer.FilterNodeApproved(opts)
 
 	if err == nil {
 		recExists := true
 		for recExists {
 			recExists = pastAddEvent.Next()
 			if recExists {
-				p.updatePermissionedNodes(pastAddEvent.Event.EnodeId, pastAddEvent.Event.IpAddrPort, pastAddEvent.Event.DiscPort, pastAddEvent.Event.RaftPort, NodeAdd)
+				p.updatePermissionedNodes(pastAddEvent.Event.EnodeId, NodeAdd)
 			}
 		}
 	}
 
 	opts = &bind.FilterOpts{}
-	pastDelEvent, err := p.pm.PermissionsFilterer.FilterNodeDeactivated(opts)
+	pastDelEvent, err := p.permNode.NodeManagerFilterer.FilterNodeDeactivated(opts)
 	if err == nil {
 		recExists := true
 		for recExists {
 			recExists = pastDelEvent.Next()
 			if recExists {
-				p.updatePermissionedNodes(pastDelEvent.Event.EnodeId, pastDelEvent.Event.IpAddrPort, pastDelEvent.Event.DiscPort, pastDelEvent.Event.RaftPort, NodeDelete)
+				p.updatePermissionedNodes(pastDelEvent.Event.EnodeId, NodeDelete)
 			}
 		}
 	}
@@ -373,14 +385,14 @@ func (p *PermissionCtrl) populatePermissionedNodes() error {
 // populates the account permissions cache from past account access update events
 func (p *PermissionCtrl) populateAcctPermissions() error {
 	opts := &bind.FilterOpts{}
-	pastEvents, err := p.pm.PermissionsFilterer.FilterAccountAccessModified(opts)
+	pastEvents, err := p.permAcct.AcctManagerFilterer.FilterAccountAccessModified(opts)
 
 	if err == nil {
 		recExists := true
 		for recExists {
 			recExists = pastEvents.Next()
 			if recExists {
-				types.AddAccountAccess(pastEvents.Event.Address, pastEvents.Event.Access)
+				types.AddAccountAccess(pastEvents.Event.Address, pastEvents.Event.RoleId)
 			}
 		}
 	}
@@ -390,14 +402,14 @@ func (p *PermissionCtrl) populateAcctPermissions() error {
 
 // Monitors permissions changes at acount level and uodate the account permissions cache
 func (p *PermissionCtrl) monitorAccountPermissions() {
-	ch := make(chan *pbind.PermissionsAccountAccessModified)
+	ch := make(chan *pbind.AcctManagerAccountAccessModified)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newEvent *pbind.PermissionsAccountAccessModified
+	var newEvent *pbind.AcctManagerAccountAccessModified
 
-	_, err := p.pm.PermissionsFilterer.WatchAccountAccessModified(opts, ch)
+	_, err := p.permAcct.AcctManagerFilterer.WatchAccountAccessModified(opts, ch)
 	if err != nil {
 		log.Info("Failed NewNodeProposed: %v", err)
 	}
@@ -405,7 +417,9 @@ func (p *PermissionCtrl) monitorAccountPermissions() {
 	for {
 		select {
 		case newEvent = <-ch:
-			types.AddAccountAccess(newEvent.Address, newEvent.Access)
+			log.Info("AJ-AccountAccessModified", "address", newEvent.Address, "role", newEvent.RoleId)
+			types.AddAccountAccess(newEvent.Address, newEvent.RoleId)
+
 		}
 	}
 }
@@ -449,20 +463,20 @@ func (p *PermissionCtrl) formatEnodeId(enodeId, ipAddrPort, discPort, raftPort s
 // smart contracts. Sets the accounts access to full access for the initial
 // initial list of accounts as given in genesis.json file
 func (p *PermissionCtrl) populateInitPermission() error {
-	auth := bind.NewKeyedTransactor(p.key)
+	/*auth := bind.NewKeyedTransactor(p.key)
 	permissionsSession := &pbind.PermissionsSession{
-		Contract: p.pm,
+		Contract: p.permInterf,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 		TransactOpts: bind.TransactOpts{
 			From:     auth.From,
 			Signer:   auth.Signer,
-			GasLimit: 4700000,
+			GasLimit: 47000000,
 			GasPrice: big.NewInt(0),
 		},
 	}
-	tx, err := permissionsSession.GetNetworkBootStatus()
+	networkInitialized, err := permissionsSession.GetNetworkBootStatus()
 	if err != nil {
 		// handle the scenario of no contract code.
 		if err.Error() == "no contract code at given address" {
@@ -471,7 +485,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 		log.Warn("Failed to retrieve network boot status ", "err", err)
 	}
 
-	if tx && !p.permissionedMode {
+	if networkInitialized && !p.permissionedMode {
 		// Network is initialized with permissions and node is joining in a non-permissioned
 		// option. stop the node from coming up
 		utils.Fatalf("Joining a permissioned network in non-permissioned mode. Bring up geth with --permissioned.")
@@ -480,7 +494,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 	if !p.permissionedMode {
 		return errors.New("Node started in non-permissioned mode")
 	}
-	if tx != true {
+	if !networkInitialized {
 		// Ensure that there is at least one account given as a part of genesis.json
 		// which will have full access. If not throw a fatal error
 		// Do not want a network with no access
@@ -509,7 +523,7 @@ func (p *PermissionCtrl) populateInitPermission() error {
 			return err
 		}
 
-	}
+	}*/
 	return nil
 }
 

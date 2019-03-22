@@ -389,6 +389,8 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		utils.Fatalf("parsing permission-config.json failed", perr)
 	}
 
+	log.Info("AJ-perm-config loaded", "config", permissionConfig)
+
 	// start the permissions management service
 	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name), &permissionConfig)
 	if err != nil {

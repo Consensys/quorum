@@ -16,8 +16,8 @@ const (
 )
 
 type PermStruct struct {
-	AcctId     common.Address
-	AcctAccess AccessType
+	AcctId common.Address
+	roleId string
 }
 type OrgStruct struct {
 	OrgId string
@@ -26,8 +26,16 @@ type OrgStruct struct {
 
 // permission config for bootstrapping
 type PermissionConfig struct {
-	ContractAddress string
-	Accounts        []string //initial list of account that need full access
+	UpgrdAddress   string
+	InterfAddress  string
+	ImplAddress    string
+	NodeAddress    string
+	AccountAddress string
+	NwAdminOrg     string
+	NwAdminRole    string
+	OrgAdminRole   string
+
+	Accounts []string //initial list of account that need full access
 }
 
 var DefaultAccess = FullAccess
@@ -42,26 +50,26 @@ var OrgKeyMap, _ = lru.New(orgKeyMapLimit)
 var orgKeyLock sync.Mutex
 
 func (pc *PermissionConfig) IsEmpty() bool {
-	return pc.ContractAddress == ""
+	return pc.InterfAddress == "" || pc.NodeAddress == "" || pc.AccountAddress == ""
 }
 
 // sets default access to ReadOnly
 func SetDefaultAccess() {
-	DefaultAccess = ReadOnly
+	DefaultAccess = FullAccess
 }
 
 // Adds account access to the cache
-func AddAccountAccess(acctId common.Address, access uint8) {
-	AcctMap.Add(acctId, &PermStruct{AcctId: acctId, AcctAccess: AccessType(access)})
+func AddAccountAccess(acctId common.Address, roleId string) {
+	AcctMap.Add(acctId, &PermStruct{AcctId: acctId, roleId: roleId})
 }
 
 // Returns the access type for an account. If not found returns
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
 	if AcctMap.Len() != 0 {
-		if val, ok := AcctMap.Get(acctId); ok {
-			vo := val.(*PermStruct)
-			return vo.AcctAccess
+		if _, ok := AcctMap.Get(acctId); ok {
+			// val.(*PermStruct)
+			return DefaultAccess
 		}
 	}
 	return DefaultAccess

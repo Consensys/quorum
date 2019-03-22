@@ -211,11 +211,12 @@ func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKe
 	p.ethClnt = ethClnt
 	if apiName == "quorumNodeMgmt" || apiName == "quorumAcctMgmt" {
 		var contractAddress common.Address
-		if pconfig.IsEmpty() {
-			contractAddress = params.QuorumPermissionsContract
-		} else {
-			contractAddress = common.HexToAddress(pconfig.ContractAddress)
-		}
+		//TODO: to be updated with new contract API
+		//if pconfig.IsEmpty() {
+		contractAddress = params.QuorumPermissionsContract
+		//} else {
+		//	contractAddress = common.HexToAddress(pconfig.InterfAddress)
+		//}
 		permContr, err := pbind.NewPermissions(contractAddress, p.ethClnt)
 		if err != nil {
 			return err
