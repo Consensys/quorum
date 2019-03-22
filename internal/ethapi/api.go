@@ -1740,10 +1740,11 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 	if isPrivate {
 		isMessageCall := tx.To() != nil
 		data := tx.Data()
-		var validationFlag bool
 		if len(data) > 0 { // only support non-value-transfer transaction
 			var creationTxEncryptedPayloadHashes common.EncryptedPayloadHashes // of affected contract accounts
-			var merkleRoot common.Hash                                         // result from EVM simulated execution
+			var merkleRoot common.Hash
+			var psv bool // result from EVM simulated execution
+			var validationFlag bool
 			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psv", privateTxArgs.PrivateStateValidation, "messageCall", isMessageCall)
 			if isRaw {
 				hash = common.BytesToEncryptedPayloadHash(data)
@@ -1771,24 +1772,36 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 					PrivateStateValidation: privateTxArgs.PrivateStateValidation,
 				})
 			} else {
-				creationTxEncryptedPayloadHashes, merkleRoot, psv, err2 := simulateExecution(ctx, b, from, tx)
+				creationTxEncryptedPayloadHashes, merkleRoot, psv, err = simulateExecution(ctx, b, from, tx)
 				//TODO: reveiw this
-				log.Trace("data returned from sim", "creationPayloadHashes", creationTxEncryptedPayloadHashes, "MR", merkleRoot, "psv", psv, "err", err2)
-				if err2 != nil {
-					return
-				}
-				//if message call, use psv back from tessera, if creation use from privateTxArgs
 				if validationFlag = privateTxArgs.PrivateStateValidation; isMessageCall {
 					validationFlag = psv
 				}
+				log.Trace("data returned from sim", "creationPayloadHashes", creationTxEncryptedPayloadHashes, "MR", merkleRoot, "psv", psv, "err", err)
+				if err != nil {
+					return
+				}
+				//if message call, use psv back from tessera, if creation use from privateTxArgs
 
-				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-					ACHashes:               creationTxEncryptedPayloadHashes,
-					ACMerkleRoot:           merkleRoot,
-					PrivateStateValidation: validationFlag,
-				})
+				// if validationFlag = privateTxArgs.PrivateStateValidation; isMessageCall {
+				// 	validationFlag = psv
+				// }
+				if !validationFlag {
+					log.Trace("notpsv")
+					hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
+						ACHashes:               creationTxEncryptedPayloadHashes,
+						PrivateStateValidation: validationFlag,
+					})
+				} else {
+					log.Trace("yespsv")
+					hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
+						ACHashes:               creationTxEncryptedPayloadHashes,
+						ACMerkleRoot:           merkleRoot,
+						PrivateStateValidation: validationFlag,
+					})
+				}
 			}
-			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psv", validationFlag, "error", err, "hash", hash)
+			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "merkleroot", merkleRoot, "ismessagecall", isMessageCall, "senderpsv", validationFlag, "error", err, "hash", hash)
 			if err != nil {
 				return isPrivate, common.EncryptedPayloadHash{}, err
 			}
