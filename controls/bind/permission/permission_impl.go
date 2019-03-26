@@ -15,8 +15,20 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 )
 
+// Reference imports to suppress errors if they are not otherwise used.
+var (
+	_ = big.NewInt
+	_ = strings.NewReader
+	_ = ethereum.NotFound
+	_ = abi.U256
+	_ = bind.Bind
+	_ = common.Big1
+	_ = types.BloomLookup
+	_ = event.NewSubscription
+)
+
 // PermImplABI is the input ABI used to generate the binding from.
-const PermImplABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"checkIfVoterExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getVoteCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getRoleDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_nwAdminOrg\",\"type\":\"string\"},{\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setPolicy\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgManager\",\"type\":\"address\"},{\"name\":\"_rolesManager\",\"type\":\"address\"},{\"name\":\"_acctManager\",\"type\":\"address\"},{\"name\":\"_voterManager\",\"type\":\"address\"},{\"name\":\"_nodeManager\",\"type\":\"address\"}],\"name\":\"init\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"updateNetworkBootStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNetworkBootStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getOrgInfo\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"validateAccount\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"addAdminAccounts\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"approveOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"addOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"approveOrgAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_access\",\"type\":\"uint256\"},{\"name\":\"_voter\",\"type\":\"bool\"}],\"name\":\"addNewRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"assignOrgAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getNumberOfVoters\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"isOrgAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"removeRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"addNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"isNetworkAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"addAdminNodes\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getPendingOp\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_msg\",\"type\":\"string\"}],\"name\":\"Dummy\",\"type\":\"event\"}]"
+const PermImplABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"checkIfVoterExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getVoteCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getRoleDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_nwAdminOrg\",\"type\":\"string\"},{\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setPolicy\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgManager\",\"type\":\"address\"},{\"name\":\"_rolesManager\",\"type\":\"address\"},{\"name\":\"_acctManager\",\"type\":\"address\"},{\"name\":\"_voterManager\",\"type\":\"address\"},{\"name\":\"_nodeManager\",\"type\":\"address\"}],\"name\":\"init\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"updateNetworkBootStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNetworkBootStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"addNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getOrgInfo\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"validateAccount\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"addAdminAccounts\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"approveOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"addOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"approveOrgAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"nodeIndex\",\"type\":\"uint256\"}],\"name\":\"getNodeDetailsFromIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"assignOrgAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getNumberOfVoters\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"isOrgAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_access\",\"type\":\"uint256\"},{\"name\":\"_voter\",\"type\":\"bool\"},{\"name\":\"_caller\",\"type\":\"address\"}],\"name\":\"addNewRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"removeRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"isNetworkAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"addAdminNodes\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getPendingOp\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_msg\",\"type\":\"string\"}],\"name\":\"Dummy\",\"type\":\"event\"}]"
 
 // PermImpl is an auto generated Go binding around an Ethereum contract.
 type PermImpl struct {
@@ -248,6 +260,36 @@ func (_PermImpl *PermImplCallerSession) GetNetworkBootStatus() (bool, error) {
 	return _PermImpl.Contract.GetNetworkBootStatus(&_PermImpl.CallOpts)
 }
 
+// GetNodeDetailsFromIndex is a free data retrieval call binding the contract method 0x97c07a9b.
+//
+// Solidity: function getNodeDetailsFromIndex(nodeIndex uint256) constant returns(string, uint256)
+func (_PermImpl *PermImplCaller) GetNodeDetailsFromIndex(opts *bind.CallOpts, nodeIndex *big.Int) (string, *big.Int, error) {
+	var (
+		ret0 = new(string)
+		ret1 = new(*big.Int)
+	)
+	out := &[]interface{}{
+		ret0,
+		ret1,
+	}
+	err := _PermImpl.contract.Call(opts, out, "getNodeDetailsFromIndex", nodeIndex)
+	return *ret0, *ret1, err
+}
+
+// GetNodeDetailsFromIndex is a free data retrieval call binding the contract method 0x97c07a9b.
+//
+// Solidity: function getNodeDetailsFromIndex(nodeIndex uint256) constant returns(string, uint256)
+func (_PermImpl *PermImplSession) GetNodeDetailsFromIndex(nodeIndex *big.Int) (string, *big.Int, error) {
+	return _PermImpl.Contract.GetNodeDetailsFromIndex(&_PermImpl.CallOpts, nodeIndex)
+}
+
+// GetNodeDetailsFromIndex is a free data retrieval call binding the contract method 0x97c07a9b.
+//
+// Solidity: function getNodeDetailsFromIndex(nodeIndex uint256) constant returns(string, uint256)
+func (_PermImpl *PermImplCallerSession) GetNodeDetailsFromIndex(nodeIndex *big.Int) (string, *big.Int, error) {
+	return _PermImpl.Contract.GetNodeDetailsFromIndex(&_PermImpl.CallOpts, nodeIndex)
+}
+
 // GetNodeStatus is a free data retrieval call binding the contract method 0x397eeccb.
 //
 // Solidity: function getNodeStatus(_enodeId string) constant returns(uint256)
@@ -272,6 +314,32 @@ func (_PermImpl *PermImplSession) GetNodeStatus(_enodeId string) (*big.Int, erro
 // Solidity: function getNodeStatus(_enodeId string) constant returns(uint256)
 func (_PermImpl *PermImplCallerSession) GetNodeStatus(_enodeId string) (*big.Int, error) {
 	return _PermImpl.Contract.GetNodeStatus(&_PermImpl.CallOpts, _enodeId)
+}
+
+// GetNumberOfNodes is a free data retrieval call binding the contract method 0xb81c806a.
+//
+// Solidity: function getNumberOfNodes() constant returns(uint256)
+func (_PermImpl *PermImplCaller) GetNumberOfNodes(opts *bind.CallOpts) (*big.Int, error) {
+	var (
+		ret0 = new(*big.Int)
+	)
+	out := ret0
+	err := _PermImpl.contract.Call(opts, out, "getNumberOfNodes")
+	return *ret0, err
+}
+
+// GetNumberOfNodes is a free data retrieval call binding the contract method 0xb81c806a.
+//
+// Solidity: function getNumberOfNodes() constant returns(uint256)
+func (_PermImpl *PermImplSession) GetNumberOfNodes() (*big.Int, error) {
+	return _PermImpl.Contract.GetNumberOfNodes(&_PermImpl.CallOpts)
+}
+
+// GetNumberOfNodes is a free data retrieval call binding the contract method 0xb81c806a.
+//
+// Solidity: function getNumberOfNodes() constant returns(uint256)
+func (_PermImpl *PermImplCallerSession) GetNumberOfNodes() (*big.Int, error) {
+	return _PermImpl.Contract.GetNumberOfNodes(&_PermImpl.CallOpts)
 }
 
 // GetNumberOfVoters is a free data retrieval call binding the contract method 0x9b904f0a.
@@ -550,46 +618,46 @@ func (_PermImpl *PermImplTransactorSession) AddAdminNodes(_enodeId string) (*typ
 	return _PermImpl.Contract.AddAdminNodes(&_PermImpl.TransactOpts, _enodeId)
 }
 
-// AddNewRole is a paid mutator transaction binding the contract method 0x9485d7a6.
+// AddNewRole is a paid mutator transaction binding the contract method 0xa2ca82fc.
 //
-// Solidity: function addNewRole(_roleId string, _orgId string, _access uint256, _voter bool) returns()
-func (_PermImpl *PermImplTransactor) AddNewRole(opts *bind.TransactOpts, _roleId string, _orgId string, _access *big.Int, _voter bool) (*types.Transaction, error) {
-	return _PermImpl.contract.Transact(opts, "addNewRole", _roleId, _orgId, _access, _voter)
+// Solidity: function addNewRole(_roleId string, _orgId string, _access uint256, _voter bool, _caller address) returns()
+func (_PermImpl *PermImplTransactor) AddNewRole(opts *bind.TransactOpts, _roleId string, _orgId string, _access *big.Int, _voter bool, _caller common.Address) (*types.Transaction, error) {
+	return _PermImpl.contract.Transact(opts, "addNewRole", _roleId, _orgId, _access, _voter, _caller)
 }
 
-// AddNewRole is a paid mutator transaction binding the contract method 0x9485d7a6.
+// AddNewRole is a paid mutator transaction binding the contract method 0xa2ca82fc.
 //
-// Solidity: function addNewRole(_roleId string, _orgId string, _access uint256, _voter bool) returns()
-func (_PermImpl *PermImplSession) AddNewRole(_roleId string, _orgId string, _access *big.Int, _voter bool) (*types.Transaction, error) {
-	return _PermImpl.Contract.AddNewRole(&_PermImpl.TransactOpts, _roleId, _orgId, _access, _voter)
+// Solidity: function addNewRole(_roleId string, _orgId string, _access uint256, _voter bool, _caller address) returns()
+func (_PermImpl *PermImplSession) AddNewRole(_roleId string, _orgId string, _access *big.Int, _voter bool, _caller common.Address) (*types.Transaction, error) {
+	return _PermImpl.Contract.AddNewRole(&_PermImpl.TransactOpts, _roleId, _orgId, _access, _voter, _caller)
 }
 
-// AddNewRole is a paid mutator transaction binding the contract method 0x9485d7a6.
+// AddNewRole is a paid mutator transaction binding the contract method 0xa2ca82fc.
 //
-// Solidity: function addNewRole(_roleId string, _orgId string, _access uint256, _voter bool) returns()
-func (_PermImpl *PermImplTransactorSession) AddNewRole(_roleId string, _orgId string, _access *big.Int, _voter bool) (*types.Transaction, error) {
-	return _PermImpl.Contract.AddNewRole(&_PermImpl.TransactOpts, _roleId, _orgId, _access, _voter)
+// Solidity: function addNewRole(_roleId string, _orgId string, _access uint256, _voter bool, _caller address) returns()
+func (_PermImpl *PermImplTransactorSession) AddNewRole(_roleId string, _orgId string, _access *big.Int, _voter bool, _caller common.Address) (*types.Transaction, error) {
+	return _PermImpl.Contract.AddNewRole(&_PermImpl.TransactOpts, _roleId, _orgId, _access, _voter, _caller)
 }
 
-// AddNode is a paid mutator transaction binding the contract method 0xa97a4406.
+// AddNode is a paid mutator transaction binding the contract method 0x59a260a3.
 //
-// Solidity: function addNode(_orgId string, _enodeId string) returns()
-func (_PermImpl *PermImplTransactor) AddNode(opts *bind.TransactOpts, _orgId string, _enodeId string) (*types.Transaction, error) {
-	return _PermImpl.contract.Transact(opts, "addNode", _orgId, _enodeId)
+// Solidity: function addNode(_orgId string, _enodeId string, _caller address) returns()
+func (_PermImpl *PermImplTransactor) AddNode(opts *bind.TransactOpts, _orgId string, _enodeId string, _caller common.Address) (*types.Transaction, error) {
+	return _PermImpl.contract.Transact(opts, "addNode", _orgId, _enodeId, _caller)
 }
 
-// AddNode is a paid mutator transaction binding the contract method 0xa97a4406.
+// AddNode is a paid mutator transaction binding the contract method 0x59a260a3.
 //
-// Solidity: function addNode(_orgId string, _enodeId string) returns()
-func (_PermImpl *PermImplSession) AddNode(_orgId string, _enodeId string) (*types.Transaction, error) {
-	return _PermImpl.Contract.AddNode(&_PermImpl.TransactOpts, _orgId, _enodeId)
+// Solidity: function addNode(_orgId string, _enodeId string, _caller address) returns()
+func (_PermImpl *PermImplSession) AddNode(_orgId string, _enodeId string, _caller common.Address) (*types.Transaction, error) {
+	return _PermImpl.Contract.AddNode(&_PermImpl.TransactOpts, _orgId, _enodeId, _caller)
 }
 
-// AddNode is a paid mutator transaction binding the contract method 0xa97a4406.
+// AddNode is a paid mutator transaction binding the contract method 0x59a260a3.
 //
-// Solidity: function addNode(_orgId string, _enodeId string) returns()
-func (_PermImpl *PermImplTransactorSession) AddNode(_orgId string, _enodeId string) (*types.Transaction, error) {
-	return _PermImpl.Contract.AddNode(&_PermImpl.TransactOpts, _orgId, _enodeId)
+// Solidity: function addNode(_orgId string, _enodeId string, _caller address) returns()
+func (_PermImpl *PermImplTransactorSession) AddNode(_orgId string, _enodeId string, _caller common.Address) (*types.Transaction, error) {
+	return _PermImpl.Contract.AddNode(&_PermImpl.TransactOpts, _orgId, _enodeId, _caller)
 }
 
 // AddOrg is a paid mutator transaction binding the contract method 0x8f362a3e.
@@ -655,25 +723,25 @@ func (_PermImpl *PermImplTransactorSession) ApproveOrgAdminAccount(_account comm
 	return _PermImpl.Contract.ApproveOrgAdminAccount(&_PermImpl.TransactOpts, _account, _caller)
 }
 
-// AssignAccountRole is a paid mutator transaction binding the contract method 0x2f7f0a12.
+// AssignAccountRole is a paid mutator transaction binding the contract method 0x8baa8191.
 //
-// Solidity: function assignAccountRole(_acct address, _orgId string, _roleId string) returns()
-func (_PermImpl *PermImplTransactor) AssignAccountRole(opts *bind.TransactOpts, _acct common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
-	return _PermImpl.contract.Transact(opts, "assignAccountRole", _acct, _orgId, _roleId)
+// Solidity: function assignAccountRole(_acct address, _orgId string, _roleId string, _caller address) returns()
+func (_PermImpl *PermImplTransactor) AssignAccountRole(opts *bind.TransactOpts, _acct common.Address, _orgId string, _roleId string, _caller common.Address) (*types.Transaction, error) {
+	return _PermImpl.contract.Transact(opts, "assignAccountRole", _acct, _orgId, _roleId, _caller)
 }
 
-// AssignAccountRole is a paid mutator transaction binding the contract method 0x2f7f0a12.
+// AssignAccountRole is a paid mutator transaction binding the contract method 0x8baa8191.
 //
-// Solidity: function assignAccountRole(_acct address, _orgId string, _roleId string) returns()
-func (_PermImpl *PermImplSession) AssignAccountRole(_acct common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
-	return _PermImpl.Contract.AssignAccountRole(&_PermImpl.TransactOpts, _acct, _orgId, _roleId)
+// Solidity: function assignAccountRole(_acct address, _orgId string, _roleId string, _caller address) returns()
+func (_PermImpl *PermImplSession) AssignAccountRole(_acct common.Address, _orgId string, _roleId string, _caller common.Address) (*types.Transaction, error) {
+	return _PermImpl.Contract.AssignAccountRole(&_PermImpl.TransactOpts, _acct, _orgId, _roleId, _caller)
 }
 
-// AssignAccountRole is a paid mutator transaction binding the contract method 0x2f7f0a12.
+// AssignAccountRole is a paid mutator transaction binding the contract method 0x8baa8191.
 //
-// Solidity: function assignAccountRole(_acct address, _orgId string, _roleId string) returns()
-func (_PermImpl *PermImplTransactorSession) AssignAccountRole(_acct common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
-	return _PermImpl.Contract.AssignAccountRole(&_PermImpl.TransactOpts, _acct, _orgId, _roleId)
+// Solidity: function assignAccountRole(_acct address, _orgId string, _roleId string, _caller address) returns()
+func (_PermImpl *PermImplTransactorSession) AssignAccountRole(_acct common.Address, _orgId string, _roleId string, _caller common.Address) (*types.Transaction, error) {
+	return _PermImpl.Contract.AssignAccountRole(&_PermImpl.TransactOpts, _acct, _orgId, _roleId, _caller)
 }
 
 // AssignOrgAdminAccount is a paid mutator transaction binding the contract method 0x98ea3fa1.

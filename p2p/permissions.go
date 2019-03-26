@@ -16,6 +16,7 @@ const (
 	NODE_NAME_LENGTH = 32
 )
 
+//TODO update this based on permission changes
 // check if a given node is permissioned to connect to the change
 func isNodePermissioned(nodename string, currentNode string, datadir string, direction string) bool {
 	var permissionedList []string

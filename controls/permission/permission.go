@@ -3,7 +3,7 @@ package permission
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"io/ioutil"
@@ -41,6 +41,7 @@ type PermissionCtrl struct {
 	permissionedMode bool
 	key              *ecdsa.PrivateKey
 	dataDir          string
+	permUpgr         *pbind.PermUpgr
 	permInterf       *pbind.PermInterface
 	permNode         *pbind.NodeManager
 	permAcct         *pbind.AcctManager
@@ -79,8 +80,17 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pc
 		return nil, err
 	}
 
-	if pconfig.IsEmpty() {
+	if pconfig.IsEmpty() && permissionedMode {
 		utils.Fatalf("permission-config.json is missing contract address")
+	}
+
+	if !permissionedMode {
+		return &PermissionCtrl{stack, stateReader, e, isRaft, permissionedMode, stack.GetNodeKey(), stack.DataDir(), nil, nil, nil, nil, pconfig}, nil
+	}
+	pu, err := pbind.NewPermUpgr(common.HexToAddress(pconfig.UpgrdAddress), stateReader)
+	if err != nil {
+		log.Error("Permissions not enabled for the network", "err", err)
+		return nil, err
 	}
 	// check if permissioning contract is there at address. If not return from here
 	pm, err := pbind.NewPermInterface(common.HexToAddress(pconfig.InterfAddress), stateReader)
@@ -101,7 +111,7 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pc
 		return nil, err
 	}
 	log.Info("AJ-permission contracts initialized")
-	return &PermissionCtrl{stack, stateReader, e, isRaft, permissionedMode, stack.GetNodeKey(), stack.DataDir(), pm, pmNode, pmAcct, pconfig}, nil
+	return &PermissionCtrl{stack, stateReader, e, isRaft, permissionedMode, stack.GetNodeKey(), stack.DataDir(), pu, pm, pmNode, pmAcct, pconfig}, nil
 }
 
 // Starts the node permissioning and account access control monitoring
@@ -121,8 +131,11 @@ func (p *PermissionCtrl) Start() error {
 
 // Sets the initial values for the network
 func (p *PermissionCtrl) init() error {
+	if !p.permissionedMode {
+		return nil
+	}
 	// populate the initial list of permissioned nodes and account accesses
-	if err := p.populateInitPermission(); err != nil {
+	if err := p.populateInitPermissions(); err != nil {
 		return err
 	}
 
@@ -139,18 +152,21 @@ func (p *PermissionCtrl) init() error {
 
 // Manages node addition, decavtivation and activation from network
 func (p *PermissionCtrl) manageNodePermissions() {
-	log.Info("AJ-permission start")
-	//monitor for new nodes addition via smart contract
-	go p.monitorNewNodeAdd()
 
-	//monitor for nodes deletion via smart contract
-	go p.monitorNodeDeactivation()
+	if p.permissionedMode {
+		log.Info("AJ-permission start")
+		//monitor for new nodes addition via smart contract
+		go p.monitorNewNodeAdd()
 
-	//monitor for nodes activation from deactivation status
-	go p.monitorNodeActivation()
+		//monitor for nodes deletion via smart contract
+		go p.monitorNodeDeactivation()
 
-	//monitor for nodes blacklisting via smart contract
-	go p.monitorNodeBlacklisting()
+		//monitor for nodes activation from deactivation status
+		go p.monitorNodeActivation()
+
+		//monitor for nodes blacklisting via smart contract
+		go p.monitorNodeBlacklisting()
+	}
 }
 
 // Listens on the channel for new node approval via smart contract and
@@ -347,6 +363,9 @@ func (p *PermissionCtrl) updateDisallowedNodes(nodeBlacklistEvent *pbind.Permiss
 
 // Manages account level permissions update
 func (p *PermissionCtrl) manageAccountPermissions() {
+	if !p.permissionedMode {
+		return
+	}
 	//monitor for nodes deletiin via smart contract
 	go p.monitorAccountPermissions()
 
@@ -384,6 +403,7 @@ func (p *PermissionCtrl) populatePermissionedNodes() error {
 
 // populates the account permissions cache from past account access update events
 func (p *PermissionCtrl) populateAcctPermissions() error {
+
 	opts := &bind.FilterOpts{}
 	pastEvents, err := p.permAcct.AcctManagerFilterer.FilterAccountAccessModified(opts)
 
@@ -392,6 +412,7 @@ func (p *PermissionCtrl) populateAcctPermissions() error {
 		for recExists {
 			recExists = pastEvents.Next()
 			if recExists {
+				log.Info("AJ-added account ", "acct", pastEvents.Event.Address, "roleId", pastEvents.Event.RoleId)
 				types.AddAccountAccess(pastEvents.Event.Address, pastEvents.Event.RoleId)
 			}
 		}
@@ -462,9 +483,9 @@ func (p *PermissionCtrl) formatEnodeId(enodeId, ipAddrPort, discPort, raftPort s
 // populates the initial network enode details from static-nodes.json into
 // smart contracts. Sets the accounts access to full access for the initial
 // initial list of accounts as given in genesis.json file
-func (p *PermissionCtrl) populateInitPermission() error {
-	/*auth := bind.NewKeyedTransactor(p.key)
-	permissionsSession := &pbind.PermissionsSession{
+func (p *PermissionCtrl) populateInitPermissions() error {
+	auth := bind.NewKeyedTransactor(p.key)
+	permInterfSession := &pbind.PermInterfaceSession{
 		Contract: p.permInterf,
 		CallOpts: bind.CallOpts{
 			Pending: true,
@@ -476,7 +497,8 @@ func (p *PermissionCtrl) populateInitPermission() error {
 			GasPrice: big.NewInt(0),
 		},
 	}
-	networkInitialized, err := permissionsSession.GetNetworkBootStatus()
+
+	networkInitialized, err := permInterfSession.GetNetworkBootStatus()
 	if err != nil {
 		// handle the scenario of no contract code.
 		if err.Error() == "no contract code at given address" {
@@ -488,64 +510,93 @@ func (p *PermissionCtrl) populateInitPermission() error {
 	if networkInitialized && !p.permissionedMode {
 		// Network is initialized with permissions and node is joining in a non-permissioned
 		// option. stop the node from coming up
-		utils.Fatalf("Joining a permissioned network in non-permissioned mode. Bring up geth with --permissioned.")
+		utils.Fatalf("Joining a permissioned network in non-permissioned mode is not permitted. Bring up geth with --permissioned.")
 	}
 
 	if !p.permissionedMode {
+		log.Info("Node started in non-permissioned mode")
 		return errors.New("Node started in non-permissioned mode")
 	}
 	if !networkInitialized {
 		// Ensure that there is at least one account given as a part of genesis.json
 		// which will have full access. If not throw a fatal error
 		// Do not want a network with no access
+		log.Info("AJ-network not initialized")
+		/*permUpgrSession := &pbind.PermUpgrSession{
+			Contract: p.permUpgr,
+			CallOpts: bind.CallOpts{
+				Pending: true,
+			},
+			TransactOpts: bind.TransactOpts{
+				From:     auth.From,
+				Signer:   auth.Signer,
+				GasLimit: 47000000,
+				GasPrice: big.NewInt(0),
+			},
+		}*/
 
-		// populate initial account access to full access
-		err = p.populateInitAccountAccess(permissionsSession)
+		/*permUpgrSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permUpgrSession.TransactOpts.From))
+		if _, err := permUpgrSession.Init(common.HexToAddress(p.permConfig.InterfAddress), common.HexToAddress(p.permConfig.ImplAddress)); err != nil {
+			log.Error("AJ-permUpgr.init failed", "err", err)
+			return err
+		}*/
+
+		permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permInterfSession.TransactOpts.From))
+		if _, err := permInterfSession.SetPolicy(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole); err != nil {
+			log.Error("AJ-permIntr.setPolicy failed", "err", err)
+			return err
+		}
+
+		permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permInterfSession.TransactOpts.From))
+		if _, err := permInterfSession.Init(common.HexToAddress(p.permConfig.OrgAddress), common.HexToAddress(p.permConfig.RoleAddress), common.HexToAddress(p.permConfig.AccountAddress), common.HexToAddress(p.permConfig.VoterAddress), common.HexToAddress(p.permConfig.NodeAddress)); err != nil {
+			log.Error("AJ-permIntr.init failed", "err", err)
+			return err
+		}
+
+		// populate the initial node list from static-nodes.json
+		err = p.populateStaticNodesToContract(permInterfSession)
 		if err != nil {
 			return err
 		}
 
-		initAcctCnt, err := permissionsSession.GetInitAccountsCount()
+		// populate initial account access to full access
+		err = p.populateInitAccountAccess(permInterfSession)
+		if err != nil {
+			return err
+		}
 
-		if err == nil && initAcctCnt.Cmp(big.NewInt(0)) == 0 {
+		if err == nil && len(p.permConfig.Accounts) == 0 {
 
 			//utils.Fatalf("Permissioned network being brought up with zero accounts having full access. Add permissioned full access accounts in genesis.json and bring up the network")
 		}
 
-		// populate the initial node list from static-nodes.json
-		err = p.populateStaticNodesToContract(permissionsSession)
-		if err != nil {
-			return err
-		}
 		// update network status to boot completed
-		err = p.updateNetworkStatus(permissionsSession)
+		err = p.updateNetworkStatus(permInterfSession)
 		if err != nil {
+			log.Info("AJ-failed to updated network boot status")
 			return err
 		}
+		log.Info("AJ-network boot completed")
+	} else {
+		log.Info("AJ-network already booted")
+	}
 
-	}*/
 	return nil
 }
 
 // Reads the node list from static-nodes.json and populates into the contract
-func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind.PermissionsSession) error {
+func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind.PermInterfaceSession) error {
 	nodes := p2p.ParsePermissionedNodes(p.dataDir)
 	for _, node := range nodes {
 
 		enodeID := node.EnodeID()
-		ipAddr := node.IP().String()
-		port := fmt.Sprintf("%v", node.TCP())
-		discPort := fmt.Sprintf("%v", node.UDP())
-		raftPort := fmt.Sprintf("%v", node.RaftPort())
 
-		ipAddrPort := ipAddr + ":" + port
-
-		log.Trace("Adding node to permissions contract", "enodeID", enodeID)
+		log.Info("AJ-Adding node to permissions contract", "enodeID", enodeID)
 
 		nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
 		permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 
-		tx, err := permissionsSession.ProposeNode(enodeID, ipAddrPort, discPort, raftPort)
+		tx, err := permissionsSession.AddAdminNodes(node.String())
 		if err != nil {
 			log.Warn("Failed to propose node", "err", err)
 			return err
@@ -557,7 +608,7 @@ func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind
 
 // Invokes the initAccounts function of smart contract to set the initial
 // set of accounts access to full access
-func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.PermissionsSession) error {
+func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.PermInterfaceSession) error {
 
 	if !p.permConfig.IsEmpty() {
 		log.Info("AJ-add initial account list ...")
@@ -565,25 +616,18 @@ func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.Per
 			log.Info("AJ-adding account ", "A", a)
 			nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
 			permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
-			_, er := permissionsSession.AddInitAccount(common.HexToAddress(a))
+			_, er := permissionsSession.AddAdminAccounts(common.HexToAddress(a))
 			if er != nil {
 				utils.Fatalf("error adding permission initial account list account: %s, error:%v", a, er)
 			}
 		}
 		log.Info("AJ-add initial account list ...done")
 	}
-	nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
-	permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
-	_, err := permissionsSession.InitAccounts()
-	if err != nil {
-		log.Error("calling init accounts failed", "err", err)
-		return err
-	}
 	return nil
 }
 
 // updates network boot status to true
-func (p *PermissionCtrl) updateNetworkStatus(permissionsSession *pbind.PermissionsSession) error {
+func (p *PermissionCtrl) updateNetworkStatus(permissionsSession *pbind.PermInterfaceSession) error {
 	nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
 	permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 	_, err := permissionsSession.UpdateNetworkBootStatus()

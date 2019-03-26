@@ -31,6 +31,9 @@ type PermissionConfig struct {
 	ImplAddress    string
 	NodeAddress    string
 	AccountAddress string
+	RoleAddress    string
+	VoterAddress   string
+	OrgAddress     string
 	NwAdminOrg     string
 	NwAdminRole    string
 	OrgAdminRole   string

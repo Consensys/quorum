@@ -383,10 +383,15 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 
 	var quorumApis []string
 	dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
+	permEnabled := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name)
 
 	permissionConfig, perr := permission.ParsePermissionConifg(dataDir)
 	if perr != nil {
-		utils.Fatalf("parsing permission-config.json failed", perr)
+		if permEnabled {
+			utils.Fatalf("parsing permission-config.json failed", perr)
+		} else {
+			log.Warn("parsing permission-config.json failed")
+		}
 	}
 
 	log.Info("AJ-perm-config loaded", "config", permissionConfig)
