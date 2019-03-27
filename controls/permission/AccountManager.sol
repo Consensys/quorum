@@ -61,6 +61,11 @@ contract AccountManager {
         return (acctAccessList[aIndex].acctId, acctAccessList[aIndex].orgId, acctAccessList[aIndex].role, acctAccessList[aIndex].status, acctAccessList[aIndex].orgAdmin);
     }
 
+    function getAccountDetailsFromIndex(uint aIndex) external view returns (address, string memory, string memory, uint, bool)
+    {
+        return (acctAccessList[aIndex].acctId, acctAccessList[aIndex].orgId, acctAccessList[aIndex].role, acctAccessList[aIndex].status, acctAccessList[aIndex].orgAdmin);
+    }
+
     // Get number of accounts
     function getNumberOfAccounts() external view returns (uint)
     {

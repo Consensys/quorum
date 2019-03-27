@@ -69,9 +69,9 @@ contract NodeManager {
         return (nodeList[nodeIndex].enodeId, nodeList[nodeIndex].status);
     }
     // Get node details given index
-    function getNodeDetailsFromIndex(uint nodeIndex) public view returns (string memory _enodeId, uint _nodeStatus)
+    function getNodeDetailsFromIndex(uint nodeIndex) public view returns (string memory _orgId, string memory _enodeId, uint _nodeStatus)
     {
-        return (nodeList[nodeIndex].enodeId, nodeList[nodeIndex].status);
+        return (nodeList[nodeIndex].orgId, nodeList[nodeIndex].enodeId, nodeList[nodeIndex].status);
     }
     // Get number of nodes
     function getNumberOfNodes() public view returns (uint)

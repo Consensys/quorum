@@ -43,6 +43,11 @@ contract RoleManager {
         return (roleList[rIndex].roleId, roleList[rIndex].orgId, roleList[rIndex].baseAccess, roleList[rIndex].isVoter, roleList[rIndex].active);
     }
 
+    function getRoleDetailsFromIndex(uint rIndex) external view returns (string memory roleId, string memory orgId, uint accessType, bool voter, bool active)
+    {
+        return (roleList[rIndex].roleId, roleList[rIndex].orgId, roleList[rIndex].baseAccess, roleList[rIndex].isVoter, roleList[rIndex].active);
+    }
+
     // Get number of Role
     function getNumberOfRoles() external view returns (uint)
     {

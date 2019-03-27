@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/hashicorp/golang-lru"
 	"sync"
 )
@@ -15,10 +16,60 @@ const (
 	FullAccess
 )
 
+type OrgStatus uint8
+
+const (
+	Proposed OrgStatus = 1
+	Approved
+	PendingSuspension
+	Suspended
+	RevokeSuspension
+)
+
+type OrgInfo struct {
+	OrgId  string
+	Status int
+}
+
+type NodeStatus uint8
+
+const (
+	PendingApproval NodeStatus = 1
+	NodeApproved
+	PendingDeactivation
+	Deactivated
+	PendingActivation
+	PendingBlacklisting
+	Blacklisted
+)
+
+type NodeInfo struct {
+	OrgId  string
+	Url    string
+	Status int
+}
+
+type RoleInfo struct {
+	OrgId   string
+	RoleId  string
+	IsVoter bool
+	Access  int
+	Active  bool
+}
+
+type AccountInfo struct {
+	OrgId      string
+	RoleId     string
+	AcctId     common.Address
+	IsOrgAdmin bool
+	Status     int
+}
+
 type PermStruct struct {
 	AcctId common.Address
 	roleId string
 }
+
 type OrgStruct struct {
 	OrgId string
 	Keys  []string
@@ -41,14 +92,80 @@ type PermissionConfig struct {
 	Accounts []string //initial list of account that need full access
 }
 
+type OrgKey struct {
+	OrgId string
+}
+
+type NodeKey struct {
+	OrgId string
+	Url   string
+}
+
+type RoleKey struct {
+	OrgId  string
+	RoleId string
+}
+
+type AccountKey struct {
+	OrgId  string
+	RoleId string
+	AcctId common.Address
+}
+
+type OrgCache struct {
+	c   *lru.Cache
+	mux sync.Mutex
+}
+
+type NodeCache struct {
+	c   *lru.Cache
+	mux sync.Mutex
+}
+
+type RoleCache struct {
+	c   *lru.Cache
+	mux sync.Mutex
+}
+
+type AcctCache struct {
+	c   *lru.Cache
+	mux sync.Mutex
+}
+
+func NewOrgCache() *OrgCache {
+	c, _ := lru.New(defaultMapLimit)
+	return &OrgCache{c, sync.Mutex{}}
+}
+
+func NewNodeCache() *NodeCache {
+	c, _ := lru.New(defaultMapLimit)
+	return &NodeCache{c, sync.Mutex{}}
+}
+
+func NewRoleCache() *RoleCache {
+	c, _ := lru.New(defaultMapLimit)
+	return &RoleCache{c, sync.Mutex{}}
+}
+
+func NewAcctCache() *AcctCache {
+	c, _ := lru.New(defaultMapLimit)
+	return &AcctCache{c, sync.Mutex{}}
+}
+
 var DefaultAccess = FullAccess
 
 const acctMapLimit = 100
 const orgKeyMapLimit = 100
 
-var AcctMap, _ = lru.New(acctMapLimit)
+const defaultMapLimit = 100
 
+var AcctMap, _ = lru.New(acctMapLimit)
 var OrgKeyMap, _ = lru.New(orgKeyMapLimit)
+
+var OrgInfoMap = NewOrgCache()
+var NodeInfoMap = NewNodeCache()
+var RoleInfoMap = NewRoleCache()
+var AcctInfoMap = NewAcctCache()
 
 var orgKeyLock sync.Mutex
 
@@ -59,6 +176,144 @@ func (pc *PermissionConfig) IsEmpty() bool {
 // sets default access to ReadOnly
 func SetDefaultAccess() {
 	DefaultAccess = FullAccess
+}
+
+func (o *OrgCache) UpsertOrg(orgId string, status int) {
+	defer o.mux.Lock()
+	key := OrgKey{OrgId: orgId}
+	if _, ok := o.c.Get(key); ok {
+		log.Info("AJ-OrgId already exists. update it", "orgId", orgId)
+		o.c.Add(key, &OrgInfo{orgId, status})
+	} else {
+		log.Info("AJ-OrgId does not exist. add it", "orgId", orgId)
+		o.c.Add(key, &OrgInfo{orgId, status})
+	}
+}
+
+func (o *OrgCache) GetOrg(orgId string) *OrgInfo {
+	defer o.mux.Lock()
+	key := OrgKey{OrgId: orgId}
+	if ent, ok := o.c.Get(key); ok {
+		log.Info("AJ-OrgFound", "orgId", orgId)
+		return ent.(*OrgInfo)
+	}
+	return nil
+}
+
+func (o *OrgCache) Show() {
+	for i, k := range o.c.Keys() {
+		v, _ := o.c.Get(k)
+		log.Info("AJ-Org", "i", i, "key", k, "value", v)
+	}
+}
+
+func (n *NodeCache) UpsertNode(orgId string, url string, status int) {
+	defer n.mux.Lock()
+	key := NodeKey{OrgId: orgId, Url: url}
+	if _, ok := n.c.Get(key); ok {
+		log.Info("AJ-Node already exists. update it", "orgId", orgId, "url", url)
+		n.c.Add(key, &NodeInfo{orgId, url, status})
+	} else {
+		log.Info("AJ-Node does not exist. add it", "orgId", orgId, "url", url)
+		n.c.Add(key, &NodeInfo{orgId, url, status})
+	}
+}
+
+func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
+	defer n.mux.Lock()
+	var key NodeKey
+	var found = false
+	for _, k := range n.c.Keys() {
+		ent := k.(NodeKey)
+		if ent.Url == url {
+			key = ent
+			found = true
+			break
+		}
+	}
+	if found {
+		v, _ := n.c.Get(key)
+		ent := v.(*NodeInfo)
+		log.Info("AJ-NodeFound", "url", ent.Url, "orgId", ent.OrgId)
+		return ent
+	}
+	return nil
+}
+
+func (o *NodeCache) Show() {
+	for i, k := range o.c.Keys() {
+		v, _ := o.c.Get(k)
+		log.Info("AJ-Node", "i", i, "key", k, "value", v)
+	}
+}
+
+func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address, orgAdmin bool, status int) {
+	defer a.mux.Lock()
+	key := AccountKey{orgId, role, acct}
+	if _, ok := a.c.Get(key); ok {
+		log.Info("AJ-account already exists. update it", "orgId", orgId, "role", role, "acct", acct)
+		a.c.Add(key, &AccountInfo{orgId, role, acct, orgAdmin, status})
+	} else {
+		log.Info("AJ-account does not exist. add it", "orgId", orgId, "role", role, "acct", acct)
+		a.c.Add(key, &AccountInfo{orgId, role, acct, orgAdmin, status})
+	}
+}
+
+func (n *AcctCache) GetAccountByAccount(acct common.Address) *AccountInfo {
+	defer n.mux.Lock()
+	var key AccountKey
+	var found = false
+	for _, k := range n.c.Keys() {
+		ent := k.(AccountKey)
+		if ent.AcctId == acct {
+			key = ent
+			found = true
+			break
+		}
+	}
+	if found {
+		v, _ := n.c.Get(key)
+		ent := v.(*AccountInfo)
+		log.Info("AJ-AccountFound", "org", ent.OrgId, "role", ent.RoleId, "acct", ent.AcctId)
+		return ent
+	}
+	return nil
+}
+
+func (o *AcctCache) Show() {
+	for i, k := range o.c.Keys() {
+		v, _ := o.c.Get(k)
+		log.Info("AJ-Accounts", "i", i, "key", k, "value", v)
+	}
+}
+
+func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, access int, active bool) {
+	defer r.mux.Lock()
+	key := RoleKey{orgId, role}
+	if _, ok := r.c.Get(key); ok {
+		log.Info("AJ-role already exists. update it", "orgId", orgId, "role", role, "access", access, "voter", voter, "active", active)
+		r.c.Add(key, &RoleInfo{orgId, role, voter, access, active})
+	} else {
+		log.Info("AJ-role does not exist. add it", "orgId", orgId, "role", role, "access", access, "voter", voter, "active", active)
+		r.c.Add(key, &RoleInfo{orgId, role, voter, access, active})
+	}
+}
+
+func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
+	defer r.mux.Lock()
+	key := RoleKey{OrgId: orgId, RoleId: roleId}
+	if ent, ok := r.c.Get(key); ok {
+		log.Info("AJ-RoleFound", "orgId", orgId, "roleId", roleId)
+		return ent.(*RoleInfo)
+	}
+	return nil
+}
+
+func (o *RoleCache) Show() {
+	for i, k := range o.c.Keys() {
+		v, _ := o.c.Get(k)
+		log.Info("AJ-Role", "i", i, "key", k, "value", v)
+	}
 }
 
 // Adds account access to the cache

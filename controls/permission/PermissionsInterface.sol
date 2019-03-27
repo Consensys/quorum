@@ -93,7 +93,7 @@ contract PermissionsInterface {
     // Role related functions
     function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter) external
     {
-        permImplementation.addNewRole(_roleId, _orgId, _access, _voter);
+        permImplementation.addNewRole(_roleId, _orgId, _access, _voter, msg.sender);
     }
 
     function removeRole(string calldata _roleId, string calldata _orgId) external
@@ -112,10 +112,12 @@ contract PermissionsInterface {
         return permImplementation.getNumberOfVoters(_orgId);
     }
 
+
     function checkIfVoterExists(string calldata _orgId, address _acct) external view returns (bool)
     {
         return permImplementation.checkIfVoterExists(_orgId, _acct);
     }
+
 
     function getVoteCount(string calldata _orgId) external view returns (uint, uint)
     {
@@ -141,13 +143,13 @@ contract PermissionsInterface {
 
     function assignAccountRole(address _acct, string memory _orgId, string memory _roleId) public
     {
-        permImplementation.assignAccountRole(_acct, _orgId, _roleId);
+        permImplementation.assignAccountRole(_acct, _orgId, _roleId, msg.sender);
 
     }
 
     function addNode(string calldata _orgId, string calldata _enodeId) external
     {
-        permImplementation.addNode(_orgId, _enodeId);
+        permImplementation.addNode(_orgId, _enodeId, msg.sender);
 
     }
 

@@ -208,10 +208,10 @@ contract PermissionsImplementation {
     }
 
     // Role related functions
-    function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter) external
+    function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter, address _caller) external
     onlyProxy
     orgApproved(_orgId)
-    orgAdmin(msg.sender, _orgId)
+    orgAdmin(_caller, _orgId)
     {
         //add new roles can be created by org admins only
         roles.addRole(_roleId, _orgId, _access, _voter);
@@ -238,6 +238,7 @@ contract PermissionsImplementation {
 
         return voter.getNumberOfValidVoters(_orgId);
     }
+
 
     function checkIfVoterExists(string calldata _orgId, address _acct) external view
     returns (bool)
@@ -282,11 +283,11 @@ contract PermissionsImplementation {
     }
 
 
-    function assignAccountRole(address _acct, string memory _orgId, string memory _roleId) public
+    function assignAccountRole(address _acct, string memory _orgId, string memory _roleId, address _caller) public
     onlyProxy
     networkBootUpDone()
     orgApproved(_orgId)
-    orgAdmin(msg.sender, _orgId)
+    orgAdmin(_caller, _orgId)
     {
         // check if the account is part of another org. If yes then op cannot be done
         require(validateAccount(_acct, _orgId) == true, "Operation cannot be performed");
@@ -319,11 +320,11 @@ contract PermissionsImplementation {
         accounts.assignAccountRole(_acct, _orgId, _roleId);
     }
 
-    function addNode(string calldata _orgId, string calldata _enodeId) external
+    function addNode(string calldata _orgId, string calldata _enodeId, address _caller) external
     onlyProxy
     networkBootUpDone()
     orgApproved(_orgId)
-    orgAdmin(msg.sender, _orgId)
+    orgAdmin(_caller, _orgId)
     {
         // check that the node is not part of another org
         require(getNodeStatus(_enodeId) == 0, "Node present already");

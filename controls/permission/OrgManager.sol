@@ -51,12 +51,22 @@ contract OrgManager {
     function addAdminOrg(string calldata _orgId) external
     onlyImpl
     {
+        addNewOrg(_orgId, 2);
+        emit OrgApproved(_orgId);
+    }
+
+    function addNewOrg(string memory _orgId, uint _status) internal
+    {
         orgNum++;
         OrgIndex[keccak256(abi.encodePacked(_orgId))] = orgNum;
         uint id = orgList.length++;
         orgList[id].orgId = _orgId;
-        orgList[id].status = 2;
-        emit OrgApproved(_orgId);
+        orgList[id].status = _status;
+    }
+
+    function getNumberOfOrgs() public view returns (uint)
+    {
+        return orgList.length;
     }
 
     // Org related functions
@@ -76,11 +86,7 @@ contract OrgManager {
     onlyImpl
     orgNotExists(_orgId)
     {
-        orgNum++;
-        OrgIndex[keccak256(abi.encodePacked(_orgId))] = orgNum;
-        uint id = orgList.length++;
-        orgList[id].orgId = _orgId;
-        orgList[id].status = 1;
+        addNewOrg(_orgId, 1);
         emit OrgPendingApproval(_orgId, 1);
     }
 
@@ -137,7 +143,6 @@ contract OrgManager {
     }
 
     function approveOrgSuspension(string memory _orgId) internal
-
     {
         require(checkOrgStatus(_orgId, 3) == true, "Nothing to approve");
         uint id = getOrgIndex(_orgId);
