@@ -212,7 +212,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		snapshot = st.evm.StateDB.Snapshot()
 		isPrivate = true
 		data, extraPrivateMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
-		log.Trace("transisiton-retrievefrom tessera", "data", data, "hash", common.BytesToEncryptedPayloadHash(st.data), "metadata", extraPrivateMetadata)
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -303,8 +302,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 				st.evm.StateDB.RevertToSnapshot(snapshot)
 				log.Error("Participation check failed",
 					"affectedContractAddress", addr.Hex(),
-					"missingCreationTxHash", actualPrivacyMetadata.CreationTxHash)
-				// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
+					"missingCreationTxHash", actualPrivacyMetadata.CreationTxHash.Hex())
 				return nil, 0, true, vmerr
 			}
 			log.Trace("Get Privacy Metadata-affected", "privacyMetadata", actualPrivacyMetadata)
@@ -320,7 +318,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			if actualACMerkleRoot != extraPrivateMetadata.ACMerkleRoot {
 				st.evm.StateDB.RevertToSnapshot(snapshot)
 				log.Error("Merkle Root check failed", "actual", actualACMerkleRoot, "expect", extraPrivateMetadata.ACMerkleRoot)
-				// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
 				return nil, 0, true, vmerr
 			}
 		}

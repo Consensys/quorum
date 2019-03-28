@@ -1746,23 +1746,19 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psvsender", privateTxArgs.PrivateStateValidation, "messageCall", isMessageCall)
 			if isRaw {
 				hash = common.BytesToEncryptedPayloadHash(data)
-
-				privatePayload, _, revErr := private.P.Receive(hash)
+				privatePayload, _, revErr := private.P.ReceiveRaw(hash)
 				if revErr != nil {
 					return isPrivate, common.EncryptedPayloadHash{}, revErr
 				}
-				log.Trace("raw", "hash", hash, "privatepayload", privatePayload)
+				log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload))
 				var privateTx *types.Transaction
 				if tx.To() == nil {
-					log.Trace("raw creation")
 					privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
 				} else {
-					log.Trace("raw message call")
 					privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
 				}
 				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, privateTx)
-
-				log.Trace("raw-data returned from sim", "creationPayloadHashes", creationTxEncryptedPayloadHashes, "MR", merkleRoot, "err", err)
+				log.Trace("after simulation", "creationTxEncryptedPayloadHashes", creationTxEncryptedPayloadHashes, "merkleRoot", merkleRoot, "error", err)
 				if err != nil {
 					return
 				}
@@ -1777,24 +1773,25 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 				})
 			} else {
 				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx)
-
-				//if creation and psv=false, dont send merkleRoot
-				if !isMessageCall && !privateTxArgs.PrivateStateValidation {
-					merkleRoot = common.Hash{}
+				log.Trace("after simulation", "creationTxEncryptedPayloadHashes", creationTxEncryptedPayloadHashes, "merkleRoot", merkleRoot, "error", err)
+				if err != nil {
+					return
 				}
-
-				log.Trace("privatetx", "creationtxs", creationTxEncryptedPayloadHashes)
+				// preemptive check if this node is party to contracts
 				if isMessageCall && len(creationTxEncryptedPayloadHashes) == 0 {
 					return isPrivate, common.EncryptedPayloadHash{}, errors.New("non-party to message call")
 				}
-				log.Trace("data returned from sim", "creationPayloadHashes", creationTxEncryptedPayloadHashes, "MR", merkleRoot, "err", err)
-				if err != nil {
-					return
+				//if creation and psv=false, dont send merkleRoot
+				if !isMessageCall && !privateTxArgs.PrivateStateValidation {
+					merkleRoot = common.Hash{}
 				}
 				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 					ACHashes:     creationTxEncryptedPayloadHashes,
 					ACMerkleRoot: merkleRoot,
 				})
+				if err != nil {
+					return
+				}
 			}
 			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "merkleroot", merkleRoot, "ismessagecall", isMessageCall, "error", err, "encryptedhahses", creationTxEncryptedPayloadHashes, "hash", hash)
 			if err != nil {
