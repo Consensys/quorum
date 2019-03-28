@@ -365,7 +365,10 @@ func (self *stateObject) setStatePrivacyMetadata(metadata *PrivacyMetadata) erro
 	key = append(privacyMetadataPrefix, self.address.Bytes()...)
 
 	b, err := privacyMetadataToBytes(metadata)
-	self.db.ethdb.Put(key, b)
+	if err != nil {
+		return err
+	}
+	err = self.db.ethdb.Put(key, b)
 	return err
 }
 
