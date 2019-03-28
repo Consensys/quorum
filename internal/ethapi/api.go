@@ -1763,6 +1763,11 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 					return
 				}
 
+				// preemptive check if this node is party to contracts
+				if isMessageCall && len(creationTxEncryptedPayloadHashes) == 0 {
+					return isPrivate, common.EncryptedPayloadHash{}, errors.New("non-party to message call")
+				}
+
 				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 					ACHashes:     creationTxEncryptedPayloadHashes,
 					ACMerkleRoot: merkleRoot,
@@ -1857,7 +1862,16 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	}
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	addresses := evm.AffectedContracts()
+	messageCall := privateTx.To() != nil
 	psv := privateTxArgs.PrivateStateValidation
+	//in a message call we can ignore the sent arg and use psv of the To contract
+	if messageCall {
+		pm, _ := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
+		psv = pm.PrivateStateValidation
+		if privateTxArgs.PrivateStateValidation && !psv {
+			return nil, common.Hash{}, errors.New("attempted to send psv flag to non-psv contract")
+		}
+	}
 	log.Trace("simulation", "affectedaddresses", addresses)
 	for _, addr := range addresses {
 		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
@@ -1871,11 +1885,14 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			continue
 		}
 		affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
-		//if one of affected contracts is psv=false, entire transaction is psv=false
-		if privacyMetadata.PrivateStateValidation != psv {
-			return nil, common.Hash{}, errors.New("psv flag doesn't match")
+
+		//if affecteds are not all the same return an error
+		if psv != privacyMetadata.PrivateStateValidation {
+			return nil, common.Hash{}, errors.New("not all contracts have same psv flag")
 		}
 	}
+
+	//only calculate the merkle root if all contracts are psv
 	var merkleRoot common.Hash
 	if psv {
 		merkleRoot, err = evm.CalculateMerkleRoot()
