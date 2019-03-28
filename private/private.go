@@ -35,6 +35,8 @@ type PrivateTransactionManager interface {
 	SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error)
 	// Returns nil payload if not found
 	Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error)
+	// Returns nil payload if not found
+	ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error)
 }
 
 func FromEnvironmentOrNil(name string) PrivateTransactionManager {

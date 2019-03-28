@@ -47,6 +47,10 @@ func (g *constellation) SendSignedTx(data common.EncryptedPayloadHash, to []stri
 	return nil, engine.ErrPrivateTxManagerNotSupported
 }
 
+func (g *constellation) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
+	return nil, nil, engine.ErrPrivateTxManagerNotSupported
+}
+
 func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
 	if common.EmptyEncryptedPayloadHash(data) {
 		return data.Bytes(), nil, nil
@@ -80,5 +84,5 @@ func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engi
 }
 
 func (g *constellation) Name() string {
-	return "constellation"
+	return "Constellation"
 }

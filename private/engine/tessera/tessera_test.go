@@ -86,7 +86,8 @@ func MockSendAPIHandlerFunc(response http.ResponseWriter, request *http.Request)
 }
 
 func MockReceiveAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
-	actualRequest, err := url.PathUnescape(strings.TrimPrefix(request.RequestURI, "/transaction/"))
+	path := string([]byte(request.RequestURI)[:strings.LastIndex(request.RequestURI, "?")])
+	actualRequest, err := url.PathUnescape(strings.TrimPrefix(path, "/transaction/"))
 	if err != nil {
 		go func(o *capturedRequest) { sendRequestCaptor <- o }(&capturedRequest{err: err})
 	} else {

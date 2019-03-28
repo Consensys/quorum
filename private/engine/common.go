@@ -27,6 +27,10 @@ func (dn *NotInUsePrivateTxManager) Receive(data common.EncryptedPayloadHash) ([
 	return nil, nil, ErrPrivateTxManagerNotinUse
 }
 
+func (dn *NotInUsePrivateTxManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *ExtraMetadata, error) {
+	return nil, nil, ErrPrivateTxManagerNotinUse
+}
+
 func (dn *NotInUsePrivateTxManager) Name() string {
 	return "NotInUse"
 }

@@ -129,6 +129,23 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(h)
 }
 
+func (h Hash) ToBase64() string {
+	return base64.StdEncoding.EncodeToString(h.Bytes())
+}
+
+// Decode base64 string to Hash
+// if String is empty then return empty hash
+func Base64ToHash(b64 string) (Hash, error) {
+	if b64 == "" {
+		return Hash{}, nil
+	}
+	bytes, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return Hash{}, err
+	}
+	return BytesToHash(bytes), nil
+}
+
 // UnprefixedHash allows marshaling a Hash without 0x prefix.
 type UnprefixedHash Hash
 
@@ -154,6 +171,14 @@ func BytesToEncryptedPayloadHash(b []byte) EncryptedPayloadHash {
 	var h EncryptedPayloadHash
 	h.SetBytes(b)
 	return h
+}
+
+func Base64ToEncryptedPayloadHash(b64 string) (EncryptedPayloadHash, error) {
+	bytes, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return EncryptedPayloadHash{}, err
+	}
+	return BytesToEncryptedPayloadHash(bytes), nil
 }
 
 func (eph *EncryptedPayloadHash) SetBytes(b []byte) {
@@ -213,11 +238,11 @@ func (ephs EncryptedPayloadHashes) Add(eph EncryptedPayloadHash) {
 func Base64sToEncryptedPayloadHashes(b64s []string) (EncryptedPayloadHashes, error) {
 	ephs := make(EncryptedPayloadHashes)
 	for _, b64 := range b64s {
-		data, err := base64.StdEncoding.DecodeString(b64)
+		data, err := Base64ToEncryptedPayloadHash(b64)
 		if err != nil {
 			return nil, err
 		}
-		ephs.Add(BytesToEncryptedPayloadHash(data))
+		ephs.Add(data)
 	}
 	return ephs, nil
 }
