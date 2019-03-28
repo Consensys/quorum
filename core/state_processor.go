@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -84,6 +85,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 		// and we do not need to apply the additional logic.
 		if privateReceipt != nil {
 			privateReceipts = append(privateReceipts, privateReceipt)
+			log.Trace("privatelogs", "logs", privateReceipt.Logs)
 			allLogs = append(allLogs, privateReceipt.Logs...)
 		}
 	}

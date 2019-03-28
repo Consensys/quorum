@@ -1769,7 +1769,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 					ACMerkleRoot: merkleRoot,
 				})
 			} else {
-				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx)
+				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
 
 				//if creation and psv=false, dont send merkleRoot
 				if !isMessageCall && !privateTxArgs.PrivateStateValidation {
@@ -1797,7 +1797,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts
 // and the merkle root combining all affected contract accounts after the simulation
 //
-func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction) (common.EncryptedPayloadHashes, common.Hash, error) {
+func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (common.EncryptedPayloadHashes, common.Hash, error) {
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())
@@ -1855,7 +1855,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	}
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	addresses := evm.AffectedContracts()
-	psv := true
+	psv := privateTxArgs.PrivateStateValidation
 	for _, addr := range addresses {
 		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
@@ -1869,12 +1869,11 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		}
 		affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
 		//if one of affected contracts is psv=false, entire transaction is psv=false
-		if !privacyMetadata.PrivateStateValidation {
-			psv = false
+		if privacyMetadata.PrivateStateValidation != psv {
+			return nil, common.Hash{}, errors.New("psv flag doesn't match")
 		}
 	}
 	var merkleRoot common.Hash
-	//psv true if creation (no affecteds) or if all affecteds of a message call are psv
 	if psv {
 		merkleRoot, err = evm.CalculateMerkleRoot()
 		if err != nil {

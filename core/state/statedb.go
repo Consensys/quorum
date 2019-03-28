@@ -165,6 +165,10 @@ func (self *StateDB) Logs() []*types.Log {
 	return logs
 }
 
+// func (self *StateDB) ClearLogs(hash common.Hash) {
+// 	log := self.log
+// }
+
 // AddPreimage records a SHA3 preimage seen by the VM.
 func (self *StateDB) AddPreimage(hash common.Hash, preimage []byte) {
 	if _, ok := self.preimages[hash]; !ok {
