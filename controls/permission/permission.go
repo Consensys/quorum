@@ -154,11 +154,6 @@ func (p *PermissionCtrl) init() error {
 		return err
 	}
 
-	// call populates the account permissions based on past history
-	if err := p.populateAcctPermissions(); err != nil {
-		return err
-	}
-
 	// set the default access to ReadOnly
 	types.SetDefaultAccess()
 
@@ -187,7 +182,7 @@ func (p *PermissionCtrl) manageNodePermissions() {
 // Listens on the channel for new node approval via smart contract and
 // adds the same into permissioned-nodes.json
 func (p *PermissionCtrl) monitorNewNodeAdd() {
-	log.Info("AJ-new node approved")
+	log.Info("AJ-new node approved event monitor started...")
 	ch := make(chan *pbind.NodeManagerNodeApproved, 1)
 
 	opts := &bind.WatchOpts{}
@@ -205,6 +200,26 @@ func (p *PermissionCtrl) monitorNewNodeAdd() {
 		case nodeAddEvent = <-ch:
 			log.Info("AJ-newNodeApproved", "node", nodeAddEvent.EnodeId)
 			p.updatePermissionedNodes(nodeAddEvent.EnodeId, NodeAdd)
+
+			auth := bind.NewKeyedTransactor(p.key)
+			permAcctSession := &pbind.NodeManagerSession{
+				Contract: p.permNode,
+				CallOpts: bind.CallOpts{
+					Pending: true,
+				},
+				TransactOpts: bind.TransactOpts{
+					From:     auth.From,
+					Signer:   auth.Signer,
+					GasLimit: 47000000,
+					GasPrice: big.NewInt(0),
+				},
+			}
+			if rs, err := permAcctSession.GetNodeDetails(nodeAddEvent.EnodeId); err != nil {
+				log.Error("AJ-failed to read node info ", "err", err)
+			} else {
+				types.NodeInfoMap.UpsertNode(rs.OrgId, rs.EnodeId, int(rs.NodeStatus.Uint64()))
+				log.Info("AJ-newNodeApproved cached updated for ", "enode", rs.EnodeId)
+			}
 		}
 	}
 }
@@ -416,26 +431,6 @@ func (p *PermissionCtrl) populatePermissionedNodes() error {
 	return nil
 }
 
-// populates the account permissions cache from past account access update events
-func (p *PermissionCtrl) populateAcctPermissions() error {
-
-	opts := &bind.FilterOpts{}
-	pastEvents, err := p.permAcct.AcctManagerFilterer.FilterAccountAccessModified(opts)
-
-	if err == nil {
-		recExists := true
-		for recExists {
-			recExists = pastEvents.Next()
-			if recExists {
-				log.Info("AJ-added account ", "acct", pastEvents.Event.Address, "roleId", pastEvents.Event.RoleId)
-				types.AddAccountAccess(pastEvents.Event.Address, pastEvents.Event.RoleId)
-			}
-		}
-	}
-
-	return nil
-}
-
 // Monitors permissions changes at acount level and uodate the account permissions cache
 func (p *PermissionCtrl) monitorAccountPermissions() {
 	ch := make(chan *pbind.AcctManagerAccountAccessModified)
@@ -455,6 +450,25 @@ func (p *PermissionCtrl) monitorAccountPermissions() {
 		case newEvent = <-ch:
 			log.Info("AJ-AccountAccessModified", "address", newEvent.Address, "role", newEvent.RoleId)
 			types.AddAccountAccess(newEvent.Address, newEvent.RoleId)
+			auth := bind.NewKeyedTransactor(p.key)
+			permAcctSession := &pbind.AcctManagerSession{
+				Contract: p.permAcct,
+				CallOpts: bind.CallOpts{
+					Pending: true,
+				},
+				TransactOpts: bind.TransactOpts{
+					From:     auth.From,
+					Signer:   auth.Signer,
+					GasLimit: 47000000,
+					GasPrice: big.NewInt(0),
+				},
+			}
+			if addr, org, role, status, orgAdmin, err := permAcctSession.GetAccountDetails(newEvent.Address); err != nil {
+				log.Error("AJ-failed to read account info ", "err", err)
+			} else {
+				types.AcctInfoMap.UpsertAccount(org, role, addr, orgAdmin, int(status.Uint64()))
+				log.Info("AJ-AccountAccessModified cached updated for ", "acct", addr)
+			}
 
 		}
 	}
@@ -520,6 +534,7 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 			return err
 		}
 		log.Warn("Failed to retrieve network boot status ", "err", err)
+		return err
 	}
 
 	if networkInitialized && !p.permissionedMode {
@@ -532,57 +547,94 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 		log.Info("Node started in non-permissioned mode")
 		return errors.New("Node started in non-permissioned mode")
 	}
+
 	if !networkInitialized {
-		// Ensure that there is at least one account given as a part of genesis.json
-		// which will have full access. If not throw a fatal error
-		// Do not want a network with no access
-		log.Info("AJ-network not initialized")
-
-		permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permInterfSession.TransactOpts.From))
-		if _, err := permInterfSession.SetPolicy(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole); err != nil {
-			log.Error("AJ-permIntr.setPolicy failed", "err", err)
-			return err
-		}
-		log.Info("AJ-permInter setPolicy done")
-		permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permInterfSession.TransactOpts.From))
-		if _, err := permInterfSession.Init(common.HexToAddress(p.permConfig.OrgAddress), common.HexToAddress(p.permConfig.RoleAddress), common.HexToAddress(p.permConfig.AccountAddress), common.HexToAddress(p.permConfig.VoterAddress), common.HexToAddress(p.permConfig.NodeAddress)); err != nil {
-			log.Error("AJ-permIntr.init failed", "err", err)
-			return err
-		}
-		log.Info("AJ-permInter init done")
-		// populate the initial node list from static-nodes.json
-		err = p.populateStaticNodesToContract(permInterfSession)
-		if err != nil {
-			return err
-		}
-		log.Info("AJ-permInter init node population done")
-		// populate initial account access to full access
-		err = p.populateInitAccountAccess(permInterfSession)
-		if err != nil {
-			return err
-		}
-		log.Info("AJ-permInter init account population done")
-		if err == nil && len(p.permConfig.Accounts) == 0 {
-
-			//utils.Fatalf("Permissioned network being brought up with zero accounts having full access. Add permissioned full access accounts in genesis.json and bring up the network")
-		}
-
-		// update network status to boot completed
-		err = p.updateNetworkStatus(permInterfSession)
-		if err != nil {
-			log.Info("AJ-failed to updated network boot status")
+		if err := p.bootupNetwork(permInterfSession); err != nil {
 			return err
 		}
 		log.Info("AJ-network boot completed")
 	} else {
 		log.Info("AJ-network already booted")
+		//populate orgs, nodes, roles and accounts from contract
+
+		p.populateOrgsFromContract(auth)
+
+		p.populateNodesFromContract(auth)
+
+		p.populateRolesFromContract(auth)
+
+		p.populateAccountsFromContract(auth)
+		log.Info("AJ-all data loaded from contract")
 	}
 
-	//populate orgs, nodes, roles and accounts from contract
+	ShowCacheData()
 
-	//populate orgs
-	permOrgSession := &pbind.OrgManagerSession{
-		Contract: p.permOrg,
+	return nil
+}
+
+func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSession) error {
+	// Ensure that there is at least one account given as a part of genesis.json
+	// which will have full access. If not throw a fatal error
+	// Do not want a network with no access
+	log.Info("AJ-network not initialized")
+
+	permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permInterfSession.TransactOpts.From))
+	if _, err := permInterfSession.SetPolicy(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole); err != nil {
+		log.Error("AJ-permIntr.setPolicy failed", "err", err)
+		return err
+	}
+	log.Info("AJ-permInter setPolicy done")
+	permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permInterfSession.TransactOpts.From))
+	if _, err := permInterfSession.Init(common.HexToAddress(p.permConfig.OrgAddress), common.HexToAddress(p.permConfig.RoleAddress), common.HexToAddress(p.permConfig.AccountAddress), common.HexToAddress(p.permConfig.VoterAddress), common.HexToAddress(p.permConfig.NodeAddress)); err != nil {
+		log.Error("AJ-permIntr.init failed", "err", err)
+		return err
+	}
+	log.Info("AJ-permInter init done")
+
+	types.OrgInfoMap.UpsertOrg(p.permConfig.NwAdminOrg, 2)
+	types.RoleInfoMap.UpsertRole(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, true, 3, true)
+	// populate the initial node list from static-nodes.json
+	err := p.populateStaticNodesToContract(permInterfSession)
+	if err != nil {
+		return err
+	}
+	log.Info("AJ-permInter init node population done")
+	// populate initial account access to full access
+	err = p.populateInitAccountAccess(permInterfSession)
+	if err != nil {
+		return err
+	}
+	log.Info("AJ-permInter init account population done")
+	if err == nil && len(p.permConfig.Accounts) == 0 {
+
+		//utils.Fatalf("Permissioned network being brought up with zero accounts having full access. Add permissioned full access accounts in genesis.json and bring up the network")
+	}
+
+	// update network status to boot completed
+	err = p.updateNetworkStatus(permInterfSession)
+	if err != nil {
+		log.Info("AJ-failed to updated network boot status")
+		return err
+	}
+	return nil
+}
+
+func ShowCacheData() {
+	log.Info("AJ-======org info ======")
+	types.OrgInfoMap.Show()
+	log.Info("AJ-======Node info======")
+	types.NodeInfoMap.Show()
+	log.Info("AJ-======role info======")
+	types.RoleInfoMap.Show()
+	log.Info("AJ-======act info======")
+	types.AcctInfoMap.Show()
+	log.Info("AJ-============")
+}
+
+func (p *PermissionCtrl) populateAccountsFromContract(auth *bind.TransactOpts) {
+	//populate accounts
+	permAcctSession := &pbind.AcctManagerSession{
+		Contract: p.permAcct,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
@@ -593,53 +645,25 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 			GasPrice: big.NewInt(0),
 		},
 	}
-	permOrgSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permOrgSession.TransactOpts.From))
-	if numberOfOrgs, err := permOrgSession.GetNumberOfOrgs(); err != nil {
-		log.Error("AJ-reading org num failed")
+	permAcctSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permAcctSession.TransactOpts.From))
+	if numberOfRoles, err := permAcctSession.GetNumberOfAccounts(); err != nil {
+		log.Error("AJ-reading acct num failed")
 	} else {
-		log.Info("AJ-org num ", "num", numberOfOrgs.Int64())
-		iOrgNum := numberOfOrgs.Uint64()
+		log.Info("AJ-acct num ", "num", numberOfRoles.Int64())
+		iOrgNum := numberOfRoles.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
-			permOrgSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permOrgSession.TransactOpts.From))
-			if o, s, err := permOrgSession.GetOrgInfo(big.NewInt(int64(k))); err != nil {
+			permAcctSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permAcctSession.TransactOpts.From))
+			if addr, org, role, status, orgAdmin, err := permAcctSession.GetAccountDetailsFromIndex(big.NewInt(int64(k))); err != nil {
 				log.Error("AJ-Org reading org info failed")
 			} else {
-				types.OrgInfoMap.UpsertOrg(o, int(s.Int64()))
+				types.AcctInfoMap.UpsertAccount(org, role, addr, orgAdmin, int(status.Int64()))
 			}
 		}
 
 	}
+}
 
-	//populate nodes
-	permNodeSession := &pbind.NodeManagerSession{
-		Contract: p.permNode,
-		CallOpts: bind.CallOpts{
-			Pending: true,
-		},
-		TransactOpts: bind.TransactOpts{
-			From:     auth.From,
-			Signer:   auth.Signer,
-			GasLimit: 47000000,
-			GasPrice: big.NewInt(0),
-		},
-	}
-	permNodeSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permNodeSession.TransactOpts.From))
-	if numberOfNodes, err := permNodeSession.GetNumberOfNodes(); err != nil {
-		log.Error("AJ-reading node num failed")
-	} else {
-		log.Info("AJ-node num ", "num", numberOfNodes.Int64())
-		iOrgNum := numberOfNodes.Uint64()
-		for k := uint64(0); k < iOrgNum; k++ {
-			permNodeSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permNodeSession.TransactOpts.From))
-			if nodeStruct, err := permNodeSession.GetNodeDetailsFromIndex(big.NewInt(int64(k))); err != nil {
-				log.Error("AJ-node reading org info failed")
-			} else {
-				types.NodeInfoMap.UpsertNode(nodeStruct.OrgId, nodeStruct.EnodeId, int(nodeStruct.NodeStatus.Int64()))
-			}
-		}
-
-	}
-
+func (p *PermissionCtrl) populateRolesFromContract(auth *bind.TransactOpts) {
 	//populate roles
 	permRoleSession := &pbind.RoleManagerSession{
 		Contract: p.permRole,
@@ -669,10 +693,12 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 		}
 
 	}
+}
 
-	//populate accounts
-	permAcctSession := &pbind.AcctManagerSession{
-		Contract: p.permAcct,
+func (p *PermissionCtrl) populateNodesFromContract(auth *bind.TransactOpts) {
+	//populate nodes
+	permNodeSession := &pbind.NodeManagerSession{
+		Contract: p.permNode,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
@@ -683,35 +709,54 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 			GasPrice: big.NewInt(0),
 		},
 	}
-	permAcctSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permAcctSession.TransactOpts.From))
-
-	if numberOfRoles, err := permAcctSession.GetNumberOfAccounts(); err != nil {
-		log.Error("AJ-reading acct num failed")
+	permNodeSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permNodeSession.TransactOpts.From))
+	if numberOfNodes, err := permNodeSession.GetNumberOfNodes(); err != nil {
+		log.Error("AJ-reading node num failed")
 	} else {
-		log.Info("AJ-acct num ", "num", numberOfRoles.Int64())
-		iOrgNum := numberOfRoles.Uint64()
+		log.Info("AJ-node num ", "num", numberOfNodes.Int64())
+		iOrgNum := numberOfNodes.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
-			permAcctSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permAcctSession.TransactOpts.From))
-			if addr, org, role, status, orgAdmin, err := permAcctSession.GetAccountDetailsFromIndex(big.NewInt(int64(k))); err != nil {
-				log.Error("AJ-Org reading org info failed")
+			permNodeSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permNodeSession.TransactOpts.From))
+			if nodeStruct, err := permNodeSession.GetNodeDetailsFromIndex(big.NewInt(int64(k))); err != nil {
+				log.Error("AJ-node reading org info failed")
 			} else {
-				types.AcctInfoMap.UpsertAccount(org, role, addr, orgAdmin, int(status.Int64()))
+				types.NodeInfoMap.UpsertNode(nodeStruct.OrgId, nodeStruct.EnodeId, int(nodeStruct.NodeStatus.Int64()))
 			}
 		}
 
 	}
+}
 
-	log.Info("AJ-all data loaded")
-	types.OrgInfoMap.Show()
-	log.Info("============")
-	types.NodeInfoMap.Show()
-	log.Info("============")
-	types.RoleInfoMap.Show()
-	log.Info("============")
-	types.AcctInfoMap.Show()
-	log.Info("============")
+func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) {
+	//populate orgs
+	permOrgSession := &pbind.OrgManagerSession{
+		Contract: p.permOrg,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     auth.From,
+			Signer:   auth.Signer,
+			GasLimit: 47000000,
+			GasPrice: big.NewInt(0),
+		},
+	}
+	permOrgSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permOrgSession.TransactOpts.From))
+	if numberOfOrgs, err := permOrgSession.GetNumberOfOrgs(); err != nil {
+		log.Error("AJ-reading org num failed")
+	} else {
+		log.Info("AJ-org num ", "num", numberOfOrgs.Int64())
+		iOrgNum := numberOfOrgs.Uint64()
+		for k := uint64(0); k < iOrgNum; k++ {
+			permOrgSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permOrgSession.TransactOpts.From))
+			if o, s, err := permOrgSession.GetOrgInfo(big.NewInt(int64(k))); err != nil {
+				log.Error("AJ-Org reading org info failed")
+			} else {
+				types.OrgInfoMap.UpsertOrg(o, int(s.Int64()))
+			}
+		}
 
-	return nil
+	}
 }
 
 // Reads the node list from static-nodes.json and populates into the contract
@@ -731,6 +776,7 @@ func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind
 			log.Warn("Failed to propose node", "err", err)
 			return err
 		}
+		types.NodeInfoMap.UpsertNode(p.permConfig.NwAdminOrg, node.String(), 2)
 		log.Debug("Transaction pending", "tx hash", tx.Hash())
 	}
 	return nil
@@ -750,6 +796,7 @@ func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.Per
 			if er != nil {
 				utils.Fatalf("error adding permission initial account list account: %s, error:%v", a, er)
 			}
+			types.AcctInfoMap.UpsertAccount(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, common.HexToAddress(a), true, 2)
 		}
 		log.Info("AJ-add initial account list ...done")
 	}
