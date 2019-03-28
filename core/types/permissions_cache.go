@@ -179,7 +179,8 @@ func SetDefaultAccess() {
 }
 
 func (o *OrgCache) UpsertOrg(orgId string, status int) {
-	defer o.mux.Lock()
+	defer o.mux.Unlock()
+	o.mux.Lock()
 	key := OrgKey{OrgId: orgId}
 	if _, ok := o.c.Get(key); ok {
 		log.Info("AJ-OrgId already exists. update it", "orgId", orgId)
@@ -191,7 +192,8 @@ func (o *OrgCache) UpsertOrg(orgId string, status int) {
 }
 
 func (o *OrgCache) GetOrg(orgId string) *OrgInfo {
-	defer o.mux.Lock()
+	defer o.mux.Unlock()
+	o.mux.Lock()
 	key := OrgKey{OrgId: orgId}
 	if ent, ok := o.c.Get(key); ok {
 		log.Info("AJ-OrgFound", "orgId", orgId)
@@ -208,7 +210,8 @@ func (o *OrgCache) Show() {
 }
 
 func (n *NodeCache) UpsertNode(orgId string, url string, status int) {
-	defer n.mux.Lock()
+	defer n.mux.Unlock()
+	n.mux.Lock()
 	key := NodeKey{OrgId: orgId, Url: url}
 	if _, ok := n.c.Get(key); ok {
 		log.Info("AJ-Node already exists. update it", "orgId", orgId, "url", url)
@@ -220,7 +223,8 @@ func (n *NodeCache) UpsertNode(orgId string, url string, status int) {
 }
 
 func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
-	defer n.mux.Lock()
+	defer n.mux.Unlock()
+	n.mux.Lock()
 	var key NodeKey
 	var found = false
 	for _, k := range n.c.Keys() {
@@ -248,7 +252,8 @@ func (o *NodeCache) Show() {
 }
 
 func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address, orgAdmin bool, status int) {
-	defer a.mux.Lock()
+	defer a.mux.Unlock()
+	a.mux.Lock()
 	key := AccountKey{orgId, role, acct}
 	if _, ok := a.c.Get(key); ok {
 		log.Info("AJ-account already exists. update it", "orgId", orgId, "role", role, "acct", acct)
@@ -259,11 +264,12 @@ func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address
 	}
 }
 
-func (n *AcctCache) GetAccountByAccount(acct common.Address) *AccountInfo {
-	defer n.mux.Lock()
+func (a *AcctCache) GetAccountByAccount(acct common.Address) *AccountInfo {
+	defer a.mux.Unlock()
+	a.mux.Lock()
 	var key AccountKey
 	var found = false
-	for _, k := range n.c.Keys() {
+	for _, k := range a.c.Keys() {
 		ent := k.(AccountKey)
 		if ent.AcctId == acct {
 			key = ent
@@ -272,7 +278,7 @@ func (n *AcctCache) GetAccountByAccount(acct common.Address) *AccountInfo {
 		}
 	}
 	if found {
-		v, _ := n.c.Get(key)
+		v, _ := a.c.Get(key)
 		ent := v.(*AccountInfo)
 		log.Info("AJ-AccountFound", "org", ent.OrgId, "role", ent.RoleId, "acct", ent.AcctId)
 		return ent
@@ -288,7 +294,8 @@ func (o *AcctCache) Show() {
 }
 
 func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, access int, active bool) {
-	defer r.mux.Lock()
+	defer r.mux.Unlock()
+	r.mux.Lock()
 	key := RoleKey{orgId, role}
 	if _, ok := r.c.Get(key); ok {
 		log.Info("AJ-role already exists. update it", "orgId", orgId, "role", role, "access", access, "voter", voter, "active", active)
@@ -300,7 +307,8 @@ func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, access int
 }
 
 func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
-	defer r.mux.Lock()
+	defer r.mux.Unlock()
+	r.mux.Lock()
 	key := RoleKey{OrgId: orgId, RoleId: roleId}
 	if ent, ok := r.c.Get(key); ok {
 		log.Info("AJ-RoleFound", "orgId", orgId, "roleId", roleId)
@@ -309,9 +317,9 @@ func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
 	return nil
 }
 
-func (o *RoleCache) Show() {
-	for i, k := range o.c.Keys() {
-		v, _ := o.c.Get(k)
+func (r *RoleCache) Show() {
+	for i, k := range r.c.Keys() {
+		v, _ := r.c.Get(k)
 		log.Info("AJ-Role", "i", i, "key", k, "value", v)
 	}
 }

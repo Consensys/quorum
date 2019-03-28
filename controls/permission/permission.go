@@ -662,7 +662,7 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 		for k := uint64(0); k < iOrgNum; k++ {
 			permRoleSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permRoleSession.TransactOpts.From))
 			if roleStruct, err := permRoleSession.GetRoleDetailsFromIndex(big.NewInt(int64(k))); err != nil {
-				log.Error("AJ-Org reading org info failed")
+				log.Error("AJ-role reading org info failed")
 			} else {
 				types.RoleInfoMap.UpsertRole(roleStruct.OrgId, roleStruct.RoleId, roleStruct.Voter, int(roleStruct.AccessType.Int64()), roleStruct.Active)
 			}
