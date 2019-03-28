@@ -20,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/private"
-	"github.com/ethereum/go-ethereum/private/engine/constellation"
 )
 
 // callmsg is the message type used for call transactions in the private state test
@@ -106,7 +105,8 @@ func runConstellation() (*osExec.Cmd, error) {
 	if err = os.Symlink(path.Join(here, "constellation-test-keys"), path.Join(dir, "keys")); err != nil {
 		return nil, err
 	}
-	cfgFile, err := os.Create(path.Join(dir, "constellation.cfg"))
+	cfgPath := path.Join(dir, "constellation.cfg")
+	cfgFile, err := os.Create(cfgPath)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,8 @@ func runConstellation() (*osExec.Cmd, error) {
 	if constellationErr != nil {
 		return nil, constellationErr
 	}
-	private.P = constellation.MustNew(cfgFile.Name())
+	os.Setenv("TEST_PRIVATE_CONFIG", cfgPath)
+	private.P = private.FromEnvironmentOrNil("TEST_PRIVATE_CONFIG")
 	return constellationCmd, nil
 }
 
