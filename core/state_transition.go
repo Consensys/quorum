@@ -18,6 +18,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -206,9 +207,12 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	hasPrivatePayload := false
 	isPrivate := false
 	publicState := st.state
+	var snapshot int
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
+		snapshot = st.evm.StateDB.Snapshot()
 		isPrivate = true
 		data, extraPrivateMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
+		log.Trace("transisiton-retrievefrom tessera", "data", data, "hash", common.BytesToEncryptedPayloadHash(st.data), "metadata", extraPrivateMetadata)
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -288,34 +292,37 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 			if err != nil {
-				//TODO - issue with getting/decoding privacymetadata
+				st.evm.StateDB.RevertToSnapshot(snapshot)
+				return nil, 0, true, fmt.Errorf("vmerr=%s, err=%s", vmerr, err)
 			}
 			if actualPrivacyMetadata == nil {
 				continue // public contracts don't have privacy metadata
 			}
+
 			if extraPrivateMetadata.ACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
+				st.evm.StateDB.RevertToSnapshot(snapshot)
 				log.Error("Participation check failed",
 					"affectedContractAddress", addr.Hex(),
 					"missingCreationTxHash", actualPrivacyMetadata.CreationTxHash)
 				// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
-				return nil, 0, vmerr != nil, nil
+				return nil, 0, true, vmerr
 			}
 			log.Trace("Get Privacy Metadata-affected", "privacyMetadata", actualPrivacyMetadata)
 		}
 		if !common.EmptyHash(extraPrivateMetadata.ACMerkleRoot) {
 			log.Trace("Verify merkle root", "merkleRoot", extraPrivateMetadata.ACMerkleRoot)
-			/*
-				actualACMerkleRoot, err := evm.CalculateMerkleRoot()
-				if err != nil {
-					log.Error("Calculate Merkle Root failed", "error", err)
-					return nil, 0, vmerr != nil, err
-				}
-				if actualACMerkleRoot != expectedACMerkleRoot {
-					log.Error("Merkle Root check failed", "actual", actualACMerkleRoot, "expect", expectedACMerkleRoot)
-					// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
-					return nil, 0, vmerr != nil, nil
-				}
-			*/
+			actualACMerkleRoot, err := evm.CalculateMerkleRoot()
+			if err != nil {
+				st.evm.StateDB.RevertToSnapshot(snapshot)
+				log.Error("Calculate Merkle Root failed", "error", err)
+				return nil, 0, true, fmt.Errorf("vmerr=%s, err=%s", vmerr, err)
+			}
+			if actualACMerkleRoot != extraPrivateMetadata.ACMerkleRoot {
+				st.evm.StateDB.RevertToSnapshot(snapshot)
+				log.Error("Merkle Root check failed", "actual", actualACMerkleRoot, "expect", extraPrivateMetadata.ACMerkleRoot)
+				// TODO - check with Pete/Trung/Angela/Nam on how to properly ignore this txn
+				return nil, 0, true, vmerr
+			}
 		}
 	}
 
