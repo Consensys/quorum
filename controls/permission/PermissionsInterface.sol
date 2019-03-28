@@ -75,15 +75,15 @@ contract PermissionsInterface {
         permImplementation.approveOrg(_orgId, _enodeId, msg.sender);
     }
 
-//    function updateOrgStatus(string calldata _orgId, uint _status) external
-//    {
-//        permImplementation.updateOrgStatus(_orgId, _status);
-//    }
-//
-//    function approveOrgStatus(string calldata _orgId, uint _status) external
-//    {
-//        permImplementation.approveOrgStatus(_orgId, _status);
-//    }
+    function updateOrgStatus(string calldata _orgId, uint _status) external
+    {
+        permImplementation.updateOrgStatus(_orgId, _status);
+    }
+
+    function approveOrgStatus(string calldata _orgId, uint _status) external
+    {
+        permImplementation.approveOrgStatus(_orgId, _status);
+    }
     // returns org and master org details based on org index
     function getOrgInfo(uint _orgIndex) external view returns (string memory, uint)
     {
@@ -151,6 +151,11 @@ contract PermissionsInterface {
     {
         permImplementation.addNode(_orgId, _enodeId, msg.sender);
 
+    }
+
+    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, uint _status) external
+    {
+        permImplementation.updateNodeStatus(_orgId, _enodeId, _status, msg.sender);
     }
 
     function getNodeStatus(string memory _enodeId) public view returns (uint)
