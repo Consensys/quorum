@@ -1757,14 +1757,15 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 				} else {
 					privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
 				}
-				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, privateTx)
+				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, privateTx, privateTxArgs)
 				log.Trace("after simulation", "creationTxEncryptedPayloadHashes", creationTxEncryptedPayloadHashes, "merkleRoot", merkleRoot, "error", err)
 				if err != nil {
 					return
 				}
 
-				if !isMessageCall && !privateTxArgs.PrivateStateValidation {
-					merkleRoot = common.Hash{}
+				// preemptive check if this node is party to contracts
+				if isMessageCall && len(creationTxEncryptedPayloadHashes) == 0 {
+					return isPrivate, common.EncryptedPayloadHash{}, errors.New("non-party to message call")
 				}
 
 				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
@@ -1772,7 +1773,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 					ACMerkleRoot: merkleRoot,
 				})
 			} else {
-				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx)
+				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
 				log.Trace("after simulation", "creationTxEncryptedPayloadHashes", creationTxEncryptedPayloadHashes, "merkleRoot", merkleRoot, "error", err)
 				if err != nil {
 					return
@@ -1781,10 +1782,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 				if isMessageCall && len(creationTxEncryptedPayloadHashes) == 0 {
 					return isPrivate, common.EncryptedPayloadHash{}, errors.New("non-party to message call")
 				}
-				//if creation and psv=false, dont send merkleRoot
-				if !isMessageCall && !privateTxArgs.PrivateStateValidation {
-					merkleRoot = common.Hash{}
-				}
+
 				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 					ACHashes:     creationTxEncryptedPayloadHashes,
 					ACMerkleRoot: merkleRoot,
@@ -1806,7 +1804,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts
 // and the merkle root combining all affected contract accounts after the simulation
 //
-func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction) (common.EncryptedPayloadHashes, common.Hash, error) {
+func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (common.EncryptedPayloadHashes, common.Hash, error) {
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())
@@ -1864,7 +1862,16 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	}
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	addresses := evm.AffectedContracts()
-	psv := true
+	messageCall := privateTx.To() != nil
+	psv := privateTxArgs.PrivateStateValidation
+	//in a message call we can ignore the sent arg and use psv of the To contract
+	if messageCall {
+		pm, _ := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
+		psv = pm.PrivateStateValidation
+		if privateTxArgs.PrivateStateValidation && !psv {
+			return nil, common.Hash{}, errors.New("attempted to send psv flag to non-psv contract")
+		}
+	}
 	log.Trace("simulation", "affectedaddresses", addresses)
 	for _, addr := range addresses {
 		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
@@ -1878,13 +1885,15 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			continue
 		}
 		affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
-		//if one of affected contracts is psv=false, entire transaction is psv=false
-		if !privacyMetadata.PrivateStateValidation {
-			psv = false
+
+		//if affecteds are not all the same return an error
+		if psv != privacyMetadata.PrivateStateValidation {
+			return nil, common.Hash{}, errors.New("not all contracts have same psv flag")
 		}
 	}
+
+	//only calculate the merkle root if all contracts are psv
 	var merkleRoot common.Hash
-	//psv true if creation (no affecteds) or if all affecteds of a message call are psv
 	if psv {
 		merkleRoot, err = evm.CalculateMerkleRoot()
 		if err != nil {
