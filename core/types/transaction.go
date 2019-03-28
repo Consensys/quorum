@@ -399,17 +399,16 @@ type TransactionsByPriceAndNonce struct {
 // Note, the input map is reowned so the caller should not interact any more with
 // if after providing it to the constructor.
 func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transactions) *TransactionsByPriceAndNonce {
-	log.Info("====== NewTransactionsByPriceAndNonce", "signer", signer, "txs", txs)
 	// Initialize a price based heap with the head transactions
 	heads := make(TxByPrice, 0, len(txs))
 	for from, accTxs := range txs {
-		log.Info("====== processing for account", "account", from, "accTxs", accTxs)
 		// Ensure the sender address is from the signer
 		acc, err := Sender(signer, accTxs[0])
-		log.Info("====== recovered sender", "acc", acc, "err", err)
 		if (err == nil) {
 			heads = append(heads, accTxs[0])
 			txs[acc] = accTxs[1:]
+		} else {
+			log.Info("Failed to recovered sender address, this transaction is skipped", "from", from, "nonce", accTxs[0].data.AccountNonce, "err", err)
 		}
 		if from != acc {
 			delete(txs, from)
