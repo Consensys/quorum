@@ -36,7 +36,7 @@ contract NodeManager {
 
     // node permission events for node blacklist
     event NodePendingBlacklist(string _enodeId);
-    event NodeBlacklisted(string);
+    event NodeBlacklisted(string _enodeId);
 
     modifier onlyImpl
     {

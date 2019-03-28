@@ -136,9 +136,9 @@ func (p *PermissionCtrl) Start() error {
 		log.Error("Permissions init failed", "err", err)
 		return err
 	}
-	// Monitors node addition and decativation from network
+	p.manageOrgPermissions()
 	p.manageNodePermissions()
-	// Monitors account level persmissions  update from smart contarct
+	p.manageRolePermissions()
 	p.manageAccountPermissions()
 
 	return nil
@@ -160,11 +160,27 @@ func (p *PermissionCtrl) init() error {
 	return nil
 }
 
+// Manages org addition, decavtivation and activation from network
+func (p *PermissionCtrl) manageOrgPermissions() {
+
+	if p.permissionedMode {
+		log.Info("AJ-org permission start")
+		//monitor for new nodes addition via smart contract
+		go p.monitorNewOrgAdd()
+
+		//monitor for nodes deletion via smart contract
+		go p.monitorOrgDeactivation()
+
+		//monitor for nodes activation from deactivation status
+		go p.monitorOrgActivation()
+	}
+}
+
 // Manages node addition, decavtivation and activation from network
 func (p *PermissionCtrl) manageNodePermissions() {
 
 	if p.permissionedMode {
-		log.Info("AJ-permission start")
+		log.Info("AJ-manage node start")
 		//monitor for new nodes addition via smart contract
 		go p.monitorNewNodeAdd()
 
@@ -188,7 +204,7 @@ func (p *PermissionCtrl) monitorNewNodeAdd() {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var nodeAddEvent *pbind.NodeManagerNodeApproved
+	var evt *pbind.NodeManagerNodeApproved
 
 	_, err := p.permNode.NodeManagerFilterer.WatchNodeApproved(opts, ch)
 	if err != nil {
@@ -197,31 +213,82 @@ func (p *PermissionCtrl) monitorNewNodeAdd() {
 	for {
 		log.Info("AJ-new node approved waiting for events...")
 		select {
-		case nodeAddEvent = <-ch:
-			log.Info("AJ-newNodeApproved", "node", nodeAddEvent.EnodeId)
-			p.updatePermissionedNodes(nodeAddEvent.EnodeId, NodeAdd)
+		case evt = <-ch:
+			log.Info("AJ-newNodeApproved", "node", evt.EnodeId)
+			p.updatePermissionedNodes(evt.EnodeId, NodeAdd)
 
-			auth := bind.NewKeyedTransactor(p.key)
-			permAcctSession := &pbind.NodeManagerSession{
-				Contract: p.permNode,
-				CallOpts: bind.CallOpts{
-					Pending: true,
-				},
-				TransactOpts: bind.TransactOpts{
-					From:     auth.From,
-					Signer:   auth.Signer,
-					GasLimit: 47000000,
-					GasPrice: big.NewInt(0),
-				},
-			}
-			if rs, err := permAcctSession.GetNodeDetails(nodeAddEvent.EnodeId); err != nil {
-				log.Error("AJ-failed to read node info ", "err", err)
-			} else {
-				types.NodeInfoMap.UpsertNode(rs.OrgId, rs.EnodeId, int(rs.NodeStatus.Uint64()))
-				log.Info("AJ-newNodeApproved cached updated for ", "enode", rs.EnodeId)
-			}
+			p.updateNodeChange(evt.EnodeId)
+			log.Info("AJ-newNodeApproved cached updated for ", "enode", evt.EnodeId)
 		}
 	}
+}
+
+func (p *PermissionCtrl) updateNodeChange(url string) {
+	auth := bind.NewKeyedTransactor(p.key)
+	permAcctSession := &pbind.NodeManagerSession{
+		Contract: p.permNode,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     auth.From,
+			Signer:   auth.Signer,
+			GasLimit: 47000000,
+			GasPrice: big.NewInt(0),
+		},
+	}
+	if rs, err := permAcctSession.GetNodeDetails(url); err != nil {
+		log.Error("AJ-failed to read node info ", "err", err)
+	} else {
+		types.NodeInfoMap.UpsertNode(rs.OrgId, rs.EnodeId, int(rs.NodeStatus.Uint64()))
+	}
+}
+
+func (p *PermissionCtrl) updateOrgChange(orgId string) {
+	auth := bind.NewKeyedTransactor(p.key)
+	permAcctSession := &pbind.OrgManagerSession{
+		Contract: p.permOrg,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     auth.From,
+			Signer:   auth.Signer,
+			GasLimit: 47000000,
+			GasPrice: big.NewInt(0),
+		},
+	}
+	if rs, err := permAcctSession.GetOrgIndex(orgId); err != nil {
+		log.Error("AJ-failed to read org index info ", "err", err)
+	} else {
+		if org, status, err := permAcctSession.GetOrgInfo(rs); err != nil {
+			log.Error("AJ-failed to read org detail info ", "err", err)
+		} else {
+			types.OrgInfoMap.UpsertOrg(org, int(status.Uint64()))
+		}
+	}
+}
+
+func (p *PermissionCtrl) updateRoleChange(orgId string, role string) {
+	auth := bind.NewKeyedTransactor(p.key)
+	permAcctSession := &pbind.RoleManagerSession{
+		Contract: p.permRole,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     auth.From,
+			Signer:   auth.Signer,
+			GasLimit: 47000000,
+			GasPrice: big.NewInt(0),
+		},
+	}
+	if rs, err := permAcctSession.GetRoleDetails(orgId, role); err != nil {
+		log.Error("AJ-failed to read role info ", "err", err)
+	} else {
+		types.RoleInfoMap.UpsertRole(rs.RoleId, rs.RoleId, rs.Voter, int(rs.AccessType.Uint64()), rs.Active)
+	}
+
 }
 
 // Listens on the channel for new node deactivation via smart contract
@@ -232,15 +299,17 @@ func (p *PermissionCtrl) monitorNodeDeactivation() {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newNodeDeleteEvent *pbind.NodeManagerNodeDeactivated
+	var evt *pbind.NodeManagerNodeDeactivated
 	_, err := p.permNode.NodeManagerFilterer.WatchNodeDeactivated(opts, ch)
 	if err != nil {
 		log.Info("Failed NodeDeactivated: %v", err)
 	}
 	for {
 		select {
-		case newNodeDeleteEvent = <-ch:
-			p.updatePermissionedNodes(newNodeDeleteEvent.EnodeId, NodeDelete)
+		case evt = <-ch:
+			p.updatePermissionedNodes(evt.EnodeId, NodeDelete)
+			p.updateNodeChange(evt.EnodeId)
+			log.Info("AJ-NodeDeactivated cached updated for ", "enode", evt.EnodeId)
 		}
 
 	}
@@ -254,7 +323,7 @@ func (p *PermissionCtrl) monitorNodeActivation() {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var nodeActivatedEvent *pbind.NodeManagerNodeActivated
+	var evt *pbind.NodeManagerNodeActivated
 
 	_, err := p.permNode.NodeManagerFilterer.WatchNodeActivated(opts, ch)
 	if err != nil {
@@ -262,8 +331,10 @@ func (p *PermissionCtrl) monitorNodeActivation() {
 	}
 	for {
 		select {
-		case nodeActivatedEvent = <-ch:
-			p.updatePermissionedNodes(nodeActivatedEvent.EnodeId, NodeAdd)
+		case evt = <-ch:
+			p.updatePermissionedNodes(evt.EnodeId, NodeAdd)
+			p.updateNodeChange(evt.EnodeId)
+			log.Info("AJ-newNodeActivated cached updated for ", "enode", evt.EnodeId)
 		}
 	}
 }
@@ -276,7 +347,7 @@ func (p *PermissionCtrl) monitorNodeBlacklisting() {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newNodeBlacklistEvent *pbind.NodeManagerNodeBlacklisted
+	var evt *pbind.NodeManagerNodeBlacklisted
 
 	_, err := p.permNode.NodeManagerFilterer.WatchNodeBlacklisted(opts, ch)
 	if err != nil {
@@ -284,10 +355,12 @@ func (p *PermissionCtrl) monitorNodeBlacklisting() {
 	}
 	for {
 		select {
-		case newNodeBlacklistEvent = <-ch:
-			log.Info("AJ-nodeBlackListed", "event", newNodeBlacklistEvent)
-			//p.updatePermissionedNodes(newNodeBlacklistEvent., newNodeBlacklistEvent.IpAddrPort, newNodeBlacklistEvent.DiscPort, newNodeBlacklistEvent.RaftPort, NodeDelete)
-			//p.updateDisallowedNodes(newNodeBlacklistEvent)
+		case evt = <-ch:
+			log.Info("AJ-nodeBlackListed", "event", evt)
+			p.updatePermissionedNodes(evt.EnodeId, NodeDelete)
+			p.updateDisallowedNodes(evt.EnodeId)
+			p.updateNodeChange(evt.EnodeId)
+			log.Info("AJ-newNodeABlacklisted cached updated for ", "enode", evt.EnodeId)
 		}
 
 	}
@@ -346,7 +419,7 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeO
 }
 
 //this function populates the black listed node information into the disallowed-nodes.json file
-func (p *PermissionCtrl) updateDisallowedNodes(nodeBlacklistEvent *pbind.PermissionsNodeBlacklisted) {
+func (p *PermissionCtrl) updateDisallowedNodes(url string) {
 	log.Debug("updateDisallowedNodes", "DataDir", p.dataDir, "file", params.BLACKLIST_CONFIG)
 
 	fileExisted := true
@@ -377,8 +450,7 @@ func (p *PermissionCtrl) updateDisallowedNodes(nodeBlacklistEvent *pbind.Permiss
 		}
 	}
 
-	newEnodeId := p.formatEnodeId(nodeBlacklistEvent.EnodeId, nodeBlacklistEvent.IpAddrPort, nodeBlacklistEvent.DiscPort, nodeBlacklistEvent.RaftPort)
-	nodelist = append(nodelist, newEnodeId)
+	nodelist = append(nodelist, url)
 	mu := sync.RWMutex{}
 	blob, _ := json.Marshal(nodelist)
 	mu.Lock()
@@ -388,7 +460,7 @@ func (p *PermissionCtrl) updateDisallowedNodes(nodeBlacklistEvent *pbind.Permiss
 	mu.Unlock()
 
 	// Disconnect the peer if it is already connected
-	p.disconnectNode(newEnodeId)
+	p.disconnectNode(url)
 }
 
 // Manages account level permissions update
@@ -396,7 +468,6 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 	if !p.permissionedMode {
 		return
 	}
-	//monitor for nodes deletiin via smart contract
 	go p.monitorAccountPermissions()
 
 	return
@@ -813,4 +884,112 @@ func (p *PermissionCtrl) updateNetworkStatus(permissionsSession *pbind.PermInter
 		return err
 	}
 	return nil
+}
+
+func (p *PermissionCtrl) monitorOrgActivation() {
+	log.Info("AJ-new org activated event monitor started...")
+	ch := make(chan *pbind.OrgManagerOrgSuspensionRevoked, 1)
+
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+	var evt *pbind.OrgManagerOrgSuspensionRevoked
+
+	_, err := p.permOrg.OrgManagerFilterer.WatchOrgSuspensionRevoked(opts, ch)
+	if err != nil {
+		log.Info("Failed watchOrgActivated: %v", err)
+	}
+	for {
+		log.Info("AJ-new node approved waiting for events...")
+		select {
+		case evt = <-ch:
+			log.Info("AJ-OrgActivated", "node", evt.OrgId)
+			p.updateOrgChange(evt.OrgId)
+			log.Info("AJ-newOrgActivated cached updated for ", "orgid", evt.OrgId)
+		}
+	}
+}
+func (p *PermissionCtrl) monitorNewOrgAdd() {
+	log.Info("AJ-new org added event monitor started...")
+	ch := make(chan *pbind.OrgManagerOrgApproved, 1)
+
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+	var evt *pbind.OrgManagerOrgApproved
+
+	_, err := p.permOrg.OrgManagerFilterer.WatchOrgApproved(opts, ch)
+	if err != nil {
+		log.Info("Failed WatchNodeApproved: %v", err)
+	}
+	for {
+		log.Info("AJ-new node approved waiting for events...")
+		select {
+		case evt = <-ch:
+			log.Info("AJ-newOrgApproved", "node", evt.OrgId)
+			p.updateOrgChange(evt.OrgId)
+			log.Info("AJ-newOrgApproved cached updated for ", "orgid", evt.OrgId)
+		}
+	}
+}
+
+func (p *PermissionCtrl) monitorOrgDeactivation() {
+	log.Info("AJ-new org added event monitor started...")
+	ch := make(chan *pbind.OrgManagerOrgSuspended, 1)
+
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+	var evt *pbind.OrgManagerOrgSuspended
+
+	_, err := p.permOrg.OrgManagerFilterer.WatchOrgSuspended(opts, ch)
+	if err != nil {
+		log.Info("Failed WatchNodeApproved: %v", err)
+	}
+	for {
+		log.Info("AJ-new org approved waiting for events...")
+		select {
+		case evt = <-ch:
+			log.Info("AJ-newOrgApproved", "node", evt.OrgId)
+			p.updateOrgChange(evt.OrgId)
+			log.Info("AJ-newOrgApproved cached updated for ", "orgid", evt.OrgId)
+		}
+	}
+}
+
+func (p *PermissionCtrl) manageRolePermissions() {
+	if p.permissionedMode {
+		log.Info("AJ-manage role start")
+		//monitor for new nodes addition via smart contract
+		go p.monitorNewRoleAdd()
+		go p.monitorNewRoleRemove()
+	}
+}
+
+func (p *PermissionCtrl) monitorNewRoleAdd() {
+	log.Info("AJ-new role added event monitor started...")
+	ch := make(chan *pbind.RoleManagerRoleCreated, 1)
+
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+	var evt *pbind.RoleManagerRoleCreated
+
+	_, err := p.permRole.RoleManagerFilterer.WatchRoleCreated(opts, ch)
+	if err != nil {
+		log.Info("Failed WatchRoleCreated: %v", err)
+	}
+	for {
+		log.Info("AJ-new role created waiting for events...")
+		select {
+		case evt = <-ch:
+			log.Info("AJ-newRoleCreated", "org", evt.OrgId, "role", evt.RoleId)
+			p.updateOrgChange(evt.OrgId)
+			log.Info("AJ-newRoleCreated cached updated for ", "orgid", evt.OrgId, "role", evt.RoleId)
+		}
+	}
+}
+
+func (p *PermissionCtrl) monitorNewRoleRemove() {
+
 }
