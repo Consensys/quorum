@@ -93,13 +93,27 @@ contract OrgManager {
     function updateOrg(string calldata _orgId, uint _status) external
     onlyImpl
     orgExists(_orgId)
+    returns (uint)
     {
+        require ((_status == 3 || _status == 5), "Operation not allowed");
+        uint reqStatus;
+        uint pendingOp;
+        if (_status == 3) {
+            reqStatus = 2;
+            pendingOp = 2;
+        }
+        else if (_status == 5) {
+            reqStatus = 4;
+            pendingOp = 3;
+        }
+        require(checkOrgStatus(_orgId, reqStatus) == true, "Operation not allowed");
         if (_status == 3) {
             suspendOrg(_orgId);
         }
         else {
             revokeOrgSuspension(_orgId);
         }
+        return pendingOp;
     }
 
     function approveOrgStatusUpdate(string calldata _orgId, uint _status) external
