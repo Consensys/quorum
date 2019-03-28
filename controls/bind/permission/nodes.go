@@ -28,7 +28,7 @@ var (
 )
 
 // NodeManagerABI is the input ABI used to generate the binding from.
-const NodeManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"approveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"enodeId\",\"type\":\"string\"}],\"name\":\"getNodeDetails\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addOrgNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"nodeIndex\",\"type\":\"uint256\"}],\"name\":\"getNodeDetailsFromIndex\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingDeactivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingActivation\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeActivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodePendingBlacklist\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"}]"
+const NodeManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateNodeStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"enodeId\",\"type\":\"string\"}],\"name\":\"getNodeDetails\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addOrgNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"approveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"nodeIndex\",\"type\":\"uint256\"}],\"name\":\"getNodeDetailsFromIndex\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addAdminNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeActivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"}]"
 
 // NodeManager is an auto generated Go binding around an Ethereum contract.
 type NodeManager struct {
@@ -304,6 +304,27 @@ func (_NodeManager *NodeManagerCallerSession) GetNumberOfNodes() (*big.Int, erro
 	return _NodeManager.Contract.GetNumberOfNodes(&_NodeManager.CallOpts)
 }
 
+// AddAdminNode is a paid mutator transaction binding the contract method 0xe3b09d84.
+//
+// Solidity: function addAdminNode(_enodeId string, _orgId string) returns()
+func (_NodeManager *NodeManagerTransactor) AddAdminNode(opts *bind.TransactOpts, _enodeId string, _orgId string) (*types.Transaction, error) {
+	return _NodeManager.contract.Transact(opts, "addAdminNode", _enodeId, _orgId)
+}
+
+// AddAdminNode is a paid mutator transaction binding the contract method 0xe3b09d84.
+//
+// Solidity: function addAdminNode(_enodeId string, _orgId string) returns()
+func (_NodeManager *NodeManagerSession) AddAdminNode(_enodeId string, _orgId string) (*types.Transaction, error) {
+	return _NodeManager.Contract.AddAdminNode(&_NodeManager.TransactOpts, _enodeId, _orgId)
+}
+
+// AddAdminNode is a paid mutator transaction binding the contract method 0xe3b09d84.
+//
+// Solidity: function addAdminNode(_enodeId string, _orgId string) returns()
+func (_NodeManager *NodeManagerTransactorSession) AddAdminNode(_enodeId string, _orgId string) (*types.Transaction, error) {
+	return _NodeManager.Contract.AddAdminNode(&_NodeManager.TransactOpts, _enodeId, _orgId)
+}
+
 // AddNode is a paid mutator transaction binding the contract method 0xa97a4406.
 //
 // Solidity: function addNode(_enodeId string, _orgId string) returns()
@@ -346,25 +367,46 @@ func (_NodeManager *NodeManagerTransactorSession) AddOrgNode(_enodeId string, _o
 	return _NodeManager.Contract.AddOrgNode(&_NodeManager.TransactOpts, _enodeId, _orgId)
 }
 
-// ApproveNode is a paid mutator transaction binding the contract method 0x21c67088.
+// ApproveNode is a paid mutator transaction binding the contract method 0x86bc3652.
 //
-// Solidity: function approveNode(_enodeId string) returns()
-func (_NodeManager *NodeManagerTransactor) ApproveNode(opts *bind.TransactOpts, _enodeId string) (*types.Transaction, error) {
-	return _NodeManager.contract.Transact(opts, "approveNode", _enodeId)
+// Solidity: function approveNode(_enodeId string, _orgId string) returns()
+func (_NodeManager *NodeManagerTransactor) ApproveNode(opts *bind.TransactOpts, _enodeId string, _orgId string) (*types.Transaction, error) {
+	return _NodeManager.contract.Transact(opts, "approveNode", _enodeId, _orgId)
 }
 
-// ApproveNode is a paid mutator transaction binding the contract method 0x21c67088.
+// ApproveNode is a paid mutator transaction binding the contract method 0x86bc3652.
 //
-// Solidity: function approveNode(_enodeId string) returns()
-func (_NodeManager *NodeManagerSession) ApproveNode(_enodeId string) (*types.Transaction, error) {
-	return _NodeManager.Contract.ApproveNode(&_NodeManager.TransactOpts, _enodeId)
+// Solidity: function approveNode(_enodeId string, _orgId string) returns()
+func (_NodeManager *NodeManagerSession) ApproveNode(_enodeId string, _orgId string) (*types.Transaction, error) {
+	return _NodeManager.Contract.ApproveNode(&_NodeManager.TransactOpts, _enodeId, _orgId)
 }
 
-// ApproveNode is a paid mutator transaction binding the contract method 0x21c67088.
+// ApproveNode is a paid mutator transaction binding the contract method 0x86bc3652.
 //
-// Solidity: function approveNode(_enodeId string) returns()
-func (_NodeManager *NodeManagerTransactorSession) ApproveNode(_enodeId string) (*types.Transaction, error) {
-	return _NodeManager.Contract.ApproveNode(&_NodeManager.TransactOpts, _enodeId)
+// Solidity: function approveNode(_enodeId string, _orgId string) returns()
+func (_NodeManager *NodeManagerTransactorSession) ApproveNode(_enodeId string, _orgId string) (*types.Transaction, error) {
+	return _NodeManager.Contract.ApproveNode(&_NodeManager.TransactOpts, _enodeId, _orgId)
+}
+
+// UpdateNodeStatus is a paid mutator transaction binding the contract method 0x0cc50146.
+//
+// Solidity: function updateNodeStatus(_enodeId string, _orgId string, _status uint256) returns()
+func (_NodeManager *NodeManagerTransactor) UpdateNodeStatus(opts *bind.TransactOpts, _enodeId string, _orgId string, _status *big.Int) (*types.Transaction, error) {
+	return _NodeManager.contract.Transact(opts, "updateNodeStatus", _enodeId, _orgId, _status)
+}
+
+// UpdateNodeStatus is a paid mutator transaction binding the contract method 0x0cc50146.
+//
+// Solidity: function updateNodeStatus(_enodeId string, _orgId string, _status uint256) returns()
+func (_NodeManager *NodeManagerSession) UpdateNodeStatus(_enodeId string, _orgId string, _status *big.Int) (*types.Transaction, error) {
+	return _NodeManager.Contract.UpdateNodeStatus(&_NodeManager.TransactOpts, _enodeId, _orgId, _status)
+}
+
+// UpdateNodeStatus is a paid mutator transaction binding the contract method 0x0cc50146.
+//
+// Solidity: function updateNodeStatus(_enodeId string, _orgId string, _status uint256) returns()
+func (_NodeManager *NodeManagerTransactorSession) UpdateNodeStatus(_enodeId string, _orgId string, _status *big.Int) (*types.Transaction, error) {
+	return _NodeManager.Contract.UpdateNodeStatus(&_NodeManager.TransactOpts, _enodeId, _orgId, _status)
 }
 
 // NodeManagerNodeActivatedIterator is returned from FilterNodeActivated and is used to iterate over the raw logs and unpacked data for NodeActivated events raised by the NodeManager contract.
@@ -835,372 +877,6 @@ func (_NodeManager *NodeManagerFilterer) WatchNodeDeactivated(opts *bind.WatchOp
 				// New log arrived, parse the event and forward to the user
 				event := new(NodeManagerNodeDeactivated)
 				if err := _NodeManager.contract.UnpackLog(event, "NodeDeactivated", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// NodeManagerNodePendingActivationIterator is returned from FilterNodePendingActivation and is used to iterate over the raw logs and unpacked data for NodePendingActivation events raised by the NodeManager contract.
-type NodeManagerNodePendingActivationIterator struct {
-	Event *NodeManagerNodePendingActivation // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *NodeManagerNodePendingActivationIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(NodeManagerNodePendingActivation)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(NodeManagerNodePendingActivation)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *NodeManagerNodePendingActivationIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *NodeManagerNodePendingActivationIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// NodeManagerNodePendingActivation represents a NodePendingActivation event raised by the NodeManager contract.
-type NodeManagerNodePendingActivation struct {
-	EnodeId string
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterNodePendingActivation is a free log retrieval operation binding the contract event 0x7b961104d9e9db7d30803aff3fa117bc41799d2faa2d2e339cf1a1f3513b0eef.
-//
-// Solidity: e NodePendingActivation(_enodeId string)
-func (_NodeManager *NodeManagerFilterer) FilterNodePendingActivation(opts *bind.FilterOpts) (*NodeManagerNodePendingActivationIterator, error) {
-
-	logs, sub, err := _NodeManager.contract.FilterLogs(opts, "NodePendingActivation")
-	if err != nil {
-		return nil, err
-	}
-	return &NodeManagerNodePendingActivationIterator{contract: _NodeManager.contract, event: "NodePendingActivation", logs: logs, sub: sub}, nil
-}
-
-// WatchNodePendingActivation is a free log subscription operation binding the contract event 0x7b961104d9e9db7d30803aff3fa117bc41799d2faa2d2e339cf1a1f3513b0eef.
-//
-// Solidity: e NodePendingActivation(_enodeId string)
-func (_NodeManager *NodeManagerFilterer) WatchNodePendingActivation(opts *bind.WatchOpts, sink chan<- *NodeManagerNodePendingActivation) (event.Subscription, error) {
-
-	logs, sub, err := _NodeManager.contract.WatchLogs(opts, "NodePendingActivation")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(NodeManagerNodePendingActivation)
-				if err := _NodeManager.contract.UnpackLog(event, "NodePendingActivation", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// NodeManagerNodePendingBlacklistIterator is returned from FilterNodePendingBlacklist and is used to iterate over the raw logs and unpacked data for NodePendingBlacklist events raised by the NodeManager contract.
-type NodeManagerNodePendingBlacklistIterator struct {
-	Event *NodeManagerNodePendingBlacklist // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *NodeManagerNodePendingBlacklistIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(NodeManagerNodePendingBlacklist)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(NodeManagerNodePendingBlacklist)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *NodeManagerNodePendingBlacklistIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *NodeManagerNodePendingBlacklistIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// NodeManagerNodePendingBlacklist represents a NodePendingBlacklist event raised by the NodeManager contract.
-type NodeManagerNodePendingBlacklist struct {
-	EnodeId string
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterNodePendingBlacklist is a free log retrieval operation binding the contract event 0xb249ebebf429f1c79f3c9663998b3e22d45f242de6527c4a95e41d4d28115d74.
-//
-// Solidity: e NodePendingBlacklist(_enodeId string)
-func (_NodeManager *NodeManagerFilterer) FilterNodePendingBlacklist(opts *bind.FilterOpts) (*NodeManagerNodePendingBlacklistIterator, error) {
-
-	logs, sub, err := _NodeManager.contract.FilterLogs(opts, "NodePendingBlacklist")
-	if err != nil {
-		return nil, err
-	}
-	return &NodeManagerNodePendingBlacklistIterator{contract: _NodeManager.contract, event: "NodePendingBlacklist", logs: logs, sub: sub}, nil
-}
-
-// WatchNodePendingBlacklist is a free log subscription operation binding the contract event 0xb249ebebf429f1c79f3c9663998b3e22d45f242de6527c4a95e41d4d28115d74.
-//
-// Solidity: e NodePendingBlacklist(_enodeId string)
-func (_NodeManager *NodeManagerFilterer) WatchNodePendingBlacklist(opts *bind.WatchOpts, sink chan<- *NodeManagerNodePendingBlacklist) (event.Subscription, error) {
-
-	logs, sub, err := _NodeManager.contract.WatchLogs(opts, "NodePendingBlacklist")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(NodeManagerNodePendingBlacklist)
-				if err := _NodeManager.contract.UnpackLog(event, "NodePendingBlacklist", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// NodeManagerNodePendingDeactivationIterator is returned from FilterNodePendingDeactivation and is used to iterate over the raw logs and unpacked data for NodePendingDeactivation events raised by the NodeManager contract.
-type NodeManagerNodePendingDeactivationIterator struct {
-	Event *NodeManagerNodePendingDeactivation // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *NodeManagerNodePendingDeactivationIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(NodeManagerNodePendingDeactivation)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(NodeManagerNodePendingDeactivation)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *NodeManagerNodePendingDeactivationIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *NodeManagerNodePendingDeactivationIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// NodeManagerNodePendingDeactivation represents a NodePendingDeactivation event raised by the NodeManager contract.
-type NodeManagerNodePendingDeactivation struct {
-	EnodeId string
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterNodePendingDeactivation is a free log retrieval operation binding the contract event 0x2b5689b33f48f1dcbda2084e130a9bee7b3bf14dc767ea74cbdf3e5fffb118e4.
-//
-// Solidity: e NodePendingDeactivation(_enodeId string)
-func (_NodeManager *NodeManagerFilterer) FilterNodePendingDeactivation(opts *bind.FilterOpts) (*NodeManagerNodePendingDeactivationIterator, error) {
-
-	logs, sub, err := _NodeManager.contract.FilterLogs(opts, "NodePendingDeactivation")
-	if err != nil {
-		return nil, err
-	}
-	return &NodeManagerNodePendingDeactivationIterator{contract: _NodeManager.contract, event: "NodePendingDeactivation", logs: logs, sub: sub}, nil
-}
-
-// WatchNodePendingDeactivation is a free log subscription operation binding the contract event 0x2b5689b33f48f1dcbda2084e130a9bee7b3bf14dc767ea74cbdf3e5fffb118e4.
-//
-// Solidity: e NodePendingDeactivation(_enodeId string)
-func (_NodeManager *NodeManagerFilterer) WatchNodePendingDeactivation(opts *bind.WatchOpts, sink chan<- *NodeManagerNodePendingDeactivation) (event.Subscription, error) {
-
-	logs, sub, err := _NodeManager.contract.WatchLogs(opts, "NodePendingDeactivation")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(NodeManagerNodePendingDeactivation)
-				if err := _NodeManager.contract.UnpackLog(event, "NodePendingDeactivation", log); err != nil {
 					return err
 				}
 				event.Raw = log
