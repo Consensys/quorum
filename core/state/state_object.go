@@ -364,13 +364,12 @@ func (self *stateObject) setStatePrivacyMetadata(metadata *PrivacyMetadata) erro
 	key := make([]byte, 0, len(privacyMetadataPrefix)+len(self.address.Bytes()))
 	key = append(privacyMetadataPrefix, self.address.Bytes()...)
 
-	var b bytes.Buffer
-	e := gob.NewEncoder(&b)
-	if err := e.Encode(metadata); err != nil {
+	b, err := privacyMetadataToBytes(metadata)
+	if err != nil {
 		return err
 	}
-	self.db.ethdb.Put(key, b.Bytes())
-	return nil
+	err = self.db.ethdb.Put(key, b)
+	return err
 }
 
 func (self *stateObject) CodeHash() []byte {
@@ -394,12 +393,8 @@ func (self *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
-	var data *PrivacyMetadata
-	d := gob.NewDecoder(bytes.NewBuffer(val))
-	if err := d.Decode(&data); err != nil {
-		return nil, err
-	}
-	return data, nil
+	data, err := bytesToPrivacyMetadata(val)
+	return data, err
 }
 
 // Never called, but must be present to allow stateObject to be used
@@ -407,4 +402,22 @@ func (self *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
 // interface. Interfaces are awesome.
 func (self *stateObject) Value() *big.Int {
 	panic("Value on stateObject should never be called")
+}
+
+func privacyMetadataToBytes(pm *PrivacyMetadata) ([]byte, error) {
+	var b bytes.Buffer
+	e := gob.NewEncoder(&b)
+	if err := e.Encode(pm); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+func bytesToPrivacyMetadata(b []byte) (*PrivacyMetadata, error) {
+	var data *PrivacyMetadata
+	d := gob.NewDecoder(bytes.NewBuffer(b))
+	if err := d.Decode(&data); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
