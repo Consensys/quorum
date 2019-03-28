@@ -1746,45 +1746,47 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psvsender", privateTxArgs.PrivateStateValidation, "messageCall", isMessageCall)
 			if isRaw {
 				hash = common.BytesToEncryptedPayloadHash(data)
-				/*
-					privatePayload, _, _, revErr := private.P.Receive<TODO need new API to retrieve payload>(data)
-					if revErr != nil {
-						return isPrivate, nil, revErr
-					}
-					var privateTx *types.Transaction
-					if tx.To() == nil {
-						privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
-					} else {
-						privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
-					}
-					creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, privateTx)
-					if err != nil {
-						return
-					}
-				*/
+				privatePayload, _, revErr := private.P.ReceiveRaw(hash)
+				if revErr != nil {
+					return isPrivate, common.EncryptedPayloadHash{}, revErr
+				}
+				log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload))
+				var privateTx *types.Transaction
+				if tx.To() == nil {
+					privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
+				} else {
+					privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
+				}
+				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, privateTx, privateTxArgs)
+				log.Trace("after simulation", "creationTxEncryptedPayloadHashes", creationTxEncryptedPayloadHashes, "merkleRoot", merkleRoot, "error", err)
+				if err != nil {
+					return
+				}
 
-				//TODO: how to send correct psv without simulation??
 				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 					ACHashes:     creationTxEncryptedPayloadHashes,
 					ACMerkleRoot: merkleRoot,
 				})
 			} else {
 				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
-
-				//if creation and psv=false, dont send merkleRoot
-				if !isMessageCall && !privateTxArgs.PrivateStateValidation {
-					merkleRoot = common.Hash{}
-				}
-				log.Trace("data returned from sim", "creationPayloadHashes", creationTxEncryptedPayloadHashes, "MR", merkleRoot, "err", err)
+				log.Trace("after simulation", "creationTxEncryptedPayloadHashes", creationTxEncryptedPayloadHashes, "merkleRoot", merkleRoot, "error", err)
 				if err != nil {
 					return
 				}
+				// preemptive check if this node is party to contracts
+				if isMessageCall && len(creationTxEncryptedPayloadHashes) == 0 {
+					return isPrivate, common.EncryptedPayloadHash{}, errors.New("non-party to message call")
+				}
+
 				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 					ACHashes:     creationTxEncryptedPayloadHashes,
 					ACMerkleRoot: merkleRoot,
 				})
+				if err != nil {
+					return
+				}
 			}
-			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "merkleroot", merkleRoot, "ismessagecall", isMessageCall, "error", err, "hash", hash)
+			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "merkleroot", merkleRoot, "ismessagecall", isMessageCall, "error", err, "encryptedhahses", creationTxEncryptedPayloadHashes, "hash", hash)
 			if err != nil {
 				return isPrivate, common.EncryptedPayloadHash{}, err
 			}
@@ -1856,6 +1858,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	addresses := evm.AffectedContracts()
 	psv := privateTxArgs.PrivateStateValidation
+	log.Trace("simulation", "affectedaddresses", addresses)
 	for _, addr := range addresses {
 		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
@@ -1880,7 +1883,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			return nil, common.Hash{}, err
 		}
 	}
-	log.Trace("simulation end", "mr", merkleRoot)
+	log.Trace("simulation end", "mr", merkleRoot, "affectedhashes", affectedContractsHashes)
 	return affectedContractsHashes, merkleRoot, nil
 }
 
