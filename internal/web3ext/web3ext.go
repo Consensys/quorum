@@ -833,7 +833,23 @@ web3._extend({
 		      new web3._extend.Property({
 					   name: 'voterList',
 				       getter: 'quorumNodeMgmt_voterList'
-			  }),  
+			  }), 
+			  new web3._extend.Property({
+					   name: 'orgList',
+				       getter: 'quorumNodeMgmt_orgList'
+			  }), 
+              new web3._extend.Property({
+					   name: 'nodeList',
+				       getter: 'quorumNodeMgmt_nodeList'
+			  }), 
+              new web3._extend.Property({
+					   name: 'roleList',
+				       getter: 'quorumNodeMgmt_roleList'
+			  }),
+              new web3._extend.Property({
+					   name: 'acctList',
+				       getter: 'quorumNodeMgmt_acctList'
+			  }), 
        ]
 })
 `

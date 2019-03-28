@@ -270,6 +270,22 @@ func (s *QuorumControlsAPI) PermissionNodeList() []nodeStatus {
 	return nodeStatArr
 }
 
+func (s *QuorumControlsAPI) OrgList() []types.OrgInfo {
+	return types.OrgInfoMap.GetOrgList()
+}
+
+func (s *QuorumControlsAPI) NodeList() []types.NodeInfo {
+	return types.NodeInfoMap.GetNodeList()
+}
+
+func (s *QuorumControlsAPI) RoleList() []types.RoleInfo {
+	return types.RoleInfoMap.GetRoleList()
+}
+
+func (s *QuorumControlsAPI) AcctList() []types.AccountInfo {
+	return types.AcctInfoMap.GetAcctList()
+}
+
 // Returns the list of permissioned accounts and access type of each
 func (s *QuorumControlsAPI) PermissionAccountList() []accountInfo {
 	if !s.permEnabled {

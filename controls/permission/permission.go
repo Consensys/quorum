@@ -283,12 +283,11 @@ func (p *PermissionCtrl) updateRoleChange(orgId string, role string) {
 			GasPrice: big.NewInt(0),
 		},
 	}
-	if rs, err := permAcctSession.GetRoleDetails(orgId, role); err != nil {
+	if rs, err := permAcctSession.GetRoleDetails(role, orgId); err != nil {
 		log.Error("AJ-failed to read role info ", "err", err)
 	} else {
-		types.RoleInfoMap.UpsertRole(rs.RoleId, rs.RoleId, rs.Voter, int(rs.AccessType.Uint64()), rs.Active)
+		types.RoleInfoMap.UpsertRole(rs.OrgId, rs.RoleId, rs.Voter, int(rs.AccessType.Uint64()), rs.Active)
 	}
-
 }
 
 // Listens on the channel for new node deactivation via smart contract
@@ -900,7 +899,7 @@ func (p *PermissionCtrl) monitorOrgActivation() {
 		log.Info("Failed watchOrgActivated: %v", err)
 	}
 	for {
-		log.Info("AJ-new node approved waiting for events...")
+		log.Info("AJ-new org activated waiting for events...")
 		select {
 		case evt = <-ch:
 			log.Info("AJ-OrgActivated", "node", evt.OrgId)
@@ -923,7 +922,7 @@ func (p *PermissionCtrl) monitorNewOrgAdd() {
 		log.Info("Failed WatchNodeApproved: %v", err)
 	}
 	for {
-		log.Info("AJ-new node approved waiting for events...")
+		log.Info("AJ-new org approved waiting for events...")
 		select {
 		case evt = <-ch:
 			log.Info("AJ-newOrgApproved", "node", evt.OrgId)
@@ -934,7 +933,7 @@ func (p *PermissionCtrl) monitorNewOrgAdd() {
 }
 
 func (p *PermissionCtrl) monitorOrgDeactivation() {
-	log.Info("AJ-new org added event monitor started...")
+	log.Info("AJ-new org suspended event monitor started...")
 	ch := make(chan *pbind.OrgManagerOrgSuspended, 1)
 
 	opts := &bind.WatchOpts{}
@@ -944,15 +943,15 @@ func (p *PermissionCtrl) monitorOrgDeactivation() {
 
 	_, err := p.permOrg.OrgManagerFilterer.WatchOrgSuspended(opts, ch)
 	if err != nil {
-		log.Info("Failed WatchNodeApproved: %v", err)
+		log.Info("Failed WatchOrgSuspened: %v", err)
 	}
 	for {
-		log.Info("AJ-new org approved waiting for events...")
+		log.Info("AJ-new org suspended waiting for events...")
 		select {
 		case evt = <-ch:
-			log.Info("AJ-newOrgApproved", "node", evt.OrgId)
+			log.Info("AJ-newOrgSuspended", "node", evt.OrgId)
 			p.updateOrgChange(evt.OrgId)
-			log.Info("AJ-newOrgApproved cached updated for ", "orgid", evt.OrgId)
+			log.Info("AJ-newOrgSuspended cached updated for ", "orgid", evt.OrgId)
 		}
 	}
 }
@@ -984,12 +983,32 @@ func (p *PermissionCtrl) monitorNewRoleAdd() {
 		select {
 		case evt = <-ch:
 			log.Info("AJ-newRoleCreated", "org", evt.OrgId, "role", evt.RoleId)
-			p.updateOrgChange(evt.OrgId)
+			p.updateRoleChange(evt.OrgId, evt.RoleId)
 			log.Info("AJ-newRoleCreated cached updated for ", "orgid", evt.OrgId, "role", evt.RoleId)
 		}
 	}
 }
 
 func (p *PermissionCtrl) monitorNewRoleRemove() {
+	log.Info("AJ-new role remove event monitor started...")
+	ch := make(chan *pbind.RoleManagerRoleRevoked, 1)
 
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+	var evt *pbind.RoleManagerRoleRevoked
+
+	_, err := p.permRole.RoleManagerFilterer.WatchRoleRevoked(opts, ch)
+	if err != nil {
+		log.Info("Failed WatchRoleRemoved: %v", err)
+	}
+	for {
+		log.Info("AJ-new role removed waiting for events...")
+		select {
+		case evt = <-ch:
+			log.Info("AJ-newRoleRemoved", "org", evt.OrgId, "role", evt.RoleId)
+			p.updateRoleChange(evt.OrgId, evt.RoleId)
+			log.Info("AJ-newRoleRemoved cached updated for ", "orgid", evt.OrgId, "role", evt.RoleId)
+		}
+	}
 }

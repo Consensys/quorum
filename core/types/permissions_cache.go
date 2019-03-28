@@ -208,6 +208,15 @@ func (o *OrgCache) Show() {
 		log.Info("AJ-Org", "i", i, "key", k, "value", v)
 	}
 }
+func (o *OrgCache) GetOrgList() []OrgInfo {
+	var olist []OrgInfo
+	for _, k := range o.c.Keys() {
+		v, _ := o.c.Get(k)
+		vp := v.(*OrgInfo)
+		olist = append(olist, *vp)
+	}
+	return olist
+}
 
 func (n *NodeCache) UpsertNode(orgId string, url string, status int) {
 	defer n.mux.Unlock()
@@ -249,6 +258,16 @@ func (o *NodeCache) Show() {
 		v, _ := o.c.Get(k)
 		log.Info("AJ-Node", "i", i, "key", k, "value", v)
 	}
+}
+
+func (o *NodeCache) GetNodeList() []NodeInfo {
+	var olist []NodeInfo
+	for _, k := range o.c.Keys() {
+		v, _ := o.c.Get(k)
+		vp := v.(*NodeInfo)
+		olist = append(olist, *vp)
+	}
+	return olist
 }
 
 func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address, orgAdmin bool, status int) {
@@ -293,6 +312,16 @@ func (o *AcctCache) Show() {
 	}
 }
 
+func (o *AcctCache) GetAcctList() []AccountInfo {
+	var olist []AccountInfo
+	for _, k := range o.c.Keys() {
+		v, _ := o.c.Get(k)
+		vp := v.(*AccountInfo)
+		olist = append(olist, *vp)
+	}
+	return olist
+}
+
 func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, access int, active bool) {
 	defer r.mux.Unlock()
 	r.mux.Lock()
@@ -322,6 +351,16 @@ func (r *RoleCache) Show() {
 		v, _ := r.c.Get(k)
 		log.Info("AJ-Role", "i", i, "key", k, "value", v)
 	}
+}
+
+func (o *RoleCache) GetRoleList() []RoleInfo {
+	var olist []RoleInfo
+	for _, k := range o.c.Keys() {
+		v, _ := o.c.Get(k)
+		vp := v.(*RoleInfo)
+		olist = append(olist, *vp)
+	}
+	return olist
 }
 
 // Adds account access to the cache
