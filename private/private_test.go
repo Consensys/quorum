@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/ethereum/go-ethereum/private/engine/tessera"
 
 	"github.com/ethereum/go-ethereum/private/engine/constellation"
@@ -73,7 +75,7 @@ func TestFromEnvironmentOrNil_whenUsingUnixSocketWithTessera(t *testing.T) {
 	}
 }
 
-func MockEmptySuccessHandler(writer http.ResponseWriter, request *http.Request) {
+func MockEmptySuccessHandler(_ http.ResponseWriter, _ *http.Request) {
 
 }
 
@@ -97,4 +99,28 @@ func startUnixSocketHTTPServer(t *testing.T, handlers map[string]http.HandlerFun
 	testServer.Start()
 	t.Log("Unix Socket HTTP server started")
 	return &testServer, tmpFile
+}
+
+func TestHasPrivacyFlag_whenTypical(t *testing.T) {
+	assert := assert.New(t)
+
+	flag := PrivacyFlagPartyProtection | PrivacyFlagStateValidation
+
+	assert.True(HasPrivacyFlag(flag, PrivacyFlagStateValidation))
+}
+
+func TestHasPrivacyFlag_whenCheckingMultipleFlag(t *testing.T) {
+	assert := assert.New(t)
+
+	flag := PrivacyFlagPartyProtection
+
+	assert.False(HasPrivacyFlag(flag, PrivacyFlagStateValidation|PrivacyFlagPartyProtection))
+}
+
+func TestHasPrivacyFlag_whenUsingLegacyFlag(t *testing.T) {
+	assert := assert.New(t)
+
+	flag := PrivacyFlagLegacy
+
+	assert.False(HasPrivacyFlag(flag, PrivacyFlagStateValidation|PrivacyFlagPartyProtection))
 }
