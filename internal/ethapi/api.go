@@ -1862,11 +1862,14 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	}
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	addresses := evm.AffectedContracts()
-	messageCall := privateTx.To() != nil
+	isMessageCall := privateTx.To() != nil
 	psv := privateTxArgs.PrivateStateValidation
 	//in a message call we can ignore the sent arg and use psv of the To contract
-	if messageCall {
-		pm, _ := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
+	if isMessageCall {
+		pm, err := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
+		if err != nil {
+			return nil, common.Hash{}, errors.New("unable to obtain metadata ")
+		}
 		psv = pm.PrivateStateValidation
 		if privateTxArgs.PrivateStateValidation && !psv {
 			return nil, common.Hash{}, errors.New("attempted to send psv flag to non-psv contract")
