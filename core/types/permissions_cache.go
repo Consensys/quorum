@@ -19,7 +19,7 @@ const (
 type OrgStatus uint8
 
 const (
-	OrgProposed OrgStatus = iota + 1
+	OrgPendingApproval OrgStatus = iota + 1
 	OrgApproved
 	OrgPendingSuspension
 	OrgSuspended
@@ -37,7 +37,8 @@ const (
 	NodePendingApproval NodeStatus = iota + 1
 	NodeApproved
 	NodeDeactivated
-	Blacklisted
+	NodeActivated
+	NodeBlackListed
 )
 
 type AcctStatus uint8

@@ -165,6 +165,7 @@ func (p *PermissionCtrl) manageOrgPermissions() {
 
 	if p.permissionedMode {
 		log.Info("AJ-org permission start")
+		go p.monitorNewOrgPendingApproval()
 		//monitor for new nodes addition via smart contract
 		go p.monitorNewOrgAdd()
 
@@ -183,6 +184,8 @@ func (p *PermissionCtrl) manageNodePermissions() {
 		log.Info("AJ-manage node start")
 		//monitor for new nodes addition via smart contract
 		go p.monitorNewNodeAdd()
+
+		go p.monitorNewNodePendingApproval()
 
 		//monitor for nodes deletion via smart contract
 		go p.monitorNodeDeactivation()
@@ -216,31 +219,34 @@ func (p *PermissionCtrl) monitorNewNodeAdd() {
 		case evt = <-ch:
 			log.Info("AJ-newNodeApproved", "node", evt.EnodeId)
 			p.updatePermissionedNodes(evt.EnodeId, NodeAdd)
-
-			p.updateNodeChange(evt.EnodeId)
+			types.NodeInfoMap.UpsertNode(evt.OrgId, evt.EnodeId, types.NodeApproved)
 			log.Info("AJ-newNodeApproved cached updated for ", "enode", evt.EnodeId)
 		}
 	}
 }
 
-func (p *PermissionCtrl) updateNodeChange(url string) {
-	auth := bind.NewKeyedTransactor(p.key)
-	permAcctSession := &pbind.NodeManagerSession{
-		Contract: p.permNode,
-		CallOpts: bind.CallOpts{
-			Pending: true,
-		},
-		TransactOpts: bind.TransactOpts{
-			From:     auth.From,
-			Signer:   auth.Signer,
-			GasLimit: 47000000,
-			GasPrice: big.NewInt(0),
-		},
+func (p *PermissionCtrl) monitorNewNodePendingApproval() {
+	log.Info("AJ-new node proposed event monitor started...")
+	ch := make(chan *pbind.NodeManagerNodeProposed, 1)
+
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+	var evt *pbind.NodeManagerNodeProposed
+
+	_, err := p.permNode.NodeManagerFilterer.WatchNodeProposed(opts, ch)
+	if err != nil {
+		log.Info("Failed WatchNodeProposed: %v", err)
 	}
-	if rs, err := permAcctSession.GetNodeDetails(url); err != nil {
-		log.Error("AJ-failed to read node info ", "err", err)
-	} else {
-		types.NodeInfoMap.UpsertNode(rs.OrgId, rs.EnodeId, types.NodeStatus(int(rs.NodeStatus.Uint64())))
+	for {
+		log.Info("AJ-new node proposed waiting for events...")
+		select {
+		case evt = <-ch:
+			log.Info("AJ-newNodeProposed", "node", evt.EnodeId)
+			p.updatePermissionedNodes(evt.EnodeId, NodeAdd)
+			types.NodeInfoMap.UpsertNode(evt.OrgId, evt.EnodeId, types.NodePendingApproval)
+			log.Info("AJ-newNodeProposed cached updated for ", "enode", evt.EnodeId)
+		}
 	}
 }
 
@@ -261,7 +267,7 @@ func (p *PermissionCtrl) monitorNodeDeactivation() {
 		select {
 		case evt = <-ch:
 			p.updatePermissionedNodes(evt.EnodeId, NodeDelete)
-			types.NodeInfoMap.UpsertNode(evt.OrgId, evt.EnodeId, 3)
+			types.NodeInfoMap.UpsertNode(evt.OrgId, evt.EnodeId, types.NodeDeactivated)
 			log.Info("AJ-NodeDeactivated cached updated for ", "enode", evt.EnodeId)
 		}
 
@@ -286,7 +292,7 @@ func (p *PermissionCtrl) monitorNodeActivation() {
 		select {
 		case evt = <-ch:
 			p.updatePermissionedNodes(evt.EnodeId, NodeAdd)
-			types.NodeInfoMap.UpsertNode(evt.OrgId, evt.EnodeId, 2)
+			types.NodeInfoMap.UpsertNode(evt.OrgId, evt.EnodeId, types.NodeActivated)
 			log.Info("AJ-newNodeActivated cached updated for ", "enode", evt.EnodeId)
 		}
 	}
@@ -312,7 +318,7 @@ func (p *PermissionCtrl) monitorNodeBlacklisting() {
 			log.Info("AJ-nodeBlackListed", "event", evt)
 			p.updatePermissionedNodes(evt.EnodeId, NodeDelete)
 			p.updateDisallowedNodes(evt.EnodeId)
-			types.NodeInfoMap.UpsertNode(evt.OrgId, evt.EnodeId, 4)
+			types.NodeInfoMap.UpsertNode(evt.OrgId, evt.EnodeId, types.NodeBlackListed)
 			log.Info("AJ-newNodeABlacklisted cached updated for ", "enode", evt.EnodeId)
 		}
 
@@ -863,11 +869,36 @@ func (p *PermissionCtrl) monitorOrgActivation() {
 		select {
 		case evt = <-ch:
 			log.Info("AJ-OrgActivated", "node", evt.OrgId)
-			types.OrgInfoMap.UpsertOrg(evt.OrgId, 5)
+			types.OrgInfoMap.UpsertOrg(evt.OrgId, types.OrgRevokeSuspension)
 			log.Info("AJ-newOrgActivated cached updated for ", "orgid", evt.OrgId)
 		}
 	}
 }
+
+func (p *PermissionCtrl) monitorNewOrgPendingApproval() {
+	log.Info("AJ-new org pending approval event monitor started...")
+	ch := make(chan *pbind.OrgManagerOrgPendingApproval, 1)
+
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+	var evt *pbind.OrgManagerOrgPendingApproval
+
+	_, err := p.permOrg.OrgManagerFilterer.WatchOrgPendingApproval(opts, ch)
+	if err != nil {
+		log.Info("Failed WatchNodePendingApproval: %v", err)
+	}
+	for {
+		log.Info("AJ-new org pending approval waiting for events...")
+		select {
+		case evt = <-ch:
+			log.Info("AJ-newOrgPendingApproval", "node", evt.OrgId)
+			types.OrgInfoMap.UpsertOrg(evt.OrgId, types.OrgPendingApproval)
+			log.Info("AJ-newOrgPendingApproval cached updated for ", "orgid", evt.OrgId)
+		}
+	}
+}
+
 func (p *PermissionCtrl) monitorNewOrgAdd() {
 	log.Info("AJ-new org added event monitor started...")
 	ch := make(chan *pbind.OrgManagerOrgApproved, 1)
@@ -886,7 +917,7 @@ func (p *PermissionCtrl) monitorNewOrgAdd() {
 		select {
 		case evt = <-ch:
 			log.Info("AJ-newOrgApproved", "node", evt.OrgId)
-			types.OrgInfoMap.UpsertOrg(evt.OrgId, 2)
+			types.OrgInfoMap.UpsertOrg(evt.OrgId, types.OrgApproved)
 			log.Info("AJ-newOrgApproved cached updated for ", "orgid", evt.OrgId)
 		}
 	}
@@ -910,7 +941,7 @@ func (p *PermissionCtrl) monitorOrgDeactivation() {
 		select {
 		case evt = <-ch:
 			log.Info("AJ-newOrgSuspended", "node", evt.OrgId)
-			types.OrgInfoMap.UpsertOrg(evt.OrgId, 4)
+			types.OrgInfoMap.UpsertOrg(evt.OrgId, types.OrgRevokeSuspension)
 			log.Info("AJ-newOrgSuspended cached updated for ", "orgid", evt.OrgId)
 		}
 	}
@@ -968,7 +999,7 @@ func (p *PermissionCtrl) monitorNewRoleRemove() {
 		case evt = <-ch:
 			log.Info("AJ-newRoleRemoved", "org", evt.OrgId, "role", evt.RoleId)
 			if r := types.RoleInfoMap.GetRole(evt.OrgId, evt.RoleId); r != nil {
-				types.RoleInfoMap.UpsertRole(evt.OrgId, evt.RoleId, r.IsVoter, r.Access, true)
+				types.RoleInfoMap.UpsertRole(evt.OrgId, evt.RoleId, r.IsVoter, r.Access, false)
 				log.Info("AJ-newRoleRemoved cached updated for ", "orgid", evt.OrgId, "role", evt.RoleId)
 			} else {
 				log.Error("AJ-revoke role - cache is missing role", "org", evt.OrgId, "role", evt.RoleId)
