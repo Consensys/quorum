@@ -144,6 +144,7 @@ contract PermissionsImplementation {
         require(checkOrgStatus(_orgId, 1) == true, "Nothing to approve");
         if ((processVote(adminOrg, _caller, 1))) {
             org.approveOrg(_orgId);
+            roles.addRole(orgAdminRole, _orgId, fullAccess, true);
             nodes.approveNode(_enodeId, _orgId);
         }
     }

@@ -22,7 +22,7 @@ contract AccountManager {
     mapping(bytes32 => bool) private orgAdminIndex;
 
     // account permission events
-    event AccountAccessModified(address _address, string _orgId, string _roleId, bool _orgAdmin);
+    event AccountAccessModified(address _address, string _orgId, string _roleId, bool _orgAdmin, uint _status);
     event AccountAccessRevoked(address _address, string _orgId, string _roleId, bool _orgAdmin);
 
     modifier onlyImpl
@@ -95,7 +95,7 @@ contract AccountManager {
         if (_oAdmin) {
             orgAdminIndex[keccak256(abi.encodePacked(_orgId))] = true;
         }
-        emit AccountAccessModified(_address, _orgId, _roleId, _oAdmin);
+        emit AccountAccessModified(_address, _orgId, _roleId, _oAdmin, _status);
     }
 
     function addNWAdminAccount(address _address, string calldata _orgId) external
@@ -132,7 +132,7 @@ contract AccountManager {
             (status == 1)) {
             uint aIndex = getAcctIndex(_address);
             acctAccessList[aIndex].status = 2;
-            emit AccountAccessModified(_address, acctAccessList[aIndex].orgId, acctAccessList[aIndex].role, acctAccessList[aIndex].orgAdmin);
+            emit AccountAccessModified(_address, acctAccessList[aIndex].orgId, acctAccessList[aIndex].role, acctAccessList[aIndex].orgAdmin, acctAccessList[aIndex].status);
         }
 
     }
