@@ -16,7 +16,7 @@ contract RoleManager {
     mapping(bytes32 => uint) private roleIndex;
     uint private numberOfRoles;
 
-    event RoleCreated(string _roleId, string _orgId);
+    event RoleCreated(string _roleId, string _orgId, uint _baseAccess, bool _isVoter);
     event RoleRevoked(string _roleId, string _orgId);
 
     modifier onlyImpl
@@ -61,7 +61,7 @@ contract RoleManager {
             numberOfRoles ++;
             roleIndex[keccak256(abi.encodePacked(_roleId, _orgId))] = numberOfRoles;
             roleList.push(RoleDetails(_roleId, _orgId, _baseAccess, _voter, true));
-            emit RoleCreated(_roleId, _orgId);
+            emit RoleCreated(_roleId, _orgId, _baseAccess, _voter);
         }
     }
 
