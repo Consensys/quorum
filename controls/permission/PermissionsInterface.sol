@@ -98,7 +98,7 @@ contract PermissionsInterface {
 
     function removeRole(string calldata _roleId, string calldata _orgId) external
     {
-        permImplementation.removeRole(_roleId, _orgId);
+        permImplementation.removeRole(_roleId, _orgId, msg.sender);
     }
 
     function getRoleDetails(string calldata _roleId, string calldata _orgId) external view returns (string memory, string memory, uint, bool, bool)

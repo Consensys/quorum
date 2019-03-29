@@ -195,10 +195,10 @@ contract PermissionsImplementation {
         roles.addRole(_roleId, _orgId, _access, _voter);
     }
 
-    function removeRole(string calldata _roleId, string calldata _orgId) external
+    function removeRole(string calldata _roleId, string calldata _orgId,  address _caller) external
     onlyProxy
     orgApproved(_orgId)
-    orgAdmin(msg.sender, _orgId)
+    orgAdmin(_caller, _orgId)
     {
         roles.removeRole(_roleId, _orgId);
     }
