@@ -473,8 +473,7 @@ func (p *PermissionCtrl) monitorAccountPermissionsAccessModified() {
 		select {
 		case evt = <-ch:
 			log.Info("AJ-AccountAccessModified", "address", evt.Address, "role", evt.RoleId)
-			types.AddAccountAccess(evt.Address, evt.RoleId)
-			types.AcctInfoMap.UpsertAccount(evt.OrgId, evt.RoleId, evt.Address, evt.OrgAdmin, types.AcctActive)
+			types.AcctInfoMap.UpsertAccount(evt.OrgId, evt.RoleId, evt.Address, evt.OrgAdmin, types.AcctStatus(int(evt.Status.Uint64())))
 			log.Info("AJ-AccountAccessModified cached updated for ", "acct", evt.Address)
 		}
 
@@ -498,7 +497,6 @@ func (p *PermissionCtrl) monitorAccountPermissionsAccessRevoked() {
 		select {
 		case evt = <-ch:
 			log.Info("AJ-AccountAccessModified", "address", evt.Address, "role", evt.RoleId)
-			types.AddAccountAccess(evt.Address, evt.RoleId)
 			types.AcctInfoMap.UpsertAccount(evt.OrgId, evt.RoleId, evt.Address, evt.OrgAdmin, types.AcctActive)
 			log.Info("AJ-AccountAccessModified cached updated for ", "acct", evt.Address)
 		}

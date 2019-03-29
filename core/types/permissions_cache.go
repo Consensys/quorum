@@ -70,11 +70,6 @@ type AccountInfo struct {
 	Status     AcctStatus
 }
 
-type PermStruct struct {
-	AcctId common.Address
-	roleId string
-}
-
 type OrgStruct struct {
 	OrgId string
 	Keys  []string
@@ -159,12 +154,10 @@ func NewAcctCache() *AcctCache {
 
 var DefaultAccess = FullAccess
 
-const acctMapLimit = 100
 const orgKeyMapLimit = 100
 
 const defaultMapLimit = 100
 
-var AcctMap, _ = lru.New(acctMapLimit)
 var OrgKeyMap, _ = lru.New(orgKeyMapLimit)
 
 var OrgInfoMap = NewOrgCache()
@@ -180,7 +173,7 @@ func (pc *PermissionConfig) IsEmpty() bool {
 
 // sets default access to ReadOnly
 func SetDefaultAccess() {
-	DefaultAccess = FullAccess
+	DefaultAccess = ReadOnly
 }
 
 func (o *OrgCache) UpsertOrg(orgId string, status OrgStatus) {
@@ -368,19 +361,27 @@ func (o *RoleCache) GetRoleList() []RoleInfo {
 	return olist
 }
 
-// Adds account access to the cache
-func AddAccountAccess(acctId common.Address, roleId string) {
-	AcctMap.Add(acctId, &PermStruct{AcctId: acctId, roleId: roleId})
-}
-
 // Returns the access type for an account. If not found returns
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
-	if AcctMap.Len() != 0 {
-		if _, ok := AcctMap.Get(acctId); ok {
-			// val.(*PermStruct)
-			return DefaultAccess
+	log.Info("AJ-get acct access ", "acct", acctId)
+	if a := AcctInfoMap.GetAccountByAccount(acctId); a != nil {
+		log.Info("AJ-Acct found", "a", a)
+		o := OrgInfoMap.GetOrg(a.OrgId)
+		r := RoleInfoMap.GetRole(a.OrgId, a.RoleId)
+		if o != nil && r != nil {
+			log.Info("AJ-org role found")
+			if (o.Status == OrgApproved || o.Status == OrgRevokeSuspension) && r.Active {
+				log.Info("AJ-access found", "access", r.Access)
+				return r.Access
+			} else {
+				log.Info("AJ-access org or role invalid")
+			}
+		} else {
+			log.Info("AJ-access org or role is missing")
 		}
+	} else {
+		log.Info("AJ-Acct not found", "def access", DefaultAccess)
 	}
 	return DefaultAccess
 }
