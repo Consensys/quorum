@@ -23,17 +23,17 @@ contract NodeManager {
 
 
     // node permission events for new node propose
-    event NodeProposed(string _enodeId);
-    event NodeApproved(string _enodeId);
+    event NodeProposed(string _enodeId, string _orgId);
+    event NodeApproved(string _enodeId, string _orgId);
 
     // node permission events for node decativation
-    event NodeDeactivated(string _enodeId);
+    event NodeDeactivated(string _enodeId, string _orgId);
 
     // node permission events for node activation
-    event NodeActivated(string _enodeId);
+    event NodeActivated(string _enodeId, string _orgId);
 
     // node permission events for node blacklist
-    event NodeBlacklisted(string _enodeId);
+    event NodeBlacklisted(string _enodeId, string _orgId);
 
     modifier onlyImpl
     {
@@ -99,7 +99,7 @@ contract NodeManager {
         numberOfNodes++;
         nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
         nodeList.push(NodeDetails(_enodeId, _orgId,  1));
-        emit NodeProposed(_enodeId);
+        emit NodeProposed(_enodeId, _orgId);
     }
 
     function addOrgNode(string calldata _enodeId, string calldata _orgId) external
@@ -109,7 +109,7 @@ contract NodeManager {
         numberOfNodes++;
         nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
         nodeList.push(NodeDetails(_enodeId, _orgId,  2));
-        emit NodeApproved(_enodeId);
+        emit NodeApproved(_enodeId, _orgId);
     }
 
     // Adds a node to the nodeList mapping and emits node added event if successfully and node exists event of node is already present
@@ -123,7 +123,7 @@ contract NodeManager {
         uint nodeIndex = getNodeIndex(_enodeId);
         // vote node
         nodeList[nodeIndex].status = 2;
-        emit NodeApproved(nodeList[nodeIndex].enodeId);
+        emit NodeApproved(nodeList[nodeIndex].enodeId, nodeList[nodeIndex].orgId);
     }
 
     function updateNodeStatus(string calldata _enodeId, string calldata _orgId, uint _status) external
@@ -139,16 +139,16 @@ contract NodeManager {
         if (_status == 3){
             require(getNodeStatus(_enodeId) == 2, "Op cannot be performed");
             nodeList[getNodeIndex(_enodeId)].status = 3;
-            emit NodeDeactivated(_enodeId);
+            emit NodeDeactivated(_enodeId, _orgId);
         }
         else if (_status == 4){
             require(getNodeStatus(_enodeId) == 3, "Op cannot be performed");
             nodeList[getNodeIndex(_enodeId)].status = 2;
-            emit NodeActivated(_enodeId);
+            emit NodeActivated(_enodeId, _orgId);
         }
         else {
             nodeList[getNodeIndex(_enodeId)].status = 5;
-            emit NodeBlacklisted(_enodeId);
+            emit NodeBlacklisted(_enodeId, _orgId);
         }
     }
 
