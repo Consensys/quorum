@@ -19,41 +19,46 @@ const (
 type OrgStatus uint8
 
 const (
-	Proposed OrgStatus = 1
-	Approved
-	PendingSuspension
-	Suspended
-	RevokeSuspension
+	OrgProposed OrgStatus = iota + 1
+	OrgApproved
+	OrgPendingSuspension
+	OrgSuspended
+	OrgRevokeSuspension
 )
 
 type OrgInfo struct {
 	OrgId  string
-	Status int
+	Status OrgStatus
 }
 
 type NodeStatus uint8
 
 const (
-	PendingApproval NodeStatus = 1
+	NodePendingApproval NodeStatus = iota + 1
 	NodeApproved
-	PendingDeactivation
-	Deactivated
-	PendingActivation
-	PendingBlacklisting
+	NodeDeactivated
 	Blacklisted
+)
+
+type AcctStatus uint8
+
+const (
+	AcctPendingApproval AcctStatus = iota + 1
+	AcctActive
+	AcctInactive
 )
 
 type NodeInfo struct {
 	OrgId  string
 	Url    string
-	Status int
+	Status NodeStatus
 }
 
 type RoleInfo struct {
 	OrgId   string
 	RoleId  string
 	IsVoter bool
-	Access  int
+	Access  AccessType
 	Active  bool
 }
 
@@ -62,7 +67,7 @@ type AccountInfo struct {
 	RoleId     string
 	AcctId     common.Address
 	IsOrgAdmin bool
-	Status     int
+	Status     AcctStatus
 }
 
 type PermStruct struct {
@@ -178,7 +183,7 @@ func SetDefaultAccess() {
 	DefaultAccess = FullAccess
 }
 
-func (o *OrgCache) UpsertOrg(orgId string, status int) {
+func (o *OrgCache) UpsertOrg(orgId string, status OrgStatus) {
 	defer o.mux.Unlock()
 	o.mux.Lock()
 	key := OrgKey{OrgId: orgId}
@@ -218,7 +223,7 @@ func (o *OrgCache) GetOrgList() []OrgInfo {
 	return olist
 }
 
-func (n *NodeCache) UpsertNode(orgId string, url string, status int) {
+func (n *NodeCache) UpsertNode(orgId string, url string, status NodeStatus) {
 	defer n.mux.Unlock()
 	n.mux.Lock()
 	key := NodeKey{OrgId: orgId, Url: url}
@@ -270,7 +275,7 @@ func (o *NodeCache) GetNodeList() []NodeInfo {
 	return olist
 }
 
-func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address, orgAdmin bool, status int) {
+func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address, orgAdmin bool, status AcctStatus) {
 	defer a.mux.Unlock()
 	a.mux.Lock()
 	key := AccountKey{orgId, role, acct}
@@ -322,7 +327,7 @@ func (o *AcctCache) GetAcctList() []AccountInfo {
 	return olist
 }
 
-func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, access int, active bool) {
+func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, access AccessType, active bool) {
 	defer r.mux.Unlock()
 	r.mux.Lock()
 	key := RoleKey{orgId, role}

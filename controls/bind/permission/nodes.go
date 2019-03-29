@@ -28,7 +28,7 @@ var (
 )
 
 // NodeManagerABI is the input ABI used to generate the binding from.
-const NodeManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateNodeStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"enodeId\",\"type\":\"string\"}],\"name\":\"getNodeDetails\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addOrgNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"approveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"nodeIndex\",\"type\":\"uint256\"}],\"name\":\"getNodeDetailsFromIndex\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addAdminNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeActivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"}]"
+const NodeManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateNodeStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"enodeId\",\"type\":\"string\"}],\"name\":\"getNodeDetails\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addOrgNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"approveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"nodeIndex\",\"type\":\"uint256\"}],\"name\":\"getNodeDetailsFromIndex\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addAdminNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeActivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"}]"
 
 // NodeManager is an auto generated Go binding around an Ethereum contract.
 type NodeManager struct {
@@ -479,12 +479,13 @@ func (it *NodeManagerNodeActivatedIterator) Close() error {
 // NodeManagerNodeActivated represents a NodeActivated event raised by the NodeManager contract.
 type NodeManagerNodeActivated struct {
 	EnodeId string
+	OrgId   string
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterNodeActivated is a free log retrieval operation binding the contract event 0xeee4ff0a0bd593fd1a0d7504eca37b4027b72bc4cc3df6bf3d1c7e27848d279e.
+// FilterNodeActivated is a free log retrieval operation binding the contract event 0x49796be3ca168a59c8ae46c75a36a9bb3a84753d3e12a812f93ae010e783b14f.
 //
-// Solidity: e NodeActivated(_enodeId string)
+// Solidity: e NodeActivated(_enodeId string, _orgId string)
 func (_NodeManager *NodeManagerFilterer) FilterNodeActivated(opts *bind.FilterOpts) (*NodeManagerNodeActivatedIterator, error) {
 
 	logs, sub, err := _NodeManager.contract.FilterLogs(opts, "NodeActivated")
@@ -494,9 +495,9 @@ func (_NodeManager *NodeManagerFilterer) FilterNodeActivated(opts *bind.FilterOp
 	return &NodeManagerNodeActivatedIterator{contract: _NodeManager.contract, event: "NodeActivated", logs: logs, sub: sub}, nil
 }
 
-// WatchNodeActivated is a free log subscription operation binding the contract event 0xeee4ff0a0bd593fd1a0d7504eca37b4027b72bc4cc3df6bf3d1c7e27848d279e.
+// WatchNodeActivated is a free log subscription operation binding the contract event 0x49796be3ca168a59c8ae46c75a36a9bb3a84753d3e12a812f93ae010e783b14f.
 //
-// Solidity: e NodeActivated(_enodeId string)
+// Solidity: e NodeActivated(_enodeId string, _orgId string)
 func (_NodeManager *NodeManagerFilterer) WatchNodeActivated(opts *bind.WatchOpts, sink chan<- *NodeManagerNodeActivated) (event.Subscription, error) {
 
 	logs, sub, err := _NodeManager.contract.WatchLogs(opts, "NodeActivated")
@@ -601,12 +602,13 @@ func (it *NodeManagerNodeApprovedIterator) Close() error {
 // NodeManagerNodeApproved represents a NodeApproved event raised by the NodeManager contract.
 type NodeManagerNodeApproved struct {
 	EnodeId string
+	OrgId   string
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterNodeApproved is a free log retrieval operation binding the contract event 0xc8f0c6e7f31c7ba4e6e29615ae2ab658fdda704c49912bb6118db07a4c36d478.
+// FilterNodeApproved is a free log retrieval operation binding the contract event 0x0413ce00d5de406d9939003416263a7530eaeb13f9d281c8baeba1601def960d.
 //
-// Solidity: e NodeApproved(_enodeId string)
+// Solidity: e NodeApproved(_enodeId string, _orgId string)
 func (_NodeManager *NodeManagerFilterer) FilterNodeApproved(opts *bind.FilterOpts) (*NodeManagerNodeApprovedIterator, error) {
 
 	logs, sub, err := _NodeManager.contract.FilterLogs(opts, "NodeApproved")
@@ -616,9 +618,9 @@ func (_NodeManager *NodeManagerFilterer) FilterNodeApproved(opts *bind.FilterOpt
 	return &NodeManagerNodeApprovedIterator{contract: _NodeManager.contract, event: "NodeApproved", logs: logs, sub: sub}, nil
 }
 
-// WatchNodeApproved is a free log subscription operation binding the contract event 0xc8f0c6e7f31c7ba4e6e29615ae2ab658fdda704c49912bb6118db07a4c36d478.
+// WatchNodeApproved is a free log subscription operation binding the contract event 0x0413ce00d5de406d9939003416263a7530eaeb13f9d281c8baeba1601def960d.
 //
-// Solidity: e NodeApproved(_enodeId string)
+// Solidity: e NodeApproved(_enodeId string, _orgId string)
 func (_NodeManager *NodeManagerFilterer) WatchNodeApproved(opts *bind.WatchOpts, sink chan<- *NodeManagerNodeApproved) (event.Subscription, error) {
 
 	logs, sub, err := _NodeManager.contract.WatchLogs(opts, "NodeApproved")
@@ -723,12 +725,13 @@ func (it *NodeManagerNodeBlacklistedIterator) Close() error {
 // NodeManagerNodeBlacklisted represents a NodeBlacklisted event raised by the NodeManager contract.
 type NodeManagerNodeBlacklisted struct {
 	EnodeId string
+	OrgId   string
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterNodeBlacklisted is a free log retrieval operation binding the contract event 0xf97ae29ad6493ecc1ebba750b96015715fca52d1f0160b48f39788cbc6204a8e.
+// FilterNodeBlacklisted is a free log retrieval operation binding the contract event 0x4714623279994517c446c8fb72c3fdaca26434da1e2490d3976fe0cd880cfa7a.
 //
-// Solidity: e NodeBlacklisted(_enodeId string)
+// Solidity: e NodeBlacklisted(_enodeId string, _orgId string)
 func (_NodeManager *NodeManagerFilterer) FilterNodeBlacklisted(opts *bind.FilterOpts) (*NodeManagerNodeBlacklistedIterator, error) {
 
 	logs, sub, err := _NodeManager.contract.FilterLogs(opts, "NodeBlacklisted")
@@ -738,9 +741,9 @@ func (_NodeManager *NodeManagerFilterer) FilterNodeBlacklisted(opts *bind.Filter
 	return &NodeManagerNodeBlacklistedIterator{contract: _NodeManager.contract, event: "NodeBlacklisted", logs: logs, sub: sub}, nil
 }
 
-// WatchNodeBlacklisted is a free log subscription operation binding the contract event 0xf97ae29ad6493ecc1ebba750b96015715fca52d1f0160b48f39788cbc6204a8e.
+// WatchNodeBlacklisted is a free log subscription operation binding the contract event 0x4714623279994517c446c8fb72c3fdaca26434da1e2490d3976fe0cd880cfa7a.
 //
-// Solidity: e NodeBlacklisted(_enodeId string)
+// Solidity: e NodeBlacklisted(_enodeId string, _orgId string)
 func (_NodeManager *NodeManagerFilterer) WatchNodeBlacklisted(opts *bind.WatchOpts, sink chan<- *NodeManagerNodeBlacklisted) (event.Subscription, error) {
 
 	logs, sub, err := _NodeManager.contract.WatchLogs(opts, "NodeBlacklisted")
@@ -845,12 +848,13 @@ func (it *NodeManagerNodeDeactivatedIterator) Close() error {
 // NodeManagerNodeDeactivated represents a NodeDeactivated event raised by the NodeManager contract.
 type NodeManagerNodeDeactivated struct {
 	EnodeId string
+	OrgId   string
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterNodeDeactivated is a free log retrieval operation binding the contract event 0xb4551525dafbacbcbad53f3a1ad477e2de2428dcd5832ae46d8edacf8c2959d5.
+// FilterNodeDeactivated is a free log retrieval operation binding the contract event 0xc6c3720fe673e87bb26e06be713d514278aa94c3939cfe7c64b9bea4d486824a.
 //
-// Solidity: e NodeDeactivated(_enodeId string)
+// Solidity: e NodeDeactivated(_enodeId string, _orgId string)
 func (_NodeManager *NodeManagerFilterer) FilterNodeDeactivated(opts *bind.FilterOpts) (*NodeManagerNodeDeactivatedIterator, error) {
 
 	logs, sub, err := _NodeManager.contract.FilterLogs(opts, "NodeDeactivated")
@@ -860,9 +864,9 @@ func (_NodeManager *NodeManagerFilterer) FilterNodeDeactivated(opts *bind.Filter
 	return &NodeManagerNodeDeactivatedIterator{contract: _NodeManager.contract, event: "NodeDeactivated", logs: logs, sub: sub}, nil
 }
 
-// WatchNodeDeactivated is a free log subscription operation binding the contract event 0xb4551525dafbacbcbad53f3a1ad477e2de2428dcd5832ae46d8edacf8c2959d5.
+// WatchNodeDeactivated is a free log subscription operation binding the contract event 0xc6c3720fe673e87bb26e06be713d514278aa94c3939cfe7c64b9bea4d486824a.
 //
-// Solidity: e NodeDeactivated(_enodeId string)
+// Solidity: e NodeDeactivated(_enodeId string, _orgId string)
 func (_NodeManager *NodeManagerFilterer) WatchNodeDeactivated(opts *bind.WatchOpts, sink chan<- *NodeManagerNodeDeactivated) (event.Subscription, error) {
 
 	logs, sub, err := _NodeManager.contract.WatchLogs(opts, "NodeDeactivated")
@@ -967,12 +971,13 @@ func (it *NodeManagerNodeProposedIterator) Close() error {
 // NodeManagerNodeProposed represents a NodeProposed event raised by the NodeManager contract.
 type NodeManagerNodeProposed struct {
 	EnodeId string
+	OrgId   string
 	Raw     types.Log // Blockchain specific contextual infos
 }
 
-// FilterNodeProposed is a free log retrieval operation binding the contract event 0xaddedf3fcf588a85e0b0c3210c30da3f5597ae35221859f7e19427397a2ba80a.
+// FilterNodeProposed is a free log retrieval operation binding the contract event 0xb1a7eec7dd1a516c3132d6d1f770758b19aa34c3a07c138caf662688b7e3556f.
 //
-// Solidity: e NodeProposed(_enodeId string)
+// Solidity: e NodeProposed(_enodeId string, _orgId string)
 func (_NodeManager *NodeManagerFilterer) FilterNodeProposed(opts *bind.FilterOpts) (*NodeManagerNodeProposedIterator, error) {
 
 	logs, sub, err := _NodeManager.contract.FilterLogs(opts, "NodeProposed")
@@ -982,9 +987,9 @@ func (_NodeManager *NodeManagerFilterer) FilterNodeProposed(opts *bind.FilterOpt
 	return &NodeManagerNodeProposedIterator{contract: _NodeManager.contract, event: "NodeProposed", logs: logs, sub: sub}, nil
 }
 
-// WatchNodeProposed is a free log subscription operation binding the contract event 0xaddedf3fcf588a85e0b0c3210c30da3f5597ae35221859f7e19427397a2ba80a.
+// WatchNodeProposed is a free log subscription operation binding the contract event 0xb1a7eec7dd1a516c3132d6d1f770758b19aa34c3a07c138caf662688b7e3556f.
 //
-// Solidity: e NodeProposed(_enodeId string)
+// Solidity: e NodeProposed(_enodeId string, _orgId string)
 func (_NodeManager *NodeManagerFilterer) WatchNodeProposed(opts *bind.WatchOpts, sink chan<- *NodeManagerNodeProposed) (event.Subscription, error) {
 
 	logs, sub, err := _NodeManager.contract.WatchLogs(opts, "NodeProposed")

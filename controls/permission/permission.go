@@ -240,53 +240,7 @@ func (p *PermissionCtrl) updateNodeChange(url string) {
 	if rs, err := permAcctSession.GetNodeDetails(url); err != nil {
 		log.Error("AJ-failed to read node info ", "err", err)
 	} else {
-		types.NodeInfoMap.UpsertNode(rs.OrgId, rs.EnodeId, int(rs.NodeStatus.Uint64()))
-	}
-}
-
-func (p *PermissionCtrl) updateOrgChange(orgId string) {
-	auth := bind.NewKeyedTransactor(p.key)
-	permAcctSession := &pbind.OrgManagerSession{
-		Contract: p.permOrg,
-		CallOpts: bind.CallOpts{
-			Pending: true,
-		},
-		TransactOpts: bind.TransactOpts{
-			From:     auth.From,
-			Signer:   auth.Signer,
-			GasLimit: 47000000,
-			GasPrice: big.NewInt(0),
-		},
-	}
-	if rs, err := permAcctSession.GetOrgIndex(orgId); err != nil {
-		log.Error("AJ-failed to read org index info ", "err", err)
-	} else {
-		if org, status, err := permAcctSession.GetOrgInfo(rs); err != nil {
-			log.Error("AJ-failed to read org detail info ", "err", err)
-		} else {
-			types.OrgInfoMap.UpsertOrg(org, int(status.Uint64()))
-		}
-	}
-}
-
-func (p *PermissionCtrl) updateRoleChange(orgId string, role string) {
-	auth := bind.NewKeyedTransactor(p.key)
-	permAcctSession := &pbind.RoleManagerSession{
-		Contract: p.permRole,
-		CallOpts: bind.CallOpts{
-			Pending: true,
-		},
-		TransactOpts: bind.TransactOpts{
-			From:     auth.From,
-			Signer:   auth.Signer,
-			GasLimit: 47000000,
-			GasPrice: big.NewInt(0),
-		},
-	}
-	if rs, err := permAcctSession.GetRoleDetails(role, orgId); err != nil {
-		log.Error("AJ-failed to read role info ", "err", err)
-	} else {
-		types.RoleInfoMap.UpsertRole(rs.OrgId, rs.RoleId, rs.Voter, int(rs.AccessType.Uint64()), rs.Active)
+		types.NodeInfoMap.UpsertNode(rs.OrgId, rs.EnodeId, types.NodeStatus(int(rs.NodeStatus.Uint64())))
 	}
 }
 
@@ -307,7 +261,7 @@ func (p *PermissionCtrl) monitorNodeDeactivation() {
 		select {
 		case evt = <-ch:
 			p.updatePermissionedNodes(evt.EnodeId, NodeDelete)
-			p.updateNodeChange(evt.EnodeId)
+			types.NodeInfoMap.UpsertNode(evt.OrgId, evt.EnodeId, 3)
 			log.Info("AJ-NodeDeactivated cached updated for ", "enode", evt.EnodeId)
 		}
 
@@ -332,7 +286,7 @@ func (p *PermissionCtrl) monitorNodeActivation() {
 		select {
 		case evt = <-ch:
 			p.updatePermissionedNodes(evt.EnodeId, NodeAdd)
-			p.updateNodeChange(evt.EnodeId)
+			types.NodeInfoMap.UpsertNode(evt.OrgId, evt.EnodeId, 2)
 			log.Info("AJ-newNodeActivated cached updated for ", "enode", evt.EnodeId)
 		}
 	}
@@ -358,7 +312,7 @@ func (p *PermissionCtrl) monitorNodeBlacklisting() {
 			log.Info("AJ-nodeBlackListed", "event", evt)
 			p.updatePermissionedNodes(evt.EnodeId, NodeDelete)
 			p.updateDisallowedNodes(evt.EnodeId)
-			p.updateNodeChange(evt.EnodeId)
+			types.NodeInfoMap.UpsertNode(evt.OrgId, evt.EnodeId, 4)
 			log.Info("AJ-newNodeABlacklisted cached updated for ", "enode", evt.EnodeId)
 		}
 
@@ -467,8 +421,8 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 	if !p.permissionedMode {
 		return
 	}
-	go p.monitorAccountPermissions()
-
+	go p.monitorAccountPermissionsAccessModified()
+	go p.monitorAccountPermissionsAccessRevoked()
 	return
 }
 
@@ -502,13 +456,13 @@ func (p *PermissionCtrl) populatePermissionedNodes() error {
 }
 
 // Monitors permissions changes at acount level and uodate the account permissions cache
-func (p *PermissionCtrl) monitorAccountPermissions() {
+func (p *PermissionCtrl) monitorAccountPermissionsAccessModified() {
 	ch := make(chan *pbind.AcctManagerAccountAccessModified)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var newEvent *pbind.AcctManagerAccountAccessModified
+	var evt *pbind.AcctManagerAccountAccessModified
 
 	_, err := p.permAcct.AcctManagerFilterer.WatchAccountAccessModified(opts, ch)
 	if err != nil {
@@ -517,30 +471,38 @@ func (p *PermissionCtrl) monitorAccountPermissions() {
 
 	for {
 		select {
-		case newEvent = <-ch:
-			log.Info("AJ-AccountAccessModified", "address", newEvent.Address, "role", newEvent.RoleId)
-			types.AddAccountAccess(newEvent.Address, newEvent.RoleId)
-			auth := bind.NewKeyedTransactor(p.key)
-			permAcctSession := &pbind.AcctManagerSession{
-				Contract: p.permAcct,
-				CallOpts: bind.CallOpts{
-					Pending: true,
-				},
-				TransactOpts: bind.TransactOpts{
-					From:     auth.From,
-					Signer:   auth.Signer,
-					GasLimit: 47000000,
-					GasPrice: big.NewInt(0),
-				},
-			}
-			if addr, org, role, status, orgAdmin, err := permAcctSession.GetAccountDetails(newEvent.Address); err != nil {
-				log.Error("AJ-failed to read account info ", "err", err)
-			} else {
-				types.AcctInfoMap.UpsertAccount(org, role, addr, orgAdmin, int(status.Uint64()))
-				log.Info("AJ-AccountAccessModified cached updated for ", "acct", addr)
-			}
-
+		case evt = <-ch:
+			log.Info("AJ-AccountAccessModified", "address", evt.Address, "role", evt.RoleId)
+			types.AddAccountAccess(evt.Address, evt.RoleId)
+			types.AcctInfoMap.UpsertAccount(evt.OrgId, evt.RoleId, evt.Address, evt.OrgAdmin, types.AcctActive)
+			log.Info("AJ-AccountAccessModified cached updated for ", "acct", evt.Address)
 		}
+
+	}
+}
+
+func (p *PermissionCtrl) monitorAccountPermissionsAccessRevoked() {
+	ch := make(chan *pbind.AcctManagerAccountAccessRevoked)
+
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+	var evt *pbind.AcctManagerAccountAccessRevoked
+
+	_, err := p.permAcct.AcctManagerFilterer.WatchAccountAccessRevoked(opts, ch)
+	if err != nil {
+		log.Info("AJ-Failed NewNodeProposed: %v", err)
+	}
+
+	for {
+		select {
+		case evt = <-ch:
+			log.Info("AJ-AccountAccessModified", "address", evt.Address, "role", evt.RoleId)
+			types.AddAccountAccess(evt.Address, evt.RoleId)
+			types.AcctInfoMap.UpsertAccount(evt.OrgId, evt.RoleId, evt.Address, evt.OrgAdmin, types.AcctActive)
+			log.Info("AJ-AccountAccessModified cached updated for ", "acct", evt.Address)
+		}
+
 	}
 }
 
@@ -726,7 +688,7 @@ func (p *PermissionCtrl) populateAccountsFromContract(auth *bind.TransactOpts) {
 			if addr, org, role, status, orgAdmin, err := permAcctSession.GetAccountDetailsFromIndex(big.NewInt(int64(k))); err != nil {
 				log.Error("AJ-Org reading org info failed")
 			} else {
-				types.AcctInfoMap.UpsertAccount(org, role, addr, orgAdmin, int(status.Int64()))
+				types.AcctInfoMap.UpsertAccount(org, role, addr, orgAdmin, types.AcctStatus(int(status.Int64())))
 			}
 		}
 
@@ -758,7 +720,7 @@ func (p *PermissionCtrl) populateRolesFromContract(auth *bind.TransactOpts) {
 			if roleStruct, err := permRoleSession.GetRoleDetailsFromIndex(big.NewInt(int64(k))); err != nil {
 				log.Error("AJ-role reading org info failed")
 			} else {
-				types.RoleInfoMap.UpsertRole(roleStruct.OrgId, roleStruct.RoleId, roleStruct.Voter, int(roleStruct.AccessType.Int64()), roleStruct.Active)
+				types.RoleInfoMap.UpsertRole(roleStruct.OrgId, roleStruct.RoleId, roleStruct.Voter, types.AccessType(int(roleStruct.AccessType.Int64())), roleStruct.Active)
 			}
 		}
 
@@ -790,7 +752,7 @@ func (p *PermissionCtrl) populateNodesFromContract(auth *bind.TransactOpts) {
 			if nodeStruct, err := permNodeSession.GetNodeDetailsFromIndex(big.NewInt(int64(k))); err != nil {
 				log.Error("AJ-node reading org info failed")
 			} else {
-				types.NodeInfoMap.UpsertNode(nodeStruct.OrgId, nodeStruct.EnodeId, int(nodeStruct.NodeStatus.Int64()))
+				types.NodeInfoMap.UpsertNode(nodeStruct.OrgId, nodeStruct.EnodeId, types.NodeStatus(int(nodeStruct.NodeStatus.Int64())))
 			}
 		}
 
@@ -822,7 +784,7 @@ func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) {
 			if o, s, err := permOrgSession.GetOrgInfo(big.NewInt(int64(k))); err != nil {
 				log.Error("AJ-Org reading org info failed")
 			} else {
-				types.OrgInfoMap.UpsertOrg(o, int(s.Int64()))
+				types.OrgInfoMap.UpsertOrg(o, types.OrgStatus(int(s.Int64())))
 			}
 		}
 
@@ -903,7 +865,7 @@ func (p *PermissionCtrl) monitorOrgActivation() {
 		select {
 		case evt = <-ch:
 			log.Info("AJ-OrgActivated", "node", evt.OrgId)
-			p.updateOrgChange(evt.OrgId)
+			types.OrgInfoMap.UpsertOrg(evt.OrgId, 5)
 			log.Info("AJ-newOrgActivated cached updated for ", "orgid", evt.OrgId)
 		}
 	}
@@ -926,7 +888,7 @@ func (p *PermissionCtrl) monitorNewOrgAdd() {
 		select {
 		case evt = <-ch:
 			log.Info("AJ-newOrgApproved", "node", evt.OrgId)
-			p.updateOrgChange(evt.OrgId)
+			types.OrgInfoMap.UpsertOrg(evt.OrgId, 2)
 			log.Info("AJ-newOrgApproved cached updated for ", "orgid", evt.OrgId)
 		}
 	}
@@ -950,7 +912,7 @@ func (p *PermissionCtrl) monitorOrgDeactivation() {
 		select {
 		case evt = <-ch:
 			log.Info("AJ-newOrgSuspended", "node", evt.OrgId)
-			p.updateOrgChange(evt.OrgId)
+			types.OrgInfoMap.UpsertOrg(evt.OrgId, 4)
 			log.Info("AJ-newOrgSuspended cached updated for ", "orgid", evt.OrgId)
 		}
 	}
@@ -983,7 +945,7 @@ func (p *PermissionCtrl) monitorNewRoleAdd() {
 		select {
 		case evt = <-ch:
 			log.Info("AJ-newRoleCreated", "org", evt.OrgId, "role", evt.RoleId)
-			p.updateRoleChange(evt.OrgId, evt.RoleId)
+			types.RoleInfoMap.UpsertRole(evt.OrgId, evt.RoleId, evt.IsVoter, types.AccessType(int(evt.BaseAccess.Uint64())), true)
 			log.Info("AJ-newRoleCreated cached updated for ", "orgid", evt.OrgId, "role", evt.RoleId)
 		}
 	}
@@ -1007,8 +969,13 @@ func (p *PermissionCtrl) monitorNewRoleRemove() {
 		select {
 		case evt = <-ch:
 			log.Info("AJ-newRoleRemoved", "org", evt.OrgId, "role", evt.RoleId)
-			p.updateRoleChange(evt.OrgId, evt.RoleId)
-			log.Info("AJ-newRoleRemoved cached updated for ", "orgid", evt.OrgId, "role", evt.RoleId)
+			if r := types.RoleInfoMap.GetRole(evt.OrgId, evt.RoleId); r != nil {
+				types.RoleInfoMap.UpsertRole(evt.OrgId, evt.RoleId, r.IsVoter, r.Access, true)
+				log.Info("AJ-newRoleRemoved cached updated for ", "orgid", evt.OrgId, "role", evt.RoleId)
+			} else {
+				log.Error("AJ-revoke role - cache is missing role", "org", evt.OrgId, "role", evt.RoleId)
+			}
+
 		}
 	}
 }

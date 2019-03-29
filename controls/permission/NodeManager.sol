@@ -26,7 +26,7 @@ contract NodeManager {
     event NodeProposed(string _enodeId, string _orgId);
     event NodeApproved(string _enodeId, string _orgId);
 
-    // node permission events for node decativation
+    // node permission events for node deactivation
     event NodeDeactivated(string _enodeId, string _orgId);
 
     // node permission events for node activation
