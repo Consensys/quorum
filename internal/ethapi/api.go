@@ -1763,11 +1763,6 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 					return
 				}
 
-				// preemptive check if this node is party to contracts
-				if isMessageCall && len(creationTxEncryptedPayloadHashes) == 0 {
-					return isPrivate, common.EncryptedPayloadHash{}, errors.New("non-party to message call")
-				}
-
 				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 					ACHashes:     creationTxEncryptedPayloadHashes,
 					ACMerkleRoot: merkleRoot,
@@ -1777,10 +1772,6 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 				log.Trace("after simulation", "creationTxEncryptedPayloadHashes", creationTxEncryptedPayloadHashes, "merkleRoot", merkleRoot, "error", err)
 				if err != nil {
 					return
-				}
-				// preemptive check if this node is party to contracts
-				if isMessageCall && len(creationTxEncryptedPayloadHashes) == 0 {
-					return isPrivate, common.EncryptedPayloadHash{}, errors.New("non-party to message call")
 				}
 
 				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
@@ -1866,9 +1857,9 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	psv := privateTxArgs.PrivateStateValidation
 	//in a message call we can ignore the sent arg and use psv of the To contract
 	if isMessageCall {
-		pm, err := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
-		if err != nil {
-			return nil, common.Hash{}, errors.New("unable to obtain metadata ")
+		pm, _ := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
+		if pm == nil {
+			return nil, common.Hash{}, errors.New("non party member")
 		}
 		psv = pm.PrivateStateValidation
 		if privateTxArgs.PrivateStateValidation && !psv {
