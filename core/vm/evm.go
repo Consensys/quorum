@@ -599,9 +599,11 @@ func (evm *EVM) CreatedContracts() []common.Address {
 
 // Return MerkleRoot of all affected contracts
 func (evm *EVM) CalculateMerkleRoot() (common.Hash, error) {
+	affectedContracts := evm.AffectedContracts()
+	createdContracts := evm.CreatedContracts()
+	addresses := make([]common.Address, 0, len(affectedContracts)+len(createdContracts))
+	addresses = append(affectedContracts, createdContracts...)
 	combined := new(trie.Trie)
-	addresses := append(evm.AffectedContracts(), evm.CreatedContracts()...)
-	log.Trace("evm touched addresses", "addr", addresses)
 	for _, addr := range addresses {
 		data, err := getDualState(evm, addr).GetRLPEncodedStateObject(addr)
 		if err != nil {
