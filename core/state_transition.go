@@ -222,9 +222,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		if err != nil {
 			return nil, 0, false, nil
 		}
+		log.Trace("transitiondb", "extrastuff", extraPrivateMetadata)
 		hasPrivatePayload = data != nil
 		if extraPrivateMetadata != nil {
-			privMetadata := types.NewTxPrivacyMetadata(!common.EmptyHash(extraPrivateMetadata.ACMerkleRoot))
+			privMetadata := types.NewTxPrivacyMetadata(extraPrivateMetadata.PrivacyFlag)
 			st.evm.SetTxPrivacyMetadata(privMetadata)
 		}
 	} else {

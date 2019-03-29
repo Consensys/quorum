@@ -107,8 +107,8 @@ type Account struct {
 
 //attached to every private contract account
 type PrivacyMetadata struct {
-	CreationTxHash         common.EncryptedPayloadHash //hash of encrypted payload of creation tx
-	PrivateStateValidation bool
+	CreationTxHash common.EncryptedPayloadHash //hash of encrypted payload of creation tx
+	PrivacyFlag    uint64
 }
 
 // newObject creates a state object.
@@ -129,10 +129,10 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	}
 }
 
-func NewStatePrivacyMetadata(creationTxHash common.EncryptedPayloadHash, psv bool) *PrivacyMetadata {
+func NewStatePrivacyMetadata(creationTxHash common.EncryptedPayloadHash, privacyFlag uint64) *PrivacyMetadata {
 	return &PrivacyMetadata{
-		CreationTxHash:         creationTxHash,
-		PrivateStateValidation: psv,
+		CreationTxHash: creationTxHash,
+		PrivacyFlag:    privacyFlag,
 	}
 }
 

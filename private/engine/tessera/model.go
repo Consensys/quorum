@@ -31,7 +31,7 @@ type receiveResponse struct {
 	// Merkle root for affected contracts
 	ExecHash string `json:"execHash"`
 
-	PrivateStateValidation bool `json:"privateStateValidation"`
+	PrivacyFlag uint64 `json:"privacyFlag"`
 }
 
 type sendSignedTxRequest struct {

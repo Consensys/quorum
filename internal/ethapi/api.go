@@ -1199,10 +1199,10 @@ type SendRawTxArgs struct {
 
 // Additional arguments dedicated to private transactions
 type PrivateTxArgs struct {
-	PrivateFrom            string   `json:"privateFrom"`
-	PrivateFor             []string `json:"privateFor"`
-	PrivateTxType          string   `json:"restriction"`
-	PrivateStateValidation bool     `json:"psv"`
+	PrivateFrom   string   `json:"privateFrom"`
+	PrivateFor    []string `json:"privateFor"`
+	PrivateTxType string   `json:"restriction"`
+	PrivacyFlag   uint64   `json:"privacy"`
 }
 
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
@@ -1743,7 +1743,8 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 		if len(data) > 0 { // only support non-value-transfer transaction
 			var creationTxEncryptedPayloadHashes common.EncryptedPayloadHashes // of affected contract accounts
 			var merkleRoot common.Hash
-			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psvsender", privateTxArgs.PrivateStateValidation, "messageCall", isMessageCall)
+			var privacyFlag uint64
+			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psvsender", privateTxArgs.PrivacyFlag, "messageCall", isMessageCall)
 			if isRaw {
 				hash = common.BytesToEncryptedPayloadHash(data)
 				privatePayload, _, revErr := private.P.ReceiveRaw(hash)
@@ -1757,7 +1758,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 				} else {
 					privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
 				}
-				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, privateTx, privateTxArgs)
+				creationTxEncryptedPayloadHashes, merkleRoot, privacyFlag, err = simulateExecution(ctx, b, from, privateTx, privateTxArgs)
 				log.Trace("after simulation", "creationTxEncryptedPayloadHashes", creationTxEncryptedPayloadHashes, "merkleRoot", merkleRoot, "error", err)
 				if err != nil {
 					return
@@ -1766,9 +1767,10 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 					ACHashes:     creationTxEncryptedPayloadHashes,
 					ACMerkleRoot: merkleRoot,
+					PrivacyFlag:  privacyFlag,
 				})
 			} else {
-				creationTxEncryptedPayloadHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
+				creationTxEncryptedPayloadHashes, merkleRoot, privacyFlag, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
 				log.Trace("after simulation", "creationTxEncryptedPayloadHashes", creationTxEncryptedPayloadHashes, "merkleRoot", merkleRoot, "error", err)
 				if err != nil {
 					return
@@ -1777,12 +1779,13 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 					ACHashes:     creationTxEncryptedPayloadHashes,
 					ACMerkleRoot: merkleRoot,
+					PrivacyFlag:  privacyFlag,
 				})
 				if err != nil {
 					return
 				}
 			}
-			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "merkleroot", merkleRoot, "ismessagecall", isMessageCall, "error", err, "encryptedhahses", creationTxEncryptedPayloadHashes, "hash", hash)
+			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "merkleroot", merkleRoot, "ismessagecall", isMessageCall, "error", err, "encryptedhahses", creationTxEncryptedPayloadHashes, "privacyflag", privacyFlag, "hash", hash)
 			if err != nil {
 				return isPrivate, common.EncryptedPayloadHash{}, err
 			}
@@ -1795,14 +1798,14 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts
 // and the merkle root combining all affected contract accounts after the simulation
 //
-func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (common.EncryptedPayloadHashes, common.Hash, error) {
+func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (common.EncryptedPayloadHashes, common.Hash, uint64, error) {
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())
 	blockNumber := b.CurrentBlock().Number().Uint64()
 	state, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
 	if state == nil || err != nil {
-		return nil, common.Hash{}, err
+		return nil, common.Hash{}, 0, err
 	}
 	// Set sender address or use a default if none specified
 	addr := from
@@ -1827,7 +1830,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	// Get a new instance of the EVM.
 	evm, _, err := b.GetEVM(ctx, msg, state, header, vm.Config{})
 	if err != nil {
-		return nil, common.Hash{}, err
+		return nil, common.Hash{}, 0, err
 	}
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
@@ -1849,53 +1852,65 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 
 	if err != nil {
 		log.Error("Simulated execution", "error", err)
-		return nil, common.Hash{}, err
+		return nil, common.Hash{}, 0, err
 	}
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
+	var merkleRoot common.Hash
 	addresses := evm.AffectedContracts()
 	isMessageCall := privateTx.To() != nil
-	psv := privateTxArgs.PrivateStateValidation
-	//in a message call we can ignore the sent arg and use psv of the To contract
+	privacyFlag := privateTxArgs.PrivacyFlag
+	log.Trace("sendtx", "sentprivacyflag", privacyFlag)
+	//in a message call we use flag of the To contract
 	if isMessageCall {
-		pm, _ := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
-		if pm == nil {
-			return nil, common.Hash{}, errors.New("non party member")
+		//pm will be nil on legacy and non-party situations
+		pm, err := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
+		//getting metadata causes problem
+		if err != nil {
+			return nil, common.Hash{}, privacyFlag, errors.New("unable to obtain metadata")
 		}
-		psv = pm.PrivateStateValidation
-		if privateTxArgs.PrivateStateValidation && !psv {
-			return nil, common.Hash{}, errors.New("attempted to send psv flag to non-psv contract")
+		//if no metadata recovered and has a privacy flag => non-member situation
+		if pm == nil && private.HasPrivacyFlag(private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection, privacyFlag) {
+			return nil, common.Hash{}, privacyFlag, errors.New("non party member")
+		}
+		//if any metadata returned => member situation (psv or partyCheck)
+		if pm != nil {
+			privacyFlag = pm.PrivacyFlag
+			if private.HasPrivacyFlag(private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection, privateTxArgs.PrivacyFlag) && privateTxArgs.PrivacyFlag == privacyFlag {
+				return nil, common.Hash{}, privacyFlag, errors.New("mismatch of To contract privacy flag")
+			}
 		}
 	}
-	log.Trace("simulation", "affectedaddresses", addresses)
-	for _, addr := range addresses {
-		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
-		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
-		// when we run simulation, it's possible that affected contracts may contain public ones
-		// public contract will not have any privacyMetadata attached
-		if err != nil {
-			//TODO - if decoding privacyMetadata fails
-		}
-		if privacyMetadata == nil {
-			continue
-		}
-		affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
+	log.Trace("simulation", "affectedaddresses", addresses, "privacyFlag", privacyFlag)
+	if private.HasPrivacyFlag(private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection, privacyFlag) {
+		for _, addr := range addresses {
+			privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
+			log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
+			// when we run simulation, it's possible that affected contracts may contain public ones
+			// public contract will not have any privacyMetadata attached
+			if err != nil {
+				continue
+			}
+			if privacyMetadata == nil {
+				continue
+			}
+			affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
 
-		//if affecteds are not all the same return an error
-		if psv != privacyMetadata.PrivateStateValidation {
-			return nil, common.Hash{}, errors.New("not all contracts have same psv flag")
+			//if affecteds are not all the same return an error
+			if privacyFlag != privacyMetadata.PrivacyFlag {
+				return nil, common.Hash{}, privacyFlag, errors.New("not all contracts have same privacy flag")
+			}
 		}
-	}
-
-	//only calculate the merkle root if all contracts are psv
-	var merkleRoot common.Hash
-	if psv {
-		merkleRoot, err = evm.CalculateMerkleRoot()
-		if err != nil {
-			return nil, common.Hash{}, err
+		//only calculate the merkle root if all contracts are psv
+		log.Trace("send tx", "shouldcalcmr", private.HasPrivacyFlag(private.PrivacyFlagStateValidation, privacyFlag))
+		if private.HasPrivacyFlag(private.PrivacyFlagStateValidation, privacyFlag) {
+			merkleRoot, err = evm.CalculateMerkleRoot()
+			if err != nil {
+				return nil, common.Hash{}, privacyFlag, err
+			}
 		}
 	}
 	log.Trace("simulation end", "mr", merkleRoot, "affectedhashes", affectedContractsHashes)
-	return affectedContractsHashes, merkleRoot, nil
+	return affectedContractsHashes, merkleRoot, privacyFlag, nil
 }
 
 //End-Quorum
