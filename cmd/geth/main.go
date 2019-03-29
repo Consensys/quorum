@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
 	"math"
 	"os"
 	godebug "runtime/debug"
@@ -32,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
-	"github.com/ethereum/go-ethereum/controls/cluster"
 	"github.com/ethereum/go-ethereum/controls/permission"
 	"github.com/ethereum/go-ethereum/core/quorum"
 	"github.com/ethereum/go-ethereum/eth"
@@ -376,21 +376,20 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	}
 }
 
-// Starts all permissioning and key management related services
-// permissioning services will come up only when geth is brought up in
-// --permissioned mode. Key management service is independent of this
+// Starts all permissioning services permissioning services will come up only when
+// geth is brought up in --permissioned mode
 func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 
 	var quorumApis []string
 	dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
 	permEnabled := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name)
 
-	permissionConfig, perr := permission.ParsePermissionConifg(dataDir)
-	if perr != nil {
-		if permEnabled {
-			utils.Fatalf("parsing permission-config.json failed", perr)
-		} else {
-			log.Warn("parsing permission-config.json failed")
+	var permissionConfig types.PermissionConfig
+	var err error
+	if permEnabled {
+		if permissionConfig, err = permission.ParsePermissionConifg(dataDir); err != nil {
+			log.Error("loading of permission-config.json failed", "error", err)
+			return
 		}
 	}
 
@@ -399,32 +398,16 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 	// start the permissions management service
 	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name), &permissionConfig)
 	if err != nil {
-		log.Error("Failed to start Quorum Permission contract service: %v", err)
-	} else {
-		err = pc.Start()
-		if err == nil {
-			quorumApis = []string{"quorumNodeMgmt", "quorumAcctMgmt"}
-
-		} else {
-			log.Error("Failed to start Quorum Permission contract service", "error", err)
-		}
+		utils.Fatalf("Failed to load the permission contracts as given in permissions-config.json %v", err)
 	}
 
-	// start the key management service
-	kc, err := cluster.NewOrgKeyCtrl(stack)
-	if err != nil {
-		log.Warn("Failed to start quorum Org key management service", "err", err)
+	if err = pc.Start(); err == nil {
+		quorumApis = []string{"quorumNodeMgmt"}
 	} else {
-		err = kc.Start()
-		if err == nil {
-			log.Trace("Key management service started")
-			quorumApis = append(quorumApis, "quorumOrgMgmt")
-		} else {
-			log.Error("Failed to start Quorum Org key management contract service", "error", err)
-		}
+		utils.Fatalf("Failed to start Quorum Permission contract service %v", err)
 	}
 
-	rpcClient, err := stack.Attach()
+	rpcClient, err := stack.Attach() /**/
 	if err != nil {
 		utils.Fatalf("Unable to connnect to the node: %v", err)
 	}
