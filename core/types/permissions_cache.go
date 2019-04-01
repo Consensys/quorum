@@ -78,19 +78,19 @@ type OrgStruct struct {
 
 // permission config for bootstrapping
 type PermissionConfig struct {
-	UpgrdAddress   string
-	InterfAddress  string
-	ImplAddress    string
-	NodeAddress    string
-	AccountAddress string
-	RoleAddress    string
-	VoterAddress   string
-	OrgAddress     string
+	UpgrdAddress   common.Address
+	InterfAddress  common.Address
+	ImplAddress    common.Address
+	NodeAddress    common.Address
+	AccountAddress common.Address
+	RoleAddress    common.Address
+	VoterAddress   common.Address
+	OrgAddress     common.Address
 	NwAdminOrg     string
 	NwAdminRole    string
 	OrgAdminRole   string
 
-	Accounts []string //initial list of account that need full access
+	Accounts []common.Address //initial list of account that need full access
 }
 
 type OrgKey struct {
@@ -169,7 +169,7 @@ var AcctInfoMap = NewAcctCache()
 var orgKeyLock sync.Mutex
 
 func (pc *PermissionConfig) IsEmpty() bool {
-	return pc.InterfAddress == "" || pc.NodeAddress == "" || pc.AccountAddress == ""
+	return pc.InterfAddress == common.HexToAddress("0x0") || pc.NodeAddress == common.HexToAddress("0x0") || pc.AccountAddress == common.HexToAddress("0x0")
 }
 
 // sets default access to ReadOnly
@@ -181,13 +181,7 @@ func (o *OrgCache) UpsertOrg(orgId string, status OrgStatus) {
 	defer o.mux.Unlock()
 	o.mux.Lock()
 	key := OrgKey{OrgId: orgId}
-	if _, ok := o.c.Get(key); ok {
-		log.Info("AJ-OrgId already exists. update it", "orgId", orgId)
-		o.c.Add(key, &OrgInfo{orgId, status})
-	} else {
-		log.Info("AJ-OrgId does not exist. add it", "orgId", orgId)
-		o.c.Add(key, &OrgInfo{orgId, status})
-	}
+	o.c.Add(key, &OrgInfo{orgId, status})
 }
 
 func (o *OrgCache) GetOrg(orgId string) *OrgInfo {
@@ -221,13 +215,7 @@ func (n *NodeCache) UpsertNode(orgId string, url string, status NodeStatus) {
 	defer n.mux.Unlock()
 	n.mux.Lock()
 	key := NodeKey{OrgId: orgId, Url: url}
-	if _, ok := n.c.Get(key); ok {
-		log.Info("AJ-Node already exists. update it", "orgId", orgId, "url", url)
-		n.c.Add(key, &NodeInfo{orgId, url, status})
-	} else {
-		log.Info("AJ-Node does not exist. add it", "orgId", orgId, "url", url)
-		n.c.Add(key, &NodeInfo{orgId, url, status})
-	}
+	n.c.Add(key, &NodeInfo{orgId, url, status})
 }
 
 func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
@@ -273,13 +261,7 @@ func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address
 	defer a.mux.Unlock()
 	a.mux.Lock()
 	key := AccountKey{orgId, role, acct}
-	if _, ok := a.c.Get(key); ok {
-		log.Info("AJ-account already exists. update it", "orgId", orgId, "role", role, "acct", acct)
-		a.c.Add(key, &AccountInfo{orgId, role, acct, orgAdmin, status})
-	} else {
-		log.Info("AJ-account does not exist. add it", "orgId", orgId, "role", role, "acct", acct)
-		a.c.Add(key, &AccountInfo{orgId, role, acct, orgAdmin, status})
-	}
+	a.c.Add(key, &AccountInfo{orgId, role, acct, orgAdmin, status})
 }
 
 func (a *AcctCache) GetAccountByAccount(acct common.Address) *AccountInfo {
@@ -325,13 +307,8 @@ func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, access Acc
 	defer r.mux.Unlock()
 	r.mux.Lock()
 	key := RoleKey{orgId, role}
-	if _, ok := r.c.Get(key); ok {
-		log.Info("AJ-role already exists. update it", "orgId", orgId, "role", role, "access", access, "voter", voter, "active", active)
-		r.c.Add(key, &RoleInfo{orgId, role, voter, access, active})
-	} else {
-		log.Info("AJ-role does not exist. add it", "orgId", orgId, "role", role, "access", access, "voter", voter, "active", active)
-		r.c.Add(key, &RoleInfo{orgId, role, voter, access, active})
-	}
+	r.c.Add(key, &RoleInfo{orgId, role, voter, access, active})
+
 }
 
 func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
