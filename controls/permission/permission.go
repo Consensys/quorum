@@ -70,22 +70,6 @@ func (p *PermissionCtrl) Interface() *pbind.PermInterface {
 	return p.permInterf
 }
 
-func (p *PermissionCtrl) Org() *pbind.OrgManager {
-	return p.permOrg
-}
-
-func (p *PermissionCtrl) Node() *pbind.NodeManager {
-	return p.permNode
-}
-
-func (p *PermissionCtrl) Role() *pbind.RoleManager {
-	return p.permRole
-}
-
-func (p *PermissionCtrl) Account() *pbind.AcctManager {
-	return p.permAcct
-}
-
 // This function takes the local config data where all the information is in string
 // converts that to address and populates the global permissions config
 func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
