@@ -1804,14 +1804,11 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 //End-Quorum
 
 func resolvePrivateFor(privateFor []string) []string {
-
 	var newPrivateFor []string
 
 	for _, value := range privateFor {
 		keys := types.ResolvePrivateForKeys(value)
 		newPrivateFor = append(newPrivateFor, keys...)
 	}
-
 	return newPrivateFor
-
 }
