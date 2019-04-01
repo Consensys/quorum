@@ -66,6 +66,10 @@ type PermissionCtrl struct {
 	permConfig       *types.PermissionConfig
 }
 
+func (p *PermissionCtrl) Interface() *pbind.PermInterface {
+	return p.permInterf
+}
+
 // This function takes the local config data where all the information is in string
 // converts that to address and populates the global permissions config
 func populateConfig(config PermissionLocalConfig) types.PermissionConfig {

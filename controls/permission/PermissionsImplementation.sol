@@ -149,20 +149,20 @@ contract PermissionsImplementation {
         }
     }
 
-    function updateOrgStatus(string calldata _orgId, uint _status) external
+    function updateOrgStatus(string calldata _orgId, uint _status, address _caller) external
     onlyProxy
     orgExists(_orgId)
-    networkAdmin(msg.sender)
+    networkAdmin(_caller)
     {
         uint pendingOp;
         pendingOp = org.updateOrg(_orgId, _status);
         voter.addVotingItem(adminOrg, _orgId, "", address(0), pendingOp);
     }
 
-    function approveOrgStatus(string calldata _orgId, uint _status) external
+    function approveOrgStatus(string calldata _orgId, uint _status, address _caller) external
     onlyProxy
     orgExists(_orgId)
-    networkAdmin(msg.sender)
+    networkAdmin(_caller)
     {
         require ((_status == 3 || _status == 5), "Operation not allowed");
         uint pendingOp;

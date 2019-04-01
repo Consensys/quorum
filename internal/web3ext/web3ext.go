@@ -18,24 +18,23 @@
 package web3ext
 
 var Modules = map[string]string{
-	"admin":          Admin_JS,
-	"chequebook":     Chequebook_JS,
-	"clique":         Clique_JS,
-	"ethash":         Ethash_JS,
-	"debug":          Debug_JS,
-	"eth":            Eth_JS,
-	"miner":          Miner_JS,
-	"net":            Net_JS,
-	"personal":       Personal_JS,
-	"rpc":            RPC_JS,
-	"shh":            Shh_JS,
-	"swarmfs":        SWARMFS_JS,
-	"txpool":         TxPool_JS,
-	"raft":           Raft_JS,
-	"istanbul":       Istanbul_JS,
-	"quorumNodeMgmt": QUORUM_NODE_JS,
-	"quorumAcctMgmt": QUORUM_ACCT_JS,
-	"quorumOrgMgmt":  QUORUM_ORG_JS,
+	"admin":            Admin_JS,
+	"chequebook":       Chequebook_JS,
+	"clique":           Clique_JS,
+	"ethash":           Ethash_JS,
+	"debug":            Debug_JS,
+	"eth":              Eth_JS,
+	"miner":            Miner_JS,
+	"net":              Net_JS,
+	"personal":         Personal_JS,
+	"rpc":              RPC_JS,
+	"shh":              Shh_JS,
+	"swarmfs":          SWARMFS_JS,
+	"txpool":           TxPool_JS,
+	"raft":             Raft_JS,
+	"istanbul":         Istanbul_JS,
+	"quorumPermission": QUORUM_NODE_JS,
+	"quorumOrgMgmt":    QUORUM_ORG_JS,
 }
 
 const Chequebook_JS = `
@@ -713,13 +712,6 @@ web3._extend({
 const Raft_JS = `
 web3._extend({
        property: 'raft',
-       methods:
-       [
-			   new web3._extend.Method({
-                       name: 'add1',
-                       call: 'raft_add1'
-               }),
-       ],
        properties:
        [
                new web3._extend.Property({
@@ -744,134 +736,100 @@ web3._extend({
                        name: 'cluster',
                        getter: 'raft_cluster'
                }),
-			   new web3._extend.Property({
-                       name: 'add2',
-                       getter: 'raft_add2'
-               }),
        ]
 })
 `
 
 const QUORUM_NODE_JS = `
 web3._extend({
-       property: 'quorumNodeMgmt',
+       property: 'quorumPermission',
        methods:
        [
+				new web3._extend.Method({
+                       name: 'addOrg',
+                       call: 'quorumPermission_addOrg',
+                       params: 3,
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+			   new web3._extend.Method({
+                       name: 'approveOrg',
+                       call: 'quorumPermission_approveOrg',
+                       params: 3,
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
                new web3._extend.Method({
-                       name: 'addVoter',
-                       call: 'quorumNodeMgmt_addVoter',
+                       name: 'updateOrgStatus',
+                       call: 'quorumPermission_updateOrgStatus',
+                       params: 3,
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'approveOrgStatus',
+                       call: 'quorumPermission_approveOrgStatus',
+                       params: 3,
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'addNode',
+                       call: 'quorumPermission_addNode',
+                       params: 3,
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'updateNodeStatus',
+                       call: 'quorumPermission_updateNodeStatus',
+                       params: 4,
+                       inputFormatter: [null,null,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'assignOrgAdminAccount',
+                       call: 'quorumPermission_assignOrgAdminAccount',
+                       params: 3,
+                       inputFormatter: [null,web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
+               }),
+               new web3._extend.Method({
+                       name: 'approveOrgAdminAccount',
+                       call: 'quorumPermission_approveOrgAdminAccount',
                        params: 2,
                        inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
-                       name: 'removeVoter',
-                       call: 'quorumNodeMgmt_removeVoter',
-                       params: 2,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
+                       name: 'addNewRole',
+                       call: 'quorumPermission_addNewRole',
+                       params: 5,
+                       inputFormatter: [null,null,null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
-                       name: 'proposeNode',
-                       call: 'quorumNodeMgmt_proposeNode',
-                       params: 2,
-                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+                       name: 'removeRole',
+                       call: 'quorumPermission_removeRole',
+                       params: 3,
+                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
-                       name: 'approveNode',
-                       call: 'quorumNodeMgmt_approveNode',
-					   params: 2,
-                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
-               }),
-               new web3._extend.Method({
-                       name: 'proposeNodeDeactivation',
-                       call: 'quorumNodeMgmt_proposeNodeDeactivation',
-                       params: 2,
-                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
-               }),
-         	   new web3._extend.Method({
-                       name: 'approveNodeDeactivation',
-                       call: 'quorumNodeMgmt_approveNodeDeactivation',
-                       params: 2,
-                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
-               }),
-               new web3._extend.Method({
-                       name: 'proposeNodeActivation',
-                       call: 'quorumNodeMgmt_proposeNodeActivation',
-                       params: 2,
-                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
-               }),
-         	   new web3._extend.Method({
-                       name: 'approveNodeActivation',
-                       call: 'quorumNodeMgmt_approveNodeActivation',
-                       params: 2,
-                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
-               }),
-               new web3._extend.Method({
-                       name: 'proposeNodeBlacklisting',
-                       call: 'quorumNodeMgmt_proposeNodeBlacklisting',
-                       params: 2,
-                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
-               }),
-         	   new web3._extend.Method({
-                       name: 'approveNodeBlacklisting',
-                       call: 'quorumNodeMgmt_approveNodeBlacklisting',
-                       params: 2,
-                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
-               }),
-         	   new web3._extend.Method({
-                       name: 'cancelPendingOperation',
-                       call: 'quorumNodeMgmt_cancelPendingOperation',
-                       params: 2,
-                       inputFormatter: [null,web3._extend.formatters.inputTransactionFormatter]
+                       name: 'assignAccountRole',
+                       call: 'quorumPermission_assignAccountRole',
+                       params: 4,
+                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
        ],
        properties:
        [
-				new web3._extend.Property({
-					   name: 'permissionNodeList',
-				       getter: 'quorumNodeMgmt_permissionNodeList'
-			  }),  
-		      new web3._extend.Property({
-					   name: 'voterList',
-				       getter: 'quorumNodeMgmt_voterList'
-			  }), 
 			  new web3._extend.Property({
 					   name: 'orgList',
-				       getter: 'quorumNodeMgmt_orgList'
+				       getter: 'quorumPermission_orgList'
 			  }), 
               new web3._extend.Property({
 					   name: 'nodeList',
-				       getter: 'quorumNodeMgmt_nodeList'
+				       getter: 'quorumPermission_nodeList'
 			  }), 
               new web3._extend.Property({
 					   name: 'roleList',
-				       getter: 'quorumNodeMgmt_roleList'
+				       getter: 'quorumPermission_roleList'
 			  }),
               new web3._extend.Property({
 					   name: 'acctList',
-				       getter: 'quorumNodeMgmt_acctList'
+				       getter: 'quorumPermission_acctList'
 			  }), 
-       ]
-})
-`
-
-const QUORUM_ACCT_JS = `
-web3._extend({
-       property: 'quorumAcctMgmt',
-       methods:
-       [
-         	   new web3._extend.Method({
-                       name: 'setAccountAccess',
-                       call: 'quorumAcctMgmt_setAccountAccess',
-                       params: 3,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null,web3._extend.formatters.inputTransactionFormatter]
-               }),
-       ],
-       properties:
-       [
-			   new web3._extend.Property({
-					   name: 'permissionAccountList',
-				       getter: 'quorumAcctMgmt_permissionAccountList'
-			  }),
        ]
 })
 `

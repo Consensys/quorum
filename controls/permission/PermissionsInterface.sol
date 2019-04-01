@@ -77,12 +77,12 @@ contract PermissionsInterface {
 
     function updateOrgStatus(string calldata _orgId, uint _status) external
     {
-        permImplementation.updateOrgStatus(_orgId, _status);
+        permImplementation.updateOrgStatus(_orgId, _status, msg.sender);
     }
 
     function approveOrgStatus(string calldata _orgId, uint _status) external
     {
-        permImplementation.approveOrgStatus(_orgId, _status);
+        permImplementation.approveOrgStatus(_orgId, _status, msg.sender);
     }
     // returns org and master org details based on org index
     function getOrgInfo(uint _orgIndex) external view returns (string memory, uint)
