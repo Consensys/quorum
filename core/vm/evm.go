@@ -64,9 +64,11 @@ func run(evm *EVM, contract *Contract, input []byte) ([]byte, error) {
 		// Using CodeAddr is favour over contract.Address()
 		// During DelegateCall() CodeAddr is the address of the delegated account
 		address := *contract.CodeAddr
+		log.Trace("evm run", "addr", address, "affecteds", evm.affectedContracts)
 		if _, ok := evm.affectedContracts[address]; !ok {
 			evm.affectedContracts[address] = MessageCall
 		}
+		log.Trace("evm run", "after add", evm.affectedContracts)
 		precompiles := PrecompiledContractsHomestead
 		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
 			precompiles = PrecompiledContractsByzantium
@@ -580,6 +582,7 @@ func (self *EVM) RevertToSnapshot(snapshot int) {
 func (evm *EVM) AffectedContracts() []common.Address {
 	addr := make([]common.Address, 0, len(evm.affectedContracts))
 	for a, t := range evm.affectedContracts {
+		log.Trace("affecteds", "addr", a, "type", t)
 		if t == MessageCall {
 			addr = append(addr, a)
 		}

@@ -1859,7 +1859,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	addresses := evm.AffectedContracts()
 	isMessageCall := privateTx.To() != nil
 	privacyFlag := privateTxArgs.PrivacyFlag
-	log.Trace("sendtx", "sentprivacyflag", privacyFlag)
+	log.Trace("sendtx", "sentprivacyflag", privacyFlag, "ismessageCall", isMessageCall, "affected addresses", addresses, "to", privateTx.To())
 	//in a message call we use flag of the To contract
 	if isMessageCall {
 		//pm will be nil on legacy and non-party situations
@@ -1868,20 +1868,21 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		if err != nil {
 			return nil, common.Hash{}, privacyFlag, errors.New("unable to obtain metadata")
 		}
+		log.Trace("simulation", "privacyflag", privacyFlag, "pm", pm)
 		//if no metadata recovered and has a privacy flag => non-member situation
-		if pm == nil && private.HasPrivacyFlag(private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection, privacyFlag) {
+		if pm == nil && private.HasPrivacyFlag(privacyFlag, private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection) {
 			return nil, common.Hash{}, privacyFlag, errors.New("non party member")
 		}
 		//if any metadata returned => member situation (psv or partyCheck)
 		if pm != nil {
 			privacyFlag = pm.PrivacyFlag
-			if private.HasPrivacyFlag(private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection, privateTxArgs.PrivacyFlag) && privateTxArgs.PrivacyFlag == privacyFlag {
+			if private.HasPrivacyFlag(privateTxArgs.PrivacyFlag, private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection) && privateTxArgs.PrivacyFlag != privacyFlag {
 				return nil, common.Hash{}, privacyFlag, errors.New("mismatch of To contract privacy flag")
 			}
 		}
 	}
 	log.Trace("simulation", "affectedaddresses", addresses, "privacyFlag", privacyFlag)
-	if private.HasPrivacyFlag(private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection, privacyFlag) {
+	if private.HasPrivacyFlag(privacyFlag, private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection) {
 		for _, addr := range addresses {
 			privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 			log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
@@ -1901,8 +1902,8 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			}
 		}
 		//only calculate the merkle root if all contracts are psv
-		log.Trace("send tx", "shouldcalcmr", private.HasPrivacyFlag(private.PrivacyFlagStateValidation, privacyFlag))
-		if private.HasPrivacyFlag(private.PrivacyFlagStateValidation, privacyFlag) {
+		log.Trace("send tx", "shouldcalcmr", private.HasPrivacyFlag(privacyFlag, private.PrivacyFlagStateValidation))
+		if private.HasPrivacyFlag(privacyFlag, private.PrivacyFlagStateValidation) {
 			merkleRoot, err = evm.CalculateMerkleRoot()
 			if err != nil {
 				return nil, common.Hash{}, privacyFlag, err

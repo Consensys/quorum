@@ -134,5 +134,5 @@ func HasPrivacyFlag(flag uint64, expectedFlags uint64) bool {
 	if flag == PrivacyFlagLegacy {
 		return flag == expectedFlags
 	}
-	return expectedFlags&flag == expectedFlags
+	return expectedFlags|flag == expectedFlags
 }
