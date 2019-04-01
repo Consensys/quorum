@@ -1909,7 +1909,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			}
 		}
 	}
-	log.Trace("simulation end", "mr", merkleRoot, "affectedhashes", affectedContractsHashes)
+	log.Trace("post-execution run", "merkleRoot", merkleRoot, "affectedhashes", affectedContractsHashes)
 	return affectedContractsHashes, merkleRoot, privacyFlag, nil
 }
 
