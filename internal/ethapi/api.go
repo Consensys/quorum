@@ -1881,7 +1881,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			}
 		}
 	}
-	log.Trace("simulation", "affectedaddresses", addresses, "privacyFlag", privacyFlag)
+	log.Trace("after simulation run", "numberOfAffectedContracts", len(addresses), "privacyFlag", privacyFlag)
 	if private.HasPrivacyFlag(privacyFlag, private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection) {
 		for _, addr := range addresses {
 			privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)

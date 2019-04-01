@@ -160,6 +160,7 @@ type EVM struct {
 type AffectedType byte
 
 const (
+	_                     = iota
 	Creation AffectedType = iota
 	MessageCall
 )

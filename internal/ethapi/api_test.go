@@ -6,10 +6,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/private"
+
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 
 	"github.com/ethereum/go-ethereum/consensus/ethash"
@@ -48,24 +50,9 @@ var (
 		big.NewInt(0),
 		hexutil.MustDecode("0x6060604052341561000f57600080fd5b604051602080610149833981016040528080519060200190919050505b806000819055505b505b610104806100456000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680632a1afcd914605157806360fe47b11460775780636d4ce63c146097575b600080fd5b3415605b57600080fd5b606160bd565b6040518082815260200191505060405180910390f35b3415608157600080fd5b6095600480803590602001909190505060c3565b005b341560a157600080fd5b60a760ce565b6040518082815260200191505060405180910390f35b60005481565b806000819055505b50565b6000805490505b905600a165627a7a72305820d5851baab720bba574474de3d09dbeaabc674a15f4dd93b974908476542c23f00029"))
 
-	arbitrarySimpleStorageContractAddress = common.HexToAddress("0x9ebd4609f9e416232ebcf0e59b4104faa7504104")
-	arbitraryChildContractAddress         = common.HexToAddress("0x8ebd4609F9e416232Ebcf0E59B4104FaA7504104")
+	arbitrarySimpleStorageContractAddress common.Address
 
-	childContractCreationTx = types.NewContractCreation(
-		0,
-		big.NewInt(0),
-		hexutil.MustDecodeUint64("0x47b760"),
-		big.NewInt(0),
-		hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806103028339810180604052602081101561003057600080fd5b8101908080519060200190929190505050806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050610271806100916000396000f3fe608060405260043610610046576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b11461004b5780636d4ce63c14610086575b600080fd5b34801561005757600080fd5b506100846004803603602081101561006e57600080fd5b81019080803590602001909291905050506100b1565b005b34801561009257600080fd5b5061009b610180565b6040518082815260200191505060405180910390f35b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166360fe47b1826040518263ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180828152602001915050602060405180830381600087803b15801561014157600080fd5b505af1158015610155573d6000803e3d6000fd5b505050506040513d602081101561016b57600080fd5b81019080805190602001909291905050505050565b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16636d4ce63c6040518163ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040160206040518083038186803b15801561020557600080fd5b505afa158015610219573d6000803e3d6000fd5b505050506040513d602081101561022f57600080fd5b810190808051906020019092919050505090509056fea165627a7a72305820e6629b99a93d3697f4ac2daa2e2a30f3e9126ee6f767a6444fef9d60c77dbd7600290000000000000000000000009ebd4609f9e416232ebcf0e59b4104faa7504104"))
-
-	// transaction to child contract which would invoke simple contract
-	childContractTx = types.NewTransaction(
-		0,
-		arbitraryChildContractAddress,
-		big.NewInt(0),
-		hexutil.MustDecodeUint64("0x47b760"),
-		big.NewInt(0),
-		hexutil.MustDecode("0x60fe47b1000000000000000000000000000000000000000000000000000000000000000a"))
+	simpleStorageContractMessageCallTx *types.Transaction
 
 	arbitraryCurrentBlockNumber = big.NewInt(1)
 
@@ -73,7 +60,14 @@ var (
 	privateStateDB      *state.StateDB
 	arbitraryBlockChain *core.BlockChain
 
-	quorumChainConfig = &params.ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, nil, common.Hash{}, nil, nil, big.NewInt(0), nil, new(params.EthashConfig), nil, nil, true, 64}
+	quorumChainConfig = &params.ChainConfig{
+		ChainID:              big.NewInt(10),
+		HomesteadBlock:       big.NewInt(0),
+		ByzantiumBlock:       big.NewInt(0),
+		Ethash:               new(params.EthashConfig),
+		IsQuorum:             true,
+		TransactionSizeLimit: 64,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -86,7 +80,7 @@ func TestMain(m *testing.M) {
 func setup() {
 	log.Root().SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
 	testdb := ethdb.NewMemDatabase()
-	gspec := &core.Genesis{Config: params.TestChainConfig}
+	gspec := &core.Genesis{Config: quorumChainConfig}
 	gspec.MustCommit(testdb)
 	var err error
 	arbitraryBlockChain, err = core.NewBlockChain(testdb, nil, quorumChainConfig, ethash.NewFaker(), vm.Config{})
@@ -106,7 +100,22 @@ func setup() {
 	}
 	privateStateDB.SetPersistentEthdb(testdb)
 
+	callhelper := core.MakeCallHelper()
+	callhelper.PrivateState, callhelper.PublicState, callhelper.BC = privateStateDB, publicStateDB, arbitraryBlockChain
 	private.P = &StubPrivateTransactionManager{}
+
+	key, _ := crypto.GenerateKey()
+	arbitrarySimpleStorageContractAddress, err = callhelper.MakeCall(true, key, common.Address{}, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
+	if err != nil {
+		panic(err)
+	}
+	simpleStorageContractMessageCallTx = types.NewTransaction(
+		0,
+		arbitrarySimpleStorageContractAddress,
+		big.NewInt(0),
+		hexutil.MustDecodeUint64("0x47b760"),
+		big.NewInt(0),
+		hexutil.MustDecode("0x60fe47b1000000000000000000000000000000000000000000000000000000000000000d"))
 }
 
 func teardown() {
@@ -120,7 +129,7 @@ func TestSimulateExecution_whenLegacyCreation(t *testing.T) {
 
 	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
 
-	assert.NoError(err, "simulation execution")
+	assert.NoError(err, "simulate execution")
 	assert.Empty(affectedCACreationTxHashes, "creation tx should not have any affected contract creation tx hashes")
 	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
 	assert.Equal(private.PrivacyFlagLegacy, privacyFlag, "no privacy flag - legacy contract")
@@ -144,65 +153,62 @@ func TestSimulateExecution_whenCreationWithStateValidation(t *testing.T) {
 
 	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
 
-	assert.NoError(err, "simulation execution")
+	assert.NoError(err, "simulate execution")
 	assert.Empty(affectedCACreationTxHashes, "creation tx should not have any affected contract creation tx hashes")
 	assert.NotEqual(common.Hash{}, merkleRoot, "no private state validation")
 	assert.Equal(private.PrivacyFlagStateValidation, privacyFlag, "contract set with private state validation")
 }
 
-func TestSimulateExecution_whenLegacyNestedContractInteraction(t *testing.T) {
-	assert := assert.New(t)
-	privateTxArgs.PrivacyFlag = private.PrivacyFlagLegacy
+// func TestSimulateExecution_whenLegacyNestedContractInteraction(t *testing.T) {
+// 	assert := assert.New(t)
+// 	privateTxArgs.PrivacyFlag = private.PrivacyFlagLegacy
 
-	backend := &StubBackend{}
-	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x6080604052600436106043576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b11460485780636d4ce63c146093575b600080fd5b348015605357600080fd5b50607d60048036036020811015606857600080fd5b810190808035906020019092919050505060bb565b6040518082815260200191505060405180910390f35b348015609e57600080fd5b5060a560ce565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a7230582000f86094047c0a1b33312cb6f75b5980eac40efc58a6589752689031beb32cf50029"))
+// 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x6080604052600436106043576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b11460485780636d4ce63c146093575b600080fd5b348015605357600080fd5b50607d60048036036020811015606857600080fd5b810190808035906020019092919050505060bb565b6040518082815260200191505060405180910390f35b348015609e57600080fd5b5060a560ce565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a7230582000f86094047c0a1b33312cb6f75b5980eac40efc58a6589752689031beb32cf50029"))
 
-	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
-	privateStateDB.Commit(true)
-	// privateStateDB.SetCode(arbitraryChildContractAddress, hexutil.MustDecode("0x60806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b1146100515780636d4ce63c1461008c575b600080fd5b34801561005d57600080fd5b5061008a6004803603602081101561007457600080fd5b81019080803590602001909291905050506100b7565b005b34801561009857600080fd5b506100a1610186565b6040518082815260200191505060405180910390f35b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166360fe47b1826040518263ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180828152602001915050602060405180830381600087803b15801561014757600080fd5b505af115801561015b573d6000803e3d6000fd5b505050506040513d602081101561017157600080fd5b81019080805190602001909291905050505050565b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16636d4ce63c6040518163ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040160206040518083038186803b15801561020b57600080fd5b505afa15801561021f573d6000803e3d6000fd5b505050506040513d602081101561023557600080fd5b810190808051906020019092919050505090509056fea165627a7a72305820b2e3e502953d6a6abeed571a333c8f35135b47e2cced8e4a23eab6a16dfa624c0029"))
-	_, _, _, err := simulateExecution(arbitraryCtx, backend, arbitraryFrom, childContractCreationTx, privateTxArgs)
+// 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
+// 	privateStateDB.Commit(true)
+// 	// privateStateDB.SetCode(arbitraryChildContractAddress, hexutil.MustDecode("0x60806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b1146100515780636d4ce63c1461008c575b600080fd5b34801561005d57600080fd5b5061008a6004803603602081101561007457600080fd5b81019080803590602001909291905050506100b7565b005b34801561009857600080fd5b506100a1610186565b6040518082815260200191505060405180910390f35b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166360fe47b1826040518263ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180828152602001915050602060405180830381600087803b15801561014757600080fd5b505af115801561015b573d6000803e3d6000fd5b505050506040513d602081101561017157600080fd5b81019080805190602001909291905050505050565b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16636d4ce63c6040518163ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040160206040518083038186803b15801561020b57600080fd5b505afa15801561021f573d6000803e3d6000fd5b505050506040513d602081101561023557600080fd5b810190808051906020019092919050505090509056fea165627a7a72305820b2e3e502953d6a6abeed571a333c8f35135b47e2cced8e4a23eab6a16dfa624c0029"))
+// 	_, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, childContractCreationTx, privateTxArgs)
 
-	log.Debug("state", "state", privateStateDB.GetState(arbitraryChildContractAddress, common.Hash{0}))
+// 	log.Debug("state", "state", privateStateDB.GetState(arbitraryChildContractAddress, common.Hash{0}))
 
-	log.Debug("execute child contract function")
-	affectedCACreationTxHashes, _, _, err := simulateExecution(arbitraryCtx, backend, arbitraryFrom, childContractTx, privateTxArgs)
+// 	log.Debug("execute child contract function")
+// 	affectedCACreationTxHashes, _, _, err := simulateExecution(arbitraryCtx, backend, arbitraryFrom, childContractTx, privateTxArgs)
 
-	assert.NoError(err, "simulation execution")
-	assert.Empty(affectedCACreationTxHashes, "legacy has no affected account creation transacton hashes")
+// 	assert.NoError(err, "simulation execution")
+// 	assert.Empty(affectedCACreationTxHashes, "legacy has no affected account creation transacton hashes")
 
-}
+// }
 
-func TestSimulateExecution_whenPartyProtectionNestedContractInteraction(t *testing.T) {
-	log.Trace("START party protected nested")
-	assert := assert.New(t)
-	privateTxArgs.PrivacyFlag = private.PrivacyFlagPartyProtection
+// func TestSimulateExecution_whenPartyProtectionNestedContractInteraction(t *testing.T) {
+// 	log.Trace("START party protected nested")
+// 	assert := assert.New(t)
+// 	privateTxArgs.PrivacyFlag = private.PrivacyFlagPartyProtection
 
-	backend := &StubBackend{}
-	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x6080604052600436106043576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b11460485780636d4ce63c146093575b600080fd5b348015605357600080fd5b50607d60048036036020811015606857600080fd5b810190808035906020019092919050505060bb565b6040518082815260200191505060405180910390f35b348015609e57600080fd5b5060a560ce565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a7230582000f86094047c0a1b33312cb6f75b5980eac40efc58a6589752689031beb32cf50029"))
-	_ = privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
-		PrivacyFlag:    privateTxArgs.PrivacyFlag,
-		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
-	})
-	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
-	privateStateDB.Commit(true)
-	// privateStateDB.SetCode(arbitraryChildContractAddress, hexutil.MustDecode("0x60806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b1146100515780636d4ce63c1461008c575b600080fd5b34801561005d57600080fd5b5061008a6004803603602081101561007457600080fd5b81019080803590602001909291905050506100b7565b005b34801561009857600080fd5b506100a1610186565b6040518082815260200191505060405180910390f35b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166360fe47b1826040518263ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180828152602001915050602060405180830381600087803b15801561014757600080fd5b505af115801561015b573d6000803e3d6000fd5b505050506040513d602081101561017157600080fd5b81019080805190602001909291905050505050565b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16636d4ce63c6040518163ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040160206040518083038186803b15801561020b57600080fd5b505afa15801561021f573d6000803e3d6000fd5b505050506040513d602081101561023557600080fd5b810190808051906020019092919050505090509056fea165627a7a72305820b2e3e502953d6a6abeed571a333c8f35135b47e2cced8e4a23eab6a16dfa624c0029"))
-	_, _, _, err := simulateExecution(arbitraryCtx, backend, arbitraryFrom, childContractCreationTx, privateTxArgs)
-	_ = privateStateDB.SetStatePrivacyMetadata(arbitraryChildContractAddress, &state.PrivacyMetadata{
-		PrivacyFlag:    privateTxArgs.PrivacyFlag,
-		CreationTxHash: arbitraryChildContractEncryptedPayloadHash,
-	})
-	log.Debug("state", "state", privateStateDB.GetState(arbitraryChildContractAddress, common.Hash{0}))
+// 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x6080604052600436106043576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b11460485780636d4ce63c146093575b600080fd5b348015605357600080fd5b50607d60048036036020811015606857600080fd5b810190808035906020019092919050505060bb565b6040518082815260200191505060405180910390f35b348015609e57600080fd5b5060a560ce565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a7230582000f86094047c0a1b33312cb6f75b5980eac40efc58a6589752689031beb32cf50029"))
+// 	_ = privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+// 		PrivacyFlag:    privateTxArgs.PrivacyFlag,
+// 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
+// 	})
+// 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
+// 	privateStateDB.Commit(true)
+// 	// privateStateDB.SetCode(arbitraryChildContractAddress, hexutil.MustDecode("0x60806040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b1146100515780636d4ce63c1461008c575b600080fd5b34801561005d57600080fd5b5061008a6004803603602081101561007457600080fd5b81019080803590602001909291905050506100b7565b005b34801561009857600080fd5b506100a1610186565b6040518082815260200191505060405180910390f35b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166360fe47b1826040518263ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180828152602001915050602060405180830381600087803b15801561014757600080fd5b505af115801561015b573d6000803e3d6000fd5b505050506040513d602081101561017157600080fd5b81019080805190602001909291905050505050565b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16636d4ce63c6040518163ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040160206040518083038186803b15801561020b57600080fd5b505afa15801561021f573d6000803e3d6000fd5b505050506040513d602081101561023557600080fd5b810190808051906020019092919050505090509056fea165627a7a72305820b2e3e502953d6a6abeed571a333c8f35135b47e2cced8e4a23eab6a16dfa624c0029"))
+// 	_, _, _, err := simulateExecution(arbitraryCtx, backend, arbitraryFrom, childContractCreationTx, privateTxArgs)
+// 	_ = privateStateDB.SetStatePrivacyMetadata(arbitraryChildContractAddress, &state.PrivacyMetadata{
+// 		PrivacyFlag:    privateTxArgs.PrivacyFlag,
+// 		CreationTxHash: arbitraryChildContractEncryptedPayloadHash,
+// 	})
+// 	log.Debug("state", "state", privateStateDB.GetState(arbitraryChildContractAddress, common.Hash{0}))
 
-	log.Debug("execute child contract function")
-	affectedCACreationTxHashes, _, _, err := simulateExecution(arbitraryCtx, backend, arbitraryFrom, childContractTx, privateTxArgs)
+// 	log.Debug("execute child contract function")
+// 	affectedCACreationTxHashes, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, childContractTx, privateTxArgs)
 
-	log.Trace("addresses", "simplestorage", arbitrarySimpleStorageContractAddress.Hex(), "child", arbitraryChildContractAddress.Hex())
-	assert.NoError(err, "simulation execution")
-	assert.NotEmpty(affectedCACreationTxHashes, "affected contract accounts' creation transacton hashes")
-	log.Trace("affectedcontracthashes", "acoth", affectedCACreationTxHashes, "shouldfind", arbitrarySimpleStorageContractEncryptedPayloadHash)
-	assert.True(!affectedCACreationTxHashes.NotExist(arbitrarySimpleStorageContractEncryptedPayloadHash), "%s is an affected contract account", arbitrarySimpleStorageContractAddress.Hex())
-
-}
+// 	log.Trace("addresses", "simplestorage", arbitrarySimpleStorageContractAddress.Hex(), "child", arbitraryChildContractAddress.Hex())
+// 	assert.NoError(err, "simulation execution")
+// 	assert.NotEmpty(affectedCACreationTxHashes, "affected contract accounts' creation transacton hashes")
+// 	log.Trace("affectedcontracthashes", "acoth", affectedCACreationTxHashes, "shouldfind", arbitrarySimpleStorageContractEncryptedPayloadHash)
+// 	assert.True(!affectedCACreationTxHashes.NotExist(arbitrarySimpleStorageContractEncryptedPayloadHash), "%s is an affected contract account", arbitrarySimpleStorageContractAddress.Hex())
+// }
 
 func TestHandlePrivateTransaction_whenLegacyCreation(t *testing.T) {
 	assert := assert.New(t)
@@ -221,14 +227,14 @@ type StubBackend struct {
 }
 
 func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header, vmCfg vm.Config) (*vm.EVM, func() error, error) {
-	context := core.NewEVMContext(msg, &types.Header{
+	vmCtx := core.NewEVMContext(msg, &types.Header{
 		Coinbase:   arbitraryFrom,
 		Number:     arbitraryCurrentBlockNumber,
 		Time:       big.NewInt(0),
 		Difficulty: big.NewInt(0),
 		GasLimit:   0,
 	}, arbitraryBlockChain, nil)
-	return vm.NewEVM(context, publicStateDB, privateStateDB, quorumChainConfig, vmCfg), nil, nil
+	return vm.NewEVM(vmCtx, publicStateDB, privateStateDB, quorumChainConfig, vmCfg), nil, nil
 }
 
 func (sb *StubBackend) CurrentBlock() *types.Block {

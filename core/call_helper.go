@@ -2,6 +2,7 @@ package core
 
 import (
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -25,6 +26,7 @@ type callHelper struct {
 	gp     *GasPool
 
 	PrivateState, PublicState *state.StateDB
+	BC                        *BlockChain
 }
 
 // TxNonce returns the pending nonce
@@ -34,7 +36,7 @@ func (cg *callHelper) TxNonce(addr common.Address) uint64 {
 
 // MakeCall makes does a call to the recipient using the given input. It can switch between private and public
 // by setting the private boolean flag. It returns an error if the call failed.
-func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Address, input []byte) error {
+func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Address, input []byte) (common.Address, error) {
 	var (
 		from = crypto.PubkeyToAddress(key.PublicKey)
 		err  error
@@ -47,14 +49,23 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	cg.header.GasLimit = 4700000
 
 	signer := types.MakeSigner(params.QuorumTestChainConfig, cg.header.Number)
-	tx, err := types.SignTx(types.NewTransaction(cg.TxNonce(from), to, new(big.Int), 1000000, new(big.Int), input), signer, key)
+	var transaction *types.Transaction
+	nonce := cg.TxNonce(from)
+	contractAddr := crypto.CreateAddress(from, nonce)
+	log.Trace("contract address", "addr", contractAddr.Hex())
+	if to == common.HexToAddress("0x0") {
+		transaction = types.NewContractCreation(nonce, new(big.Int), 1000000, new(big.Int), input)
+	} else {
+		transaction = types.NewTransaction(nonce, to, new(big.Int), 1000000, new(big.Int), input)
+	}
+	tx, err := types.SignTx(transaction, signer, key)
 	if err != nil {
-		return err
+		return common.Address{}, err
 	}
 	defer func() { cg.nonces[from]++ }()
 	msg, err := tx.AsMessage(signer)
 	if err != nil {
-		return err
+		return common.Address{}, err
 	}
 
 	publicState, privateState := cg.PublicState, cg.PrivateState
@@ -65,14 +76,16 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	}
 
 	// TODO(joel): can we just pass nil instead of bc?
-	bc, _ := NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{})
-	context := NewEVMContext(msg, &cg.header, bc, &from)
+	if cg.BC == nil {
+		cg.BC, _ = NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{})
+	}
+	context := NewEVMContext(msg, &cg.header, cg.BC, &from)
 	vmenv := vm.NewEVM(context, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})
 	_, _, _, err = ApplyMessage(vmenv, msg, cg.gp)
 	if err != nil {
-		return err
+		return common.Address{}, err
 	}
-	return nil
+	return contractAddr, nil
 }
 
 // MakeCallHelper returns a new callHelper

@@ -60,12 +60,12 @@ func ExampleMakeCallHelper() {
 	helper.PublicState.SetCode(pubContractAddr, common.Hex2Bytes("601460005500"))
 
 	// Make a call to the private contract
-	err := helper.MakeCall(true, key, prvContractAddr, nil)
+	_, err := helper.MakeCall(true, key, prvContractAddr, nil)
 	if err != nil {
 		fmt.Println(err)
 	}
 	// Make a call to the public contract
-	err = helper.MakeCall(false, key, pubContractAddr, nil)
+	_, err = helper.MakeCall(false, key, pubContractAddr, nil)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -305,7 +305,7 @@ func TestPrivateTransaction(t *testing.T) {
 	}
 
 	// Private transaction 1
-	err = helper.MakeCall(true, key, prvContractAddr, nil)
+	_, err = helper.MakeCall(true, key, prvContractAddr, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -327,7 +327,7 @@ func TestPrivateTransaction(t *testing.T) {
 	}
 
 	// Public transaction 1
-	err = helper.MakeCall(false, key, pubContractAddr, nil)
+	_, err = helper.MakeCall(false, key, pubContractAddr, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -337,7 +337,7 @@ func TestPrivateTransaction(t *testing.T) {
 	}
 
 	// Private transaction 2
-	err = helper.MakeCall(true, key, prvContractAddr, nil)
+	_, err = helper.MakeCall(true, key, prvContractAddr, nil)
 	stateEntry = privateState.GetState(prvContractAddr, common.Hash{}).Big()
 	if stateEntry.Cmp(big.NewInt(10)) != 0 {
 		t.Error("expected state to have 10, got", stateEntry)
