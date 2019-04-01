@@ -391,9 +391,10 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 			log.Error("loading of permission-config.json failed", "error", err)
 			return
 		}
+	} else {
+		// permissions not enabled hence none of the services will be available.
+		return
 	}
-
-	log.Info("AJ-perm-config loaded", "config", permissionConfig)
 
 	// start the permissions management service
 	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name), &permissionConfig)
@@ -409,7 +410,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 
 	rpcClient, err := stack.Attach() /**/
 	if err != nil {
-		utils.Fatalf("Unable to connnect to the node: %v", err)
+		utils.Fatalf("Unable to connect to the node: %v", err)
 	}
 	stateReader := ethclient.NewClient(rpcClient)
 

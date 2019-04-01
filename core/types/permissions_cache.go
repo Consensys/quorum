@@ -78,19 +78,19 @@ type OrgStruct struct {
 
 // permission config for bootstrapping
 type PermissionConfig struct {
-	UpgrdAddress   string
-	InterfAddress  string
-	ImplAddress    string
-	NodeAddress    string
-	AccountAddress string
-	RoleAddress    string
-	VoterAddress   string
-	OrgAddress     string
+	UpgrdAddress   common.Address
+	InterfAddress  common.Address
+	ImplAddress    common.Address
+	NodeAddress    common.Address
+	AccountAddress common.Address
+	RoleAddress    common.Address
+	VoterAddress   common.Address
+	OrgAddress     common.Address
 	NwAdminOrg     string
 	NwAdminRole    string
 	OrgAdminRole   string
 
-	Accounts []string //initial list of account that need full access
+	Accounts []common.Address //initial list of account that need full access
 }
 
 type OrgKey struct {
@@ -169,7 +169,7 @@ var AcctInfoMap = NewAcctCache()
 var orgKeyLock sync.Mutex
 
 func (pc *PermissionConfig) IsEmpty() bool {
-	return pc.InterfAddress == "" || pc.NodeAddress == "" || pc.AccountAddress == ""
+	return pc.InterfAddress == common.HexToAddress("0x0") || pc.NodeAddress == common.HexToAddress("0x0") || pc.AccountAddress == common.HexToAddress("0x0")
 }
 
 // sets default access to ReadOnly
