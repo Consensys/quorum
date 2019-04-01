@@ -60,7 +60,14 @@ var (
 	privateStateDB      *state.StateDB
 	arbitraryBlockChain *core.BlockChain
 
-	quorumChainConfig = &params.ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, nil, common.Hash{}, nil, nil, big.NewInt(0), nil, new(params.EthashConfig), nil, nil, true, 64}
+	quorumChainConfig = &params.ChainConfig{
+		ChainID:              big.NewInt(10),
+		HomesteadBlock:       big.NewInt(0),
+		ByzantiumBlock:       big.NewInt(0),
+		Ethash:               new(params.EthashConfig),
+		IsQuorum:             true,
+		TransactionSizeLimit: 64,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -168,14 +175,14 @@ type StubBackend struct {
 }
 
 func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header, vmCfg vm.Config) (*vm.EVM, func() error, error) {
-	context := core.NewEVMContext(msg, &types.Header{
+	vmCtx := core.NewEVMContext(msg, &types.Header{
 		Coinbase:   arbitraryFrom,
 		Number:     arbitraryCurrentBlockNumber,
 		Time:       big.NewInt(0),
 		Difficulty: big.NewInt(0),
 		GasLimit:   0,
 	}, arbitraryBlockChain, nil)
-	return vm.NewEVM(context, publicStateDB, privateStateDB, quorumChainConfig, vmCfg), nil, nil
+	return vm.NewEVM(vmCtx, publicStateDB, privateStateDB, quorumChainConfig, vmCfg), nil, nil
 }
 
 func (sb *StubBackend) CurrentBlock() *types.Block {

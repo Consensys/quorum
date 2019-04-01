@@ -301,7 +301,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return
 		}
 		actualACAddresses := evm.AffectedContracts()
-		log.Trace("Verify hashes of affected contracts", "expectedHashes", extraPrivateMetadata.ACHashes, "affectedAddresses", actualACAddresses)
+		log.Trace("Verify hashes of affected contracts", "expectedHashes", extraPrivateMetadata.ACHashes, "numberOfAffectedAddresses", len(actualACAddresses))
 		expectedMatchCount := len(extraPrivateMetadata.ACHashes)
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)

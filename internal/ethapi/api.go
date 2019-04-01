@@ -1866,7 +1866,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			return nil, common.Hash{}, errors.New("attempted to send psv flag to non-psv contract")
 		}
 	}
-	log.Trace("after simulation run", "affectedContractAddresses", addresses)
+	log.Trace("after simulation run", "numberOfAffectedContracts", len(addresses))
 	for _, addr := range addresses {
 		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
