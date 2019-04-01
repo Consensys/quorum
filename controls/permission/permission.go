@@ -50,6 +50,26 @@ type PermissionCtrl struct {
 	permConfig       *types.PermissionConfig
 }
 
+func (p *PermissionCtrl) Interface() *pbind.PermInterface {
+	return p.permInterf
+}
+
+func (p *PermissionCtrl) Org() *pbind.OrgManager {
+	return p.permOrg
+}
+
+func (p *PermissionCtrl) Node() *pbind.NodeManager {
+	return p.permNode
+}
+
+func (p *PermissionCtrl) Role() *pbind.RoleManager {
+	return p.permRole
+}
+
+func (p *PermissionCtrl) Account() *pbind.AcctManager {
+	return p.permAcct
+}
+
 func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	fileName := "permission-config.json"
 	fullPath := filepath.Join(dir, fileName)

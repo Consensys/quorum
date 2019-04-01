@@ -402,7 +402,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 	}
 
 	if err = pc.Start(); err == nil {
-		quorumApis = []string{"quorumNodeMgmt"}
+		quorumApis = []string{"quorumPermission"}
 	} else {
 		utils.Fatalf("Failed to start Quorum Permission contract service %v", err)
 	}
@@ -420,7 +420,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		}
 		qapi := v.(*quorum.QuorumControlsAPI)
 
-		err = qapi.Init(stateReader, stack.GetNodeKey(), apiName, &permissionConfig)
+		err = qapi.Init(stateReader, stack.GetNodeKey(), apiName, &permissionConfig, pc.Interface())
 		if err != nil {
 			log.Info("Failed to starts API", "apiName", apiName)
 		} else {
