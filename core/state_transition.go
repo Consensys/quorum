@@ -285,40 +285,51 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	//If the list of affected CA Transactions by the time evm executes is different from the list of affected contract transactions returned from Tessera
 	//an Error should be thrown and the state should not be updated
 	//This validation is to prevent cases where the list of affected contract will have changed by the time the evm actually executes transaction
+	// failed = true will make sure receipt is marked as "failure"
+	// return error will crash the node and only use when that's the case
 	if isPrivate && hasPrivatePayload {
+		// convinient function to return error. It has the same signature as the main function
+		returnErrorFunc := func(anError error, logMsg string, ctx ...interface{}) (ret []byte, usedGas uint64, failed bool, err error) {
+			if logMsg != "" {
+				log.Error(logMsg, ctx...)
+			}
+			st.evm.StateDB.RevertToSnapshot(snapshot)
+			ret, usedGas, failed = nil, 0, true
+			if anError != nil {
+				err = fmt.Errorf("vmerr=%s, err=%s", vmerr, anError)
+			}
+			return
+		}
 		actualACAddresses := evm.AffectedContracts()
-		log.Trace("Verify hashes of affected contracts", "expectedHashes", extraPrivateMetadata.ACHashes, "actual", actualACAddresses)
+		log.Trace("Verify hashes of affected contracts", "expectedHashes", extraPrivateMetadata.ACHashes, "affectedAddresses", actualACAddresses)
+		expectedMatchCount := len(extraPrivateMetadata.ACHashes)
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 			if err != nil {
-				st.evm.StateDB.RevertToSnapshot(snapshot)
-				return nil, 0, true, fmt.Errorf("vmerr=%s, err=%s", vmerr, err)
+				return returnErrorFunc(err, "")
 			}
 			if actualPrivacyMetadata == nil {
 				continue // public contracts don't have privacy metadata
 			}
-
 			if extraPrivateMetadata.ACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
-				st.evm.StateDB.RevertToSnapshot(snapshot)
-				log.Error("Participation check failed",
+				return returnErrorFunc(nil, "Participation check failed",
 					"affectedContractAddress", addr.Hex(),
 					"missingCreationTxHash", actualPrivacyMetadata.CreationTxHash.Hex())
-				return nil, 0, true, vmerr
 			}
-			log.Trace("Get Privacy Metadata-affected", "privacyMetadata", actualPrivacyMetadata)
+			expectedMatchCount--
+		}
+		if expectedMatchCount > 0 {
+			return returnErrorFunc(nil, "Participation check failed",
+				"missing", expectedMatchCount)
 		}
 		if !common.EmptyHash(extraPrivateMetadata.ACMerkleRoot) {
 			log.Trace("Verify merkle root", "merkleRoot", extraPrivateMetadata.ACMerkleRoot)
 			actualACMerkleRoot, err := evm.CalculateMerkleRoot()
 			if err != nil {
-				st.evm.StateDB.RevertToSnapshot(snapshot)
-				log.Error("Calculate Merkle Root failed", "error", err)
-				return nil, 0, true, fmt.Errorf("vmerr=%s, err=%s", vmerr, err)
+				return returnErrorFunc(err, "")
 			}
 			if actualACMerkleRoot != extraPrivateMetadata.ACMerkleRoot {
-				st.evm.StateDB.RevertToSnapshot(snapshot)
-				log.Error("Merkle Root check failed", "actual", actualACMerkleRoot, "expect", extraPrivateMetadata.ACMerkleRoot)
-				return nil, 0, true, vmerr
+				return returnErrorFunc(nil, "Merkle Root check failed", "actual", actualACMerkleRoot, "expect", extraPrivateMetadata.ACMerkleRoot)
 			}
 		}
 	}
