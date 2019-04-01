@@ -23,6 +23,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/syndtr/goleveldb/leveldb"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -305,11 +306,17 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		expectedMatchCount := len(extraPrivateMetadata.ACHashes)
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
+			//non-party check...should not crash node
+			if err == leveldb.ErrNotFound {
+				return returnErrorFunc(nil, "PrivacyMetadata not found on private state")
+			}
+			//other error - crashes node
 			if err != nil {
 				return returnErrorFunc(err, "")
 			}
+			//public contracts have no privacy metadata stored in private state
 			if actualPrivacyMetadata == nil {
-				continue // public contracts don't have privacy metadata
+				continue
 			}
 			if extraPrivateMetadata.ACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
 				return returnErrorFunc(nil, "Participation check failed",
