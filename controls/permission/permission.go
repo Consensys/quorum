@@ -273,22 +273,14 @@ func (p *PermissionCtrl) manageOrgPermissions() {
 // Manages node addition, decavtivation and activation from network
 func (p *PermissionCtrl) manageNodePermissions() {
 
-	if p.permissionedMode {
-		log.Info("AJ-manage node start")
-		//monitor for new nodes addition via smart contract
-		go p.monitorNewNodeAdd()
-
-		go p.monitorNewNodePendingApproval()
-
-		//monitor for nodes deletion via smart contract
-		go p.monitorNodeDeactivation()
-
-		//monitor for nodes activation from deactivation status
-		go p.monitorNodeActivation()
-
-		//monitor for nodes blacklisting via smart contract
-		go p.monitorNodeBlacklisting()
-	}
+	go p.monitorNewNodeAdd()
+	go p.monitorNewNodePendingApproval()
+	//monitor for nodes deletion via smart contract
+	go p.monitorNodeDeactivation()
+	//monitor for nodes activation from deactivation status
+	go p.monitorNodeActivation()
+	//monitor for nodes blacklisting via smart contract
+	go p.monitorNodeBlacklisting()
 }
 
 // Listens on the channel for new node approval via smart contract and
