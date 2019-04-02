@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/state"
+
 	"github.com/ethereum/go-ethereum/private/engine"
 
 	"encoding/hex"
@@ -1067,16 +1069,16 @@ func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, addr
 	return (*hexutil.Uint64)(&nonce), nil
 }
 
-func (s *PublicTransactionPoolAPI) GetContractOrigTransactionHash(ctx context.Context, address common.Address) (hexutil.Bytes, error) {
+func (s *PublicTransactionPoolAPI) GetContractPrivacyMetadata(ctx context.Context, address common.Address) (*state.PrivacyMetadata, error) {
 	state, _, err := s.b.StateAndHeaderByNumber(ctx, rpc.LatestBlockNumber)
 	if state == nil || err != nil {
 		return nil, err
 	}
-	origTx, err := state.GetStatePrivacyMetadata(address)
-	if origTx == nil || err != nil {
+	pm, err := state.GetStatePrivacyMetadata(address)
+	if err != nil {
 		return nil, err
 	}
-	return origTx.CreationTxHash.Bytes(), nil
+	return pm, nil
 }
 
 // GetTransactionByHash returns the transaction for the given hash
@@ -1738,13 +1740,12 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 	}(time.Now())
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
 	if isPrivate {
-		isMessageCall := tx.To() != nil
 		data := tx.Data()
 		if len(data) > 0 { // only support non-value-transfer transaction
-			var creationTxEncryptedPayloadHashes common.EncryptedPayloadHashes // of affected contract accounts
+			var affectedCATxHashes common.EncryptedPayloadHashes // of affected contract accounts
 			var merkleRoot common.Hash
 			var privacyFlag uint64
-			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "psvsender", privateTxArgs.PrivacyFlag, "messageCall", isMessageCall)
+			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag)
 			if isRaw {
 				hash = common.BytesToEncryptedPayloadHash(data)
 				privatePayload, _, revErr := private.P.ReceiveRaw(hash)
@@ -1758,36 +1759,49 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 				} else {
 					privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
 				}
-				creationTxEncryptedPayloadHashes, merkleRoot, privacyFlag, err = simulateExecution(ctx, b, from, privateTx, privateTxArgs)
-				log.Trace("after simulation", "creationTxEncryptedPayloadHashes", creationTxEncryptedPayloadHashes, "merkleRoot", merkleRoot, "error", err)
+				affectedCATxHashes, merkleRoot, privacyFlag, err = simulateExecution(ctx, b, from, privateTx, privateTxArgs)
+				log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privacyFlag, "error", err)
 				if err != nil {
 					return
 				}
 
 				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-					ACHashes:     creationTxEncryptedPayloadHashes,
+					ACHashes:     affectedCATxHashes,
 					ACMerkleRoot: merkleRoot,
 					PrivacyFlag:  privacyFlag,
 				})
+				if err != nil {
+					return
+				}
+				log.Info("sent private signed tx",
+					"data", common.FormatTerminalString(data),
+					"privatefrom", privateTxArgs.PrivateFrom,
+					"privatefor", privateTxArgs.PrivateFor,
+					"affectedCATxHashes", affectedCATxHashes,
+					"merkleroot", merkleRoot,
+					"privacyflag", privacyFlag)
 			} else {
-				creationTxEncryptedPayloadHashes, merkleRoot, privacyFlag, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
-				log.Trace("after simulation", "creationTxEncryptedPayloadHashes", creationTxEncryptedPayloadHashes, "merkleRoot", merkleRoot, "error", err)
+				affectedCATxHashes, merkleRoot, privacyFlag, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
+				log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privacyFlag, "error", err)
 				if err != nil {
 					return
 				}
 
 				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-					ACHashes:     creationTxEncryptedPayloadHashes,
+					ACHashes:     affectedCATxHashes,
 					ACMerkleRoot: merkleRoot,
 					PrivacyFlag:  privacyFlag,
 				})
 				if err != nil {
 					return
 				}
-			}
-			log.Info("sent private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "merkleroot", merkleRoot, "ismessagecall", isMessageCall, "error", err, "encryptedhahses", creationTxEncryptedPayloadHashes, "privacyflag", privacyFlag, "hash", hash)
-			if err != nil {
-				return isPrivate, common.EncryptedPayloadHash{}, err
+				log.Info("sent private tx",
+					"hash", hash,
+					"privatefrom", privateTxArgs.PrivateFrom,
+					"privatefor", privateTxArgs.PrivateFor,
+					"affectedCATxHashes", affectedCATxHashes,
+					"merkleroot", merkleRoot,
+					"privacyflag", privacyFlag)
 			}
 		}
 	}
