@@ -1873,7 +1873,6 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	addresses := evm.AffectedContracts()
 	isMessageCall := privateTx.To() != nil
 	privacyFlag := privateTxArgs.PrivacyFlag
-	log.Trace("sendtx", "sentprivacyflag", privacyFlag, "ismessageCall", isMessageCall, "affected addresses", addresses, "to", privateTx.To())
 	//in a message call we use flag of the To contract
 	if isMessageCall {
 		//pm will be nil on legacy and non-party situations
@@ -1882,7 +1881,6 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		if err != nil {
 			return nil, common.Hash{}, privacyFlag, errors.New("unable to obtain metadata")
 		}
-		log.Trace("simulation", "privacyflag", privacyFlag, "pm", pm)
 		//if no metadata recovered and isn't legacy => non-member situation
 		if pm == nil && private.IsNotLegacyFlag(privacyFlag) {
 			return nil, common.Hash{}, privacyFlag, errors.New("non party member")
@@ -1917,7 +1915,6 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			}
 		}
 		//only calculate the merkle root if all contracts are psv
-		log.Trace("send tx", "shouldcalcmr", private.HasPrivacyFlag(privacyFlag, private.PrivacyFlagStateValidation))
 		if private.HasPrivacyFlag(privacyFlag, private.PrivacyFlagStateValidation) {
 			merkleRoot, err = evm.CalculateMerkleRoot()
 			if err != nil {
