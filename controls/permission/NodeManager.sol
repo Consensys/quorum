@@ -89,8 +89,9 @@ contract NodeManager {
     onlyImpl
     enodeNotInList(_enodeId)
     {
-        addNode(_enodeId, _orgId);
-        approveNode(_enodeId, _orgId);
+        numberOfNodes++;
+        nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
+        nodeList.push(NodeDetails(_enodeId, _orgId, 2));
     }
     function addNode(string memory _enodeId, string memory _orgId) public
     onlyImpl
