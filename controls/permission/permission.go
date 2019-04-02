@@ -84,7 +84,7 @@ func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
 	permConfig.VoterAddress = common.HexToAddress(config.VoterAddress)
 
 	permConfig.NwAdminOrg = config.NwAdminOrg
-	permConfig.NwAdminRole = config.NwAdminOrg
+	permConfig.NwAdminRole = config.NwAdminRole
 	permConfig.OrgAdminRole = config.OrgAdminRole
 
 	// populate the account list as passed in config
@@ -249,7 +249,6 @@ func (p *PermissionCtrl) manageOrgPermissions() {
 	}
 
 	for {
-		log.Info("AJ-new org pending approval waiting for events...")
 		select {
 		case evtPendingApproval = <-chPendingApproval:
 			log.Info("AJ-newOrgPendingApproval", "node", evtPendingApproval.OrgId)
