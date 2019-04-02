@@ -137,7 +137,7 @@ func HasPrivacyFlag(flag uint64, expectedFlags uint64) bool {
 	return expectedFlags&flag == expectedFlags
 }
 
-//check if Legacy flag is on
-func IsLegacyFlag(flag uint64) bool {
-	return flag == PrivacyFlagLegacy
+//check if Legacy flag is NOT on
+func IsNotLegacyFlag(flag uint64) bool {
+	return flag != PrivacyFlagLegacy
 }
