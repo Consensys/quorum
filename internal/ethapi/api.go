@@ -1900,11 +1900,12 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		for _, addr := range addresses {
 			privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 			log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
+			//privacyMetadata not found=non-party, or another db error
+			if err != nil {
+				return nil, common.Hash{}, privacyFlag, err
+			}
 			// when we run simulation, it's possible that affected contracts may contain public ones
 			// public contract will not have any privacyMetadata attached
-			if err != nil {
-				continue
-			}
 			if privacyMetadata == nil {
 				continue
 			}
