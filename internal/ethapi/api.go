@@ -1869,20 +1869,20 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			return nil, common.Hash{}, privacyFlag, errors.New("unable to obtain metadata")
 		}
 		log.Trace("simulation", "privacyflag", privacyFlag, "pm", pm)
-		//if no metadata recovered and has a privacy flag => non-member situation
-		if pm == nil && private.HasPrivacyFlag(privacyFlag, private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection) {
+		//if no metadata recovered and isn't legacy => non-member situation
+		if pm == nil && !private.IsLegacyFlag(privacyFlag) {
 			return nil, common.Hash{}, privacyFlag, errors.New("non party member")
 		}
 		//if any metadata returned => member situation (psv or partyCheck)
 		if pm != nil {
 			privacyFlag = pm.PrivacyFlag
-			if private.HasPrivacyFlag(privateTxArgs.PrivacyFlag, private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection) && privateTxArgs.PrivacyFlag != privacyFlag {
+			if !private.IsLegacyFlag(privateTxArgs.PrivacyFlag) && privateTxArgs.PrivacyFlag != privacyFlag {
 				return nil, common.Hash{}, privacyFlag, errors.New("mismatch of To contract privacy flag")
 			}
 		}
 	}
 	log.Trace("after simulation run", "numberOfAffectedContracts", len(addresses), "privacyFlag", privacyFlag)
-	if private.HasPrivacyFlag(privacyFlag, private.PrivacyFlagStateValidation|private.PrivacyFlagPartyProtection) {
+	if !private.IsLegacyFlag(privacyFlag) {
 		for _, addr := range addresses {
 			privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 			log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)

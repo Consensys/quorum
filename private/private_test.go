@@ -101,20 +101,12 @@ func startUnixSocketHTTPServer(t *testing.T, handlers map[string]http.HandlerFun
 	return &testServer, tmpFile
 }
 
-func TestHasPrivacyFlag_whenTypicalTrue(t *testing.T) {
+func TestHasPrivacyFlag_whenTypical(t *testing.T) {
 	assert := assert.New(t)
 
-	flag := PrivacyFlagStateValidation
+	flag := PrivacyFlagPartyProtection | PrivacyFlagStateValidation
 
 	assert.True(HasPrivacyFlag(flag, PrivacyFlagStateValidation))
-}
-
-func TestHasPrivacyFlag_whenTypicalFalse(t *testing.T) {
-	assert := assert.New(t)
-
-	flag := PrivacyFlagPartyProtection
-
-	assert.False(HasPrivacyFlag(flag, PrivacyFlagStateValidation))
 }
 
 func TestHasPrivacyFlag_whenCheckingMultipleFlag(t *testing.T) {
@@ -122,7 +114,7 @@ func TestHasPrivacyFlag_whenCheckingMultipleFlag(t *testing.T) {
 
 	flag := PrivacyFlagPartyProtection
 
-	assert.True(HasPrivacyFlag(flag, PrivacyFlagStateValidation|PrivacyFlagPartyProtection))
+	assert.False(HasPrivacyFlag(flag, PrivacyFlagStateValidation|PrivacyFlagPartyProtection))
 }
 
 func TestHasPrivacyFlag_whenUsingLegacyFlag(t *testing.T) {
