@@ -69,6 +69,7 @@ func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, ex
 		To:                           to,
 		AffectedContractTransactions: extra.ACHashes.ToBase64s(),
 		ExecHash:                     acMerkleRoot,
+		PrivacyFlag:                  extra.PrivacyFlag,
 	}, response); err != nil {
 		return common.EncryptedPayloadHash{}, err
 	}
@@ -98,6 +99,7 @@ func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash,
 		To:                           to,
 		AffectedContractTransactions: extra.ACHashes.ToBase64s(),
 		ExecHash:                     acMerkleRoot,
+		PrivacyFlag:                  extra.PrivacyFlag,
 	}, response); err != nil {
 		return nil, err
 	}
@@ -153,6 +155,7 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 	extra := &engine.ExtraMetadata{
 		ACHashes:     acHashes,
 		ACMerkleRoot: acMerkleRoot,
+		PrivacyFlag:  response.PrivacyFlag,
 	}
 
 	t.cache.Set(cacheKey, cache.PrivateCacheItem{
