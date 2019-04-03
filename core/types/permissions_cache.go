@@ -107,8 +107,6 @@ type RoleKey struct {
 }
 
 type AccountKey struct {
-	OrgId  string
-	RoleId string
 	AcctId common.Address
 }
 
@@ -236,31 +234,27 @@ func (o *NodeCache) GetNodeList() []NodeInfo {
 func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address, orgAdmin bool, status AcctStatus) {
 	defer a.mux.Unlock()
 	a.mux.Lock()
-	key := AccountKey{orgId, role, acct}
+	key := AccountKey{acct}
 	a.c.Add(key, &AccountInfo{orgId, role, acct, orgAdmin, status})
 }
 
-func (a *AcctCache) GetAccountByAccount(acct common.Address) *AccountInfo {
+func (a *AcctCache) GetAccount(acct common.Address) *AccountInfo {
 	defer a.mux.Unlock()
 	a.mux.Lock()
-	for _, k := range a.c.Keys() {
-		ent := k.(AccountKey)
-		if ent.AcctId == acct {
-			v, _ := a.c.Get(ent)
-			return v.(*AccountInfo)
-		}
+	if v, ok := a.c.Get(AccountKey{acct}); ok {
+		return v.(*AccountInfo)
 	}
 	return nil
 }
 
-func (o *AcctCache) GetAcctList() []AccountInfo {
-	var olist []AccountInfo
-	for _, k := range o.c.Keys() {
-		v, _ := o.c.Get(k)
+func (a *AcctCache) GetAcctList() []AccountInfo {
+	var alist []AccountInfo
+	for _, k := range a.c.Keys() {
+		v, _ := a.c.Get(k)
 		vp := v.(*AccountInfo)
-		olist = append(olist, *vp)
+		alist = append(alist, *vp)
 	}
-	return olist
+	return alist
 }
 
 func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, access AccessType, active bool) {
@@ -294,7 +288,7 @@ func (o *RoleCache) GetRoleList() []RoleInfo {
 // Returns the access type for an account. If not found returns
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
-	if a := AcctInfoMap.GetAccountByAccount(acctId); a != nil {
+	if a := AcctInfoMap.GetAccount(acctId); a != nil {
 		o := OrgInfoMap.GetOrg(a.OrgId)
 		r := RoleInfoMap.GetRole(a.OrgId, a.RoleId)
 		if o != nil && r != nil {
