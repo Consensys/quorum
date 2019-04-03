@@ -70,9 +70,20 @@ contract PermissionsInterface {
         permImplementation.addOrg(_orgId, _enodeId, msg.sender);
     }
 
+    // function for adding a new master org
+    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId) external
+    {
+        permImplementation.addSubOrg(_pOrg, _orgId, _enodeId, msg.sender);
+    }
+
     function approveOrg(string calldata _orgId, string calldata _enodeId) external
     {
         permImplementation.approveOrg(_orgId, _enodeId, msg.sender);
+    }
+
+    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId) external
+    {
+        permImplementation.approveSubOrg(_pOrg, _orgId, _enodeId, msg.sender);
     }
 
     function updateOrgStatus(string calldata _orgId, uint _status) external
@@ -85,13 +96,13 @@ contract PermissionsInterface {
         permImplementation.approveOrgStatus(_orgId, _status, msg.sender);
     }
     // returns org and master org details based on org index
-    function getOrgInfo(uint _orgIndex) external view returns (string memory, uint)
+    function getOrgInfo(uint _orgIndex) external view returns (string memory, uint, uint, string memory, uint)
     {
         return permImplementation.getOrgInfo(_orgIndex);
     }
 
     // Role related functions
-    function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter) external
+    /*function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter) external
     {
         permImplementation.addNewRole(_roleId, _orgId, _access, _voter, msg.sender);
     }
@@ -99,7 +110,7 @@ contract PermissionsInterface {
     function removeRole(string calldata _roleId, string calldata _orgId) external
     {
         permImplementation.removeRole(_roleId, _orgId, msg.sender);
-    }
+    }*/
 
     function getRoleDetails(string calldata _roleId, string calldata _orgId) external view returns (string memory, string memory, uint, bool, bool)
     {
@@ -141,12 +152,12 @@ contract PermissionsInterface {
 
     }
 
-    function assignAccountRole(address _acct, string memory _orgId, string memory _roleId) public
+    /*function assignAccountRole(address _acct, string memory _orgId, string memory _roleId) public
     {
         permImplementation.assignAccountRole(_acct, _orgId, _roleId, msg.sender);
 
     }
-
+*/
     function addNode(string calldata _orgId, string calldata _enodeId) external
     {
         permImplementation.addNode(_orgId, _enodeId, msg.sender);
@@ -163,7 +174,7 @@ contract PermissionsInterface {
         return permImplementation.getNodeStatus(_enodeId);
     }
 
-    function isNetworkAdmin(address _account) public view returns (bool)
+    /*function isNetworkAdmin(address _account) public view returns (bool)
     {
         return permImplementation.isNetworkAdmin(_account);
     }
@@ -182,5 +193,5 @@ contract PermissionsInterface {
     {
         return permImplementation.getAccountDetails(_acct);
     }
-
+*/
 }

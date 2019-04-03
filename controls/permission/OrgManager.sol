@@ -11,7 +11,11 @@ contract OrgManager {
     struct OrgDetails {
         string orgId;
         uint status;
+        string parentId;
+        uint pindex;
+        uint level;
     }
+
     OrgDetails [] private orgList;
     mapping(bytes32 => uint) private OrgIndex;
     uint private orgNum = 0;
@@ -51,16 +55,32 @@ contract OrgManager {
     function addAdminOrg(string calldata _orgId) external
     onlyImpl
     {
-        addNewOrg(_orgId, 2);
+        addNewOrg("", _orgId, 1, 2);
         emit OrgApproved(_orgId);
     }
 
-    function addNewOrg(string memory _orgId, uint _status) internal
+    function addNewOrg(string memory _pOrg, string memory _orgId, uint _level, uint _status) internal
     {
+        bytes32 pid = "";
+        bytes32 oid = "";
+        if (_level == 1) {//root
+            oid = keccak256(abi.encodePacked(_orgId));
+        } else {
+            pid = keccak256(abi.encodePacked(_pOrg));
+            oid = keccak256(abi.encodePacked(_pOrg, ".", _orgId));
+        }
         orgNum++;
-        OrgIndex[keccak256(abi.encodePacked(_orgId))] = orgNum;
+        OrgIndex[oid] = orgNum;
         uint id = orgList.length++;
+        if (_level == 1) {
+            orgList[id].level = _level;
+            orgList[id].pindex = 0;
+        } else {
+            orgList[id].level = orgList[OrgIndex[pid]-1].level + 1;
+            orgList[id].pindex = OrgIndex[pid];
+        }
         orgList[id].orgId = _orgId;
+        orgList[id].parentId = _pOrg;
         orgList[id].status = _status;
     }
 
@@ -86,7 +106,16 @@ contract OrgManager {
     onlyImpl
     orgNotExists(_orgId)
     {
-        addNewOrg(_orgId, 1);
+        addNewOrg("", _orgId, 1, 1);
+        emit OrgPendingApproval(_orgId, 1);
+    }
+
+    // function for adding a new master org
+    function addSubOrg(string calldata _pOrg, string calldata _orgId) external
+    onlyImpl
+    orgNotExists(string(abi.encodePacked(_pOrg, ".", _orgId)))
+    {
+        addNewOrg(_pOrg, _orgId, 2, 1);
         emit OrgPendingApproval(_orgId, 1);
     }
 
@@ -95,7 +124,7 @@ contract OrgManager {
     orgExists(_orgId)
     returns (uint)
     {
-        require ((_status == 3 || _status == 5), "Operation not allowed");
+        require((_status == 3 || _status == 5), "Operation not allowed");
         uint reqStatus;
         uint pendingOp;
         if (_status == 3) {
@@ -183,9 +212,15 @@ contract OrgManager {
         return (!(OrgIndex[keccak256(abi.encodePacked(_orgId))] == 0));
     }
 
-    // returns org and master org details based on org index
-    function getOrgInfo(uint _orgIndex) external view returns (string memory, uint)
+    // function to check if morg exists
+    function checkNodeExists(string memory _pOrg, string memory _orgId) public view returns (bool)
     {
-        return (orgList[_orgIndex].orgId, orgList[_orgIndex].status);
+        return (!(OrgIndex[keccak256(abi.encodePacked(_pOrg, _orgId))] == 0));
+    }
+
+    // returns org and master org details based on org index
+    function getOrgInfo(uint _orgIndex) external view returns (string memory, uint, uint, string memory, uint)
+    {
+        return (orgList[_orgIndex].parentId, orgList[_orgIndex].pindex,orgList[_orgIndex].level, orgList[_orgIndex].orgId, orgList[_orgIndex].status);
     }
 }
