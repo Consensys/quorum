@@ -88,6 +88,7 @@ func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, ex
 	return eph, nil
 }
 
+// also populate cache item with additional extra metadata
 func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
 	response := new(sendSignedTxResponse)
 	acMerkleRoot := ""
@@ -108,6 +109,18 @@ func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash,
 	if err != nil {
 		return nil, err
 	}
+	// pull incomplete cache item and inject new cache item with complete information
+	cacheKey := data.Hex()
+	cacheKeyTemp := fmt.Sprintf("%s-incomplete", cacheKey)
+	if item, found := t.cache.Get(cacheKeyTemp); found {
+		if incompleteCacheItem, ok := item.(cache.PrivateCacheItem); ok {
+			t.cache.Set(cacheKey, cache.PrivateCacheItem{
+				Payload: incompleteCacheItem.Payload,
+				Extra:   *extra,
+			}, gocache.DefaultExpiration)
+			t.cache.Delete(cacheKeyTemp)
+		}
+	}
 	return hashBytes, err
 }
 
@@ -115,17 +128,21 @@ func (t *tesseraPrivateTxManager) Receive(data common.EncryptedPayloadHash) ([]b
 	return t.receive(data, false)
 }
 
+// retrieve raw will not return information about medata.
+// Related to SendSignedTx
 func (t *tesseraPrivateTxManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
 	return t.receive(data, true)
 }
 
+// retrieve raw will not return information about medata
 func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRaw bool) ([]byte, *engine.ExtraMetadata, error) {
 	if common.EmptyEncryptedPayloadHash(data) {
 		return data.Bytes(), nil, nil
 	}
 	cacheKey := data.Hex()
 	if isRaw {
-		cacheKey = fmt.Sprintf("%s-raw", cacheKey)
+		// indicate the cache item is incomplete, this will be fulfilled in SendSignedTx
+		cacheKey = fmt.Sprintf("%s-incomplete", cacheKey)
 	}
 	if item, found := t.cache.Get(cacheKey); found {
 		cacheItem, ok := item.(cache.PrivateCacheItem)
@@ -143,27 +160,29 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 			return nil, nil, err
 		}
 	}
-
-	acHashes, err := common.Base64sToEncryptedPayloadHashes(response.AffectedContractTransactions)
-	if err != nil {
-		return nil, nil, err
-	}
-	acMerkleRoot, err := common.Base64ToHash(response.ExecHash)
-	if err != nil {
-		return nil, nil, err
-	}
-	extra := &engine.ExtraMetadata{
-		ACHashes:     acHashes,
-		ACMerkleRoot: acMerkleRoot,
-		PrivacyFlag:  response.PrivacyFlag,
+	var extra engine.ExtraMetadata
+	if !isRaw {
+		acHashes, err := common.Base64sToEncryptedPayloadHashes(response.AffectedContractTransactions)
+		if err != nil {
+			return nil, nil, err
+		}
+		acMerkleRoot, err := common.Base64ToHash(response.ExecHash)
+		if err != nil {
+			return nil, nil, err
+		}
+		extra = engine.ExtraMetadata{
+			ACHashes:     acHashes,
+			ACMerkleRoot: acMerkleRoot,
+			PrivacyFlag:  response.PrivacyFlag,
+		}
 	}
 
 	t.cache.Set(cacheKey, cache.PrivateCacheItem{
 		Payload: response.Payload,
-		Extra:   *extra,
+		Extra:   extra,
 	}, gocache.DefaultExpiration)
 
-	return response.Payload, extra, nil
+	return response.Payload, &extra, nil
 }
 
 func (t *tesseraPrivateTxManager) Name() string {
