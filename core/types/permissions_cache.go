@@ -2,7 +2,6 @@ package types
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/hashicorp/golang-lru"
 	"sync"
 )
@@ -189,18 +188,11 @@ func (o *OrgCache) GetOrg(orgId string) *OrgInfo {
 	o.mux.Lock()
 	key := OrgKey{OrgId: orgId}
 	if ent, ok := o.c.Get(key); ok {
-		log.Info("AJ-OrgFound", "orgId", orgId)
 		return ent.(*OrgInfo)
 	}
 	return nil
 }
 
-func (o *OrgCache) Show() {
-	for i, k := range o.c.Keys() {
-		v, _ := o.c.Get(k)
-		log.Info("AJ-Org", "i", i, "key", k, "value", v)
-	}
-}
 func (o *OrgCache) GetOrgList() []OrgInfo {
 	var olist []OrgInfo
 	for _, k := range o.c.Keys() {
@@ -221,30 +213,14 @@ func (n *NodeCache) UpsertNode(orgId string, url string, status NodeStatus) {
 func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
 	defer n.mux.Unlock()
 	n.mux.Lock()
-	var key NodeKey
-	var found = false
 	for _, k := range n.c.Keys() {
 		ent := k.(NodeKey)
 		if ent.Url == url {
-			key = ent
-			found = true
-			break
+			v, _ := n.c.Get(ent)
+			return v.(*NodeInfo)
 		}
 	}
-	if found {
-		v, _ := n.c.Get(key)
-		ent := v.(*NodeInfo)
-		log.Info("AJ-NodeFound", "url", ent.Url, "orgId", ent.OrgId)
-		return ent
-	}
 	return nil
-}
-
-func (o *NodeCache) Show() {
-	for i, k := range o.c.Keys() {
-		v, _ := o.c.Get(k)
-		log.Info("AJ-Node", "i", i, "key", k, "value", v)
-	}
 }
 
 func (o *NodeCache) GetNodeList() []NodeInfo {
@@ -267,30 +243,14 @@ func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address
 func (a *AcctCache) GetAccountByAccount(acct common.Address) *AccountInfo {
 	defer a.mux.Unlock()
 	a.mux.Lock()
-	var key AccountKey
-	var found = false
 	for _, k := range a.c.Keys() {
 		ent := k.(AccountKey)
 		if ent.AcctId == acct {
-			key = ent
-			found = true
-			break
+			v, _ := a.c.Get(ent)
+			return v.(*AccountInfo)
 		}
 	}
-	if found {
-		v, _ := a.c.Get(key)
-		ent := v.(*AccountInfo)
-		log.Info("AJ-AccountFound", "org", ent.OrgId, "role", ent.RoleId, "acct", ent.AcctId)
-		return ent
-	}
 	return nil
-}
-
-func (o *AcctCache) Show() {
-	for i, k := range o.c.Keys() {
-		v, _ := o.c.Get(k)
-		log.Info("AJ-Accounts", "i", i, "key", k, "value", v)
-	}
 }
 
 func (o *AcctCache) GetAcctList() []AccountInfo {
@@ -316,17 +276,9 @@ func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
 	r.mux.Lock()
 	key := RoleKey{OrgId: orgId, RoleId: roleId}
 	if ent, ok := r.c.Get(key); ok {
-		log.Info("AJ-RoleFound", "orgId", orgId, "roleId", roleId)
 		return ent.(*RoleInfo)
 	}
 	return nil
-}
-
-func (r *RoleCache) Show() {
-	for i, k := range r.c.Keys() {
-		v, _ := r.c.Get(k)
-		log.Info("AJ-Role", "i", i, "key", k, "value", v)
-	}
 }
 
 func (o *RoleCache) GetRoleList() []RoleInfo {
@@ -342,24 +294,14 @@ func (o *RoleCache) GetRoleList() []RoleInfo {
 // Returns the access type for an account. If not found returns
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
-	log.Info("AJ-get acct access ", "acct", acctId)
 	if a := AcctInfoMap.GetAccountByAccount(acctId); a != nil {
-		log.Info("AJ-Acct found", "a", a)
 		o := OrgInfoMap.GetOrg(a.OrgId)
 		r := RoleInfoMap.GetRole(a.OrgId, a.RoleId)
 		if o != nil && r != nil {
-			log.Info("AJ-org role found")
-			if (o.Status == OrgApproved || o.Status == OrgRevokeSuspension) && r.Active {
-				log.Info("AJ-access found", "access", r.Access)
+			if o.Status == OrgApproved && r.Active {
 				return r.Access
-			} else {
-				log.Info("AJ-access org or role invalid")
 			}
-		} else {
-			log.Info("AJ-access org or role is missing")
 		}
-	} else {
-		log.Info("AJ-Acct not found", "def access", DefaultAccess)
 	}
 	return DefaultAccess
 }
