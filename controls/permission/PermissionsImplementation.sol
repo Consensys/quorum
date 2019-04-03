@@ -15,8 +15,6 @@ contract PermissionsImplementation {
     OrgManager private org;
     PermissionsUpgradable private permUpgradable;
 
-    event Dummy(string _msg);
-
     string private adminOrg;
     string private adminRole;
     string private orgAdminRole;
@@ -173,7 +171,7 @@ contract PermissionsImplementation {
             pendingOp = 3;
         }
         require(checkOrgStatus(_orgId, _status) == true, "Operation not allowed");
-        if ((processVote(adminOrg, msg.sender, pendingOp))) {
+        if ((processVote(adminOrg, _caller, pendingOp))) {
             org.approveOrgStatusUpdate(_orgId, _status);
         }
     }

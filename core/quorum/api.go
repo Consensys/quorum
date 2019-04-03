@@ -311,7 +311,7 @@ func (s *QuorumControlsAPI) RemoveRole(roleId string, orgId string, txa ethapi.S
 	return s.executePermAction(RemoveRole, txArgs{orgId: orgId, roleId: roleId, txa: txa})
 }
 
-func (s *QuorumControlsAPI) AssignAccountRole(acct common.Address, roleId string, orgId string, txa ethapi.SendTxArgs) ExecStatus {
+func (s *QuorumControlsAPI) AssignAccountRole(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(AssignAccountRole, txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa})
 }
 

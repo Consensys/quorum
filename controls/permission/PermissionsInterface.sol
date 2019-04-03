@@ -9,8 +9,6 @@ contract PermissionsInterface {
     PermissionsUpgradable private permUpgradable;
     address private permImplUpgradeable;
 
-    event Dummy(string _msg);
-
     constructor(address _permImplUpgradeable) public {
         permImplUpgradeable = _permImplUpgradeable;
     }
