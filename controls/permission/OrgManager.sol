@@ -7,13 +7,17 @@ contract OrgManager {
     PermissionsUpgradable private permUpgradable;
     // checks if first time network boot up has happened or not
     bool private networkBoot = false;
+    uint private DEPTH_LIMIT = 4;
+    uint private BREADTH_LIMIT = 5;
     //    enum OrgStatus {0- NotInList, 1- Proposed, 2- Approved, 3- PendingSuspension, 4- Suspended, 5- RevokeSuspension}
     struct OrgDetails {
         string orgId;
         uint status;
         string parentId;
+        string fullOrgId;
         uint pindex;
         uint level;
+       uint [] subOrgIndexList;
     }
 
     OrgDetails [] private orgList;
@@ -63,6 +67,8 @@ contract OrgManager {
     {
         bytes32 pid = "";
         bytes32 oid = "";
+
+        uint parentIndex = 0;
         if (_level == 1) {//root
             oid = keccak256(abi.encodePacked(_orgId));
         } else {
@@ -75,9 +81,22 @@ contract OrgManager {
         if (_level == 1) {
             orgList[id].level = _level;
             orgList[id].pindex = 0;
+            orgList[id].fullOrgId = _orgId;
         } else {
-            orgList[id].level = orgList[OrgIndex[pid]-1].level + 1;
-            orgList[id].pindex = OrgIndex[pid];
+            parentIndex = OrgIndex[pid] - 1;
+
+            uint newLevel = orgList[parentIndex].level;
+            uint breadth = orgList[parentIndex].subOrgIndexList.length;
+
+            require(breadth < BREADTH_LIMIT, "breadth level exceeded");
+            require(newLevel < DEPTH_LIMIT, "depth level exceeded");
+
+
+            orgList[id].level = newLevel + 1;
+            orgList[id].pindex = parentIndex;
+            uint subOrgId = orgList[parentIndex].subOrgIndexList.length++;
+            orgList[parentIndex].subOrgIndexList[subOrgId] = id;
+            orgList[id].fullOrgId = string(abi.encodePacked(_pOrg, ".", _orgId));
         }
         orgList[id].orgId = _orgId;
         orgList[id].parentId = _pOrg;
@@ -219,8 +238,22 @@ contract OrgManager {
     }
 
     // returns org and master org details based on org index
-    function getOrgInfo(uint _orgIndex) external view returns (string memory, uint, uint, string memory, uint)
+    function getOrgInfo(uint _orgIndex) external view returns (string memory, string memory, uint, uint, string memory, uint, uint[] memory)
     {
-        return (orgList[_orgIndex].parentId, orgList[_orgIndex].pindex,orgList[_orgIndex].level, orgList[_orgIndex].orgId, orgList[_orgIndex].status);
+        return (orgList[_orgIndex].fullOrgId, orgList[_orgIndex].parentId, orgList[_orgIndex].pindex,orgList[_orgIndex].level, orgList[_orgIndex].orgId, orgList[_orgIndex].status, orgList[_orgIndex].subOrgIndexList);
+    }
+
+    function getSubOrgInfo(uint _orgIndex) external view returns (uint[] memory)
+    {
+        return orgList[_orgIndex].subOrgIndexList;
+    }
+
+    function getSubOrgIndexLength(uint _orgIndex) external view returns (uint)
+    {
+        return orgList[_orgIndex].subOrgIndexList.length;
+    }
+    function getSubOrgIndexLength(uint _orgIndex, uint _subOrgIndex) external view returns (uint)
+    {
+        return orgList[_orgIndex].subOrgIndexList[_subOrgIndex];
     }
 }

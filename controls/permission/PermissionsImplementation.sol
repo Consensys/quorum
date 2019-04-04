@@ -44,7 +44,7 @@ contract PermissionsImplementation {
     }
 
     modifier orgAdmin(address _account, string memory _orgId) {
-        //require(isOrgAdmin(_account, _orgId) == true, "Not an org admin");
+        require(isOrgAdmin(_account, _orgId) == true, "Not an org admin");
         _;
     }
 
@@ -150,7 +150,7 @@ contract PermissionsImplementation {
         nodes.addNode(_enodeId, pid);
     }
 
-    function approveOrg(string calldata _orgId, string calldata _enodeId, address _caller) external
+    function approveOrgImpl(string memory _orgId, string memory _enodeId, address _caller) internal
     onlyProxy
     networkAdmin(_caller)
     {
@@ -162,17 +162,14 @@ contract PermissionsImplementation {
         }
     }
 
-    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _caller) external
-    onlyProxy
-    networkAdmin(_caller)
+    function approveOrg(string calldata _orgId, string calldata _enodeId, address _caller) external
     {
-        string memory pid = string(abi.encodePacked(_pOrg, ".", _orgId));
-        require(checkOrgStatus(pid, 1) == true, "Nothing to approve");
-        if ((processVote(adminOrg, _caller, 1))) {
-            org.approveOrg(pid);
-            roles.addRole(orgAdminRole, pid, fullAccess, true);
-            nodes.approveNode(_enodeId, pid);
-        }
+           approveOrgImpl(_orgId, _enodeId, _caller);
+    }
+
+    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _caller) external
+    {
+        approveOrgImpl(string(abi.encodePacked(_pOrg, ".", _orgId)), _enodeId, _caller);
     }
 
     function updateOrgStatus(string calldata _orgId, uint _status, address _caller) external
@@ -204,15 +201,15 @@ contract PermissionsImplementation {
         }
     }
     // returns org and master org details based on org index
-    function getOrgInfo(uint _orgIndex) external view
+ /*   function getOrgInfo(uint _orgIndex) external view
     returns (string memory, uint, uint, string memory, uint)
 
     {
         return org.getOrgInfo(_orgIndex);
-    }
+    }*/
 
     // Role related functions
-    /*function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter, address _caller) external
+    function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter, address _caller) external
     onlyProxy
     orgApproved(_orgId)
     orgAdmin(_caller, _orgId)
@@ -227,39 +224,39 @@ contract PermissionsImplementation {
     orgAdmin(_caller, _orgId)
     {
         roles.removeRole(_roleId, _orgId);
-    }*/
+    }
 
-    function getRoleDetails(string calldata _roleId, string calldata _orgId) external view
+    /*function getRoleDetails(string calldata _roleId, string calldata _orgId) external view
     returns (string memory, string memory, uint, bool, bool)
     {
         return roles.getRoleDetails(_roleId, _orgId);
 
-    }
+    }*/
 
     // Org voter related functions
-    function getNumberOfVoters(string calldata _orgId) external view
+    /*function getNumberOfVoters(string calldata _orgId) external view
     returns (uint){
 
         return voter.getNumberOfValidVoters(_orgId);
-    }
+    }*/
 
 
-    function checkIfVoterExists(string calldata _orgId, address _acct) external view
+    /*function checkIfVoterExists(string calldata _orgId, address _acct) external view
     returns (bool)
     {
         return voter.checkIfVoterExists(_orgId, _acct);
-    }
+    }*/
 
-    function getVoteCount(string calldata _orgId) external view returns (uint, uint)
+    /*function getVoteCount(string calldata _orgId) external view returns (uint, uint)
     {
         return voter.getVoteCount(_orgId);
-    }
+    }*/
 
-    function getPendingOp(string calldata _orgId) external view
+    /*function getPendingOp(string calldata _orgId) external view
     returns (string memory, string memory, address, uint)
     {
         return voter.getPendingOpDetails(_orgId);
-    }
+    }*/
 
     function assignOrgAdminAccount(string calldata _orgId, address _account, address _caller) external
     onlyProxy
@@ -285,7 +282,7 @@ contract PermissionsImplementation {
     }
 
 
-/*    function assignAccountRole(address _acct, string memory _orgId, string memory _roleId, address _caller) public
+    function assignAccountRole(address _acct, string memory _orgId, string memory _roleId, address _caller) public
     onlyProxy
     orgAdmin(_caller, _orgId)
     orgApproved(_orgId)
@@ -319,7 +316,7 @@ contract PermissionsImplementation {
             }
         }
         accounts.assignAccountRole(_acct, _orgId, _roleId);
-    }*/
+    }
 
     function addNode(string calldata _orgId, string calldata _enodeId, address _caller) external
     onlyProxy
@@ -327,15 +324,17 @@ contract PermissionsImplementation {
     orgAdmin(_caller, _orgId)
     {
         // check that the node is not part of another org
-        require(getNodeStatus(_enodeId) == 0, "Node present already");
+        require(nodes.getNodeStatus(_enodeId) == 0, "Node present already");
         nodes.addOrgNode(_enodeId, _orgId);
     }
 
-    function getNodeStatus(string memory _enodeId) public view
+
+/*    function getNodeStatus(string memory _enodeId) public view
     returns (uint)
     {
         return (nodes.getNodeStatus(_enodeId));
-    }
+    }*/
+
 
     function isNetworkAdmin(address _account) public view
     returns (bool)
@@ -343,7 +342,7 @@ contract PermissionsImplementation {
         return (keccak256(abi.encodePacked(accounts.getAccountRole(_account))) == keccak256(abi.encodePacked(adminRole)));
     }
 
-    /*function isOrgAdmin(address _account, string memory _orgId) public view
+    function isOrgAdmin(address _account, string memory _orgId) public view
     returns (bool)
     {
         return (accounts.checkOrgAdmin(_account, _orgId));
@@ -353,7 +352,7 @@ contract PermissionsImplementation {
     returns (bool)
     {
         return (accounts.valAcctAccessChange(_account, _orgId));
-    }*/
+    }
 
     function checkOrgExists(string memory _orgId) internal view
     returns (bool)
