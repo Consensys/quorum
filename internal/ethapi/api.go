@@ -366,7 +366,7 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args *SendTxArg
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
 
-	if len(args.PrivateFor) > 0 {
+	if args.PrivateFor != nil {
 		tx.SetPrivate()
 	}
 
@@ -1504,7 +1504,7 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Sen
 	}
 
 	toSign := args.toTransaction()
-	if len(args.PrivateFor) > 0 {
+	if args.PrivateFor != nil {
 		toSign.SetPrivate()
 	}
 
@@ -1578,7 +1578,7 @@ func (s *PublicTransactionPoolAPI) Resend(ctx context.Context, sendArgs SendTxAr
 				sendArgs.Gas = gasLimit
 			}
 			newTx := sendArgs.toTransaction()
-			if len(sendArgs.PrivateFor) > 0 {
+			if sendArgs.PrivateFor != nil {
 				newTx.SetPrivate()
 			}
 
