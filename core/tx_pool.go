@@ -578,6 +578,9 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	isQuorum := pool.chainconfig.IsQuorum
 	sizeLimit := pool.chainconfig.TransactionSizeLimit
+	if sizeLimit == 0 {
+		sizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
+	}
 
 	if isQuorum && tx.GasPrice().Cmp(common.Big0) != 0 {
 		return ErrInvalidGasPrice
