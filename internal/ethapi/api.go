@@ -1512,9 +1512,7 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Sen
 	if err != nil {
 		return nil, err
 	}
-	if args.PrivateFor != nil {
-		tx.SetPrivate()
-	}
+
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
 		return nil, err
