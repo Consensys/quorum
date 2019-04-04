@@ -1773,13 +1773,6 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 				if err != nil {
 					return
 				}
-				log.Info("sent private signed tx",
-					"data", common.FormatTerminalString(data),
-					"privatefrom", privateTxArgs.PrivateFrom,
-					"privatefor", privateTxArgs.PrivateFor,
-					"affectedCATxHashes", affectedCATxHashes,
-					"merkleroot", merkleRoot,
-					"privacyflag", privacyFlag)
 			} else {
 				affectedCATxHashes, merkleRoot, privacyFlag, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
 				log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privacyFlag, "error", err)
@@ -1795,14 +1788,15 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 				if err != nil {
 					return
 				}
-				log.Info("sent private tx",
-					"hash", hash,
-					"privatefrom", privateTxArgs.PrivateFrom,
-					"privatefor", privateTxArgs.PrivateFor,
-					"affectedCATxHashes", affectedCATxHashes,
-					"merkleroot", merkleRoot,
-					"privacyflag", privacyFlag)
 			}
+			log.Info("sent private signed tx",
+				"data", common.FormatTerminalString(data),
+				"hash", hash,
+				"privatefrom", privateTxArgs.PrivateFrom,
+				"privatefor", privateTxArgs.PrivateFor,
+				"affectedCATxHashes", affectedCATxHashes,
+				"merkleroot", merkleRoot,
+				"privacyflag", privacyFlag)
 		}
 	}
 	return

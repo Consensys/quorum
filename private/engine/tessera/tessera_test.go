@@ -257,3 +257,30 @@ func TestSendSignedTx_whenTypical(t *testing.T) {
 	assert.Equal(arbitraryExtra.ACHashes.ToBase64s(), actualRequest.AffectedContractTransactions, "request.affectedContractTransactions")
 	assert.Equal(arbitraryExtra.ACMerkleRoot.ToBase64(), actualRequest.ExecHash, "request.execHash")
 }
+
+func TestReceive_whenCachingRawPayload(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	// caching incomplete item
+	_, _, err := testObject.ReceiveRaw(arbitraryHashNoPrivateMetadata)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	<-receiveRequestCaptor
+
+	// caching complete item
+	_, err = testObject.SendSignedTx(arbitraryHashNoPrivateMetadata, arbitraryTo, arbitraryExtra)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	<-sendSignedTxRequestCaptor
+
+	_, actualExtra, err := testObject.Receive(arbitraryHashNoPrivateMetadata)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	assert.Equal(arbitraryExtra.ACHashes, actualExtra.ACHashes, "cached affected contract transaction hashes")
+	assert.Equal(arbitraryExtra.ACMerkleRoot, actualExtra.ACMerkleRoot, "cached merkle root")
+	assert.Equal(arbitraryExtra.PrivacyFlag, actualExtra.PrivacyFlag, "cached privacy flag")
+}
