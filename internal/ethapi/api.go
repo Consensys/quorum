@@ -1204,7 +1204,7 @@ type PrivateTxArgs struct {
 	PrivateFrom   string   `json:"privateFrom"`
 	PrivateFor    []string `json:"privateFor"`
 	PrivateTxType string   `json:"restriction"`
-	PrivacyFlag   uint64   `json:"privacy"`
+	PrivacyFlag   uint64   `json:"privacyFlag"`
 }
 
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
@@ -1876,15 +1876,11 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	privacyFlag := privateTxArgs.PrivacyFlag
 	//in a message call we use flag of the To contract
 	if isMessageCall {
-		//pm will be nil on legacy and non-party situations
+		//pm will be nil and error thrown on legacy and non-party situations
 		pm, err := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
-		//getting metadata causes problem
-		if err != nil {
-			return nil, common.Hash{}, privacyFlag, errors.New("unable to obtain metadata")
-		}
-		//if no metadata recovered and isn't legacy => non-member situation
-		if pm == nil && private.IsNotLegacyFlag(privacyFlag) {
-			return nil, common.Hash{}, privacyFlag, errors.New("non party member")
+		//privacyMetadata should be retrieved but isn't found or some err retrieving it
+		if err != nil && private.IsNotLegacyFlag(privacyFlag) {
+			return nil, common.Hash{}, privacyFlag, errors.New("non-party member/problem retrieving metadata")
 		}
 		//if any metadata returned => member situation (psv or partyCheck)
 		if pm != nil {

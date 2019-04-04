@@ -390,8 +390,8 @@ func (self *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
 
 	val, err := self.db.ethdb.Get(key)
 
-	if val == nil {
-		return nil, nil
+	if err != nil {
+		return nil, err
 	}
 	data, err := bytesToPrivacyMetadata(val)
 	return data, err

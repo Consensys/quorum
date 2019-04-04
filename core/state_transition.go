@@ -23,7 +23,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/private/engine"
-	"github.com/syndtr/goleveldb/leveldb"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -223,7 +222,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		if err != nil {
 			return nil, 0, false, nil
 		}
-		log.Trace("transitiondb", "extrastuff", extraPrivateMetadata)
 		hasPrivatePayload = data != nil
 		if extraPrivateMetadata != nil {
 			privMetadata := types.NewTxPrivacyMetadata(extraPrivateMetadata.PrivacyFlag)
@@ -307,13 +305,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		expectedMatchCount := len(extraPrivateMetadata.ACHashes)
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
-			//non-party check...should not crash node
-			if err == leveldb.ErrNotFound {
-				return returnErrorFunc(nil, "PrivacyMetadata not found on private state")
-			}
-			//other error - crashes node
+			//when privacyMetadata should have been recovered but wasnt (includes non-party)
 			if err != nil {
-				return returnErrorFunc(err, "")
+				return returnErrorFunc(nil, "PrivacyMetadata unable to be found", "err", err)
 			}
 			//public contracts have no privacy metadata stored in private state
 			if actualPrivacyMetadata == nil {
