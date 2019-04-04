@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
 )
 
@@ -117,34 +118,38 @@ type ExecStatus struct {
 }
 
 var (
-	//ErrNoVoterAccount       = ExecStatus{false, "No voter account registered. Add voter first"}
-	//ErrInvalidNode          = ExecStatus{false, "Invalid node id"}
-	//ErrAccountNotAVoter     = ExecStatus{false, "Account is not a voter. Action cannot be approved"}
-	ErrInvalidAccount = ExecStatus{false, "Invalid account id"}
-	//ErrInvalidAccountAccess = ExecStatus{false, "Invalid account access type"}
-	ErrFailedExecution = ExecStatus{false, "Failed to execute permission action"}
-	//ErrNodeDetailsMismatch  = ExecStatus{false, "Node details mismatch"}
+	ErrNotNetworkAdmin    = ExecStatus{false, "Operation can be performed by network admin only. Account not a network admin."}
+	ErrNotOrgAdmin        = ExecStatus{false, "Operation can be performed by org admin only. Account not a org admin."}
+	ErrNodePresent        = ExecStatus{false, "EnodeId already part of network."}
+	ErrInvalidNode        = ExecStatus{false, "Invalid node id"}
+	ErrInvalidAccount     = ExecStatus{false, "Invalid account id"}
+	ErrFailedExecution    = ExecStatus{false, "Failed to execute permission action"}
 	ErrPermissionDisabled = ExecStatus{false, "Permissions control not enabled"}
-	//ErrOrgDisabled          = ExecStatus{false, "Org key management not enabled for the network"}
 	ErrAccountAccess      = ExecStatus{false, "Account does not have sufficient access for operation"}
 	ErrVoterAccountAccess = ExecStatus{false, "Voter account does not have sufficient access"}
+	ErrOrgExists          = ExecStatus{false, "Org already exists"}
+	ErrPendingApprovals   = ExecStatus{false, "Pending approvals for the organization. Approve first"}
+	ErrNothingToApprove   = ExecStatus{false, "Nothing to approve"}
+	ErrOpNotAllowed       = ExecStatus{false, "Operation not allowed"}
+	ExecSuccess           = ExecStatus{true, "Action completed successfully"}
+
+	//ErrNoVoterAccount       = ExecStatus{false, "No voter account registered. Add voter first"}
+	//ErrAccountNotAVoter     = ExecStatus{false, "Account is not a voter. Action cannot be approved"}
+	//ErrInvalidAccountAccess = ExecStatus{false, "Invalid account access type"}
+	//ErrNodeDetailsMismatch  = ExecStatus{false, "Node details mismatch"}
+	//ErrOrgDisabled          = ExecStatus{false, "Org key management not enabled for the network"}
 	//ErrMasterOrgExists      = ExecStatus{false, "Master org already exists"}
 	//ErrInvalidMasterOrg     = ExecStatus{false, "Master org does not exist. Add master org first"}
 	//ErrInvalidOrg           = ExecStatus{false, "Org does not exist. Add org first"}
-	//ErrOrgExists            = ExecStatus{false, "Org already exists"}
 	//ErrVoterExists          = ExecStatus{false, "Voter account exists"}
-	//ErrPendingApprovals     = ExecStatus{false, "Pending approvals for the organization. Approve first"}
 	//ErrKeyExists            = ExecStatus{false, "Key exists for the organization"}
 	//ErrKeyInUse             = ExecStatus{false, "Key already in use in another master organization"}
 	//ErrKeyNotFound          = ExecStatus{false, "Key not found for the organization"}
-	//ErrNothingToApprove     = ExecStatus{false, "Nothing to approve"}
 	//ErrNothingToCancel      = ExecStatus{false, "Nothing to cancel"}
 	//ErrNodeProposed         = ExecStatus{false, "Node already proposed for the action"}
 	//ErrAccountIsNotVoter    = ExecStatus{false, "Not a voter account"}
 	//ErrBlacklistedNode      = ExecStatus{false, "Blacklisted node. Operation not allowed"}
-	//ErrOpNotAllowed         = ExecStatus{false, "Operation not allowed"}
 	//ErrLastFullAccessAcct   = ExecStatus{false, "Last account with full access. Operation not allowed"}
-	ExecSuccess = ExecStatus{true, "Action completed successfully"}
 )
 
 // NewQuorumControlsAPI creates a new QuorumControlsAPI to access quorum services
@@ -154,9 +159,18 @@ func NewQuorumControlsAPI(tp *core.TxPool, am *accounts.Manager) *QuorumControls
 
 //Init initializes QuorumControlsAPI with eth client, permission contract and org key management control
 func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey, apiName string, pconfig *types.PermissionConfig, pc *pbind.PermInterface) error {
+	// check if the interface contract is deployed or not. if not
+	// permissions apis will not work. return error
 	p.ethClnt = ethClnt
+	p.permConfig = pconfig
+
+	if _, err := pbind.NewPermInterface(p.permConfig.InterfAddress, p.ethClnt); err != nil {
+		return err
+	}
+	p.permEnabled = true
 	p.key = key
 	p.permInterf = pc
+
 	return nil
 }
 
@@ -174,23 +188,6 @@ func (s *QuorumControlsAPI) RoleList() []types.RoleInfo {
 
 func (s *QuorumControlsAPI) AcctList() []types.AccountInfo {
 	return types.AcctInfoMap.GetAcctList()
-}
-
-func (s *QuorumControlsAPI) newOrgKeySessionWithNodeKeySigner() *obind.ClusterSession {
-	auth := bind.NewKeyedTransactor(s.key)
-	cs := &obind.ClusterSession{
-		Contract: s.clustContr,
-		CallOpts: bind.CallOpts{
-			Pending: true,
-		},
-		TransactOpts: bind.TransactOpts{
-			From:     auth.From,
-			Signer:   auth.Signer,
-			GasLimit: 4700000,
-			GasPrice: big.NewInt(0),
-		},
-	}
-	return cs
 }
 
 func (s *QuorumControlsAPI) AddOrg(orgId string, url string, txa ethapi.SendTxArgs) ExecStatus {
@@ -238,6 +235,42 @@ func (s *QuorumControlsAPI) AssignAccountRole(acct common.Address, orgId string,
 	return s.executePermAction(AssignAccountRole, txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa})
 }
 
+// check if the account is network admin
+func (s *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
+	ac := types.AcctInfoMap.GetAccount(account)
+	return ac != nil && ac.RoleId == s.permConfig.NwAdminRole
+}
+
+func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) bool {
+	ac := types.AcctInfoMap.GetAccount(account)
+	return ac != nil && (ac.RoleId == s.permConfig.OrgAdminRole && ac.OrgId == orgId)
+}
+
+func (s *QuorumControlsAPI) checkOrgExists(orgId string) bool {
+	org := types.OrgInfoMap.GetOrg(orgId)
+	return org != nil
+}
+
+func (s *QuorumControlsAPI) checkNodeExists(enodeId string) bool {
+	node := types.NodeInfoMap.GetNodeByUrl(enodeId)
+	return node != nil
+}
+
+func (s *QuorumControlsAPI) validatePendingOp(authOrg, orgId, url string, account common.Address, pendingOp int64, pinterf *pbind.PermInterfaceSession) bool {
+	pOrg, pUrl, pAcct, op, err := pinterf.GetPendingOp(authOrg)
+	return err == nil && (op.Int64() == pendingOp && pOrg == orgId && pUrl == url && pAcct == account)
+}
+
+func (s *QuorumControlsAPI) checkPendingOp(orgId string, pinterf *pbind.PermInterfaceSession) bool {
+	_, _, _, op, err := pinterf.GetPendingOp(orgId)
+	return err == nil && op.Int64() != 0
+}
+
+func (s *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) bool {
+	org := types.OrgInfoMap.GetOrg(orgId)
+	return (op == 3 && org.Status == types.OrgApproved) || (op == 5 && org.Status == types.OrgSuspended)
+}
+
 // executePermAction helps to execute an action in permission contract
 func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
 
@@ -258,36 +291,145 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 	switch action {
 
 	case AddOrg:
+		// check if caller is network admin
+		if !s.isNetworkAdmin(args.txa.From) {
+			return ErrNotNetworkAdmin
+		}
+
+		// check if any previous op is pending approval for network admin
+		if s.checkPendingOp(s.permConfig.NwAdminOrg, pinterf) {
+			return ErrPendingApprovals
+		}
+		// check if org already exists
+		if s.checkOrgExists(args.orgId) {
+			return ErrOrgExists
+		}
+
+		// validate node id and
+		_, err := enode.ParseV4(args.url)
+		if err != nil {
+			return ErrInvalidNode
+		}
+
+		// check if node already there
+		if s.checkNodeExists(args.url) {
+			return ErrNodePresent
+		}
+
 		tx, err = pinterf.AddOrg(args.orgId, args.url)
 
 	case ApproveOrg:
+		// check caller is network admin
+		if !s.isNetworkAdmin(args.txa.From) {
+			return ErrNotNetworkAdmin
+		}
+
+		if !s.validatePendingOp(s.permConfig.NwAdminOrg, args.orgId, args.url, common.Address{}, 1, pinterf) {
+			return ErrNothingToApprove
+		}
+
+		// check if anything pending approval
 		tx, err = pinterf.ApproveOrg(args.orgId, args.url)
 
 	case UpdateOrgStatus:
+		// check if called is network admin
+		if !s.isNetworkAdmin(args.txa.From) {
+			return ErrNotNetworkAdmin
+		}
+
+		if !s.checkOrgStatus(args.orgId, args.status) {
+			return ErrOpNotAllowed
+		}
+
+		// check if status update can be performed. Org should be approved for suspension
+
+		// and in suspended state for suspension revoke
+
 		tx, err = pinterf.UpdateOrgStatus(args.orgId, big.NewInt(int64(args.status)))
 
 	case ApproveOrgStatus:
+		// check if called is network admin
+		if !s.isNetworkAdmin(args.txa.From) {
+			return ErrNotNetworkAdmin
+		}
+
+		// check if anything is pending approval
+
 		tx, err = pinterf.ApproveOrgStatus(args.orgId, big.NewInt(int64(args.status)))
 
 	case AddNode:
+		// check if org admin
+		if !s.isOrgAdmin(args.txa.From, args.orgId) {
+			return ErrNotOrgAdmin
+		}
+
+		// validate node id and
+		_, err := enode.ParseV4(args.url)
+		if err != nil {
+			return ErrInvalidNode
+		}
+
+		// check if node is already there
 		tx, err = pinterf.AddNode(args.orgId, args.url)
 
 	case UpdateNodeStatus:
+		// check if org admin
+		if !s.isOrgAdmin(args.txa.From, args.orgId) {
+			return ErrNotOrgAdmin
+		}
+
+		// validate node id and
+		_, err := enode.ParseV4(args.url)
+		if err != nil {
+			return ErrInvalidNode
+		}
+
+		// check node status for operation
 		tx, err = pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.status)))
 
 	case AssignOrgAdminAccount:
+		// check if caller is network admin
+		if !s.isNetworkAdmin(args.txa.From) {
+			return ErrNotNetworkAdmin
+		}
+
+		// check if account is already in use in another org
 		tx, err = pinterf.AssignOrgAdminAccount(args.orgId, args.acctId)
 
 	case ApproveOrgAdminAccount:
+		// check if caller is network admin
+		if !s.isNetworkAdmin(args.txa.From) {
+			return ErrNotNetworkAdmin
+		}
+
+		// check if anything is pending approval
 		tx, err = pinterf.ApproveOrgAdminAccount(args.acctId)
 
 	case AddNewRole:
+		// check if org admin
+		if !s.isOrgAdmin(args.txa.From, args.orgId) {
+			return ErrNotOrgAdmin
+		}
+		// validate
+
+		// check if role is already there in the org
 		tx, err = pinterf.AddNewRole(args.roleId, args.orgId, big.NewInt(int64(args.accessType)), args.isVoter)
 
 	case RemoveRole:
+		// check if org admin
+		if !s.isOrgAdmin(args.txa.From, args.orgId) {
+			return ErrNotOrgAdmin
+		}
+
 		tx, err = pinterf.RemoveRole(args.roleId, args.orgId)
 
 	case AssignAccountRole:
+		// check if org admin
+		if !s.isOrgAdmin(args.txa.From, args.orgId) {
+			return ErrNotOrgAdmin
+		}
+
+		// check if account is used in another org
 		tx, err = pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
 	}
 
