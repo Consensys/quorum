@@ -18,6 +18,7 @@ package raft
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/eth"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -70,6 +71,7 @@ type minter struct {
 	chainHeadSub            event.Subscription
 	txPreChan               chan core.NewTxsEvent
 	txPreSub                event.Subscription
+	ethCfg                  *eth.Config
 }
 
 type extraSeal struct {
@@ -77,7 +79,7 @@ type extraSeal struct {
 	Signature []byte // Signature of the block minter
 }
 
-func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration) *minter {
+func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration, ethCfg *eth.Config) *minter {
 	minter := &minter{
 		config:           config,
 		eth:              eth,
@@ -91,6 +93,7 @@ func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Dura
 		invalidRaftOrderingChan: make(chan InvalidRaftOrdering, 1),
 		chainHeadChan:           make(chan core.ChainHeadEvent, 1),
 		txPreChan:               make(chan core.NewTxsEvent, 4096),
+		ethCfg:                  ethCfg,
 	}
 
 	minter.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(minter.chainHeadChan)
@@ -262,7 +265,7 @@ func (minter *minter) createWork() *work {
 		ParentHash: parent.Hash(),
 		Number:     parentNumber.Add(parentNumber, common.Big1),
 		Difficulty: ethash.CalcDifficulty(minter.config, uint64(tstamp), parent.Header()),
-		GasLimit:   core.CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
+		GasLimit:   core.CalcGasLimit(parent, minter.ethCfg.MinerGasFloor, minter.ethCfg.MinerGasCeil),
 		GasUsed:    0,
 		Coinbase:   minter.coinbase,
 		Time:       big.NewInt(tstamp),
