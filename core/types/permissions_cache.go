@@ -257,6 +257,30 @@ func (a *AcctCache) GetAcctList() []AccountInfo {
 	return alist
 }
 
+func (a *AcctCache) GetAcctListOrg(orgId string) []AccountInfo {
+	var alist []AccountInfo
+	for _, k := range a.c.Keys() {
+		v, _ := a.c.Get(k)
+		vp := v.(*AccountInfo)
+		if vp.OrgId == orgId {
+			alist = append(alist, *vp)
+		}
+	}
+	return alist
+}
+
+func (a *AcctCache) GetAcctListRole(orgId, roleId string) []AccountInfo {
+	var alist []AccountInfo
+	for _, k := range a.c.Keys() {
+		v, _ := a.c.Get(k)
+		vp := v.(*AccountInfo)
+		if vp.OrgId == orgId && vp.RoleId == roleId {
+			alist = append(alist, *vp)
+		}
+	}
+	return alist
+}
+
 func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, access AccessType, active bool) {
 	defer r.mux.Unlock()
 	r.mux.Lock()

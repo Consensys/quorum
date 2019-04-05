@@ -198,6 +198,8 @@ contract PermissionsImplementation {
     orgApproved(_orgId)
     orgAdmin(_caller, _orgId)
     {
+        require(((keccak256(abi.encodePacked(_roleId)) != keccak256(abi.encodePacked(adminRole))) &&
+        (keccak256(abi.encodePacked(_roleId)) != keccak256(abi.encodePacked(orgAdminRole)))), "Admin roles cannot be removed");
         roles.removeRole(_roleId, _orgId);
     }
 
@@ -238,6 +240,7 @@ contract PermissionsImplementation {
     orgExists(_orgId)
     networkAdmin(_caller)
     {
+        require(validateAccount(_account, _orgId) == true, "Operation cannot be performed");
         // check if orgAdmin already exists if yes then op cannot be performed
         require(checkOrgAdminExists(_orgId) != true, "org admin exists");
         // assign the account org admin role and propose voting
@@ -262,9 +265,7 @@ contract PermissionsImplementation {
     orgAdmin(_caller, _orgId)
     orgApproved(_orgId)
     {
-//        // check if the account is part of another org. If yes then op cannot be done
         require(validateAccount(_acct, _orgId) == true, "Operation cannot be performed");
-//        // check if role is existing for the org. if yes the op can be done
         require(roleExists(_roleId, _orgId) == true, "role does not exists");
         bool newRoleVoter = isVoterRole(_roleId, _orgId);
 //        // check the role of the account. if the current role is voter and new role is also voter
