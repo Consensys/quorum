@@ -181,12 +181,12 @@ func (s *QuorumControlsAPI) AcctList() []types.AccountInfo {
 	return types.AcctInfoMap.GetAcctList()
 }
 
-func (s *QuorumControlsAPI) AddOrg(orgId string, url string, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(AddOrg, txArgs{orgId: orgId, url: url, txa: txa})
+func (s *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executePermAction(AddOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
 }
 
-func (s *QuorumControlsAPI) ApproveOrg(orgId string, url string, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(ApproveOrg, txArgs{orgId: orgId, url: url, txa: txa})
+func (s *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executePermAction(ApproveOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
 }
 
 func (s *QuorumControlsAPI) UpdateOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) ExecStatus {
@@ -357,7 +357,12 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return ErrNodePresent
 		}
 
-		tx, err = pinterf.AddOrg(args.orgId, args.url)
+		// check if account is already part of another org
+		if execStatus, er := s.checkOrgAdminExists(args.orgId, args.acctId); er != nil {
+			return execStatus
+		}
+
+		tx, err = pinterf.AddOrg(args.orgId, args.url, args.acctId)
 
 	case ApproveOrg:
 		// check caller is network admin
@@ -365,12 +370,12 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return ErrNotNetworkAdmin
 		}
 
-		if !s.validatePendingOp(s.permConfig.NwAdminOrg, args.orgId, args.url, common.Address{}, 1, pinterf) {
+		if !s.validatePendingOp(s.permConfig.NwAdminOrg, args.orgId, args.url, args.acctId, 1, pinterf) {
 			return ErrNothingToApprove
 		}
 
 		// check if anything pending approval
-		tx, err = pinterf.ApproveOrg(args.orgId, args.url)
+		tx, err = pinterf.ApproveOrg(args.orgId, args.url, args.acctId)
 
 	case UpdateOrgStatus:
 		// check if called is network admin

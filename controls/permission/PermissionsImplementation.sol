@@ -29,7 +29,7 @@ contract PermissionsImplementation {
         require(msg.sender == permUpgradable.getPermInterface(), "can be called by proxy only");
         _;
     }
-
+    // Modifiers
     // Checks if the given network boot up is pending exists
     modifier networkBootStatus(bool _status)
     {
@@ -65,6 +65,8 @@ contract PermissionsImplementation {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
+    // initial set up related functions
+    // set policy related attributes
     function setPolicy(string calldata _nwAdminOrg, string calldata _nwAdminRole, string calldata _oAdminRole) external
     onlyProxy
     networkBootStatus(false)
@@ -116,26 +118,21 @@ contract PermissionsImplementation {
         return networkBoot;
     }
 
-//    Get network boot status
-    function getNetworkBootStatus() external view
-    returns (bool)
-    {
-        return networkBoot;
-    }
-
+    // org related functions
     // function for adding a new master org
-    function addOrg(string calldata _orgId, string calldata _enodeId, address _caller) external
+    function addOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
     onlyProxy
     networkBootStatus(true)
-    orgNotExists(_orgId)
     networkAdmin(_caller)
     {
-        voter.addVotingItem(adminOrg, _orgId, _enodeId, address(0), 1);
+        voter.addVotingItem(adminOrg, _orgId, _enodeId, _account, 1);
         org.addOrg(_orgId);
         nodes.addNode(_enodeId, _orgId);
+        require(validateAccount(_account, _orgId) == true, "Operation cannot be performed");
+        accounts.assignAccountRole(_account, _orgId, orgAdminRole);
     }
 
-    function approveOrg(string calldata _orgId, string calldata _enodeId, address _caller) external
+    function approveOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
     onlyProxy
     networkAdmin(_caller)
     {
@@ -144,12 +141,12 @@ contract PermissionsImplementation {
             org.approveOrg(_orgId);
             roles.addRole(orgAdminRole, _orgId, fullAccess, true);
             nodes.approveNode(_enodeId, _orgId);
+            accounts.approveOrgAdminAccount(_account);
         }
     }
 
     function updateOrgStatus(string calldata _orgId, uint _status, address _caller) external
     onlyProxy
-    orgExists(_orgId)
     networkAdmin(_caller)
     {
         uint pendingOp;
@@ -159,10 +156,9 @@ contract PermissionsImplementation {
 
     function approveOrgStatus(string calldata _orgId, uint _status, address _caller) external
     onlyProxy
-    orgExists(_orgId)
     networkAdmin(_caller)
     {
-        require ((_status == 3 || _status == 5), "Operation not allowed");
+        require((_status == 3 || _status == 5), "Operation not allowed");
         uint pendingOp;
         if (_status == 3) {
             pendingOp = 2;
@@ -175,13 +171,6 @@ contract PermissionsImplementation {
             org.approveOrgStatusUpdate(_orgId, _status);
         }
     }
-    // returns org and master org details based on org index
-    function getOrgInfo(uint _orgIndex) external view
-    returns (string memory, uint)
-
-    {
-        return org.getOrgInfo(_orgIndex);
-    }
 
     // Role related functions
     function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter, address _caller) external
@@ -193,7 +182,7 @@ contract PermissionsImplementation {
         roles.addRole(_roleId, _orgId, _access, _voter);
     }
 
-    function removeRole(string calldata _roleId, string calldata _orgId,  address _caller) external
+    function removeRole(string calldata _roleId, string calldata _orgId, address _caller) external
     onlyProxy
     orgApproved(_orgId)
     orgAdmin(_caller, _orgId)
@@ -203,38 +192,7 @@ contract PermissionsImplementation {
         roles.removeRole(_roleId, _orgId);
     }
 
-    function getRoleDetails(string calldata _roleId, string calldata _orgId) external view
-    returns (string memory, string memory, uint, bool, bool)
-    {
-        return roles.getRoleDetails(_roleId, _orgId);
-
-    }
-
-    // Org voter related functions
-    function getNumberOfVoters(string calldata _orgId) external view
-    returns (uint){
-
-        return voter.getNumberOfValidVoters(_orgId);
-    }
-
-
-    function checkIfVoterExists(string calldata _orgId, address _acct) external view
-    returns (bool)
-    {
-        return voter.checkIfVoterExists(_orgId, _acct);
-    }
-
-    function getVoteCount(string calldata _orgId) external view returns (uint, uint)
-    {
-        return voter.getVoteCount(_orgId);
-    }
-
-    function getPendingOp(string calldata _orgId) external view
-    returns (string memory, string memory, address, uint)
-    {
-        return voter.getPendingOpDetails(_orgId);
-    }
-
+    // Account related functions
     function assignOrgAdminAccount(string calldata _orgId, address _account, address _caller) external
     onlyProxy
     orgExists(_orgId)
@@ -259,7 +217,6 @@ contract PermissionsImplementation {
         }
     }
 
-
     function assignAccountRole(address _acct, string memory _orgId, string memory _roleId, address _caller) public
     onlyProxy
     orgAdmin(_caller, _orgId)
@@ -268,8 +225,8 @@ contract PermissionsImplementation {
         require(validateAccount(_acct, _orgId) == true, "Operation cannot be performed");
         require(roleExists(_roleId, _orgId) == true, "role does not exists");
         bool newRoleVoter = isVoterRole(_roleId, _orgId);
-//        // check the role of the account. if the current role is voter and new role is also voter
-//        // voterlist change is not required. else voter list needs to be changed
+        //        // check the role of the account. if the current role is voter and new role is also voter
+        //        // voterlist change is not required. else voter list needs to be changed
         string memory acctRole = accounts.getAccountRole(_acct);
         if (keccak256(abi.encodePacked(acctRole)) == keccak256(abi.encodePacked("NONE"))) {
             //new account
@@ -294,22 +251,56 @@ contract PermissionsImplementation {
         accounts.assignAccountRole(_acct, _orgId, _roleId);
     }
 
+
+    // Node related functions
     function addNode(string calldata _orgId, string calldata _enodeId, address _caller) external
     onlyProxy
     orgApproved(_orgId)
     orgAdmin(_caller, _orgId)
     {
         // check that the node is not part of another org
-        require(getNodeStatus(_enodeId) == 0, "Node present already");
         nodes.addOrgNode(_enodeId, _orgId);
     }
 
-    function getNodeStatus(string memory _enodeId) public view
-    returns (uint)
+    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, uint _status, address _caller) external
+    onlyProxy
+    orgExists(_orgId)
+    orgAdmin(_caller, _orgId)
     {
-        return (nodes.getNodeStatus(_enodeId));
+        nodes.updateNodeStatus(_enodeId, _orgId, _status);
     }
 
+    //    Get network boot status
+    function getNetworkBootStatus() external view
+    returns (bool)
+    {
+        return networkBoot;
+    }
+
+    // Voter related functions
+    function updateVoterList(string memory _orgId, address _account, bool _add) internal
+    {
+        if (_add) {
+            voter.addVoter(_orgId, _account);
+        }
+        else {
+            voter.deleteVoter(_orgId, _account);
+        }
+    }
+
+    function processVote(string memory _orgId, address _caller, uint _pendingOp) internal
+    returns (bool)
+    {
+        return voter.processVote(_orgId, _caller, _pendingOp);
+    }
+
+    function getPendingOp(string calldata _orgId) external view
+    returns (string memory, string memory, address, uint)
+    {
+        return voter.getPendingOpDetails(_orgId);
+    }
+
+    // helper functions
     function isNetworkAdmin(address _account) public view
     returns (bool)
     {
@@ -360,36 +351,6 @@ contract PermissionsImplementation {
     returns (bool)
     {
         return roles.isVoterRole(_roleId, _orgId);
-    }
-
-    function processVote(string memory _orgId, address _caller, uint _pendingOp) internal
-    returns (bool)
-    {
-        return voter.processVote(_orgId, _caller, _pendingOp);
-    }
-
-    function updateVoterList(string memory _orgId, address _account, bool _add) internal
-    {
-        if (_add) {
-            voter.addVoter(_orgId, _account);
-        }
-        else {
-            voter.deleteVoter(_orgId, _account);
-        }
-    }
-
-    function getAccountDetails(address _acct) external view
-    returns (address, string memory, string memory, uint, bool)
-    {
-        return  accounts.getAccountDetails(_acct);
-    }
-
-    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, uint _status, address _caller) external
-    onlyProxy
-    orgExists(_orgId)
-    orgAdmin(_caller, _orgId)
-    {
-        nodes.updateNodeStatus(_enodeId, _orgId, _status);
     }
 
 }
