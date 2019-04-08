@@ -39,8 +39,6 @@ contract VoterManager {
     event VotingItemAdded(string _orgId);
     event VoteProcessed(string _orgId);
 
-    event Dummy(string _msg);
-
     modifier onlyImpl
     {
         require(msg.sender == permUpgradable.getPermImpl());
@@ -157,7 +155,6 @@ contract VoterManager {
         orgVoterList[id].pendingOp.enodeId = _enodeId;
         orgVoterList[id].pendingOp.account = _account;
         orgVoterList[id].pendingOp.opType = _pendingOp;
-        emit Dummy("at 1");
 //        init vote status
         for (uint i = 0; i < orgVoterList[id].voterList.length; i++) {
             if (orgVoterList[id].voterList[i].active) {

@@ -89,8 +89,9 @@ contract NodeManager {
     onlyImpl
     enodeNotInList(_enodeId)
     {
-        addNode(_enodeId, _orgId);
-        approveNode(_enodeId, _orgId);
+        numberOfNodes++;
+        nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
+        nodeList.push(NodeDetails(_enodeId, _orgId, 2));
     }
     function addNode(string memory _enodeId, string memory _orgId) public
     onlyImpl
@@ -134,7 +135,7 @@ contract NodeManager {
         require(checkOrg(_enodeId, _orgId), "Node does not belong to the org");
         // changing node status to integer (0-NotInList, 1- PendingApproval, 2-Approved, 3-Deactivated, 4-Blacklisted)
         // operations that can be done 3-Deactivate Node, 4-ActivateNode, 5-Blacklist nodeList
-        require((_status == 2 || _status == 3 || _status == 4 || _status == 5), "invalid operation");
+        require((_status == 3 || _status == 4 || _status == 5), "invalid operation");
 
         if (_status == 3){
             require(getNodeStatus(_enodeId) == 2, "Op cannot be performed");

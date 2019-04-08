@@ -748,14 +748,14 @@ web3._extend({
 				new web3._extend.Method({
                        name: 'addOrg',
                        call: 'quorumPermission_addOrg',
-                       params: 3,
-                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
+                       params: 4,
+                       inputFormatter: [null,null,web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
                }),
 			   new web3._extend.Method({
                        name: 'approveOrg',
                        call: 'quorumPermission_approveOrg',
-                       params: 3,
-                       inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
+                       params: 4,
+                       inputFormatter: [null,null,web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'updateOrgStatus',

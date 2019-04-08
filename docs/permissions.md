@@ -6,7 +6,7 @@ Account permissioning feature introduces controls at account level. This will co
 It should be noted that both the above features will be available when Quorum geth is brought in `--permissioned` mode with the set up as described in the next section. 
 
 ## Set up
-Node permissioning and account access control is managed by a smart contract [Permission.sol](../controls/permission/Permission.sol). The precompiled byte code of the smart contract is deployed at address `0x000000000000000000020` in network boot-up process. The binding of the precompiled byte code with the address is in `genesis.json`. The initial set of account that will have full access when the network is up, should given as a part of `genesis.json` as shown below:
+Node permissioning and account access control is managed by a smart contract [PermissionsInterface.sol](../controls/permission/PermissionsInterface.sol). The precompiled byte code of the smart contract is deployed at address `0x000000000000000000020` in network boot-up process. The binding of the precompiled byte code with the address is in `genesis.json`. The initial set of account that will have full access when the network is up, should given as a part of `genesis.json` as shown below:
 ```
 {
   "alloc": {

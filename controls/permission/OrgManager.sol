@@ -30,8 +30,6 @@ contract OrgManager {
     event OrgSuspended(string _orgId);
     event OrgSuspensionRevoked(string _orgId);
 
-    event Dummy(string _msg);
-
     modifier onlyImpl
     {
         require(msg.sender == permUpgradable.getPermImpl());
