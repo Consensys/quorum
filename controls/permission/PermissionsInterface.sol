@@ -69,15 +69,20 @@ contract PermissionsInterface {
     }
 
     function approveOrg(string calldata _orgId, string calldata _enodeId, address _account) external
-    // function for adding a new master org
-    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId) external
     {
-        permImplementation.addSubOrg(_pOrg, _orgId, _enodeId, msg.sender);
+        permImplementation.approveOrg(_orgId, _enodeId, _account, msg.sender);
     }
 
-    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId) external
+    // function for adding a new master org
+    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account) external
+{
+        permImplementation.addSubOrg(_pOrg, _orgId, _enodeId, _account, msg.sender);
+    }
+
+
+    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account) external
     {
-        permImplementation.approveSubOrg(_pOrg, _orgId, _enodeId, msg.sender);
+        permImplementation.approveSubOrg(_pOrg, _orgId, _enodeId, _account, msg.sender);
     }
 
     function updateOrgStatus(string calldata _orgId, uint _status) external

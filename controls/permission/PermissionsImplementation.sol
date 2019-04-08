@@ -19,6 +19,7 @@ contract PermissionsImplementation {
     string private adminRole;
     string private orgAdminRole;
 
+
     uint private fullAccess = 3;
 
     // checks if first time network boot up has happened or not
@@ -121,45 +122,33 @@ contract PermissionsImplementation {
 
     // function for adding a new master org
     function addOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
+    {
+        //debugNo = 1;
+        org.addOrg(_orgId);
+        addOrgImpl(_orgId, _enodeId, _account, _caller);
+    }
+
+    function addOrgImpl(string memory _orgId, string memory _enodeId, address _account, address _caller) internal
     onlyProxy
     networkBootStatus(true)
     networkAdmin(_caller)
     {
-        voter.addVotingItem(adminOrg, _orgId, _enodeId, _account, 1);
-        org.addOrg(_orgId);
+        //voter.addVotingItem(adminOrg, _orgId, _enodeId, _account, 1);
         nodes.addNode(_enodeId, _orgId);
         require(validateAccount(_account, _orgId) == true, "Operation cannot be performed");
         accounts.assignAccountRole(_account, _orgId, orgAdminRole);
     }
 
     // function for adding a new master org
-    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId,  address _caller) external
-    onlyProxy
-    networkBootStatus(true)
+    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
     orgExists(_pOrg)
-    networkAdmin(_caller)
     {
         string memory pid = string(abi.encodePacked(_pOrg, ".", _orgId));
-        voter.addVotingItem(adminOrg, pid, _enodeId, address(0), 1);
         org.addSubOrg(_pOrg, _orgId);
-        nodes.addNode(_enodeId, pid);
+        addOrgImpl(pid, _enodeId, _account, _caller);
     }
 
-    function approveOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
-    // function for adding a new master org
-    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId,  address _caller) external
-    onlyProxy
-    networkBootStatus(true)
-    orgExists(_pOrg)
-    networkAdmin(_caller)
-    {
-        string memory pid = string(abi.encodePacked(_pOrg, ".", _orgId));
-        voter.addVotingItem(adminOrg, pid, _enodeId, address(0), 1);
-        org.addSubOrg(_pOrg, _orgId);
-        nodes.addNode(_enodeId, pid);
-    }
-
-    function approveOrgImpl(string memory _orgId, string memory _enodeId, address _caller) internal
+    function approveOrgImpl(string memory _orgId, string memory _enodeId, address _account, address _caller) internal
     onlyProxy
     networkAdmin(_caller)
     {
@@ -172,14 +161,14 @@ contract PermissionsImplementation {
         }
     }
 
-    function approveOrg(string calldata _orgId, string calldata _enodeId, address _caller) external
+    function approveOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
     {
-           approveOrgImpl(_orgId, _enodeId, _caller);
+        approveOrgImpl(_orgId, _enodeId, _account, _caller);
     }
 
-    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _caller) external
+    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
     {
-        approveOrgImpl(string(abi.encodePacked(_pOrg, ".", _orgId)), _enodeId, _caller);
+        approveOrgImpl(string(abi.encodePacked(_pOrg, ".", _orgId)), _enodeId, _account, _caller);
     }
 
     function updateOrgStatus(string calldata _orgId, uint _status, address _caller) external
@@ -336,6 +325,8 @@ contract PermissionsImplementation {
     {
         return voter.getPendingOpDetails(_orgId);
     }
+
+
 
     // helper functions
     function isNetworkAdmin(address _account) public view
