@@ -15,9 +15,10 @@ contract OrgManager {
         uint status;
         string parentId;
         string fullOrgId;
+        string ultParent;
         uint pindex;
         uint level;
-       uint [] subOrgIndexList;
+        uint [] subOrgIndexList;
     }
 
     OrgDetails [] private orgList;
@@ -65,8 +66,8 @@ contract OrgManager {
     {
         bytes32 pid = "";
         bytes32 oid = "";
-
         uint parentIndex = 0;
+
         if (_level == 1) {//root
             oid = keccak256(abi.encodePacked(_orgId));
         } else {
@@ -80,18 +81,16 @@ contract OrgManager {
             orgList[id].level = _level;
             orgList[id].pindex = 0;
             orgList[id].fullOrgId = _orgId;
+            orgList[id].ultParent = _orgId;
         } else {
             parentIndex = OrgIndex[pid] - 1;
 
-            uint newLevel = orgList[parentIndex].level;
-            uint breadth = orgList[parentIndex].subOrgIndexList.length;
+            require(orgList[parentIndex].subOrgIndexList.length < BREADTH_LIMIT, "breadth level exceeded");
+            require(orgList[parentIndex].level < DEPTH_LIMIT, "depth level exceeded");
 
-            require(breadth < BREADTH_LIMIT, "breadth level exceeded");
-            require(newLevel < DEPTH_LIMIT, "depth level exceeded");
-
-
-            orgList[id].level = newLevel + 1;
+            orgList[id].level = orgList[parentIndex].level + 1;
             orgList[id].pindex = parentIndex;
+            orgList[id].ultParent = orgList[parentIndex].ultParent;
             uint subOrgId = orgList[parentIndex].subOrgIndexList.length++;
             orgList[parentIndex].subOrgIndexList[subOrgId] = id;
             orgList[id].fullOrgId = string(abi.encodePacked(_pOrg, ".", _orgId));
@@ -132,8 +131,8 @@ contract OrgManager {
     onlyImpl
     orgNotExists(string(abi.encodePacked(_pOrg, ".", _orgId)))
     {
-        addNewOrg(_pOrg, _orgId, 2, 1);
-        emit OrgPendingApproval(_orgId, 1);
+        addNewOrg(_pOrg, _orgId, 2, 2);
+        emit OrgApproved(_orgId);
     }
 
     function updateOrg(string calldata _orgId, uint _status) external
@@ -238,7 +237,7 @@ contract OrgManager {
     // returns org and master org details based on org index
     function getOrgInfo(uint _orgIndex) external view returns (string memory, string memory, uint, uint, string memory, uint, uint[] memory)
     {
-        return (orgList[_orgIndex].fullOrgId, orgList[_orgIndex].parentId, orgList[_orgIndex].pindex,orgList[_orgIndex].level, orgList[_orgIndex].orgId, orgList[_orgIndex].status, orgList[_orgIndex].subOrgIndexList);
+        return (orgList[_orgIndex].parentId, orgList[_orgIndex].ultParent, orgList[_orgIndex].pindex, orgList[_orgIndex].level, orgList[_orgIndex].orgId, orgList[_orgIndex].status, orgList[_orgIndex].subOrgIndexList);
     }
 
     function getSubOrgInfo(uint _orgIndex) external view returns (uint[] memory)
@@ -253,5 +252,10 @@ contract OrgManager {
     function getSubOrgIndexLength(uint _orgIndex, uint _subOrgIndex) external view returns (uint)
     {
         return orgList[_orgIndex].subOrgIndexList[_subOrgIndex];
+    }
+
+    function getUltimateParent(string calldata _orgId) external view returns (string memory)
+    {
+        return orgList[getOrgIndex(_orgId)].ultParent;
     }
 }

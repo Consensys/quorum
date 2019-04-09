@@ -120,35 +120,19 @@ contract PermissionsImplementation {
         return networkBoot;
     }
 
-    // function for adding a new master org
     function addOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
-    {
-        //debugNo = 1;
-        org.addOrg(_orgId);
-        addOrgImpl(_orgId, _enodeId, _account, _caller);
-    }
-
-    function addOrgImpl(string memory _orgId, string memory _enodeId, address _account, address _caller) internal
     onlyProxy
     networkBootStatus(true)
     networkAdmin(_caller)
     {
-        //voter.addVotingItem(adminOrg, _orgId, _enodeId, _account, 1);
+        voter.addVotingItem(adminOrg, _orgId, _enodeId, _account, 1);
+        org.addOrg(_orgId);
         nodes.addNode(_enodeId, _orgId);
         require(validateAccount(_account, _orgId) == true, "Operation cannot be performed");
         accounts.assignAccountRole(_account, _orgId, orgAdminRole);
     }
 
-    // function for adding a new master org
-    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
-    orgExists(_pOrg)
-    {
-        string memory pid = string(abi.encodePacked(_pOrg, ".", _orgId));
-        org.addSubOrg(_pOrg, _orgId);
-        addOrgImpl(pid, _enodeId, _account, _caller);
-    }
-
-    function approveOrgImpl(string memory _orgId, string memory _enodeId, address _account, address _caller) internal
+    function approveOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
     onlyProxy
     networkAdmin(_caller)
     {
@@ -161,15 +145,63 @@ contract PermissionsImplementation {
         }
     }
 
-    function approveOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
+    //    // function for adding a new master org
+    //    function addOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
+    //    {
+    //        //debugNo = 1;
+    //        org.addOrg(_orgId);
+    //        addOrgImpl(_orgId, _enodeId, _account, _caller);
+    //    }
+
+    //    function addOrgImpl(string memory _orgId, string memory _enodeId, address _account, address _caller) internal
+    //    onlyProxy
+    //    networkBootStatus(true)
+    //    networkAdmin(_caller)
+    //    {
+    //        voter.addVotingItem(adminOrg, _orgId, _enodeId, _account, 1);
+    //        nodes.addNode(_enodeId, _orgId);
+    //        require(validateAccount(_account, _orgId) == true, "Operation cannot be performed");
+    //        accounts.assignAccountRole(_account, _orgId, orgAdminRole);
+    //    }
+
+    // function for adding a new master org
+    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
+    orgExists(_pOrg)
+    orgAdmin(_caller, _pOrg)
     {
-        approveOrgImpl(_orgId, _enodeId, _account, _caller);
+        org.addSubOrg(_pOrg, _orgId);
+        string memory pid = string(abi.encodePacked(_pOrg, ".", _orgId));
+        if (bytes(_enodeId).length > 0) {
+            nodes.addNode(_enodeId, pid);
+        }
+        if (_account != address(0)) {
+            require(validateAccount(_account, pid) == true, "Operation cannot be performed");
+            accounts.assignAccountRole(_account, pid, orgAdminRole);
+        }
     }
 
-    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
-    {
-        approveOrgImpl(string(abi.encodePacked(_pOrg, ".", _orgId)), _enodeId, _account, _caller);
-    }
+    //    function approveOrgImpl(string memory _orgId, string memory _enodeId, address _account, address _caller) internal
+    //    onlyProxy
+    //    networkAdmin(_caller)
+    //    {
+    //        require(checkOrgStatus(_orgId, 1) == true, "Nothing to approve");
+    //        if ((processVote(adminOrg, _caller, 1))) {
+    //            org.approveOrg(_orgId);
+    //            roles.addRole(orgAdminRole, _orgId, fullAccess, true);
+    //            nodes.approveNode(_enodeId, _orgId);
+    //            accounts.approveOrgAdminAccount(_account);
+    //        }
+    //    }
+
+    //    function approveOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
+    //    {
+    //        approveOrgImpl(_orgId, _enodeId, _account, _caller);
+    //    }
+
+    //    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
+    //    {
+    //        approveOrgImpl(string(abi.encodePacked(_pOrg, ".", _orgId)), _enodeId, _account, _caller);
+    //    }
 
     function updateOrgStatus(string calldata _orgId, uint _status, address _caller) external
     onlyProxy
@@ -326,8 +358,6 @@ contract PermissionsImplementation {
         return voter.getPendingOpDetails(_orgId);
     }
 
-
-
     // helper functions
     function isNetworkAdmin(address _account) public view
     returns (bool)
@@ -338,13 +368,13 @@ contract PermissionsImplementation {
     function isOrgAdmin(address _account, string memory _orgId) public view
     returns (bool)
     {
-        return (accounts.checkOrgAdmin(_account, _orgId));
+        return (accounts.checkOrgAdmin(_account, _orgId, org.getUltimateParent(_orgId)));
     }
 
     function validateAccount(address _account, string memory _orgId) public view
     returns (bool)
     {
-        return (accounts.valAcctAccessChange(_account, _orgId));
+        return (accounts.valAcctAccessChange(_account, _orgId, org.getUltimateParent(_orgId)));
     }
 
     function checkOrgExists(string memory _orgId) internal view

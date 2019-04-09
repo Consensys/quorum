@@ -28,7 +28,7 @@ var (
 )
 
 // AcctManagerABI is the input ABI used to generate the binding from.
-const AcctManagerABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"checkOrgAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"valAcctAccessChange\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountRole\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"orgAdminExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"aIndex\",\"type\":\"uint256\"}],\"name\":\"getAccountDetailsFromIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addNWAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setDefaults\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"approveOrgAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"revokeAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"}],\"name\":\"AccountAccessRevoked\",\"type\":\"event\"}]"
+const AcctManagerABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"valAcctAccessChange\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountRole\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"orgAdminExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"aIndex\",\"type\":\"uint256\"}],\"name\":\"getAccountDetailsFromIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addNWAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setDefaults\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"approveOrgAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"revokeAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"checkOrgAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"}],\"name\":\"AccountAccessRevoked\",\"type\":\"event\"}]"
 
 // AcctManager is an auto generated Go binding around an Ethereum contract.
 type AcctManager struct {
@@ -172,30 +172,30 @@ func (_AcctManager *AcctManagerTransactorRaw) Transact(opts *bind.TransactOpts, 
 	return _AcctManager.Contract.contract.Transact(opts, method, params...)
 }
 
-// CheckOrgAdmin is a free data retrieval call binding the contract method 0x0c872ce0.
+// CheckOrgAdmin is a free data retrieval call binding the contract method 0xe8b42bf4.
 //
-// Solidity: function checkOrgAdmin(_acct address, _orgId string) constant returns(bool)
-func (_AcctManager *AcctManagerCaller) CheckOrgAdmin(opts *bind.CallOpts, _acct common.Address, _orgId string) (bool, error) {
+// Solidity: function checkOrgAdmin(_acct address, _orgId string, _ultParent string) constant returns(bool)
+func (_AcctManager *AcctManagerCaller) CheckOrgAdmin(opts *bind.CallOpts, _acct common.Address, _orgId string, _ultParent string) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _AcctManager.contract.Call(opts, out, "checkOrgAdmin", _acct, _orgId)
+	err := _AcctManager.contract.Call(opts, out, "checkOrgAdmin", _acct, _orgId, _ultParent)
 	return *ret0, err
 }
 
-// CheckOrgAdmin is a free data retrieval call binding the contract method 0x0c872ce0.
+// CheckOrgAdmin is a free data retrieval call binding the contract method 0xe8b42bf4.
 //
-// Solidity: function checkOrgAdmin(_acct address, _orgId string) constant returns(bool)
-func (_AcctManager *AcctManagerSession) CheckOrgAdmin(_acct common.Address, _orgId string) (bool, error) {
-	return _AcctManager.Contract.CheckOrgAdmin(&_AcctManager.CallOpts, _acct, _orgId)
+// Solidity: function checkOrgAdmin(_acct address, _orgId string, _ultParent string) constant returns(bool)
+func (_AcctManager *AcctManagerSession) CheckOrgAdmin(_acct common.Address, _orgId string, _ultParent string) (bool, error) {
+	return _AcctManager.Contract.CheckOrgAdmin(&_AcctManager.CallOpts, _acct, _orgId, _ultParent)
 }
 
-// CheckOrgAdmin is a free data retrieval call binding the contract method 0x0c872ce0.
+// CheckOrgAdmin is a free data retrieval call binding the contract method 0xe8b42bf4.
 //
-// Solidity: function checkOrgAdmin(_acct address, _orgId string) constant returns(bool)
-func (_AcctManager *AcctManagerCallerSession) CheckOrgAdmin(_acct common.Address, _orgId string) (bool, error) {
-	return _AcctManager.Contract.CheckOrgAdmin(&_AcctManager.CallOpts, _acct, _orgId)
+// Solidity: function checkOrgAdmin(_acct address, _orgId string, _ultParent string) constant returns(bool)
+func (_AcctManager *AcctManagerCallerSession) CheckOrgAdmin(_acct common.Address, _orgId string, _ultParent string) (bool, error) {
+	return _AcctManager.Contract.CheckOrgAdmin(&_AcctManager.CallOpts, _acct, _orgId, _ultParent)
 }
 
 // GetAccountDetails is a free data retrieval call binding the contract method 0x2aceb534.
@@ -348,30 +348,30 @@ func (_AcctManager *AcctManagerCallerSession) OrgAdminExists(_orgId string) (boo
 	return _AcctManager.Contract.OrgAdminExists(&_AcctManager.CallOpts, _orgId)
 }
 
-// ValAcctAccessChange is a free data retrieval call binding the contract method 0x71dbb01e.
+// ValAcctAccessChange is a free data retrieval call binding the contract method 0x525d8aac.
 //
-// Solidity: function valAcctAccessChange(_acct address, _orgId string) constant returns(bool)
-func (_AcctManager *AcctManagerCaller) ValAcctAccessChange(opts *bind.CallOpts, _acct common.Address, _orgId string) (bool, error) {
+// Solidity: function valAcctAccessChange(_acct address, _orgId string, _ultParent string) constant returns(bool)
+func (_AcctManager *AcctManagerCaller) ValAcctAccessChange(opts *bind.CallOpts, _acct common.Address, _orgId string, _ultParent string) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _AcctManager.contract.Call(opts, out, "valAcctAccessChange", _acct, _orgId)
+	err := _AcctManager.contract.Call(opts, out, "valAcctAccessChange", _acct, _orgId, _ultParent)
 	return *ret0, err
 }
 
-// ValAcctAccessChange is a free data retrieval call binding the contract method 0x71dbb01e.
+// ValAcctAccessChange is a free data retrieval call binding the contract method 0x525d8aac.
 //
-// Solidity: function valAcctAccessChange(_acct address, _orgId string) constant returns(bool)
-func (_AcctManager *AcctManagerSession) ValAcctAccessChange(_acct common.Address, _orgId string) (bool, error) {
-	return _AcctManager.Contract.ValAcctAccessChange(&_AcctManager.CallOpts, _acct, _orgId)
+// Solidity: function valAcctAccessChange(_acct address, _orgId string, _ultParent string) constant returns(bool)
+func (_AcctManager *AcctManagerSession) ValAcctAccessChange(_acct common.Address, _orgId string, _ultParent string) (bool, error) {
+	return _AcctManager.Contract.ValAcctAccessChange(&_AcctManager.CallOpts, _acct, _orgId, _ultParent)
 }
 
-// ValAcctAccessChange is a free data retrieval call binding the contract method 0x71dbb01e.
+// ValAcctAccessChange is a free data retrieval call binding the contract method 0x525d8aac.
 //
-// Solidity: function valAcctAccessChange(_acct address, _orgId string) constant returns(bool)
-func (_AcctManager *AcctManagerCallerSession) ValAcctAccessChange(_acct common.Address, _orgId string) (bool, error) {
-	return _AcctManager.Contract.ValAcctAccessChange(&_AcctManager.CallOpts, _acct, _orgId)
+// Solidity: function valAcctAccessChange(_acct address, _orgId string, _ultParent string) constant returns(bool)
+func (_AcctManager *AcctManagerCallerSession) ValAcctAccessChange(_acct common.Address, _orgId string, _ultParent string) (bool, error) {
+	return _AcctManager.Contract.ValAcctAccessChange(&_AcctManager.CallOpts, _acct, _orgId, _ultParent)
 }
 
 // AddNWAdminAccount is a paid mutator transaction binding the contract method 0xcbc4b30d.

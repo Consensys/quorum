@@ -80,10 +80,10 @@ contract PermissionsInterface {
     }
 
 
-    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account) external
-    {
-        permImplementation.approveSubOrg(_pOrg, _orgId, _enodeId, _account, msg.sender);
-    }
+    //    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account) external
+    //    {
+    //        permImplementation.approveSubOrg(_pOrg, _orgId, _enodeId, _account, msg.sender);
+    //    }
 
     function updateOrgStatus(string calldata _orgId, uint _status) external
     {
@@ -141,12 +141,18 @@ contract PermissionsInterface {
 
     function isOrgAdmin(address _account, string memory _orgId) public view returns (bool)
     {
+
         return permImplementation.isOrgAdmin(_account, _orgId);
     }
 
     function validateAccount(address _account, string memory _orgId) public view returns (bool)
     {
         return permImplementation.validateAccount(_account, _orgId);
+    }
+
+    function getPendingOp(string calldata _orgId) external view returns (string memory, string memory, address, uint)
+    {
+        return permImplementation.getPendingOp(_orgId);
     }
 
 }

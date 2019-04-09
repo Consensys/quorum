@@ -161,25 +161,27 @@ contract AccountManager {
         }
     }
 
-    function checkOrgAdmin(address _acct, string calldata _orgId) external view returns (bool)
+    function checkOrgAdmin(address _acct, string calldata _orgId, string calldata _ultParent) external view returns (bool)
     {
         if (accountIndex[_acct] == 0) {
             return false;
         }
         uint acctIndex = getAcctIndex(_acct);
         return ((acctAccessList[acctIndex].orgAdmin) &&
-                (keccak256(abi.encodePacked(acctAccessList[acctIndex].orgId)) == keccak256(abi.encodePacked(_orgId))));
+        ((keccak256(abi.encodePacked(acctAccessList[acctIndex].orgId)) == keccak256(abi.encodePacked(_orgId))) ||
+        (keccak256(abi.encodePacked(acctAccessList[acctIndex].orgId)) == keccak256(abi.encodePacked(_ultParent)))));
     }
 
     // this function checks if account access can be modified. Account access can be modified for a new account
     // or if the call is from the orgadmin of the same org.
-    function valAcctAccessChange(address _acct, string calldata _orgId) external view returns (bool)
+    function valAcctAccessChange(address _acct, string calldata _orgId, string calldata _ultParent) external view returns (bool)
     {
         if (accountIndex[_acct] == 0) {
             return true;
         }
         uint acctIndex = getAcctIndex(_acct);
-        return ((keccak256(abi.encodePacked(acctAccessList[acctIndex].orgId)) == keccak256(abi.encodePacked(_orgId))));
+        return ((keccak256(abi.encodePacked(acctAccessList[acctIndex].orgId)) == keccak256(abi.encodePacked(_orgId))) ||
+        (keccak256(abi.encodePacked(acctAccessList[acctIndex].orgId)) == keccak256(abi.encodePacked(_ultParent))));
     }
     // Returns the account index based on account id
     function getAcctIndex(address _acct) internal view returns (uint)

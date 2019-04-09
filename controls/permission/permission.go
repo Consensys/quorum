@@ -654,7 +654,7 @@ func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) {
 	if numberOfOrgs, err := permOrgSession.GetNumberOfOrgs(); err == nil {
 		iOrgNum := numberOfOrgs.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
-			if o, s, err := permOrgSession.GetOrgInfo(big.NewInt(int64(k))); err == nil {
+			if _, _, _, _, o, s, _, err := permOrgSession.GetOrgInfo(big.NewInt(int64(k))); err == nil {
 				types.OrgInfoMap.UpsertOrg(o, types.OrgStatus(int(s.Int64())))
 			}
 		}

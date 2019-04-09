@@ -28,7 +28,7 @@ var (
 )
 
 // OrgManagerABI is the input ABI used to generate the binding from.
-const OrgManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateOrg\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getOrgIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"approveOrgStatusUpdate\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addAdminOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getOrgInfo\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfOrgs\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_orgStatus\",\"type\":\"uint256\"}],\"name\":\"checkOrgStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getImpl\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"approveOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getOrgStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"checkOrgExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"OrgApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_type\",\"type\":\"uint256\"}],\"name\":\"OrgPendingApproval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"OrgSuspended\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"OrgSuspensionRevoked\",\"type\":\"event\"}]"
+const OrgManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateOrg\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getOrgIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"approveOrgStatusUpdate\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getUltimateParent\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getSubOrgIndexLength\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_pOrg\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addSubOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_pOrg\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"checkNodeExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addAdminOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"},{\"name\":\"_subOrgIndex\",\"type\":\"uint256\"}],\"name\":\"getSubOrgIndexLength\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getOrgInfo\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfOrgs\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_orgStatus\",\"type\":\"uint256\"}],\"name\":\"checkOrgStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getSubOrgInfo\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getImpl\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"approveOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getOrgStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"checkOrgExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"OrgApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_type\",\"type\":\"uint256\"}],\"name\":\"OrgPendingApproval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"OrgSuspended\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"OrgSuspensionRevoked\",\"type\":\"event\"}]"
 
 // OrgManager is an auto generated Go binding around an Ethereum contract.
 type OrgManager struct {
@@ -172,6 +172,32 @@ func (_OrgManager *OrgManagerTransactorRaw) Transact(opts *bind.TransactOpts, me
 	return _OrgManager.Contract.contract.Transact(opts, method, params...)
 }
 
+// CheckNodeExists is a free data retrieval call binding the contract method 0x35f3310c.
+//
+// Solidity: function checkNodeExists(_pOrg string, _orgId string) constant returns(bool)
+func (_OrgManager *OrgManagerCaller) CheckNodeExists(opts *bind.CallOpts, _pOrg string, _orgId string) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _OrgManager.contract.Call(opts, out, "checkNodeExists", _pOrg, _orgId)
+	return *ret0, err
+}
+
+// CheckNodeExists is a free data retrieval call binding the contract method 0x35f3310c.
+//
+// Solidity: function checkNodeExists(_pOrg string, _orgId string) constant returns(bool)
+func (_OrgManager *OrgManagerSession) CheckNodeExists(_pOrg string, _orgId string) (bool, error) {
+	return _OrgManager.Contract.CheckNodeExists(&_OrgManager.CallOpts, _pOrg, _orgId)
+}
+
+// CheckNodeExists is a free data retrieval call binding the contract method 0x35f3310c.
+//
+// Solidity: function checkNodeExists(_pOrg string, _orgId string) constant returns(bool)
+func (_OrgManager *OrgManagerCallerSession) CheckNodeExists(_pOrg string, _orgId string) (bool, error) {
+	return _OrgManager.Contract.CheckNodeExists(&_OrgManager.CallOpts, _pOrg, _orgId)
+}
+
 // CheckOrgExists is a free data retrieval call binding the contract method 0xffe40d1d.
 //
 // Solidity: function checkOrgExists(_orgId string) constant returns(bool)
@@ -304,31 +330,41 @@ func (_OrgManager *OrgManagerCallerSession) GetOrgIndex(_orgId string) (*big.Int
 
 // GetOrgInfo is a free data retrieval call binding the contract method 0x5c4f32ee.
 //
-// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, uint256)
-func (_OrgManager *OrgManagerCaller) GetOrgInfo(opts *bind.CallOpts, _orgIndex *big.Int) (string, *big.Int, error) {
+// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, string, uint256, uint256, string, uint256, uint256[])
+func (_OrgManager *OrgManagerCaller) GetOrgInfo(opts *bind.CallOpts, _orgIndex *big.Int) (string, string, *big.Int, *big.Int, string, *big.Int, []*big.Int, error) {
 	var (
 		ret0 = new(string)
-		ret1 = new(*big.Int)
+		ret1 = new(string)
+		ret2 = new(*big.Int)
+		ret3 = new(*big.Int)
+		ret4 = new(string)
+		ret5 = new(*big.Int)
+		ret6 = new([]*big.Int)
 	)
 	out := &[]interface{}{
 		ret0,
 		ret1,
+		ret2,
+		ret3,
+		ret4,
+		ret5,
+		ret6,
 	}
 	err := _OrgManager.contract.Call(opts, out, "getOrgInfo", _orgIndex)
-	return *ret0, *ret1, err
+	return *ret0, *ret1, *ret2, *ret3, *ret4, *ret5, *ret6, err
 }
 
 // GetOrgInfo is a free data retrieval call binding the contract method 0x5c4f32ee.
 //
-// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, uint256)
-func (_OrgManager *OrgManagerSession) GetOrgInfo(_orgIndex *big.Int) (string, *big.Int, error) {
+// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, string, uint256, uint256, string, uint256, uint256[])
+func (_OrgManager *OrgManagerSession) GetOrgInfo(_orgIndex *big.Int) (string, string, *big.Int, *big.Int, string, *big.Int, []*big.Int, error) {
 	return _OrgManager.Contract.GetOrgInfo(&_OrgManager.CallOpts, _orgIndex)
 }
 
 // GetOrgInfo is a free data retrieval call binding the contract method 0x5c4f32ee.
 //
-// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, uint256)
-func (_OrgManager *OrgManagerCallerSession) GetOrgInfo(_orgIndex *big.Int) (string, *big.Int, error) {
+// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, string, uint256, uint256, string, uint256, uint256[])
+func (_OrgManager *OrgManagerCallerSession) GetOrgInfo(_orgIndex *big.Int) (string, string, *big.Int, *big.Int, string, *big.Int, []*big.Int, error) {
 	return _OrgManager.Contract.GetOrgInfo(&_OrgManager.CallOpts, _orgIndex)
 }
 
@@ -356,6 +392,84 @@ func (_OrgManager *OrgManagerSession) GetOrgStatus(_orgId string) (*big.Int, err
 // Solidity: function getOrgStatus(_orgId string) constant returns(uint256)
 func (_OrgManager *OrgManagerCallerSession) GetOrgStatus(_orgId string) (*big.Int, error) {
 	return _OrgManager.Contract.GetOrgStatus(&_OrgManager.CallOpts, _orgId)
+}
+
+// GetSubOrgIndexLength is a free data retrieval call binding the contract method 0x4242a62c.
+//
+// Solidity: function getSubOrgIndexLength(_orgIndex uint256, _subOrgIndex uint256) constant returns(uint256)
+func (_OrgManager *OrgManagerCaller) GetSubOrgIndexLength(opts *bind.CallOpts, _orgIndex *big.Int, _subOrgIndex *big.Int) (*big.Int, error) {
+	var (
+		ret0 = new(*big.Int)
+	)
+	out := ret0
+	err := _OrgManager.contract.Call(opts, out, "getSubOrgIndexLength", _orgIndex, _subOrgIndex)
+	return *ret0, err
+}
+
+// GetSubOrgIndexLength is a free data retrieval call binding the contract method 0x4242a62c.
+//
+// Solidity: function getSubOrgIndexLength(_orgIndex uint256, _subOrgIndex uint256) constant returns(uint256)
+func (_OrgManager *OrgManagerSession) GetSubOrgIndexLength(_orgIndex *big.Int, _subOrgIndex *big.Int) (*big.Int, error) {
+	return _OrgManager.Contract.GetSubOrgIndexLength(&_OrgManager.CallOpts, _orgIndex, _subOrgIndex)
+}
+
+// GetSubOrgIndexLength is a free data retrieval call binding the contract method 0x4242a62c.
+//
+// Solidity: function getSubOrgIndexLength(_orgIndex uint256, _subOrgIndex uint256) constant returns(uint256)
+func (_OrgManager *OrgManagerCallerSession) GetSubOrgIndexLength(_orgIndex *big.Int, _subOrgIndex *big.Int) (*big.Int, error) {
+	return _OrgManager.Contract.GetSubOrgIndexLength(&_OrgManager.CallOpts, _orgIndex, _subOrgIndex)
+}
+
+// GetSubOrgInfo is a free data retrieval call binding the contract method 0xc763471e.
+//
+// Solidity: function getSubOrgInfo(_orgIndex uint256) constant returns(uint256[])
+func (_OrgManager *OrgManagerCaller) GetSubOrgInfo(opts *bind.CallOpts, _orgIndex *big.Int) ([]*big.Int, error) {
+	var (
+		ret0 = new([]*big.Int)
+	)
+	out := ret0
+	err := _OrgManager.contract.Call(opts, out, "getSubOrgInfo", _orgIndex)
+	return *ret0, err
+}
+
+// GetSubOrgInfo is a free data retrieval call binding the contract method 0xc763471e.
+//
+// Solidity: function getSubOrgInfo(_orgIndex uint256) constant returns(uint256[])
+func (_OrgManager *OrgManagerSession) GetSubOrgInfo(_orgIndex *big.Int) ([]*big.Int, error) {
+	return _OrgManager.Contract.GetSubOrgInfo(&_OrgManager.CallOpts, _orgIndex)
+}
+
+// GetSubOrgInfo is a free data retrieval call binding the contract method 0xc763471e.
+//
+// Solidity: function getSubOrgInfo(_orgIndex uint256) constant returns(uint256[])
+func (_OrgManager *OrgManagerCallerSession) GetSubOrgInfo(_orgIndex *big.Int) ([]*big.Int, error) {
+	return _OrgManager.Contract.GetSubOrgInfo(&_OrgManager.CallOpts, _orgIndex)
+}
+
+// GetUltimateParent is a free data retrieval call binding the contract method 0x177c8d8a.
+//
+// Solidity: function getUltimateParent(_orgId string) constant returns(string)
+func (_OrgManager *OrgManagerCaller) GetUltimateParent(opts *bind.CallOpts, _orgId string) (string, error) {
+	var (
+		ret0 = new(string)
+	)
+	out := ret0
+	err := _OrgManager.contract.Call(opts, out, "getUltimateParent", _orgId)
+	return *ret0, err
+}
+
+// GetUltimateParent is a free data retrieval call binding the contract method 0x177c8d8a.
+//
+// Solidity: function getUltimateParent(_orgId string) constant returns(string)
+func (_OrgManager *OrgManagerSession) GetUltimateParent(_orgId string) (string, error) {
+	return _OrgManager.Contract.GetUltimateParent(&_OrgManager.CallOpts, _orgId)
+}
+
+// GetUltimateParent is a free data retrieval call binding the contract method 0x177c8d8a.
+//
+// Solidity: function getUltimateParent(_orgId string) constant returns(string)
+func (_OrgManager *OrgManagerCallerSession) GetUltimateParent(_orgId string) (string, error) {
+	return _OrgManager.Contract.GetUltimateParent(&_OrgManager.CallOpts, _orgId)
 }
 
 // AddAdminOrg is a paid mutator transaction binding the contract method 0x3719f3af.
@@ -398,6 +512,27 @@ func (_OrgManager *OrgManagerSession) AddOrg(_orgId string) (*types.Transaction,
 // Solidity: function addOrg(_orgId string) returns()
 func (_OrgManager *OrgManagerTransactorSession) AddOrg(_orgId string) (*types.Transaction, error) {
 	return _OrgManager.Contract.AddOrg(&_OrgManager.TransactOpts, _orgId)
+}
+
+// AddSubOrg is a paid mutator transaction binding the contract method 0x1f953480.
+//
+// Solidity: function addSubOrg(_pOrg string, _orgId string) returns()
+func (_OrgManager *OrgManagerTransactor) AddSubOrg(opts *bind.TransactOpts, _pOrg string, _orgId string) (*types.Transaction, error) {
+	return _OrgManager.contract.Transact(opts, "addSubOrg", _pOrg, _orgId)
+}
+
+// AddSubOrg is a paid mutator transaction binding the contract method 0x1f953480.
+//
+// Solidity: function addSubOrg(_pOrg string, _orgId string) returns()
+func (_OrgManager *OrgManagerSession) AddSubOrg(_pOrg string, _orgId string) (*types.Transaction, error) {
+	return _OrgManager.Contract.AddSubOrg(&_OrgManager.TransactOpts, _pOrg, _orgId)
+}
+
+// AddSubOrg is a paid mutator transaction binding the contract method 0x1f953480.
+//
+// Solidity: function addSubOrg(_pOrg string, _orgId string) returns()
+func (_OrgManager *OrgManagerTransactorSession) AddSubOrg(_pOrg string, _orgId string) (*types.Transaction, error) {
+	return _OrgManager.Contract.AddSubOrg(&_OrgManager.TransactOpts, _pOrg, _orgId)
 }
 
 // ApproveOrg is a paid mutator transaction binding the contract method 0xe3028316.

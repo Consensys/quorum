@@ -29,6 +29,7 @@ type PermAction int
 const (
 	AddOrg PermAction = iota
 	ApproveOrg
+	AddSubOrg
 	UpdateOrgStatus
 	ApproveOrgStatus
 	AddNode
@@ -79,6 +80,7 @@ type QuorumControlsAPI struct {
 // txArgs holds arguments required for execute functions
 type txArgs struct {
 	orgId      string
+	porgId     string
 	url        string
 	roleId     string
 	isVoter    bool
@@ -98,7 +100,15 @@ type nodeStatus struct {
 
 type accountInfo struct {
 	Address string `json:"address"`
-	Access  string `json:"access"`
+	Access  uint8  `json:"access"`
+}
+
+type orgDetails struct {
+	OrgId          string         `json:"orgId"`
+	Status         uint           `json:"status"`
+	nodeDetails    []*nodeStatus  `json:"nodeDetails"`
+	accountDetails []*accountInfo `json:"accountDetails"`
+	SubOrgs        []*orgDetails  `json:"subOrgs"`
 }
 
 type orgInfo struct {
@@ -181,9 +191,33 @@ func (s *QuorumControlsAPI) AcctList() []types.AccountInfo {
 	return types.AcctInfoMap.GetAcctList()
 }
 
+func (s *QuorumControlsAPI) GetOrgInfo(orgId string) []orgDetails {
+	var od orgDetails
+	od.OrgId = orgId
+	od.Status = uint(types.OrgInfoMap.GetOrg(orgId).Status)
+	log.Info("SMK-GetOrgInfo @196")
+
+	for _, v := range types.AcctInfoMap.GetAcctListOrg(orgId) {
+		var acctInfo accountInfo
+		log.Info("SMK-GetOrgInfo @198")
+		acctInfo.Address = v.AcctId.String()
+		acctInfo.Access = uint8(types.GetAcctAccess(v.AcctId))
+		log.Info("SMK-GetOrgInfo @202", "account", acctInfo)
+		od.accountDetails = append(od.accountDetails, &acctInfo)
+	}
+
+	var odRet []orgDetails
+	odRet = append(odRet, od)
+	return odRet
+}
+
 func (s *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(AddOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
 }
+
+//func (s *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
+//	return s.executePermAction(AddSubOrg, txArgs{porgId: porgId, orgId: orgId, url: url, acctId: acct, txa: txa})
+//}
 
 func (s *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
@@ -234,10 +268,6 @@ func (s *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
 
 func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) bool {
 	ac := types.AcctInfoMap.GetAccount(account)
-	log.Info("SMK-isOrgAdmin @ 237", "account", account, "org", orgId)
-	if ac != nil {
-		log.Info("SMK-isOrgAdmin @ 239", "account", ac.AcctId, "org", ac.OrgId, "role", ac.RoleId, "configRole", s.permConfig.OrgAdminRole)
-	}
 	return ac != nil && (ac.RoleId == s.permConfig.OrgAdminRole && ac.OrgId == orgId)
 }
 
@@ -376,6 +406,39 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 		// check if anything pending approval
 		tx, err = pinterf.ApproveOrg(args.orgId, args.url, args.acctId)
+
+	//case AddSubOrg:
+	//	// check if caller is network admin
+	//	if !s.isNetworkAdmin(args.txa.From) {
+	//		return ErrNotNetworkAdmin
+	//	}
+	//
+	//	// check if any previous op is pending approval for network admin
+	//	if s.checkPendingOp(s.permConfig.NwAdminOrg, pinterf) {
+	//		return ErrPendingApprovals
+	//	}
+	//	// check if org already exists
+	//	if s.checkOrgExists(args.orgId) {
+	//		return ErrOrgExists
+	//	}
+	//
+	//	// validate node id and
+	//	_, err := enode.ParseV4(args.url)
+	//	if err != nil {
+	//		return ErrInvalidNode
+	//	}
+	//
+	//	// check if node already there
+	//	if s.checkNodeExists(args.url) {
+	//		return ErrNodePresent
+	//	}
+	//
+	//	// check if account is already part of another org
+	//	if execStatus, er := s.checkOrgAdminExists(args.orgId, args.acctId); er != nil {
+	//		return execStatus
+	//	}
+	//
+	//	tx, err = pinterf.AddOrg(args.orgId, args.url, args.acctId)
 
 	case UpdateOrgStatus:
 		// check if called is network admin
