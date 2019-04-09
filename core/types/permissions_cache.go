@@ -3,6 +3,7 @@ package types
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/golang-lru"
+	"math/big"
 	"sync"
 )
 
@@ -26,8 +27,11 @@ const (
 )
 
 type OrgInfo struct {
-	OrgId  string
-	Status OrgStatus
+	OrgId          string
+	ParentOrgId    string
+	UltimateParent string
+	Level          *big.Int
+	Status         OrgStatus
 }
 
 type NodeStatus uint8
@@ -174,11 +178,17 @@ func SetDefaultAccess() {
 	DefaultAccess = ReadOnly
 }
 
-func (o *OrgCache) UpsertOrg(orgId string, status OrgStatus) {
+func (o *OrgCache) UpsertOrg(orgId, parentOrg, ultimateParent string, level *big.Int, status OrgStatus) {
 	defer o.mux.Unlock()
 	o.mux.Lock()
-	key := OrgKey{OrgId: orgId}
-	o.c.Add(key, &OrgInfo{orgId, status})
+	var key OrgKey
+	if parentOrg == "" {
+		key = OrgKey{OrgId: orgId}
+	} else {
+		key = OrgKey{OrgId: orgId + "." + parentOrg}
+	}
+
+	o.c.Add(key, &OrgInfo{orgId, parentOrg, ultimateParent, level, status})
 }
 
 func (o *OrgCache) GetOrg(orgId string) *OrgInfo {

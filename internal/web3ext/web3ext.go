@@ -757,6 +757,12 @@ web3._extend({
                        params: 4,
                        inputFormatter: [null,null,web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
                }),
+				new web3._extend.Method({
+                       name: 'addSubOrg',
+                       call: 'quorumPermission_addSubOrg',
+                       params: 5,
+                       inputFormatter: [null,null,null,web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
+               }),
                new web3._extend.Method({
                        name: 'updateOrgStatus',
                        call: 'quorumPermission_updateOrgStatus',

@@ -28,7 +28,7 @@ var (
 )
 
 // OrgManagerABI is the input ABI used to generate the binding from.
-const OrgManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateOrg\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getOrgIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"approveOrgStatusUpdate\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getUltimateParent\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getSubOrgIndexLength\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_pOrg\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addSubOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_pOrg\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"checkNodeExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addAdminOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"},{\"name\":\"_subOrgIndex\",\"type\":\"uint256\"}],\"name\":\"getSubOrgIndexLength\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getOrgInfo\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfOrgs\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_orgStatus\",\"type\":\"uint256\"}],\"name\":\"checkOrgStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getSubOrgInfo\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getImpl\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"approveOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getOrgStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"checkOrgExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"OrgApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_type\",\"type\":\"uint256\"}],\"name\":\"OrgPendingApproval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"OrgSuspended\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"OrgSuspensionRevoked\",\"type\":\"event\"}]"
+const OrgManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateOrg\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getOrgIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"approveOrgStatusUpdate\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getUltimateParent\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getSubOrgIndexLength\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_pOrg\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addSubOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_pOrg\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"checkNodeExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addAdminOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"},{\"name\":\"_subOrgIndex\",\"type\":\"uint256\"}],\"name\":\"getSubOrgIndexLength\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getOrgInfo\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfOrgs\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_orgStatus\",\"type\":\"uint256\"}],\"name\":\"checkOrgStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgIndex\",\"type\":\"uint256\"}],\"name\":\"getSubOrgInfo\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256[]\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getImpl\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"approveOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getOrgStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"checkOrgExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_porgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ultParent\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_level\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"OrgApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_porgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ultParent\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_level\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"OrgPendingApproval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_porgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ultParent\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_level\",\"type\":\"uint256\"}],\"name\":\"OrgSuspended\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_porgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_ultParent\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_level\",\"type\":\"uint256\"}],\"name\":\"OrgSuspensionRevoked\",\"type\":\"event\"}]"
 
 // OrgManager is an auto generated Go binding around an Ethereum contract.
 type OrgManager struct {
@@ -330,16 +330,14 @@ func (_OrgManager *OrgManagerCallerSession) GetOrgIndex(_orgId string) (*big.Int
 
 // GetOrgInfo is a free data retrieval call binding the contract method 0x5c4f32ee.
 //
-// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, string, uint256, uint256, string, uint256, uint256[])
-func (_OrgManager *OrgManagerCaller) GetOrgInfo(opts *bind.CallOpts, _orgIndex *big.Int) (string, string, *big.Int, *big.Int, string, *big.Int, []*big.Int, error) {
+// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, string, string, uint256, uint256)
+func (_OrgManager *OrgManagerCaller) GetOrgInfo(opts *bind.CallOpts, _orgIndex *big.Int) (string, string, string, *big.Int, *big.Int, error) {
 	var (
 		ret0 = new(string)
 		ret1 = new(string)
-		ret2 = new(*big.Int)
+		ret2 = new(string)
 		ret3 = new(*big.Int)
-		ret4 = new(string)
-		ret5 = new(*big.Int)
-		ret6 = new([]*big.Int)
+		ret4 = new(*big.Int)
 	)
 	out := &[]interface{}{
 		ret0,
@@ -347,24 +345,22 @@ func (_OrgManager *OrgManagerCaller) GetOrgInfo(opts *bind.CallOpts, _orgIndex *
 		ret2,
 		ret3,
 		ret4,
-		ret5,
-		ret6,
 	}
 	err := _OrgManager.contract.Call(opts, out, "getOrgInfo", _orgIndex)
-	return *ret0, *ret1, *ret2, *ret3, *ret4, *ret5, *ret6, err
+	return *ret0, *ret1, *ret2, *ret3, *ret4, err
 }
 
 // GetOrgInfo is a free data retrieval call binding the contract method 0x5c4f32ee.
 //
-// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, string, uint256, uint256, string, uint256, uint256[])
-func (_OrgManager *OrgManagerSession) GetOrgInfo(_orgIndex *big.Int) (string, string, *big.Int, *big.Int, string, *big.Int, []*big.Int, error) {
+// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, string, string, uint256, uint256)
+func (_OrgManager *OrgManagerSession) GetOrgInfo(_orgIndex *big.Int) (string, string, string, *big.Int, *big.Int, error) {
 	return _OrgManager.Contract.GetOrgInfo(&_OrgManager.CallOpts, _orgIndex)
 }
 
 // GetOrgInfo is a free data retrieval call binding the contract method 0x5c4f32ee.
 //
-// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, string, uint256, uint256, string, uint256, uint256[])
-func (_OrgManager *OrgManagerCallerSession) GetOrgInfo(_orgIndex *big.Int) (string, string, *big.Int, *big.Int, string, *big.Int, []*big.Int, error) {
+// Solidity: function getOrgInfo(_orgIndex uint256) constant returns(string, string, string, uint256, uint256)
+func (_OrgManager *OrgManagerCallerSession) GetOrgInfo(_orgIndex *big.Int) (string, string, string, *big.Int, *big.Int, error) {
 	return _OrgManager.Contract.GetOrgInfo(&_OrgManager.CallOpts, _orgIndex)
 }
 
@@ -667,13 +663,17 @@ func (it *OrgManagerOrgApprovedIterator) Close() error {
 
 // OrgManagerOrgApproved represents a OrgApproved event raised by the OrgManager contract.
 type OrgManagerOrgApproved struct {
-	OrgId string
-	Raw   types.Log // Blockchain specific contextual infos
+	OrgId     string
+	PorgId    string
+	UltParent string
+	Level     *big.Int
+	Status    *big.Int
+	Raw       types.Log // Blockchain specific contextual infos
 }
 
-// FilterOrgApproved is a free log retrieval operation binding the contract event 0x22e19008e6e73ca127a324bb032b35a7c4727e1d9a2d80bdc1f51b419dc1dcb5.
+// FilterOrgApproved is a free log retrieval operation binding the contract event 0xd705723a50859c9cc1d3953e10b8b9478820e7a62927ad3215897ed87b20591c.
 //
-// Solidity: e OrgApproved(_orgId string)
+// Solidity: e OrgApproved(_orgId string, _porgId string, _ultParent string, _level uint256, _status uint256)
 func (_OrgManager *OrgManagerFilterer) FilterOrgApproved(opts *bind.FilterOpts) (*OrgManagerOrgApprovedIterator, error) {
 
 	logs, sub, err := _OrgManager.contract.FilterLogs(opts, "OrgApproved")
@@ -683,9 +683,9 @@ func (_OrgManager *OrgManagerFilterer) FilterOrgApproved(opts *bind.FilterOpts) 
 	return &OrgManagerOrgApprovedIterator{contract: _OrgManager.contract, event: "OrgApproved", logs: logs, sub: sub}, nil
 }
 
-// WatchOrgApproved is a free log subscription operation binding the contract event 0x22e19008e6e73ca127a324bb032b35a7c4727e1d9a2d80bdc1f51b419dc1dcb5.
+// WatchOrgApproved is a free log subscription operation binding the contract event 0xd705723a50859c9cc1d3953e10b8b9478820e7a62927ad3215897ed87b20591c.
 //
-// Solidity: e OrgApproved(_orgId string)
+// Solidity: e OrgApproved(_orgId string, _porgId string, _ultParent string, _level uint256, _status uint256)
 func (_OrgManager *OrgManagerFilterer) WatchOrgApproved(opts *bind.WatchOpts, sink chan<- *OrgManagerOrgApproved) (event.Subscription, error) {
 
 	logs, sub, err := _OrgManager.contract.WatchLogs(opts, "OrgApproved")
@@ -789,14 +789,17 @@ func (it *OrgManagerOrgPendingApprovalIterator) Close() error {
 
 // OrgManagerOrgPendingApproval represents a OrgPendingApproval event raised by the OrgManager contract.
 type OrgManagerOrgPendingApproval struct {
-	OrgId string
-	Type  *big.Int
-	Raw   types.Log // Blockchain specific contextual infos
+	OrgId     string
+	PorgId    string
+	UltParent string
+	Level     *big.Int
+	Status    *big.Int
+	Raw       types.Log // Blockchain specific contextual infos
 }
 
-// FilterOrgPendingApproval is a free log retrieval operation binding the contract event 0x160ed88bfb53c28a468365c7f4d1e712acba6922848ec2d3dd6c5d2c7ea18446.
+// FilterOrgPendingApproval is a free log retrieval operation binding the contract event 0x0e8b7be64e0c730234ba2cd252b227fb481d7a247ba806d1941144c535bf054b.
 //
-// Solidity: e OrgPendingApproval(_orgId string, _type uint256)
+// Solidity: e OrgPendingApproval(_orgId string, _porgId string, _ultParent string, _level uint256, _status uint256)
 func (_OrgManager *OrgManagerFilterer) FilterOrgPendingApproval(opts *bind.FilterOpts) (*OrgManagerOrgPendingApprovalIterator, error) {
 
 	logs, sub, err := _OrgManager.contract.FilterLogs(opts, "OrgPendingApproval")
@@ -806,9 +809,9 @@ func (_OrgManager *OrgManagerFilterer) FilterOrgPendingApproval(opts *bind.Filte
 	return &OrgManagerOrgPendingApprovalIterator{contract: _OrgManager.contract, event: "OrgPendingApproval", logs: logs, sub: sub}, nil
 }
 
-// WatchOrgPendingApproval is a free log subscription operation binding the contract event 0x160ed88bfb53c28a468365c7f4d1e712acba6922848ec2d3dd6c5d2c7ea18446.
+// WatchOrgPendingApproval is a free log subscription operation binding the contract event 0x0e8b7be64e0c730234ba2cd252b227fb481d7a247ba806d1941144c535bf054b.
 //
-// Solidity: e OrgPendingApproval(_orgId string, _type uint256)
+// Solidity: e OrgPendingApproval(_orgId string, _porgId string, _ultParent string, _level uint256, _status uint256)
 func (_OrgManager *OrgManagerFilterer) WatchOrgPendingApproval(opts *bind.WatchOpts, sink chan<- *OrgManagerOrgPendingApproval) (event.Subscription, error) {
 
 	logs, sub, err := _OrgManager.contract.WatchLogs(opts, "OrgPendingApproval")
@@ -912,13 +915,16 @@ func (it *OrgManagerOrgSuspendedIterator) Close() error {
 
 // OrgManagerOrgSuspended represents a OrgSuspended event raised by the OrgManager contract.
 type OrgManagerOrgSuspended struct {
-	OrgId string
-	Raw   types.Log // Blockchain specific contextual infos
+	OrgId     string
+	PorgId    string
+	UltParent string
+	Level     *big.Int
+	Raw       types.Log // Blockchain specific contextual infos
 }
 
-// FilterOrgSuspended is a free log retrieval operation binding the contract event 0x2f4fa10d0d2c91574626af2a91a8a1a45d6c2d6e7eb5c09e5f8516005aec2162.
+// FilterOrgSuspended is a free log retrieval operation binding the contract event 0x73ccf8d6c8385bf5347269bd59712da33183c1a5e1702494bcdb87d0f4674d96.
 //
-// Solidity: e OrgSuspended(_orgId string)
+// Solidity: e OrgSuspended(_orgId string, _porgId string, _ultParent string, _level uint256)
 func (_OrgManager *OrgManagerFilterer) FilterOrgSuspended(opts *bind.FilterOpts) (*OrgManagerOrgSuspendedIterator, error) {
 
 	logs, sub, err := _OrgManager.contract.FilterLogs(opts, "OrgSuspended")
@@ -928,9 +934,9 @@ func (_OrgManager *OrgManagerFilterer) FilterOrgSuspended(opts *bind.FilterOpts)
 	return &OrgManagerOrgSuspendedIterator{contract: _OrgManager.contract, event: "OrgSuspended", logs: logs, sub: sub}, nil
 }
 
-// WatchOrgSuspended is a free log subscription operation binding the contract event 0x2f4fa10d0d2c91574626af2a91a8a1a45d6c2d6e7eb5c09e5f8516005aec2162.
+// WatchOrgSuspended is a free log subscription operation binding the contract event 0x73ccf8d6c8385bf5347269bd59712da33183c1a5e1702494bcdb87d0f4674d96.
 //
-// Solidity: e OrgSuspended(_orgId string)
+// Solidity: e OrgSuspended(_orgId string, _porgId string, _ultParent string, _level uint256)
 func (_OrgManager *OrgManagerFilterer) WatchOrgSuspended(opts *bind.WatchOpts, sink chan<- *OrgManagerOrgSuspended) (event.Subscription, error) {
 
 	logs, sub, err := _OrgManager.contract.WatchLogs(opts, "OrgSuspended")
@@ -1034,13 +1040,16 @@ func (it *OrgManagerOrgSuspensionRevokedIterator) Close() error {
 
 // OrgManagerOrgSuspensionRevoked represents a OrgSuspensionRevoked event raised by the OrgManager contract.
 type OrgManagerOrgSuspensionRevoked struct {
-	OrgId string
-	Raw   types.Log // Blockchain specific contextual infos
+	OrgId     string
+	PorgId    string
+	UltParent string
+	Level     *big.Int
+	Raw       types.Log // Blockchain specific contextual infos
 }
 
-// FilterOrgSuspensionRevoked is a free log retrieval operation binding the contract event 0x9b25ad0ea011f783a74266ecbce545ad7ef8b5a87b437245946e39db3f7fd009.
+// FilterOrgSuspensionRevoked is a free log retrieval operation binding the contract event 0x882f030c609566cd82918a97d457fd48f9cfcefd11282e2654cde3f94579c15f.
 //
-// Solidity: e OrgSuspensionRevoked(_orgId string)
+// Solidity: e OrgSuspensionRevoked(_orgId string, _porgId string, _ultParent string, _level uint256)
 func (_OrgManager *OrgManagerFilterer) FilterOrgSuspensionRevoked(opts *bind.FilterOpts) (*OrgManagerOrgSuspensionRevokedIterator, error) {
 
 	logs, sub, err := _OrgManager.contract.FilterLogs(opts, "OrgSuspensionRevoked")
@@ -1050,9 +1059,9 @@ func (_OrgManager *OrgManagerFilterer) FilterOrgSuspensionRevoked(opts *bind.Fil
 	return &OrgManagerOrgSuspensionRevokedIterator{contract: _OrgManager.contract, event: "OrgSuspensionRevoked", logs: logs, sub: sub}, nil
 }
 
-// WatchOrgSuspensionRevoked is a free log subscription operation binding the contract event 0x9b25ad0ea011f783a74266ecbce545ad7ef8b5a87b437245946e39db3f7fd009.
+// WatchOrgSuspensionRevoked is a free log subscription operation binding the contract event 0x882f030c609566cd82918a97d457fd48f9cfcefd11282e2654cde3f94579c15f.
 //
-// Solidity: e OrgSuspensionRevoked(_orgId string)
+// Solidity: e OrgSuspensionRevoked(_orgId string, _porgId string, _ultParent string, _level uint256)
 func (_OrgManager *OrgManagerFilterer) WatchOrgSuspensionRevoked(opts *bind.WatchOpts, sink chan<- *OrgManagerOrgSuspensionRevoked) (event.Subscription, error) {
 
 	logs, sub, err := _OrgManager.contract.WatchLogs(opts, "OrgSuspensionRevoked")

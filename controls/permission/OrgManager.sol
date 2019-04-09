@@ -26,10 +26,10 @@ contract OrgManager {
     uint private orgNum = 0;
 
     // events related to Master Org add
-    event OrgApproved(string _orgId);
-    event OrgPendingApproval(string _orgId, uint _type);
-    event OrgSuspended(string _orgId);
-    event OrgSuspensionRevoked(string _orgId);
+    event OrgApproved(string _orgId, string _porgId, string _ultParent, uint _level, uint _status);
+    event OrgPendingApproval(string _orgId, string _porgId, string _ultParent, uint _level, uint _status);
+    event OrgSuspended(string _orgId, string _porgId, string _ultParent, uint _level);
+    event OrgSuspensionRevoked(string _orgId, string _porgId, string _ultParent, uint _level);
 
     modifier onlyImpl
     {
@@ -59,7 +59,6 @@ contract OrgManager {
     onlyImpl
     {
         addNewOrg("", _orgId, 1, 2);
-        emit OrgApproved(_orgId);
     }
 
     function addNewOrg(string memory _pOrg, string memory _orgId, uint _level, uint _status) internal
@@ -98,6 +97,12 @@ contract OrgManager {
         orgList[id].orgId = _orgId;
         orgList[id].parentId = _pOrg;
         orgList[id].status = _status;
+        if (_status == 1) {
+            emit OrgPendingApproval(_orgId, _pOrg, orgList[id].ultParent, orgList[id].level, 1);
+        }
+        else {
+            emit OrgApproved(_orgId, _pOrg, orgList[id].ultParent, orgList[id].level, 2);
+        }
     }
 
     function getNumberOfOrgs() public view returns (uint)
@@ -123,7 +128,6 @@ contract OrgManager {
     orgNotExists(_orgId)
     {
         addNewOrg("", _orgId, 1, 1);
-        emit OrgPendingApproval(_orgId, 1);
     }
 
     // function for adding a new master org
@@ -132,7 +136,6 @@ contract OrgManager {
     orgNotExists(string(abi.encodePacked(_pOrg, ".", _orgId)))
     {
         addNewOrg(_pOrg, _orgId, 2, 2);
-        emit OrgApproved(_orgId);
     }
 
     function updateOrg(string calldata _orgId, uint _status) external
@@ -180,7 +183,7 @@ contract OrgManager {
         require(checkOrgStatus(_orgId, 2) == true, "Org not in approved state");
         uint id = getOrgIndex(_orgId);
         orgList[id].status = 3;
-        emit OrgPendingApproval(_orgId, 3);
+        emit OrgPendingApproval(_orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 3);
     }
 
     function revokeOrgSuspension(string memory _orgId) internal
@@ -189,7 +192,7 @@ contract OrgManager {
         require(checkOrgStatus(_orgId, 4) == true, "Org not in suspended state");
         uint id = getOrgIndex(_orgId);
         orgList[id].status = 5;
-        emit OrgPendingApproval(_orgId, 5);
+        emit OrgPendingApproval(_orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 5);
     }
 
     function approveOrg(string calldata _orgId) external
@@ -198,7 +201,7 @@ contract OrgManager {
         require(checkOrgStatus(_orgId, 1) == true, "Nothing to approve");
         uint id = getOrgIndex(_orgId);
         orgList[id].status = 2;
-        emit OrgApproved(_orgId);
+        emit OrgApproved(_orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 2);
     }
 
     function approveOrgSuspension(string memory _orgId) internal
@@ -206,7 +209,7 @@ contract OrgManager {
         require(checkOrgStatus(_orgId, 3) == true, "Nothing to approve");
         uint id = getOrgIndex(_orgId);
         orgList[id].status = 4;
-        emit OrgSuspended(_orgId);
+        emit OrgSuspended(_orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level);
     }
 
     function approveOrgRevokeSuspension(string memory _orgId) internal
@@ -214,7 +217,7 @@ contract OrgManager {
         require(checkOrgStatus(_orgId, 5) == true, "Nothing to approve");
         uint id = getOrgIndex(_orgId);
         orgList[id].status = 2;
-        emit OrgSuspensionRevoked(_orgId);
+        emit OrgSuspensionRevoked(_orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level);
     }
 
     function checkOrgStatus(string memory _orgId, uint _orgStatus) public view returns (bool){
@@ -235,9 +238,9 @@ contract OrgManager {
     }
 
     // returns org and master org details based on org index
-    function getOrgInfo(uint _orgIndex) external view returns (string memory, string memory, uint, uint, string memory, uint, uint[] memory)
+    function getOrgInfo(uint _orgIndex) external view returns (string memory, string memory, string memory, uint, uint)
     {
-        return (orgList[_orgIndex].parentId, orgList[_orgIndex].ultParent, orgList[_orgIndex].pindex, orgList[_orgIndex].level, orgList[_orgIndex].orgId, orgList[_orgIndex].status, orgList[_orgIndex].subOrgIndexList);
+        return (orgList[_orgIndex].orgId, orgList[_orgIndex].parentId, orgList[_orgIndex].ultParent, orgList[_orgIndex].level, orgList[_orgIndex].status);
     }
 
     function getSubOrgInfo(uint _orgIndex) external view returns (uint[] memory)

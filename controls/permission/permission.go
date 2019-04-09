@@ -251,16 +251,16 @@ func (p *PermissionCtrl) manageOrgPermissions() {
 	for {
 		select {
 		case evtPendingApproval = <-chPendingApproval:
-			types.OrgInfoMap.UpsertOrg(evtPendingApproval.OrgId, types.OrgStatus(evtPendingApproval.Type.Uint64()))
+			types.OrgInfoMap.UpsertOrg(evtPendingApproval.OrgId, evtPendingApproval.PorgId, evtPendingApproval.UltParent, evtPendingApproval.Level, types.OrgStatus(evtPendingApproval.Status.Uint64()))
 
 		case evtOrgApproved = <-chOrgApproved:
-			types.OrgInfoMap.UpsertOrg(evtOrgApproved.OrgId, types.OrgApproved)
+			types.OrgInfoMap.UpsertOrg(evtOrgApproved.OrgId, evtOrgApproved.PorgId, evtOrgApproved.UltParent, evtOrgApproved.Level, types.OrgApproved)
 
 		case evtOrgSuspended = <-chOrgSuspended:
-			types.OrgInfoMap.UpsertOrg(evtOrgSuspended.OrgId, types.OrgSuspended)
+			types.OrgInfoMap.UpsertOrg(evtOrgSuspended.OrgId, evtOrgSuspended.PorgId, evtOrgSuspended.UltParent, evtOrgSuspended.Level, types.OrgSuspended)
 
 		case evtOrgReactivated = <-chOrgReactivated:
-			types.OrgInfoMap.UpsertOrg(evtOrgReactivated.OrgId, types.OrgApproved)
+			types.OrgInfoMap.UpsertOrg(evtOrgReactivated.OrgId, evtOrgReactivated.PorgId, evtOrgReactivated.UltParent, evtOrgReactivated.Level, types.OrgApproved)
 		}
 	}
 }
@@ -562,7 +562,7 @@ func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSes
 		return err
 	}
 
-	types.OrgInfoMap.UpsertOrg(p.permConfig.NwAdminOrg, 2)
+	types.OrgInfoMap.UpsertOrg(p.permConfig.NwAdminOrg, "", "", big.NewInt(1), types.OrgApproved)
 	types.RoleInfoMap.UpsertRole(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, true, types.FullAccess, true)
 	// populate the initial node list from static-nodes.json
 	if err := p.populateStaticNodesToContract(permInterfSession); err != nil {
@@ -654,11 +654,10 @@ func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) {
 	if numberOfOrgs, err := permOrgSession.GetNumberOfOrgs(); err == nil {
 		iOrgNum := numberOfOrgs.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
-			if _, _, _, _, o, s, _, err := permOrgSession.GetOrgInfo(big.NewInt(int64(k))); err == nil {
-				types.OrgInfoMap.UpsertOrg(o, types.OrgStatus(int(s.Int64())))
+			if orgId, porgId, ultParent, level, status, err := permOrgSession.GetOrgInfo(big.NewInt(int64(k))); err == nil {
+				types.OrgInfoMap.UpsertOrg(orgId, porgId, ultParent, level, types.OrgStatus(int(status.Int64())))
 			}
 		}
-
 	}
 }
 

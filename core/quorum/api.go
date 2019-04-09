@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
+	"strings"
 )
 
 //default gas limit to use if not passed in sendTxArgs
@@ -215,9 +216,9 @@ func (s *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address
 	return s.executePermAction(AddOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
 }
 
-//func (s *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
-//	return s.executePermAction(AddSubOrg, txArgs{porgId: porgId, orgId: orgId, url: url, acctId: acct, txa: txa})
-//}
+func (s *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executePermAction(AddSubOrg, txArgs{porgId: porgId, orgId: orgId, url: url, acctId: acct, txa: txa})
+}
 
 func (s *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
 	return s.executePermAction(ApproveOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
@@ -268,7 +269,7 @@ func (s *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
 
 func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) bool {
 	ac := types.AcctInfoMap.GetAccount(account)
-	return ac != nil && (ac.RoleId == s.permConfig.OrgAdminRole && ac.OrgId == orgId)
+	return ac != nil && (ac.RoleId == s.permConfig.OrgAdminRole && strings.Contains(orgId, ac.OrgId))
 }
 
 func (s *QuorumControlsAPI) checkOrgExists(orgId string) bool {
@@ -407,38 +408,37 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		// check if anything pending approval
 		tx, err = pinterf.ApproveOrg(args.orgId, args.url, args.acctId)
 
-	//case AddSubOrg:
-	//	// check if caller is network admin
-	//	if !s.isNetworkAdmin(args.txa.From) {
-	//		return ErrNotNetworkAdmin
-	//	}
-	//
-	//	// check if any previous op is pending approval for network admin
-	//	if s.checkPendingOp(s.permConfig.NwAdminOrg, pinterf) {
-	//		return ErrPendingApprovals
-	//	}
-	//	// check if org already exists
-	//	if s.checkOrgExists(args.orgId) {
-	//		return ErrOrgExists
-	//	}
-	//
-	//	// validate node id and
-	//	_, err := enode.ParseV4(args.url)
-	//	if err != nil {
-	//		return ErrInvalidNode
-	//	}
-	//
-	//	// check if node already there
-	//	if s.checkNodeExists(args.url) {
-	//		return ErrNodePresent
-	//	}
-	//
-	//	// check if account is already part of another org
-	//	if execStatus, er := s.checkOrgAdminExists(args.orgId, args.acctId); er != nil {
-	//		return execStatus
-	//	}
-	//
-	//	tx, err = pinterf.AddOrg(args.orgId, args.url, args.acctId)
+	case AddSubOrg:
+		// check if caller is network admin
+		if !s.isOrgAdmin(args.txa.From, args.porgId) {
+			return ErrNotOrgAdmin
+		}
+
+		// check if org already exists
+		if s.checkOrgExists(args.orgId) {
+			return ErrOrgExists
+		}
+
+		// validate node id and
+		if len(args.url) != 0 {
+			_, err := enode.ParseV4(args.url)
+			if err != nil {
+				return ErrInvalidNode
+			}
+			// check if node already there
+			if s.checkNodeExists(args.url) {
+				return ErrNodePresent
+			}
+		}
+
+		// check if account is already part of another org
+		if (args.acctId != common.Address{}) {
+			if execStatus, er := s.checkOrgAdminExists(args.orgId, args.acctId); er != nil {
+				return execStatus
+			}
+		}
+
+		tx, err = pinterf.AddSubOrg(args.porgId, args.orgId, args.url, args.acctId)
 
 	case UpdateOrgStatus:
 		// check if called is network admin
