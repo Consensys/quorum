@@ -28,9 +28,11 @@ const (
 
 type OrgInfo struct {
 	OrgId          string
+	FullOrgId      string
 	ParentOrgId    string
 	UltimateParent string
 	Level          *big.Int
+	SubOrgList     []string
 	Status         OrgStatus
 }
 
@@ -72,6 +74,12 @@ type AccountInfo struct {
 	AcctId     common.Address
 	IsOrgAdmin bool
 	Status     AcctStatus
+}
+
+type OrgDetailInfo struct {
+	NodeList []NodeInfo
+	RoleList []RoleInfo
+	AcctList []AccountInfo
 }
 
 type OrgStruct struct {
@@ -185,10 +193,17 @@ func (o *OrgCache) UpsertOrg(orgId, parentOrg, ultimateParent string, level *big
 	if parentOrg == "" {
 		key = OrgKey{OrgId: orgId}
 	} else {
-		key = OrgKey{OrgId: orgId + "." + parentOrg}
+		key = OrgKey{OrgId: parentOrg + "." + orgId}
+		pkey := OrgKey{OrgId: parentOrg}
+		if ent, ok := o.c.Get(pkey); ok {
+			porg := ent.(*OrgInfo)
+			porg.SubOrgList = append(porg.SubOrgList, key.OrgId)
+			o.c.Add(pkey, porg)
+		}
 	}
 
-	o.c.Add(key, &OrgInfo{orgId, parentOrg, ultimateParent, level, status})
+	norg := &OrgInfo{orgId, key.OrgId, parentOrg, ultimateParent, level, nil, status}
+	o.c.Add(key, norg)
 }
 
 func (o *OrgCache) GetOrg(orgId string) *OrgInfo {

@@ -192,6 +192,28 @@ func (s *QuorumControlsAPI) AcctList() []types.AccountInfo {
 	return types.AcctInfoMap.GetAcctList()
 }
 
+func (s *QuorumControlsAPI) GetOrgDetails(orgId string) types.OrgDetailInfo {
+	var acctList []types.AccountInfo
+	var roleList []types.RoleInfo
+	var nodeList []types.NodeInfo
+	for _, a := range s.AcctList() {
+		if a.OrgId == orgId {
+			acctList = append(acctList, a)
+		}
+	}
+	for _, a := range s.RoleList() {
+		if a.OrgId == orgId {
+			roleList = append(roleList, a)
+		}
+	}
+	for _, a := range s.NodeList() {
+		if a.OrgId == orgId {
+			nodeList = append(nodeList, a)
+		}
+	}
+	return types.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList}
+}
+
 func (s *QuorumControlsAPI) GetOrgInfo(orgId string) []orgDetails {
 	var od orgDetails
 	od.OrgId = orgId
