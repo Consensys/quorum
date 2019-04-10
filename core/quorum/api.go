@@ -192,7 +192,7 @@ func (s *QuorumControlsAPI) GetOrgDetails(orgId string) types.OrgDetailInfo {
 			nodeList = append(nodeList, a)
 		}
 	}
-	return types.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList}
+	return types.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList, SubOrgList: types.OrgInfoMap.GetOrg(orgId).SubOrgList}
 }
 
 func (s *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {

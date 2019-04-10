@@ -77,9 +77,10 @@ type AccountInfo struct {
 }
 
 type OrgDetailInfo struct {
-	NodeList []NodeInfo
-	RoleList []RoleInfo
-	AcctList []AccountInfo
+	NodeList   []NodeInfo
+	RoleList   []RoleInfo
+	AcctList   []AccountInfo
+	SubOrgList []string
 }
 
 type OrgStruct struct {
