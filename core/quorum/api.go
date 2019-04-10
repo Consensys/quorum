@@ -130,7 +130,8 @@ var (
 	ErrRoleDoesNotExist   = ExecStatus{false, "Role not found for org. Add role first"}
 	ErrRoleActive         = ExecStatus{false, "Accounts linked to the role. Cannot be removed"}
 	ErrAdminRoles         = ExecStatus{false, "Admin role cannot be removed"}
-	ErrInvalidOrgName     = ExecStatus{false, "Org id cannot contain '.'"}
+	ErrInvalidOrgName     = ExecStatus{false, "Org id cannot contain special characters"}
+	ErrInvalidParentOrg   = ExecStatus{false, "Invalid parent org id"}
 	ExecSuccess           = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -254,13 +255,17 @@ func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) boo
 	return ac != nil && (ac.RoleId == s.permConfig.OrgAdminRole && strings.Contains(orgId, ac.OrgId))
 }
 
-func (s *QuorumControlsAPI) checkOrgExists(orgId, pOrgId string) bool {
-	locOrgId := orgId
-	if pOrgId != "" {
-		locOrgId = pOrgId + "." + locOrgId
+func (s *QuorumControlsAPI) validateOrg(orgId, pOrgId string) (ExecStatus, error) {
+	// validate Parent org id
+	if pOrgId != "" && types.OrgInfoMap.GetOrg(pOrgId) == nil {
+		return ErrInvalidParentOrg, errors.New("invalid parent org")
+	} else {
+		locOrgId := pOrgId + "." + orgId
+		if types.OrgInfoMap.GetOrg(locOrgId) != nil {
+			return ErrOrgExists, errors.New("org exists")
+		}
 	}
-	org := types.OrgInfoMap.GetOrg(locOrgId)
-	return org != nil
+	return ExecSuccess, nil
 }
 
 func (s *QuorumControlsAPI) checkNodeExists(enodeId string) bool {
@@ -364,8 +369,8 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return ErrPendingApprovals
 		}
 		// check if org already exists
-		if s.checkOrgExists(args.orgId, "") {
-			return ErrOrgExists
+		if execStatus, er := s.validateOrg(args.orgId, ""); er != nil {
+			return execStatus
 		}
 
 		// validate node id and
@@ -411,8 +416,8 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 
 		// check if org already exists
-		if s.checkOrgExists(args.orgId, args.porgId) {
-			return ErrOrgExists
+		if execStatus, er := s.validateOrg(args.orgId, args.porgId); er != nil {
+			return execStatus
 		}
 
 		// validate node id and
