@@ -446,7 +446,7 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	}
 	if nil != evm.currentTx && evm.currentTx.IsPrivate() && evm.currentTx.PrivacyMetadata() != nil {
 		// for calls (reading contract state) or finding the affected contracts there is no transaction
-		pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivateStateValidation)
+		pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivacyFlag)
 		err := evm.StateDB.SetStatePrivacyMetadata(contractAddr, pm)
 		log.Trace("Set Privacy Metadata", "key", contractAddr, "privacyMetadata", pm)
 		if err != nil {
@@ -585,7 +585,7 @@ func (evm *EVM) AffectedContracts() []common.Address {
 			addr = append(addr, a)
 		}
 	}
-	return addr
+	return addr[:]
 }
 
 func (evm *EVM) CreatedContracts() []common.Address {
@@ -595,17 +595,13 @@ func (evm *EVM) CreatedContracts() []common.Address {
 			addr = append(addr, a)
 		}
 	}
-	return addr
+	return addr[:]
 }
 
-// Return MerkleRoot of all affected contracts
+// Return MerkleRoot of all affected contracts (due to both creation and message call)
 func (evm *EVM) CalculateMerkleRoot() (common.Hash, error) {
-	affectedContracts := evm.AffectedContracts()
-	createdContracts := evm.CreatedContracts()
-	addresses := make([]common.Address, 0, len(affectedContracts)+len(createdContracts))
-	addresses = append(affectedContracts, createdContracts...)
 	combined := new(trie.Trie)
-	for _, addr := range addresses {
+	for addr := range evm.affectedContracts {
 		data, err := getDualState(evm, addr).GetRLPEncodedStateObject(addr)
 		if err != nil {
 			return common.Hash{}, err

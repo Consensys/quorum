@@ -58,7 +58,7 @@ type Transaction struct {
 }
 
 type PrivacyMetadata struct {
-	PrivateStateValidation bool
+	PrivacyFlag uint64
 }
 
 type txdata struct {
@@ -122,9 +122,9 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 	return &Transaction{data: d}
 }
 
-func NewTxPrivacyMetadata(psv bool) *PrivacyMetadata {
+func NewTxPrivacyMetadata(privacyFlag uint64) *PrivacyMetadata {
 	return &PrivacyMetadata{
-		PrivateStateValidation: psv,
+		PrivacyFlag: privacyFlag,
 	}
 }
 

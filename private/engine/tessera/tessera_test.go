@@ -1,16 +1,16 @@
 package tessera
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
+
+	testifyassert "github.com/stretchr/testify/assert"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -18,16 +18,18 @@ import (
 )
 
 var (
-	arbitraryHash                  = common.BytesToEncryptedPayloadHash([]byte("arbitrary"))
-	arbitraryHash1                 = common.BytesToEncryptedPayloadHash([]byte("arbitrary1"))
-	arbitraryNotFoundHash          = common.BytesToEncryptedPayloadHash([]byte("not found"))
-	arbitraryHashNoPrivateMetadata = common.BytesToEncryptedPayloadHash([]byte("no private extra data"))
-	arbitraryPrivatePayload        = []byte("arbitrary private payload")
-	arbitraryFrom                  = "arbitraryFrom"
-	arbitraryTo                    = []string{"arbitraryTo1", "arbitraryTo2"}
-	arbitraryExtra                 = &engine.ExtraMetadata{
+	arbitraryHash                         = common.BytesToEncryptedPayloadHash([]byte("arbitrary"))
+	arbitraryHash1                        = common.BytesToEncryptedPayloadHash([]byte("arbitrary1"))
+	arbitraryNotFoundHash                 = common.BytesToEncryptedPayloadHash([]byte("not found"))
+	arbitraryHashNoPrivateMetadata        = common.BytesToEncryptedPayloadHash([]byte("no private extra data"))
+	arbitraryPrivatePayload               = []byte("arbitrary private payload")
+	arbitraryFrom                         = "arbitraryFrom"
+	arbitraryTo                           = []string{"arbitraryTo1", "arbitraryTo2"}
+	arbitraryPrivacyFlag           uint64 = 1
+	arbitraryExtra                        = &engine.ExtraMetadata{
 		ACHashes:     Must(common.Base64sToEncryptedPayloadHashes([]string{arbitraryHash.ToBase64()})).(common.EncryptedPayloadHashes),
 		ACMerkleRoot: common.StringToHash("arbitrary root hash"),
+		PrivacyFlag:  arbitraryPrivacyFlag,
 	}
 
 	testServer *httptest.Server
@@ -105,8 +107,9 @@ func MockReceiveAPIHandlerFunc(response http.ResponseWriter, request *http.Reque
 			} else {
 				data, _ = json.Marshal(&receiveResponse{
 					Payload:                      arbitraryPrivatePayload,
-					ExecHash:                     base64.StdEncoding.EncodeToString(arbitraryExtra.ACMerkleRoot.Bytes()),
+					ExecHash:                     arbitraryExtra.ACMerkleRoot.ToBase64(),
 					AffectedContractTransactions: arbitraryExtra.ACHashes.ToBase64s(),
+					PrivacyFlag:                  arbitraryPrivacyFlag,
 				})
 			}
 			response.Write(data)
@@ -142,6 +145,8 @@ func verifyRequetHeader(h http.Header, t *testing.T) {
 }
 
 func TestSend_whenTypical(t *testing.T) {
+	assert := testifyassert.New(t)
+
 	actualHash, err := testObject.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -156,34 +161,18 @@ func TestSend_whenTypical(t *testing.T) {
 
 	actualRequest := capturedRequest.request.(*sendRequest)
 
-	if string(actualRequest.Payload) != string(arbitraryPrivatePayload) {
-		t.Errorf("Payload: expected %s but got %s", arbitraryPrivatePayload, actualRequest.Payload)
-	}
-
-	if actualRequest.From != arbitraryFrom {
-		t.Errorf("From: expected %s but got %s", arbitraryFrom, actualRequest.From)
-	}
-
-	if !reflect.DeepEqual(actualRequest.To, arbitraryTo) {
-		t.Errorf("To: expected %v but got %v", arbitraryTo, actualRequest.To)
-	}
-
-	expectedACHashes := arbitraryExtra.ACHashes.ToBase64s()
-	if !reflect.DeepEqual(actualRequest.AffectedContractTransactions, expectedACHashes) {
-		t.Errorf("AffectedContractTransactions: expected %v but got %v", expectedACHashes, actualRequest.AffectedContractTransactions)
-	}
-
-	expectedMerkleRoot := base64.StdEncoding.EncodeToString(arbitraryExtra.ACMerkleRoot.Bytes())
-	if actualRequest.ExecHash != expectedMerkleRoot {
-		t.Errorf("ExecHash: expected %s but got %s", actualRequest.ExecHash, expectedMerkleRoot)
-	}
-
-	if actualHash.Hex() != arbitraryHash.Hex() {
-		t.Errorf("EncryptedPayloadHash: expected %s but got %s", arbitraryHash.Hex(), actualHash.Hex())
-	}
+	assert.Equal(arbitraryPrivatePayload, actualRequest.Payload, "request.payload")
+	assert.Equal(arbitraryFrom, actualRequest.From, "request.from")
+	assert.Equal(arbitraryTo, actualRequest.To, "request.to")
+	assert.Equal(arbitraryPrivacyFlag, actualRequest.PrivacyFlag, "request.privacyFlag")
+	assert.Equal(arbitraryExtra.ACHashes.ToBase64s(), actualRequest.AffectedContractTransactions, "request.affectedContractTransactions")
+	assert.Equal(arbitraryExtra.ACMerkleRoot.ToBase64(), actualRequest.ExecHash, "request.execHash")
+	assert.Equal(arbitraryHash, actualHash, "returned hash")
 }
 
 func TestReceive_whenTypical(t *testing.T) {
+	assert := testifyassert.New(t)
+
 	_, actualExtra, err := testObject.Receive(arbitraryHash1)
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -198,20 +187,15 @@ func TestReceive_whenTypical(t *testing.T) {
 
 	actualRequest := capturedRequest.request.(string)
 
-	if actualRequest != arbitraryHash1.ToBase64() {
-		t.Errorf("Key: expected %s but got %s", arbitraryHash1.ToBase64(), actualRequest)
-	}
-
-	if !reflect.DeepEqual(actualExtra.ACHashes, arbitraryExtra.ACHashes) {
-		t.Errorf("ACHashes: expected %v but got %v", arbitraryExtra.ACHashes, actualExtra.ACHashes)
-	}
-
-	if actualExtra.ACMerkleRoot.Hex() != arbitraryExtra.ACMerkleRoot.Hex() {
-		t.Errorf("MerkelRoot: expected %s but got %s", arbitraryExtra.ACMerkleRoot.Hex(), actualExtra.ACMerkleRoot.Hex())
-	}
+	assert.Equal(arbitraryHash1.ToBase64(), actualRequest, "requested hash")
+	assert.Equal(arbitraryExtra.ACHashes, actualExtra.ACHashes, "returned affected contract transaction hashes")
+	assert.Equal(arbitraryExtra.ACMerkleRoot, actualExtra.ACMerkleRoot, "returned merkle root")
+	assert.Equal(arbitraryExtra.PrivacyFlag, actualExtra.PrivacyFlag, "returned privacy flag")
 }
 
 func TestReceive_whenPayloadNotFound(t *testing.T) {
+	assert := testifyassert.New(t)
+
 	data, _, err := testObject.Receive(arbitraryNotFoundHash)
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -226,16 +210,13 @@ func TestReceive_whenPayloadNotFound(t *testing.T) {
 
 	actualRequest := capturedRequest.request.(string)
 
-	if actualRequest != arbitraryNotFoundHash.ToBase64() {
-		t.Errorf("Key: expected %s but got %s", arbitraryNotFoundHash.ToBase64(), actualRequest)
-	}
-
-	if data != nil {
-		t.Errorf("Payload: expected nil but got %v", data)
-	}
+	assert.Equal(arbitraryNotFoundHash.ToBase64(), actualRequest, "requested hash")
+	assert.Nil(data, "returned payload when not found")
 }
 
 func TestReceive_whenHavingPayloadButNoPrivateExtraMetadata(t *testing.T) {
+	assert := testifyassert.New(t)
+
 	_, actualExtra, err := testObject.Receive(arbitraryHashNoPrivateMetadata)
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -250,20 +231,14 @@ func TestReceive_whenHavingPayloadButNoPrivateExtraMetadata(t *testing.T) {
 
 	actualRequest := capturedRequest.request.(string)
 
-	if actualRequest != arbitraryHashNoPrivateMetadata.ToBase64() {
-		t.Errorf("Key: expected %s but got %s", arbitraryHashNoPrivateMetadata.ToBase64(), actualRequest)
-	}
-
-	if actualExtra.ACHashes == nil || len(actualExtra.ACHashes) > 0 {
-		t.Errorf("ACHashes: expected empty and not nil but got %v", actualExtra.ACHashes)
-	}
-
-	if !common.EmptyHash(actualExtra.ACMerkleRoot) {
-		t.Errorf("MerkelRoot: expected empty hash but got %s", actualExtra.ACMerkleRoot.Hex())
-	}
+	assert.Equal(arbitraryHashNoPrivateMetadata.ToBase64(), actualRequest, "requested hash")
+	assert.Empty(actualExtra.ACHashes, "returned affected contract transaction hashes")
+	assert.True(common.EmptyHash(actualExtra.ACMerkleRoot), "returned merkle root")
 }
 
 func TestSendSignedTx_whenTypical(t *testing.T) {
+	assert := testifyassert.New(t)
+
 	_, err := testObject.SendSignedTx(arbitraryHash, arbitraryTo, arbitraryExtra)
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -278,17 +253,34 @@ func TestSendSignedTx_whenTypical(t *testing.T) {
 
 	actualRequest := capturedRequest.request.(*sendSignedTxRequest)
 
-	if !reflect.DeepEqual(actualRequest.To, arbitraryTo) {
-		t.Errorf("To: expected %v but got %v", arbitraryTo, actualRequest.To)
+	assert.Equal(arbitraryTo, actualRequest.To, "request.to")
+	assert.Equal(arbitraryExtra.ACHashes.ToBase64s(), actualRequest.AffectedContractTransactions, "request.affectedContractTransactions")
+	assert.Equal(arbitraryExtra.ACMerkleRoot.ToBase64(), actualRequest.ExecHash, "request.execHash")
+}
+
+func TestReceive_whenCachingRawPayload(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	// caching incomplete item
+	_, _, err := testObject.ReceiveRaw(arbitraryHashNoPrivateMetadata)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	<-receiveRequestCaptor
+
+	// caching complete item
+	_, err = testObject.SendSignedTx(arbitraryHashNoPrivateMetadata, arbitraryTo, arbitraryExtra)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	<-sendSignedTxRequestCaptor
+
+	_, actualExtra, err := testObject.Receive(arbitraryHashNoPrivateMetadata)
+	if err != nil {
+		t.Fatalf("%s", err)
 	}
 
-	expectedACHashes := arbitraryExtra.ACHashes.ToBase64s()
-	if !reflect.DeepEqual(actualRequest.AffectedContractTransactions, expectedACHashes) {
-		t.Errorf("AffectedContractTransactions: expected %v but got %v", expectedACHashes, actualRequest.AffectedContractTransactions)
-	}
-
-	expectedMerkleRoot := base64.StdEncoding.EncodeToString(arbitraryExtra.ACMerkleRoot.Bytes())
-	if actualRequest.ExecHash != expectedMerkleRoot {
-		t.Errorf("ExecHash: expected %s but got %s", actualRequest.ExecHash, expectedMerkleRoot)
-	}
+	assert.Equal(arbitraryExtra.ACHashes, actualExtra.ACHashes, "cached affected contract transaction hashes")
+	assert.Equal(arbitraryExtra.ACMerkleRoot, actualExtra.ACMerkleRoot, "cached merkle root")
+	assert.Equal(arbitraryExtra.PrivacyFlag, actualExtra.PrivacyFlag, "cached privacy flag")
 }

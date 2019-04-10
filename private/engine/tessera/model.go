@@ -14,6 +14,8 @@ type sendRequest struct {
 
 	// Merkle root for affected contracts
 	ExecHash string `json:"execHash,omitempty"`
+
+	PrivacyFlag uint64 `json:"privacyFlag"`
 }
 
 // response object for /send API
@@ -31,7 +33,7 @@ type receiveResponse struct {
 	// Merkle root for affected contracts
 	ExecHash string `json:"execHash"`
 
-	PrivateStateValidation bool `json:"privateStateValidation"`
+	PrivacyFlag uint64 `json:"privacyFlag"`
 }
 
 type sendSignedTxRequest struct {
@@ -41,6 +43,8 @@ type sendSignedTxRequest struct {
 	AffectedContractTransactions []string `json:"affectedContractTransactions"`
 	// Merkle root for affected contracts
 	ExecHash string `json:"execHash,omitempty"`
+
+	PrivacyFlag uint64 `json:"privacyFlag"`
 }
 
 type sendSignedTxResponse struct {

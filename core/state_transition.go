@@ -23,7 +23,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/private/engine"
-	"github.com/syndtr/goleveldb/leveldb"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -216,7 +215,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
-		if err != nil || !contractCreation {
+		if !contractCreation {
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}
 
@@ -225,7 +224,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 		hasPrivatePayload = data != nil
 		if extraPrivateMetadata != nil {
-			privMetadata := types.NewTxPrivacyMetadata(!common.EmptyHash(extraPrivateMetadata.ACMerkleRoot))
+			privMetadata := types.NewTxPrivacyMetadata(extraPrivateMetadata.PrivacyFlag)
 			st.evm.SetTxPrivacyMetadata(privMetadata)
 		}
 	} else {
@@ -306,13 +305,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		expectedMatchCount := len(extraPrivateMetadata.ACHashes)
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
-			//non-party check...should not crash node
-			if err == leveldb.ErrNotFound {
-				return returnErrorFunc(nil, "PrivacyMetadata not found on private state")
-			}
-			//other error - crashes node
+			//when privacyMetadata should have been recovered but wasnt (includes non-party)
 			if err != nil {
-				return returnErrorFunc(err, "")
+				return returnErrorFunc(nil, "PrivacyMetadata unable to be found", "err", err)
 			}
 			//public contracts have no privacy metadata stored in private state
 			if actualPrivacyMetadata == nil {

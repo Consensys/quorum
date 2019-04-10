@@ -403,6 +403,11 @@ web3._extend({
 			inputFormatter: [null, null]
 		}),
 		new web3._extend.Method({
+			name: 'getContractPrivacyMetadata',
+			call: 'eth_getContractPrivacyMetadata',
+			params: 1
+		}),
+		new web3._extend.Method({
 			name: 'sign',
 			call: 'eth_sign',
 			params: 2,
