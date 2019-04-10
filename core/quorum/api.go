@@ -254,8 +254,12 @@ func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) boo
 	return ac != nil && (ac.RoleId == s.permConfig.OrgAdminRole && strings.Contains(orgId, ac.OrgId))
 }
 
-func (s *QuorumControlsAPI) checkOrgExists(orgId string) bool {
-	org := types.OrgInfoMap.GetOrg(orgId)
+func (s *QuorumControlsAPI) checkOrgExists(orgId, pOrgId string) bool {
+	locOrgId := orgId
+	if pOrgId != "" {
+		locOrgId = pOrgId + "." + locOrgId
+	}
+	org := types.OrgInfoMap.GetOrg(locOrgId)
 	return org != nil
 }
 
@@ -360,7 +364,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return ErrPendingApprovals
 		}
 		// check if org already exists
-		if s.checkOrgExists(args.orgId) {
+		if s.checkOrgExists(args.orgId, "") {
 			return ErrOrgExists
 		}
 
@@ -407,7 +411,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 
 		// check if org already exists
-		if s.checkOrgExists(args.orgId) {
+		if s.checkOrgExists(args.orgId, args.porgId) {
 			return ErrOrgExists
 		}
 

@@ -19,7 +19,7 @@ contract AccountManager {
     string private adminRole;
     string private orgAdminRole;
 
-    mapping(bytes32 => bool) private orgAdminIndex;
+    mapping(bytes32 => address) private orgAdminIndex;
 
     // account permission events
     event AccountAccessModified(address _address, string _orgId, string _roleId, bool _orgAdmin, uint _status);
@@ -39,7 +39,7 @@ contract AccountManager {
 
     function orgAdminExists(string memory _orgId) public view returns (bool)
     {
-        return orgAdminIndex[keccak256(abi.encodePacked(_orgId))];
+        return (orgAdminIndex[keccak256(abi.encodePacked(_orgId))] != address(0));
 
     }
 
@@ -93,7 +93,7 @@ contract AccountManager {
             acctAccessList.push(AccountAccessDetails(_address, _orgId, _roleId, _status, _oAdmin));
         }
         if (_oAdmin) {
-            orgAdminIndex[keccak256(abi.encodePacked(_orgId))] = true;
+            orgAdminIndex[keccak256(abi.encodePacked(_orgId))] = _address;
         }
         emit AccountAccessModified(_address, _orgId, _roleId, _oAdmin, _status);
     }
@@ -110,7 +110,7 @@ contract AccountManager {
         // if the role id is ORGADMIN then check if already an orgadmin exists
         if ((keccak256(abi.encodePacked(_roleId)) == keccak256(abi.encodePacked(orgAdminRole))) ||
             (keccak256(abi.encodePacked(_roleId)) == keccak256(abi.encodePacked(adminRole)))) {
-            if (orgAdminIndex[keccak256(abi.encodePacked(_orgId))]) {
+            if (orgAdminIndex[keccak256(abi.encodePacked(_orgId))] != address(0)) {
                 return;
             }
             else {

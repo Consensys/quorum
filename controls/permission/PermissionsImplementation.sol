@@ -145,25 +145,6 @@ contract PermissionsImplementation {
         }
     }
 
-    //    // function for adding a new master org
-    //    function addOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
-    //    {
-    //        //debugNo = 1;
-    //        org.addOrg(_orgId);
-    //        addOrgImpl(_orgId, _enodeId, _account, _caller);
-    //    }
-
-    //    function addOrgImpl(string memory _orgId, string memory _enodeId, address _account, address _caller) internal
-    //    onlyProxy
-    //    networkBootStatus(true)
-    //    networkAdmin(_caller)
-    //    {
-    //        voter.addVotingItem(adminOrg, _orgId, _enodeId, _account, 1);
-    //        nodes.addNode(_enodeId, _orgId);
-    //        require(validateAccount(_account, _orgId) == true, "Operation cannot be performed");
-    //        accounts.assignAccountRole(_account, _orgId, orgAdminRole);
-    //    }
-
     // function for adding a new master org
     function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
     orgExists(_pOrg)
@@ -179,29 +160,6 @@ contract PermissionsImplementation {
             accounts.assignAccountRole(_account, pid, orgAdminRole);
         }
     }
-
-    //    function approveOrgImpl(string memory _orgId, string memory _enodeId, address _account, address _caller) internal
-    //    onlyProxy
-    //    networkAdmin(_caller)
-    //    {
-    //        require(checkOrgStatus(_orgId, 1) == true, "Nothing to approve");
-    //        if ((processVote(adminOrg, _caller, 1))) {
-    //            org.approveOrg(_orgId);
-    //            roles.addRole(orgAdminRole, _orgId, fullAccess, true);
-    //            nodes.approveNode(_enodeId, _orgId);
-    //            accounts.approveOrgAdminAccount(_account);
-    //        }
-    //    }
-
-    //    function approveOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
-    //    {
-    //        approveOrgImpl(_orgId, _enodeId, _account, _caller);
-    //    }
-
-    //    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
-    //    {
-    //        approveOrgImpl(string(abi.encodePacked(_pOrg, ".", _orgId)), _enodeId, _account, _caller);
-    //    }
 
     function updateOrgStatus(string calldata _orgId, uint _status, address _caller) external
     onlyProxy
@@ -282,30 +240,6 @@ contract PermissionsImplementation {
     {
         require(validateAccount(_acct, _orgId) == true, "Operation cannot be performed");
         require(roleExists(_roleId, _orgId) == true, "role does not exists");
-        bool newRoleVoter = isVoterRole(_roleId, _orgId);
-        //        // check the role of the account. if the current role is voter and new role is also voter
-        //        // voterlist change is not required. else voter list needs to be changed
-        string memory acctRole = accounts.getAccountRole(_acct);
-        if (keccak256(abi.encodePacked(acctRole)) == keccak256(abi.encodePacked("NONE"))) {
-            //new account
-            if (newRoleVoter) {
-                // add to voter list
-                updateVoterList(_orgId, _acct, true);
-            }
-        }
-        else {
-            bool currRoleVoter = isVoterRole(acctRole, _orgId);
-            if (!(currRoleVoter && newRoleVoter)) {
-                if (newRoleVoter) {
-                    // add to voter list
-                    updateVoterList(_orgId, _acct, true);
-                }
-                else {
-                    // delete from voter list
-                    updateVoterList(_orgId, _acct, false);
-                }
-            }
-        }
         accounts.assignAccountRole(_acct, _orgId, _roleId);
     }
 
@@ -368,13 +302,13 @@ contract PermissionsImplementation {
     function isOrgAdmin(address _account, string memory _orgId) public view
     returns (bool)
     {
-        return (accounts.checkOrgAdmin(_account, _orgId, org.getUltimateParent(_orgId)));
+        return (accounts.checkOrgAdmin(_account, _orgId, getUltimateParent(_orgId)));
     }
 
     function validateAccount(address _account, string memory _orgId) public view
     returns (bool)
     {
-        return (accounts.valAcctAccessChange(_account, _orgId, org.getUltimateParent(_orgId)));
+        return (accounts.valAcctAccessChange(_account, _orgId, getUltimateParent(_orgId)));
     }
 
     function checkOrgExists(string memory _orgId) internal view
@@ -411,7 +345,13 @@ contract PermissionsImplementation {
     function isVoterRole(string memory _roleId, string memory _orgId) internal view
     returns (bool)
     {
-        return roles.isVoterRole(_roleId, _orgId, org.getUltimateParent(_orgId));
+        return roles.isVoterRole(_roleId, _orgId, getUltimateParent(_orgId));
+    }
+
+    function getUltimateParent(string memory _orgId) internal view
+    returns (string memory)
+    {
+        return org.getUltimateParent(_orgId);
     }
 
 }
