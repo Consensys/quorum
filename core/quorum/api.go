@@ -15,8 +15,11 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
+	"regexp"
 	"strings"
 )
+
+var isStringAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9_-]*$`).MatchString
 
 //default gas limit to use if not passed in sendTxArgs
 var defaultGasLimit = uint64(470000000)
@@ -127,6 +130,7 @@ var (
 	ErrRoleDoesNotExist   = ExecStatus{false, "Role not found for org. Add role first"}
 	ErrRoleActive         = ExecStatus{false, "Accounts linked to the role. Cannot be removed"}
 	ErrAdminRoles         = ExecStatus{false, "Admin role cannot be removed"}
+	ErrInvalidOrgName     = ExecStatus{false, "Org id cannot contain '.'"}
 	ExecSuccess           = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -341,6 +345,11 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 	switch action {
 
 	case AddOrg:
+		// check if the org id contains "."
+		if !isStringAlphaNumeric(args.orgId) {
+			return ErrInvalidOrgName
+		}
+
 		// check if caller is network admin
 		if !s.isNetworkAdmin(args.txa.From) {
 			return ErrNotNetworkAdmin
@@ -387,6 +396,11 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = pinterf.ApproveOrg(args.orgId, args.url, args.acctId)
 
 	case AddSubOrg:
+		// check if the org id contains "."
+		if !isStringAlphaNumeric(args.orgId) {
+			return ErrInvalidOrgName
+		}
+
 		// check if caller is network admin
 		if !s.isOrgAdmin(args.txa.From, args.porgId) {
 			return ErrNotOrgAdmin
