@@ -399,19 +399,19 @@ contract PermissionsImplementation {
     function checkOrgAdminExists(string memory _orgId) internal view
     returns (bool)
     {
-        return (accounts.orgAdminExists(_orgId));
+        return accounts.orgAdminExists(_orgId);
     }
 
     function roleExists(string memory _roleId, string memory _orgId) internal view
     returns (bool)
     {
-        return (roles.roleExists(_roleId, _orgId));
+        return roles.roleExists(_roleId, _orgId, org.getUltimateParent(_orgId));
     }
 
     function isVoterRole(string memory _roleId, string memory _orgId) internal view
     returns (bool)
     {
-        return roles.isVoterRole(_roleId, _orgId);
+        return roles.isVoterRole(_roleId, _orgId, org.getUltimateParent(_orgId));
     }
 
 }

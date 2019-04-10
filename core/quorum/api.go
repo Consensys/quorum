@@ -94,30 +94,6 @@ type txArgs struct {
 	txa        ethapi.SendTxArgs
 }
 
-type nodeStatus struct {
-	EnodeId string `json:"enodeId"`
-	Status  string `json:"status"`
-}
-
-type accountInfo struct {
-	Address string `json:"address"`
-	Access  uint8  `json:"access"`
-}
-
-type orgDetails struct {
-	OrgId          string         `json:"orgId"`
-	Status         uint           `json:"status"`
-	nodeDetails    []*nodeStatus  `json:"nodeDetails"`
-	accountDetails []*accountInfo `json:"accountDetails"`
-	SubOrgs        []*orgDetails  `json:"subOrgs"`
-}
-
-type orgInfo struct {
-	MasterOrgId   string   `json:"masterOrgId"`
-	SubOrgId      string   `json:"subOrgId"`
-	SubOrgKeyList []string `json:"subOrgKeyList"`
-}
-
 type PendingOpInfo struct {
 	PendingKey string `json:"pendingKey"`
 	PendingOp  string `json:"pendingOp"`
@@ -212,26 +188,6 @@ func (s *QuorumControlsAPI) GetOrgDetails(orgId string) types.OrgDetailInfo {
 		}
 	}
 	return types.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList}
-}
-
-func (s *QuorumControlsAPI) GetOrgInfo(orgId string) []orgDetails {
-	var od orgDetails
-	od.OrgId = orgId
-	od.Status = uint(types.OrgInfoMap.GetOrg(orgId).Status)
-	log.Info("SMK-GetOrgInfo @196")
-
-	for _, v := range types.AcctInfoMap.GetAcctListOrg(orgId) {
-		var acctInfo accountInfo
-		log.Info("SMK-GetOrgInfo @198")
-		acctInfo.Address = v.AcctId.String()
-		acctInfo.Access = uint8(types.GetAcctAccess(v.AcctId))
-		log.Info("SMK-GetOrgInfo @202", "account", acctInfo)
-		od.accountDetails = append(od.accountDetails, &acctInfo)
-	}
-
-	var odRet []orgDetails
-	odRet = append(odRet, od)
-	return odRet
 }
 
 func (s *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
@@ -602,7 +558,10 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 		// check if the role is part of the org
 		if types.RoleInfoMap.GetRole(args.orgId, args.roleId) == nil {
-			return ErrRoleDoesNotExist
+			// check if the role is existing at master org level
+			if types.RoleInfoMap.GetRole(types.OrgInfoMap.GetOrg(args.orgId).UltimateParent, args.roleId) == nil {
+				return ErrRoleDoesNotExist
+			}
 		}
 
 		// check if the account is part of another org

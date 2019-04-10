@@ -29,14 +29,14 @@ contract RoleManager {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
-    function roleExists(string memory _roleId, string memory _orgId) public view returns(bool)
+    function roleExists(string memory _roleId, string memory _orgId, string memory _ultParent) public view returns (bool)
     {
-        return (roleIndex[keccak256(abi.encodePacked(_roleId, _orgId))] != 0);
+        return ((roleIndex[keccak256(abi.encodePacked(_roleId, _orgId))] != 0) || (roleIndex[keccak256(abi.encodePacked(_roleId, _ultParent))] != 0));
     }
 
     function getRoleDetails(string calldata _roleId, string calldata _orgId) external view returns (string memory roleId, string memory orgId, uint accessType, bool voter, bool active)
     {
-        if (!(roleExists(_roleId, _orgId))){
+        if (!(roleExists(_roleId, _orgId, ""))) {
             return (_roleId, "", 0, false, false);
         }
         uint rIndex = getRoleIndex(_roleId, _orgId);
@@ -79,19 +79,31 @@ contract RoleManager {
     }
 
 
-    function isFullAccessRole(string calldata _roleId, string calldata _orgId) external view returns (bool){
-        if (!(roleExists(_roleId, _orgId))){
+    function isFullAccessRole(string calldata _roleId, string calldata _orgId, string calldata _ultParent) external view returns (bool){
+        if (!(roleExists(_roleId, _orgId, _ultParent))) {
             return false;
         }
-        uint rIndex = getRoleIndex(_roleId, _orgId);
+        uint rIndex;
+        if (roleIndex[keccak256(abi.encodePacked(_roleId, _orgId))] != 0) {
+            rIndex = getRoleIndex(_roleId, _orgId);
+        }
+        else {
+            rIndex = getRoleIndex(_roleId, _ultParent);
+        }
         return (roleList[rIndex].active && roleList[rIndex].baseAccess == 3);
     }
 
-    function isVoterRole(string calldata _roleId, string calldata _orgId) external view returns (bool){
-        if (!(roleExists(_roleId, _orgId))){
+    function isVoterRole(string calldata _roleId, string calldata _orgId, string calldata _ultParent) external view returns (bool){
+        if (!(roleExists(_roleId, _orgId, _ultParent))) {
             return false;
         }
-        uint rIndex = getRoleIndex(_roleId, _orgId);
+        uint rIndex;
+        if (roleIndex[keccak256(abi.encodePacked(_roleId, _orgId))] != 0) {
+            rIndex = getRoleIndex(_roleId, _orgId);
+        }
+        else {
+            rIndex = getRoleIndex(_roleId, _ultParent);
+        }
         return (roleList[rIndex].active && roleList[rIndex].isVoter);
     }
 
