@@ -80,6 +80,7 @@ type OrgDetailInfo struct {
 	NodeList []NodeInfo    `json:"nodeList"`
 	RoleList []RoleInfo    `json:"roleList"`
 	AcctList []AccountInfo `json:"acctList"`
+	SubOrgList []string    `json:"subOrgList"`
 }
 
 type OrgStruct struct {
