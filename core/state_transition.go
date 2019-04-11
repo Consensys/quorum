@@ -310,7 +310,21 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 				return returnErrorFunc(nil, "PrivacyMetadata unable to be found", "err", err)
 			}
 			//public contracts have no privacy metadata stored in private state
+			// TODO We must ensure that legacy transactions (from previous versions of quorum) are distinguishable from public transactions
 			if actualPrivacyMetadata == nil {
+				continue
+			}
+			// Check that the affected contracts privacy flag matches the transaction privacy flag.
+			// I know that this is also checked by tessera, but it only checks for non legacy transactions.
+			// TODO We should do the same checks for calls and throw errors when different types of transactions interact with each other
+			if actualPrivacyMetadata.PrivacyFlag != extraPrivateMetadata.PrivacyFlag {
+				return returnErrorFunc(nil, "Mismatched privacy flags",
+					"affectedContract.Address", addr.Hex(),
+					"affectedContract.PrivacyFlag", actualPrivacyMetadata.PrivacyFlag,
+					"tx.PrivacyFlag", extraPrivateMetadata.PrivacyFlag)
+			}
+			// for legacy transactions we should skip the acoth check
+			if private.HasPrivacyFlag(private.PrivacyFlagLegacy, extraPrivateMetadata.PrivacyFlag) {
 				continue
 			}
 			if extraPrivateMetadata.ACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
@@ -324,6 +338,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return returnErrorFunc(nil, "Participation check failed",
 				"missing", expectedMatchCount)
 		}
+		// TODO NL we should discard StateValidation transactions which do not have an execHash/ACMerkleRoot (best done right after receive)
 		if !common.EmptyHash(extraPrivateMetadata.ACMerkleRoot) {
 			log.Trace("Verify merkle root", "merkleRoot", extraPrivateMetadata.ACMerkleRoot)
 			actualACMerkleRoot, err := evm.CalculateMerkleRoot()
