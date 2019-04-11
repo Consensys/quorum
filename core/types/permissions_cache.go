@@ -27,13 +27,13 @@ const (
 )
 
 type OrgInfo struct {
-	OrgId          string
-	FullOrgId      string
-	ParentOrgId    string
-	UltimateParent string
-	Level          *big.Int
-	SubOrgList     []string
-	Status         OrgStatus
+	OrgId          string    `json:"orgId"`
+	FullOrgId      string    `json:"fullOrgId"`
+	ParentOrgId    string    `json:"parentOrgId"`
+	UltimateParent string    `json:"ultimateParent"`
+	Level          *big.Int  `json:"level"`
+	SubOrgList     []string  `json:"subOrgList"`
+	Status         OrgStatus `json:"status"`
 }
 
 type NodeStatus uint8
@@ -55,31 +55,31 @@ const (
 )
 
 type NodeInfo struct {
-	OrgId  string
-	Url    string
-	Status NodeStatus
+	OrgId  string     `json:"orgId"`
+	Url    string     `json:"url"`
+	Status NodeStatus `json:"status"`
 }
 
 type RoleInfo struct {
-	OrgId   string
-	RoleId  string
-	IsVoter bool
-	Access  AccessType
-	Active  bool
+	OrgId   string     `json:"orgId"`
+	RoleId  string     `json:"roleId"`
+	IsVoter bool       `json:"isVoter"`
+	Access  AccessType `json:"access"`
+	Active  bool       `json:"active"`
 }
 
 type AccountInfo struct {
-	OrgId      string
-	RoleId     string
-	AcctId     common.Address
-	IsOrgAdmin bool
-	Status     AcctStatus
+	OrgId      string         `json:"orgId"`
+	RoleId     string         `json:"roleId"`
+	AcctId     common.Address `json:"acctId"`
+	IsOrgAdmin bool           `json:"isOrgAdmin"`
+	Status     AcctStatus     `json:"status"`
 }
 
 type OrgDetailInfo struct {
-	NodeList []NodeInfo
-	RoleList []RoleInfo
-	AcctList []AccountInfo
+	NodeList []NodeInfo    `json:"nodeList"`
+	RoleList []RoleInfo    `json:"roleList"`
+	AcctList []AccountInfo `json:"acctList"`
 }
 
 type OrgStruct struct {
