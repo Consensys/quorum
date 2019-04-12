@@ -98,10 +98,10 @@ contract OrgManager {
         orgList[id].parentId = _pOrg;
         orgList[id].status = _status;
         if (_status == 1) {
-            emit OrgPendingApproval(_orgId, _pOrg, orgList[id].ultParent, orgList[id].level, 1);
+            emit OrgPendingApproval(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 1);
         }
         else {
-            emit OrgApproved(_orgId, _pOrg, orgList[id].ultParent, orgList[id].level, 2);
+            emit OrgApproved(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 2);
         }
     }
 
@@ -183,7 +183,7 @@ contract OrgManager {
         require(checkOrgStatus(_orgId, 2) == true, "Org not in approved state");
         uint id = getOrgIndex(_orgId);
         orgList[id].status = 3;
-        emit OrgPendingApproval(_orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 3);
+        emit OrgPendingApproval(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 3);
     }
 
     function revokeOrgSuspension(string memory _orgId) internal
@@ -192,7 +192,7 @@ contract OrgManager {
         require(checkOrgStatus(_orgId, 4) == true, "Org not in suspended state");
         uint id = getOrgIndex(_orgId);
         orgList[id].status = 5;
-        emit OrgPendingApproval(_orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 5);
+        emit OrgPendingApproval(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 5);
     }
 
     function approveOrg(string calldata _orgId) external
@@ -201,7 +201,7 @@ contract OrgManager {
         require(checkOrgStatus(_orgId, 1) == true, "Nothing to approve");
         uint id = getOrgIndex(_orgId);
         orgList[id].status = 2;
-        emit OrgApproved(_orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 2);
+        emit OrgApproved(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 2);
     }
 
     function approveOrgSuspension(string memory _orgId) internal
@@ -209,7 +209,7 @@ contract OrgManager {
         require(checkOrgStatus(_orgId, 3) == true, "Nothing to approve");
         uint id = getOrgIndex(_orgId);
         orgList[id].status = 4;
-        emit OrgSuspended(_orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level);
+        emit OrgSuspended(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level);
     }
 
     function approveOrgRevokeSuspension(string memory _orgId) internal
@@ -217,7 +217,7 @@ contract OrgManager {
         require(checkOrgStatus(_orgId, 5) == true, "Nothing to approve");
         uint id = getOrgIndex(_orgId);
         orgList[id].status = 2;
-        emit OrgSuspensionRevoked(_orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level);
+        emit OrgSuspensionRevoked(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level);
     }
 
     function checkOrgStatus(string memory _orgId, uint _orgStatus) public view returns (bool){

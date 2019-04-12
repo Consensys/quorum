@@ -250,9 +250,11 @@ func (s *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
 	return ac != nil && ac.RoleId == s.permConfig.NwAdminRole
 }
 
+//TODO (Amal) get it reviewed by Sai
 func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) bool {
 	ac := types.AcctInfoMap.GetAccount(account)
-	return ac != nil && (ac.RoleId == s.permConfig.OrgAdminRole && strings.Contains(orgId, ac.OrgId))
+	return ac != nil && ((ac.OrgId == s.permConfig.NwAdminOrg && ac.RoleId == s.permConfig.NwAdminRole) ||
+		(ac.RoleId == s.permConfig.OrgAdminRole && strings.Contains(orgId, ac.OrgId)))
 }
 
 func (s *QuorumControlsAPI) validateOrg(orgId, pOrgId string) (ExecStatus, error) {

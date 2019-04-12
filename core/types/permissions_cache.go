@@ -77,10 +77,10 @@ type AccountInfo struct {
 }
 
 type OrgDetailInfo struct {
-	NodeList []NodeInfo    `json:"nodeList"`
-	RoleList []RoleInfo    `json:"roleList"`
-	AcctList []AccountInfo `json:"acctList"`
-	SubOrgList []string    `json:"subOrgList"`
+	NodeList   []NodeInfo    `json:"nodeList"`
+	RoleList   []RoleInfo    `json:"roleList"`
+	AcctList   []AccountInfo `json:"acctList"`
+	SubOrgList []string      `json:"subOrgList"`
 }
 
 type OrgStruct struct {
@@ -198,13 +198,24 @@ func (o *OrgCache) UpsertOrg(orgId, parentOrg, ultimateParent string, level *big
 		pkey := OrgKey{OrgId: parentOrg}
 		if ent, ok := o.c.Get(pkey); ok {
 			porg := ent.(*OrgInfo)
-			porg.SubOrgList = append(porg.SubOrgList, key.OrgId)
-			o.c.Add(pkey, porg)
+			if !containsKey(porg.SubOrgList, key.OrgId) {
+				porg.SubOrgList = append(porg.SubOrgList, key.OrgId)
+				o.c.Add(pkey, porg)
+			}
 		}
 	}
 
 	norg := &OrgInfo{orgId, key.OrgId, parentOrg, ultimateParent, level, nil, status}
 	o.c.Add(key, norg)
+}
+
+func containsKey(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 func (o *OrgCache) GetOrg(orgId string) *OrgInfo {
