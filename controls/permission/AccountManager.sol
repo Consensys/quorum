@@ -3,7 +3,7 @@ import "./PermissionsUpgradable.sol";
 
 contract AccountManager {
     PermissionsUpgradable private permUpgradable;
-    //    enum AccountStatus {0-NotInList, 1-PendingApproval, 2-Active, 3-Suspended, 4-Blacklisted, 5-Revoked}
+    //    enum AccountStatus {0-NotInList, 1-PendingApproval, 2-Active, 3-Inactive, 4-Suspended, 5-Blacklisted, 6-Revoked}
     struct AccountAccessDetails {
         address acctId;
         string orgId;
@@ -163,15 +163,22 @@ contract AccountManager {
         // changing node status to integer (0-NotInList, 1-PendingApproval, 2-Active, 3-Suspended, 4-Blacklisted, 5-Revoked)
         // operations that can be done 1-Suspend account, 2-Unsuspend Account, 3-Blacklist account
         require((_status == 1 || _status == 2 || _status == 3), "invalid operation");
+        // check if the account is org admin. if yes then do not allow any status change
+        require(checkOrgAdmin(_account, _orgId, "") != true, "cannot perform the operation on org admin account");
         uint newStat;
         if (_status == 1) {
-            newStat = 3;
+            // account current status should be active
+            require(acctAccessList[getAcctIndex(_account)].status == 2, "account should be active");
+            newStat = 4;
         }
         else if (_status == 2) {
+            // account current status should be suspended
+            require(acctAccessList[getAcctIndex(_account)].status == 4, "account should be suspended");
             newStat = 2;
         }
         else if (_status == 3) {
-            newStat = 4;
+            require(acctAccessList[getAcctIndex(_account)].status != 5, "account already blacklisted");
+            newStat = 5;
         }
         acctAccessList[getAcctIndex(_account)].status = newStat;
         emit AccountStatusChanged(_account, _orgId, newStat);
@@ -191,7 +198,7 @@ contract AccountManager {
         }
     }
 
-    function checkOrgAdmin(address _acct, string calldata _orgId, string calldata _ultParent) external view returns (bool)
+    function checkOrgAdmin(address _acct, string memory _orgId, string memory _ultParent) public view returns (bool)
     {
         return ((orgAdminIndex[keccak256(abi.encodePacked(_orgId))] == _acct) || (orgAdminIndex[keccak256(abi.encodePacked(_ultParent))] == _acct));
     }

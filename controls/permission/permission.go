@@ -437,9 +437,11 @@ func (p *PermissionCtrl) updateDisallowedNodes(url string) {
 func (p *PermissionCtrl) manageAccountPermissions() {
 	chAccessModified := make(chan *pbind.AcctManagerAccountAccessModified)
 	chAccessRevoked := make(chan *pbind.AcctManagerAccountAccessRevoked)
+	chStatusChanged := make(chan *pbind.AcctManagerAccountStatusChanged)
 
 	var evtAccessModified *pbind.AcctManagerAccountAccessModified
 	var evtAccessRevoked *pbind.AcctManagerAccountAccessRevoked
+	var evtStatusChanged *pbind.AcctManagerAccountStatusChanged
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -453,6 +455,10 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 		log.Info("Failed NewNodeProposed", "error", err)
 	}
 
+	if _, err := p.permAcct.AcctManagerFilterer.WatchAccountStatusChanged(opts, chStatusChanged); err != nil {
+		log.Info("Failed NewNodeProposed", "error", err)
+	}
+
 	for {
 		select {
 		case evtAccessModified = <-chAccessModified:
@@ -460,6 +466,10 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 
 		case evtAccessRevoked = <-chAccessRevoked:
 			types.AcctInfoMap.UpsertAccount(evtAccessRevoked.OrgId, evtAccessRevoked.RoleId, evtAccessRevoked.Address, evtAccessRevoked.OrgAdmin, types.AcctActive)
+
+		case evtStatusChanged = <-chStatusChanged:
+			ac := types.AcctInfoMap.GetAccount(evtStatusChanged.Address)
+			types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Address, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
 		}
 	}
 }

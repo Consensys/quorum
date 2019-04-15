@@ -43,6 +43,7 @@ const (
 	AddNewRole
 	RemoveRole
 	AssignAccountRole
+	UpdateAccountStatus
 )
 
 // OrgKeyAction represents an action in cluster contract
@@ -123,6 +124,7 @@ var (
 	ErrOpNotAllowed       = ExecStatus{false, "Operation not allowed"}
 	ErrNodeOrgMismatch    = ExecStatus{false, "Enode id passed does not belong to the organization."}
 	ErrBlacklistedNode    = ExecStatus{false, "Blacklisted node. Operation not allowed"}
+	ErrBlacklistedAccount = ExecStatus{false, "Blacklisted account. Operation not allowed"}
 	ErrAccountOrgAdmin    = ExecStatus{false, "Account already org admin for the org"}
 	ErrOrgAdminExists     = ExecStatus{false, "Org admin exists for the org"}
 	ErrAccountInUse       = ExecStatus{false, "Account already in use in another organization"}
@@ -132,6 +134,8 @@ var (
 	ErrAdminRoles         = ExecStatus{false, "Admin role cannot be removed"}
 	ErrInvalidOrgName     = ExecStatus{false, "Org id cannot contain special characters"}
 	ErrInvalidParentOrg   = ExecStatus{false, "Invalid parent org id"}
+	ErrAccountNotThere    = ExecStatus{false, "Account does not exists"}
+	ErrOrgNotOwner        = ExecStatus{false, "Account does not belong to this org"}
 	ExecSuccess           = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -244,6 +248,10 @@ func (s *QuorumControlsAPI) AssignAccountRole(acct common.Address, orgId string,
 	return s.executePermAction(AssignAccountRole, txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa})
 }
 
+func (s *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Address, status uint8, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executePermAction(UpdateAccountStatus, txArgs{orgId: orgId, acctId: acct, status: status, txa: txa})
+}
+
 // check if the account is network admin
 func (s *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
 	ac := types.AcctInfoMap.GetAccount(account)
@@ -309,6 +317,37 @@ func (s *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (Ex
 
 	if (op == 3 && node.Status != types.NodeApproved) || (op == 4 && node.Status != types.NodeDeactivated) {
 		return ErrOpNotAllowed, errors.New("node status change cannot be performed")
+	}
+	return ExecSuccess, nil
+}
+
+func (s *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.Address, op int64) (ExecStatus, error) {
+	// validates if the enode is linked the passed organization
+	ac := types.AcctInfoMap.GetAccount(account)
+
+	if ac == nil {
+		return ErrAccountNotThere, errors.New("account not there")
+	}
+
+	if ac.IsOrgAdmin && (op == 1 || op == 3) {
+		return ErrOpNotAllowed, errors.New("operation not allowed on org admin account")
+	}
+
+	if ac.OrgId != orgId {
+		return ErrOrgNotOwner, errors.New("account does not belong to the organization passed")
+	}
+
+	if ac.Status == types.AcctBlacklisted {
+		return ErrBlacklistedAccount, errors.New("blacklisted account. operation not allowed")
+	}
+
+	// validate the op and node status and check if the op can be performed
+	if op != 1 && op != 2 && op != 3 {
+		return ErrOpNotAllowed, errors.New("invalid account status change operation")
+	}
+
+	if (op == 1 && ac.Status != types.AcctActive) || (op == 2 && ac.Status != types.AcctSuspended) {
+		return ErrOpNotAllowed, errors.New("account status change cannot be performed")
 	}
 	return ExecSuccess, nil
 }
@@ -597,6 +636,14 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 
 		tx, err = pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
+
+	case UpdateAccountStatus:
+		// validation status change is with in allowed set
+		if execStatus, er := s.valAccountStatusChange(args.orgId, args.acctId, int64(args.status)); er != nil {
+			return execStatus
+		}
+
+		tx, err = pinterf.UpdateAccountStatus(args.orgId, args.acctId, big.NewInt(int64(args.status)))
 	}
 
 	if err != nil {

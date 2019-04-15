@@ -52,6 +52,8 @@ const (
 	AcctPendingApproval AcctStatus = iota + 1
 	AcctActive
 	AcctInactive
+	AcctSuspended
+	AcctBlacklisted
 )
 
 type NodeInfo struct {
@@ -351,7 +353,7 @@ func (o *RoleCache) GetRoleList() []RoleInfo {
 // Returns the access type for an account. If not found returns
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
-	if a := AcctInfoMap.GetAccount(acctId); a != nil {
+	if a := AcctInfoMap.GetAccount(acctId); a != nil && a.Status == AcctActive {
 		o := OrgInfoMap.GetOrg(a.OrgId)
 		r := RoleInfoMap.GetRole(a.OrgId, a.RoleId)
 		if o != nil && r != nil {

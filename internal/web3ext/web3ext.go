@@ -817,6 +817,12 @@ web3._extend({
                        params: 4,
                        inputFormatter: [web3._extend.formatters.inputAddressFormatter,null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
+			   new web3._extend.Method({
+                       name: 'updateAccountStatus',
+                       call: 'quorumPermission_updateAccountStatus',
+                       params: 4,
+                       inputFormatter: [null, web3._extend.formatters.inputAddressFormatter,null,web3._extend.formatters.inputTransactionFormatter]
+               }),
                new web3._extend.Method({
                        name: 'getOrgDetails',
                        call: 'quorumPermission_getOrgDetails',
