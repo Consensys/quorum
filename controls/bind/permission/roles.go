@@ -28,7 +28,7 @@ var (
 )
 
 // RoleManagerABI is the input ABI used to generate the binding from.
-const RoleManagerABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getRoleDetails\",\"outputs\":[{\"name\":\"roleId\",\"type\":\"string\"},{\"name\":\"orgId\",\"type\":\"string\"},{\"name\":\"accessType\",\"type\":\"uint256\"},{\"name\":\"voter\",\"type\":\"bool\"},{\"name\":\"active\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"isVoterRole\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"isFullAccessRole\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_baseAccess\",\"type\":\"uint256\"},{\"name\":\"_voter\",\"type\":\"bool\"}],\"name\":\"addRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"roleExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfRoles\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"rIndex\",\"type\":\"uint256\"}],\"name\":\"getRoleDetailsFromIndex\",\"outputs\":[{\"name\":\"roleId\",\"type\":\"string\"},{\"name\":\"orgId\",\"type\":\"string\"},{\"name\":\"accessType\",\"type\":\"uint256\"},{\"name\":\"voter\",\"type\":\"bool\"},{\"name\":\"active\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"removeRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_baseAccess\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"_isVoter\",\"type\":\"bool\"}],\"name\":\"RoleCreated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"RoleRevoked\",\"type\":\"event\"}]"
+const RoleManagerABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getRoleDetails\",\"outputs\":[{\"name\":\"roleId\",\"type\":\"string\"},{\"name\":\"orgId\",\"type\":\"string\"},{\"name\":\"accessType\",\"type\":\"uint256\"},{\"name\":\"voter\",\"type\":\"bool\"},{\"name\":\"active\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"isFullAccessRole\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_baseAccess\",\"type\":\"uint256\"},{\"name\":\"_voter\",\"type\":\"bool\"}],\"name\":\"addRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfRoles\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"rIndex\",\"type\":\"uint256\"}],\"name\":\"getRoleDetailsFromIndex\",\"outputs\":[{\"name\":\"roleId\",\"type\":\"string\"},{\"name\":\"orgId\",\"type\":\"string\"},{\"name\":\"accessType\",\"type\":\"uint256\"},{\"name\":\"voter\",\"type\":\"bool\"},{\"name\":\"active\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"removeRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"roleExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"isVoterRole\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_baseAccess\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"_isVoter\",\"type\":\"bool\"}],\"name\":\"RoleCreated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"RoleRevoked\",\"type\":\"event\"}]"
 
 // RoleManager is an auto generated Go binding around an Ethereum contract.
 type RoleManager struct {
@@ -294,82 +294,82 @@ func (_RoleManager *RoleManagerCallerSession) GetRoleDetailsFromIndex(rIndex *bi
 	return _RoleManager.Contract.GetRoleDetailsFromIndex(&_RoleManager.CallOpts, rIndex)
 }
 
-// IsFullAccessRole is a free data retrieval call binding the contract method 0x476ff5cc.
+// IsFullAccessRole is a free data retrieval call binding the contract method 0x1df2ec04.
 //
-// Solidity: function isFullAccessRole(_roleId string, _orgId string) constant returns(bool)
-func (_RoleManager *RoleManagerCaller) IsFullAccessRole(opts *bind.CallOpts, _roleId string, _orgId string) (bool, error) {
+// Solidity: function isFullAccessRole(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerCaller) IsFullAccessRole(opts *bind.CallOpts, _roleId string, _orgId string, _ultParent string) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _RoleManager.contract.Call(opts, out, "isFullAccessRole", _roleId, _orgId)
+	err := _RoleManager.contract.Call(opts, out, "isFullAccessRole", _roleId, _orgId, _ultParent)
 	return *ret0, err
 }
 
-// IsFullAccessRole is a free data retrieval call binding the contract method 0x476ff5cc.
+// IsFullAccessRole is a free data retrieval call binding the contract method 0x1df2ec04.
 //
-// Solidity: function isFullAccessRole(_roleId string, _orgId string) constant returns(bool)
-func (_RoleManager *RoleManagerSession) IsFullAccessRole(_roleId string, _orgId string) (bool, error) {
-	return _RoleManager.Contract.IsFullAccessRole(&_RoleManager.CallOpts, _roleId, _orgId)
+// Solidity: function isFullAccessRole(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerSession) IsFullAccessRole(_roleId string, _orgId string, _ultParent string) (bool, error) {
+	return _RoleManager.Contract.IsFullAccessRole(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
-// IsFullAccessRole is a free data retrieval call binding the contract method 0x476ff5cc.
+// IsFullAccessRole is a free data retrieval call binding the contract method 0x1df2ec04.
 //
-// Solidity: function isFullAccessRole(_roleId string, _orgId string) constant returns(bool)
-func (_RoleManager *RoleManagerCallerSession) IsFullAccessRole(_roleId string, _orgId string) (bool, error) {
-	return _RoleManager.Contract.IsFullAccessRole(&_RoleManager.CallOpts, _roleId, _orgId)
+// Solidity: function isFullAccessRole(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerCallerSession) IsFullAccessRole(_roleId string, _orgId string, _ultParent string) (bool, error) {
+	return _RoleManager.Contract.IsFullAccessRole(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
-// IsVoterRole is a free data retrieval call binding the contract method 0x2b113705.
+// IsVoterRole is a free data retrieval call binding the contract method 0xdeb16ba7.
 //
-// Solidity: function isVoterRole(_roleId string, _orgId string) constant returns(bool)
-func (_RoleManager *RoleManagerCaller) IsVoterRole(opts *bind.CallOpts, _roleId string, _orgId string) (bool, error) {
+// Solidity: function isVoterRole(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerCaller) IsVoterRole(opts *bind.CallOpts, _roleId string, _orgId string, _ultParent string) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _RoleManager.contract.Call(opts, out, "isVoterRole", _roleId, _orgId)
+	err := _RoleManager.contract.Call(opts, out, "isVoterRole", _roleId, _orgId, _ultParent)
 	return *ret0, err
 }
 
-// IsVoterRole is a free data retrieval call binding the contract method 0x2b113705.
+// IsVoterRole is a free data retrieval call binding the contract method 0xdeb16ba7.
 //
-// Solidity: function isVoterRole(_roleId string, _orgId string) constant returns(bool)
-func (_RoleManager *RoleManagerSession) IsVoterRole(_roleId string, _orgId string) (bool, error) {
-	return _RoleManager.Contract.IsVoterRole(&_RoleManager.CallOpts, _roleId, _orgId)
+// Solidity: function isVoterRole(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerSession) IsVoterRole(_roleId string, _orgId string, _ultParent string) (bool, error) {
+	return _RoleManager.Contract.IsVoterRole(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
-// IsVoterRole is a free data retrieval call binding the contract method 0x2b113705.
+// IsVoterRole is a free data retrieval call binding the contract method 0xdeb16ba7.
 //
-// Solidity: function isVoterRole(_roleId string, _orgId string) constant returns(bool)
-func (_RoleManager *RoleManagerCallerSession) IsVoterRole(_roleId string, _orgId string) (bool, error) {
-	return _RoleManager.Contract.IsVoterRole(&_RoleManager.CallOpts, _roleId, _orgId)
+// Solidity: function isVoterRole(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerCallerSession) IsVoterRole(_roleId string, _orgId string, _ultParent string) (bool, error) {
+	return _RoleManager.Contract.IsVoterRole(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
-// RoleExists is a free data retrieval call binding the contract method 0x67950aab.
+// RoleExists is a free data retrieval call binding the contract method 0xabf5739f.
 //
-// Solidity: function roleExists(_roleId string, _orgId string) constant returns(bool)
-func (_RoleManager *RoleManagerCaller) RoleExists(opts *bind.CallOpts, _roleId string, _orgId string) (bool, error) {
+// Solidity: function roleExists(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerCaller) RoleExists(opts *bind.CallOpts, _roleId string, _orgId string, _ultParent string) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _RoleManager.contract.Call(opts, out, "roleExists", _roleId, _orgId)
+	err := _RoleManager.contract.Call(opts, out, "roleExists", _roleId, _orgId, _ultParent)
 	return *ret0, err
 }
 
-// RoleExists is a free data retrieval call binding the contract method 0x67950aab.
+// RoleExists is a free data retrieval call binding the contract method 0xabf5739f.
 //
-// Solidity: function roleExists(_roleId string, _orgId string) constant returns(bool)
-func (_RoleManager *RoleManagerSession) RoleExists(_roleId string, _orgId string) (bool, error) {
-	return _RoleManager.Contract.RoleExists(&_RoleManager.CallOpts, _roleId, _orgId)
+// Solidity: function roleExists(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerSession) RoleExists(_roleId string, _orgId string, _ultParent string) (bool, error) {
+	return _RoleManager.Contract.RoleExists(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
-// RoleExists is a free data retrieval call binding the contract method 0x67950aab.
+// RoleExists is a free data retrieval call binding the contract method 0xabf5739f.
 //
-// Solidity: function roleExists(_roleId string, _orgId string) constant returns(bool)
-func (_RoleManager *RoleManagerCallerSession) RoleExists(_roleId string, _orgId string) (bool, error) {
-	return _RoleManager.Contract.RoleExists(&_RoleManager.CallOpts, _roleId, _orgId)
+// Solidity: function roleExists(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerCallerSession) RoleExists(_roleId string, _orgId string, _ultParent string) (bool, error) {
+	return _RoleManager.Contract.RoleExists(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
 // AddRole is a paid mutator transaction binding the contract method 0x5ba4d7c5.

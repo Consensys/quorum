@@ -78,7 +78,7 @@ contract PermissionsImplementation {
         orgAdminRole = _oAdminRole;
     }
 
-    function init(address _orgManager, address _rolesManager, address _acctManager, address _voterManager, address _nodeManager) external
+    function init(address _orgManager, address _rolesManager, address _acctManager, address _voterManager, address _nodeManager, uint _breadth, uint _depth) external
     onlyProxy
     networkBootStatus(false)
     {
@@ -88,7 +88,7 @@ contract PermissionsImplementation {
         voter = VoterManager(_voterManager);
         nodes = NodeManager(_nodeManager);
 
-        org.addAdminOrg(adminOrg);
+        org.setUpOrg(adminOrg, _breadth, _depth);
         roles.addRole(adminRole, adminOrg, fullAccess, true);
         accounts.setDefaults(adminRole, orgAdminRole);
     }
@@ -104,9 +104,7 @@ contract PermissionsImplementation {
     onlyProxy
     networkBootStatus(false)
     {
-        // add the account as a voter for the admin org
         updateVoterList(adminOrg, _acct, true);
-        // add the account as an account with full access into the admin org
         accounts.addNWAdminAccount(_acct, adminOrg);
     }
 
@@ -243,6 +241,13 @@ contract PermissionsImplementation {
         accounts.assignAccountRole(_acct, _orgId, _roleId);
     }
 
+    function updateAccountStatus(string calldata _orgId, address _account, uint _status, address _caller) external
+    onlyProxy
+    orgExists(_orgId)
+    orgAdmin(_caller, _orgId)
+    {
+        accounts.updateAccountStatus(_orgId, _account, _status);
+    }
 
     // Node related functions
     function addNode(string calldata _orgId, string calldata _enodeId, address _caller) external

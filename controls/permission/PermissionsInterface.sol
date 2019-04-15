@@ -34,9 +34,9 @@ contract PermissionsInterface {
         permImplementation.setPolicy(_nwAdminOrg, _nwAdminRole, _oAdminRole);
     }
 
-    function init(address _orgManager, address _rolesManager, address _acctManager, address _voterManager, address _nodeManager) external
+    function init(address _orgManager, address _rolesManager, address _acctManager, address _voterManager, address _nodeManager, uint _breadth, uint _depth) external
     {
-        permImplementation.init(_orgManager, _rolesManager, _acctManager, _voterManager, _nodeManager);
+        permImplementation.init(_orgManager, _rolesManager, _acctManager, _voterManager, _nodeManager, _breadth, _depth);
     }
 
     function addAdminNodes(string calldata _enodeId) external
@@ -123,6 +123,12 @@ contract PermissionsInterface {
         permImplementation.assignAccountRole(_acct, _orgId, _roleId, msg.sender);
 
     }
+
+    function updateAccountStatus(string calldata _orgId, address _account, uint _status) external
+    {
+        permImplementation.updateAccountStatus(_orgId, _account, _status, msg.sender);
+    }
+
     function addNode(string calldata _orgId, string calldata _enodeId) external
     {
         permImplementation.addNode(_orgId, _enodeId, msg.sender);

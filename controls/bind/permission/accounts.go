@@ -28,7 +28,7 @@ var (
 )
 
 // AcctManagerABI is the input ABI used to generate the binding from.
-const AcctManagerABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"valAcctAccessChange\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountRole\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"orgAdminExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"aIndex\",\"type\":\"uint256\"}],\"name\":\"getAccountDetailsFromIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addNWAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setDefaults\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"approveOrgAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"revokeAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"checkOrgAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"}],\"name\":\"AccountAccessRevoked\",\"type\":\"event\"}]"
+const AcctManagerABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"valAcctAccessChange\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountRole\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateAccountStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"orgAdminExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"aIndex\",\"type\":\"uint256\"}],\"name\":\"getAccountDetailsFromIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addNWAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setDefaults\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"approveOrgAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"revokeAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"checkOrgAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"}],\"name\":\"AccountAccessRevoked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountStatusChanged\",\"type\":\"event\"}]"
 
 // AcctManager is an auto generated Go binding around an Ethereum contract.
 type AcctManager struct {
@@ -479,6 +479,27 @@ func (_AcctManager *AcctManagerTransactorSession) SetDefaults(_nwAdminRole strin
 	return _AcctManager.Contract.SetDefaults(&_AcctManager.TransactOpts, _nwAdminRole, _oAdminRole)
 }
 
+// UpdateAccountStatus is a paid mutator transaction binding the contract method 0x84b7a84a.
+//
+// Solidity: function updateAccountStatus(_orgId string, _account address, _status uint256) returns()
+func (_AcctManager *AcctManagerTransactor) UpdateAccountStatus(opts *bind.TransactOpts, _orgId string, _account common.Address, _status *big.Int) (*types.Transaction, error) {
+	return _AcctManager.contract.Transact(opts, "updateAccountStatus", _orgId, _account, _status)
+}
+
+// UpdateAccountStatus is a paid mutator transaction binding the contract method 0x84b7a84a.
+//
+// Solidity: function updateAccountStatus(_orgId string, _account address, _status uint256) returns()
+func (_AcctManager *AcctManagerSession) UpdateAccountStatus(_orgId string, _account common.Address, _status *big.Int) (*types.Transaction, error) {
+	return _AcctManager.Contract.UpdateAccountStatus(&_AcctManager.TransactOpts, _orgId, _account, _status)
+}
+
+// UpdateAccountStatus is a paid mutator transaction binding the contract method 0x84b7a84a.
+//
+// Solidity: function updateAccountStatus(_orgId string, _account address, _status uint256) returns()
+func (_AcctManager *AcctManagerTransactorSession) UpdateAccountStatus(_orgId string, _account common.Address, _status *big.Int) (*types.Transaction, error) {
+	return _AcctManager.Contract.UpdateAccountStatus(&_AcctManager.TransactOpts, _orgId, _account, _status)
+}
+
 // AcctManagerAccountAccessModifiedIterator is returned from FilterAccountAccessModified and is used to iterate over the raw logs and unpacked data for AccountAccessModified events raised by the AcctManager contract.
 type AcctManagerAccountAccessModifiedIterator struct {
 	Event *AcctManagerAccountAccessModified // Event containing the contract specifics and raw log
@@ -710,6 +731,130 @@ func (_AcctManager *AcctManagerFilterer) WatchAccountAccessRevoked(opts *bind.Wa
 				// New log arrived, parse the event and forward to the user
 				event := new(AcctManagerAccountAccessRevoked)
 				if err := _AcctManager.contract.UnpackLog(event, "AccountAccessRevoked", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// AcctManagerAccountStatusChangedIterator is returned from FilterAccountStatusChanged and is used to iterate over the raw logs and unpacked data for AccountStatusChanged events raised by the AcctManager contract.
+type AcctManagerAccountStatusChangedIterator struct {
+	Event *AcctManagerAccountStatusChanged // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *AcctManagerAccountStatusChangedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(AcctManagerAccountStatusChanged)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(AcctManagerAccountStatusChanged)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *AcctManagerAccountStatusChangedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *AcctManagerAccountStatusChangedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// AcctManagerAccountStatusChanged represents a AccountStatusChanged event raised by the AcctManager contract.
+type AcctManagerAccountStatusChanged struct {
+	Address common.Address
+	OrgId   string
+	Status  *big.Int
+	Raw     types.Log // Blockchain specific contextual infos
+}
+
+// FilterAccountStatusChanged is a free log retrieval operation binding the contract event 0x36b0ea38154dec5e98b6bf928b971a9db5e8cd4b6946350e9e43fb9848c70b25.
+//
+// Solidity: e AccountStatusChanged(_address address, _orgId string, _status uint256)
+func (_AcctManager *AcctManagerFilterer) FilterAccountStatusChanged(opts *bind.FilterOpts) (*AcctManagerAccountStatusChangedIterator, error) {
+
+	logs, sub, err := _AcctManager.contract.FilterLogs(opts, "AccountStatusChanged")
+	if err != nil {
+		return nil, err
+	}
+	return &AcctManagerAccountStatusChangedIterator{contract: _AcctManager.contract, event: "AccountStatusChanged", logs: logs, sub: sub}, nil
+}
+
+// WatchAccountStatusChanged is a free log subscription operation binding the contract event 0x36b0ea38154dec5e98b6bf928b971a9db5e8cd4b6946350e9e43fb9848c70b25.
+//
+// Solidity: e AccountStatusChanged(_address address, _orgId string, _status uint256)
+func (_AcctManager *AcctManagerFilterer) WatchAccountStatusChanged(opts *bind.WatchOpts, sink chan<- *AcctManagerAccountStatusChanged) (event.Subscription, error) {
+
+	logs, sub, err := _AcctManager.contract.WatchLogs(opts, "AccountStatusChanged")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(AcctManagerAccountStatusChanged)
+				if err := _AcctManager.contract.UnpackLog(event, "AccountStatusChanged", log); err != nil {
 					return err
 				}
 				event.Raw = log

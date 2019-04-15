@@ -8,7 +8,7 @@ contract OrgManager {
     // checks if first time network boot up has happened or not
     bool private networkBoot = false;
     uint private DEPTH_LIMIT = 4;
-    uint private BREADTH_LIMIT = 5;
+    uint private BREADTH_LIMIT = 4;
     //    enum OrgStatus {0- NotInList, 1- Proposed, 2- Approved, 3- PendingSuspension, 4- Suspended, 5- RevokeSuspension}
     struct OrgDetails {
         string orgId;
@@ -55,10 +55,12 @@ contract OrgManager {
         return permUpgradable.getPermImpl();
     }
 
-    function addAdminOrg(string calldata _orgId) external
+    function setUpOrg(string calldata _orgId, uint _breadth, uint _depth) external
     onlyImpl
     {
         addNewOrg("", _orgId, 1, 2);
+        DEPTH_LIMIT = _depth;
+        BREADTH_LIMIT = _breadth;
     }
 
     function addNewOrg(string memory _pOrg, string memory _orgId, uint _level, uint _status) internal

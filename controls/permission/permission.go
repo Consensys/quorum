@@ -46,7 +46,9 @@ type PermissionLocalConfig struct {
 	NwAdminRole    string
 	OrgAdminRole   string
 
-	Accounts []string //initial list of account that need full access
+	Accounts      []string //initial list of account that need full access
+	SubOrgBreadth string
+	SubOrgDepth   string
 }
 
 type PermissionCtrl struct {
@@ -91,6 +93,8 @@ func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
 	for _, val := range config.Accounts {
 		permConfig.Accounts = append(permConfig.Accounts, common.HexToAddress(val))
 	}
+	permConfig.SubOrgBreadth.SetString(config.SubOrgBreadth, 10)
+	permConfig.SubOrgDepth.SetString(config.SubOrgDepth, 10)
 
 	return permConfig
 }
@@ -121,6 +125,10 @@ func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	permConfig := populateConfig(permlocConfig)
 	if len(permConfig.Accounts) == 0 {
 		return types.PermissionConfig{}, errors.New("no accounts given in permission-config.json. Network cannot boot up")
+	}
+
+	if permConfig.SubOrgDepth.Cmp(big.NewInt(0)) == 0 || permConfig.SubOrgBreadth.Cmp(big.NewInt(0)) == 0 {
+		return types.PermissionConfig{}, errors.New("sub org breadth depth not passed in permission-config.json. Network cannot boot up")
 	}
 
 	return permConfig, nil
@@ -557,7 +565,7 @@ func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSes
 		return err
 	}
 	permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permInterfSession.TransactOpts.From))
-	if _, err := permInterfSession.Init(p.permConfig.OrgAddress, p.permConfig.RoleAddress, p.permConfig.AccountAddress, p.permConfig.VoterAddress, p.permConfig.NodeAddress); err != nil {
+	if _, err := permInterfSession.Init(p.permConfig.OrgAddress, p.permConfig.RoleAddress, p.permConfig.AccountAddress, p.permConfig.VoterAddress, p.permConfig.NodeAddress, &p.permConfig.SubOrgBreadth, &p.permConfig.SubOrgDepth); err != nil {
 		log.Error("bootupNetwork init failed", "err", err)
 		return err
 	}

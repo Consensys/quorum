@@ -102,7 +102,9 @@ type PermissionConfig struct {
 	NwAdminRole    string
 	OrgAdminRole   string
 
-	Accounts []common.Address //initial list of account that need full access
+	Accounts      []common.Address //initial list of account that need full access
+	SubOrgDepth   big.Int
+	SubOrgBreadth big.Int
 }
 
 type OrgKey struct {
