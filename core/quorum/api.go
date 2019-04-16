@@ -16,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
 	"regexp"
-	"strings"
 )
 
 var isStringAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9_-]*$`).MatchString
@@ -214,7 +213,6 @@ func (s *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Add
 }
 
 func (s *QuorumControlsAPI) UpdateOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	log.Info("AJ-update org status", "org", orgId, "status", status)
 	return s.executePermAction(UpdateOrgStatus, txArgs{orgId: orgId, status: status, txa: txa})
 }
 
@@ -260,11 +258,15 @@ func (s *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
 	return ac != nil && ac.RoleId == s.permConfig.NwAdminRole
 }
 
-//TODO (Amal) get it reviewed by Sai
 func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) bool {
 	ac := types.AcctInfoMap.GetAccount(account)
-	return ac != nil && ((ac.OrgId == s.permConfig.NwAdminOrg && ac.RoleId == s.permConfig.NwAdminRole) ||
-		(ac.RoleId == s.permConfig.OrgAdminRole && strings.Contains(orgId, ac.OrgId)))
+	if ac != nil {
+		// check if the account is network admin
+		org := types.OrgInfoMap.GetOrg(ac.OrgId)
+		return ac.IsOrgAdmin && (ac.OrgId == orgId || org.UltimateParent == orgId)
+	} else {
+		return false
+	}
 }
 
 func (s *QuorumControlsAPI) validateOrg(orgId, pOrgId string) (ExecStatus, error) {
