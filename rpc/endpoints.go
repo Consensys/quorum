@@ -16,14 +16,26 @@
 
 package rpc
 
+// KGALLAGHER: Change imports to include tls
 import (
+	"crypto/tls"
 	"net"
+	"os"
 
 	"github.com/ethereum/go-ethereum/log"
 )
 
 // StartHTTPEndpoint starts the HTTP RPC endpoint, configured with cors/vhosts/modules
+// KGALLAGHER: Adding tls to this connection.
 func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []string, vhosts []string, timeouts HTTPTimeouts) (net.Listener, *Server, error) {
+	// KGALLAGHER: Assuming that the keys are server_cert.crt and server_key.key
+	cert, err := tls.LoadX509KeyPair("server_cert.crt", "server_key.key")
+	if err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
+	// KGALLAGHER: config for https.
+	config := &tls.Config{Certificates: []tls.Certificate{cert}}
 	// Generate the whitelist based on the allowed modules
 	whitelist := make(map[string]bool)
 	for _, module := range modules {
@@ -44,7 +56,11 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 		listener net.Listener
 		err      error
 	)
-	if listener, err = net.Listen("tcp", endpoint); err != nil {
+	// KGALLAGHER: Changing code here to be tls. Original code:
+	// if listener, err = net.Listen("tcp", endpoint); err != nil {
+	//	return nil, nil, err
+	//}
+	if listener, err = tls.Listen("tcp", endpoint, config); err != nil {
 		return nil, nil, err
 	}
 	go NewHTTPServer(cors, vhosts, timeouts, handler).Serve(listener)
