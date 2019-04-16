@@ -262,8 +262,8 @@ func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) boo
 	ac := types.AcctInfoMap.GetAccount(account)
 	if ac != nil {
 		// check if the account is network admin
-		org := types.OrgInfoMap.GetOrg(ac.OrgId)
-		return ac.IsOrgAdmin && (ac.OrgId == orgId || org.UltimateParent == orgId)
+		org := types.OrgInfoMap.GetOrg(orgId)
+		return ac.IsOrgAdmin && (ac.OrgId == orgId || ac.OrgId == org.UltimateParent)
 	} else {
 		return false
 	}
