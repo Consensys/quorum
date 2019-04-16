@@ -136,6 +136,8 @@ var (
 	ErrInvalidParentOrg   = ExecStatus{false, "Invalid parent org id"}
 	ErrAccountNotThere    = ExecStatus{false, "Account does not exists"}
 	ErrOrgNotOwner        = ExecStatus{false, "Account does not belong to this org"}
+	ErrMaxDepth           = ExecStatus{false, "Max depth for sub orgs reached"}
+	ErrMaxBreadth         = ExecStatus{false, "Max breadth for sub orgs reached"}
 	ExecSuccess           = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -375,6 +377,20 @@ func (s *QuorumControlsAPI) checkOrgAdminExists(orgId string, account common.Add
 	return ExecSuccess, nil
 }
 
+func (s *QuorumControlsAPI) valSubOrgBreadthDepth(porgId string) (ExecStatus, error) {
+	org := types.OrgInfoMap.GetOrg(porgId)
+
+	if s.permConfig.SubOrgDepth.Cmp(org.Level) == 0 {
+		return ErrMaxDepth, errors.New("max depth for suborgs reached")
+	}
+
+	if s.permConfig.SubOrgBreadth.Cmp(big.NewInt(int64(len(org.SubOrgList)))) == 0 {
+		return ErrMaxBreadth, errors.New("max breadth for suborgs reached")
+	}
+
+	return ExecSuccess, nil
+}
+
 // executePermAction helps to execute an action in permission contract
 func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
 
@@ -458,6 +474,10 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 		// check if org already exists
 		if execStatus, er := s.validateOrg(args.orgId, args.porgId); er != nil {
+			return execStatus
+		}
+
+		if execStatus, er := s.valSubOrgBreadthDepth(args.porgId); er != nil {
 			return execStatus
 		}
 
