@@ -219,11 +219,12 @@ type TxPool struct {
 	wg sync.WaitGroup // for shutdown sync
 
 	homestead bool
+	EnodeId   string
 }
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain) *TxPool {
+func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain, id string) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
@@ -239,6 +240,7 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 		all:         newTxLookup(),
 		chainHeadCh: make(chan ChainHeadEvent, chainHeadChanSize),
 		gasPrice:    new(big.Int).SetUint64(config.PriceLimit),
+		EnodeId:     id,
 	}
 	pool.locals = newAccountSet(pool.signer)
 	for _, addr := range config.Locals {
@@ -638,7 +640,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 	// Check if the sender account is authorized to perform the transaction
 	if isQuorum {
-		if err := checkAccount(from, tx.To()); err != nil {
+		if err := checkAccount(from, tx.To(), pool.EnodeId); err != nil {
 			return ErrUnAuthorizedAccount
 		}
 	}
@@ -1310,7 +1312,7 @@ func (t *txLookup) Remove(hash common.Hash) {
 }
 
 // checks if the account is permissioned for transaction
-func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
+func checkAccount(fromAcct common.Address, toAcct *common.Address, enodeId string) error {
 	access := types.GetAcctAccess(fromAcct)
 
 	switch access {
@@ -1319,11 +1321,11 @@ func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 		return nil
 
 	case types.ReadOnly:
-		return errors.New("Account does not have transaction permissions")
+		return errors.New("account does not have transaction permissions")
 
 	case types.Transact:
 		if toAcct == nil {
-			return errors.New("Account does not have contract create permissions")
+			return errors.New("account does not have contract create permissions")
 		} else {
 			return nil
 		}

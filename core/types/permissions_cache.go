@@ -4,6 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/golang-lru"
 	"math/big"
+	"strings"
 	"sync"
 )
 
@@ -363,6 +364,24 @@ func GetAcctAccess(acctId common.Address) AccessType {
 		}
 	}
 	return DefaultAccess
+}
+
+func ValidateNodeForTxn(enodeId string, from common.Address) bool {
+	if enodeId == "" {
+		return true
+	}
+	ac := AcctInfoMap.GetAccount(from)
+	if ac == nil {
+		return true
+	}
+	ultimateParent := OrgInfoMap.GetOrg(ac.OrgId).UltimateParent
+	// scan through the node list and validate
+	for _, n := range NodeInfoMap.GetNodeList() {
+		if OrgInfoMap.GetOrg(n.OrgId).UltimateParent == ultimateParent && strings.Contains(n.Url, enodeId) {
+			return true
+		}
+	}
+	return false
 }
 
 // Adds org key details to cache

@@ -18,8 +18,7 @@ package eth
 
 import (
 	"context"
-	"math/big"
-
+	"errors"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -34,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
 )
 
 // EthAPIBackend implements ethapi.Backend for full nodes
@@ -181,6 +181,11 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
+	// validation for node need to happen here and cannot be done as a part of
+	// validateTx in tx_pool.go as tx_pool validation will happen in every node
+	if b.eth.txPool.EnodeId != "" && !types.ValidateNodeForTxn(b.eth.txPool.EnodeId, signedTx.From()) {
+		return errors.New("cannot send transaction from this node")
+	}
 	return b.eth.txPool.AddLocal(signedTx)
 }
 
