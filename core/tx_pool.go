@@ -640,7 +640,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 
 	// Check if the sender account is authorized to perform the transaction
 	if isQuorum {
-		if err := checkAccount(from, tx.To(), pool.EnodeId); err != nil {
+		if err := checkAccount(from, tx.To()); err != nil {
 			return ErrUnAuthorizedAccount
 		}
 	}
@@ -1312,7 +1312,7 @@ func (t *txLookup) Remove(hash common.Hash) {
 }
 
 // checks if the account is permissioned for transaction
-func checkAccount(fromAcct common.Address, toAcct *common.Address, enodeId string) error {
+func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 	access := types.GetAcctAccess(fromAcct)
 
 	switch access {
