@@ -45,7 +45,6 @@ contract AccountManager {
     }
 
     // Get account details given index
-
     function orgAdminExists(string memory _orgId) public view returns (bool)
     {
         return (orgAdminIndex[keccak256(abi.encodePacked(_orgId))] != address(0));
@@ -106,7 +105,7 @@ contract AccountManager {
         }
         emit AccountAccessModified(_address, _orgId, _roleId, _oAdmin, _status);
     }
-
+    // TODO: can we merge and remove this
     function addNWAdminAccount(address _address, string calldata _orgId) external
     {
         setAccountRole(_address, _orgId, adminRole, 2, true);

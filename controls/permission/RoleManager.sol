@@ -1,7 +1,7 @@
 pragma solidity ^0.5.3;
 import "./PermissionsUpgradable.sol";
 
-
+// TODO: check code comments
 contract RoleManager {
     PermissionsUpgradable private permUpgradable;
     struct RoleDetails {

@@ -84,7 +84,7 @@ contract NodeManager {
         }
         return nodeList[getNodeIndex(_enodeId)].status;
     }
-
+    //TODO - can the duplicacy in next 3 functions removed?
     function addAdminNode(string calldata _enodeId, string calldata _orgId) external
     onlyImpl
     enodeNotInList(_enodeId)
@@ -93,6 +93,7 @@ contract NodeManager {
         nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
         nodeList.push(NodeDetails(_enodeId, _orgId, 2));
     }
+    // TODO: addNode should be external
     function addNode(string memory _enodeId, string memory _orgId) public
     onlyImpl
     enodeNotInList(_enodeId)

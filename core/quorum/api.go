@@ -137,6 +137,10 @@ var (
 	ErrOrgNotOwner        = ExecStatus{false, "Account does not belong to this org"}
 	ErrMaxDepth           = ExecStatus{false, "Max depth for sub orgs reached"}
 	ErrMaxBreadth         = ExecStatus{false, "Max breadth for sub orgs reached"}
+	ErrNodeDoesNotExists  = ExecStatus{false, "Node does not exists"}
+	ErrOrgDoesNotExists   = ExecStatus{false, "Org does not exists"}
+	ErrInactiveRole       = ExecStatus{false, "Role is already inactive"}
+	ErrInvalidRole        = ExecStatus{false, "Invalid role"}
 	ExecSuccess           = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -258,15 +262,19 @@ func (s *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
 	return ac != nil && ac.RoleId == s.permConfig.NwAdminRole
 }
 
-func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) bool {
+func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) (ExecStatus, error) {
+	org := types.OrgInfoMap.GetOrg(orgId)
+	if org == nil {
+		return ErrOrgDoesNotExists, errors.New("invalid org")
+	}
 	ac := types.AcctInfoMap.GetAccount(account)
 	if ac != nil {
 		// check if the account is network admin
-		org := types.OrgInfoMap.GetOrg(orgId)
-		return ac.IsOrgAdmin && (ac.OrgId == orgId || ac.OrgId == org.UltimateParent)
-	} else {
-		return false
+		if !(ac.IsOrgAdmin && (ac.OrgId == orgId || ac.OrgId == org.UltimateParent)) {
+			return ErrNotOrgAdmin, errors.New("not org admin")
+		}
 	}
+	return ExecSuccess, nil
 }
 
 func (s *QuorumControlsAPI) validateOrg(orgId, pOrgId string) (ExecStatus, error) {
@@ -280,11 +288,6 @@ func (s *QuorumControlsAPI) validateOrg(orgId, pOrgId string) (ExecStatus, error
 		}
 	}
 	return ExecSuccess, nil
-}
-
-func (s *QuorumControlsAPI) checkNodeExists(enodeId string) bool {
-	node := types.NodeInfoMap.GetNodeByUrl(enodeId)
-	return node != nil
 }
 
 func (s *QuorumControlsAPI) validatePendingOp(authOrg, orgId, url string, account common.Address, pendingOp int64, pinterf *pbind.PermInterfaceSession) bool {
@@ -304,24 +307,38 @@ func (s *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) bool {
 
 func (s *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (ExecStatus, error) {
 	// validates if the enode is linked the passed organization
+	// validate node id and
+	if len(url) == 0 {
+		return ErrInvalidNode, errors.New("invalid node id")
+	}
+	if execStatus, err := s.valNodeDetails(url); err != nil {
+		if execStatus != ErrNodePresent {
+			return execStatus, errors.New("node not found")
+		}
+	}
+
 	node := types.NodeInfoMap.GetNodeByUrl(url)
+	if node != nil {
+		if node.OrgId != orgId {
+			return ErrNodeOrgMismatch, errors.New("node does not belong to the organization passed")
+		}
 
-	if node.OrgId != orgId {
-		return ErrNodeOrgMismatch, errors.New("node does not belong to the organization passed")
+		if node.Status == types.NodeBlackListed {
+			return ErrBlacklistedNode, errors.New("blacklisted node. operation not allowed")
+		}
+
+		// validate the op and node status and check if the op can be performed
+		if op != 3 && op != 4 && op != 5 {
+			return ErrOpNotAllowed, errors.New("invalid node status change operation")
+		}
+
+		if (op == 3 && node.Status != types.NodeApproved) || (op == 4 && node.Status != types.NodeDeactivated) {
+			return ErrOpNotAllowed, errors.New("node status change cannot be performed")
+		}
+	} else {
+		return ErrNodeDoesNotExists, errors.New("node does not exist")
 	}
 
-	if node.Status == types.NodeBlackListed {
-		return ErrBlacklistedNode, errors.New("blacklisted node. operation not allowed")
-	}
-
-	// validate the op and node status and check if the op can be performed
-	if op != 3 && op != 4 && op != 5 {
-		return ErrOpNotAllowed, errors.New("invalid node status change operation")
-	}
-
-	if (op == 3 && node.Status != types.NodeApproved) || (op == 4 && node.Status != types.NodeDeactivated) {
-		return ErrOpNotAllowed, errors.New("node status change cannot be performed")
-	}
 	return ExecSuccess, nil
 }
 
@@ -393,6 +410,38 @@ func (s *QuorumControlsAPI) valSubOrgBreadthDepth(porgId string) (ExecStatus, er
 	return ExecSuccess, nil
 }
 
+func (s *QuorumControlsAPI) checkNodeExists(url, enodeId string) bool {
+	node := types.NodeInfoMap.GetNodeByUrl(url)
+	if node != nil {
+		return true
+	}
+	// check if the same nodeid is in use with different port numbers
+	nodeList := types.NodeInfoMap.GetNodeList()
+	for _, n := range nodeList {
+		if enodeDet, er := enode.ParseV4(n.Url); er == nil {
+			if enodeDet.EnodeID() == enodeId {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *QuorumControlsAPI) valNodeDetails(url string) (ExecStatus, error) {
+	// validate node id and
+	if len(url) != 0 {
+		enodeDet, err := enode.ParseV4(url)
+		if err != nil {
+			return ErrInvalidNode, errors.New("invalid node id")
+		}
+		// check if node already there
+		if s.checkNodeExists(url, enodeDet.EnodeID()) {
+			return ErrNodePresent, errors.New("duplicate node")
+		}
+	}
+	return ExecSuccess, nil
+}
+
 // executePermAction helps to execute an action in permission contract
 func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
 
@@ -433,14 +482,8 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 
 		// validate node id and
-		_, err := enode.ParseV4(args.url)
-		if err != nil {
-			return ErrInvalidNode
-		}
-
-		// check if node already there
-		if s.checkNodeExists(args.url) {
-			return ErrNodePresent
+		if execStatus, er := s.valNodeDetails(args.url); er != nil {
+			return execStatus
 		}
 
 		// check if account is already part of another org
@@ -470,8 +513,8 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 
 		// check if caller is network admin
-		if !s.isOrgAdmin(args.txa.From, args.porgId) {
-			return ErrNotOrgAdmin
+		if execStatus, er := s.isOrgAdmin(args.txa.From, args.porgId); er != nil {
+			return execStatus
 		}
 
 		// check if org already exists
@@ -483,16 +526,8 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return execStatus
 		}
 
-		// validate node id and
-		if len(args.url) != 0 {
-			_, err := enode.ParseV4(args.url)
-			if err != nil {
-				return ErrInvalidNode
-			}
-			// check if node already there
-			if s.checkNodeExists(args.url) {
-				return ErrNodePresent
-			}
+		if execStatus, er := s.valNodeDetails(args.url); er != nil {
+			return execStatus
 		}
 
 		// check if account is already part of another org
@@ -546,29 +581,22 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 	case AddNode:
 		// check if org admin
-		if !s.isOrgAdmin(args.txa.From, args.orgId) {
-			return ErrNotOrgAdmin
+		// check if caller is network admin
+		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+			return execStatus
 		}
 
-		// validate node id and
-		_, err := enode.ParseV4(args.url)
-		if err != nil {
-			return ErrInvalidNode
+		if execStatus, er := s.valNodeDetails(args.url); er != nil {
+			return execStatus
 		}
-
 		// check if node is already there
 		tx, err = pinterf.AddNode(args.orgId, args.url)
 
 	case UpdateNodeStatus:
 		// check if org admin
-		if !s.isOrgAdmin(args.txa.From, args.orgId) {
-			return ErrNotOrgAdmin
-		}
-
-		// validate node id and
-		_, err := enode.ParseV4(args.url)
-		if err != nil {
-			return ErrInvalidNode
+		// check if caller is network admin
+		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+			return execStatus
 		}
 
 		// validation status change is with in allowed set
@@ -606,9 +634,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = pinterf.ApproveOrgAdminAccount(args.acctId)
 
 	case AddNewRole:
-		// check if org admin
-		if !s.isOrgAdmin(args.txa.From, args.orgId) {
-			return ErrNotOrgAdmin
+		// check if caller is network admin
+		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+			return execStatus
 		}
 		// validate if role is already present
 		if types.RoleInfoMap.GetRole(args.orgId, args.roleId) != nil {
@@ -619,14 +647,22 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = pinterf.AddNewRole(args.roleId, args.orgId, big.NewInt(int64(args.accessType)), args.isVoter)
 
 	case RemoveRole:
-		// check if org admin
-		if !s.isOrgAdmin(args.txa.From, args.orgId) {
-			return ErrNotOrgAdmin
+		// check if caller is network admin
+		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+			return execStatus
 		}
 
 		// admin roles cannot be removed
 		if args.roleId == s.permConfig.OrgAdminRole || args.roleId == s.permConfig.NwAdminRole {
 			return ErrAdminRoles
+		}
+
+		// check if role is alraedy inactive
+		r := types.RoleInfoMap.GetRole(args.orgId, args.roleId)
+		if r == nil {
+			return ErrInvalidRole
+		} else if !r.Active {
+			return ErrInactiveRole
 		}
 
 		// check if the role has active accounts. if yes operations should not be allowed
@@ -637,9 +673,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = pinterf.RemoveRole(args.roleId, args.orgId)
 
 	case AssignAccountRole:
-		// check if org admin
-		if !s.isOrgAdmin(args.txa.From, args.orgId) {
-			return ErrNotOrgAdmin
+		// check if caller is network admin
+		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+			return execStatus
 		}
 
 		// check if the role is part of the org
