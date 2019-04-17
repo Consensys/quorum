@@ -183,6 +183,9 @@ func (s *QuorumControlsAPI) AcctList() []types.AccountInfo {
 }
 
 func (s *QuorumControlsAPI) GetOrgDetails(orgId string) types.OrgDetailInfo {
+	if o := types.OrgInfoMap.GetOrg(orgId); o == nil {
+		return types.OrgDetailInfo{}
+	}
 	var acctList []types.AccountInfo
 	var roleList []types.RoleInfo
 	var nodeList []types.NodeInfo
