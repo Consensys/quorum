@@ -763,21 +763,3 @@ func (s *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet
 	}
 	return frmAcct, transactOpts, gasLimit, gasPrice, nonce
 }
-
-// checks if the account performing the operation has sufficient access privileges
-func valAccountAccessVoter(fromAcct, targetAcct common.Address) (error, ExecStatus) {
-	acctAccess := types.GetAcctAccess(fromAcct)
-	// only accounts with full access will be allowed to manage voters
-	if acctAccess != types.FullAccess {
-		return errors.New("Account performing the operation does not have sufficient access"), ErrAccountAccess
-	}
-
-	// An account with minimum of transact access can be a voter
-	if targetAcct != (common.Address{}) {
-		acctAccess = types.GetAcctAccess(targetAcct)
-		if acctAccess == types.ReadOnly {
-			return errors.New("Voter account does not have sufficient access"), ErrVoterAccountAccess
-		}
-	}
-	return nil, ExecSuccess
-}
