@@ -19,7 +19,7 @@ contract AccountManager {
     string private adminRole;
     string private orgAdminRole;
 
-    mapping(bytes32 => address) private orgAdminIndex;
+    mapping(bytes32 => bool) private orgAdminIndex;
 
     // account permission events
     event AccountAccessModified(address _address, string _orgId, string _roleId, bool _orgAdmin, uint _status);
@@ -45,9 +45,9 @@ contract AccountManager {
     }
 
     // Get account details given index
-    function orgAdminExists(string memory _orgId) public view returns (bool)
+    function orgAdminExists(string memory _orgId, address _account) public view returns (bool)
     {
-        return (orgAdminIndex[keccak256(abi.encodePacked(_orgId))] != address(0));
+        return (orgAdminIndex[keccak256(abi.encodePacked(_orgId, _account))] == true);
 
     }
 
@@ -101,7 +101,7 @@ contract AccountManager {
             acctAccessList.push(AccountAccessDetails(_address, _orgId, _roleId, _status, _oAdmin));
         }
         if (_oAdmin) {
-            orgAdminIndex[keccak256(abi.encodePacked(_orgId))] = _address;
+            orgAdminIndex[keccak256(abi.encodePacked(_orgId, _address))] = true;
         }
         emit AccountAccessModified(_address, _orgId, _roleId, _oAdmin, _status);
     }
@@ -118,7 +118,7 @@ contract AccountManager {
         // if the role id is ORGADMIN then check if already an orgadmin exists
         if ((keccak256(abi.encodePacked(_roleId)) == keccak256(abi.encodePacked(orgAdminRole))) ||
             (keccak256(abi.encodePacked(_roleId)) == keccak256(abi.encodePacked(adminRole)))) {
-            if (orgAdminIndex[keccak256(abi.encodePacked(_orgId))] != address(0)) {
+            if (orgAdminIndex[keccak256(abi.encodePacked(_orgId, _address))] == true) {
                 return;
             }
             else {
@@ -199,7 +199,7 @@ contract AccountManager {
 
     function checkOrgAdmin(address _acct, string memory _orgId, string memory _ultParent) public view returns (bool)
     {
-        return ((orgAdminIndex[keccak256(abi.encodePacked(_orgId))] == _acct) || (orgAdminIndex[keccak256(abi.encodePacked(_ultParent))] == _acct));
+        return (orgAdminIndex[keccak256(abi.encodePacked(_orgId, _acct))] || orgAdminIndex[keccak256(abi.encodePacked(_ultParent, _acct))]);
     }
 
     // this function checks if account access can be modified. Account access can be modified for a new account
@@ -209,7 +209,7 @@ contract AccountManager {
         if (accountIndex[_acct] == 0) {
             return true;
         }
-        return ((orgAdminIndex[keccak256(abi.encodePacked(_orgId))] == _acct) || (orgAdminIndex[keccak256(abi.encodePacked(_ultParent))] == _acct));
+        return (orgAdminIndex[keccak256(abi.encodePacked(_orgId, _acct))] || orgAdminIndex[keccak256(abi.encodePacked(_ultParent, _acct))]);
     }
     // Returns the account index based on account id
     function getAcctIndex(address _acct) internal view returns (uint)
