@@ -3,6 +3,7 @@ package quorum
 import (
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -113,7 +114,6 @@ var (
 	ErrNodePresent        = ExecStatus{false, "EnodeId already part of network."}
 	ErrInvalidNode        = ExecStatus{false, "Invalid enode id"}
 	ErrInvalidAccount     = ExecStatus{false, "Invalid account id"}
-	ErrFailedExecution    = ExecStatus{false, "Failed to execute permission action"}
 	ErrPermissionDisabled = ExecStatus{false, "Permissions control not enabled"}
 	ErrAccountAccess      = ExecStatus{false, "Account does not have sufficient access for operation"}
 	ErrVoterAccountAccess = ExecStatus{false, "Voter account does not have sufficient access"}
@@ -709,7 +709,8 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 	if err != nil {
 		log.Error("Failed to execute permission action", "action", action, "err", err)
-		return ErrFailedExecution
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
 	}
 	log.Debug("executed permission action", "action", action, "tx", tx)
 	return ExecSuccess

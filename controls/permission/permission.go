@@ -317,7 +317,6 @@ func (p *PermissionCtrl) manageNodePermissions() {
 			types.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, evtNodeApproved.EnodeId, types.NodeApproved)
 
 		case evtNodeProposed = <-chNodeProposed:
-			p.updatePermissionedNodes(evtNodeProposed.EnodeId, NodeAdd)
 			types.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, evtNodeProposed.EnodeId, types.NodePendingApproval)
 
 		case evtNodeDeactivated = <-chNodeDeactivated:
@@ -472,35 +471,6 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 			types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Address, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
 		}
 	}
-}
-
-// populates the nodes list from permissioned-nodes.json into the permissions smart contract
-func (p *PermissionCtrl) populatePermissionedNodes() error {
-	opts := &bind.FilterOpts{}
-	pastAddEvent, err := p.permNode.NodeManagerFilterer.FilterNodeApproved(opts)
-
-	if err == nil {
-		recExists := true
-		for recExists {
-			recExists = pastAddEvent.Next()
-			if recExists {
-				p.updatePermissionedNodes(pastAddEvent.Event.EnodeId, NodeAdd)
-			}
-		}
-	}
-
-	opts = &bind.FilterOpts{}
-	pastDelEvent, err := p.permNode.NodeManagerFilterer.FilterNodeDeactivated(opts)
-	if err == nil {
-		recExists := true
-		for recExists {
-			recExists = pastDelEvent.Next()
-			if recExists {
-				p.updatePermissionedNodes(pastDelEvent.Event.EnodeId, NodeDelete)
-			}
-		}
-	}
-	return nil
 }
 
 // Disconnect the node from the network
