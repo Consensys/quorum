@@ -131,7 +131,7 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 // check if privacy flags are turned on
 // e.g.: HasPrivacyFlag(flag, PrivacyFlagStateValiation | PrivacyFlagPartyProtection)
 func HasPrivacyFlag(flag uint64, expectedFlags uint64) bool {
-	if flag == PrivacyFlagLegacy {
+	if expectedFlags == PrivacyFlagLegacy {
 		return flag == expectedFlags
 	}
 	return expectedFlags&flag == expectedFlags

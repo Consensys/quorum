@@ -203,7 +203,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	isQuorum := st.evm.ChainConfig().IsQuorum
 
 	var data []byte
-	var extraPrivateMetadata *engine.ExtraMetadata
+	var receivedPrivacyMetadata *engine.ExtraMetadata
 	hasPrivatePayload := false
 	isPrivate := false
 	publicState := st.state
@@ -211,7 +211,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		snapshot = st.evm.StateDB.Snapshot()
 		isPrivate = true
-		data, extraPrivateMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
+		data, receivedPrivacyMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -223,8 +223,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return nil, 0, false, nil
 		}
 		hasPrivatePayload = data != nil
-		if extraPrivateMetadata != nil {
-			privMetadata := types.NewTxPrivacyMetadata(extraPrivateMetadata.PrivacyFlag)
+		if receivedPrivacyMetadata != nil {
+			privMetadata := types.NewTxPrivacyMetadata(receivedPrivacyMetadata.PrivacyFlag)
 			st.evm.SetTxPrivacyMetadata(privMetadata)
 		}
 	} else {
@@ -301,14 +301,15 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return
 		}
 		actualACAddresses := evm.AffectedContracts()
-		log.Trace("Verify hashes of affected contracts", "expectedHashes", extraPrivateMetadata.ACHashes, "numberOfAffectedAddresses", len(actualACAddresses))
-		expectedMatchCount := len(extraPrivateMetadata.ACHashes)
+		log.Trace("Verify hashes of affected contracts", "expectedHashes", receivedPrivacyMetadata.ACHashes, "numberOfAffectedAddresses", len(actualACAddresses))
+		expectedMatchCount := len(receivedPrivacyMetadata.ACHashes)
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 			//when privacyMetadata should have been recovered but wasnt (includes non-party)
 			if err != nil {
 				return returnErrorFunc(nil, "PrivacyMetadata unable to be found", "err", err)
 			}
+			log.Trace("Privacy metadata", "affectedAddress", addr.Hex(), "metadata", actualPrivacyMetadata)
 			//public contracts have no privacy metadata stored in private state
 			// TODO We must ensure that legacy transactions (from previous versions of quorum) are distinguishable from public transactions
 			if actualPrivacyMetadata == nil {
@@ -317,17 +318,17 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			// Check that the affected contracts privacy flag matches the transaction privacy flag.
 			// I know that this is also checked by tessera, but it only checks for non legacy transactions.
 			// TODO We should do the same checks for calls and throw errors when different types of transactions interact with each other
-			if actualPrivacyMetadata.PrivacyFlag != extraPrivateMetadata.PrivacyFlag {
+			if actualPrivacyMetadata.PrivacyFlag != receivedPrivacyMetadata.PrivacyFlag {
 				return returnErrorFunc(nil, "Mismatched privacy flags",
 					"affectedContract.Address", addr.Hex(),
 					"affectedContract.PrivacyFlag", actualPrivacyMetadata.PrivacyFlag,
-					"tx.PrivacyFlag", extraPrivateMetadata.PrivacyFlag)
+					"received.PrivacyFlag", receivedPrivacyMetadata.PrivacyFlag)
 			}
 			// for legacy transactions we should skip the acoth check
-			if private.HasPrivacyFlag(private.PrivacyFlagLegacy, extraPrivateMetadata.PrivacyFlag) {
+			if private.HasPrivacyFlag(receivedPrivacyMetadata.PrivacyFlag, private.PrivacyFlagLegacy) {
 				continue
 			}
-			if extraPrivateMetadata.ACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
+			if receivedPrivacyMetadata.ACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
 				return returnErrorFunc(nil, "Participation check failed",
 					"affectedContractAddress", addr.Hex(),
 					"missingCreationTxHash", actualPrivacyMetadata.CreationTxHash.Hex())
@@ -339,14 +340,14 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 				"missing", expectedMatchCount)
 		}
 		// TODO NL we should discard StateValidation transactions which do not have an execHash/ACMerkleRoot (best done right after receive)
-		if !common.EmptyHash(extraPrivateMetadata.ACMerkleRoot) {
-			log.Trace("Verify merkle root", "merkleRoot", extraPrivateMetadata.ACMerkleRoot)
+		if !common.EmptyHash(receivedPrivacyMetadata.ACMerkleRoot) {
+			log.Trace("Verify merkle root", "merkleRoot", receivedPrivacyMetadata.ACMerkleRoot)
 			actualACMerkleRoot, err := evm.CalculateMerkleRoot()
 			if err != nil {
 				return returnErrorFunc(err, "")
 			}
-			if actualACMerkleRoot != extraPrivateMetadata.ACMerkleRoot {
-				return returnErrorFunc(nil, "Merkle Root check failed", "actual", actualACMerkleRoot, "expect", extraPrivateMetadata.ACMerkleRoot)
+			if actualACMerkleRoot != receivedPrivacyMetadata.ACMerkleRoot {
+				return returnErrorFunc(nil, "Merkle Root check failed", "actual", actualACMerkleRoot, "expect", receivedPrivacyMetadata.ACMerkleRoot)
 			}
 		}
 	}
