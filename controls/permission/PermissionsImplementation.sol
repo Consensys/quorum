@@ -214,7 +214,7 @@ contract PermissionsImplementation {
     {
         require(validateAccount(_account, _orgId) == true, "Operation cannot be performed");
         // check if orgAdmin already exists if yes then op cannot be performed
-        //        require(checkOrgAdminExists(_orgId) != true, "org admin exists");
+        require(checkOrgAdminExists(_orgId) != true, "org admin exists");
         // assign the account org admin role and propose voting
         accounts.assignAccountRole(_account, _orgId, orgAdminRole);
         //add voting item
@@ -333,6 +333,12 @@ contract PermissionsImplementation {
     returns (bool)
     {
         return org.checkOrgStatus(_orgId, _status);
+    }
+
+    function checkOrgAdminExists(string memory _orgId) internal view
+    returns (bool)
+    {
+        return accounts.orgAdminExists(_orgId);
     }
 
     function roleExists(string memory _roleId, string memory _orgId) internal view
