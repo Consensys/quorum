@@ -416,6 +416,15 @@ var (
 		Name:  "rpc",
 		Usage: "Enable the HTTP-RPC server",
 	}
+	RPCEnabledSecurityFlag = cli.BoolFlag{
+		Name:  "rpc.security",
+		Usage: "Enable rpc security context",
+	}
+	RPCSecurityConfigFileFlag = cli.StringFlag{
+		Name:  "rpc.security.config",
+		Usage: "RPC security configuration file path",
+		Value: "rpc-sec-config.json",
+	}
 	RPCListenAddrFlag = cli.StringFlag{
 		Name:  "rpcaddr",
 		Usage: "HTTP-RPC server listening interface",
