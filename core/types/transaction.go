@@ -23,7 +23,9 @@ import (
 	"math/big"
 	"sync/atomic"
 
-	fmt "fmt"
+	"github.com/ethereum/go-ethereum/private/engine"
+
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -58,7 +60,7 @@ type Transaction struct {
 }
 
 type PrivacyMetadata struct {
-	PrivacyFlag uint64
+	PrivacyFlag engine.PrivacyFlagType
 }
 
 type txdata struct {
@@ -122,7 +124,7 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 	return &Transaction{data: d}
 }
 
-func NewTxPrivacyMetadata(privacyFlag uint64) *PrivacyMetadata {
+func NewTxPrivacyMetadata(privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
 	return &PrivacyMetadata{
 		PrivacyFlag: privacyFlag,
 	}

@@ -28,12 +28,6 @@ var (
 	P = FromEnvironmentOrNil("PRIVATE_CONFIG")
 )
 
-const (
-	PrivacyFlagLegacy          = uint64(iota)                // 0
-	PrivacyFlagPartyProtection = uint64(1 << uint64(iota-1)) // 1
-	PrivacyFlagStateValidation                               // 2
-)
-
 type PrivateTransactionManager interface {
 	Name() string
 
@@ -126,18 +120,4 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 		privateTxManager = tessera.New(client)
 	}
 	return privateTxManager, nil
-}
-
-// check if privacy flags are turned on
-// e.g.: HasPrivacyFlag(flag, PrivacyFlagStateValiation | PrivacyFlagPartyProtection)
-func HasPrivacyFlag(flag uint64, expectedFlags uint64) bool {
-	if expectedFlags == PrivacyFlagLegacy {
-		return flag == expectedFlags
-	}
-	return expectedFlags&flag == expectedFlags
-}
-
-//check if Legacy flag is NOT on
-func IsNotLegacyFlag(flag uint64) bool {
-	return flag != PrivacyFlagLegacy
 }

@@ -1,5 +1,7 @@
 package tessera
 
+import "github.com/ethereum/go-ethereum/private/engine"
+
 // request object for /send API
 type sendRequest struct {
 	Payload []byte `json:"payload"`
@@ -15,7 +17,7 @@ type sendRequest struct {
 	// Merkle root for affected contracts
 	ExecHash string `json:"execHash,omitempty"`
 
-	PrivacyFlag uint64 `json:"privacyFlag"`
+	PrivacyFlag engine.PrivacyFlagType `json:"privacyFlag"`
 }
 
 // response object for /send API
@@ -33,7 +35,7 @@ type receiveResponse struct {
 	// Merkle root for affected contracts
 	ExecHash string `json:"execHash"`
 
-	PrivacyFlag uint64 `json:"privacyFlag"`
+	PrivacyFlag engine.PrivacyFlagType `json:"privacyFlag"`
 }
 
 type sendSignedTxRequest struct {
@@ -44,7 +46,7 @@ type sendSignedTxRequest struct {
 	// Merkle root for affected contracts
 	ExecHash string `json:"execHash,omitempty"`
 
-	PrivacyFlag uint64 `json:"privacyFlag"`
+	PrivacyFlag engine.PrivacyFlagType `json:"privacyFlag"`
 }
 
 type sendSignedTxResponse struct {

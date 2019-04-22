@@ -1201,10 +1201,10 @@ type SendRawTxArgs struct {
 
 // Additional arguments dedicated to private transactions
 type PrivateTxArgs struct {
-	PrivateFrom   string   `json:"privateFrom"`
-	PrivateFor    []string `json:"privateFor"`
-	PrivateTxType string   `json:"restriction"`
-	PrivacyFlag   uint64   `json:"privacyFlag"`
+	PrivateFrom   string                 `json:"privateFrom"`
+	PrivateFor    []string               `json:"privateFor"`
+	PrivateTxType string                 `json:"restriction"`
+	PrivacyFlag   engine.PrivacyFlagType `json:"privacyFlag"`
 }
 
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
@@ -1740,11 +1740,14 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 	}(time.Now())
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
 	if isPrivate {
+		if err = privateTxArgs.PrivacyFlag.Validate(); err != nil {
+			return
+		}
 		data := tx.Data()
 		if len(data) > 0 { // only support non-value-transfer transaction
 			var affectedCATxHashes common.EncryptedPayloadHashes // of affected contract accounts
 			var merkleRoot common.Hash
-			var privacyFlag uint64
+			var privacyFlag engine.PrivacyFlagType
 			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag)
 			if isRaw {
 				hash = common.BytesToEncryptedPayloadHash(data)
@@ -1806,7 +1809,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts
 // and the merkle root combining all affected contract accounts after the simulation
 //
-func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (common.EncryptedPayloadHashes, common.Hash, uint64, error) {
+func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (common.EncryptedPayloadHashes, common.Hash, engine.PrivacyFlagType, error) {
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())
@@ -1879,19 +1882,19 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		//pm will be nil and error thrown on legacy and non-party situations
 		pm, err := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
 		//privacyMetadata should be retrieved but isn't found or some err retrieving it
-		if err != nil && private.IsNotLegacyFlag(privacyFlag) {
+		if err != nil && privacyFlag.IsNotLegacy() {
 			return nil, common.Hash{}, privacyFlag, errors.New("non-party member/problem retrieving metadata")
 		}
 		//if any metadata returned => member situation (psv or partyCheck)
 		if pm != nil {
 			privacyFlag = pm.PrivacyFlag
-			if private.IsNotLegacyFlag(privateTxArgs.PrivacyFlag) && privateTxArgs.PrivacyFlag != privacyFlag {
+			if privateTxArgs.PrivacyFlag.IsNotLegacy() && privateTxArgs.PrivacyFlag != privacyFlag {
 				return nil, common.Hash{}, privacyFlag, errors.New("mismatch of To contract privacy flag")
 			}
 		}
 	}
 	log.Trace("after simulation run", "numberOfAffectedContracts", len(addresses), "privacyFlag", privacyFlag)
-	if private.IsNotLegacyFlag(privacyFlag) {
+	if privacyFlag.IsNotLegacy() {
 		for _, addr := range addresses {
 			privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 			log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
@@ -1912,7 +1915,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			}
 		}
 		//only calculate the merkle root if all contracts are psv
-		if private.HasPrivacyFlag(privacyFlag, private.PrivacyFlagStateValidation) {
+		if privacyFlag.Has(engine.PrivacyFlagStateValidation) {
 			merkleRoot, err = evm.CalculateMerkleRoot()
 			if err != nil {
 				return nil, common.Hash{}, privacyFlag, err

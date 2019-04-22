@@ -23,6 +23,8 @@ import (
 	"io"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/private/engine"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -108,7 +110,7 @@ type Account struct {
 //attached to every private contract account
 type PrivacyMetadata struct {
 	CreationTxHash common.EncryptedPayloadHash `json:"creationTxHash"`
-	PrivacyFlag    uint64                      `json:"privacyFlag"`
+	PrivacyFlag    engine.PrivacyFlagType      `json:"privacyFlag"`
 }
 
 // newObject creates a state object.
@@ -129,7 +131,7 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	}
 }
 
-func NewStatePrivacyMetadata(creationTxHash common.EncryptedPayloadHash, privacyFlag uint64) *PrivacyMetadata {
+func NewStatePrivacyMetadata(creationTxHash common.EncryptedPayloadHash, privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
 	return &PrivacyMetadata{
 		CreationTxHash: creationTxHash,
 		PrivacyFlag:    privacyFlag,

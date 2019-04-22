@@ -18,15 +18,15 @@ import (
 )
 
 var (
-	arbitraryHash                         = common.BytesToEncryptedPayloadHash([]byte("arbitrary"))
-	arbitraryHash1                        = common.BytesToEncryptedPayloadHash([]byte("arbitrary1"))
-	arbitraryNotFoundHash                 = common.BytesToEncryptedPayloadHash([]byte("not found"))
-	arbitraryHashNoPrivateMetadata        = common.BytesToEncryptedPayloadHash([]byte("no private extra data"))
-	arbitraryPrivatePayload               = []byte("arbitrary private payload")
-	arbitraryFrom                         = "arbitraryFrom"
-	arbitraryTo                           = []string{"arbitraryTo1", "arbitraryTo2"}
-	arbitraryPrivacyFlag           uint64 = 1
-	arbitraryExtra                        = &engine.ExtraMetadata{
+	arbitraryHash                  = common.BytesToEncryptedPayloadHash([]byte("arbitrary"))
+	arbitraryHash1                 = common.BytesToEncryptedPayloadHash([]byte("arbitrary1"))
+	arbitraryNotFoundHash          = common.BytesToEncryptedPayloadHash([]byte("not found"))
+	arbitraryHashNoPrivateMetadata = common.BytesToEncryptedPayloadHash([]byte("no private extra data"))
+	arbitraryPrivatePayload        = []byte("arbitrary private payload")
+	arbitraryFrom                  = "arbitraryFrom"
+	arbitraryTo                    = []string{"arbitraryTo1", "arbitraryTo2"}
+	arbitraryPrivacyFlag           = engine.PrivacyFlagPartyProtection
+	arbitraryExtra                 = &engine.ExtraMetadata{
 		ACHashes:     Must(common.Base64sToEncryptedPayloadHashes([]string{arbitraryHash.ToBase64()})).(common.EncryptedPayloadHashes),
 		ACMerkleRoot: common.StringToHash("arbitrary root hash"),
 		PrivacyFlag:  arbitraryPrivacyFlag,

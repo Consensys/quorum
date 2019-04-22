@@ -325,7 +325,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 					"received.PrivacyFlag", receivedPrivacyMetadata.PrivacyFlag)
 			}
 			// for legacy transactions we should skip the acoth check
-			if private.HasPrivacyFlag(receivedPrivacyMetadata.PrivacyFlag, private.PrivacyFlagLegacy) {
+			if receivedPrivacyMetadata.PrivacyFlag.IsLegacy() {
 				continue
 			}
 			if receivedPrivacyMetadata.ACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
