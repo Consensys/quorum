@@ -27,6 +27,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -223,10 +224,12 @@ func NewHTTPServer(cors []string, vhosts []string, timeouts HTTPTimeouts, srv *S
 
 // ServeHTTP serves JSON-RPC requests over HTTP.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
 	// Permit dumb empty requests for remote health-checks (AWS)
 	if r.Method == http.MethodGet && r.ContentLength == 0 && r.URL.RawQuery == "" {
 		return
 	}
+
 	if code, err := validateRequest(r); err != nil {
 		http.Error(w, err.Error(), code)
 		return
@@ -250,6 +253,16 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer codec.Close()
 
 	w.Header().Set("content-type", contentType)
+
+	// Apply Security Context
+	log.Info("Testing","context",strconv.FormatBool(srv.securityContext.Enabled))
+	if srv.SecurityCtx().Enabled {
+		if  status, err := srv.securityContext.ProcessHttpRequest(r); err !=nil {
+			http.Error(w, err.Error(), status)
+			return
+		}
+	}
+
 	srv.ServeSingleRequest(ctx, codec, OptionMethodInvocation)
 }
 

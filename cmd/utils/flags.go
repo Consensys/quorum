@@ -20,6 +20,7 @@ package utils
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/ethereum/go-ethereum/rpc"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -417,11 +418,11 @@ var (
 		Usage: "Enable the HTTP-RPC server",
 	}
 	RPCEnabledSecurityFlag = cli.BoolFlag{
-		Name:  "rpc.security",
+		Name:  "rpcsec",
 		Usage: "Enable rpc security context",
 	}
 	RPCSecurityConfigFileFlag = cli.StringFlag{
-		Name:  "rpc.security.config",
+		Name:  "rpcsec.config",
 		Usage: "RPC security configuration file path",
 		Value: "rpc-sec-config.json",
 	}
@@ -679,6 +680,29 @@ var (
 	}
 )
 
+// setRPCSecurityConfig creates the rpc config from cli flags.
+func setRPCSecurityConfig(ctx *cli.Context, cfg *node.Config) {
+	if configFilePath :=ctx.GlobalString(RPCSecurityConfigFileFlag.Name) ; ctx.GlobalBool(RPCEnabledSecurityFlag.Name) {
+		log.Warn("RPC security","status","Enabled")
+
+		// set config
+		log.Warn("RPC security","parsing-config","Start")
+		securityConfig, err := rpc.ParseRpcSecurityConfigFile(configFilePath)
+		if err != nil { Fatalf("Error parsing RPC security config file. %v", err) }
+		log.Warn("RPC security","parsing-config","Completed")
+		log.Warn("RPC security","create-context","Start")
+		cfg.RpcSecurityContext = rpc.SecurityContext{Enabled:true, Config:securityConfig}
+		log.Warn("RPC security","create-context","Completed")
+		log.Warn("RPC security","context-enabled", cfg.RpcSecurityContext.Enabled, "context-type", cfg.RpcSecurityContext.Config.ProviderType)
+
+	} else {
+		log.Warn("RPC security","status","Disabled")
+		cfg.RpcSecurityContext = rpc.GetDefaultSecurityContext()
+	}
+
+
+}
+
 // MakeDataDir retrieves the currently requested data directory, terminating
 // if none (or the empty string) is specified. If the node is starting a testnet,
 // the a subdirectory of the specified datadir will be used.
@@ -724,6 +748,8 @@ func setNodeKey(ctx *cli.Context, cfg *p2p.Config) {
 		cfg.PrivateKey = key
 	}
 }
+
+
 
 // setNodeUserIdent creates the user identifier from CLI flags.
 func setNodeUserIdent(ctx *cli.Context, cfg *node.Config) {
@@ -955,6 +981,7 @@ func MakePasswordList(ctx *cli.Context) []string {
 }
 
 func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
+
 	setNodeKey(ctx, cfg)
 	setNAT(ctx, cfg)
 	setListenAddress(ctx, cfg)
@@ -1023,6 +1050,7 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 
 // SetNodeConfig applies node-related command line flags to the config.
 func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
+	setRPCSecurityConfig(ctx,cfg)
 	SetP2PConfig(ctx, &cfg.P2P)
 	setIPC(ctx, cfg)
 	setHTTP(ctx, cfg)

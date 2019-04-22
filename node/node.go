@@ -70,6 +70,7 @@ type Node struct {
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
 
+
 	log log.Logger
 }
 
@@ -213,18 +214,38 @@ func (n *Node) Start() error {
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
 	}
-	// Lastly start the configured RPC interfaces
-	if err := n.startRPC(services); err != nil {
-		for _, service := range services {
-			service.Stop()
+
+
+	if n.config.RpcSecurityContext.Enabled {
+		// Lastly start the configured RPC interfaces
+		if err := n.startRpcWithSecurityContext(services, n.config.RpcSecurityContext); err != nil {
+			for _, service := range services {
+				service.Stop()
+			}
+			running.Stop()
+			return err
 		}
-		running.Stop()
-		return err
+		// Finish initializing the startup
+		n.services = services
+		n.server = running
+		n.stop = make(chan struct{})
+
+
+	} else {
+
+		// Lastly start the configured RPC interfaces
+		if err := n.startRPC(services); err != nil {
+			for _, service := range services {
+				service.Stop()
+			}
+			running.Stop()
+			return err
+		}
+		// Finish initializing the startup
+		n.services = services
+		n.server = running
+		n.stop = make(chan struct{})
 	}
-	// Finish initializing the startup
-	n.services = services
-	n.server = running
-	n.stop = make(chan struct{})
 
 	return nil
 }
@@ -247,6 +268,38 @@ func (n *Node) openDataDir() error {
 	n.instanceDirLock = release
 	return nil
 }
+
+// StartRpcWithSecurityContext
+func (n *Node) startRpcWithSecurityContext(services map[reflect.Type]Service, ctx rpc.SecurityContext) error {
+	// Gather all the possible APIs to surface
+	apis := n.apis()
+	for _, service := range services {
+		apis = append(apis, service.APIs()...)
+	}
+	// Start the various API endpoints, terminating all in case of errors
+	if err := n.startInProcWithSecurityContext(apis,ctx); err != nil {
+		return err
+	}
+	if err := n.startInProcWithSecurityContext(apis,ctx); err != nil {
+		n.stopInProc()
+		return err
+	}
+	if err := n.startHTTPWithSecurityContext(n.httpEndpoint, apis, n.config.HTTPModules, n.config.HTTPCors, n.config.HTTPVirtualHosts, n.config.HTTPTimeouts,ctx); err != nil {
+		n.stopIPC()
+		n.stopInProc()
+		return err
+	}
+	if err := n.startWSWithSecurityContext(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll,ctx); err != nil {
+		n.stopHTTP()
+		n.stopIPC()
+		n.stopInProc()
+		return err
+	}
+	// All API endpoints started successfully
+	n.rpcAPIs = apis
+	return nil
+}
+
 
 // startRPC is a helper method to start all the various RPC endpoint during node
 // startup. It's not meant to be called at any time afterwards as it makes certain
@@ -278,6 +331,21 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	}
 	// All API endpoints started successfully
 	n.rpcAPIs = apis
+	return nil
+}
+
+
+// startInProc initializes an in-process RPC endpoint.
+func (n *Node) startInProcWithSecurityContext(apis []rpc.API, ctx rpc.SecurityContext) error {
+	// Register all the APIs exposed by the services
+	handler := rpc.NewServerWithSecurityCtx(ctx)
+	for _, api := range apis {
+		if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
+			return err
+		}
+		n.log.Debug("InProc registered", "service", api.Service, "namespace", api.Namespace)
+	}
+	n.inprocHandler = handler
 	return nil
 }
 
@@ -333,6 +401,25 @@ func (n *Node) stopIPC() {
 }
 
 // startHTTP initializes and starts the HTTP RPC endpoint.
+func (n *Node) startHTTPWithSecurityContext(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string, timeouts rpc.HTTPTimeouts, ctx rpc.SecurityContext) error {
+	// Short circuit if the HTTP endpoint isn't being exposed
+	if endpoint == "" {
+		return nil
+	}
+	listener, handler, err := rpc.StartHTTPEndpointWithSecurityContext(endpoint, apis, modules, cors, vhosts, timeouts, ctx)
+	if err != nil {
+		return err
+	}
+	n.log.Info("HTTP endpoint opened", "url", fmt.Sprintf("http://%s", endpoint), "cors", strings.Join(cors, ","), "vhosts", strings.Join(vhosts, ","))
+	// All listeners booted successfully
+	n.httpEndpoint = endpoint
+	n.httpListener = listener
+	n.httpHandler = handler
+
+	return nil
+}
+
+// startHTTP initializes and starts the HTTP RPC endpoint.
 func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string, timeouts rpc.HTTPTimeouts) error {
 	// Short circuit if the HTTP endpoint isn't being exposed
 	if endpoint == "" {
@@ -363,6 +450,25 @@ func (n *Node) stopHTTP() {
 		n.httpHandler.Stop()
 		n.httpHandler = nil
 	}
+}
+
+// startWS initializes and starts the websocket RPC endpoint.
+func (n *Node) startWSWithSecurityContext(endpoint string, apis []rpc.API, modules []string, wsOrigins []string, exposeAll bool,ctx rpc.SecurityContext) error {
+	// Short circuit if the WS endpoint isn't being exposed
+	if endpoint == "" {
+		return nil
+	}
+	listener, handler, err := rpc.StartWSEndpointWithSecurityContext(endpoint, apis, modules, wsOrigins, exposeAll,ctx)
+	if err != nil {
+		return err
+	}
+	n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%s", listener.Addr()))
+	// All listeners booted successfully
+	n.wsEndpoint = endpoint
+	n.wsListener = listener
+	n.wsHandler = handler
+
+	return nil
 }
 
 // startWS initializes and starts the websocket RPC endpoint.

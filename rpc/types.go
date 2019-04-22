@@ -74,6 +74,8 @@ type Server struct {
 	run      int32
 	codecsMu sync.Mutex
 	codecs   mapset.Set
+
+	securityContext SecurityContext
 }
 
 // rpcRequest represents a raw incoming RPC request

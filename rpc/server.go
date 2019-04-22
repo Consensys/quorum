@@ -42,6 +42,13 @@ const (
 	OptionSubscriptions = 1 << iota // support pub sub
 )
 
+func NewServerWithSecurityCtx(ctx SecurityContext) *Server {
+	server := NewServer()
+	server.RegisterSecurityCtx(ctx)
+
+	return server
+}
+
 // NewServer will create a new server instance with no registered handlers.
 func NewServer() *Server {
 	server := &Server{
@@ -71,6 +78,14 @@ func (s *RPCService) Modules() map[string]string {
 		modules[name] = "1.0"
 	}
 	return modules
+}
+
+func (s *Server) RegisterSecurityCtx(ctx SecurityContext){
+	s.securityContext =  ctx
+}
+
+func (s *Server) SecurityCtx() SecurityContext{
+	return s.securityContext
 }
 
 // RegisterName will create a service for the given rcvr type under the given name. When no methods on the given rcvr

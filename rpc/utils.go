@@ -22,6 +22,8 @@ import (
 	crand "crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
+	"io/ioutil"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -223,4 +225,19 @@ func NewID() ID {
 	}
 
 	return ID("0x" + rpcId)
+}
+
+
+// ParseRpcSecurityConfigFile parses RPC Security configuration file to meet struct.
+func ParseRpcSecurityConfigFile(configFilePath string) (*SecurityConfig, error) {
+	configContent, err := ioutil.ReadFile(configFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var securityConfigResult SecurityConfig
+	err = json.Unmarshal(configContent, &securityConfigResult)
+	if err != nil { return nil, err}
+
+	return &securityConfigResult,nil
 }
