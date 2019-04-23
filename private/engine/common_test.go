@@ -46,13 +46,13 @@ func TestPrivacyFlag_whenCheckingNotLegacyFlag(t *testing.T) {
 	assert.True(flag.IsNotLegacy())
 }
 
-/*
 func TestPrivacyFlag_whenPrivateStateValidation(t *testing.T) {
 	assert := assert.New(t)
 
+	t.Logf("PrivateFlagStateValidation: %d", PrivacyFlagStateValidation)
+
 	assert.True(PrivacyFlagStateValidation.Has(PrivacyFlagPartyProtection), "State Validation must have party protection by default")
 }
-*/
 
 func TestPrivacyFlagType_Validate_whenSuccess(t *testing.T) {
 	assert := assert.New(t)

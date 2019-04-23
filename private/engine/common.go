@@ -62,9 +62,9 @@ func (c *Client) Get(path string) (*http.Response, error) {
 type PrivacyFlagType uint64
 
 const (
-	PrivacyFlagLegacy          PrivacyFlagType = iota                         // 0
-	PrivacyFlagPartyProtection PrivacyFlagType = 1 << PrivacyFlagType(iota-1) // 1
-	PrivacyFlagStateValidation                                                // 2
+	PrivacyFlagLegacy          PrivacyFlagType = iota                              // 0
+	PrivacyFlagPartyProtection PrivacyFlagType = 1 << PrivacyFlagType(iota-1)      // 1
+	PrivacyFlagStateValidation                 = iota | PrivacyFlagPartyProtection // 3 which includes PrivacyFlagPartyProtection
 )
 
 func (f PrivacyFlagType) IsNotLegacy() bool {
