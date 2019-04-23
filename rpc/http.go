@@ -27,7 +27,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -255,7 +254,6 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", contentType)
 
 	// Apply Security Context
-	log.Info("Testing","context",strconv.FormatBool(srv.securityContext.Enabled))
 	if srv.SecurityCtx().Enabled {
 		if  status, err := srv.securityContext.ProcessHttpRequest(r); err !=nil {
 			http.Error(w, err.Error(), status)

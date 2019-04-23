@@ -140,6 +140,7 @@ web3._extend({
 });
 `
 
+
 const Admin_JS = `
 web3._extend({
 	property: 'admin',
@@ -185,6 +186,17 @@ web3._extend({
 			call: 'admin_startRPC',
 			params: 4,
 			inputFormatter: [null, null, null, null]
+		}),
+		new web3._extend.Method({
+			name: 'enableRpcSecCtx',
+			call: 'admin_enableRpcSecCtx',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'registerRpcSecurityContext',
+			call: 'admin_registerRpcSecurityContext',
+			params: 2,
+			inputFormatter: [null, null]
 		}),
 		new web3._extend.Method({
 			name: 'stopRPC',
