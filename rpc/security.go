@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"github.com/pkg/errors"
 	"net/http"
 )
 
@@ -16,16 +17,39 @@ type SecurityContext struct {
 }
 
 func (ctx *SecurityContext) ProcessHttpRequest(r *http.Request) (int, error){
+	if ctx.Enabled && ctx.Config == nil {
+		return http.StatusUnauthorized, errors.New("Unauthorized")
+	}
+
+
+
 	return http.StatusOK, nil
 }
 
 func (ctx *SecurityContext)  ProcessWSRequest(r *http.Request) (int, error){
-	return http.StatusOK, nil
+	if ctx.Enabled && ctx.Config == nil {
+		return http.StatusUnauthorized, errors.New("Unauthorized")
+	}
+
+}
+
+// RPC Security Console APIs
+type SecurityApi struct {
+
 }
 
 
-// GetDefaultSecurityContext returns a disabled context
-func GetDefaultSecurityContext() SecurityContext {
+func test(){
+
+}
+
+
+// GetDefaultDenyAllSecurityContext returns a disabled context
+func GetDefaultDenyAllSecurityContext() SecurityContext {
+	return SecurityContext{Enabled:true}
+}
+// GetDefaultAllowAllSecurityContext returns a disabled context
+func GetDefaultAllowAllSecurityContext() SecurityContext {
 	return SecurityContext{Enabled:false}
 }
 

@@ -195,18 +195,13 @@ func (api *PrivateAdminAPI) StartRpcWithSecurityContext(host *string, port *int,
 		if err != nil {
 			return false, fmt.Errorf("HTTP RPC already running on %v", err)
 		}
+		api.node.config.RpcSecurityContext = rpc.SecurityContext{Enabled:true, Config:securityConfig}
+	} else { api.node.config.RpcSecurityContext = rpc.GetDefaultDenyAllSecurityContext() }
 
-		if err := api.node.startHTTPWithSecurityContext(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, allowedOrigins, allowedVHosts, api.node.config.HTTPTimeouts, rpc.SecurityContext{Enabled:true, Config:securityConfig}); err != nil {
-			return false, err
-		}
-		return true, nil
-
-	}else{
-		if err := api.node.startHTTPWithSecurityContext(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, allowedOrigins, allowedVHosts, api.node.config.HTTPTimeouts, rpc.GetDefaultSecurityContext()); err != nil {
-			return false, err
-		}
-		return true, nil
+	if err := api.node.startHTTPWithSecurityContext(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, allowedOrigins, allowedVHosts, api.node.config.HTTPTimeouts, api.node.config.RpcSecurityContext ); err != nil {
+		return false, err
 	}
+	return true, nil
 
 
 }

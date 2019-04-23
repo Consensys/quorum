@@ -149,8 +149,6 @@ type Config struct {
 
 	EnableNodePermission bool `toml:",omitempty"`
 
-
-
 	DataDir string `toml:",omitempty"`
 	// Logger is a custom logger to use with the p2p.Server.
 	Logger log.Logger `toml:",omitempty"`

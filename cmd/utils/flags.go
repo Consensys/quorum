@@ -697,7 +697,7 @@ func setRPCSecurityConfig(ctx *cli.Context, cfg *node.Config) {
 
 	} else {
 		log.Warn("RPC security","status","Disabled")
-		cfg.RpcSecurityContext = rpc.GetDefaultSecurityContext()
+		cfg.RpcSecurityContext = rpc.GetDefaultAllowAllSecurityContext()
 	}
 
 
