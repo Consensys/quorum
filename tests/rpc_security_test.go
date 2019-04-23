@@ -14,14 +14,14 @@ import (
 )
 
 
-const targetHost = "http://localhost:22000"
+const targetHost = "http://localhost:8888"
 
 func TestHttpNetUnauthorizedResponse(t *testing.T){
 	payloadBytes, err := json.Marshal(
 		map[string]interface{}{
-			"id":1,
+			"id":      1,
 			"jsonrpc": "2.0",
-			"params" : []string{},
+			"params":  []string{},
 			"method":  "eth_accounts",
 		})
 
@@ -29,13 +29,13 @@ func TestHttpNetUnauthorizedResponse(t *testing.T){
 		log.Fatalln(err)
 	}
 
-	resp , err := http.Post(targetHost, "application/json",bytes.NewBuffer(payloadBytes))
+	resp, err := http.Post(targetHost, "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if resp.StatusCode != http.StatusUnauthorized {
-		t.Fatal("Expected status 401, recv status:" ,resp.StatusCode)
+		t.Fatal("Expected status 401, recv status:", resp.StatusCode)
 	}
 }
 

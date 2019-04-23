@@ -1,3 +1,6 @@
 {
 	"providerType":"local"
+	"providerInfo": {
+		"providerIntrospectionURL": "http://localhost:8080/introspect"
+	}
 }
