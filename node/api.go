@@ -144,6 +144,37 @@ func (api *PrivateAdminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, 
 	return rpcSub, nil
 }
 
+
+
+// Add Local RPC Client to security context
+func (api *PrivateAdminAPI) RpcAddClient(clientName *string, clientID *string, clientSecret *string, clientScope *string) (bool, error) {
+
+
+	return true, nil
+}
+
+// Remove Local RPC Client from security context
+func (api *PrivateAdminAPI) RpcRemoveClient(clientName *string) (bool, error) {
+
+
+	return true, nil
+}
+
+// Remove Local RPC Client from security context
+func (api *PrivateAdminAPI) RpcRegenerateClientSecret(clientName *string) (bool, error) {
+
+
+	return true, nil
+}
+
+// List all local rpc clients
+func (api *PrivateAdminAPI) RpcListClients() (bool, error) {
+
+
+	return true, nil
+}
+
+
 // StartRPCWithContextSecurity starts the HTTP RPC API server.
 func (api *PrivateAdminAPI) StartRpcWithSecurityContext(host *string, port *int,configFilePath *string, cors *string, apis *string, vhosts *string) (bool, error) {
 	api.node.lock.Lock()

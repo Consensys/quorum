@@ -182,6 +182,27 @@ web3._extend({
 			params: 2
 		}),
 		new web3._extend.Method({
+			name: 'rpcRegenerateClientSecret',
+			call: 'admin_rpcRegenerateClientSecret',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'rpcListClients',
+			call: 'admin_rpcListClients',
+			params: 0
+		}),
+		new web3._extend.Method({
+			name: 'rpcRemoveClient',
+			call: 'admin_rpcRemoveClient',
+			params: 1,
+		}),
+		new web3._extend.Method({
+			name: 'rpcAddClient',
+			call: 'admin_rpcAddClient',
+			params: 4,
+			inputFormatter: [null, null, null, null]
+		}),
+		new web3._extend.Method({
 			name: 'startRpcWithSecurityContext',
 			call: 'admin_startRpcWithSecurityContext',
 			params: 5,
