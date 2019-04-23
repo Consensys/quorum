@@ -142,6 +142,7 @@ func TestPrivacyEnhancements_CreateC2(t *testing.T) {
 		affectedContracts = evm.AffectedContracts()
 	}
 	c2Address := createC2(assert, cfg, c1Address)
+	assert.Empty(affectedContracts, "Contract C2 creation doesn't affect any other contract")
 
 	actualValue := callContractFunction(assert, cfg, c2, c2Address, "get")
 
