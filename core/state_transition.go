@@ -303,15 +303,29 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		actualACAddresses := evm.AffectedContracts()
 		log.Trace("Verify hashes of affected contracts", "expectedHashes", receivedPrivacyMetadata.ACHashes, "numberOfAffectedAddresses", len(actualACAddresses))
 		expectedMatchCount := len(receivedPrivacyMetadata.ACHashes)
+		privacyFlag := receivedPrivacyMetadata.PrivacyFlag
+		if !contractCreation {
+			pm, err := evm.StateDB.GetStatePrivacyMetadata(*msg.To())
+
+			//privacyMetadata should be retrieved but isn't found or some err retrieving it
+			if err != nil && privacyFlag.IsNotLegacy() {
+				return returnErrorFunc(nil, "non-party member/problem retrieving metadata", "err", err)
+			}
+			if pm != nil && privacyFlag != pm.PrivacyFlag {
+				return returnErrorFunc(nil, "privacy flag sent doesn't match To account flag")
+			}
+		}
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 			//when privacyMetadata should have been recovered but wasnt (includes non-party)
-			if err != nil {
+			//non party will only be caught here if sender provides privacyFlag
+			if err != nil && privacyFlag.IsNotLegacy() {
 				return returnErrorFunc(nil, "PrivacyMetadata unable to be found", "err", err)
 			}
 			log.Trace("Privacy metadata", "affectedAddress", addr.Hex(), "metadata", actualPrivacyMetadata)
 			//public contracts have no privacy metadata stored in private state
 			// TODO We must ensure that legacy transactions (from previous versions of quorum) are distinguishable from public transactions
+			// legacy will be nil
 			if actualPrivacyMetadata == nil {
 				continue
 			}
@@ -326,6 +340,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			}
 			// for legacy transactions we should skip the acoth check
 			if receivedPrivacyMetadata.PrivacyFlag.IsLegacy() {
+				expectedMatchCount--
 				continue
 			}
 			if receivedPrivacyMetadata.ACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
