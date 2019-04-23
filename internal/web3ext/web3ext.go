@@ -182,21 +182,16 @@ web3._extend({
 			params: 2
 		}),
 		new web3._extend.Method({
+			name: 'startRpcWithSecurityContext',
+			call: 'admin_startRpcWithSecurityContext',
+			params: 5,
+			inputFormatter: [null, null, null, null, null]
+		}),
+		new web3._extend.Method({
 			name: 'startRPC',
 			call: 'admin_startRPC',
 			params: 4,
 			inputFormatter: [null, null, null, null]
-		}),
-		new web3._extend.Method({
-			name: 'enableRpcSecCtx',
-			call: 'admin_enableRpcSecCtx',
-			params: 1
-		}),
-		new web3._extend.Method({
-			name: 'registerRpcSecurityContext',
-			call: 'admin_registerRpcSecurityContext',
-			params: 2,
-			inputFormatter: [null, null]
 		}),
 		new web3._extend.Method({
 			name: 'stopRPC',

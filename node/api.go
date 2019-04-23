@@ -144,6 +144,73 @@ func (api *PrivateAdminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, 
 	return rpcSub, nil
 }
 
+// StartRPCWithContextSecurity starts the HTTP RPC API server.
+func (api *PrivateAdminAPI) StartRpcWithSecurityContext(host *string, port *int,configFilePath *string, cors *string, apis *string, vhosts *string) (bool, error) {
+	api.node.lock.Lock()
+	defer api.node.lock.Unlock()
+
+	if api.node.httpHandler != nil {
+		return false, fmt.Errorf("HTTP RPC already running on %s", api.node.httpEndpoint)
+	}
+
+	if host == nil {
+		h := DefaultHTTPHost
+		if api.node.config.HTTPHost != "" {
+			h = api.node.config.HTTPHost
+		}
+		host = &h
+	}
+	if port == nil {
+		port = &api.node.config.HTTPPort
+	}
+
+	allowedOrigins := api.node.config.HTTPCors
+	if cors != nil {
+		allowedOrigins = nil
+		for _, origin := range strings.Split(*cors, ",") {
+			allowedOrigins = append(allowedOrigins, strings.TrimSpace(origin))
+		}
+	}
+
+	allowedVHosts := api.node.config.HTTPVirtualHosts
+	if vhosts != nil {
+		allowedVHosts = nil
+		for _, vhost := range strings.Split(*host, ",") {
+			allowedVHosts = append(allowedVHosts, strings.TrimSpace(vhost))
+		}
+	}
+
+	modules := api.node.httpWhitelist
+	if apis != nil {
+		modules = nil
+		for _, m := range strings.Split(*apis, ",") {
+			modules = append(modules, strings.TrimSpace(m))
+		}
+	}
+
+
+	if configFilePath != nil {
+		// Parse config Security
+		securityConfig, err := rpc.ParseRpcSecurityConfigFile(*configFilePath)
+		if err != nil {
+			return false, fmt.Errorf("HTTP RPC already running on %v", err)
+		}
+
+		if err := api.node.startHTTPWithSecurityContext(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, allowedOrigins, allowedVHosts, api.node.config.HTTPTimeouts, rpc.SecurityContext{Enabled:true, Config:securityConfig}); err != nil {
+			return false, err
+		}
+		return true, nil
+
+	}else{
+		if err := api.node.startHTTPWithSecurityContext(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, allowedOrigins, allowedVHosts, api.node.config.HTTPTimeouts, rpc.GetDefaultSecurityContext()); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+
+}
+
 // StartRPC starts the HTTP RPC API server.
 func (api *PrivateAdminAPI) StartRPC(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) {
 	api.node.lock.Lock()
