@@ -244,11 +244,10 @@ func TestSimulateExecution_PrivacyFlagCallingLegacyContract_Error(t *testing.T) 
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitrarySimpleStorageContractAddress, common.Hash{0}))
 
-	log.Trace("sim error", "err", err)
 	assert.Error(err, "simulate execution")
 }
 
-func TestSimulateExecution_LegacyFlagCallingPartyProtectionContract(t *testing.T) {
+func TestSimulateExecution_LegacyFlagCallingPartyProtectionContract_Error(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagLegacy
 
@@ -261,21 +260,12 @@ func TestSimulateExecution_LegacyFlagCallingPartyProtectionContract(t *testing.T
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
-	expectedCACreationTxHashes := []common.EncryptedPayloadHash{arbitrarySimpleStorageContractEncryptedPayloadHash}
-
-	log.Debug("state", "state", privateStateDB.GetState(arbitrarySimpleStorageContractAddress, common.Hash{0}))
-
-	assert.NoError(err, "simulate execution")
-	assert.NotEmpty(affectedCACreationTxHashes, "affected contract accounts' creation transacton hashes")
-	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
-	assert.Equal(engine.PrivacyFlagPartyProtection, privacyFlag, "party protection flag")
-	assert.True(len(affectedCACreationTxHashes) == len(expectedCACreationTxHashes))
-	//assert.True(!affectedCACreationTxHashes.NotExist(expectedCACreationTxHashes), "%s is an affected contract account", arbitrarySimpleStorageContractAddress.Hex())
+	assert.Error(err, "simulate execution")
 }
 
-func TestSimulateExecution_LegacyFlagCallingStateValidationContract(t *testing.T) {
+func TestSimulateExecution_LegacyFlagCallingStateValidationContract_Error(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagLegacy
 
@@ -288,21 +278,14 @@ func TestSimulateExecution_LegacyFlagCallingStateValidationContract(t *testing.T
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
-
-	expectedCACreationTxHashes := []common.EncryptedPayloadHash{arbitrarySimpleStorageContractEncryptedPayloadHash}
+	_, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitrarySimpleStorageContractAddress, common.Hash{0}))
 
-	assert.NoError(err, "simulate execution")
-	assert.NotEmpty(affectedCACreationTxHashes, "affected contract accounts' creation transacton hashes")
-	assert.NotEqual(common.Hash{}, merkleRoot, "private state validation")
-	assert.Equal(engine.PrivacyFlagStateValidation, privacyFlag, "state validation flag")
-	assert.True(len(affectedCACreationTxHashes) == len(expectedCACreationTxHashes))
-	//assert.True(!affectedCACreationTxHashes.NotExist(expectedCACreationTxHashes), "%s is an affected contract account", arbitrarySimpleStorageContractAddress.Hex())
+	assert.Error(err, "simulate execution")
 }
 
-func TestSimulateExecution_PartyProtectionFlagCallingStateValidationContract(t *testing.T) {
+func TestSimulateExecution_PartyProtectionFlagCallingStateValidationContract_Error(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
@@ -317,15 +300,12 @@ func TestSimulateExecution_PartyProtectionFlagCallingStateValidationContract(t *
 
 	_, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
-	//expectedCACreationTxHashes := []common.EncryptedPayloadHash{arbitrarySimpleStorageContractEncryptedPayloadHash}
-
 	log.Debug("state", "state", privateStateDB.GetState(arbitrarySimpleStorageContractAddress, common.Hash{0}))
 
 	assert.Error(err, "simulate execution")
-	//assert.True(!affectedCACreationTxHashes.NotExist(expectedCACreationTxHashes), "%s is an affected contract account", arbitrarySimpleStorageContractAddress.Hex())
 }
 
-func TestSimulateExecution_StateValidationFlagCallingPartyProtectionContract(t *testing.T) {
+func TestSimulateExecution_StateValidationFlagCallingPartyProtectionContract_Error(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStateValidation
 

@@ -446,11 +446,13 @@ func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	}
 	if nil != evm.currentTx && evm.currentTx.IsPrivate() && evm.currentTx.PrivacyMetadata() != nil {
 		// for calls (reading contract state) or finding the affected contracts there is no transaction
-		pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivacyFlag)
-		err := evm.StateDB.SetStatePrivacyMetadata(contractAddr, pm)
-		log.Trace("Set Privacy Metadata", "key", contractAddr, "privacyMetadata", pm)
-		if err != nil {
-			return nil, common.Address{}, 0, err
+		if evm.currentTx.PrivacyMetadata().PrivacyFlag.IsNotLegacy() {
+			pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivacyFlag)
+			err := evm.StateDB.SetStatePrivacyMetadata(contractAddr, pm)
+			log.Trace("Set Privacy Metadata", "key", contractAddr, "privacyMetadata", pm)
+			if err != nil {
+				return nil, common.Address{}, 0, err
+			}
 		}
 	}
 	if evm.ChainConfig().IsQuorum {

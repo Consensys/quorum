@@ -1875,51 +1875,33 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	var merkleRoot common.Hash
 	addresses := evm.AffectedContracts()
-	isMessageCall := privateTx.To() != nil
 	privacyFlag := privateTxArgs.PrivacyFlag
-	//in a message call we use flag of the To contract
-	if isMessageCall {
-		//pm will be nil and error thrown on legacy and non-party situations
-		pm, err := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
-		//privacyMetadata should be retrieved but isn't found or some err retrieving it
-		if err != nil && privacyFlag.IsNotLegacy() {
-			return nil, common.Hash{}, privacyFlag, errors.New("non-party member/problem retrieving metadata")
-		}
-		//if any metadata returned => member situation (psv or partyCheck)
-		if pm != nil {
-			privacyFlag = pm.PrivacyFlag
-			if privateTxArgs.PrivacyFlag.IsNotLegacy() && privateTxArgs.PrivacyFlag != privacyFlag {
-				return nil, common.Hash{}, privacyFlag, errors.New("mismatch of To contract privacy flag")
-			}
-		}
-	}
 	log.Trace("after simulation run", "numberOfAffectedContracts", len(addresses), "privacyFlag", privacyFlag)
-	if privacyFlag.IsNotLegacy() {
-		for _, addr := range addresses {
-			privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
-			log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
-			//privacyMetadata not found=non-party, or another db error
-			if err != nil {
-				return nil, common.Hash{}, privacyFlag, err
-			}
-			// when we run simulation, it's possible that affected contracts may contain public ones
-			// public contract will not have any privacyMetadata attached
-			if privacyMetadata == nil {
-				continue
-			}
-			affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
-
-			//if affecteds are not all the same return an error
-			if privacyFlag != privacyMetadata.PrivacyFlag {
-				return nil, common.Hash{}, privacyFlag, errors.New("not all contracts have same privacy flag")
-			}
+	for _, addr := range addresses {
+		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
+		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
+		//privacyMetadata not found=non-party, or another db error
+		if err != nil && privacyFlag.IsNotLegacy() {
+			return nil, common.Hash{}, privacyFlag, errors.New("PrivacyMetadata unable to be found: " + err.Error())
 		}
-		//only calculate the merkle root if all contracts are psv
-		if privacyFlag.Has(engine.PrivacyFlagStateValidation) {
-			merkleRoot, err = evm.CalculateMerkleRoot()
-			if err != nil {
-				return nil, common.Hash{}, privacyFlag, err
-			}
+		// when we run simulation, it's possible that affected contracts may contain public ones
+		// public contract will not have any privacyMetadata attached
+		// legacy will be nil
+		if privacyMetadata == nil {
+			continue
+		}
+		//if affecteds are not all the same return an error
+		if privacyFlag != privacyMetadata.PrivacyFlag {
+			return nil, common.Hash{}, privacyFlag, errors.New("sent privacy flag doesn't match all affected contract flags")
+		}
+
+		affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
+	}
+	//only calculate the merkle root if all contracts are psv
+	if privacyFlag.Has(engine.PrivacyFlagStateValidation) {
+		merkleRoot, err = evm.CalculateMerkleRoot()
+		if err != nil {
+			return nil, common.Hash{}, privacyFlag, err
 		}
 	}
 	log.Trace("post-execution run", "merkleRoot", merkleRoot, "affectedhashes", affectedContractsHashes)

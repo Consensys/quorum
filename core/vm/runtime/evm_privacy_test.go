@@ -171,6 +171,32 @@ func TestPrivacyEnhancements_CreateC2FromC1Function(t *testing.T) {
 	assert.Contains(affectedContracts, c1Address, "Calling C1.newContractC2() affects C1")
 }
 
+func TestPrivacyEnhancements_CreateC1_Legacy(t *testing.T) {
+	assert := testifyassert.New(t)
+	cfg := newConfig()
+	initialValue := int64(42)
+	var affectedContracts []common.Address
+	var getPrivacyMetadataFunc func(common.Address) (*state.PrivacyMetadata, error)
+	cfg.onAfterEVM = func(evm *vm.EVM) {
+		affectedContracts = evm.AffectedContracts()
+		getPrivacyMetadataFunc = evm.StateDB.GetStatePrivacyMetadata
+	}
+	stubPrivateTx = newTypicalPrivateTx(cfg)
+	stubPrivateTx.SetTxPrivacyMetadata(&types.PrivacyMetadata{
+		PrivacyFlag: engine.PrivacyFlagLegacy,
+	})
+
+	c1Address := createC1(assert, cfg, initialValue)
+	assert.Empty(affectedContracts, "Contract C1 creation doesn't affect any other contract")
+	_, err := getPrivacyMetadataFunc(c1Address)
+	assert.Error(err, "Privacy Metadata must not exist")
+
+	actualValue := callContractFunction(assert, cfg, c1, c1Address, "get")
+	assert.Equal(initialValue, actualValue)
+	assert.Len(affectedContracts, 1, "Calling C1.get() affects 1 contract")
+	assert.Equal(c1Address, affectedContracts[0], "Calling C1.get() affects C1 contract itself")
+}
+
 func callContractFunction(assert *testifyassert.Assertions, cfg *extendedConfig, c *contract, address common.Address, name string, args ...interface{}) int64 {
 	f := mustPack(assert, c, name, args...)
 	ret, _, err := call(address, f, cfg)

@@ -61,6 +61,14 @@ func (c *contract) set(value int64) []byte {
 	return bytes
 }
 
+func (c *contract) get() []byte {
+	bytes, err := c.abi.Pack("get")
+	if err != nil {
+		panic("can't pack: " + err.Error())
+	}
+	return bytes
+}
+
 func init() {
 	log.PrintOrigins(true)
 	log.Root().SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
@@ -86,6 +94,131 @@ func TestApplyMessage_Private_whenTypical(t *testing.T) {
 
 	assert.NoError(err, "EVM execution")
 	assert.False(fail, "Transaction receipt status")
+	mockPM.Verify(assert)
+}
+
+func TestApplyMessage_Private_whenCreatePartyProtectionC1(t *testing.T) {
+	originalP := private.P
+	defer func() { private.P = originalP }()
+	mockPM := newMockPrivateTransactionManager()
+	private.P = mockPM
+	assert := testifyassert.New(t)
+	cfg := newConfig().
+		setPrivacyFlag(engine.PrivacyFlagPartyProtection).
+		setData([]byte("arbitrary encrypted payload hash"))
+	gp := new(GasPool).AddGas(math.MaxUint64)
+	privateMsg := newTypicalPrivateMessage(cfg)
+
+	mockPM.When("Receive").Return(c1.create(big.NewInt(42)), &engine.ExtraMetadata{
+		PrivacyFlag: engine.PrivacyFlagPartyProtection,
+	}, nil)
+
+	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
+
+	assert.NoError(err, "EVM execution")
+	assert.False(fail, "Transaction receipt status")
+	mockPM.Verify(assert)
+}
+func TestApplyMessage_Private_whenInteractWithPartyProtectionC1(t *testing.T) {
+	originalP := private.P
+	defer func() { private.P = originalP }()
+	mockPM := newMockPrivateTransactionManager()
+	private.P = mockPM
+	assert := testifyassert.New(t)
+	cfg := newConfig()
+
+	c1EncPayloadHash := []byte("c1")
+	cfg.setPrivacyFlag(engine.PrivacyFlagPartyProtection).
+		setData(c1EncPayloadHash)
+	c1Address := createContract(cfg, mockPM, assert, c1, big.NewInt(42))
+
+	// calling C1.Set()
+	cfg.setPrivacyFlag(engine.PrivacyFlagPartyProtection).
+		setData([]byte("arbitrary enc payload hash")).
+		setNonce(1).
+		setTo(c1Address)
+	privateMsg := newTypicalPrivateMessage(cfg)
+	mockPM.When("Receive").Return(c1.set(53), &engine.ExtraMetadata{
+		ACHashes: common.EncryptedPayloadHashes{
+			common.BytesToEncryptedPayloadHash(c1EncPayloadHash): struct{}{},
+		},
+		PrivacyFlag: engine.PrivacyFlagPartyProtection,
+	}, nil)
+
+	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+
+	assert.NoError(err, "EVM execution")
+	assert.False(fail, "Transaction receipt status")
+	mockPM.Verify(assert)
+}
+
+//Limitation of design --if don't send privacyFlag can't be guaranteed to catch non-party
+//review this...
+func TestApplyMessage_Private_whenNonPartyTriesInteractingWithPartyProtectionC1_NoFlag(t *testing.T) {
+	originalP := private.P
+	defer func() { private.P = originalP }()
+	mockPM := newMockPrivateTransactionManager()
+	private.P = mockPM
+	assert := testifyassert.New(t)
+	cfg := newConfig()
+
+	//act like doesnt exist on non-party node
+	c1EncPayloadHash := []byte("c1")
+	cfg.setPrivacyFlag(engine.PrivacyFlagLegacy).
+		setData(c1EncPayloadHash)
+	c1Address := createContract(cfg, mockPM, assert, c1, big.NewInt(42))
+
+	// calling C1.Set()
+	cfg.setPrivacyFlag(engine.PrivacyFlagLegacy).
+		setData([]byte("arbitrary enc payload hash")).
+		setNonce(1).
+		setTo(c1Address)
+	privateMsg := newTypicalPrivateMessage(cfg)
+	mockPM.When("Receive").Return(c1.set(53), &engine.ExtraMetadata{
+		ACHashes: common.EncryptedPayloadHashes{
+			common.BytesToEncryptedPayloadHash(c1EncPayloadHash): struct{}{},
+		},
+		PrivacyFlag: engine.PrivacyFlagLegacy,
+	}, nil)
+
+	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+
+	assert.NoError(err, "EVM execution")
+	assert.False(fail, "Transaction receipt status")
+	mockPM.Verify(assert)
+}
+
+func TestApplyMessage_Private_whenNonPartyTriesInteractingWithPartyProtectionC1_WithFlag(t *testing.T) {
+	originalP := private.P
+	defer func() { private.P = originalP }()
+	mockPM := newMockPrivateTransactionManager()
+	private.P = mockPM
+	assert := testifyassert.New(t)
+	cfg := newConfig()
+
+	//act like doesnt exist on non-party node
+	c1EncPayloadHash := []byte("c1")
+	cfg.setPrivacyFlag(engine.PrivacyFlagLegacy).
+		setData(c1EncPayloadHash)
+	c1Address := createContract(cfg, mockPM, assert, c1, big.NewInt(42))
+
+	// calling C1.Set()
+	cfg.setPrivacyFlag(engine.PrivacyFlagLegacy).
+		setData([]byte("arbitrary enc payload hash")).
+		setNonce(1).
+		setTo(c1Address)
+	privateMsg := newTypicalPrivateMessage(cfg)
+	mockPM.When("Receive").Return(c1.set(53), &engine.ExtraMetadata{
+		ACHashes: common.EncryptedPayloadHashes{
+			common.BytesToEncryptedPayloadHash(c1EncPayloadHash): struct{}{},
+		},
+		PrivacyFlag: engine.PrivacyFlagPartyProtection,
+	}, nil)
+
+	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+
+	assert.NoError(err, "EVM execution")
+	assert.True(fail, "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
@@ -130,6 +263,175 @@ func TestApplyMessage_Private_whenPartyProtectionC2InteractsExistingLegacyC1(t *
 	assert.True(fail, "Transaction receipt status")
 	mockPM.Verify(assert)
 }
+
+func TestApplyMessage_Private_whenPartyProtectionC2InteractsNewLegacyC1(t *testing.T) {
+	originalP := private.P
+	defer func() { private.P = originalP }()
+	mockPM := newMockPrivateTransactionManager()
+	private.P = mockPM
+	assert := testifyassert.New(t)
+	cfg := newConfig()
+
+	// create c1 as a default legacy contract
+	c1EncPayloadHash := []byte("c1")
+	cfg.setPrivacyFlag(engine.PrivacyFlagLegacy).
+		setData(c1EncPayloadHash)
+	c1Address := createContract(cfg, mockPM, assert, c1, big.NewInt(42))
+
+	// create c2
+	c2EncPayloadHash := []byte("c2")
+	cfg.setPrivacyFlag(engine.PrivacyFlagPartyProtection).
+		setData(c2EncPayloadHash).
+		setNonce(1)
+	c2Address := createContract(cfg, mockPM, assert, c2, c1Address)
+
+	// calling C2.Set()
+	cfg.setPrivacyFlag(engine.PrivacyFlagPartyProtection).
+		setData([]byte("arbitrary enc payload hash")).
+		setNonce(2).
+		setTo(c2Address)
+	privateMsg := newTypicalPrivateMessage(cfg)
+	mockPM.When("Receive").Return(c2.set(53), &engine.ExtraMetadata{
+		ACHashes: common.EncryptedPayloadHashes{
+			common.BytesToEncryptedPayloadHash(c2EncPayloadHash): struct{}{},
+		},
+		PrivacyFlag: engine.PrivacyFlagPartyProtection,
+	}, nil)
+
+	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+
+	assert.NoError(err, "EVM execution")
+	assert.True(fail, "Transaction receipt status")
+	mockPM.Verify(assert)
+}
+
+func TestApplyMessage_Private_whenPartyProtectionC2InteractsWithPartyProtectionC1(t *testing.T) {
+	originalP := private.P
+	defer func() { private.P = originalP }()
+	mockPM := newMockPrivateTransactionManager()
+	private.P = mockPM
+	assert := testifyassert.New(t)
+	cfg := newConfig()
+
+	// create c1 as a party protection
+	c1EncPayloadHash := []byte("c1")
+	cfg.setPrivacyFlag(engine.PrivacyFlagPartyProtection).
+		setData(c1EncPayloadHash)
+	c1Address := createContract(cfg, mockPM, assert, c1, big.NewInt(42))
+
+	// create c2
+	c2EncPayloadHash := []byte("c2")
+	cfg.setPrivacyFlag(engine.PrivacyFlagPartyProtection).
+		setData(c2EncPayloadHash).
+		setNonce(1)
+	c2Address := createContract(cfg, mockPM, assert, c2, c1Address)
+
+	// calling C2.Set()
+	cfg.setPrivacyFlag(engine.PrivacyFlagPartyProtection).
+		setData([]byte("arbitrary enc payload hash")).
+		setNonce(2).
+		setTo(c2Address)
+	privateMsg := newTypicalPrivateMessage(cfg)
+	mockPM.When("Receive").Return(c2.set(53), &engine.ExtraMetadata{
+		ACHashes: common.EncryptedPayloadHashes{
+			common.BytesToEncryptedPayloadHash(c2EncPayloadHash): struct{}{},
+			common.BytesToEncryptedPayloadHash(c1EncPayloadHash): struct{}{},
+		},
+		PrivacyFlag: engine.PrivacyFlagPartyProtection,
+	}, nil)
+
+	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+
+	assert.NoError(err, "EVM execution")
+	assert.False(fail, "Transaction receipt status")
+	mockPM.Verify(assert)
+}
+
+func TestApplyMessage_Private_whenStateValidationC2InteractsWithPartyProtectionC1(t *testing.T) {
+	originalP := private.P
+	defer func() { private.P = originalP }()
+	mockPM := newMockPrivateTransactionManager()
+	private.P = mockPM
+	assert := testifyassert.New(t)
+	cfg := newConfig()
+
+	// create c1 as a party protection
+	c1EncPayloadHash := []byte("c1")
+	cfg.setPrivacyFlag(engine.PrivacyFlagPartyProtection).
+		setData(c1EncPayloadHash)
+	c1Address := createContract(cfg, mockPM, assert, c1, big.NewInt(42))
+
+	// create c2
+	c2EncPayloadHash := []byte("c2")
+	cfg.setPrivacyFlag(engine.PrivacyFlagStateValidation).
+		setData(c2EncPayloadHash).
+		setNonce(1)
+	c2Address := createContract(cfg, mockPM, assert, c2, c1Address)
+
+	// calling C2.Set()
+	cfg.setPrivacyFlag(engine.PrivacyFlagStateValidation).
+		setData([]byte("arbitrary enc payload hash")).
+		setNonce(2).
+		setTo(c2Address)
+	privateMsg := newTypicalPrivateMessage(cfg)
+	mockPM.When("Receive").Return(c2.set(53), &engine.ExtraMetadata{
+		ACHashes: common.EncryptedPayloadHashes{
+			common.BytesToEncryptedPayloadHash(c2EncPayloadHash): struct{}{},
+			common.BytesToEncryptedPayloadHash(c1EncPayloadHash): struct{}{},
+		},
+		PrivacyFlag: engine.PrivacyFlagStateValidation,
+	}, nil)
+
+	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+
+	assert.NoError(err, "EVM execution")
+	assert.True(fail, "Transaction receipt status")
+	mockPM.Verify(assert)
+}
+
+//TEST read????
+
+// func TestApplyMessage_Private_whenNewLegacyC2ReadsFromPartyProtectionC1(t *testing.T) {
+// 	originalP := private.P
+// 	defer func() { private.P = originalP }()
+// 	mockPM := newMockPrivateTransactionManager()
+// 	private.P = mockPM
+// 	assert := testifyassert.New(t)
+// 	cfg := newConfig()
+
+// 	// create c1 as party protection
+// 	c1EncPayloadHash := []byte("c1")
+// 	cfg.setPrivacyFlag(engine.PrivacyFlagPartyProtection).
+// 		setData(c1EncPayloadHash)
+// 	c1Address := createContract(cfg, mockPM, assert, c1, big.NewInt(42))
+
+// 	// create c2 as legacy
+// 	c2EncPayloadHash := []byte("c2")
+// 	cfg.setPrivacyFlag(engine.PrivacyFlagLegacy).
+// 		setData(c2EncPayloadHash).
+// 		setNonce(1)
+// 	c2Address := createContract(cfg, mockPM, assert, c2, c1Address)
+
+// 	log.Trace("calling get")
+// 	// calling C2.Set()
+// 	cfg.setPrivacyFlag(engine.PrivacyFlagLegacy).
+// 		setData([]byte("arbitrary enc payload hash")).
+// 		setNonce(2).
+// 		setTo(c2Address)
+// 	privateMsg := newTypicalPrivateMessage(cfg)
+// 	mockPM.When("Receive").Return(c2.get(), &engine.ExtraMetadata{},
+// 		// 	ACHashes: common.EncryptedPayloadHashes{
+// 		// 		common.BytesToEncryptedPayloadHash(c1EncPayloadHash): struct{}{},
+// 		// 	},
+// 		// 	PrivacyFlag: engine.PrivacyFlagPartyProtection,}
+// 		nil)
+
+// 	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
+
+// 	assert.NoError(err, "EVM execution")
+// 	assert.False(fail, "Transaction receipt status")
+// 	mockPM.Verify(assert)
+// }
 
 func createContract(cfg *config, mockPM *mockPrivateTransactionManager, assert *testifyassert.Assertions, c *contract, args ...interface{}) common.Address {
 	defer mockPM.reset()
