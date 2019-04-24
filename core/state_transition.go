@@ -327,6 +327,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			// TODO We must ensure that legacy transactions (from previous versions of quorum) are distinguishable from public transactions
 			// legacy will be nil
 			if actualPrivacyMetadata == nil {
+				expectedMatchCount--
 				continue
 			}
 			// Check that the affected contracts privacy flag matches the transaction privacy flag.
