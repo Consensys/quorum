@@ -304,17 +304,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		log.Trace("Verify hashes of affected contracts", "expectedHashes", receivedPrivacyMetadata.ACHashes, "numberOfAffectedAddresses", len(actualACAddresses))
 		expectedMatchCount := len(receivedPrivacyMetadata.ACHashes)
 		privacyFlag := receivedPrivacyMetadata.PrivacyFlag
-		if !contractCreation {
-			pm, err := evm.StateDB.GetStatePrivacyMetadata(*msg.To())
-
-			//privacyMetadata should be retrieved but isn't found or some err retrieving it
-			if err != nil && privacyFlag.IsNotLegacy() {
-				return returnErrorFunc(nil, "non-party member/problem retrieving metadata", "err", err)
-			}
-			if pm != nil && privacyFlag != pm.PrivacyFlag {
-				return returnErrorFunc(nil, "privacy flag sent doesn't match To account flag")
-			}
-		}
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 			//when privacyMetadata should have been recovered but wasnt (includes non-party)

@@ -1875,29 +1875,14 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	var merkleRoot common.Hash
 	addresses := evm.AffectedContracts()
-	isMessageCall := privateTx.To() != nil
 	privacyFlag := privateTxArgs.PrivacyFlag
-	//in a message call we use flag of the To contract
-	if isMessageCall {
-		//pm will be nil and error thrown on legacy and non-party situations
-		pm, err := evm.StateDB.GetStatePrivacyMetadata(*privateTx.To())
-		//privacyMetadata should be retrieved but isn't found or some err retrieving it
-		if err != nil && privacyFlag.IsNotLegacy() {
-			return nil, common.Hash{}, privacyFlag, errors.New("non-party member/problem retrieving metadata")
-		}
-		//if any metadata returned => member situation (psv or partyCheck)
-		//make srue correct flag sent in request
-		if pm != nil && privacyFlag != pm.PrivacyFlag {
-			return nil, common.Hash{}, privacyFlag, errors.New("privacy flag sent doesn't match To account flag")
-		}
-	}
 	log.Trace("after simulation run", "numberOfAffectedContracts", len(addresses), "privacyFlag", privacyFlag)
 	for _, addr := range addresses {
 		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
 		//privacyMetadata not found=non-party, or another db error
 		if err != nil && privacyFlag.IsNotLegacy() {
-			return nil, common.Hash{}, privacyFlag, err
+			return nil, common.Hash{}, privacyFlag, errors.New("PrivacyMetadata unable to be found: " + err.Error())
 		}
 		// when we run simulation, it's possible that affected contracts may contain public ones
 		// public contract will not have any privacyMetadata attached
@@ -1907,7 +1892,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		}
 		//if affecteds are not all the same return an error
 		if privacyFlag != privacyMetadata.PrivacyFlag {
-			return nil, common.Hash{}, privacyFlag, errors.New("not all contracts have same privacy flag")
+			return nil, common.Hash{}, privacyFlag, errors.New("sent privacy flag doesn't match all affected contract flags")
 		}
 
 		affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
