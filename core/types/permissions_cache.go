@@ -55,6 +55,7 @@ const (
 	AcctInactive
 	AcctSuspended
 	AcctBlacklisted
+	AdminRevoked
 )
 
 type NodeInfo struct {
@@ -169,6 +170,8 @@ func NewAcctCache() *AcctCache {
 }
 
 var DefaultAccess = FullAccess
+var networkAdminRole string
+var orgAdminRole string
 
 const orgKeyMapLimit = 100
 
@@ -190,6 +193,11 @@ func (pc *PermissionConfig) IsEmpty() bool {
 // sets default access to ReadOnly
 func SetDefaultAccess() {
 	DefaultAccess = ReadOnly
+}
+
+func SetAdminRole(nwRoleId, oaRoleId string) {
+	networkAdminRole = nwRoleId
+	orgAdminRole = oaRoleId
 }
 
 func (o *OrgCache) UpsertOrg(orgId, parentOrg, ultimateParent string, level *big.Int, status OrgStatus) {
@@ -355,10 +363,14 @@ func (o *RoleCache) GetRoleList() []RoleInfo {
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
 	if a := AcctInfoMap.GetAccount(acctId); a != nil && a.Status == AcctActive {
-		o := OrgInfoMap.GetOrg(a.OrgId)
-		r := RoleInfoMap.GetRole(a.OrgId, a.RoleId)
-		if o != nil && r != nil {
-			if o.Status == OrgApproved && r.Active {
+		if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+			return FullAccess
+		}
+		if o := OrgInfoMap.GetOrg(a.OrgId); o != nil && o.Status == OrgApproved {
+			if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil {
+				return r.Access
+			}
+			if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil {
 				return r.Access
 			}
 		}

@@ -4,7 +4,7 @@ import "./PermissionsUpgradable.sol";
 
 contract VoterManager {
     PermissionsUpgradable private permUpgradable;
-//    enum PendingOpType {0-None, 1-OrgAdd, 2-OrgSuspension, 3-OrgRevokeSuspension, 4-AddOrgAdmin}
+    //    enum PendingOpType {0-None, 1-OrgAdd, 2-OrgSuspension, 3-OrgRevokeSuspension, 4-AssignAdminRole}
     struct PendingOpDetails {
         string orgId;
         string enodeId;

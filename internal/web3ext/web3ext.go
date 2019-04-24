@@ -788,16 +788,16 @@ web3._extend({
                        inputFormatter: [null,null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
-                       name: 'assignOrgAdminAccount',
-                       call: 'quorumPermission_assignOrgAdminAccount',
-                       params: 3,
-                       inputFormatter: [null,web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
+                       name: 'assignAdminRole',
+                       call: 'quorumPermission_assignAdminRole',
+                       params: 4,
+                       inputFormatter: [null,web3._extend.formatters.inputAddressFormatter,null, web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
-                       name: 'approveOrgAdminAccount',
-                       call: 'quorumPermission_approveOrgAdminAccount',
-                       params: 2,
-                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
+                       name: 'approveAdminRole',
+                       call: 'quorumPermission_approveAdminRole',
+                       params: 3,
+                       inputFormatter: [null, web3._extend.formatters.inputAddressFormatter,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'addNewRole',

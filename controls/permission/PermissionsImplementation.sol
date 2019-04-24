@@ -105,7 +105,7 @@ contract PermissionsImplementation {
     networkBootStatus(false)
     {
         updateVoterList(adminOrg, _acct, true);
-        accounts.addNWAdminAccount(_acct, adminOrg);
+        accounts.assignAdminRole(_acct, adminOrg, adminRole, 2);
     }
 
     // update the network boot status as true
@@ -127,7 +127,7 @@ contract PermissionsImplementation {
         org.addOrg(_orgId);
         nodes.addNode(_enodeId, _orgId);
         require(validateAccount(_account, _orgId) == true, "Operation cannot be performed");
-        accounts.assignAccountRole(_account, _orgId, orgAdminRole);
+        accounts.assignAdminRole(_account, _orgId, orgAdminRole, 1);
     }
 
     function approveOrg(string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
@@ -139,7 +139,7 @@ contract PermissionsImplementation {
             org.approveOrg(_orgId);
             roles.addRole(orgAdminRole, _orgId, fullAccess, true);
             nodes.approveNode(_enodeId, _orgId);
-            accounts.approveOrgAdminAccount(_account);
+            accounts.addNewAdmin(_orgId, _account);
         }
     }
 
@@ -207,27 +207,29 @@ contract PermissionsImplementation {
     }
 
     // Account related functions
-    function assignOrgAdminAccount(string calldata _orgId, address _account, address _caller) external
+    function assignAdminRole(string calldata _orgId, address _account, string calldata _roleId, address _caller) external
     onlyProxy
     orgExists(_orgId)
     networkAdmin(_caller)
     {
-        require(validateAccount(_account, _orgId) == true, "Operation cannot be performed");
-        // check if orgAdmin already exists if yes then op cannot be performed
-        require(checkOrgAdminExists(_orgId) != true, "org admin exists");
-        // assign the account org admin role and propose voting
-        accounts.assignAccountRole(_account, _orgId, orgAdminRole);
+        accounts.assignAdminRole(_account, _orgId, _roleId, 1);
         //add voting item
         voter.addVotingItem(adminOrg, _orgId, "", _account, 4);
     }
 
-    function approveOrgAdminAccount(address _account, address _caller) external
+    function approveAdminRole(string calldata _orgId, address _account, address _caller) external
     onlyProxy
     networkAdmin(_caller)
     {
-        require(isNetworkAdmin(_caller) == true, "can be called from network admin only");
         if ((processVote(adminOrg, _caller, 4))) {
-            accounts.approveOrgAdminAccount(_account);
+            (bool ret, address acct) = accounts.removeExistingAdmin(_orgId);
+            if (ret) {
+                updateVoterList(adminOrg, acct, false);
+            }
+            bool ret1 = accounts.addNewAdmin(_orgId, _account);
+            if (ret1) {
+                updateVoterList(adminOrg, _account, true);
+            }
         }
     }
 
@@ -243,7 +245,6 @@ contract PermissionsImplementation {
 
     function updateAccountStatus(string calldata _orgId, address _account, uint _status, address _caller) external
     onlyProxy
-    orgExists(_orgId)
     orgAdmin(_caller, _orgId)
     {
         accounts.updateAccountStatus(_orgId, _account, _status);
@@ -261,7 +262,6 @@ contract PermissionsImplementation {
 
     function updateNodeStatus(string calldata _orgId, string calldata _enodeId, uint _status, address _caller) external
     onlyProxy
-    orgExists(_orgId)
     orgAdmin(_caller, _orgId)
     {
         nodes.updateNodeStatus(_enodeId, _orgId, _status);
@@ -313,7 +313,7 @@ contract PermissionsImplementation {
     function validateAccount(address _account, string memory _orgId) public view
     returns (bool)
     {
-        return (accounts.valAcctAccessChange(_account, _orgId, getUltimateParent(_orgId)));
+        return (accounts.validateAccount(_account, _orgId));
     }
 
     function checkOrgExists(string memory _orgId) internal view
@@ -321,7 +321,6 @@ contract PermissionsImplementation {
     {
         return org.checkOrgExists(_orgId);
     }
-
 
     function checkOrgApproved(string memory _orgId) internal view
     returns (bool)

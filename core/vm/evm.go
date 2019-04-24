@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -421,6 +422,7 @@ func (c *codeAndHash) Hash() common.Hash {
 func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) ([]byte, common.Address, uint64, error) {
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
+	log.Info("SMK-create @ 425")
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
 	}
@@ -513,6 +515,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	}
 	// Assign err if contract code size exceeds the max while the err is still empty.
 	if maxCodeSizeExceeded && err == nil {
+		log.Info("SMK-create @520 throwing error", "maxCodeSizeExceeded", maxCodeSizeExceeded)
 		err = errMaxCodeSizeExceeded
 	}
 	if evm.vmConfig.Debug && evm.depth == 0 {

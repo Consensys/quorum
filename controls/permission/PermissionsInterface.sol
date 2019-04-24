@@ -79,12 +79,6 @@ contract PermissionsInterface {
         permImplementation.addSubOrg(_pOrg, _orgId, _enodeId, _account, msg.sender);
     }
 
-
-    //    function approveSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account) external
-    //    {
-    //        permImplementation.approveSubOrg(_pOrg, _orgId, _enodeId, _account, msg.sender);
-    //    }
-
     function updateOrgStatus(string calldata _orgId, uint _status) external
     {
         permImplementation.updateOrgStatus(_orgId, _status, msg.sender);
@@ -106,15 +100,15 @@ contract PermissionsInterface {
         permImplementation.removeRole(_roleId, _orgId, msg.sender);
     }
 
-    function assignOrgAdminAccount(string calldata _orgId, address _account) external
+    function assignAdminRole(string calldata _orgId, address _account, string calldata _roleId) external
     {
-        permImplementation.assignOrgAdminAccount(_orgId, _account, msg.sender);
+        permImplementation.assignAdminRole(_orgId, _account, _roleId, msg.sender);
 
     }
 
-    function approveOrgAdminAccount(address _account) external
+    function approveAdminRole(string calldata _orgId, address _account) external
     {
-        permImplementation.approveOrgAdminAccount(_account, msg.sender);
+        permImplementation.approveAdminRole(_orgId, _account, msg.sender);
 
     }
 

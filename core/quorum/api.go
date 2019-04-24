@@ -38,8 +38,8 @@ const (
 	ApproveOrgStatus
 	AddNode
 	UpdateNodeStatus
-	AssignOrgAdminAccount
-	ApproveOrgAdminAccount
+	AssignAdminRole
+	ApproveAdminRole
 	AddNewRole
 	RemoveRole
 	AssignAccountRole
@@ -235,12 +235,12 @@ func (s *QuorumControlsAPI) ApproveOrgStatus(orgId string, status uint8, txa eth
 	return s.executePermAction(ApproveOrgStatus, txArgs{orgId: orgId, status: status, txa: txa})
 }
 
-func (s *QuorumControlsAPI) AssignOrgAdminAccount(orgId string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(AssignOrgAdminAccount, txArgs{orgId: orgId, acctId: acct, txa: txa})
+func (s *QuorumControlsAPI) AssignAdminRole(orgId string, acct common.Address, roleId string, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executePermAction(AssignAdminRole, txArgs{orgId: orgId, acctId: acct, roleId: roleId, txa: txa})
 }
 
-func (s *QuorumControlsAPI) ApproveOrgAdminAccount(acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(ApproveOrgAdminAccount, txArgs{acctId: acct, txa: txa})
+func (s *QuorumControlsAPI) ApproveAdminRole(orgId string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executePermAction(ApproveAdminRole, txArgs{orgId: orgId, acctId: acct, txa: txa})
 }
 
 func (s *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8, isVoter bool, txa ethapi.SendTxArgs) ExecStatus {
@@ -271,11 +271,12 @@ func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) (Ex
 		return ErrOrgDoesNotExists, errors.New("invalid org")
 	}
 	ac := types.AcctInfoMap.GetAccount(account)
-	if ac != nil {
-		// check if the account is network admin
-		if !(ac.IsOrgAdmin && (ac.OrgId == orgId || ac.OrgId == org.UltimateParent)) {
-			return ErrNotOrgAdmin, errors.New("not org admin")
-		}
+	if ac == nil {
+		return ErrNotOrgAdmin, errors.New("not org admin")
+	}
+	// check if the account is network admin
+	if !(ac.IsOrgAdmin && (ac.OrgId == orgId || ac.OrgId == org.UltimateParent)) {
+		return ErrNotOrgAdmin, errors.New("not org admin")
 	}
 	return ExecSuccess, nil
 }
@@ -376,26 +377,35 @@ func (s *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 	return ExecSuccess, nil
 }
 
-func (s *QuorumControlsAPI) checkOrgAdminExists(orgId string, account common.Address) (ExecStatus, error) {
+func (s *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account common.Address) (ExecStatus, error) {
 	ac := types.AcctInfoMap.GetAccount(account)
 
-	if ac == nil {
-		orgAcctList := types.AcctInfoMap.GetAcctListOrg(orgId)
-		if len(orgAcctList) > 0 {
-			for _, a := range orgAcctList {
-				if a.IsOrgAdmin == true {
-					return ErrOrgAdminExists, errors.New("org admin exists for the org")
-				}
-			}
-		}
-	} else {
+	if ac != nil {
 		if ac.OrgId != orgId {
 			return ErrAccountInUse, errors.New("account part of another org")
 		}
-		if ac.IsOrgAdmin == true {
+		if roleId != "" && roleId == s.permConfig.OrgAdminRole && ac.IsOrgAdmin {
 			return ErrAccountOrgAdmin, errors.New("account already org admin for the org")
 		}
 	}
+
+	//if ac == nil {
+	//	orgAcctList := types.AcctInfoMap.GetAcctListOrg(orgId)
+	//	if len(orgAcctList) > 0 {
+	//		for _, a := range orgAcctList {
+	//			if a.IsOrgAdmin == true && a.Status == types.AcctActive {
+	//				return ErrOrgAdminExists, errors.New("org admin exists for the org")
+	//			}
+	//		}
+	//	}
+	//} else {
+	//	if ac.OrgId != orgId {
+	//		return ErrAccountInUse, errors.New("account part of another org")
+	//	}
+	//	if ac.IsOrgAdmin == true {
+	//		return ErrAccountOrgAdmin, errors.New("account already org admin for the org")
+	//	}
+	//}
 	return ExecSuccess, nil
 }
 
@@ -490,7 +500,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 
 		// check if account is already part of another org
-		if execStatus, er := s.checkOrgAdminExists(args.orgId, args.acctId); er != nil {
+		if execStatus, er := s.checkOrgAdminExists(args.orgId, "", args.acctId); er != nil {
 			return execStatus
 		}
 
@@ -535,7 +545,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 		// check if account is already part of another org
 		if (args.acctId != common.Address{}) {
-			if execStatus, er := s.checkOrgAdminExists(args.orgId, args.acctId); er != nil {
+			if execStatus, er := s.checkOrgAdminExists(args.orgId, "", args.acctId); er != nil {
 				return execStatus
 			}
 		}
@@ -610,31 +620,41 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		// check node status for operation
 		tx, err = pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.status)))
 
-	case AssignOrgAdminAccount:
+	case AssignAdminRole:
 		// check if caller is network admin
+		if args.roleId != s.permConfig.OrgAdminRole && args.roleId != s.permConfig.NwAdminRole {
+			return ErrOpNotAllowed
+		}
+
 		if !s.isNetworkAdmin(args.txa.From) {
 			return ErrNotNetworkAdmin
 		}
+
 		// check if account is already part of another org
-		if execStatus, er := s.checkOrgAdminExists(args.orgId, args.acctId); er != nil {
+		if execStatus, er := s.checkOrgAdminExists(args.orgId, args.roleId, args.acctId); er != nil && execStatus != ErrOrgAdminExists {
 			return execStatus
 		}
 		// check if account is already in use in another org
-		tx, err = pinterf.AssignOrgAdminAccount(args.orgId, args.acctId)
+		tx, err = pinterf.AssignAdminRole(args.orgId, args.acctId, args.roleId)
 
-	case ApproveOrgAdminAccount:
+	case ApproveAdminRole:
 		// check if caller is network admin
 		if !s.isNetworkAdmin(args.txa.From) {
 			return ErrNotNetworkAdmin
 		}
 
+		// check if account is valid
+		ac := types.AcctInfoMap.GetAccount(args.acctId)
+		if ac == nil {
+			return ErrInvalidAccount
+		}
 		// validate pending op
-		if !s.validatePendingOp(s.permConfig.NwAdminOrg, types.AcctInfoMap.GetAccount(args.acctId).OrgId, "", args.acctId, 4, pinterf) {
+		if !s.validatePendingOp(s.permConfig.NwAdminOrg, ac.OrgId, "", args.acctId, 4, pinterf) {
 			return ErrNothingToApprove
 		}
 
 		// check if anything is pending approval
-		tx, err = pinterf.ApproveOrgAdminAccount(args.acctId)
+		tx, err = pinterf.ApproveAdminRole(args.orgId, args.acctId)
 
 	case AddNewRole:
 		// check if caller is network admin

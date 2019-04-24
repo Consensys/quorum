@@ -218,6 +218,7 @@ func (p *PermissionCtrl) init() error {
 
 	// set the default access to ReadOnly
 	types.SetDefaultAccess()
+	types.SetAdminRole(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole)
 
 	return nil
 }
