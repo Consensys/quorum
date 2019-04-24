@@ -110,11 +110,18 @@ func wsHandshakeValidator(allowedOrigins []string) func(*websocket.Config, *http
 	f := func(cfg *websocket.Config, req *http.Request) error {
 		origin := strings.ToLower(req.Header.Get("Origin"))
 		if allowAllOrigins || origins.Contains(origin) {
+
+
+
 			return nil
 		}
+
 		log.Warn(fmt.Sprintf("origin '%s' not allowed on WS-RPC interface\n", origin))
 		return fmt.Errorf("origin %s not allowed", origin)
 	}
+
+
+
 
 	return f
 }
@@ -149,6 +156,22 @@ func wsGetConfig(endpoint, origin string) (*websocket.Config, error) {
 //
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
+func DialWebsocketWithSecurity(ctx context.Context, endpoint, origin string, token string) (*Client, error) {
+	config, err := wsGetConfig(endpoint, origin)
+	if err != nil {
+		return nil, err
+	}
+
+	return newClient(ctx, func(ctx context.Context) (net.Conn, error) {
+		return wsDialContext(ctx, config)
+	})
+}
+
+// DialWebsocket creates a new RPC client that communicates with a JSON-RPC server
+// that is listening on the given endpoint.
+//
+// The context is used for the initial connection establishment. It does not
+// affect subsequent interactions with the client.
 func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error) {
 	config, err := wsGetConfig(endpoint, origin)
 	if err != nil {
@@ -158,6 +181,30 @@ func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error
 	return newClient(ctx, func(ctx context.Context) (net.Conn, error) {
 		return wsDialContext(ctx, config)
 	})
+}
+
+
+func wsDialContextWithSecurity(ctx context.Context, config *websocket.Config, token string) (*websocket.Conn, error) {
+	var conn net.Conn
+	var err error
+	switch config.Location.Scheme {
+	case "ws":
+		conn, err = dialContext(ctx, "tcp", wsDialAddress(config.Location))
+	case "wss":
+		dialer := contextDialer(ctx)
+		conn, err = tls.DialWithDialer(dialer, "tcp", wsDialAddress(config.Location), config.TlsConfig)
+	default:
+		err = websocket.ErrBadScheme
+	}
+	if err != nil {
+		return nil, err
+	}
+	ws, err := websocket.NewClient(config, conn)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return ws, err
 }
 
 func wsDialContext(ctx context.Context, config *websocket.Config) (*websocket.Conn, error) {

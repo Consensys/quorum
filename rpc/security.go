@@ -4,19 +4,16 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
 const (
 	PROVIDER_LOCAL      = "local"
-	PROVIDER_ENTERPRISE = "local"
+	PROVIDER_ENTERPRISE = "enterprise"
 )
 
 // RFC (7662): https://tools.ietf.org/html/rfc7662.
@@ -47,20 +44,31 @@ type AuthorizationServerInformation struct {
 
 	// Authorization Server Cert Information
 	ProviderCertificateInfo *AuthorizationServerCert `json:"providerCert"`
+
+	// Local Provider Information
+	LocalProviderDbFile *string `json:"localProviderDbFile"`
+	LocalClientsFile    *string `json:"localClientsFile"`
+}
+
+// RPC ListenerWithTls Support
+type Listener struct {
+	serverTlsCertFile *string `json:"serverTlsCertFile"`
+	serverTlsKeyFile  *string `json:"serverTlsKeyFile"`
 }
 
 // RPC Security Configuration
 type SecurityConfig struct {
-	ProviderType            string                          `json:"providerType"`
-	LocalProviderDbFile     string                          `json:"localProviderDbFile"`
+	Listener *Listener `json:"listenerCert"`
+	ProviderType string `json:"providerType"`
 	AuthorizationServerInfo *AuthorizationServerInformation `json:"providerInfo"`
 }
 
 // RPC Security Context
 type SecurityContext struct {
-	Enabled bool
-	Config  *SecurityConfig
-	Client  *http.Client
+	Enabled               bool
+	Config                *SecurityConfig
+	Client                *http.Client
+	LocalSecurityProvider LocalSecurityProvider
 }
 
 func (ctx *SecurityContext) getHttpClient() *http.Client {
@@ -116,16 +124,28 @@ func (ctx *SecurityContext) buildHttpClient() *http.Client {
 // Parse the RPC Request, Call send Introspect Request & Parse results
 func (ctx *SecurityContext) isHttpRequestAuthorized(r *http.Request) bool {
 	providerType := strings.ToLower(ctx.Config.ProviderType)
+	clientToken := r.Header.Get("Token")
+	fmt.Println("%v", r.Header)
+
+	if providerType == "" {
+		return false
+	}
+
+	if clientToken == "" {
+		return false
+	}
 
 	if providerType == PROVIDER_ENTERPRISE {
 		fmt.Printf("Send Introspect Request")
 	}
 
-	if strings.ToLower(ctx.Config.ProviderType) == PROVIDER_LOCAL {
+	if providerType == PROVIDER_LOCAL {
+
+		fmt.Printf("Send Introspect Locally")
 
 	}
 
-	return false
+	return true
 }
 
 // Parse the RPC Request, Call send Introspect Request & Parse results
@@ -136,14 +156,14 @@ func (ctx *SecurityContext) isWSRequestAuthorized(r *http.Request) bool {
 // Process RPC Http Request
 func (ctx *SecurityContext) ProcessHttpRequest(r *http.Request) (int, error) {
 	if ctx.Enabled && ctx.Config == nil {
-		return http.StatusUnauthorized, errors.New("Unauthorized")
+		return http.StatusUnauthorized, errors.New("Request requires valid token")
 	}
 
-	if ctx.Enabled && strings.ToLower(ctx.Config.ProviderType) == "enterprise" {
+	if ctx.Enabled {
 		if ctx.isHttpRequestAuthorized(r) {
 			return http.StatusOK, nil
 		} else {
-			return http.StatusUnauthorized, errors.New("Unauthorized")
+			return http.StatusUnauthorized, errors.New("Request requires valid token")
 		}
 	}
 
@@ -153,67 +173,39 @@ func (ctx *SecurityContext) ProcessHttpRequest(r *http.Request) (int, error) {
 // Process WS Request
 func (ctx *SecurityContext) ProcessWSRequest(r *http.Request) (int, error) {
 	if ctx.Enabled && ctx.Config == nil {
-		return http.StatusUnauthorized, errors.New("Unauthorized")
+		return http.StatusUnauthorized, errors.New("Request requires valid token")
 	}
 
-	if ctx.Enabled {
-		if ctx.isWSRequestAuthorized(r) {
-			return http.StatusOK, nil
-		} else {
-			return http.StatusUnauthorized, errors.New("Unauthorized")
-		}
-	}
-
-	return http.StatusOK, nil
+	return http.StatusUnauthorized, errors.New("Request requires valid token")
 }
-
 
 type LocalSecurityProvider struct {
 	LocalSecurityDbFile *string
-	clientsDb           *ethdb.LDBDatabase
 }
 
-func (l *LocalSecurityProvider) init() {
-	if l.clientsDb == nil {
-		if l.LocalSecurityDbFile == nil {
-			file := os.Getenv("QuorumRpcClientDbFile")
-			if  file == "" {
-				utils.Fatalf("LocalSecurityDbFile not set in Security Context")
-			}else{
-				l.LocalSecurityDbFile = &file
-			}
-		}
-
-		db, err := ethdb.NewLDBDatabase(*l.LocalSecurityDbFile, 0, 0)
-		if l.clientsDb = db; err != nil {
-			utils.Fatalf("Error with local security provider %v", err)
-		}
-
-	}
-}
-
-func (l *LocalSecurityProvider) findClient(clientName *string){
-
+func (l *LocalSecurityProvider) findClient(clientName *string) {
 
 }
 
-func (l *LocalSecurityProvider) addClient(clientName *string, clientID *string, clientSecret *string, clientScope *string){
+func (l *LocalSecurityProvider) addClientsFromFile(fileName *string) {
 
 }
 
-func (l *LocalSecurityProvider) listClients(){
+func (l *LocalSecurityProvider) addClient(clientName *string, clientID *string, clientSecret *string, clientScope *string) {
 
 }
 
-func (l *LocalSecurityProvider) removeClient(clientName *string){
+func (l *LocalSecurityProvider) listClients() {
 
 }
 
-func (l *LocalSecurityProvider) regenerateClient(clientName *string){
+func (l *LocalSecurityProvider) removeClient(clientName *string) {
 
 }
 
+func (l *LocalSecurityProvider) regenerateClient(clientName *string) {
 
+}
 
 // GetDefaultDenyAllSecurityContext returns a disabled context
 func GetDefaultDenyAllSecurityContext() SecurityContext {

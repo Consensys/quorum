@@ -154,9 +154,46 @@ func (op *requestOp) wait(ctx context.Context) (*jsonrpcMessage, error) {
 // For websocket connections, the origin is set to the local host name.
 //
 // The client reconnects automatically if the connection is lost.
+func DialWithSecurity(rawurl string, token string) (*Client, error) {
+	return DialContextWithSecurity(context.Background(), rawurl,token)
+}
+// DialContext creates a new RPC client, just like Dial.
+//
+// The context is used to cancel or time out the initial connection establishment. It does
+// not affect subsequent interactions with the client.
+func DialContextWithSecurity(ctx context.Context, rawurl string, token string) (*Client, error) {
+	u, err := url.Parse(rawurl)
+	if err != nil {
+		return nil, err
+	}
+	switch u.Scheme {
+	case "http", "https":
+		return DialHTTPWithSecurity(rawurl, token)
+	case "ws", "wss":
+		return DialWebsocket(ctx, rawurl, "")
+	case "stdio":
+		return DialStdIO(ctx)
+	case "":
+		return DialIPC(ctx, rawurl)
+	default:
+		return nil, fmt.Errorf("no known transport for URL scheme %q", u.Scheme)
+	}
+}
+
+// Dial creates a new client for the given URL.
+//
+// The currently supported URL schemes are "http", "https", "ws" and "wss". If rawurl is a
+// file name with no URL scheme, a local socket connection is established using UNIX
+// domain sockets on supported platforms and named pipes on Windows. If you want to
+// configure transport options, use DialHTTP, DialWebsocket or DialIPC instead.
+//
+// For websocket connections, the origin is set to the local host name.
+//
+// The client reconnects automatically if the connection is lost.
 func Dial(rawurl string) (*Client, error) {
 	return DialContext(context.Background(), rawurl)
 }
+
 
 // DialContext creates a new RPC client, just like Dial.
 //

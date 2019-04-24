@@ -144,6 +144,12 @@ func (api *PrivateAdminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, 
 	return rpcSub, nil
 }
 
+// Add Local RPC Client to security context
+func (api *PrivateAdminAPI) RpcAddClientsFromFile(filePath *string) (bool, error) {
+
+
+	return true, nil
+}
 
 
 // Add Local RPC Client to security context

@@ -39,11 +39,14 @@ func StartHTTPEndpointWithSecurityContext(endpoint string, apis []API, modules [
 			log.Debug("HTTP registered", "namespace", api.Namespace)
 		}
 	}
+
 	// All APIs registered, start the HTTP listener
 	var (
 		listener net.Listener
 		err      error
 	)
+
+
 	if listener, err = net.Listen("tcp", endpoint); err != nil {
 		return nil, nil, err
 	}

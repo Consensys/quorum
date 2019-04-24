@@ -417,6 +417,10 @@ var (
 		Name:  "rpc",
 		Usage: "Enable the HTTP-RPC server",
 	}
+	RPCClientToken = cli.StringFlag{
+		Name:  "rpctoken",
+		Usage: "RPC Client authentication token",
+	}
 	RPCEnabledSecurityFlag = cli.BoolFlag{
 		Name:  "rpcsec",
 		Usage: "Enable rpc security context",

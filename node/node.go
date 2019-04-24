@@ -280,7 +280,7 @@ func (n *Node) startRpcWithSecurityContext(services map[reflect.Type]Service, ct
 	if err := n.startInProcWithSecurityContext(apis,ctx); err != nil {
 		return err
 	}
-	if err := n.startInProcWithSecurityContext(apis,ctx); err != nil {
+	if err := n.startIPC(apis); err != nil {
 		n.stopInProc()
 		return err
 	}

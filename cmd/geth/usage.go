@@ -176,6 +176,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.RPCEnabledFlag,
 			utils.RPCEnabledSecurityFlag,
 			utils.RPCSecurityConfigFileFlag,
+			utils.RPCClientToken,
 			utils.RPCListenAddrFlag,
 			utils.RPCPortFlag,
 			utils.RPCApiFlag,
@@ -191,6 +192,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
+
 		},
 	},
 	{
