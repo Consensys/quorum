@@ -224,6 +224,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 		hasPrivatePayload = data != nil
 		if receivedPrivacyMetadata != nil {
+			if !contractCreation && receivedPrivacyMetadata.PrivacyFlag == engine.PrivacyFlagStateValidation && common.EmptyHash(receivedPrivacyMetadata.ACMerkleRoot) {
+				log.Error("Privacy metadata has empty MR for stateValidation flag")
+				return nil, 0, true, nil
+			}
 			privMetadata := types.NewTxPrivacyMetadata(receivedPrivacyMetadata.PrivacyFlag)
 			st.evm.SetTxPrivacyMetadata(privMetadata)
 		}
@@ -328,11 +332,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 					"affectedContract.PrivacyFlag", actualPrivacyMetadata.PrivacyFlag,
 					"received.PrivacyFlag", receivedPrivacyMetadata.PrivacyFlag)
 			}
-			// for legacy transactions we should skip the acoth check
-			if receivedPrivacyMetadata.PrivacyFlag.IsLegacy() {
-				expectedMatchCount--
-				continue
-			}
 			if receivedPrivacyMetadata.ACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
 				return returnErrorFunc(nil, "Participation check failed",
 					"affectedContractAddress", addr.Hex(),
@@ -344,7 +343,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return returnErrorFunc(nil, "Participation check failed",
 				"missing", expectedMatchCount)
 		}
-		// TODO NL we should discard StateValidation transactions which do not have an execHash/ACMerkleRoot (best done right after receive)
 		if !common.EmptyHash(receivedPrivacyMetadata.ACMerkleRoot) {
 			log.Trace("Verify merkle root", "merkleRoot", receivedPrivacyMetadata.ACMerkleRoot)
 			actualACMerkleRoot, err := evm.CalculateMerkleRoot()
