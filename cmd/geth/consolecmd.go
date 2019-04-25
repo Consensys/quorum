@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -51,7 +52,7 @@ See https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console.`,
 		Name:      "attach",
 		Usage:     "Start an interactive JavaScript environment (connect to node)",
 		ArgsUsage: "[endpoint]",
-		Flags:     append(consoleFlags, utils.DataDirFlag, utils.RPCClientToken),
+		Flags:     append(append(consoleFlags, utils.DataDirFlag), utils.RPCClientToken),
 		Category:  "CONSOLE COMMANDS",
 		Description: `
 The Geth console is an interactive shell for the JavaScript runtime environment
@@ -117,7 +118,6 @@ func remoteConsole(ctx *cli.Context) error {
 
 	// Attach to a remotely running geth instance and start the JavaScript console
 	endpoint := ctx.Args().First()
-
 	if endpoint == "" {
 		path := node.DefaultDataDir()
 		if ctx.GlobalIsSet(utils.DataDirFlag.Name) {
@@ -134,7 +134,6 @@ func remoteConsole(ctx *cli.Context) error {
 	}
 
 	token := ctx.GlobalString(utils.RPCClientToken.Name)
-
 	if token == "" {
 		client, err := dialRPC(endpoint)
 
@@ -163,8 +162,9 @@ func remoteConsole(ctx *cli.Context) error {
 		console.Welcome()
 		console.Interactive()
 
-	}else{
-		client, err := dialRPCWithSecurity(endpoint, token)
+	} else {
+
+		client, err := dialRPCWithSecurity(endpoint, toke)
 
 		if err != nil {
 			utils.Fatalf("Unable to attach to remote geth: %v", err)
@@ -190,12 +190,12 @@ func remoteConsole(ctx *cli.Context) error {
 		// Otherwise print the welcome screen and enter interactive mode
 		console.Welcome()
 		console.Interactive()
+
 	}
-
-
 
 	return nil
 }
+
 // dialRPCWithSecurity returns a RPC client which connects to the given endpoint.
 // The check for empty endpoint implements the defaulting logic
 // for "geth attach" and "geth monitor" with no argument.

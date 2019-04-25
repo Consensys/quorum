@@ -66,7 +66,7 @@ func StartHTTPEndpointWithSecurityContext(endpoint string, apis []API, modules [
 				return nil, nil, fmt.Errorf("RPC Security %v", err)
 
 			}else{
-				config := &tls.Config{Certificates: []tls.Certificate{cer}}
+				config := &tls.Config{Certificates: []tls.Certificate{cer}, MinVersion:tls.VersionTLS12}
 				listener, err :=tls.Listen("tcp", endpoint, config)
 				if err != nil {
 					return nil, nil, err

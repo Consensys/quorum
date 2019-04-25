@@ -58,7 +58,7 @@ type Listener struct {
 
 // RPC Security Configuration
 type SecurityConfig struct {
-	Listener                * Listener                       `json:"listenerCert"`
+	Listener                *Listener                       `json:"listenerCert"`
 	ProviderType            string                          `json:"providerType"`
 	AuthorizationServerInfo *AuthorizationServerInformation `json:"providerInfo"`
 }
