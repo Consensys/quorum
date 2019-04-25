@@ -52,14 +52,14 @@ type AuthorizationServerInformation struct {
 
 // RPC ListenerWithTls Support
 type Listener struct {
-	serverTlsCertFile *string `json:"serverTlsCertFile"`
-	serverTlsKeyFile  *string `json:"serverTlsKeyFile"`
+	ServerTlsCertFile string `json:"serverTlsCertFile"`
+	ServerTlsKeyFile  string `json:"serverTlsKeyFile"`
 }
 
 // RPC Security Configuration
 type SecurityConfig struct {
-	Listener *Listener `json:"listenerCert"`
-	ProviderType string `json:"providerType"`
+	Listener                * Listener                       `json:"listenerCert"`
+	ProviderType            string                          `json:"providerType"`
 	AuthorizationServerInfo *AuthorizationServerInformation `json:"providerInfo"`
 }
 

@@ -134,7 +134,7 @@ func remoteConsole(ctx *cli.Context) error {
 	}
 
 	token := ctx.GlobalString(utils.RPCClientToken.Name)
-	fmt.Println(token)
+
 	if token == "" {
 		client, err := dialRPC(endpoint)
 

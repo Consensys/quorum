@@ -46,6 +46,7 @@ func NewServerWithSecurityCtx(ctx SecurityContext) *Server {
 	server := NewServer()
 	server.RegisterSecurityCtx(ctx)
 
+
 	return server
 }
 
@@ -82,6 +83,20 @@ func (s *RPCService) Modules() map[string]string {
 
 func (s *Server) RegisterSecurityCtx(ctx SecurityContext){
 	s.securityContext =  ctx
+
+	// Init Local Security Context
+	if s.securityContext.Config != nil {
+		if strings.ToLower(s.securityContext.Config.ProviderType) == PROVIDER_LOCAL {
+			log.Info("RPC Security","status","register local security provider")
+			log.Info("RPC Security","provider",)
+			//if ctx.Config.LocalProviderDbFile != nil {
+			//	s.securityContext.LocalSecurityProvider =  LocalSecurityProvider{LocalSecurityDbFile:ctx.Config.LocalProviderDbFile}
+			//}
+
+			//s.securityContext.LocalSecurityProvider.Init()
+		}
+	}
+
 }
 
 func (s *Server) SecurityCtx() SecurityContext{

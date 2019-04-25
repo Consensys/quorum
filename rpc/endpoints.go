@@ -17,6 +17,8 @@
 package rpc
 
 import (
+	"crypto/tls"
+	"fmt"
 	"net"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -40,18 +42,47 @@ func StartHTTPEndpointWithSecurityContext(endpoint string, apis []API, modules [
 		}
 	}
 
-	// All APIs registered, start the HTTP listener
-	var (
-		listener net.Listener
-		err      error
-	)
+	if ctx.Config.Listener == nil {
+		// All APIs registered, start the HTTP listener
+		var (
+			listener net.Listener
+			err      error
+		)
 
 
-	if listener, err = net.Listen("tcp", endpoint); err != nil {
-		return nil, nil, err
+		if listener, err = net.Listen("tcp", endpoint); err != nil {
+			return nil, nil, err
+		}
+		go NewHTTPServer(cors, vhosts, timeouts, handler).Serve(listener)
+		return listener, handler, err
+	} else {
+		log.Info("RPC Security","listener-tls-cert",  ctx.Config.Listener.ServerTlsCertFile, "listener-tls-key",ctx.Config.Listener.ServerTlsKeyFile)
+		if ctx.Config.Listener.ServerTlsKeyFile == "" ||  ctx.Config.Listener.ServerTlsCertFile == "" {
+			return nil, nil, fmt.Errorf("RPC Security listener-tls couldn't load tls files")
+
+		}else{
+			cer, err := tls.LoadX509KeyPair(ctx.Config.Listener.ServerTlsCertFile, ctx.Config.Listener.ServerTlsKeyFile)
+			if err != nil {
+				return nil, nil, fmt.Errorf("RPC Security %v", err)
+
+			}else{
+				config := &tls.Config{Certificates: []tls.Certificate{cer}}
+				listener, err :=tls.Listen("tcp", endpoint, config)
+				if err != nil {
+					return nil, nil, err
+				}
+				go NewHTTPServer(cors, vhosts, timeouts, handler).Serve(listener)
+				return listener, handler, err
+
+			}
+		}
+
+
+
+
 	}
-	go NewHTTPServer(cors, vhosts, timeouts, handler).Serve(listener)
-	return listener, handler, err
+
+
 }
 
 // StartHTTPEndpoint starts the HTTP RPC endpoint, configured with cors/vhosts/modules
