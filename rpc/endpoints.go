@@ -77,9 +77,6 @@ func StartHTTPEndpointWithSecurityContext(endpoint string, apis []API, modules [
 			}
 		}
 
-
-
-
 	}
 
 
@@ -102,6 +99,8 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 			log.Debug("HTTP registered", "namespace", api.Namespace)
 		}
 	}
+
+
 	// All APIs registered, start the HTTP listener
 	var (
 		listener net.Listener
@@ -132,16 +131,39 @@ func StartWSEndpointWithSecurityContext(endpoint string, apis []API, modules []s
 			log.Debug("WebSocket registered", "service", api.Service, "namespace", api.Namespace)
 		}
 	}
-	// All APIs registered, start the HTTP listener
-	var (
-		listener net.Listener
-		err      error
-	)
-	if listener, err = net.Listen("tcp", endpoint); err != nil {
-		return nil, nil, err
+	if ctx.Config.Listener == nil {
+		// All APIs registered, start the HTTP listener
+		var (
+			listener net.Listener
+			err      error
+		)
+		if listener, err = net.Listen("tcp", endpoint); err != nil {
+			return nil, nil, err
+		}
+
+		return listener, handler, err
+	} else {
+		log.Info("RPC Security","ws-listener-tls-cert",  ctx.Config.Listener.ServerTlsCertFile, "ws-listener-tls-key",ctx.Config.Listener.ServerTlsKeyFile)
+		if ctx.Config.Listener.ServerTlsKeyFile == "" ||  ctx.Config.Listener.ServerTlsCertFile == "" {
+			return nil, nil, fmt.Errorf("RPC Security ws-listener-tls couldn't load tls files")
+
+		}else{
+			cer, err := tls.LoadX509KeyPair(ctx.Config.Listener.ServerTlsCertFile, ctx.Config.Listener.ServerTlsKeyFile)
+			if err != nil {
+				return nil, nil, fmt.Errorf("RPC Security %v", err)
+
+			}else{
+				config := &tls.Config{Certificates: []tls.Certificate{cer}, MinVersion:tls.VersionTLS12}
+				listener, err :=tls.Listen("tcp", endpoint, config)
+				if err != nil {
+					return nil, nil, err
+				}
+				go NewWSServer(wsOrigins, handler).Serve(listener)
+				return listener, handler, err
+
+			}
+		}
 	}
-	go NewWSServer(wsOrigins, handler).Serve(listener)
-	return listener, handler, err
 
 }
 

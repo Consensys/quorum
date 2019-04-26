@@ -52,32 +52,6 @@ var websocketJSONCodec = websocket.Codec{
 	},
 }
 
-// WebsocketHandlerWithSecurity returns a handler that serves JSON-RPC to WebSocket connections.
-//
-// allowedOrigins should be a comma-separated list of allowed origin URLs.
-// To allow connections with any origin, pass "*".
-func (srv *Server) WebsocketHandlerWithSecurity(allowedOrigins []string, securityContext SecurityContext) http.Handler {
-	server := websocket.Server{
-		Handshake: wsHandshakeValidator(allowedOrigins),
-		Handler: func(conn *websocket.Conn) {
-			// Create a custom encode/decode pair to enforce payload size and number encoding
-			conn.MaxPayloadBytes = maxRequestContentLength
-
-			encoder := func(v interface{}) error {
-				return websocketJSONCodec.Send(conn, v)
-			}
-			decoder := func(v interface{}) error {
-				return websocketJSONCodec.Receive(conn, v)
-			}
-
-
-			srv.ServeCodec(NewCodec(conn, encoder, decoder), OptionMethodInvocation|OptionSubscriptions)
-		},
-	}
-
-
-	return server
-}
 
 // WebsocketHandler returns a handler that serves JSON-RPC to WebSocket connections.
 //
@@ -104,10 +78,6 @@ func (srv *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
 
 
 	 return server
-}
-
-func NewWSServerWithSecurity(allowedOrigins []string, srv *Server, securityContext SecurityContext) *http.Server {
-	return &http.Server{Handler: srv.WebsocketHandlerWithSecurity(allowedOrigins, securityContext)}
 }
 
 // NewWSServer creates a new websocket RPC server around an API provider.

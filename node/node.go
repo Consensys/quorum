@@ -462,7 +462,7 @@ func (n *Node) startWSWithSecurityContext(endpoint string, apis []rpc.API, modul
 	if err != nil {
 		return err
 	}
-	n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%s", listener.Addr()))
+	n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("wss://%s", listener.Addr()))
 	// All listeners booted successfully
 	n.wsEndpoint = endpoint
 	n.wsListener = listener
