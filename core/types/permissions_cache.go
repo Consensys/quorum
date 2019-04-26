@@ -43,7 +43,6 @@ const (
 	NodePendingApproval NodeStatus = iota + 1
 	NodeApproved
 	NodeDeactivated
-	NodeActivated
 	NodeBlackListed
 )
 
@@ -68,6 +67,7 @@ type RoleInfo struct {
 	OrgId   string     `json:"orgId"`
 	RoleId  string     `json:"roleId"`
 	IsVoter bool       `json:"isVoter"`
+	IsAdmin bool       `json:"isAdmin"`
 	Access  AccessType `json:"access"`
 	Active  bool       `json:"active"`
 }
@@ -331,11 +331,11 @@ func (a *AcctCache) GetAcctListRole(orgId, roleId string) []AccountInfo {
 	return alist
 }
 
-func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, access AccessType, active bool) {
+func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, admin bool, access AccessType, active bool) {
 	defer r.mux.Unlock()
 	r.mux.Lock()
 	key := RoleKey{orgId, role}
-	r.c.Add(key, &RoleInfo{orgId, role, voter, access, active})
+	r.c.Add(key, &RoleInfo{orgId, role, voter, admin, access, active})
 
 }
 

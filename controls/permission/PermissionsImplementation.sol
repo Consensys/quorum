@@ -89,7 +89,7 @@ contract PermissionsImplementation {
         nodes = NodeManager(_nodeManager);
 
         org.setUpOrg(adminOrg, _breadth, _depth);
-        roles.addRole(adminRole, adminOrg, fullAccess, true);
+        roles.addRole(adminRole, adminOrg, fullAccess, true, true);
         accounts.setDefaults(adminRole, orgAdminRole);
     }
 
@@ -137,7 +137,7 @@ contract PermissionsImplementation {
         require(checkOrgStatus(_orgId, 1) == true, "Nothing to approve");
         if ((processVote(adminOrg, _caller, 1))) {
             org.approveOrg(_orgId);
-            roles.addRole(orgAdminRole, _orgId, fullAccess, true);
+            roles.addRole(orgAdminRole, _orgId, fullAccess, true, true);
             nodes.approveNode(_enodeId, _orgId);
             accounts.addNewAdmin(_orgId, _account);
         }
@@ -155,7 +155,7 @@ contract PermissionsImplementation {
         }
         if (_account != address(0)) {
             require(validateAccount(_account, pid) == true, "Operation cannot be performed");
-            accounts.assignAccountRole(_account, pid, orgAdminRole);
+            accounts.assignAccountRole(_account, pid, orgAdminRole, true);
         }
     }
 
@@ -187,13 +187,13 @@ contract PermissionsImplementation {
     }
 
     // Role related functions
-    function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter, address _caller) external
+    function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter, bool _admin, address _caller) external
     onlyProxy
     orgApproved(_orgId)
     orgAdmin(_caller, _orgId)
     {
         //add new roles can be created by org admins only
-        roles.addRole(_roleId, _orgId, _access, _voter);
+        roles.addRole(_roleId, _orgId, _access, _voter, _admin);
     }
 
     function removeRole(string calldata _roleId, string calldata _orgId, address _caller) external
@@ -240,7 +240,8 @@ contract PermissionsImplementation {
     {
         require(validateAccount(_acct, _orgId) == true, "Operation cannot be performed");
         require(roleExists(_roleId, _orgId) == true, "role does not exists");
-        accounts.assignAccountRole(_acct, _orgId, _roleId);
+        bool admin = roles.isAdminRole(_roleId, _orgId, getUltimateParent(_orgId));
+        accounts.assignAccountRole(_acct, _orgId, _roleId, admin);
     }
 
     function updateAccountStatus(string calldata _orgId, address _account, uint _status, address _caller) external
@@ -307,7 +308,10 @@ contract PermissionsImplementation {
     function isOrgAdmin(address _account, string memory _orgId) public view
     returns (bool)
     {
-        return (accounts.checkOrgAdmin(_account, _orgId, getUltimateParent(_orgId)));
+        if (accounts.checkOrgAdmin(_account, _orgId, getUltimateParent(_orgId))) {
+            return true;
+        }
+        return roles.isAdminRole(accounts.getAccountRole(_account), _orgId, getUltimateParent(_orgId));
     }
 
     function validateAccount(address _account, string memory _orgId) public view

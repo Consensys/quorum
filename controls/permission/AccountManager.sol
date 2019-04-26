@@ -137,25 +137,11 @@ contract AccountManager {
 
     }
 
-    function assignAccountRole(address _address, string calldata _orgId, string calldata _roleId) external
+    function assignAccountRole(address _address, string calldata _orgId, string calldata _roleId, bool _adminRole) external
     onlyImpl
     {
         require(((keccak256(abi.encodePacked(_roleId)) != keccak256(abi.encodePacked(adminRole))) && (keccak256(abi.encodePacked(abi.encodePacked(_roleId))) != keccak256(abi.encodePacked(orgAdminRole)))), "cannot be called fro assigning org admin and network admin roles");
-
-        bool oAdminRole = false;
-        uint status = 2;
-
-        if (keccak256(abi.encodePacked(_roleId)) == keccak256(abi.encodePacked(orgAdminRole))) {
-            require(orgAdminIndex[keccak256(abi.encodePacked(_orgId))] != address(0), "org admin exists");
-        }
-
-        // if the role id is ORGADMIN then check if already an orgadmin exists
-        if ((keccak256(abi.encodePacked(_roleId)) == keccak256(abi.encodePacked(orgAdminRole))) ||
-            (keccak256(abi.encodePacked(_roleId)) == keccak256(abi.encodePacked(adminRole)))) {
-            oAdminRole = true;
-            status = 1;
-        }
-        setAccountRole(_address, _orgId, _roleId, status, oAdminRole);
+        setAccountRole(_address, _orgId, _roleId, 2, _adminRole);
     }
 
     function removeExistingAdmin(string calldata _orgId) external

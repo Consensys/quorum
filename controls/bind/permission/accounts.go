@@ -28,7 +28,7 @@ var (
 )
 
 // AcctManagerABI is the input ABI used to generate the binding from.
-const AcctManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"approveAdminRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"validateAccount\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountRole\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateAccountStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"orgAdminExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"aIndex\",\"type\":\"uint256\"}],\"name\":\"getAccountDetailsFromIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setDefaults\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"revokeAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"assignAdminRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"checkOrgAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"}],\"name\":\"AccountAccessRevoked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountStatusChanged\",\"type\":\"event\"}]"
+const AcctManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_adminRole\",\"type\":\"bool\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"removeExistingAdmin\",\"outputs\":[{\"name\":\"voterUpdate\",\"type\":\"bool\"},{\"name\":\"acct\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"validateAccount\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountRole\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateAccountStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"orgAdminExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"aIndex\",\"type\":\"uint256\"}],\"name\":\"getAccountDetailsFromIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"addNewAdmin\",\"outputs\":[{\"name\":\"voterUpdate\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setDefaults\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"revokeAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"assignAdminRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"checkOrgAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"}],\"name\":\"AccountAccessRevoked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountStatusChanged\",\"type\":\"event\"}]"
 
 // AcctManager is an auto generated Go binding around an Ethereum contract.
 type AcctManager struct {
@@ -374,46 +374,46 @@ func (_AcctManager *AcctManagerCallerSession) ValidateAccount(_acct common.Addre
 	return _AcctManager.Contract.ValidateAccount(&_AcctManager.CallOpts, _acct, _orgId)
 }
 
-// ApproveAdminRole is a paid mutator transaction binding the contract method 0x16724c44.
+// AddNewAdmin is a paid mutator transaction binding the contract method 0xc214e5e5.
 //
-// Solidity: function approveAdminRole(_orgId string, _address address) returns()
-func (_AcctManager *AcctManagerTransactor) ApproveAdminRole(opts *bind.TransactOpts, _orgId string, _address common.Address) (*types.Transaction, error) {
-	return _AcctManager.contract.Transact(opts, "approveAdminRole", _orgId, _address)
+// Solidity: function addNewAdmin(_orgId string, _address address) returns(voterUpdate bool)
+func (_AcctManager *AcctManagerTransactor) AddNewAdmin(opts *bind.TransactOpts, _orgId string, _address common.Address) (*types.Transaction, error) {
+	return _AcctManager.contract.Transact(opts, "addNewAdmin", _orgId, _address)
 }
 
-// ApproveAdminRole is a paid mutator transaction binding the contract method 0x16724c44.
+// AddNewAdmin is a paid mutator transaction binding the contract method 0xc214e5e5.
 //
-// Solidity: function approveAdminRole(_orgId string, _address address) returns()
-func (_AcctManager *AcctManagerSession) ApproveAdminRole(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _AcctManager.Contract.ApproveAdminRole(&_AcctManager.TransactOpts, _orgId, _address)
+// Solidity: function addNewAdmin(_orgId string, _address address) returns(voterUpdate bool)
+func (_AcctManager *AcctManagerSession) AddNewAdmin(_orgId string, _address common.Address) (*types.Transaction, error) {
+	return _AcctManager.Contract.AddNewAdmin(&_AcctManager.TransactOpts, _orgId, _address)
 }
 
-// ApproveAdminRole is a paid mutator transaction binding the contract method 0x16724c44.
+// AddNewAdmin is a paid mutator transaction binding the contract method 0xc214e5e5.
 //
-// Solidity: function approveAdminRole(_orgId string, _address address) returns()
-func (_AcctManager *AcctManagerTransactorSession) ApproveAdminRole(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _AcctManager.Contract.ApproveAdminRole(&_AcctManager.TransactOpts, _orgId, _address)
+// Solidity: function addNewAdmin(_orgId string, _address address) returns(voterUpdate bool)
+func (_AcctManager *AcctManagerTransactorSession) AddNewAdmin(_orgId string, _address common.Address) (*types.Transaction, error) {
+	return _AcctManager.Contract.AddNewAdmin(&_AcctManager.TransactOpts, _orgId, _address)
 }
 
-// AssignAccountRole is a paid mutator transaction binding the contract method 0x2f7f0a12.
+// AssignAccountRole is a paid mutator transaction binding the contract method 0x143a5604.
 //
-// Solidity: function assignAccountRole(_address address, _orgId string, _roleId string) returns()
-func (_AcctManager *AcctManagerTransactor) AssignAccountRole(opts *bind.TransactOpts, _address common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
-	return _AcctManager.contract.Transact(opts, "assignAccountRole", _address, _orgId, _roleId)
+// Solidity: function assignAccountRole(_address address, _orgId string, _roleId string, _adminRole bool) returns()
+func (_AcctManager *AcctManagerTransactor) AssignAccountRole(opts *bind.TransactOpts, _address common.Address, _orgId string, _roleId string, _adminRole bool) (*types.Transaction, error) {
+	return _AcctManager.contract.Transact(opts, "assignAccountRole", _address, _orgId, _roleId, _adminRole)
 }
 
-// AssignAccountRole is a paid mutator transaction binding the contract method 0x2f7f0a12.
+// AssignAccountRole is a paid mutator transaction binding the contract method 0x143a5604.
 //
-// Solidity: function assignAccountRole(_address address, _orgId string, _roleId string) returns()
-func (_AcctManager *AcctManagerSession) AssignAccountRole(_address common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
-	return _AcctManager.Contract.AssignAccountRole(&_AcctManager.TransactOpts, _address, _orgId, _roleId)
+// Solidity: function assignAccountRole(_address address, _orgId string, _roleId string, _adminRole bool) returns()
+func (_AcctManager *AcctManagerSession) AssignAccountRole(_address common.Address, _orgId string, _roleId string, _adminRole bool) (*types.Transaction, error) {
+	return _AcctManager.Contract.AssignAccountRole(&_AcctManager.TransactOpts, _address, _orgId, _roleId, _adminRole)
 }
 
-// AssignAccountRole is a paid mutator transaction binding the contract method 0x2f7f0a12.
+// AssignAccountRole is a paid mutator transaction binding the contract method 0x143a5604.
 //
-// Solidity: function assignAccountRole(_address address, _orgId string, _roleId string) returns()
-func (_AcctManager *AcctManagerTransactorSession) AssignAccountRole(_address common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
-	return _AcctManager.Contract.AssignAccountRole(&_AcctManager.TransactOpts, _address, _orgId, _roleId)
+// Solidity: function assignAccountRole(_address address, _orgId string, _roleId string, _adminRole bool) returns()
+func (_AcctManager *AcctManagerTransactorSession) AssignAccountRole(_address common.Address, _orgId string, _roleId string, _adminRole bool) (*types.Transaction, error) {
+	return _AcctManager.Contract.AssignAccountRole(&_AcctManager.TransactOpts, _address, _orgId, _roleId, _adminRole)
 }
 
 // AssignAdminRole is a paid mutator transaction binding the contract method 0xe3483a9d.
@@ -435,6 +435,27 @@ func (_AcctManager *AcctManagerSession) AssignAdminRole(_address common.Address,
 // Solidity: function assignAdminRole(_address address, _orgId string, _roleId string, _status uint256) returns()
 func (_AcctManager *AcctManagerTransactorSession) AssignAdminRole(_address common.Address, _orgId string, _roleId string, _status *big.Int) (*types.Transaction, error) {
 	return _AcctManager.Contract.AssignAdminRole(&_AcctManager.TransactOpts, _address, _orgId, _roleId, _status)
+}
+
+// RemoveExistingAdmin is a paid mutator transaction binding the contract method 0x1d09dc93.
+//
+// Solidity: function removeExistingAdmin(_orgId string) returns(voterUpdate bool, acct address)
+func (_AcctManager *AcctManagerTransactor) RemoveExistingAdmin(opts *bind.TransactOpts, _orgId string) (*types.Transaction, error) {
+	return _AcctManager.contract.Transact(opts, "removeExistingAdmin", _orgId)
+}
+
+// RemoveExistingAdmin is a paid mutator transaction binding the contract method 0x1d09dc93.
+//
+// Solidity: function removeExistingAdmin(_orgId string) returns(voterUpdate bool, acct address)
+func (_AcctManager *AcctManagerSession) RemoveExistingAdmin(_orgId string) (*types.Transaction, error) {
+	return _AcctManager.Contract.RemoveExistingAdmin(&_AcctManager.TransactOpts, _orgId)
+}
+
+// RemoveExistingAdmin is a paid mutator transaction binding the contract method 0x1d09dc93.
+//
+// Solidity: function removeExistingAdmin(_orgId string) returns(voterUpdate bool, acct address)
+func (_AcctManager *AcctManagerTransactorSession) RemoveExistingAdmin(_orgId string) (*types.Transaction, error) {
+	return _AcctManager.Contract.RemoveExistingAdmin(&_AcctManager.TransactOpts, _orgId)
 }
 
 // RevokeAccountRole is a paid mutator transaction binding the contract method 0xe163dcf5.

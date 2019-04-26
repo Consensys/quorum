@@ -89,6 +89,7 @@ type txArgs struct {
 	url        string
 	roleId     string
 	isVoter    bool
+	isAdmin    bool
 	acctId     common.Address
 	accessType uint8
 	status     uint8
@@ -141,6 +142,7 @@ var (
 	ErrOrgDoesNotExists   = ExecStatus{false, "Org does not exists"}
 	ErrInactiveRole       = ExecStatus{false, "Role is already inactive"}
 	ErrInvalidRole        = ExecStatus{false, "Invalid role"}
+	ErrInvalidInput       = ExecStatus{false, "Invalid input"}
 	ExecSuccess           = ExecStatus{true, "Action completed successfully"}
 )
 
@@ -243,8 +245,8 @@ func (s *QuorumControlsAPI) ApproveAdminRole(orgId string, acct common.Address, 
 	return s.executePermAction(ApproveAdminRole, txArgs{orgId: orgId, acctId: acct, txa: txa})
 }
 
-func (s *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8, isVoter bool, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(AddNewRole, txArgs{orgId: orgId, roleId: roleId, accessType: access, isVoter: isVoter, txa: txa})
+func (s *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8, isVoter bool, isAdmin bool, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executePermAction(AddNewRole, txArgs{orgId: orgId, roleId: roleId, accessType: access, isVoter: isVoter, isAdmin: isAdmin, txa: txa})
 }
 
 func (s *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.SendTxArgs) ExecStatus {
@@ -354,7 +356,7 @@ func (s *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 		return ErrAccountNotThere, errors.New("account not there")
 	}
 
-	if ac.IsOrgAdmin && (op == 1 || op == 3) {
+	if ac.IsOrgAdmin && (ac.RoleId == s.permConfig.NwAdminRole || ac.RoleId == s.permConfig.OrgAdminRole) && (op == 1 || op == 3) {
 		return ErrOpNotAllowed, errors.New("operation not allowed on org admin account")
 	}
 
@@ -476,6 +478,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 	case AddOrg:
 		// check if the org id contains "."
+		if args.orgId == "" || args.url == "" || args.acctId == (common.Address{0}) {
+			return ErrInvalidInput
+		}
 		if !isStringAlphaNumeric(args.orgId) {
 			return ErrInvalidOrgName
 		}
@@ -521,6 +526,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 	case AddSubOrg:
 		// check if the org id contains "."
+		if args.orgId == "" {
+			return ErrInvalidInput
+		}
 		if !isStringAlphaNumeric(args.orgId) {
 			return ErrInvalidOrgName
 		}
@@ -593,7 +601,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = pinterf.ApproveOrgStatus(args.orgId, big.NewInt(int64(args.status)))
 
 	case AddNode:
-		// check if org admin
+		if args.url == "" {
+			return ErrInvalidInput
+		}
 		// check if caller is network admin
 		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
 			return execStatus
@@ -621,6 +631,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.status)))
 
 	case AssignAdminRole:
+		if args.acctId == (common.Address{0}) {
+			return ErrInvalidInput
+		}
 		// check if caller is network admin
 		if args.roleId != s.permConfig.OrgAdminRole && args.roleId != s.permConfig.NwAdminRole {
 			return ErrOpNotAllowed
@@ -657,6 +670,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = pinterf.ApproveAdminRole(args.orgId, args.acctId)
 
 	case AddNewRole:
+		if args.roleId == "" {
+			return ErrInvalidInput
+		}
 		// check if caller is network admin
 		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
 			return execStatus
@@ -667,7 +683,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 
 		// check if role is already there in the org
-		tx, err = pinterf.AddNewRole(args.roleId, args.orgId, big.NewInt(int64(args.accessType)), args.isVoter)
+		tx, err = pinterf.AddNewRole(args.roleId, args.orgId, big.NewInt(int64(args.accessType)), args.isVoter, args.isAdmin)
 
 	case RemoveRole:
 		// check if caller is network admin
@@ -696,6 +712,12 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = pinterf.RemoveRole(args.roleId, args.orgId)
 
 	case AssignAccountRole:
+		if args.acctId == (common.Address{0}) {
+			return ErrInvalidInput
+		}
+		if args.roleId == s.permConfig.OrgAdminRole || args.roleId == s.permConfig.NwAdminRole {
+			return ErrInvalidRole
+		}
 		// check if caller is network admin
 		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
 			return execStatus

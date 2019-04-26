@@ -326,7 +326,7 @@ func (p *PermissionCtrl) manageNodePermissions() {
 
 		case evtNodeActivated = <-chNodeActivated:
 			p.updatePermissionedNodes(evtNodeActivated.EnodeId, NodeAdd)
-			types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, evtNodeActivated.EnodeId, types.NodeActivated)
+			types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, evtNodeActivated.EnodeId, types.NodeApproved)
 
 		case evtNodeBlacklisted = <-chNodeBlacklisted:
 			p.updatePermissionedNodes(evtNodeBlacklisted.EnodeId, NodeDelete)
@@ -552,7 +552,7 @@ func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSes
 	}
 
 	types.OrgInfoMap.UpsertOrg(p.permConfig.NwAdminOrg, "", "", big.NewInt(1), types.OrgApproved)
-	types.RoleInfoMap.UpsertRole(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, true, types.FullAccess, true)
+	types.RoleInfoMap.UpsertRole(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, true, true, types.FullAccess, true)
 	// populate the initial node list from static-nodes.json
 	if err := p.populateStaticNodesToContract(permInterfSession); err != nil {
 		return err
@@ -603,7 +603,7 @@ func (p *PermissionCtrl) populateRolesFromContract(auth *bind.TransactOpts) {
 		iOrgNum := numberOfRoles.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
 			if roleStruct, err := permRoleSession.GetRoleDetailsFromIndex(big.NewInt(int64(k))); err == nil {
-				types.RoleInfoMap.UpsertRole(roleStruct.OrgId, roleStruct.RoleId, roleStruct.Voter, types.AccessType(int(roleStruct.AccessType.Int64())), roleStruct.Active)
+				types.RoleInfoMap.UpsertRole(roleStruct.OrgId, roleStruct.RoleId, roleStruct.Voter, roleStruct.Admin, types.AccessType(int(roleStruct.AccessType.Int64())), roleStruct.Active)
 			}
 		}
 
@@ -720,11 +720,11 @@ func (p *PermissionCtrl) manageRolePermissions() {
 	for {
 		select {
 		case evtRoleCreated = <-chRoleCreated:
-			types.RoleInfoMap.UpsertRole(evtRoleCreated.OrgId, evtRoleCreated.RoleId, evtRoleCreated.IsVoter, types.AccessType(int(evtRoleCreated.BaseAccess.Uint64())), true)
+			types.RoleInfoMap.UpsertRole(evtRoleCreated.OrgId, evtRoleCreated.RoleId, evtRoleCreated.IsVoter, evtRoleCreated.IsAdmin, types.AccessType(int(evtRoleCreated.BaseAccess.Uint64())), true)
 
 		case evtRoleRevoked = <-chRoleRevoked:
 			if r := types.RoleInfoMap.GetRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId); r != nil {
-				types.RoleInfoMap.UpsertRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId, r.IsVoter, r.Access, false)
+				types.RoleInfoMap.UpsertRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId, r.IsVoter, r.IsAdmin, r.Access, false)
 			} else {
 				log.Error("Revoke role - cache is missing role", "org", evtRoleRevoked.OrgId, "role", evtRoleRevoked.RoleId)
 			}

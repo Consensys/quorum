@@ -802,8 +802,8 @@ web3._extend({
                new web3._extend.Method({
                        name: 'addNewRole',
                        call: 'quorumPermission_addNewRole',
-                       params: 5,
-                       inputFormatter: [null,null,null,null,web3._extend.formatters.inputTransactionFormatter]
+                       params: 6,
+                       inputFormatter: [null,null,null,null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
                        name: 'removeRole',

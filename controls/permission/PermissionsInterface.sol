@@ -90,9 +90,9 @@ contract PermissionsInterface {
     }
 
     // Role related functions
-    function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter) external
+    function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter, bool _admin) external
     {
-        permImplementation.addNewRole(_roleId, _orgId, _access, _voter, msg.sender);
+        permImplementation.addNewRole(_roleId, _orgId, _access, _voter, _admin, msg.sender);
     }
 
     function removeRole(string calldata _roleId, string calldata _orgId) external

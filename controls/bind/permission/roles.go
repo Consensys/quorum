@@ -28,7 +28,7 @@ var (
 )
 
 // RoleManagerABI is the input ABI used to generate the binding from.
-const RoleManagerABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getRoleDetails\",\"outputs\":[{\"name\":\"roleId\",\"type\":\"string\"},{\"name\":\"orgId\",\"type\":\"string\"},{\"name\":\"accessType\",\"type\":\"uint256\"},{\"name\":\"voter\",\"type\":\"bool\"},{\"name\":\"active\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"isFullAccessRole\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_baseAccess\",\"type\":\"uint256\"},{\"name\":\"_voter\",\"type\":\"bool\"}],\"name\":\"addRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfRoles\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"rIndex\",\"type\":\"uint256\"}],\"name\":\"getRoleDetailsFromIndex\",\"outputs\":[{\"name\":\"roleId\",\"type\":\"string\"},{\"name\":\"orgId\",\"type\":\"string\"},{\"name\":\"accessType\",\"type\":\"uint256\"},{\"name\":\"voter\",\"type\":\"bool\"},{\"name\":\"active\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"removeRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"roleExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"isVoterRole\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_baseAccess\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"_isVoter\",\"type\":\"bool\"}],\"name\":\"RoleCreated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"RoleRevoked\",\"type\":\"event\"}]"
+const RoleManagerABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getRoleDetails\",\"outputs\":[{\"name\":\"roleId\",\"type\":\"string\"},{\"name\":\"orgId\",\"type\":\"string\"},{\"name\":\"accessType\",\"type\":\"uint256\"},{\"name\":\"voter\",\"type\":\"bool\"},{\"name\":\"active\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"isFullAccessRole\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_baseAccess\",\"type\":\"uint256\"},{\"name\":\"_voter\",\"type\":\"bool\"},{\"name\":\"_admin\",\"type\":\"bool\"}],\"name\":\"addRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfRoles\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"rIndex\",\"type\":\"uint256\"}],\"name\":\"getRoleDetailsFromIndex\",\"outputs\":[{\"name\":\"roleId\",\"type\":\"string\"},{\"name\":\"orgId\",\"type\":\"string\"},{\"name\":\"accessType\",\"type\":\"uint256\"},{\"name\":\"voter\",\"type\":\"bool\"},{\"name\":\"admin\",\"type\":\"bool\"},{\"name\":\"active\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"removeRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"roleExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"isAdminRole\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"isVoterRole\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_baseAccess\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"_isVoter\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_isAdmin\",\"type\":\"bool\"}],\"name\":\"RoleCreated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"RoleRevoked\",\"type\":\"event\"}]"
 
 // RoleManager is an auto generated Go binding around an Ethereum contract.
 type RoleManager struct {
@@ -248,12 +248,13 @@ func (_RoleManager *RoleManagerCallerSession) GetRoleDetails(_roleId string, _or
 
 // GetRoleDetailsFromIndex is a free data retrieval call binding the contract method 0xa451d4a8.
 //
-// Solidity: function getRoleDetailsFromIndex(rIndex uint256) constant returns(roleId string, orgId string, accessType uint256, voter bool, active bool)
+// Solidity: function getRoleDetailsFromIndex(rIndex uint256) constant returns(roleId string, orgId string, accessType uint256, voter bool, admin bool, active bool)
 func (_RoleManager *RoleManagerCaller) GetRoleDetailsFromIndex(opts *bind.CallOpts, rIndex *big.Int) (struct {
 	RoleId     string
 	OrgId      string
 	AccessType *big.Int
 	Voter      bool
+	Admin      bool
 	Active     bool
 }, error) {
 	ret := new(struct {
@@ -261,6 +262,7 @@ func (_RoleManager *RoleManagerCaller) GetRoleDetailsFromIndex(opts *bind.CallOp
 		OrgId      string
 		AccessType *big.Int
 		Voter      bool
+		Admin      bool
 		Active     bool
 	})
 	out := ret
@@ -270,12 +272,13 @@ func (_RoleManager *RoleManagerCaller) GetRoleDetailsFromIndex(opts *bind.CallOp
 
 // GetRoleDetailsFromIndex is a free data retrieval call binding the contract method 0xa451d4a8.
 //
-// Solidity: function getRoleDetailsFromIndex(rIndex uint256) constant returns(roleId string, orgId string, accessType uint256, voter bool, active bool)
+// Solidity: function getRoleDetailsFromIndex(rIndex uint256) constant returns(roleId string, orgId string, accessType uint256, voter bool, admin bool, active bool)
 func (_RoleManager *RoleManagerSession) GetRoleDetailsFromIndex(rIndex *big.Int) (struct {
 	RoleId     string
 	OrgId      string
 	AccessType *big.Int
 	Voter      bool
+	Admin      bool
 	Active     bool
 }, error) {
 	return _RoleManager.Contract.GetRoleDetailsFromIndex(&_RoleManager.CallOpts, rIndex)
@@ -283,15 +286,42 @@ func (_RoleManager *RoleManagerSession) GetRoleDetailsFromIndex(rIndex *big.Int)
 
 // GetRoleDetailsFromIndex is a free data retrieval call binding the contract method 0xa451d4a8.
 //
-// Solidity: function getRoleDetailsFromIndex(rIndex uint256) constant returns(roleId string, orgId string, accessType uint256, voter bool, active bool)
+// Solidity: function getRoleDetailsFromIndex(rIndex uint256) constant returns(roleId string, orgId string, accessType uint256, voter bool, admin bool, active bool)
 func (_RoleManager *RoleManagerCallerSession) GetRoleDetailsFromIndex(rIndex *big.Int) (struct {
 	RoleId     string
 	OrgId      string
 	AccessType *big.Int
 	Voter      bool
+	Admin      bool
 	Active     bool
 }, error) {
 	return _RoleManager.Contract.GetRoleDetailsFromIndex(&_RoleManager.CallOpts, rIndex)
+}
+
+// IsAdminRole is a free data retrieval call binding the contract method 0xbe322e54.
+//
+// Solidity: function isAdminRole(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerCaller) IsAdminRole(opts *bind.CallOpts, _roleId string, _orgId string, _ultParent string) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _RoleManager.contract.Call(opts, out, "isAdminRole", _roleId, _orgId, _ultParent)
+	return *ret0, err
+}
+
+// IsAdminRole is a free data retrieval call binding the contract method 0xbe322e54.
+//
+// Solidity: function isAdminRole(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerSession) IsAdminRole(_roleId string, _orgId string, _ultParent string) (bool, error) {
+	return _RoleManager.Contract.IsAdminRole(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
+}
+
+// IsAdminRole is a free data retrieval call binding the contract method 0xbe322e54.
+//
+// Solidity: function isAdminRole(_roleId string, _orgId string, _ultParent string) constant returns(bool)
+func (_RoleManager *RoleManagerCallerSession) IsAdminRole(_roleId string, _orgId string, _ultParent string) (bool, error) {
+	return _RoleManager.Contract.IsAdminRole(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
 // IsFullAccessRole is a free data retrieval call binding the contract method 0x1df2ec04.
@@ -372,25 +402,25 @@ func (_RoleManager *RoleManagerCallerSession) RoleExists(_roleId string, _orgId 
 	return _RoleManager.Contract.RoleExists(&_RoleManager.CallOpts, _roleId, _orgId, _ultParent)
 }
 
-// AddRole is a paid mutator transaction binding the contract method 0x5ba4d7c5.
+// AddRole is a paid mutator transaction binding the contract method 0x7b713579.
 //
-// Solidity: function addRole(_roleId string, _orgId string, _baseAccess uint256, _voter bool) returns()
-func (_RoleManager *RoleManagerTransactor) AddRole(opts *bind.TransactOpts, _roleId string, _orgId string, _baseAccess *big.Int, _voter bool) (*types.Transaction, error) {
-	return _RoleManager.contract.Transact(opts, "addRole", _roleId, _orgId, _baseAccess, _voter)
+// Solidity: function addRole(_roleId string, _orgId string, _baseAccess uint256, _voter bool, _admin bool) returns()
+func (_RoleManager *RoleManagerTransactor) AddRole(opts *bind.TransactOpts, _roleId string, _orgId string, _baseAccess *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
+	return _RoleManager.contract.Transact(opts, "addRole", _roleId, _orgId, _baseAccess, _voter, _admin)
 }
 
-// AddRole is a paid mutator transaction binding the contract method 0x5ba4d7c5.
+// AddRole is a paid mutator transaction binding the contract method 0x7b713579.
 //
-// Solidity: function addRole(_roleId string, _orgId string, _baseAccess uint256, _voter bool) returns()
-func (_RoleManager *RoleManagerSession) AddRole(_roleId string, _orgId string, _baseAccess *big.Int, _voter bool) (*types.Transaction, error) {
-	return _RoleManager.Contract.AddRole(&_RoleManager.TransactOpts, _roleId, _orgId, _baseAccess, _voter)
+// Solidity: function addRole(_roleId string, _orgId string, _baseAccess uint256, _voter bool, _admin bool) returns()
+func (_RoleManager *RoleManagerSession) AddRole(_roleId string, _orgId string, _baseAccess *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
+	return _RoleManager.Contract.AddRole(&_RoleManager.TransactOpts, _roleId, _orgId, _baseAccess, _voter, _admin)
 }
 
-// AddRole is a paid mutator transaction binding the contract method 0x5ba4d7c5.
+// AddRole is a paid mutator transaction binding the contract method 0x7b713579.
 //
-// Solidity: function addRole(_roleId string, _orgId string, _baseAccess uint256, _voter bool) returns()
-func (_RoleManager *RoleManagerTransactorSession) AddRole(_roleId string, _orgId string, _baseAccess *big.Int, _voter bool) (*types.Transaction, error) {
-	return _RoleManager.Contract.AddRole(&_RoleManager.TransactOpts, _roleId, _orgId, _baseAccess, _voter)
+// Solidity: function addRole(_roleId string, _orgId string, _baseAccess uint256, _voter bool, _admin bool) returns()
+func (_RoleManager *RoleManagerTransactorSession) AddRole(_roleId string, _orgId string, _baseAccess *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
+	return _RoleManager.Contract.AddRole(&_RoleManager.TransactOpts, _roleId, _orgId, _baseAccess, _voter, _admin)
 }
 
 // RemoveRole is a paid mutator transaction binding the contract method 0xa6343012.
@@ -487,12 +517,13 @@ type RoleManagerRoleCreated struct {
 	OrgId      string
 	BaseAccess *big.Int
 	IsVoter    bool
+	IsAdmin    bool
 	Raw        types.Log // Blockchain specific contextual infos
 }
 
-// FilterRoleCreated is a free log retrieval operation binding the contract event 0x386ac6109c3e45c782fc5c1ad923957645d668ed4197e3173966eb66413e07c6.
+// FilterRoleCreated is a free log retrieval operation binding the contract event 0xefa5bc1bedbee25b04b00855c15a0c180ecb4a2440d4d08296e49561655e2b1c.
 //
-// Solidity: e RoleCreated(_roleId string, _orgId string, _baseAccess uint256, _isVoter bool)
+// Solidity: e RoleCreated(_roleId string, _orgId string, _baseAccess uint256, _isVoter bool, _isAdmin bool)
 func (_RoleManager *RoleManagerFilterer) FilterRoleCreated(opts *bind.FilterOpts) (*RoleManagerRoleCreatedIterator, error) {
 
 	logs, sub, err := _RoleManager.contract.FilterLogs(opts, "RoleCreated")
@@ -502,9 +533,9 @@ func (_RoleManager *RoleManagerFilterer) FilterRoleCreated(opts *bind.FilterOpts
 	return &RoleManagerRoleCreatedIterator{contract: _RoleManager.contract, event: "RoleCreated", logs: logs, sub: sub}, nil
 }
 
-// WatchRoleCreated is a free log subscription operation binding the contract event 0x386ac6109c3e45c782fc5c1ad923957645d668ed4197e3173966eb66413e07c6.
+// WatchRoleCreated is a free log subscription operation binding the contract event 0xefa5bc1bedbee25b04b00855c15a0c180ecb4a2440d4d08296e49561655e2b1c.
 //
-// Solidity: e RoleCreated(_roleId string, _orgId string, _baseAccess uint256, _isVoter bool)
+// Solidity: e RoleCreated(_roleId string, _orgId string, _baseAccess uint256, _isVoter bool, _isAdmin bool)
 func (_RoleManager *RoleManagerFilterer) WatchRoleCreated(opts *bind.WatchOpts, sink chan<- *RoleManagerRoleCreated) (event.Subscription, error) {
 
 	logs, sub, err := _RoleManager.contract.WatchLogs(opts, "RoleCreated")
