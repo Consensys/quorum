@@ -145,6 +145,7 @@ var (
 
 	rpcFlags = []cli.Flag{
 		utils.RPCEnabledFlag,
+		utils.RPCClientToken,
 		utils.RPCEnabledSecurityFlag,
 		utils.RPCSecurityConfigFileFlag,
 		utils.RPCListenAddrFlag,

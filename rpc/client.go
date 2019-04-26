@@ -170,7 +170,7 @@ func DialContextWithSecurity(ctx context.Context, rawurl string, token string) (
 	case "http", "https":
 		return DialHTTPWithSecurity(rawurl, token)
 	case "ws", "wss":
-		return DialWebsocket(ctx, rawurl, "")
+		return DialWebsocketWithSecurity(ctx, rawurl, "", token)
 	case "stdio":
 		return DialStdIO(ctx)
 	case "":

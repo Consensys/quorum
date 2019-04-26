@@ -110,9 +110,6 @@ func wsHandshakeValidator(allowedOrigins []string) func(*websocket.Config, *http
 	f := func(cfg *websocket.Config, req *http.Request) error {
 		origin := strings.ToLower(req.Header.Get("Origin"))
 		if allowAllOrigins || origins.Contains(origin) {
-
-
-
 			return nil
 		}
 
@@ -158,6 +155,8 @@ func wsGetConfig(endpoint, origin string) (*websocket.Config, error) {
 // affect subsequent interactions with the client.
 func DialWebsocketWithSecurity(ctx context.Context, endpoint, origin string, token string) (*Client, error) {
 	config, err := wsGetConfig(endpoint, origin)
+	config.Header.Add("Token", token)
+	fmt.Println("Testing header")
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +171,7 @@ func DialWebsocketWithSecurity(ctx context.Context, endpoint, origin string, tok
 //
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
-func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error) {
+func DialWebsgocket(ctx context.Context, endpoint, origin string) (*Client, error) {
 	config, err := wsGetConfig(endpoint, origin)
 	if err != nil {
 		return nil, err

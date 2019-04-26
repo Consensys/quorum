@@ -171,6 +171,7 @@ func (s *Server) serveRequest(ctx context.Context, codec ServerCodec, singleShot
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+
 	// if the codec supports notification include a notifier that callbacks can use
 	// to send notification to clients. It is tied to the codec/connection. If the
 	// connection is closed the notifier will stop and cancels all active subscriptions.
@@ -406,6 +407,8 @@ func (s *Server) execBatch(ctx context.Context, codec ServerCodec, requests []*s
 // of requests, an indication if the request was a batch, the invalid request identifier and an
 // error when the request could not be read/parsed.
 func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) {
+
+	// Web socket validation here
 	reqs, batch, err := codec.ReadRequestHeaders()
 	if err != nil {
 		return nil, batch, err
@@ -422,6 +425,11 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			requests[i] = &serverRequest{id: r.id, err: r.err}
 			continue
 		}
+
+		fmt.Println("request params",r.params)
+		fmt.Println("request method",r.method)
+		fmt.Println("request service",r.service)
+
 
 		if r.isPubSub && strings.HasSuffix(r.method, unsubscribeMethodSuffix) {
 			requests[i] = &serverRequest{id: r.id, isUnsubscribe: true}
