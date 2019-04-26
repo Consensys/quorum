@@ -52,12 +52,12 @@ var websocketJSONCodec = websocket.Codec{
 	},
 }
 
-// WebsocketHandler returns a handler that serves JSON-RPC to WebSocket connections.
+// WebsocketHandlerWithSecurity returns a handler that serves JSON-RPC to WebSocket connections.
 //
 // allowedOrigins should be a comma-separated list of allowed origin URLs.
 // To allow connections with any origin, pass "*".
-func (srv *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
-	return websocket.Server{
+func (srv *Server) WebsocketHandlerWithSecurity(allowedOrigins []string, securityContext SecurityContext) http.Handler {
+	server := websocket.Server{
 		Handshake: wsHandshakeValidator(allowedOrigins),
 		Handler: func(conn *websocket.Conn) {
 			// Create a custom encode/decode pair to enforce payload size and number encoding
@@ -69,9 +69,45 @@ func (srv *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
 			decoder := func(v interface{}) error {
 				return websocketJSONCodec.Receive(conn, v)
 			}
+
+
 			srv.ServeCodec(NewCodec(conn, encoder, decoder), OptionMethodInvocation|OptionSubscriptions)
 		},
 	}
+
+
+	return server
+}
+
+// WebsocketHandler returns a handler that serves JSON-RPC to WebSocket connections.
+//
+// allowedOrigins should be a comma-separated list of allowed origin URLs.
+// To allow connections with any origin, pass "*".
+func (srv *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
+	 server := websocket.Server{
+		Handshake: wsHandshakeValidator(allowedOrigins),
+		Handler: func(conn *websocket.Conn) {
+			// Create a custom encode/decode pair to enforce payload size and number encoding
+			conn.MaxPayloadBytes = maxRequestContentLength
+
+			encoder := func(v interface{}) error {
+				return websocketJSONCodec.Send(conn, v)
+			}
+			decoder := func(v interface{}) error {
+				return websocketJSONCodec.Receive(conn, v)
+			}
+
+
+			srv.ServeCodec(NewCodec(conn, encoder, decoder), OptionMethodInvocation|OptionSubscriptions)
+		},
+	}
+
+
+	 return server
+}
+
+func NewWSServerWithSecurity(allowedOrigins []string, srv *Server, securityContext SecurityContext) *http.Server {
+	return &http.Server{Handler: srv.WebsocketHandlerWithSecurity(allowedOrigins, securityContext)}
 }
 
 // NewWSServer creates a new websocket RPC server around an API provider.
@@ -155,12 +191,13 @@ func wsGetConfig(endpoint, origin string) (*websocket.Config, error) {
 // affect subsequent interactions with the client.
 func DialWebsocketWithSecurity(ctx context.Context, endpoint, origin string, token string) (*Client, error) {
 	config, err := wsGetConfig(endpoint, origin)
-	config.Header.Add("Token", token)
-	fmt.Println("Testing header")
+
 	if err != nil {
 		return nil, err
 	}
-
+	if token != "" {
+		config.Header.Add("Token", token)
+	}
 	return newClient(ctx, func(ctx context.Context) (net.Conn, error) {
 		return wsDialContext(ctx, config)
 	})
@@ -171,7 +208,7 @@ func DialWebsocketWithSecurity(ctx context.Context, endpoint, origin string, tok
 //
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
-func DialWebsgocket(ctx context.Context, endpoint, origin string) (*Client, error) {
+func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error) {
 	config, err := wsGetConfig(endpoint, origin)
 	if err != nil {
 		return nil, err

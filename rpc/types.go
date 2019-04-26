@@ -86,6 +86,7 @@ type rpcRequest struct {
 	isPubSub bool
 	params   interface{}
 	err      Error // invalid batch element
+	token 	 string
 }
 
 // Error wraps RPC errors, which contain an error code in addition to the message.

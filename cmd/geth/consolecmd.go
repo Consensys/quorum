@@ -165,7 +165,6 @@ func remoteConsole(ctx *cli.Context) error {
 	} else {
 
 		client, err := dialRPCWithSecurity(endpoint, token)
-
 		if err != nil {
 			utils.Fatalf("Unable to attach to remote geth: %v", err)
 		}
@@ -176,7 +175,7 @@ func remoteConsole(ctx *cli.Context) error {
 			Preload: utils.MakeConsolePreloads(ctx),
 		}
 
-		console, err := console.New(config)
+		console, err := console.NewWithSecurity(config, token)
 		if err != nil {
 			utils.Fatalf("Failed to start the JavaScript console: %v", err)
 		}

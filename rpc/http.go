@@ -112,6 +112,7 @@ func DialHTTPWithClientSecurity(endpoint string, token string, client *http.Clie
 
 
 	initctx := context.Background()
+	initctx  = context.WithValue(initctx, "Token", token)
 	return newClient(initctx, func(context.Context) (net.Conn, error) {
 			return &httpConn{client: client, req: req, closed: make(chan struct{})}, nil
 		})

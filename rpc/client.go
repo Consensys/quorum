@@ -85,6 +85,7 @@ type jsonrpcMessage struct {
 	Params  json.RawMessage `json:"params,omitempty"`
 	Error   *jsonError      `json:"error,omitempty"`
 	Result  json.RawMessage `json:"result,omitempty"`
+	Token   string          `json:"token,omitempty"`
 }
 
 func (msg *jsonrpcMessage) isNotification() bool {
@@ -155,8 +156,9 @@ func (op *requestOp) wait(ctx context.Context) (*jsonrpcMessage, error) {
 //
 // The client reconnects automatically if the connection is lost.
 func DialWithSecurity(rawurl string, token string) (*Client, error) {
-	return DialContextWithSecurity(context.Background(), rawurl,token)
+	return DialContextWithSecurity(context.Background(), rawurl, token)
 }
+
 // DialContext creates a new RPC client, just like Dial.
 //
 // The context is used to cancel or time out the initial connection establishment. It does
@@ -194,7 +196,6 @@ func Dial(rawurl string) (*Client, error) {
 	return DialContext(context.Background(), rawurl)
 }
 
-
 // DialContext creates a new RPC client, just like Dial.
 //
 // The context is used to cancel or time out the initial connection establishment. It does
@@ -216,6 +217,34 @@ func DialContext(ctx context.Context, rawurl string) (*Client, error) {
 	default:
 		return nil, fmt.Errorf("no known transport for URL scheme %q", u.Scheme)
 	}
+}
+
+func newClientWithSecurity(initctx context.Context, connectFunc func(context.Context) (net.Conn, error), token string) (*Client, error) {
+	conn, err := connectFunc(initctx)
+	if err != nil {
+		return nil, err
+	}
+	_, isHTTP := conn.(*httpConn)
+	c := &Client{
+		writeConn:   conn,
+		isHTTP:      isHTTP,
+		connectFunc: connectFunc,
+		close:       make(chan struct{}),
+		closing:     make(chan struct{}),
+		didClose:    make(chan struct{}),
+		reconnected: make(chan net.Conn),
+		readErr:     make(chan error),
+		readResp:    make(chan []*jsonrpcMessage),
+		requestOp:   make(chan *requestOp),
+		sendDone:    make(chan error, 1),
+		respWait:    make(map[string]*requestOp),
+		subs:        make(map[string]*ClientSubscription),
+	}
+	if !isHTTP {
+		go c.dispatch(conn)
+	}
+
+	return c, nil
 }
 
 func newClient(initctx context.Context, connectFunc func(context.Context) (net.Conn, error)) (*Client, error) {
@@ -252,6 +281,16 @@ func (c *Client) nextID() json.RawMessage {
 
 // SupportedModules calls the rpc_modules method, retrieving the list of
 // APIs that are available on the server.
+func (c *Client) SupportedModulesWithSecurity(token string) (map[string]string, error) {
+	var result map[string]string
+	ctx, cancel := context.WithTimeout(context.Background(), subscribeTimeout)
+	defer cancel()
+	err := c.CallContextWithSecurity(ctx, &result, "rpc_modules", token)
+	return result, err
+}
+
+// SupportedModules calls the rpc_modules method, retrieving the list of
+// APIs that are available on the server.
 func (c *Client) SupportedModules() (map[string]string, error) {
 	var result map[string]string
 	ctx, cancel := context.WithTimeout(context.Background(), subscribeTimeout)
@@ -277,9 +316,56 @@ func (c *Client) Close() {
 //
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
+func (c *Client) CallWithSecurity(result interface{}, method string, token string, args ...interface{}) error {
+	ctx := context.Background()
+	return c.CallContextWithSecurity(ctx, result, method, token, args)
+}
+
+// Call performs a JSON-RPC call with the given arguments and unmarshals into
+// result if no error occurred.
+//
+// The result must be a pointer so that package json can unmarshal into it. You
+// can also pass nil, in which case the result is ignored.
 func (c *Client) Call(result interface{}, method string, args ...interface{}) error {
 	ctx := context.Background()
+
 	return c.CallContext(ctx, result, method, args...)
+}
+
+// CallContext performs a JSON-RPC call with the given arguments. If the context is
+// canceled before the call has successfully returned, CallContext returns immediately.
+//
+// The result must be a pointer so that package json can unmarshal into it. You
+// can also pass nil, in which case the result is ignored.
+func (c *Client) CallContextWithSecurity(ctx context.Context, result interface{}, method string, token string, args ...interface{}) error {
+	msg, err := c.newMessage(method, args...)
+	msg.Token = token
+
+	if err != nil {
+		return err
+	}
+	op := &requestOp{ids: []json.RawMessage{msg.ID}, resp: make(chan *jsonrpcMessage, 1)}
+
+	if c.isHTTP {
+		err = c.sendHTTP(ctx, op, msg)
+	} else {
+		err = c.send(ctx, op, msg)
+	}
+	if err != nil {
+		return err
+	}
+
+	// dispatch has accepted the request and will close the channel when it quits.
+	switch resp, err := op.wait(ctx); {
+	case err != nil:
+		return err
+	case resp.Error != nil:
+		return resp.Error
+	case len(resp.Result) == 0:
+		return ErrNoResult
+	default:
+		return json.Unmarshal(resp.Result, &result)
+	}
 }
 
 // CallContext performs a JSON-RPC call with the given arguments. If the context is
@@ -289,6 +375,7 @@ func (c *Client) Call(result interface{}, method string, args ...interface{}) er
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
 	msg, err := c.newMessage(method, args...)
+
 	if err != nil {
 		return err
 	}
@@ -816,7 +903,7 @@ func (sub *ClientSubscription) forward() (err error, unsubscribeServer bool) {
 				return ErrSubscriptionQueueOverflow, true
 			}
 			buffer.PushBack(val)
-		case 2: // sub.channel<-
+		case 2:                             // sub.channel<-
 			cases[2].Send = reflect.Value{} // Don't hold onto the value.
 			buffer.Remove(buffer.Front())
 		}

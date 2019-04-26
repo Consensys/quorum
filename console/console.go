@@ -71,6 +71,41 @@ type Console struct {
 	histPath string       // Absolute path to the console scrollback history
 	history  []string     // Scroll history maintained by the console
 	printer  io.Writer    // Output writer to serialize any display strings to
+
+	token    string
+}
+
+// New initializes a JavaScript interpreted runtime environment and sets defaults
+// with the config struct.
+func NewWithSecurity(config Config, token string) (*Console, error) {
+	// Handle unset config values gracefully
+	if config.Prompter == nil {
+		config.Prompter = Stdin
+	}
+	if config.Prompt == "" {
+		config.Prompt = DefaultPrompt
+	}
+	if config.Printer == nil {
+		config.Printer = colorable.NewColorableStdout()
+	}
+	// Initialize the console and return
+	console := &Console{
+		client:   config.Client,
+		jsre:     jsre.New(config.DocRoot, config.Printer),
+		prompt:   config.Prompt,
+		prompter: config.Prompter,
+		printer:  config.Printer,
+		histPath: filepath.Join(config.DataDir, HistoryFile),
+	}
+	if err := os.MkdirAll(config.DataDir, 0700); err != nil {
+		return nil, err
+	}
+	console.token = token
+	if err := console.init(config.Preload); err != nil {
+		return nil, err
+	}
+
+	return console, nil
 }
 
 // New initializes a JavaScript interpreted runtime environment and sets defaults
@@ -98,23 +133,39 @@ func New(config Config) (*Console, error) {
 	if err := os.MkdirAll(config.DataDir, 0700); err != nil {
 		return nil, err
 	}
+
+
 	if err := console.init(config.Preload); err != nil {
 		return nil, err
 	}
 	return console, nil
 }
 
+
+
 // init retrieves the available APIs from the remote RPC provider and initializes
 // the console's JavaScript namespaces based on the exposed modules.
 func (c *Console) init(preload []string) error {
 	// Initialize the JavaScript <-> Go RPC bridge
-	bridge := newBridge(c.client, c.prompter, c.printer)
+	var bridge *bridge
+	if c.token  == ""{
+		bridge = newBridge(c.client, c.prompter, c.printer)
+	}else{
+		bridge = newBridgeWithSecurity(c.client, c.prompter, c.printer, c.token)
+	}
+
+
 	c.jsre.Set("jeth", struct{}{})
 
 	jethObj, _ := c.jsre.Get("jeth")
-	jethObj.Object().Set("send", bridge.Send)
-	jethObj.Object().Set("sendAsync", bridge.Send)
+	if c.token == "" {
+		jethObj.Object().Set("send", bridge.Send)
+		jethObj.Object().Set("sendAsync", bridge.Send)
+	} else {
 
+		jethObj.Object().Set("send", bridge.SendWithSecurity)
+		jethObj.Object().Set("sendAsync", bridge.SendWithSecurity)
+	}
 	consoleObj, _ := c.jsre.Get("console")
 	consoleObj.Object().Set("log", c.consoleOutput)
 	consoleObj.Object().Set("error", c.consoleOutput)
@@ -133,7 +184,17 @@ func (c *Console) init(preload []string) error {
 		return fmt.Errorf("web3 provider: %v", err)
 	}
 	// Load the supported APIs into the JavaScript runtime environment
-	apis, err := c.client.SupportedModules()
+
+	var apis  map[string]string
+	var err  error
+
+	if c.token == "" {
+		apis, err = c.client.SupportedModules()
+
+	}else {
+		apis, err = c.client.SupportedModulesWithSecurity(c.token)
+	}
+
 	if err != nil {
 		return fmt.Errorf("api modules: %v", err)
 	}
@@ -156,6 +217,9 @@ func (c *Console) init(preload []string) error {
 	if _, err = c.jsre.Run(flatten); err != nil {
 		return fmt.Errorf("namespace flattening: %v", err)
 	}
+
+
+
 	// Initialize the global name register (disabled for now)
 	//c.jsre.Run(`var GlobalRegistrar = eth.contract(` + registrar.GlobalRegistrarAbi + `);   registrar = GlobalRegistrar.at("` + registrar.GlobalRegistrarAddr + `");`)
 

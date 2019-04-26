@@ -39,6 +39,8 @@ type AuthorizationServerCert struct {
 
 // AuthorizationServerInformation
 type AuthorizationServerInformation struct {
+	ProviderCategory string `json:"providerCategory"`
+
 	// Authorization Server Introspection URL.
 	ProviderIntrospectionURL string `json:"providerIntrospectionURL"`
 
@@ -68,7 +70,7 @@ type SecurityContext struct {
 	Enabled               bool
 	Config                *SecurityConfig
 	Client                *http.Client
-	LocalSecurityProvider LocalSecurityProvider
+	LocalSecurityProvider *LocalSecurityProvider
 }
 
 func (ctx *SecurityContext) getHttpClient() *http.Client {
@@ -125,7 +127,6 @@ func (ctx *SecurityContext) buildHttpClient() *http.Client {
 func (ctx *SecurityContext) isHttpRequestAuthorized(r *http.Request) bool {
 	providerType := strings.ToLower(ctx.Config.ProviderType)
 	clientToken := r.Header.Get("Token")
-	fmt.Println("%v", r.Header)
 
 	if providerType == "" {
 		return false
@@ -136,7 +137,7 @@ func (ctx *SecurityContext) isHttpRequestAuthorized(r *http.Request) bool {
 	}
 
 	if providerType == PROVIDER_ENTERPRISE {
-		fmt.Printf("Send Introspect Request")
+
 	}
 
 	if providerType == PROVIDER_LOCAL {
@@ -149,7 +150,17 @@ func (ctx *SecurityContext) isHttpRequestAuthorized(r *http.Request) bool {
 }
 
 // Parse the RPC Request, Call send Introspect Request & Parse results
-func (ctx *SecurityContext) isWSRequestAuthorized(r *http.Request) bool {
+func (ctx *SecurityContext) isWSRequestAuthorized(request rpcRequest) bool {
+	fmt.Println("Send WS Introspect for:")
+	fmt.Println(request)
+
+	if request.token == "cucrisis" {
+		if request.service != "admin" {
+			return true
+		}
+	}
+
+
 	return false
 }
 
@@ -171,12 +182,15 @@ func (ctx *SecurityContext) ProcessHttpRequest(r *http.Request) (int, error) {
 }
 
 // Process WS Request
-func (ctx *SecurityContext) ProcessWSRequest(r *http.Request) (int, error) {
+func (ctx *SecurityContext) ProcessWSRequest(request rpcRequest) error {
 	if ctx.Enabled && ctx.Config == nil {
-		return http.StatusUnauthorized, errors.New("Request requires valid token")
+		return errors.New("Request requires valid token")
 	}
 
-	return http.StatusUnauthorized, errors.New("Request requires valid token")
+	if !ctx.isWSRequestAuthorized(request) {
+		return errors.New("Request requires valid token")
+	}
+	return nil
 }
 
 type LocalSecurityProvider struct {

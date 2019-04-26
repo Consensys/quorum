@@ -25,7 +25,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	mapset "github.com/deckarep/golang-set"
+	"github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -288,6 +288,7 @@ func (s *Server) handle(ctx context.Context, codec ServerCodec, req *serverReque
 		return codec.CreateErrorResponse(&req.id, req.err), nil
 	}
 
+
 	if req.isUnsubscribe { // cancel subscription, first param must be the subscription id
 		if len(req.args) >= 1 && req.args[0].Kind() == reflect.String {
 			notifier, supported := NotifierFromContext(ctx)
@@ -407,7 +408,7 @@ func (s *Server) execBatch(ctx context.Context, codec ServerCodec, requests []*s
 // of requests, an indication if the request was a batch, the invalid request identifier and an
 // error when the request could not be read/parsed.
 func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) {
-
+	// parse here
 	// Web socket validation here
 	reqs, batch, err := codec.ReadRequestHeaders()
 	if err != nil {
@@ -421,14 +422,18 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 		var ok bool
 		var svc *service
 
+		// Validate token with server
+		if s.securityContext.Enabled  {
+			if  err := s.securityContext.ProcessWSRequest(r); err !=nil {
+				r.err = &invalidParamsError{err.Error()}
+			}
+		}
+
 		if r.err != nil {
 			requests[i] = &serverRequest{id: r.id, err: r.err}
 			continue
 		}
 
-		fmt.Println("request params",r.params)
-		fmt.Println("request method",r.method)
-		fmt.Println("request service",r.service)
 
 
 		if r.isPubSub && strings.HasSuffix(r.method, unsubscribeMethodSuffix) {
