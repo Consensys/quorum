@@ -19,6 +19,7 @@ package utils
 
 import (
 	"crypto/ecdsa"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -26,6 +27,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -55,9 +58,9 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	"gopkg.in/urfave/cli.v1"
-	"time"
 )
 
 var (
@@ -440,6 +443,26 @@ var (
 		Name:  "rpcapi",
 		Usage: "API's offered over the HTTP-RPC interface",
 		Value: "",
+	}
+	TLSEnabledFlag = cli.BoolFlag{
+		Name:  "tls",
+		Usage: "Activate TLS support on HTTP-RPC server",
+	}
+	TLSCertFileFlag = cli.StringFlag{
+		Name:  "tlscert",
+		Usage: "TLS certificate file (auto-generated if empty, and TLS support is enabled)",
+	}
+	TLSCertCAFlag = cli.BoolFlag{
+		Name:  "tlscertca",
+		Usage: "Whether provided certificate is serves as its own CA",
+	}
+	TLSKeyFileFlag = cli.StringFlag{
+		Name:  "tlskey",
+		Usage: "TLS key file (auto-generated if empty, and TLS support is enabled)",
+	}
+	TLSNoVerifyFlag = cli.BoolFlag{
+		Name:  "tlsnoverify",
+		Usage: "Whether server's TSL certificate must be verified or not (on connection by client)",
 	}
 	IPCDisabledFlag = cli.BoolFlag{
 		Name:  "ipcdisable",
@@ -1020,6 +1043,11 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	setWS(ctx, cfg)
 	setNodeUserIdent(ctx, cfg)
 
+	cfg.TLSConfig = MakeServerTLSConfig(ctx)
+	if cfg.TLSConfig != nil {
+		cfg.TLSEnabled = true
+	}
+
 	cfg.EnableNodePermission = ctx.GlobalBool(EnableNodePermissionFlag.Name)
 
 	switch {
@@ -1519,4 +1547,59 @@ func MigrateFlags(action func(ctx *cli.Context) error) func(*cli.Context) error 
 		}
 		return action(ctx)
 	}
+}
+
+// MakeServerTLSConfig parses incoming TLS-related options, and produces configuration
+// ready to be injected into server connection's transport
+func MakeServerTLSConfig(ctx *cli.Context) *tls.Config {
+	var host string
+	if ctx.GlobalBool(RPCEnabledFlag.Name) {
+		host = ctx.GlobalString(RPCListenAddrFlag.Name)
+	} else {
+		return nil
+	}
+	if !ctx.GlobalBool(TLSEnabledFlag.Name) {
+		return nil
+	}
+	config, err := rpc.MakeServerTLSConfig(host, MakeTLSCertPath(ctx), MakeTLSKeyPath(ctx))
+	if err != nil {
+		return nil
+	}
+
+	return config
+}
+
+// MakeClientTLSConfig parses incoming TLS-related options, and produces configuration
+// ready to be injected into client connection's transport
+func MakeClientTLSConfig(ctx *cli.Context) *tls.Config {
+	return rpc.MakeClientTLSConfig(
+		MakeTLSCertPath(ctx), MakeTLSKeyPath(ctx),
+		ctx.GlobalBool(TLSCertCAFlag.Name),
+		ctx.GlobalBool(TLSNoVerifyFlag.Name))
+}
+
+// MakeTLSCertPath returns TLS certificate file path from CLI options
+// (or default one, if nothing is provided in options)
+func MakeTLSCertPath(ctx *cli.Context) string {
+	basePath := MakeDataDir(ctx)
+
+	certPath := ctx.GlobalString(TLSCertFileFlag.Name)
+	if certPath == "" {
+		certPath = filepath.Join(basePath, rpc.DefaultTLSCertFile)
+	}
+
+	return certPath
+}
+
+// MakeTLSKeyPath returns TLS key file path from CLI options
+// (or default one, if nothing is provided in options)
+func MakeTLSKeyPath(ctx *cli.Context) string {
+	basePath := MakeDataDir(ctx)
+
+	keyPath := ctx.GlobalString(TLSKeyFileFlag.Name)
+	if keyPath == "" {
+		keyPath = filepath.Join(basePath, rpc.DefaultTLSKeyFile)
+	}
+
+	return keyPath
 }

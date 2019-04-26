@@ -17,13 +17,14 @@
 package rpc
 
 import (
+	"crypto/tls"
 	"net"
 
 	"github.com/ethereum/go-ethereum/log"
 )
 
 // StartHTTPEndpoint starts the HTTP RPC endpoint, configured with cors/vhosts/modules
-func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []string, vhosts []string, timeouts HTTPTimeouts) (net.Listener, *Server, error) {
+func StartHTTPEndpoint(TLSEnabled bool, TLSConfig *tls.Config, endpoint string, apis []API, modules []string, cors []string, vhosts []string, timeouts HTTPTimeouts) (net.Listener, *Server, error) {
 	// Generate the whitelist based on the allowed modules
 	whitelist := make(map[string]bool)
 	for _, module := range modules {
@@ -46,6 +47,9 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 	)
 	if listener, err = net.Listen("tcp", endpoint); err != nil {
 		return nil, nil, err
+	}
+	if TLSEnabled {
+		listener = tls.NewListener(listener, TLSConfig)
 	}
 	go NewHTTPServer(cors, vhosts, timeouts, handler).Serve(listener)
 	return listener, handler, err

@@ -4,6 +4,36 @@
 [![Build Status](https://travis-ci.org/jpmorganchase/quorum.svg?branch=master)](https://travis-ci.org/jpmorganchase/quorum)
 [![Download](https://api.bintray.com/packages/quorumengineering/quorum/geth/images/download.svg)](https://bintray.com/quorumengineering/quorum/geth/_latestVersion)
 
+## [Ethereal Hackathon] TLS Support On Quorum
+The main implementation of the code support for TLS transmission is based on the go-ethereum pull request [#3506](https://github.com/ethereum/go-ethereum/pull/3506)
+### Feature
++ This PR has basic support for transport layer security, and allows servicing RPC requests on HTTPS
++ Both server and console have been updated i.e. you can use geth attach to connect to TLS-enabled node
++ Support for self-signed certificates (again both server and client side) has been added
++ Extra utils to auto-generate self-signed certificate/key
+
+### Usage
+>Server
+```
+# start node, enable TLS, use provided cert/key
+geth --rpc --tls --tlscert cert.pem --tlskey key.pem console
+
+# start node, enable TLS, auto-generate cert/key
+geth --rpc --tls console
+```
+>Client
+```
+# connect to TLS-enabled node, use given certificate, treat certificate as its own CA
+geth --tlscert tlscert.pem --tlskey tlskey.pem --tlscertca attach https://localhost:8545
+
+# connect to TLS-enabled node, make sure that client accepts any key provided by server(including self-signed certificate)
+geth --tlsnoverify attach https://localhost:8545
+
+# connect to TLS-enabled node, which uses certificate signed by known CA
+geth --tlsnoverify attach https://localhost:8545
+```
+***
+
 Quorum is an Ethereum-based distributed ledger protocol with transaction/contract privacy and new consensus mechanisms.
 
 Quorum is a fork of [go-ethereum](https://github.com/ethereum/go-ethereum) and is updated in line with go-ethereum releases.

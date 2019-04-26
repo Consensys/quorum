@@ -18,6 +18,7 @@ package node
 
 import (
 	"crypto/ecdsa"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -123,6 +124,12 @@ type Config struct {
 	// HTTPTimeouts allows for customization of the timeout values used by the HTTP RPC
 	// interface.
 	HTTPTimeouts rpc.HTTPTimeouts
+
+	// TLSEnabled whether TLSConfig was correctly populated, and server is TLS-enabled node.
+	TLSEnabled bool
+
+	// TLSConfig is used to configure TLS capability of a server
+	TLSConfig *tls.Config
 
 	// WSHost is the host interface on which to start the websocket RPC server. If
 	// this field is empty, no websocket API endpoint will be started.

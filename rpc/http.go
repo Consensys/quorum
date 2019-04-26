@@ -101,7 +101,7 @@ var DefaultHTTPTimeouts = HTTPTimeouts{
 
 // DialHTTPWithClient creates a new RPC client that connects to an RPC server over HTTP
 // using the provided HTTP Client.
-func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
+func DialHTTPWithClient(ctx context.Context, endpoint string, client *http.Client) (*Client, error) {
 	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
 	if err != nil {
 		return nil, err
@@ -111,13 +111,19 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 
 	initctx := context.Background()
 	return newClient(initctx, func(context.Context) (net.Conn, error) {
+		client := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: TLSConfigFromContext(ctx),
+			},
+		}
+
 		return &httpConn{client: client, req: req, closed: make(chan struct{})}, nil
 	})
 }
 
 // DialHTTP creates a new RPC client that connects to an RPC server over HTTP.
-func DialHTTP(endpoint string) (*Client, error) {
-	return DialHTTPWithClient(endpoint, new(http.Client))
+func DialHTTP(ctx context.Context, endpoint string) (*Client, error) {
+	return DialHTTPWithClient(ctx, endpoint, new(http.Client))
 }
 
 func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) error {
