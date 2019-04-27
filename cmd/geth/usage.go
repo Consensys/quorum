@@ -177,6 +177,11 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.RPCListenAddrFlag,
 			utils.RPCPortFlag,
 			utils.RPCApiFlag,
+			utils.HTTPSEnabledFlag,
+			utils.HTTPSListenAddrFlag,
+			utils.HTTPSPortFlag,
+			utils.HTTPSCertFileFlag,
+			utils.HTTPSKeyFileFlag,
 			utils.WSEnabledFlag,
 			utils.WSListenAddrFlag,
 			utils.WSPortFlag,
@@ -273,7 +278,7 @@ var AppHelpFlagGroups = []flagGroup{
 	},
 	{
 		Name: "MISC",
-	},{
+	}, {
 		Name: "ISTANBUL",
 		Flags: []cli.Flag{
 			utils.IstanbulRequestTimeoutFlag,

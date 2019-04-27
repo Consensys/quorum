@@ -63,6 +63,11 @@ type Node struct {
 	httpListener  net.Listener // HTTP RPC listener socket to server API requests
 	httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
 
+	httpsEndpoint string // HTTPS endpoint (interface + port) to listen at (empty = HTTPS disabled)
+	// httpsWhitelist []string     // HTTPS RPC modules to allow through this endpoint
+	httpsListener net.Listener // HTTPS RPC listener socket to server API requests
+	httpsHandler  *rpc.Server  // HTTPS RPC request handler to process the API requests
+
 	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	wsListener net.Listener // Websocket RPC listener socket to server API requests
 	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
@@ -115,6 +120,7 @@ func New(conf *Config) (*Node, error) {
 		serviceFuncs:      []ServiceConstructor{},
 		ipcEndpoint:       conf.IPCEndpoint(),
 		httpEndpoint:      conf.HTTPEndpoint(),
+		httpsEndpoint:     conf.HTTPSEndpoint(),
 		wsEndpoint:        conf.WSEndpoint(),
 		eventmux:          new(event.TypeMux),
 		log:               conf.Logger,
@@ -270,7 +276,14 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 		n.stopInProc()
 		return err
 	}
+	if err := n.startHTTPS(n.httpsEndpoint, apis, n.config.HTTPModules, n.config.HTTPCors, n.config.HTTPVirtualHosts, n.config.HTTPTimeouts); err != nil {
+		n.stopHTTP()
+		n.stopIPC()
+		n.stopInProc()
+		return err
+	}
 	if err := n.startWS(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll); err != nil {
+		n.stopHTTPS()
 		n.stopHTTP()
 		n.stopIPC()
 		n.stopInProc()
@@ -365,6 +378,48 @@ func (n *Node) stopHTTP() {
 	}
 }
 
+// startHTTPS initializes and starts the HTTPS RPC endpoint.
+func (n *Node) startHTTPS(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string, timeouts rpc.HTTPTimeouts) error {
+	if !n.config.HTTPSEnabled {
+		return nil
+	}
+	// Short circuit if the HTTPS endpoint isn't being exposed
+	if endpoint == "" {
+		return nil
+	}
+	if err := rpc.CheckCerts(n.config.HTTPSCertFile, n.config.HTTPSKeyFile); err != nil {
+		return err
+	}
+	listener, handler, err := rpc.StartHTTPSEndpoint(endpoint, apis, modules, cors, vhosts, timeouts, n.config.HTTPSConfig, n.config.HTTPSCertFile, n.config.HTTPSKeyFile)
+	if err != nil {
+		return err
+	}
+	n.log.Info("HTTPS endpoint opened", "url", fmt.Sprintf("https://%s", endpoint), "cors", strings.Join(cors, ","), "vhosts", strings.Join(vhosts, ","))
+	// All listeners booted successfully
+	n.httpsEndpoint = endpoint
+	n.httpsListener = listener
+	n.httpsHandler = handler
+
+	return nil
+}
+
+// stopHTTPS terminates the HTTPS RPC endpoint.
+func (n *Node) stopHTTPS() {
+	if !n.config.HTTPSEnabled {
+		return
+	}
+	if n.httpsListener != nil {
+		n.httpsListener.Close()
+		n.httpsListener = nil
+
+		n.log.Info("HTTPS endpoint closed", "url", fmt.Sprintf("https://%s", n.httpEndpoint))
+	}
+	if n.httpsHandler != nil {
+		n.httpsHandler.Stop()
+		n.httpsHandler = nil
+	}
+}
+
 // startWS initializes and starts the websocket RPC endpoint.
 func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrigins []string, exposeAll bool) error {
 	// Short circuit if the WS endpoint isn't being exposed
@@ -412,6 +467,7 @@ func (n *Node) Stop() error {
 	// Terminate the API, services and the p2p server.
 	n.stopWS()
 	n.stopHTTP()
+	n.stopHTTPS()
 	n.stopIPC()
 	n.rpcAPIs = nil
 	failure := &StopError{
@@ -558,6 +614,17 @@ func (n *Node) HTTPEndpoint() string {
 		return n.httpListener.Addr().String()
 	}
 	return n.httpEndpoint
+}
+
+// HTTPSEndpoint retrieves the current HTTPS endpoint used by the protocol stack.
+func (n *Node) HTTPSEndpoint() string {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	if n.httpsListener != nil {
+		return n.httpsListener.Addr().String()
+	}
+	return n.httpsEndpoint
 }
 
 // WSEndpoint retrieves the current WS endpoint used by the protocol stack.

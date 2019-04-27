@@ -17,6 +17,7 @@
 package rpc
 
 import (
+	"crypto/tls"
 	"net"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -48,6 +49,37 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 		return nil, nil, err
 	}
 	go NewHTTPServer(cors, vhosts, timeouts, handler).Serve(listener)
+	return listener, handler, err
+}
+
+// StartHTTPSEndpoint starts the HTTPS RPC endpoint, configured with cors/vhosts/modules
+func StartHTTPSEndpoint(endpoint string, apis []API, modules []string, cors []string, vhosts []string, timeouts HTTPTimeouts, tlsConfig *tls.Config, certFile string, keyFile string) (net.Listener, *Server, error) {
+	// Generate the whitelist based on the allowed modules
+	whitelist := make(map[string]bool)
+	for _, module := range modules {
+		whitelist[module] = true
+	}
+	// Register all the APIs exposed by the services
+	handler := NewServer()
+	for _, api := range apis {
+		if whitelist[api.Namespace] || (len(whitelist) == 0 && api.Public) {
+			if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
+				return nil, nil, err
+			}
+			log.Debug("HTTPS registered", "namespace", api.Namespace)
+		}
+	}
+	// All APIs registered, start the HTTP listener
+	var (
+		listener net.Listener
+		err      error
+	)
+	if listener, err = net.Listen("tcp", endpoint); err != nil {
+		return nil, nil, err
+	}
+	httpsServer := NewHTTPServer(cors, vhosts, timeouts, handler)
+	httpsServer.TLSConfig = tlsConfig
+	go httpsServer.ServeTLS(listener, certFile, keyFile)
 	return listener, handler, err
 }
 

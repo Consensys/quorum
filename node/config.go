@@ -18,6 +18,7 @@ package node
 
 import (
 	"crypto/ecdsa"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -124,6 +125,27 @@ type Config struct {
 	// interface.
 	HTTPTimeouts rpc.HTTPTimeouts
 
+	// HTTPSHost is the host interface on which to start the HTTPS RPC server. If this
+	// field is empty, no HTTPS API endpoint will be started.
+	HTTPSHost string `toml:",omitempty"`
+
+	// HTTPSPort is the TCP port number on which to start the HTTPS RPC server. The
+	// default zero value is/ valid and will pick a port number randomly (useful
+	// for ephemeral nodes).
+	HTTPSPort int `toml:",omitempty"`
+
+	// HTTPSEnabled whether HTTPSConfig was correctly populated, and server is HTTPS-enabled node.
+	HTTPSEnabled bool `toml:",omitempty"`
+
+	// HTTPSCertFile
+	HTTPSCertFile string `toml:",omitempty"`
+
+	// HTTPSKeyFile
+	HTTPSKeyFile string `toml:",omitempty"`
+
+	// HTTPSConfig is used to configure HTTPS capability of a server
+	HTTPSConfig *tls.Config
+
 	// WSHost is the host interface on which to start the websocket RPC server. If
 	// this field is empty, no websocket API endpoint will be started.
 	WSHost string `toml:",omitempty"`
@@ -213,6 +235,21 @@ func (c *Config) HTTPEndpoint() string {
 func DefaultHTTPEndpoint() string {
 	config := &Config{HTTPHost: DefaultHTTPHost, HTTPPort: DefaultHTTPPort}
 	return config.HTTPEndpoint()
+}
+
+// HTTPSEndpoint resolves an HTTPS endpoint based on the configured host interface
+// and port parameters.
+func (c *Config) HTTPSEndpoint() string {
+	if c.HTTPSHost == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s:%d", c.HTTPSHost, c.HTTPSPort)
+}
+
+// DefaultHTTPSEndpoint returns the HTTPS endpoint used by default.
+func DefaultHTTPSEndpoint() string {
+	config := &Config{HTTPSHost: DefaultHTTPSHost, HTTPSPort: DefaultHTTPSPort}
+	return config.HTTPSEndpoint()
 }
 
 // WSEndpoint resolves a websocket endpoint based on the configured host interface

@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -55,9 +56,9 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	"gopkg.in/urfave/cli.v1"
-	"time"
 )
 
 var (
@@ -440,6 +441,28 @@ var (
 		Name:  "rpcapi",
 		Usage: "API's offered over the HTTP-RPC interface",
 		Value: "",
+	}
+	HTTPSEnabledFlag = cli.BoolFlag{
+		Name:  "https",
+		Usage: "Enable the HTTPS-RPC server",
+	}
+	HTTPSListenAddrFlag = cli.StringFlag{
+		Name:  "httpsaddr",
+		Usage: "HTTPS-RPC server listening interface",
+		Value: node.DefaultHTTPSHost,
+	}
+	HTTPSPortFlag = cli.IntFlag{
+		Name:  "httpsport",
+		Usage: "HTTPS-RPC server listening port",
+		Value: node.DefaultHTTPSPort,
+	}
+	HTTPSCertFileFlag = cli.StringFlag{
+		Name:  "httpscert",
+		Usage: "Certificate file for HTTPS-RPC server",
+	}
+	HTTPSKeyFileFlag = cli.StringFlag{
+		Name:  "httpskey",
+		Usage: "Key file for HTTPS-RPC server",
 	}
 	IPCDisabledFlag = cli.BoolFlag{
 		Name:  "ipcdisable",
@@ -835,6 +858,30 @@ func setHTTP(ctx *cli.Context, cfg *node.Config) {
 	}
 }
 
+// setHTTPS creates the HTTPS RPC listener interface string from the set
+// command line flags, returning empty if the HTTPS endpoint is disabled.
+func setHTTPS(ctx *cli.Context, cfg *node.Config) {
+	if ctx.GlobalBool(RPCEnabledFlag.Name) && ctx.GlobalBool(HTTPSEnabledFlag.Name) && cfg.HTTPSHost == "" {
+		cfg.HTTPSEnabled = ctx.GlobalBool(HTTPSEnabledFlag.Name)
+		cfg.HTTPSHost = "127.0.0.1"
+		if ctx.GlobalIsSet(HTTPSListenAddrFlag.Name) {
+			cfg.HTTPSHost = ctx.GlobalString(HTTPSListenAddrFlag.Name)
+		}
+		tlsConfig := rpc.MakeServerTLSConfig()
+		cfg.HTTPSConfig = tlsConfig
+	}
+
+	if ctx.GlobalIsSet(HTTPSPortFlag.Name) {
+		cfg.HTTPSPort = ctx.GlobalInt(HTTPSPortFlag.Name)
+	}
+	if ctx.GlobalIsSet(HTTPSCertFileFlag.Name) {
+		cfg.HTTPSCertFile = ctx.GlobalString(HTTPSCertFileFlag.Name)
+	}
+	if ctx.GlobalIsSet(HTTPSKeyFileFlag.Name) {
+		cfg.HTTPSKeyFile = ctx.GlobalString(HTTPSKeyFileFlag.Name)
+	}
+}
+
 // setWS creates the WebSocket RPC listener interface string from the set
 // command line flags, returning empty if the HTTP endpoint is disabled.
 func setWS(ctx *cli.Context, cfg *node.Config) {
@@ -1017,6 +1064,7 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	SetP2PConfig(ctx, &cfg.P2P)
 	setIPC(ctx, cfg)
 	setHTTP(ctx, cfg)
+	setHTTPS(ctx, cfg)
 	setWS(ctx, cfg)
 	setNodeUserIdent(ctx, cfg)
 
