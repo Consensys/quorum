@@ -685,26 +685,27 @@ var (
 	}
 )
 
-// setRPCSecurityConfig creates the rpc config from cli flags.
-func setRPCSecurityConfig(ctx *cli.Context, cfg *node.Config) {
-	if configFilePath :=ctx.GlobalString(RPCSecurityConfigFileFlag.Name) ; ctx.GlobalBool(RPCEnabledSecurityFlag.Name) {
-		log.Warn("RPC security","status","Enabled")
+// setRpcSecurity creates the rpc config from cli flags.
+func setRpcSecurity(ctx *cli.Context, cfg *node.Config) {
+	if ctx.GlobalBool(RPCEnabledSecurityFlag.Name) {
+		// check config file
+		configFilePath := ctx.GlobalString(RPCSecurityConfigFileFlag.Name)
+		if configFilePath == "" {
+			log.Warn("Rpc created without providing configuration file", "Rpc security", "Enabled", "Policy", "Deny All")
+			cfg.RpcSecurityContext = rpc.GetDenyAllPolicy()
+		} else {
+			log.Info("Setting up configuration", "RPC security", "Enabled")
+			log.Info("Parsing rpc configuration file", "RPC security", "Enabled")
+			securityConfig, err := rpc.ParseRpcSecurityConfigFile(configFilePath)
+			if err != nil {
+				Fatalf("Error parsing RPC security config file. %v", err)
+			}
 
-		// set config
-		log.Warn("RPC security","parsing-config","Start")
-		securityConfig, err := rpc.ParseRpcSecurityConfigFile(configFilePath)
-		if err != nil { Fatalf("Error parsing RPC security config file. %v", err) }
-		log.Warn("RPC security","parsing-config","Completed")
-		log.Warn("RPC security","create-context","Start")
-		cfg.RpcSecurityContext = rpc.SecurityContext{Enabled:true, Config:securityConfig}
-		log.Warn("RPC security","create-context","Completed")
-		log.Warn("RPC security","context-enabled", cfg.RpcSecurityContext.Enabled, "context-type", cfg.RpcSecurityContext.Config.ProviderType)
-
-	} else {
-		log.Warn("RPC security","status","Disabled")
-		cfg.RpcSecurityContext = rpc.GetDefaultAllowAllSecurityContext()
+			log.Info("Create rpc security context", "RPC security", "Enabled")
+			cfg.RpcSecurityContext = rpc.SecurityContext{Enabled: true, Config: securityConfig}
+			log.Info("Rpc security was created", "Context", cfg.RpcSecurityContext.Enabled, "Type", cfg.RpcSecurityContext.Config.ProviderType)
+		}
 	}
-
 
 }
 
@@ -753,8 +754,6 @@ func setNodeKey(ctx *cli.Context, cfg *p2p.Config) {
 		cfg.PrivateKey = key
 	}
 }
-
-
 
 // setNodeUserIdent creates the user identifier from CLI flags.
 func setNodeUserIdent(ctx *cli.Context, cfg *node.Config) {
@@ -1055,7 +1054,7 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 
 // SetNodeConfig applies node-related command line flags to the config.
 func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
-	setRPCSecurityConfig(ctx,cfg)
+	setRpcSecurity(ctx, cfg)
 	SetP2PConfig(ctx, &cfg.P2P)
 	setIPC(ctx, cfg)
 	setHTTP(ctx, cfg)

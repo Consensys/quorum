@@ -1,6 +1,19 @@
 {
-	"providerType":"local"
-	"providerInfo": {
-		"providerIntrospectionURL": "http://localhost:8080/introspect"
+	"providerType":"enterprise",
+        "providerInfo": {
+		"providerIntrospectionURL":"https://localhost:8888/introspect",
+		"providerCert": {
+			"providerTlsCertificateFile": "testing-providerTlsCertificateFile",
+			"providerTlsCertificateCaFile": "testing-providerTlsCertificateCaFile",
+			"providerTlsCertificateKeyFile": "testing-providerTlsCertificateKeyFile"
+		}
+	
+	},
+	
+	"listenerCert" : {
+		"clientCaPemFile":"/Users/cucrisis/Workspace/tools/go/src/github.com/ethereum/go-ethereum/rootCA.crt",
+		"serverTlsCertFile":"/Users/cucrisis/Workspace/tools/go/src/github.com/ethereum/go-ethereum/localhost.crt",
+		"serverTlsKeyFile" :"/Users/cucrisis/Workspace/tools/go/src/github.com/ethereum/go-ethereum/localhost.key"
 	}
+	
 }

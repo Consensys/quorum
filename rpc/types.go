@@ -18,13 +18,25 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/syndtr/goleveldb/leveldb"
 	"math"
+	"net/http"
 	"reflect"
 	"strings"
 	"sync"
 
 	mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+)
+
+const (
+	PendingBlockNumber  = BlockNumber(-2)
+	LatestBlockNumber   = BlockNumber(-1)
+	EarliestBlockNumber = BlockNumber(0)
+
+	// Strings to be used in config
+	LocalSecProvider      = "local"
+	EnterpriseSecProvider = "enterprise"
 )
 
 // API describes the set of methods offered over the RPC interface
@@ -67,6 +79,14 @@ type serviceRegistry map[string]*service // collection of services
 type callbacks map[string]*callback      // collection of RPC callbacks
 type subscriptions map[string]*callback  // collection of subscription callbacks
 
+type SecurityProvider interface {
+	// setup security provider
+	init() error
+
+	// Check if client is authorized. True if authorized, false otherwise.
+	isClientAuthorized(request rpcRequest) bool
+}
+
 // Server represents a RPC server
 type Server struct {
 	services serviceRegistry
@@ -86,7 +106,7 @@ type rpcRequest struct {
 	isPubSub bool
 	params   interface{}
 	err      Error // invalid batch element
-	token 	 string
+	token    string
 }
 
 // Error wraps RPC errors, which contain an error code in addition to the message.
@@ -119,13 +139,81 @@ type ServerCodec interface {
 	Closed() <-chan interface{}
 }
 
-type BlockNumber int64
+// RFC (7662): https://tools.ietf.org/html/rfc7662.
+// Authorization Server Introspect Request & Response.
+type IntrospectRequest struct {
+	Token         string `json:"token"`
+	TokenTypeHint string `json:"token_type_hint"`
+}
+type IntrospectResponse struct {
+	Active     bool   `json:"active"`
+	Scope      string `json:"scope"`
+	ClientId   string `json:"client_id"`
+	Username   string `json:"username"`
+	Expiration int    `json:"exp"`
+}
 
-const (
-	PendingBlockNumber  = BlockNumber(-2)
-	LatestBlockNumber   = BlockNumber(-1)
-	EarliestBlockNumber = BlockNumber(0)
-)
+// RPC Security Configuration
+type SecurityConfig struct {
+	Listener            *Listener            `json:"listenerCert"`
+	ProviderType        string               `json:"providerType"`
+	ProviderInformation *ProviderInformation `json:"providerInfo"`
+}
+
+// RPC Security Context
+type SecurityContext struct {
+	Enabled  bool
+	Config   *SecurityConfig
+	Client   *http.Client
+	Provider  SecurityProvider
+}
+
+// Enterprise Server Based Security provider
+type EnterpriseSecurityProvider struct {
+	IntrospectURL  string
+	ProviderCertificate *AuthorizationServerCert
+}
+
+// Local file Based Security provider
+type LocalSecurityProvider struct {
+	securityProviderFile *string
+	securityDatabase 	 *leveldb.DB
+
+}
+
+// Local client
+type LocalProviderClient struct {
+	 clientName  string `json:"clientName"`
+	 clientToken string `json:"clientToken"`
+	 clientAuthorizedServices string `json:"clientAuthorizedServices"`
+}
+
+// Authorization Server Cert
+type AuthorizationServerCert struct {
+	ProviderTlsCertificateFile    string `json:"providerTlsCertificateFile"`
+	ProviderTlsCertificateCaFile  string `json:"providerTlsCertificateCaFile"`
+	ProviderTlsCertificateKeyFile string `json:"providerTlsCertificateKeyFile"`
+}
+
+// ProviderInformation
+type ProviderInformation struct {
+	// Authorization Server Cert Information
+	EnterpriseProviderCertificateInfo *AuthorizationServerCert `json:"providerCert"`
+
+	// Authorization Server Introspection URL.
+	EnterpriseProviderIntrospectionURL string `json:"providerIntrospectionURL"`
+
+	// Local Provider Information
+	LocalProviderFile *string `json:"localProviderFile"`
+}
+
+// RPC ListenerWithTls Support
+type Listener struct {
+	ServerTlsCertFile string `json:"serverTlsCertFile"`
+	ServerTlsKeyFile  string `json:"serverTlsKeyFile"`
+}
+
+type BlockNumber int64
 
 // UnmarshalJSON parses the given JSON fragment into a BlockNumber. It supports:
 // - "latest", "earliest" or "pending" as string arguments

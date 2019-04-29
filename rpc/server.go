@@ -42,11 +42,10 @@ const (
 	OptionSubscriptions = 1 << iota // support pub sub
 )
 
+//NewServerWithSecurityCtx is an adapter for NewServer()
 func NewServerWithSecurityCtx(ctx SecurityContext) *Server {
 	server := NewServer()
 	server.RegisterSecurityCtx(ctx)
-
-
 	return server
 }
 
@@ -81,25 +80,45 @@ func (s *RPCService) Modules() map[string]string {
 	return modules
 }
 
-func (s *Server) RegisterSecurityCtx(ctx SecurityContext){
-	s.securityContext =  ctx
+func (s *Server) RegisterSecurityCtx(ctx SecurityContext) {
+	s.securityContext = ctx
 
 	// Init Local Security Context
 	if s.securityContext.Config != nil {
-		if strings.ToLower(s.securityContext.Config.ProviderType) == PROVIDER_LOCAL {
-			log.Info("RPC Security","status","register local security provider")
-			log.Info("RPC Security","provider",)
-			//if ctx.Config.LocalProviderDbFile != nil {
-			//	s.securityContext.LocalSecurityProvider =  LocalSecurityProvider{LocalSecurityDbFile:ctx.Config.LocalProviderDbFile}
-			//}
+		provider := strings.ToLower(s.securityContext.Config.ProviderType)
 
-			//s.securityContext.LocalSecurityProvider.Init()
+		switch provider {
+		case LocalSecProvider:
+			log.Info("register local security provider", "RPC security", "Enabled")
+			s.securityContext.Provider = &LocalSecurityProvider{
+				securityProviderFile: s.securityContext.Config.ProviderInformation.LocalProviderFile}
+
+			err := s.securityContext.Provider.init()
+			if err != nil {
+				log.Error("%v", err)
+			}
+
+		case EnterpriseSecProvider:
+			log.Info("register enterprise security provider", "RPC security", "Enabled")
+			s.securityContext.Provider = &EnterpriseSecurityProvider{
+				IntrospectURL:       s.securityContext.Config.ProviderInformation.EnterpriseProviderIntrospectionURL,
+				ProviderCertificate: s.securityContext.Config.ProviderInformation.EnterpriseProviderCertificateInfo,
+			}
+
+			err := s.securityContext.Provider.init()
+			if err != nil {
+				log.Error("%v", err)
+			}
+
+		default:
+			log.Warn("Provider Type not supported. supported providers [local, enterprise]", "RPC security", "Enable")
+			log.Error("Enable deny all policy due to misconfiguration", "RPC security", "Enable")
 		}
 	}
 
 }
 
-func (s *Server) SecurityCtx() SecurityContext{
+func (s *Server) SecurityCtx() SecurityContext {
 	return s.securityContext
 }
 
@@ -170,7 +189,6 @@ func (s *Server) serveRequest(ctx context.Context, codec ServerCodec, singleShot
 	//	ctx, cancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-
 
 	// if the codec supports notification include a notifier that callbacks can use
 	// to send notification to clients. It is tied to the codec/connection. If the
@@ -287,7 +305,6 @@ func (s *Server) handle(ctx context.Context, codec ServerCodec, req *serverReque
 	if req.err != nil {
 		return codec.CreateErrorResponse(&req.id, req.err), nil
 	}
-
 
 	if req.isUnsubscribe { // cancel subscription, first param must be the subscription id
 		if len(req.args) >= 1 && req.args[0].Kind() == reflect.String {
@@ -422,9 +439,10 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 		var ok bool
 		var svc *service
 
-		// Validate token with server
-		if s.securityContext.Enabled  {
-			if  err := s.securityContext.ProcessRequestSecurity(r); err !=nil {
+		// Validate token with security provider.
+		// Every RPC type except IPC will converge here.
+		if s.securityContext.Enabled {
+			if err := s.securityContext.ProcessRequestSecurity(r); err != nil {
 				r.err = &invalidParamsError{err.Error()}
 			}
 		}
@@ -433,8 +451,6 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			requests[i] = &serverRequest{id: r.id, err: r.err}
 			continue
 		}
-
-
 
 		if r.isPubSub && strings.HasSuffix(r.method, unsubscribeMethodSuffix) {
 			requests[i] = &serverRequest{id: r.id, isUnsubscribe: true}

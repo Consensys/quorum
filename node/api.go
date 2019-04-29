@@ -233,7 +233,7 @@ func (api *PrivateAdminAPI) StartRpcWithSecurityContext(host *string, port *int,
 			return false, fmt.Errorf("HTTP RPC already running on %v", err)
 		}
 		api.node.config.RpcSecurityContext = rpc.SecurityContext{Enabled:true, Config:securityConfig}
-	} else { api.node.config.RpcSecurityContext = rpc.GetDefaultDenyAllSecurityContext() }
+	} else { api.node.config.RpcSecurityContext = rpc.GetDenyAllPolicy() }
 
 	if err := api.node.startHTTPWithSecurityContext(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, allowedOrigins, allowedVHosts, api.node.config.HTTPTimeouts, api.node.config.RpcSecurityContext ); err != nil {
 		return false, err

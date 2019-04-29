@@ -21,13 +21,18 @@ import (
 	"context"
 	crand "crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/errors"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"net/http"
 	"reflect"
 	"strings"
 	"sync"
@@ -230,7 +235,6 @@ func NewID() ID {
 	return ID("0x" + rpcId)
 }
 
-
 // ParseRpcSecurityConfigFile parses RPC Security configuration file to meet struct.
 func ParseRpcSecurityConfigFile(configFilePath string) (*SecurityConfig, error) {
 	configContent, err := ioutil.ReadFile(configFilePath)
@@ -240,17 +244,18 @@ func ParseRpcSecurityConfigFile(configFilePath string) (*SecurityConfig, error) 
 
 	var securityConfigResult SecurityConfig
 	err = json.Unmarshal(configContent, &securityConfigResult)
-	if err != nil { return nil, err}
+	if err != nil {
+		return nil, err
+	}
 
-	return &securityConfigResult,nil
+	return &securityConfigResult, nil
 }
-
 
 // GetHttpListenerBasedOnSecurityContext returns http.listener with tls if required otherwise
 // it will return un encrypted listener.
-func GetHttpListenerBasedOnSecurityContext(endpoint string, ctx SecurityContext) (net.Listener, error){
+func GetHttpListenerBasedOnSecurityContext(endpoint string, ctx SecurityContext) (net.Listener, error) {
 	var listener net.Listener
-	var	err      error
+	var err error
 
 	// Check for tls info in config
 	if ctx.Config.Listener == nil {
@@ -259,17 +264,38 @@ func GetHttpListenerBasedOnSecurityContext(endpoint string, ctx SecurityContext)
 		}
 		return listener, nil
 	} else {
-		if ctx.Config.Listener.ServerTlsKeyFile == "" ||  ctx.Config.Listener.ServerTlsCertFile == "" {
+		if ctx.Config.Listener.ServerTlsKeyFile == "" || ctx.Config.Listener.ServerTlsCertFile == "" {
 			return nil, fmt.Errorf("RPC Security listener-tls couldn't load tls files")
 
 		} else {
 			cer, err := tls.LoadX509KeyPair(ctx.Config.Listener.ServerTlsCertFile, ctx.Config.Listener.ServerTlsKeyFile)
 			if err != nil {
-				return nil,  fmt.Errorf("RPC Security %v", err)
+				return nil, fmt.Errorf("RPC Security %v", err)
 
-			}else{
-				config := &tls.Config{Certificates: []tls.Certificate{cer}, MinVersion:tls.VersionTLS12}
-				listener, err :=tls.Listen("tcp", endpoint, config)
+			} else {
+				config := &tls.Config{
+					// The Certificate information
+					Certificates: []tls.Certificate{cer},
+
+					// Ensure Key or DH parameter strength >= 4096 bits
+					CurvePreferences: []tls.CurveID{
+						tls.CurveP521,
+						tls.CurveP384,
+						tls.CurveP256,
+					},
+					CipherSuites: []uint16{
+						tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+						tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+						tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+						tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+					},
+					// Ensure we prefer our cipher suites.
+					PreferServerCipherSuites: true,
+
+					// Support only TLS1.2 & Above
+					MinVersion: tls.VersionTLS12,
+				}
+				listener, err := tls.Listen("tcp", endpoint, config)
 				if err != nil {
 					return nil, err
 				}
@@ -279,4 +305,72 @@ func GetHttpListenerBasedOnSecurityContext(endpoint string, ctx SecurityContext)
 		}
 
 	}
+}
+
+
+
+
+//buildHttpClient Build HTTP Client. With tls support if
+// required by the security context
+func buildHttpClient(ctx *SecurityContext) (*http.Client, error){
+	if ctx.Config.ProviderInformation == nil {
+		return &http.Client{}, nil
+	}
+
+	// Return non tls supporting client if cert information not provided
+	if ctx.Config.ProviderInformation.EnterpriseProviderCertificateInfo == nil {
+		return &http.Client{}, nil
+	}
+
+	// Load provider certificate info provided
+	certFile := ctx.Config.ProviderInformation.EnterpriseProviderCertificateInfo.ProviderTlsCertificateFile
+	keyFile := ctx.Config.ProviderInformation.EnterpriseProviderCertificateInfo.ProviderTlsCertificateKeyFile
+	caFile := ctx.Config.ProviderInformation.EnterpriseProviderCertificateInfo.ProviderTlsCertificateCaFile
+
+	// Load client cert
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil , err
+	}
+
+	// Load CA cert
+	caCert, err := ioutil.ReadFile(caFile)
+	if err != nil {
+		return nil , err
+	}
+
+	// Create certificate pool
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	// Setup TLS
+	tlsConfig := &tls.Config{
+		// Certificate information
+		Certificates: []tls.Certificate{cert},
+		RootCAs:      caCertPool,
+
+		// ensure verification happens
+		InsecureSkipVerify:false,
+
+	}
+	tlsConfig.BuildNameToCertificate()
+	transport := &http.Transport{TLSClientConfig: tlsConfig}
+	return &http.Client{Transport: transport}, nil
+
+}
+
+
+// newDatabase creates/opens a leveldb backed persistent node database,
+// also flushing its contents in case of a version mismatch.
+func newDatabase(path string) (*leveldb.DB, error) {
+	opts := &opt.Options{OpenFilesCacheCapacity: 5,ErrorIfMissing:false}
+	db, err := leveldb.OpenFile(path, opts)
+	if _, iscorrupted := err.(*errors.ErrCorrupted); iscorrupted {
+		db, err = leveldb.RecoverFile(path, nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }

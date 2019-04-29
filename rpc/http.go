@@ -19,6 +19,7 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -135,12 +136,9 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 	})
 }
 
-// DialHTTP creates a new RPC client that connects to an RPC server over HTTP.
+// DialHTTPWithSecurity creates a new RPC client that connects to an RPC server over HTTP.
 func DialHTTPWithSecurity(endpoint string, token string) (*Client, error) {
-
 		return DialHTTPWithClientSecurity(endpoint, token, new(http.Client))
-
-
 }
 
 
@@ -247,6 +245,12 @@ func NewHTTPServer(cors []string, vhosts []string, timeouts HTTPTimeouts, srv *S
 		ReadTimeout:  timeouts.ReadTimeout,
 		WriteTimeout: timeouts.WriteTimeout,
 		IdleTimeout:  timeouts.IdleTimeout,
+
+		// Ensure to Disable HTTP/2
+		// HTTP2 mandates the support of the cipher suite TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+		// Which is a 128bit cipher, and we are enforcing ciphers >= 4096 bits only
+		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
+
 	}
 }
 
