@@ -215,9 +215,8 @@ func (n *Node) Start() error {
 		started = append(started, kind)
 	}
 
-
+	// start the configured RPC interfaces
 	if n.config.RpcSecurityContext.Enabled {
-		// Lastly start the configured RPC interfaces
 		if err := n.startRpcWithSecurityContext(services, n.config.RpcSecurityContext); err != nil {
 			for _, service := range services {
 				service.Stop()
@@ -225,15 +224,8 @@ func (n *Node) Start() error {
 			running.Stop()
 			return err
 		}
-		// Finish initializing the startup
-		n.services = services
-		n.server = running
-		n.stop = make(chan struct{})
-
 
 	} else {
-
-		// Lastly start the configured RPC interfaces
 		if err := n.startRPC(services); err != nil {
 			for _, service := range services {
 				service.Stop()
@@ -241,11 +233,13 @@ func (n *Node) Start() error {
 			running.Stop()
 			return err
 		}
-		// Finish initializing the startup
-		n.services = services
-		n.server = running
-		n.stop = make(chan struct{})
+
 	}
+
+	// Finish initializing the startup
+	n.services = services
+	n.server = running
+	n.stop = make(chan struct{})
 
 	return nil
 }
@@ -269,7 +263,9 @@ func (n *Node) openDataDir() error {
 	return nil
 }
 
-// StartRpcWithSecurityContext
+// startRpcWithSecurityContext is a helper method to start all the various RPC endpoint during node
+// startup with security context. It's not meant to be called at any time afterwards as it makes certain
+// assumptions about the state of the node.
 func (n *Node) startRpcWithSecurityContext(services map[reflect.Type]Service, ctx rpc.SecurityContext) error {
 	// Gather all the possible APIs to surface
 	apis := n.apis()
@@ -335,7 +331,7 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 }
 
 
-// startInProc initializes an in-process RPC endpoint.
+// startInProcWithSecurityContext initializes an in-process RPC endpoint with security context.
 func (n *Node) startInProcWithSecurityContext(apis []rpc.API, ctx rpc.SecurityContext) error {
 	// Register all the APIs exposed by the services
 	handler := rpc.NewServerWithSecurityCtx(ctx)
@@ -400,7 +396,7 @@ func (n *Node) stopIPC() {
 	}
 }
 
-// startHTTP initializes and starts the HTTP RPC endpoint.
+// startHTTPWithSecurityContext initializes and starts the HTTP RPC endpoint with security context.
 func (n *Node) startHTTPWithSecurityContext(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string, timeouts rpc.HTTPTimeouts, ctx rpc.SecurityContext) error {
 	// Short circuit if the HTTP endpoint isn't being exposed
 	if endpoint == "" {
@@ -452,7 +448,7 @@ func (n *Node) stopHTTP() {
 	}
 }
 
-// startWS initializes and starts the websocket RPC endpoint.
+// startWSWithSecurityContext initializes and starts the websocket RPC endpoint with security context.
 func (n *Node) startWSWithSecurityContext(endpoint string, apis []rpc.API, modules []string, wsOrigins []string, exposeAll bool,ctx rpc.SecurityContext) error {
 	// Short circuit if the WS endpoint isn't being exposed
 	if endpoint == "" {

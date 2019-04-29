@@ -424,7 +424,7 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 
 		// Validate token with server
 		if s.securityContext.Enabled  {
-			if  err := s.securityContext.ProcessWSRequest(r); err !=nil {
+			if  err := s.securityContext.ProcessRequestSecurity(r); err !=nil {
 				r.err = &invalidParamsError{err.Error()}
 			}
 		}

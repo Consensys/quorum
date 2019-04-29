@@ -282,14 +282,6 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("content-type", contentType)
 
-	// Apply Security Context
-	if srv.SecurityCtx().Enabled {
-		if  status, err := srv.securityContext.ProcessHttpRequest(r); err !=nil {
-			http.Error(w, err.Error(), status)
-			return
-		}
-	}
-
 	srv.ServeSingleRequest(ctx, codec, OptionMethodInvocation)
 }
 

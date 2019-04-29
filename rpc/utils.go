@@ -20,11 +20,14 @@ import (
 	"bufio"
 	"context"
 	crand "crypto/rand"
+	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"reflect"
 	"strings"
 	"sync"
@@ -240,4 +243,40 @@ func ParseRpcSecurityConfigFile(configFilePath string) (*SecurityConfig, error) 
 	if err != nil { return nil, err}
 
 	return &securityConfigResult,nil
+}
+
+
+// GetHttpListenerBasedOnSecurityContext returns http.listener with tls if required otherwise
+// it will return un encrypted listener.
+func GetHttpListenerBasedOnSecurityContext(endpoint string, ctx SecurityContext) (net.Listener, error){
+	var listener net.Listener
+	var	err      error
+
+	// Check for tls info in config
+	if ctx.Config.Listener == nil {
+		if listener, err = net.Listen("tcp", endpoint); err != nil {
+			return nil, err
+		}
+		return listener, nil
+	} else {
+		if ctx.Config.Listener.ServerTlsKeyFile == "" ||  ctx.Config.Listener.ServerTlsCertFile == "" {
+			return nil, fmt.Errorf("RPC Security listener-tls couldn't load tls files")
+
+		} else {
+			cer, err := tls.LoadX509KeyPair(ctx.Config.Listener.ServerTlsCertFile, ctx.Config.Listener.ServerTlsKeyFile)
+			if err != nil {
+				return nil,  fmt.Errorf("RPC Security %v", err)
+
+			}else{
+				config := &tls.Config{Certificates: []tls.Certificate{cer}, MinVersion:tls.VersionTLS12}
+				listener, err :=tls.Listen("tcp", endpoint, config)
+				if err != nil {
+					return nil, err
+				}
+				return listener, nil
+
+			}
+		}
+
+	}
 }

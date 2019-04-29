@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
 )
 
 const (
@@ -71,6 +70,7 @@ type SecurityContext struct {
 	Config                *SecurityConfig
 	Client                *http.Client
 	LocalSecurityProvider *LocalSecurityProvider
+
 }
 
 func (ctx *SecurityContext) getHttpClient() *http.Client {
@@ -123,37 +123,11 @@ func (ctx *SecurityContext) buildHttpClient() *http.Client {
 
 }
 
-// Parse the RPC Request, Call send Introspect Request & Parse results
-func (ctx *SecurityContext) isHttpRequestAuthorized(r *http.Request) bool {
-	providerType := strings.ToLower(ctx.Config.ProviderType)
-	clientToken := r.Header.Get("Token")
-
-	if providerType == "" {
-		return false
-	}
-
-	if clientToken == "" {
-		return false
-	}
-
-	if providerType == PROVIDER_ENTERPRISE {
-
-	}
-
-	if providerType == PROVIDER_LOCAL {
-
-		fmt.Printf("Send Introspect Locally")
-
-	}
-
-	return true
-}
 
 // Parse the RPC Request, Call send Introspect Request & Parse results
-func (ctx *SecurityContext) isWSRequestAuthorized(request rpcRequest) bool {
-	fmt.Println("Send WS Introspect for:")
+func (ctx *SecurityContext) isClientAuthorized(request rpcRequest) bool {
+	fmt.Println("Send Introspect for:")
 	fmt.Println(request)
-
 	if request.token == "cucrisis" {
 		if request.service != "admin" {
 			return true
@@ -164,30 +138,14 @@ func (ctx *SecurityContext) isWSRequestAuthorized(request rpcRequest) bool {
 	return false
 }
 
-// Process RPC Http Request
-func (ctx *SecurityContext) ProcessHttpRequest(r *http.Request) (int, error) {
-	if ctx.Enabled && ctx.Config == nil {
-		return http.StatusUnauthorized, errors.New("Request requires valid token")
-	}
-
-	if ctx.Enabled {
-		if ctx.isHttpRequestAuthorized(r) {
-			return http.StatusOK, nil
-		} else {
-			return http.StatusUnauthorized, errors.New("Request requires valid token")
-		}
-	}
-
-	return http.StatusOK, nil
-}
 
 // Process WS Request
-func (ctx *SecurityContext) ProcessWSRequest(request rpcRequest) error {
+func (ctx *SecurityContext) ProcessRequestSecurity(request rpcRequest) error {
 	if ctx.Enabled && ctx.Config == nil {
 		return errors.New("Request requires valid token")
 	}
 
-	if !ctx.isWSRequestAuthorized(request) {
+	if !ctx.isClientAuthorized(request) {
 		return errors.New("Request requires valid token")
 	}
 	return nil
