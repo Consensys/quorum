@@ -49,7 +49,7 @@ func (l *LocalSecurityProvider) init() error {
 
 }
 
-func (l *LocalSecurityProvider) findClient(clientName *string) (LocalProviderClient, error) {
+func FindClient(clientName *string, l *LocalSecurityProvider) (LocalProviderClient, error) {
 	data, err := l.securityDatabase.Get([]byte(*clientName), nil)
 	if err != nil {
 		return LocalProviderClient{}, err
@@ -67,12 +67,12 @@ func (l *LocalSecurityProvider) addClientsFromFile(fileName *string) {
 
 }
 
-func (l *LocalSecurityProvider) addClient(client LocalProviderClient) error {
+func AddLocalRpcClient(client LocalProviderClient, l *LocalSecurityProvider) error {
 	clientJson, err := json.Marshal(client)
 	if err != nil {
 		return err
 	}
-	return l.securityDatabase.Put([]byte(client.clientName),clientJson, nil)
+	return l.securityDatabase.Put([]byte(client.ClientName),clientJson, nil)
 }
 
 func (l *LocalSecurityProvider) listClients() {
