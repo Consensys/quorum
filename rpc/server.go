@@ -95,7 +95,10 @@ func (s *Server) RegisterSecurityCtx(ctx SecurityContext) {
 
 			err := s.securityContext.Provider.init()
 			if err != nil {
-				log.Error("%v", err)
+				// If error this stage
+				// ensure Deny All
+				log.Error(err.Error())
+				s.securityContext =  GetDenyAllPolicy()
 			}
 
 		case EnterpriseSecProvider:
@@ -107,12 +110,16 @@ func (s *Server) RegisterSecurityCtx(ctx SecurityContext) {
 
 			err := s.securityContext.Provider.init()
 			if err != nil {
-				log.Error("%v", err)
+				// If error this stage
+				// ensure Deny All
+				log.Error(err.Error())
+				s.securityContext =  GetDenyAllPolicy()
 			}
 
 		default:
 			log.Warn("Provider Type not supported. supported providers [local, enterprise]", "RPC security", "Enable")
 			log.Error("Enable deny all policy due to misconfiguration", "RPC security", "Enable")
+			s.securityContext =  GetDenyAllPolicy()
 		}
 	}
 

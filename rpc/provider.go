@@ -27,16 +27,15 @@ func (l *EnterpriseSecurityProvider) init() error {
 func (ctx *LocalSecurityProvider) isClientAuthorized(request rpcRequest) bool {
 	fmt.Println("Send Introspect for:")
 	fmt.Println(request)
-	if request.token == "cucrisis" {
-		if request.service != "admin" {
-			return true
-		}
-	}
 
-	return false
+	return true
 }
 
 func (l *LocalSecurityProvider) init() error {
+	 if l.securityProviderFile == nil {
+	 	return fmt.Errorf("security provider file not set in config")
+	 }
+
 	 db , err := newDatabase(*l.securityProviderFile)
 	 if err != nil {
 	 	l.securityDatabase = db

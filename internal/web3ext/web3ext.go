@@ -204,8 +204,8 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'rpcAddClient',
 			call: 'admin_rpcAddClient',
-			params: 4,
-			inputFormatter: [null, null, null, null]
+			params: 3,
+			inputFormatter: [null, null, null]
 		}),
 		new web3._extend.Method({
 			name: 'startRpcWithSecurityContext',

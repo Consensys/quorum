@@ -153,10 +153,25 @@ func (api *PrivateAdminAPI) RpcAddClientsFromFile(filePath *string) (bool, error
 
 
 // Add Local RPC Client to security context
-func (api *PrivateAdminAPI) RpcAddClient(clientName *string, clientID *string, clientSecret *string, clientScope *string) (bool, error) {
+func (api *PrivateAdminAPI) RpcAddClient(clientName *string, clientSecret *string, clientScope *string) (bool, error) {
+	client := rpc.LocalProviderClient{
+		ClientName:*clientName,
+		ClientToken:*clientSecret,
+		ClientAuthorizedServices:*clientScope,
+	}
 
+	if strings.ToLower(api.node.config.RpcSecurityContext.Config.ProviderType) == rpc.LocalSecProvider {
+		err := rpc.AddLocalRpcClient(client, api.node.config.RpcSecurityContext.Provider.(*rpc.LocalSecurityProvider))
+			if err != nil {
+				return false, err
+			} else{
+				return true, nil
+			}
 
-	return true, nil
+	} else {
+		return false, ErrServiceUnknown
+	}
+
 }
 
 // Remove Local RPC Client from security context

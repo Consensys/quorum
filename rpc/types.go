@@ -183,9 +183,9 @@ type LocalSecurityProvider struct {
 
 // Local client
 type LocalProviderClient struct {
-	 clientName  string `json:"clientName"`
-	 clientToken string `json:"clientToken"`
-	 clientAuthorizedServices string `json:"clientAuthorizedServices"`
+	 ClientName  string `json:"clientName"`
+	 ClientToken string `json:"clientToken"`
+	 ClientAuthorizedServices string `json:"clientAuthorizedServices"`
 }
 
 // Authorization Server Cert
