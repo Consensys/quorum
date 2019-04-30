@@ -18,12 +18,6 @@ package console
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/internal/jsre"
-	"github.com/ethereum/go-ethereum/internal/web3ext"
-	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/mattn/go-colorable"
-	"github.com/peterh/liner"
-	"github.com/robertkrimen/otto"
 	"io"
 	"io/ioutil"
 	"os"
@@ -34,6 +28,13 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/ethereum/go-ethereum/internal/jsre"
+	"github.com/ethereum/go-ethereum/internal/web3ext"
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/mattn/go-colorable"
+	"github.com/peterh/liner"
+	"github.com/robertkrimen/otto"
 )
 
 var (
@@ -307,31 +308,30 @@ func (c *Console) Welcome() {
 
 //Get block timestamp and check whether it is in nanoseconds.
 //(The block timestamp is normally stored as seconds since the epoch, but Raft stores it as nanoseconds.)
-func (c * Console) blockTimestampIsInNanoseconds() (bool) {
+func (c *Console) blockTimestampIsInNanoseconds() bool {
 	type Block struct {
-		Number string
+		Number    string
 		Timestamp string
 	}
-	var lastBlock Block;
+	var lastBlock Block
 
-	err := c.client.Call(&lastBlock, "eth_getBlockByNumber", "latest", true);
+	err := c.client.Call(&lastBlock, "eth_getBlockByNumber", "latest", true)
 	//If an error occurred on the RPC call then assume timestamp is in seconds.
 	if err != nil {
 		c.jsre.Run(`
 			console.log("Warning: unable to retrieve block information, so displayed timestamp may be incorrect");
 		`)
-		return false;
+		return false
 	}
 
 	//If timestamp is greater than max possible value (in seconds) for Unix time, then assume it's nanoseconds.
 	//If we fail to parse the timestamp then just assume it is in seconds.
-	timestamp, err := strconv.ParseInt(lastBlock.Timestamp, 0, 64);
+	timestamp, err := strconv.ParseInt(lastBlock.Timestamp, 0, 64)
 	if err != nil || timestamp <= 99999999999 {
-		return false;
+		return false
 	}
-	return true;
+	return true
 }
-
 
 // Evaluate executes code and pretty prints the result to the specified output
 // stream.
