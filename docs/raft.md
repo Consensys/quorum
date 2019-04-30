@@ -178,3 +178,7 @@ Additionally there could even be multiple minters running at the same time, but 
 ### Can transactions be reversed? Since raft log entries can be disregarded as "no-ops", does this imply transaction reversal?
 
 No. When a Raft log entry containing a new block is disregarded as a "no-op", its transactions will remain in the transaction pool, and so they will be included in a future block in the chain.
+
+### What's the deal with the block timestamp being stored in nanoseconds (instead of seconds, like other consensus mechanisms)?
+
+With raft-based consensus we can produce far more than one block per second, which vanilla Ethereum implicitly disallows (as the default timestamp resolution is in seconds and every block must have a timestamp greater than its parent). For Raft, we store the timestamp in nanoseconds and ensure it is incremented by at least 1 nanosecond per block.
