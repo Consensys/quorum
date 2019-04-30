@@ -347,7 +347,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	}()
 
 	//START - QUORUM Permissioning
-	startQuorumPermissionService(ctx, stack)
+	go startQuorumPermissionService(ctx, stack)
 
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
@@ -374,6 +374,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
 	}
+
 }
 
 // Starts all permissioning services permissioning services will come up only when

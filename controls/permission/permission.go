@@ -4,15 +4,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"io/ioutil"
-	"math/big"
-	"os"
-	"path/filepath"
-	"sync"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/controls"
 	pbind "github.com/ethereum/go-ethereum/controls/bind/permission"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -21,8 +14,15 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/raft"
+	"io/ioutil"
+	"math/big"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
 )
 
 type NodeOperation uint8
@@ -134,10 +134,20 @@ func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	return permConfig, nil
 }
 
+func waitForSync(e *eth.Ethereum) {
+	for !types.GetSyncStatus() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	for e.Downloader().Synchronising() {
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 // Creates the controls structure for permissions
 func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
 	// Create a new ethclient to for interfacing with the contract
 	stateReader, e, err := controls.CreateEthClient(stack)
+	waitForSync(e)
 	if err != nil {
 		log.Error("Unable to create ethereum client for permissions check", "err", err)
 		return nil, err

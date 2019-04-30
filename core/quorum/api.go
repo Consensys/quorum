@@ -22,7 +22,7 @@ import (
 var isStringAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9_-]*$`).MatchString
 
 //default gas limit to use if not passed in sendTxArgs
-var defaultGasLimit = uint64(470000000)
+var defaultGasLimit = uint64(4712384)
 
 //default gas price to use if not passed in sendTxArgs
 var defaultGasPrice = big.NewInt(0)

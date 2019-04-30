@@ -176,6 +176,7 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 
 	pHead, pTd := peer.Head()
 	if pTd.Cmp(td) <= 0 {
+		types.SetSyncStatus()
 		return
 	}
 	// Otherwise try to sync with the downloader
@@ -199,7 +200,6 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 			return
 		}
 	}
-
 	// Run the sync cycle, and disable fast sync if we've went past the pivot block
 	if err := pm.downloader.Synchronise(peer.id, pHead, pTd, mode); err != nil {
 		return

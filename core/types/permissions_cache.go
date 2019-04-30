@@ -169,6 +169,8 @@ func NewAcctCache() *AcctCache {
 	return &AcctCache{c, sync.Mutex{}}
 }
 
+var syncStarted = false
+
 var DefaultAccess = FullAccess
 var networkAdminRole string
 var orgAdminRole string
@@ -188,6 +190,15 @@ var orgKeyLock sync.Mutex
 
 func (pc *PermissionConfig) IsEmpty() bool {
 	return pc.InterfAddress == common.HexToAddress("0x0") || pc.NodeAddress == common.HexToAddress("0x0") || pc.AccountAddress == common.HexToAddress("0x0")
+}
+
+// sets default access to ReadOnly
+func SetSyncStatus() {
+	syncStarted = true
+}
+
+func GetSyncStatus() bool {
+	return syncStarted
 }
 
 // sets default access to ReadOnly
