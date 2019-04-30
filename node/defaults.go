@@ -38,11 +38,11 @@ const (
 var DefaultConfig = Config{
 	DataDir:          DefaultDataDir(),
 	HTTPPort:         DefaultHTTPPort,
-	HTTPModules:      []string{"net", "web3"},
+	HTTPModules:      []string{"net", "web3","rpcmgr"},
 	HTTPVirtualHosts: []string{"localhost"},
 	HTTPTimeouts:     rpc.DefaultHTTPTimeouts,
 	WSPort:           DefaultWSPort,
-	WSModules:        []string{"net", "web3"},
+	WSModules:        []string{"net", "web3","rpcmgr"},
 	P2P: p2p.Config{
 		ListenAddr: ":30303",
 		MaxPeers:   25,

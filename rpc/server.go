@@ -90,11 +90,12 @@ func (s *Server) RegisterSecurityCtx(ctx SecurityContext) {
 		switch provider {
 		case LocalSecProvider:
 			log.Info("register local security provider", "RPC security", "Enabled")
+
 			s.securityContext.Provider = &LocalSecurityProvider{
-				clientsFile: s.securityContext.Config.ProviderInformation.LocalProviderFile,
+			clientsFile: s.securityContext.Config.ProviderInformation.LocalProviderFile,
 			}
 
-			s.securityContext.Provider.SetType(LocalSecProvider)
+			//s.securityContext.Provider.SetType(LocalSecProvider)
 			err := s.securityContext.Provider.Init()
 			if err != nil {
 				// If error this stage
@@ -105,12 +106,13 @@ func (s *Server) RegisterSecurityCtx(ctx SecurityContext) {
 
 		case EnterpriseSecProvider:
 			log.Info("register enterprise security provider", "RPC security", "Enabled")
+
 			s.securityContext.Provider = &EnterpriseSecurityProvider{
 				IntrospectURL:       s.securityContext.Config.ProviderInformation.EnterpriseProviderIntrospectionURL,
 				ProviderCertificate: s.securityContext.Config.ProviderInformation.EnterpriseProviderCertificateInfo,
 			}
 
-			s.securityContext.Provider.SetType(EnterpriseSecProvider)
+			//s.securityContext.Provider.SetType(EnterpriseSecProvider)
 			err := s.securityContext.Provider.Init()
 			if err != nil {
 				// If error this stage
@@ -453,14 +455,16 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 		// Every RPC type except IPC will converge here.
 		if s.securityContext.Enabled {
 			if err := s.securityContext.ProcessRequestSecurity(r); err != nil {
-				r.err = &invalidParamsError{err.Error()}
+				r.err = &callbackError{err.Error()}
 			}
 		}
+
 
 		if r.err != nil {
 			requests[i] = &serverRequest{id: r.id, err: r.err}
 			continue
 		}
+
 
 		if r.isPubSub && strings.HasSuffix(r.method, unsubscribeMethodSuffix) {
 			requests[i] = &serverRequest{id: r.id, isUnsubscribe: true}

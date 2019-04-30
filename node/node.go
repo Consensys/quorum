@@ -70,7 +70,6 @@ type Node struct {
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
 
-
 	log log.Logger
 }
 
@@ -267,25 +266,26 @@ func (n *Node) openDataDir() error {
 // startup with security context. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
 func (n *Node) startRpcWithSecurityContext(services map[reflect.Type]Service, ctx rpc.SecurityContext) error {
+
 	// Gather all the possible APIs to surface
 	apis := n.apis()
 	for _, service := range services {
 		apis = append(apis, service.APIs()...)
 	}
 	// Start the various API endpoints, terminating all in case of errors
-	if err := n.startInProcWithSecurityContext(apis,ctx); err != nil {
+	if err := n.startInProcWithSecurityContext(apis, ctx); err != nil {
 		return err
 	}
 	if err := n.startIPC(apis); err != nil {
 		n.stopInProc()
 		return err
 	}
-	if err := n.startHTTPWithSecurityContext(n.httpEndpoint, apis, n.config.HTTPModules, n.config.HTTPCors, n.config.HTTPVirtualHosts, n.config.HTTPTimeouts,ctx); err != nil {
+	if err := n.startHTTPWithSecurityContext(n.httpEndpoint, apis, n.config.HTTPModules, n.config.HTTPCors, n.config.HTTPVirtualHosts, n.config.HTTPTimeouts, ctx); err != nil {
 		n.stopIPC()
 		n.stopInProc()
 		return err
 	}
-	if err := n.startWSWithSecurityContext(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll,ctx); err != nil {
+	if err := n.startWSWithSecurityContext(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll, ctx); err != nil {
 		n.stopHTTP()
 		n.stopIPC()
 		n.stopInProc()
@@ -295,7 +295,6 @@ func (n *Node) startRpcWithSecurityContext(services map[reflect.Type]Service, ct
 	n.rpcAPIs = apis
 	return nil
 }
-
 
 // startRPC is a helper method to start all the various RPC endpoint during node
 // startup. It's not meant to be called at any time afterwards as it makes certain
@@ -329,7 +328,6 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	n.rpcAPIs = apis
 	return nil
 }
-
 
 // startInProcWithSecurityContext initializes an in-process RPC endpoint with security context.
 func (n *Node) startInProcWithSecurityContext(apis []rpc.API, ctx rpc.SecurityContext) error {
@@ -449,12 +447,12 @@ func (n *Node) stopHTTP() {
 }
 
 // startWSWithSecurityContext initializes and starts the websocket RPC endpoint with security context.
-func (n *Node) startWSWithSecurityContext(endpoint string, apis []rpc.API, modules []string, wsOrigins []string, exposeAll bool,ctx rpc.SecurityContext) error {
+func (n *Node) startWSWithSecurityContext(endpoint string, apis []rpc.API, modules []string, wsOrigins []string, exposeAll bool, ctx rpc.SecurityContext) error {
 	// Short circuit if the WS endpoint isn't being exposed
 	if endpoint == "" {
 		return nil
 	}
-	listener, handler, err := rpc.StartWSEndpointWithSecurityContext(endpoint, apis, modules, wsOrigins, exposeAll,ctx)
+	listener, handler, err := rpc.StartWSEndpointWithSecurityContext(endpoint, apis, modules, wsOrigins, exposeAll, ctx)
 	if err != nil {
 		return err
 	}
@@ -701,7 +699,8 @@ func (n *Node) apis() []rpc.API {
 			Namespace: "admin",
 			Version:   "1.0",
 			Service:   NewPrivateAdminAPI(n),
-		}, {
+		},
+		{
 			Namespace: "admin",
 			Version:   "1.0",
 			Service:   NewPublicAdminAPI(n),

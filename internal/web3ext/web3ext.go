@@ -35,6 +35,7 @@ var Modules = map[string]string{
 	"istanbul":   Istanbul_JS,
 }
 
+
 const Chequebook_JS = `
 web3._extend({
 	property: 'chequebook',
@@ -140,7 +141,6 @@ web3._extend({
 });
 `
 
-
 const Admin_JS = `
 web3._extend({
 	property: 'admin',
@@ -182,32 +182,13 @@ web3._extend({
 			params: 2
 		}),
 		new web3._extend.Method({
-			name: 'rpcRegenerateClientSecret',
-			call: 'admin_rpcRegenerateClientSecret',
-			params: 1
-		}),
-		new web3._extend.Method({
-			name: 'rpcListClients',
-			call: 'admin_rpcListClients',
-			params: 0
-		}),
-		new web3._extend.Method({
-			name: 'rpcRemoveClient',
-			call: 'admin_rpcRemoveClient',
+			name: 'rpcTest',
+			call: 'admin_rpcTest',
 			params: 1,
+			inputFormatter: [null]
+			
 		}),
-		new web3._extend.Method({
-			name: 'rpcLoadClientsFromFile',
-			call: 'admin_rpcLoadClientsFromFile',
-			params: 1,
-		}),
-		new web3._extend.Method({
-			name: 'rpcAddClient',
-			call: 'admin_rpcAddClient',
-			params: 3,
-			inputFormatter: [null, null, null]
-		}),
-		new web3._extend.Method({
+	 	new web3._extend.Method({
 			name: 'startRpcWithSecurityContext',
 			call: 'admin_startRpcWithSecurityContext',
 			params: 5,

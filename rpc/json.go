@@ -42,7 +42,7 @@ type jsonRequest struct {
 	Version string          `json:"jsonrpc"`
 	Id      json.RawMessage `json:"id,omitempty"`
 	Payload json.RawMessage `json:"params,omitempty"`
-	Token string            `json:"token,omitempty"`
+	Token   string          `json:"token,omitempty"`
 }
 
 type jsonSuccessResponse struct {
@@ -176,6 +176,7 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 		return nil, false, &invalidMessageError{err.Error()}
 	}
 
+
 	if err := checkReqId(in.Id); err != nil {
 		return nil, false, &invalidMessageError{err.Error()}
 	}
@@ -193,7 +194,8 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 
 			reqs[0].service, reqs[0].method = strings.TrimSuffix(in.Method, subscribeMethodSuffix), subscribeMethod[0]
 			reqs[0].params = in.Payload
-			reqs[0].token= in.Token
+			reqs[0].token = in.Token
+
 			return reqs, false, nil
 		}
 		return nil, false, &invalidRequestError{"Unable to parse subscription request"}
@@ -201,7 +203,7 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 
 	if strings.HasSuffix(in.Method, unsubscribeMethodSuffix) {
 		return []rpcRequest{{id: &in.Id, isPubSub: true,
-			method: in.Method, params: in.Payload, token:in.Token}}, false, nil
+			method: in.Method, params: in.Payload, token: in.Token}}, false, nil
 	}
 
 	elems := strings.Split(in.Method, serviceMethodSeparator)
@@ -211,10 +213,10 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 
 	// regular RPC call
 	if len(in.Payload) == 0 {
-		return []rpcRequest{{service: elems[0], method: elems[1], id: &in.Id, token:in.Token}}, false, nil
+		return []rpcRequest{{service: elems[0], method: elems[1], id: &in.Id, token: in.Token}}, false, nil
 	}
 
-	return []rpcRequest{{service: elems[0], method: elems[1], id: &in.Id, params: in.Payload, token:in.Token}}, false, nil
+	return []rpcRequest{{service: elems[0], method: elems[1], id: &in.Id, params: in.Payload, token: in.Token}}, false, nil
 }
 
 // parseBatchRequest will parse a batch request into a collection of requests from the given RawMessage, an indication
@@ -254,7 +256,7 @@ func parseBatchRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) 
 		}
 
 		if strings.HasSuffix(r.Method, unsubscribeMethodSuffix) {
-			requests[i] = rpcRequest{id: id, isPubSub: true, method: r.Method, params: r.Payload, token:in[i].Token}
+			requests[i] = rpcRequest{id: id, isPubSub: true, method: r.Method, params: r.Payload, token: in[i].Token}
 			continue
 		}
 
@@ -278,6 +280,7 @@ func parseBatchRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) 
 // ParseRequestArguments tries to parse the given params (json.RawMessage) with the given
 // types. It returns the parsed values or an error when the parsing failed.
 func (c *jsonCodec) ParseRequestArguments(argTypes []reflect.Type, params interface{}) ([]reflect.Value, Error) {
+
 	if args, ok := params.(json.RawMessage); !ok {
 		return nil, &invalidParamsError{"Invalid params supplied"}
 	} else {

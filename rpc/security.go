@@ -3,7 +3,7 @@ package rpc
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"strings"
+	"reflect"
 )
 
 //ProcessRequestSecurity RPC WS/WSS/HTTPS/HTTP request security.
@@ -11,7 +11,7 @@ import (
 func (ctx *SecurityContext) ProcessRequestSecurity(request rpcRequest) error {
 	// Ensure Deny By Default Policy
 	if ctx.Enabled && ctx.Config == nil {
-		return errors.New("Request requires valid token")
+		return errors.New("Service security is not configured")
 	}
 	// Check if token/scope using provider.
 	if !ctx.Provider.IsClientAuthorized(request) {
@@ -27,11 +27,9 @@ func (ctx *SecurityContext) IsLocalSecurityProviderAvailable() (bool, error) {
 		return false, fmt.Errorf("security provider not set")
 	}
 
-	if strings.ToLower(ctx.Provider.GetType()) == LocalSecProvider {
-			return true , nil
-		}else {
-			return false, nil
-		}
+	fmt.Println(reflect.TypeOf(ctx.Provider))
+	return true, nil
+
 }
 
 

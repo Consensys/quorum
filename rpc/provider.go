@@ -11,14 +11,22 @@ import (
 //IsClientAuthorized Parse the RPC Request, Call send Introspect Request & Parse results
 func (ctx *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	fmt.Println("Send Introspect for:")
-	fmt.Println(request)
+
 	if request.token == "cucrisis" {
-		if request.service != "admin" {
-			return true
-		}
+		 return true
 	}
 
 	return false
+}
+
+//SetType the clients to memory and writes it to file.
+func (l *EnterpriseSecurityProvider) SetType(typeName string) {
+	l.providerTypeName = typeName
+}
+
+//getType the clients to memory and writes it to file.
+func (l *EnterpriseSecurityProvider) GetType() string {
+	return l.providerTypeName
 }
 
 func (l *EnterpriseSecurityProvider) Init() error {
@@ -26,31 +34,52 @@ func (l *EnterpriseSecurityProvider) Init() error {
 }
 
 //IsClientAuthorized Parse the RPC Request, Call send Introspect Request & Parse results
-func (ctx *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
+func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	fmt.Println("Send Introspect for:")
-	fmt.Println(request)
-
-	return true
+	if request.token == "cucrisis" {
+		return true
+	}
+	return false
 }
 
+//init local provider
 func (l *LocalSecurityProvider) Init() error {
 	if l.clientsFile == nil {
 		return fmt.Errorf("security provider file is not set in config")
 	}
+
+	// create file if not present
+	if _, err := os.Stat(*l.clientsFile); os.IsNotExist(err) {
+		f , err :=os.OpenFile(*l.clientsFile, os.O_RDONLY|os.O_CREATE, 0644)
+		if err != nil {
+			return err
+		}else{
+			err = f.Close()
+			if err != nil {
+				return err
+			}
+		}
+
+		// write empty json
+		clients := make([]*ClientInfo, 0)
+		clientsJson, _ := json.Marshal(clients)
+		return ioutil.WriteFile(*l.clientsFile, clientsJson, 0644)
+	}
+
 	return l.AddClientsFromFile(l.clientsFile)
 }
 
 func (l *LocalSecurityProvider) GetClientByToken(clientSecret *string) *ClientInfo {
-	 if c, ok := l.tokensToClients[*clientSecret]; ok {
-	 	return c
-	 }
-	 return nil
+	if c, ok := l.tokensToClients[*clientSecret]; ok {
+		return c
+	}
+	return nil
 
 }
 
 func (l *LocalSecurityProvider) GetClientById(clientId *string) *ClientInfo {
 
-	for _ , c := range l.clientsToTokens {
+	for _, c := range l.clientsToTokens {
 		if c.ClientId == *clientId {
 			return c
 		}
@@ -61,15 +90,14 @@ func (l *LocalSecurityProvider) GetClientById(clientId *string) *ClientInfo {
 
 func (l *LocalSecurityProvider) GetClientByName(clientName *string) *ClientInfo {
 
-		for _ , c := range l.clientsToTokens {
-			if c.Username == *clientName {
-				return c
-			}
+	for _, c := range l.clientsToTokens {
+		if c.Username == *clientName {
+			return c
 		}
+	}
 
-		return nil
+	return nil
 }
-
 
 //addClientToFile add clientsToTokens to json file. Assumes clientsToTokens are well formed
 func (l *LocalSecurityProvider) AddClientsToFile(clients []*ClientInfo, path *string) error {
@@ -84,13 +112,13 @@ func (l *LocalSecurityProvider) AddClientsToFile(clients []*ClientInfo, path *st
 
 	// check we can read / write to file
 	if _, err := os.Stat(*path); err != nil {
-		return fmt.Errorf("error reading from file")
+		return fmt.Errorf("error reading from file %v", err)
 	}
 
 	// Write to file
-	jsonClients , err := json.Marshal(clients)
+	jsonClients, err := json.Marshal(clients)
 	if err != nil {
-		return ioutil.WriteFile(*path,jsonClients, 0644)
+		return ioutil.WriteFile(*path, jsonClients, 0644)
 	}
 
 	return nil
@@ -109,7 +137,7 @@ func (l *LocalSecurityProvider) AddClientsFromFile(path *string) error {
 
 	// check we can read from file
 	if _, err := os.Stat(*path); err != nil {
-		return fmt.Errorf("error reading from file")
+		return fmt.Errorf("error reading from file %v", err)
 	}
 
 	// Read & unmarshall the json file
@@ -131,15 +159,19 @@ func (l *LocalSecurityProvider) AddClientsFromFile(path *string) error {
 			addingError = &err
 		}
 	}
+	if addingError == nil {
+		return nil
+	} else {
 
-	return *addingError
+		return *addingError
+	}
 }
 
 //NewClient creates a new client struct
 func (l *LocalSecurityProvider) NewClient(clientName string, clientId string, secret string, scope string, exp int) (ClientInfo, error) {
 	clientName, err := cleanString(clientName)
 
-	if err != nil{
+	if err != nil {
 		return ClientInfo{}, err
 	}
 
@@ -174,28 +206,14 @@ func (l *LocalSecurityProvider) NewClient(clientName string, clientId string, se
 }
 
 //SetType the clients to memory and writes it to file.
-func (l *EnterpriseSecurityProvider) SetType(typeName string)  {
+func (l *LocalSecurityProvider) SetType(typeName string) {
 	l.providerTypeName = typeName
 }
-
-
-//SetType the clients to memory and writes it to file.
-func (l *LocalSecurityProvider) SetType(typeName string)  {
-	l.providerTypeName = typeName
-}
-
-
-//getType the clients to memory and writes it to file.
-func (l *EnterpriseSecurityProvider) GetType() string {
-	return l.providerTypeName
-}
-
 
 //getType the clients to memory and writes it to file.
 func (l *LocalSecurityProvider) GetType() string {
 	return l.providerTypeName
 }
-
 
 //AddClient adds the clients to memory and writes it to file.
 func (l *LocalSecurityProvider) AddClient(client *ClientInfo) error {
@@ -203,8 +221,8 @@ func (l *LocalSecurityProvider) AddClient(client *ClientInfo) error {
 		return fmt.Errorf("client must be provided")
 	}
 
-	if l.GetClientByName(&client.Username) != nil  || l.GetClientByToken(&client.Secret) != nil || l.GetClientById(&client.ClientId) != nil{
-			return fmt.Errorf("client with same username, secret or identifier exists")
+	if l.GetClientByName(&client.Username) != nil || l.GetClientByToken(&client.Secret) != nil || l.GetClientById(&client.ClientId) != nil {
+		return fmt.Errorf("client with same username, secret or identifier exists")
 	}
 
 	// Add clients to memory
@@ -220,7 +238,7 @@ func (l *LocalSecurityProvider) GetClientsList() []*ClientInfo {
 	clients := make([]*ClientInfo, len(l.clientsToTokens))
 	counter := 0
 
-	for  _ , c := range l.clientsToTokens {
+	for _, c := range l.clientsToTokens {
 		clients[counter] = c
 		counter++
 	}
@@ -242,7 +260,7 @@ func (l *LocalSecurityProvider) RemoveClient(clientName *string) error {
 }
 
 //regenerateClientSecret regenerate client secret.
-func (l *LocalSecurityProvider) RegenerateClientSecret(clientName *string)  (*ClientInfo, error) {
+func (l *LocalSecurityProvider) RegenerateClientSecret(clientName *string) (*ClientInfo, error) {
 	if l.GetClientByName(clientName) == nil {
 		return nil, fmt.Errorf("client doesnt exist")
 	}

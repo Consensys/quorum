@@ -374,26 +374,26 @@ func parseScopeStr(scope string) ([]Scope, error) {
 			return nil, err
 		}
 
-		var scopeModule string
-		var scopeService string
+		var service string
+		var function string
 
 		// support format module.service, module, module.
 		if strings.Contains(cleanScope,".") {
 			scopeProp := strings.SplitN(cleanScope, ".", 2)
-			scopeModule = scopeProp[0]
+			service = scopeProp[0]
 			if scopeProp[1] == "" {
 				scopeProp[1] = "*"
 			}
-			scopeService = scopeProp[1]
+			function = scopeProp[1]
 		} else {
-			scopeModule = cleanScope
-			scopeService = "*"
+			service = cleanScope
+			function = "*"
 
 		}
 
 		result[i] = Scope{
-			Module:scopeModule,
-			Service:scopeService,
+			Service: service,
+			Method:  function,
 		}
 
 

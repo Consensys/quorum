@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+
 // PrivateAdminAPI is the collection of administrative API methods exposed only
 // over a secure RPC channel.
 type PrivateAdminAPI struct {
@@ -144,9 +145,10 @@ func (api *PrivateAdminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, 
 	return rpcSub, nil
 }
 
+
+
 //RpcLoadClientsFromFile. Add Local RPC ClientId to security context
 func (api *PrivateAdminAPI) RpcLoadClientsFromFile(filePath *string) (bool, error) {
-
 	// check preconditions
 	if api.node.config.RpcSecurityContext.Enabled == false {
 		return false, fmt.Errorf("RPC Security not enabled")
@@ -162,14 +164,14 @@ func (api *PrivateAdminAPI) RpcLoadClientsFromFile(filePath *string) (bool, erro
 	}
 
 
-	provider := api.node.config.RpcSecurityContext.Provider.(rpc.LocalSecurityProvider)
 
+	return true, nil
 }
 
 
 // Add Local RPC ClientId to security context
-func (api *PrivateAdminAPI) RpcAddClient(clientName *string, clientSecret *string, clientScope *string) (bool, error) {
-
+func (api *PrivateAdminAPI) RpcAddClient(clientName *string, clientScope *string, clientId *string) (bool, error) {
+	return true, nil
 }
 
 // Remove Local RPC ClientId from security context
@@ -185,6 +187,16 @@ func (api *PrivateAdminAPI) RpcRegenerateClientSecret(clientName *string) (bool,
 
 	return true, nil
 }
+
+// List all local rpc clients
+func (api *PrivateAdminAPI) RpcTest(test *string) (string, error) {
+	api.node.lock.Lock()
+	defer api.node.lock.Unlock()
+
+	fmt.Println(test)
+	return *test, nil
+}
+
 
 // List all local rpc clients
 func (api *PrivateAdminAPI) RpcListClients() (bool, error) {
@@ -247,7 +259,7 @@ func (api *PrivateAdminAPI) StartRpcWithSecurityContext(host *string, port *int,
 			return false, fmt.Errorf("HTTP RPC already running on %v", err)
 		}
 		api.node.config.RpcSecurityContext = rpc.SecurityContext{Enabled:true, Config:securityConfig}
-	} else { api.node.config.RpcSecurityContext = rpc.GetDenyAllPolicy() }
+	}
 
 	if err := api.node.startHTTPWithSecurityContext(fmt.Sprintf("%s:%d", *host, *port), api.node.rpcAPIs, modules, allowedOrigins, allowedVHosts, api.node.config.HTTPTimeouts, api.node.config.RpcSecurityContext ); err != nil {
 		return false, err

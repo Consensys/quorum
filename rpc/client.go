@@ -318,7 +318,7 @@ func (c *Client) Close() {
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallWithSecurity(result interface{}, method string, token string, args ...interface{}) error {
 	ctx := context.Background()
-	return c.CallContextWithSecurity(ctx, result, method, token, args)
+	return c.CallContextWithSecurity(ctx, result, method, token, args...)
 }
 
 // Call performs a JSON-RPC call with the given arguments and unmarshals into
@@ -374,7 +374,7 @@ func (c *Client) CallContextWithSecurity(ctx context.Context, result interface{}
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
-	msg, err := c.newMessage(method, args...)
+	msg, err := c.newMessage(method, args)
 
 	if err != nil {
 		return err
@@ -532,8 +532,12 @@ func (c *Client) Subscribe(ctx context.Context, namespace string, channel interf
 	return op.sub, nil
 }
 
+
 func (c *Client) newMessage(method string, paramsIn ...interface{}) (*jsonrpcMessage, error) {
+	fmt.Println(paramsIn)
+	fmt.Println("--------")
 	params, err := json.Marshal(paramsIn)
+	fmt.Println(params)
 	if err != nil {
 		return nil, err
 	}

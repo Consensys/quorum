@@ -82,12 +82,6 @@ type SecurityProvider interface {
 	// setup security provider
 	Init() error
 
-	// Get provider type name
-	GetType() string
-
-	// Get provider type name
-	SetType(typeName string)
-
 	// Check if client is authorized. True if authorized, false otherwise.
 	IsClientAuthorized(request rpcRequest) bool
 }
@@ -170,7 +164,7 @@ type SecurityContext struct {
 	Enabled  bool
 	Config   *SecurityConfig
 	Client   *http.Client
-	Provider SecurityProvider
+	Provider  SecurityProvider
 }
 
 // Enterprise Server Based Security provider
@@ -204,8 +198,8 @@ type ClientToken struct {
 }
 
 type Scope struct {
-	Module string
 	Service string
+	Method string
 }
 
 // Authorization Server Cert
