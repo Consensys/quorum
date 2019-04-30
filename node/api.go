@@ -144,44 +144,42 @@ func (api *PrivateAdminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, 
 	return rpcSub, nil
 }
 
-// Add Local RPC Client to security context
-func (api *PrivateAdminAPI) RpcAddClientsFromFile(filePath *string) (bool, error) {
+//RpcLoadClientsFromFile. Add Local RPC ClientId to security context
+func (api *PrivateAdminAPI) RpcLoadClientsFromFile(filePath *string) (bool, error) {
+
+	// check preconditions
+	if api.node.config.RpcSecurityContext.Enabled == false {
+		return false, fmt.Errorf("RPC Security not enabled")
+	}
+
+	isLocalProviderAv , err := api.node.config.RpcSecurityContext.IsLocalSecurityProviderAvailable()
+	if err != nil {
+		return false, err
+
+	}
+	if isLocalProviderAv == false {
+		return false, fmt.Errorf("RPC Security not enabled")
+	}
 
 
-	return true, nil
+	provider := api.node.config.RpcSecurityContext.Provider.(rpc.LocalSecurityProvider)
+
 }
 
 
-// Add Local RPC Client to security context
+// Add Local RPC ClientId to security context
 func (api *PrivateAdminAPI) RpcAddClient(clientName *string, clientSecret *string, clientScope *string) (bool, error) {
-	client := rpc.LocalProviderClient{
-		ClientName:*clientName,
-		ClientToken:*clientSecret,
-		ClientAuthorizedServices:*clientScope,
-	}
-
-	if strings.ToLower(api.node.config.RpcSecurityContext.Config.ProviderType) == rpc.LocalSecProvider {
-		err := rpc.AddLocalRpcClient(client, api.node.config.RpcSecurityContext.Provider.(*rpc.LocalSecurityProvider))
-			if err != nil {
-				return false, err
-			} else{
-				return true, nil
-			}
-
-	} else {
-		return false, ErrServiceUnknown
-	}
 
 }
 
-// Remove Local RPC Client from security context
+// Remove Local RPC ClientId from security context
 func (api *PrivateAdminAPI) RpcRemoveClient(clientName *string) (bool, error) {
 
 
 	return true, nil
 }
 
-// Remove Local RPC Client from security context
+// Remove Local RPC ClientId from security context
 func (api *PrivateAdminAPI) RpcRegenerateClientSecret(clientName *string) (bool, error) {
 
 
@@ -194,6 +192,7 @@ func (api *PrivateAdminAPI) RpcListClients() (bool, error) {
 
 	return true, nil
 }
+
 
 
 // StartRPCWithContextSecurity starts the HTTP RPC API server.

@@ -22,18 +22,17 @@ import (
 	crand "crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/errors"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 	"io/ioutil"
 	"math/rand"
 	"net"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -310,7 +309,7 @@ func GetHttpListenerBasedOnSecurityContext(endpoint string, ctx SecurityContext)
 
 
 
-//buildHttpClient Build HTTP Client. With tls support if
+//buildHttpClient Build HTTP ClientId. With tls support if
 // required by the security context
 func buildHttpClient(ctx *SecurityContext) (*http.Client, error){
 	if ctx.Config.ProviderInformation == nil {
@@ -359,18 +358,82 @@ func buildHttpClient(ctx *SecurityContext) (*http.Client, error){
 
 }
 
+// parseScopeStr returns list of scope in well formed struct
+func parseScopeStr(scope string) ([]Scope, error) {
+	// remove whitespace & split
+	scope =  strings.Join(strings.Fields(scope),"")
+	scopeList := strings.Split(scope, ",")
 
-// newDatabase creates/opens a leveldb backed persistent node database,
-// also flushing its contents in case of a version mismatch.
-func newDatabase(path string) (*leveldb.DB, error) {
-	opts := &opt.Options{OpenFilesCacheCapacity: 5,ErrorIfMissing:false}
-	db, err := leveldb.OpenFile(path, opts)
-	if _, iscorrupted := err.(*errors.ErrCorrupted); iscorrupted {
-		db, err = leveldb.RecoverFile(path, nil)
+	var result = make([]Scope, len(scopeList))
+
+	// iterate over scope
+	for i , s := range scopeList {
+		// only alpha numeric & .
+		cleanScope, err  := cleanScope(s)
+		if err != nil {
+			return nil, err
+		}
+
+		var scopeModule string
+		var scopeService string
+
+		// support format module.service, module, module.
+		if strings.Contains(cleanScope,".") {
+			scopeProp := strings.SplitN(cleanScope, ".", 2)
+			scopeModule = scopeProp[0]
+			if scopeProp[1] == "" {
+				scopeProp[1] = "*"
+			}
+			scopeService = scopeProp[1]
+		} else {
+			scopeModule = cleanScope
+			scopeService = "*"
+
+		}
+
+		result[i] = Scope{
+			Module:scopeModule,
+			Service:scopeService,
+		}
+
+
 	}
+
+	return result, nil
+
+}
+
+
+
+//cleanScope removes all non alpha numeric except .
+func cleanScope(str string) (string, error) {
+	reg, err := regexp.Compile("[^a-zA-Z0-9 .]+")
+	if err != nil {
+		return "" , err
+	}
+	return reg.ReplaceAllString(str, ""), nil
+}
+
+// cleanString removes all non alpha numeric
+func cleanString(str string) (string, error) {
+	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
+	if err != nil {
+		return "" , err
+	}
+	return reg.ReplaceAllString(str, ""), nil
+}
+
+func GenerateRandomBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
 	if err != nil {
 		return nil, err
 	}
 
-	return db, nil
+	return b, nil
+}
+
+func GenerateRandomString(s int) (string, error) {
+	b, err := GenerateRandomBytes(s)
+	return base64.URLEncoding.EncodeToString(b), err
 }

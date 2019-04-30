@@ -50,7 +50,7 @@ type httpConn struct {
 	closed    chan struct{}
 }
 
-// httpConn is treated specially by Client.
+// httpConn is treated specially by ClientId.
 func (hc *httpConn) LocalAddr() net.Addr              { return nullAddr }
 func (hc *httpConn) RemoteAddr() net.Addr             { return nullAddr }
 func (hc *httpConn) SetReadDeadline(time.Time) error  { return nil }
@@ -101,7 +101,7 @@ var DefaultHTTPTimeouts = HTTPTimeouts{
 }
 
 // DialHTTPWithClientSecurity creates a new RPC client that connects to an RPC server over HTTP
-// using the provided HTTP Client.
+// using the provided HTTP ClientId.
 func DialHTTPWithClientSecurity(endpoint string, token string, client *http.Client) (*Client, error) {
 	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
 	if err != nil {
@@ -121,7 +121,7 @@ func DialHTTPWithClientSecurity(endpoint string, token string, client *http.Clie
 
 
 // DialHTTPWithClient creates a new RPC client that connects to an RPC server over HTTP
-// using the provided HTTP Client.
+// using the provided HTTP ClientId.
 func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
 	if err != nil {

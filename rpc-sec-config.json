@@ -1,6 +1,7 @@
 {
-	"providerType":"enterprise",
+	"providerType":"local",
         "providerInfo": {
+		"localProviderFile" :"/Users/cucrisis/Workspace/tools/go/src/github.com/ethereum/go-ethereum/store/rpc-local.db",
 		"providerIntrospectionURL":"https://localhost:8888/introspect",
 		"providerCert": {
 			"providerTlsCertificateFile": "testing-providerTlsCertificateFile",

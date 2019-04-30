@@ -105,7 +105,7 @@ func (msg *jsonrpcMessage) String() string {
 	return string(b)
 }
 
-// Client represents a connection to an RPC server.
+// ClientId represents a connection to an RPC server.
 type Client struct {
 	idCounter   uint32
 	connectFunc func(ctx context.Context) (net.Conn, error)
@@ -494,7 +494,7 @@ func (c *Client) ShhSubscribe(ctx context.Context, channel interface{}, args ...
 // The context argument cancels the RPC request that sets up the subscription but has no
 // effect on the subscription after Subscribe has returned.
 //
-// Slow subscribers will be dropped eventually. Client buffers up to 8000 notifications
+// Slow subscribers will be dropped eventually. ClientId buffers up to 8000 notifications
 // before considering the subscriber dead. The subscription Err channel will receive
 // ErrSubscriptionQueueOverflow. Use a sufficiently large buffer on the channel or ensure
 // that the channel usually has at least one reader to prevent this issue.

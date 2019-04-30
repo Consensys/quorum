@@ -18,14 +18,13 @@ package rpc
 
 import (
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb"
 	"math"
 	"net/http"
 	"reflect"
 	"strings"
 	"sync"
 
-	mapset "github.com/deckarep/golang-set"
+	"github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
@@ -81,10 +80,16 @@ type subscriptions map[string]*callback  // collection of subscription callbacks
 
 type SecurityProvider interface {
 	// setup security provider
-	init() error
+	Init() error
+
+	// Get provider type name
+	GetType() string
+
+	// Get provider type name
+	SetType(typeName string)
 
 	// Check if client is authorized. True if authorized, false otherwise.
-	isClientAuthorized(request rpcRequest) bool
+	IsClientAuthorized(request rpcRequest) bool
 }
 
 // Server represents a RPC server
@@ -165,27 +170,42 @@ type SecurityContext struct {
 	Enabled  bool
 	Config   *SecurityConfig
 	Client   *http.Client
-	Provider  SecurityProvider
+	Provider SecurityProvider
 }
 
 // Enterprise Server Based Security provider
 type EnterpriseSecurityProvider struct {
-	IntrospectURL  string
+	providerTypeName    string
+	IntrospectURL       string
 	ProviderCertificate *AuthorizationServerCert
 }
 
 // Local file Based Security provider
 type LocalSecurityProvider struct {
-	securityProviderFile *string
-	securityDatabase 	 *leveldb.DB
+	providerTypeName string
+	tokensToClients  map[string]*ClientInfo
+	clientsToTokens  map[string]*ClientInfo
+	clientsFile      *string
 
 }
 
-// Local client
-type LocalProviderClient struct {
-	 ClientName  string `json:"clientName"`
-	 ClientToken string `json:"clientToken"`
-	 ClientAuthorizedServices string `json:"clientAuthorizedServices"`
+// Local client information
+type ClientInfo struct {
+	ClientId   string `json:"clientId"`
+	Secret     string `json:"secret"`
+	Username   string `json:"username"`
+	Scope      string `json:"scope"`
+	Expiration int    `json:"exp"`
+}
+
+type ClientToken struct {
+	Token string
+	Scope Scope
+}
+
+type Scope struct {
+	Module string
+	Service string
 }
 
 // Authorization Server Cert
@@ -205,6 +225,9 @@ type ProviderInformation struct {
 
 	// Local Provider Information
 	LocalProviderFile *string `json:"localProviderFile"`
+
+	// New Users Local Provider Scope
+	LocalProviderDefaultClientScope *string `json:"localProviderDefaultClientScope"`
 }
 
 // RPC ListenerWithTls Support

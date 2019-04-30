@@ -197,8 +197,8 @@ web3._extend({
 			params: 1,
 		}),
 		new web3._extend.Method({
-			name: 'rpcAddClientsFromFile',
-			call: 'admin_rpcAddClientsFromFile',
+			name: 'rpcLoadClientsFromFile',
+			call: 'admin_rpcLoadClientsFromFile',
 			params: 1,
 		}),
 		new web3._extend.Method({

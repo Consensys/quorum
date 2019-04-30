@@ -324,7 +324,7 @@ func TestClientSubscribeClose(t *testing.T) {
 }
 
 // This test reproduces https://github.com/ethereum/go-ethereum/issues/17837 where the
-// client hangs during shutdown when Unsubscribe races with Client.Close.
+// client hangs during shutdown when Unsubscribe races with ClientId.Close.
 func TestClientCloseUnsubscribeRace(t *testing.T) {
 	service := &NotificationTestService{}
 	server := newTestServer("eth", service)
@@ -347,7 +347,7 @@ func TestClientCloseUnsubscribeRace(t *testing.T) {
 	}
 }
 
-// This test checks that Client doesn't lock up when a single subscriber
+// This test checks that ClientId doesn't lock up when a single subscriber
 // doesn't read subscription events.
 func TestClientNotificationStorm(t *testing.T) {
 	server := newTestServer("eth", new(NotificationTestService))

@@ -91,9 +91,11 @@ func (s *Server) RegisterSecurityCtx(ctx SecurityContext) {
 		case LocalSecProvider:
 			log.Info("register local security provider", "RPC security", "Enabled")
 			s.securityContext.Provider = &LocalSecurityProvider{
-				securityProviderFile: s.securityContext.Config.ProviderInformation.LocalProviderFile}
+				clientsFile: s.securityContext.Config.ProviderInformation.LocalProviderFile,
+			}
 
-			err := s.securityContext.Provider.init()
+			s.securityContext.Provider.SetType(LocalSecProvider)
+			err := s.securityContext.Provider.Init()
 			if err != nil {
 				// If error this stage
 				// ensure Deny All
@@ -108,7 +110,8 @@ func (s *Server) RegisterSecurityCtx(ctx SecurityContext) {
 				ProviderCertificate: s.securityContext.Config.ProviderInformation.EnterpriseProviderCertificateInfo,
 			}
 
-			err := s.securityContext.Provider.init()
+			s.securityContext.Provider.SetType(EnterpriseSecProvider)
+			err := s.securityContext.Provider.Init()
 			if err != nil {
 				// If error this stage
 				// ensure Deny All
@@ -198,7 +201,7 @@ func (s *Server) serveRequest(ctx context.Context, codec ServerCodec, singleShot
 	defer cancel()
 
 	// if the codec supports notification include a notifier that callbacks can use
-	// to send notification to clients. It is tied to the codec/connection. If the
+	// to send notification to clientsToTokens. It is tied to the codec/connection. If the
 	// connection is closed the notifier will stop and cancels all active subscriptions.
 	if options&OptionSubscriptions == OptionSubscriptions {
 		ctx = context.WithValue(ctx, notifierKey{}, newNotifier(codec))
