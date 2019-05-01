@@ -87,6 +87,8 @@ type SecurityProvider interface {
 
 	AddClientsFromFile(path *string) ([]ClientInfo,error)
 
+	SetClientScope(clientName string, scope string) error
+
 	SetClientStatus(clientName string, status bool) error
 
 	NewClient(clientName string, clientId string, secret string, scope string, active bool) (ClientInfo, error)

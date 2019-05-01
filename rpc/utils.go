@@ -359,6 +359,31 @@ func buildHttpClient(ctx *SecurityContext) (*http.Client, error){
 }
 
 
+//isRequestAuthorized checks the scope against request info
+func isRequestAuthorized(scope *Scope, request rpcRequest) bool {
+	// Any method in service
+	scopeService := strings.ToLower(scope.Service)
+	scopeMethod  := strings.ToLower(scope.Method)
+	requestService := strings.ToLower(request.service)
+	requestMethod := strings.ToLower(request.method)
+
+	// Any method & service
+	if scopeService == "*" && scopeMethod == "*"{
+		return true
+	}
+
+	// Any method in service
+	if scopeService == requestService && scopeMethod == "*"{
+		return true
+	}
+
+	// Exact service & Method
+	if scopeService == requestService && scopeMethod == requestMethod {
+		return true
+	}
+
+	return false
+}
 
 // parseScopeStr returns list of scope in well formed struct
 func parseScopeStr(scope string) ([]Scope, error) {

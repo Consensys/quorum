@@ -203,6 +203,13 @@ web3._extend({
 			
 		}),
 		new web3._extend.Method({
+			name: 'rpcSetClientScope',
+			call: 'admin_rpcSetClientScope',
+			params: 2,
+			inputFormatter: [null, null]
+			
+		}),
+		new web3._extend.Method({
 			name: 'rpcFindClientById',
 			call: 'admin_rpcFindClientById',
 			params: 1,

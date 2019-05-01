@@ -169,10 +169,31 @@ func (api *PrivateAdminAPI) RpcLoadClientsFromFile(filePath *string) ([]rpc.Clie
 }
 
 // Add Local RPC ClientId to security context
+func (api *PrivateAdminAPI) RpcSetClientScope(clientName *string, scope *string) (string, error) {
+	// check preconditions
+	if api.node.config.RpcSecurityContext.Enabled == false {
+		return "", fmt.Errorf("RPC Security not enabled")
+	}
+	isLocalProviderAv, err := api.node.config.RpcSecurityContext.IsLocalSecurityProviderAvailable()
+	if err != nil {
+		return "", err
+
+	}
+	if isLocalProviderAv == false {
+		return "", fmt.Errorf("RPC Security not enabled")
+	}
+
+	if cerr := api.node.config.RpcSecurityContext.Provider.SetClientScope(*clientName, *scope); cerr != nil {
+		return  "", cerr
+	}
+
+	return fmt.Sprintf("client scope was set to %v",*scope), nil
+
+}
+// Add Local RPC ClientId to security context
 func (api *PrivateAdminAPI) RpcSetClientStatus(clientName *string, active *string) (string, error) {
 	var status bool
 	userStatus := strings.ToLower(*active)
-	fmt.Println(userStatus)
 	if userStatus == "active" || userStatus == "blocked" {
 		if userStatus == "active" {
 			status = true

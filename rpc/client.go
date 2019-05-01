@@ -373,7 +373,7 @@ func (c *Client) CallContextWithSecurity(ctx context.Context, result interface{}
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
-	msg, err := c.newMessage(method, args)
+	msg, err := c.newMessage(method, args...)
 
 	if err != nil {
 		return err
