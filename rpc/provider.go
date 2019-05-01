@@ -21,20 +21,6 @@ func (ctx *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bo
 	return false
 }
 
-//SetType the clients to memory and writes it to file.
-func (l *EnterpriseSecurityProvider) SetType(typeName string) {
-	l.providerTypeName = typeName
-}
-
-//getType the clients to memory and writes it to file.
-func (l *EnterpriseSecurityProvider) GetType() string {
-	return l.providerTypeName
-}
-
-func (l *EnterpriseSecurityProvider) Init() error {
-	return nil
-}
-
 //IsClientAuthorized Parse the RPC Request, Call send Introspect Request & Parse results
 func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	fmt.Println("Send Introspect for:")
@@ -45,11 +31,22 @@ func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	return false
 }
 
+
+
+func (l *EnterpriseSecurityProvider) Init() error {
+
+	return nil
+}
+
 //init local provider
 func (l *LocalSecurityProvider) Init() error {
 	if l.clientsFile == nil {
 		return fmt.Errorf("security provider file is not set in config")
 	}
+
+	// Init structures
+	l.TokensToClients =  make(map[string]ClientInfo)
+	l.ClientsToTokens =  make(map[string]ClientInfo)
 
 	// create file if not present
 	if _, err := os.Stat(*l.clientsFile); os.IsNotExist(err) {
@@ -62,47 +59,75 @@ func (l *LocalSecurityProvider) Init() error {
 				return err
 			}
 		}
-
 		// write empty json
-		clients := make([]*ClientInfo, 0)
-		clientsJson, _ := json.Marshal(clients)
-		return ioutil.WriteFile(*l.clientsFile, clientsJson, 0644)
+		clients := make([]ClientInfo, 0)
+		clientsJson, err := json.Marshal(clients)
+
+		if err != nil {
+			return err
+		}
+
+		return ioutil.WriteFile(*l.clientsFile, clientsJson, os.ModePerm)
 	}
 
 	return l.AddClientsFromFile(l.clientsFile)
 }
 
+func (l *EnterpriseSecurityProvider) GetClientByToken(clientSecret *string) *ClientInfo {
+	panic("not implemented")
+
+	return nil
+}
+
 func (l *LocalSecurityProvider) GetClientByToken(clientSecret *string) *ClientInfo {
-	if c, ok := l.tokensToClients[*clientSecret]; ok {
-		return c
+	if c, ok := l.TokensToClients[*clientSecret]; ok {
+		return &c
 	}
 	return nil
 
 }
 
+func (l *EnterpriseSecurityProvider) GetClientById(clientId *string) *ClientInfo {
+	panic("not implemented")
+
+	return nil
+}
+
 func (l *LocalSecurityProvider) GetClientById(clientId *string) *ClientInfo {
 
-	for _, c := range l.clientsToTokens {
+	for _, c := range l.ClientsToTokens {
 		if c.ClientId == *clientId {
-			return c
+			return &c
 		}
 	}
 
+	return nil
+}
+
+func (l *EnterpriseSecurityProvider) GetClientByName(clientName *string) *ClientInfo {
+	panic("not implemented")
 	return nil
 }
 
 func (l *LocalSecurityProvider) GetClientByName(clientName *string) *ClientInfo {
 
-	for _, c := range l.clientsToTokens {
+	for _, c := range l.ClientsToTokens {
 		if c.Username == *clientName {
-			return c
+			return &c
 		}
 	}
 
 	return nil
 }
 
-//addClientToFile add clientsToTokens to json file. Assumes clientsToTokens are well formed
+//addClientToFile add ClientsToTokens to json file. Assumes ClientsToTokens are well formed
+func (l *EnterpriseSecurityProvider) AddClientsToFile(clients []*ClientInfo, path *string) error {
+	panic("not implemented")
+
+	return nil
+}
+
+//addClientToFile add ClientsToTokens to json file. Assumes ClientsToTokens are well formed
 func (l *LocalSecurityProvider) AddClientsToFile(clients []*ClientInfo, path *string) error {
 	// ensure to fall back on provider config if path is not provided
 	if path == nil {
@@ -121,13 +146,24 @@ func (l *LocalSecurityProvider) AddClientsToFile(clients []*ClientInfo, path *st
 	// Write to file
 	jsonClients, err := json.Marshal(clients)
 	if err != nil {
-		return ioutil.WriteFile(*path, jsonClients, 0644)
+		return err
 	}
 
+	return ioutil.WriteFile(*path, jsonClients, os.ModePerm)
+
+}
+
+
+
+//addClientsFromFile add ClientsToTokens from json file
+func (l *EnterpriseSecurityProvider) AddClientsFromFile(path *string) error {
+	panic("not implemented")
 	return nil
 }
 
-//addClientsFromFile add clientsToTokens from json file
+
+
+//addClientsFromFile add ClientsToTokens from json file
 func (l *LocalSecurityProvider) AddClientsFromFile(path *string) error {
 	// ensure to fall back on provider config if path is not provided
 	if path == nil {
@@ -169,10 +205,15 @@ func (l *LocalSecurityProvider) AddClientsFromFile(path *string) error {
 		return *addingError
 	}
 }
-
+func (l *EnterpriseSecurityProvider) NewClient(clientName string, clientId string, secret string, scope string, exp int) (ClientInfo, error) {
+	panic("not implemented")
+	return ClientInfo{}, nil
+}
 //NewClient creates a new client struct
 func (l *LocalSecurityProvider) NewClient(clientName string, clientId string, secret string, scope string, exp int) (ClientInfo, error) {
 	clientName, err := cleanString(clientName)
+	clientScope, err  := cleanScope(scope)
+
 
 	if err != nil {
 		return ClientInfo{}, err
@@ -200,7 +241,7 @@ func (l *LocalSecurityProvider) NewClient(clientName string, clientId string, se
 
 	return ClientInfo{
 		ClientId:   clientId,
-		Scope:      scope,
+		Scope:      clientScope,
 		Secret:     secret,
 		Username:   clientName,
 		Expiration: exp,
@@ -208,15 +249,13 @@ func (l *LocalSecurityProvider) NewClient(clientName string, clientId string, se
 
 }
 
-//SetType the clients to memory and writes it to file.
-func (l *LocalSecurityProvider) SetType(typeName string) {
-	l.providerTypeName = typeName
+
+//AddClient adds the clients to memory and writes it to file.
+func (l *EnterpriseSecurityProvider) AddClient(client *ClientInfo) error {
+	panic("not implemented")
+	return nil
 }
 
-//getType the clients to memory and writes it to file.
-func (l *LocalSecurityProvider) GetType() string {
-	return l.providerTypeName
-}
 
 //AddClient adds the clients to memory and writes it to file.
 func (l *LocalSecurityProvider) AddClient(client *ClientInfo) error {
@@ -228,26 +267,38 @@ func (l *LocalSecurityProvider) AddClient(client *ClientInfo) error {
 		return fmt.Errorf("client with same username, secret or identifier exists")
 	}
 
-	// Add clients to memory
-	l.clientsToTokens[client.ClientId] = client
-	l.tokensToClients[client.Secret] = client
+
+	// Init structures
+	l.ClientsToTokens[client.ClientId] =  *client
+	l.TokensToClients[client.Secret]   =  *client
 
 	return l.AddClientsToFile(l.GetClientsList(), l.clientsFile)
 }
 
+func (l *EnterpriseSecurityProvider) GetClientsList() []*ClientInfo {
+	panic("not implemented")
+	return nil
+}
 //listClients return list of clients
 func (l *LocalSecurityProvider) GetClientsList() []*ClientInfo {
 	// Write client to file
-	clients := make([]*ClientInfo, len(l.clientsToTokens))
-	counter := 0
+	clients := make([]*ClientInfo, len(l.ClientsToTokens))
 
-	for _, c := range l.clientsToTokens {
-		clients[counter] = c
+
+	var counter = 0
+	for _ , c := range l.ClientsToTokens {
+		clients[counter] = &c
 		counter++
 	}
+	fmt.Println(clients)
 	return clients
 }
 
+//removeClient remove clients from memory and file.
+func (l *EnterpriseSecurityProvider) RemoveClient(clientName *string) error {
+	panic("not implemented")
+	return nil
+}
 //removeClient remove clients from memory and file.
 func (l *LocalSecurityProvider) RemoveClient(clientName *string) error {
 	if l.GetClientByName(clientName) == nil {
@@ -256,11 +307,17 @@ func (l *LocalSecurityProvider) RemoveClient(clientName *string) error {
 
 	client := l.GetClientByName(clientName)
 
-	delete(l.clientsToTokens, client.Username)
-	delete(l.tokensToClients, client.Secret)
+	delete(l.ClientsToTokens, client.Username)
+	delete(l.TokensToClients, client.Secret)
 
 	return l.AddClientsToFile(l.GetClientsList(), l.clientsFile)
 }
+
+func (l *EnterpriseSecurityProvider) RegenerateClientSecret(clientName *string) (*ClientInfo, error) {
+	panic("not implemented")
+	return nil,nil
+}
+
 
 //regenerateClientSecret regenerate client secret.
 func (l *LocalSecurityProvider) RegenerateClientSecret(clientName *string) (*ClientInfo, error) {

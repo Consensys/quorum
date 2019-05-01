@@ -164,15 +164,52 @@ func (api *PrivateAdminAPI) RpcLoadClientsFromFile(filePath *string) (bool, erro
 		return false, fmt.Errorf("RPC Security not enabled")
 	}
 
-
+	err = api.node.config.RpcSecurityContext.Provider.AddClientsFromFile(filePath)
+	if err != nil {
+		return false, err
+	}
 
 	return true, nil
 }
 
 
 // Add Local RPC ClientId to security context
-func (api *PrivateAdminAPI) RpcAddClient(clientName *string, clientScope *string, clientId *string) (bool, error) {
-	return true, nil
+func (api *PrivateAdminAPI) RpcAddClient(clientName *string, clientScope *string) (string, error) {
+	// check preconditions
+	if api.node.config.RpcSecurityContext.Enabled == false {
+		return "", fmt.Errorf("RPC Security not enabled")
+	}
+
+
+	isLocalProviderAv , err := api.node.config.RpcSecurityContext.IsLocalSecurityProviderAvailable()
+	if err != nil {
+		return "", err
+
+	}
+	if isLocalProviderAv == false {
+		return "", fmt.Errorf("RPC Security not enabled")
+	}
+
+	client, cerr := api.node.config.RpcSecurityContext.Provider.NewClient(
+		*clientName,
+		"",
+		"",
+		*clientScope,
+		3600,
+
+	)
+
+	if cerr != nil {
+		return "", fmt.Errorf(cerr.Error())
+	}
+
+	cerr = api.node.config.RpcSecurityContext.Provider.AddClient(&client)
+	if cerr != nil {
+			return "", fmt.Errorf(cerr.Error())
+	}
+
+	return client.Secret, nil
+
 }
 
 // Remove Local RPC ClientId from security context
@@ -192,7 +229,33 @@ func (api *PrivateAdminAPI) RpcRegenerateClientSecret(clientName *string) (bool,
 
 
 // List all local rpc clients
-func (api *PrivateAdminAPI) RpcListClients() (bool, error) {
+func (api *PrivateAdminAPI) RpcListClients() ([]*rpc.ClientInfo, error) {
+	// check preconditions
+	if api.node.config.RpcSecurityContext.Enabled == false {
+		return nil, fmt.Errorf("RPC Security not enabled")
+	}
+
+	isLocalProviderAv , err := api.node.config.RpcSecurityContext.IsLocalSecurityProviderAvailable()
+	if err != nil {
+		return nil, err
+
+	}
+	if isLocalProviderAv == false {
+		return nil, fmt.Errorf("RPC Security not enabled")
+	}
+
+	return api.node.config.RpcSecurityContext.Provider.GetClientsList(), nil
+}
+
+// List all local rpc clients
+func (api *PrivateAdminAPI) RpcFindClientByName(clientName *string) (bool, error) {
+
+
+	return true, nil
+}
+
+// List all local rpc clients
+func (api *PrivateAdminAPI) RpcFindClientById(clientId *string) (bool, error) {
 
 
 	return true, nil

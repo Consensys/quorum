@@ -409,7 +409,7 @@ func parseScopeStr(scope string) ([]Scope, error) {
 
 //cleanScope removes all non alpha numeric except .
 func cleanScope(str string) (string, error) {
-	reg, err := regexp.Compile("[^a-zA-Z0-9 .]+")
+	reg, err := regexp.Compile("[^a-zA-Z0-9 .,*]+")
 	if err != nil {
 		return "" , err
 	}

@@ -84,6 +84,26 @@ type SecurityProvider interface {
 
 	// Check if client is authorized. True if authorized, false otherwise.
 	IsClientAuthorized(request rpcRequest) bool
+
+	AddClientsFromFile(path *string) error
+
+	NewClient(clientName string, clientId string, secret string, scope string, exp int) (ClientInfo, error)
+
+	AddClient(client *ClientInfo) error
+
+	GetClientsList() []*ClientInfo
+
+	RemoveClient(clientName *string) error
+
+	RegenerateClientSecret(clientName *string) (*ClientInfo, error)
+
+	GetClientByToken(clientSecret *string) *ClientInfo
+
+	GetClientById(clientId *string) *ClientInfo
+
+	GetClientByName(clientName *string) *ClientInfo
+
+	AddClientsToFile(clients []*ClientInfo, path *string) error
 }
 
 // Server represents a RPC server
@@ -164,7 +184,7 @@ type SecurityContext struct {
 	Enabled  bool
 	Config   *SecurityConfig
 	Client   *http.Client
-	Provider  SecurityProvider
+	Provider SecurityProvider
 }
 
 // Enterprise Server Based Security provider
@@ -177,10 +197,9 @@ type EnterpriseSecurityProvider struct {
 // Local file Based Security provider
 type LocalSecurityProvider struct {
 	providerTypeName string
-	tokensToClients  map[string]*ClientInfo
-	clientsToTokens  map[string]*ClientInfo
+	TokensToClients  map[string]ClientInfo
+	ClientsToTokens  map[string]ClientInfo
 	clientsFile      *string
-
 }
 
 // Local client information
@@ -199,7 +218,7 @@ type ClientToken struct {
 
 type Scope struct {
 	Service string
-	Method string
+	Method  string
 }
 
 // Authorization Server Cert
