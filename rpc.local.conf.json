@@ -1,0 +1,12 @@
+{
+	"providerType":"local",
+        "providerInfo": {
+		"localProviderFile" :"./rpc-clients-store.json"
+	},	
+	"listenerCert" : {
+		"clientCaPemFile":"./rootCA.crt",
+		"serverTlsCertFile":"./localhost.crt",
+		"serverTlsKeyFile" :"./localhost.key"
+	}
+	
+}

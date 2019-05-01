@@ -347,16 +347,33 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 	params.Add("token", request.Token)
 	params.Add("token_type_hint", request.TokenTypeHint)
 
-	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientId != "" && cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader != ""{
-		params.Add(
-			cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader,
-			cfg.ProviderInformation.EnterpriseProviderIntrospectionClientId)
+	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader != ""{
+		// support env variables
+		providerClientId := os.Getenv(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader)
+		if providerClientId == "" {
+			providerClientId = cfg.ProviderInformation.EnterpriseProviderIntrospectionClientId
+		}
+
+		if providerClientId != "" {
+			params.Add(
+				cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader,
+				providerClientId)
+		}
 	}
 
-	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecret != "" && cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader != ""{
-		params.Add(
-			cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader,
-			cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecret)
+	if  cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader != "" {
+
+		// support env variables
+		providerClientSec := os.Getenv(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader)
+		if providerClientSec == "" {
+			providerClientSec = cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecret
+		}
+
+		if providerClientSec != "" {
+			params.Add(
+				cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader,
+				providerClientSec)
+		}
 	}
 
 	// Parse the url & build request
@@ -455,11 +472,6 @@ func buildHttpClient(cfg *SecurityConfig) (*http.Client, error) {
 
 //isRequestAuthorized checks the scope against request info
 func isRequestAuthorized(scope *Scope, request rpcRequest) bool {
-	fmt.Println("----")
-	fmt.Println(scope)
-	fmt.Println(request)
-	fmt.Println("----")
-
 	// Any method in service
 	scopeService := strings.ToLower(scope.Service)
 	scopeMethod := strings.ToLower(scope.Method)

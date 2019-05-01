@@ -1,0 +1,14 @@
+{
+	"providerType":"enterprise",
+        "providerInfo": {
+		"providerIntrospectionClientIdHeader":"client_id",
+		"providerIntrospectionClientSecretHeader":"client_secret",
+		"providerIntrospectionURL":"https://dev-872784.okta.com/oauth2/default/v1/introspect",
+	},	
+	"listenerCert" : {
+		"clientCaPemFile":"./rootCA.crt",
+		"serverTlsCertFile":"./localhost.crt",
+		"serverTlsKeyFile" :"./localhost.key"
+	}
+	
+}

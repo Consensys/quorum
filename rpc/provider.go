@@ -480,7 +480,7 @@ func RegisterProvider(ctx *SecurityContext, log log.Logger) {
 		case LocalSecProvider:
 			log.Info("register local security provider", "RPC security", "Enabled")
 
-			fmt.Println("provider init")
+
 			ctx.Provider = &LocalSecurityProvider{
 				clientsFile: ctx.Config.ProviderInformation.LocalProviderFile,
 			}
