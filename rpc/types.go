@@ -85,9 +85,11 @@ type SecurityProvider interface {
 	// Check if client is authorized. True if authorized, false otherwise.
 	IsClientAuthorized(request rpcRequest) bool
 
-	AddClientsFromFile(path *string) error
+	AddClientsFromFile(path *string) ([]ClientInfo,error)
 
-	NewClient(clientName string, clientId string, secret string, scope string, exp int) (ClientInfo, error)
+	SetClientStatus(clientName string, status bool) error
+
+	NewClient(clientName string, clientId string, secret string, scope string, active bool) (ClientInfo, error)
 
 	AddClient(client *ClientInfo) error
 
@@ -208,7 +210,7 @@ type ClientInfo struct {
 	Secret     string `json:"secret"`
 	Username   string `json:"username"`
 	Scope      string `json:"scope"`
-	Expiration int    `json:"exp"`
+	Active 	   bool    `json:"active"`
 }
 
 type ClientToken struct {
