@@ -233,7 +233,6 @@ func (l *LocalSecurityProvider) SetClientStatus(clientName string, status bool) 
 	return nil
 }
 
-
 func (l *EnterpriseSecurityProvider) NewClient(clientName string, clientId string, secret string, scope string, active bool) (ClientInfo, error) {
 	panic("not implemented")
 	return ClientInfo{}, nil
