@@ -27,12 +27,17 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"reflect"
 	"regexp"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -306,36 +311,128 @@ func GetHttpListenerBasedOnSecurityContext(endpoint string, ctx SecurityContext)
 	}
 }
 
+// Fatalf formats a message to standard error and exits the program.
+// The message is also printed to standard output if standard error
+// is redirected to a different file.
+func Fatalf(format string, args ...interface{}) {
+	w := io.MultiWriter(os.Stdout, os.Stderr)
+	if runtime.GOOS == "windows" {
+		// The SameFile check below doesn't work on Windows.
+		// stdout is unlikely to get redirected though, so just print there.
+		w = os.Stdout
+	} else {
+		outf, _ := os.Stdout.Stat()
+		errf, _ := os.Stderr.Stat()
+		if outf != nil && errf != nil && os.SameFile(outf, errf) {
+			w = os.Stderr
+		}
+	}
+	fmt.Fprintf(w, "Fatal: "+format+"\n", args...)
+	os.Exit(1)
+}
 
+//IsTokenExpired has token expired
+func  IsTokenExpired(createdTime time.Time , exp int) bool {
+	fmt.Println("is token expired")
+	elapsed := time.Now().Sub(createdTime)
+	if elapsed.Seconds() > float64(exp) {
+		return true
+	}
+	return false
+}
 
+//getRemoteScope issues a remote request and return introspect rsponse.
+func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg *SecurityConfig) (*IntrospectResponse, error) {
+	// Create request
+	params := url.Values{}
+	params.Add("token", request.Token)
+	params.Add("token_type_hint", request.TokenTypeHint)
+
+	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientId != "" && cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader != ""{
+		params.Add(
+			cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader,
+			cfg.ProviderInformation.EnterpriseProviderIntrospectionClientId)
+	}
+
+	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecret != "" && cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader != ""{
+		params.Add(
+			cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader,
+			cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecret)
+	}
+
+	// Parse the url & build request
+	serviceURL, err := url.Parse(cfg.ProviderInformation.EnterpriseProviderIntrospectionURL)
+	if err != nil {
+		return nil, err
+	}
+
+	encodedParams :=  params.Encode()
+	req, err := http.NewRequest("POST", serviceURL.String(), strings.NewReader(encodedParams))
+
+	// Set headers
+	req.Header.Add("User-Agent", "Quorum")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Length", strconv.Itoa(len(encodedParams)))
+
+	if err != nil {
+		return nil, err
+	}
+
+	// send request to server
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("un excpected status code")
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var introspectResp IntrospectResponse
+	err = json.Unmarshal(body, &introspectResp)
+	if err != nil {
+		return nil, err
+	}
+
+	// add time to response
+	introspectResp.Created = time.Now()
+	return &introspectResp, nil
+
+}
 
 //buildHttpClient Build HTTP ClientId. With tls support if
 // required by the security context
-func buildHttpClient(ctx *SecurityContext) (*http.Client, error){
-	if ctx.Config.ProviderInformation == nil {
+func buildHttpClient(cfg *SecurityConfig) (*http.Client, error) {
+	if cfg.ProviderInformation == nil {
 		return &http.Client{}, nil
 	}
 
 	// Return non tls supporting client if cert information not provided
-	if ctx.Config.ProviderInformation.EnterpriseProviderCertificateInfo == nil {
+	if cfg.ProviderInformation.EnterpriseProviderCertificateInfo == nil {
 		return &http.Client{}, nil
 	}
 
 	// Load provider certificate info provided
-	certFile := ctx.Config.ProviderInformation.EnterpriseProviderCertificateInfo.ProviderTlsCertificateFile
-	keyFile := ctx.Config.ProviderInformation.EnterpriseProviderCertificateInfo.ProviderTlsCertificateKeyFile
-	caFile := ctx.Config.ProviderInformation.EnterpriseProviderCertificateInfo.ProviderTlsCertificateCaFile
+	certFile := cfg.ProviderInformation.EnterpriseProviderCertificateInfo.ProviderTlsCertificateFile
+	keyFile := cfg.ProviderInformation.EnterpriseProviderCertificateInfo.ProviderTlsCertificateKeyFile
+	caFile := cfg.ProviderInformation.EnterpriseProviderCertificateInfo.ProviderTlsCertificateCaFile
 
 	// Load client cert
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		return nil , err
+		return nil, err
 	}
 
 	// Load CA cert
 	caCert, err := ioutil.ReadFile(caFile)
 	if err != nil {
-		return nil , err
+		return nil, err
 	}
 
 	// Create certificate pool
@@ -349,8 +446,7 @@ func buildHttpClient(ctx *SecurityContext) (*http.Client, error){
 		RootCAs:      caCertPool,
 
 		// ensure verification happens
-		InsecureSkipVerify:false,
-
+		InsecureSkipVerify: false,
 	}
 	tlsConfig.BuildNameToCertificate()
 	transport := &http.Transport{TLSClientConfig: tlsConfig}
@@ -358,22 +454,26 @@ func buildHttpClient(ctx *SecurityContext) (*http.Client, error){
 
 }
 
-
 //isRequestAuthorized checks the scope against request info
 func isRequestAuthorized(scope *Scope, request rpcRequest) bool {
+	fmt.Println("----")
+	fmt.Println(scope)
+	fmt.Println(request)
+	fmt.Println("----")
+
 	// Any method in service
 	scopeService := strings.ToLower(scope.Service)
-	scopeMethod  := strings.ToLower(scope.Method)
+	scopeMethod := strings.ToLower(scope.Method)
 	requestService := strings.ToLower(request.service)
 	requestMethod := strings.ToLower(request.method)
 
 	// Any method & service
-	if scopeService == "*" && scopeMethod == "*"{
+	if scopeService == "*" && scopeMethod == "*" {
 		return true
 	}
 
 	// Any method in service
-	if scopeService == requestService && scopeMethod == "*"{
+	if scopeService == requestService && scopeMethod == "*" {
 		return true
 	}
 
@@ -388,15 +488,14 @@ func isRequestAuthorized(scope *Scope, request rpcRequest) bool {
 // parseScopeStr returns list of scope in well formed struct
 func parseScopeStr(scope string) ([]Scope, error) {
 	// remove whitespace & split
-	scope =  strings.Join(strings.Fields(scope),"")
 	scopeList := strings.Split(scope, ",")
 
 	var result = make([]Scope, len(scopeList))
 
 	// iterate over scope
-	for i , s := range scopeList {
+	for i, s := range scopeList {
 		// only alpha numeric & .
-		cleanScope, err  := cleanScope(s)
+		cleanScope, err := cleanScope(s)
 		if err != nil {
 			return nil, err
 		}
@@ -405,7 +504,7 @@ func parseScopeStr(scope string) ([]Scope, error) {
 		var function string
 
 		// support format module.service, module, module.
-		if strings.Contains(cleanScope,".") {
+		if strings.Contains(cleanScope, ".") {
 			scopeProp := strings.SplitN(cleanScope, ".", 2)
 			service = scopeProp[0]
 			if scopeProp[1] == "" {
@@ -423,20 +522,18 @@ func parseScopeStr(scope string) ([]Scope, error) {
 			Method:  function,
 		}
 
-
 	}
 
 	return result, nil
 
 }
 
-
-
 //cleanScope removes all non alpha numeric except .
 func cleanScope(str string) (string, error) {
+	str = strings.Join(strings.Fields(str), "")
 	reg, err := regexp.Compile("[^a-zA-Z0-9 .,*]+")
 	if err != nil {
-		return "" , err
+		return "", err
 	}
 	return reg.ReplaceAllString(str, ""), nil
 }
@@ -445,7 +542,7 @@ func cleanScope(str string) (string, error) {
 func cleanString(str string) (string, error) {
 	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
 	if err != nil {
-		return "" , err
+		return "", err
 	}
 	return reg.ReplaceAllString(str, ""), nil
 }

@@ -10,20 +10,100 @@ import (
 	"strings"
 )
 
-//IsClientAuthorized Parse the RPC Request, Call send Introspect Request & Parse results
-func (ctx *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
-	fmt.Println("Send Introspect for:")
-	fmt.Println(request)
-	if request.token == "cucrisis" {
-		return true
+//IsClientAuthorized Parse the RPC Request, Call send Introspect Request & Parse results.
+//TODO (cucrisis): Cache is required here w ecant be querying the server every time
+func (l *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
+	token := request.token
+	if token  == "" {
+		return false
 	}
+
+	fmt.Println(request)
+	// check cache first
+	if introspectResponse, ok := l.tokensCache[token]; ok {
+		fmt.Println("token in cache check if expired")
+		if IsTokenExpired(introspectResponse.Created, introspectResponse.Expiration) {
+			fmt.Println("token expired delete it")
+			delete(l.tokensCache, token)
+		}else{
+			fmt.Println("token in cache check has not expired")
+
+			fmt.Println("check scope")
+			scopes, err := parseScopeStr(introspectResponse.Scope)
+			if err != nil {
+				return false
+			}
+
+			// search through scope -Optimize lookup
+			for _ , scope := range scopes {
+				if isRequestAuthorized(&scope, request) {
+					fmt.Println("scope is valid")
+					return true
+				}
+			}
+
+			fmt.Println("scope is not valid")
+			return false
+		}
+	}
+
+
+	fmt.Println("issue remote request")
+	// issue introspect request
+	response, err := getIntrospectResponse(&IntrospectRequest{
+		Token:token,
+		TokenTypeHint:"access_token",
+	}, &l.client, l.SecurityConfig)
+
+	if err !=nil {
+		return false
+	}
+
+	fmt.Println(response)
+	if response.Active {
+		// save active tokens
+		l.tokensCache[token] = *response
+
+		fmt.Println("token is active")
+
+		scopes, err := parseScopeStr(response.Scope)
+		if err != nil {
+			return false
+		}
+
+		// search through scope -Optimize lookup
+		fmt.Println("token scope:")
+		fmt.Println(scopes)
+
+		fmt.Println("request scope:")
+		fmt.Println(request.method)
+		fmt.Println(request.service)
+
+		for _ , scope := range scopes {
+			if isRequestAuthorized(&scope, request) {
+				fmt.Println("scope is valid & save in cache")
+				// store information in cache
+
+				return true
+			}
+		}
+
+		fmt.Println("scope is not valid")
+
+		return false
+
+	}
+
+	fmt.Println("token is not active")
 
 	return false
 }
 
+
+
+
 //IsClientAuthorized Parse the RPC Request, Call send Introspect Request & Parse results
 func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
-	fmt.Println("Check request:")
 	// Authenticate token
 	token := request.token
 	client := l.GetClientByToken(&token)
@@ -38,7 +118,7 @@ func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 		return false
 	}
 
-	//TODO: Optimize lookup
+	// search through scope -Optimize lookup
 	for _ , scope := range scopes {
 		if isRequestAuthorized(&scope, request) {
 			return true
@@ -49,6 +129,17 @@ func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 }
 
 func (l *EnterpriseSecurityProvider) Init() error {
+	if l.SecurityConfig == nil {
+		return fmt.Errorf("security provider confignot provided")
+	}
+
+	l.tokensCache = make(map[string]IntrospectResponse)
+	// build client
+	if client, err := buildHttpClient(l.SecurityConfig); err == nil {
+		l.client =  *client
+	}else {
+		return err
+	}
 
 	return nil
 }
@@ -424,14 +515,14 @@ func RegisterProvider(ctx *SecurityContext, log log.Logger) {
 			}
 			err := ctx.Provider.Init()
 			if err != nil {
-				log.Error(err.Error())
-				ctx = GetDenyAllPolicy()
+				Fatalf(err.Error())
 			}
 
 		case EnterpriseSecProvider:
 			log.Info("register enterprise security provider", "RPC security", "Enabled")
 
 			ctx.Provider = &EnterpriseSecurityProvider{
+				SecurityConfig:      ctx.Config,
 				IntrospectURL:       ctx.Config.ProviderInformation.EnterpriseProviderIntrospectionURL,
 				ProviderCertificate: ctx.Config.ProviderInformation.EnterpriseProviderCertificateInfo,
 			}
@@ -439,14 +530,11 @@ func RegisterProvider(ctx *SecurityContext, log log.Logger) {
 			log.Info("security provided init")
 			err := ctx.Provider.Init()
 			if err != nil {
-				log.Error(err.Error())
-				ctx = GetDenyAllPolicy()
+				Fatalf(err.Error())
 			}
 
 		default:
-			log.Warn("Provider Type not supported. supported providers [local, enterprise]", "RPC security", "Enable")
-			log.Error("Enable deny all policy due to misconfiguration", "RPC security", "Enable")
-			ctx = GetDenyAllPolicy()
+			Fatalf(fmt.Errorf("rpc security provider Type not supported. supported providers are [local, enterprise]. change config file").Error())
 		}
 
 	}

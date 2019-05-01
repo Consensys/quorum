@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -85,7 +86,7 @@ type SecurityProvider interface {
 	// Check if client is authorized. True if authorized, false otherwise.
 	IsClientAuthorized(request rpcRequest) bool
 
-	AddClientsFromFile(path *string) ([]ClientInfo,error)
+	AddClientsFromFile(path *string) ([]ClientInfo, error)
 
 	SetClientScope(clientName string, scope string) error
 
@@ -167,13 +168,14 @@ type ServerCodec interface {
 type IntrospectRequest struct {
 	Token         string `json:"token"`
 	TokenTypeHint string `json:"token_type_hint"`
+	ClientId	  string `json:"client_id"`
 }
 type IntrospectResponse struct {
 	Active     bool   `json:"active"`
 	Scope      string `json:"scope"`
 	ClientId   string `json:"client_id"`
-	Username   string `json:"username"`
 	Expiration int    `json:"exp"`
+	Created 	time.Time    `json:"created"`
 }
 
 // RPC Security Configuration
@@ -187,32 +189,33 @@ type SecurityConfig struct {
 type SecurityContext struct {
 	Enabled  bool
 	Config   *SecurityConfig
-	Client   *http.Client
+
 	Provider SecurityProvider
 }
 
 // Enterprise Server Based Security provider
 type EnterpriseSecurityProvider struct {
-	providerTypeName    string
+	SecurityConfig      *SecurityConfig
 	IntrospectURL       string
 	ProviderCertificate *AuthorizationServerCert
+	tokensCache			map[string]IntrospectResponse
+	client              http.Client
 }
 
 // Local file Based Security provider
 type LocalSecurityProvider struct {
-	providerTypeName string
-	TokensToClients  map[string]ClientInfo
-	ClientsToTokens  map[string]ClientInfo
-	clientsFile      *string
+	TokensToClients map[string]ClientInfo
+	ClientsToTokens map[string]ClientInfo
+	clientsFile     *string
 }
 
 // Local client information
 type ClientInfo struct {
-	ClientId   string `json:"clientId"`
-	Secret     string `json:"secret"`
-	Username   string `json:"username"`
-	Scope      string `json:"scope"`
-	Active 	   bool    `json:"active"`
+	ClientId string `json:"clientId"`
+	Secret   string `json:"secret"`
+	Username string `json:"username"`
+	Scope    string `json:"scope"`
+	Active   bool   `json:"active"`
 }
 
 type ClientToken struct {
@@ -239,6 +242,12 @@ type ProviderInformation struct {
 
 	// Authorization Server Introspection URL.
 	EnterpriseProviderIntrospectionURL string `json:"providerIntrospectionURL"`
+	// Authorization Server Introspection Header Key
+	EnterpriseProviderIntrospectionClientIdHeader string `json:"providerIntrospectionClientIdHeader"`
+	EnterpriseProviderIntrospectionClientId string `json:"providerClientId"`
+
+	EnterpriseProviderIntrospectionClientSecretHeader string `json:"providerIntrospectionClientSecretHeader"`
+	EnterpriseProviderIntrospectionClientSecret string `json:"providerClientSecret"`
 
 	// Local Provider Information
 	LocalProviderFile *string `json:"localProviderFile"`
