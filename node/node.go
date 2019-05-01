@@ -216,7 +216,7 @@ func (n *Node) Start() error {
 
 	// start the configured RPC interfaces
 	if n.config.RpcSecurityContext.Enabled {
-		if err := n.startRpcWithSecurityContext(services, n.config.RpcSecurityContext); err != nil {
+		if err := n.startRpcWithSecurityContext(services, *n.config.RpcSecurityContext); err != nil {
 			for _, service := range services {
 				service.Stop()
 			}
@@ -266,7 +266,8 @@ func (n *Node) openDataDir() error {
 // startup with security context. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
 func (n *Node) startRpcWithSecurityContext(services map[reflect.Type]Service, ctx rpc.SecurityContext) error {
-
+	// Register security provider
+	rpc.RegisterProvider(&ctx, log.Root())
 	// Gather all the possible APIs to surface
 	apis := n.apis()
 	for _, service := range services {
@@ -293,6 +294,7 @@ func (n *Node) startRpcWithSecurityContext(services map[reflect.Type]Service, ct
 	}
 	// All API endpoints started successfully
 	n.rpcAPIs = apis
+	n.config.RpcSecurityContext = &ctx
 	return nil
 }
 
@@ -333,6 +335,7 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 func (n *Node) startInProcWithSecurityContext(apis []rpc.API, ctx rpc.SecurityContext) error {
 	// Register all the APIs exposed by the services
 	handler := rpc.NewServerWithSecurityCtx(ctx)
+	n.config.RpcSecurityContext = &ctx
 	for _, api := range apis {
 		if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
 			return err
@@ -694,6 +697,8 @@ func (n *Node) ResolvePath(x string) string {
 
 // apis returns the collection of RPC descriptors this node offers.
 func (n *Node) apis() []rpc.API {
+
+	fmt.Println(n.config.RpcSecurityContext.Provider)
 	return []rpc.API{
 		{
 			Namespace: "admin",

@@ -44,8 +44,10 @@ const (
 
 //NewServerWithSecurityCtx is an adapter for NewServer()
 func NewServerWithSecurityCtx(ctx SecurityContext) *Server {
+	// Create server & Pass ctx with provider
 	server := NewServer()
 	server.RegisterSecurityCtx(ctx)
+
 	return server
 }
 
@@ -80,54 +82,9 @@ func (s *RPCService) Modules() map[string]string {
 	return modules
 }
 
+
 func (s *Server) RegisterSecurityCtx(ctx SecurityContext) {
 	s.securityContext = ctx
-
-	// Init Local Security Context
-	if s.securityContext.Config != nil {
-		provider := strings.ToLower(s.securityContext.Config.ProviderType)
-
-		switch provider {
-		case LocalSecProvider:
-			log.Info("register local security provider", "RPC security", "Enabled")
-
-			s.securityContext.Provider = &LocalSecurityProvider{
-			clientsFile: s.securityContext.Config.ProviderInformation.LocalProviderFile,
-			}
-
-			//s.securityContext.Provider.SetType(LocalSecProvider)
-			err := s.securityContext.Provider.Init()
-			if err != nil {
-				// If error this stage
-				// ensure Deny All
-				log.Error(err.Error())
-				s.securityContext =  GetDenyAllPolicy()
-			}
-
-		case EnterpriseSecProvider:
-			log.Info("register enterprise security provider", "RPC security", "Enabled")
-
-			s.securityContext.Provider = &EnterpriseSecurityProvider{
-				IntrospectURL:       s.securityContext.Config.ProviderInformation.EnterpriseProviderIntrospectionURL,
-				ProviderCertificate: s.securityContext.Config.ProviderInformation.EnterpriseProviderCertificateInfo,
-			}
-
-			//s.securityContext.Provider.SetType(EnterpriseSecProvider)
-			err := s.securityContext.Provider.Init()
-			if err != nil {
-				// If error this stage
-				// ensure Deny All
-				log.Error(err.Error())
-				s.securityContext =  GetDenyAllPolicy()
-			}
-
-		default:
-			log.Warn("Provider Type not supported. supported providers [local, enterprise]", "RPC security", "Enable")
-			log.Error("Enable deny all policy due to misconfiguration", "RPC security", "Enable")
-			s.securityContext =  GetDenyAllPolicy()
-		}
-	}
-
 }
 
 func (s *Server) SecurityCtx() SecurityContext {

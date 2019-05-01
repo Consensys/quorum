@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"reflect"
+	"strings"
 )
 
 //ProcessRequestSecurity RPC WS/WSS/HTTPS/HTTP request security.
@@ -26,19 +27,22 @@ func (ctx *SecurityContext) IsLocalSecurityProviderAvailable() (bool, error) {
 	if ctx.Provider == nil {
 		return false, fmt.Errorf("security provider not set")
 	}
+	if  strings.Contains(reflect.TypeOf(ctx.Provider).String(), reflect.TypeOf(LocalSecurityProvider{}).String()) {
+		return true, nil
+	} else {
+		return false, nil
+	}
 
-	fmt.Println(reflect.TypeOf(ctx.Provider))
-	return true, nil
 
 }
 
 
 // GetDenyAllPolicy returns a disabled context
-func GetDenyAllPolicy() SecurityContext {
-	return SecurityContext{Enabled: true}
+func GetDenyAllPolicy() *SecurityContext {
+	return &SecurityContext{Enabled: true}
 }
 
 // GetDefaultAllowAllPolicy returns a disabled context
-func GetDefaultAllowAllPolicy() SecurityContext {
-	return SecurityContext{Enabled: false}
+func GetDefaultAllowAllPolicy() *SecurityContext {
+	return &SecurityContext{Enabled: false}
 }

@@ -182,8 +182,8 @@ web3._extend({
 			params: 2
 		}),
 		new web3._extend.Method({
-			name: 'rpcTest',
-			call: 'admin_rpcTest',
+			name: 'rpcLoadClientsFromFile',
+			call: 'admin_rpcLoadClientsFromFile',
 			params: 1,
 			inputFormatter: [null]
 			

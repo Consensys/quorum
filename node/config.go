@@ -151,7 +151,7 @@ type Config struct {
 	WSExposeAll bool `toml:",omitempty"`
 
 	// RPC Security Configuration
-	RpcSecurityContext rpc.SecurityContext `toml:",omitempty"`
+	RpcSecurityContext *rpc.SecurityContext `toml:",omitempty"`
 
 	// Permission Options
 	EnableNodePermission bool `toml:",omitempty"`

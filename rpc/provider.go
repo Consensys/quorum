@@ -3,15 +3,17 @@ package rpc
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 //IsClientAuthorized Parse the RPC Request, Call send Introspect Request & Parse results
 func (ctx *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	fmt.Println("Send Introspect for:")
-
+	fmt.Println(request)
 	if request.token == "cucrisis" {
 		 return true
 	}
@@ -36,6 +38,7 @@ func (l *EnterpriseSecurityProvider) Init() error {
 //IsClientAuthorized Parse the RPC Request, Call send Introspect Request & Parse results
 func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	fmt.Println("Send Introspect for:")
+	fmt.Println(request)
 	if request.token == "cucrisis" {
 		return true
 	}
@@ -274,4 +277,48 @@ func (l *LocalSecurityProvider) RegenerateClientSecret(clientName *string) (*Cli
 
 	client.Secret = secGuid.String()
 	return client, nil
+}
+
+func RegisterProvider(ctx *SecurityContext, log log.Logger){
+	// Ensure Provider is created before APIs is invoked otherwise
+	if ctx.Config != nil {
+		provider := strings.ToLower(ctx.Config.ProviderType)
+
+		switch provider {
+		case LocalSecProvider:
+			log.Info("register local security provider", "RPC security", "Enabled")
+
+			fmt.Println("provider init")
+			ctx.Provider = &LocalSecurityProvider{
+				clientsFile: ctx.Config.ProviderInformation.LocalProviderFile,
+			}
+			err := ctx.Provider.Init()
+			if err != nil {
+				log.Error(err.Error())
+				ctx =  GetDenyAllPolicy()
+			}
+
+		case EnterpriseSecProvider:
+			log.Info("register enterprise security provider", "RPC security", "Enabled")
+
+			ctx.Provider = &EnterpriseSecurityProvider{
+				IntrospectURL:       ctx.Config.ProviderInformation.EnterpriseProviderIntrospectionURL,
+				ProviderCertificate: ctx.Config.ProviderInformation.EnterpriseProviderCertificateInfo,
+			}
+
+			log.Info("security provided init")
+			err := ctx.Provider.Init()
+			if err != nil {
+				log.Error(err.Error())
+				ctx =  GetDenyAllPolicy()
+			}
+
+		default:
+			log.Warn("Provider Type not supported. supported providers [local, enterprise]", "RPC security", "Enable")
+			log.Error("Enable deny all policy due to misconfiguration", "RPC security", "Enable")
+			ctx =  GetDenyAllPolicy()
+		}
+
+	}
+
 }

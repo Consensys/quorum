@@ -328,7 +328,6 @@ func (c *Client) CallWithSecurity(result interface{}, method string, token strin
 // can also pass nil, in which case the result is ignored.
 func (c *Client) Call(result interface{}, method string, args ...interface{}) error {
 	ctx := context.Background()
-
 	return c.CallContext(ctx, result, method, args...)
 }
 
@@ -532,12 +531,8 @@ func (c *Client) Subscribe(ctx context.Context, namespace string, channel interf
 	return op.sub, nil
 }
 
-
 func (c *Client) newMessage(method string, paramsIn ...interface{}) (*jsonrpcMessage, error) {
-	fmt.Println(paramsIn)
-	fmt.Println("--------")
 	params, err := json.Marshal(paramsIn)
-	fmt.Println(params)
 	if err != nil {
 		return nil, err
 	}

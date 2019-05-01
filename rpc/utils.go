@@ -358,6 +358,8 @@ func buildHttpClient(ctx *SecurityContext) (*http.Client, error){
 
 }
 
+
+
 // parseScopeStr returns list of scope in well formed struct
 func parseScopeStr(scope string) ([]Scope, error) {
 	// remove whitespace & split
