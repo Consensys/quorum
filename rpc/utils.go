@@ -333,7 +333,6 @@ func Fatalf(format string, args ...interface{}) {
 
 //IsTokenExpired has token expired
 func  IsTokenExpired(createdTime time.Time , exp int) bool {
-	fmt.Println("is token expired")
 	elapsed := time.Now().Sub(createdTime)
 	if elapsed.Seconds() > float64(exp) {
 		return true
@@ -486,16 +485,15 @@ func isRequestAuthorized(scope *Scope, request rpcRequest) bool {
 }
 
 // parseScopeStr returns list of scope in well formed struct
-func parseScopeStr(scope string) ([]Scope, error) {
+func parseScopeStr(scope string, separator string) ([]Scope, error) {
 	// remove whitespace & split
-	scopeList := strings.Split(scope, ",")
-
+	scopeList := strings.Split(scope, separator)
 	var result = make([]Scope, len(scopeList))
 
 	// iterate over scope
 	for i, s := range scopeList {
 		// only alpha numeric & .
-		cleanScope, err := cleanScope(s)
+		clean, err := cleanScope(s)
 		if err != nil {
 			return nil, err
 		}
@@ -504,15 +502,15 @@ func parseScopeStr(scope string) ([]Scope, error) {
 		var function string
 
 		// support format module.service, module, module.
-		if strings.Contains(cleanScope, ".") {
-			scopeProp := strings.SplitN(cleanScope, ".", 2)
+		if strings.Contains(clean, ".") {
+			scopeProp := strings.SplitN(clean, ".", 2)
 			service = scopeProp[0]
 			if scopeProp[1] == "" {
 				scopeProp[1] = "*"
 			}
 			function = scopeProp[1]
 		} else {
-			service = cleanScope
+			service = clean
 			function = "*"
 
 		}

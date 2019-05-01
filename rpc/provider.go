@@ -18,18 +18,13 @@ func (l *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool
 		return false
 	}
 
-	fmt.Println(request)
+
 	// check cache first
 	if introspectResponse, ok := l.tokensCache[token]; ok {
-		fmt.Println("token in cache check if expired")
 		if IsTokenExpired(introspectResponse.Created, introspectResponse.Expiration) {
-			fmt.Println("token expired delete it")
 			delete(l.tokensCache, token)
 		}else{
-			fmt.Println("token in cache check has not expired")
-
-			fmt.Println("check scope")
-			scopes, err := parseScopeStr(introspectResponse.Scope)
+			scopes, err := parseScopeStr(introspectResponse.Scope, " ")
 			if err != nil {
 				return false
 			}
@@ -37,18 +32,15 @@ func (l *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool
 			// search through scope -Optimize lookup
 			for _ , scope := range scopes {
 				if isRequestAuthorized(&scope, request) {
-					fmt.Println("scope is valid")
 					return true
 				}
 			}
-
-			fmt.Println("scope is not valid")
 			return false
 		}
 	}
 
 
-	fmt.Println("issue remote request")
+
 	// issue introspect request
 	response, err := getIntrospectResponse(&IntrospectRequest{
 		Token:token,
@@ -58,44 +50,23 @@ func (l *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool
 	if err !=nil {
 		return false
 	}
-
-	fmt.Println(response)
 	if response.Active {
 		// save active tokens
 		l.tokensCache[token] = *response
-
-		fmt.Println("token is active")
-
-		scopes, err := parseScopeStr(response.Scope)
+		scopes, err := parseScopeStr(response.Scope, " ")
 		if err != nil {
 			return false
 		}
 
 		// search through scope -Optimize lookup
-		fmt.Println("token scope:")
-		fmt.Println(scopes)
-
-		fmt.Println("request scope:")
-		fmt.Println(request.method)
-		fmt.Println(request.service)
-
 		for _ , scope := range scopes {
 			if isRequestAuthorized(&scope, request) {
-				fmt.Println("scope is valid & save in cache")
-				// store information in cache
-
 				return true
 			}
 		}
-
-		fmt.Println("scope is not valid")
-
 		return false
 
 	}
-
-	fmt.Println("token is not active")
-
 	return false
 }
 
@@ -113,7 +84,7 @@ func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	}
 
 	// check request scope token scope
-	scopes, err := parseScopeStr(client.Scope)
+	scopes, err := parseScopeStr(client.Scope, ",")
 	if err != nil {
 		return false
 	}
