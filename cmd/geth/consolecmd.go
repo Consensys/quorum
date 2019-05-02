@@ -134,63 +134,45 @@ func remoteConsole(ctx *cli.Context) error {
 	}
 
 	token := ctx.GlobalString(utils.RPCClientToken.Name)
+	var client *rpc.Client
+	var err error
+
 	if token == "" {
-		client, err := dialRPC(endpoint)
-
-		if err != nil {
-			utils.Fatalf("Unable to attach to remote geth: %v", err)
-		}
-		config := console.Config{
-			DataDir: utils.MakeDataDir(ctx),
-			DocRoot: ctx.GlobalString(utils.JSpathFlag.Name),
-			Client:  client,
-			Preload: utils.MakeConsolePreloads(ctx),
-		}
-
-		console, err := console.New(config)
-		if err != nil {
-			utils.Fatalf("Failed to start the JavaScript console: %v", err)
-		}
-		defer console.Stop(false)
-
-		if script := ctx.GlobalString(utils.ExecFlag.Name); script != "" {
-			console.Evaluate(script)
-			return nil
-		}
-
-		// Otherwise print the welcome screen and enter interactive mode
-		console.Welcome()
-		console.Interactive()
-
+		client, err = dialRPC(endpoint)
 	} else {
-
-		client, err := dialRPCWithSecurity(endpoint, token)
-		if err != nil {
-			utils.Fatalf("Unable to attach to remote geth: %v", err)
-		}
-		config := console.Config{
-			DataDir: utils.MakeDataDir(ctx),
-			DocRoot: ctx.GlobalString(utils.JSpathFlag.Name),
-			Client:  client,
-			Preload: utils.MakeConsolePreloads(ctx),
-		}
-
-		console, err := console.NewWithSecurity(config, token)
-		if err != nil {
-			utils.Fatalf("Failed to start the JavaScript console: %v", err)
-		}
-		defer console.Stop(false)
-
-		if script := ctx.GlobalString(utils.ExecFlag.Name); script != "" {
-			console.Evaluate(script)
-			return nil
-		}
-
-		// Otherwise print the welcome screen and enter interactive mode
-		console.Welcome()
-		console.Interactive()
-
+		client, err = dialRPCWithSecurity(endpoint, token)
 	}
+
+	if err != nil {
+		utils.Fatalf("Unable to attach to remote geth: %v", err)
+	}
+	config := console.Config{
+		DataDir: utils.MakeDataDir(ctx),
+		DocRoot: ctx.GlobalString(utils.JSpathFlag.Name),
+		Client:  client,
+		Preload: utils.MakeConsolePreloads(ctx),
+	}
+
+	var consl *console.Console
+	if token == "" {
+		consl, err = console.New(config)
+	} else {
+		consl, err = console.NewWithSecurity(config, token)
+	}
+
+	if err != nil {
+		utils.Fatalf("Failed to start the JavaScript console: %v", err)
+	}
+	defer consl.Stop(false)
+
+	if script := ctx.GlobalString(utils.ExecFlag.Name); script != "" {
+		consl.Evaluate(script)
+		return nil
+	}
+
+	// Otherwise print the welcome screen and enter interactive mode
+	consl.Welcome()
+	consl.Interactive()
 
 	return nil
 }

@@ -219,34 +219,6 @@ func DialContext(ctx context.Context, rawurl string) (*Client, error) {
 	}
 }
 
-func newClientWithSecurity(initctx context.Context, connectFunc func(context.Context) (net.Conn, error), token string) (*Client, error) {
-	conn, err := connectFunc(initctx)
-	if err != nil {
-		return nil, err
-	}
-	_, isHTTP := conn.(*httpConn)
-	c := &Client{
-		writeConn:   conn,
-		isHTTP:      isHTTP,
-		connectFunc: connectFunc,
-		close:       make(chan struct{}),
-		closing:     make(chan struct{}),
-		didClose:    make(chan struct{}),
-		reconnected: make(chan net.Conn),
-		readErr:     make(chan error),
-		readResp:    make(chan []*jsonrpcMessage),
-		requestOp:   make(chan *requestOp),
-		sendDone:    make(chan error, 1),
-		respWait:    make(map[string]*requestOp),
-		subs:        make(map[string]*ClientSubscription),
-	}
-	if !isHTTP {
-		go c.dispatch(conn)
-	}
-
-	return c, nil
-}
-
 func newClient(initctx context.Context, connectFunc func(context.Context) (net.Conn, error)) (*Client, error) {
 	conn, err := connectFunc(initctx)
 	if err != nil {
@@ -337,34 +309,7 @@ func (c *Client) Call(result interface{}, method string, args ...interface{}) er
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallContextWithSecurity(ctx context.Context, result interface{}, method string, token string, args ...interface{}) error {
-	msg, err := c.newMessage(method, args...)
-	msg.Token = token
-
-	if err != nil {
-		return err
-	}
-	op := &requestOp{ids: []json.RawMessage{msg.ID}, resp: make(chan *jsonrpcMessage, 1)}
-
-	if c.isHTTP {
-		err = c.sendHTTP(ctx, op, msg)
-	} else {
-		err = c.send(ctx, op, msg)
-	}
-	if err != nil {
-		return err
-	}
-
-	// dispatch has accepted the request and will close the channel when it quits.
-	switch resp, err := op.wait(ctx); {
-	case err != nil:
-		return err
-	case resp.Error != nil:
-		return resp.Error
-	case len(resp.Result) == 0:
-		return ErrNoResult
-	default:
-		return json.Unmarshal(resp.Result, &result)
-	}
+	return c.callContext(ctx, result, method, true, token, args...)
 }
 
 // CallContext performs a JSON-RPC call with the given arguments. If the context is
@@ -373,7 +318,14 @@ func (c *Client) CallContextWithSecurity(ctx context.Context, result interface{}
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
+	return c.callContext(ctx, result, method, false, "", args...)
+}
+
+func (c *Client) callContext(ctx context.Context, result interface{}, method string, withSecurity bool, token string, args ...interface{}) error {
 	msg, err := c.newMessage(method, args...)
+	if withSecurity {
+		msg.Token = token
+	}
 
 	if err != nil {
 		return err

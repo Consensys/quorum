@@ -697,8 +697,6 @@ func (n *Node) ResolvePath(x string) string {
 
 // apis returns the collection of RPC descriptors this node offers.
 func (n *Node) apis() []rpc.API {
-
-	fmt.Println(n.config.RpcSecurityContext.Provider)
 	return []rpc.API{
 		{
 			Namespace: "admin",

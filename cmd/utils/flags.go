@@ -985,7 +985,6 @@ func MakePasswordList(ctx *cli.Context) []string {
 }
 
 func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
-
 	setNodeKey(ctx, cfg)
 	setNAT(ctx, cfg)
 	setListenAddress(ctx, cfg)

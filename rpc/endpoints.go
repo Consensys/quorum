@@ -24,43 +24,27 @@ import (
 
 // StartHTTPEndpointWithSecurityContext starts the HTTP RPC endpoint, configured with cors/vhosts/modules and security context
 func StartHTTPEndpointWithSecurityContext(endpoint string, apis []API, modules []string, cors []string, vhosts []string, timeouts HTTPTimeouts, ctx SecurityContext) (net.Listener, *Server, error) {
-	// Generate the whitelist based on the allowed modules
-	whitelist := make(map[string]bool)
-	for _, module := range modules {
-		whitelist[module] = true
-	}
-	// Register all the APIs exposed by the services
-	handler := NewServerWithSecurityCtx(ctx)
-	for _, api := range apis {
-		if whitelist[api.Namespace] || (len(whitelist) == 0 && api.Public) {
-			if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
-				return nil, nil, err
-			}
-			log.Debug("HTTP registered", "namespace", api.Namespace)
-		}
-	}
-
-	var listener net.Listener
-	var err error
-	// Get listener & bootstrap
-	if listener, err = GetHttpListenerBasedOnSecurityContext(endpoint, ctx); err != nil {
-		return nil, nil, err
-	}
-
-	// bootstrap
-	go NewHTTPServer(cors, vhosts, timeouts, handler).Serve(listener)
-	return listener, handler, err
+	return startHTTPEndpoint(endpoint, apis, modules, cors, vhosts, timeouts, &ctx)
 }
 
 // StartHTTPEndpoint starts the HTTP RPC endpoint, configured with cors/vhosts/modules
 func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []string, vhosts []string, timeouts HTTPTimeouts) (net.Listener, *Server, error) {
+	return startHTTPEndpoint(endpoint, apis, modules, cors, vhosts, timeouts, nil)
+}
+
+func startHTTPEndpoint(endpoint string, apis []API, modules []string, cors []string, vhosts []string, timeouts HTTPTimeouts, ctx *SecurityContext) (net.Listener, *Server, error) {
 	// Generate the whitelist based on the allowed modules
 	whitelist := make(map[string]bool)
 	for _, module := range modules {
 		whitelist[module] = true
 	}
+	var handler *Server
 	// Register all the APIs exposed by the services
-	handler := NewServer()
+	if ctx == nil {
+		handler = NewServer()
+	} else {
+		handler = NewServerWithSecurityCtx(*ctx)
+	}
 	for _, api := range apis {
 		if whitelist[api.Namespace] || (len(whitelist) == 0 && api.Public) {
 			if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
@@ -75,8 +59,14 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 		listener net.Listener
 		err      error
 	)
-	if listener, err = net.Listen("tcp", endpoint); err != nil {
-		return nil, nil, err
+	if ctx == nil {
+		if listener, err = net.Listen("tcp", endpoint); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		if listener, err = GetHttpListenerBasedOnSecurityContext(endpoint, *ctx); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	go NewHTTPServer(cors, vhosts, timeouts, handler).Serve(listener)
@@ -85,45 +75,28 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 
 // StartWSEndpointWithSecurityContext starts a websocket endpoint with security context.
 func StartWSEndpointWithSecurityContext(endpoint string, apis []API, modules []string, wsOrigins []string, exposeAll bool, ctx SecurityContext) (net.Listener, *Server, error) {
-	// Generate the whitelist based on the allowed modules
-	whitelist := make(map[string]bool)
-	for _, module := range modules {
-		whitelist[module] = true
-	}
-	// Register all the APIs exposed by the services
-	handler := NewServerWithSecurityCtx(ctx)
-	for _, api := range apis {
-		if exposeAll || whitelist[api.Namespace] || (len(whitelist) == 0 && api.Public) {
-			if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
-				return nil, nil, err
-			}
-			log.Debug("WebSocket registered", "service", api.Service, "namespace", api.Namespace)
-		}
-	}
-
-	var listener net.Listener
-	var err error
-	// Get listener & bootstrap
-	if listener, err = GetHttpListenerBasedOnSecurityContext(endpoint, ctx); err != nil {
-		return nil, nil, err
-	}
-
-	// bootstrap server
-	go NewWSServer(wsOrigins, handler).Serve(listener)
-	return listener, handler, err
-
+	return startWSEndpoint(endpoint, apis, modules, wsOrigins, exposeAll, &ctx)
 }
 
 // StartWSEndpoint starts a websocket endpoint
 func StartWSEndpoint(endpoint string, apis []API, modules []string, wsOrigins []string, exposeAll bool) (net.Listener, *Server, error) {
+	return startWSEndpoint(endpoint, apis, modules, wsOrigins, exposeAll, nil)
+}
+
+func startWSEndpoint(endpoint string, apis []API, modules []string, wsOrigins []string, exposeAll bool, ctx *SecurityContext) (net.Listener, *Server, error) {
 
 	// Generate the whitelist based on the allowed modules
 	whitelist := make(map[string]bool)
 	for _, module := range modules {
 		whitelist[module] = true
 	}
+	var handler *Server
 	// Register all the APIs exposed by the services
-	handler := NewServer()
+	if ctx == nil {
+		handler = NewServer()
+	} else {
+		handler = NewServerWithSecurityCtx(*ctx)
+	}
 	for _, api := range apis {
 		if exposeAll || whitelist[api.Namespace] || (len(whitelist) == 0 && api.Public) {
 			if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
@@ -137,31 +110,18 @@ func StartWSEndpoint(endpoint string, apis []API, modules []string, wsOrigins []
 		listener net.Listener
 		err      error
 	)
-	if listener, err = net.Listen("tcp", endpoint); err != nil {
-		return nil, nil, err
+	if ctx == nil {
+		if listener, err = net.Listen("tcp", endpoint); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		if listener, err = GetHttpListenerBasedOnSecurityContext(endpoint, *ctx); err != nil {
+			return nil, nil, err
+		}
 	}
 	go NewWSServer(wsOrigins, handler).Serve(listener)
 	return listener, handler, err
 
-}
-
-// StartIPCEndpoint starts an IPC endpoint.
-func StartIPCEndpointWithSecurityContext(ipcEndpoint string, apis []API, ctx SecurityContext) (net.Listener, *Server, error) {
-	// Register all the APIs exposed by the services.
-	handler := NewServerWithSecurityCtx(ctx)
-	for _, api := range apis {
-		if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
-			return nil, nil, err
-		}
-		log.Debug("IPC registered", "namespace", api.Namespace)
-	}
-	// All APIs registered, start the IPC listener.
-	listener, err := ipcListen(ipcEndpoint)
-	if err != nil {
-		return nil, nil, err
-	}
-	go handler.ServeListener(listener)
-	return listener, handler, nil
 }
 
 // StartIPCEndpoint starts an IPC endpoint.

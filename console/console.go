@@ -78,39 +78,16 @@ type Console struct {
 // New initializes a JavaScript interpreted runtime environment and sets defaults
 // with the config struct.
 func NewWithSecurity(config Config, token string) (*Console, error) {
-	// Handle unset config values gracefully
-	if config.Prompter == nil {
-		config.Prompter = Stdin
-	}
-	if config.Prompt == "" {
-		config.Prompt = DefaultPrompt
-	}
-	if config.Printer == nil {
-		config.Printer = colorable.NewColorableStdout()
-	}
-	// Initialize the console and return
-	console := &Console{
-		client:   config.Client,
-		jsre:     jsre.New(config.DocRoot, config.Printer),
-		prompt:   config.Prompt,
-		prompter: config.Prompter,
-		printer:  config.Printer,
-		histPath: filepath.Join(config.DataDir, HistoryFile),
-	}
-	if err := os.MkdirAll(config.DataDir, 0700); err != nil {
-		return nil, err
-	}
-	console.token = token
-	if err := console.init(config.Preload); err != nil {
-		return nil, err
-	}
-
-	return console, nil
+	return newConsole(config, true, token)
 }
 
 // New initializes a JavaScript interpreted runtime environment and sets defaults
 // with the config struct.
 func New(config Config) (*Console, error) {
+	return newConsole(config, false, "")
+}
+
+func newConsole(config Config, withSecurity bool, token string) (*Console, error) {
 	// Handle unset config values gracefully
 	if config.Prompter == nil {
 		config.Prompter = Stdin
@@ -133,7 +110,9 @@ func New(config Config) (*Console, error) {
 	if err := os.MkdirAll(config.DataDir, 0700); err != nil {
 		return nil, err
 	}
-
+	if withSecurity {
+		console.token = token
+	}
 	if err := console.init(config.Preload); err != nil {
 		return nil, err
 	}
