@@ -1,6 +1,6 @@
 # Quorum Examples
 
-This repository contains setup examples for Quorum.
+This section details couple of setup examples for Quorum. To go directly to quorum-examples repository click [here](https://github.com/jpmorganchase/quorum-examples.git)
 
 Current examples include:
 
