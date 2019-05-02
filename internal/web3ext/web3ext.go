@@ -35,7 +35,6 @@ var Modules = map[string]string{
 	"istanbul":   Istanbul_JS,
 }
 
-
 const Chequebook_JS = `
 web3._extend({
 	property: 'chequebook',

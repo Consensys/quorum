@@ -82,7 +82,6 @@ func (s *RPCService) Modules() map[string]string {
 	return modules
 }
 
-
 func (s *Server) RegisterSecurityCtx(ctx SecurityContext) {
 	s.securityContext = ctx
 }
@@ -416,12 +415,10 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 			}
 		}
 
-
 		if r.err != nil {
 			requests[i] = &serverRequest{id: r.id, err: r.err}
 			continue
 		}
-
 
 		if r.isPubSub && strings.HasSuffix(r.method, unsubscribeMethodSuffix) {
 			requests[i] = &serverRequest{id: r.id, isUnsubscribe: true}

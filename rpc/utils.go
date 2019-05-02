@@ -22,7 +22,6 @@ import (
 	crand "crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -332,12 +331,9 @@ func Fatalf(format string, args ...interface{}) {
 }
 
 //IsTokenExpired has token expired
-func  IsTokenExpired(createdTime time.Time , exp int) bool {
+func IsTokenExpired(createdTime time.Time, exp int) bool {
 	elapsed := time.Now().Sub(createdTime)
-	if elapsed.Seconds() > float64(exp) {
-		return true
-	}
-	return false
+	return elapsed.Seconds() > float64(exp)
 }
 
 //getRemoteScope issues a remote request and return introspect rsponse.
@@ -347,7 +343,7 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 	params.Add("token", request.Token)
 	params.Add("token_type_hint", request.TokenTypeHint)
 
-	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader != ""{
+	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader != "" {
 		// support env variables
 		providerClientId := os.Getenv(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader)
 		if providerClientId == "" {
@@ -361,7 +357,7 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 		}
 	}
 
-	if  cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader != "" {
+	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader != "" {
 
 		// support env variables
 		providerClientSec := os.Getenv(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader)
@@ -382,7 +378,7 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 		return nil, err
 	}
 
-	encodedParams :=  params.Encode()
+	encodedParams := params.Encode()
 	req, err := http.NewRequest("POST", serviceURL.String(), strings.NewReader(encodedParams))
 
 	// Set headers
@@ -565,9 +561,4 @@ func GenerateRandomBytes(n int) ([]byte, error) {
 	}
 
 	return b, nil
-}
-
-func GenerateRandomString(s int) (string, error) {
-	b, err := GenerateRandomBytes(s)
-	return base64.URLEncoding.EncodeToString(b), err
 }

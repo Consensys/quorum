@@ -631,7 +631,7 @@ func (c *Client) dispatch(conn net.Conn) {
 		case <-c.close:
 			return
 
-		// Read path.
+			// Read path.
 		case batch := <-c.readResp:
 			for _, msg := range batch {
 				switch {
@@ -670,7 +670,7 @@ func (c *Client) dispatch(conn net.Conn) {
 			reading = true
 			conn = newconn
 
-		// Send path.
+			// Send path.
 		case op := <-requestOpLock:
 			// Stop listening for further send ops until the current one is done.
 			requestOpLock = nil
@@ -902,7 +902,7 @@ func (sub *ClientSubscription) forward() (err error, unsubscribeServer bool) {
 				return ErrSubscriptionQueueOverflow, true
 			}
 			buffer.PushBack(val)
-		case 2:                             // sub.channel<-
+		case 2: // sub.channel<-
 			cases[2].Send = reflect.Value{} // Don't hold onto the value.
 			buffer.Remove(buffer.Front())
 		}

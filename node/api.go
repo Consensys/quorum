@@ -144,10 +144,10 @@ func (api *PrivateAdminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, 
 	return rpcSub, nil
 }
 
-//RpcLoadClientsFromFile. Add Local RPC ClientId to security context
+// add clients to local provider from a file
 func (api *PrivateAdminAPI) RpcLoadClientsFromFile(filePath *string) ([]rpc.ClientInfo, error) {
 	// check preconditions
-	if api.node.config.RpcSecurityContext.Enabled == false {
+	if !api.node.config.RpcSecurityContext.Enabled {
 		return nil, fmt.Errorf("RPC Security not enabled")
 	}
 
@@ -156,7 +156,7 @@ func (api *PrivateAdminAPI) RpcLoadClientsFromFile(filePath *string) ([]rpc.Clie
 		return nil, err
 
 	}
-	if isLocalProviderAv == false {
+	if !isLocalProviderAv {
 		return nil, fmt.Errorf("RPC Security not enabled")
 	}
 
@@ -171,7 +171,7 @@ func (api *PrivateAdminAPI) RpcLoadClientsFromFile(filePath *string) ([]rpc.Clie
 // Add Local RPC ClientId to security context
 func (api *PrivateAdminAPI) RpcSetClientScope(clientName *string, scope *string) (string, error) {
 	// check preconditions
-	if api.node.config.RpcSecurityContext.Enabled == false {
+	if !api.node.config.RpcSecurityContext.Enabled {
 		return "", fmt.Errorf("RPC Security not enabled")
 	}
 	isLocalProviderAv, err := api.node.config.RpcSecurityContext.IsLocalSecurityProviderAvailable()
@@ -179,34 +179,34 @@ func (api *PrivateAdminAPI) RpcSetClientScope(clientName *string, scope *string)
 		return "", err
 
 	}
-	if isLocalProviderAv == false {
+	if !isLocalProviderAv {
 		return "", fmt.Errorf("Local RPC Security Provider not enabled")
 	}
 
 	if cerr := api.node.config.RpcSecurityContext.Provider.SetClientScope(*clientName, *scope); cerr != nil {
-		return  "", cerr
+		return "", cerr
 	}
 
-	return fmt.Sprintf("client scope was set to %v",*scope), nil
+	return fmt.Sprintf("client scope was set to %v", *scope), nil
 
 }
+
 // Add Local RPC ClientId to security context
 func (api *PrivateAdminAPI) RpcSetClientStatus(clientName *string, active *string) (string, error) {
 	var status bool
 	userStatus := strings.ToLower(*active)
-	if userStatus == "active" || userStatus == "blocked" {
-		if userStatus == "active" {
-			status = true
-		} else {
-			status = false
-		}
 
-	} else {
+	switch userStatus {
+	case "active":
+		status = true
+	case "blocked":
+		status = false
+	default:
 		return "", fmt.Errorf("status values must be the string (active or blocked)")
 	}
 
 	// check preconditions
-	if api.node.config.RpcSecurityContext.Enabled == false {
+	if !api.node.config.RpcSecurityContext.Enabled {
 		return "", fmt.Errorf("RPC Security not enabled")
 	}
 	isLocalProviderAv, err := api.node.config.RpcSecurityContext.IsLocalSecurityProviderAvailable()
@@ -214,20 +214,20 @@ func (api *PrivateAdminAPI) RpcSetClientStatus(clientName *string, active *strin
 		return "", err
 
 	}
-	if isLocalProviderAv == false {
+	if !isLocalProviderAv {
 		return "", fmt.Errorf("Local RPC Security Provider not enabled")
 	}
 
-	if cerr := api.node.config.RpcSecurityContext.Provider.SetClientStatus(*clientName, status); cerr != nil {
-		return  "", cerr
+	if err := api.node.config.RpcSecurityContext.Provider.SetClientStatus(*clientName, status); err != nil {
+		return "", err
 	}
-	return fmt.Sprintf("client status changed to %v",status), nil
+	return fmt.Sprintf("client status changed to %v", status), nil
 }
 
 // Add Local RPC ClientId to security context
 func (api *PrivateAdminAPI) RpcAddClient(clientName *string, clientScope *string) (string, error) {
 	// check preconditions
-	if api.node.config.RpcSecurityContext.Enabled == false {
+	if !api.node.config.RpcSecurityContext.Enabled {
 		return "", fmt.Errorf("RPC Security not enabled")
 	}
 	isLocalProviderAv, err := api.node.config.RpcSecurityContext.IsLocalSecurityProviderAvailable()
@@ -235,31 +235,29 @@ func (api *PrivateAdminAPI) RpcAddClient(clientName *string, clientScope *string
 		return "", err
 
 	}
-	if isLocalProviderAv == false {
+	if !isLocalProviderAv {
 		return "", fmt.Errorf("Local RPC Security Provider not enabled")
 	}
-	client, cerr := api.node.config.RpcSecurityContext.Provider.NewClient(
+	client, err := api.node.config.RpcSecurityContext.Provider.NewClient(
 		*clientName,
 		"",
 		"",
 		*clientScope,
 		true,
 	)
-	if cerr != nil {
-		return "", fmt.Errorf(cerr.Error())
+	if err != nil {
+		return "", err
 	}
-	cerr = api.node.config.RpcSecurityContext.Provider.AddClient(&client)
-	if cerr != nil {
-		return "", fmt.Errorf(cerr.Error())
+	err = api.node.config.RpcSecurityContext.Provider.AddClient(&client)
+	if err != nil {
+		return "", err
 	}
-
 	return client.Secret, nil
-
 }
 
 // Remove Local RPC ClientId from security context
 func (api *PrivateAdminAPI) RpcRemoveClient(clientName *string) (bool, error) {
-	if api.node.config.RpcSecurityContext.Enabled == false {
+	if !api.node.config.RpcSecurityContext.Enabled {
 		return false, fmt.Errorf("RPC Security not enabled")
 	}
 
@@ -268,21 +266,20 @@ func (api *PrivateAdminAPI) RpcRemoveClient(clientName *string) (bool, error) {
 		return false, err
 
 	}
-	if isLocalProviderAv == false {
+	if !isLocalProviderAv {
 		return false, fmt.Errorf("Local RPC Security Provider not enabled")
 	}
 
-	err = api.node.config.RpcSecurityContext.Provider.RemoveClient(clientName)
-	if err != nil {
+	if err = api.node.config.RpcSecurityContext.Provider.RemoveClient(clientName); err != nil {
 		return false, err
 	}
 
 	return true, nil
 }
 
-// Remove Local RPC ClientId from security context
+// Regenerate secret for a local client
 func (api *PrivateAdminAPI) RpcRegenerateClientSecret(clientName *string) (string, error) {
-	if api.node.config.RpcSecurityContext.Enabled == false {
+	if !api.node.config.RpcSecurityContext.Enabled {
 		return "", fmt.Errorf("RPC Security not enabled")
 	}
 
@@ -291,7 +288,7 @@ func (api *PrivateAdminAPI) RpcRegenerateClientSecret(clientName *string) (strin
 		return "", err
 
 	}
-	if isLocalProviderAv == false {
+	if !isLocalProviderAv {
 		return "", fmt.Errorf("Local RPC Security Provider not enabled")
 	}
 
@@ -306,7 +303,7 @@ func (api *PrivateAdminAPI) RpcRegenerateClientSecret(clientName *string) (strin
 // List all local rpc clients
 func (api *PrivateAdminAPI) RpcListClients() ([]*rpc.ClientInfo, error) {
 	// check preconditions
-	if api.node.config.RpcSecurityContext.Enabled == false {
+	if !api.node.config.RpcSecurityContext.Enabled {
 		return nil, fmt.Errorf("RPC Security not enabled")
 	}
 
@@ -315,17 +312,17 @@ func (api *PrivateAdminAPI) RpcListClients() ([]*rpc.ClientInfo, error) {
 		return nil, err
 
 	}
-	if isLocalProviderAv == false {
+	if !isLocalProviderAv {
 		return nil, fmt.Errorf("RPC Security not enabled")
 	}
 
 	return api.node.config.RpcSecurityContext.Provider.GetClientsList(), nil
 }
 
-// List all local rpc clients
+// Find local clients by client name
 func (api *PrivateAdminAPI) RpcFindClientByName(clientName *string) (*rpc.ClientInfo, error) {
 	// check preconditions
-	if api.node.config.RpcSecurityContext.Enabled == false {
+	if !api.node.config.RpcSecurityContext.Enabled {
 		return nil, fmt.Errorf("RPC Security not enabled")
 	}
 
@@ -334,7 +331,7 @@ func (api *PrivateAdminAPI) RpcFindClientByName(clientName *string) (*rpc.Client
 		return nil, err
 
 	}
-	if isLocalProviderAv == false {
+	if !isLocalProviderAv {
 		return nil, fmt.Errorf("Local RPC Security Provider not enabled")
 	}
 
@@ -345,10 +342,10 @@ func (api *PrivateAdminAPI) RpcFindClientByName(clientName *string) (*rpc.Client
 	return client, nil
 }
 
-// List all local rpc clients
+// find local clients by clientID
 func (api *PrivateAdminAPI) RpcFindClientById(clientId *string) (*rpc.ClientInfo, error) {
 	// check preconditions
-	if api.node.config.RpcSecurityContext.Enabled == false {
+	if !api.node.config.RpcSecurityContext.Enabled {
 		return nil, fmt.Errorf("RPC Security not enabled")
 	}
 
@@ -357,7 +354,7 @@ func (api *PrivateAdminAPI) RpcFindClientById(clientId *string) (*rpc.ClientInfo
 		return nil, err
 
 	}
-	if isLocalProviderAv == false {
+	if !isLocalProviderAv {
 		return nil, fmt.Errorf("Local RPC Security Provider not enabled")
 	}
 

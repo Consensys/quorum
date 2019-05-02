@@ -111,14 +111,12 @@ func DialHTTPWithClientSecurity(endpoint string, token string, client *http.Clie
 	req.Header.Set("Accept", contentType)
 	req.Header.Set("Token", token)
 
-
 	initctx := context.Background()
-	initctx  = context.WithValue(initctx, "Token", token)
+	initctx = context.WithValue(initctx, "Token", token)
 	return newClient(initctx, func(context.Context) (net.Conn, error) {
-			return &httpConn{client: client, req: req, closed: make(chan struct{})}, nil
-		})
-	}
-
+		return &httpConn{client: client, req: req, closed: make(chan struct{})}, nil
+	})
+}
 
 // DialHTTPWithClient creates a new RPC client that connects to an RPC server over HTTP
 // using the provided HTTP ClientId.
@@ -138,9 +136,8 @@ func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
 
 // DialHTTPWithSecurity creates a new RPC client that connects to an RPC server over HTTP.
 func DialHTTPWithSecurity(endpoint string, token string) (*Client, error) {
-		return DialHTTPWithClientSecurity(endpoint, token, new(http.Client))
+	return DialHTTPWithClientSecurity(endpoint, token, new(http.Client))
 }
-
 
 // DialHTTP creates a new RPC client that connects to an RPC server over HTTP.
 func DialHTTP(endpoint string) (*Client, error) {
@@ -250,13 +247,11 @@ func NewHTTPServer(cors []string, vhosts []string, timeouts HTTPTimeouts, srv *S
 		// HTTP2 mandates the support of the cipher suite TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
 		// Which is a 128bit cipher, and we are enforcing ciphers >= 4096 bits only
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
-
 	}
 }
 
 // ServeHTTP serves JSON-RPC requests over HTTP.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
 	// Permit dumb empty requests for remote health-checks (AWS)
 	if r.Method == http.MethodGet && r.ContentLength == 0 && r.URL.RawQuery == "" {
 		return
