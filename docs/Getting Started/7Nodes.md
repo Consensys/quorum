@@ -1,6 +1,8 @@
 # 7nodes
 ## Demonstrating Privacy
-The 7nodes example comes with some simple contracts to demonstrate the privacy features of Quorum.  In this demo we will:
+The [7nodes example](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes) comes with some simple contracts to demonstrate the privacy features of Quorum. 
+
+In this demo we will:
 
 * Send a private transaction between nodes 1 and 7
 * Show that only nodes 1 and 7 are able to view the initial state of the contract
