@@ -1,6 +1,6 @@
 # 7nodes
 ## Demonstrating Privacy
-The 7nodes example comes with some simple contracts to demonstrate the privacy features of Quorum. To go directly to 7Nodes repository click [here](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes)
+The [7nodes example](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes) comes with some simple contracts to demonstrate the privacy features of Quorum. 
 
 In this demo we will:
 
