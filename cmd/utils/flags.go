@@ -702,7 +702,7 @@ func setRpcSecurity(ctx *cli.Context, cfg *node.Config) {
 			}
 
 			log.Info("Create rpc security context", "RPC security", "Enabled")
-			cfg.RpcSecurityContext = rpc.SecurityContext{Enabled: true, Config: securityConfig}
+			cfg.RpcSecurityContext = &rpc.SecurityContext{Enabled: true, Config: securityConfig}
 			log.Info("Rpc security was created", "Context", cfg.RpcSecurityContext.Enabled, "Type", cfg.RpcSecurityContext.Config.ProviderType)
 		}
 	}
