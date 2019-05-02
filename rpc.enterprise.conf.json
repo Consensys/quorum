@@ -7,7 +7,7 @@
 		"providerIntrospectionClientIdEnv":"RPCSecurityClientID",
 		"providerIntrospectionClientSecretEnv":"RPCSecurityClientSecret",
 
-		"providerIntrospectionURL":"https://dev-872784.okta.com/oauth2/default/v1/introspect",
+		"providerIntrospectionURL":"https://dev-872784.okta.com/oauth2/default/v1/introspect"
 	},	
 	"listenerCert" : {
 		"clientCaPemFile":"./rootCA.crt",
