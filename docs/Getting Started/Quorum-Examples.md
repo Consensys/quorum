@@ -4,7 +4,7 @@ This repository contains setup examples for Quorum.
 
 Current examples include:
 
-* [7nodes](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes): Starts up a fully-functioning Quorum environment consisting of 7 independent nodes. From this example one can test consensus, privacy, and all the expected functionality of an Ethereum platform.
+* [7nodes](../7Nodes): Starts up a fully-functioning Quorum environment consisting of 7 independent nodes. From this example one can test consensus, privacy, and all the expected functionality of an Ethereum platform.
 * [5nodesRTGS](https://github.com/bacen/quorum-examples/tree/master/examples/5nodesRTGS): [__Note__: This links to an external repo which you will need to clone, thanks to @rsarres for this contribution!] Starts up a set of 5 nodes that simulates a Real-time Gross Setlement environment with 3 banks, one regulator (typically a central bank) and an observer that cannot access the private data.
 
 The easiest way to get started with running the examples is to use the vagrant environment (see below).
