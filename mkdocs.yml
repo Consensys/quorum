@@ -1,7 +1,7 @@
 
 # Project information
 site_name: Quorum
-site_url: https://quorum-docs.readthedocs.io/
+site_url: https://goquorum.readthedocs.io/
 site_description: A permissioned implementation of Ethereum supporting data privacy
 site_author: Quorum
 copyright: Quorum 2019
