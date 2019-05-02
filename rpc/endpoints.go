@@ -40,11 +40,10 @@ func StartHTTPEndpointWithSecurityContext(endpoint string, apis []API, modules [
 		}
 	}
 
-
 	var listener net.Listener
-	var err		 error
+	var err error
 	// Get listener & bootstrap
-	if listener, err = GetHttpListenerBasedOnSecurityContext(endpoint, ctx); err != nil{
+	if listener, err = GetHttpListenerBasedOnSecurityContext(endpoint, ctx); err != nil {
 		return nil, nil, err
 	}
 
@@ -70,7 +69,6 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 			log.Debug("HTTP registered", "namespace", api.Namespace)
 		}
 	}
-
 
 	// All APIs registered, start the HTTP listener
 	var (
@@ -104,16 +102,15 @@ func StartWSEndpointWithSecurityContext(endpoint string, apis []API, modules []s
 	}
 
 	var listener net.Listener
-	var err		 error
+	var err error
 	// Get listener & bootstrap
-	if listener, err = GetHttpListenerBasedOnSecurityContext(endpoint, ctx); err != nil{
+	if listener, err = GetHttpListenerBasedOnSecurityContext(endpoint, ctx); err != nil {
 		return nil, nil, err
 	}
 
 	// bootstrap server
 	go NewWSServer(wsOrigins, handler).Serve(listener)
 	return listener, handler, err
-
 
 }
 

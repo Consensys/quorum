@@ -52,13 +52,12 @@ var websocketJSONCodec = websocket.Codec{
 	},
 }
 
-
 // WebsocketHandler returns a handler that serves JSON-RPC to WebSocket connections.
 //
 // allowedOrigins should be a comma-separated list of allowed origin URLs.
 // To allow connections with any origin, pass "*".
 func (srv *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
-	 server := websocket.Server{
+	server := websocket.Server{
 		Handshake: wsHandshakeValidator(allowedOrigins),
 		Handler: func(conn *websocket.Conn) {
 			// Create a custom encode/decode pair to enforce payload size and number encoding
@@ -71,13 +70,11 @@ func (srv *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
 				return websocketJSONCodec.Receive(conn, v)
 			}
 
-
 			srv.ServeCodec(NewCodec(conn, encoder, decoder), OptionMethodInvocation|OptionSubscriptions)
 		},
 	}
 
-
-	 return server
+	return server
 }
 
 // NewWSServer creates a new websocket RPC server around an API provider.
@@ -122,9 +119,6 @@ func wsHandshakeValidator(allowedOrigins []string) func(*websocket.Config, *http
 		log.Warn(fmt.Sprintf("origin '%s' not allowed on WS-RPC interface\n", origin))
 		return fmt.Errorf("origin %s not allowed", origin)
 	}
-
-
-
 
 	return f
 }
@@ -188,7 +182,6 @@ func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error
 		return wsDialContext(ctx, config)
 	})
 }
-
 
 func wsDialContextWithSecurity(ctx context.Context, config *websocket.Config, token string) (*websocket.Conn, error) {
 	var conn net.Conn

@@ -192,7 +192,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
-
 		},
 	},
 	{
@@ -277,7 +276,7 @@ var AppHelpFlagGroups = []flagGroup{
 	},
 	{
 		Name: "MISC",
-	},{
+	}, {
 		Name: "ISTANBUL",
 		Flags: []cli.Flag{
 			utils.IstanbulRequestTimeoutFlag,

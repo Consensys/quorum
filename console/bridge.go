@@ -35,7 +35,7 @@ type bridge struct {
 	client   *rpc.Client  // RPC client to execute Ethereum requests through
 	prompter UserPrompter // Input prompter to allow interactive user feedback
 	printer  io.Writer    // Output writer to serialize any display strings to
-	token 	 string
+	token    string
 }
 
 // newBridge creates a new JavaScript wrapper around an RPC client.
@@ -44,10 +44,9 @@ func newBridgeWithSecurity(client *rpc.Client, prompter UserPrompter, printer io
 		client:   client,
 		prompter: prompter,
 		printer:  printer,
-		token:token,
+		token:    token,
 	}
 }
-
 
 // newBridge creates a new JavaScript wrapper around an RPC client.
 func newBridge(client *rpc.Client, prompter UserPrompter, printer io.Writer) *bridge {
@@ -80,11 +79,11 @@ func (b *bridge) NewAccount(call otto.FunctionCall) (response otto.Value) {
 			throwJSException("passphrases don't match!")
 		}
 
-	// A single string password was specified, use that
+		// A single string password was specified, use that
 	case len(call.ArgumentList) == 1 && call.Argument(0).IsString():
 		password, _ = call.Argument(0).ToString()
 
-	// Otherwise fail with some error
+		// Otherwise fail with some error
 	default:
 		throwJSException("expected 0 or 1 string argument")
 	}

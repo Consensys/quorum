@@ -72,7 +72,7 @@ type Console struct {
 	history  []string     // Scroll history maintained by the console
 	printer  io.Writer    // Output writer to serialize any display strings to
 
-	token    string
+	token string
 }
 
 // New initializes a JavaScript interpreted runtime environment and sets defaults
@@ -134,26 +134,22 @@ func New(config Config) (*Console, error) {
 		return nil, err
 	}
 
-
 	if err := console.init(config.Preload); err != nil {
 		return nil, err
 	}
 	return console, nil
 }
 
-
-
 // init retrieves the available APIs from the remote RPC provider and initializes
 // the console's JavaScript namespaces based on the exposed modules.
 func (c *Console) init(preload []string) error {
 	// Initialize the JavaScript <-> Go RPC bridge
 	var bridge *bridge
-	if c.token  == ""{
+	if c.token == "" {
 		bridge = newBridge(c.client, c.prompter, c.printer)
-	}else{
+	} else {
 		bridge = newBridgeWithSecurity(c.client, c.prompter, c.printer, c.token)
 	}
-
 
 	c.jsre.Set("jeth", struct{}{})
 
@@ -185,13 +181,13 @@ func (c *Console) init(preload []string) error {
 	}
 	// Load the supported APIs into the JavaScript runtime environment
 
-	var apis  map[string]string
-	var err  error
+	var apis map[string]string
+	var err error
 
 	if c.token == "" {
 		apis, err = c.client.SupportedModules()
 
-	}else {
+	} else {
 		apis, err = c.client.SupportedModulesWithSecurity(c.token)
 	}
 
@@ -217,8 +213,6 @@ func (c *Console) init(preload []string) error {
 	if _, err = c.jsre.Run(flatten); err != nil {
 		return fmt.Errorf("namespace flattening: %v", err)
 	}
-
-
 
 	// Initialize the global name register (disabled for now)
 	//c.jsre.Run(`var GlobalRegistrar = eth.contract(` + registrar.GlobalRegistrarAbi + `);   registrar = GlobalRegistrar.at("` + registrar.GlobalRegistrarAddr + `");`)
