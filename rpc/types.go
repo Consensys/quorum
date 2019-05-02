@@ -238,16 +238,22 @@ type AuthorizationServerCert struct {
 
 // ProviderInformation
 type ProviderInformation struct {
+	EnterpriseProviderCacheLimit int `json:"providerCacheLimit"`
 	// Authorization Server Cert Information
 	EnterpriseProviderCertificateInfo *AuthorizationServerCert `json:"providerCert"`
+
+	// Authorization Server Introspection Method
+	EnterpriseProviderIntrospectionMethod string `json:"providerIntrospectionMethod"`
 
 	// Authorization Server Introspection URL.
 	EnterpriseProviderIntrospectionURL string `json:"providerIntrospectionURL"`
 	// Authorization Server Introspection Header Key
 	EnterpriseProviderIntrospectionClientIdHeader string `json:"providerIntrospectionClientIdHeader"`
+	EnterpriseProviderIntrospectionClientIdEnvVar string `json:"providerIntrospectionClientIdEnvVar"`
 	EnterpriseProviderIntrospectionClientId       string `json:"providerClientId"`
 
 	EnterpriseProviderIntrospectionClientSecretHeader string `json:"providerIntrospectionClientSecretHeader"`
+	EnterpriseProviderIntrospectionClientSecretEnvVar string `json:"providerIntrospectionClientSecretEnvVar"`
 	EnterpriseProviderIntrospectionClientSecret       string `json:"providerClientSecret"`
 
 	// Local Provider Information

@@ -12,7 +12,6 @@ import (
 )
 
 //IsClientAuthorized Parse the RPC Request, Call send Introspect Request & Parse results.
-//TODO (cucrisis): Cache is required here w ecant be querying the server every time
 func (l *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	token := request.token
 	if token == "" {
@@ -96,11 +95,19 @@ func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 }
 
 func (l *EnterpriseSecurityProvider) Init() error {
+
 	if l.SecurityConfig == nil {
-		return fmt.Errorf("security provider confignot provided")
+		return fmt.Errorf("security provider config not provided")
 	}
-	defaultCacheLimit := 50
-	l.tokensCache, _ = lru.New(defaultCacheLimit)
+	if l.SecurityConfig.ProviderInformation == nil {
+		return fmt.Errorf("provider config not provided")
+	}
+
+	if l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheLimit == 0 {
+		l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheLimit = 80
+	}
+
+	l.tokensCache, _ = lru.New(l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheLimit)
 	// build client
 	if client, err := buildHttpClient(l.SecurityConfig); err == nil {
 		l.client = *client

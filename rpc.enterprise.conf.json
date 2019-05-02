@@ -1,8 +1,12 @@
 {
 	"providerType":"enterprise",
         "providerInfo": {
+		"providerIntrospectionMethod":"POST",
 		"providerIntrospectionClientIdHeader":"client_id",
 		"providerIntrospectionClientSecretHeader":"client_secret",
+		"providerIntrospectionClientIdEnv":"RPCSecurityClientID",
+		"providerIntrospectionClientSecretEnv":"RPCSecurityClientSecret",
+
 		"providerIntrospectionURL":"https://dev-872784.okta.com/oauth2/default/v1/introspect",
 	},	
 	"listenerCert" : {

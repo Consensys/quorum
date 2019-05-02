@@ -345,7 +345,7 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 
 	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader != "" {
 		// support env variables
-		providerClientId := os.Getenv(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader)
+		providerClientId := os.Getenv(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdEnvVar)
 		if providerClientId == "" {
 			providerClientId = cfg.ProviderInformation.EnterpriseProviderIntrospectionClientId
 		}
@@ -360,7 +360,7 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader != "" {
 
 		// support env variables
-		providerClientSec := os.Getenv(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader)
+		providerClientSec := os.Getenv(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretEnvVar)
 		if providerClientSec == "" {
 			providerClientSec = cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecret
 		}
@@ -378,8 +378,12 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 		return nil, err
 	}
 
+	requestMethod := "POST"
+	if cfg.ProviderInformation.EnterpriseProviderIntrospectionMethod != "" {
+		requestMethod = cfg.ProviderInformation.EnterpriseProviderIntrospectionMethod
+	}
 	encodedParams := params.Encode()
-	req, err := http.NewRequest("POST", serviceURL.String(), strings.NewReader(encodedParams))
+	req, err := http.NewRequest(requestMethod, serviceURL.String(), strings.NewReader(encodedParams))
 
 	// Set headers
 	req.Header.Add("User-Agent", "Quorum")
