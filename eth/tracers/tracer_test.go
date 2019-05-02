@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -43,13 +44,20 @@ func (account) ReturnGas(*big.Int)                                  {}
 func (account) SetCode(common.Hash, []byte)                         {}
 func (account) ForEachStorage(cb func(key, value common.Hash) bool) {}
 
+type dummyStatedb struct {
+	state.StateDB
+}
+
+func (*dummyStatedb) GetRefund() uint64 { return 1337 }
+
 func runTrace(tracer *Tracer) (json.RawMessage, error) {
-	env := vm.NewEVM(vm.Context{BlockNumber: big.NewInt(1)}, nil, nil, params.TestChainConfig, vm.Config{Debug: true, Tracer: tracer})
+	db := &dummyStatedb{}
+	env := vm.NewEVM(vm.Context{BlockNumber: big.NewInt(1)}, db, db, params.TestChainConfig, vm.Config{Debug: true, Tracer: tracer})
 
 	contract := vm.NewContract(account{}, account{}, big.NewInt(0), 10000)
 	contract.Code = []byte{byte(vm.PUSH1), 0x1, byte(vm.PUSH1), 0x1, 0x0}
 
-	_, err := env.Interpreter().Run(contract, []byte{})
+	_, err := env.Interpreter().Run(contract, []byte{}, false)
 	if err != nil {
 		return nil, err
 	}
@@ -125,8 +133,8 @@ func TestHaltBetweenSteps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	env := vm.NewEVM(vm.Context{BlockNumber: big.NewInt(1)}, nil, nil, params.TestChainConfig, vm.Config{Debug: true, Tracer: tracer})
+	db := &dummyStatedb{}
+	env := vm.NewEVM(vm.Context{BlockNumber: big.NewInt(1)}, db, db, params.TestChainConfig, vm.Config{Debug: true, Tracer: tracer})
 	contract := vm.NewContract(&account{}, &account{}, big.NewInt(0), 0)
 
 	tracer.CaptureState(env, 0, 0, 0, 0, nil, nil, contract, 0, nil)

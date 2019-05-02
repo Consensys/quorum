@@ -121,7 +121,7 @@ func LogsBloom(logs []*Log) *big.Int {
 }
 
 func bloom9(b []byte) *big.Int {
-	b = crypto.Keccak256(b[:])
+	b = crypto.Keccak256(b)
 
 	r := new(big.Int)
 
@@ -138,7 +138,7 @@ var Bloom9 = bloom9
 
 func BloomLookup(bin Bloom, topic bytesBacked) bool {
 	bloom := bin.Big()
-	cmp := bloom9(topic.Bytes()[:])
+	cmp := bloom9(topic.Bytes())
 
 	return bloom.And(bloom, cmp).Cmp(cmp) == 0
 }

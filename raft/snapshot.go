@@ -10,12 +10,12 @@ import (
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal/walpb"
+	"github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"gopkg.in/fatih/set.v0"
 )
 
 // Snapshot
@@ -37,7 +37,7 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	defer pm.mu.RUnlock()
 
 	numNodes := len(pm.confState.Nodes)
-	numRemovedNodes := pm.removedPeers.Size()
+	numRemovedNodes := pm.removedPeers.Cardinality()
 
 	snapshot := &Snapshot{
 		addresses:      make([]Address, numNodes),
@@ -59,9 +59,10 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	sort.Sort(ByRaftId(snapshot.addresses))
 
 	// Populate removed IDs
-
-	for i, removedIface := range pm.removedPeers.List() {
+	i := 0
+	for removedIface := range pm.removedPeers.Iterator().C {
 		snapshot.removedRaftIds[i] = removedIface.(uint16)
+		i++
 	}
 
 	return snapshot
@@ -99,8 +100,8 @@ func (pm *ProtocolManager) triggerSnapshot(index uint64) {
 	pm.mu.Unlock()
 }
 
-func confStateIdSet(confState raftpb.ConfState) *set.Set {
-	set := set.New()
+func confStateIdSet(confState raftpb.ConfState) mapset.Set {
+	set := mapset.NewSet()
 	for _, rawRaftId := range confState.Nodes {
 		set.Add(uint16(rawRaftId))
 	}
@@ -115,7 +116,7 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 	// Update tombstones for permanently removed peers. For simplicity we do not
 	// allow the re-use of peer IDs once a peer is removed.
 
-	removedPeers := set.New()
+	removedPeers := mapset.NewSet()
 	for _, removedRaftId := range removedRaftIds {
 		removedPeers.Add(removedRaftId)
 	}
@@ -127,8 +128,8 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 
 	prevIds := confStateIdSet(prevConfState)
 	newIds := confStateIdSet(newConfState)
-	idsToRemove := set.Difference(prevIds, newIds)
-	for _, idIfaceToRemove := range idsToRemove.List() {
+	idsToRemove := prevIds.Difference(newIds)
+	for idIfaceToRemove := range idsToRemove.Iterator().C {
 		raftId := idIfaceToRemove.(uint16)
 		log.Info("removing old raft peer", "peer id", raftId)
 
@@ -298,8 +299,8 @@ func (pm *ProtocolManager) syncBlockchainUntil(hash common.Hash) {
 		for peerId, peer := range peerMap {
 			log.Info("synchronizing with peer", "peer id", peerId, "hash", hash)
 
-			peerId := peer.p2pNode.ID.String()
-			peerIdPrefix := fmt.Sprintf("%x", peer.p2pNode.ID[:8])
+			peerId := peer.p2pNode.ID().String()
+			peerIdPrefix := fmt.Sprintf("%x", peer.p2pNode.ID().Bytes()[:8])
 
 			if err := pm.downloader.Synchronise(peerIdPrefix, hash, big.NewInt(0), downloader.BoundedFullSync); err != nil {
 				log.Info("failed to synchronize with peer", "peer id", peerId)

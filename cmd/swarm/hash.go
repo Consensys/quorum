@@ -18,6 +18,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -25,6 +26,15 @@ import (
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"gopkg.in/urfave/cli.v1"
 )
+
+var hashCommand = cli.Command{
+	Action:             hash,
+	CustomHelpTemplate: helpTemplate,
+	Name:               "hash",
+	Usage:              "print the swarm hash of a file or directory",
+	ArgsUsage:          "<file>",
+	Description:        "Prints the swarm hash of file or directory",
+}
 
 func hash(ctx *cli.Context) {
 	args := ctx.Args()
@@ -38,8 +48,8 @@ func hash(ctx *cli.Context) {
 	defer f.Close()
 
 	stat, _ := f.Stat()
-	fileStore := storage.NewFileStore(storage.NewMapChunkStore(), storage.NewFileStoreParams())
-	addr, _, err := fileStore.Store(f, stat.Size(), false)
+	fileStore := storage.NewFileStore(&storage.FakeChunkStore{}, storage.NewFileStoreParams())
+	addr, _, err := fileStore.Store(context.TODO(), f, stat.Size(), false)
 	if err != nil {
 		utils.Fatalf("%v\n", err)
 	} else {

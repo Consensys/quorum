@@ -164,6 +164,18 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 		} else {
 			log.Info("Writing custom genesis block")
 		}
+
+		// Set default transaction size limit if not set in genesis
+		if genesis.Config.TransactionSizeLimit == 0 {
+			genesis.Config.TransactionSizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
+		}
+
+		// Check transaction size limit
+		err := genesis.Config.IsValid()
+		if err != nil {
+			return genesis.Config, common.Hash{}, err
+		}
+
 		block, err := genesis.Commit(db)
 		return genesis.Config, block.Hash(), err
 	}
@@ -368,7 +380,7 @@ func DeveloperGenesisBlock(period uint64, faucet common.Address) *Genesis {
 			common.BytesToAddress([]byte{6}): {Balance: big.NewInt(1)}, // ECAdd
 			common.BytesToAddress([]byte{7}): {Balance: big.NewInt(1)}, // ECScalarMul
 			common.BytesToAddress([]byte{8}): {Balance: big.NewInt(1)}, // ECPairing
-			faucet: {Balance: new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(9))},
+			faucet:                           {Balance: new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(9))},
 		},
 	}
 }
