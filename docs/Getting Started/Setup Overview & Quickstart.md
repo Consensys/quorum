@@ -1,7 +1,7 @@
 # Setup Overview & Quickstart
 
 Using Quorum requires that a Quorum Node and a Constellation/Tessera Node are installed, configured and
-running (see build/installation instructions for both below). An overview of the steps to follow to manually set up Quorum, including key generation, genesis block & Constellation/Tessera configuration will be available soon, but for now the best way to get started is to use the Vagrant environment that has been made available for running the [Quorum Examples](https://github.com/jpmorganchase/quorum-examples.git). The Vagrant environment automatically sets up a test Quorum network that is ready for development use within minutes and is the recommended approach if you are looking to get started with Quorum.  If you don't want to use the Quorum Examples approach and instead would like to manually set up Quorum then please see below (Note: this documentation is Work In Progress)
+running (see build/installation instructions for both below). An overview of the steps to follow to manually set up Quorum, including key generation, genesis block & Constellation/Tessera configuration will be available soon, but for now the best way to get started is to use the Vagrant environment that has been made available for running the [Quorum Examples](../Quorum-Examples). The Vagrant environment automatically sets up a test Quorum network that is ready for development use within minutes and is the recommended approach if you are looking to get started with Quorum.  If you don't want to use the Quorum Examples approach and instead would like to manually set up Quorum then please see below (Note: this documentation is Work In Progress)
 
 ## Building Quorum Node From Source
 
