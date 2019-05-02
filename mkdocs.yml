@@ -60,6 +60,10 @@ theme:
       text: 'Roboto'
       code: 'Roboto Mono'
   language: 'en'
+  logo: 'images/logo.png'
+
+extra_css:
+    - 'theme/assets/stylesheets/extra.css'
 
 markdown_extensions:
     - toc:
