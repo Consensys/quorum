@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/google/uuid"
+	"github.com/hashicorp/golang-lru"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -14,23 +15,23 @@ import (
 //TODO (cucrisis): Cache is required here w ecant be querying the server every time
 func (l *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	token := request.token
-	if token  == "" {
+	if token == "" {
 		return false
 	}
 
-
 	// check cache first
-	if introspectResponse, ok := l.tokensCache[token]; ok {
+	if entry, ok := l.tokensCache.Get(token); ok {
+		introspectResponse := entry.(IntrospectResponse)
 		if IsTokenExpired(introspectResponse.Created, introspectResponse.Expiration) {
-			delete(l.tokensCache, token)
-		}else{
+			l.tokensCache.Remove(token)
+		} else {
 			scopes, err := parseScopeStr(introspectResponse.Scope, " ")
 			if err != nil {
 				return false
 			}
 
 			// search through scope -Optimize lookup
-			for _ , scope := range scopes {
+			for _, scope := range scopes {
 				if isRequestAuthorized(&scope, request) {
 					return true
 				}
@@ -39,27 +40,25 @@ func (l *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool
 		}
 	}
 
-
-
 	// issue introspect request
 	response, err := getIntrospectResponse(&IntrospectRequest{
-		Token:token,
-		TokenTypeHint:"access_token",
+		Token:         token,
+		TokenTypeHint: "access_token",
 	}, &l.client, l.SecurityConfig)
 
-	if err !=nil {
+	if err != nil {
 		return false
 	}
 	if response.Active {
 		// save active tokens
-		l.tokensCache[token] = *response
+		l.tokensCache.Add(token, *response)
 		scopes, err := parseScopeStr(response.Scope, " ")
 		if err != nil {
 			return false
 		}
 
 		// search through scope -Optimize lookup
-		for _ , scope := range scopes {
+		for _, scope := range scopes {
 			if isRequestAuthorized(&scope, request) {
 				return true
 			}
@@ -70,9 +69,6 @@ func (l *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool
 	return false
 }
 
-
-
-
 //IsClientAuthorized Parse the RPC Request, Call send Introspect Request & Parse results
 func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	// Authenticate token
@@ -80,7 +76,7 @@ func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	client := l.GetClientByToken(&token)
 
 	if client == nil {
-    	return false
+		return false
 	}
 
 	// check request scope token scope
@@ -90,7 +86,7 @@ func (l *LocalSecurityProvider) IsClientAuthorized(request rpcRequest) bool {
 	}
 
 	// search through scope -Optimize lookup
-	for _ , scope := range scopes {
+	for _, scope := range scopes {
 		if isRequestAuthorized(&scope, request) {
 			return true
 		}
@@ -103,12 +99,12 @@ func (l *EnterpriseSecurityProvider) Init() error {
 	if l.SecurityConfig == nil {
 		return fmt.Errorf("security provider confignot provided")
 	}
-
-	l.tokensCache = make(map[string]IntrospectResponse)
+	defaultCacheLimit := 50
+	l.tokensCache, _ = lru.New(defaultCacheLimit)
 	// build client
 	if client, err := buildHttpClient(l.SecurityConfig); err == nil {
-		l.client =  *client
-	}else {
+		l.client = *client
+	} else {
 		return err
 	}
 
@@ -155,7 +151,6 @@ func (l *LocalSecurityProvider) Init() error {
 
 func (l *EnterpriseSecurityProvider) GetClientByToken(clientSecret *string) *ClientInfo {
 	panic("not implemented")
-
 	return nil
 }
 
@@ -164,7 +159,6 @@ func (l *LocalSecurityProvider) GetClientByToken(clientSecret *string) *ClientIn
 		return &c
 	}
 	return nil
-
 }
 
 func (l *EnterpriseSecurityProvider) GetClientById(clientId *string) *ClientInfo {
@@ -174,7 +168,6 @@ func (l *EnterpriseSecurityProvider) GetClientById(clientId *string) *ClientInfo
 }
 
 func (l *LocalSecurityProvider) GetClientById(clientId *string) *ClientInfo {
-
 	for k := range l.ClientsToTokens {
 		c := l.ClientsToTokens[k]
 		if c.ClientId == *clientId {
@@ -191,7 +184,6 @@ func (l *EnterpriseSecurityProvider) GetClientByName(clientName *string) *Client
 }
 
 func (l *LocalSecurityProvider) GetClientByName(clientName *string) *ClientInfo {
-
 	for k := range l.ClientsToTokens {
 		c := l.ClientsToTokens[k]
 		if c.Username == *clientName {
@@ -205,7 +197,6 @@ func (l *LocalSecurityProvider) GetClientByName(clientName *string) *ClientInfo 
 //addClientToFile add ClientsToTokens to json file. Assumes ClientsToTokens are well formed
 func (l *EnterpriseSecurityProvider) AddClientsToFile(clients []*ClientInfo, path *string) error {
 	panic("not implemented")
-
 	return nil
 }
 
@@ -285,7 +276,6 @@ func (l *LocalSecurityProvider) AddClientsFromFile(path *string) ([]ClientInfo, 
 	}
 }
 
-
 func (l *EnterpriseSecurityProvider) SetClientScope(clientName string, scope string) error {
 	panic("not implemented")
 	return nil
@@ -342,8 +332,11 @@ func (l *EnterpriseSecurityProvider) NewClient(clientName string, clientId strin
 //NewClient creates a new client struct
 func (l *LocalSecurityProvider) NewClient(clientName string, clientId string, secret string, scope string, active bool) (ClientInfo, error) {
 	clientName, err := cleanString(clientName)
-	clientScope, err := cleanScope(scope)
+	if err != nil {
+		return ClientInfo{}, err
+	}
 
+	clientScope, err := cleanScope(scope)
 	if err != nil {
 		return ClientInfo{}, err
 	}
@@ -408,10 +401,6 @@ func (l *EnterpriseSecurityProvider) GetClientsList() []*ClientInfo {
 
 //listClients return list of clients
 func (l *LocalSecurityProvider) GetClientsList() []*ClientInfo {
-
-
-
-	// Write client to file
 	clients := make([]*ClientInfo, len(l.ClientsToTokens))
 	var counter = 0
 	for k := range l.ClientsToTokens {
@@ -448,23 +437,23 @@ func (l *EnterpriseSecurityProvider) RegenerateClientSecret(clientName *string) 
 
 //regenerateClientSecret regenerate client secret.
 func (l *LocalSecurityProvider) RegenerateClientSecret(clientName *string) (*ClientInfo, error) {
-	if l.GetClientByName(clientName) == nil {
+	client := l.GetClientByName(clientName)
+	if client == nil {
 		return nil, fmt.Errorf("client doesnt exist")
 	}
 
-	client := l.GetClientByName(clientName)
 	secGuid, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
 	}
 
 	client.Secret = secGuid.String()
-	err = l.RemoveClient(clientName)
-	if err != nil {
+
+	if err = l.RemoveClient(clientName); err != nil {
 		return nil, err
 	}
-	err = l.AddClient(client)
-	if err != nil {
+
+	if err = l.AddClient(client); err != nil {
 		return nil, err
 	}
 
@@ -474,18 +463,15 @@ func (l *LocalSecurityProvider) RegenerateClientSecret(clientName *string) (*Cli
 func RegisterProvider(ctx *SecurityContext, log log.Logger) {
 	// Ensure Provider is created before APIs is invoked otherwise
 	if ctx.Config != nil {
-		provider := strings.ToLower(ctx.Config.ProviderType)
-
-		switch provider {
+		switch provider := strings.ToLower(ctx.Config.ProviderType); provider {
 		case LocalSecProvider:
 			log.Info("register local security provider", "RPC security", "Enabled")
-
 
 			ctx.Provider = &LocalSecurityProvider{
 				clientsFile: ctx.Config.ProviderInformation.LocalProviderFile,
 			}
-			err := ctx.Provider.Init()
-			if err != nil {
+
+			if err := ctx.Provider.Init(); err != nil {
 				Fatalf(err.Error())
 			}
 
@@ -499,15 +485,13 @@ func RegisterProvider(ctx *SecurityContext, log log.Logger) {
 			}
 
 			log.Info("security provided init")
-			err := ctx.Provider.Init()
-			if err != nil {
+
+			if err := ctx.Provider.Init(); err != nil {
 				Fatalf(err.Error())
 			}
 
 		default:
-			Fatalf(fmt.Errorf("rpc security provider Type not supported. supported providers are [local, enterprise]. change config file").Error())
+			Fatalf("rpc security provider Type not supported. supported providers are [local, enterprise]. change config file")
 		}
-
 	}
-
 }

@@ -18,6 +18,7 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/hashicorp/golang-lru"
 	"math"
 	"net/http"
 	"reflect"
@@ -168,14 +169,14 @@ type ServerCodec interface {
 type IntrospectRequest struct {
 	Token         string `json:"token"`
 	TokenTypeHint string `json:"token_type_hint"`
-	ClientId	  string `json:"client_id"`
+	ClientId      string `json:"client_id"`
 }
 type IntrospectResponse struct {
-	Active     bool   `json:"active"`
-	Scope      string `json:"scope"`
-	ClientId   string `json:"client_id"`
-	Expiration int    `json:"exp"`
-	Created 	time.Time    `json:"created"`
+	Active     bool      `json:"active"`
+	Scope      string    `json:"scope"`
+	ClientId   string    `json:"client_id"`
+	Expiration int       `json:"exp"`
+	Created    time.Time `json:"created"`
 }
 
 // RPC Security Configuration
@@ -187,8 +188,8 @@ type SecurityConfig struct {
 
 // RPC Security Context
 type SecurityContext struct {
-	Enabled  bool
-	Config   *SecurityConfig
+	Enabled bool
+	Config  *SecurityConfig
 
 	Provider SecurityProvider
 }
@@ -198,7 +199,7 @@ type EnterpriseSecurityProvider struct {
 	SecurityConfig      *SecurityConfig
 	IntrospectURL       string
 	ProviderCertificate *AuthorizationServerCert
-	tokensCache			map[string]IntrospectResponse
+	tokensCache         *lru.Cache
 	client              http.Client
 }
 
@@ -244,10 +245,10 @@ type ProviderInformation struct {
 	EnterpriseProviderIntrospectionURL string `json:"providerIntrospectionURL"`
 	// Authorization Server Introspection Header Key
 	EnterpriseProviderIntrospectionClientIdHeader string `json:"providerIntrospectionClientIdHeader"`
-	EnterpriseProviderIntrospectionClientId string `json:"providerClientId"`
+	EnterpriseProviderIntrospectionClientId       string `json:"providerClientId"`
 
 	EnterpriseProviderIntrospectionClientSecretHeader string `json:"providerIntrospectionClientSecretHeader"`
-	EnterpriseProviderIntrospectionClientSecret string `json:"providerClientSecret"`
+	EnterpriseProviderIntrospectionClientSecret       string `json:"providerClientSecret"`
 
 	// Local Provider Information
 	LocalProviderFile *string `json:"localProviderFile"`
