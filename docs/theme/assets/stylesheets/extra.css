@@ -1,0 +1,15 @@
+.help-sidetab {
+    position: fixed;
+    top: 70%;
+    right: -71px;
+    -webkit-transform: translateY(-50%);
+    -ms-transform: translateY(-50%);
+    transform: translateY(-50%);
+    color: white;
+    background-color: #00e290;
+    transform: rotate(270deg);
+    padding: 5px 20px 5px 20px;
+    border-radius : 10px 10px 0px 0px;
+    cursor: pointer;
+    font-size: medium;
+}
