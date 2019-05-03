@@ -507,7 +507,7 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", common.ToHex(data))
 }
 
-// PreparePrivateTransaction sends the encoded raw transaction to Constellation,
+// PreparePrivateTransaction sends the encoded raw transaction to transaction manager,
 // returning the encoded commitment transaction.
 func (ec *Client) PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error) {
 	if privateFor == nil {
@@ -519,7 +519,7 @@ func (ec *Client) PreparePrivateTransaction(ctx context.Context, encodedTx hexut
 	}
 
 	if private.P == nil {
-		return nil, errors.New("constellation not set up")
+		return nil, errors.New("tessera & constellation not set up")
 	}
 	data, err := private.P.Send(tx.Data(), privateFrom, privateFor)
 	if err != nil {

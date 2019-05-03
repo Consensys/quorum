@@ -228,8 +228,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 			return nil, fmt.Errorf("failed to estimate gas needed: %v", err)
 		}
 	}
-
-	// Create the raw transaction.
+	// Create the transaction, sign it and schedule it for execution
 	var rawTx *types.Transaction
 	if contract == nil {
 		rawTx = types.NewContractCreation(nonce, value, gasLimit, gasPrice, input)
@@ -238,7 +237,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	}
 
 	// If this transaction is private, we need to substitute the data payload
-	// with one from constelation.
+	// with one from tessera/constelation.
 	if opts.PrivateFor != nil {
 		rawTx, err = c.preparePrivateTransaction(
 			ensureContext(opts.Context), rawTx, opts.PrivateFrom, opts.PrivateFor)
@@ -360,8 +359,8 @@ func (c *BoundContract) UnpackLog(out interface{}, event string, log types.Log) 
 // ensureContext is a helper method to ensure a context is not nil, even if the
 // user specified it as such.
 
-// PreparePrivateTransaction replaces the payload data of the transaction with a
-// commitment to turn it into a private tx.
+// preparePrivateTransaction call c.transactor.PreparePrivateTransaction to send the private transaction
+// replace the payload data of private transaction to a hash commitment
 func (c *BoundContract) preparePrivateTransaction(ctx context.Context, tx *types.Transaction, privateFrom string, privateFor []string) (*types.Transaction, error) {
 	raw, _ := rlp.EncodeToBytes(tx)
 

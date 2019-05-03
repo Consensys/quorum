@@ -83,8 +83,8 @@ type ContractTransactor interface {
 	EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error)
 	// SendTransaction injects the transaction into the pending pool for execution.
 	SendTransaction(ctx context.Context, tx *types.Transaction) error
-	// PreparePrivateTransaction sends the encoded raw transaction to Constellation,
-	// returning the encoded commitment transaction.
+	// PreparePrivateTransaction sends the encoded raw transaction to Tessera/Constellation,
+	// returning the hash commitment of the transaction.
 	PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error)
 }
 

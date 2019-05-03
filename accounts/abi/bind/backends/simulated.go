@@ -389,10 +389,8 @@ func (b *SimulatedBackend) SubscribeFilterLogs(ctx context.Context, query ethere
 	}), nil
 }
 
-// AdjustTime adds a time shift to the simulated clock.
-
-// PreparePrivateTransaction replaces the payload data of the transaction with a
-// commitment to turn it into a private tx.
+// PreparePrivateTransaction in simulation doesn't actually send the encoded raw transaction to transaction manager,
+// returning the encoded commitment transaction.
 func (b *SimulatedBackend) PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error) {
 	if privateFor == nil {
 		return nil, errors.New("privateFor cannot be nil")
@@ -412,8 +410,7 @@ func (b *SimulatedBackend) PreparePrivateTransaction(ctx context.Context, encode
 	return hexutil.Bytes(newEncoded), nil
 }
 
-// JumpTimeInSeconds adds skip seconds to the clock
-
+// AdjustTime adds a time shift to the simulated clock.
 func (b *SimulatedBackend) AdjustTime(adjustment time.Duration) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
