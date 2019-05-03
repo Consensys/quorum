@@ -350,6 +350,7 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 			providerClientId = cfg.ProviderInformation.EnterpriseProviderIntrospectionClientId
 		}
 
+
 		if providerClientId != "" {
 			params.Add(
 				cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader,
@@ -402,14 +403,17 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 	}
 	defer resp.Body.Close()
 
+
+	body, err := ioutil.ReadAll(resp.Body)
+	fmt.Println(string(body))
+	if err != nil {
+		return nil, err
+	}
+
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("un excpected status code")
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
 	var introspectResp IntrospectResponse
 	err = json.Unmarshal(body, &introspectResp)
 	if err != nil {

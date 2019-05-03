@@ -238,7 +238,11 @@ type AuthorizationServerCert struct {
 
 // ProviderInformation
 type ProviderInformation struct {
+	// Cache limit
 	EnterpriseProviderCacheLimit int `json:"providerCacheLimit"`
+
+	// The time to hold the token in memory without issuing a introspection
+	EnterpriseProviderCacheEntryExpiration int `json:"providerCacheTokenExpiration"`
 	// Authorization Server Cert Information
 	EnterpriseProviderCertificateInfo *AuthorizationServerCert `json:"providerCert"`
 

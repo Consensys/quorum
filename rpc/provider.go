@@ -21,7 +21,8 @@ func (l *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool
 	// check cache first
 	if entry, ok := l.tokensCache.Get(token); ok {
 		introspectResponse := entry.(IntrospectResponse)
-		if IsTokenExpired(introspectResponse.Created, introspectResponse.Expiration) {
+		// Invalidate the token if its has expired by the server or if cache holding policy mandates a refresh
+		if IsTokenExpired(introspectResponse.Created, introspectResponse.Expiration) ||  IsTokenExpired(introspectResponse.Created, l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheEntryExpiration) {
 			l.tokensCache.Remove(token)
 		} else {
 			scopes, err := parseScopeStr(introspectResponse.Scope, " ")
@@ -105,6 +106,10 @@ func (l *EnterpriseSecurityProvider) Init() error {
 
 	if l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheLimit == 0 {
 		l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheLimit = 80
+	}
+
+	if l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheEntryExpiration == 0 {
+		l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheEntryExpiration = 360
 	}
 
 	l.tokensCache, _ = lru.New(l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheLimit)
