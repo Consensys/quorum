@@ -352,6 +352,7 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode 
 	if !atomic.CompareAndSwapInt32(&d.synchronising, 0, 1) {
 		return errBusy
 	}
+	// changes for permissions. added set sync status to indicate permisssions that node sync has started
 	types.SetSyncStatus()
 	defer atomic.StoreInt32(&d.synchronising, 0)
 
