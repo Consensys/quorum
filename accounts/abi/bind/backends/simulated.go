@@ -399,9 +399,8 @@ func (b *SimulatedBackend) PreparePrivateTransaction(ctx context.Context, encode
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return nil, err
 	}
-	data := tx.Data()
+	// don't replace transaction payload in simulation
 	tx.SetPrivate()
-	tx.SetData(data)
 	newEncoded, err := rlp.EncodeToBytes(tx)
 	if err != nil {
 		return nil, err
