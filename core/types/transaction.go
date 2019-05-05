@@ -24,6 +24,7 @@ import (
 	"sync/atomic"
 
 	fmt "fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -408,7 +409,7 @@ func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transa
 	for from, accTxs := range txs {
 		// Ensure the sender address is from the signer
 		acc, err := Sender(signer, accTxs[0])
-		if (err == nil) {
+		if err == nil {
 			heads = append(heads, accTxs[0])
 			txs[acc] = accTxs[1:]
 		} else {
