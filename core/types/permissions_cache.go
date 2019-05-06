@@ -374,7 +374,7 @@ func (o *RoleCache) GetRoleList() []RoleInfo {
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
 	if a := AcctInfoMap.GetAccount(acctId); a != nil && a.Status == AcctActive {
-		if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+		if (a.RoleId == networkAdminRole || a.RoleId == orgAdminRole) && a.Status == AcctActive {
 			return FullAccess
 		}
 		if o := OrgInfoMap.GetOrg(a.OrgId); o != nil && o.Status == OrgApproved {
