@@ -75,7 +75,7 @@ contract PermissionsInterface {
 
     // function for adding a new master org
     function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account) external
-{
+    {
         permImplementation.addSubOrg(_pOrg, _orgId, _enodeId, _account, msg.sender);
     }
 
