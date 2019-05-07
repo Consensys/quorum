@@ -306,8 +306,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 		actualACAddresses := evm.AffectedContracts()
 		log.Trace("Verify hashes of affected contracts", "expectedHashes", receivedPrivacyMetadata.ACHashes, "numberOfAffectedAddresses", len(actualACAddresses))
-		expectedMatchCount := len(receivedPrivacyMetadata.ACHashes)
 		privacyFlag := receivedPrivacyMetadata.PrivacyFlag
+		actualACHashesLength := 0
 		for _, addr := range actualACAddresses {
 			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 			//when privacyMetadata should have been recovered but wasnt (includes non-party)
@@ -316,33 +316,34 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 				return returnErrorFunc(nil, "PrivacyMetadata unable to be found", "err", err)
 			}
 			log.Trace("Privacy metadata", "affectedAddress", addr.Hex(), "metadata", actualPrivacyMetadata)
-			//public contracts have no privacy metadata stored in private state
-			// TODO We must ensure that legacy transactions (from previous versions of quorum) are distinguishable from public transactions
-			// legacy will be nil
+			// both public and legacy contracts will be nil and can be skipped in acoth check
+			// public contracts - evm error for write, no error for reads
+			// legacy - only error if privacyFlag sent with tx or if no flag sent but other affecteds have privacyFlag
 			if actualPrivacyMetadata == nil {
-				expectedMatchCount--
 				continue
 			}
 			// Check that the affected contracts privacy flag matches the transaction privacy flag.
 			// I know that this is also checked by tessera, but it only checks for non legacy transactions.
-			// TODO We should do the same checks for calls and throw errors when different types of transactions interact with each other
 			if actualPrivacyMetadata.PrivacyFlag != receivedPrivacyMetadata.PrivacyFlag {
 				return returnErrorFunc(nil, "Mismatched privacy flags",
 					"affectedContract.Address", addr.Hex(),
 					"affectedContract.PrivacyFlag", actualPrivacyMetadata.PrivacyFlag,
 					"received.PrivacyFlag", receivedPrivacyMetadata.PrivacyFlag)
 			}
+			// acoth check - case where node isn't privy to one of actual affecteds
 			if receivedPrivacyMetadata.ACHashes.NotExist(actualPrivacyMetadata.CreationTxHash) {
 				return returnErrorFunc(nil, "Participation check failed",
 					"affectedContractAddress", addr.Hex(),
 					"missingCreationTxHash", actualPrivacyMetadata.CreationTxHash.Hex())
 			}
-			expectedMatchCount--
+			actualACHashesLength++
 		}
-		if expectedMatchCount > 0 {
+		// acoth check - case where node is missing privacyMetadata for an affected it should be privy to
+		if len(receivedPrivacyMetadata.ACHashes) != actualACHashesLength {
 			return returnErrorFunc(nil, "Participation check failed",
-				"missing", expectedMatchCount)
+				"missing", len(receivedPrivacyMetadata.ACHashes)-actualACHashesLength)
 		}
+		// check the psv merkle root comparison - for both creation and msg calls
 		if !common.EmptyHash(receivedPrivacyMetadata.ACMerkleRoot) {
 			log.Trace("Verify merkle root", "merkleRoot", receivedPrivacyMetadata.ACMerkleRoot)
 			actualACMerkleRoot, err := evm.CalculateMerkleRoot()
