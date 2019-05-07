@@ -17,14 +17,15 @@ The permissions model is completely built on smart contracts. The smart contract
 ![contract design](images/ContractDesign.png)
 
 The permissions smart contract design follows the Proxy-Implementation-Storage pattern which allows the implementation logic to be changed without changing the storage or interface layer. Brief description of the smart contracts is as below:
-* `PermissionsUpgradable.sol`: This contract stores the address of latest implementation contract and is owned by a custodian( an Ethereum account). Only custodian is allowed to change the implementation contract address. 
-* `PermissionsInterface.sol`: This contract interface contract and holds the interfaces for permissions related actions
+* `PermissionsUpgradable.sol`: This contract stores the address of current implementation contract and is owned by a custodian(an Ethereum account). Only custodian is allowed to change the implementation contract address. 
+* `PermissionsInterface.sol`: This is the interface contract and holds the interfaces for permissions related actions. This does not have any business logic and it forwards requests to current implementation contract
 * `PermissionsImplementation.sol`: This contract has the business logic for the permissions actions. This contract can receive requests only from a valid interface as defined in `PermissionsUpgradable.sol` and interact with all the storage contracts for respective actions.
 * `OrgManager.sol`: This contract stores data for organizations and sub organizations. This contract can receive request from valid implementation contract as defined in `PermissionsUpgrdable.sol`
-* `AccountManager.sol`: This contract can receive request from valid implementation contract as defined in `PermissionsUpgrdable.sol`. This contracts stores the data of all accounts, their linkage to organization and various roles. This contracts also stores the status of an account. The account can be in any of the following states - `PendingApproval`, `Active`, `Suspended`, `Blacklisted`, `Revoked`
-* `NodeManager.sol`: This contract can receive request from valid implementation contract as defined in `PermissionsUpgrdable.sol`. This contracts stores the data of a node, its linkage to a organization or sub organization and status of the node. The node status can be any one of the following states - `PendingApproval`, `Active`, `Deactivated`, `Blacklisted`
-* `RoleManager.sol`: This contract can receive request from valid implementation contract as defined in `PermissionsUpgrdable.sol`. This contract stores data for various roles and the organization to which it is linked. At access at role level can be any one of the following: `Readonly` which allows only read operations, `Transact` which allows value transfer but no contract deployment access, `ContractDeploy` which allows both value transfer and contract deployment access and `FullAccess` which allows additional network level accesses in addition to value transfer and contract deployment. If a role is revoked all accounts which are linked to the role lose all access rights.
-* `VoterManager.sol`: This contract can receive request from valid implementation contract as defined in `PermissionsUpgrdable.sol`. This contract stores the data of valid voters at network level which can approve identified activities e.g. adding a new organization to the network. Any account which is linked to a predefined network admin role will be marked as a voter. Whenever a network level activity which requires voting is performed, a voting item is added to this contract and each voter account can vote for the activity. The activity is marked as `Approved` upon majority voting.
+* `AccountManager.sol`: This contract receives requests from valid implementation contract as defined in `PermissionsUpgrdable.sol`. This contracts stores the data of all accounts, their linkage to organization and various roles. This contracts also stores the status of an account. The account can be in any of the following states - `PendingApproval`, `Active`, `Suspended`, `Blacklisted`, `Revoked`
+* `NodeManager.sol`: This contract receives requests from valid implementation contract as defined in `PermissionsUpgrdable.sol`. This contracts stores the data of a node, its linkage to a organization or sub organization and status of the node. The node status can be any one of the following states - `PendingApproval`, `Active`, `Deactivated`, `Blacklisted`
+* `RoleManager.sol`: This contract receives requests from valid implementation contract as defined in `PermissionsUpgrdable.sol`. This contract stores data for various roles and the organization to which it is linked. At access at role level can be any one of the following: `Readonly` which allows only read operations, `Transact` which allows value transfer but no contract deployment access, `ContractDeploy` which allows both value transfer and contract deployment access and `FullAccess` which allows additional network level accesses in addition to value transfer and contract deployment. If a role is revoked all accounts which are linked to the role lose all access rights.
+* `VoterManager.sol`: This contract receives requests from valid implementation contract as defined in `PermissionsUpgrdable.sol`. This contract stores the data of valid voters at network level which can approve identified activities e.g. adding a new organization to the network. Any account which is linked to a predefined network admin role will be marked as a voter. Whenever a network level activity which requires voting is performed, a voting item is added to this contract and each voter account can vote for the activity. The activity is marked as `Approved` upon majority voting.
+
 
 
 
@@ -168,6 +169,207 @@ This api can be executed by a network admin account only for proposing a new org
   status: true
 }
 ```
+If there any pending items for approval, proposal of any new organization will fail. Also the enode id and accounts can be linked to one organization only. 
+```
+> quorumPermission.addOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
+{
+  msg: "Pending approvals for the organization. Approve first",
+  status: false
+}
+> quorumPermission.addOrg("XYZ", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
+{
+  msg: "EnodeId already part of network.",
+  status: false
+}
+> quorumPermission.addOrg("XYZ", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
+{
+  msg: "Account already in use in another organization",
+  status: false
+}
+
+```
+
+#### quorumPermission.approveOrg 
+This api can be executed by a network admin account only for approving a proposed organization into the network
+* Input: Unique organization id, enode id, account id
+* Output: Status of the operation
+* Example:
+```
+quorumPermission.approveOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+#### quorumPermission.updateOrgStatus
+This api can be executed by a network admin account only for temporarily suspending an organization and re-enabling a suspended organization. This activity can be performed for master organization only and requires majority approval from network admins.
+* Input: organization id, action (3 for suspending the organization and 5 for re-enabling the suspended organization)
+* Output: Status of the operation
+* Example:
+```$xslt
+> quorumPermission.updateOrgStatus("ABC.SUB1", 3, {from:eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+#### quorumPermission.approveOrgStatus
+This api can be executed by a network admin account only for approving the org status change proposal.  Once majority approval is received from network admins, the org status is updated.
+* Input: organization id, action (3 for suspending the organization and 5 for re-enabling the suspended organization)
+* Output: Status of the operation
+* Example:
+```$xslt
+> quorumPermission.approveOrgStatus("ABC", 3, {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+When a org is in suspended status, no transactions or contarct deploy activities are allowed from any nodes linked to the org and sub orgs under it. Similarly no transactions will be allowed from any accounts linked to the organization
+
+#### quorumPermission.addSubOrg 
+This api can be executed by a organization admin account to create a sub organization under under the master org. 
+* Input: parent org id, Sub organization id,  enode id ( not mandatory and can be null), account id (not mandatory and can be 0x0)
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.addSubOrg("ABC", "SUB1", "", "0x0000000000000000000000000000000000000000", {from: eth.accounts[0]})
+
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+For adding a sub organization at next level the parent org id should have the entire org hierarchy upto the immediate parent. e.g.
+```
+> quorumPermission.addSubOrg("ABC.SUB1", "SUB2","", "0x0000000000000000000000000000000000000000", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.addSubOrg("ABC.SUB1.SUB2", "SUB3","", "0x0000000000000000000000000000000000000000", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+#### quorumPermission.addNewRole
+This api can be executed by organization admin account to create a new role for the organization
+* Input: org or sub org id, role id, account access(can be 0 - ReadOnly, 1 - Transact, 2 - ContractDeploy, 3 - FullAccess), isVoter, isAdminRole
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.addNewRole("ABC", "TRANSACT", 1, false, false,{from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.addNewRole("ABC.SUB1.SUB2.SUB3", "TRANSACT", 1, false, false,{from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+#### quorumPermission.removeRole
+This api can be executed by organization admin account to create a new role for the organization
+* Input: org or sub org id, role id
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.removeRole("ABC.SUB1.SUB2.SUB3", "TRANSACT", {from: eth.accounts[1]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+#### quorumPermission.assignAccountRole
+This api can be executed by organization admin account to assign a role to an account
+* Input: Account id, org or sub org id, role to be assigned
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.assignAccountRole("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC", "TRANSACT", {from: eth.accounts[1]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+The account can be linked to a organization or sub organization only and cannot belong to multiple organizations or sub organizations
+```$xslt
+> quorumPermission.assignAccountRole("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC.SUB1", "TRANSACT", {from: eth.accounts[1]})
+{
+  msg: "Account already in use in another organization",
+  status: false
+}
+```
+#### quorumPermission.updateAccountStatus
+This api can be executed by organization admin account to update the account status
+* Input:  org or sub org id, Account id, action (1 for suspending the account, 2 for activating a suspended account, 3 for blacklisting the account)
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.updateAccountStatus("ABC", "0xf017976fdf1521de2e108e63b423380307f501f8", 1, {from: eth.accounts[1]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+Once a account is blacklisted no further action is allowed on it
+
+#### quorumPermission.assignAdminRole
+This api can be executed by network admin to add a new account as network admin or change the org admin account for a organization 
+* Input: org id to which the account belongs, account id, role id (it can be either org admin role or network admin role)
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.assignAdminRole("ABC", "0xf017976fdf1521de2e108e63b423380307f501f8", "NWADMIN", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+
+#### quorumPermission.approveAdminRole 
+This api can be executed by network admin to add approve the org admin or network admin role assignment to an account. The role is approved once majority approvals is received
+* Input: org id to which the account belongs, account id
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.approveAdminRole("ABC", "0xf017976fdf1521de2e108e63b423380307f501f8",  {from: eth.accounts[0]})
+
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+
+#### quorumPermission.addNode
+This api can be executed by organization admin account to add a node to the org or sub org
+* Input:  org or sub org id, enode id
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.addNode("ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407", {from: eth.accounts[1]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+A node cannot be part of multiple organizations. 
+
+#### quorumPermission.updateNodeStatus
+This api can be executed by organization admin account to update the status of a node
+* Input:  org or sub org id, enode id, action (3 for deactivating the node, 4 for activating a deactivated node and 5 for blacklisting a node)
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.updateNodeStatus("ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407",3, {from: eth.accounts[1]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+Once a node is blacklisted no further action is possible on the same.
 
 ### General validations for account access
 The table below indicates the numeric value for each account access type.
