@@ -285,11 +285,16 @@ func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) (Ex
 
 func (s *QuorumControlsAPI) validateOrg(orgId, pOrgId string) (ExecStatus, error) {
 	// validate Parent org id
-	if pOrgId != "" && types.OrgInfoMap.GetOrg(pOrgId) == nil {
-		return ErrInvalidParentOrg, errors.New("invalid parent org")
-	} else {
+	if pOrgId != "" {
+		if types.OrgInfoMap.GetOrg(pOrgId) == nil {
+			return ErrInvalidParentOrg, errors.New("invalid parent org")
+		}
 		locOrgId := pOrgId + "." + orgId
 		if types.OrgInfoMap.GetOrg(locOrgId) != nil {
+			return ErrOrgExists, errors.New("org exists")
+		}
+	} else {
+		if types.OrgInfoMap.GetOrg(orgId) != nil {
 			return ErrOrgExists, errors.New("org exists")
 		}
 	}
@@ -390,24 +395,6 @@ func (s *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account co
 			return ErrAccountOrgAdmin, errors.New("account already org admin for the org")
 		}
 	}
-
-	//if ac == nil {
-	//	orgAcctList := types.AcctInfoMap.GetAcctListOrg(orgId)
-	//	if len(orgAcctList) > 0 {
-	//		for _, a := range orgAcctList {
-	//			if a.IsOrgAdmin == true && a.Status == types.AcctActive {
-	//				return ErrOrgAdminExists, errors.New("org admin exists for the org")
-	//			}
-	//		}
-	//	}
-	//} else {
-	//	if ac.OrgId != orgId {
-	//		return ErrAccountInUse, errors.New("account part of another org")
-	//	}
-	//	if ac.IsOrgAdmin == true {
-	//		return ErrAccountOrgAdmin, errors.New("account already org admin for the org")
-	//	}
-	//}
 	return ExecSuccess, nil
 }
 
