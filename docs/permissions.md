@@ -1,5 +1,5 @@
 # Introduction
-The current permission model with in Quorum is limited to node level permissions only and allows a set of nodes which are part of `permissioned-nodes.json` to join the network. Considering the enterprise level needs for private and consortium Blockchains, the permissionsing model has been enhanced inline with EEA(Etnerprise Ethreum Alliance) specs. The overview of the mode is as depicted below:
+The current permission model with in Quorum is limited to node level permissions only and allows a set of nodes which are part of `permissioned-nodes.json` to join the network. Considering the enterprise level needs for private and consortium blockchains, the permissionsing model has been enhanced inline with EEA(Enterprise Ethereum Alliance) specs. The overview of the mode is as depicted below:
 ![permissions mode](images/PermissionsModel.png)  
 ### Key Definitions
 * Network - A set of organizations
@@ -26,11 +26,46 @@ The permissions smart contract design follows the Proxy-Implementation-Storage p
 * `RoleManager.sol`: This contract receives requests from valid implementation contract as defined in `PermissionsUpgrdable.sol`. This contract stores data for various roles and the organization to which it is linked. At access at role level can be any one of the following: `Readonly` which allows only read operations, `Transact` which allows value transfer but no contract deployment access, `ContractDeploy` which allows both value transfer and contract deployment access and `FullAccess` which allows additional network level accesses in addition to value transfer and contract deployment. If a role is revoked all accounts which are linked to the role lose all access rights.
 * `VoterManager.sol`: This contract receives requests from valid implementation contract as defined in `PermissionsUpgrdable.sol`. This contract stores the data of valid voters at network level which can approve identified activities e.g. adding a new organization to the network. Any account which is linked to a predefined network admin role will be marked as a voter. Whenever a network level activity which requires voting is performed, a voting item is added to this contract and each voter account can vote for the activity. The activity is marked as `Approved` upon majority voting.
 
-
-
-
 ## Set up
+The steps to enable new permissions model are as described below:
+* For a new network, bring up the initial set of nodes which will be part of the network
+* Deploy the `PermissionsUpgradable.sol` in the network. The deployment of this contract will require a custodian account to be given as a part of deployment. 
+* Deploy the rest of the contracts. All the other contracts will require the address of `PermissionsUpgradable.sol` contract as a part of deployment.
+* Once all the contracts are deployed create a file `permission-config.json` which will have the following construct:
+```$xslt
+{
+        "upgrdableAddress": "0x1932c48b2bf8102ba33b4a6b545c32236e342f34",
+        "interfaceAddress": "0x4d3bfd7821e237ffe84209d8e638f9f309865b87",
+        "impladdress": "0xfe0602d820f42800e3ef3f89e1c39cd15f78d283",
+        "nodeMgraddress": "0x8a5e2a6343108babed07899510fb42297938d41f",
+        "accountMgraddress": "0x9d13c6d3afe1721beef56b55d303b09e021e27ab",
+        "roleMgraddress": "0x1349f3e1b8d71effb47b840594ff27da7e603d17",
+        "voterMgraddress": "0xd9d64b7dc034fafdba5dc2902875a67b5d586420",
+        "orgMgraddress" : "0x938781b9796aea6376e40ca158f67fa89d5d8a18",
+        "nwAdminOrg": "INITORG",
+        "nwAdminRole" : "NWADMIN",
+        "orgAdminRole" : "ORGADMIN",
+        "accounts":["0xed9d02e382b34818e88b88a309c7fe71e65f419d", "0xca843569e3427144cead5e4d5999a3d0ccf92b8e"],
+        "subOrgBreadth" : "3",
+        "subOrgDepth" : "4"
+}
+```
+> * `upgrdableAddress` is the address of deployed contract `PermissionsUpgradable.sol`
+> * `interfaceAddress` is the address of deployed contract `PermissionsInterface.sol`
+> * `impladdress` is the address of deployed contract `PermissionsImplementation.sol`
+> * `nodeMgraddress` is the address of deployed contract `NodeManager.sol`
+> * `accountMgraddress` is the address of deployed contract `AccountManager.sol`
+> * `roleMgraddress` is the address of deployed contract `RoleManager.sol`
+> * `voterMgraddress` is the address of deployed contract `VoterManager.sol`
+> * `orgMgraddress` is the address of deployed contract `OrgManager.sol`
+> * `nwAdminOrg` is the name of initial organization that will be created as a part of network boot up with new permissions model. This organization will own all the initial nodes which come at the time of network boot up and accounts which will be the network admin account
+> * `nwAdminRole` is role id for which will have full access and will be network admin
+> * `accounts` holds the initial list of accounts which will be linked to the network admin organization and will be assigned the network admin role. These accounts will have complete control on the network and can propose and approve new organizations into the network
+> * `subOrgBreadth` indicates the number of sub organizations that any org can have
+> * `subOrgDepth` indicates the maximum depth sub org hierarchy allowed in the network
 
+* Bring down the all `geth` nodes in network and copy `permission-config.json` into the data directory of each of the node
+* Bring up all `geth` nodes in `--permissioned` mode for new permissions model to take effect
 
 ### Permission APIs
 #### quorumPermission.orgList 
@@ -225,7 +260,7 @@ This api can be executed by a network admin account only for approving the org s
   status: true
 }
 ```
-When a org is in suspended status, no transactions or contarct deploy activities are allowed from any nodes linked to the org and sub orgs under it. Similarly no transactions will be allowed from any accounts linked to the organization
+When a org is in suspended status, no transactions or contract deploy activities are allowed from any nodes linked to the org and sub organizations under it. Similarly no transactions will be allowed from any accounts linked to the organization
 
 #### quorumPermission.addSubOrg 
 This api can be executed by a organization admin account to create a sub organization under under the master org. 
