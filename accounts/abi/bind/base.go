@@ -50,8 +50,8 @@ type TransactOpts struct {
 	Nonce  *big.Int       // Nonce to use for the transaction execution (nil = use pending state)
 	Signer SignerFn       // Method to use for signing the transaction (mandatory)
 
-	PrivateFrom string   // The public key of the Constellation identity to send this tx from.
-	PrivateFor  []string // The public keys of the Constellation identities this tx is intended for.
+	PrivateFrom string   // The public key of the Tessera/Constellation identity to send this tx from.
+	PrivateFor  []string // The public keys of the Tessera/Constellation identities this tx is intended for.
 
 	Value    *big.Int // Funds to transfer along along the transaction (nil = 0 = no funds)
 	GasPrice *big.Int // Gas price to use for the transaction execution (nil = gas price oracle)
@@ -237,7 +237,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	}
 
 	// If this transaction is private, we need to substitute the data payload
-	// with one from tessera/constelation.
+	// with the hash of the transaction from tessera/constellation.
 	if opts.PrivateFor != nil {
 		rawTx, err = c.preparePrivateTransaction(
 			ensureContext(opts.Context), rawTx, opts.PrivateFrom, opts.PrivateFor)
@@ -246,7 +246,6 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		}
 	}
 
-	// Sign the transaction and submit it to the mempool.
 	if opts.Signer == nil {
 		return nil, errors.New("no signer to authorize the transaction with")
 	}
@@ -360,7 +359,7 @@ func (c *BoundContract) UnpackLog(out interface{}, event string, log types.Log) 
 // user specified it as such.
 
 // preparePrivateTransaction call c.transactor.PreparePrivateTransaction to send the private transaction
-// replace the payload data of private transaction to a hash commitment
+// replace the payload of private transaction to the hash from Tessera/Constellation
 func (c *BoundContract) preparePrivateTransaction(ctx context.Context, tx *types.Transaction, privateFrom string, privateFor []string) (*types.Transaction, error) {
 	raw, _ := rlp.EncodeToBytes(tx)
 

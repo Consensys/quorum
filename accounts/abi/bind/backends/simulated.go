@@ -390,7 +390,7 @@ func (b *SimulatedBackend) SubscribeFilterLogs(ctx context.Context, query ethere
 }
 
 // PreparePrivateTransaction in simulation doesn't actually send the encoded raw transaction to transaction manager,
-// returning the encoded commitment transaction.
+// returning the the same transaction payload.
 func (b *SimulatedBackend) PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error) {
 	if privateFor == nil {
 		return nil, errors.New("privateFor cannot be nil")

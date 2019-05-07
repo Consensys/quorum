@@ -84,7 +84,7 @@ type ContractTransactor interface {
 	// SendTransaction injects the transaction into the pending pool for execution.
 	SendTransaction(ctx context.Context, tx *types.Transaction) error
 	// PreparePrivateTransaction sends the encoded raw transaction to Tessera/Constellation,
-	// returning the hash commitment of the transaction.
+	// returning the hash of private transaction.
 	PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error)
 }
 
