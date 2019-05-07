@@ -116,8 +116,6 @@ var (
 	ErrInvalidNode        = ExecStatus{false, "Invalid enode id"}
 	ErrInvalidAccount     = ExecStatus{false, "Invalid account id"}
 	ErrPermissionDisabled = ExecStatus{false, "Permissions control not enabled"}
-	ErrAccountAccess      = ExecStatus{false, "Account does not have sufficient access for operation"}
-	ErrVoterAccountAccess = ExecStatus{false, "Voter account does not have sufficient access"}
 	ErrOrgExists          = ExecStatus{false, "Org already exists"}
 	ErrPendingApprovals   = ExecStatus{false, "Pending approvals for the organization. Approve first"}
 	ErrNothingToApprove   = ExecStatus{false, "Nothing to approve"}
@@ -143,7 +141,9 @@ var (
 	ErrInactiveRole       = ExecStatus{false, "Role is already inactive"}
 	ErrInvalidRole        = ExecStatus{false, "Invalid role"}
 	ErrInvalidInput       = ExecStatus{false, "Invalid input"}
-	ExecSuccess           = ExecStatus{true, "Action completed successfully"}
+	ErrNotMasterOrg       = ExecStatus{false, "Org is not a master org"}
+
+	ExecSuccess = ExecStatus{true, "Action completed successfully"}
 )
 
 // NewQuorumControlsAPI creates a new QuorumControlsAPI to access quorum services
@@ -311,9 +311,17 @@ func (s *QuorumControlsAPI) checkPendingOp(orgId string, pinterf *pbind.PermInte
 	return err == nil && op.Int64() != 0
 }
 
-func (s *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) bool {
+func (s *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) (ExecStatus, error) {
 	org := types.OrgInfoMap.GetOrg(orgId)
-	return (op == 3 && org.Status == types.OrgApproved) || (op == 5 && org.Status == types.OrgSuspended)
+	// check if its a master org. operation is allowed only if its a master org
+	if org.Level.Cmp(big.NewInt(1)) != 0 {
+		return ErrNotMasterOrg, errors.New("Org not a master org")
+	}
+
+	if !((op == 3 && org.Status == types.OrgApproved) || (op == 5 && org.Status == types.OrgSuspended)) {
+		return ErrOpNotAllowed, errors.New("operation not allowed for current status")
+	}
+	return ExecSuccess, nil
 }
 
 func (s *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (ExecStatus, error) {
@@ -552,16 +560,13 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		if !s.isNetworkAdmin(args.txa.From) {
 			return ErrNotNetworkAdmin
 		}
-
-		// check if status update can be performed. Org should be approved for suspension
-		if !s.checkOrgStatus(args.orgId, args.status) {
-			return ErrOpNotAllowed
-		}
-
 		if args.status != 3 && args.status != 5 {
 			return ErrOpNotAllowed
 		}
-
+		// check if status update can be performed. Org should be approved for suspension
+		if execStatus, er := s.checkOrgStatus(args.orgId, args.status); er != nil {
+			return execStatus
+		}
 		// and in suspended state for suspension revoke
 		tx, err = pinterf.UpdateOrgStatus(args.orgId, big.NewInt(int64(args.status)))
 

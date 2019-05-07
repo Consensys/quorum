@@ -146,6 +146,9 @@ contract OrgManager {
     returns (uint)
     {
         require((_status == 3 || _status == 5), "Operation not allowed");
+        uint id = getOrgIndex(_orgId);
+        require(orgList[id].level == 1, "not a master org. operation not allowed");
+
         uint reqStatus;
         uint pendingOp;
         if (_status == 3) {
