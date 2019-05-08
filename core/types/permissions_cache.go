@@ -170,11 +170,7 @@ var DefaultAccess = FullAccess
 var networkAdminRole string
 var orgAdminRole string
 
-const orgKeyMapLimit = 100
-
 const defaultMapLimit = 100
-
-var OrgKeyMap, _ = lru.New(orgKeyMapLimit)
 
 var OrgInfoMap = NewOrgCache()
 var NodeInfoMap = NewNodeCache()
