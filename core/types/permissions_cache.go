@@ -335,7 +335,8 @@ func (a *AcctCache) GetAcctListRole(orgId, roleId string) []AccountInfo {
 	for _, k := range a.c.Keys() {
 		v, _ := a.c.Get(k)
 		vp := v.(*AccountInfo)
-		if vp.OrgId == orgId && vp.RoleId == roleId {
+
+		if vp.RoleId == roleId && (vp.OrgId == orgId || OrgInfoMap.GetOrg(vp.OrgId).UltimateParent == orgId) {
 			alist = append(alist, *vp)
 		}
 	}
@@ -374,14 +375,14 @@ func (o *RoleCache) GetRoleList() []RoleInfo {
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
 	if a := AcctInfoMap.GetAccount(acctId); a != nil && a.Status == AcctActive {
-		if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+		if (a.RoleId == networkAdminRole || a.RoleId == orgAdminRole) && a.Status == AcctActive {
 			return FullAccess
 		}
 		if o := OrgInfoMap.GetOrg(a.OrgId); o != nil && o.Status == OrgApproved {
-			if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil {
+			if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
 				return r.Access
 			}
-			if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil {
+			if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
 				return r.Access
 			}
 		}

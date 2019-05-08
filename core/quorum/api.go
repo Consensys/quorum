@@ -116,8 +116,6 @@ var (
 	ErrInvalidNode        = ExecStatus{false, "Invalid enode id"}
 	ErrInvalidAccount     = ExecStatus{false, "Invalid account id"}
 	ErrPermissionDisabled = ExecStatus{false, "Permissions control not enabled"}
-	ErrAccountAccess      = ExecStatus{false, "Account does not have sufficient access for operation"}
-	ErrVoterAccountAccess = ExecStatus{false, "Voter account does not have sufficient access"}
 	ErrOrgExists          = ExecStatus{false, "Org already exists"}
 	ErrPendingApprovals   = ExecStatus{false, "Pending approvals for the organization. Approve first"}
 	ErrNothingToApprove   = ExecStatus{false, "Nothing to approve"}
@@ -143,7 +141,9 @@ var (
 	ErrInactiveRole       = ExecStatus{false, "Role is already inactive"}
 	ErrInvalidRole        = ExecStatus{false, "Invalid role"}
 	ErrInvalidInput       = ExecStatus{false, "Invalid input"}
-	ExecSuccess           = ExecStatus{true, "Action completed successfully"}
+	ErrNotMasterOrg       = ExecStatus{false, "Org is not a master org"}
+
+	ExecSuccess = ExecStatus{true, "Action completed successfully"}
 )
 
 // NewQuorumControlsAPI creates a new QuorumControlsAPI to access quorum services
@@ -285,11 +285,16 @@ func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) (Ex
 
 func (s *QuorumControlsAPI) validateOrg(orgId, pOrgId string) (ExecStatus, error) {
 	// validate Parent org id
-	if pOrgId != "" && types.OrgInfoMap.GetOrg(pOrgId) == nil {
-		return ErrInvalidParentOrg, errors.New("invalid parent org")
-	} else {
+	if pOrgId != "" {
+		if types.OrgInfoMap.GetOrg(pOrgId) == nil {
+			return ErrInvalidParentOrg, errors.New("invalid parent org")
+		}
 		locOrgId := pOrgId + "." + orgId
 		if types.OrgInfoMap.GetOrg(locOrgId) != nil {
+			return ErrOrgExists, errors.New("org exists")
+		}
+	} else {
+		if types.OrgInfoMap.GetOrg(orgId) != nil {
 			return ErrOrgExists, errors.New("org exists")
 		}
 	}
@@ -306,9 +311,17 @@ func (s *QuorumControlsAPI) checkPendingOp(orgId string, pinterf *pbind.PermInte
 	return err == nil && op.Int64() != 0
 }
 
-func (s *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) bool {
+func (s *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) (ExecStatus, error) {
 	org := types.OrgInfoMap.GetOrg(orgId)
-	return (op == 3 && org.Status == types.OrgApproved) || (op == 5 && org.Status == types.OrgSuspended)
+	// check if its a master org. operation is allowed only if its a master org
+	if org.Level.Cmp(big.NewInt(1)) != 0 {
+		return ErrNotMasterOrg, errors.New("Org not a master org")
+	}
+
+	if !((op == 3 && org.Status == types.OrgApproved) || (op == 5 && org.Status == types.OrgSuspended)) {
+		return ErrOpNotAllowed, errors.New("operation not allowed for current status")
+	}
+	return ExecSuccess, nil
 }
 
 func (s *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (ExecStatus, error) {
@@ -346,6 +359,16 @@ func (s *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (Ex
 	}
 
 	return ExecSuccess, nil
+}
+
+func (s *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
+	var r *types.RoleInfo
+	r = types.RoleInfoMap.GetRole(orgId, roleId)
+	if r == nil {
+		r = types.RoleInfoMap.GetRole(types.OrgInfoMap.GetOrg(orgId).UltimateParent, roleId)
+	}
+
+	return r != nil && r.Active
 }
 
 func (s *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.Address, op int64) (ExecStatus, error) {
@@ -390,24 +413,6 @@ func (s *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account co
 			return ErrAccountOrgAdmin, errors.New("account already org admin for the org")
 		}
 	}
-
-	//if ac == nil {
-	//	orgAcctList := types.AcctInfoMap.GetAcctListOrg(orgId)
-	//	if len(orgAcctList) > 0 {
-	//		for _, a := range orgAcctList {
-	//			if a.IsOrgAdmin == true && a.Status == types.AcctActive {
-	//				return ErrOrgAdminExists, errors.New("org admin exists for the org")
-	//			}
-	//		}
-	//	}
-	//} else {
-	//	if ac.OrgId != orgId {
-	//		return ErrAccountInUse, errors.New("account part of another org")
-	//	}
-	//	if ac.IsOrgAdmin == true {
-	//		return ErrAccountOrgAdmin, errors.New("account already org admin for the org")
-	//	}
-	//}
 	return ExecSuccess, nil
 }
 
@@ -565,16 +570,13 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		if !s.isNetworkAdmin(args.txa.From) {
 			return ErrNotNetworkAdmin
 		}
-
-		// check if status update can be performed. Org should be approved for suspension
-		if !s.checkOrgStatus(args.orgId, args.status) {
-			return ErrOpNotAllowed
-		}
-
 		if args.status != 3 && args.status != 5 {
 			return ErrOpNotAllowed
 		}
-
+		// check if status update can be performed. Org should be approved for suspension
+		if execStatus, er := s.checkOrgStatus(args.orgId, args.status); er != nil {
+			return execStatus
+		}
 		// and in suspended state for suspension revoke
 		tx, err = pinterf.UpdateOrgStatus(args.orgId, big.NewInt(int64(args.status)))
 
@@ -723,12 +725,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return execStatus
 		}
 
-		// check if the role is part of the org
-		if types.RoleInfoMap.GetRole(args.orgId, args.roleId) == nil {
-			// check if the role is existing at master org level
-			if types.RoleInfoMap.GetRole(types.OrgInfoMap.GetOrg(args.orgId).UltimateParent, args.roleId) == nil {
-				return ErrRoleDoesNotExist
-			}
+		// check if the role is valid
+		if !s.validateRole(args.orgId, args.roleId) {
+			return ErrInvalidRole
 		}
 
 		// check if the account is part of another org
@@ -741,6 +740,10 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		tx, err = pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
 
 	case UpdateAccountStatus:
+		// check if the caller is org admin
+		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+			return execStatus
+		}
 		// validation status change is with in allowed set
 		if execStatus, er := s.valAccountStatusChange(args.orgId, args.acctId, int64(args.status)); er != nil {
 			return execStatus

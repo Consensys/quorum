@@ -8,5 +8,4 @@
 * [Privacy](./privacy.md) - Sending private transactions [privacy video](https://vimeo.com/user5833792/review/210456729/8f70cfaaa5)
 * [Running](./running.md) - Detailed instructions for running Quorum nodes (see also [Constellation](https://github.com/jpmorganchase/constellation), [Tessera](https://github.com/jpmorganchase/tessera))
 * [API](./api.md) - new privacy API
-* [Node Permissioing & Account Access Control](./permissions.md) - Overview of node permissioning and account access control features
-* [Organization level transaction manager key management](./orgkey.md) - Overview of transaction manager key management at organizational level for private transactions
+* [Permissions ](permissions/overview.md) - Overview of the Quorum permissions model

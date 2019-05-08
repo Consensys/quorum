@@ -1,0 +1,355 @@
+# Permission APIs
+#### quorumPermission.orgList 
+* Input: None
+* Output: Returns the list of all organizations and their status 
+* Example:
+```
+> quorumPermission.orgList
+[{
+    fullOrgId: "INITORG",
+    level: 1,
+    orgId: "INITORG",
+    parentOrgId: "",
+    status: 2,
+    subOrgList: null,
+    ultimateParent: "INITORG"
+}]
+```
+#### quorumPermission.acctList 
+* Input: None
+* Output: Returns the list of all accounts across organizations 
+* Example:
+```
+> quorumPermission.acctList
+[{
+    acctId: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
+    isOrgAdmin: true,
+    orgId: "INITORG",
+    roleId: "NWADMIN",
+    status: 2
+}, {
+    acctId: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e",
+    isOrgAdmin: true,
+    orgId: "INITORG",
+    roleId: "NWADMIN",
+    status: 2
+}]
+```
+#### quorumPermission.nodeList 
+* Input: None
+* Output: Returns the list of all nodes across organizations 
+* Example:
+```
+> quorumPermission.nodeList
+[{
+    orgId: "INITORG",
+    status: 2,
+    url: "enode://72c0572f7a2492cffb5efc3463ef350c68a0446402a123dacec9db5c378789205b525b3f5f623f7548379ab0e5957110bffcf43a6115e450890f97a9f65a681a@127.0.0.1:21000?discport=0"
+}, {
+    orgId: "INITORG",
+    status: 2,
+    url: "enode://7a1e3b5c6ad614086a4e5fb55b6fe0a7cf7a7ac92ac3a60e6033de29df14148e7a6a7b4461eb70639df9aa379bd77487937bea0a8da862142b12d326c7285742@127.0.0.1:21001?discport=0"
+}, {
+    orgId: "INITORG",
+    status: 2,
+    url: "enode://5085e86db5324ca4a55aeccfbb35befb412def36e6bc74f166102796ac3c8af3cc83a5dec9c32e6fd6d359b779dba9a911da8f3e722cb11eb4e10694c59fd4a1@127.0.0.1:21002?discport=0"
+}, {
+    orgId: "INITORG",
+    status: 2,
+    url: "enode://28a4afcf56ee5e435c65b9581fc36896cc684695fa1db83c9568de4353dc6664b5cab09694d9427e9cf26a5cd2ac2fb45a63b43bb24e46ee121f21beb3a7865e@127.0.0.1:21003?discport=0"
+}]
+```
+#### quorumPermission.roleList 
+* Input: None
+* Output: Returns the list of all roles across organizations and their details
+* Example:
+```
+> quorumPermission.roleList
+[{
+    access: 3,
+    active: true,
+    isAdmin: true,
+    isVoter: true,
+    orgId: "INITORG",
+    roleId: "NWADMIN"
+}]
+```
+#### quorumPermission.getOrgDetails 
+This returns the list of accounts, nodes, roles, sub organizations linked to an organization
+* Input: idrganization or sub organization id
+* Output: list of all accounts, roles, nodes and sub orgs
+* Example:
+```
+> quorumPermission.getOrgDetails("INITORG")
+{
+  acctList: [{
+      acctId: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
+      isOrgAdmin: true,
+      orgId: "INITORG",
+      roleId: "NWADMIN",
+      status: 2
+  }, {
+      acctId: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e",
+      isOrgAdmin: true,
+      orgId: "INITORG",
+      roleId: "NWADMIN",
+      status: 2
+  }],
+  nodeList: [{
+      orgId: "INITORG",
+      status: 2,
+      url: "enode://72c0572f7a2492cffb5efc3463ef350c68a0446402a123dacec9db5c378789205b525b3f5f623f7548379ab0e5957110bffcf43a6115e450890f97a9f65a681a@127.0.0.1:21000?discport=0"
+  }, {
+      orgId: "INITORG",
+      status: 2,
+      url: "enode://7a1e3b5c6ad614086a4e5fb55b6fe0a7cf7a7ac92ac3a60e6033de29df14148e7a6a7b4461eb70639df9aa379bd77487937bea0a8da862142b12d326c7285742@127.0.0.1:21001?discport=0"
+  }, {
+      orgId: "INITORG",
+      status: 2,
+      url: "enode://5085e86db5324ca4a55aeccfbb35befb412def36e6bc74f166102796ac3c8af3cc83a5dec9c32e6fd6d359b779dba9a911da8f3e722cb11eb4e10694c59fd4a1@127.0.0.1:21002?discport=0"
+  }, {
+      orgId: "INITORG",
+      status: 2,
+      url: "enode://28a4afcf56ee5e435c65b9581fc36896cc684695fa1db83c9568de4353dc6664b5cab09694d9427e9cf26a5cd2ac2fb45a63b43bb24e46ee121f21beb3a7865e@127.0.0.1:21003?discport=0"
+  }],
+  roleList: [{
+      access: 3,
+      active: true,
+      isAdmin: true,
+      isVoter: true,
+      orgId: "INITORG",
+      roleId: "NWADMIN"
+  }],
+  subOrgList: null
+}
+```
+#### quorumPermission.addOrg 
+This api can be executed by a network admin account only for proposing a new organization into the network
+* Input: Unique organization id, enode id, account id
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.addOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+If there any pending items for approval, proposal of any new organization will fail. Also the enode id and accounts can be linked to one organization only. 
+```
+> quorumPermission.addOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
+{
+  msg: "Pending approvals for the organization. Approve first",
+  status: false
+}
+> quorumPermission.addOrg("XYZ", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
+{
+  msg: "EnodeId already part of network.",
+  status: false
+}
+> quorumPermission.addOrg("XYZ", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
+{
+  msg: "Account already in use in another organization",
+  status: false
+}
+
+```
+
+#### quorumPermission.approveOrg 
+This api can be executed by a network admin account only for approving a proposed organization into the network
+* Input: Unique organization id, enode id, account id
+* Output: Status of the operation
+* Example:
+```
+quorumPermission.approveOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+#### quorumPermission.updateOrgStatus
+This api can be executed by a network admin account only for temporarily suspending an organization and re-enabling a suspended organization. This activity can be performed for master organization only and requires majority approval from network admins.
+* Input: organization id, action (3 for suspending the organization and 5 for re-enabling the suspended organization)
+* Output: Status of the operation
+* Example:
+```$xslt
+> quorumPermission.updateOrgStatus("ABC.SUB1", 3, {from:eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+#### quorumPermission.approveOrgStatus
+This api can be executed by a network admin account only for approving the org status change proposal.  Once majority approval is received from network admins, the org status is updated.
+* Input: organization id, action (3 for suspending the organization and 5 for re-enabling the suspended organization)
+* Output: Status of the operation
+* Example:
+```$xslt
+> quorumPermission.approveOrgStatus("ABC", 3, {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+When a org is in suspended status, no transactions or contract deploy activities are allowed from any nodes linked to the org and sub organizations under it. Similarly no transactions will be allowed from any accounts linked to the organization
+
+#### quorumPermission.addSubOrg 
+This api can be executed by a organization admin account to create a sub organization under under the master org. 
+* Input: parent org id, Sub organization id,  enode id ( not mandatory and can be null), account id (not mandatory and can be 0x0)
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.addSubOrg("ABC", "SUB1", "", "0x0000000000000000000000000000000000000000", {from: eth.accounts[0]})
+
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+For adding a sub organization at next level the parent org id should have the entire org hierarchy upto the immediate parent. e.g.
+```
+> quorumPermission.addSubOrg("ABC.SUB1", "SUB2","", "0x0000000000000000000000000000000000000000", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.addSubOrg("ABC.SUB1.SUB2", "SUB3","", "0x0000000000000000000000000000000000000000", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+#### quorumPermission.addNewRole
+This api can be executed by organization admin account to create a new role for the organization
+* Input: org or sub org id, role id, account access(can be 0 - ReadOnly, 1 - Transact, 2 - ContractDeploy, 3 - FullAccess), isVoter, isAdminRole
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.addNewRole("ABC", "TRANSACT", 1, false, false,{from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.addNewRole("ABC.SUB1.SUB2.SUB3", "TRANSACT", 1, false, false,{from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+#### quorumPermission.removeRole
+This api can be executed by organization admin account to create a new role for the organization
+* Input: org or sub org id, role id
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.removeRole("ABC.SUB1.SUB2.SUB3", "TRANSACT", {from: eth.accounts[1]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+#### quorumPermission.assignAccountRole
+This api can be executed by organization admin account to assign a role to an account
+* Input: Account id, org or sub org id, role to be assigned
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.assignAccountRole("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC", "TRANSACT", {from: eth.accounts[1]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+The account can be linked to a organization or sub organization only and cannot belong to multiple organizations or sub organizations
+```$xslt
+> quorumPermission.assignAccountRole("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC.SUB1", "TRANSACT", {from: eth.accounts[1]})
+{
+  msg: "Account already in use in another organization",
+  status: false
+}
+```
+#### quorumPermission.updateAccountStatus
+This api can be executed by organization admin account to update the account status
+* Input:  org or sub org id, Account id, action (1 for suspending the account, 2 for activating a suspended account, 3 for blacklisting the account)
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.updateAccountStatus("ABC", "0xf017976fdf1521de2e108e63b423380307f501f8", 1, {from: eth.accounts[1]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+Once a account is blacklisted no further action is allowed on it
+
+#### quorumPermission.assignAdminRole
+This api can be executed by network admin to add a new account as network admin or change the org admin account for a organization 
+* Input: org id to which the account belongs, account id, role id (it can be either org admin role or network admin role)
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.assignAdminRole("ABC", "0xf017976fdf1521de2e108e63b423380307f501f8", "NWADMIN", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+
+#### quorumPermission.approveAdminRole 
+This api can be executed by network admin to add approve the org admin or network admin role assignment to an account. The role is approved once majority approvals is received
+* Input: org id to which the account belongs, account id
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.approveAdminRole("ABC", "0xf017976fdf1521de2e108e63b423380307f501f8",  {from: eth.accounts[0]})
+
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+
+#### quorumPermission.addNode
+This api can be executed by organization admin account to add a node to the org or sub org
+* Input:  org or sub org id, enode id
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.addNode("ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407", {from: eth.accounts[1]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+A node cannot be part of multiple organizations. 
+
+#### quorumPermission.updateNodeStatus
+This api can be executed by organization admin account to update the status of a node
+* Input:  org or sub org id, enode id, action (3 for deactivating the node, 4 for activating a deactivated node and 5 for blacklisting a node)
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.updateNodeStatus("ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407",3, {from: eth.accounts[1]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+Once a node is blacklisted no further action is possible on the same.
+
+#### Account access types
+The table below indicates the numeric value for each account access type.
+
+| AccessType      |           Value |
+| :-------------: | :-------------: |
+| ReadOnly        |               0 |
+| Transact        |               1 |
+| Contract deploy |               2 |
+| Full access     |               3 |
+
+While setting the account access, system checks if the account which is setting the access has sufficient privileges to perform the activity. 
+* Accounts with `FullAccess` can grant any access type ( FullAccess, Transact, ContractDeploy or ReadOnly) to any other account
+* Accounts with `ContractDeploy` can grant only `Transact`, `ContractDeploy` or `ReadOnly` access to other accounts
+* Accounts with `Transact` access grant only `Transact` or `ReadOnly` access to other accounts
+* Accounts with `ReadOnly` access cannot grant any access
+
