@@ -162,10 +162,8 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
-	ethereum := <-ethChan
-
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
-		RegisterRaftService(stack, ctx, cfg, ethereum)
+		RegisterRaftService(stack, ctx, cfg, ethChan)
 	}
 
 	if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
@@ -173,7 +171,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 
 	if ctx.GlobalBool(utils.EnableNodePermissionFlag.Name) {
-		RegisterPermissionService(ctx, stack, ethereum)
+		RegisterPermissionService(ctx, stack)
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
@@ -198,7 +196,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 	return stack
 }
-func RegisterPermissionService(ctx *cli.Context, stack *node.Node, ethereum *eth.Ethereum) {
+func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
 		dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
 		var permissionConfig types.PermissionConfig
@@ -239,7 +237,7 @@ func dumpConfig(ctx *cli.Context) error {
 	return nil
 }
 
-func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, ethereum *eth.Ethereum) {
+func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, ethChan <-chan *eth.Ethereum) {
 	blockTimeMillis := ctx.GlobalInt(utils.RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(utils.RaftJoinExistingFlag.Name)
@@ -279,6 +277,8 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 				utils.Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
 			}
 		}
+
+		ethereum := <-ethChan
 
 		return raft.New(ctx, ethereum.ChainConfig(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir)
 	}); err != nil {
