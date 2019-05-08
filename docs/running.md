@@ -80,7 +80,7 @@ Quorum comes with several scripts to setup a private test network with 7 nodes i
 
 ## Permissioned Network
 
-Node Permissioning is a feature that controls which nodes can connect to a given node and also to which nodes this node can dial out to. Currently, it is managed at individual node level by the command line flag `--permissioned` while starting the node.
+Node Permissioning is a feature that controls which nodes can connect to a given node and also to which nodes this node can dial out to. Currently, it is managed at the individual node level by the command line flag `--permissioned` while starting the node.
 
 If the `--permissioned` node is present, the node looks for a file named `<data-dir>/permissioned-nodes.json`. This file contains the list of enodes that this node can connect to and also accepts connections only from those nodes. In other words, if permissioning is enabled, only the nodes that are listed in this file become part of the network. It is an error to enable `--permissioned` but not have the `permissioned-nodes.json` file. If the flag is given, but no nodes are present in this file, then this node can neither connect to any node or accept any incoming connections.
 
@@ -102,4 +102,4 @@ Sample file:
 ]
 ```
 
-In the current release, every node has its own copy of `permissioned-nodes.json`. In a future release, the permissioned nodes list will be moved to a smart contract, thereby keeping the list on chain and one global list of nodes that connect to the network.
+In the current release, every node has its own copy of `permissioned-nodes.json`. In a future release, the permissioned nodes list will be moved to a smart contract, thereby keeping the list on the chain and one global list of nodes that connect to the network.
