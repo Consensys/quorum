@@ -343,18 +343,17 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 	params.Add("token", request.Token)
 	params.Add("token_type_hint", request.TokenTypeHint)
 
+
 	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader != "" {
 		// support env variables
+
 		providerClientId := os.Getenv(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdEnvVar)
-		if providerClientId == "" {
-			providerClientId = cfg.ProviderInformation.EnterpriseProviderIntrospectionClientId
-		}
 
 
 		if providerClientId != "" {
-			params.Add(
-				cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader,
-				providerClientId)
+			params.Add(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader, providerClientId)
+		}else{
+			params.Add(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader, cfg.ProviderInformation.EnterpriseProviderIntrospectionClientId)
 		}
 	}
 
@@ -362,17 +361,15 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 
 		// support env variables
 		providerClientSec := os.Getenv(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretEnvVar)
-		if providerClientSec == "" {
-			providerClientSec = cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecret
-		}
 
 		if providerClientSec != "" {
-			params.Add(
-				cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader,
-				providerClientSec)
+			params.Add(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader, providerClientSec)
+		}else{
+			params.Add(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader, cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecret)
 		}
 	}
 
+	fmt.Println(params)
 	// Parse the url & build request
 	serviceURL, err := url.Parse(cfg.ProviderInformation.EnterpriseProviderIntrospectionURL)
 	if err != nil {
@@ -405,7 +402,7 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 
 
 	body, err := ioutil.ReadAll(resp.Body)
-	fmt.Println(string(body))
+
 	if err != nil {
 		return nil, err
 	}
