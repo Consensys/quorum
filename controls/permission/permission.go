@@ -34,21 +34,21 @@ const (
 
 // permission config for bootstrapping
 type PermissionLocalConfig struct {
-	UpgrdAddress   string
-	InterfAddress  string
-	ImplAddress    string
-	NodeAddress    string
-	AccountAddress string
-	RoleAddress    string
-	VoterAddress   string
-	OrgAddress     string
-	NwAdminOrg     string
-	NwAdminRole    string
-	OrgAdminRole   string
+	UpgrdAddress   string `json:"upgrdableAddress"`
+	InterfAddress  string `json:"interfaceAddress"`
+	ImplAddress    string `json:"implAddress"`
+	NodeAddress    string `json:"nodeMgrAddress"`
+	AccountAddress string `json:"accountMgrAddress"`
+	RoleAddress    string `json:"roleMgrAddress"`
+	VoterAddress   string `json:"voterMgrAddress"`
+	OrgAddress     string `json:"orgMgrAddress"`
+	NwAdminOrg     string `json:"nwAdminOrg"`
+	NwAdminRole    string `json:"nwAdminRole"`
+	OrgAdminRole   string `json:"orgAdminRole"`
 
-	Accounts      []string //initial list of account that need full access
-	SubOrgBreadth string
-	SubOrgDepth   string
+	Accounts      []string `json:"accounts"` //initial list of account that need full access
+	SubOrgBreadth string   `json:"subOrgBreadth"`
+	SubOrgDepth   string   `json:"subOrgDepth"`
 }
 
 type PermissionCtrl struct {
