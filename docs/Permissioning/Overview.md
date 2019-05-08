@@ -1,5 +1,5 @@
 # Introduction
-The current permission model with in Quorum is limited to node level permissions only and allows a set of nodes which are part of `permissioned-nodes.json` to join the network. The model has been enhanced to cater for enterprise level needs to have **smart contract based permissions model** which allows flexibility to manage nodes, accounts and account level access controls. The overview of the model is as depicted below:
+The [current permission model](../Old%20Permissioning.md) with in Quorum is limited to node level permissions only and allows a set of nodes which are part of `permissioned-nodes.json` to join the network. The model has been enhanced to cater for enterprise level needs to have **smart contract based permissions model** which allows flexibility to manage nodes, accounts and account level access controls. The overview of the model is as depicted below:
 ![permissions mode](images/PermissionsModel.png)  
 ### Key Definitions
 * Network - A set of interconnected nodes representing an enterprise blockchain which contains organizations
