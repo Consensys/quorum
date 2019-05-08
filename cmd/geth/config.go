@@ -25,7 +25,6 @@ import (
 	"github.com/ethereum/go-ethereum/permission"
 	"io"
 	"os"
-	"path/filepath"
 	"reflect"
 	"time"
 	"unicode"
@@ -171,14 +170,8 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
 	}
 
-	if ctx.GlobalBool(utils.EnableNodePermissionFlag.Name) {
-		fileName := "permission-config.json"
-		fullPath := filepath.Join(ctx.GlobalString(utils.DataDirFlag.Name), fileName)
-		if _, err := os.Stat(fullPath); err != nil {
-			log.Warn("permission-config.json file is missing. permission service will be disabled", err)
-		} else {
-			RegisterPermissionService(ctx, stack)
-		}
+	if utils.IsPermissionEnabled(ctx) {
+		RegisterPermissionService(ctx, stack)
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
@@ -212,9 +205,9 @@ func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 		if permissionConfig, err = permission.ParsePermissionConifg(dataDir); err != nil {
 			utils.Fatalf("loading of permission-config.json failed", "error", err)
 		}
-
+		log.Info("AJ-permission ctrl new")
 		// start the permissions management service
-		pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name), &permissionConfig)
+		pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.RaftModeFlag.Name), &permissionConfig)
 		if err != nil {
 			utils.Fatalf("Failed to load the permission contracts as given in permissions-config.json %v", err)
 		}

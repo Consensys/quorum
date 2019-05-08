@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/controls"
-	pbind "github.com/ethereum/go-ethereum/controls/bind/permission"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -16,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	pbind "github.com/ethereum/go-ethereum/permission/bind"
 	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 	"io/ioutil"
@@ -53,28 +53,23 @@ type PermissionLocalConfig struct {
 }
 
 type PermissionCtrl struct {
-	node             *node.Node
-	ethClnt          *ethclient.Client
-	eth              *eth.Ethereum
-	isRaft           bool
-	permissionedMode bool
-	key              *ecdsa.PrivateKey
-	dataDir          string
-	permUpgr         *pbind.PermUpgr
-	permInterf       *pbind.PermInterface
-	permNode         *pbind.NodeManager
-	permAcct         *pbind.AcctManager
-	permRole         *pbind.RoleManager
-	permOrg          *pbind.OrgManager
-	permConfig       *types.PermissionConfig
-	orgChan          chan struct{}
-	nodeChan         chan struct{}
-	roleChan         chan struct{}
-	acctChan         chan struct{}
-}
-
-func (p *PermissionCtrl) Interface() *pbind.PermInterface {
-	return p.permInterf
+	node       *node.Node
+	ethClnt    *ethclient.Client
+	eth        *eth.Ethereum
+	isRaft     bool
+	key        *ecdsa.PrivateKey
+	dataDir    string
+	permUpgr   *pbind.PermUpgr
+	permInterf *pbind.PermInterface
+	permNode   *pbind.NodeManager
+	permAcct   *pbind.AcctManager
+	permRole   *pbind.RoleManager
+	permOrg    *pbind.OrgManager
+	permConfig *types.PermissionConfig
+	orgChan    chan struct{}
+	nodeChan   chan struct{}
+	roleChan   chan struct{}
+	acctChan   chan struct{}
 }
 
 // This function takes the local config data where all the information is in string
@@ -136,70 +131,95 @@ func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 }
 
 func waitForSync(e *eth.Ethereum) {
+	log.Info("AJ-wait for sync")
 	for !types.GetSyncStatus() {
 		time.Sleep(10 * time.Millisecond)
 	}
 	for e.Downloader().Synchronising() {
 		time.Sleep(10 * time.Millisecond)
 	}
+	log.Info("AJ-wait for sync over")
 }
 
 // Creates the controls structure for permissions
-func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
+func NewQuorumPermissionCtrl(stack *node.Node, isRaft bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
 	// Create a new ethclient to for interfacing with the contract
-	clnt, e, err := controls.CreateEthClient(stack)
-	//waitForSync(e)
+	log.Info("AJ-permission eth client create")
+	return &PermissionCtrl{stack, nil, nil, isRaft, stack.GetNodeKey(), stack.DataDir(), nil, nil, nil, nil, nil, nil, pconfig, make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})}, nil
+}
+
+func (p *PermissionCtrl) InitializeService() error {
+	clnt, ethereum, err := controls.CreateEthClient(p.node)
+	if err != nil {
+		log.Error("creating eth client failed")
+		return err
+	}
+	waitForSync(ethereum)
 	if err != nil {
 		log.Error("Unable to create ethereum client for permissions check", "err", err)
-		return nil, err
+		return err
 	}
 
-	if pconfig.IsEmpty() && permissionedMode {
+	if p.permConfig.IsEmpty() {
 		log.Error("permission-config.json is missing contract address")
-		return nil, errors.New("permission-config.json is missing contract address")
+		return errors.New("permission-config.json is missing contract address")
 	}
-	pu, err := pbind.NewPermUpgr(pconfig.UpgrdAddress, clnt)
+	pu, err := pbind.NewPermUpgr(p.permConfig.UpgrdAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
+		return err
 	}
 	// check if permissioning contract is there at address. If not return from here
-	pm, err := pbind.NewPermInterface(pconfig.InterfAddress, clnt)
+	pm, err := pbind.NewPermInterface(p.permConfig.InterfAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
+		return err
 	}
 
-	pmAcct, err := pbind.NewAcctManager(pconfig.AccountAddress, clnt)
+	pmAcct, err := pbind.NewAcctManager(p.permConfig.AccountAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
+		return err
 	}
 
-	pmNode, err := pbind.NewNodeManager(pconfig.NodeAddress, clnt)
+	pmNode, err := pbind.NewNodeManager(p.permConfig.NodeAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
+		return err
 	}
 
-	pmRole, err := pbind.NewRoleManager(pconfig.RoleAddress, clnt)
+	pmRole, err := pbind.NewRoleManager(p.permConfig.RoleAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
+		return err
 	}
 
-	pmOrg, err := pbind.NewOrgManager(pconfig.OrgAddress, clnt)
+	pmOrg, err := pbind.NewOrgManager(p.permConfig.OrgAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
+		return err
 	}
-	return &PermissionCtrl{stack, clnt, e, isRaft, permissionedMode, stack.GetNodeKey(), stack.DataDir(), pu, pm, pmNode, pmAcct, pmRole, pmOrg, pconfig, make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})}, nil
+	p.permUpgr = pu
+	p.permInterf = pm
+	p.permAcct = pmAcct
+	p.permNode = pmNode
+	p.permRole = pmRole
+	p.permOrg = pmOrg
+	p.ethClnt = clnt
+	p.eth = ethereum
+	log.Info("permission service initalized")
+	return nil
 }
 
 // Starts the node permissioning and event monitoring for permissions
 // smart contracts
 func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
-	log.Info("permission service started...")
+
+	if p.ethClnt == nil || p.eth == nil {
+		log.Info("permission service not initialized")
+		return nil
+	}
+	log.Info("permission service start...")
 	// Permissions initialization
 	if err := p.init(); err != nil {
 		log.Error("Permissions init failed", "err", err)
@@ -217,7 +237,7 @@ func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
 
 	// monitor org level account management events
 	go p.manageAccountPermissions()
-
+	log.Info("permission service started")
 	return nil
 }
 
@@ -227,7 +247,7 @@ func (s *PermissionCtrl) APIs() []rpc.API {
 		{
 			Namespace: "quorumPermission",
 			Version:   "1.0",
-			Service:   NewQuorumControlsAPI(s.eth.TxPool(), s.eth.AccountManager(), s.permConfig, s.permInterf),
+			Service:   NewQuorumControlsAPI(s),
 			Public:    true,
 		},
 	}
@@ -238,6 +258,9 @@ func (s *PermissionCtrl) Protocols() []p2p.Protocol {
 }
 
 func (p *PermissionCtrl) Stop() error {
+	if p.eth == nil || p.ethClnt == nil {
+		return nil
+	}
 	log.Info("stopping permission service...")
 	p.roleChan <- struct{}{}
 	p.orgChan <- struct{}{}

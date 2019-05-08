@@ -6,12 +6,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	pbind "github.com/ethereum/go-ethereum/controls/bind/permission"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	pbind "github.com/ethereum/go-ethereum/permission/bind"
 	"math/big"
 	"regexp"
 )
@@ -61,16 +60,9 @@ const (
 	Inactive
 )
 
-type PermissionContracts struct {
-	PermInterf *pbind.PermInterface
-}
-
 // QuorumControlsAPI provides an API to access Quorum's node permission and org key management related services
 type QuorumControlsAPI struct {
-	txPool     *core.TxPool
-	acctMgr    *accounts.Manager
-	permConfig *types.PermissionConfig
-	permInterf *pbind.PermInterface
+	permCtrl *PermissionCtrl
 }
 
 // txArgs holds arguments required for execute functions
@@ -138,25 +130,9 @@ var (
 )
 
 // NewQuorumControlsAPI creates a new QuorumControlsAPI to access quorum services
-func NewQuorumControlsAPI(tp *core.TxPool, am *accounts.Manager, pcfg *types.PermissionConfig, pc *pbind.PermInterface) *QuorumControlsAPI {
-	return &QuorumControlsAPI{tp, am, pcfg, pc}
+func NewQuorumControlsAPI(p *PermissionCtrl) *QuorumControlsAPI {
+	return &QuorumControlsAPI{p}
 }
-
-/*//Init initializes QuorumControlsAPI with eth client, permission contract and org key management control
-func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey, pc *pbind.PermInterface) error {
-	// check if the interface contract is deployed or not. if not
-	// permissions apis will not work. return error
-	p.ethClnt = ethClnt
-
-	if _, err := pbind.NewPermInterface(p.permConfig.InterfAddress, p.ethClnt); err != nil {
-		return err
-	}
-	p.permEnabled = true
-	p.key = key
-	p.permInterf = pc
-
-	return nil
-}*/
 
 func (s *QuorumControlsAPI) OrgList() []types.OrgInfo {
 	return types.OrgInfoMap.GetOrgList()
@@ -254,7 +230,7 @@ func (s *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Addres
 // check if the account is network admin
 func (s *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
 	ac := types.AcctInfoMap.GetAccount(account)
-	return ac != nil && ac.RoleId == s.permConfig.NwAdminRole
+	return ac != nil && ac.RoleId == s.permCtrl.permConfig.NwAdminRole
 }
 
 func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) (ExecStatus, error) {
@@ -371,7 +347,7 @@ func (s *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 		return ErrAccountNotThere, errors.New("account not there")
 	}
 
-	if ac.IsOrgAdmin && (ac.RoleId == s.permConfig.NwAdminRole || ac.RoleId == s.permConfig.OrgAdminRole) && (op == 1 || op == 3) {
+	if ac.IsOrgAdmin && (ac.RoleId == s.permCtrl.permConfig.NwAdminRole || ac.RoleId == s.permCtrl.permConfig.OrgAdminRole) && (op == 1 || op == 3) {
 		return ErrOpNotAllowed, errors.New("operation not allowed on org admin account")
 	}
 
@@ -401,7 +377,7 @@ func (s *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account co
 		if ac.OrgId != orgId {
 			return ErrAccountInUse, errors.New("account part of another org")
 		}
-		if roleId != "" && roleId == s.permConfig.OrgAdminRole && ac.IsOrgAdmin {
+		if roleId != "" && roleId == s.permCtrl.permConfig.OrgAdminRole && ac.IsOrgAdmin {
 			return ErrAccountOrgAdmin, errors.New("account already org admin for the org")
 		}
 	}
@@ -411,11 +387,11 @@ func (s *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account co
 func (s *QuorumControlsAPI) valSubOrgBreadthDepth(porgId string) (ExecStatus, error) {
 	org := types.OrgInfoMap.GetOrg(porgId)
 
-	if s.permConfig.SubOrgDepth.Cmp(org.Level) == 0 {
+	if s.permCtrl.permConfig.SubOrgDepth.Cmp(org.Level) == 0 {
 		return ErrMaxDepth, errors.New("max depth for suborgs reached")
 	}
 
-	if s.permConfig.SubOrgBreadth.Cmp(big.NewInt(int64(len(org.SubOrgList)))) == 0 {
+	if s.permCtrl.permConfig.SubOrgBreadth.Cmp(big.NewInt(int64(len(org.SubOrgList)))) == 0 {
 		return ErrMaxBreadth, errors.New("max breadth for suborgs reached")
 	}
 
@@ -484,7 +460,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 
 		// check if any previous op is pending approval for network admin
-		if s.checkPendingOp(s.permConfig.NwAdminOrg, pinterf) {
+		if s.checkPendingOp(s.permCtrl.permConfig.NwAdminOrg, pinterf) {
 			return ErrPendingApprovals
 		}
 		// check if org already exists
@@ -510,7 +486,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return ErrNotNetworkAdmin
 		}
 
-		if !s.validatePendingOp(s.permConfig.NwAdminOrg, args.orgId, args.url, args.acctId, 1, pinterf) {
+		if !s.validatePendingOp(s.permCtrl.permConfig.NwAdminOrg, args.orgId, args.url, args.acctId, 1, pinterf) {
 			return ErrNothingToApprove
 		}
 
@@ -583,7 +559,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		} else {
 			return ErrOpNotAllowed
 		}
-		if !s.validatePendingOp(s.permConfig.NwAdminOrg, args.orgId, "", common.Address{}, pendingOp, pinterf) {
+		if !s.validatePendingOp(s.permCtrl.permConfig.NwAdminOrg, args.orgId, "", common.Address{}, pendingOp, pinterf) {
 			return ErrNothingToApprove
 		}
 
@@ -625,7 +601,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return ErrInvalidInput
 		}
 		// check if caller is network admin
-		if args.roleId != s.permConfig.OrgAdminRole && args.roleId != s.permConfig.NwAdminRole {
+		if args.roleId != s.permCtrl.permConfig.OrgAdminRole && args.roleId != s.permCtrl.permConfig.NwAdminRole {
 			return ErrOpNotAllowed
 		}
 
@@ -652,7 +628,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return ErrInvalidAccount
 		}
 		// validate pending op
-		if !s.validatePendingOp(s.permConfig.NwAdminOrg, ac.OrgId, "", args.acctId, 4, pinterf) {
+		if !s.validatePendingOp(s.permCtrl.permConfig.NwAdminOrg, ac.OrgId, "", args.acctId, 4, pinterf) {
 			return ErrNothingToApprove
 		}
 
@@ -682,7 +658,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 
 		// admin roles cannot be removed
-		if args.roleId == s.permConfig.OrgAdminRole || args.roleId == s.permConfig.NwAdminRole {
+		if args.roleId == s.permCtrl.permConfig.OrgAdminRole || args.roleId == s.permCtrl.permConfig.NwAdminRole {
 			return ErrAdminRoles
 		}
 
@@ -705,7 +681,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		if args.acctId == (common.Address{0}) {
 			return ErrInvalidInput
 		}
-		if args.roleId == s.permConfig.OrgAdminRole || args.roleId == s.permConfig.NwAdminRole {
+		if args.roleId == s.permCtrl.permConfig.OrgAdminRole || args.roleId == s.permCtrl.permConfig.NwAdminRole {
 			return ErrInvalidRole
 		}
 		// check if caller is network admin
@@ -748,7 +724,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 // validateAccount validates the account and returns the wallet associated with that for signing the transaction
 func (s *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Wallet, error) {
 	acct := accounts.Account{Address: from}
-	w, err := s.acctMgr.Find(acct)
+	w, err := s.permCtrl.eth.AccountManager().Find(acct)
 	if err != nil {
 		return nil, err
 	}
@@ -758,7 +734,7 @@ func (s *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Walle
 func (s *QuorumControlsAPI) newPermInterfaceSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.PermInterfaceSession {
 	frmAcct, transactOpts, gasLimit, gasPrice, nonce := s.getTxParams(txa, w)
 	ps := &pbind.PermInterfaceSession{
-		Contract: s.permInterf,
+		Contract: s.permCtrl.permInterf,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
@@ -789,7 +765,7 @@ func (s *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet
 	if txa.Nonce != nil {
 		nonce = new(big.Int).SetUint64(uint64(*txa.Nonce))
 	} else {
-		nonce = new(big.Int).SetUint64(s.txPool.Nonce(frmAcct.Address))
+		nonce = new(big.Int).SetUint64(s.permCtrl.eth.TxPool().Nonce(frmAcct.Address))
 	}
 	return frmAcct, transactOpts, gasLimit, gasPrice, nonce
 }

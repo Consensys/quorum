@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/permission"
 	"math"
 	"os"
 	godebug "runtime/debug"
@@ -342,6 +343,18 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			}
 		}
 	}()
+
+	//initialize permission as we can create eth client only after the node and RPC are started
+	if utils.IsPermissionEnabled(ctx) {
+		var permissionService *permission.PermissionCtrl
+		stack.Service(&permissionService)
+		if permissionService == nil {
+			utils.Fatalf("permission service missing")
+		}
+		//initialize the service to create eth client and get ethereum service
+		permissionService.InitializeService()
+		permissionService.Start(stack.Server())
+	}
 
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {

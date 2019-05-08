@@ -87,11 +87,6 @@ type OrgDetailInfo struct {
 	SubOrgList []string      `json:"subOrgList"`
 }
 
-type OrgStruct struct {
-	OrgId string
-	Keys  []string
-}
-
 // permission config for bootstrapping
 type PermissionConfig struct {
 	UpgrdAddress   common.Address
@@ -406,50 +401,4 @@ func ValidateNodeForTxn(enodeId string, from common.Address) bool {
 		}
 	}
 	return false
-}
-
-// Adds org key details to cache
-func AddOrgKey(orgId string, key string) {
-	if OrgKeyMap.Len() != 0 {
-		if val, ok := OrgKeyMap.Get(orgId); ok {
-			orgKeyLock.Lock()
-			defer orgKeyLock.Unlock()
-			// Org record exists. Append the key only
-			vo := val.(*OrgStruct)
-			vo.Keys = append(vo.Keys, key)
-			return
-		}
-	}
-	OrgKeyMap.Add(orgId, &OrgStruct{OrgId: orgId, Keys: []string{key}})
-}
-
-// deletes org key details from cache
-func DeleteOrgKey(orgId string, key string) {
-	if val, ok := OrgKeyMap.Get(orgId); ok {
-		orgKeyLock.Lock()
-		defer orgKeyLock.Unlock()
-		vo := val.(*OrgStruct)
-		for i, keyVal := range vo.Keys {
-			if keyVal == key {
-				vo.Keys = append(vo.Keys[:i], vo.Keys[i+1:]...)
-				break
-			}
-		}
-	}
-}
-
-// Givens a orgid returns the linked keys for the org
-func ResolvePrivateForKeys(orgId string) []string {
-	var keys []string
-	if val, ok := OrgKeyMap.Get(orgId); ok {
-		vo := val.(*OrgStruct)
-		if len(vo.Keys) > 0 {
-			keys = vo.Keys
-		} else {
-			keys = append(keys, orgId)
-		}
-		return keys
-	}
-	keys = append(keys, orgId)
-	return keys
 }

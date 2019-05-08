@@ -20,9 +20,11 @@ package utils
 import (
 	"compress/gzip"
 	"fmt"
+	"gopkg.in/urfave/cli.v1"
 	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -61,6 +63,19 @@ func Fatalf(format string, args ...interface{}) {
 	}
 	fmt.Fprintf(w, "Fatal: "+format+"\n", args...)
 	os.Exit(1)
+}
+
+func IsPermissionEnabled(ctx *cli.Context) bool {
+	if ctx.GlobalBool(EnableNodePermissionFlag.Name) {
+		fileName := "permission-config.json"
+		fullPath := filepath.Join(ctx.GlobalString(DataDirFlag.Name), fileName)
+		if _, err := os.Stat(fullPath); err != nil {
+			log.Warn("permission-config.json file is missing. permission service will be disabled", err)
+			return false
+		}
+		return true
+	}
+	return false
 }
 
 func StartNode(stack *node.Node) {
