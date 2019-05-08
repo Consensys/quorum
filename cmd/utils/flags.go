@@ -607,13 +607,6 @@ var (
 		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
 	}
 
-	// Quorum permission contract
-	PermissionContractAddressFlag = cli.StringFlag{
-		Name:  "permission.contract",
-		Usage: "If passed, the node will use this contract to bootstrap permission instead of contract from genesis.json",
-		Value: "0x",
-	}
-
 	// Istanbul settings
 	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
 		Name:  "istanbul.requesttimeout",

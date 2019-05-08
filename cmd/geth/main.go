@@ -19,7 +19,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/types"
 	"math"
 	"os"
 	godebug "runtime/debug"
@@ -33,8 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
-	"github.com/ethereum/go-ethereum/controls/permission"
-	"github.com/ethereum/go-ethereum/core/quorum"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/debug"
@@ -137,7 +134,6 @@ var (
 		utils.EVMInterpreterFlag,
 		configFileFlag,
 		utils.EnableNodePermissionFlag,
-		utils.PermissionContractAddressFlag,
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,
@@ -346,9 +342,6 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 	}()
 
-	//START - QUORUM Permissioning
-	go startQuorumPermissionService(ctx, stack)
-
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		// Mining only makes sense if a full Ethereum node is running
@@ -375,58 +368,4 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 	}
 
-}
-
-// Starts all permissioning services permissioning services will come up only when
-// geth is brought up in --permissioned mode
-func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
-
-	var quorumApis []string
-	dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
-	permEnabled := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name)
-
-	var permissionConfig types.PermissionConfig
-	var err error
-	if permEnabled {
-		if permissionConfig, err = permission.ParsePermissionConifg(dataDir); err != nil {
-			log.Error("loading of permission-config.json failed", "error", err)
-			return
-		}
-	} else {
-		// permissions not enabled hence none of the services will be available.
-		return
-	}
-
-	// start the permissions management service
-	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name), &permissionConfig)
-	if err != nil {
-		utils.Fatalf("Failed to load the permission contracts as given in permissions-config.json %v", err)
-	}
-
-	if err = pc.Start(); err == nil {
-		quorumApis = []string{"quorumPermission"}
-	} else {
-		utils.Fatalf("Failed to start Quorum Permission contract service %v", err)
-	}
-
-	rpcClient, err := stack.Attach() /**/
-	if err != nil {
-		utils.Fatalf("Unable to connect to the node: %v", err)
-	}
-	stateReader := ethclient.NewClient(rpcClient)
-
-	for _, apiName := range quorumApis {
-		v := stack.GetRPC(apiName)
-		if v == nil {
-			utils.Fatalf("Failed to start Quorum Permission API %s", apiName)
-		}
-		qapi := v.(*quorum.QuorumControlsAPI)
-
-		err = qapi.Init(stateReader, stack.GetNodeKey(), apiName, &permissionConfig, pc.Interface())
-		if err != nil {
-			log.Info("Failed to starts API", "apiName", apiName)
-		} else {
-			log.Info("API started", "apiName", apiName)
-		}
-	}
 }

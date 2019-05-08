@@ -20,6 +20,9 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/controls/permission"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"os"
 	"reflect"
@@ -159,12 +162,18 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
+	ethereum := <-ethChan
+
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
-		RegisterRaftService(stack, ctx, cfg, ethChan)
+		RegisterRaftService(stack, ctx, cfg, ethereum)
 	}
 
 	if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
 		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
+	}
+
+	if ctx.GlobalBool(utils.EnableNodePermissionFlag.Name) {
+		RegisterPermissionService(ctx, stack, ethereum)
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
@@ -189,6 +198,27 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 	return stack
 }
+func RegisterPermissionService(ctx *cli.Context, stack *node.Node, ethereum *eth.Ethereum) {
+	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
+		dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
+		var permissionConfig types.PermissionConfig
+		var err error
+		if permissionConfig, err = permission.ParsePermissionConifg(dataDir); err != nil {
+			utils.Fatalf("loading of permission-config.json failed", "error")
+		}
+
+		// start the permissions management service
+		pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name), &permissionConfig)
+		if err != nil {
+			utils.Fatalf("Failed to load the permission contracts as given in permissions-config.json %v", err)
+		}
+		log.Info("permission service created")
+		return pc, nil
+	}); err != nil {
+		utils.Fatalf("Failed to register the permission service: %v", err)
+	}
+	log.Info("permission service registered")
+}
 
 // dumpConfig is the dumpconfig command.
 func dumpConfig(ctx *cli.Context) error {
@@ -209,7 +239,7 @@ func dumpConfig(ctx *cli.Context) error {
 	return nil
 }
 
-func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, ethChan <-chan *eth.Ethereum) {
+func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, ethereum *eth.Ethereum) {
 	blockTimeMillis := ctx.GlobalInt(utils.RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(utils.RaftJoinExistingFlag.Name)
@@ -249,8 +279,6 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 				utils.Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
 			}
 		}
-
-		ethereum := <-ethChan
 
 		return raft.New(ctx, ethereum.ChainConfig(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir)
 	}); err != nil {

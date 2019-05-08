@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/raft"
+	"github.com/ethereum/go-ethereum/rpc"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -66,6 +67,10 @@ type PermissionCtrl struct {
 	permRole         *pbind.RoleManager
 	permOrg          *pbind.OrgManager
 	permConfig       *types.PermissionConfig
+	orgChan          chan struct{}
+	nodeChan         chan struct{}
+	roleChan         chan struct{}
+	acctChan         chan struct{}
 }
 
 func (p *PermissionCtrl) Interface() *pbind.PermInterface {
@@ -146,7 +151,7 @@ func waitForSync(e *eth.Ethereum) {
 // Creates the controls structure for permissions
 func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
 	// Create a new ethclient to for interfacing with the contract
-	stateReader, e, err := controls.CreateEthClient(stack)
+	clnt, e, err := controls.CreateEthClient(stack)
 	waitForSync(e)
 	if err != nil {
 		log.Error("Unable to create ethereum client for permissions check", "err", err)
@@ -157,47 +162,47 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pc
 		log.Error("permission-config.json is missing contract address")
 		return nil, errors.New("permission-config.json is missing contract address")
 	}
-	pu, err := pbind.NewPermUpgr(pconfig.UpgrdAddress, stateReader)
+	pu, err := pbind.NewPermUpgr(pconfig.UpgrdAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
 		return nil, err
 	}
 	// check if permissioning contract is there at address. If not return from here
-	pm, err := pbind.NewPermInterface(pconfig.InterfAddress, stateReader)
+	pm, err := pbind.NewPermInterface(pconfig.InterfAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
 		return nil, err
 	}
 
-	pmAcct, err := pbind.NewAcctManager(pconfig.AccountAddress, stateReader)
+	pmAcct, err := pbind.NewAcctManager(pconfig.AccountAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
 		return nil, err
 	}
 
-	pmNode, err := pbind.NewNodeManager(pconfig.NodeAddress, stateReader)
+	pmNode, err := pbind.NewNodeManager(pconfig.NodeAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
 		return nil, err
 	}
 
-	pmRole, err := pbind.NewRoleManager(pconfig.RoleAddress, stateReader)
+	pmRole, err := pbind.NewRoleManager(pconfig.RoleAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
 		return nil, err
 	}
 
-	pmOrg, err := pbind.NewOrgManager(pconfig.OrgAddress, stateReader)
+	pmOrg, err := pbind.NewOrgManager(pconfig.OrgAddress, clnt)
 	if err != nil {
 		log.Error("Permissions not enabled for the network", "err", err)
 		return nil, err
 	}
-	return &PermissionCtrl{stack, stateReader, e, isRaft, permissionedMode, stack.GetNodeKey(), stack.DataDir(), pu, pm, pmNode, pmAcct, pmRole, pmOrg, pconfig}, nil
+	return &PermissionCtrl{stack, clnt, e, isRaft, permissionedMode, stack.GetNodeKey(), stack.DataDir(), pu, pm, pmNode, pmAcct, pmRole, pmOrg, pconfig, make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})}, nil
 }
 
 // Starts the node permissioning and event monitoring for permissions
 // smart contracts
-func (p *PermissionCtrl) Start() error {
+func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
 	// Permissions initialization
 	if err := p.init(); err != nil {
 		log.Error("Permissions init failed", "err", err)
@@ -216,6 +221,32 @@ func (p *PermissionCtrl) Start() error {
 	// monitor org level account management events
 	go p.manageAccountPermissions()
 
+	return nil
+}
+
+func (s *PermissionCtrl) APIs() []rpc.API {
+	log.Info("permission rpc API called")
+	return []rpc.API{
+		{
+			Namespace: "quorumPermission",
+			Version:   "1.0",
+			Service:   NewQuorumControlsAPI(s.eth.TxPool(), s.eth.AccountManager(), s.permConfig, s.permInterf),
+			Public:    true,
+		},
+	}
+}
+
+func (s *PermissionCtrl) Protocols() []p2p.Protocol {
+	return []p2p.Protocol{}
+}
+
+func (p *PermissionCtrl) Stop() error {
+	log.Info("stopping permission service...")
+	p.roleChan <- struct{}{}
+	p.orgChan <- struct{}{}
+	p.acctChan <- struct{}{}
+	p.nodeChan <- struct{}{}
+	log.Info("stopped permission service")
 	return nil
 }
 
@@ -280,6 +311,8 @@ func (p *PermissionCtrl) manageOrgPermissions() {
 
 		case evtOrgReactivated = <-chOrgReactivated:
 			types.OrgInfoMap.UpsertOrg(evtOrgReactivated.OrgId, evtOrgReactivated.PorgId, evtOrgReactivated.UltParent, evtOrgReactivated.Level, types.OrgApproved)
+		case <-p.orgChan:
+			log.Info("quit org contract watch")
 		}
 	}
 }
@@ -342,6 +375,9 @@ func (p *PermissionCtrl) manageNodePermissions() {
 			p.updatePermissionedNodes(evtNodeBlacklisted.EnodeId, NodeDelete)
 			p.updateDisallowedNodes(evtNodeBlacklisted.EnodeId)
 			types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, types.NodeBlackListed)
+		case <-p.nodeChan:
+			log.Info("quit node contract watch")
+			return
 		}
 	}
 }
@@ -480,6 +516,8 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 		case evtStatusChanged = <-chStatusChanged:
 			ac := types.AcctInfoMap.GetAccount(evtStatusChanged.Address)
 			types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Address, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
+		case <-p.acctChan:
+			log.Info("quit account contract watch")
 		}
 	}
 }
@@ -738,6 +776,8 @@ func (p *PermissionCtrl) manageRolePermissions() {
 			} else {
 				log.Error("Revoke role - cache is missing role", "org", evtRoleRevoked.OrgId, "role", evtRoleRevoked.RoleId)
 			}
+		case <-p.roleChan:
+			log.Info("quit role contract watch")
 		}
 	}
 }

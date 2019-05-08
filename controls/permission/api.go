@@ -1,17 +1,14 @@
-package quorum
+package permission
 
 import (
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	obind "github.com/ethereum/go-ethereum/controls/bind/cluster"
 	pbind "github.com/ethereum/go-ethereum/controls/bind/permission"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -70,16 +67,10 @@ type PermissionContracts struct {
 
 // QuorumControlsAPI provides an API to access Quorum's node permission and org key management related services
 type QuorumControlsAPI struct {
-	txPool      *core.TxPool
-	ethClnt     *ethclient.Client
-	acntMgr     *accounts.Manager
-	txOpt       *bind.TransactOpts
-	clustContr  *obind.Cluster
-	key         *ecdsa.PrivateKey
-	permEnabled bool
-	orgEnabled  bool
-	permConfig  *types.PermissionConfig
-	permInterf  *pbind.PermInterface
+	txPool     *core.TxPool
+	acctMgr    *accounts.Manager
+	permConfig *types.PermissionConfig
+	permInterf *pbind.PermInterface
 }
 
 // txArgs holds arguments required for execute functions
@@ -147,16 +138,15 @@ var (
 )
 
 // NewQuorumControlsAPI creates a new QuorumControlsAPI to access quorum services
-func NewQuorumControlsAPI(tp *core.TxPool, am *accounts.Manager) *QuorumControlsAPI {
-	return &QuorumControlsAPI{tp, nil, am, nil, nil, nil, false, false, nil, nil}
+func NewQuorumControlsAPI(tp *core.TxPool, am *accounts.Manager, pcfg *types.PermissionConfig, pc *pbind.PermInterface) *QuorumControlsAPI {
+	return &QuorumControlsAPI{tp, am, pcfg, pc}
 }
 
-//Init initializes QuorumControlsAPI with eth client, permission contract and org key management control
-func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey, apiName string, pconfig *types.PermissionConfig, pc *pbind.PermInterface) error {
+/*//Init initializes QuorumControlsAPI with eth client, permission contract and org key management control
+func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKey, pc *pbind.PermInterface) error {
 	// check if the interface contract is deployed or not. if not
 	// permissions apis will not work. return error
 	p.ethClnt = ethClnt
-	p.permConfig = pconfig
 
 	if _, err := pbind.NewPermInterface(p.permConfig.InterfAddress, p.ethClnt); err != nil {
 		return err
@@ -166,7 +156,7 @@ func (p *QuorumControlsAPI) Init(ethClnt *ethclient.Client, key *ecdsa.PrivateKe
 	p.permInterf = pc
 
 	return nil
-}
+}*/
 
 func (s *QuorumControlsAPI) OrgList() []types.OrgInfo {
 	return types.OrgInfoMap.GetOrgList()
@@ -466,10 +456,6 @@ func (s *QuorumControlsAPI) valNodeDetails(url string) (ExecStatus, error) {
 
 // executePermAction helps to execute an action in permission contract
 func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
-
-	if !s.permEnabled {
-		return ErrPermissionDisabled
-	}
 	var err error
 	var w accounts.Wallet
 
@@ -762,7 +748,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 // validateAccount validates the account and returns the wallet associated with that for signing the transaction
 func (s *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Wallet, error) {
 	acct := accounts.Account{Address: from}
-	w, err := s.acntMgr.Find(acct)
+	w, err := s.acctMgr.Find(acct)
 	if err != nil {
 		return nil, err
 	}
