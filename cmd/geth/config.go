@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"time"
 	"unicode"
@@ -171,7 +172,13 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 
 	if ctx.GlobalBool(utils.EnableNodePermissionFlag.Name) {
-		RegisterPermissionService(ctx, stack)
+		fileName := "permission-config.json"
+		fullPath := filepath.Join(ctx.GlobalString(utils.DataDirFlag.Name), fileName)
+		if _, err := os.Stat(fullPath); err != nil {
+			log.Warn("permission-config.json file is missing. permission service will be disabled", err)
+		} else {
+			RegisterPermissionService(ctx, stack)
+		}
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
@@ -196,6 +203,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 	return stack
 }
+
 func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
 		dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
