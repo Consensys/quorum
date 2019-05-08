@@ -37,6 +37,15 @@ The enclaves **performs** the following actions on request:
 - decrypting transactions for a given recipient (or sender)
 - adding new recipients for existing payloads
 
+### Private Key Generation Algorithm
+The following steps detail the technique used to manage the private keys:
+
+ 1. Given a password P
+ 2. Generate random Argon2id  nonce
+ 3. Generate random NaCl secretbox  nonce
+ 4. Stretch P using Argon2id (and the Argon2id nonce) into a 32-byte master key (MK)
+ 5. Encrypt Private key in secretbox using secretbox nonce and Argon2i-stretched MK
+
 ### Where does the Enclave sit in the private transaction flow?
 
 The Enclave is the innermost actor of the sequence of events. The below diagram demonstrates where the enclave sits:
