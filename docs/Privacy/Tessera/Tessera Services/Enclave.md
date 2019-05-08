@@ -12,6 +12,13 @@ This enables all sensitive operations to be handled in a single place, without a
 
 The Transaction Manager, which handles peer management and database access, as well as Quorum communication does not perform **any** encryption/decryption, greatly reducing the impact an attack can have.
 
+### Enclave Encryption Technique
+
+The Enclave encrypts payloads sent to it by the Transaction Manager using xsalsa20poly1305 (payload container) and curve25519xsalsa20poly1305 (recipient box). Each payload encryption produces a payload container,  as well as N recipient boxes, where N is the number of recipients specified in the `privateFor` param of the Transaction. 
+
+ * A payload container contains the payload encrypted with a symmetric key and a random nonce
+ * A recipient box is the Master Key for the payload container encrypted for the public key of a recipient using a random nonce. (Note that this is basically how PGP works, but using the [NaCl](https://nacl.cr.yp.to/) cryptographic primitives.)
+
 ### What exactly does the enclave handle?
 
 The Tessera enclave **handles** the following data:
