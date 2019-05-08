@@ -150,6 +150,8 @@ func (n *Node) Register(constructor ServiceConstructor) error {
 
 // Start create a live P2P node and starts running it.
 func (n *Node) Start() error {
+	log.Info("AJ-start node3")
+
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
@@ -183,7 +185,8 @@ func (n *Node) Start() error {
 
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
-	for _, constructor := range n.serviceFuncs {
+
+	for ct, constructor := range n.serviceFuncs {
 		// Create a new context for the particular service
 		ctx := &ServiceContext{
 			config:         n.config,
@@ -194,12 +197,16 @@ func (n *Node) Start() error {
 		for kind, s := range services { // copy needed for threaded access
 			ctx.services[kind] = s
 		}
+		log.Info("AJ-construct service1", "ct", ct, "Cons", constructor)
+
 		// Construct and save the service
 		service, err := constructor(ctx)
+		log.Info("AJ-construct service2", "service", service)
 		if err != nil {
 			return err
 		}
 		kind := reflect.TypeOf(service)
+		log.Info("AJ-construct service3", "ct", ct, "kind", kind)
 		if _, exists := services[kind]; exists {
 			return &DuplicateServiceError{Kind: kind}
 		}
@@ -215,6 +222,7 @@ func (n *Node) Start() error {
 	// Start each of the services
 	started := []reflect.Type{}
 	for kind, service := range services {
+		log.Info("AJ-start service ", "kind", kind, "srv", service)
 		// Start the next service, stopping all previous upon failure
 		if err := service.Start(running); err != nil {
 			for _, kind := range started {

@@ -20,9 +20,9 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/controls/permission"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/permission"
 	"io"
 	"os"
 	"path/filepath"
@@ -210,7 +210,7 @@ func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 		var permissionConfig types.PermissionConfig
 		var err error
 		if permissionConfig, err = permission.ParsePermissionConifg(dataDir); err != nil {
-			utils.Fatalf("loading of permission-config.json failed", "error")
+			utils.Fatalf("loading of permission-config.json failed", "error", err)
 		}
 
 		// start the permissions management service

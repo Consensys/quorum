@@ -109,10 +109,6 @@ func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
 func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	fileName := "permission-config.json"
 	fullPath := filepath.Join(dir, fileName)
-	if _, err := os.Stat(fullPath); err != nil {
-		log.Warn("permission-config.json file is missing", err)
-		return types.PermissionConfig{}, err
-	}
 
 	blob, err := ioutil.ReadFile(fullPath)
 
@@ -152,7 +148,7 @@ func waitForSync(e *eth.Ethereum) {
 func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
 	// Create a new ethclient to for interfacing with the contract
 	clnt, e, err := controls.CreateEthClient(stack)
-	waitForSync(e)
+	//waitForSync(e)
 	if err != nil {
 		log.Error("Unable to create ethereum client for permissions check", "err", err)
 		return nil, err
@@ -203,6 +199,7 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pc
 // Starts the node permissioning and event monitoring for permissions
 // smart contracts
 func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
+	log.Info("permission service started...")
 	// Permissions initialization
 	if err := p.init(); err != nil {
 		log.Error("Permissions init failed", "err", err)
