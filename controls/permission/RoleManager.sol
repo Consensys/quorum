@@ -32,7 +32,16 @@ contract RoleManager {
 
     function roleExists(string memory _roleId, string memory _orgId, string memory _ultParent) public view returns (bool)
     {
-        return ((roleIndex[keccak256(abi.encodePacked(_roleId, _orgId))] != 0) || (roleIndex[keccak256(abi.encodePacked(_roleId, _ultParent))] != 0));
+        uint id;
+        if (roleIndex[keccak256(abi.encodePacked(_roleId, _orgId))] != 0) {
+            id = getRoleIndex(_roleId, _orgId);
+            return roleList[id].active;
+        }
+        else if (roleIndex[keccak256(abi.encodePacked(_roleId, _ultParent))] != 0) {
+            id = getRoleIndex(_roleId, _ultParent);
+            return roleList[id].active;
+        }
+        return false;
     }
 
     function getRoleDetails(string calldata _roleId, string calldata _orgId) external view returns (string memory roleId, string memory orgId, uint accessType, bool voter, bool active)

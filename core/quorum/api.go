@@ -361,6 +361,18 @@ func (s *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (Ex
 	return ExecSuccess, nil
 }
 
+func (s *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
+	var r *types.RoleInfo
+	r = types.RoleInfoMap.GetRole(orgId, roleId)
+	if r == nil {
+		r = types.RoleInfoMap.GetRole(types.OrgInfoMap.GetOrg(orgId).UltimateParent, roleId)
+	}
+	if r != nil {
+		log.Info("SMK-validateRole @370", "roleId", r.RoleId, "status", r.Active)
+	}
+	return r != nil && r.Active
+}
+
 func (s *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.Address, op int64) (ExecStatus, error) {
 	// validates if the enode is linked the passed organization
 	ac := types.AcctInfoMap.GetAccount(account)
@@ -715,12 +727,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return execStatus
 		}
 
-		// check if the role is part of the org
-		if types.RoleInfoMap.GetRole(args.orgId, args.roleId) == nil {
-			// check if the role is existing at master org level
-			if types.RoleInfoMap.GetRole(types.OrgInfoMap.GetOrg(args.orgId).UltimateParent, args.roleId) == nil {
-				return ErrRoleDoesNotExist
-			}
+		// check if the role is valid
+		if !s.validateRole(args.orgId, args.roleId) {
+			return ErrInvalidRole
 		}
 
 		// check if the account is part of another org
