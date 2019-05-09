@@ -1,4 +1,4 @@
 
 # Quorum documentation
 
-New Quorum documentation is now published on https://goquorum.readthedocs.io/
+New Quorum documentation is now published on http://docs.goquorum.com

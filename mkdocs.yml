@@ -23,8 +23,11 @@ nav:
         - Raft: Consensus/raft.md
         - Istanbul: Consensus/istanbul-rpc-api.md
     - Transaction Processing: Transaction Processing/Transaction Processing.md
-    - Security:
-        - Security & Permissioning: Security/Security & Permissioning.md
+    - Permissioning:
+        - Overview: Permissioning/Overview.md
+        - Design: Permissioning/Contract Design.md
+        - Setup: Permissioning/setup.md
+        - API: Permissioning/Permissioning apis.md       
     - Privacy:
         - Tessera:
             - What is Tessera: Privacy/Tessera/Tessera.md
