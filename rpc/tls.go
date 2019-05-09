@@ -10,11 +10,12 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
 	"net"
 	"os"
 	"time"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // TLSConfigKey is used to store a TLS configuration within the connection context
@@ -184,7 +185,7 @@ func Generate(certPath string, keyPath string, host string) error {
 	}
 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	certOut.Close()
-	log.Println("TLS: %s written", certPath)
+	log.Info("TLS: ", certPath, " written")
 
 	keyOut, err := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
@@ -192,6 +193,6 @@ func Generate(certPath string, keyPath string, host string) error {
 	}
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 	keyOut.Close()
-	log.Println("TLS: %s written", keyPath)
+	log.Info("TLS: ", keyPath, " written")
 	return nil
 }
