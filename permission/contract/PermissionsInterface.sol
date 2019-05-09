@@ -24,7 +24,7 @@ contract PermissionsInterface {
         permImplementation = PermissionsImplementation(_permImplementation);
     }
 
-    function getPermissionsImpl() public view returns(address)
+    function getPermissionsImpl() public view returns (address)
     {
         return address(permImplementation);
     }

@@ -7,14 +7,13 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	obind "github.com/ethereum/go-ethereum/controls/bind/cluster"
-	pbind "github.com/ethereum/go-ethereum/controls/bind/permission"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	pbind "github.com/ethereum/go-ethereum/permission/bind/permission"
 	"math/big"
 	"regexp"
 )
@@ -74,10 +73,8 @@ type QuorumControlsAPI struct {
 	ethClnt     *ethclient.Client
 	acntMgr     *accounts.Manager
 	txOpt       *bind.TransactOpts
-	clustContr  *obind.Cluster
 	key         *ecdsa.PrivateKey
 	permEnabled bool
-	orgEnabled  bool
 	permConfig  *types.PermissionConfig
 	permInterf  *pbind.PermInterface
 }
@@ -148,7 +145,7 @@ var (
 
 // NewQuorumControlsAPI creates a new QuorumControlsAPI to access quorum services
 func NewQuorumControlsAPI(tp *core.TxPool, am *accounts.Manager) *QuorumControlsAPI {
-	return &QuorumControlsAPI{tp, nil, am, nil, nil, nil, false, false, nil, nil}
+	return &QuorumControlsAPI{tp, nil, am, nil, nil, false, nil, nil}
 }
 
 //Init initializes QuorumControlsAPI with eth client, permission contract and org key management control

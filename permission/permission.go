@@ -6,8 +6,6 @@ import (
 	"errors"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/controls"
-	pbind "github.com/ethereum/go-ethereum/controls/bind/permission"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -16,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	pbind "github.com/ethereum/go-ethereum/permission/bind/permission"
 	"github.com/ethereum/go-ethereum/raft"
 	"io/ioutil"
 	"math/big"
@@ -146,7 +145,7 @@ func waitForSync(e *eth.Ethereum) {
 // Creates the controls structure for permissions
 func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
 	// Create a new ethclient to for interfacing with the contract
-	stateReader, e, err := controls.CreateEthClient(stack)
+	stateReader, e, err := CreateEthClient(stack)
 	waitForSync(e)
 	if err != nil {
 		log.Error("Unable to create ethereum client for permissions check", "err", err)

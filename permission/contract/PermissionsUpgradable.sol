@@ -18,7 +18,7 @@ contract PermissionsUpgradable {
         _;
     }
 
-    function init (address _permInterface, address _permImpl) external
+    function init(address _permInterface, address _permImpl) external
     onlyCustodian
     {
         permImpl = _permImpl;
@@ -35,17 +35,17 @@ contract PermissionsUpgradable {
         setImpl(permImpl);
     }
 
-    function getCustodian() public view returns(address)
+    function getCustodian() public view returns (address)
     {
         return custodian;
     }
 
-    function getPermImpl() public view returns(address)
+    function getPermImpl() public view returns (address)
     {
         return permImpl;
     }
 
-    function getPermInterface() public view returns(address)
+    function getPermInterface() public view returns (address)
     {
         return permInterface;
     }

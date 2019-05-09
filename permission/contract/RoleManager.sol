@@ -1,9 +1,11 @@
 pragma solidity ^0.5.3;
+
 import "./PermissionsUpgradable.sol";
 
 // TODO: check code comments
 contract RoleManager {
     PermissionsUpgradable private permUpgradable;
+
     struct RoleDetails {
         string roleId;
         string orgId;
@@ -75,7 +77,7 @@ contract RoleManager {
         }
     }
 
-    function removeRole(string calldata _roleId, string calldata _orgId) external{
+    function removeRole(string calldata _roleId, string calldata _orgId) external {
         if (roleIndex[keccak256(abi.encodePacked(_roleId, _orgId))] != 0) {
             uint rIndex = getRoleIndex(_roleId, _orgId);
             roleList[rIndex].active = false;

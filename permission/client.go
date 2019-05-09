@@ -1,4 +1,4 @@
-package controls
+package permission
 
 import (
 	"github.com/ethereum/go-ethereum/eth"

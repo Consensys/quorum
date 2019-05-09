@@ -1,4 +1,5 @@
 pragma solidity ^0.5.3;
+
 import "./PermissionsUpgradable.sol";
 
 
@@ -7,7 +8,7 @@ contract NodeManager {
     // enum and struct declaration
     // changing node status to integer (0-NotInList, 1- PendingApproval, 2-Approved, 3-Deactivated, 4-Blacklisted)
     //      PendingDeactivation, Deactivated, PendingActivation, PendingBlacklisting, Blacklisted)
-//    enum NodeStatus {NotInList, PendingApproval, Approved, PendingDeactivation, Deactivated, PendingActivation, PendingBlacklisting, Blacklisted}
+    //    enum NodeStatus {NotInList, PendingApproval, Approved, PendingDeactivation, Deactivated, PendingActivation, PendingBlacklisting, Blacklisted}
     struct NodeDetails {
         string enodeId; //e.g. 127.0.0.1:20005
         string orgId;
@@ -79,7 +80,7 @@ contract NodeManager {
     // Get node status by enode id
     function getNodeStatus(string memory _enodeId) public view returns (uint)
     {
-        if (nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] == 0){
+        if (nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] == 0) {
             return 0;
         }
         return nodeList[getNodeIndex(_enodeId)].status;
@@ -100,7 +101,7 @@ contract NodeManager {
     {
         numberOfNodes++;
         nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
-        nodeList.push(NodeDetails(_enodeId, _orgId,  1));
+        nodeList.push(NodeDetails(_enodeId, _orgId, 1));
         emit NodeProposed(_enodeId, _orgId);
     }
 
@@ -110,7 +111,7 @@ contract NodeManager {
     {
         numberOfNodes++;
         nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
-        nodeList.push(NodeDetails(_enodeId, _orgId,  2));
+        nodeList.push(NodeDetails(_enodeId, _orgId, 2));
         emit NodeApproved(_enodeId, _orgId);
     }
 
@@ -138,12 +139,12 @@ contract NodeManager {
         // operations that can be done 3-Deactivate Node, 4-ActivateNode, 5-Blacklist nodeList
         require((_status == 3 || _status == 4 || _status == 5), "invalid operation");
 
-        if (_status == 3){
+        if (_status == 3) {
             require(getNodeStatus(_enodeId) == 2, "Op cannot be performed");
             nodeList[getNodeIndex(_enodeId)].status = 3;
             emit NodeDeactivated(_enodeId, _orgId);
         }
-        else if (_status == 4){
+        else if (_status == 4) {
             require(getNodeStatus(_enodeId) == 3, "Op cannot be performed");
             nodeList[getNodeIndex(_enodeId)].status = 2;
             emit NodeActivated(_enodeId, _orgId);
@@ -162,7 +163,7 @@ contract NodeManager {
     }
 
     function checkOrg(string memory _enodeId, string memory _orgId) internal view
-    returns(bool)
+    returns (bool)
     {
         return (keccak256(abi.encodePacked(nodeList[getNodeIndex(_enodeId)].orgId)) == keccak256(abi.encodePacked(_orgId)));
     }

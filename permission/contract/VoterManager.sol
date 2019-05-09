@@ -1,4 +1,5 @@
 pragma solidity ^0.5.3;
+
 import "./PermissionsUpgradable.sol";
 
 
@@ -155,7 +156,7 @@ contract VoterManager {
         orgVoterList[id].pendingOp.enodeId = _enodeId;
         orgVoterList[id].pendingOp.account = _account;
         orgVoterList[id].pendingOp.opType = _pendingOp;
-//        init vote status
+        //        init vote status
         for (uint i = 0; i < orgVoterList[id].voterList.length; i++) {
             if (orgVoterList[id].voterList[i].active) {
                 orgVoterList[id].votingStatus[id][orgVoterList[id].voterList[i].vAccount] = false;

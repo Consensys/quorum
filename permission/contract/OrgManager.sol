@@ -257,6 +257,7 @@ contract OrgManager {
     {
         return orgList[_orgIndex].subOrgIndexList.length;
     }
+
     function getSubOrgIndexLength(uint _orgIndex, uint _subOrgIndex) external view returns (uint)
     {
         return orgList[_orgIndex].subOrgIndexList[_subOrgIndex];
