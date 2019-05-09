@@ -339,7 +339,7 @@ func (n *Node) startHTTP(TLSEnabled bool, TLSConfig *tls.Config, endpoint string
 	if endpoint == "" {
 		return nil
 	}
-	listener, handler, err := rpc.StartHTTPEndpoint(TLSEnabled, TLSConfig, endpoint, apis, modules, cors, vhosts, timeouts)
+	listener, handler, err := rpc.StartHTTPSEndpoint(TLSEnabled, TLSConfig, endpoint, apis, modules, cors, vhosts, timeouts)
 	if err != nil {
 		return err
 	}
