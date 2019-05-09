@@ -36,5 +36,5 @@ The steps to enable new permissions model are as described below:
 > * `subOrgBreadth` indicates the number of sub organizations that any org can have
 > * `subOrgDepth` indicates the maximum depth sub org hierarchy allowed in the network
 
-* Bring down the all `geth` nodes in network and copy `permission-config.json` into the data directory of each of the node
-* Bring up all `geth` nodes in `--permissioned` mode for new permissions model to take effect
+* Bring down the all `geth` nodes in the network and copy `permission-config.json` into the data directory of each node
+* Bring up all `geth` nodes in `--permissioned` mode for the new permissions model to take effect

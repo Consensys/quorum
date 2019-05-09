@@ -75,9 +75,9 @@
 }]
 ```
 #### quorumPermission.getOrgDetails 
-This returns the list of accounts, nodes, roles, sub organizations linked to an organization
-* Input: idrganization or sub organization id
-* Output: list of all accounts, roles, nodes and sub orgs
+This returns the list of accounts, nodes, roles, and sub organizations linked to an organization
+* Input: organization id or sub organization id
+* Output: list of all accounts, nodes, roles, and sub orgs
 * Example:
 ```
 > quorumPermission.getOrgDetails("INITORG")
@@ -135,7 +135,7 @@ This api can be executed by a network admin account only for proposing a new org
   status: true
 }
 ```
-If there any pending items for approval, proposal of any new organization will fail. Also the enode id and accounts can be linked to one organization only. 
+If there are any pending items for approval, proposal of any new organization will fail. Also the enode id and accounts can be linked to one organization only. 
 ```
 > quorumPermission.addOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
 {
@@ -156,7 +156,7 @@ If there any pending items for approval, proposal of any new organization will f
 ```
 
 #### quorumPermission.approveOrg 
-This api can be executed by a network admin account only for approving a proposed organization into the network
+This api can be executed by a network admin account only for approving a proposed organization into the network.
 * Input: Unique organization id, enode id, account id
 * Output: Status of the operation
 * Example:
@@ -168,7 +168,7 @@ quorumPermission.approveOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641
 }
 ```
 #### quorumPermission.updateOrgStatus
-This api can be executed by a network admin account only for temporarily suspending an organization and re-enabling a suspended organization. This activity can be performed for master organization only and requires majority approval from network admins.
+This api can only be executed by a network admin account and is used for temporarily suspending an organization or re-enabling a suspended organization. This activity can be performed for master organization only and requires majority approval from network admins.
 * Input: organization id, action (3 for suspending the organization and 5 for re-enabling the suspended organization)
 * Output: Status of the operation
 * Example:
@@ -180,7 +180,7 @@ This api can be executed by a network admin account only for temporarily suspend
 }
 ```
 #### quorumPermission.approveOrgStatus
-This api can be executed by a network admin account only for approving the org status change proposal.  Once majority approval is received from network admins, the org status is updated.
+This api can only be executed by a network admin account and is used for approving the org status change proposal.  Once majority approval is received from network admins, the org status is updated.
 * Input: organization id, action (3 for suspending the organization and 5 for re-enabling the suspended organization)
 * Output: Status of the operation
 * Example:
@@ -191,11 +191,11 @@ This api can be executed by a network admin account only for approving the org s
   status: true
 }
 ```
-When a org is in suspended status, no transactions or contract deploy activities are allowed from any nodes linked to the org and sub organizations under it. Similarly no transactions will be allowed from any accounts linked to the organization
+When an organization is in suspended status, no transactions or contract deploy activities are allowed from any nodes linked to the org and sub organizations under it. Similarly no transactions will be allowed from any accounts linked to the organization
 
 #### quorumPermission.addSubOrg 
-This api can be executed by a organization admin account to create a sub organization under under the master org. 
-* Input: parent org id, Sub organization id,  enode id ( not mandatory and can be null), account id (not mandatory and can be 0x0)
+This api can be executed by a organization admin account to create a sub organization under the master org. 
+* Input: parent org id, sub organization id,  enode id (not mandatory and can be null), account id (not mandatory and can be 0x0)
 * Output: Status of the operation
 * Example:
 ```
@@ -206,7 +206,7 @@ This api can be executed by a organization admin account to create a sub organiz
   status: true
 }
 ```
-For adding a sub organization at next level the parent org id should have the entire org hierarchy upto the immediate parent. e.g.
+For adding a sub organization at the next level, the parent org id should have the entire org hierarchy up to the immediate parent e.g.
 ```
 > quorumPermission.addSubOrg("ABC.SUB1", "SUB2","", "0x0000000000000000000000000000000000000000", {from: eth.accounts[0]})
 {
@@ -220,8 +220,8 @@ For adding a sub organization at next level the parent org id should have the en
 }
 ```
 #### quorumPermission.addNewRole
-This api can be executed by organization admin account to create a new role for the organization
-* Input: org or sub org id, role id, account access(can be 0 - ReadOnly, 1 - Transact, 2 - ContractDeploy, 3 - FullAccess), isVoter, isAdminRole
+This api can be executed by an organization admin account to create a new role for the organization.
+* Input: organiztion id or sub organization id, role id, account access (can be 0 - ReadOnly, 1 - Transact, 2 - ContractDeploy, 3 - FullAccess), isVoter, isAdminRole
 * Output: Status of the operation
 * Example:
 ```
@@ -237,8 +237,8 @@ This api can be executed by organization admin account to create a new role for 
 }
 ```
 #### quorumPermission.removeRole
-This api can be executed by organization admin account to create a new role for the organization
-* Input: org or sub org id, role id
+This api can be executed by an organization admin account to create a new role for the organization.
+* Input: organization id or sub organization id, role id
 * Output: Status of the operation
 * Example:
 ```
@@ -249,8 +249,8 @@ This api can be executed by organization admin account to create a new role for 
 }
 ```
 #### quorumPermission.assignAccountRole
-This api can be executed by organization admin account to assign a role to an account
-* Input: Account id, org or sub org id, role to be assigned
+This api can be executed by an organization admin account to assign a role to an account.
+* Input: Account id, organization id or sub organization id, role to be assigned
 * Output: Status of the operation
 * Example:
 ```
@@ -269,8 +269,8 @@ The account can be linked to a organization or sub organization only and cannot 
 }
 ```
 #### quorumPermission.updateAccountStatus
-This api can be executed by organization admin account to update the account status
-* Input:  org or sub org id, Account id, action (1 for suspending the account, 2 for activating a suspended account, 3 for blacklisting the account)
+This api can be executed by an organization admin account to update the account status.
+* Input:  organization id or sub organization id, Account id, action (1 for suspending the account, 2 for activating a suspended account, 3 for blacklisting the account)
 * Output: Status of the operation
 * Example:
 ```
@@ -280,11 +280,11 @@ This api can be executed by organization admin account to update the account sta
   status: true
 }
 ```
-Once a account is blacklisted no further action is allowed on it
+Once a account is blacklisted no further action is allowed on it.
 
 #### quorumPermission.assignAdminRole
-This api can be executed by network admin to add a new account as network admin or change the org admin account for a organization 
-* Input: org id to which the account belongs, account id, role id (it can be either org admin role or network admin role)
+This api can be executed by the network admin to add a new account as network admin or change the org admin account for an organization. 
+* Input: organization id to which the account belongs, account id, role id (it can be either org admin role or network admin role)
 * Output: Status of the operation
 * Example:
 ```
@@ -296,8 +296,8 @@ This api can be executed by network admin to add a new account as network admin 
 ```
 
 #### quorumPermission.approveAdminRole 
-This api can be executed by network admin to add approve the org admin or network admin role assignment to an account. The role is approved once majority approvals is received
-* Input: org id to which the account belongs, account id
+This api can be executed by the network admin to approve the organization admin or network admin role assignment to an account. The role is approved once majority approval is received.
+* Input: organization id to which the account belongs, account id
 * Output: Status of the operation
 * Example:
 ```
@@ -310,8 +310,8 @@ This api can be executed by network admin to add approve the org admin or networ
 ```
 
 #### quorumPermission.addNode
-This api can be executed by organization admin account to add a node to the org or sub org
-* Input:  org or sub org id, enode id
+This api can be executed by the organization admin account to add a node to the organization or sub organization.
+* Input:  organization id or sub organization id, enode id
 * Output: Status of the operation
 * Example:
 ```
@@ -324,8 +324,8 @@ This api can be executed by organization admin account to add a node to the org 
 A node cannot be part of multiple organizations. 
 
 #### quorumPermission.updateNodeStatus
-This api can be executed by organization admin account to update the status of a node
-* Input:  org or sub org id, enode id, action (3 for deactivating the node, 4 for activating a deactivated node and 5 for blacklisting a node)
+This api can be executed by the organization admin account to update the status of a node.
+* Input:  organization id or sub organization id, enode id, action (3 for deactivating the node, 4 for activating a deactivated node and 5 for blacklisting a node)
 * Output: Status of the operation
 * Example:
 ```
@@ -347,9 +347,9 @@ The table below indicates the numeric value for each account access type.
 | Contract deploy |               2 |
 | Full access     |               3 |
 
-While setting the account access, system checks if the account which is setting the access has sufficient privileges to perform the activity. 
+When setting the account access, the system checks if the account setting the access has sufficient privileges to perform the activity. 
 * Accounts with `FullAccess` can grant any access type ( FullAccess, Transact, ContractDeploy or ReadOnly) to any other account
 * Accounts with `ContractDeploy` can grant only `Transact`, `ContractDeploy` or `ReadOnly` access to other accounts
-* Accounts with `Transact` access grant only `Transact` or `ReadOnly` access to other accounts
+* Accounts with `Transact` access can grant only `Transact` or `ReadOnly` access to other accounts
 * Accounts with `ReadOnly` access cannot grant any access
 
