@@ -367,16 +367,24 @@ func (o *RoleCache) GetRoleList() []RoleInfo {
 // Returns the access type for an account. If not found returns
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
-	if a := AcctInfoMap.GetAccount(acctId); a != nil && a.Status == AcctActive {
-		if (a.RoleId == networkAdminRole || a.RoleId == orgAdminRole) && a.Status == AcctActive {
-			return FullAccess
-		}
-		if o := OrgInfoMap.GetOrg(a.OrgId); o != nil && o.Status == OrgApproved {
-			if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
-				return r.Access
-			}
-			if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
-				return r.Access
+	// check if the org status is fine to do the transction
+	a := AcctInfoMap.GetAccount(acctId)
+	if a != nil && a.Status == AcctActive {
+		// get the org details and ultimate org details. check org status
+		// if the org is not approved or pending suspension
+		o := OrgInfoMap.GetOrg(a.OrgId)
+		if o != nil && (o.Status == OrgApproved || o.Status == OrgPendingSuspension) {
+			u := OrgInfoMap.GetOrg(o.UltimateParent)
+			if u != nil && (u.Status == OrgApproved || u.Status == OrgPendingSuspension) {
+				if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+					return FullAccess
+				}
+				if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
+					return r.Access
+				}
+				if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
+					return r.Access
+				}
 			}
 		}
 	}
