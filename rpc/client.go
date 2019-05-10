@@ -264,16 +264,6 @@ func (c *Client) Close() {
 //
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
-func (c *Client) CallWithSecurity(result interface{}, method string, token string, args ...interface{}) error {
-	ctx := context.Background()
-	return c.CallContextWithSecurity(ctx, result, method, token, args...)
-}
-
-// Call performs a JSON-RPC call with the given arguments and unmarshals into
-// result if no error occurred.
-//
-// The result must be a pointer so that package json can unmarshal into it. You
-// can also pass nil, in which case the result is ignored.
 func (c *Client) Call(result interface{}, method string, args ...interface{}) error {
 	ctx := context.Background()
 	return c.CallContext(ctx, result, method, args...)
