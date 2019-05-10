@@ -65,6 +65,7 @@ type PermissionCtrl struct {
 	permRole         *pbind.RoleManager
 	permOrg          *pbind.OrgManager
 	permConfig       *types.PermissionConfig
+	mux              sync.Mutex
 }
 
 func (p *PermissionCtrl) Interface() *pbind.PermInterface {
@@ -191,7 +192,22 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pc
 		log.Error("Permissions not enabled for the network", "err", err)
 		return nil, err
 	}
-	return &PermissionCtrl{stack, stateReader, e, isRaft, permissionedMode, stack.GetNodeKey(), stack.DataDir(), pu, pm, pmNode, pmAcct, pmRole, pmOrg, pconfig}, nil
+	return &PermissionCtrl{
+		node:             stack,
+		ethClnt:          stateReader,
+		eth:              e,
+		isRaft:           isRaft,
+		permissionedMode: permissionedMode,
+		key:              stack.GetNodeKey(),
+		dataDir:          stack.DataDir(),
+		permUpgr:         pu,
+		permInterf:       pm,
+		permNode:         pmNode,
+		permAcct:         pmAcct,
+		permRole:         pmRole,
+		permOrg:          pmOrg,
+		permConfig:       pconfig,
+	}, nil
 }
 
 // Starts the node permissioning and event monitoring for permissions
@@ -387,14 +403,14 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeO
 		}
 		p.disconnectNode(enodeId)
 	}
-	mu := sync.RWMutex{}
 	blob, _ = json.Marshal(nodelist)
 
-	mu.Lock()
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
 	if err := ioutil.WriteFile(path, blob, 0644); err != nil {
 		log.Error("updatePermissionedNodes: Error writing new node info to file", "err", err)
 	}
-	mu.Unlock()
 }
 
 //this function populates the black listed node information into the disallowed-nodes.json file
@@ -430,14 +446,14 @@ func (p *PermissionCtrl) updateDisallowedNodes(url string) {
 	}
 
 	nodelist = append(nodelist, url)
-	mu := sync.RWMutex{}
 	blob, _ := json.Marshal(nodelist)
-	mu.Lock()
+
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
 	if err := ioutil.WriteFile(path, blob, 0644); err != nil {
 		log.Error("updateDisallowedNodes: Error writing new node info to file", "err", err)
 	}
-	mu.Unlock()
-
 	// Disconnect the peer if it is already connected
 	p.disconnectNode(url)
 }
