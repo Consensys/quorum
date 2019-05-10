@@ -51,6 +51,7 @@ contract VoterManager {
         _;
     }
 
+    // constructor. sets the upgradable address
     constructor (address _permUpgradable) public {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
@@ -62,7 +63,7 @@ contract VoterManager {
         return orgVoterList[orgIndex].voterIndex[_vAccount] - 1;
     }
 
-    // returns the master org index for the org from voter list
+    // returns the org index for the org from voter list
     function getVoterOrgIndex(string memory _orgId) internal view returns (uint)
     {
         return VoterOrgIndex[keccak256(abi.encodePacked(_orgId))] - 1;

@@ -7,6 +7,8 @@ contract OrgManager {
     PermissionsUpgradable private permUpgradable;
     // checks if first time network boot up has happened or not
     bool private networkBoot = false;
+
+    // variables which control the breadth and depth of the sub org tree
     uint private DEPTH_LIMIT = 4;
     uint private BREADTH_LIMIT = 4;
     //    enum OrgStatus {0- NotInList, 1- Proposed, 2- Approved, 3- PendingSuspension, 4- Suspended, 5- RevokeSuspension}
@@ -31,6 +33,7 @@ contract OrgManager {
     event OrgSuspended(string _orgId, string _porgId, string _ultParent, uint _level);
     event OrgSuspensionRevoked(string _orgId, string _porgId, string _ultParent, uint _level);
 
+    // checks if the caller is implementation contracts
     modifier onlyImpl
     {
         require(msg.sender == permUpgradable.getPermImpl());
@@ -47,14 +50,18 @@ contract OrgManager {
         _;
     }
 
+    // constructor. sets the upgradable address
     constructor (address _permUpgradable) public {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
+    // returns the implementation contract address
     function getImpl() public view returns (address) {
         return permUpgradable.getPermImpl();
     }
 
+    // called at the time of network init to set the depth breadth and create the
+    // default network admin org as per config file
     function setUpOrg(string calldata _orgId, uint _breadth, uint _depth) external
     onlyImpl
     {
@@ -63,6 +70,7 @@ contract OrgManager {
         BREADTH_LIMIT = _breadth;
     }
 
+    // function to add a new organization
     function addNewOrg(string memory _pOrg, string memory _orgId, uint _level, uint _status) internal
     {
         bytes32 pid = "";
@@ -107,6 +115,7 @@ contract OrgManager {
         }
     }
 
+    // returns the number of orgs
     function getNumberOfOrgs() public view returns (uint)
     {
         return orgList.length;
@@ -132,7 +141,7 @@ contract OrgManager {
         addNewOrg("", _orgId, 1, 1);
     }
 
-    // function for adding a new master org
+    // function for adding a sub org under a master org
     function addSubOrg(string calldata _pOrg, string calldata _orgId) external
     onlyImpl
     orgNotExists(string(abi.encodePacked(_pOrg, ".", _orgId)))
@@ -140,6 +149,8 @@ contract OrgManager {
         addNewOrg(_pOrg, _orgId, 2, 2);
     }
 
+    // updates the status of an org for master orgs. The new status
+    // is valid once majority approval is achieved
     function updateOrg(string calldata _orgId, uint _status) external
     onlyImpl
     orgExists(_orgId)
@@ -169,6 +180,7 @@ contract OrgManager {
         return pendingOp;
     }
 
+    // function to approve org status change
     function approveOrgStatusUpdate(string calldata _orgId, uint _status) external
     onlyImpl
     orgExists(_orgId)
@@ -182,7 +194,7 @@ contract OrgManager {
     }
 
 
-    // function for adding a new master org
+    // updates the status of org as suspended
     function suspendOrg(string memory _orgId) internal
     {
         require(checkOrgStatus(_orgId, 2) == true, "Org not in approved state");
@@ -191,6 +203,7 @@ contract OrgManager {
         emit OrgPendingApproval(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 3);
     }
 
+    // revokes the suspension of an org
     function revokeOrgSuspension(string memory _orgId) internal
 
     {
@@ -200,6 +213,7 @@ contract OrgManager {
         emit OrgPendingApproval(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 5);
     }
 
+    // approval for new org add
     function approveOrg(string calldata _orgId) external
     onlyImpl
     {
@@ -209,6 +223,7 @@ contract OrgManager {
         emit OrgApproved(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level, 2);
     }
 
+    // approval for org suspension
     function approveOrgSuspension(string memory _orgId) internal
     {
         require(checkOrgStatus(_orgId, 3) == true, "Nothing to approve");
@@ -217,6 +232,7 @@ contract OrgManager {
         emit OrgSuspended(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level);
     }
 
+    // approval for org suspension revoke
     function approveOrgRevokeSuspension(string memory _orgId) internal
     {
         require(checkOrgStatus(_orgId, 5) == true, "Nothing to approve");
@@ -225,34 +241,31 @@ contract OrgManager {
         emit OrgSuspensionRevoked(orgList[id].orgId, orgList[id].parentId, orgList[id].ultParent, orgList[id].level);
     }
 
+    // confirms that org status is same as passed status
     function checkOrgStatus(string memory _orgId, uint _orgStatus) public view returns (bool){
         uint id = getOrgIndex(_orgId);
         return ((OrgIndex[keccak256(abi.encodePacked(_orgId))] != 0) && orgList[id].status == _orgStatus);
     }
 
-    // function to check if morg exists
+    // function to check if org exists
     function checkOrgExists(string memory _orgId) public view returns (bool)
     {
         return (!(OrgIndex[keccak256(abi.encodePacked(_orgId))] == 0));
     }
 
-    // function to check if morg exists
-    function checkNodeExists(string memory _pOrg, string memory _orgId) public view returns (bool)
-    {
-        return (!(OrgIndex[keccak256(abi.encodePacked(_pOrg, _orgId))] == 0));
-    }
-
-    // returns org and master org details based on org index
+    // returns org  details based on org index
     function getOrgInfo(uint _orgIndex) external view returns (string memory, string memory, string memory, uint, uint)
     {
         return (orgList[_orgIndex].orgId, orgList[_orgIndex].parentId, orgList[_orgIndex].ultParent, orgList[_orgIndex].level, orgList[_orgIndex].status);
     }
 
+    // returns the sub org info based on index
     function getSubOrgInfo(uint _orgIndex) external view returns (uint[] memory)
     {
         return orgList[_orgIndex].subOrgIndexList;
     }
 
+    // returns total numbers of sub orgs under a org or sub org
     function getSubOrgIndexLength(uint _orgIndex) external view returns (uint)
     {
         return orgList[_orgIndex].subOrgIndexList.length;
@@ -263,6 +276,7 @@ contract OrgManager {
         return orgList[_orgIndex].subOrgIndexList[_subOrgIndex];
     }
 
+    // returns the master org id for the given org
     function getUltimateParent(string calldata _orgId) external view returns (string memory)
     {
         return orgList[getOrgIndex(_orgId)].ultParent;

@@ -377,8 +377,8 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 
 }
 
-// Starts all permissioning services permissioning services will come up only when
-// geth is brought up in --permissioned mode
+// Starts the permissioning services. services will come up only when
+// geth is brought up in --permissioned mode and permission-config.json is present
 func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 
 	var quorumApis []string

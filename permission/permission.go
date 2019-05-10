@@ -72,8 +72,7 @@ func (p *PermissionCtrl) Interface() *pbind.PermInterface {
 	return p.permInterf
 }
 
-// This function takes the local config data where all the information is in string
-// converts that to address and populates the global permissions config
+// converts local permissions data to global permissions config
 func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
 	var permConfig types.PermissionConfig
 	permConfig.UpgrdAddress = common.HexToAddress(config.UpgrdAddress)
@@ -99,7 +98,7 @@ func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
 	return permConfig
 }
 
-// this function reads the permissions config file passed and populates the
+// function reads the permissions config file passed and populates the
 // config structure accrodingly
 func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	fileName := "permission-config.json"
@@ -134,6 +133,9 @@ func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	return permConfig, nil
 }
 
+// for cases where the node is joining an existing network, permissioning
+// service can be brought up only after block syncing is complete. This function
+// waits for block syncing before the starting permissions
 func waitForSync(e *eth.Ethereum) {
 	for !types.GetSyncStatus() {
 		time.Sleep(10 * time.Millisecond)
@@ -210,8 +212,7 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pc
 	}, nil
 }
 
-// Starts the node permissioning and event monitoring for permissions
-// smart contracts
+// Starts monitoring service for permissions events at contract level
 func (p *PermissionCtrl) Start() error {
 	// Permissions initialization
 	if err := p.init(); err != nil {
@@ -242,14 +243,13 @@ func (p *PermissionCtrl) init() error {
 	}
 
 	// set the default access to ReadOnly
-	types.SetDefaultAccess()
-	types.SetAdminRole(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole)
+	types.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole)
 
 	return nil
 }
 
-// monitors org management related events happening via
-// smart contracts
+// monitors org management related events happening via smart contracts
+// and updates cache accordingly
 func (p *PermissionCtrl) manageOrgPermissions() {
 
 	chPendingApproval := make(chan *pbind.OrgManagerOrgPendingApproval, 1)
@@ -361,7 +361,8 @@ func (p *PermissionCtrl) manageNodePermissions() {
 	}
 }
 
-// Populates the new node information into the permissioned-nodes.json file
+// updates node information in the permissioned-nodes.json file based on node
+// management activities in smart contract
 func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeOperation) {
 	log.Debug("updatePermissionedNodes", "DataDir", p.dataDir, "file", params.PERMISSIONED_CONFIG)
 
@@ -524,7 +525,7 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 	}
 }
 
-// Thus function checks if the its the initial network boot up status and if no
+// Thus function checks if the initial network boot up status and if no
 // populates permissioning model with details from permission-config.json
 func (p *PermissionCtrl) populateInitPermissions() error {
 	auth := bind.NewKeyedTransactor(p.key)

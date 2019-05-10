@@ -8,6 +8,8 @@ contract PermissionsUpgradable {
     address private permImpl;
     address private permInterface;
 
+    // sets the custodian account as part of constructor
+    // only this account will be able to change the implementation contract address
     constructor (address _custodian) public
     {
         custodian = _custodian;
@@ -18,6 +20,7 @@ contract PermissionsUpgradable {
         _;
     }
 
+    // executed by custodian, links interface and implementation contract addresses
     function init(address _permInterface, address _permImpl) external
     onlyCustodian
     {

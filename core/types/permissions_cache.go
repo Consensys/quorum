@@ -188,7 +188,6 @@ func (pc *PermissionConfig) IsEmpty() bool {
 	return pc.InterfAddress == common.HexToAddress("0x0") || pc.NodeAddress == common.HexToAddress("0x0") || pc.AccountAddress == common.HexToAddress("0x0")
 }
 
-// sets default access to ReadOnly
 func SetSyncStatus() {
 	syncStarted = true
 }
@@ -197,12 +196,10 @@ func GetSyncStatus() bool {
 	return syncStarted
 }
 
-// sets default access to ReadOnly
-func SetDefaultAccess() {
+// sets default access to readonly and initializes the values for
+// network admin role and org admin role
+func SetDefaults(nwRoleId, oaRoleId string) {
 	DefaultAccess = ReadOnly
-}
-
-func SetAdminRole(nwRoleId, oaRoleId string) {
 	networkAdminRole = nwRoleId
 	orgAdminRole = oaRoleId
 }

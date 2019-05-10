@@ -2,7 +2,6 @@ pragma solidity ^0.5.3;
 
 import "./PermissionsUpgradable.sol";
 
-
 contract NodeManager {
     PermissionsUpgradable private permUpgradable;
     // enum and struct declaration
@@ -36,6 +35,7 @@ contract NodeManager {
     // node permission events for node blacklist
     event NodeBlacklisted(string _enodeId, string _orgId);
 
+    // checks if the caller is implementation contracts
     modifier onlyImpl
     {
         require(msg.sender == permUpgradable.getPermImpl());
@@ -56,6 +56,7 @@ contract NodeManager {
         _;
     }
 
+    // constructor. sets the upgradable address
     constructor (address _permUpgradable) public {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
@@ -66,11 +67,13 @@ contract NodeManager {
         uint nodeIndex = getNodeIndex(enodeId);
         return (nodeList[nodeIndex].orgId, nodeList[nodeIndex].enodeId, nodeList[nodeIndex].status);
     }
+
     // Get node details given index
     function getNodeDetailsFromIndex(uint nodeIndex) public view returns (string memory _orgId, string memory _enodeId, uint _nodeStatus)
     {
         return (nodeList[nodeIndex].orgId, nodeList[nodeIndex].enodeId, nodeList[nodeIndex].status);
     }
+
     // Get number of nodes
     function getNumberOfNodes() public view returns (uint)
     {
@@ -85,7 +88,8 @@ contract NodeManager {
         }
         return nodeList[getNodeIndex(_enodeId)].status;
     }
-    //TODO - can the duplicacy in next 3 functions removed?
+
+    // called at the time of initialization for adding admin nodes
     function addAdminNode(string calldata _enodeId, string calldata _orgId) external
     onlyImpl
     enodeNotInList(_enodeId)
@@ -94,7 +98,9 @@ contract NodeManager {
         nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
         nodeList.push(NodeDetails(_enodeId, _orgId, 2));
     }
-    // TODO: addNode should be external
+
+    // called at the time of new org creation. will need approval for the node to be
+    // part of the network
     function addNode(string memory _enodeId, string memory _orgId) public
     onlyImpl
     enodeNotInList(_enodeId)
@@ -105,6 +111,7 @@ contract NodeManager {
         emit NodeProposed(_enodeId, _orgId);
     }
 
+    // can be called by org admins to add new nodes to the org or sub orgs
     function addOrgNode(string calldata _enodeId, string calldata _orgId) external
     onlyImpl
     enodeNotInList(_enodeId)
@@ -115,7 +122,7 @@ contract NodeManager {
         emit NodeApproved(_enodeId, _orgId);
     }
 
-    // Adds a node to the nodeList mapping and emits node added event if successfully and node exists event of node is already present
+    // updates the node status to approved and emits the event
     function approveNode(string memory _enodeId, string memory _orgId) public
     onlyImpl
     enodeInList(_enodeId)
@@ -129,6 +136,8 @@ contract NodeManager {
         emit NodeApproved(nodeList[nodeIndex].enodeId, nodeList[nodeIndex].orgId);
     }
 
+    // updates the node status. Used for deactivating or blacklisting a node and reactivating
+    // a deactivated node
     function updateNodeStatus(string calldata _enodeId, string calldata _orgId, uint _status) external
     onlyImpl
     enodeInList(_enodeId)
@@ -156,12 +165,14 @@ contract NodeManager {
     }
 
     /* private functions */
+    // returs the node index for given node id
     function getNodeIndex(string memory _enodeId) internal view
     returns (uint)
     {
         return nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] - 1;
     }
 
+    // checks if the node is linked to the passed org
     function checkOrg(string memory _enodeId, string memory _orgId) internal view
     returns (bool)
     {
