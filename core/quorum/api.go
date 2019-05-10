@@ -310,9 +310,13 @@ func (s *QuorumControlsAPI) checkPendingOp(orgId string, pinterf *pbind.PermInte
 
 func (s *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) (ExecStatus, error) {
 	org := types.OrgInfoMap.GetOrg(orgId)
+
+	if org == nil {
+		return ErrOrgDoesNotExists, errors.New("org does not exist")
+	}
 	// check if its a master org. operation is allowed only if its a master org
 	if org.Level.Cmp(big.NewInt(1)) != 0 {
-		return ErrNotMasterOrg, errors.New("Org not a master org")
+		return ErrNotMasterOrg, errors.New("org not a master org")
 	}
 
 	if !((op == 3 && org.Status == types.OrgApproved) || (op == 5 && org.Status == types.OrgSuspended)) {
