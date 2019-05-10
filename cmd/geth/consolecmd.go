@@ -134,15 +134,7 @@ func remoteConsole(ctx *cli.Context) error {
 	}
 
 	token := ctx.GlobalString(utils.RPCClientToken.Name)
-	var client *rpc.Client
-	var err error
-
-	if token == "" {
-		client, err = dialRPC(endpoint)
-	} else {
-		client, err = dialRPCWithSecurity(endpoint, token)
-	}
-
+	client, err := dialRPC(endpoint, token)
 	if err != nil {
 		utils.Fatalf("Unable to attach to remote geth: %v", err)
 	}
@@ -153,13 +145,7 @@ func remoteConsole(ctx *cli.Context) error {
 		Preload: utils.MakeConsolePreloads(ctx),
 	}
 
-	var consl *console.Console
-	if token == "" {
-		consl, err = console.New(config)
-	} else {
-		consl, err = console.NewWithSecurity(config, token)
-	}
-
+	consl, err := console.New(config)
 	if err != nil {
 		utils.Fatalf("Failed to start the JavaScript console: %v", err)
 	}
@@ -177,24 +163,10 @@ func remoteConsole(ctx *cli.Context) error {
 	return nil
 }
 
-// dialRPCWithSecurity returns a RPC client which connects to the given endpoint.
-// The check for empty endpoint implements the defaulting logic
-// for "geth attach" and "geth monitor" with no argument.
-func dialRPCWithSecurity(endpoint string, token string) (*rpc.Client, error) {
-	if endpoint == "" {
-		endpoint = node.DefaultIPCEndpoint(clientIdentifier)
-	} else if strings.HasPrefix(endpoint, "rpc:") || strings.HasPrefix(endpoint, "ipc:") {
-		// Backwards compatibility with geth < 1.5 which required
-		// these prefixes.
-		endpoint = endpoint[4:]
-	}
-	return rpc.DialWithSecurity(endpoint, token)
-}
-
 // dialRPC returns a RPC client which connects to the given endpoint.
 // The check for empty endpoint implements the defaulting logic
 // for "geth attach" and "geth monitor" with no argument.
-func dialRPC(endpoint string) (*rpc.Client, error) {
+func dialRPC(endpoint string, accessToken string) (*rpc.Client, error) {
 	if endpoint == "" {
 		endpoint = node.DefaultIPCEndpoint(clientIdentifier)
 	} else if strings.HasPrefix(endpoint, "rpc:") || strings.HasPrefix(endpoint, "ipc:") {
@@ -202,7 +174,11 @@ func dialRPC(endpoint string) (*rpc.Client, error) {
 		// these prefixes.
 		endpoint = endpoint[4:]
 	}
-	return rpc.Dial(endpoint)
+	if accessToken == "" {
+		return rpc.Dial(endpoint)
+	} else {
+		return rpc.DialWithSecurity(endpoint, accessToken)
+	}
 }
 
 // ephemeralConsole starts a new geth node, attaches an ephemeral JavaScript

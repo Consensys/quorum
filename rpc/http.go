@@ -100,51 +100,33 @@ var DefaultHTTPTimeouts = HTTPTimeouts{
 	IdleTimeout:  120 * time.Second,
 }
 
-// DialHTTPWithClientSecurity creates a new RPC client that connects to an RPC server over HTTP
-// using the provided HTTP ClientId.
-func DialHTTPWithClientSecurity(endpoint string, token string, client *http.Client) (*Client, error) {
-	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("Accept", contentType)
-	req.Header.Set("Token", token)
-
-	initctx := context.Background()
-	initctx = context.WithValue(initctx, "Token", token)
-	return newClient(initctx, func(context.Context) (net.Conn, error) {
-		return &httpConn{client: client, req: req, closed: make(chan struct{})}, nil
-	})
-}
-
 // DialHTTPWithClient creates a new RPC client that connects to an RPC server over HTTP
 // using the provided HTTP ClientId.
-func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
+func DialHTTPWithClient(ctx context.Context, endpoint string, client *http.Client) (*Client, error) {
 	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Accept", contentType)
+	if accessToken, ok := ctx.Value(ctxAccessTokenKey).(string); ok {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	}
 
-	initctx := context.Background()
-	return newClient(initctx, func(context.Context) (net.Conn, error) {
+	return newClient(ctx, func(context.Context) (net.Conn, error) {
 		return &httpConn{client: client, req: req, closed: make(chan struct{})}, nil
 	})
-}
-
-// DialHTTPWithSecurity creates a new RPC client that connects to an RPC server over HTTP.
-func DialHTTPWithSecurity(endpoint string, token string) (*Client, error) {
-	return DialHTTPWithClientSecurity(endpoint, token, new(http.Client))
 }
 
 // DialHTTP creates a new RPC client that connects to an RPC server over HTTP.
-func DialHTTP(endpoint string) (*Client, error) {
-	return DialHTTPWithClient(endpoint, new(http.Client))
+func DialHTTP(ctx context.Context, endpoint string) (*Client, error) {
+	return DialHTTPWithClient(ctx, endpoint, new(http.Client))
 }
 
 func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) error {
+	if c.accessToken != "" {
+		ctx = context.WithValue(ctx, ctxAccessTokenKey, c.accessToken)
+	}
 	hc := c.writeConn.(*httpConn)
 	respBody, err := hc.doRequest(ctx, msg)
 	if respBody != nil {
@@ -169,6 +151,9 @@ func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) e
 }
 
 func (c *Client) sendBatchHTTP(ctx context.Context, op *requestOp, msgs []*jsonrpcMessage) error {
+	if c.accessToken != "" {
+		ctx = context.WithValue(ctx, ctxAccessTokenKey, c.accessToken)
+	}
 	hc := c.writeConn.(*httpConn)
 	respBody, err := hc.doRequest(ctx, msgs)
 	if err != nil {
@@ -193,6 +178,9 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadClos
 	req := hc.req.WithContext(ctx)
 	req.Body = ioutil.NopCloser(bytes.NewReader(body))
 	req.ContentLength = int64(len(body))
+	if accessToken, ok := ctx.Value(ctxAccessTokenKey).(string); ok {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	}
 
 	resp, err := hc.client.Do(req)
 	if err != nil {

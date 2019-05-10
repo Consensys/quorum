@@ -61,6 +61,8 @@ const (
 	// shrinks on demand. If the buffer reaches the size below, the subscription is
 	// dropped.
 	maxClientSubscriptionBuffer = 20000
+
+	ctxAccessTokenKey = "ACCESS_TOKEN"
 )
 
 // BatchElem is an element in a batch request.
@@ -127,6 +129,8 @@ type Client struct {
 	sendDone    chan error                     // signals write completion, releases write lock
 	respWait    map[string]*requestOp          // active requests
 	subs        map[string]*ClientSubscription // active subscriptions
+
+	accessToken string // OAuth2 access token
 }
 
 type requestOp struct {
@@ -155,31 +159,10 @@ func (op *requestOp) wait(ctx context.Context) (*jsonrpcMessage, error) {
 // For websocket connections, the origin is set to the local host name.
 //
 // The client reconnects automatically if the connection is lost.
-func DialWithSecurity(rawurl string, token string) (*Client, error) {
-	return DialContextWithSecurity(context.Background(), rawurl, token)
-}
-
-// DialContext creates a new RPC client, just like Dial.
-//
-// The context is used to cancel or time out the initial connection establishment. It does
-// not affect subsequent interactions with the client.
-func DialContextWithSecurity(ctx context.Context, rawurl string, token string) (*Client, error) {
-	u, err := url.Parse(rawurl)
-	if err != nil {
-		return nil, err
-	}
-	switch u.Scheme {
-	case "http", "https":
-		return DialHTTPWithSecurity(rawurl, token)
-	case "ws", "wss":
-		return DialWebsocketWithSecurity(ctx, rawurl, "", token)
-	case "stdio":
-		return DialStdIO(ctx)
-	case "":
-		return DialIPC(ctx, rawurl)
-	default:
-		return nil, fmt.Errorf("no known transport for URL scheme %q", u.Scheme)
-	}
+func DialWithSecurity(rawurl string, accessToken string) (*Client, error) {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, ctxAccessTokenKey, accessToken)
+	return DialContext(ctx, rawurl)
 }
 
 // Dial creates a new client for the given URL.
@@ -207,7 +190,7 @@ func DialContext(ctx context.Context, rawurl string) (*Client, error) {
 	}
 	switch u.Scheme {
 	case "http", "https":
-		return DialHTTP(rawurl)
+		return DialHTTP(ctx, rawurl)
 	case "ws", "wss":
 		return DialWebsocket(ctx, rawurl, "")
 	case "stdio":
@@ -240,6 +223,9 @@ func newClient(initctx context.Context, connectFunc func(context.Context) (net.C
 		respWait:    make(map[string]*requestOp),
 		subs:        make(map[string]*ClientSubscription),
 	}
+	if accessToken, ok := initctx.Value(ctxAccessTokenKey).(string); ok {
+		c.accessToken = accessToken
+	}
 	if !isHTTP {
 		go c.dispatch(conn)
 	}
@@ -249,16 +235,6 @@ func newClient(initctx context.Context, connectFunc func(context.Context) (net.C
 func (c *Client) nextID() json.RawMessage {
 	id := atomic.AddUint32(&c.idCounter, 1)
 	return []byte(strconv.FormatUint(uint64(id), 10))
-}
-
-// SupportedModules calls the rpc_modules method, retrieving the list of
-// APIs that are available on the server.
-func (c *Client) SupportedModulesWithSecurity(token string) (map[string]string, error) {
-	var result map[string]string
-	ctx, cancel := context.WithTimeout(context.Background(), subscribeTimeout)
-	defer cancel()
-	err := c.CallContextWithSecurity(ctx, &result, "rpc_modules", token)
-	return result, err
 }
 
 // SupportedModules calls the rpc_modules method, retrieving the list of
@@ -308,25 +284,8 @@ func (c *Client) Call(result interface{}, method string, args ...interface{}) er
 //
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
-func (c *Client) CallContextWithSecurity(ctx context.Context, result interface{}, method string, token string, args ...interface{}) error {
-	return c.callContext(ctx, result, method, true, token, args...)
-}
-
-// CallContext performs a JSON-RPC call with the given arguments. If the context is
-// canceled before the call has successfully returned, CallContext returns immediately.
-//
-// The result must be a pointer so that package json can unmarshal into it. You
-// can also pass nil, in which case the result is ignored.
 func (c *Client) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
-	return c.callContext(ctx, result, method, false, "", args...)
-}
-
-func (c *Client) callContext(ctx context.Context, result interface{}, method string, withSecurity bool, token string, args ...interface{}) error {
 	msg, err := c.newMessage(method, args...)
-	if withSecurity {
-		msg.Token = token
-	}
-
 	if err != nil {
 		return err
 	}
@@ -494,6 +453,9 @@ func (c *Client) newMessage(method string, paramsIn ...interface{}) (*jsonrpcMes
 // send registers op with the dispatch loop, then sends msg on the connection.
 // if sending fails, op is deregistered.
 func (c *Client) send(ctx context.Context, op *requestOp, msg interface{}) error {
+	if c.accessToken != "" {
+		ctx = context.WithValue(ctx, ctxAccessTokenKey, c.accessToken)
+	}
 	select {
 	case c.requestOp <- op:
 		log.Trace("", "msg", log.Lazy{Fn: func() string {
