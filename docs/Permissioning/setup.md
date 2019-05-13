@@ -4,7 +4,7 @@ The steps to enable new permissions model are as described below:
 * Deploy the `PermissionsUpgradable.sol` in the network. The deployment of this contract will require a custodian account to be given as a part of deployment. 
 * Deploy the rest of the contracts. All the other contracts will require the address of `PermissionsUpgradable.sol` contract as a part of deployment.
 * Once all the contracts are deployed create a file `permission-config.json` which will have the following construct:
-```$xslt
+```json
 {
            "upgradableAddress": "0x1932c48b2bf8102ba33b4a6b545c32236e342f34",
            "interfaceAddress": "0x4d3bfd7821e237ffe84209d8e638f9f309865b87",
@@ -38,12 +38,11 @@ The steps to enable new permissions model are as described below:
 > * `subOrgDepth` indicates the maximum depth of sub org hierarchy allowed in the network
 
 * Once the contracts are deployed `init` in `PermissionsUpgradable.sol` need to be executed by the custodian account. This will link the interface and implementation contracts. A sample script for loading the upgradable contract at `geth` prompt is as given below
-```$xslt
+```javascript
 ac = eth.accounts[0];
 web3.eth.defaultAccount = ac;
 var abi = [{"constant":true,"inputs":[],"name":"getPermImpl","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_proposedImpl","type":"address"}],"name":"confirmImplChange","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"getCustodian","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"getPermInterface","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_permInterface","type":"address"},{"name":"_permImpl","type":"address"}],"name":"init","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"_custodian","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"}];
-var upgr = web3.eth.contract(abi).at("0x1932c48b2bf8102ba33b4a6b545c32236e342f34"); // address of the upgradable contr
-acts
+var upgr = web3.eth.contract(abi).at("0x1932c48b2bf8102ba33b4a6b545c32236e342f34"); // address of the upgradable contracts
 var impl = "0xfe0602d820f42800e3ef3f89e1c39cd15f78d283" // address of the implementation contracts
 var intr = "0x4d3bfd7821e237ffe84209d8e638f9f309865b87" // address of the interface contracts
 ```

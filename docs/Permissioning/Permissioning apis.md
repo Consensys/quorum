@@ -175,10 +175,11 @@ quorumPermission.approveOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641
 ```
 #### quorumPermission.updateOrgStatus
 This api can only be executed by a network admin account and is used for temporarily suspending an organization or re-enabling a suspended organization. This activity can be performed for master organization only and requires majority approval from network admins.
+
 * Input: organization id, action (1 for suspending the organization and 2 for activating a suspended organization)
 * Output: Status of the operation
 * Example:
-```$xslt
+```
 > quorumPermission.updateOrgStatus("ABC", 1, {from:eth.accounts[0]})
 {
   msg: "Action completed successfully",
@@ -190,7 +191,7 @@ This api can only be executed by a network admin account and is used for approvi
 * Input: organization id, action (1 for suspending the organization and 2 for activating a suspended organization)
 * Output: Status of the operation
 * Example:
-```$xslt
+```
 > quorumPermission.approveOrgStatus("ABC", 1, {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
@@ -227,6 +228,7 @@ It should be noted that, parent org id should contain the complete org hierarchy
 ```
 #### quorumPermission.addNewRole
 This api can be executed by an organization admin account to create a new role for the organization.
+
 * Input: organization id or sub organization id, alphanumeric role id, account access ([access values](#account-access-types))(, isVoter, isAdminRole
 * Output: Status of the operation
 * Example:
@@ -244,6 +246,7 @@ This api can be executed by an organization admin account to create a new role f
 ```
 #### quorumPermission.removeRole
 This api can be executed by an organization admin account to create a new role for the organization.
+
 * Input: organization id or sub organization id, role id
 * Output: Status of the operation
 * Example:
@@ -256,6 +259,7 @@ This api can be executed by an organization admin account to create a new role f
 ```
 #### quorumPermission.addAccountToOrg
 This api can be executed by an organization admin to add an account to an organization and assign a role to the account
+
 * Input: Account id, organization id or sub organization id, role to be assigned
 * Output: Status of the operation
 * Example:
@@ -267,7 +271,7 @@ This api can be executed by an organization admin to add an account to an organi
 }
 ```
 The account can at best be linked to a single organization or sub organization and cannot belong to multiple organizations or sub organizations
-```$xslt
+```
 > quorumPermission.assignAccountRole("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC.SUB1", "TRANSACT", {from: eth.accounts[1]})
 {
   msg: "Account already in use in another organization",
@@ -276,6 +280,7 @@ The account can at best be linked to a single organization or sub organization a
 ```
 #### quorumPermission.changeAccountRole
 This api can be executed by an organization admin account to assign a role to an account.
+
 * Input: Account id, organization id or sub organization id, role to be assigned
 * Output: Status of the operation
 * Example:
@@ -289,6 +294,7 @@ This api can be executed by an organization admin account to assign a role to an
 
 #### quorumPermission.updateAccountStatus
 This api can be executed by an organization admin account to update the account status.
+
 * Input:  organization id or sub organization id, Account id, action (1 for suspending the account, 2 for activating a suspended account, 3 for blacklisting the account)
 * Output: Status of the operation
 * Example:
@@ -302,7 +308,8 @@ This api can be executed by an organization admin account to update the account 
 Once a account is blacklisted no further action is allowed on it.
 
 #### quorumPermission.assignAdminRole
-This api can be executed by the network admin to add a new account as network admin or change the org admin account for an organization. 
+This api can be executed by the network admin to add a new account as network admin or change the org admin account for an organization.
+
 * Input: organization id to which the account belongs, account id, role id (it can be either org admin role or network admin role)
 * Output: Status of the operation
 * Example:
@@ -316,6 +323,7 @@ This api can be executed by the network admin to add a new account as network ad
 
 #### quorumPermission.approveAdminRole 
 This api can be executed by the network admin to approve the organization admin or network admin role assignment to an account. The role is approved once majority approval is received.
+
 * Input: organization id to which the account belongs, account id
 * Output: Status of the operation
 * Example:
@@ -330,6 +338,7 @@ This api can be executed by the network admin to approve the organization admin 
 
 #### quorumPermission.addNode
 This api can be executed by the organization admin account to add a node to the organization or sub organization.
+
 * Input:  organization id or sub organization id, enode id
 * Output: Status of the operation
 * Example:
@@ -344,6 +353,7 @@ A node cannot be part of multiple organizations.
 
 #### quorumPermission.updateNodeStatus
 This api can be executed by the organization admin account to update the status of a node.
+
 * Input:  organization id or sub organization id, enode id, action (1 for deactivating the node, 2 for activating a deactivated node and 3 for blacklisting a node)
 * Output: Status of the operation
 * Example:
@@ -381,7 +391,7 @@ The table below indicates the numeric value for various account statuses.
 | Blacklisted     |               5 |
 | Revoked         |               6 |
 
-#### Account access types
+### Account access types
 The table below indicates the numeric value for each account access type.
 
 | AccessType      |           Value |

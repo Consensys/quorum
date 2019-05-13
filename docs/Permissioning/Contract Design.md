@@ -3,6 +3,7 @@ The permissions model is completely built on smart contracts. The smart contract
 ![contract design](images/ContractDesign.png)
 
 The permissions smart contract design follows the Proxy-Implementation-Storage pattern which allows the implementation logic to change without changing the storage or interface layer. A brief description of the smart contracts is below:
+
 * `PermissionsUpgradable.sol`: This contract stores the address of current implementation contract and is owned by a custodian (an Ethereum account). Only the custodian is allowed to change the implementation contract address. 
 * `PermissionsInterface.sol`: This is the interface contract and holds the interfaces for permissions related actions. It has no business logic and forwards requests to the current implementation contract
 * `PermissionsImplementation.sol`: This contract has the business logic for the permissions actions. It can receive requests only from a valid interface as defined in `PermissionsUpgradable.sol` and interacts with all the storage contracts for respective actions.
