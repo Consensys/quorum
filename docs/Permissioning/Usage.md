@@ -7,6 +7,90 @@ This section describes the usage of permission model for creation of a network, 
 * [Assigning admin privileges at organization and network level](#assigning-admin-privileges-at-organization-and-network-level)
 
 ### Initial network set up
+Please refer to [set up](./setup.md). For an existing network running in older version of Quorum, 
+* Deploy the contracts 
+* Execute the `init` method of `PermissionsUpgradable.sol` from the custodian account
+* Upgrade Quorum to latest version 
+* Copy the `permission-config.json`  to each nodes data directory  
+* Bring `geth` up in `--permissioned` mode.
+
+For new network starting in the latest version of Quorum
+* Bring up the initial set of nodes 
+* Deploy the contracts 
+* Execute the `init` method of `PermissionsUpgradable.sol` from the custodian account
+* Upgrade Quorum to latest version 
+* Copy the `permission-config.json`  to each nodes data directory  
+* Bring `geth` up in `--permissioned` mode.
+
+As part of network initialization, 
+* A network admin organization having a name as given for `nwAdminOrg` in `permission-config.json` is created. All nodes which are part of `static-nodes.json` are assigned to this organization. 
+* A network admin role having a name as given for `nwAdminRole` in the config file is created. 
+* All accounts given in the `accounts` array of the config file are assigned the network admin role. These accounts  will have ability to propose and approve new organizations into the network
+
+Assuming that the network was brought with the `permission-config.json` as given in the [set uo](./setup.md) and assuming the network was brought up with a `static-nodes.json` file as given below
+```$xslt
+[
+	"enode://72c0572f7a2492cffb5efc3463ef350c68a0446402a123dacec9db5c378789205b525b3f5f623f7548379ab0e5957110bffcf43a6115e450890f97a9f65a681a@127.0.0.1:21000?discport=0",
+	"enode://7a1e3b5c6ad614086a4e5fb55b6fe0a7cf7a7ac92ac3a60e6033de29df14148e7a6a7b4461eb70639df9aa379bd77487937bea0a8da862142b12d326c7285742@127.0.0.1:21001?discport=0",
+	"enode://5085e86db5324ca4a55aeccfbb35befb412def36e6bc74f166102796ac3c8af3cc83a5dec9c32e6fd6d359b779dba9a911da8f3e722cb11eb4e10694c59fd4a1@127.0.0.1:21002?discport=0",
+	"enode://28a4afcf56ee5e435c65b9581fc36896cc684695fa1db83c9568de4353dc6664b5cab09694d9427e9cf26a5cd2ac2fb45a63b43bb24e46ee121f21beb3a7865e@127.0.0.1:21003?discport=0"
+]
+```
+the network view once the network is up is as shown below:
+```$xslt
+> quorumPermission.orgList
+[{
+    fullOrgId: "ADMINORG",
+    level: 1,
+    orgId: "ADMINORG",
+    parentOrgId: "",
+    status: 2,
+    subOrgList: null,
+    ultimateParent: "ADMINORG"
+}]
+> quorumPermission.getOrgDetails("ADMINORG")
+{
+  acctList: [{
+      acctId: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
+      isOrgAdmin: true,
+      orgId: "ADMINORG",
+      roleId: "ADMIN",
+      status: 2
+  }, {
+      acctId: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e",
+      isOrgAdmin: true,
+      orgId: "ADMINORG",
+      roleId: "ADMIN",
+      status: 2
+  }],
+  nodeList: [{
+      orgId: "ADMINORG",
+      status: 2,
+      url: "enode://72c0572f7a2492cffb5efc3463ef350c68a0446402a123dacec9db5c378789205b525b3f5f623f7548379ab0e5957110bffcf43a6115e450890f97a9f65a681a@127.0.0.1:21000?discport=0"
+  }, {
+      orgId: "ADMINORG",
+      status: 2,
+      url: "enode://7a1e3b5c6ad614086a4e5fb55b6fe0a7cf7a7ac92ac3a60e6033de29df14148e7a6a7b4461eb70639df9aa379bd77487937bea0a8da862142b12d326c7285742@127.0.0.1:21001?discport=0"
+  }, {
+      orgId: "ADMINORG",
+      status: 2,
+      url: "enode://5085e86db5324ca4a55aeccfbb35befb412def36e6bc74f166102796ac3c8af3cc83a5dec9c32e6fd6d359b779dba9a911da8f3e722cb11eb4e10694c59fd4a1@127.0.0.1:21002?discport=0"
+  }, {
+      orgId: "ADMINORG",
+      status: 2,
+      url: "enode://28a4afcf56ee5e435c65b9581fc36896cc684695fa1db83c9568de4353dc6664b5cab09694d9427e9cf26a5cd2ac2fb45a63b43bb24e46ee121f21beb3a7865e@127.0.0.1:21003?discport=0"
+  }],
+  roleList: [{
+      access: 3,
+      active: true,
+      isAdmin: true,
+      isVoter: true,
+      orgId: "ADMINORG",
+      roleId: "ADMIN"
+  }],
+  subOrgList: null
+}
+```
 
 ### Proposing a new organization into the network
 
