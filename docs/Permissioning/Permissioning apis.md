@@ -36,6 +36,7 @@ Please click [here](#organization-status-types) for the complete list of organiz
     status: 2
 }]
 ```
+Please click [here](#account-status-types) for the complete list of account statuses.
 #### quorumPermission.nodeList 
 * Input: None
 * Output: Returns the list of all nodes across organizations 
@@ -60,6 +61,8 @@ Please click [here](#organization-status-types) for the complete list of organiz
     url: "enode://28a4afcf56ee5e435c65b9581fc36896cc684695fa1db83c9568de4353dc6664b5cab09694d9427e9cf26a5cd2ac2fb45a63b43bb24e46ee121f21beb3a7865e@127.0.0.1:21003?discport=0"
 }]
 ```
+Please click [here](#node-status-types) for the complete list of node statuses.
+
 #### quorumPermission.roleList 
 * Input: None
 * Output: Returns the list of all roles across organizations and their details
@@ -75,6 +78,8 @@ Please click [here](#organization-status-types) for the complete list of organiz
     roleId: "NWADMIN"
 }]
 ```
+Please click [here](#account-access-types) for the complete list of different values of account access.
+
 #### quorumPermission.getOrgDetails 
 This returns the list of accounts, nodes, roles, and sub organizations linked to an organization
 * Input: organization id or sub organization id
@@ -170,11 +175,11 @@ quorumPermission.approveOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641
 ```
 #### quorumPermission.updateOrgStatus
 This api can only be executed by a network admin account and is used for temporarily suspending an organization or re-enabling a suspended organization. This activity can be performed for master organization only and requires majority approval from network admins.
-* Input: organization id, action (3 for suspending the organization and 5 for re-enabling the suspended organization)
+* Input: organization id, action (1 for suspending the organization and 2 for activating a suspended organization)
 * Output: Status of the operation
 * Example:
 ```$xslt
-> quorumPermission.updateOrgStatus("ABC.SUB1", 3, {from:eth.accounts[0]})
+> quorumPermission.updateOrgStatus("ABC", 1, {from:eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
@@ -182,11 +187,11 @@ This api can only be executed by a network admin account and is used for tempora
 ```
 #### quorumPermission.approveOrgStatus
 This api can only be executed by a network admin account and is used for approving the org status change proposal.  Once majority approval is received from network admins, the org status is updated.
-* Input: organization id, action (3 for suspending the organization and 5 for re-enabling the suspended organization)
+* Input: organization id, action (1 for suspending the organization and 2 for activating a suspended organization)
 * Output: Status of the operation
 * Example:
 ```$xslt
-> quorumPermission.approveOrgStatus("ABC", 3, {from: eth.accounts[0]})
+> quorumPermission.approveOrgStatus("ABC", 1, {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
@@ -222,7 +227,7 @@ It should be noted that, parent org id should contain the complete org hierarchy
 ```
 #### quorumPermission.addNewRole
 This api can be executed by an organization admin account to create a new role for the organization.
-* Input: organization id or sub organization id, alphanumeric role id, account access (can be 0 - ReadOnly, 1 - Transact, 2 - ContractDeploy, 3 - FullAccess), isVoter, isAdminRole
+* Input: organization id or sub organization id, alphanumeric role id, account access ([access values](#account-access-types))(, isVoter, isAdminRole
 * Output: Status of the operation
 * Example:
 ```
@@ -339,7 +344,7 @@ A node cannot be part of multiple organizations.
 
 #### quorumPermission.updateNodeStatus
 This api can be executed by the organization admin account to update the status of a node.
-* Input:  organization id or sub organization id, enode id, action (3 for deactivating the node, 4 for activating a deactivated node and 5 for blacklisting a node)
+* Input:  organization id or sub organization id, enode id, action (1 for deactivating the node, 2 for activating a deactivated node and 3 for blacklisting a node)
 * Output: Status of the operation
 * Example:
 ```
@@ -363,6 +368,18 @@ The table below indicates the numeric value for various organization statuses.
 | Suspended                 |               4 |
 | AwaitingSuspensionRevoke  |               5 |
 
+### Account status types
+The table below indicates the numeric value for various account statuses.
+
+| AccountStatus   |           Value |
+| :-------------: | :-------------: |
+| NotInList       |               0 |
+| PendingApproval |               1 |
+| Active          |               2 |
+| Inactive        |               3 |
+| Suspended       |               4 |
+| Blacklisted     |               5 |
+| Revoked         |               6 |
 
 #### Account access types
 The table below indicates the numeric value for each account access type.
@@ -379,20 +396,6 @@ When setting the account access, the system checks if the account setting the ac
 * Accounts with `ContractDeploy` can grant only `Transact`, `ContractDeploy` or `ReadOnly` access to other accounts
 * Accounts with `Transact` access can grant only `Transact` or `ReadOnly` access to other accounts
 * Accounts with `ReadOnly` access cannot grant any access
-
-### Account status types
-The table below indicates the numeric value for various account statuses.
-
-| AccountStatus   |           Value |
-| :-------------: | :-------------: |
-| NotInList       |               0 |
-| PendingApproval |               1 |
-| Active          |               2 |
-| Inactive        |               3 |
-| Suspended       |               4 |
-| Blacklisted     |               5 |
-| Revoked         |               6 |
-
 
 ### Node Status types
 The table below indicates the numeric value for various node statuses.
