@@ -95,7 +95,76 @@ the network view once the network is up is as shown below:
 ### Proposing a new organization into the network
 Once the network is up, the network admin accounts can then propose a new organization into the network. Majority approval from the network admin accounts is required before an organization is approved. The APIs for [proposing](./Permissioning%20apis.md#quorumpermissionaddorg) and [approving](./Permissioning%20apis.md#quorumpermissionapproveorg) an organization are documented in [permission APIs](./Permissioning%20apis.md)
 
-
+A sample example to propose and approve an organization by name `ORG1` is as shown below:
+```$xslt
+> quorumPermission.addOrg("ORG1", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+Once the org is proposed, it will be in `Proposed` state awaiting approval from other network admin accounts. The org status is as shown below:
+```$xslt
+> quorumPermission.orgList[1]
+{
+  fullOrgId: "ORG1",
+  level: 1,
+  orgId: "ORG1",
+  parentOrgId: "",
+  status: 1,
+  subOrgList: null,
+  ultimateParent: "ORG1"
+}
+```
+The network admin accounts can then approve the proposed organizations and once the majority approval is achieved, the organization status is updated as `Approved`
+```$xslt
+> quorumPermission.approveOrg("ORG1", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.orgList[1]
+{
+  fullOrgId: "ORG1",
+  level: 1,
+  orgId: "ORG1",
+  parentOrgId: "",
+  status: 2,
+  subOrgList: null,
+  ultimateParent: "ORG1"
+}
+```
+The details of the new organization approved are as below:
+```$xslt
+> quorumPermission.getOrgDetails("ORG1")
+{
+  acctList: [{
+      acctId: "0x0638e1574728b6d862dd5d3a3e0942c3be47d996",
+      isOrgAdmin: true,
+      orgId: "ORG1",
+      roleId: "ORGADMIN",
+      status: 2
+  }],
+  nodeList: [{
+      orgId: "ORG1",
+      status: 2,
+      url: "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0"
+  }],
+  roleList: [{
+      access: 3,
+      active: true,
+      isAdmin: true,
+      isVoter: true,
+      orgId: "ORG1",
+      roleId: "ORGADMIN"
+  }],
+  subOrgList: null
+}
+```
+The new node belonging to the organization can now join the network. In case the network is running in Raft consensus mode, before the node joins the network, please ensure that:
+*  The node has been added as a peer using `raft.addPeer(<<enodeId>>)`
+*  Bring up `geth` for the new node using `--raftjoinexisting` giving the peer id as obtained in the above step
+ 
 ### Organization admin managing the organization level permissions
 
 ### Suspending an organization temporarily
