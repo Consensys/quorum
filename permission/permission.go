@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	pbind "github.com/ethereum/go-ethereum/permission/bind/permission"
+	pbind "github.com/ethereum/go-ethereum/permission/bind"
 	"github.com/ethereum/go-ethereum/raft"
 	"io/ioutil"
 	"math/big"
@@ -104,7 +104,7 @@ func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	fileName := "permission-config.json"
 	fullPath := filepath.Join(dir, fileName)
 	if _, err := os.Stat(fullPath); err != nil {
-		log.Warn("permission-config.json file is missing", err)
+		log.Warn("permission-config.json file is missing", "err", err)
 		return types.PermissionConfig{}, err
 	}
 

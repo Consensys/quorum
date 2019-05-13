@@ -74,19 +74,19 @@ contract PermissionsInterface {
     }
 
     // function for adding a new master org
-    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account) external
+    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId) external
     {
-        permImplementation.addSubOrg(_pOrg, _orgId, _enodeId, _account, msg.sender);
+        permImplementation.addSubOrg(_pOrg, _orgId, _enodeId, msg.sender);
     }
 
-    function updateOrgStatus(string calldata _orgId, uint _status) external
+    function updateOrgStatus(string calldata _orgId, uint _action) external
     {
-        permImplementation.updateOrgStatus(_orgId, _status, msg.sender);
+        permImplementation.updateOrgStatus(_orgId, _action, msg.sender);
     }
 
-    function approveOrgStatus(string calldata _orgId, uint _status) external
+    function approveOrgStatus(string calldata _orgId, uint _action) external
     {
-        permImplementation.approveOrgStatus(_orgId, _status, msg.sender);
+        permImplementation.approveOrgStatus(_orgId, _action, msg.sender);
     }
 
     // Role related functions
@@ -129,9 +129,9 @@ contract PermissionsInterface {
 
     }
 
-    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, uint _status) external
+    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, uint _action) external
     {
-        permImplementation.updateNodeStatus(_orgId, _enodeId, _status, msg.sender);
+        permImplementation.updateNodeStatus(_orgId, _enodeId, _action, msg.sender);
     }
 
     function isNetworkAdmin(address _account) public view returns (bool)

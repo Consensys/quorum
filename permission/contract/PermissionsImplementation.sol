@@ -155,47 +155,47 @@ contract PermissionsImplementation {
     }
 
     // function for adding a new sub org under a master org or another sub org
-    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _account, address _caller) external
+    function addSubOrg(string calldata _pOrg, string calldata _orgId, string calldata _enodeId, address _caller) external
+    onlyProxy
     orgExists(_pOrg)
     orgAdmin(_caller, _pOrg)
     {
         org.addSubOrg(_pOrg, _orgId);
         string memory pid = string(abi.encodePacked(_pOrg, ".", _orgId));
         if (bytes(_enodeId).length > 0) {
-            nodes.addNode(_enodeId, pid);
-        }
-        if (_account != address(0)) {
-            require(validateAccount(_account, pid) == true, "Operation cannot be performed");
-            accounts.assignAccountRole(_account, pid, orgAdminRole, true);
+            nodes.addOrgNode(_enodeId, pid);
         }
     }
 
     // function to update the org status
-    function updateOrgStatus(string calldata _orgId, uint _status, address _caller) external
+    function updateOrgStatus(string calldata _orgId, uint _action, address _caller) external
     onlyProxy
     networkAdmin(_caller)
     {
         uint pendingOp;
-        pendingOp = org.updateOrg(_orgId, _status);
+        pendingOp = org.updateOrg(_orgId, _action);
         voter.addVotingItem(adminOrg, _orgId, "", address(0), pendingOp);
     }
 
     // function to approve the org status update
-    function approveOrgStatus(string calldata _orgId, uint _status, address _caller) external
+    function approveOrgStatus(string calldata _orgId, uint _action, address _caller) external
     onlyProxy
     networkAdmin(_caller)
     {
-        require((_status == 3 || _status == 5), "Operation not allowed");
+        require((_action == 1 || _action == 2), "Operation not allowed");
         uint pendingOp;
-        if (_status == 3) {
+        uint orgStatus;
+        if (_action == 1) {
             pendingOp = 2;
+            orgStatus = 3;
         }
-        else if (_status == 5) {
+        else if (_action == 2) {
             pendingOp = 3;
+            orgStatus = 5;
         }
-        require(checkOrgStatus(_orgId, _status) == true, "Operation not allowed");
+        require(checkOrgStatus(_orgId, orgStatus) == true, "Operation not allowed");
         if ((processVote(adminOrg, _caller, pendingOp))) {
-            org.approveOrgStatusUpdate(_orgId, _status);
+            org.approveOrgStatusUpdate(_orgId, _action);
         }
     }
 
@@ -284,11 +284,11 @@ contract PermissionsImplementation {
     }
 
     // function to udpate node status
-    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, uint _status, address _caller) external
+    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, uint _action, address _caller) external
     onlyProxy
     orgAdmin(_caller, _orgId)
     {
-        nodes.updateNodeStatus(_enodeId, _orgId, _status);
+        nodes.updateNodeStatus(_enodeId, _orgId, _action);
     }
 
     //    Get network boot status

@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	pbind "github.com/ethereum/go-ethereum/permission/bind/permission"
+	pbind "github.com/ethereum/go-ethereum/permission/bind"
 	"math/big"
 	"regexp"
 )
@@ -89,7 +89,7 @@ type txArgs struct {
 	isAdmin    bool
 	acctId     common.Address
 	accessType uint8
-	status     uint8
+	action     uint8
 	voter      common.Address
 	morgId     string
 	tmKey      string
@@ -210,8 +210,8 @@ func (s *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address
 	return s.executePermAction(AddOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
 }
 
-func (s *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(AddSubOrg, txArgs{porgId: porgId, orgId: orgId, url: url, acctId: acct, txa: txa})
+func (s *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executePermAction(AddSubOrg, txArgs{porgId: porgId, orgId: orgId, url: url, txa: txa})
 }
 
 func (s *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
@@ -219,7 +219,7 @@ func (s *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Add
 }
 
 func (s *QuorumControlsAPI) UpdateOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(UpdateOrgStatus, txArgs{orgId: orgId, status: status, txa: txa})
+	return s.executePermAction(UpdateOrgStatus, txArgs{orgId: orgId, action: status, txa: txa})
 }
 
 func (s *QuorumControlsAPI) AddNode(orgId string, url string, txa ethapi.SendTxArgs) ExecStatus {
@@ -227,11 +227,11 @@ func (s *QuorumControlsAPI) AddNode(orgId string, url string, txa ethapi.SendTxA
 }
 
 func (s *QuorumControlsAPI) UpdateNodeStatus(orgId string, url string, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(UpdateNodeStatus, txArgs{orgId: orgId, url: url, status: status, txa: txa})
+	return s.executePermAction(UpdateNodeStatus, txArgs{orgId: orgId, url: url, action: status, txa: txa})
 }
 
 func (s *QuorumControlsAPI) ApproveOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(ApproveOrgStatus, txArgs{orgId: orgId, status: status, txa: txa})
+	return s.executePermAction(ApproveOrgStatus, txArgs{orgId: orgId, action: status, txa: txa})
 }
 
 func (s *QuorumControlsAPI) AssignAdminRole(orgId string, acct common.Address, roleId string, txa ethapi.SendTxArgs) ExecStatus {
@@ -255,7 +255,7 @@ func (s *QuorumControlsAPI) AssignAccountRole(acct common.Address, orgId string,
 }
 
 func (s *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Address, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(UpdateAccountStatus, txArgs{orgId: orgId, acctId: acct, status: status, txa: txa})
+	return s.executePermAction(UpdateAccountStatus, txArgs{orgId: orgId, acctId: acct, action: status, txa: txa})
 }
 
 // check if the account is network admin
@@ -319,7 +319,7 @@ func (s *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) (ExecStatus, 
 		return ErrNotMasterOrg, errors.New("org not a master org")
 	}
 
-	if !((op == 3 && org.Status == types.OrgApproved) || (op == 5 && org.Status == types.OrgSuspended)) {
+	if !((op == 1 && org.Status == types.OrgApproved) || (op == 2 && org.Status == types.OrgSuspended)) {
 		return ErrOpNotAllowed, errors.New("operation not allowed for current status")
 	}
 	return ExecSuccess, nil
@@ -348,11 +348,11 @@ func (s *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (Ex
 		}
 
 		// validate the op and node status and check if the op can be performed
-		if op != 3 && op != 4 && op != 5 {
+		if op != 1 && op != 2 && op != 3 {
 			return ErrOpNotAllowed, errors.New("invalid node status change operation")
 		}
 
-		if (op == 3 && node.Status != types.NodeApproved) || (op == 4 && node.Status != types.NodeDeactivated) {
+		if (op == 1 && node.Status != types.NodeApproved) || (op == 2 && node.Status != types.NodeDeactivated) {
 			return ErrOpNotAllowed, errors.New("node status change cannot be performed")
 		}
 	} else {
@@ -557,29 +557,22 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return execStatus
 		}
 
-		// check if account is already part of another org
-		if (args.acctId != common.Address{}) {
-			if execStatus, er := s.checkOrgAdminExists(args.orgId, "", args.acctId); er != nil {
-				return execStatus
-			}
-		}
-
-		tx, err = pinterf.AddSubOrg(args.porgId, args.orgId, args.url, args.acctId)
+		tx, err = pinterf.AddSubOrg(args.porgId, args.orgId, args.url)
 
 	case UpdateOrgStatus:
 		// check if called is network admin
 		if !s.isNetworkAdmin(args.txa.From) {
 			return ErrNotNetworkAdmin
 		}
-		if args.status != 3 && args.status != 5 {
+		if args.action != 1 && args.action != 2 {
 			return ErrOpNotAllowed
 		}
 		// check if status update can be performed. Org should be approved for suspension
-		if execStatus, er := s.checkOrgStatus(args.orgId, args.status); er != nil {
+		if execStatus, er := s.checkOrgStatus(args.orgId, args.action); er != nil {
 			return execStatus
 		}
 		// and in suspended state for suspension revoke
-		tx, err = pinterf.UpdateOrgStatus(args.orgId, big.NewInt(int64(args.status)))
+		tx, err = pinterf.UpdateOrgStatus(args.orgId, big.NewInt(int64(args.action)))
 
 	case ApproveOrgStatus:
 		// check if called is network admin
@@ -589,9 +582,9 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 		// check if anything is pending approval
 		var pendingOp int64
-		if args.status == 3 {
+		if args.action == 1 {
 			pendingOp = 2
-		} else if args.status == 5 {
+		} else if args.action == 2 {
 			pendingOp = 3
 		} else {
 			return ErrOpNotAllowed
@@ -601,7 +594,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 
 		// validate that status change is pending approval
-		tx, err = pinterf.ApproveOrgStatus(args.orgId, big.NewInt(int64(args.status)))
+		tx, err = pinterf.ApproveOrgStatus(args.orgId, big.NewInt(int64(args.action)))
 
 	case AddNode:
 		if args.url == "" {
@@ -626,12 +619,12 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 		}
 
 		// validation status change is with in allowed set
-		if execStatus, er := s.valNodeStatusChange(args.orgId, args.url, int64(args.status)); er != nil {
+		if execStatus, er := s.valNodeStatusChange(args.orgId, args.url, int64(args.action)); er != nil {
 			return execStatus
 		}
 
 		// check node status for operation
-		tx, err = pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.status)))
+		tx, err = pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.action)))
 
 	case AssignAdminRole:
 		if args.acctId == (common.Address{0}) {
@@ -746,11 +739,11 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 			return execStatus
 		}
 		// validation status change is with in allowed set
-		if execStatus, er := s.valAccountStatusChange(args.orgId, args.acctId, int64(args.status)); er != nil {
+		if execStatus, er := s.valAccountStatusChange(args.orgId, args.acctId, int64(args.action)); er != nil {
 			return execStatus
 		}
 
-		tx, err = pinterf.UpdateAccountStatus(args.orgId, args.acctId, big.NewInt(int64(args.status)))
+		tx, err = pinterf.UpdateAccountStatus(args.orgId, args.acctId, big.NewInt(int64(args.action)))
 	}
 
 	if err != nil {

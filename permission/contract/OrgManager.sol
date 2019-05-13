@@ -151,27 +151,27 @@ contract OrgManager {
 
     // updates the status of an org for master orgs. The new status
     // is valid once majority approval is achieved
-    function updateOrg(string calldata _orgId, uint _status) external
+    function updateOrg(string calldata _orgId, uint _action) external
     onlyImpl
     orgExists(_orgId)
     returns (uint)
     {
-        require((_status == 3 || _status == 5), "Operation not allowed");
+        require((_action == 1 || _action == 2), "Operation not allowed");
         uint id = getOrgIndex(_orgId);
         require(orgList[id].level == 1, "not a master org. operation not allowed");
 
         uint reqStatus;
         uint pendingOp;
-        if (_status == 3) {
+        if (_action == 1) {
             reqStatus = 2;
             pendingOp = 2;
         }
-        else if (_status == 5) {
+        else if (_action == 2) {
             reqStatus = 4;
             pendingOp = 3;
         }
         require(checkOrgStatus(_orgId, reqStatus) == true, "Operation not allowed");
-        if (_status == 3) {
+        if (_action == 1) {
             suspendOrg(_orgId);
         }
         else {
@@ -181,11 +181,11 @@ contract OrgManager {
     }
 
     // function to approve org status change
-    function approveOrgStatusUpdate(string calldata _orgId, uint _status) external
+    function approveOrgStatusUpdate(string calldata _orgId, uint _action) external
     onlyImpl
     orgExists(_orgId)
     {
-        if (_status == 3) {
+        if (_action == 1) {
             approveOrgSuspension(_orgId);
         }
         else {

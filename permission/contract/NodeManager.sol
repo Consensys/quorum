@@ -138,7 +138,7 @@ contract NodeManager {
 
     // updates the node status. Used for deactivating or blacklisting a node and reactivating
     // a deactivated node
-    function updateNodeStatus(string calldata _enodeId, string calldata _orgId, uint _status) external
+    function updateNodeStatus(string calldata _enodeId, string calldata _orgId, uint _action) external
     onlyImpl
     enodeInList(_enodeId)
     {
@@ -146,14 +146,14 @@ contract NodeManager {
         require(checkOrg(_enodeId, _orgId), "Node does not belong to the org");
         // changing node status to integer (0-NotInList, 1- PendingApproval, 2-Approved, 3-Deactivated, 4-Blacklisted)
         // operations that can be done 3-Deactivate Node, 4-ActivateNode, 5-Blacklist nodeList
-        require((_status == 3 || _status == 4 || _status == 5), "invalid operation");
+        require((_action == 1 || _action == 2 || _action == 3), "invalid operation");
 
-        if (_status == 3) {
+        if (_action == 1) {
             require(getNodeStatus(_enodeId) == 2, "Op cannot be performed");
             nodeList[getNodeIndex(_enodeId)].status = 3;
             emit NodeDeactivated(_enodeId, _orgId);
         }
-        else if (_status == 4) {
+        else if (_action == 2) {
             require(getNodeStatus(_enodeId) == 3, "Op cannot be performed");
             nodeList[getNodeIndex(_enodeId)].status = 2;
             emit NodeActivated(_enodeId, _orgId);
