@@ -343,12 +343,6 @@ func (s *Ethereum) APIs() []rpc.API {
 			Service:   quorum.NewQuorumControlsAPI(s.txPool, s.accountManager),
 			Public:    true,
 		},
-		{
-			Namespace: "quorumOrgMgmt",
-			Version:   "1.0",
-			Service:   quorum.NewQuorumControlsAPI(s.txPool, s.accountManager),
-			Public:    true,
-		},
 	}...)
 	return apis
 }

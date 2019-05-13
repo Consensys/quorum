@@ -293,10 +293,8 @@ func (s *QuorumControlsAPI) validateOrg(orgId, pOrgId string) (ExecStatus, error
 		if types.OrgInfoMap.GetOrg(locOrgId) != nil {
 			return ErrOrgExists, errors.New("org exists")
 		}
-	} else {
-		if types.OrgInfoMap.GetOrg(orgId) != nil {
-			return ErrOrgExists, errors.New("org exists")
-		}
+	} else if types.OrgInfoMap.GetOrg(orgId) != nil {
+		return ErrOrgExists, errors.New("org exists")
 	}
 	return ExecSuccess, nil
 }
@@ -334,10 +332,8 @@ func (s *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (Ex
 	if len(url) == 0 {
 		return ErrInvalidNode, errors.New("invalid node id")
 	}
-	if execStatus, err := s.valNodeDetails(url); err != nil {
-		if execStatus != ErrNodePresent {
-			return execStatus, errors.New("node not found")
-		}
+	if execStatus, err := s.valNodeDetails(url); err != nil && execStatus != ErrNodePresent {
+		return execStatus, errors.New("node not found")
 	}
 
 	node := types.NodeInfoMap.GetNodeByUrl(url)

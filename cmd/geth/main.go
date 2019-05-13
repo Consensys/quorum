@@ -137,7 +137,6 @@ var (
 		utils.EVMInterpreterFlag,
 		configFileFlag,
 		utils.EnableNodePermissionFlag,
-		utils.PermissionContractAddressFlag,
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,

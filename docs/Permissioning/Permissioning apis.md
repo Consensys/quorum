@@ -195,7 +195,7 @@ When an organization is in suspended status, no transactions or contract deploy 
 
 #### quorumPermission.addSubOrg 
 This api can be executed by a organization admin account to create a sub organization under the master org. 
-* Input: parent org id, sub organization id,  enode id (not mandatory and can be null), account id (not mandatory and can be 0x0)
+* Input: parent org id, alphanumeric sub organization id,  enode id (not mandatory and can be null), account id (not mandatory and can be 0x0)
 * Output: Status of the operation
 * Example:
 ```

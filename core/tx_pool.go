@@ -1333,8 +1333,6 @@ func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 	case types.Transact:
 		if toAcct == nil {
 			return errors.New("account does not have contract create permissions")
-		} else {
-			return nil
 		}
 	}
 	return nil
