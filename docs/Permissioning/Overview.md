@@ -1,9 +1,9 @@
 # Introduction
-The [current permission model](../Old%20Permissioning.md) within Quorum is limited to node level permissions only and allows a set of nodes which are part of `permissioned-nodes.json` to join the network. The model has been enhanced to cater for enterprise level needs to have a **smart contract based permissions model**; this has the flexibility to manage nodes, accounts, and account level access controls. The overview of the model is as depicted below:
+The [current permission model](../Old%20Permissioning.md) within Quorum is limited to node level permissions only and allows a set of nodes which are part of `permissioned-nodes.json` to join the network. The model has been enhanced to cater for enterprise level needs to have a **smart contract based permission model**; this has the flexibility to manage nodes, accounts and account level access controls. The overview of the model is as depicted below:
 ![permissions mode](images/PermissionsModel.png)  
 ### Key Definitions
 * Network - A set of interconnected nodes representing an enterprise blockchain which contains organizations
-* Organization - A set of Ethereum accounts and nodes having a variety of permissions to interact with the network
+* Organization - A set of roles, Ethereum accounts and nodes having a variety of permissions to interact with the network
 * Sub Organization - Further sub-grouping within the Organization as per business needs
 * Account - An Ethereum account which is an EOA (Externally Owned Account)
 * Voter - An account capable of voting for a certain action

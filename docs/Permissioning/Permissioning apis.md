@@ -125,7 +125,7 @@ This returns the list of accounts, nodes, roles, and sub organizations linked to
 ```
 #### quorumPermission.addOrg 
 This api can be executed by a network admin account only for proposing a new organization into the network
-* Input: Unique organization id, enode id, account id
+* Input: Unique alphanumeric organization id, enode id, account id
 * Output: Status of the operation
 * Example:
 ```
@@ -206,7 +206,7 @@ This api can be executed by a organization admin account to create a sub organiz
   status: true
 }
 ```
-For adding a sub organization at the next level, the parent org id should have the entire org hierarchy up to the immediate parent e.g.
+It should be noted that, parent org id should contain the complete org hierarchy from master org id to the immediate parent. The org hierarchy is separated by `.`. For example, if master org `ABC` has a sub organization `SUB1`, then while creating the sub organization at `SUB1` level, the parent org should be given as `ABC.SUB1`. Please see the examples below: 
 ```
 > quorumPermission.addSubOrg("ABC.SUB1", "SUB2","", "0x0000000000000000000000000000000000000000", {from: eth.accounts[0]})
 {
@@ -221,7 +221,7 @@ For adding a sub organization at the next level, the parent org id should have t
 ```
 #### quorumPermission.addNewRole
 This api can be executed by an organization admin account to create a new role for the organization.
-* Input: organiztion id or sub organization id, role id, account access (can be 0 - ReadOnly, 1 - Transact, 2 - ContractDeploy, 3 - FullAccess), isVoter, isAdminRole
+* Input: organization id or sub organization id, alphanumeric role id, account access (can be 0 - ReadOnly, 1 - Transact, 2 - ContractDeploy, 3 - FullAccess), isVoter, isAdminRole
 * Output: Status of the operation
 * Example:
 ```
@@ -248,19 +248,19 @@ This api can be executed by an organization admin account to create a new role f
   status: true
 }
 ```
-#### quorumPermission.assignAccountRole
-This api can be executed by an organization admin account to assign a role to an account.
+#### quorumPermission.addAccountToOrg
+This api can be executed by an organization admin to add an account to an organization and assign a role to the account
 * Input: Account id, organization id or sub organization id, role to be assigned
 * Output: Status of the operation
 * Example:
 ```
-> quorumPermission.assignAccountRole("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC", "TRANSACT", {from: eth.accounts[1]})
+> quorumPermission.addAccountToOrg("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC", "TRANSACT", {from: eth.accounts[1]})
 {
   msg: "Action completed successfully",
   status: true
 }
 ```
-The account can be linked to a organization or sub organization only and cannot belong to multiple organizations or sub organizations
+The account can at best be linked to a single organization or sub organization and cannot belong to multiple organizations or sub organizations
 ```$xslt
 > quorumPermission.assignAccountRole("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC.SUB1", "TRANSACT", {from: eth.accounts[1]})
 {
@@ -268,6 +268,19 @@ The account can be linked to a organization or sub organization only and cannot 
   status: false
 }
 ```
+#### quorumPermission.changeAccountRole
+This api can be executed by an organization admin account to assign a role to an account.
+* Input: Account id, organization id or sub organization id, role to be assigned
+* Output: Status of the operation
+* Example:
+```
+> quorumPermission.changeAccountRole("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC", "TRANSACT", {from: eth.accounts[1]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+
 #### quorumPermission.updateAccountStatus
 This api can be executed by an organization admin account to update the account status.
 * Input:  organization id or sub organization id, Account id, action (1 for suspending the account, 2 for activating a suspended account, 3 for blacklisting the account)
