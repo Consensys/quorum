@@ -811,11 +811,17 @@ web3._extend({
                        inputFormatter: [null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
                new web3._extend.Method({
-                       name: 'assignAccountRole',
-                       call: 'quorumPermission_assignAccountRole',
+                       name: 'addAccountToOrg',
+                       call: 'quorumPermission_addAccountToOrg',
                        params: 4,
                        inputFormatter: [web3._extend.formatters.inputAddressFormatter,null,null,web3._extend.formatters.inputTransactionFormatter]
                }),
+               new web3._extend.Method({
+                       name: 'changeAccountRole',
+                       call: 'quorumPermission_changeAccountRole',
+                       params: 4,
+                       inputFormatter: [web3._extend.formatters.inputAddressFormatter,null,null,web3._extend.formatters.inputTransactionFormatter]
+               }),	
 			   new web3._extend.Method({
                        name: 'updateAccountStatus',
                        call: 'quorumPermission_updateAccountStatus',

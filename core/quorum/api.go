@@ -41,7 +41,8 @@ const (
 	ApproveAdminRole
 	AddNewRole
 	RemoveRole
-	AssignAccountRole
+	AddAccountToOrg
+	ChangeAccountRole
 	UpdateAccountStatus
 )
 
@@ -124,7 +125,6 @@ var (
 	ErrOrgAdminExists     = ExecStatus{false, "Org admin exists for the org"}
 	ErrAccountInUse       = ExecStatus{false, "Account already in use in another organization"}
 	ErrRoleExists         = ExecStatus{false, "Role exists for the org"}
-	ErrRoleDoesNotExist   = ExecStatus{false, "Role not found for org. Add role first"}
 	ErrRoleActive         = ExecStatus{false, "Accounts linked to the role. Cannot be removed"}
 	ErrAdminRoles         = ExecStatus{false, "Admin role cannot be removed"}
 	ErrInvalidOrgName     = ExecStatus{false, "Org id cannot contain special characters"}
@@ -250,8 +250,11 @@ func (s *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.S
 	return s.executePermAction(RemoveRole, txArgs{orgId: orgId, roleId: roleId, txa: txa})
 }
 
-func (s *QuorumControlsAPI) AssignAccountRole(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(AssignAccountRole, txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa})
+func (s *QuorumControlsAPI) AddAccountToOrg(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executePermAction(AddAccountToOrg, txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa})
+}
+func (s *QuorumControlsAPI) ChangeAccountRole(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) ExecStatus {
+	return s.executePermAction(ChangeAccountRole, txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa})
 }
 
 func (s *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Address, status uint8, txa ethapi.SendTxArgs) ExecStatus {
@@ -707,7 +710,7 @@ func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 
 		tx, err = pinterf.RemoveRole(args.roleId, args.orgId)
 
-	case AssignAccountRole:
+	case AddAccountToOrg, ChangeAccountRole:
 		if args.acctId == (common.Address{0}) {
 			return ErrInvalidInput
 		}
