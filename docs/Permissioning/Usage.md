@@ -27,7 +27,7 @@ As part of network initialization,
 * A network admin role having a name as given for `nwAdminRole` in the config file is created. 
 * All accounts given in the `accounts` array of the config file are assigned the network admin role. These accounts  will have ability to propose and approve new organizations into the network
 
-Assuming that the network was brought with the `permission-config.json` as given in the [set uo](./setup.md) and assuming the network was brought up with a `static-nodes.json` file as given below
+Assuming that the network was brought with the `permission-config.json` as given in the [set up](./setup.md) and assuming the network was brought up with a `static-nodes.json` file as given below
 ```$xslt
 [
 	"enode://72c0572f7a2492cffb5efc3463ef350c68a0446402a123dacec9db5c378789205b525b3f5f623f7548379ab0e5957110bffcf43a6115e450890f97a9f65a681a@127.0.0.1:21000?discport=0",
@@ -93,6 +93,8 @@ the network view once the network is up is as shown below:
 ```
 
 ### Proposing a new organization into the network
+Once the network is up, the network admin accounts can then propose a new organization into the network. Majority approval from the network admin accounts is required before an organization is approved. The APIs for [proposing](./Permissioning%20apis.md#quorumpermissionaddorg) and [approving](./Permissioning%20apis.md#quorumpermissionapproveorg) an organization are documented in [permission APIs](./Permissioning%20apis.md)
+
 
 ### Organization admin managing the organization level permissions
 
