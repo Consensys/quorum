@@ -15,6 +15,7 @@
     ultimateParent: "INITORG"
 }]
 ```
+Please click [here](#organization-status-types) for the complete list of organization statuses.
 #### quorumPermission.acctList 
 * Input: None
 * Output: Returns the list of all accounts across organizations 
@@ -350,6 +351,19 @@ This api can be executed by the organization admin account to update the status 
 ```
 Once a node is blacklisted no further action is possible on the same.
 
+### Organization status types
+The table below indicates the numeric value for various organization statuses.
+
+| OrgStatus                 |           Value |
+| :-----------------------: | :-------------: |
+| NotInList                 |               0 |
+| Proposed                  |               1 |
+| Approved                  |               2 |
+| PendingSuspension         |               3 |
+| Suspended                 |               4 |
+| AwaitingSuspensionRevoke  |               5 |
+
+
 #### Account access types
 The table below indicates the numeric value for each account access type.
 
@@ -365,4 +379,28 @@ When setting the account access, the system checks if the account setting the ac
 * Accounts with `ContractDeploy` can grant only `Transact`, `ContractDeploy` or `ReadOnly` access to other accounts
 * Accounts with `Transact` access can grant only `Transact` or `ReadOnly` access to other accounts
 * Accounts with `ReadOnly` access cannot grant any access
+
+### Account status types
+The table below indicates the numeric value for various account statuses.
+
+| AccountStatus   |           Value |
+| :-------------: | :-------------: |
+| NotInList       |               0 |
+| PendingApproval |               1 |
+| Active          |               2 |
+| Inactive        |               3 |
+| Suspended       |               4 |
+| Blacklisted     |               5 |
+| Revoked         |               6 |
+
+
+### Node Status types
+The table below indicates the numeric value for various node statuses.
+
+| NodeStatus                |           Value |
+| :-----------------------: | :-------------: |
+| NotInList                 |               0 |
+| PendingApproval           |               1 |
+| Deactivated               |               2 |
+| Blacklisted               |               3 |
 
