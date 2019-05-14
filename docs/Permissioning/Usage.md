@@ -95,7 +95,7 @@ the network view once the network is up is as shown below:
 ### Proposing a new organization into the network
 Once the network is up, the network admin accounts can then propose a new organization into the network. Majority approval from the network admin accounts is required before an organization is approved. The APIs for [proposing](./Permissioning%20apis.md#quorumpermissionaddorg) and [approving](./Permissioning%20apis.md#quorumpermissionapproveorg) an organization are documented in [permission APIs](./Permissioning%20apis.md)
 
-A sample example to propose and approve an organization by name `ORG1` is as shown below:
+>A sample example to propose and approve an organization by name `ORG1` is as shown below:
 ```$xslt
 > quorumPermission.addOrg("ORG1", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
 {
@@ -103,7 +103,7 @@ A sample example to propose and approve an organization by name `ORG1` is as sho
   status: true
 }
 ```
-Once the org is proposed, it will be in `Proposed` state awaiting approval from other network admin accounts. The org status is as shown below:
+>Once the org is proposed, it will be in `Proposed` state awaiting approval from other network admin accounts. The org status is as shown below:
 ```$xslt
 > quorumPermission.orgList[1]
 {
@@ -116,7 +116,7 @@ Once the org is proposed, it will be in `Proposed` state awaiting approval from 
   ultimateParent: "ORG1"
 }
 ```
-The network admin accounts can then approve the proposed organizations and once the majority approval is achieved, the organization status is updated as `Approved`
+>The network admin accounts can then approve the proposed organizations and once the majority approval is achieved, the organization status is updated as `Approved`
 ```$xslt
 > quorumPermission.approveOrg("ORG1", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e"})
 {
@@ -134,7 +134,7 @@ The network admin accounts can then approve the proposed organizations and once 
   ultimateParent: "ORG1"
 }
 ```
-The details of the new organization approved are as below:
+>The details of the new organization approved are as below:
 ```$xslt
 > quorumPermission.getOrgDetails("ORG1")
 {
@@ -161,11 +161,189 @@ The details of the new organization approved are as below:
   subOrgList: null
 }
 ```
-The new node belonging to the organization can now join the network. In case the network is running in Raft consensus mode, before the node joins the network, please ensure that:
+As can be seen from the above, as a part of approval:
+* A org admin role with name as given in `orgAdminRole` in `permission-config.json` has been created and linked to the organization `ORG1`
+* The account given has been linked to the organization `ORG1` and org admin role. This account acts as the organization admin account and can in turn manage further roles, nodes and accounts at organization level
+* The node has been linked to organization and status has been updated as `Approved`
+
+The new node belonging to the organization can now join the network. In case the network is running in `Raft` consensus mode, before the node joins the network, please ensure that:
 *  The node has been added as a peer using `raft.addPeer(<<enodeId>>)`
-*  Bring up `geth` for the new node using `--raftjoinexisting` giving the peer id as obtained in the above step
+*  Bring up `geth` for the new node using `--raftjoinexisting` with the peer id as obtained in the above step
  
 ### Organization admin managing the organization level permissions
+Once the organization is approved and the node of the organization has joined the network, the organization admin can then create sub organizations, roles, add additional nodes at organization level, add accounts to the organization and change roles of existing organization level accounts. 
+
+>To add a sub org at `ORG1` level refer to [add sub org API](./Permissioning%20apis.md#quorumpermissionaddsuborg)
+```$xslt
+> quorumPermission.addSubOrg("ORG1", "SUB1", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+}
+> quorumPermission.getOrgDetails("ORG1.SUB1")
+{
+  acctList: null,
+  nodeList: [{
+      orgId: "ORG1.SUB1",
+      status: 2,
+      url: "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0"
+  }],
+  roleList: null,
+  subOrgList: null
+}
+```
+For adding a sub org the enode id is not mandatory. For the newly created sub org if the org admin desires to add an administration account, the org admin account will have to first create a role with `isAdmin` flag as `Y` and then assign this role to the account which belongs to the sub org. Once assigned the account will act as org admin at sub org level. Refer to [add new role api](./Permissioning%20apis.md#quorumpermissionaddnewrole)
+```$xslt
+> quorumPermission.addNewRole("ORG1.SUB1", "SUBADMIN", 3, false, true,{from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> eth.accounts[0]
+"0x0638e1574728b6d862dd5d3a3e0942c3be47d996"
+```
+The role `SUBADMIN` can now be assigned to an account at sub org `SUB1` for making the account admin for the sub org.
+```$xslt
+> quorumPermission.addAccountToOrg("0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0", "ORG1.SUB1", "SUBADMIN", {from: "0x0638e1574728b6d862dd5d3a3e0942c3be47d996"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.getOrgDetails("ORG1.SUB1")
+{
+  acctList: [{
+      acctId: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0",
+      isOrgAdmin: true,
+      orgId: "ORG1.SUB1",
+      roleId: "SUBADMIN",
+      status: 2
+  }],
+  nodeList: [{
+      orgId: "ORG1.SUB1",
+      status: 2,
+      url: "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0"
+  }],
+  roleList: [{
+      access: 3,
+      active: true,
+      isAdmin: true,
+      isVoter: false,
+      orgId: "ORG1.SUB1",
+      roleId: "SUBADMIN"
+  }],
+  subOrgList: null
+}
+```
+The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for sub org `SUB1` and will be able to add roles, accounts and nodes to the sub org. It should be noted that the org admin account at master org level has the admin rights on all the sub organizations below. However the admin account at sub org level has control only in the sub org to which it is linked. 
+```$xslt
+> quorumPermission.addNewRole("ORG1.SUB1", "TRANSACT", 1, false, true,{from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.getOrgDetails("ORG1.SUB1").roleList
+[{
+    access: 3,
+    active: true,
+    isAdmin: true,
+    isVoter: false,
+    orgId: "ORG1.SUB1",
+    roleId: "SUBADMIN"
+}, {
+    access: 1,
+    active: true,
+    isAdmin: true,
+    isVoter: false,
+    orgId: "ORG1.SUB1",
+    roleId: "TRANSACT"
+}]
+```
+>To add an account to an organization refer to [add account to org api](./Permissioning%20apis.md#quorumpermissionaddaccounttoorg)
+```$xslt
+> quorumPermission.addAccountToOrg("0x283f3b8989ec20df621166973c93b56b0f4b5455", "ORG1.SUB1", "SUBADMIN", {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.getOrgDetails("ORG1.SUB1").acctList
+
+[{
+    acctId: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0",
+    isOrgAdmin: true,
+    orgId: "ORG1.SUB1",
+    roleId: "SUBADMIN",
+    status: 2
+}, {
+    acctId: "0x283f3b8989ec20df621166973c93b56b0f4b5455",
+    isOrgAdmin: true,
+    orgId: "ORG1.SUB1",
+    roleId: "TRANSACT",
+    status: 2
+}]
+```
+>To [suspend an account](./Permissioning%20apis.md#quorumpermissionupdateaccountstatus) API can be invoked with action as 1
+```$xslt
+> quorumPermission.getOrgDetails("ORG1.SUB1").acctList
+[{
+    acctId: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0",
+    isOrgAdmin: true,
+    orgId: "ORG1.SUB1",
+    roleId: "SUBADMIN",
+    status: 2
+}, {
+    acctId: "0x283f3b8989ec20df621166973c93b56b0f4b5455",
+    isOrgAdmin: true,
+    orgId: "ORG1.SUB1",
+    roleId: "TRANSACT",
+    status: 4
+}]
+```
+>To [revoke suspension of an account](./Permissioning%20apis.md#quorumpermissionupdateaccountstatus) API can be invoked with action as 2
+```$xslt
+> quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 2, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.getOrgDetails("ORG1.SUB1").acctList
+
+[{
+    acctId: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0",
+    isOrgAdmin: true,
+    orgId: "ORG1.SUB1",
+    roleId: "SUBADMIN",
+    status: 2
+}, {
+    acctId: "0x283f3b8989ec20df621166973c93b56b0f4b5455",
+    isOrgAdmin: true,
+    orgId: "ORG1.SUB1",
+    roleId: "TRANSACT",
+    status: 2
+}]
+```
+>To [blacklist an account](./Permissioning%20apis.md#quorumpermissionupdateaccountstatus) API can be invoked with action as 3. Once blacklisted no further activity will be possible on the account.
+```$xslt
+> quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 3, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.getOrgDetails("ORG1.SUB1").acctList
+
+[{
+    acctId: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0",
+    isOrgAdmin: true,
+    orgId: "ORG1.SUB1",
+    roleId: "SUBADMIN",
+    status: 2
+}, {
+    acctId: "0x283f3b8989ec20df621166973c93b56b0f4b5455",
+    isOrgAdmin: true,
+    orgId: "ORG1.SUB1",
+    roleId: "TRANSACT",
+    status: 5
+}]
+```
+
 
 ### Suspending an organization temporarily
 
