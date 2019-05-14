@@ -28,6 +28,7 @@ nav:
         - Design: Permissioning/Contract Design.md
         - Setup: Permissioning/setup.md
         - API: Permissioning/Permissioning apis.md       
+        - Usage: Permissioning/Usage.md
     - Privacy:
         - Tessera:
             - What is Tessera: Privacy/Tessera/Tessera.md
