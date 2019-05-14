@@ -173,7 +173,7 @@ The new node belonging to the organization can now join the network. In case the
 ### Organization admin managing the organization level permissions
 Once the organization is approved and the node of the organization has joined the network, the organization admin can then create sub organizations, roles, add additional nodes at organization level, add accounts to the organization and change roles of existing organization level accounts. 
 
->To add a sub org at `ORG1` level refer to [add sub org API](./Permissioning%20apis.md#quorumpermissionaddsuborg)
+>To add a sub org at `ORG1` level refer to [addSubOrg API](./Permissioning%20apis.md#quorumpermissionaddsuborg)
 ```$xslt
 > quorumPermission.addSubOrg("ORG1", "SUB1", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0", {from: eth.accounts[0]})
 {
@@ -191,7 +191,7 @@ Once the organization is approved and the node of the organization has joined th
   subOrgList: null
 }
 ```
-For adding a sub org the enode id is not mandatory. For the newly created sub org if the org admin desires to add an administration account, the org admin account will have to first create a role with `isAdmin` flag as `Y` and then assign this role to the account which belongs to the sub org. Once assigned the account will act as org admin at sub org level. Refer to [add new role api](./Permissioning%20apis.md#quorumpermissionaddnewrole)
+For adding a sub org the enode id is not mandatory. For the newly created sub org if the org admin desires to add an administration account, the org admin account will have to first create a role with `isAdmin` flag as `Y` and then assign this role to the account which belongs to the sub org. Once assigned the account will act as org admin at sub org level. Refer to [addNewRole API](./Permissioning%20apis.md#quorumpermissionaddnewrole)
 ```$xslt
 > quorumPermission.addNewRole("ORG1.SUB1", "SUBADMIN", 3, false, true,{from: eth.accounts[0]})
 {
@@ -257,7 +257,7 @@ The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for su
     roleId: "TRANSACT"
 }]
 ```
->To add an account to an organization refer to [add account to org api](./Permissioning%20apis.md#quorumpermissionaddaccounttoorg)
+>To add an account to an organization refer to [addAccountToOrg API](./Permissioning%20apis.md#quorumpermissionaddaccounttoorg)
 ```$xslt
 > quorumPermission.addAccountToOrg("0x283f3b8989ec20df621166973c93b56b0f4b5455", "ORG1.SUB1", "SUBADMIN", {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 {
@@ -482,6 +482,41 @@ When the org is suspended no transaction from any of the account linked to the o
 Once the revoke is approved, all accounts in the organization and sub organization will be able to transact as per role level access. 
 
 ### Assigning admin privileges at organization and network level
+There might be a scenario where in one of the accounts at the organization level needs to have network admin level permissions and be able to perform network admin activities. Similarly there can be a need to change the admin account at organization level. Both these activities can be performed by existing network admin accounts only and will require majority approval from the network admin accounts. The API usage details are as below.
+> To assign network admin or org admin role to an account invoke [assignAdminRole](./Permissioning%20apis.md#quorumpermissionassignadminrole)
+```$xslt
+> quorumPermission.assignAdminRole("ORG1", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", "ADMIN", {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.acctList[3]
+{
+  acctId: "0x0638e1574728b6d862dd5d3a3e0942c3be47d996",
+  isOrgAdmin: true,
+  orgId: "ORG1",
+  roleId: "ADMIN",
+  status: 1
+}
+```
+> To approve the assignment of network admin role invoke [approveAdminRole](./Permissioning%20apis.md#quorumpermissionapproveadminrole) API
+```$xslt
+> quorumPermission.approveAdminRole("ORG1", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.acctList[4]
+{
+  acctId: "0x0638e1574728b6d862dd5d3a3e0942c3be47d996",
+  isOrgAdmin: true,
+  orgId: "ORG1",
+  roleId: "ADMIN",
+  status: 2
+}
+```
+The above account now can perform all activities that can be performed by a network admin account and participate in approval process for any actions at network level
+
 
 
 
