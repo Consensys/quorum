@@ -395,8 +395,6 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	isPrivate := args.PrivateFor != nil
 
 	if isPrivate {
-		// Resolve the PrivateFrom - if its a org which is linked multiple constellation keys,
-		// this will fetch the linked constellation ids
 		data := []byte(*args.Data)
 		if len(data) > 0 {
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
@@ -1380,10 +1378,8 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 			log.Info("args.data is nil")
 		}
 
-		// Resolve the PrivateFrom - if its a org which is linked multiple constellation keys,
-		// this will fetch the linked constellation ids
-		//Send private transaction to local Constellation node
 		if len(data) > 0 {
+			//Send private transaction to local Constellation node
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
 			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
