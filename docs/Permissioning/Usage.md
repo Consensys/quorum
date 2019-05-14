@@ -411,11 +411,78 @@ The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for su
 ```
 It should be noted that in case `Raft` consensus mechanism when the node is deactivated the peer id is lost and hence upon activation, the node needs to be added to Raft cluster again using `raft.addPeer` and the node should be brought up with new peer id
 
+Further
+* An account can transact from any of the nodes linked to org or sub org with in the same organization
+* If a node is deactivated no transaction will be allowed from that node
+
 ### Suspending an organization temporarily
+> If there is a need to temporarily suspend all activities of an organization [updateOrgStatus](./Permissioning%20apis.md#quorumpermissionupdateorgstatus) API can be invoked with action 1. This can be invoked only by the network admin accounts and will reuiqre majority voting
+```$xslt
+> quorumPermission.updateOrgStatus("ORG1", 1, {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.orgList[2]
+{
+  fullOrgId: "ORG1",
+  level: 1,
+  orgId: "ORG1",
+  parentOrgId: "",
+  status: 3,
+  subOrgList: null,
+  ultimateParent: "ORG1"
+}
+```
+> To approve the org suspension majority approval from other network admin accounts is required. The api for the same is [approveOrgStatus](./Permissioning%20apis.md#quorumpermissionapproveorgstatus). Once approved the org status is marked as suspended
+```$xslt
+> quorumPermission.approveOrgStatus("ORG1", 1, {from: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.orgList[2]
+{
+  fullOrgId: "ORG1",
+  level: 1,
+  orgId: "ORG1",
+  parentOrgId: "",
+  status: 4,
+  subOrgList: null,
+  ultimateParent: "ORG1"
+}
+```
+When the org is suspended no transaction from any of the account linked to the organization or sub organizations under it is allowed. However, the nodes linked to the organization will be active and will be syncing with the organization.
+
 
 ### Revoking suspension of an organization
+> To revoke the suspension of an org [updateOrgStatus](./Permissioning%20apis.md#quorumpermissionupdateorgstatus) can be called with action as 2. This will require majority approval (API [approveOrgStatus](./Permissioning%20apis.md#quorumpermissionapproveorgstatus) with action 2) 
+```$xslt
+> quorumPermission.updateOrgStatus("ORG1", 2, {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.approveOrgStatus("ORG1", 2, {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.orgList[0]
+{
+  fullOrgId: "ORG1.SUB1",
+  level: 2,
+  orgId: "SUB1",
+  parentOrgId: "ORG1",
+  status: 2,
+  subOrgList: null,
+  ultimateParent: "ORG1"
+}
+```
+Once the revoke is approved, all accounts in the organization and sub organization will be able to transact as per role level access. 
 
 ### Assigning admin privileges at organization and network level
+
 
 
 
