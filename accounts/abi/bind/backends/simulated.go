@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
@@ -40,7 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -389,29 +387,7 @@ func (b *SimulatedBackend) SubscribeFilterLogs(ctx context.Context, query ethere
 	}), nil
 }
 
-// PreparePrivateTransaction replaces the payload data of the transaction with a
-// commitment to turn it into a private tx.
-func (b *SimulatedBackend) PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error) {
-	if len(privateFor) == 0 {
-		return nil, errors.New("need at least one private for")
-	}
-	tx := new(types.Transaction)
-	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
-		return nil, err
-	}
-	data := tx.Data()
-	tx.SetPrivate()
-	tx.SetData(data)
-	newEncoded, err := rlp.EncodeToBytes(tx)
-	if err != nil {
-		return nil, err
-	}
-
-	return hexutil.Bytes(newEncoded), nil
-}
-
 // AdjustTime adds a time shift to the simulated clock.
-// JumpTimeInSeconds adds skip seconds to the clock
 func (b *SimulatedBackend) AdjustTime(adjustment time.Duration) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
