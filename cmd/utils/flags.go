@@ -1046,6 +1046,8 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	cfg.TLSConfig = MakeServerTLSConfig(ctx)
 	if cfg.TLSConfig != nil {
 		cfg.TLSEnabled = true
+	} else {
+		cfg.TLSEnabled = false
 	}
 
 	cfg.EnableNodePermission = ctx.GlobalBool(EnableNodePermissionFlag.Name)
