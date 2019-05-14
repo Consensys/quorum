@@ -452,7 +452,7 @@ Further
   ultimateParent: "ORG1"
 }
 ```
-When the org is suspended no transaction from any of the account linked to the organization or sub organizations under it is allowed. However, the nodes linked to the organization will be active and will be syncing with the organization.
+When the org is suspended no transaction from any of the account linked to the organization or sub organizations under it is allowed. However, the nodes linked to the organization will be active and will be syncing with the network.
 
 
 ### Revoking suspension of an organization
