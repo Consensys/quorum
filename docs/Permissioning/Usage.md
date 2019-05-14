@@ -280,7 +280,7 @@ The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for su
     status: 2
 }]
 ```
->To [suspend an account](./Permissioning%20apis.md#quorumpermissionupdateaccountstatus) API can be invoked with action as 1
+>To [suspend an account updateAccountStatus](./Permissioning%20apis.md#quorumpermissionupdateaccountstatus) API can be invoked with action as 1
 ```$xslt
 > quorumPermission.getOrgDetails("ORG1.SUB1").acctList
 [{
@@ -297,7 +297,7 @@ The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for su
     status: 4
 }]
 ```
->To [revoke suspension of an account](./Permissioning%20apis.md#quorumpermissionupdateaccountstatus) API can be invoked with action as 2
+>To [revoke suspension of an account updateAccountStatus](./Permissioning%20apis.md#quorumpermissionupdateaccountstatus) API can be invoked with action as 2
 ```$xslt
 > quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 2, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 {
@@ -320,7 +320,7 @@ The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for su
     status: 2
 }]
 ```
->To [blacklist an account](./Permissioning%20apis.md#quorumpermissionupdateaccountstatus) API can be invoked with action as 3. Once blacklisted no further activity will be possible on the account.
+>To [blacklist an account updateAccountStatus](./Permissioning%20apis.md#quorumpermissionupdateaccountstatus) API can be invoked with action as 3. Once blacklisted no further activity will be possible on the account.
 ```$xslt
 > quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 3, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 {
@@ -343,7 +343,73 @@ The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for su
     status: 5
 }]
 ```
+> To [add nodes addNode ](./Permissioning%20apis.md#quorumpermissionaddnode) at organization and sub organization level by the org admin
+```$xslt
+> quorumPermission.addNode("ORG1.SUB1", "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0", {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.getOrgDetails("ORG1.SUB1").nodeList
+[{
+    orgId: "ORG1.SUB1",
+    status: 2,
+    url: "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0"
+}, {
+    orgId: "ORG1.SUB1",
+    status: 2,
+    url: "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0"
+}]
+```
+> Org admin can manage the status of the nodes by using [updateNodeStatus](./Permissioning%20apis.md#quorumpermissionupdatenodestatus) API. To deactivate a node the API can be invoked with action 1
+```$xslt
+> quorumPermission.getOrgDetails("ORG1.SUB1").nodeList
+[{
+    orgId: "ORG1.SUB1",
+    status: 2,
+    url: "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0"
+}, {
+    orgId: "ORG1.SUB1",
+    status: 3,
+    url: "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0"
+}]
+```
+> To activate the node back invoke [updateNodeStatus](./Permissioning%20apis.md#quorumpermissionupdatenodestatus) API with action 2
+```$xslt
+> quorumPermission.updateNodeStatus("ORG1.SUB1", "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0",2, {from:"0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
+> quorumPermission.getOrgDetails("ORG1.SUB1").nodeList
 
+
+[{
+    orgId: "ORG1.SUB1",
+    status: 2,
+    url: "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0"
+}, {
+    orgId: "ORG1.SUB1",
+    status: 2,
+    url: "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0"
+}]
+```
+> To blacklist a node invoke [updateNodeStatus](./Permissioning%20apis.md#quorumpermissionupdatenodestatus) API with action 3. Once blacklisted the node will never be able join the network again.
+```$xslt
+> quorumPermission.getOrgDetails("ORG1.SUB1").nodeList
+
+
+[{
+    orgId: "ORG1.SUB1",
+    status: 2,
+    url: "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0"
+}, {
+    orgId: "ORG1.SUB1",
+    status: 4,
+    url: "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0"
+}]
+```
+It should be noted that in case `Raft` consensus mechanism when the node is deactivated the peer id is lost and hence upon activation, the node needs to be added to Raft cluster again using `raft.addPeer` and the node should be brought up with new peer id
 
 ### Suspending an organization temporarily
 
