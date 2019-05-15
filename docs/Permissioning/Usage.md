@@ -1,4 +1,4 @@
-This section describes the usage of permission model for creation of a network, initial set up and management of network. The network management activities can be broadly categorized into:
+**This section describes the usage of permission model for creation of a network, initial set up and management of network. The network management activities can be broadly categorized into:**
 
 * [Initial network set up](#initial-network-set-up)
 * [Proposing a new organization into the network](#proposing-a-new-organization-into-the-network)
