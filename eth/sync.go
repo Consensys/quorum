@@ -200,6 +200,7 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 			return
 		}
 	}
+
 	// Run the sync cycle, and disable fast sync if we've went past the pivot block
 	if err := pm.downloader.Synchronise(peer.id, pHead, pTd, mode); err != nil {
 		return

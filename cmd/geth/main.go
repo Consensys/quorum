@@ -408,7 +408,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 		utils.Fatalf("Failed to start Quorum Permission contract service %v", err)
 	}
 
-	rpcClient, err := stack.Attach() /**/
+	rpcClient, err := stack.Attach()
 	if err != nil {
 		utils.Fatalf("Unable to connect to the node: %v", err)
 	}

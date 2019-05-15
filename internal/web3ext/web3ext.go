@@ -711,6 +711,9 @@ web3._extend({
 const Raft_JS = `
 web3._extend({
        property: 'raft',
+       methods:
+       [
+       ],
        properties:
        [
                new web3._extend.Property({
