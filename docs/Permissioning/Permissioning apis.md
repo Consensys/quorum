@@ -409,6 +409,7 @@ The table below indicates the numeric value for each account access type.
 | Full access     |               3 |
 
 When setting the account access, the system checks if the account setting the access has sufficient privileges to perform the activity. 
+
 * Accounts with `FullAccess` can grant any access type ( FullAccess, Transact, ContractDeploy or ReadOnly) to any other account
 * Accounts with `ContractDeploy` can grant only `Transact`, `ContractDeploy` or `ReadOnly` access to other accounts
 * Accounts with `Transact` access can grant only `Transact` or `ReadOnly` access to other accounts
