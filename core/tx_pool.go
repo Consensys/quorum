@@ -1318,7 +1318,7 @@ func (t *txLookup) Remove(hash common.Hash) {
 	delete(t.all, hash)
 }
 
-// checks if the account is permissioned for transaction
+// checks if the account is has the necessary access for the transaction
 func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 	access := types.GetAcctAccess(fromAcct)
 

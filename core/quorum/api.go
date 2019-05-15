@@ -420,11 +420,11 @@ func (s *QuorumControlsAPI) valSubOrgBreadthDepth(porgId string) (ExecStatus, er
 	org := types.OrgInfoMap.GetOrg(porgId)
 
 	if s.permConfig.SubOrgDepth.Cmp(org.Level) == 0 {
-		return ErrMaxDepth, errors.New("max depth for suborgs reached")
+		return ErrMaxDepth, errors.New("max depth for sub orgs reached")
 	}
 
 	if s.permConfig.SubOrgBreadth.Cmp(big.NewInt(int64(len(org.SubOrgList)))) == 0 {
-		return ErrMaxBreadth, errors.New("max breadth for suborgs reached")
+		return ErrMaxBreadth, errors.New("max breadth for sub orgs reached")
 	}
 
 	return ExecSuccess, nil

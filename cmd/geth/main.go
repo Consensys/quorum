@@ -345,7 +345,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 	}()
 
-	//START - QUORUM Permissioning
+	//START - QUORUM permission service
 	go startQuorumPermissionService(ctx, stack)
 
 	// Start auxiliary services if enabled
@@ -376,7 +376,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 
 }
 
-// Starts the permissioning services. services will come up only when
+// Starts the permission services. services will come up only when
 // geth is brought up in --permissioned mode and permission-config.json is present
 func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 

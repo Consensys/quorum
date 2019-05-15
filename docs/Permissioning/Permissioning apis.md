@@ -130,8 +130,8 @@ This returns the list of accounts, nodes, roles, and sub organizations linked to
 }
 ```
 #### quorumPermission.addOrg 
-This api can be executed by a network admin account only for proposing a new organization into the network
-* Input: Unique alphanumeric organization id, enode id, account id
+This api can be executed by a network admin account (`from:` in transactions args) only for proposing a new organization into the network
+* Input: Unique alphanumeric organization id, enode id, account id (org admin account)
 * Output: Status of the operation
 * Example:
 ```
@@ -162,8 +162,8 @@ If there are any pending items for approval, proposal of any new organization wi
 ```
 
 #### quorumPermission.approveOrg 
-This api can be executed by a network admin account only for approving a proposed organization into the network.
-* Input: Unique organization id, enode id, account id
+This api can be executed by a network admin account (`from:` in transactions args) only for approving a proposed organization into the network.
+* Input: Unique organization id, enode id, account id (org admin account)
 * Output: Status of the operation
 * Example:
 ```

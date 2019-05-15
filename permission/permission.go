@@ -99,7 +99,7 @@ func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
 }
 
 // function reads the permissions config file passed and populates the
-// config structure accrodingly
+// config structure accordingly
 func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	fileName := "permission-config.json"
 	fullPath := filepath.Join(dir, fileName)
@@ -133,8 +133,8 @@ func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	return permConfig, nil
 }
 
-// for cases where the node is joining an existing network, permissioning
-// service can be brought up only after block syncing is complete. This function
+// for cases where the node is joining an existing network, permission service
+// can be brought up only after block syncing is complete. This function
 // waits for block syncing before the starting permissions
 func waitForSync(e *eth.Ethereum) {
 	for !types.GetSyncStatus() {
@@ -147,7 +147,7 @@ func waitForSync(e *eth.Ethereum) {
 
 // Creates the controls structure for permissions
 func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
-	// Create a new ethclient to for interfacing with the contract
+	// Create a new eth client to for interfacing with the contract
 	stateReader, e, err := CreateEthClient(stack)
 	waitForSync(e)
 	if err != nil {
@@ -526,7 +526,7 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 }
 
 // Thus function checks if the initial network boot up status and if no
-// populates permissioning model with details from permission-config.json
+// populates permissions model with details from permission-config.json
 func (p *PermissionCtrl) populateInitPermissions() error {
 	auth := bind.NewKeyedTransactor(p.key)
 	permInterfSession := &pbind.PermInterfaceSession{
