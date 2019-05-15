@@ -70,24 +70,16 @@ type Console struct {
 	prompter UserPrompter // Input prompter to allow interactive user feedback
 	histPath string       // Absolute path to the console scrollback history
 	history  []string     // Scroll history maintained by the console
-	printer  io.Writer    // Output writer to serialize any display strings to
-
-	token string
-}
-
-// New initializes a JavaScript interpreted runtime environment and sets defaults
-// with the config struct.
-func NewWithSecurity(config Config, token string) (*Console, error) {
-	return newConsole(config, true, token)
+	printer  io.Writer    // Output writer to serialize any display strings to\
 }
 
 // New initializes a JavaScript interpreted runtime environment and sets defaults
 // with the config struct.
 func New(config Config) (*Console, error) {
-	return newConsole(config, false, "")
+	return newConsole(config)
 }
 
-func newConsole(config Config, withSecurity bool, token string) (*Console, error) {
+func newConsole(config Config) (*Console, error) {
 	// Handle unset config values gracefully
 	if config.Prompter == nil {
 		config.Prompter = Stdin
@@ -110,9 +102,6 @@ func newConsole(config Config, withSecurity bool, token string) (*Console, error
 	if err := os.MkdirAll(config.DataDir, 0700); err != nil {
 		return nil, err
 	}
-	if withSecurity {
-		console.token = token
-	}
 	if err := console.init(config.Preload); err != nil {
 		return nil, err
 	}
@@ -123,24 +112,13 @@ func newConsole(config Config, withSecurity bool, token string) (*Console, error
 // the console's JavaScript namespaces based on the exposed modules.
 func (c *Console) init(preload []string) error {
 	// Initialize the JavaScript <-> Go RPC bridge
-	var bridge *bridge
-	if c.token == "" {
-		bridge = newBridge(c.client, c.prompter, c.printer)
-	} else {
-		bridge = newBridgeWithSecurity(c.client, c.prompter, c.printer, c.token)
-	}
+	bridge := newBridge(c.client, c.prompter, c.printer)
 
 	c.jsre.Set("jeth", struct{}{})
 
 	jethObj, _ := c.jsre.Get("jeth")
-	if c.token == "" {
-		jethObj.Object().Set("send", bridge.Send)
-		jethObj.Object().Set("sendAsync", bridge.Send)
-	} else {
-
-		jethObj.Object().Set("send", bridge.SendWithSecurity)
-		jethObj.Object().Set("sendAsync", bridge.SendWithSecurity)
-	}
+	jethObj.Object().Set("send", bridge.Send)
+	jethObj.Object().Set("sendAsync", bridge.Send)
 	consoleObj, _ := c.jsre.Get("console")
 	consoleObj.Object().Set("log", c.consoleOutput)
 	consoleObj.Object().Set("error", c.consoleOutput)
@@ -159,17 +137,7 @@ func (c *Console) init(preload []string) error {
 		return fmt.Errorf("web3 provider: %v", err)
 	}
 	// Load the supported APIs into the JavaScript runtime environment
-
-	var apis map[string]string
-	var err error
-
-	if c.token == "" {
-		apis, err = c.client.SupportedModules()
-
-	} else {
-		apis, err = c.client.SupportedModulesWithSecurity(c.token)
-	}
-
+	apis, err := c.client.SupportedModules()
 	if err != nil {
 		return fmt.Errorf("api modules: %v", err)
 	}

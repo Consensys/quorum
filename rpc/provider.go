@@ -3,12 +3,13 @@ package rpc
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/google/uuid"
-	"github.com/hashicorp/golang-lru"
 	"io/ioutil"
 	"os"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/hashicorp/golang-lru"
+	"github.com/pborman/uuid"
 )
 
 //IsClientAuthorized Parse the RPC Request, Call send Introspect Request & Parse results.
@@ -22,7 +23,7 @@ func (l *EnterpriseSecurityProvider) IsClientAuthorized(request rpcRequest) bool
 	if entry, ok := l.tokensCache.Get(token); ok {
 		introspectResponse := entry.(IntrospectResponse)
 		// Invalidate the token if its has expired by the server or if cache holding policy mandates a refresh
-		if IsTokenExpired(introspectResponse.Created, introspectResponse.Expiration) ||  IsTokenExpired(introspectResponse.Created, l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheEntryExpiration) {
+		if IsTokenExpired(introspectResponse.Created, introspectResponse.Expiration) || IsTokenExpired(introspectResponse.Created, l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheEntryExpiration) {
 			l.tokensCache.Remove(token)
 		} else {
 			scopes, err := parseScopeStr(introspectResponse.Scope, " ")
@@ -359,18 +360,10 @@ func (l *LocalSecurityProvider) NewClient(clientName string, clientId string, se
 
 	// Generate Defaults
 	if clientId == "" {
-		secGuid, err := uuid.NewRandom()
-		if err != nil {
-			return ClientInfo{}, err
-		}
-		clientId = secGuid.String()
+		clientId = uuid.New()
 	}
 	if secret == "" {
-		secGuid, err := uuid.NewRandom()
-		if err != nil {
-			return ClientInfo{}, err
-		}
-		secret = secGuid.String()
+		secret = uuid.New()
 	}
 
 	return ClientInfo{
@@ -454,18 +447,13 @@ func (l *LocalSecurityProvider) RegenerateClientSecret(clientName *string) (*Cli
 		return nil, fmt.Errorf("client doesnt exist")
 	}
 
-	secGuid, err := uuid.NewRandom()
-	if err != nil {
+	client.Secret = uuid.New()
+
+	if err := l.RemoveClient(clientName); err != nil {
 		return nil, err
 	}
 
-	client.Secret = secGuid.String()
-
-	if err = l.RemoveClient(clientName); err != nil {
-		return nil, err
-	}
-
-	if err = l.AddClient(client); err != nil {
+	if err := l.AddClient(client); err != nil {
 		return nil, err
 	}
 
