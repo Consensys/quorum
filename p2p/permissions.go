@@ -100,7 +100,7 @@ func isNodeBlackListed(nodeName, dataDir string) bool {
 	nodelist := []string{}
 	if err := json.Unmarshal(blob, &nodelist); err != nil {
 		log.Debug("parsePermissionedNodes: Failed to load nodes", "err", err)
-		return false
+		return true
 	}
 
 	for _, v := range nodelist {
