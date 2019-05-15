@@ -110,7 +110,7 @@ func (l *EnterpriseSecurityProvider) Init() error {
 	}
 
 	if l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheEntryExpiration == 0 {
-		l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheEntryExpiration = 360
+		l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheEntryExpiration = 3600
 	}
 
 	l.tokensCache, _ = lru.New(l.SecurityConfig.ProviderInformation.EnterpriseProviderCacheLimit)

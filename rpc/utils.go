@@ -343,16 +343,14 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 	params.Add("token", request.Token)
 	params.Add("token_type_hint", request.TokenTypeHint)
 
-
 	if cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader != "" {
 		// support env variables
 
 		providerClientId := os.Getenv(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdEnvVar)
 
-
 		if providerClientId != "" {
 			params.Add(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader, providerClientId)
-		}else{
+		} else {
 			params.Add(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientIdHeader, cfg.ProviderInformation.EnterpriseProviderIntrospectionClientId)
 		}
 	}
@@ -364,7 +362,7 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 
 		if providerClientSec != "" {
 			params.Add(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader, providerClientSec)
-		}else{
+		} else {
 			params.Add(cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecretHeader, cfg.ProviderInformation.EnterpriseProviderIntrospectionClientSecret)
 		}
 	}
@@ -400,7 +398,6 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 	}
 	defer resp.Body.Close()
 
-
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
@@ -408,7 +405,7 @@ func getIntrospectResponse(request *IntrospectRequest, client *http.Client, cfg 
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("un excpected status code")
+		return nil, fmt.Errorf("un expected status code")
 	}
 
 	var introspectResp IntrospectResponse
