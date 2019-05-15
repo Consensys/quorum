@@ -366,6 +366,8 @@ This api can be executed by the organization admin account to update the status 
 ```
 Once a node is blacklisted no further action is possible on the same.
 
+### Roles
+
 #### Organization status types
 The table below indicates the numeric value for various organization statuses.
 
