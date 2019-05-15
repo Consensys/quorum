@@ -153,57 +153,17 @@ func wsGetConfig(endpoint, origin string) (*websocket.Config, error) {
 //
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
-func DialWebsocketWithSecurity(ctx context.Context, endpoint, origin string, token string) (*Client, error) {
-	config, err := wsGetConfig(endpoint, origin)
-
-	if err != nil {
-		return nil, err
-	}
-	if token != "" {
-		config.Header.Add("Token", token)
-	}
-	return newClient(ctx, func(ctx context.Context) (net.Conn, error) {
-		return wsDialContext(ctx, config)
-	})
-}
-
-// DialWebsocket creates a new RPC client that communicates with a JSON-RPC server
-// that is listening on the given endpoint.
-//
-// The context is used for the initial connection establishment. It does not
-// affect subsequent interactions with the client.
 func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error) {
 	config, err := wsGetConfig(endpoint, origin)
 	if err != nil {
 		return nil, err
 	}
-
+	if accessToken, ok := ctx.Value(ctxAccessTokenKey).(string); ok {
+		config.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	}
 	return newClient(ctx, func(ctx context.Context) (net.Conn, error) {
 		return wsDialContext(ctx, config)
 	})
-}
-
-func wsDialContextWithSecurity(ctx context.Context, config *websocket.Config, token string) (*websocket.Conn, error) {
-	var conn net.Conn
-	var err error
-	switch config.Location.Scheme {
-	case "ws":
-		conn, err = dialContext(ctx, "tcp", wsDialAddress(config.Location))
-	case "wss":
-		dialer := contextDialer(ctx)
-		conn, err = tls.DialWithDialer(dialer, "tcp", wsDialAddress(config.Location), config.TlsConfig)
-	default:
-		err = websocket.ErrBadScheme
-	}
-	if err != nil {
-		return nil, err
-	}
-	ws, err := websocket.NewClient(config, conn)
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
-	return ws, err
 }
 
 func wsDialContext(ctx context.Context, config *websocket.Config) (*websocket.Conn, error) {

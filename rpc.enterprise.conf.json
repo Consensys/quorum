@@ -2,6 +2,8 @@
 	"providerType":"enterprise",
         "providerInfo": {
 		"providerIntrospectionMethod":"POST",
+		"providerCacheLimit":80,
+		"providerCacheTokenExpiration":3600,
 		"providerIntrospectionClientIdHeader":"client_id",
 		"providerIntrospectionClientSecretHeader":"client_secret",
 		"providerIntrospectionClientIdEnv":"RPCSecurityClientID",

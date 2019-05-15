@@ -39,16 +39,6 @@ type bridge struct {
 }
 
 // newBridge creates a new JavaScript wrapper around an RPC client.
-func newBridgeWithSecurity(client *rpc.Client, prompter UserPrompter, printer io.Writer, token string) *bridge {
-	return &bridge{
-		client:   client,
-		prompter: prompter,
-		printer:  printer,
-		token:    token,
-	}
-}
-
-// newBridge creates a new JavaScript wrapper around an RPC client.
 func newBridge(client *rpc.Client, prompter UserPrompter, printer io.Writer) *bridge {
 	return &bridge{
 		client:   client,
@@ -288,16 +278,7 @@ type jsonrpcCall struct {
 }
 
 // Send implements the web3 provider "send" method.
-func (b *bridge) SendWithSecurity(call otto.FunctionCall) (response otto.Value) {
-	return b.send(call, true)
-}
-
-// Send implements the web3 provider "send" method.
 func (b *bridge) Send(call otto.FunctionCall) (response otto.Value) {
-	return b.send(call, false)
-}
-
-func (b *bridge) send(call otto.FunctionCall, withSecurity bool) (response otto.Value) {
 	// Remarshal the request into a Go value.
 	JSON, _ := call.Otto.Object("JSON")
 	reqVal, err := JSON.Call("stringify", call.Argument(0))
@@ -326,11 +307,7 @@ func (b *bridge) send(call otto.FunctionCall, withSecurity bool) (response otto.
 		resp, _ := call.Otto.Object(`({"jsonrpc":"2.0"})`)
 		resp.Set("id", req.ID)
 		var result json.RawMessage
-		if withSecurity {
-			err = b.client.CallWithSecurity(&result, req.Method, b.token, req.Params...)
-		} else {
-			err = b.client.Call(&result, req.Method, req.Params...)
-		}
+		err = b.client.Call(&result, req.Method, req.Params...)
 		switch err := err.(type) {
 		case nil:
 			if result == nil {
