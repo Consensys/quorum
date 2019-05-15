@@ -1,4 +1,4 @@
-This section describes the usage of permission model for creation of a network, initial set up and management of network. The network management activities can be broadly categorized into:
+This section describes the usage of the permission model for creation of a network, initial set up, and management of a network. The network management activities can be broadly categorized into:
 
 * [Initial network set up](#initial-network-set-up)
 * [Proposing a new organization into the network](#proposing-a-new-organization-into-the-network)
@@ -8,30 +8,30 @@ This section describes the usage of permission model for creation of a network, 
 * [Assigning admin privileges at organization and network level](#assigning-admin-privileges-at-organization-and-network-level)
 
 ### Initial network set up
-Please refer to [set up](../setup). For an existing network running in older version of Quorum,
+Please refer to [set up](../setup). For an existing network running with an older version of Quorum:
 
 * Deploy the contracts 
 * Execute the `init` method of `PermissionsUpgradable.sol` from the custodian account
-* Upgrade Quorum to latest version 
-* Copy the `permission-config.json`  to each nodes data directory  
+* Upgrade Quorum to the latest version 
+* Copy the `permission-config.json`  to the data directory of each node  
 * Bring `geth` up in `--permissioned` mode.
 
-For new network starting in the latest version of Quorum
+For a new network using the latest version of Quorum:
 
 * Bring up the initial set of nodes 
 * Deploy the contracts 
 * Execute the `init` method of `PermissionsUpgradable.sol` from the custodian account
-* Upgrade Quorum to latest version 
-* Copy the `permission-config.json`  to each nodes data directory  
+* Upgrade Quorum to the latest version 
+* Copy the `permission-config.json`  to the data directory of each node  
 * Bring `geth` up in `--permissioned` mode.
 
-As part of network initialization, 
+As part of network initialization:
 
-* A network admin organization having a name as given for `nwAdminOrg` in `permission-config.json` is created. All nodes which are part of `static-nodes.json` are assigned to this organization. 
-* A network admin role having a name as given for `nwAdminRole` in the config file is created. 
-* All accounts given in the `accounts` array of the config file are assigned the network admin role. These accounts  will have ability to propose and approve new organizations into the network
+* A network admin organization is created with the `nwAdminOrg` name specified in `permission-config.json`. All nodes which are part of `static-nodes.json` are assigned to this organization. 
+* A network admin role is created with the `nwAdminRole` name specified in the config file. 
+* All accounts given in the `accounts` array of the config file are assigned the network admin role. These accounts will have the ability to propose and approve new organizations into the network.
 
-Assuming that the network was brought with the `permission-config.json` as given in the [set up](../setup) and assuming the network was brought up with a `static-nodes.json` file as given below
+Assuming that the network was started with the `permission-config.json` given in the [set up](../setup), and assuming the network was brought up with the `static-nodes.json` file given below:
 ```json
 [
 	"enode://72c0572f7a2492cffb5efc3463ef350c68a0446402a123dacec9db5c378789205b525b3f5f623f7548379ab0e5957110bffcf43a6115e450890f97a9f65a681a@127.0.0.1:21000?discport=0",
@@ -40,7 +40,7 @@ Assuming that the network was brought with the `permission-config.json` as given
 	"enode://28a4afcf56ee5e435c65b9581fc36896cc684695fa1db83c9568de4353dc6664b5cab09694d9427e9cf26a5cd2ac2fb45a63b43bb24e46ee121f21beb3a7865e@127.0.0.1:21003?discport=0"
 ]
 ```
-the network view once the network is up is as shown below:
+then the network will have the following configuration once it has started up:
 ```javascript
 > quorumPermission.orgList
 [{
@@ -99,73 +99,74 @@ the network view once the network is up is as shown below:
 ### Proposing a new organization into the network
 Once the network is up, the network admin accounts can then propose a new organization into the network. Majority approval from the network admin accounts is required before an organization is approved. The APIs for [proposing](../Permissioning%20apis#quorumpermissionaddorg) and [approving](../Permissioning%20apis#quorumpermissionapproveorg) an organization are documented in [permission APIs](../Permissioning%20apis)
 
-!!! example
-    A sample example to propose and approve an organization by name `ORG1` is as shown below:
-    ```javascript
-        > quorumPermission.addOrg("ORG1", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
-        {
-            msg: "Action completed successfully",
-            status: true
-        }
-    ```
-    Once the org is proposed, it will be in `Proposed` state awaiting approval from other network admin accounts. The org status is as shown below:
-    ```javascript
-    > quorumPermission.orgList[1]
-    {
-        fullOrgId: "ORG1",
-        level: 1,
+#### example
+An example to propose and approve an organization by name `ORG1` is as shown below:
+
+```javascript
+> quorumPermission.addOrg("ORG1", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
+{
+    msg: "Action completed successfully",
+    status: true
+}
+```
+Once the org is proposed, it will be in `Proposed` state awaiting approval from other network admin accounts. The org status is as shown below:
+```javascript
+> quorumPermission.orgList[1]
+{
+    fullOrgId: "ORG1",
+    level: 1,
+    orgId: "ORG1",
+    parentOrgId: "",
+    status: 1,
+    subOrgList: null,
+    ultimateParent: "ORG1"
+}
+```
+The network admin accounts can then approve the proposed organizations and once the majority approval is achieved, the organization status is updated as `Approved`
+```javascript
+> quorumPermission.approveOrg("ORG1", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e"})
+{
+    msg: "Action completed successfully",
+    status: true
+}
+> quorumPermission.orgList[1]
+{
+    fullOrgId: "ORG1",
+    level: 1,
+    orgId: "ORG1",
+    parentOrgId: "",
+    status: 2,
+    subOrgList: null,
+    ultimateParent: "ORG1"
+}
+```
+The details of the new organization approved are as below:
+```javascript
+> quorumPermission.getOrgDetails("ORG1")
+{
+    acctList: [{
+        acctId: "0x0638e1574728b6d862dd5d3a3e0942c3be47d996",
+        isOrgAdmin: true,
         orgId: "ORG1",
-        parentOrgId: "",
-        status: 1,
-        subOrgList: null,
-        ultimateParent: "ORG1"
-    }
-    ```
-    The network admin accounts can then approve the proposed organizations and once the majority approval is achieved, the organization status is updated as `Approved`
-    ```javascript
-    > quorumPermission.approveOrg("ORG1", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e"})
-    {
-        msg: "Action completed successfully",
-        status: true
-    }
-    > quorumPermission.orgList[1]
-    {
-        fullOrgId: "ORG1",
-        level: 1,
+        roleId: "ORGADMIN",
+        status: 2
+    }],
+    nodeList: [{
         orgId: "ORG1",
-        parentOrgId: "",
         status: 2,
-        subOrgList: null,
-        ultimateParent: "ORG1"
-    }
-    ```
-    The details of the new organization approved are as below:
-    ```javascript
-    > quorumPermission.getOrgDetails("ORG1")
-    {
-        acctList: [{
-            acctId: "0x0638e1574728b6d862dd5d3a3e0942c3be47d996",
-            isOrgAdmin: true,
-            orgId: "ORG1",
-            roleId: "ORGADMIN",
-            status: 2
-        }],
-        nodeList: [{
-            orgId: "ORG1",
-            status: 2,
-            url: "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0"
-        }],
-        roleList: [{
-            access: 3,
-            active: true,
-            isAdmin: true,
-            isVoter: true,
-            orgId: "ORG1",
-            roleId: "ORGADMIN"
-        }],
-        subOrgList: null
-    }
-    ```
+        url: "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0"
+    }],
+    roleList: [{
+        access: 3,
+        active: true,
+        isAdmin: true,
+        isVoter: true,
+        orgId: "ORG1",
+        roleId: "ORGADMIN"
+    }],
+    subOrgList: null
+}
+```
 
 As can be seen from the above, as a part of approval:
 
@@ -265,7 +266,7 @@ The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for su
     roleId: "TRANSACT"
 }]
 ```
-To add an account to an organization refer to [addAccountToOrg API](../Permissioning%20apis#quorumpermissionaddaccounttoorg)
+To add an account to an organization refer to [addAccountToOrg API](../Permissioning%20apis#quorumpermissionaddaccounttoorg).
 ```javascript
 > quorumPermission.addAccountToOrg("0x283f3b8989ec20df621166973c93b56b0f4b5455", "ORG1.SUB1", "SUBADMIN", {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 {
@@ -288,8 +289,13 @@ To add an account to an organization refer to [addAccountToOrg API](../Permissio
     status: 2
 }]
 ```
-To suspend an account [updateAccountStatus](../Permissioning%20apis#quorumpermissionupdateaccountstatus) API can be invoked with action as 1
+To suspend an account [updateAccountStatus](../Permissioning%20apis#quorumpermissionupdateaccountstatus) API can be invoked with action as 1.
 ```javascript
+> quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 1, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
+{
+  msg: "Action completed successfully",
+  status: true
+}
 > quorumPermission.getOrgDetails("ORG1.SUB1").acctList
 [{
     acctId: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0",
@@ -302,10 +308,10 @@ To suspend an account [updateAccountStatus](../Permissioning%20apis#quorumpermis
     isOrgAdmin: true,
     orgId: "ORG1.SUB1",
     roleId: "TRANSACT",
-    status: 4
+    status: 1
 }]
 ```
-To revoke suspension of an account [updateAccountStatus](../Permissioning%20apis#quorumpermissionupdateaccountstatus) API can be invoked with action as 2
+To revoke suspension of an account [updateAccountStatus](../Permissioning%20apis#quorumpermissionupdateaccountstatus) API can be invoked with action as 2.
 ```javascript
 > quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 2, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 {
@@ -351,7 +357,7 @@ To [blacklist an account updateAccountStatus](../Permissioning%20apis#quorumperm
     status: 5
 }]
 ```
-To [add nodes addNode ](../Permissioning%20apis#quorumpermissionaddnode) at organization and sub organization level by the org admin
+To [add nodes addNode ](../Permissioning%20apis#quorumpermissionaddnode) at organization and sub organization level by the org admin.
 ```javascript
 > quorumPermission.addNode("ORG1.SUB1", "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0", {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 {
@@ -369,7 +375,7 @@ To [add nodes addNode ](../Permissioning%20apis#quorumpermissionaddnode) at orga
     url: "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0"
 }]
 ```
-Org admin can manage the status of the nodes by using [updateNodeStatus](../Permissioning%20apis#quorumpermissionupdatenodestatus) API. To deactivate a node the API can be invoked with action 1
+Org admin can manage the status of the nodes by using [updateNodeStatus](../Permissioning%20apis#quorumpermissionupdatenodestatus) API. To deactivate a node the API can be invoked with action 1.
 ```javascript
 > quorumPermission.getOrgDetails("ORG1.SUB1").nodeList
 [{
@@ -382,7 +388,7 @@ Org admin can manage the status of the nodes by using [updateNodeStatus](../Perm
     url: "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0"
 }]
 ```
-To activate the node back invoke [updateNodeStatus](../Permissioning%20apis#quorumpermissionupdatenodestatus) API with action 2
+To activate the node back invoke [updateNodeStatus](../Permissioning%20apis#quorumpermissionupdatenodestatus) API with action 2.
 ```javascript
 > quorumPermission.updateNodeStatus("ORG1.SUB1", "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0",2, {from:"0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 {
@@ -417,15 +423,15 @@ To blacklist a node invoke [updateNodeStatus](../Permissioning%20apis#quorumperm
     url: "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0"
 }]
 ```
-It should be noted that in case `Raft` consensus mechanism when the node is deactivated the peer id is lost and hence upon activation, the node needs to be added to Raft cluster again using `raft.addPeer` and the node should be brought up with new peer id
+It should be noted that in the case of the `Raft` consensus mechanism, when the node is deactivated the peer id is lost and hence upon activation, the node needs to be added to Raft cluster again using `raft.addPeer` and the node should be brought up with new peer id.
 
-Further
+Further:
 
 * An account can transact from any of the nodes linked to org or sub org with in the same organization
 * If a node is deactivated no transaction will be allowed from that node
 
 ### Suspending an organization temporarily
-If there is a need to temporarily suspend all activities of an organization [updateOrgStatus](../Permissioning%20apis#quorumpermissionupdateorgstatus) API can be invoked with action 1. This can be invoked only by the network admin accounts and will reuiqre majority voting
+If there is a need to temporarily suspend all activities of an organization [updateOrgStatus](../Permissioning%20apis#quorumpermissionupdateorgstatus) API can be invoked with action 1. This can be invoked only by the network admin accounts and will reuiqre majority voting.
 ```javascript
 > quorumPermission.updateOrgStatus("ORG1", 1, {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
 {
@@ -443,7 +449,7 @@ If there is a need to temporarily suspend all activities of an organization [upd
   ultimateParent: "ORG1"
 }
 ```
-To approve the org suspension majority approval from other network admin accounts is required. The api for the same is [approveOrgStatus](../Permissioning%20apis#quorumpermissionapproveorgstatus). Once approved the org status is marked as suspended
+To approve the org, suspension majority approval from other network admin accounts is required. The api for the same is [approveOrgStatus](../Permissioning%20apis#quorumpermissionapproveorgstatus). Once approved the org status is marked as suspended.
 ```javascript
 > quorumPermission.approveOrgStatus("ORG1", 1, {from: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e"})
 {
@@ -465,7 +471,7 @@ When the org is suspended no transaction from any of the account linked to the o
 
 
 ### Revoking suspension of an organization
-To revoke the suspension of an org [updateOrgStatus](../Permissioning%20apis#quorumpermissionupdateorgstatus) can be called with action as 2. This will require majority approval (API [approveOrgStatus](../Permissioning%20apis#quorumpermissionapproveorgstatus) with action 2) 
+To revoke the suspension of an org [updateOrgStatus](../Permissioning%20apis#quorumpermissionupdateorgstatus) can be called with action as 2. This will require majority approval (API [approveOrgStatus](../Permissioning%20apis#quorumpermissionapproveorgstatus) with action 2). 
 ```javascript
 > quorumPermission.updateOrgStatus("ORG1", 2, {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
 {
@@ -491,8 +497,8 @@ To revoke the suspension of an org [updateOrgStatus](../Permissioning%20apis#quo
 Once the revoke is approved, all accounts in the organization and sub organization will be able to transact as per role level access. 
 
 ### Assigning admin privileges at organization and network level
-There might be a scenario where in one of the accounts at the organization level needs to have network admin level permissions and be able to perform network admin activities. Similarly there can be a need to change the admin account at organization level. Both these activities can be performed by existing network admin accounts only and will require majority approval from the network admin accounts. The API usage details are as below.
-To assign network admin or org admin role to an account invoke [assignAdminRole](../Permissioning%20apis#quorumpermissionassignadminrole)
+There may be a scenario where one of the accounts at the organization level needs to have network admin level permissions and be able to perform network admin activities. Similarly there can be a need to change the admin account at organization level. Both these activities can be performed by existing network admin accounts only, and will require majority approval from the network admin accounts. The API usage details are as below.
+To assign network admin or org admin role to an account invoke [assignAdminRole](../Permissioning%20apis#quorumpermissionassignadminrole).
 ```javascript
 > quorumPermission.assignAdminRole("ORG1", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", "ADMIN", {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
 {
@@ -508,7 +514,7 @@ To assign network admin or org admin role to an account invoke [assignAdminRole]
   status: 1
 }
 ```
-To approve the assignment of network admin role invoke [approveAdminRole](../Permissioning%20apis#quorumpermissionapproveadminrole) API
+To approve the assignment of network admin role invoke [approveAdminRole](../Permissioning%20apis#quorumpermissionapproveadminrole) API.
 ```javascript
 > quorumPermission.approveAdminRole("ORG1", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
 {
@@ -524,7 +530,7 @@ To approve the assignment of network admin role invoke [approveAdminRole](../Per
   status: 2
 }
 ```
-The above account now can perform all activities that can be performed by a network admin account and participate in approval process for any actions at network level
+The above account can now perform all activities allowable by a network admin account and can participate in the approval process for any actions at network level.
 
 
 
