@@ -11,9 +11,9 @@
 ### Initial network set up
 Please refer to [set up](../setup). For an existing network running with an older version of Quorum:
 
+* Upgrade Quorum to the latest version 
 * Deploy the contracts 
 * Execute the `init` method of `PermissionsUpgradable.sol` from the custodian account
-* Upgrade Quorum to the latest version 
 * Copy the `permission-config.json`  to the data directory of each node  
 * Bring `geth` up in `--permissioned` mode.
 
