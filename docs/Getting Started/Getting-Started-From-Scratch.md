@@ -63,4 +63,4 @@ Your node is now operational and you may attach to it with `geth attach new-node
 
 
 ## Enabling permissioned configuration
-Quorum ships with a permissions system based on a custom whitelist. Detailed documentation is available in [Network Permissioning](../../Permissioning/Overview.md).
+Quorum ships with a permissions system based on a custom whitelist. Detailed documentation is available in [Network Permissioning](../../Permissioning/Overview).
