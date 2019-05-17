@@ -18,6 +18,7 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -25,7 +26,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/swarm/log"
@@ -41,65 +42,112 @@ const (
 	Mid
 	High
 	Top
-	PriorityQueue         // number of queues
-	PriorityQueueCap = 32 // queue capacity
+	PriorityQueue    = 4    // number of priority queues - Low, Mid, High, Top
+	PriorityQueueCap = 4096 // queue capacity
 	HashSize         = 32
+)
+
+//Enumerate options for syncing and retrieval
+type SyncingOption int
+type RetrievalOption int
+
+//Syncing options
+const (
+	//Syncing disabled
+	SyncingDisabled SyncingOption = iota
+	//Register the client and the server but not subscribe
+	SyncingRegisterOnly
+	//Both client and server funcs are registered, subscribe sent automatically
+	SyncingAutoSubscribe
+)
+
+const (
+	//Retrieval disabled. Used mostly for tests to isolate syncing features (i.e. syncing only)
+	RetrievalDisabled RetrievalOption = iota
+	//Only the client side of the retrieve request is registered.
+	//(light nodes do not serve retrieve requests)
+	//once the client is registered, subscription to retrieve request stream is always sent
+	RetrievalClientOnly
+	//Both client and server funcs are registered, subscribe sent automatically
+	RetrievalEnabled
 )
 
 // Registry registry for outgoing and incoming streamer constructors
 type Registry struct {
+	addr           enode.ID
 	api            *API
-	addr           *network.BzzAddr
 	skipCheck      bool
 	clientMu       sync.RWMutex
 	serverMu       sync.RWMutex
 	peersMu        sync.RWMutex
 	serverFuncs    map[string]func(*Peer, string, bool) (Server, error)
 	clientFuncs    map[string]func(*Peer, string, bool) (Client, error)
-	peers          map[discover.NodeID]*Peer
+	peers          map[enode.ID]*Peer
 	delivery       *Delivery
 	intervalsStore state.Store
-	doRetrieve     bool
+	autoRetrieval  bool //automatically subscribe to retrieve request stream
+	maxPeerServers int
 }
 
 // RegistryOptions holds optional values for NewRegistry constructor.
 type RegistryOptions struct {
 	SkipCheck       bool
-	DoSync          bool
-	DoRetrieve      bool
+	Syncing         SyncingOption   //Defines syncing behavior
+	Retrieval       RetrievalOption //Defines retrieval behavior
 	SyncUpdateDelay time.Duration
+	MaxPeerServers  int // The limit of servers for each peer in registry
 }
 
 // NewRegistry is Streamer constructor
-func NewRegistry(addr *network.BzzAddr, delivery *Delivery, db *storage.DBAPI, intervalsStore state.Store, options *RegistryOptions) *Registry {
+func NewRegistry(localID enode.ID, delivery *Delivery, syncChunkStore storage.SyncChunkStore, intervalsStore state.Store, options *RegistryOptions) *Registry {
 	if options == nil {
 		options = &RegistryOptions{}
 	}
 	if options.SyncUpdateDelay <= 0 {
 		options.SyncUpdateDelay = 15 * time.Second
 	}
+	//check if retriaval has been disabled
+	retrieval := options.Retrieval != RetrievalDisabled
+
 	streamer := &Registry{
-		addr:           addr,
+		addr:           localID,
 		skipCheck:      options.SkipCheck,
 		serverFuncs:    make(map[string]func(*Peer, string, bool) (Server, error)),
 		clientFuncs:    make(map[string]func(*Peer, string, bool) (Client, error)),
-		peers:          make(map[discover.NodeID]*Peer),
+		peers:          make(map[enode.ID]*Peer),
 		delivery:       delivery,
 		intervalsStore: intervalsStore,
-		doRetrieve:     options.DoRetrieve,
+		autoRetrieval:  retrieval,
+		maxPeerServers: options.MaxPeerServers,
 	}
 	streamer.api = NewAPI(streamer)
 	delivery.getPeer = streamer.getPeer
-	streamer.RegisterServerFunc(swarmChunkServerStreamName, func(_ *Peer, _ string, _ bool) (Server, error) {
-		return NewSwarmChunkServer(delivery.db), nil
-	})
-	streamer.RegisterClientFunc(swarmChunkServerStreamName, func(p *Peer, t string, live bool) (Client, error) {
-		return NewSwarmSyncerClient(p, delivery.db, false, NewStream(swarmChunkServerStreamName, t, live))
-	})
-	RegisterSwarmSyncerServer(streamer, db)
-	RegisterSwarmSyncerClient(streamer, db)
 
-	if options.DoSync {
+	//if retrieval is enabled, register the server func, so that retrieve requests will be served (non-light nodes only)
+	if options.Retrieval == RetrievalEnabled {
+		streamer.RegisterServerFunc(swarmChunkServerStreamName, func(_ *Peer, _ string, live bool) (Server, error) {
+			if !live {
+				return nil, errors.New("only live retrieval requests supported")
+			}
+			return NewSwarmChunkServer(delivery.chunkStore), nil
+		})
+	}
+
+	//if retrieval is not disabled, register the client func (both light nodes and normal nodes can issue retrieve requests)
+	if options.Retrieval != RetrievalDisabled {
+		streamer.RegisterClientFunc(swarmChunkServerStreamName, func(p *Peer, t string, live bool) (Client, error) {
+			return NewSwarmSyncerClient(p, syncChunkStore, NewStream(swarmChunkServerStreamName, t, live))
+		})
+	}
+
+	//If syncing is not disabled, the syncing functions are registered (both client and server)
+	if options.Syncing != SyncingDisabled {
+		RegisterSwarmSyncerServer(streamer, syncChunkStore)
+		RegisterSwarmSyncerClient(streamer, syncChunkStore)
+	}
+
+	//if syncing is set to automatically subscribe to the syncing stream, start the subscription process
+	if options.Syncing == SyncingAutoSubscribe {
 		// latestIntC function ensures that
 		//   - receiving from the in chan is not blocked by processing inside the for loop
 		// 	 - the latest int value is delivered to the loop after the processing is done
@@ -128,7 +176,7 @@ func NewRegistry(addr *network.BzzAddr, delivery *Delivery, db *storage.DBAPI, i
 			// wait for kademlia table to be healthy
 			time.Sleep(options.SyncUpdateDelay)
 
-			kad := streamer.delivery.overlay.(*network.Kademlia)
+			kad := streamer.delivery.kad
 			depthC := latestIntC(kad.NeighbourhoodDepthC())
 			addressBookSizeC := latestIntC(kad.AddrCountC())
 
@@ -220,7 +268,7 @@ func (r *Registry) GetServerFunc(stream string) (func(*Peer, string, bool) (Serv
 	return f, nil
 }
 
-func (r *Registry) RequestSubscription(peerId discover.NodeID, s Stream, h *Range, prio uint8) error {
+func (r *Registry) RequestSubscription(peerId enode.ID, s Stream, h *Range, prio uint8) error {
 	// check if the stream is registered
 	if _, err := r.GetServerFunc(s.Name); err != nil {
 		return err
@@ -235,7 +283,7 @@ func (r *Registry) RequestSubscription(peerId discover.NodeID, s Stream, h *Rang
 		if e, ok := err.(*notFoundError); ok && e.t == "server" {
 			// request subscription only if the server for this stream is not created
 			log.Debug("RequestSubscription ", "peer", peerId, "stream", s, "history", h)
-			return peer.Send(&RequestSubscriptionMsg{
+			return peer.Send(context.TODO(), &RequestSubscriptionMsg{
 				Stream:   s,
 				History:  h,
 				Priority: prio,
@@ -248,7 +296,7 @@ func (r *Registry) RequestSubscription(peerId discover.NodeID, s Stream, h *Rang
 }
 
 // Subscribe initiates the streamer
-func (r *Registry) Subscribe(peerId discover.NodeID, s Stream, h *Range, priority uint8) error {
+func (r *Registry) Subscribe(peerId enode.ID, s Stream, h *Range, priority uint8) error {
 	// check if the stream is registered
 	if _, err := r.GetClientFunc(s.Name); err != nil {
 		return err
@@ -268,7 +316,6 @@ func (r *Registry) Subscribe(peerId discover.NodeID, s Stream, h *Range, priorit
 	if err != nil {
 		return err
 	}
-
 	if s.Live && h != nil {
 		if err := peer.setClientParams(
 			getHistoryStream(s),
@@ -285,10 +332,10 @@ func (r *Registry) Subscribe(peerId discover.NodeID, s Stream, h *Range, priorit
 	}
 	log.Debug("Subscribe ", "peer", peerId, "stream", s, "history", h)
 
-	return peer.SendPriority(msg, priority)
+	return peer.SendPriority(context.TODO(), msg, priority)
 }
 
-func (r *Registry) Unsubscribe(peerId discover.NodeID, s Stream) error {
+func (r *Registry) Unsubscribe(peerId enode.ID, s Stream) error {
 	peer := r.getPeer(peerId)
 	if peer == nil {
 		return fmt.Errorf("peer not found %v", peerId)
@@ -299,7 +346,7 @@ func (r *Registry) Unsubscribe(peerId discover.NodeID, s Stream) error {
 	}
 	log.Debug("Unsubscribe ", "peer", peerId, "stream", s)
 
-	if err := peer.Send(msg); err != nil {
+	if err := peer.Send(context.TODO(), msg); err != nil {
 		return err
 	}
 	return peer.removeClient(s)
@@ -307,7 +354,7 @@ func (r *Registry) Unsubscribe(peerId discover.NodeID, s Stream) error {
 
 // Quit sends the QuitMsg to the peer to remove the
 // stream peer client and terminate the streaming.
-func (r *Registry) Quit(peerId discover.NodeID, s Stream) error {
+func (r *Registry) Quit(peerId enode.ID, s Stream) error {
 	peer := r.getPeer(peerId)
 	if peer == nil {
 		log.Debug("stream quit: peer not found", "peer", peerId, "stream", s)
@@ -320,18 +367,14 @@ func (r *Registry) Quit(peerId discover.NodeID, s Stream) error {
 	}
 	log.Debug("Quit ", "peer", peerId, "stream", s)
 
-	return peer.Send(msg)
-}
-
-func (r *Registry) Retrieve(chunk *storage.Chunk) error {
-	return r.delivery.RequestFromPeers(chunk.Addr[:], r.skipCheck)
+	return peer.Send(context.TODO(), msg)
 }
 
 func (r *Registry) NodeInfo() interface{} {
 	return nil
 }
 
-func (r *Registry) PeerInfo(id discover.NodeID) interface{} {
+func (r *Registry) PeerInfo(id enode.ID) interface{} {
 	return nil
 }
 
@@ -339,7 +382,7 @@ func (r *Registry) Close() error {
 	return r.intervalsStore.Close()
 }
 
-func (r *Registry) getPeer(peerId discover.NodeID) *Peer {
+func (r *Registry) getPeer(peerId enode.ID) *Peer {
 	r.peersMu.RLock()
 	defer r.peersMu.RUnlock()
 
@@ -375,8 +418,8 @@ func (r *Registry) Run(p *network.BzzPeer) error {
 	defer close(sp.quit)
 	defer sp.close()
 
-	if r.doRetrieve {
-		err := r.Subscribe(p.ID(), NewStream(swarmChunkServerStreamName, "", false), nil, Top)
+	if r.autoRetrieval && !p.LightNode {
+		err := r.Subscribe(p.ID(), NewStream(swarmChunkServerStreamName, "", true), nil, Top)
 		if err != nil {
 			return err
 		}
@@ -390,13 +433,11 @@ func (r *Registry) Run(p *network.BzzPeer) error {
 // and they are no longer required after iteration, request to Quit
 // them will be send to appropriate peers.
 func (r *Registry) updateSyncing() {
-	// if overlay in not Kademlia, panic
-	kad := r.delivery.overlay.(*network.Kademlia)
-
+	kad := r.delivery.kad
 	// map of all SYNC streams for all peers
 	// used at the and of the function to remove servers
 	// that are not needed anymore
-	subs := make(map[discover.NodeID]map[Stream]struct{})
+	subs := make(map[enode.ID]map[Stream]struct{})
 	r.peersMu.RLock()
 	for id, peer := range r.peers {
 		peer.serverMu.RLock()
@@ -413,9 +454,8 @@ func (r *Registry) updateSyncing() {
 	r.peersMu.RUnlock()
 
 	// request subscriptions for all nodes and bins
-	kad.EachBin(r.addr.Over(), pot.DefaultPof(256), 0, func(conn network.OverlayConn, bin int) bool {
-		p := conn.(network.Peer)
-		log.Debug(fmt.Sprintf("Requesting subscription by: registry %s from peer %s for bin: %d", r.addr.ID(), p.ID(), bin))
+	kad.EachBin(r.addr[:], pot.DefaultPof(256), 0, func(p *network.Peer, bin int) bool {
+		log.Debug(fmt.Sprintf("Requesting subscription by: registry %s from peer %s for bin: %d", r.addr, p.ID(), bin))
 
 		// bin is always less then 256 and it is safe to convert it to type uint8
 		stream := NewStream("SYNC", FormatSyncBinKey(uint8(bin)), true)
@@ -453,18 +493,19 @@ func (r *Registry) updateSyncing() {
 
 func (r *Registry) runProtocol(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 	peer := protocols.NewPeer(p, rw, Spec)
-	bzzPeer := network.NewBzzTestPeer(peer, r.addr)
-	r.delivery.overlay.On(bzzPeer)
-	defer r.delivery.overlay.Off(bzzPeer)
-	return r.Run(bzzPeer)
+	bp := network.NewBzzPeer(peer)
+	np := network.NewPeer(bp, r.delivery.kad)
+	r.delivery.kad.On(np)
+	defer r.delivery.kad.Off(np)
+	return r.Run(bp)
 }
 
 // HandleMsg is the message handler that delegates incoming messages
-func (p *Peer) HandleMsg(msg interface{}) error {
+func (p *Peer) HandleMsg(ctx context.Context, msg interface{}) error {
 	switch msg := msg.(type) {
 
 	case *SubscribeMsg:
-		return p.handleSubscribeMsg(msg)
+		return p.handleSubscribeMsg(ctx, msg)
 
 	case *SubscribeErrorMsg:
 		return p.handleSubscribeErrorMsg(msg)
@@ -473,22 +514,27 @@ func (p *Peer) HandleMsg(msg interface{}) error {
 		return p.handleUnsubscribeMsg(msg)
 
 	case *OfferedHashesMsg:
-		return p.handleOfferedHashesMsg(msg)
+		return p.handleOfferedHashesMsg(ctx, msg)
 
 	case *TakeoverProofMsg:
-		return p.handleTakeoverProofMsg(msg)
+		return p.handleTakeoverProofMsg(ctx, msg)
 
 	case *WantedHashesMsg:
-		return p.handleWantedHashesMsg(msg)
+		return p.handleWantedHashesMsg(ctx, msg)
 
-	case *ChunkDeliveryMsg:
-		return p.streamer.delivery.handleChunkDeliveryMsg(p, msg)
+	case *ChunkDeliveryMsgRetrieval:
+		//handling chunk delivery is the same for retrieval and syncing, so let's cast the msg
+		return p.streamer.delivery.handleChunkDeliveryMsg(ctx, p, ((*ChunkDeliveryMsg)(msg)))
+
+	case *ChunkDeliveryMsgSyncing:
+		//handling chunk delivery is the same for retrieval and syncing, so let's cast the msg
+		return p.streamer.delivery.handleChunkDeliveryMsg(ctx, p, ((*ChunkDeliveryMsg)(msg)))
 
 	case *RetrieveRequestMsg:
-		return p.streamer.delivery.handleRetrieveRequestMsg(p, msg)
+		return p.streamer.delivery.handleRetrieveRequestMsg(ctx, p, msg)
 
 	case *RequestSubscriptionMsg:
-		return p.handleRequestSubscription(msg)
+		return p.handleRequestSubscription(ctx, msg)
 
 	case *QuitMsg:
 		return p.handleQuitMsg(msg)
@@ -503,12 +549,40 @@ type server struct {
 	stream       Stream
 	priority     uint8
 	currentBatch []byte
+	sessionIndex uint64
+}
+
+// setNextBatch adjusts passed interval based on session index and whether
+// stream is live or history. It calls Server SetNextBatch with adjusted
+// interval and returns batch hashes and their interval.
+func (s *server) setNextBatch(from, to uint64) ([]byte, uint64, uint64, *HandoverProof, error) {
+	if s.stream.Live {
+		if from == 0 {
+			from = s.sessionIndex
+		}
+		if to <= from || from >= s.sessionIndex {
+			to = math.MaxUint64
+		}
+	} else {
+		if (to < from && to != 0) || from > s.sessionIndex {
+			return nil, 0, 0, nil, nil
+		}
+		if to == 0 || to > s.sessionIndex {
+			to = s.sessionIndex
+		}
+	}
+	return s.SetNextBatch(from, to)
 }
 
 // Server interface for outgoing peer Streamer
 type Server interface {
+	// SessionIndex is called when a server is initialized
+	// to get the current cursor state of the stream data.
+	// Based on this index, live and history stream intervals
+	// will be adjusted before calling SetNextBatch.
+	SessionIndex() (uint64, error)
 	SetNextBatch(uint64, uint64) (hashes []byte, from uint64, to uint64, proof *HandoverProof, err error)
-	GetData([]byte) ([]byte, error)
+	GetData(context.Context, []byte) ([]byte, error)
 	Close()
 }
 
@@ -551,7 +625,7 @@ func (c client) NextInterval() (start, end uint64, err error) {
 
 // Client interface for incoming peer Streamer
 type Client interface {
-	NeedData([]byte) func()
+	NeedData(context.Context, []byte) func(context.Context) error
 	BatchDone(Stream, uint64, []byte, []byte) func() (*TakeoverProof, error)
 	Close()
 }
@@ -588,7 +662,7 @@ func (c *client) batchDone(p *Peer, req *OfferedHashesMsg, hashes []byte) error 
 		if err != nil {
 			return err
 		}
-		if err := p.SendPriority(tp, c.priority); err != nil {
+		if err := p.SendPriority(context.TODO(), tp, c.priority); err != nil {
 			return err
 		}
 		if c.to > 0 && tp.Takeover.End >= c.to {
@@ -645,7 +719,7 @@ func (c *clientParams) clientCreated() {
 // Spec is the spec of the streamer protocol
 var Spec = &protocols.Spec{
 	Name:       "stream",
-	Version:    4,
+	Version:    8,
 	MaxMsgSize: 10 * 1024 * 1024,
 	Messages: []interface{}{
 		UnsubscribeMsg{},
@@ -654,10 +728,11 @@ var Spec = &protocols.Spec{
 		TakeoverProofMsg{},
 		SubscribeMsg{},
 		RetrieveRequestMsg{},
-		ChunkDeliveryMsg{},
+		ChunkDeliveryMsgRetrieval{},
 		SubscribeErrorMsg{},
 		RequestSubscriptionMsg{},
 		QuitMsg{},
+		ChunkDeliveryMsgSyncing{},
 	},
 }
 
@@ -730,10 +805,10 @@ func NewAPI(r *Registry) *API {
 	}
 }
 
-func (api *API) SubscribeStream(peerId discover.NodeID, s Stream, history *Range, priority uint8) error {
+func (api *API) SubscribeStream(peerId enode.ID, s Stream, history *Range, priority uint8) error {
 	return api.streamer.Subscribe(peerId, s, history, priority)
 }
 
-func (api *API) UnsubscribeStream(peerId discover.NodeID, s Stream) error {
+func (api *API) UnsubscribeStream(peerId enode.ID, s Stream) error {
 	return api.streamer.Unsubscribe(peerId, s)
 }

@@ -93,7 +93,7 @@ func setup() {
 	gspec := &core.Genesis{Config: quorumChainConfig}
 	gspec.MustCommit(testdb)
 	var err error
-	arbitraryBlockChain, err = core.NewBlockChain(testdb, nil, quorumChainConfig, ethash.NewFaker(), vm.Config{})
+	arbitraryBlockChain, err = core.NewBlockChain(testdb, nil, quorumChainConfig, ethash.NewFaker(), vm.Config{}, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -533,27 +533,47 @@ func (sb *StubBackend) ChainConfig() *params.ChainConfig {
 type StubMinimalApiState struct {
 }
 
-func (smps *StubMinimalApiState) GetBalance(addr common.Address) *big.Int {
+func (StubMinimalApiState) GetBalance(addr common.Address) *big.Int {
 	panic("implement me")
 }
 
-func (smps *StubMinimalApiState) GetCode(addr common.Address) []byte {
+func (StubMinimalApiState) GetCode(addr common.Address) []byte {
 	panic("implement me")
 }
 
-func (smps *StubMinimalApiState) GetState(a common.Address, b common.Hash) common.Hash {
+func (StubMinimalApiState) GetState(a common.Address, b common.Hash) common.Hash {
 	panic("implement me")
 }
 
-func (smps *StubMinimalApiState) GetNonce(addr common.Address) uint64 {
+func (StubMinimalApiState) GetNonce(addr common.Address) uint64 {
 	panic("implement me")
 }
 
-func (smps *StubMinimalApiState) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+func (StubMinimalApiState) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	panic("implement me")
 }
 
-func (smps *StubMinimalApiState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
+func (StubMinimalApiState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
+	panic("implement me")
+}
+
+func (StubMinimalApiState) GetProof(common.Address) ([][]byte, error) {
+	panic("implement me")
+}
+
+func (StubMinimalApiState) GetStorageProof(common.Address, common.Hash) ([][]byte, error) {
+	panic("implement me")
+}
+
+func (StubMinimalApiState) StorageTrie(addr common.Address) state.Trie {
+	panic("implement me")
+}
+
+func (StubMinimalApiState) Error() error {
+	panic("implement me")
+}
+
+func (StubMinimalApiState) GetCodeHash(common.Address) common.Hash {
 	panic("implement me")
 }
 
