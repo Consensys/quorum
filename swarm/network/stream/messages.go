@@ -17,16 +17,19 @@
 package stream
 
 import (
-	"errors"
+	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/swarm/log"
 	bv "github.com/ethereum/go-ethereum/swarm/network/bitvector"
+	"github.com/ethereum/go-ethereum/swarm/spancontext"
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	"github.com/opentracing/opentracing-go"
 )
+
+var syncBatchTimeout = 30 * time.Second
 
 // Stream defines a unique stream identifier.
 type Stream struct {
@@ -71,25 +74,36 @@ type RequestSubscriptionMsg struct {
 	Priority uint8  // delivered on priority channel
 }
 
-func (p *Peer) handleRequestSubscription(req *RequestSubscriptionMsg) (err error) {
-	log.Debug(fmt.Sprintf("handleRequestSubscription: streamer %s to subscribe to %s with stream %s", p.streamer.addr.ID(), p.ID(), req.Stream))
-	return p.streamer.Subscribe(p.ID(), req.Stream, req.History, req.Priority)
+func (p *Peer) handleRequestSubscription(ctx context.Context, req *RequestSubscriptionMsg) (err error) {
+	log.Debug(fmt.Sprintf("handleRequestSubscription: streamer %s to subscribe to %s with stream %s", p.streamer.addr, p.ID(), req.Stream))
+	if err = p.streamer.Subscribe(p.ID(), req.Stream, req.History, req.Priority); err != nil {
+		// The error will be sent as a subscribe error message
+		// and will not be returned as it will prevent any new message
+		// exchange between peers over p2p. Instead, error will be returned
+		// only if there is one from sending subscribe error message.
+		err = p.Send(ctx, SubscribeErrorMsg{
+			Error: err.Error(),
+		})
+	}
+	return err
 }
 
-func (p *Peer) handleSubscribeMsg(req *SubscribeMsg) (err error) {
+func (p *Peer) handleSubscribeMsg(ctx context.Context, req *SubscribeMsg) (err error) {
 	metrics.GetOrRegisterCounter("peer.handlesubscribemsg", nil).Inc(1)
 
 	defer func() {
 		if err != nil {
-			if e := p.Send(SubscribeErrorMsg{
+			// The error will be sent as a subscribe error message
+			// and will not be returned as it will prevent any new message
+			// exchange between peers over p2p. Instead, error will be returned
+			// only if there is one from sending subscribe error message.
+			err = p.Send(context.TODO(), SubscribeErrorMsg{
 				Error: err.Error(),
-			}); e != nil {
-				log.Error("send stream subscribe error message", "err", err)
-			}
+			})
 		}
 	}()
 
-	log.Debug("received subscription", "from", p.streamer.addr.ID(), "peer", p.ID(), "stream", req.Stream, "history", req.History)
+	log.Debug("received subscription", "from", p.streamer.addr, "peer", p.ID(), "stream", req.Stream, "history", req.History)
 
 	f, err := p.streamer.GetServerFunc(req.Stream.Name)
 	if err != nil {
@@ -114,8 +128,7 @@ func (p *Peer) handleSubscribeMsg(req *SubscribeMsg) (err error) {
 
 	go func() {
 		if err := p.SendOfferedHashes(os, from, to); err != nil {
-			log.Warn("SendOfferedHashes dropping peer", "err", err)
-			p.Drop(err)
+			log.Warn("SendOfferedHashes error", "peer", p.ID().TerminalString(), "err", err)
 		}
 	}()
 
@@ -132,8 +145,7 @@ func (p *Peer) handleSubscribeMsg(req *SubscribeMsg) (err error) {
 		}
 		go func() {
 			if err := p.SendOfferedHashes(os, req.History.From, req.History.To); err != nil {
-				log.Warn("SendOfferedHashes dropping peer", "err", err)
-				p.Drop(err)
+				log.Warn("SendOfferedHashes error", "peer", p.ID().TerminalString(), "err", err)
 			}
 		}()
 	}
@@ -146,6 +158,7 @@ type SubscribeErrorMsg struct {
 }
 
 func (p *Peer) handleSubscribeErrorMsg(req *SubscribeErrorMsg) (err error) {
+	//TODO the error should be channeled to whoever calls the subscribe
 	return fmt.Errorf("subscribe to peer %s: %v", p.ID(), req.Error)
 }
 
@@ -181,50 +194,76 @@ func (m OfferedHashesMsg) String() string {
 
 // handleOfferedHashesMsg protocol msg handler calls the incoming streamer interface
 // Filter method
-func (p *Peer) handleOfferedHashesMsg(req *OfferedHashesMsg) error {
+func (p *Peer) handleOfferedHashesMsg(ctx context.Context, req *OfferedHashesMsg) error {
 	metrics.GetOrRegisterCounter("peer.handleofferedhashes", nil).Inc(1)
+
+	var sp opentracing.Span
+	ctx, sp = spancontext.StartSpan(
+		ctx,
+		"handle.offered.hashes")
+	defer sp.Finish()
 
 	c, _, err := p.getOrSetClient(req.Stream, req.From, req.To)
 	if err != nil {
 		return err
 	}
+
 	hashes := req.Hashes
-	want, err := bv.New(len(hashes) / HashSize)
-	if err != nil {
-		return fmt.Errorf("error initiaising bitvector of length %v: %v", len(hashes)/HashSize, err)
+	lenHashes := len(hashes)
+	if lenHashes%HashSize != 0 {
+		return fmt.Errorf("error invalid hashes length (len: %v)", lenHashes)
 	}
-	wg := sync.WaitGroup{}
-	for i := 0; i < len(hashes); i += HashSize {
+
+	want, err := bv.New(lenHashes / HashSize)
+	if err != nil {
+		return fmt.Errorf("error initiaising bitvector of length %v: %v", lenHashes/HashSize, err)
+	}
+
+	ctr := 0
+	errC := make(chan error)
+	ctx, cancel := context.WithTimeout(ctx, syncBatchTimeout)
+
+	ctx = context.WithValue(ctx, "source", p.ID().String())
+	for i := 0; i < lenHashes; i += HashSize {
 		hash := hashes[i : i+HashSize]
 
-		if wait := c.NeedData(hash); wait != nil {
+		if wait := c.NeedData(ctx, hash); wait != nil {
+			ctr++
 			want.Set(i/HashSize, true)
-			wg.Add(1)
 			// create request and wait until the chunk data arrives and is stored
-			go func(w func()) {
-				w()
-				wg.Done()
+			go func(w func(context.Context) error) {
+				select {
+				case errC <- w(ctx):
+				case <-ctx.Done():
+				}
 			}(wait)
 		}
 	}
-	// done := make(chan bool)
-	// go func() {
-	// 	wg.Wait()
-	// 	close(done)
-	// }()
-	// go func() {
-	// 	select {
-	// 	case <-done:
-	// 		s.next <- s.batchDone(p, req, hashes)
-	// 	case <-time.After(1 * time.Second):
-	// 		p.Drop(errors.New("timeout waiting for batch to be delivered"))
-	// 	}
-	// }()
+
 	go func() {
-		wg.Wait()
+		defer cancel()
+		for i := 0; i < ctr; i++ {
+			select {
+			case err := <-errC:
+				if err != nil {
+					log.Debug("client.handleOfferedHashesMsg() error waiting for chunk, dropping peer", "peer", p.ID(), "err", err)
+					p.Drop(err)
+					return
+				}
+			case <-ctx.Done():
+				log.Debug("client.handleOfferedHashesMsg() context done", "ctx.Err()", ctx.Err())
+				return
+			case <-c.quit:
+				log.Debug("client.handleOfferedHashesMsg() quit")
+				return
+			}
+		}
 		select {
 		case c.next <- c.batchDone(p, req, hashes):
 		case <-c.quit:
+			log.Debug("client.handleOfferedHashesMsg() quit")
+		case <-ctx.Done():
+			log.Debug("client.handleOfferedHashesMsg() context done", "ctx.Err()", ctx.Err())
 		}
 	}()
 	// only send wantedKeysMsg if all missing chunks of the previous batch arrived
@@ -233,7 +272,7 @@ func (p *Peer) handleOfferedHashesMsg(req *OfferedHashesMsg) error {
 		c.sessionAt = req.From
 	}
 	from, to := c.nextBatch(req.To + 1)
-	log.Trace("received offered batch", "peer", p.ID(), "stream", req.Stream, "from", req.From, "to", req.To)
+	log.Trace("set next batch", "peer", p.ID(), "stream", req.Stream, "from", req.From, "to", req.To, "addr", p.streamer.addr)
 	if from == to {
 		return nil
 	}
@@ -245,25 +284,25 @@ func (p *Peer) handleOfferedHashesMsg(req *OfferedHashesMsg) error {
 		To:     to,
 	}
 	go func() {
+		log.Trace("sending want batch", "peer", p.ID(), "stream", msg.Stream, "from", msg.From, "to", msg.To)
 		select {
-		case <-time.After(120 * time.Second):
-			log.Warn("handleOfferedHashesMsg timeout, so dropping peer")
-			p.Drop(errors.New("handle offered hashes timeout"))
-			return
 		case err := <-c.next:
 			if err != nil {
-				log.Warn("c.next dropping peer", "err", err)
+				log.Warn("c.next error dropping peer", "err", err)
 				p.Drop(err)
 				return
 			}
 		case <-c.quit:
+			log.Debug("client.handleOfferedHashesMsg() quit")
+			return
+		case <-ctx.Done():
+			log.Debug("client.handleOfferedHashesMsg() context done", "ctx.Err()", ctx.Err())
 			return
 		}
 		log.Trace("sending want batch", "peer", p.ID(), "stream", msg.Stream, "from", msg.From, "to", msg.To)
-		err := p.SendPriority(msg, c.priority)
+		err := p.SendPriority(ctx, msg, c.priority)
 		if err != nil {
-			log.Warn("SendPriority err, so dropping peer", "err", err)
-			p.Drop(err)
+			log.Warn("SendPriority error", "err", err)
 		}
 	}()
 	return nil
@@ -285,7 +324,7 @@ func (m WantedHashesMsg) String() string {
 // handleWantedHashesMsg protocol msg handler
 // * sends the next batch of unsynced keys
 // * sends the actual data chunks as per WantedHashesMsg
-func (p *Peer) handleWantedHashesMsg(req *WantedHashesMsg) error {
+func (p *Peer) handleWantedHashesMsg(ctx context.Context, req *WantedHashesMsg) error {
 	metrics.GetOrRegisterCounter("peer.handlewantedhashesmsg", nil).Inc(1)
 
 	log.Trace("received wanted batch", "peer", p.ID(), "stream", req.Stream, "from", req.From, "to", req.To)
@@ -297,8 +336,7 @@ func (p *Peer) handleWantedHashesMsg(req *WantedHashesMsg) error {
 	// launch in go routine since GetBatch blocks until new hashes arrive
 	go func() {
 		if err := p.SendOfferedHashes(s, req.From, req.To); err != nil {
-			log.Warn("SendOfferedHashes dropping peer", "err", err)
-			p.Drop(err)
+			log.Warn("SendOfferedHashes error", "err", err)
 		}
 	}()
 	// go p.SendOfferedHashes(s, req.From, req.To)
@@ -314,16 +352,13 @@ func (p *Peer) handleWantedHashesMsg(req *WantedHashesMsg) error {
 			metrics.GetOrRegisterCounter("peer.handlewantedhashesmsg.actualget", nil).Inc(1)
 
 			hash := hashes[i*HashSize : (i+1)*HashSize]
-			data, err := s.GetData(hash)
+			data, err := s.GetData(ctx, hash)
 			if err != nil {
 				return fmt.Errorf("handleWantedHashesMsg get data %x: %v", hash, err)
 			}
-			chunk := storage.NewChunk(hash, nil)
-			chunk.SData = data
-			if length := len(chunk.SData); length < 9 {
-				log.Error("Chunk.SData to sync is too short", "len(chunk.SData)", length, "address", chunk.Addr)
-			}
-			if err := p.Deliver(chunk, s.priority); err != nil {
+			chunk := storage.NewChunk(hash, data)
+			syncing := true
+			if err := p.Deliver(ctx, chunk, s.priority, syncing); err != nil {
 				return err
 			}
 		}
@@ -363,7 +398,7 @@ func (m TakeoverProofMsg) String() string {
 	return fmt.Sprintf("Stream: '%v' [%v-%v], Root: %x, Sig: %x", m.Stream, m.Start, m.End, m.Root, m.Sig)
 }
 
-func (p *Peer) handleTakeoverProofMsg(req *TakeoverProofMsg) error {
+func (p *Peer) handleTakeoverProofMsg(ctx context.Context, req *TakeoverProofMsg) error {
 	_, err := p.getServer(req.Stream)
 	// store the strongest takeoverproof for the stream in streamer
 	return err

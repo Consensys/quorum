@@ -31,6 +31,12 @@ type MinimalApiState interface {
 	GetCode(addr common.Address) []byte
 	GetState(a common.Address, b common.Hash) common.Hash
 	GetNonce(addr common.Address) uint64
+
+	GetProof(common.Address) ([][]byte, error)
+	GetStorageProof(common.Address, common.Hash) ([][]byte, error)
+	StorageTrie(addr common.Address) state.Trie
+	Error() error
+	GetCodeHash(common.Address) common.Hash
 	// Return nil if for public contract
 	GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error)
 
@@ -53,15 +59,16 @@ type StateDB interface {
 
 	SetStatePrivacyMetadata(common.Address, *state.PrivacyMetadata) error
 
-	GetCodeHash(common.Address) common.Hash
+	//GetCodeHash(common.Address) common.Hash
 	//GetCode(common.Address) []byte
 	SetCode(common.Address, []byte)
 	GetCodeSize(common.Address) int
 
 	AddRefund(uint64)
+	SubRefund(uint64)
 	GetRefund() uint64
 
-	//GetState(common.Address, common.Hash) common.Hash
+	GetCommittedState(common.Address, common.Hash) common.Hash
 	SetState(common.Address, common.Hash, common.Hash)
 
 	Suicide(common.Address) bool
@@ -83,7 +90,7 @@ type StateDB interface {
 	ForEachStorage(common.Address, func(common.Hash, common.Hash) bool)
 }
 
-// CallContext provides a basic interface for the EVM calling conventions. The EVM EVM
+// CallContext provides a basic interface for the EVM calling conventions. The EVM
 // depends on this context being implemented for doing subcalls and initialising new EVM contracts.
 type CallContext interface {
 	// Call another contract

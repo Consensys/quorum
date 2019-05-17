@@ -262,7 +262,7 @@ func (minter *minter) createWork() *work {
 		ParentHash: parent.Hash(),
 		Number:     parentNumber.Add(parentNumber, common.Big1),
 		Difficulty: ethash.CalcDifficulty(minter.config, uint64(tstamp), parent.Header()),
-		GasLimit:   core.CalcGasLimit(parent),
+		GasLimit:   core.CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
 		GasUsed:    0,
 		Coinbase:   minter.coinbase,
 		Time:       big.NewInt(tstamp),

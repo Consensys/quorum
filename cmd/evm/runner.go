@@ -37,7 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var runCommand = cli.Command{
@@ -80,13 +80,13 @@ func runCmd(ctx *cli.Context) error {
 	}
 
 	var (
-		tracer      vm.Tracer
-		debugLogger *vm.StructLogger
-		statedb     *state.StateDB
-		chainConfig *params.ChainConfig
-		sender      = common.BytesToAddress([]byte("sender"))
-		receiver    = common.BytesToAddress([]byte("receiver"))
-		blockNumber uint64
+		tracer        vm.Tracer
+		debugLogger   *vm.StructLogger
+		statedb       *state.StateDB
+		chainConfig   *params.ChainConfig
+		sender        = common.BytesToAddress([]byte("sender"))
+		receiver      = common.BytesToAddress([]byte("receiver"))
+		genesisConfig *core.Genesis
 	)
 	if ctx.GlobalBool(MachineFlag.Name) {
 		tracer = NewJSONLogger(logconfig, os.Stdout)
@@ -98,18 +98,17 @@ func runCmd(ctx *cli.Context) error {
 	}
 	if ctx.GlobalString(GenesisFlag.Name) != "" {
 		gen := readGenesis(ctx.GlobalString(GenesisFlag.Name))
-		persistentEthdb := ethdb.NewMemDatabase()
-		genesis := gen.ToBlock(persistentEthdb)
-		stateBackingStore := state.NewDatabase(persistentEthdb)
-		statedb, _ = state.New(genesis.Root(), stateBackingStore)
-		statedb.SetPersistentEthdb(persistentEthdb)
+		genesisConfig = gen
+		db := ethdb.NewMemDatabase()
+		genesis := gen.ToBlock(db)
+		statedb, _ = state.New(genesis.Root(), state.NewDatabase(db))
+		statedb.SetPersistentEthdb(db)
 		chainConfig = gen.Config
-		blockNumber = gen.Number
 	} else {
 		persistentEthdb := ethdb.NewMemDatabase()
-		stateBackingStore := state.NewDatabase(persistentEthdb)
-		statedb, _ = state.New(common.Hash{}, stateBackingStore)
+		statedb, _ = state.New(common.Hash{}, state.NewDatabase(persistentEthdb))
 		statedb.SetPersistentEthdb(persistentEthdb)
+		genesisConfig = new(core.Genesis)
 	}
 	if ctx.GlobalString(SenderFlag.Name) != "" {
 		sender = common.HexToAddress(ctx.GlobalString(SenderFlag.Name))
@@ -161,13 +160,19 @@ func runCmd(ctx *cli.Context) error {
 	}
 
 	initialGas := ctx.GlobalUint64(GasFlag.Name)
+	if genesisConfig.GasLimit != 0 {
+		initialGas = genesisConfig.GasLimit
+	}
 	runtimeConfig := runtime.Config{
 		Origin:      sender,
 		State:       statedb,
 		GasLimit:    initialGas,
 		GasPrice:    utils.GlobalBig(ctx, PriceFlag.Name),
 		Value:       utils.GlobalBig(ctx, ValueFlag.Name),
-		BlockNumber: new(big.Int).SetUint64(blockNumber),
+		Difficulty:  genesisConfig.Difficulty,
+		Time:        new(big.Int).SetUint64(genesisConfig.Timestamp),
+		Coinbase:    genesisConfig.Coinbase,
+		BlockNumber: new(big.Int).SetUint64(genesisConfig.Number),
 		EVMConfig: vm.Config{
 			Tracer: tracer,
 			Debug:  ctx.GlobalBool(DebugFlag.Name) || ctx.GlobalBool(MachineFlag.Name),
