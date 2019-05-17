@@ -21,22 +21,22 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 )
 
 type TestPeer interface {
-	ID() enode.ID
+	ID() discover.NodeID
 	Drop(error)
 }
 
 // TestPeerPool is an example peerPool to demonstrate registration of peer connections
 type TestPeerPool struct {
 	lock  sync.Mutex
-	peers map[enode.ID]TestPeer
+	peers map[discover.NodeID]TestPeer
 }
 
 func NewTestPeerPool() *TestPeerPool {
-	return &TestPeerPool{peers: make(map[enode.ID]TestPeer)}
+	return &TestPeerPool{peers: make(map[discover.NodeID]TestPeer)}
 }
 
 func (p *TestPeerPool) Add(peer TestPeer) {
@@ -53,14 +53,14 @@ func (p *TestPeerPool) Remove(peer TestPeer) {
 	delete(p.peers, peer.ID())
 }
 
-func (p *TestPeerPool) Has(id enode.ID) bool {
+func (p *TestPeerPool) Has(id discover.NodeID) bool {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	_, ok := p.peers[id]
 	return ok
 }
 
-func (p *TestPeerPool) Get(id enode.ID) TestPeer {
+func (p *TestPeerPool) Get(id discover.NodeID) TestPeer {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	return p.peers[id]

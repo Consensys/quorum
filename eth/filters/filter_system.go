@@ -338,7 +338,8 @@ func (es *EventSystem) broadcast(filters filterIndex, ev interface{}) {
 			}
 		}
 	case *event.TypeMuxEvent:
-		if muxe, ok := e.Data.(core.PendingLogsEvent); ok {
+		switch muxe := e.Data.(type) {
+		case core.PendingLogsEvent:
 			for _, f := range filters[PendingLogsSubscription] {
 				if e.Time.After(f.created) {
 					if matchedLogs := filterLogs(muxe.Logs, nil, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics); len(matchedLogs) > 0 {

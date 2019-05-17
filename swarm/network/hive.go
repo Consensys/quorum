@@ -23,7 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/swarm/log"
 	"github.com/ethereum/go-ethereum/swarm/state"
 )
@@ -32,9 +32,30 @@ import (
 Hive is the logistic manager of the swarm
 
 When the hive is started, a forever loop is launched that
-asks the  kademlia nodetable
+asks the Overlay Topology driver (e.g., generic kademlia nodetable)
 to suggest peers to bootstrap connectivity
 */
+
+// Overlay is the interface for kademlia (or other topology drivers)
+type Overlay interface {
+	// suggest peers to connect to
+	SuggestPeer() (OverlayAddr, int, bool)
+	// register and deregister peer connections
+	On(OverlayConn) (depth uint8, changed bool)
+	Off(OverlayConn)
+	// register peer addresses
+	Register([]OverlayAddr) error
+	// iterate over connected peers
+	EachConn([]byte, int, func(OverlayConn, int, bool) bool)
+	// iterate over known peers (address records)
+	EachAddr([]byte, int, func(OverlayAddr, int, bool) bool)
+	// pretty print the connectivity
+	String() string
+	// base Overlay address of the node itself
+	BaseAddr() []byte
+	// connectivity health check used for testing
+	Healthy(*PeerPot) *Health
+}
 
 // HiveParams holds the config options to hive
 type HiveParams struct {
@@ -56,26 +77,24 @@ func NewHiveParams() *HiveParams {
 
 // Hive manages network connections of the swarm node
 type Hive struct {
-	*HiveParams                   // settings
-	*Kademlia                     // the overlay connectiviy driver
-	Store       state.Store       // storage interface to save peers across sessions
-	addPeer     func(*enode.Node) // server callback to connect to a peer
+	*HiveParams                      // settings
+	Overlay                          // the overlay connectiviy driver
+	Store       state.Store          // storage interface to save peers across sessions
+	addPeer     func(*discover.Node) // server callback to connect to a peer
 	// bookkeeping
 	lock   sync.Mutex
-	peers  map[enode.ID]*BzzPeer
 	ticker *time.Ticker
 }
 
 // NewHive constructs a new hive
 // HiveParams: config parameters
-// Kademlia: connectivity driver using a network topology
+// Overlay: connectivity driver using a network topology
 // StateStore: to save peers across sessions
-func NewHive(params *HiveParams, kad *Kademlia, store state.Store) *Hive {
+func NewHive(params *HiveParams, overlay Overlay, store state.Store) *Hive {
 	return &Hive{
 		HiveParams: params,
-		Kademlia:   kad,
+		Overlay:    overlay,
 		Store:      store,
-		peers:      make(map[enode.ID]*BzzPeer),
 	}
 }
 
@@ -83,10 +102,10 @@ func NewHive(params *HiveParams, kad *Kademlia, store state.Store) *Hive {
 // server is used to connect to a peer based on its NodeID or enode URL
 // these are called on the p2p.Server which runs on the node
 func (h *Hive) Start(server *p2p.Server) error {
-	log.Info("Starting hive", "baseaddr", fmt.Sprintf("%x", h.BaseAddr()[:4]))
+	log.Info(fmt.Sprintf("%08x hive starting", h.BaseAddr()[:4]))
 	// if state store is specified, load peers to prepopulate the overlay address book
 	if h.Store != nil {
-		log.Info("Detected an existing store. trying to load peers")
+		log.Info("detected an existing store. trying to load peers")
 		if err := h.loadPeers(); err != nil {
 			log.Error(fmt.Sprintf("%08x hive encoutered an error trying to load peers", h.BaseAddr()[:4]))
 			return err
@@ -114,7 +133,7 @@ func (h *Hive) Stop() error {
 		}
 	}
 	log.Info(fmt.Sprintf("%08x hive stopped, dropping peers", h.BaseAddr()[:4]))
-	h.EachConn(nil, 255, func(p *Peer, _ int, _ bool) bool {
+	h.EachConn(nil, 255, func(p OverlayConn, _ int, _ bool) bool {
 		log.Info(fmt.Sprintf("%08x dropping peer %08x", h.BaseAddr()[:4], p.Address()[:4]))
 		p.Drop(nil)
 		return true
@@ -132,14 +151,14 @@ func (h *Hive) connect() {
 
 		addr, depth, changed := h.SuggestPeer()
 		if h.Discovery && changed {
-			NotifyDepth(uint8(depth), h.Kademlia)
+			NotifyDepth(uint8(depth), h)
 		}
 		if addr == nil {
 			continue
 		}
 
 		log.Trace(fmt.Sprintf("%08x hive connect() suggested %08x", h.BaseAddr()[:4], addr.Address()[:4]))
-		under, err := enode.ParseV4(string(addr.Under()))
+		under, err := discover.ParseNode(string(addr.(Addr).Under()))
 		if err != nil {
 			log.Warn(fmt.Sprintf("%08x unable to connect to bee %08x: invalid node URL: %v", h.BaseAddr()[:4], addr.Address()[:4], err))
 			continue
@@ -151,36 +170,21 @@ func (h *Hive) connect() {
 
 // Run protocol run function
 func (h *Hive) Run(p *BzzPeer) error {
-	h.trackPeer(p)
-	defer h.untrackPeer(p)
-
-	dp := NewPeer(p, h.Kademlia)
+	dp := newDiscovery(p, h)
 	depth, changed := h.On(dp)
 	// if we want discovery, advertise change of depth
 	if h.Discovery {
 		if changed {
 			// if depth changed, send to all peers
-			NotifyDepth(depth, h.Kademlia)
+			NotifyDepth(depth, h)
 		} else {
 			// otherwise just send depth to new peer
 			dp.NotifyDepth(depth)
 		}
 	}
-	NotifyPeer(p.BzzAddr, h.Kademlia)
+	NotifyPeer(p.Off(), h)
 	defer h.Off(dp)
 	return dp.Run(dp.HandleMsg)
-}
-
-func (h *Hive) trackPeer(p *BzzPeer) {
-	h.lock.Lock()
-	h.peers[p.ID()] = p
-	h.lock.Unlock()
-}
-
-func (h *Hive) untrackPeer(p *BzzPeer) {
-	h.lock.Lock()
-	delete(h.peers, p.ID())
-	h.lock.Unlock()
 }
 
 // NodeInfo function is used by the p2p.server RPC interface to display
@@ -191,15 +195,8 @@ func (h *Hive) NodeInfo() interface{} {
 
 // PeerInfo function is used by the p2p.server RPC interface to display
 // protocol specific information any connected peer referred to by their NodeID
-func (h *Hive) PeerInfo(id enode.ID) interface{} {
-	h.lock.Lock()
-	p := h.peers[id]
-	h.lock.Unlock()
-
-	if p == nil {
-		return nil
-	}
-	addr := NewAddr(p.Node())
+func (h *Hive) PeerInfo(id discover.NodeID) interface{} {
+	addr := NewAddrFromNodeID(id)
 	return struct {
 		OAddr hexutil.Bytes
 		UAddr hexutil.Bytes
@@ -207,6 +204,17 @@ func (h *Hive) PeerInfo(id enode.ID) interface{} {
 		OAddr: addr.OAddr,
 		UAddr: addr.UAddr,
 	}
+}
+
+// ToAddr returns the serialisable version of u
+func ToAddr(pa OverlayPeer) *BzzAddr {
+	if addr, ok := pa.(*BzzAddr); ok {
+		return addr
+	}
+	if p, ok := pa.(*discPeer); ok {
+		return p.BzzAddr
+	}
+	return pa.(*BzzPeer).BzzAddr
 }
 
 // loadPeers, savePeer implement persistence callback/
@@ -222,19 +230,28 @@ func (h *Hive) loadPeers() error {
 	}
 	log.Info(fmt.Sprintf("hive %08x: peers loaded", h.BaseAddr()[:4]))
 
-	return h.Register(as...)
+	return h.Register(toOverlayAddrs(as...))
+}
+
+// toOverlayAddrs transforms an array of BzzAddr to OverlayAddr
+func toOverlayAddrs(as ...*BzzAddr) (oas []OverlayAddr) {
+	for _, a := range as {
+		oas = append(oas, OverlayAddr(a))
+	}
+	return
 }
 
 // savePeers, savePeer implement persistence callback/
 func (h *Hive) savePeers() error {
 	var peers []*BzzAddr
-	h.Kademlia.EachAddr(nil, 256, func(pa *BzzAddr, i int, _ bool) bool {
+	h.Overlay.EachAddr(nil, 256, func(pa OverlayAddr, i int, _ bool) bool {
 		if pa == nil {
 			log.Warn(fmt.Sprintf("empty addr: %v", i))
 			return true
 		}
-		log.Trace("saving peer", "peer", pa)
-		peers = append(peers, pa)
+		apa := ToAddr(pa)
+		log.Trace("saving peer", "peer", apa)
+		peers = append(peers, apa)
 		return true
 	})
 	if err := h.Store.Put("peers", peers); err != nil {

@@ -74,15 +74,7 @@ func mixAddr(a string) (*common.MixedcaseAddress, error) {
 
 type alwaysDenyUI struct{}
 
-func (alwaysDenyUI) OnInputRequired(info core.UserInputRequest) (core.UserInputResponse, error) {
-	return core.UserInputResponse{}, nil
-}
-
 func (alwaysDenyUI) OnSignerStartup(info core.StartupInfo) {
-}
-
-func (alwaysDenyUI) OnMasterPassword(request *core.PasswordRequest) (core.PasswordResponse, error) {
-	return core.PasswordResponse{}, nil
 }
 
 func (alwaysDenyUI) ApproveTx(request *core.SignTxRequest) (core.SignTxResponse, error) {
@@ -151,7 +143,7 @@ func TestListRequest(t *testing.T) {
 		t.Errorf("Couldn't create evaluator %v", err)
 		return
 	}
-	resp, _ := r.ApproveListing(&core.ListRequest{
+	resp, err := r.ApproveListing(&core.ListRequest{
 		Accounts: accs,
 		Meta:     core.Metadata{Remote: "remoteip", Local: "localip", Scheme: "inproc"},
 	})
@@ -208,11 +200,6 @@ type dummyUI struct {
 	calls []string
 }
 
-func (d *dummyUI) OnInputRequired(info core.UserInputRequest) (core.UserInputResponse, error) {
-	d.calls = append(d.calls, "OnInputRequired")
-	return core.UserInputResponse{}, nil
-}
-
 func (d *dummyUI) ApproveTx(request *core.SignTxRequest) (core.SignTxResponse, error) {
 	d.calls = append(d.calls, "ApproveTx")
 	return core.SignTxResponse{}, core.ErrRequestDenied
@@ -254,11 +241,6 @@ func (d *dummyUI) ShowInfo(message string) {
 func (d *dummyUI) OnApprovedTx(tx ethapi.SignTransactionResult) {
 	d.calls = append(d.calls, "OnApprovedTx")
 }
-
-func (d *dummyUI) OnMasterPassword(request *core.PasswordRequest) (core.PasswordResponse, error) {
-	return core.PasswordResponse{}, nil
-}
-
 func (d *dummyUI) OnSignerStartup(info core.StartupInfo) {
 }
 
@@ -515,7 +497,7 @@ func TestLimitWindow(t *testing.T) {
 		r.OnApprovedTx(response)
 	}
 	// Fourth should fail
-	resp, _ := r.ApproveTx(dummyTx(h))
+	resp, err := r.ApproveTx(dummyTx(h))
 	if resp.Approved {
 		t.Errorf("Expected check to resolve to 'Reject'")
 	}
@@ -527,16 +509,7 @@ type dontCallMe struct {
 	t *testing.T
 }
 
-func (d *dontCallMe) OnInputRequired(info core.UserInputRequest) (core.UserInputResponse, error) {
-	d.t.Fatalf("Did not expect next-handler to be called")
-	return core.UserInputResponse{}, nil
-}
-
 func (d *dontCallMe) OnSignerStartup(info core.StartupInfo) {
-}
-
-func (d *dontCallMe) OnMasterPassword(request *core.PasswordRequest) (core.PasswordResponse, error) {
-	return core.PasswordResponse{}, nil
 }
 
 func (d *dontCallMe) ApproveTx(request *core.SignTxRequest) (core.SignTxResponse, error) {
@@ -609,8 +582,8 @@ func TestContextIsCleared(t *testing.T) {
 		t.Fatalf("Failed to load bootstrap js: %v", err)
 	}
 	tx := dummyTxWithV(0)
-	r1, _ := r.ApproveTx(tx)
-	r2, _ := r.ApproveTx(tx)
+	r1, err := r.ApproveTx(tx)
+	r2, err := r.ApproveTx(tx)
 	if r1.Approved != r2.Approved {
 		t.Errorf("Expected execution context to be cleared between executions")
 	}

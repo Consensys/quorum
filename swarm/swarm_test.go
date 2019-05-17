@@ -17,13 +17,10 @@
 package swarm
 
 import (
-	"context"
-	"encoding/hex"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -44,13 +41,6 @@ func TestNewSwarm(t *testing.T) {
 
 	// a simple rpc endpoint for testing dialing
 	ipcEndpoint := path.Join(dir, "TestSwarm.ipc")
-
-	// windows namedpipes are not on filesystem but on NPFS
-	if runtime.GOOS == "windows" {
-		b := make([]byte, 8)
-		rand.Read(b)
-		ipcEndpoint = `\\.\pipe\TestSwarm-` + hex.EncodeToString(b)
-	}
 
 	_, server, err := rpc.StartIPCEndpoint(ipcEndpoint, nil)
 	if err != nil {
@@ -82,14 +72,17 @@ func TestNewSwarm(t *testing.T) {
 				if s.dns != nil {
 					t.Error("dns initialized, but it should not be")
 				}
-				if s.netStore == nil {
-					t.Error("netStore not initialized")
+				if s.lstore == nil {
+					t.Error("localstore not initialized")
 				}
 				if s.streamer == nil {
 					t.Error("streamer not initialized")
 				}
 				if s.fileStore == nil {
 					t.Error("fileStore not initialized")
+				}
+				if s.lstore.Validators == nil {
+					t.Error("localstore validators not initialized")
 				}
 				if s.bzz == nil {
 					t.Error("bzz not initialized")
@@ -316,11 +309,11 @@ func TestLocalStoreAndRetrieve(t *testing.T) {
 	}
 
 	// by default, test only the lonely chunk cases
-	sizes := []int{1, 60, 4097, 524288 + 1, 7*524288 + 1}
+	sizes := []int{1, 60, 4097, 524288 + 1, 7*524288 + 1, 128*524288 + 1}
 
 	if *longrunning {
 		// test broader set of cases if -longruning flag is set
-		sizes = append(sizes, 83, 179, 253, 1024, 4095, 4096, 8191, 8192, 8193, 12287, 12288, 12289, 123456, 2345678, 67298391, 524288, 524288+4096, 524288+4097, 7*524288, 7*524288+4096, 7*524288+4097, 128*524288+1, 128*524288, 128*524288+4096, 128*524288+4097, 816778334)
+		sizes = append(sizes, 83, 179, 253, 1024, 4095, 4096, 8191, 8192, 8193, 12287, 12288, 12289, 123456, 2345678, 67298391, 524288, 524288+4096, 524288+4097, 7*524288, 7*524288+4096, 7*524288+4097, 128*524288, 128*524288+4096, 128*524288+4097, 816778334)
 	}
 	for _, n := range sizes {
 		testLocalStoreAndRetrieve(t, swarm, n, true)
@@ -345,19 +338,15 @@ func testLocalStoreAndRetrieve(t *testing.T, swarm *Swarm, n int, randomData boo
 	}
 	dataPut := string(slice)
 
-	ctx := context.TODO()
-	k, wait, err := swarm.api.Store(ctx, strings.NewReader(dataPut), int64(len(dataPut)), false)
+	k, wait, err := swarm.api.Store(strings.NewReader(dataPut), int64(len(dataPut)), false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if wait != nil {
-		err = wait(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
+		wait()
 	}
 
-	r, _ := swarm.api.Retrieve(context.TODO(), k)
+	r, _ := swarm.api.Retrieve(k)
 
 	d, err := ioutil.ReadAll(r)
 	if err != nil {

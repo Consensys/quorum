@@ -29,7 +29,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/simulations"
 	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 	"github.com/ethereum/go-ethereum/swarm/network"
@@ -64,26 +64,26 @@ func init() {
 
 type Simulation struct {
 	mtx    sync.Mutex
-	stores map[enode.ID]*state.InmemoryStore
+	stores map[discover.NodeID]*state.InmemoryStore
 }
 
 func NewSimulation() *Simulation {
 	return &Simulation{
-		stores: make(map[enode.ID]*state.InmemoryStore),
+		stores: make(map[discover.NodeID]*state.InmemoryStore),
 	}
 }
 
 func (s *Simulation) NewService(ctx *adapters.ServiceContext) (node.Service, error) {
-	node := ctx.Config.Node()
+	id := ctx.Config.ID
 	s.mtx.Lock()
-	store, ok := s.stores[node.ID()]
+	store, ok := s.stores[id]
 	if !ok {
 		store = state.NewInmemoryStore()
-		s.stores[node.ID()] = store
+		s.stores[id] = store
 	}
 	s.mtx.Unlock()
 
-	addr := network.NewAddr(node)
+	addr := network.NewAddrFromNodeID(id)
 
 	kp := network.NewKadParams()
 	kp.MinProxBinSize = 2

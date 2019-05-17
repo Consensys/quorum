@@ -392,8 +392,7 @@ func (sb *backend) Finalize(chain consensus.ChainReader, header *types.Header, s
 
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
-func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
-
+func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
 	// update the block header timestamp and signature and propose the block to core engine
 	header := block.Header()
 	number := header.Number.Uint64()
@@ -401,19 +400,19 @@ func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, results
 	// Bail out if we're unauthorized to sign a block
 	snap, err := sb.snapshot(chain, number-1, header.ParentHash, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if _, v := snap.ValSet.GetByAddress(sb.address); v == nil {
-		return errUnauthorized
+		return nil, errUnauthorized
 	}
 
 	parent := chain.GetHeader(header.ParentHash, number-1)
 	if parent == nil {
-		return consensus.ErrUnknownAncestor
+		return nil, consensus.ErrUnknownAncestor
 	}
 	block, err = sb.updateBlock(parent, block)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// wait for the timestamp of header, use this to adjust the block period
@@ -421,8 +420,7 @@ func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, results
 	select {
 	case <-time.After(delay):
 	case <-stop:
-		results <- nil
-		return nil
+		return nil, nil
 	}
 
 	// get the proposed block hash and clear it if the seal() is completed.
@@ -438,18 +436,17 @@ func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, results
 	go sb.EventMux().Post(istanbul.RequestEvent{
 		Proposal: block,
 	})
+
 	for {
 		select {
 		case result := <-sb.commitCh:
 			// if the block hash and the hash from channel are the same,
 			// return the result. Otherwise, keep waiting the next hash.
-			if result != nil && block.Hash() == result.Hash() {
-				results <- result
-				return nil
+			if block.Hash() == result.Hash() {
+				return result, nil
 			}
 		case <-stop:
-			results <- nil
-			return nil
+			return nil, nil
 		}
 	}
 }
@@ -614,12 +611,6 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	rlp.Encode(hasher, types.IstanbulFilteredHeader(header, false))
 	hasher.Sum(hash[:0])
 	return hash
-}
-
-
-// SealHash returns the hash of a block prior to it being sealed.
-func (sb *backend) SealHash(header *types.Header) common.Hash {
-	return sigHash(header)
 }
 
 // ecrecover extracts the Ethereum account address from a signed header.

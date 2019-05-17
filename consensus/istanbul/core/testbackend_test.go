@@ -156,10 +156,6 @@ func (self *testSystemBackend) ParentValidators(proposal istanbul.Proposal) ista
 	return self.peers
 }
 
-func (sb *testSystemBackend) Close() error {
-	return nil
-}
-
 // ==============================================
 //
 // define the struct that need to be provided for integration tests.

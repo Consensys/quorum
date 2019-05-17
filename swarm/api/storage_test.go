@@ -17,7 +17,6 @@
 package api
 
 import (
-	"context"
 	"testing"
 )
 
@@ -32,22 +31,18 @@ func TestStoragePutGet(t *testing.T) {
 		content := "hello"
 		exp := expResponse(content, "text/plain", 0)
 		// exp := expResponse([]byte(content), "text/plain", 0)
-		ctx := context.TODO()
-		bzzkey, wait, err := api.Put(ctx, content, exp.MimeType, toEncrypt)
+		bzzkey, wait, err := api.Put(content, exp.MimeType, toEncrypt)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		err = wait(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		wait()
 		bzzhash := bzzkey.Hex()
 		// to check put against the API#Get
 		resp0 := testGet(t, api.api, bzzhash, "")
 		checkResponse(t, resp0, exp)
 
 		// check storage#Get
-		resp, err := api.Get(context.TODO(), bzzhash)
+		resp, err := api.Get(bzzhash)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"testing"
@@ -559,17 +558,4 @@ func TestValidateConfig(t *testing.T) {
 			t.Errorf("unexpected error %q", err)
 		}
 	}
-}
-
-func assignTCPPort() (string, error) {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return "", err
-	}
-	l.Close()
-	_, port, err := net.SplitHostPort(l.Addr().String())
-	if err != nil {
-		return "", err
-	}
-	return port, nil
 }

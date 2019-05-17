@@ -22,5 +22,5 @@ swarm
 ├── storage ─────────────── ethersphere
 │   ├── encryption ──────── @gbalint, @zelig, @nagydani
 │   ├── mock ────────────── @janos
-│   └── feed ────────────── @nolash, @jpeletier
+│   └── mru ─────────────── @nolash
 └── testutil ────────────── @lmars

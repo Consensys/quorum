@@ -81,7 +81,7 @@ type stateObject struct {
 	trie Trie // storage trie, which becomes non-nil on first access
 	code Code // contract bytecode, which gets set when code is loaded
 
-	originStorage Storage // Storage cache of original entries to dedup rewrites
+	cachedStorage Storage // Storage entry cache to avoid duplicate reads
 	dirtyStorage  Storage // Storage entries that need to be flushed to disk
 
 	// Cache flags.
@@ -126,7 +126,7 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 		address:       address,
 		addrHash:      crypto.Keccak256Hash(address[:]),
 		data:          data,
-		originStorage: make(Storage),
+		cachedStorage: make(Storage),
 		dirtyStorage:  make(Storage),
 	}
 }
@@ -182,25 +182,13 @@ func (so *stateObject) storageRoot(db Database) common.Hash {
 	return so.getTrie(db).Hash()
 }
 
-// GetState retrieves a value from the account storage trie.
+// GetState returns a value in account storage.
 func (self *stateObject) GetState(db Database, key common.Hash) common.Hash {
-	// If we have a dirty value for this state entry, return it
-	value, dirty := self.dirtyStorage[key]
-	if dirty {
+	value, exists := self.cachedStorage[key]
+	if exists {
 		return value
 	}
-	// Otherwise return the entry's original value
-	return self.GetCommittedState(db, key)
-}
-
-// GetCommittedState retrieves a value from the committed account storage trie.
-func (self *stateObject) GetCommittedState(db Database, key common.Hash) common.Hash {
-	// If we have the original value cached, return that
-	value, cached := self.originStorage[key]
-	if cached {
-		return value
-	}
-	// Otherwise load the value from the database
+	// Load from DB in case it is missing.
 	enc, err := self.getTrie(db).TryGet(key[:])
 	if err != nil {
 		self.setError(err)
@@ -213,27 +201,22 @@ func (self *stateObject) GetCommittedState(db Database, key common.Hash) common.
 		}
 		value.SetBytes(content)
 	}
-	self.originStorage[key] = value
+	self.cachedStorage[key] = value
 	return value
 }
 
 // SetState updates a value in account storage.
 func (self *stateObject) SetState(db Database, key, value common.Hash) {
-	// If the new value is the same as old, don't set
-	prev := self.GetState(db, key)
-	if prev == value {
-		return
-	}
-	// New value is different, update and journal the change
 	self.db.journal.append(storageChange{
 		account:  &self.address,
 		key:      key,
-		prevalue: prev,
+		prevalue: self.GetState(db, key),
 	})
 	self.setState(key, value)
 }
 
 func (self *stateObject) setState(key, value common.Hash) {
+	self.cachedStorage[key] = value
 	self.dirtyStorage[key] = value
 }
 
@@ -242,13 +225,6 @@ func (self *stateObject) updateTrie(db Database) Trie {
 	tr := self.getTrie(db)
 	for key, value := range self.dirtyStorage {
 		delete(self.dirtyStorage, key)
-
-		// Skip noop changes, persist actual changes
-		if value == self.originStorage[key] {
-			continue
-		}
-		self.originStorage[key] = value
-
 		if (value == common.Hash{}) {
 			self.setError(tr.TryDelete(key[:]))
 			continue
@@ -326,7 +302,7 @@ func (self *stateObject) deepCopy(db *StateDB) *stateObject {
 	}
 	stateObject.code = self.code
 	stateObject.dirtyStorage = self.dirtyStorage.Copy()
-	stateObject.originStorage = self.originStorage.Copy()
+	stateObject.cachedStorage = self.dirtyStorage.Copy()
 	stateObject.suicided = self.suicided
 	stateObject.dirtyCode = self.dirtyCode
 	stateObject.deleted = self.deleted

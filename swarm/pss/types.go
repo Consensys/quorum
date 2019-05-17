@@ -169,6 +169,10 @@ type stateStore struct {
 	values map[string][]byte
 }
 
+func newStateStore() *stateStore {
+	return &stateStore{values: make(map[string][]byte)}
+}
+
 func (store *stateStore) Load(key string) ([]byte, error) {
 	return nil, nil
 }

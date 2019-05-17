@@ -27,7 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/simulations/pipes"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -37,7 +37,7 @@ import (
 type SimAdapter struct {
 	pipe     func() (net.Conn, net.Conn, error)
 	mtx      sync.RWMutex
-	nodes    map[enode.ID]*SimNode
+	nodes    map[discover.NodeID]*SimNode
 	services map[string]ServiceFunc
 }
 
@@ -48,7 +48,7 @@ type SimAdapter struct {
 func NewSimAdapter(services map[string]ServiceFunc) *SimAdapter {
 	return &SimAdapter{
 		pipe:     pipes.NetPipe,
-		nodes:    make(map[enode.ID]*SimNode),
+		nodes:    make(map[discover.NodeID]*SimNode),
 		services: services,
 	}
 }
@@ -56,7 +56,7 @@ func NewSimAdapter(services map[string]ServiceFunc) *SimAdapter {
 func NewTCPAdapter(services map[string]ServiceFunc) *SimAdapter {
 	return &SimAdapter{
 		pipe:     pipes.TCPPipe,
-		nodes:    make(map[enode.ID]*SimNode),
+		nodes:    make(map[discover.NodeID]*SimNode),
 		services: services,
 	}
 }
@@ -115,14 +115,14 @@ func (s *SimAdapter) NewNode(config *NodeConfig) (Node, error) {
 
 // Dial implements the p2p.NodeDialer interface by connecting to the node using
 // an in-memory net.Pipe
-func (s *SimAdapter) Dial(dest *enode.Node) (conn net.Conn, err error) {
-	node, ok := s.GetNode(dest.ID())
+func (s *SimAdapter) Dial(dest *discover.Node) (conn net.Conn, err error) {
+	node, ok := s.GetNode(dest.ID)
 	if !ok {
-		return nil, fmt.Errorf("unknown node: %s", dest.ID())
+		return nil, fmt.Errorf("unknown node: %s", dest.ID)
 	}
 	srv := node.Server()
 	if srv == nil {
-		return nil, fmt.Errorf("node not running: %s", dest.ID())
+		return nil, fmt.Errorf("node not running: %s", dest.ID)
 	}
 	// SimAdapter.pipe is net.Pipe (NewSimAdapter)
 	pipe1, pipe2, err := s.pipe()
@@ -138,7 +138,7 @@ func (s *SimAdapter) Dial(dest *enode.Node) (conn net.Conn, err error) {
 
 // DialRPC implements the RPCDialer interface by creating an in-memory RPC
 // client of the given node
-func (s *SimAdapter) DialRPC(id enode.ID) (*rpc.Client, error) {
+func (s *SimAdapter) DialRPC(id discover.NodeID) (*rpc.Client, error) {
 	node, ok := s.GetNode(id)
 	if !ok {
 		return nil, fmt.Errorf("unknown node: %s", id)
@@ -151,7 +151,7 @@ func (s *SimAdapter) DialRPC(id enode.ID) (*rpc.Client, error) {
 }
 
 // GetNode returns the node with the given ID if it exists
-func (s *SimAdapter) GetNode(id enode.ID) (*SimNode, bool) {
+func (s *SimAdapter) GetNode(id discover.NodeID) (*SimNode, bool) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	node, ok := s.nodes[id]
@@ -163,7 +163,7 @@ func (s *SimAdapter) GetNode(id enode.ID) (*SimNode, bool) {
 // pipe
 type SimNode struct {
 	lock         sync.RWMutex
-	ID           enode.ID
+	ID           discover.NodeID
 	config       *NodeConfig
 	adapter      *SimAdapter
 	node         *node.Node
@@ -177,9 +177,9 @@ func (sn *SimNode) Addr() []byte {
 	return []byte(sn.Node().String())
 }
 
-// Node returns a node descriptor representing the SimNode
-func (sn *SimNode) Node() *enode.Node {
-	return sn.config.Node()
+// Node returns a discover.Node representing the SimNode
+func (sn *SimNode) Node() *discover.Node {
+	return discover.NewNode(sn.ID, net.IP{127, 0, 0, 1}, 30303, 30303)
 }
 
 // Client returns an rpc.Client which can be used to communicate with the
@@ -296,13 +296,6 @@ func (sn *SimNode) Stop() error {
 	return sn.node.Stop()
 }
 
-// Service returns a running service by name
-func (sn *SimNode) Service(name string) node.Service {
-	sn.lock.RLock()
-	defer sn.lock.RUnlock()
-	return sn.running[name]
-}
-
 // Services returns a copy of the underlying services
 func (sn *SimNode) Services() []node.Service {
 	sn.lock.RLock()
@@ -310,17 +303,6 @@ func (sn *SimNode) Services() []node.Service {
 	services := make([]node.Service, 0, len(sn.running))
 	for _, service := range sn.running {
 		services = append(services, service)
-	}
-	return services
-}
-
-// ServiceMap returns a map by names of the underlying services
-func (sn *SimNode) ServiceMap() map[string]node.Service {
-	sn.lock.RLock()
-	defer sn.lock.RUnlock()
-	services := make(map[string]node.Service, len(sn.running))
-	for name, service := range sn.running {
-		services[name] = service
 	}
 	return services
 }
@@ -353,7 +335,8 @@ func (sn *SimNode) NodeInfo() *p2p.NodeInfo {
 }
 
 func setSocketBuffer(conn net.Conn, socketReadBuffer int, socketWriteBuffer int) error {
-	if v, ok := conn.(*net.UnixConn); ok {
+	switch v := conn.(type) {
+	case *net.UnixConn:
 		err := v.SetReadBuffer(socketReadBuffer)
 		if err != nil {
 			return err

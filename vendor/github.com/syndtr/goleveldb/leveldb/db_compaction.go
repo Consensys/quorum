@@ -640,16 +640,6 @@ func (db *DB) tableNeedCompaction() bool {
 	return v.needCompaction()
 }
 
-// resumeWrite returns an indicator whether we should resume write operation if enough level0 files are compacted.
-func (db *DB) resumeWrite() bool {
-	v := db.s.version()
-	defer v.release()
-	if v.tLen(0) < db.s.o.GetWriteL0PauseTrigger() {
-		return true
-	}
-	return false
-}
-
 func (db *DB) pauseCompaction(ch chan<- struct{}) {
 	select {
 	case ch <- struct{}{}:
@@ -663,7 +653,6 @@ type cCmd interface {
 }
 
 type cAuto struct {
-	// Note for table compaction, an empty ackC represents it's a compaction waiting command.
 	ackC chan<- error
 }
 
@@ -776,10 +765,8 @@ func (db *DB) mCompaction() {
 }
 
 func (db *DB) tCompaction() {
-	var (
-		x           cCmd
-		ackQ, waitQ []cCmd
-	)
+	var x cCmd
+	var ackQ []cCmd
 
 	defer func() {
 		if x := recover(); x != nil {
@@ -790,10 +777,6 @@ func (db *DB) tCompaction() {
 		for i := range ackQ {
 			ackQ[i].ack(ErrClosed)
 			ackQ[i] = nil
-		}
-		for i := range waitQ {
-			waitQ[i].ack(ErrClosed)
-			waitQ[i] = nil
 		}
 		if x != nil {
 			x.ack(ErrClosed)
@@ -812,25 +795,12 @@ func (db *DB) tCompaction() {
 				return
 			default:
 			}
-			// Resume write operation as soon as possible.
-			if len(waitQ) > 0 && db.resumeWrite() {
-				for i := range waitQ {
-					waitQ[i].ack(nil)
-					waitQ[i] = nil
-				}
-				waitQ = waitQ[:0]
-			}
 		} else {
 			for i := range ackQ {
 				ackQ[i].ack(nil)
 				ackQ[i] = nil
 			}
 			ackQ = ackQ[:0]
-			for i := range waitQ {
-				waitQ[i].ack(nil)
-				waitQ[i] = nil
-			}
-			waitQ = waitQ[:0]
 			select {
 			case x = <-db.tcompCmdC:
 			case ch := <-db.tcompPauseC:
@@ -843,11 +813,7 @@ func (db *DB) tCompaction() {
 		if x != nil {
 			switch cmd := x.(type) {
 			case cAuto:
-				if cmd.ackC != nil {
-					waitQ = append(waitQ, x)
-				} else {
-					ackQ = append(ackQ, x)
-				}
+				ackQ = append(ackQ, x)
 			case cRange:
 				x.ack(db.tableRangeCompaction(cmd.level, cmd.min, cmd.max))
 			default:

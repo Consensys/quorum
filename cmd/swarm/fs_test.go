@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
-// +build linux freebsd
-
 package main
 
 import (
@@ -43,11 +41,6 @@ type testFile struct {
 }
 
 // TestCLISwarmFs is a high-level test of swarmfs
-//
-// This test fails on travis for macOS as this executable exits with code 1
-// and without any log messages in the log:
-// /Library/Filesystems/osxfuse.fs/Contents/Resources/load_osxfuse.
-// This is the reason for this file not being built on darwin architecture.
 func TestCLISwarmFs(t *testing.T) {
 	cluster := newTestCluster(t, 3)
 	defer cluster.Shutdown()
@@ -80,9 +73,6 @@ func TestCLISwarmFs(t *testing.T) {
 		t.Fatal(err)
 	}
 	dirPath2, err := createDirInDir(dirPath, "AnotherTestSubDir")
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	dummyContent := "somerandomtestcontentthatshouldbeasserted"
 	dirs := []string{

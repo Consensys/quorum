@@ -19,7 +19,6 @@
 package fuse
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -105,7 +104,7 @@ func (swarmfs *SwarmFS) Mount(mhash, mountpoint string) (*MountInfo, error) {
 	}
 
 	log.Trace("swarmfs mount: getting manifest tree")
-	_, manifestEntryMap, err := swarmfs.swarmApi.BuildDirectoryTree(context.TODO(), mhash, true)
+	_, manifestEntryMap, err := swarmfs.swarmApi.BuildDirectoryTree(mhash, true)
 	if err != nil {
 		return nil, err
 	}
@@ -120,10 +119,6 @@ func (swarmfs *SwarmFS) Mount(mhash, mountpoint string) (*MountInfo, error) {
 
 	log.Trace("swarmfs mount: traversing manifest map")
 	for suffix, entry := range manifestEntryMap {
-		if suffix == "" { //empty suffix means that the file has no name - i.e. this is the default entry in a manifest. Since we cannot have files without a name, let us ignore this entry
-			log.Warn("Manifest has an empty-path (default) entry which will be ignored in FUSE mount.")
-			continue
-		}
 		addr := common.Hex2Bytes(entry.Hash)
 		fullpath := "/" + suffix
 		basepath := filepath.Dir(fullpath)

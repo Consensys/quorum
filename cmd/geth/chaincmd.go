@@ -49,6 +49,7 @@ var (
 		ArgsUsage: "<genesisPath>",
 		Flags: []cli.Flag{
 			utils.DataDirFlag,
+			utils.LightModeFlag,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
@@ -66,7 +67,7 @@ It expects the genesis file as argument.`,
 		Flags: []cli.Flag{
 			utils.DataDirFlag,
 			utils.CacheFlag,
-			utils.SyncModeFlag,
+			utils.LightModeFlag,
 			utils.GCModeFlag,
 			utils.CacheDatabaseFlag,
 			utils.CacheGCFlag,
@@ -87,15 +88,14 @@ processing will proceed even if an individual RLP-file import failure occurs.`,
 		Flags: []cli.Flag{
 			utils.DataDirFlag,
 			utils.CacheFlag,
-			utils.SyncModeFlag,
+			utils.LightModeFlag,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
 Requires a first argument of the file to write to.
 Optional second and third arguments control the first and
 last block to write. In this mode, the file will be appended
-if already existing. If the file ends with .gz, the output will
-be gzipped.`,
+if already existing.`,
 	}
 	importPreimagesCommand = cli.Command{
 		Action:    utils.MigrateFlags(importPreimages),
@@ -105,7 +105,7 @@ be gzipped.`,
 		Flags: []cli.Flag{
 			utils.DataDirFlag,
 			utils.CacheFlag,
-			utils.SyncModeFlag,
+			utils.LightModeFlag,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
@@ -119,7 +119,7 @@ be gzipped.`,
 		Flags: []cli.Flag{
 			utils.DataDirFlag,
 			utils.CacheFlag,
-			utils.SyncModeFlag,
+			utils.LightModeFlag,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
@@ -149,6 +149,7 @@ The first argument must be the directory containing the blockchain to download f
 		ArgsUsage: " ",
 		Flags: []cli.Flag{
 			utils.DataDirFlag,
+			utils.LightModeFlag,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
@@ -162,7 +163,7 @@ Remove blockchain and state databases`,
 		Flags: []cli.Flag{
 			utils.DataDirFlag,
 			utils.CacheFlag,
-			utils.SyncModeFlag,
+			utils.LightModeFlag,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
@@ -363,9 +364,9 @@ func importPreimages(ctx *cli.Context) error {
 
 	start := time.Now()
 	if err := utils.ImportPreimages(diskdb, ctx.Args().First()); err != nil {
-		utils.Fatalf("Import error: %v\n", err)
+		utils.Fatalf("Export error: %v\n", err)
 	}
-	fmt.Printf("Import done in %v\n", time.Since(start))
+	fmt.Printf("Export done in %v\n", time.Since(start))
 	return nil
 }
 

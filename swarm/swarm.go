@@ -21,7 +21,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"io"
 	"math/big"
 	"net"
 	"path/filepath"
@@ -36,7 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -49,9 +48,8 @@ import (
 	"github.com/ethereum/go-ethereum/swarm/pss"
 	"github.com/ethereum/go-ethereum/swarm/state"
 	"github.com/ethereum/go-ethereum/swarm/storage"
-	"github.com/ethereum/go-ethereum/swarm/storage/feed"
 	"github.com/ethereum/go-ethereum/swarm/storage/mock"
-	"github.com/ethereum/go-ethereum/swarm/tracing"
+	"github.com/ethereum/go-ethereum/swarm/storage/mru"
 )
 
 var (
@@ -75,22 +73,22 @@ type Swarm struct {
 	privateKey  *ecdsa.PrivateKey
 	corsString  string
 	swapEnabled bool
-	netStore    *storage.NetStore
-	sfs         *fuse.SwarmFS // need this to cleanup all the active mounts on node exit
+	lstore      *storage.LocalStore // local store, needs to store for releasing resources after node stopped
+	sfs         *fuse.SwarmFS       // need this to cleanup all the active mounts on node exit
 	ps          *pss.Pss
-
-	tracerClose io.Closer
 }
 
 type SwarmAPI struct {
 	Api     *api.API
 	Backend chequebook.Backend
+	PrvKey  *ecdsa.PrivateKey
 }
 
 func (self *Swarm) API() *SwarmAPI {
 	return &SwarmAPI{
 		Api:     self.api,
 		Backend: self.backend,
+		PrvKey:  self.privateKey,
 	}
 }
 
@@ -121,15 +119,26 @@ func NewSwarm(config *api.Config, mockStore *mock.NodeStore) (self *Swarm, err e
 		backend:    backend,
 		privateKey: config.ShiftPrivateKey(),
 	}
-	log.Debug("Setting up Swarm service components")
+	log.Debug(fmt.Sprintf("Setting up Swarm service components"))
 
 	config.HiveParams.Discovery = true
 
+	log.Debug(fmt.Sprintf("-> swarm net store shared access layer to Swarm Chunk Store"))
+
+	nodeID, err := discover.HexID(config.NodeID)
+	if err != nil {
+		return nil, err
+	}
+	addr := &network.BzzAddr{
+		OAddr: common.FromHex(config.BzzKey),
+		UAddr: []byte(discover.NewNode(nodeID, net.IP{127, 0, 0, 1}, 30303, 30303).String()),
+	}
+
 	bzzconfig := &network.BzzConfig{
-		NetworkID:   config.NetworkID,
-		OverlayAddr: common.FromHex(config.BzzKey),
-		HiveParams:  config.HiveParams,
-		LightNode:   config.LightNodeEnabled,
+		NetworkID:    config.NetworkID,
+		OverlayAddr:  addr.OAddr,
+		UnderlayAddr: addr.UAddr,
+		HiveParams:   config.HiveParams,
 	}
 
 	stateStore, err := state.NewDBStore(filepath.Join(config.Path, "state-store.db"))
@@ -154,67 +163,65 @@ func NewSwarm(config *api.Config, mockStore *mock.NodeStore) (self *Swarm, err e
 		self.dns = resolver
 	}
 
-	lstore, err := storage.NewLocalStore(config.LocalStoreParams, mockStore)
+	self.lstore, err = storage.NewLocalStore(config.LocalStoreParams, mockStore)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	self.netStore, err = storage.NewNetStore(lstore, nil)
-	if err != nil {
-		return nil, err
-	}
-
+	db := storage.NewDBAPI(self.lstore)
 	to := network.NewKademlia(
 		common.FromHex(config.BzzKey),
 		network.NewKadParams(),
 	)
-	delivery := stream.NewDelivery(to, self.netStore)
-	self.netStore.NewNetFetcherFunc = network.NewFetcherFactory(delivery.RequestFromPeers, config.DeliverySkipCheck).New
+	delivery := stream.NewDelivery(to, db)
 
-	var nodeID enode.ID
-	if err := nodeID.UnmarshalText([]byte(config.NodeID)); err != nil {
-		return nil, err
-	}
-
-	syncing := stream.SyncingAutoSubscribe
-	if !config.SyncEnabled || config.LightNodeEnabled {
-		syncing = stream.SyncingDisabled
-	}
-
-	retrieval := stream.RetrievalEnabled
-	if config.LightNodeEnabled {
-		retrieval = stream.RetrievalClientOnly
-	}
-
-	registryOptions := &stream.RegistryOptions{
+	self.streamer = stream.NewRegistry(addr, delivery, db, stateStore, &stream.RegistryOptions{
 		SkipCheck:       config.DeliverySkipCheck,
-		Syncing:         syncing,
-		Retrieval:       retrieval,
+		DoSync:          config.SyncEnabled,
+		DoRetrieve:      true,
 		SyncUpdateDelay: config.SyncUpdateDelay,
-		MaxPeerServers:  config.MaxStreamPeerServers,
-	}
-	self.streamer = stream.NewRegistry(nodeID, delivery, self.netStore, stateStore, registryOptions)
+	})
 
+	// set up NetStore, the cloud storage local access layer
+	netStore := storage.NewNetStore(self.lstore, self.streamer.Retrieve)
 	// Swarm Hash Merklised Chunking for Arbitrary-length Document/File storage
-	self.fileStore = storage.NewFileStore(self.netStore, self.config.FileStoreParams)
+	self.fileStore = storage.NewFileStore(netStore, self.config.FileStoreParams)
 
-	var feedsHandler *feed.Handler
-	fhParams := &feed.HandlerParams{}
-
-	feedsHandler = feed.NewHandler(fhParams)
-	feedsHandler.SetStore(self.netStore)
-
-	lstore.Validators = []storage.ChunkValidator{
-		storage.NewContentAddressValidator(storage.MakeHashFunc(storage.DefaultHash)),
-		feedsHandler,
+	var resourceHandler *mru.Handler
+	rhparams := &mru.HandlerParams{
+		// TODO: config parameter to set limits
+		QueryMaxPeriods: &mru.LookupParams{
+			Limit: false,
+		},
+		Signer: &mru.GenericSigner{
+			PrivKey: self.privateKey,
+		},
 	}
-
-	err = lstore.Migrate()
+	if resolver != nil {
+		resolver.SetNameHash(ens.EnsNode)
+		// Set HeaderGetter and OwnerValidator interfaces to resolver only if it is not nil.
+		rhparams.HeaderGetter = resolver
+		rhparams.OwnerValidator = resolver
+	} else {
+		log.Warn("No ETH API specified, resource updates will use block height approximation")
+		// TODO: blockestimator should use saved values derived from last time ethclient was connected
+		rhparams.HeaderGetter = mru.NewBlockEstimator()
+	}
+	resourceHandler, err = mru.NewHandler(rhparams)
 	if err != nil {
 		return nil, err
 	}
+	resourceHandler.SetStore(netStore)
 
-	log.Debug("Setup local storage")
+	var validators []storage.ChunkValidator
+	validators = append(validators, storage.NewContentAddressValidator(storage.MakeHashFunc(storage.DefaultHash)))
+	if resourceHandler != nil {
+		validators = append(validators, resourceHandler)
+	}
+	self.lstore.Validators = validators
+
+	// setup local store
+	log.Debug(fmt.Sprintf("Set up local storage"))
 
 	self.bzz = network.NewBzz(bzzconfig, to, stateStore, stream.Spec, self.streamer.Run)
 
@@ -227,10 +234,12 @@ func NewSwarm(config *api.Config, mockStore *mock.NodeStore) (self *Swarm, err e
 		pss.SetHandshakeController(self.ps, pss.NewHandshakeParams())
 	}
 
-	self.api = api.NewAPI(self.fileStore, self.dns, feedsHandler, self.privateKey)
+	self.api = api.NewAPI(self.fileStore, self.dns, resourceHandler)
+	// Manifests for Smart Hosting
+	log.Debug(fmt.Sprintf("-> Web3 virtual server API"))
 
 	self.sfs = fuse.NewSwarmFS(self.api)
-	log.Debug("Initialized FUSE filesystem")
+	log.Debug("-> Initializing Fuse file system")
 
 	return self, nil
 }
@@ -347,11 +356,9 @@ Start is called when the stack is started
 func (self *Swarm) Start(srv *p2p.Server) error {
 	startTime = time.Now()
 
-	self.tracerClose = tracing.Closer
-
 	// update uaddr to correct enode
 	newaddr := self.bzz.UpdateLocalAddr([]byte(srv.Self().String()))
-	log.Info("Updated bzz local addr", "oaddr", fmt.Sprintf("%x", newaddr.OAddr), "uaddr", fmt.Sprintf("%s", newaddr.UAddr))
+	log.Warn("Updated bzz local addr", "oaddr", fmt.Sprintf("%x", newaddr.OAddr), "uaddr", fmt.Sprintf("%s", newaddr.UAddr))
 	// set chequebook
 	if self.config.SwapEnabled {
 		ctx := context.Background() // The initial setup has no deadline.
@@ -364,35 +371,33 @@ func (self *Swarm) Start(srv *p2p.Server) error {
 		log.Debug(fmt.Sprintf("SWAP disabled: no cheque book set"))
 	}
 
-	log.Info("Starting bzz service")
+	log.Warn(fmt.Sprintf("Starting Swarm service"))
 
 	err := self.bzz.Start(srv)
 	if err != nil {
 		log.Error("bzz failed", "err", err)
 		return err
 	}
-	log.Info("Swarm network started", "bzzaddr", fmt.Sprintf("%x", self.bzz.Hive.BaseAddr()))
+	log.Info(fmt.Sprintf("Swarm network started on bzz address: %x", self.bzz.Hive.Overlay.BaseAddr()))
 
 	if self.ps != nil {
 		self.ps.Start(srv)
+		log.Info("Pss started")
 	}
 
 	// start swarm http proxy server
 	if self.config.Port != "" {
 		addr := net.JoinHostPort(self.config.ListenAddr, self.config.Port)
-		server := httpapi.NewServer(self.api, self.config.Cors)
+		go httpapi.StartHTTPServer(self.api, &httpapi.ServerConfig{
+			Addr:       addr,
+			CorsString: self.config.Cors,
+		})
+	}
 
-		if self.config.Cors != "" {
-			log.Debug("Swarm HTTP proxy CORS headers", "allowedOrigins", self.config.Cors)
-		}
+	log.Debug(fmt.Sprintf("Swarm http proxy started on port: %v", self.config.Port))
 
-		log.Debug("Starting Swarm HTTP proxy", "port", self.config.Port)
-		go func() {
-			err := server.ListenAndServe(addr)
-			if err != nil {
-				log.Error("Could not start Swarm HTTP proxy", "err", err.Error())
-			}
-		}()
+	if self.config.Cors != "" {
+		log.Debug(fmt.Sprintf("Swarm http proxy started with corsdomain: %v", self.config.Cors))
 	}
 
 	self.periodicallyUpdateGauges()
@@ -414,19 +419,12 @@ func (self *Swarm) periodicallyUpdateGauges() {
 
 func (self *Swarm) updateGauges() {
 	uptimeGauge.Update(time.Since(startTime).Nanoseconds())
-	requestsCacheGauge.Update(int64(self.netStore.RequestsCacheLen()))
+	requestsCacheGauge.Update(int64(self.lstore.RequestsCacheLen()))
 }
 
 // implements the node.Service interface
 // stops all component services.
 func (self *Swarm) Stop() error {
-	if self.tracerClose != nil {
-		err := self.tracerClose.Close()
-		if err != nil {
-			return err
-		}
-	}
-
 	if self.ps != nil {
 		self.ps.Stop()
 	}
@@ -435,8 +433,8 @@ func (self *Swarm) Stop() error {
 		ch.Save()
 	}
 
-	if self.netStore != nil {
-		self.netStore.Close()
+	if self.lstore != nil {
+		self.lstore.DbStore.Close()
 	}
 	self.sfs.Stop()
 	stopCounter.Inc(1)
@@ -493,6 +491,21 @@ func (self *Swarm) APIs() []rpc.API {
 			Service:   self.sfs,
 			Public:    false,
 		},
+		// storage APIs
+		// DEPRECATED: Use the HTTP API instead
+		{
+			Namespace: "bzz",
+			Version:   "0.1",
+			Service:   api.NewStorage(self.api),
+			Public:    true,
+		},
+		{
+			Namespace: "bzz",
+			Version:   "0.1",
+			Service:   api.NewFileSystem(self.api),
+			Public:    false,
+		},
+		// {Namespace, Version, api.NewAdmin(self), false},
 	}
 
 	apis = append(apis, self.bzz.APIs()...)

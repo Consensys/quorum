@@ -21,7 +21,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash"
-	"sync"
 )
 
 const KeyLength = 32
@@ -29,119 +28,84 @@ const KeyLength = 32
 type Key []byte
 
 type Encryption interface {
-	Encrypt(data []byte) ([]byte, error)
-	Decrypt(data []byte) ([]byte, error)
+	Encrypt(data []byte, key Key) ([]byte, error)
+	Decrypt(data []byte, key Key) ([]byte, error)
 }
 
 type encryption struct {
-	key      Key              // the encryption key (hashSize bytes long)
-	keyLen   int              // length of the key = length of blockcipher block
-	padding  int              // encryption will pad the data upto this if > 0
-	initCtr  uint32           // initial counter used for counter mode blockcipher
-	hashFunc func() hash.Hash // hasher constructor function
+	padding  int
+	initCtr  uint32
+	hashFunc func() hash.Hash
 }
 
-// New constructs a new encryptor/decryptor
-func New(key Key, padding int, initCtr uint32, hashFunc func() hash.Hash) *encryption {
+func New(padding int, initCtr uint32, hashFunc func() hash.Hash) *encryption {
 	return &encryption{
-		key:      key,
-		keyLen:   len(key),
 		padding:  padding,
 		initCtr:  initCtr,
 		hashFunc: hashFunc,
 	}
 }
 
-// Encrypt encrypts the data and does padding if specified
-func (e *encryption) Encrypt(data []byte) ([]byte, error) {
+func (e *encryption) Encrypt(data []byte, key Key) ([]byte, error) {
 	length := len(data)
-	outLength := length
 	isFixedPadding := e.padding > 0
-	if isFixedPadding {
-		if length > e.padding {
-			return nil, fmt.Errorf("Data length longer than padding, data length %v padding %v", length, e.padding)
-		}
-		outLength = e.padding
+	if isFixedPadding && length > e.padding {
+		return nil, fmt.Errorf("Data length longer than padding, data length %v padding %v", length, e.padding)
 	}
-	out := make([]byte, outLength)
-	e.transform(data, out)
-	return out, nil
+
+	paddedData := data
+	if isFixedPadding && length < e.padding {
+		paddedData = make([]byte, e.padding)
+		copy(paddedData[:length], data)
+		rand.Read(paddedData[length:])
+	}
+	return e.transform(paddedData, key), nil
 }
 
-// Decrypt decrypts the data, if padding was used caller must know original length and truncate
-func (e *encryption) Decrypt(data []byte) ([]byte, error) {
+func (e *encryption) Decrypt(data []byte, key Key) ([]byte, error) {
 	length := len(data)
 	if e.padding > 0 && length != e.padding {
 		return nil, fmt.Errorf("Data length different than padding, data length %v padding %v", length, e.padding)
 	}
-	out := make([]byte, length)
-	e.transform(data, out)
-	return out, nil
+
+	return e.transform(data, key), nil
 }
 
-//
-func (e *encryption) transform(in, out []byte) {
-	inLength := len(in)
-	wg := sync.WaitGroup{}
-	wg.Add((inLength-1)/e.keyLen + 1)
-	for i := 0; i < inLength; i += e.keyLen {
-		l := min(e.keyLen, inLength-i)
-		// call transformations per segment (asyncronously)
-		go func(i int, x, y []byte) {
-			defer wg.Done()
-			e.Transcrypt(i, x, y)
-		}(i/e.keyLen, in[i:i+l], out[i:i+l])
-	}
-	// pad the rest if out is longer
-	pad(out[inLength:])
-	wg.Wait()
-}
-
-// used for segmentwise transformation
-// if in is shorter than out, padding is used
-func (e *encryption) Transcrypt(i int, in []byte, out []byte) {
-	// first hash key with counter (initial counter + i)
+func (e *encryption) transform(data []byte, key Key) []byte {
+	dataLength := len(data)
+	transformedData := make([]byte, dataLength)
 	hasher := e.hashFunc()
-	hasher.Write(e.key)
+	ctr := e.initCtr
+	hashSize := hasher.Size()
+	for i := 0; i < dataLength; i += hashSize {
+		hasher.Write(key)
 
-	ctrBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(ctrBytes, uint32(i)+e.initCtr)
-	hasher.Write(ctrBytes)
+		ctrBytes := make([]byte, 4)
+		binary.LittleEndian.PutUint32(ctrBytes, ctr)
 
-	ctrHash := hasher.Sum(nil)
-	hasher.Reset()
+		hasher.Write(ctrBytes)
 
-	// second round of hashing for selective disclosure
-	hasher.Write(ctrHash)
-	segmentKey := hasher.Sum(nil)
-	hasher.Reset()
+		ctrHash := hasher.Sum(nil)
+		hasher.Reset()
+		hasher.Write(ctrHash)
 
-	// XOR bytes uptil length of in (out must be at least as long)
-	inLength := len(in)
-	for j := 0; j < inLength; j++ {
-		out[j] = in[j] ^ segmentKey[j]
+		segmentKey := hasher.Sum(nil)
+
+		hasher.Reset()
+
+		segmentSize := min(hashSize, dataLength-i)
+		for j := 0; j < segmentSize; j++ {
+			transformedData[i+j] = data[i+j] ^ segmentKey[j]
+		}
+		ctr++
 	}
-	// insert padding if out is longer
-	pad(out[inLength:])
+	return transformedData
 }
 
-func pad(b []byte) {
-	l := len(b)
-	for total := 0; total < l; {
-		read, _ := rand.Read(b[total:])
-		total += read
-	}
-}
-
-// GenerateRandomKey generates a random key of length l
-func GenerateRandomKey(l int) Key {
-	key := make([]byte, l)
-	var total int
-	for total < l {
-		read, _ := rand.Read(key[total:])
-		total += read
-	}
-	return key
+func GenerateRandomKey() (Key, error) {
+	key := make([]byte, KeyLength)
+	_, err := rand.Read(key)
+	return key, err
 }
 
 func min(x, y int) int {

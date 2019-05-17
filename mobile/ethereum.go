@@ -67,7 +67,6 @@ func (msg *CallMsg) SetData(data []byte)       { msg.msg.Data = common.CopyBytes
 func (msg *CallMsg) SetTo(address *Address) {
 	if address == nil {
 		msg.msg.To = nil
-		return
 	}
 	msg.msg.To = &address.address
 }

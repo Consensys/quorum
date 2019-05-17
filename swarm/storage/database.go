@@ -20,6 +20,8 @@ package storage
 // no need for queueing/caching
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
@@ -44,10 +46,13 @@ func NewLDBDatabase(file string) (*LDBDatabase, error) {
 	return database, nil
 }
 
-func (db *LDBDatabase) Put(key []byte, value []byte) error {
+func (db *LDBDatabase) Put(key []byte, value []byte) {
 	metrics.GetOrRegisterCounter("ldbdatabase.put", nil).Inc(1)
 
-	return db.db.Put(key, value, nil)
+	err := db.db.Put(key, value, nil)
+	if err != nil {
+		fmt.Println("Error put", err)
+	}
 }
 
 func (db *LDBDatabase) Get(key []byte) ([]byte, error) {

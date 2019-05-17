@@ -147,21 +147,21 @@ func (exp *exp) publishResettingTimer(name string, metric metrics.ResettingTimer
 
 func (exp *exp) syncToExpvar() {
 	exp.registry.Each(func(name string, i interface{}) {
-		switch i := i.(type) {
+		switch i.(type) {
 		case metrics.Counter:
-			exp.publishCounter(name, i)
+			exp.publishCounter(name, i.(metrics.Counter))
 		case metrics.Gauge:
-			exp.publishGauge(name, i)
+			exp.publishGauge(name, i.(metrics.Gauge))
 		case metrics.GaugeFloat64:
-			exp.publishGaugeFloat64(name, i)
+			exp.publishGaugeFloat64(name, i.(metrics.GaugeFloat64))
 		case metrics.Histogram:
-			exp.publishHistogram(name, i)
+			exp.publishHistogram(name, i.(metrics.Histogram))
 		case metrics.Meter:
-			exp.publishMeter(name, i)
+			exp.publishMeter(name, i.(metrics.Meter))
 		case metrics.Timer:
-			exp.publishTimer(name, i)
+			exp.publishTimer(name, i.(metrics.Timer))
 		case metrics.ResettingTimer:
-			exp.publishResettingTimer(name, i)
+			exp.publishResettingTimer(name, i.(metrics.ResettingTimer))
 		default:
 			panic(fmt.Sprintf("unsupported type for '%s': %T", name, i))
 		}

@@ -27,7 +27,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -283,7 +283,8 @@ func (c *Client) RunProtocol(ctx context.Context, proto *p2p.Protocol) error {
 						break
 					}
 					c.peerPool[topicobj][pubkeyid] = rw
-					p := p2p.NewPeer(enode.ID{}, fmt.Sprintf("%v", addr), []p2p.Cap{})
+					nid, _ := discover.HexID("0x00")
+					p := p2p.NewPeer(nid, fmt.Sprintf("%v", addr), []p2p.Cap{})
 					go proto.Run(p, c.peerPool[topicobj][pubkeyid])
 				}
 				go func() {
@@ -333,7 +334,8 @@ func (c *Client) AddPssPeer(pubkeyid string, addr []byte, spec *protocols.Spec) 
 		c.poolMu.Lock()
 		c.peerPool[topic][pubkeyid] = rw
 		c.poolMu.Unlock()
-		p := p2p.NewPeer(enode.ID{}, fmt.Sprintf("%v", addr), []p2p.Cap{})
+		nid, _ := discover.HexID("0x00")
+		p := p2p.NewPeer(nid, fmt.Sprintf("%v", addr), []p2p.Cap{})
 		go c.protos[topic].Run(p, c.peerPool[topic][pubkeyid])
 	}
 	return nil

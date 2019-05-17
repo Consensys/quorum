@@ -70,6 +70,4 @@ type Backend interface {
 
 	// HasBadBlock returns whether the block with the hash is a bad block
 	HasBadProposal(hash common.Hash) bool
-
-	Close() error
 }

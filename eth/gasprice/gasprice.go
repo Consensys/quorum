@@ -29,7 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-var maxPrice = big.NewInt(500 * params.GWei)
+var maxPrice = big.NewInt(500 * params.Shannon)
 
 type Config struct {
 	Blocks     int

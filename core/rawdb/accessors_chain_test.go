@@ -317,3 +317,5 @@ func TestBlockReceiptStorage(t *testing.T) {
 		t.Fatalf("deleted receipts returned: %v", rs)
 	}
 }
+
+

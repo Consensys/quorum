@@ -19,8 +19,7 @@ package main
 import (
 	"bytes"
 	"crypto/md5"
-	crand "crypto/rand"
-	"errors"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -38,19 +37,8 @@ import (
 )
 
 func generateEndpoints(scheme string, cluster string, from int, to int) {
-	if cluster == "prod" {
-		cluster = ""
-	} else if cluster == "local" {
-		for port := from; port <= to; port++ {
-			endpoints = append(endpoints, fmt.Sprintf("%s://localhost:%v", scheme, port))
-		}
-		return
-	} else {
-		cluster = cluster + "."
-	}
-
 	for port := from; port <= to; port++ {
-		endpoints = append(endpoints, fmt.Sprintf("%s://%v.%sswarm-gateways.net", scheme, port, cluster))
+		endpoints = append(endpoints, fmt.Sprintf("%s://%v.%s.swarm-gateways.net", scheme, port, cluster))
 	}
 
 	if includeLocalhost {
@@ -59,13 +47,13 @@ func generateEndpoints(scheme string, cluster string, from int, to int) {
 }
 
 func cliUploadAndSync(c *cli.Context) error {
-	defer func(now time.Time) { log.Info("total time", "time", time.Since(now), "size (kb)", filesize) }(time.Now())
+	defer func(now time.Time) { log.Info("total time", "time", time.Since(now), "size", filesize) }(time.Now())
 
 	generateEndpoints(scheme, cluster, from, to)
 
 	log.Info("uploading to " + endpoints[0] + " and syncing")
 
-	f, cleanup := generateRandomFile(filesize * 1000)
+	f, cleanup := generateRandomFile(filesize * 1000000)
 	defer cleanup()
 
 	hash, err := upload(f, endpoints[0])
@@ -82,10 +70,15 @@ func cliUploadAndSync(c *cli.Context) error {
 
 	log.Info("uploaded successfully", "hash", hash, "digest", fmt.Sprintf("%x", fhash))
 
-	time.Sleep(3 * time.Second)
+	if filesize < 10 {
+		time.Sleep(15 * time.Second)
+	} else {
+		time.Sleep(2 * time.Duration(filesize) * time.Second)
+	}
 
 	wg := sync.WaitGroup{}
 	for _, endpoint := range endpoints {
+		endpoint := endpoint
 		ruid := uuid.New()[:8]
 		wg.Add(1)
 		go func(endpoint string, ruid string) {
@@ -109,7 +102,7 @@ func cliUploadAndSync(c *cli.Context) error {
 // fetch is getting the requested `hash` from the `endpoint` and compares it with the `original` file
 func fetch(hash string, endpoint string, original []byte, ruid string) error {
 	log.Trace("sleeping", "ruid", ruid)
-	time.Sleep(3 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	log.Trace("http get request", "ruid", ruid, "api", endpoint, "hash", hash)
 	res, err := http.Get(endpoint + "/bzz:/" + hash + "/")
@@ -166,18 +159,6 @@ func digest(r io.Reader) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// generates random data in heap buffer
-func generateRandomData(datasize int) ([]byte, error) {
-	b := make([]byte, datasize)
-	c, err := crand.Read(b)
-	if err != nil {
-		return nil, err
-	} else if c != datasize {
-		return nil, errors.New("short read")
-	}
-	return b, nil
-}
-
 // generateRandomFile is creating a temporary file with the requested byte size
 func generateRandomFile(size int) (f *os.File, teardown func()) {
 	// create a tmp file
@@ -193,7 +174,7 @@ func generateRandomFile(size int) (f *os.File, teardown func()) {
 	}
 
 	buf := make([]byte, size)
-	_, err = crand.Read(buf)
+	_, err = rand.Read(buf)
 	if err != nil {
 		panic(err)
 	}

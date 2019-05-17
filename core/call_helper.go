@@ -2,9 +2,8 @@ package core
 
 import (
 	"crypto/ecdsa"
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/log"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
@@ -78,7 +77,7 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 
 	// TODO(joel): can we just pass nil instead of bc?
 	if cg.BC == nil {
-		cg.BC, _ = NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{}, nil)
+		cg.BC, _ = NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{})
 	}
 	context := NewEVMContext(msg, &cg.header, cg.BC, &from)
 	vmenv := vm.NewEVM(context, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})

@@ -43,11 +43,11 @@ type decodedCallData struct {
 // String implements stringer interface, tries to use the underlying value-type
 func (arg decodedArgument) String() string {
 	var value string
-	switch val := arg.value.(type) {
+	switch arg.value.(type) {
 	case fmt.Stringer:
-		value = val.String()
+		value = arg.value.(fmt.Stringer).String()
 	default:
-		value = fmt.Sprintf("%v", val)
+		value = fmt.Sprintf("%v", arg.value)
 	}
 	return fmt.Sprintf("%v: %v", arg.soltype.Type.String(), value)
 }

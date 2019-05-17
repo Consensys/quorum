@@ -11,7 +11,6 @@ import (
 const timeKey = "t"
 const lvlKey = "lvl"
 const msgKey = "msg"
-const ctxKey = "ctx"
 const errorKey = "LOG15_ERROR"
 const skipLevel = 2
 
@@ -102,7 +101,6 @@ type RecordKeyNames struct {
 	Time string
 	Msg  string
 	Lvl  string
-	Ctx  string
 }
 
 // A Logger writes key/value pairs to a Handler
@@ -141,7 +139,6 @@ func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 			Time: timeKey,
 			Msg:  msgKey,
 			Lvl:  lvlKey,
-			Ctx:  ctxKey,
 		},
 	})
 }

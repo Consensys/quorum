@@ -47,7 +47,7 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 	// Use the first key as private key
 	b, _ := New(config, nodeKeys[0], memDB).(*backend)
 	genesis.MustCommit(memDB)
-	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil)
+	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{})
 	if err != nil {
 		panic(err)
 	}
@@ -120,7 +120,7 @@ func makeHeader(parent *types.Block, config *istanbul.Config) *types.Header {
 	header := &types.Header{
 		ParentHash: parent.Hash(),
 		Number:     parent.Number().Add(parent.Number(), common.Big1),
-		GasLimit:   core.CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
+		GasLimit:   core.CalcGasLimit(parent),
 		GasUsed:    0,
 		Extra:      parent.Extra(),
 		Time:       new(big.Int).Add(parent.Time(), new(big.Int).SetUint64(config.BlockPeriod)),
@@ -131,11 +131,8 @@ func makeHeader(parent *types.Block, config *istanbul.Config) *types.Header {
 
 func makeBlock(chain *core.BlockChain, engine *backend, parent *types.Block) *types.Block {
 	block := makeBlockWithoutSeal(chain, engine, parent)
-	stopCh := make(chan struct{})
-	resultCh := make(chan *types.Block, 10)
-	go engine.Seal(chain, block, resultCh, stopCh)
-	blk := <-resultCh
-	return blk
+	block, _ = engine.Seal(chain, block, nil)
+	return block
 }
 
 func makeBlockWithoutSeal(chain *core.BlockChain, engine *backend, parent *types.Block) *types.Block {
@@ -177,15 +174,10 @@ func TestSealStopChannel(t *testing.T) {
 		eventSub.Unsubscribe()
 	}
 	go eventLoop()
-	resultCh := make(chan *types.Block, 10)
-	go func() {
-		err := engine.Seal(chain, block, resultCh, stop)
-		if err != nil {
-			t.Errorf("error mismatch: have %v, want nil", err)
-		}
-	}()
-
-	finalBlock := <-resultCh
+	finalBlock, err := engine.Seal(chain, block, stop)
+	if err != nil {
+		t.Errorf("error mismatch: have %v, want nil", err)
+	}
 	if finalBlock != nil {
 		t.Errorf("block mismatch: have %v, want nil", finalBlock)
 	}
@@ -209,7 +201,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	}
 	go eventLoop()
 	seal := func() {
-		engine.Seal(chain, block, nil, make(chan struct{}))
+		engine.Seal(chain, block, nil)
 		t.Error("seal should not be completed")
 	}
 	go seal()
@@ -226,16 +218,11 @@ func TestSealCommitted(t *testing.T) {
 	chain, engine := newBlockChain(1)
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	expectedBlock, _ := engine.updateBlock(engine.chain.GetHeader(block.ParentHash(), block.NumberU64()-1), block)
-	resultCh := make(chan *types.Block, 10)
-	go func() {
-		err := engine.Seal(chain, block, resultCh, make(chan struct{}))
 
-		if err != nil {
-			t.Errorf("error mismatch: have %v, want %v", err, expectedBlock)
-		}
-	}()
-
-	finalBlock := <-resultCh
+	finalBlock, err := engine.Seal(chain, block, nil)
+	if err != nil {
+		t.Errorf("error mismatch: have %v, want nil", err)
+	}
 	if finalBlock.Hash() != expectedBlock.Hash() {
 		t.Errorf("hash mismatch: have %v, want %v", finalBlock.Hash(), expectedBlock.Hash())
 	}

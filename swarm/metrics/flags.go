@@ -81,9 +81,6 @@ func Setup(ctx *cli.Context) {
 			hosttag      = ctx.GlobalString(metricsInfluxDBHostTagFlag.Name)
 		)
 
-		// Start system runtime metrics collection
-		go gethmetrics.CollectProcessMetrics(2 * time.Second)
-
 		if enableExport {
 			log.Info("Enabling swarm metrics export to InfluxDB")
 			go influxdb.InfluxDBWithTags(gethmetrics.DefaultRegistry, 10*time.Second, endpoint, database, username, password, "swarm.", map[string]string{

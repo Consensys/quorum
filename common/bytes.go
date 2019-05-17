@@ -31,15 +31,6 @@ func ToHex(b []byte) string {
 	return "0x" + hex
 }
 
-// ToHexArray creates a array of hex-string based on []byte
-func ToHexArray(b [][]byte) []string {
-	r := make([]string, len(b))
-	for i := range b {
-		r[i] = ToHex(b[i])
-	}
-	return r
-}
-
 // FromHex returns the bytes represented by the hexadecimal string s.
 // s may be prefixed with "0x".
 func FromHex(s string) []byte {
@@ -109,7 +100,7 @@ func Hex2BytesFixed(str string, flen int) []byte {
 		return h[len(h)-flen:]
 	}
 	hh := make([]byte, flen)
-	copy(hh[flen-len(h):flen], h)
+	copy(hh[flen-len(h):flen], h[:])
 	return hh
 }
 

@@ -18,9 +18,9 @@ package api
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -96,54 +96,50 @@ func (fs *FileSystem) Upload(lpath, index string, toEncrypt bool) (string, error
 		list = append(list, entry)
 	}
 
-	errors := make([]error, len(list))
-	sem := make(chan bool, maxParallelFiles)
-	defer close(sem)
+	cnt := len(list)
+	errors := make([]error, cnt)
+	done := make(chan bool, maxParallelFiles)
+	dcnt := 0
+	awg := &sync.WaitGroup{}
 
 	for i, entry := range list {
-		sem <- true
-		go func(i int, entry *manifestTrieEntry) {
-			defer func() { <-sem }()
-
+		if i >= dcnt+maxParallelFiles {
+			<-done
+			dcnt++
+		}
+		awg.Add(1)
+		go func(i int, entry *manifestTrieEntry, done chan bool) {
 			f, err := os.Open(entry.Path)
-			if err != nil {
-				errors[i] = err
-				return
+			if err == nil {
+				stat, _ := f.Stat()
+				var hash storage.Address
+				var wait func()
+				hash, wait, err = fs.api.fileStore.Store(f, stat.Size(), toEncrypt)
+				if hash != nil {
+					list[i].Hash = hash.Hex()
+				}
+				wait()
+				awg.Done()
+				if err == nil {
+					first512 := make([]byte, 512)
+					fread, _ := f.ReadAt(first512, 0)
+					if fread > 0 {
+						mimeType := http.DetectContentType(first512[:fread])
+						if filepath.Ext(entry.Path) == ".css" {
+							mimeType = "text/css"
+						}
+						list[i].ContentType = mimeType
+					}
+				}
+				f.Close()
 			}
-			defer f.Close()
-
-			stat, err := f.Stat()
-			if err != nil {
-				errors[i] = err
-				return
-			}
-
-			var hash storage.Address
-			var wait func(context.Context) error
-			ctx := context.TODO()
-			hash, wait, err = fs.api.fileStore.Store(ctx, f, stat.Size(), toEncrypt)
-			if err != nil {
-				errors[i] = err
-				return
-			}
-			if hash != nil {
-				list[i].Hash = hash.Hex()
-			}
-			if err := wait(ctx); err != nil {
-				errors[i] = err
-				return
-			}
-
-			list[i].ContentType, err = DetectContentType(f.Name(), f)
-			if err != nil {
-				errors[i] = err
-				return
-			}
-
-		}(i, entry)
+			errors[i] = err
+			done <- true
+		}(i, entry, done)
 	}
-	for i := 0; i < cap(sem); i++ {
-		sem <- true
+	for dcnt < cnt {
+		<-done
+		dcnt++
 	}
 
 	trie := &manifestTrie{
@@ -170,6 +166,7 @@ func (fs *FileSystem) Upload(lpath, index string, toEncrypt bool) (string, error
 	if err2 == nil {
 		hs = trie.ref.Hex()
 	}
+	awg.Wait()
 	return hs, err2
 }
 
@@ -192,7 +189,7 @@ func (fs *FileSystem) Download(bzzpath, localpath string) error {
 	if err != nil {
 		return err
 	}
-	addr, err := fs.api.Resolve(context.TODO(), uri.Addr)
+	addr, err := fs.api.Resolve(uri)
 	if err != nil {
 		return err
 	}
@@ -203,7 +200,7 @@ func (fs *FileSystem) Download(bzzpath, localpath string) error {
 	}
 
 	quitC := make(chan bool)
-	trie, err := loadManifest(context.TODO(), fs.api.fileStore, addr, quitC, NOOPDecrypt)
+	trie, err := loadManifest(fs.api.fileStore, addr, quitC)
 	if err != nil {
 		log.Warn(fmt.Sprintf("fs.Download: loadManifestTrie error: %v", err))
 		return err
@@ -276,9 +273,9 @@ func retrieveToFile(quitC chan bool, fileStore *storage.FileStore, addr storage.
 	if err != nil {
 		return err
 	}
-	reader, _ := fileStore.Retrieve(context.TODO(), addr)
+	reader, _ := fileStore.Retrieve(addr)
 	writer := bufio.NewWriter(f)
-	size, err := reader.Size(context.TODO(), quitC)
+	size, err := reader.Size(quitC)
 	if err != nil {
 		return err
 	}

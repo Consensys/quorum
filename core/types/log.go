@@ -47,7 +47,7 @@ type Log struct {
 	TxIndex uint `json:"transactionIndex" gencodec:"required"`
 	// hash of the block in which the transaction was included
 	BlockHash common.Hash `json:"blockHash"`
-	// index of the log in the block
+	// index of the log in the receipt
 	Index uint `json:"logIndex" gencodec:"required"`
 
 	// The Removed field is true if this log was reverted due to a chain reorganisation.
