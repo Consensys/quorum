@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This directory holds an implementation of a [Raft](https://raft.github.io)-based consensus mechanism (using [etcd](https://github.com/coreos/etcd)'s [Raft implementation](https://github.com/coreos/etcd/tree/master/raft)) as an alternative to Ethereum's default proof-of-work. This is useful for closed-membership/consortium settings where byzantine fault tolerance is not a requirement, and there is a desire for faster blocktimes (on the order of milliseconds instead of seconds) and transaction finality (the absence of forking.) Also, compared with QuorumChain, this consensus mechanism does not "unnecessarily" create empty blocks, and effectively creates blocks "on-demand."
+The link attached holds an implementation of a [Raft](https://raft.github.io)-based consensus mechanism (using [etcd](https://github.com/coreos/etcd)'s [Raft implementation](https://github.com/coreos/etcd/tree/master/raft)) as an alternative to Ethereum's default proof-of-work. This is useful for closed-membership/consortium settings where byzantine fault tolerance is not a requirement, and there is a desire for faster blocktimes (on the order of milliseconds instead of seconds) and transaction finality (the absence of forking.) Also, compared with QuorumChain, this consensus mechanism does not "unnecessarily" create empty blocks, and effectively creates blocks "on-demand."
 
 When the `geth` binary is passed the `--raft` flag, the node will operate in "raft mode."
 
@@ -31,7 +31,7 @@ We use the existing Ethereum p2p transport layer to communicate transactions bet
 
 When the minter creates a block, unlike in vanilla Ethereum where the block is written to the database and immediately considered the new head of the chain, we only insert the block or set it to be the new head of the chain once the block has flown through Raft. All nodes will extend the chain together in lock-step as they "apply" their Raft log.
 
-From the point of view of Ethereum, Raft is integrated via an implementation of the [`Service`](https://godoc.org/github.com/jpmorganchase/quorum/node#Service) interface in [node/service.go](https://github.com/jpmorganchase/quorum/blob/master/node/service.go): "an individual protocol that can be registered into a node". Other examples of services are [`Ethereum`](https://godoc.org/github.com/jpmorganchase/quorum/eth#Ethereum), [`ReleaseService`](https://godoc.org/github.com/jpmorganchase/quorum/contracts/release#ReleaseService), and [`Whisper`](https://godoc.org/github.com/jpmorganchase/quorum/whisper/whisperv5#Whisper).
+From the point of view of Ethereum, Raft is integrated via an implementation of the [`Service`](https://godoc.org/github.com/jpmorganchase/quorum/node#Service) interface in [`node/service.go`](https://github.com/jpmorganchase/quorum/blob/master/node/service.go): "an individual protocol that can be registered into a node". Other examples of services are [`Ethereum`](https://godoc.org/github.com/jpmorganchase/quorum/eth#Ethereum) and [`Whisper`](https://godoc.org/github.com/jpmorganchase/quorum/whisper/whisperv5#Whisper).
 
 ## The lifecycle of a transaction
 
@@ -52,7 +52,7 @@ Let's follow the lifecycle of a typical transaction:
 
 6. _At this point, Raft comes to consensus and appends the log entry containing our block to the Raft log. (The way this happens at the Raft layer is that the leader sends an `AppendEntries` to all followers, and they acknowledge receipt of the message. Once the leader has received a quorum of such acknowledgements, it notifies each node that this new entry has been committed permanently to the log)._
 
-7. Having crossed the network through Raft, the block reaches the `eventLoop` (which processes new Raft log entries.) It has arrived from the leader through `pm.transport`, an instance of [`rafthttp.Transport`](https://godoc.org/github.com/coreos/etcd/rafthttp#Transport).
+7. Having crossed the network through Raft, the block reaches the `eventLoop` (which processes new Raft log entries.) It has arrived from the leader through `pm.transport`, an instance of `rafthttp.Transport`.
 
 8. The block is now handled by `applyNewChainHead`. This method checks whether the block extends the chain (i.e. it's parent is the current head of the chain; see below). If it does not extend the chain, it is simply ignored as a no-op. If it does extend chain, the block is validated and then written as the new head of the chain by [`InsertChain`](https://godoc.org/github.com/jpmorganchase/quorum/core#BlockChain.InsertChain).
 
@@ -158,11 +158,11 @@ To add a node to the cluster, attach to a JS console and issue `raft.addPeer(eno
 
 ## FAQ
 
-### Could you have a single- or two-node cluster? More generally, could you have an even number of nodes?
+**Could you have a single- or two-node cluster? More generally, could you have an even number of nodes ?**
 
 A cluster can tolerate failures that leave a quorum (majority) available. So a cluster of two nodes can't tolerate any failures, three nodes can tolerate one, and five nodes can tolerate two. Typically Raft clusters have an odd number of nodes, since an even number provides no failure tolerance benefit.
 
-### What happens if you don't assume minter and leader are the same node?
+**What happens if you don't assume minter and leader are the same node?**
 
 There's no hard reason they couldn't be different. We just co-locate the minter and leader as an optimization.
 
@@ -171,10 +171,14 @@ There's no hard reason they couldn't be different. We just co-locate the minter 
 
 Additionally there could even be multiple minters running at the same time, but this would produce contention for which blocks actually extend the chain, reducing the productivity of the cluster (see "races" above).
 
-### I thought there were no forks in a Raft-based blockchain. What's the deal with "speculative minting"?
+**I thought there were no forks in a Raft-based blockchain. What's the deal with "speculative minting"?**
 
 "Speculative chains" are not forks in the blockchain. They represent a series ("chain") of blocks that have been sent through Raft, after which each of the blocks may or may not actually end up being included in *the blockchain*.
 
-### Can transactions be reversed? Since raft log entries can be disregarded as "no-ops", does this imply transaction reversal?
+**Can transactions be reversed? Since raft log entries can be disregarded as "no-ops", does this imply transaction reversal?**
 
 No. When a Raft log entry containing a new block is disregarded as a "no-op", its transactions will remain in the transaction pool, and so they will be included in a future block in the chain.
+
+**What's the deal with the block timestamp being stored in nanoseconds (instead of seconds, like other consensus mechanisms)?**
+
+With raft-based consensus we can produce far more than one block per second, which vanilla Ethereum implicitly disallows (as the default timestamp resolution is in seconds and every block must have a timestamp greater than its parent). For Raft, we store the timestamp in nanoseconds and ensure it is incremented by at least 1 nanosecond per block.
