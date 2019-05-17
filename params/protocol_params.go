@@ -79,8 +79,8 @@ const (
 	MemoryGas        uint64 = 3     // Times the address of the (highest referenced byte in memory + 1). NOTE: referencing happens on read, write and in instructions such as RETURN and CALL.
 	TxDataNonZeroGas uint64 = 68    // Per byte of data attached to a transaction that is not equal to zero. NOTE: Not payable on data of calls between transactions.
 
-	OriginalMaxCodeSize = 24576 // Maximum bytecode to permit for a contract
-	MaxCodeSize         = 32768 // Maximum bytecode to permit for a contract
+	MaxCodeSize       = 24576 // Maximum bytecode to permit for a contract
+	QuorumMaxCodeSize = 32768 // Maximum bytecode to permit for a contract
 
 	// Precompiled contract gas prices
 
@@ -116,7 +116,7 @@ func GetMaximumExtraDataSize(isQuorum bool) uint64 {
 
 func GetMaxCodeSize(isQuorum bool) int {
 	if isQuorum {
-		return MaxCodeSize
+		return QuorumMaxCodeSize
 	}
-	return OriginalMaxCodeSize
+	return MaxCodeSize
 }

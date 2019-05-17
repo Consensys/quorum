@@ -378,8 +378,8 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeO
 		return
 	}
 
-	nodelist := []string{}
-	if err := json.Unmarshal(blob, &nodelist); err != nil {
+	var nodeList []string
+	if err := json.Unmarshal(blob, &nodeList); err != nil {
 		log.Error("updatePermissionedNodes: Failed to load nodes list", "err", err)
 		return
 	}
@@ -387,24 +387,23 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeO
 	// logic to update the permissioned-nodes.json file based on action
 	index := 0
 	recExists := false
-	for i, eid := range nodelist {
+	for i, eid := range nodeList {
 		if eid == enodeId {
 			index = i
 			recExists = true
 			break
 		}
 	}
+	if (operation == NodeAdd && recExists) || (operation == NodeDelete && !recExists) {
+		return
+	}
 	if operation == NodeAdd {
-		if !recExists {
-			nodelist = append(nodelist, enodeId)
-		}
+		nodeList = append(nodeList, enodeId)
 	} else {
-		if recExists {
-			nodelist = append(nodelist[:index], nodelist[index+1:]...)
-		}
+		nodeList = append(nodeList[:index], nodeList[index+1:]...)
 		p.disconnectNode(enodeId)
 	}
-	blob, _ = json.Marshal(nodelist)
+	blob, _ = json.Marshal(nodeList)
 
 	p.mux.Lock()
 	defer p.mux.Unlock()
@@ -511,6 +510,8 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 			raftId, err := raftApi.GetRaftId(enodeId)
 			if err == nil {
 				raftApi.RemovePeer(raftId)
+			} else {
+				log.Error("failed to get raft id", "err", err, "enodeId", enodeId)
 			}
 		}
 	} else {
@@ -520,6 +521,8 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 			node, err := enode.ParseV4(enodeId)
 			if err == nil {
 				server.RemovePeer(node)
+			} else {
+				log.Error("failed parse node id", "err", err, "enodeId", enodeId)
 			}
 		}
 	}
@@ -555,10 +558,18 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 		}
 	} else {
 		//populate orgs, nodes, roles and accounts from contract
-		p.populateOrgsFromContract(auth)
-		p.populateNodesFromContract(auth)
-		p.populateRolesFromContract(auth)
-		p.populateAccountsFromContract(auth)
+		if err := p.populateOrgsFromContract(auth); err != nil {
+			return err
+		}
+		if err := p.populateNodesFromContract(auth); err != nil {
+			return err
+		}
+		if err := p.populateRolesFromContract(auth); err != nil {
+			return err
+		}
+		if err := p.populateAccountsFromContract(auth); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -597,7 +608,7 @@ func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSes
 }
 
 // populates the account access details from contract into cache
-func (p *PermissionCtrl) populateAccountsFromContract(auth *bind.TransactOpts) {
+func (p *PermissionCtrl) populateAccountsFromContract(auth *bind.TransactOpts) error {
 	//populate accounts
 	permAcctSession := &pbind.AcctManagerSession{
 		Contract: p.permAcct,
@@ -605,6 +616,7 @@ func (p *PermissionCtrl) populateAccountsFromContract(auth *bind.TransactOpts) {
 			Pending: true,
 		},
 	}
+
 	if numberOfRoles, err := permAcctSession.GetNumberOfAccounts(); err == nil {
 		iOrgNum := numberOfRoles.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
@@ -612,12 +624,14 @@ func (p *PermissionCtrl) populateAccountsFromContract(auth *bind.TransactOpts) {
 				types.AcctInfoMap.UpsertAccount(org, role, addr, orgAdmin, types.AcctStatus(int(status.Int64())))
 			}
 		}
-
+	} else {
+		return err
 	}
+	return nil
 }
 
 // populates the role details from contract into cache
-func (p *PermissionCtrl) populateRolesFromContract(auth *bind.TransactOpts) {
+func (p *PermissionCtrl) populateRolesFromContract(auth *bind.TransactOpts) error {
 	//populate roles
 	permRoleSession := &pbind.RoleManagerSession{
 		Contract: p.permRole,
@@ -633,11 +647,14 @@ func (p *PermissionCtrl) populateRolesFromContract(auth *bind.TransactOpts) {
 			}
 		}
 
+	} else {
+		return err
 	}
+	return nil
 }
 
 // populates the node details from contract into cache
-func (p *PermissionCtrl) populateNodesFromContract(auth *bind.TransactOpts) {
+func (p *PermissionCtrl) populateNodesFromContract(auth *bind.TransactOpts) error {
 	//populate nodes
 	permNodeSession := &pbind.NodeManagerSession{
 		Contract: p.permNode,
@@ -653,12 +670,14 @@ func (p *PermissionCtrl) populateNodesFromContract(auth *bind.TransactOpts) {
 				types.NodeInfoMap.UpsertNode(nodeStruct.OrgId, nodeStruct.EnodeId, types.NodeStatus(int(nodeStruct.NodeStatus.Int64())))
 			}
 		}
-
+	} else {
+		return err
 	}
+	return nil
 }
 
 // populates the org details from contract into cache
-func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) {
+func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) error {
 	//populate orgs
 	permOrgSession := &pbind.OrgManagerSession{
 		Contract: p.permOrg,
@@ -673,7 +692,10 @@ func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) {
 				types.OrgInfoMap.UpsertOrg(orgId, porgId, ultParent, level, types.OrgStatus(int(status.Int64())))
 			}
 		}
+	} else {
+		return err
 	}
+	return nil
 }
 
 // Reads the node list from static-nodes.json and populates into the contract

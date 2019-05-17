@@ -246,11 +246,11 @@ func (o *OrgCache) GetOrg(orgId string) *OrgInfo {
 }
 
 func (o *OrgCache) GetOrgList() []OrgInfo {
-	var olist []OrgInfo
-	for _, k := range o.c.Keys() {
+	olist := make([]OrgInfo, len(o.c.Keys()))
+	for i, k := range o.c.Keys() {
 		v, _ := o.c.Get(k)
 		vp := v.(*OrgInfo)
-		olist = append(olist, *vp)
+		olist[i] = *vp
 	}
 	return olist
 }
@@ -275,12 +275,12 @@ func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
 	return nil
 }
 
-func (o *NodeCache) GetNodeList() []NodeInfo {
-	var olist []NodeInfo
-	for _, k := range o.c.Keys() {
-		v, _ := o.c.Get(k)
+func (n *NodeCache) GetNodeList() []NodeInfo {
+	olist := make([]NodeInfo, len(n.c.Keys()))
+	for i, k := range n.c.Keys() {
+		v, _ := n.c.Get(k)
 		vp := v.(*NodeInfo)
-		olist = append(olist, *vp)
+		olist[i] = *vp
 	}
 	return olist
 }
@@ -302,11 +302,11 @@ func (a *AcctCache) GetAccount(acct common.Address) *AccountInfo {
 }
 
 func (a *AcctCache) GetAcctList() []AccountInfo {
-	var alist []AccountInfo
-	for _, k := range a.c.Keys() {
+	alist := make([]AccountInfo, len(a.c.Keys()))
+	for i, k := range a.c.Keys() {
 		v, _ := a.c.Get(k)
 		vp := v.(*AccountInfo)
-		alist = append(alist, *vp)
+		alist[i] = *vp
 	}
 	return alist
 }
@@ -354,14 +354,14 @@ func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
 	return nil
 }
 
-func (o *RoleCache) GetRoleList() []RoleInfo {
-	var olist []RoleInfo
-	for _, k := range o.c.Keys() {
-		v, _ := o.c.Get(k)
+func (r *RoleCache) GetRoleList() []RoleInfo {
+	rlist := make([]RoleInfo, len(r.c.Keys()))
+	for i, k := range r.c.Keys() {
+		v, _ := r.c.Get(k)
 		vp := v.(*RoleInfo)
-		olist = append(olist, *vp)
+		rlist[i] = *vp
 	}
-	return olist
+	return rlist
 }
 
 // Returns the access type for an account. If not found returns

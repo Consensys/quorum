@@ -422,6 +422,7 @@ The table below indicates the numeric value for various node statuses.
 | :-----------------------: | :-------------: |
 | NotInList                 |               0 |
 | PendingApproval           |               1 |
-| Deactivated               |               2 |
-| Blacklisted               |               3 |
+| Approved                  |               2 |
+| Deactivated               |               3 |
+| Blacklisted               |               4 |
 
