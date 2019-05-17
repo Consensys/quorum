@@ -37,7 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"gopkg.in/urfave/cli.v1"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 var runCommand = cli.Command{
@@ -96,18 +96,19 @@ func runCmd(ctx *cli.Context) error {
 	} else {
 		debugLogger = vm.NewStructLogger(logconfig)
 	}
-	db := ethdb.NewMemDatabase()
+	persistentEthdb := ethdb.NewMemDatabase()
+	stateBackingStore := state.NewDatabase(persistentEthdb)
 	if ctx.GlobalString(GenesisFlag.Name) != "" {
 		gen := readGenesis(ctx.GlobalString(GenesisFlag.Name))
 		genesisConfig = gen
-		genesis := gen.ToBlock(db)
-		statedb, _ = state.New(genesis.Root(), state.NewDatabase(db))
+		genesis := gen.ToBlock(persistentEthdb)
+		statedb, _ = state.New(genesis.Root(), stateBackingStore)
 		chainConfig = gen.Config
 	} else {
-		statedb, _ = state.New(common.Hash{}, state.NewDatabase(db))
+		statedb, _ = state.New(common.Hash{}, stateBackingStore)
 		genesisConfig = new(core.Genesis)
 	}
-	statedb.SetPersistentEthdb(db)
+	statedb.SetPersistentEthdb(persistentEthdb)
 	if ctx.GlobalString(SenderFlag.Name) != "" {
 		sender = common.HexToAddress(ctx.GlobalString(SenderFlag.Name))
 	}

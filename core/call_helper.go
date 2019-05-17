@@ -80,8 +80,7 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	if cg.BC == nil {
 		cg.BC, _ = NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{}, nil)
 	}
-	bc, _ := NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{}, nil)
-	context := NewEVMContext(msg, &cg.header, bc, &from)
+	context := NewEVMContext(msg, &cg.header, cg.BC, &from)
 	vmenv := vm.NewEVM(context, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})
 	_, _, _, err = ApplyMessage(vmenv, msg, cg.gp)
 	if err != nil {
