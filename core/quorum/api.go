@@ -462,6 +462,269 @@ func (q *QuorumControlsAPI) valNodeDetails(url string) (ExecStatus, error) {
 	return ExecSuccess, nil
 }
 
+// all validations for add org operation
+func (q *QuorumControlsAPI) valAddOrg(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if the org id contains "."
+	if args.orgId == "" || args.url == "" || args.acctId == (common.Address{0}) {
+		return ErrInvalidInput
+	}
+	if !isStringAlphaNumeric(args.orgId) {
+		return ErrInvalidOrgName
+	}
+
+	// check if caller is network admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+
+	// check if any previous op is pending approval for network admin
+	if q.checkPendingOp(q.permConfig.NwAdminOrg, pinterf) {
+		return ErrPendingApprovals
+	}
+	// check if org already exists
+	if execStatus, er := q.validateOrg(args.orgId, ""); er != nil {
+		return execStatus
+	}
+
+	// validate node id and
+	if execStatus, er := q.valNodeDetails(args.url); er != nil {
+		return execStatus
+	}
+
+	// check if account is already part of another org
+	if execStatus, er := q.checkOrgAdminExists(args.orgId, "", args.acctId); er != nil {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valApproveOrg(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check caller is network admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+	// check if anything pending approval
+	if !q.validatePendingOp(q.permConfig.NwAdminOrg, args.orgId, args.url, args.acctId, 1, pinterf) {
+		return ErrNothingToApprove
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valAddSubOrg(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if the org id contains "."
+	if args.orgId == "" {
+		return ErrInvalidInput
+	}
+	if !isStringAlphaNumeric(args.orgId) {
+		return ErrInvalidOrgName
+	}
+
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.porgId); er != nil {
+		return execStatus
+	}
+
+	// check if org already exists
+	if execStatus, er := q.validateOrg(args.orgId, args.porgId); er != nil {
+		return execStatus
+	}
+
+	if execStatus, er := q.valSubOrgBreadthDepth(args.porgId); er != nil {
+		return execStatus
+	}
+
+	if execStatus, er := q.valNodeDetails(args.url); er != nil {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valUpdateOrgStatus(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if called is network admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+	if args.action != 1 && args.action != 2 {
+		return ErrOpNotAllowed
+	}
+	// check if status update can be performed. Org should be approved for suspension
+	if execStatus, er := q.checkOrgStatus(args.orgId, args.action); er != nil {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valApproveOrgStatus(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if called is network admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+	// check if anything is pending approval
+	var pendingOp int64
+	if args.action == 1 {
+		pendingOp = 2
+	} else if args.action == 2 {
+		pendingOp = 3
+	} else {
+		return ErrOpNotAllowed
+	}
+	if !q.validatePendingOp(q.permConfig.NwAdminOrg, args.orgId, "", common.Address{}, pendingOp, pinterf) {
+		return ErrNothingToApprove
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valAddNode(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	if args.url == "" {
+		return ErrInvalidInput
+	}
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
+	}
+
+	if execStatus, er := q.valNodeDetails(args.url); er != nil {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valUpdateNodeStatus(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if org admin
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
+	}
+
+	// validation status change is with in allowed set
+	if execStatus, er := q.valNodeStatusChange(args.orgId, args.url, int64(args.action)); er != nil {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valAssignAdminRole(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	if args.acctId == (common.Address{0}) {
+		return ErrInvalidInput
+	}
+	// check if caller is network admin
+	if args.roleId != q.permConfig.OrgAdminRole && args.roleId != q.permConfig.NwAdminRole {
+		return ErrOpNotAllowed
+	}
+
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+
+	if _, err := q.validateOrg(args.orgId, ""); err == nil {
+		return ErrOrgDoesNotExists
+	}
+
+	// check if account is already part of another org
+	if execStatus, er := q.checkOrgAdminExists(args.orgId, args.roleId, args.acctId); er != nil && execStatus != ErrOrgAdminExists {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valApproveAdminRole(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if caller is network admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+	// check if the org exists
+
+	// check if account is valid
+	ac := types.AcctInfoMap.GetAccount(args.acctId)
+	if ac == nil {
+		return ErrInvalidAccount
+	}
+	// validate pending op
+	if !q.validatePendingOp(q.permConfig.NwAdminOrg, ac.OrgId, "", args.acctId, 4, pinterf) {
+		return ErrNothingToApprove
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valAddNewRole(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	if args.roleId == "" {
+		return ErrInvalidInput
+	}
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
+	}
+	// validate if role is already present
+	if types.RoleInfoMap.GetRole(args.orgId, args.roleId) != nil {
+		return ErrRoleExists
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valRemoveRole(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
+	}
+
+	// admin roles cannot be removed
+	if args.roleId == q.permConfig.OrgAdminRole || args.roleId == q.permConfig.NwAdminRole {
+		return ErrAdminRoles
+	}
+
+	// check if role is alraedy inactive
+	r := types.RoleInfoMap.GetRole(args.orgId, args.roleId)
+	if r == nil {
+		return ErrInvalidRole
+	} else if !r.Active {
+		return ErrInactiveRole
+	}
+
+	// check if the role has active accounts. if yes operations should not be allowed
+	if len(types.AcctInfoMap.GetAcctListRole(args.orgId, args.roleId)) != 0 {
+		return ErrRoleActive
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valAssignRole(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	if args.acctId == (common.Address{0}) {
+		return ErrInvalidInput
+	}
+	if args.roleId == q.permConfig.OrgAdminRole || args.roleId == q.permConfig.NwAdminRole {
+		return ErrInvalidRole
+	}
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
+	}
+
+	// check if the role is valid
+	if !q.validateRole(args.orgId, args.roleId) {
+		return ErrInvalidRole
+	}
+
+	// check if the account is part of another org
+	if ac := types.AcctInfoMap.GetAccount(args.acctId); ac != nil {
+		if ac.OrgId != args.orgId {
+			return ErrAccountInUse
+		}
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valUpdateAccountStatus(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if the caller is org admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
+	}
+	// validation status change is with in allowed set
+	if execStatus, er := q.valAccountStatusChange(args.orgId, args.acctId, int64(args.action)); er != nil {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
 // executePermAction helps to execute an action in permission contract
 func (q *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
 
@@ -482,266 +745,88 @@ func (q *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) Ex
 	switch action {
 
 	case AddOrg:
-		// check if the org id contains "."
-		if args.orgId == "" || args.url == "" || args.acctId == (common.Address{0}) {
-			return ErrInvalidInput
-		}
-		if !isStringAlphaNumeric(args.orgId) {
-			return ErrInvalidOrgName
-		}
-
-		// check if caller is network admin
-		if !q.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
-		}
-
-		// check if any previous op is pending approval for network admin
-		if q.checkPendingOp(q.permConfig.NwAdminOrg, pinterf) {
-			return ErrPendingApprovals
-		}
-		// check if org already exists
-		if execStatus, er := q.validateOrg(args.orgId, ""); er != nil {
+		if execStatus := q.valAddOrg(args, pinterf); execStatus != ExecSuccess {
 			return execStatus
 		}
-
-		// validate node id and
-		if execStatus, er := q.valNodeDetails(args.url); er != nil {
-			return execStatus
-		}
-
-		// check if account is already part of another org
-		if execStatus, er := q.checkOrgAdminExists(args.orgId, "", args.acctId); er != nil {
-			return execStatus
-		}
-
 		tx, err = pinterf.AddOrg(args.orgId, args.url, args.acctId)
 
 	case ApproveOrg:
-		// check caller is network admin
-		if !q.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
+		if execStatus := q.valApproveOrg(args, pinterf); execStatus != ExecSuccess {
+			return execStatus
 		}
-
-		if !q.validatePendingOp(q.permConfig.NwAdminOrg, args.orgId, args.url, args.acctId, 1, pinterf) {
-			return ErrNothingToApprove
-		}
-
-		// check if anything pending approval
 		tx, err = pinterf.ApproveOrg(args.orgId, args.url, args.acctId)
 
 	case AddSubOrg:
-		// check if the org id contains "."
-		if args.orgId == "" {
-			return ErrInvalidInput
-		}
-		if !isStringAlphaNumeric(args.orgId) {
-			return ErrInvalidOrgName
-		}
-
-		// check if caller is network admin
-		if execStatus, er := q.isOrgAdmin(args.txa.From, args.porgId); er != nil {
+		if execStatus := q.valAddSubOrg(args, pinterf); execStatus != ExecSuccess {
 			return execStatus
 		}
-
-		// check if org already exists
-		if execStatus, er := q.validateOrg(args.orgId, args.porgId); er != nil {
-			return execStatus
-		}
-
-		if execStatus, er := q.valSubOrgBreadthDepth(args.porgId); er != nil {
-			return execStatus
-		}
-
-		if execStatus, er := q.valNodeDetails(args.url); er != nil {
-			return execStatus
-		}
-
 		tx, err = pinterf.AddSubOrg(args.porgId, args.orgId, args.url)
 
 	case UpdateOrgStatus:
-		// check if called is network admin
-		if !q.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
-		}
-		if args.action != 1 && args.action != 2 {
-			return ErrOpNotAllowed
-		}
-		// check if status update can be performed. Org should be approved for suspension
-		if execStatus, er := q.checkOrgStatus(args.orgId, args.action); er != nil {
+		if execStatus := q.valUpdateOrgStatus(args, pinterf); execStatus != ExecSuccess {
 			return execStatus
 		}
 		// and in suspended state for suspension revoke
 		tx, err = pinterf.UpdateOrgStatus(args.orgId, big.NewInt(int64(args.action)))
 
 	case ApproveOrgStatus:
-		// check if called is network admin
-		if !q.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
+		if execStatus := q.valApproveOrgStatus(args, pinterf); execStatus != ExecSuccess {
+			return execStatus
 		}
-
-		// check if anything is pending approval
-		var pendingOp int64
-		if args.action == 1 {
-			pendingOp = 2
-		} else if args.action == 2 {
-			pendingOp = 3
-		} else {
-			return ErrOpNotAllowed
-		}
-		if !q.validatePendingOp(q.permConfig.NwAdminOrg, args.orgId, "", common.Address{}, pendingOp, pinterf) {
-			return ErrNothingToApprove
-		}
-
 		// validate that status change is pending approval
 		tx, err = pinterf.ApproveOrgStatus(args.orgId, big.NewInt(int64(args.action)))
 
 	case AddNode:
-		if args.url == "" {
-			return ErrInvalidInput
-		}
-		// check if caller is network admin
-		if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
-			return execStatus
-		}
-
-		if execStatus, er := q.valNodeDetails(args.url); er != nil {
+		if execStatus := q.valAddNode(args, pinterf); execStatus != ExecSuccess {
 			return execStatus
 		}
 		// check if node is already there
 		tx, err = pinterf.AddNode(args.orgId, args.url)
 
 	case UpdateNodeStatus:
-		// check if org admin
-		// check if caller is network admin
-		if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		if execStatus := q.valUpdateNodeStatus(args, pinterf); execStatus != ExecSuccess {
 			return execStatus
 		}
-
-		// validation status change is with in allowed set
-		if execStatus, er := q.valNodeStatusChange(args.orgId, args.url, int64(args.action)); er != nil {
-			return execStatus
-		}
-
 		// check node status for operation
 		tx, err = pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.action)))
 
 	case AssignAdminRole:
-		if args.acctId == (common.Address{0}) {
-			return ErrInvalidInput
-		}
-		// check if caller is network admin
-		if args.roleId != q.permConfig.OrgAdminRole && args.roleId != q.permConfig.NwAdminRole {
-			return ErrOpNotAllowed
-		}
-
-		if !q.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
-		}
-
-		// check if account is already part of another org
-		if execStatus, er := q.checkOrgAdminExists(args.orgId, args.roleId, args.acctId); er != nil && execStatus != ErrOrgAdminExists {
+		if execStatus := q.valAssignAdminRole(args, pinterf); execStatus != ExecSuccess {
 			return execStatus
 		}
 		// check if account is already in use in another org
 		tx, err = pinterf.AssignAdminRole(args.orgId, args.acctId, args.roleId)
 
 	case ApproveAdminRole:
-		// check if caller is network admin
-		if !q.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
+		if execStatus := q.valApproveAdminRole(args, pinterf); execStatus != ExecSuccess {
+			return execStatus
 		}
-
-		// check if account is valid
-		ac := types.AcctInfoMap.GetAccount(args.acctId)
-		if ac == nil {
-			return ErrInvalidAccount
-		}
-		// validate pending op
-		if !q.validatePendingOp(q.permConfig.NwAdminOrg, ac.OrgId, "", args.acctId, 4, pinterf) {
-			return ErrNothingToApprove
-		}
-
 		// check if anything is pending approval
 		tx, err = pinterf.ApproveAdminRole(args.orgId, args.acctId)
 
 	case AddNewRole:
-		if args.roleId == "" {
-			return ErrInvalidInput
-		}
-		// check if caller is network admin
-		if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		if execStatus := q.valAddNewRole(args, pinterf); execStatus != ExecSuccess {
 			return execStatus
 		}
-		// validate if role is already present
-		if types.RoleInfoMap.GetRole(args.orgId, args.roleId) != nil {
-			return ErrRoleExists
-		}
-
 		// check if role is already there in the org
 		tx, err = pinterf.AddNewRole(args.roleId, args.orgId, big.NewInt(int64(args.accessType)), args.isVoter, args.isAdmin)
 
 	case RemoveRole:
-		// check if caller is network admin
-		if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		if execStatus := q.valRemoveRole(args, pinterf); execStatus != ExecSuccess {
 			return execStatus
 		}
-
-		// admin roles cannot be removed
-		if args.roleId == q.permConfig.OrgAdminRole || args.roleId == q.permConfig.NwAdminRole {
-			return ErrAdminRoles
-		}
-
-		// check if role is alraedy inactive
-		r := types.RoleInfoMap.GetRole(args.orgId, args.roleId)
-		if r == nil {
-			return ErrInvalidRole
-		} else if !r.Active {
-			return ErrInactiveRole
-		}
-
-		// check if the role has active accounts. if yes operations should not be allowed
-		if len(types.AcctInfoMap.GetAcctListRole(args.orgId, args.roleId)) != 0 {
-			return ErrRoleActive
-		}
-
 		tx, err = pinterf.RemoveRole(args.roleId, args.orgId)
 
 	case AddAccountToOrg, ChangeAccountRole:
-		if args.acctId == (common.Address{0}) {
-			return ErrInvalidInput
-		}
-		if args.roleId == q.permConfig.OrgAdminRole || args.roleId == q.permConfig.NwAdminRole {
-			return ErrInvalidRole
-		}
-		// check if caller is network admin
-		if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		if execStatus := q.valAssignRole(args, pinterf); execStatus != ExecSuccess {
 			return execStatus
 		}
-
-		// check if the role is valid
-		if !q.validateRole(args.orgId, args.roleId) {
-			return ErrInvalidRole
-		}
-
-		// check if the account is part of another org
-		if ac := types.AcctInfoMap.GetAccount(args.acctId); ac != nil {
-			if ac.OrgId != args.orgId {
-				return ErrAccountInUse
-			}
-		}
-
 		tx, err = pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
 
 	case UpdateAccountStatus:
-		// check if the caller is org admin
-		if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		if execStatus := q.valUpdateAccountStatus(args, pinterf); execStatus != ExecSuccess {
 			return execStatus
 		}
-		// validation status change is with in allowed set
-		if execStatus, er := q.valAccountStatusChange(args.orgId, args.acctId, int64(args.action)); er != nil {
-			return execStatus
-		}
-
 		tx, err = pinterf.UpdateAccountStatus(args.orgId, args.acctId, big.NewInt(int64(args.action)))
 	}
 
