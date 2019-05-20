@@ -2,7 +2,7 @@
 This is an up to date copy of original wiki entry located here https://github.com/getamis/go-ethereum/wiki/RPC-API
 
 
-# Getting Started
+## Getting Started
 1. Run Istanbul geth with `--rpcapi "istanbul"`
 2. `geth attach`
 
