@@ -26,7 +26,7 @@
 ??? question "Is it possible to run a Quorum node without Transaction Manager?"
     It is possible to run a node without a corresponding Transaction Manager, to do this instead of a matching Tessera/Constellation node's socket configuration should be set to `PRIVATE_CONFIG=ignore ...`. The node running such configuration is not going to broadcast matching private keys (please ensure that there is no transaction manager running for it) and will be unable to participate in any private transactions.
 
-??? danger "Known Raft consensus node misconfiguration"
+??? info "Known Raft consensus node misconfiguration"
     Please see https://github.com/jpmorganchase/quorum/issues/410
     
 ??? question "Is there an official docker image for Quorum/Constellation/Tessera?"
