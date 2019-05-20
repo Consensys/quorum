@@ -125,6 +125,7 @@ And there you have it. All 7 nodes are validating the same blockchain of transac
 Node Permissioning is a feature in Quorum that allows only a pre-defined set of nodes (as identified by their remotekey/enodes) to connect to the permissioned network.
 
 In this demo we will:
+
 - Set up a network with a combination of permissioned and non-permissioned nodes in the cluster
 - Look at the details of the `permissioned-nodes.json` file
 - Demonstrate that only the nodes that are specified in `permissioned-nodes.json` can connect to the network
