@@ -67,7 +67,7 @@ var keys = []string{
 	"7184c1701569e3a4c4d2ddce691edd983b81e42e09196d332e1ae2f1e062cff4",
 }
 
-const NumNodes = 16 // must not exceed the number of keys (32)
+const NumNodes = 3 // must not exceed the number of keys (32)
 
 type TestData struct {
 	counter [NumNodes]int
