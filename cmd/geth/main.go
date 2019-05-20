@@ -19,7 +19,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/types"
 	"math"
 	"os"
 	godebug "runtime/debug"
@@ -27,6 +26,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/elastic/gosigar"
 	"github.com/ethereum/go-ethereum/accounts"

@@ -1,11 +1,12 @@
 package types
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/hashicorp/golang-lru"
 	"math/big"
 	"strings"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/hashicorp/golang-lru"
 )
 
 type AccessType uint8

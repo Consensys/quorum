@@ -4,6 +4,13 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"math/big"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -16,12 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
 	"github.com/ethereum/go-ethereum/raft"
-	"io/ioutil"
-	"math/big"
-	"os"
-	"path/filepath"
-	"sync"
-	"time"
 )
 
 type NodeOperation uint8

@@ -89,8 +89,8 @@ func New(path string) (*Constellation, error) {
 		return nil, err
 	}
 	return &Constellation{
-		node: n,
-		c:    cache.New(5*time.Minute, 5*time.Minute),
+		node:                    n,
+		c:                       cache.New(5*time.Minute, 5*time.Minute),
 		isConstellationNotInUse: false,
 	}, nil
 }
@@ -98,8 +98,8 @@ func New(path string) (*Constellation, error) {
 func MustNew(path string) *Constellation {
 	if strings.EqualFold(path, "ignore") {
 		return &Constellation{
-			node: nil,
-			c:    nil,
+			node:                    nil,
+			c:                       nil,
 			isConstellationNotInUse: true,
 		}
 	}
