@@ -56,7 +56,8 @@ func signTx(key *ecdsa.PrivateKey, signer Signer) (*Transaction, common.Address,
 }
 
 /**
- * 11 April 2019 behavior:
+ * As of quorum v2.2.3 commit be7cc31ce208525ea1822e7d0fee88bf7f14500b 30 April 2019 behavior
+ *
  * Test public transactions signed by homestead Signer. Homestead sets the v param on a signed transaction to
  * either 27 or 28. The v parameter is used for recovering the sender of the signed transation.
  *
@@ -94,7 +95,8 @@ func TestSignQuorumHomesteadPublic(t *testing.T) {
 }
 
 /**
- * 11 April 2019 behavior:
+ * As of quorum v2.2.3 commit be7cc31ce208525ea1822e7d0fee88bf7f14500b 30 April 2019 behavior
+ *
  * Test the public transactions signed by the EIP155Signer.
  * The EIP155Signer was introduced to protect against replay
  * attacks https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md and stores
@@ -149,7 +151,7 @@ func TestSignQuorumEIP155Public(t *testing.T) {
 }
 
 /**
- * 11 April 2019 behavior:
+ *  As of quorum v2.2.3 commit be7cc31ce208525ea1822e7d0fee88bf7f14500b 30 April 2019 behavior
  *
  * When the signer is EIP155Signer, chainId == 1 cannot be used because the EIP155 computed `v` value conflicts
  * with the private `v` value that quorum uses to indicate a private transaction: v == 37 and v == 38.
@@ -215,7 +217,8 @@ func TestSignQuorumEIP155FailPublicChain1(t *testing.T) {
 }
 
 /**
-*  11 April 2019 behavior
+*  As of quorum v2.2.3 commit be7cc31ce208525ea1822e7d0fee88bf7f14500b 30 April 2019 behavior
+*
 *  Use Homestead to sign and EIPSigner to recover.
 *
 *  SendTransaction creates a transaction for the given argument, signs it and submit it to the transaction pool.
@@ -265,7 +268,7 @@ func TestSignQuorumHomesteadEIP155SigningPrivateQuorum(t *testing.T) {
 }
 
 /*
- * 11 April 2019 behavior
+ * As of quorum v2.2.3 commit be7cc31ce208525ea1822e7d0fee88bf7f14500b 30 April 2019 behavior
  * Use Homestead to sign and Homestead to recover.
  *
  * Signing private transactions with HomesteadSigner, and recovering a private transaction with
@@ -308,7 +311,8 @@ func TestSignQuorumHomesteadOnlyPrivateQuorum(t *testing.T) {
 }
 
 /*
- * 11 April 2019 behavior:
+ * As of quorum v2.2.3 commit be7cc31ce208525ea1822e7d0fee88bf7f14500b 30 April 2019 behavior
+ *
  * Use EIP155 to sign and EIP155 to recover (This is not a valid combination and does **not** work).
  *
  * Signing private transactions with EIP155Signer, and recovering a private transaction with
