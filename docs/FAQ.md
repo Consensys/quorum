@@ -1,5 +1,6 @@
 ??? question "I've ran into an issue with Quorum, where do I get support?"
     There are two places Quorum engineering team monitors on an on-going basis: issues in this and related repositories and on Quorum Slack. Quorum Slack is the best place to query the community and get immediate help. Auto-inviter is available [here](https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/).
+    
 ??? question "How does Quorum achieve Transaction Privacy?"
     Quorum achieves Transaction Privacy by:
     
