@@ -50,7 +50,7 @@ var DefaultConfig = Config{
 	TrieCache:     256,
 	TrieTimeout:   60 * time.Minute,
 	MinerGasFloor: params.MinGasLimit,
-	MinerGasCeil:  800000000,
+	MinerGasCeil:  params.GenesisGasLimit,
 	MinerGasPrice: big.NewInt(params.GWei),
 	MinerRecommit: 3 * time.Second,
 
