@@ -525,7 +525,7 @@ func TestExpiry(t *testing.T) {
 	}
 
 	// wait till expired or timeout
-	for j := 0; j < 20; j++ {
+	for j := 0; j < 50; j++ {
 		time.Sleep(100 * time.Millisecond)
 		if len(w.Envelopes()) == 0 {
 			expired = true
