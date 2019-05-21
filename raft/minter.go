@@ -18,7 +18,6 @@ package raft
 
 import (
 	"fmt"
-	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -241,7 +240,7 @@ func (minter *minter) mintingLoop() {
 }
 
 func generateNanoTimestamp(parent *types.Block) (tstamp int64) {
-	parentTime := parent.Time().Int64()
+	parentTime := int64(parent.Time())
 	tstamp = time.Now().UnixNano()
 
 	if parentTime >= tstamp {
@@ -265,7 +264,7 @@ func (minter *minter) createWork() *work {
 		GasLimit:   core.CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
 		GasUsed:    0,
 		Coinbase:   minter.coinbase,
-		Time:       big.NewInt(tstamp),
+		Time:       uint64(tstamp),
 	}
 
 	publicState, privateState, err := minter.chain.StateAt(parent.Root())
@@ -363,7 +362,7 @@ func (minter *minter) mintNewBlock() {
 
 	minter.mux.Post(core.NewMinedBlockEvent{Block: block})
 
-	elapsed := time.Since(time.Unix(0, header.Time.Int64()))
+	elapsed := time.Since(time.Unix(0, int64(header.Time)))
 	log.Info("🔨  Mined block", "number", block.Number(), "hash", fmt.Sprintf("%x", block.Hash().Bytes()[:4]), "elapsed", elapsed)
 }
 

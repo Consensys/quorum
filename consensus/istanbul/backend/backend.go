@@ -237,7 +237,7 @@ func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	if err == nil || err == errEmptyCommittedSeals {
 		return 0, nil
 	} else if err == consensus.ErrFutureBlock {
-		return time.Unix(block.Header().Time.Int64(), 0).Sub(now()), consensus.ErrFutureBlock
+		return time.Unix(int64(block.Header().Time), 0).Sub(now()), consensus.ErrFutureBlock
 	}
 	return 0, err
 }
@@ -315,8 +315,6 @@ func (sb *backend) HasBadProposal(hash common.Hash) bool {
 	}
 	return sb.hasBadBlock(hash)
 }
-
-
 
 func (sb *backend) Close() error {
 	return nil

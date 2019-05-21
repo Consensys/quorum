@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -1456,6 +1457,7 @@ func SetupMetrics(ctx *cli.Context) {
 }
 
 func SplitTagsFlag(tagsFlag string) map[string]string {
+
 	tags := strings.Split(tagsFlag, ",")
 	tagsMap := map[string]string{}
 

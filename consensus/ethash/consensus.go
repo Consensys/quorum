@@ -270,7 +270,7 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 		// "raft" sentinel in the Extra field, or pass a boolean for raftMode from
 		// all call sites of this function.
 		if raftMode := time.Now().UnixNano() > nanosecond2017Timestamp; !raftMode {
-			if header.Time.Cmp(big.NewInt(time.Now().Unix())) > 0 {
+			if header.Time > uint64(time.Now().Unix()) {
 				return consensus.ErrFutureBlock
 			}
 		}

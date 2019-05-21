@@ -42,7 +42,7 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 
 	// TODO(joel): these are just stubbed to the same values as in dual_state_test.go
 	cg.header.Number = new(big.Int)
-	cg.header.Time = new(big.Int).SetUint64(43)
+	cg.header.Time = uint64(43)
 	cg.header.Difficulty = new(big.Int).SetUint64(1000488)
 	cg.header.GasLimit = 4700000
 
