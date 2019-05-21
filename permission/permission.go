@@ -589,7 +589,7 @@ func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSes
 		return err
 	}
 
-	types.OrgInfoMap.UpsertOrg(p.permConfig.NwAdminOrg, "", "", big.NewInt(1), types.OrgApproved)
+	types.OrgInfoMap.UpsertOrg(p.permConfig.NwAdminOrg, "", p.permConfig.NwAdminOrg, big.NewInt(1), types.OrgApproved)
 	types.RoleInfoMap.UpsertRole(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, true, true, types.FullAccess, true)
 	// populate the initial node list from static-nodes.json
 	if err := p.populateStaticNodesToContract(permInterfSession); err != nil {
