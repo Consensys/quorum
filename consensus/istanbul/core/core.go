@@ -166,7 +166,7 @@ func (c *core) IsProposer() bool {
 }
 
 func (c *core) IsCurrentProposal(blockHash common.Hash) bool {
-	return c.current.pendingRequest != nil && c.current.pendingRequest.Proposal.Hash() == blockHash
+	return c.current != nil && c.current.pendingRequest != nil && c.current.pendingRequest.Proposal.Hash() == blockHash
 }
 
 func (c *core) commit() {
