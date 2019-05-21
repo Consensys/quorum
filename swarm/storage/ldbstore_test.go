@@ -79,30 +79,22 @@ func testPoFunc(k Address) (ret uint8) {
 	return uint8(Proximity(basekey, k[:]))
 }
 
-func (db *testDbStore) close() {
-	db.Close()
-	err := os.RemoveAll(db.dir)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func testDbStoreRandom(n int, chunksize int64, mock bool, t *testing.T) {
+func testDbStoreRandom(n int, mock bool, t *testing.T) {
 	db, cleanup, err := newTestDbStore(mock, true)
 	defer cleanup()
 	if err != nil {
 		t.Fatalf("init dbStore failed: %v", err)
 	}
-	testStoreRandom(db, n, chunksize, t)
+	testStoreRandom(db, n, t)
 }
 
-func testDbStoreCorrect(n int, chunksize int64, mock bool, t *testing.T) {
+func testDbStoreCorrect(n int, mock bool, t *testing.T) {
 	db, cleanup, err := newTestDbStore(mock, false)
 	defer cleanup()
 	if err != nil {
 		t.Fatalf("init dbStore failed: %v", err)
 	}
-	testStoreCorrect(db, n, chunksize, t)
+	testStoreCorrect(db, n, t)
 }
 
 func TestMarkAccessed(t *testing.T) {
@@ -146,35 +138,35 @@ func TestMarkAccessed(t *testing.T) {
 }
 
 func TestDbStoreRandom_1(t *testing.T) {
-	testDbStoreRandom(1, 0, false, t)
+	testDbStoreRandom(1, false, t)
 }
 
 func TestDbStoreCorrect_1(t *testing.T) {
-	testDbStoreCorrect(1, 4096, false, t)
+	testDbStoreCorrect(1, false, t)
 }
 
 func TestDbStoreRandom_1k(t *testing.T) {
-	testDbStoreRandom(1000, 0, false, t)
+	testDbStoreRandom(1000, false, t)
 }
 
 func TestDbStoreCorrect_1k(t *testing.T) {
-	testDbStoreCorrect(1000, 4096, false, t)
+	testDbStoreCorrect(1000, false, t)
 }
 
 func TestMockDbStoreRandom_1(t *testing.T) {
-	testDbStoreRandom(1, 0, true, t)
+	testDbStoreRandom(1, true, t)
 }
 
 func TestMockDbStoreCorrect_1(t *testing.T) {
-	testDbStoreCorrect(1, 4096, true, t)
+	testDbStoreCorrect(1, true, t)
 }
 
 func TestMockDbStoreRandom_1k(t *testing.T) {
-	testDbStoreRandom(1000, 0, true, t)
+	testDbStoreRandom(1000, true, t)
 }
 
 func TestMockDbStoreCorrect_1k(t *testing.T) {
-	testDbStoreCorrect(1000, 4096, true, t)
+	testDbStoreCorrect(1000, true, t)
 }
 
 func testDbStoreNotFound(t *testing.T, mock bool) {
@@ -251,54 +243,38 @@ func TestMockIterator(t *testing.T) {
 	testIterator(t, true)
 }
 
-func benchmarkDbStorePut(n int, processors int, chunksize int64, mock bool, b *testing.B) {
+func benchmarkDbStorePut(n int, mock bool, b *testing.B) {
 	db, cleanup, err := newTestDbStore(mock, true)
 	defer cleanup()
 	if err != nil {
 		b.Fatalf("init dbStore failed: %v", err)
 	}
-	benchmarkStorePut(db, n, chunksize, b)
+	benchmarkStorePut(db, n, b)
 }
 
-func benchmarkDbStoreGet(n int, processors int, chunksize int64, mock bool, b *testing.B) {
+func benchmarkDbStoreGet(n int, mock bool, b *testing.B) {
 	db, cleanup, err := newTestDbStore(mock, true)
 	defer cleanup()
 	if err != nil {
 		b.Fatalf("init dbStore failed: %v", err)
 	}
-	benchmarkStoreGet(db, n, chunksize, b)
+	benchmarkStoreGet(db, n, b)
 }
 
-func BenchmarkDbStorePut_1_500(b *testing.B) {
-	benchmarkDbStorePut(500, 1, 4096, false, b)
+func BenchmarkDbStorePut_500(b *testing.B) {
+	benchmarkDbStorePut(500, false, b)
 }
 
-func BenchmarkDbStorePut_8_500(b *testing.B) {
-	benchmarkDbStorePut(500, 8, 4096, false, b)
+func BenchmarkDbStoreGet_500(b *testing.B) {
+	benchmarkDbStoreGet(500, false, b)
 }
 
-func BenchmarkDbStoreGet_1_500(b *testing.B) {
-	benchmarkDbStoreGet(500, 1, 4096, false, b)
+func BenchmarkMockDbStorePut_500(b *testing.B) {
+	benchmarkDbStorePut(500, true, b)
 }
 
-func BenchmarkDbStoreGet_8_500(b *testing.B) {
-	benchmarkDbStoreGet(500, 8, 4096, false, b)
-}
-
-func BenchmarkMockDbStorePut_1_500(b *testing.B) {
-	benchmarkDbStorePut(500, 1, 4096, true, b)
-}
-
-func BenchmarkMockDbStorePut_8_500(b *testing.B) {
-	benchmarkDbStorePut(500, 8, 4096, true, b)
-}
-
-func BenchmarkMockDbStoreGet_1_500(b *testing.B) {
-	benchmarkDbStoreGet(500, 1, 4096, true, b)
-}
-
-func BenchmarkMockDbStoreGet_8_500(b *testing.B) {
-	benchmarkDbStoreGet(500, 8, 4096, true, b)
+func BenchmarkMockDbStoreGet_500(b *testing.B) {
+	benchmarkDbStoreGet(500, true, b)
 }
 
 // TestLDBStoreWithoutCollectGarbage tests that we can put a number of random chunks in the LevelDB store, and
@@ -311,7 +287,7 @@ func TestLDBStoreWithoutCollectGarbage(t *testing.T) {
 	ldb.setCapacity(uint64(capacity))
 	defer cleanup()
 
-	chunks, err := mputRandomChunks(ldb, n, int64(ch.DefaultSize))
+	chunks, err := mputRandomChunks(ldb, n)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -344,17 +320,18 @@ func TestLDBStoreWithoutCollectGarbage(t *testing.T) {
 func TestLDBStoreCollectGarbage(t *testing.T) {
 
 	// below max ronud
-	cap := defaultMaxGCRound / 2
+	initialCap := defaultMaxGCRound / 100
+	cap := initialCap / 2
 	t.Run(fmt.Sprintf("A/%d/%d", cap, cap*4), testLDBStoreCollectGarbage)
 	t.Run(fmt.Sprintf("B/%d/%d", cap, cap*4), testLDBStoreRemoveThenCollectGarbage)
 
 	// at max round
-	cap = defaultMaxGCRound
+	cap = initialCap
 	t.Run(fmt.Sprintf("A/%d/%d", cap, cap*4), testLDBStoreCollectGarbage)
 	t.Run(fmt.Sprintf("B/%d/%d", cap, cap*4), testLDBStoreRemoveThenCollectGarbage)
 
 	// more than max around, not on threshold
-	cap = defaultMaxGCRound * 1.1
+	cap = initialCap + 500
 	t.Run(fmt.Sprintf("A/%d/%d", cap, cap*4), testLDBStoreCollectGarbage)
 	t.Run(fmt.Sprintf("B/%d/%d", cap, cap*4), testLDBStoreRemoveThenCollectGarbage)
 
@@ -390,7 +367,7 @@ func testLDBStoreCollectGarbage(t *testing.T) {
 			putCount = roundTarget
 		}
 		remaining -= putCount
-		chunks, err := mputRandomChunks(ldb, putCount, int64(ch.DefaultSize))
+		chunks, err := mputRandomChunks(ldb, putCount)
 		if err != nil {
 			t.Fatal(err.Error())
 		}
@@ -437,7 +414,7 @@ func TestLDBStoreAddRemove(t *testing.T) {
 	defer cleanup()
 
 	n := 100
-	chunks, err := mputRandomChunks(ldb, n, int64(ch.DefaultSize))
+	chunks, err := mputRandomChunks(ldb, n)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -452,7 +429,7 @@ func TestLDBStoreAddRemove(t *testing.T) {
 	log.Info("ldbstore", "entrycnt", ldb.entryCnt, "accesscnt", ldb.accessCnt)
 
 	for i := 0; i < n; i++ {
-		ret, err := ldb.Get(nil, chunks[i].Address())
+		ret, err := ldb.Get(context.TODO(), chunks[i].Address())
 
 		if i%2 == 0 {
 			// expect even chunks to be missing
@@ -578,14 +555,14 @@ func testLDBStoreRemoveThenCollectGarbage(t *testing.T) {
 // TestLDBStoreCollectGarbageAccessUnlikeIndex tests garbage collection where accesscount differs from indexcount
 func TestLDBStoreCollectGarbageAccessUnlikeIndex(t *testing.T) {
 
-	capacity := defaultMaxGCRound * 2
+	capacity := defaultMaxGCRound / 100 * 2
 	n := capacity - 1
 
 	ldb, cleanup := newLDBStore(t)
 	ldb.setCapacity(uint64(capacity))
 	defer cleanup()
 
-	chunks, err := mputRandomChunks(ldb, n, int64(ch.DefaultSize))
+	chunks, err := mputRandomChunks(ldb, n)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -598,7 +575,7 @@ func TestLDBStoreCollectGarbageAccessUnlikeIndex(t *testing.T) {
 			t.Fatalf("fail add chunk #%d - %s: %v", i, chunks[i].Address(), err)
 		}
 	}
-	_, err = mputRandomChunks(ldb, 2, int64(ch.DefaultSize))
+	_, err = mputRandomChunks(ldb, 2)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -632,7 +609,7 @@ func TestCleanIndex(t *testing.T) {
 	ldb.setCapacity(uint64(capacity))
 	defer cleanup()
 
-	chunks, err := mputRandomChunks(ldb, n, 4096)
+	chunks, err := mputRandomChunks(ldb, n)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -760,6 +737,38 @@ func TestCleanIndex(t *testing.T) {
 		if binTotal != 3 {
 			t.Fatalf("expected sum of bin indices to be 3, was %d", binTotal)
 		}
+	}
+
+	// check that the iterator quits properly
+	chunks, err = mputRandomChunks(ldb, 4100)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	po = ldb.po(chunks[4099].Address()[:])
+	dataKey = make([]byte, 10)
+	dataKey[0] = keyData
+	dataKey[1] = byte(po)
+	binary.BigEndian.PutUint64(dataKey[2:], 4099+3)
+	if _, err := ldb.db.Get(dataKey); err != nil {
+		t.Fatal(err)
+	}
+	if err := ldb.db.Delete(dataKey); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ldb.CleanGCIndex(); err != nil {
+		t.Fatal(err)
+	}
+
+	// entrycount should now be one less of added chunks
+	c, err = ldb.db.Get(keyEntryCnt)
+	if err != nil {
+		t.Fatalf("expected gc 2 idx to be present: %v", idxKey)
+	}
+	entryCount = binary.BigEndian.Uint64(c)
+	if entryCount != 4099+2 {
+		t.Fatalf("expected entrycnt to be 2, was %d", c)
 	}
 }
 

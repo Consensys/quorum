@@ -57,6 +57,17 @@ func init() {
 	})
 }
 
+const clusterSize = 3
+
+var clusteronce sync.Once
+var cluster *testCluster
+
+func initCluster(t *testing.T) {
+	clusteronce.Do(func() {
+		cluster = newTestCluster(t, clusterSize)
+	})
+}
+
 func serverFunc(api *api.API) swarmhttp.TestServer {
 	return swarmhttp.NewServer(api, "")
 }
@@ -243,7 +254,6 @@ func existingTestNode(t *testing.T, dir string, bzzaccount string) *testNode {
 	node.Cmd = runSwarm(t,
 		"--port", p2pPort,
 		"--nat", "extip:127.0.0.1",
-		"--nodiscover",
 		"--datadir", dir,
 		"--ipcpath", conf.IPCPath,
 		"--ens-api", "",
@@ -319,7 +329,6 @@ func newTestNode(t *testing.T, dir string) *testNode {
 	node.Cmd = runSwarm(t,
 		"--port", p2pPort,
 		"--nat", "extip:127.0.0.1",
-		"--nodiscover",
 		"--datadir", dir,
 		"--ipcpath", conf.IPCPath,
 		"--ens-api", "",

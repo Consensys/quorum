@@ -92,7 +92,7 @@ func (ls *LocalStore) isValid(chunk Chunk) bool {
 	// ls.Validators contains a list of one validator per chunk type.
 	// if one validator succeeds, then the chunk is valid
 	for _, v := range ls.Validators {
-		if valid = v.Validate(chunk.Address(), chunk.Data()); valid {
+		if valid = v.Validate(chunk); valid {
 			break
 		}
 	}
@@ -130,6 +130,13 @@ func (ls *LocalStore) Put(ctx context.Context, chunk Chunk) error {
 	ls.memStore.Put(ctx, chunk)
 	err = ls.DbStore.Put(ctx, chunk)
 	return err
+}
+
+// Has queries the underlying DbStore if a chunk with the given address
+// is being stored there.
+// Returns true if it is stored, false if not
+func (ls *LocalStore) Has(ctx context.Context, addr Address) bool {
+	return ls.DbStore.Has(ctx, addr)
 }
 
 // Get(chunk *Chunk) looks up a chunk in the local stores
@@ -194,7 +201,8 @@ func (ls *LocalStore) Close() {
 	ls.DbStore.Close()
 }
 
-// Migrate checks the datastore schema vs the runtime schema, and runs migrations if they don't match
+// Migrate checks the datastore schema vs the runtime schema and runs
+// migrations if they don't match
 func (ls *LocalStore) Migrate() error {
 	actualDbSchema, err := ls.DbStore.GetSchema()
 	if err != nil {
@@ -202,11 +210,11 @@ func (ls *LocalStore) Migrate() error {
 		return err
 	}
 
-	log.Debug("running migrations for", "schema", actualDbSchema, "runtime-schema", CurrentDbSchema)
-
 	if actualDbSchema == CurrentDbSchema {
 		return nil
 	}
+
+	log.Debug("running migrations for", "schema", actualDbSchema, "runtime-schema", CurrentDbSchema)
 
 	if actualDbSchema == DbSchemaNone {
 		ls.migrateFromNoneToPurity()

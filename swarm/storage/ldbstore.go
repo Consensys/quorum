@@ -248,10 +248,6 @@ func U64ToBytes(val uint64) []byte {
 	return data
 }
 
-func (s *LDBStore) updateIndexAccess(index *dpaDBIndex) {
-	index.Access = s.accessCnt
-}
-
 func getIndexKey(hash Address) []byte {
 	hashSize := len(hash)
 	key := make([]byte, hashSize+1)
@@ -284,7 +280,7 @@ func getGCIdxValue(index *dpaDBIndex, po uint8, addr Address) []byte {
 	return val
 }
 
-func parseGCIdxKey(key []byte) (byte, []byte) {
+func parseIdxKey(key []byte) (byte, []byte) {
 	return key[0], key[1:]
 }
 
@@ -321,7 +317,6 @@ func decodeData(addr Address, data []byte) (*chunk, error) {
 }
 
 func (s *LDBStore) collectGarbage() error {
-
 	// prevent duplicate gc from starting when one is already running
 	select {
 	case <-s.gc.runC:
@@ -339,7 +334,6 @@ func (s *LDBStore) collectGarbage() error {
 	s.startGC(int(entryCnt))
 	log.Debug("collectGarbage", "target", s.gc.target, "entryCnt", entryCnt)
 
-	var totalDeleted int
 	for s.gc.count < s.gc.target {
 		it := s.db.NewIterator()
 		ok := it.Seek([]byte{keyGCIdx})
@@ -375,15 +369,15 @@ func (s *LDBStore) collectGarbage() error {
 		}
 
 		s.writeBatch(s.gc.batch, wEntryCnt)
+		log.Trace("garbage collect batch done", "batch", singleIterationCount, "total", s.gc.count)
 		s.lock.Unlock()
 		it.Release()
-		log.Trace("garbage collect batch done", "batch", singleIterationCount, "total", s.gc.count)
 	}
 
-	s.gc.runC <- struct{}{}
+	metrics.GetOrRegisterCounter("ldbstore.collectgarbage.delete", nil).Inc(int64(s.gc.count))
 	log.Debug("garbage collect done", "c", s.gc.count)
+	s.gc.runC <- struct{}{}
 
-	metrics.GetOrRegisterCounter("ldbstore.collectgarbage.delete", nil).Inc(int64(totalDeleted))
 	return nil
 }
 
@@ -589,7 +583,7 @@ func (s *LDBStore) CleanGCIndex() error {
 	it.Seek([]byte{keyGCIdx})
 	var gcDeletes int
 	for it.Valid() {
-		rowType, _ := parseGCIdxKey(it.Key())
+		rowType, _ := parseIdxKey(it.Key())
 		if rowType != keyGCIdx {
 			break
 		}
@@ -601,47 +595,113 @@ func (s *LDBStore) CleanGCIndex() error {
 	if err := s.db.Write(&batch); err != nil {
 		return err
 	}
-
-	it.Seek([]byte{keyIndex})
-	var idx dpaDBIndex
-	var poPtrs [256]uint64
-	for it.Valid() {
-		rowType, chunkHash := parseGCIdxKey(it.Key())
-		if rowType != keyIndex {
-			break
-		}
-		err := decodeIndex(it.Value(), &idx)
-		if err != nil {
-			return fmt.Errorf("corrupt index: %v", err)
-		}
-		po := s.po(chunkHash)
-
-		// if we don't find the data key, remove the entry
-		dataKey := getDataKey(idx.Idx, po)
-		_, err = s.db.Get(dataKey)
-		if err != nil {
-			log.Warn("deleting inconsistent index (missing data)", "key", chunkHash)
-			batch.Delete(it.Key())
-		} else {
-			gcIdxKey := getGCIdxKey(&idx)
-			gcIdxData := getGCIdxValue(&idx, po, chunkHash)
-			batch.Put(gcIdxKey, gcIdxData)
-			log.Trace("clean ok", "key", chunkHash, "gcKey", gcIdxKey, "gcData", gcIdxData)
-			okEntryCount++
-			if idx.Idx > poPtrs[po] {
-				poPtrs[po] = idx.Idx
-			}
-		}
-		totalEntryCount++
-		it.Next()
-	}
+	batch.Reset()
 
 	it.Release()
+
+	// corrected po index pointer values
+	var poPtrs [256]uint64
+
+	// set to true if chunk count not on 4096 iteration boundary
+	var doneIterating bool
+
+	// last key index in previous iteration
+	lastIdxKey := []byte{keyIndex}
+
+	// counter for debug output
+	var cleanBatchCount int
+
+	// go through all key index entries
+	for !doneIterating {
+		cleanBatchCount++
+		var idxs []dpaDBIndex
+		var chunkHashes [][]byte
+		var pos []uint8
+		it := s.db.NewIterator()
+
+		it.Seek(lastIdxKey)
+
+		// 4096 is just a nice number, don't look for any hidden meaning here...
+		var i int
+		for i = 0; i < 4096; i++ {
+
+			// this really shouldn't happen unless database is empty
+			// but let's keep it to be safe
+			if !it.Valid() {
+				doneIterating = true
+				break
+			}
+
+			// if it's not keyindex anymore we're done iterating
+			rowType, chunkHash := parseIdxKey(it.Key())
+			if rowType != keyIndex {
+				doneIterating = true
+				break
+			}
+
+			// decode the retrieved index
+			var idx dpaDBIndex
+			err := decodeIndex(it.Value(), &idx)
+			if err != nil {
+				return fmt.Errorf("corrupt index: %v", err)
+			}
+			po := s.po(chunkHash)
+			lastIdxKey = it.Key()
+
+			// if we don't find the data key, remove the entry
+			// if we find it, add to the array of new gc indices to create
+			dataKey := getDataKey(idx.Idx, po)
+			_, err = s.db.Get(dataKey)
+			if err != nil {
+				log.Warn("deleting inconsistent index (missing data)", "key", chunkHash)
+				batch.Delete(it.Key())
+			} else {
+				idxs = append(idxs, idx)
+				chunkHashes = append(chunkHashes, chunkHash)
+				pos = append(pos, po)
+				okEntryCount++
+				if idx.Idx > poPtrs[po] {
+					poPtrs[po] = idx.Idx
+				}
+			}
+			totalEntryCount++
+			it.Next()
+		}
+		it.Release()
+
+		// flush the key index corrections
+		err := s.db.Write(&batch)
+		if err != nil {
+			return err
+		}
+		batch.Reset()
+
+		// add correct gc indices
+		for i, okIdx := range idxs {
+			gcIdxKey := getGCIdxKey(&okIdx)
+			gcIdxData := getGCIdxValue(&okIdx, pos[i], chunkHashes[i])
+			batch.Put(gcIdxKey, gcIdxData)
+			log.Trace("clean ok", "key", chunkHashes[i], "gcKey", gcIdxKey, "gcData", gcIdxData)
+		}
+
+		// flush them
+		err = s.db.Write(&batch)
+		if err != nil {
+			return err
+		}
+		batch.Reset()
+
+		log.Debug("clean gc index pass", "batch", cleanBatchCount, "checked", i, "kept", len(idxs))
+	}
+
 	log.Debug("gc cleanup entries", "ok", okEntryCount, "total", totalEntryCount, "batchlen", batch.Len())
 
+	// lastly add updated entry count
 	var entryCount [8]byte
 	binary.BigEndian.PutUint64(entryCount[:], okEntryCount)
 	batch.Put(keyEntryCnt, entryCount[:])
+
+	// and add the new po index pointers
 	var poKey [2]byte
 	poKey[0] = keyDistanceCnt
 	for i, poPtr := range poPtrs {
@@ -655,6 +715,7 @@ func (s *LDBStore) CleanGCIndex() error {
 		}
 	}
 
+	// if you made it this far your harddisk has survived. Congratulations
 	return s.db.Write(&batch)
 }
 
@@ -710,18 +771,6 @@ func (s *LDBStore) BinIndex(po uint8) uint64 {
 	return s.bucketCnt[po]
 }
 
-func (s *LDBStore) Size() uint64 {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	return s.entryCnt
-}
-
-func (s *LDBStore) CurrentStorageIndex() uint64 {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	return s.dataIdx
-}
-
 // Put adds a chunk to the database, adding indices and incrementing global counters.
 // If it already exists, it merely increments the access count of the existing entry.
 // Is thread safe
@@ -743,11 +792,11 @@ func (s *LDBStore) Put(ctx context.Context, chunk Chunk) error {
 	batch := s.batch
 
 	log.Trace("ldbstore.put: s.db.Get", "key", chunk.Address(), "ikey", fmt.Sprintf("%x", ikey))
-	idata, err := s.db.Get(ikey)
+	_, err := s.db.Get(ikey)
 	if err != nil {
 		s.doPut(chunk, &index, po)
 	}
-	idata = encodeIndex(&index)
+	idata := encodeIndex(&index)
 	s.batch.Put(ikey, idata)
 
 	// add the access-chunkindex index for garbage collection
@@ -918,6 +967,18 @@ func (s *LDBStore) Get(_ context.Context, addr Address) (chunk Chunk, err error)
 	return s.get(addr)
 }
 
+// Has queries the underlying DB if a chunk with the given address is stored
+// Returns true if the chunk is found, false if not
+func (s *LDBStore) Has(_ context.Context, addr Address) bool {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	ikey := getIndexKey(addr)
+	_, err := s.db.Get(ikey)
+
+	return err == nil
+}
+
 // TODO: To conform with other private methods of this object indices should not be updated
 func (s *LDBStore) get(addr Address) (chunk *chunk, err error) {
 	if s.closed {
@@ -986,7 +1047,6 @@ func (s *LDBStore) Close() {
 	s.lock.Unlock()
 	// force writing out current batch
 	s.writeCurrentBatch()
-	close(s.batchesC)
 	s.db.Close()
 }
 
