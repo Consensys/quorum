@@ -548,6 +548,11 @@ func (q *QuorumControlsAPI) valUpdateOrgStatus(args txArgs, pinterf *pbind.PermI
 	if args.action != 1 && args.action != 2 {
 		return ErrOpNotAllowed
 	}
+
+	//check if passed org id is network admin org. update should not be allowed
+	if args.orgId == q.permConfig.NwAdminOrg {
+		return ErrOpNotAllowed
+	}
 	// check if status update can be performed. Org should be approved for suspension
 	if execStatus, er := q.checkOrgStatus(args.orgId, args.action); er != nil {
 		return execStatus
