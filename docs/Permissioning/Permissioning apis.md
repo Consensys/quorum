@@ -196,7 +196,7 @@ This api can only be executed by a network admin account and is used for approvi
 * Output: Status of the operation
 * Example:
 ```javascript
-> quorumPermission.approveOrgStatus("ABC", 1, {from: eth.accounts[0]})
+quorumPermission.approveOrgStatus("ABC", 1, {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
@@ -211,7 +211,7 @@ This api can be executed by a organization admin account to create a sub organiz
 * Output: Status of the operation
 * Example:
 ```javascript
-> quorumPermission.addSubOrg("ABC", "SUB1", "", "0x0000000000000000000000000000000000000000", {from: eth.accounts[0]})
+> quorumPermission.addSubOrg("ABC", "SUB1", "", {from: eth.accounts[0]})
 
 {
   msg: "Action completed successfully",
@@ -220,12 +220,12 @@ This api can be executed by a organization admin account to create a sub organiz
 ```
 It should be noted that, parent org id should contain the complete org hierarchy from master org id to the immediate parent. The org hierarchy is separated by `.`. For example, if master org `ABC` has a sub organization `SUB1`, then while creating the sub organization at `SUB1` level, the parent org should be given as `ABC.SUB1`. Please see the examples below: 
 ```javascript
-> quorumPermission.addSubOrg("ABC.SUB1", "SUB2","", "0x0000000000000000000000000000000000000000", {from: eth.accounts[0]})
+> quorumPermission.addSubOrg("ABC.SUB1", "SUB2","",  {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
 }
-> quorumPermission.addSubOrg("ABC.SUB1.SUB2", "SUB3","", "0x0000000000000000000000000000000000000000", {from: eth.accounts[0]})
+> quorumPermission.addSubOrg("ABC.SUB1.SUB2", "SUB3","",  {from: eth.accounts[0]})
 {
   msg: "Action completed successfully",
   status: true
