@@ -59,7 +59,7 @@ HTTP:
 {
     "app": "<app type>",
     "enabled": <boolean>,
-    "serverUri":"http://[host]:[port]/[path]
+    "serverAddress":"http://[host]:[port]/[path]
     "communicationType" : <enum>, // "REST" or "GRPC"
 }
 ```
@@ -68,7 +68,7 @@ HTTPS:
 {
     "app": "<app type>",
     "enabled": <boolean>,
-    "serverUri":"https://[host]:[port]/[path]
+    "serverAddress":"https://[host]:[port]/[path]
     "communicationType" : <enum>, // "REST" or "GRPC"
     "sslConfig": {
         ...<SSL settings, see below>...
@@ -80,7 +80,7 @@ Unix Socket:
 {
     "app": "<app type>",
     "enabled": <boolean>,
-    "serverUri":"unix://[path],
+    "serverAddress":"unix://[path],
     "communicationType" : "REST"
 }
 ```

@@ -62,6 +62,7 @@ theme:
       code: 'Roboto Mono'
   language: 'en'
   logo: 'images/logo.png'
+  favicon: 'images/logo-48x48.png'
 
 extra_css:
     - 'theme/assets/stylesheets/extra.css'

@@ -1,5 +1,7 @@
-??? question "I've ran into an issue with Quorum, where do I get support?"
-    There are two places Quorum engineering team monitors on an on-going basis: issues in this and related repositories and on Quorum Slack. Quorum Slack is the best place to query the community and get immediate help. Auto-inviter is available [here](https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/).
+??? question "I've run into an issue with Quorum, where do I get support?"
+    The [Quorum Slack channels](https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/) are the best place to query the community and get immediate help.
+ 
+    The Quorum engineering team monitors Slack as well as any issues raised on the Quorum GitHub repositories (e.g. [Quorum](https://github.com/jpmorganchase/quorum/), [Tessera](https://github.com/jpmorganchase/tessera), [Quorum-Examples](https://github.com/jpmorganchase/quorum-examples), etc.).  
     
 ??? question "How does Quorum achieve Transaction Privacy?"
     Quorum achieves Transaction Privacy by:
@@ -23,11 +25,8 @@
 ??? question "Should I include originating node in private transaction?"
     No, you should not. In Quorum, including originating node's `privateFor` will result in an error. If you would like to create a private contract that is visible to the originating node only please use this format: `privateFor: []` per https://github.com/jpmorganchase/quorum/pull/165
 
-??? question "Is it possible to run a Quorum node without Transaction Manager?"
-    It is possible to run a node without a corresponding Transaction Manager, to do this instead of a matching Tessera/Constellation node's socket configuration should be set to `PRIVATE_CONFIG=ignore ...`. The node running such configuration is not going to broadcast matching private keys (please ensure that there is no transaction manager running for it) and will be unable to participate in any private transactions.
-
-??? info "Known Raft consensus node misconfiguration"
-    Please see https://github.com/jpmorganchase/quorum/issues/410
+??? question "Is it possible to run a Quorum node without a Transaction Manager?"
+    Starting a Quorum node with `PRIVATE_CONFIG=ignore` (instead of `PRIVATE_CONFIG=path/to/tm.ipc`) will start the node without a Transaction Manager. The node will not broadcast matching private keys (please ensure that there is no transaction manager running for it) and will be unable to participate in any private transactions.
     
 ??? question "Is there an official docker image for Quorum/Constellation/Tessera?"
     Yes! The [official docker containers](https://hub.docker.com/u/quorumengineering/):
@@ -36,5 +35,8 @@
     `quorumengineering/constellation:latest`
     `quorumengineering/tessera:latest`
     
-??? question "Can I mix Quorum nodes with different consensus configuration?"
+??? question "Can I create a network of Quorum nodes using different consensus mechanisms?"
     Unfortunately, that is not possible. Quorum nodes configured with raft will only be able to work correctly with other nodes running raft consensus. This applies to all other supported consensus algorithms.
+
+??? info "Known Raft consensus node misconfiguration"
+    Please see https://github.com/jpmorganchase/quorum/issues/410
