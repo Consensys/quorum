@@ -393,6 +393,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
+
 	isPrivate, data, err := handlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, false)
 	if err != nil {
 		return common.Hash{}, err
