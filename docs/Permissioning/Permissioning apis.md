@@ -4,7 +4,6 @@
 Returns the list of all organizations with the status of each organization in the network
 #### Parameters
 None
-
 #### Returns
 * `fullOrgId`: complete org id including the all parent org ids separated by ".". 
 * `level`: level of the org in org hierarchy
@@ -73,7 +72,6 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPer
     roleId: "NWADMIN",
     status: 2
 }
-
 ```
 Via `geth` console
 ```javascript
@@ -96,12 +94,10 @@ Via `geth` console
 Returms the list of nodes part of the network
 #### Parameters
 None
-
 #### Returns
 * `orgId`: org id to which the node belongs
 * `status`: status of the node. [refer](#node-status-types) for the complete list of node statuses
 * `url`: complete enode id
-
 #### Examples
 Via JSON RPC
 ```jshelllanguage
@@ -127,7 +123,6 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPer
     url: "enode://28a4afcf56ee5e435c65b9581fc36896cc684695fa1db83c9568de4353dc6664b5cab09694d9427e9cf26a5cd2ac2fb45a63b43bb24e46ee121f21beb3a7865e@127.0.0.1:21003?discport=0"
 }
 ```
-
 Via `geth` console
 ```javascript
 > quorumPermission.nodeList
@@ -152,18 +147,15 @@ Via `geth` console
 
 ### `quorumPermission.roleList` 
 Returns the list of roles in the network
-
 #### Parameters
 None
-
 #### Returns
-* `access`: account access 
+* `access`: account access. [refer](#account-access-types) for the complete list of different values of account access.
 * `active`: indicates if the role is active or not
 * `isAdmin`: indicates if the role is org admin role
 * `isVoter`: indicates if the role is enabled for voting. Applicable only for network admin role
 * `orgId`: org id to which the role is linked
 * `roleId`: unique role id
-
 #### Example
 Via JSON RPC
 ```jshelllanguage
@@ -192,21 +184,17 @@ Via `geth` console
     roleId: "NWADMIN"
 }]
 ```
-Please click [here](#account-access-types) for the complete list of different values of account access.
 
 ### `quorumPermission.getOrgDetails` 
 This returns the list of accounts, nodes, roles, and sub organizations linked to an organization
-
 #### Parameters
 * org or sub org id
-
 #### Returns
 * `acctList`
 * `nodeList`
 * `roleList`
 * `subOrgList`: array of sub orgs linked
 * Output: list of all accounts, nodes, roles, and sub orgs
-
 #### Example:
 Via JSON RPC
 ```jshelllanguage
@@ -256,7 +244,6 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPer
   subOrgList: null
 }
 ```
-
 Via `geth` console
 ```javascript
 > quorumPermission.getOrgDetails("INITORG")
@@ -312,7 +299,6 @@ This api can be executed by a network admin account (`from:` in transactions arg
 #### Returns
 * `msg`: response message
 * `status`: `bool` indicating if the operation was success or failure
-
 #### Example:
 Via JSON RPC
 ```jshelllanguage
@@ -353,10 +339,26 @@ If there are any pending items for approval, proposal of any new organization wi
 ```
 ### `quorumPermission.approveOrg` 
 This api can be executed by a network admin account (`from:` in transactions args) only for approving a proposed organization into the network.
+#### Parameters
+* `orgId`: unique org identfiier
+* `enodeId`: complete enode id
+* `accountId`: account which will be the org admin account
+#### Returns
+* `msg`: response message
+* `status`: `bool` indicating if the operation was success or failure
+#### Example:
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_approveOrg","params":["ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
-* Input: Unique organization id, enode id, account id (org admin account)
-* Output: Status of the operation
-* Example:
+// Response
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+Via `geth` console
 ```javascript
 quorumPermission.approveOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
 {
@@ -366,10 +368,26 @@ quorumPermission.approveOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641
 ```
 ### `quorumPermission.updateOrgStatus`
 This api can only be executed by a network admin account and is used for temporarily suspending an organization or re-enabling a suspended organization. This activity can be performed for master organization only and requires majority approval from network admins.
-
-* Input: organization id, action (1 for suspending the organization and 2 for activating a suspended organization)
-* Output: Status of the operation
-* Example:
+#### Parameters
+* `orgId`: org id 
+* `action`: 
+    * 1 - for suspending a org
+    * 2 - for activating a suspended organization
+#### Returns
+* `msg`: response message
+* `status`: `bool` indicating if the operation was success or failure
+#### Example
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_updateOrgStatus","params":["ABC", 1, {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
+//Response
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+Via `geth` console
 ```javascript
 > quorumPermission.updateOrgStatus("ABC", 1, {from:eth.accounts[0]})
 {
@@ -379,10 +397,27 @@ This api can only be executed by a network admin account and is used for tempora
 ```
 ### `quorumPermission.approveOrgStatus`
 This api can only be executed by a network admin account and is used for approving the org status change proposal.  Once majority approval is received from network admins, the org status is updated.
+#### Parameters
+* `orgId`: org id 
+* `action`: 
+    * 1 - for approving org suspension
+    * 2 - for approving activation of suspended org
+#### Returns
+* `msg`: response message
+* `status`: `bool` indicating if the operation was success or failure
+#### Example
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_approveOrgStatus","params":["ABC", 1, {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
-* Input: organization id, action (1 for suspending the organization and 2 for activating a suspended organization)
-* Output: Status of the operation
-* Example:
+//Response
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+Via `geth` console
 ```javascript
 quorumPermission.approveOrgStatus("ABC", 1, {from: eth.accounts[0]})
 {
@@ -393,11 +428,27 @@ quorumPermission.approveOrgStatus("ABC", 1, {from: eth.accounts[0]})
 When an organization is in suspended status, no transactions or contract deploy activities are allowed from any nodes linked to the org and sub organizations under it. Similarly no transactions will be allowed from any accounts linked to the organization
 
 ### `quorumPermission.addSubOrg` 
-This api can be executed by a organization admin account to create a sub organization under the master org. 
+This api can be executed by a organization admin account to create a sub organization under the master org.
+#### Parameters
+* `parentOrgId`: parent org id under which the sub org is being added. parent org id should contain the complete org hierarchy from master org id to the immediate parent. The org hierarchy is separated by `.`. For example, if master org `ABC` has a sub organization `SUB1`, then while creating the sub organization at `SUB1` level, the parent org should be given as `ABC.SUB1`
+* `subOrgId`: sub org identifier
+* `enodeId`: complete enode id linked to the sub org id
+#### Returns
+* `msg`: response message
+* `status`: `bool` indicating if the operation was success or failure
+#### Example
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_addSubOrg","params":["ABC", "SUB1","", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
-* Input: parent org id, alphanumeric sub organization id,  enode id (not mandatory and can be null), account id (not mandatory and can be 0x0)
-* Output: Status of the operation
-* Example:
+// Response
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+Via `geth` console
 ```javascript
 > quorumPermission.addSubOrg("ABC", "SUB1", "", {from: eth.accounts[0]})
 
@@ -406,7 +457,7 @@ This api can be executed by a organization admin account to create a sub organiz
   status: true
 }
 ```
-It should be noted that, parent org id should contain the complete org hierarchy from master org id to the immediate parent. The org hierarchy is separated by `.`. For example, if master org `ABC` has a sub organization `SUB1`, then while creating the sub organization at `SUB1` level, the parent org should be given as `ABC.SUB1`. Please see the examples below: 
+Few examples of adding sub org in nested hierarchy: 
 ```javascript
 > quorumPermission.addSubOrg("ABC.SUB1", "SUB2","",  {from: eth.accounts[0]})
 {
@@ -421,10 +472,28 @@ It should be noted that, parent org id should contain the complete org hierarchy
 ```
 ### `quorumPermission.addNewRole`
 This api can be executed by an organization admin account to create a new role for the organization.
+#### Parameters
+* `orgId`: org id for which the role is being created
+* `roleId`: unique role identifier
+* `accountAccess`: account level access. [Refer](#account-access-types) for complete list
+* `isVoter`: `bool` indicates if its a voting role
+* `isAdminRole`: `bool` indicates if its an admin role
+#### Returns
+* `msg`: response message
+* `status`: `bool` indicating if the operation was success or failure
+#### Example
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_addNewRole","params":["ABC", "TRANSACT",1,false,false, {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
-* Input: organization id or sub organization id, alphanumeric role id, account access ([access values](#account-access-types))(, isVoter, isAdminRole
-* Output: Status of the operation
-* Example:
+// Response
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+Via `geth` console
 ```javascript
 > quorumPermission.addNewRole("ABC", "TRANSACT", 1, false, false,{from: eth.accounts[0]})
 {
