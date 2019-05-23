@@ -23,7 +23,7 @@ The steps to enable new permissions model are as described below:
     "subOrgDepth" : "4"
 }
 ```
-> * `upgrdableAddress` is the address of deployed contract `PermissionsUpgradable.sol`
+> * `upgradableAddress` is the address of deployed contract `PermissionsUpgradable.sol`
 > * `interfaceAddress` is the address of deployed contract `PermissionsInterface.sol`
 > * `implAddress` is the address of deployed contract `PermissionsImplementation.sol`
 > * `nodeMgrAddress` is the address of deployed contract `NodeManager.sol`
@@ -38,7 +38,7 @@ The steps to enable new permissions model are as described below:
 > * `subOrgBreadth` indicates the number of sub organizations that any org can have
 > * `subOrgDepth` indicates the maximum depth of sub org hierarchy allowed in the network
 
-* Once the contracts are deployed `init` in `PermissionsUpgradable.sol` need to be executed by the custodian account. This will link the interface and implementation contracts. A sample script for loading the upgradable contract at `geth` prompt is as given below
+* Once the contracts are deployed, `init` in `PermissionsUpgradable.sol` need to be executed by the custodian account. This will link the interface and implementation contracts. A sample script for loading the upgradable contract at `geth` prompt is as given below
 ```javascript
 ac = eth.accounts[0];
 web3.eth.defaultAccount = ac;
