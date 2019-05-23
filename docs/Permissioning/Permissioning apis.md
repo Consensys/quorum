@@ -6,13 +6,13 @@ Returns the list of all organizations with the status of each organization in th
 None
 
 #### Returns
-* fullOrgId: complete org id including the all parent org ids separated by ".". 
-* level: level of the org in org hierarchy
-* orgId: organization identifier
-* parentOrgId: immediate parent org id
-* status: org status. [refer](#organization-status-types) for complete list of statuses
-* subOrgList: list of sub orgs linked to the org
-* ultimateParent: Master org under which the org falls 
+* `fullOrgId`: complete org id including the all parent org ids separated by ".". 
+* `level`: level of the org in org hierarchy
+* `orgId`: organization identifier
+* `parentOrgId`: immediate parent org id
+* `status`: org status. [refer](#organization-status-types) for complete list of statuses
+* `subOrgList`: list of sub orgs linked to the org
+* `ultimateParent`: Master org under which the org falls 
 ####Example
 Via JSON RPC
 ```jshelllanguage
@@ -45,10 +45,37 @@ Via `geth` console
 ```
 ### `quorumPermission.acctList` 
 Returns the list of accounts permissioned in the network
+#### Parameters
+None
+#### Returns
+* `acctId`: account id 
+* `isOrgAdmin`: indicates if the account is admin account for the organization
+* `orgId`: organization identifier
+* `roleId`: role assigned to the account
+* `status`: account status. [refer](#account-status-types) for the complete list of account status.
+####Example
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_acctList","id":10}' --header "Content-Type: application/json"
 
-* Input: None
-* Output: Returns the list of all accounts across organizations 
-* Example:
+// Response
+{
+    acctId: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
+    isOrgAdmin: true,
+    orgId: "INITORG",
+    roleId: "NWADMIN",
+    status: 2
+}, {
+    acctId: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e",
+    isOrgAdmin: true,
+    orgId: "INITORG",
+    roleId: "NWADMIN",
+    status: 2
+}
+
+```
+Via `geth` console
 ```javascript
 > quorumPermission.acctList
 [{
@@ -65,11 +92,43 @@ Returns the list of accounts permissioned in the network
     status: 2
 }]
 ```
-Please click [here](#account-status-types) for the complete list of account status.
 ### `quorumPermission.nodeList` 
-* Input: None
-* Output: Returns the list of all nodes across organizations 
-* Example:
+Returms the list of nodes part of the network
+#### Parameters
+None
+
+#### Returns
+* `orgId`: org id to which the node belongs
+* `status`: status of the node. [refer](#node-status-types) for the complete list of node statuses
+* `url`: complete enode id
+
+#### Examples
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_nodeList","id":10}' --header "Content-Type: application/json"
+
+// Response
+{
+    orgId: "INITORG",
+    status: 2,
+    url: "enode://72c0572f7a2492cffb5efc3463ef350c68a0446402a123dacec9db5c378789205b525b3f5f623f7548379ab0e5957110bffcf43a6115e450890f97a9f65a681a@127.0.0.1:21000?discport=0"
+}, {
+    orgId: "INITORG",
+    status: 2,
+    url: "enode://7a1e3b5c6ad614086a4e5fb55b6fe0a7cf7a7ac92ac3a60e6033de29df14148e7a6a7b4461eb70639df9aa379bd77487937bea0a8da862142b12d326c7285742@127.0.0.1:21001?discport=0"
+}, {
+    orgId: "INITORG",
+    status: 2,
+    url: "enode://5085e86db5324ca4a55aeccfbb35befb412def36e6bc74f166102796ac3c8af3cc83a5dec9c32e6fd6d359b779dba9a911da8f3e722cb11eb4e10694c59fd4a1@127.0.0.1:21002?discport=0"
+}, {
+    orgId: "INITORG",
+    status: 2,
+    url: "enode://28a4afcf56ee5e435c65b9581fc36896cc684695fa1db83c9568de4353dc6664b5cab09694d9427e9cf26a5cd2ac2fb45a63b43bb24e46ee121f21beb3a7865e@127.0.0.1:21003?discport=0"
+}
+```
+
+Via `geth` console
 ```javascript
 > quorumPermission.nodeList
 [{
@@ -90,12 +149,38 @@ Please click [here](#account-status-types) for the complete list of account stat
     url: "enode://28a4afcf56ee5e435c65b9581fc36896cc684695fa1db83c9568de4353dc6664b5cab09694d9427e9cf26a5cd2ac2fb45a63b43bb24e46ee121f21beb3a7865e@127.0.0.1:21003?discport=0"
 }]
 ```
-Please click [here](#node-status-types) for the complete list of node status.
 
 ### `quorumPermission.roleList` 
-* Input: None
-* Output: Returns the list of all roles across organizations and their details
-* Example:
+Returns the list of roles in the network
+
+#### Parameters
+None
+
+#### Returns
+* `access`: account access 
+* `active`: indicates if the role is active or not
+* `isAdmin`: indicates if the role is org admin role
+* `isVoter`: indicates if the role is enabled for voting. Applicable only for network admin role
+* `orgId`: org id to which the role is linked
+* `roleId`: unique role id
+
+#### Example
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_roleList","id":10}' --header "Content-Type: application/json"
+
+// Response
+{
+    access: 3,
+    active: true,
+    isAdmin: true,
+    isVoter: true,
+    orgId: "INITORG",
+    roleId: "NWADMIN"
+}
+```
+Via `geth` console
 ```javascript
 > quorumPermission.roleList
 [{
@@ -112,9 +197,67 @@ Please click [here](#account-access-types) for the complete list of different va
 ### `quorumPermission.getOrgDetails` 
 This returns the list of accounts, nodes, roles, and sub organizations linked to an organization
 
-* Input: organization id or sub organization id
+#### Parameters
+* org or sub org id
+
+#### Returns
+* `acctList`
+* `nodeList`
+* `roleList`
+* `subOrgList`: array of sub orgs linked
 * Output: list of all accounts, nodes, roles, and sub orgs
-* Example:
+
+#### Example:
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_getOrgDetails","params":["INITORG"],"id":10}' --header "Content-Type: application/json"
+
+// Response
+{
+  acctList: [{
+      acctId: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
+      isOrgAdmin: true,
+      orgId: "INITORG",
+      roleId: "NWADMIN",
+      status: 2
+  }, {
+      acctId: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e",
+      isOrgAdmin: true,
+      orgId: "INITORG",
+      roleId: "NWADMIN",
+      status: 2
+  }],
+  nodeList: [{
+      orgId: "INITORG",
+      status: 2,
+      url: "enode://72c0572f7a2492cffb5efc3463ef350c68a0446402a123dacec9db5c378789205b525b3f5f623f7548379ab0e5957110bffcf43a6115e450890f97a9f65a681a@127.0.0.1:21000?discport=0"
+  }, {
+      orgId: "INITORG",
+      status: 2,
+      url: "enode://7a1e3b5c6ad614086a4e5fb55b6fe0a7cf7a7ac92ac3a60e6033de29df14148e7a6a7b4461eb70639df9aa379bd77487937bea0a8da862142b12d326c7285742@127.0.0.1:21001?discport=0"
+  }, {
+      orgId: "INITORG",
+      status: 2,
+      url: "enode://5085e86db5324ca4a55aeccfbb35befb412def36e6bc74f166102796ac3c8af3cc83a5dec9c32e6fd6d359b779dba9a911da8f3e722cb11eb4e10694c59fd4a1@127.0.0.1:21002?discport=0"
+  }, {
+      orgId: "INITORG",
+      status: 2,
+      url: "enode://28a4afcf56ee5e435c65b9581fc36896cc684695fa1db83c9568de4353dc6664b5cab09694d9427e9cf26a5cd2ac2fb45a63b43bb24e46ee121f21beb3a7865e@127.0.0.1:21003?discport=0"
+  }],
+  roleList: [{
+      access: 3,
+      active: true,
+      isAdmin: true,
+      isVoter: true,
+      orgId: "INITORG",
+      roleId: "NWADMIN"
+  }],
+  subOrgList: null
+}
+```
+
+Via `geth` console
 ```javascript
 > quorumPermission.getOrgDetails("INITORG")
 {
@@ -161,10 +304,28 @@ This returns the list of accounts, nodes, roles, and sub organizations linked to
 ```
 ### `quorumPermission.addOrg` 
 This api can be executed by a network admin account (`from:` in transactions args) only for proposing a new organization into the network
+#### Parameter
+* `orgId`: unique org identfiier
+* `enodeId`: complete enode id
+* `accountId`: account which will be the org admin account
 
-* Input: Unique alphanumeric organization id, enode id, account id (org admin account)
-* Output: Status of the operation
-* Example:
+#### Returns
+* `msg`: response message
+* `status`: `bool` indicating if the operation was success or failure
+
+#### Example:
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_addOrg","params":["ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
+
+// Response
+{
+  msg: "Action completed successfully",
+  status: true
+}
+```
+Via `geth` console
 ```javascript
 > quorumPermission.addOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
 {
@@ -189,9 +350,7 @@ If there are any pending items for approval, proposal of any new organization wi
   msg: "Account already in use in another organization",
   status: false
 }
-
 ```
-
 ### `quorumPermission.approveOrg` 
 This api can be executed by a network admin account (`from:` in transactions args) only for approving a proposed organization into the network.
 
