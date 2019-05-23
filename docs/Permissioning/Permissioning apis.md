@@ -1,9 +1,36 @@
 # Permission APIs
 ## APIs
-### `quorumPermission.orgList` 
-* Input: None
-* Output: Returns the list of all organizations and their status 
-* Example:
+### `quorumPermission_orgList` 
+Returns the list of all organizations with the status of each organization in the network
+#### Parameters
+None
+
+#### Returns
+* fullOrgId: complete org id including the all parent org ids separated by ".". 
+* level: level of the org in org hierarchy
+* orgId: organization identifier
+* parentOrgId: immediate parent org id
+* status: org status. [refer](#organization-status-types) for complete list of statuses
+* subOrgList: list of sub orgs linked to the org
+* ultimateParent: Master org under which the org falls 
+####Example
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_orgList","id":10}' --header "Content-Type: application/json"
+
+// Response
+{
+    fullOrgId: "INITORG",
+    level: 1,
+    orgId: "INITORG",
+    parentOrgId: "",
+    status: 2,
+    subOrgList: null,
+    ultimateParent: "INITORG"
+}
+```
+Via `geth` console
 ```javascript
 > quorumPermission.orgList
 [{
@@ -16,8 +43,9 @@
     ultimateParent: "INITORG"
 }]
 ```
-Please click [here](#organization-status-types) for the complete list of organization status.
 ### `quorumPermission.acctList` 
+Returns the list of accounts permissioned in the network
+
 * Input: None
 * Output: Returns the list of all accounts across organizations 
 * Example:
