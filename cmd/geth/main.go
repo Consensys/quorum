@@ -18,6 +18,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -347,7 +348,13 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	}()
 
 	//START - QUORUM permission service
-	go startQuorumPermissionService(ctx, stack)
+	go func() {
+		if ctx.GlobalBool(utils.EnableNodePermissionFlag.Name) {
+			if err := startQuorumPermissionService(ctx, stack); err != nil {
+				utils.Fatalf("Failed to start permissions service %v", err)
+			}
+		}
+	}()
 
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
@@ -379,46 +386,41 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 
 // Starts the permission services. services will come up only when
 // geth is brought up in --permissioned mode and permission-config.json is present
-func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
+func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) error {
 
 	var quorumApis []string
 	dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
-	permEnabled := ctx.GlobalBool(utils.EnableNodePermissionFlag.Name)
 
 	var permissionConfig types.PermissionConfig
 	var err error
-	if permEnabled {
-		if permissionConfig, err = permission.ParsePermissionConifg(dataDir); err != nil {
-			log.Error("loading of permission-config.json failed", "error", err)
-			return
-		}
-	} else {
-		// permissions not enabled hence none of the services will be available.
-		return
+
+	if permissionConfig, err = permission.ParsePermissionConifg(dataDir); err != nil {
+		log.Error("loading of permission-config.json failed", "error", err)
+		return nil
 	}
 
 	// start the permissions management service
 	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name), &permissionConfig)
 	if err != nil {
-		utils.Fatalf("Failed to load the permission contracts as given in permissions-config.json %v", err)
+		return err
 	}
 
 	if err = pc.Start(); err == nil {
 		quorumApis = []string{"quorumPermission"}
 	} else {
-		utils.Fatalf("Failed to start Quorum Permission contract service %v", err)
+		return err
 	}
 
 	rpcClient, err := stack.Attach()
 	if err != nil {
-		utils.Fatalf("Unable to connect to the node: %v", err)
+		return err
 	}
 	stateReader := ethclient.NewClient(rpcClient)
 
 	for _, apiName := range quorumApis {
 		v := stack.GetRPC(apiName)
 		if v == nil {
-			utils.Fatalf("Failed to start Quorum Permission API %s", apiName)
+			return errors.New("failed to start quorum permission api")
 		}
 		qapi := v.(*quorum.QuorumControlsAPI)
 
@@ -429,4 +431,5 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) {
 			log.Info("API started", "apiName", apiName)
 		}
 	}
+	return nil
 }
