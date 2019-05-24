@@ -42,7 +42,7 @@ Via `geth` console
     ultimateParent: "INITORG"
 }]
 ```
-### `quorumPermission.acctList` 
+### `quorumPermission_acctList` 
 Returns the list of accounts permissioned in the network
 #### Parameters
 None
@@ -90,7 +90,7 @@ Via `geth` console
     status: 2
 }]
 ```
-### `quorumPermission.nodeList` 
+### `quorumPermission_nodeList` 
 Returms the list of nodes part of the network
 #### Parameters
 None
@@ -145,7 +145,7 @@ Via `geth` console
 }]
 ```
 
-### `quorumPermission.roleList` 
+### `quorumPermission_roleList` 
 Returns the list of roles in the network
 #### Parameters
 None
@@ -185,7 +185,7 @@ Via `geth` console
 }]
 ```
 
-### `quorumPermission.getOrgDetails` 
+### `quorumPermission_getOrgDetails` 
 This returns the list of accounts, nodes, roles, and sub organizations linked to an organization
 #### Parameters
 * org or sub org id
@@ -246,7 +246,7 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPer
 ```
 Via `geth` console
 ```javascript
-> quorumPermission.getOrgDetails("INITORG")
+> quorumPermission_getOrgDetails("INITORG")
 {
   acctList: [{
       acctId: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
@@ -289,7 +289,7 @@ Via `geth` console
   subOrgList: null
 }
 ```
-### `quorumPermission.addOrg` 
+### `quorumPermission_addOrg` 
 This api can be executed by a network admin account (`from:` in transactions args) only for proposing a new organization into the network
 #### Parameter
 * `orgId`: unique org identfiier
@@ -337,7 +337,7 @@ If there are any pending items for approval, proposal of any new organization wi
   status: false
 }
 ```
-### `quorumPermission.approveOrg` 
+### `quorumPermission_approveOrg` 
 This api can be executed by a network admin account (`from:` in transactions args) only for approving a proposed organization into the network.
 #### Parameters
 * `orgId`: unique org identfiier
@@ -366,7 +366,7 @@ quorumPermission.approveOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641
   status: true
 }
 ```
-### `quorumPermission.updateOrgStatus`
+### `quorumPermission_updateOrgStatus`
 This api can only be executed by a network admin account and is used for temporarily suspending an organization or re-enabling a suspended organization. This activity can be performed for master organization only and requires majority approval from network admins.
 #### Parameters
 * `orgId`: org id 
@@ -395,7 +395,7 @@ Via `geth` console
   status: true
 }
 ```
-### `quorumPermission.approveOrgStatus`
+### `quorumPermission_approveOrgStatus`
 This api can only be executed by a network admin account and is used for approving the org status change proposal.  Once majority approval is received from network admins, the org status is updated.
 #### Parameters
 * `orgId`: org id 
@@ -427,7 +427,7 @@ quorumPermission.approveOrgStatus("ABC", 1, {from: eth.accounts[0]})
 ```
 When an organization is in suspended status, no transactions or contract deploy activities are allowed from any nodes linked to the org and sub organizations under it. Similarly no transactions will be allowed from any accounts linked to the organization
 
-### `quorumPermission.addSubOrg` 
+### `quorumPermission_addSubOrg` 
 This api can be executed by a organization admin account to create a sub organization under the master org.
 #### Parameters
 * `parentOrgId`: parent org id under which the sub org is being added. parent org id should contain the complete org hierarchy from master org id to the immediate parent. The org hierarchy is separated by `.`. For example, if master org `ABC` has a sub organization `SUB1`, then while creating the sub organization at `SUB1` level, the parent org should be given as `ABC.SUB1`
@@ -470,7 +470,7 @@ Few examples of adding sub org in nested hierarchy:
   status: true
 }
 ```
-### `quorumPermission.addNewRole`
+### `quorumPermission_addNewRole`
 This api can be executed by an organization admin account to create a new role for the organization.
 #### Parameters
 * `orgId`: org id for which the role is being created
@@ -506,7 +506,7 @@ Via `geth` console
   status: true
 }
 ```
-### `quorumPermission.removeRole`
+### `quorumPermission_removeRole`
 This api can be executed by an organization admin account to create a new role for the organization.
 #### Parameters
 * `orgId`: org or sub org id to which the role belongs
@@ -534,7 +534,7 @@ Via `geth` console
   status: true
 }
 ```
-### `quorumPermission.addAccountToOrg`
+### `quorumPermission_addAccountToOrg`
 This api can be executed by an organization admin to add an account to an organization and assign a role to the account
 #### Parameters
 * `acctId`: org or sub org id to which the role belongs
@@ -571,7 +571,7 @@ The account can at best be linked to a single organization or sub organization a
   status: false
 }
 ```
-### `quorumPermission.changeAccountRole`
+### `quorumPermission_changeAccountRole`
 This api can be executed by an organization admin account to assign a role to an account.
 #### Parameters
 * `acctId`: account id
@@ -601,7 +601,7 @@ Via `geth` console
 }
 ```
 
-### `quorumPermission.updateAccountStatus`
+### `quorumPermission_updateAccountStatus`
 This api can be executed by an organization admin account to update the account status.
 #### Parameters
 * `orgId`: org id
@@ -635,7 +635,7 @@ Via `geth` console
 ```
 Once a account is blacklisted no further action is allowed on it.
 
-### `quorumPermission.assignAdminRole`
+### `quorumPermission_assignAdminRole`
 This api can be executed by the network admin to add a new account as network admin or change the org admin account for an organization.
 #### Parameters
 * `orgId`: org id to which the account belongs
@@ -664,7 +664,7 @@ Via `geth` console
 }
 ```
 
-### `quorumPermission.approveAdminRole` 
+### `quorumPermission_approveAdminRole` 
 This api can be executed by the network admin to approve the organization admin or network admin role assignment to an account. The role is approved once majority approval is received.
 #### Parameters
 * `orgId`: org id to which the account belongs
@@ -693,7 +693,7 @@ Via `geth` console
   status: true
 }
 ```
-### `quorumPermission.addNode`
+### `quorumPermission_addNode`
 This api can be executed by the organization admin account to add a node to the organization or sub organization. A node cannot be part of multiple organizations.
 #### Parameters
 * `orgId`: org or sub org id to which the node belongs
@@ -721,7 +721,7 @@ Via `geth` console
   status: true
 }
 ```
-### `quorumPermission.updateNodeStatus`
+### `quorumPermission_updateNodeStatus`
 This api can be executed by the organization admin account to update the status of a node.
 #### Parameters
 * `orgId`: org or sub org id to which the node belongs
