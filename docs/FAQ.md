@@ -38,3 +38,17 @@
     
 ??? question "Can I mix Quorum nodes with different consensus configuration?"
     Unfortunately, that is not possible. Quorum nodes configured with raft will only be able to work correctly with other nodes running raft consensus. This applies to all other supported consensus algorithms.
+    
+??? info "Quorum version compatibility table" | | Adding new node v2.0.x | Adding new node v2.1.x | Adding new node v2.2.x | | ----------------------------------- | ---------------------- | ---------------------- | ---------------------- | | Existing chain consisting of v2.0.x | block sync
+public txn
+private txn | block sync | block sync | | Existing chain consisting of v2.1.x | block sync | block sync
+public txn
+private txn | block sync
+public txn
+private txn | | Existing chain consisting of v2.2.x | block sync | block sync
+public txn
+private txn | block sync
+public txn
+private txn |
+
+**Note:** While every Quorum v2 client will be able to connect to any other v2 client, the usefullness will be severely degraded. <span style="color:red;">Red color</span> signifies that while connectivity is possible, <span style="color:red;">red colored</span> versions will be unable to send public or private txns to the rest of the net due to the EIP155 changes in the signer implemented in newer versions.
