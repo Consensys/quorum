@@ -40,3 +40,12 @@
 
 ??? info "Known Raft consensus node misconfiguration"
     Please see https://github.com/jpmorganchase/quorum/issues/410
+
+??? info "Quorum version compatibility table"
+    |                                     | Adding new node v2.0.x | Adding new node v2.1.x | Adding new node v2.2.x |
+    | ----------------------------------- | ---------------------- | ---------------------- | ---------------------- |
+    | Existing chain consisting of v2.0.x | <span style="color:green;">block sync<br /> public txn<br /> private txn</span>  | <span style="color:red;">block sync</span>  | <span style="color:red;">block sync</span> |
+    | Existing chain consisting of v2.1.x | <span style="color:red;">block sync</span>  | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> |
+    | Existing chain consisting of v2.2.x | <span style="color:red;">block sync</span>  | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> |
+
+    **Note:** While every Quorum v2 client will be able to connect to any other v2 client, the usefullness will be severely degraded. <span style="color:red;">Red color</span> signifies that while connectivity is possible, <span style="color:red;">red colored</span> versions will be unable to send public or private txns to the rest of the net due to the EIP155 changes in the signer implemented in newer versions.
