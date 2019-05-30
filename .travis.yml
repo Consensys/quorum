@@ -74,20 +74,30 @@ matrix:
       os: linux
       dist: xenial
       script:
-        - sudo modprobe fuse
-        - sudo chmod 666 /dev/fuse
-        - sudo chown root:$USER /etc/fuse.conf
-        - go run build/ci.go install
-        - go run build/ci.go test -coverage $TEST_PACKAGES
+        - |
+          sudo modprobe fuse
+          sudo chmod 666 /dev/fuse
+          sudo chown root:$USER /etc/fuse.conf
+          go run build/ci.go install
+          if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+            QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/swarm go run build/ci.go test -coverage $TEST_PACKAGES
+          else
+            go run build/ci.go test -coverage $TEST_PACKAGES
+          fi
     - if: tag IS blank
       os: osx
       osx_image: xcode9.2 # so we don't have to deal with Kernel Extension Consent UI which is never possible in CI
       script:
-        - brew update
-        - brew install caskroom/cask/brew-cask
-        - brew cask install osxfuse
-        - go run build/ci.go install
-        - go run build/ci.go test -coverage $TEST_PACKAGES
+        - |
+          brew update
+          brew install caskroom/cask/brew-cask
+          brew cask install osxfuse
+          go run build/ci.go install
+          if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+            QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/swarm go run build/ci.go test -coverage $TEST_PACKAGES
+          else
+            go run build/ci.go test -coverage $TEST_PACKAGES
+          fi
 
     - if: tag IS present
       os: linux

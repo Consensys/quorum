@@ -52,6 +52,7 @@ nav:
             - How it works: Privacy/Constellation/How constellation works.md
             - Sample Configuration: Privacy/Constellation/Sample Configuration.md
             - Running Constellation: Privacy/Constellation/Installation & Running.md
+    - FAQ: FAQ.md
 
 theme:
   name: 'material'
@@ -61,6 +62,7 @@ theme:
       code: 'Roboto Mono'
   language: 'en'
   logo: 'images/logo.png'
+  favicon: 'images/logo-48x48.png'
 
 extra_css:
     - 'theme/assets/stylesheets/extra.css'
