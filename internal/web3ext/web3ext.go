@@ -500,6 +500,11 @@ web3._extend({
 			call: 'eth_storageRoot',
 			params: 2,
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null]
+		}),
+		new web3._extend.Method({
+			name: 'getNodeConfig',
+			call: 'eth_getNodeConfig',
+			params: 0
 		})
 	],
 	properties: [

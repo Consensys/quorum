@@ -103,7 +103,7 @@ __Important:__ Please note that before calling this API, a `storeraw` api need t
 
 ## JSON RPC Privacy API Reference
 
-__In addition to the JSON-RPC provided by Ethereum, Quorum exposes below two API calls.__
+__In addition to the JSON-RPC provided by Ethereum, Quorum exposes the following additional API calls.__
 
 
 #### eth_storageRoot
@@ -303,4 +303,36 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_send
     "id": 67,
     "error":"unknown account"
 }
+```
+
+***
+
+#### eth_getNodeConfig
+
+Returns configuration information for the node.
+
+##### Parameters
+
+none
+
+##### Returns
+
+`Object` - The result object:
+    - `consensus`: `String` - the consensus mechanism being used
+
+
+##### Example
+
+```js
+// Request
+
+curl -X POST http://127.0.0.1:22000 -H "Content-Type: application/json" --data '{"jsonrpc": "2.0", "method": "eth_getNodeConfig", "id": 67}'
+
+// Response
+{
+  "id":67,
+  "jsonrpc": "2.0",
+  "result":{"consensus":"Istanbul"}
+}
+
 ```

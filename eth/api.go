@@ -90,6 +90,31 @@ func (s *PublicEthereumAPI) StorageRoot(addr common.Address, blockNr *rpc.BlockN
 	return pub.GetStorageRoot(addr)
 }
 
+// Result structure for GetNodeConfig()
+// Feel free to add extra fields of node config information here
+type NodeConfig struct {
+	Consensus string `json:"consensus"`
+}
+
+// GetConfig returns the node configuration details.
+func (api *PublicEthereumAPI) GetNodeConfig() (*NodeConfig, error) {
+	consensus := "unknown"
+
+	if api.e.chainConfig.Clique != nil {
+		consensus = "Clique"
+	} else if api.e.chainConfig.Istanbul != nil {
+		consensus = "Istanbul"
+	} else if api.e.chainConfig.Ethash != nil {
+		consensus = "Ethash"
+	} else {
+		consensus = "Raft"
+	}
+
+	return &NodeConfig{
+		Consensus: consensus,
+	}, nil
+}
+
 // Hashrate returns the POW hashrate
 func (api *PublicEthereumAPI) Hashrate() hexutil.Uint64 {
 	return hexutil.Uint64(api.e.Miner().HashRate())

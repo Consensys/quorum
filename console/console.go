@@ -25,7 +25,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -272,27 +271,33 @@ func (c *Console) AutoCompleteInput(line string, pos int) (string, []string, str
 	return line[:start], c.jsre.CompleteKeywords(line[start:pos]), line[pos:]
 }
 
-// Welcome show summary of current Geth instance and some metadata about the
+// Welcome shows a summary of the current Geth instance and some metadata about the
 // console's available modules.
 func (c *Console) Welcome() {
 	// Print some generic Geth metadata
 	fmt.Fprintf(c.printer, "Welcome to the Geth JavaScript console!\n\n")
-
-	if c.blockTimestampIsInNanoseconds() {
-		c.jsre.Run(`
+	c.jsre.Run(`
 			console.log("instance: " + web3.version.node);
 			console.log("coinbase: " + eth.coinbase);
-			console.log("at block: " + eth.blockNumber + " (" + new Date(eth.getBlock(eth.blockNumber).timestamp / 1000000) + ")");
-			console.log(" datadir: " + admin.datadir);
+		`)
+
+	// Quorum: Block timestamp for Raft is in nanoseconds, so convert accordingly
+	nodeConsensus, err := c.jsre.Run(`
+			eth.getNodeConfig().consensus;
+		`)
+	if err != nil || nodeConsensus.String() != "Raft" {
+		c.jsre.Run(`
+			console.log("at block: " + eth.blockNumber + " (" + new Date(1000 * eth.getBlock(eth.blockNumber).timestamp) + ")");
 		`)
 	} else {
 		c.jsre.Run(`
-			console.log("instance: " + web3.version.node);
-			console.log("coinbase: " + eth.coinbase);
-			console.log("at block: " + eth.blockNumber + " (" + new Date(1000 * eth.getBlock(eth.blockNumber).timestamp) + ")");
-			console.log(" datadir: " + admin.datadir);
+			console.log("at block: " + eth.blockNumber + " (" + new Date(eth.getBlock(eth.blockNumber).timestamp / 1000000) + ")");
 		`)
 	}
+
+	c.jsre.Run(`
+			console.log(" datadir: " + admin.datadir);
+		`)
 
 	// List all the supported modules for the user to call
 	if apis, err := c.client.SupportedModules(); err == nil {
@@ -304,33 +309,6 @@ func (c *Console) Welcome() {
 		fmt.Fprintln(c.printer, " modules:", strings.Join(modules, " "))
 	}
 	fmt.Fprintln(c.printer)
-}
-
-//Get block timestamp and check whether it is in nanoseconds.
-//(The block timestamp is normally stored as seconds since the epoch, but Raft stores it as nanoseconds.)
-func (c *Console) blockTimestampIsInNanoseconds() bool {
-	type Block struct {
-		Number    string
-		Timestamp string
-	}
-	var lastBlock Block
-
-	err := c.client.Call(&lastBlock, "eth_getBlockByNumber", "latest", true)
-	//If an error occurred on the RPC call then assume timestamp is in seconds.
-	if err != nil {
-		c.jsre.Run(`
-			console.log("Warning: unable to retrieve block information, so displayed timestamp may be incorrect");
-		`)
-		return false
-	}
-
-	//If timestamp is greater than max possible value (in seconds) for Unix time, then assume it's nanoseconds.
-	//If we fail to parse the timestamp then just assume it is in seconds.
-	timestamp, err := strconv.ParseInt(lastBlock.Timestamp, 0, 64)
-	if err != nil || timestamp <= 99999999999 {
-		return false
-	}
-	return true
 }
 
 // Evaluate executes code and pretty prints the result to the specified output
