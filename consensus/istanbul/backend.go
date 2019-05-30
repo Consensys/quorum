@@ -76,4 +76,6 @@ type Backend interface {
 
 	// Send an event when the proposer fails
 	SendCatchUp(catchUp CatchUpEvent)
+
+	Close() error
 }

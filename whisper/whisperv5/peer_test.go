@@ -27,7 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 )
 
@@ -67,7 +67,7 @@ var keys = []string{
 	"7184c1701569e3a4c4d2ddce691edd983b81e42e09196d332e1ae2f1e062cff4",
 }
 
-const NumNodes = 16 // must not exceed the number of keys (32)
+const NumNodes = 3 // must not exceed the number of keys (32)
 
 type TestData struct {
 	counter [NumNodes]int
@@ -146,8 +146,7 @@ func initialize(t *testing.T) {
 			peerNodeId := nodes[j].id
 			address, _ := net.ResolveTCPAddr("tcp", nodes[j].server.ListenAddr)
 			peerPort := uint16(address.Port)
-			peerNode := discover.PubkeyID(&peerNodeId.PublicKey)
-			peer := discover.NewNode(peerNode, address.IP, peerPort, peerPort)
+			peer := enode.NewV4(&peerNodeId.PublicKey, address.IP, int(peerPort), int(peerPort), 0)
 			node.server.AddPeer(peer)
 		}
 

@@ -1,0 +1,37 @@
+{
+  "package": {
+    "name": "geth",
+    "repo": "quorum",
+    "subject": "_ORGANIZATION_",
+    "vcs_url": "https://github.com/jpmorganchase/quorum",
+    "licenses": [
+      "LGPL-3.0"
+    ]
+  },
+  "version": {
+    "name": "_TRAVIS_TAG_",
+    "desc": "Quorum: _TRAVIS_TAG_, Geth: _GETH_VERSION_, Commit: _TRAVIS_COMMIT_, Build Number: _TRAVIS_BUILD_NUMBER_",
+    "released": "_RELEASED_DATE_",
+    "vcs_tag": "_TRAVIS_TAG_",
+    "gpgSign": true,
+    "attributes": [
+      {
+        "name": "Travis",
+        "values": [
+          "_TRAVIS_JOB_WEB_URL_"
+        ],
+        "type": "string"
+      }
+    ]
+  },
+  "files": [
+    {
+      "includePattern": "/dist/(.*.tar.gz)",
+      "uploadPattern": "_TRAVIS_TAG_/$1",
+      "matrixParams": {
+        "override": 1
+      }
+    }
+  ],
+  "publish": true
+}

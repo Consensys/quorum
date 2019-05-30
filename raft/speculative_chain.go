@@ -5,8 +5,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
-	"gopkg.in/fatih/set.v0"
-	lane "gopkg.in/oleiade/lane.v1"
+	"github.com/deckarep/golang-set"
+	"gopkg.in/oleiade/lane.v1"
 )
 
 // The speculative chain represents blocks that we have minted which haven't been accepted into the chain yet, building
@@ -21,16 +21,16 @@ import (
 type speculativeChain struct {
 	head                       *types.Block
 	unappliedBlocks            *lane.Deque
-	expectedInvalidBlockHashes *set.Set // This is thread-safe. This set is referred to as our "guard" below.
-	proposedTxes               *set.Set // This is thread-safe.
+	expectedInvalidBlockHashes mapset.Set // This is thread-safe. This set is referred to as our "guard" below.
+	proposedTxes               mapset.Set // This is thread-safe.
 }
 
 func newSpeculativeChain() *speculativeChain {
 	return &speculativeChain{
 		head:                       nil,
 		unappliedBlocks:            lane.NewDeque(),
-		expectedInvalidBlockHashes: set.New(),
-		proposedTxes:               set.New(),
+		expectedInvalidBlockHashes: mapset.NewSet(),
+		proposedTxes:               mapset.NewSet(),
 	}
 }
 
@@ -87,7 +87,7 @@ func (chain *speculativeChain) unwindFrom(invalidHash common.Hash, headBlock *ty
 
 	// check our "guard" to see if this is a (descendant) block we're
 	// expected to be ruled invalid. if we find it, remove from the guard
-	if chain.expectedInvalidBlockHashes.Has(invalidHash) {
+	if chain.expectedInvalidBlockHashes.Contains(invalidHash) {
 		log.Info("Removing expected-invalid block from guard.", "block", invalidHash)
 
 		chain.expectedInvalidBlockHashes.Remove(invalidHash)
@@ -140,7 +140,9 @@ func (chain *speculativeChain) recordProposedTransactions(txes types.Transaction
 	for i, tx := range txes {
 		txHashIs[i] = tx.Hash()
 	}
-	chain.proposedTxes.Add(txHashIs...)
+	for _, i := range txHashIs {
+		chain.proposedTxes.Add(i)
+	}
 }
 
 // Removes txes in block from our "blacklist" of "proposed tx" hashes. When we
@@ -161,7 +163,9 @@ func (chain *speculativeChain) removeProposedTxes(block *types.Block) {
 	// here and in mintNewBlock concurrently. using a finer-grained set-specific
 	// lock here is preferable, because mintNewBlock holds its locks for a
 	// nontrivial amount of time.
-	chain.proposedTxes.Remove(minedTxInterfaces...)
+	for _, i := range minedTxInterfaces {
+		chain.proposedTxes.Remove(i)
+	}
 }
 
 func (chain *speculativeChain) withoutProposedTxes(addrTxes AddressTxes) AddressTxes {
@@ -170,7 +174,7 @@ func (chain *speculativeChain) withoutProposedTxes(addrTxes AddressTxes) Address
 	for addr, txes := range addrTxes {
 		filteredTxes := make(types.Transactions, 0)
 		for _, tx := range txes {
-			if !chain.proposedTxes.Has(tx.Hash()) {
+			if !chain.proposedTxes.Contains(tx.Hash()) {
 				filteredTxes = append(filteredTxes, tx)
 			}
 		}

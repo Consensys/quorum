@@ -60,15 +60,6 @@ func GOPATH() string {
 	return os.Getenv("GOPATH")
 }
 
-// VERSION returns the content of the VERSION file.
-func VERSION() string {
-	version, err := ioutil.ReadFile("VERSION")
-	if err != nil {
-		log.Fatal(err)
-	}
-	return string(bytes.TrimSpace(version))
-}
-
 var warnedAboutGit bool
 
 // RunGit runs a git subcommand and returns its output.
@@ -152,9 +143,9 @@ func CopyFile(dst, src string, mode os.FileMode) {
 // so that go commands executed by build use the same version of Go as the 'host' that runs
 // build code. e.g.
 //
-//     /usr/lib/go-1.8/bin/go run build/ci.go ...
+//     /usr/lib/go-1.11/bin/go run build/ci.go ...
 //
-// runs using go 1.8 and invokes go 1.8 tools from the same GOROOT. This is also important
+// runs using go 1.11 and invokes go 1.11 tools from the same GOROOT. This is also important
 // because runtime.Version checks on the host should match the tools that are run.
 func GoTool(tool string, args ...string) *exec.Cmd {
 	args = append([]string{tool}, args...)
@@ -185,4 +176,28 @@ func ExpandPackagesNoVendor(patterns []string) []string {
 		return packages
 	}
 	return patterns
+}
+
+// Read QUORUM_IGNORE_TEST_PACKAGES env and remove from packages
+func IgnorePackages(packages []string) []string {
+	ignore := os.Getenv("QUORUM_IGNORE_TEST_PACKAGES")
+	if ignore == "" {
+		return packages
+	}
+	ret := make([]string, 0, len(packages))
+	ignorePackages := strings.Split(ignore, ",")
+
+	for _, p := range packages {
+		mustInclude := true
+		for _, ig := range ignorePackages {
+			if strings.Index(p, strings.TrimSpace(ig)) == 0 {
+				mustInclude = false
+				break
+			}
+		}
+		if mustInclude {
+			ret = append(ret, p)
+		}
+	}
+	return ret
 }

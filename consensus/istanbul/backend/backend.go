@@ -325,3 +325,7 @@ func (sb *backend) SubscribeCatchUpEvent(ch chan<- istanbul.CatchUpEvent) event.
 func (sb *backend) SendCatchUp(catchUp istanbul.CatchUpEvent) {
 	sb.txCachUp.Send(catchUp)
 }
+
+func (sb *backend) Close() error {
+	return nil
+}
