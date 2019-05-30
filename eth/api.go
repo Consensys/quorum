@@ -98,7 +98,7 @@ type NodeConfig struct {
 
 // GetConfig returns the node configuration details.
 func (api *PublicEthereumAPI) GetNodeConfig() (*NodeConfig, error) {
-	consensus := "unknown"
+	consensus := "Unknown"
 
 	if api.e.chainConfig.Clique != nil {
 		consensus = "Clique"
@@ -106,7 +106,7 @@ func (api *PublicEthereumAPI) GetNodeConfig() (*NodeConfig, error) {
 		consensus = "Istanbul"
 	} else if api.e.chainConfig.Ethash != nil {
 		consensus = "Ethash"
-	} else {
+	} else if api.e.protocolManager.raftMode {
 		consensus = "Raft"
 	}
 
