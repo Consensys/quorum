@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"github.com/ethereum/go-ethereum/raft"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -22,7 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
-	"github.com/ethereum/go-ethereum/raft"
 )
 
 type NodeOperation uint8
@@ -55,7 +55,6 @@ type PermissionCtrl struct {
 	node             *node.Node
 	ethClnt          *ethclient.Client
 	eth              *eth.Ethereum
-	isRaft           bool
 	permissionedMode bool
 	key              *ecdsa.PrivateKey
 	dataDir          string
@@ -147,7 +146,7 @@ func waitForSync(e *eth.Ethereum) {
 }
 
 // Creates the controls structure for permissions
-func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
+func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
 	// Create a new eth client to for interfacing with the contract
 	stateReader, e, err := CreateEthClient(stack)
 	waitForSync(e)
@@ -199,7 +198,6 @@ func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode, isRaft bool, pc
 		node:             stack,
 		ethClnt:          stateReader,
 		eth:              e,
-		isRaft:           isRaft,
 		permissionedMode: permissionedMode,
 		key:              stack.GetNodeKey(),
 		dataDir:          stack.DataDir(),
@@ -502,7 +500,7 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 
 // Disconnect the node from the network
 func (p *PermissionCtrl) disconnectNode(enodeId string) {
-	if p.isRaft {
+	if p.eth.ChainConfig().Istanbul == nil && p.eth.ChainConfig().Clique == nil {
 		var raftService *raft.RaftService
 		if err := p.node.Service(&raftService); err == nil {
 			raftApi := raft.NewPublicRaftAPI(raftService)
@@ -516,7 +514,7 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 			}
 		}
 	} else {
-		// Istanbul - disconnect the peer
+		// Istanbul  or clique - disconnect the peer
 		server := p.node.Server()
 		if server != nil {
 			node, err := enode.ParseV4(enodeId)
@@ -527,6 +525,7 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 			}
 		}
 	}
+
 }
 
 // Thus function checks if the initial network boot up status and if no

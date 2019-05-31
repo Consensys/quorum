@@ -207,8 +207,42 @@ func (q *QuorumControlsAPI) GetOrgDetails(orgId string) types.OrgDetailInfo {
 	return types.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList, SubOrgList: types.OrgInfoMap.GetOrg(orgId).SubOrgList}
 }
 
+func (q *QuorumControlsAPI) initOp(txa ethapi.SendTxArgs) (*pbind.PermInterfaceSession, ExecStatus) {
+	if !q.permEnabled {
+		return nil, ErrPermissionDisabled
+	}
+	var err error
+	var w accounts.Wallet
+
+	w, err = q.validateAccount(txa.From)
+	if err != nil {
+		return nil, ErrInvalidAccount
+	}
+	pinterf := q.newPermInterfaceSession(w, txa)
+
+	return pinterf, ExecSuccess
+}
+
 func (q *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(AddOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, url: url, acctId: acct, txa: txa}
+
+	if execStatus := q.valAddOrg(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	tx, err := pinterf.AddOrg(args.orgId, args.url, args.acctId)
+
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", AddOrg, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", AddOrg, "tx", tx)
+	return ExecSuccess
+	//return q.executePermAction(AddOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
 }
 
 func (q *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, txa ethapi.SendTxArgs) ExecStatus {

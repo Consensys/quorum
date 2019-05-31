@@ -400,7 +400,7 @@ func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) error {
 	}
 
 	// start the permissions management service
-	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), ctx.GlobalBool(utils.RaftModeFlag.Name), &permissionConfig)
+	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), &permissionConfig)
 	if err != nil {
 		return err
 	}
