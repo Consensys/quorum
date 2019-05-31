@@ -234,7 +234,6 @@ func (q *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address
 		return execStatus
 	}
 	tx, err := pinterf.AddOrg(args.orgId, args.url, args.acctId)
-
 	if err != nil {
 		log.Error("Failed to execute permission action", "action", AddOrg, "err", err)
 		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
@@ -242,58 +241,264 @@ func (q *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address
 	}
 	log.Debug("executed permission action", "action", AddOrg, "tx", tx)
 	return ExecSuccess
-	//return q.executePermAction(AddOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
 }
 
 func (q *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(AddSubOrg, txArgs{porgId: porgId, orgId: orgId, url: url, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{porgId: porgId, orgId: orgId, url: url, txa: txa}
+
+	if execStatus := q.valAddSubOrg(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	tx, err := pinterf.AddSubOrg(args.porgId, args.orgId, args.url)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", AddSubOrg, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", AddSubOrg, "tx", tx)
+	return ExecSuccess
 }
 
 func (q *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(ApproveOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, url: url, acctId: acct, txa: txa}
+	if execStatus := q.valApproveOrg(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	tx, err := pinterf.ApproveOrg(args.orgId, args.url, args.acctId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", ApproveOrg, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", ApproveOrg, "tx", tx)
+	return ExecSuccess
 }
 
 func (q *QuorumControlsAPI) UpdateOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(UpdateOrgStatus, txArgs{orgId: orgId, action: status, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, action: status, txa: txa}
+	if execStatus := q.valUpdateOrgStatus(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	// and in suspended state for suspension revoke
+	tx, err := pinterf.UpdateOrgStatus(args.orgId, big.NewInt(int64(args.action)))
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", UpdateOrgStatus, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", UpdateOrgStatus, "tx", tx)
+	return ExecSuccess
 }
 
 func (q *QuorumControlsAPI) AddNode(orgId string, url string, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(AddNode, txArgs{orgId: orgId, url: url, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, url: url, txa: txa}
+	if execStatus := q.valAddNode(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	// check if node is already there
+	tx, err := pinterf.AddNode(args.orgId, args.url)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", AddNode, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", AddNode, "tx", tx)
+	return ExecSuccess
 }
 
 func (q *QuorumControlsAPI) UpdateNodeStatus(orgId string, url string, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(UpdateNodeStatus, txArgs{orgId: orgId, url: url, action: status, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, url: url, action: status, txa: txa}
+	if execStatus := q.valUpdateNodeStatus(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	// check node status for operation
+	tx, err := pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.action)))
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", UpdateNodeStatus, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", UpdateNodeStatus, "tx", tx)
+	return ExecSuccess
 }
 
 func (q *QuorumControlsAPI) ApproveOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(ApproveOrgStatus, txArgs{orgId: orgId, action: status, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, action: status, txa: txa}
+	if execStatus := q.valApproveOrgStatus(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	// validate that status change is pending approval
+	tx, err := pinterf.ApproveOrgStatus(args.orgId, big.NewInt(int64(args.action)))
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", UpdateNodeStatus, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", UpdateNodeStatus, "tx", tx)
+	return ExecSuccess
 }
 
 func (q *QuorumControlsAPI) AssignAdminRole(orgId string, acct common.Address, roleId string, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(AssignAdminRole, txArgs{orgId: orgId, acctId: acct, roleId: roleId, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, acctId: acct, roleId: roleId, txa: txa}
+	if execStatus := q.valAssignAdminRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	// check if account is already in use in another org
+	tx, err := pinterf.AssignAdminRole(args.orgId, args.acctId, args.roleId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", AssignAdminRole, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", AssignAdminRole, "tx", tx)
+	return ExecSuccess
 }
 
 func (q *QuorumControlsAPI) ApproveAdminRole(orgId string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(ApproveAdminRole, txArgs{orgId: orgId, acctId: acct, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, acctId: acct, txa: txa}
+	if execStatus := q.valApproveAdminRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	// check if anything is pending approval
+	tx, err := pinterf.ApproveAdminRole(args.orgId, args.acctId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", ApproveAdminRole, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", ApproveAdminRole, "tx", tx)
+	return ExecSuccess
 }
 
 func (q *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8, isVoter bool, isAdmin bool, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(AddNewRole, txArgs{orgId: orgId, roleId: roleId, accessType: access, isVoter: isVoter, isAdmin: isAdmin, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, roleId: roleId, accessType: access, isVoter: isVoter, isAdmin: isAdmin, txa: txa}
+	if execStatus := q.valAddNewRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	// check if role is already there in the org
+	tx, err := pinterf.AddNewRole(args.roleId, args.orgId, big.NewInt(int64(args.accessType)), args.isVoter, args.isAdmin)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", ApproveAdminRole, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", ApproveAdminRole, "tx", tx)
+	return ExecSuccess
 }
 
 func (q *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(RemoveRole, txArgs{orgId: orgId, roleId: roleId, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, roleId: roleId, txa: txa}
+
+	if execStatus := q.valRemoveRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	tx, err := pinterf.RemoveRole(args.roleId, args.orgId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", RemoveRole, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", RemoveRole, "tx", tx)
+	return ExecSuccess
 }
 
 func (q *QuorumControlsAPI) AddAccountToOrg(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(AddAccountToOrg, txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa}
+
+	if execStatus := q.valAssignRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	tx, err := pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", AddAccountToOrg, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", AddAccountToOrg, "tx", tx)
+	return ExecSuccess
 }
 func (q *QuorumControlsAPI) ChangeAccountRole(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(ChangeAccountRole, txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa}
+
+	if execStatus := q.valAssignRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	tx, err := pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", ChangeAccountRole, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", ChangeAccountRole, "tx", tx)
+	return ExecSuccess
 }
 
 func (q *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Address, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return q.executePermAction(UpdateAccountStatus, txArgs{orgId: orgId, acctId: acct, action: status, txa: txa})
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus
+	}
+	args := txArgs{orgId: orgId, acctId: acct, action: status, txa: txa}
+
+	if execStatus := q.valUpdateAccountStatus(args, pinterf); execStatus != ExecSuccess {
+		return execStatus
+	}
+	tx, err := pinterf.UpdateAccountStatus(args.orgId, args.acctId, big.NewInt(int64(args.action)))
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", UpdateAccountStatus, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}
+	}
+	log.Debug("executed permission action", "action", UpdateAccountStatus, "tx", tx)
+	return ExecSuccess
 }
 
 // check if the account is network admin
@@ -762,120 +967,6 @@ func (q *QuorumControlsAPI) valUpdateAccountStatus(args txArgs, pinterf *pbind.P
 	if execStatus, er := q.valAccountStatusChange(args.orgId, args.acctId, int64(args.action)); er != nil {
 		return execStatus
 	}
-	return ExecSuccess
-}
-
-// executePermAction helps to execute an action in permission contract
-func (q *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
-
-	if !q.permEnabled {
-		return ErrPermissionDisabled
-	}
-	var err error
-	var w accounts.Wallet
-
-	w, err = q.validateAccount(args.txa.From)
-	if err != nil {
-		return ErrInvalidAccount
-	}
-
-	pinterf := q.newPermInterfaceSession(w, args.txa)
-	var tx *types.Transaction
-
-	switch action {
-
-	case AddOrg:
-		if execStatus := q.valAddOrg(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		tx, err = pinterf.AddOrg(args.orgId, args.url, args.acctId)
-
-	case ApproveOrg:
-		if execStatus := q.valApproveOrg(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		tx, err = pinterf.ApproveOrg(args.orgId, args.url, args.acctId)
-
-	case AddSubOrg:
-		if execStatus := q.valAddSubOrg(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		tx, err = pinterf.AddSubOrg(args.porgId, args.orgId, args.url)
-
-	case UpdateOrgStatus:
-		if execStatus := q.valUpdateOrgStatus(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		// and in suspended state for suspension revoke
-		tx, err = pinterf.UpdateOrgStatus(args.orgId, big.NewInt(int64(args.action)))
-
-	case ApproveOrgStatus:
-		if execStatus := q.valApproveOrgStatus(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		// validate that status change is pending approval
-		tx, err = pinterf.ApproveOrgStatus(args.orgId, big.NewInt(int64(args.action)))
-
-	case AddNode:
-		if execStatus := q.valAddNode(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		// check if node is already there
-		tx, err = pinterf.AddNode(args.orgId, args.url)
-
-	case UpdateNodeStatus:
-		if execStatus := q.valUpdateNodeStatus(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		// check node status for operation
-		tx, err = pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.action)))
-
-	case AssignAdminRole:
-		if execStatus := q.valAssignAdminRole(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		// check if account is already in use in another org
-		tx, err = pinterf.AssignAdminRole(args.orgId, args.acctId, args.roleId)
-
-	case ApproveAdminRole:
-		if execStatus := q.valApproveAdminRole(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		// check if anything is pending approval
-		tx, err = pinterf.ApproveAdminRole(args.orgId, args.acctId)
-
-	case AddNewRole:
-		if execStatus := q.valAddNewRole(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		// check if role is already there in the org
-		tx, err = pinterf.AddNewRole(args.roleId, args.orgId, big.NewInt(int64(args.accessType)), args.isVoter, args.isAdmin)
-
-	case RemoveRole:
-		if execStatus := q.valRemoveRole(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		tx, err = pinterf.RemoveRole(args.roleId, args.orgId)
-
-	case AddAccountToOrg, ChangeAccountRole:
-		if execStatus := q.valAssignRole(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		tx, err = pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
-
-	case UpdateAccountStatus:
-		if execStatus := q.valUpdateAccountStatus(args, pinterf); execStatus != ExecSuccess {
-			return execStatus
-		}
-		tx, err = pinterf.UpdateAccountStatus(args.orgId, args.acctId, big.NewInt(int64(args.action)))
-	}
-
-	if err != nil {
-		log.Error("Failed to execute permission action", "action", action, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}
-	}
-	log.Debug("executed permission action", "action", action, "tx", tx)
 	return ExecSuccess
 }
 
