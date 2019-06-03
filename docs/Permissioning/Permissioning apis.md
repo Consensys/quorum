@@ -306,36 +306,35 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_addOrg","params":["ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.addOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 If there are any pending items for approval, proposal of any new organization will fail. Also the enode id and accounts can be linked to one organization only. 
 ```javascript
 > quorumPermission.addOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
-{
-  msg: "Pending approvals for the organization. Approve first",
-  status: false
-}
+Error: Pending approvals for the organization. Approve first
+    at web3.js:3143:20
+    at web3.js:6347:15
+    at web3.js:5081:36
+    at <anonymous>:1:1
+
 > quorumPermission.addOrg("XYZ", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
-{
-  msg: "EnodeId already part of network.",
-  status: false
-}
+Error: EnodeId already part of network.
+    at web3.js:3143:20
+    at web3.js:6347:15
+    at web3.js:5081:36
+    at <anonymous>:1:1
 > quorumPermission.addOrg("XYZ", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
-{
-  msg: "Account already in use in another organization",
-  status: false
-}
+Error: Account already in use in another organization
+    at web3.js:3143:20
+    at web3.js:6347:15
+    at web3.js:5081:36
+    at <anonymous>:1:1
+
 ```
 ### `quorumPermission_approveOrg` 
 This api can be executed by a network admin account (`from:` in transactions args) only for approving a proposed organization into the network.
@@ -353,18 +352,12 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_approveOrg","params":["ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 quorumPermission.approveOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 ### `quorumPermission_updateOrgStatus`
 This api can only be executed by a network admin account and is used for temporarily suspending an organization or re-enabling a suspended organization. This activity can be performed for master organization only and requires majority approval from network admins.
@@ -382,18 +375,12 @@ Via JSON RPC
 // Request
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_updateOrgStatus","params":["ABC", 1, {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 //Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.updateOrgStatus("ABC", 1, {from:eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 ### `quorumPermission_approveOrgStatus`
 This api can only be executed by a network admin account and is used for approving the org status change proposal.  Once majority approval is received from network admins, the org status is updated.
@@ -412,18 +399,13 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_approveOrgStatus","params":["ABC", 1, {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 //Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 quorumPermission.approveOrgStatus("ABC", 1, {from: eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
+
 ```
 When an organization is in suspended status, no transactions or contract deploy activities are allowed from any nodes linked to the org and sub organizations under it. Similarly no transactions will be allowed from any accounts linked to the organization
 
@@ -443,32 +425,20 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_addSubOrg","params":["ABC", "SUB1","", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.addSubOrg("ABC", "SUB1", "", {from: eth.accounts[0]})
-
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 Few examples of adding sub org in nested hierarchy: 
 ```javascript
 > quorumPermission.addSubOrg("ABC.SUB1", "SUB2","",  {from: eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
+
 > quorumPermission.addSubOrg("ABC.SUB1.SUB2", "SUB3","",  {from: eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 ### `quorumPermission_addNewRole`
 This api can be executed by an organization admin account to create a new role for the organization.
@@ -488,23 +458,14 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_addNewRole","params":["ABC", "TRANSACT",1,false,false, {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.addNewRole("ABC", "TRANSACT", 1, false, false,{from: eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.addNewRole("ABC.SUB1.SUB2.SUB3", "TRANSACT", 1, false, false,{from: eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 ### `quorumPermission_removeRole`
 This api can be executed by an organization admin account to create a new role for the organization.
@@ -521,18 +482,12 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_removeRole","params":["ABC", "TRANSACT", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.removeRole("ABC.SUB1.SUB2.SUB3", "TRANSACT", {from: eth.accounts[1]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 ### `quorumPermission_addAccountToOrg`
 This api can be executed by an organization admin to add an account to an organization and assign a role to the account
@@ -550,26 +505,21 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_addAccountToOrg","params":["0xf017976fdf1521de2e108e63b423380307f501f8", "ABC", "TRANSACT", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.addAccountToOrg("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC", "TRANSACT", {from: eth.accounts[1]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 The account can at best be linked to a single organization or sub organization and cannot belong to multiple organizations or sub organizations
 ```javascript
-> quorumPermission.assignAccountRole("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC.SUB1", "TRANSACT", {from: eth.accounts[1]})
-{
-  msg: "Account already in use in another organization",
-  status: false
-}
+> quorumPermission.addAccountToOrg("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC.SUB1", "TRANSACT", {from: eth.accounts[1]})
+Error: Account already in use in another organization
+    at web3.js:3143:20
+    at web3.js:6347:15
+    at web3.js:5081:36
+    at <anonymous>:1:1
 ```
 ### `quorumPermission_changeAccountRole`
 This api can be executed by an organization admin account to assign a role to an account.
@@ -587,18 +537,12 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_changeAccountRole","params":["0xf017976fdf1521de2e108e63b423380307f501f8", "ABC", "TRANSACT", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.changeAccountRole("0xf017976fdf1521de2e108e63b423380307f501f8", "ABC", "TRANSACT", {from: eth.accounts[1]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 
 ### `quorumPermission_updateAccountStatus`
@@ -620,18 +564,12 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_updateAccountStatus","params":["ABC", "0xf017976fdf1521de2e108e63b423380307f501f8", 1, {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.updateAccountStatus("ABC", "0xf017976fdf1521de2e108e63b423380307f501f8", 1, {from: eth.accounts[1]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 Once a account is blacklisted no further action is allowed on it.
 
@@ -650,18 +588,12 @@ Via JSON RPC
 // Request
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_assignAdminRole","params":["ABC", "0xf017976fdf1521de2e108e63b423380307f501f8", "NWADMIN", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.assignAdminRole("ABC", "0xf017976fdf1521de2e108e63b423380307f501f8", "NWADMIN", {from: eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 
 ### `quorumPermission_approveAdminRole` 
@@ -679,19 +611,12 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_approveAdminRole","params":["ABC", "0xf017976fdf1521de2e108e63b423380307f501f8", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.approveAdminRole("ABC", "0xf017976fdf1521de2e108e63b423380307f501f8",  {from: eth.accounts[0]})
-
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 ### `quorumPermission_addNode`
 This api can be executed by the organization admin account to add a node to the organization or sub organization. A node cannot be part of multiple organizations.
@@ -708,18 +633,12 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_addNode","params":["ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.addNode("ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407", {from: eth.accounts[1]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 ### `quorumPermission_updateNodeStatus`
 This api can be executed by the organization admin account to update the status of a node.
@@ -743,18 +662,12 @@ Via JSON RPC
 curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_updateNodeStatus","params":["ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407",1, {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
 
 // Response
-{
-  msg: "Action completed successfully",
-  status: true
-}
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
 ```
 Via `geth` console
 ```javascript
 > quorumPermission.updateNodeStatus("ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407",3, {from: eth.accounts[1]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 ```
 Once a node is blacklisted no further action is possible on the same.
 
