@@ -25,12 +25,18 @@ contract PermissionsImplementation {
     // checks if first time network boot up has happened or not
     bool private networkBoot = false;
 
+    // Modifiers
     modifier onlyProxy
     {
         require(msg.sender == permUpgradable.getPermInterface(), "can be called by proxy only");
         _;
     }
-    // Modifiers
+
+    modifier onlyUpgradeable {
+        require(msg.sender == address(permUpgradable));
+        _;
+    }
+
     // Checks if the given network boot up is pending exists
     modifier networkBootStatus(bool _status)
     {
@@ -87,6 +93,16 @@ contract PermissionsImplementation {
         adminOrg = _nwAdminOrg;
         adminRole = _nwAdminRole;
         orgAdminRole = _oAdminRole;
+    }
+
+    function setMigrationPolicy(string calldata _nwAdminOrg, string calldata _nwAdminRole, string calldata _oAdminRole, bool _networkBootStatus) external
+    onlyUpgradeable
+    networkBootStatus(false)
+    {
+        adminOrg = _nwAdminOrg;
+        adminRole = _nwAdminRole;
+        orgAdminRole = _oAdminRole;
+        networkBoot = _networkBootStatus;
     }
 
     // called at the time network initialization to link all the contracts and set defaults
@@ -322,6 +338,13 @@ contract PermissionsImplementation {
     returns (string memory, string memory, address, uint)
     {
         return voter.getPendingOpDetails(_orgId);
+    }
+
+    // returns the policy details for migration
+    function getPolicyDetails() external view
+    returns (string memory, string memory, string memory, bool)
+    {
+        return (adminOrg, adminRole, orgAdminRole, networkBoot);
     }
 
     // helper functions

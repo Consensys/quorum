@@ -29,11 +29,16 @@ contract PermissionsUpgradable {
         setImpl(permImpl);
     }
 
+
     // custodian can potentially become a contract
     // implementation change and custodian change are sending from custodian
     function confirmImplChange(address _proposedImpl) public
     onlyCustodian
     {
+        // read the details from current implementation
+        (string memory adminOrg, string memory adminRole, string memory orgAdminRole, bool bootStatus) = PermissionsImplementation(permImpl).getPolicyDetails();
+        setPolicy(_proposedImpl, adminOrg, adminRole, orgAdminRole, bootStatus);
+        // set these values in new implementation
         permImpl = _proposedImpl;
         setImpl(permImpl);
     }
@@ -51,6 +56,11 @@ contract PermissionsUpgradable {
     function getPermInterface() public view returns (address)
     {
         return permInterface;
+    }
+
+    function setPolicy(address _permImpl, string memory _adminOrg, string memory _adminRole, string memory _orgAdminRole, bool _bootStatus) private
+    {
+        PermissionsImplementation(_permImpl).setMigrationPolicy(_adminOrg, _adminRole, _orgAdminRole, _bootStatus);
     }
 
     function setImpl(address _permImpl) private

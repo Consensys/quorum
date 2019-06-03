@@ -8,6 +8,7 @@
 * [Revoking suspension of an organization](#revoking-suspension-of-an-organization)
 * [Assigning admin privileges at organization and network level](#assigning-admin-privileges-at-organization-and-network-level)
 
+
 ### Initial network set up
 Please refer to [set up](../setup). For an existing network running with an older version of Quorum:
 
@@ -105,10 +106,7 @@ An example to propose and approve an organization by name `ORG1` is as shown bel
 
 ```
 > quorumPermission.addOrg("ORG1", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
-{
-    msg: "Action completed successfully",
-    status: true
-}
+"Action completed successfully"
 ```
 Once the org is proposed, it will be in `Proposed` state awaiting approval from other network admin accounts. The org status is as shown below:
 ```
@@ -126,10 +124,7 @@ Once the org is proposed, it will be in `Proposed` state awaiting approval from 
 The network admin accounts can then approve the proposed organizations and once the majority approval is achieved, the organization status is updated as `Approved`
 ```
 > quorumPermission.approveOrg("ORG1", "enode://de9c2d5937e599930832cecc1df8cc90b50839bdf635c1a4e68e1dab2d001cd4a11c626e155078cc65958a72e2d72c1342a28909775edd99cc39470172cce0ac@127.0.0.1:21004?discport=0", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e"})
-{
-    msg: "Action completed successfully",
-    status: true
-}
+"Action completed successfully"
 > quorumPermission.orgList[1]
 {
     fullOrgId: "ORG1",
@@ -186,9 +181,7 @@ Once the organization is approved and the node of the organization has joined th
 To add a sub org at `ORG1` level refer to [addSubOrg API](../Permissioning%20apis#quorumpermissionaddsuborg)
 ```
 > quorumPermission.addSubOrg("ORG1", "SUB1", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0", {from: eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-}
+"Action completed successfully"
 > quorumPermission.getOrgDetails("ORG1.SUB1")
 {
   acctList: null,
@@ -204,20 +197,14 @@ To add a sub org at `ORG1` level refer to [addSubOrg API](../Permissioning%20api
 For adding a sub org the enode id is not mandatory. For the newly created sub org if the org admin desires to add an administration account, the org admin account will have to first create a role with `isAdmin` flag as `Y` and then assign this role to the account which belongs to the sub org. Once assigned the account will act as org admin at sub org level. Refer to [addNewRole API](../Permissioning%20apis#quorumpermissionaddnewrole)
 ```
 > quorumPermission.addNewRole("ORG1.SUB1", "SUBADMIN", 3, false, true,{from: eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > eth.accounts[0]
 "0x0638e1574728b6d862dd5d3a3e0942c3be47d996"
 ```
 The role `SUBADMIN` can now be assigned to an account at sub org `SUB1` for making the account admin for the sub org.
 ```
 > quorumPermission.addAccountToOrg("0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0", "ORG1.SUB1", "SUBADMIN", {from: "0x0638e1574728b6d862dd5d3a3e0942c3be47d996"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.getOrgDetails("ORG1.SUB1")
 {
   acctList: [{
@@ -246,10 +233,7 @@ The role `SUBADMIN` can now be assigned to an account at sub org `SUB1` for maki
 The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for sub org `SUB1` and will be able to add roles, accounts and nodes to the sub org. It should be noted that the org admin account at master org level has the admin rights on all the sub organizations below. However the admin account at sub org level has control only in the sub org to which it is linked. 
 ```
 > quorumPermission.addNewRole("ORG1.SUB1", "TRANSACT", 1, false, true,{from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.getOrgDetails("ORG1.SUB1").roleList
 [{
     access: 3,
@@ -270,10 +254,7 @@ The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for su
 To add an account to an organization refer to [addAccountToOrg API](../Permissioning%20apis#quorumpermissionaddaccounttoorg).
 ```
 > quorumPermission.addAccountToOrg("0x283f3b8989ec20df621166973c93b56b0f4b5455", "ORG1.SUB1", "SUBADMIN", {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.getOrgDetails("ORG1.SUB1").acctList
 
 [{
@@ -293,10 +274,7 @@ To add an account to an organization refer to [addAccountToOrg API](../Permissio
 To suspend an account [updateAccountStatus](../Permissioning%20apis#quorumpermissionupdateaccountstatus) API can be invoked with action as 1.
 ```
 > quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 1, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.getOrgDetails("ORG1.SUB1").acctList
 [{
     acctId: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0",
@@ -315,10 +293,7 @@ To suspend an account [updateAccountStatus](../Permissioning%20apis#quorumpermis
 To revoke suspension of an account [updateAccountStatus](../Permissioning%20apis#quorumpermissionupdateaccountstatus) API can be invoked with action as 2.
 ```
 > quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 2, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.getOrgDetails("ORG1.SUB1").acctList
 
 [{
@@ -338,10 +313,7 @@ To revoke suspension of an account [updateAccountStatus](../Permissioning%20apis
 To [blacklist an account updateAccountStatus](../Permissioning%20apis#quorumpermissionupdateaccountstatus) API can be invoked with action as 3. Once blacklisted no further activity will be possible on the account.
 ```
 > quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 3, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.getOrgDetails("ORG1.SUB1").acctList
 
 [{
@@ -361,10 +333,7 @@ To [blacklist an account updateAccountStatus](../Permissioning%20apis#quorumperm
 To [add nodes addNode ](../Permissioning%20apis#quorumpermissionaddnode) at organization and sub organization level by the org admin.
 ```
 > quorumPermission.addNode("ORG1.SUB1", "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0", {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.getOrgDetails("ORG1.SUB1").nodeList
 [{
     orgId: "ORG1.SUB1",
@@ -392,13 +361,8 @@ Org admin can manage the status of the nodes by using [updateNodeStatus](../Perm
 To activate the node back invoke [updateNodeStatus](../Permissioning%20apis#quorumpermissionupdatenodestatus) API with action 2.
 ```
 > quorumPermission.updateNodeStatus("ORG1.SUB1", "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0",2, {from:"0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.getOrgDetails("ORG1.SUB1").nodeList
-
-
 [{
     orgId: "ORG1.SUB1",
     status: 2,
@@ -412,8 +376,6 @@ To activate the node back invoke [updateNodeStatus](../Permissioning%20apis#quor
 To blacklist a node invoke [updateNodeStatus](../Permissioning%20apis#quorumpermissionupdatenodestatus) API with action 3. Once blacklisted the node will never be able join the network again.
 ```
 > quorumPermission.getOrgDetails("ORG1.SUB1").nodeList
-
-
 [{
     orgId: "ORG1.SUB1",
     status: 2,
@@ -435,10 +397,7 @@ Further:
 If there is a need to temporarily suspend all activities of an organization [updateOrgStatus](../Permissioning%20apis#quorumpermissionupdateorgstatus) API can be invoked with action 1. This can be invoked only by the network admin accounts and will reuiqre majority voting.
 ```
 > quorumPermission.updateOrgStatus("ORG1", 1, {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.orgList[2]
 {
   fullOrgId: "ORG1",
@@ -453,10 +412,7 @@ If there is a need to temporarily suspend all activities of an organization [upd
 To approve the org, suspension majority approval from other network admin accounts is required. The api for the same is [approveOrgStatus](../Permissioning%20apis#quorumpermissionapproveorgstatus). Once approved the org status is marked as suspended.
 ```
 > quorumPermission.approveOrgStatus("ORG1", 1, {from: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.orgList[2]
 {
   fullOrgId: "ORG1",
@@ -475,15 +431,9 @@ When the org is suspended no transaction from any of the account linked to the o
 To revoke the suspension of an org [updateOrgStatus](../Permissioning%20apis#quorumpermissionupdateorgstatus) can be called with action as 2. This will require majority approval (API [approveOrgStatus](../Permissioning%20apis#quorumpermissionapproveorgstatus) with action 2). 
 ```
 > quorumPermission.updateOrgStatus("ORG1", 2, {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.approveOrgStatus("ORG1", 2, {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.orgList[0]
 {
   fullOrgId: "ORG1.SUB1",
@@ -502,10 +452,7 @@ There may be a scenario where one of the accounts at the organization level need
 To assign network admin or org admin role to an account invoke [assignAdminRole](../Permissioning%20apis#quorumpermissionassignadminrole).
 ```
 > quorumPermission.assignAdminRole("ORG1", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", "ADMIN", {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.acctList[3]
 {
   acctId: "0x0638e1574728b6d862dd5d3a3e0942c3be47d996",
@@ -518,10 +465,7 @@ To assign network admin or org admin role to an account invoke [assignAdminRole]
 To approve the assignment of network admin role invoke [approveAdminRole](../Permissioning%20apis#quorumpermissionapproveadminrole) API.
 ```
 > quorumPermission.approveAdminRole("ORG1", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
-{
-  msg: "Action completed successfully",
-  status: true
-}
+"Action completed successfully"
 > quorumPermission.acctList[4]
 {
   acctId: "0x0638e1574728b6d862dd5d3a3e0942c3be47d996",
