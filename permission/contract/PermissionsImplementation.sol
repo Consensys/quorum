@@ -69,8 +69,13 @@ contract PermissionsImplementation {
     }
 
     // constructor. sets the upgradable address
-    constructor (address _permUpgradable) public {
+    constructor (address _permUpgradable, address _orgManager, address _rolesManager, address _acctManager, address _voterManager, address _nodeManager) public {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
+        org = OrgManager(_orgManager);
+        roles = RoleManager(_rolesManager);
+        accounts = AccountManager(_acctManager);
+        voter = VoterManager(_voterManager);
+        nodes = NodeManager(_nodeManager);
     }
 
     // initial set up related functions
@@ -85,16 +90,10 @@ contract PermissionsImplementation {
     }
 
     // called at the time network initialization to link all the contracts and set defaults
-    function init(address _orgManager, address _rolesManager, address _acctManager, address _voterManager, address _nodeManager, uint _breadth, uint _depth) external
+    function init(uint _breadth, uint _depth) external
     onlyProxy
     networkBootStatus(false)
     {
-        org = OrgManager(_orgManager);
-        roles = RoleManager(_rolesManager);
-        accounts = AccountManager(_acctManager);
-        voter = VoterManager(_voterManager);
-        nodes = NodeManager(_nodeManager);
-
         org.setUpOrg(adminOrg, _breadth, _depth);
         roles.addRole(adminRole, adminOrg, fullAccess, true, true);
         accounts.setDefaults(adminRole, orgAdminRole);
