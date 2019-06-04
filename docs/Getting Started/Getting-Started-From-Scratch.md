@@ -10,7 +10,7 @@
 8. Initialize new node with `geth --datadir new-node-1 init genesis.json`
 9. Start your node and send into background with `PRIVATE_CONFIG=ignore nohup geth --datadir new-node-1 --nodiscover --verbosity 5 --networkid 31337 --raft --raftport 50000 --rpc --rpcaddr 0.0.0.0 --rpcport 22000 --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum,raft --emitcheckpoints --port 21000 2>>node.log &`
 
-Your node is now operational and you may attach to it with `geth attach new-node-1/geth.ipc`. This configuration starts Quorum without privacy support as could be evidenced in prefix `PRIVATE_CONFIG=ignore`, please see below sections on [how to enable privacy with privacy transaction managers](../Getting-Started-From-Scratch#adding-privacy-transaction-manager).
+Your node is now operational and you may attach to it with `geth attach new-node-1/geth.ipc`. This configuration starts Quorum without privacy support as could be evidenced in prefix `PRIVATE_CONFIG=ignore`, please see below sections on [how to enable privacy with privacy transaction managers](#adding-privacy-transaction-manager).
 
 ### Adding additional node
 1. Complete steps 1, 2, 5, and 6 from the previous guide
@@ -43,7 +43,11 @@ Your additional node is now operational and is part of the same chain as the pre
 10. Switch into working directory of lead node and initialize it with `geth --datadir data init genesis.json`. Repeat for every working directory X created in step 3. *The resulting hash given by executing `geth init` must match for every node*
 11. Start all nodes and send into background with `PRIVATE_CONFIG=ignore nohup geth --datadir data --permissioned --nodiscover --istanbul.blockperiod 5 --syncmode full --mine --minerthreads 1 --verbosity 5 --networkid 10 --rpc --rpcaddr 0.0.0.0 --rpcport YOUR_NODES_RPC_PORT_NUMBER --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum,istanbul --emitcheckpoints --port YOUR_NODES_PORT_NUMBER 2>>node.log &`, remember to replace `YOUR_NODES_RPC_PORT_NUMBER` and `YOUR_NODES_PORT_NUMBER` with your node's designated port numbers. `YOUR_NODES_PORT_NUMBER` must match the port number for this node decided on in part 5
 
-Your node is now operational and you may attach to it with `geth attach data/geth.ipc`. This configuration starts Quorum without privacy support as could be evidenced in prefix `PRIVATE_CONFIG=ignore`, please see below sections on [[how to enable privacy with privacy transaction managers|From-Scratch#adding-privacy-transaction-manager]].
+Your node is now operational and you may attach to it with `geth attach
+data/geth.ipc`. This configuration starts Quorum without privacy support
+as could be evidenced in prefix `PRIVATE_CONFIG=ignore`, please see
+below sections on [how to enable privacy with privacy transaction
+managers](#adding-privacy-transaction-manager).
 
 Please note that istanbul-tools may be used to generate X number of nodes, more information is available in the [docs](https://github.com/jpmorganchase/istanbul-tools).
 
