@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/coreos/etcd/pkg/fileutil"
 	"github.com/coreos/etcd/snap"
@@ -392,8 +392,11 @@ func (pm *ProtocolManager) startRaft() {
 	walExisted := wal.Exist(pm.waldir)
 	lastAppliedIndex := pm.loadAppliedIndex()
 
-	ss := &stats.ServerStats{}
-	ss.Initialize()
+
+	id := raftTypes.ID(pm.raftId).String()
+	log.Info("AJ-raft id", "id", id)
+	ss := stats.NewServerStats(id, id)
+
 	pm.transport = &rafthttp.Transport{
 		ID:          raftTypes.ID(pm.raftId),
 		ClusterID:   0x1000,
