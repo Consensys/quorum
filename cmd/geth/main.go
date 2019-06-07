@@ -18,7 +18,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -28,14 +27,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/elastic/gosigar"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
-	"github.com/ethereum/go-ethereum/core/quorum"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/debug"
@@ -350,7 +346,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	//START - QUORUM permission service
 	go func() {
 		if ctx.GlobalBool(utils.EnableNodePermissionFlag.Name) {
-			if err := startQuorumPermissionService(ctx, stack); err != nil {
+			if err := permission.StartQuorumPermissionService(ctx, stack); err != nil {
 				utils.Fatalf("Failed to start permissions service %v", err)
 			}
 		}
@@ -382,54 +378,4 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 	}
 
-}
-
-// Starts the permission services. services will come up only when
-// geth is brought up in --permissioned mode and permission-config.json is present
-func startQuorumPermissionService(ctx *cli.Context, stack *node.Node) error {
-
-	var quorumApis []string
-	dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
-
-	var permissionConfig types.PermissionConfig
-	var err error
-
-	if permissionConfig, err = permission.ParsePermissionConifg(dataDir); err != nil {
-		log.Error("loading of permission-config.json failed", "error", err)
-		return nil
-	}
-
-	// start the permissions management service
-	pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), &permissionConfig)
-	if err != nil {
-		return err
-	}
-
-	if err = pc.Start(); err == nil {
-		quorumApis = []string{"quorumPermission"}
-	} else {
-		return err
-	}
-
-	rpcClient, err := stack.Attach()
-	if err != nil {
-		return err
-	}
-	stateReader := ethclient.NewClient(rpcClient)
-
-	for _, apiName := range quorumApis {
-		v := stack.GetRPC(apiName)
-		if v == nil {
-			return errors.New("failed to start quorum permission api")
-		}
-		qapi := v.(*quorum.QuorumControlsAPI)
-
-		err = qapi.Init(stateReader, stack.GetNodeKey(), apiName, &permissionConfig, pc.Interface())
-		if err != nil {
-			log.Info("Failed to starts API", "apiName", apiName)
-		} else {
-			log.Info("API started", "apiName", apiName)
-		}
-	}
-	return nil
 }
