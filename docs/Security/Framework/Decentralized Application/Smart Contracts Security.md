@@ -52,7 +52,7 @@ Is a form of expanded Shared Custody Ownership that requires consensus over the 
 
 ### Security Checklist
 
-#### Ownsership
+#### Ownership
 
 !!! success "No ownership contacts must be prevented in Enteprise Blockchain."
 
