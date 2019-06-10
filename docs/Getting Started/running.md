@@ -27,7 +27,7 @@ Example JSON RPC API call to send a public transaction:
 }
 ```
 
-See the [Quorum API](../../api) page for details on the `sendTransaction` call, which includes some modifications to the standard Ethereum call.
+See the [Quorum API](../api) page for details on the `sendTransaction` call, which includes some modifications to the standard Ethereum call.
 
 !!! info
     See the Contract Design Considerations sections below for important points on creating Quorum contracts
@@ -56,7 +56,7 @@ Example JSON RPC API call to send a private transaction:
 }
 ```
 
-See the [Quorum API](../../api) page for details on the `sendTransaction` call, which includes some modifications to the standard Ethereum call.
+See the [Quorum API](../api) page for details on the `sendTransaction` call, which includes some modifications to the standard Ethereum call.
 
 !!! info
     See the Contract Design Considerations sections below for important points on creating Quorum contracts
