@@ -18,6 +18,7 @@ nav:
           - Overview: Getting Started/Quorum-Examples.md
           - 7 Nodes Example: Getting Started/7Nodes.md
         - Running Quorum: Getting Started/running.md
+        - Quorum API: Getting Started/api.md
     - Consensus:
         - Consensus: Consensus/Consensus.md
         - Raft: Consensus/raft.md
@@ -52,6 +53,7 @@ nav:
             - How it works: Privacy/Constellation/How constellation works.md
             - Sample Configuration: Privacy/Constellation/Sample Configuration.md
             - Running Constellation: Privacy/Constellation/Installation & Running.md
+    - Product Roadmap: roadmap.md         
     - FAQ: FAQ.md
 
 theme:
