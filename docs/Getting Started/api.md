@@ -208,7 +208,7 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_getQ
  submitting the transaction; a server must be set up to receive POST requests
  at the given URL.
  
- ##### Parameters
+##### Parameters
  
  1. `Object` - The transaction object to send:
      - `from`: `String` - The address for the sending account. Uses the `web3.eth.defaultAccount` property, if not specified.
@@ -222,7 +222,7 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_getQ
      - `privateFor`: `List<String>`  - (optional) When sending a private transaction, an array of the recipients' base64-encoded public keys.
      - `callbackUrl`: `String` - (optional) the URL to perform a POST request to to post the result of submitted the transaction
  
- ##### Returns
+##### Returns
  
  1. `String` - The empty hash, defined as `0x0000000000000000000000000000000000000000000000000000000000000000`
  
