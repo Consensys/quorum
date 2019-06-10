@@ -29,17 +29,13 @@ nav:
             - Consortium: Security/Framework/Quorum Network Security/Consortium.md
             - Quorum Node: 
                 - Overview: Security/Framework/Quorum Network Security/Nodes.md
-                - RPC Interface:
-                    - Feature: Security/Framework/Quorum Network Security/Nodes/JRPC/JRPC Feature.md
-                    - Configuration: Security/Framework/Quorum Network Security/Nodes/JRPC/JRPC-Config.md
-                    - Examples: Security/Framework/Quorum Network Security/Nodes/JRPC/JRPC-Examples.md
                 - Permissioning:
                     - Network Permissioning: Security/Framework/Quorum Network Security/Nodes/Permissioning/Network Permissioning.md
             - Transaction Manager: Security/Framework/Quorum Network Security/Transaction Manager.md
-            - Opertional Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
-          - Enterprise Decentralized App:
-            - Frontend: Security/Framework/Enterprise Decentralized Application/Frontend Components.md
-            - Smart Contracts:  Security/Framework/Enterprise Decentralized Application/Smart Contracts Security.md
+            - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
+          - Decentralized App:
+            - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
+            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
     - Privacy:
         - Tessera:
             - What is Tessera: Privacy/Tessera/Tessera.md

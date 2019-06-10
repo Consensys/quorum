@@ -1,11 +1,11 @@
 ## Objectives 
 The **objective** of this framework is to provide an in-depth reference to Quorum and
- Enterprise Decentralized Applications (eDApps) security best practices.
+ Decentralized Applications (dApps) security best practices.
 
 The following outlines the *scope* of the framework:
 - Quorum architecture security 
 - Quorum network security guidelines
-- Enterprise decentralized application (eDApps) security best practices
+- Decentralized application (dApps) security best practices
 
 
 ## References
