@@ -557,3 +557,7 @@ func (s *Ethereum) Stop() error {
 	close(s.shutdownChan)
 	return nil
 }
+
+func (s *Ethereum) CalcGasLimit(block *types.Block) uint64 {
+	return core.CalcGasLimit(block, s.config.MinerGasFloor, s.config.MinerGasCeil)
+}

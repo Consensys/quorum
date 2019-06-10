@@ -83,18 +83,18 @@ By setting `"generateKeyStoreIfNotExisted": "true"`, Tessera will check whether 
 Below is a config sample for using the `.pem` file format:
 ```json
 "sslConfig" : {
-  "tls" : "STRICT",
-  "generateKeyStoreIfNotExisted" : "false",
-  "serverTlsKeyPath" : "server-key.pem",  
-  "serverTlsCertificatePath" : "server-cert.pem",
-  "serverTrustCertificates" : ["server-trust.pem"]
-  "serverTrustMode" : "CA",
-  "clientTlsKeyPath" : "client-key.pem",
-  "clientTlsCertificatePath" : "client-cert.pem",
-  "clientTrustCertificates" : ["client-trust.pem"]
-  "clientTrustMode" : "TOFU",
-  "knownClientsFile" : "knownClients",
-  "knownServersFile" : "knownServers"
+    "tls" : "STRICT",
+    "generateKeyStoreIfNotExisted" : "false",
+    "serverTlsKeyPath" : "server-key.pem",  
+    "serverTlsCertificatePath" : "server-cert.pem",
+    "serverTrustCertificates" : ["server-trust.pem"]
+    "serverTrustMode" : "CA",
+    "clientTlsKeyPath" : "client-key.pem",
+    "clientTlsCertificatePath" : "client-cert.pem",
+    "clientTrustCertificates" : ["client-trust.pem"]
+    "clientTrustMode" : "TOFU",
+    "knownClientsFile" : "knownClients",
+    "knownServersFile" : "knownServers"
 }
 ```
 
@@ -102,67 +102,67 @@ Below is a config sample for using the `.pem` file format:
 The Trust Mode for both client and server must also be specified. Multiple trust modes are supported: `TOFU`, `WHITELIST`, `CA`, `CA_OR_TOFU`, and `NONE`.
 
 * `TOFU` (Trust-on-first-use)  
-  Only the first node that connects identifying as a certain host will be allowed to connect as the same host in the future. When connecting for the first time, the host and its certificate will be added to `knownClientsFile` (for server), or `knownServersFile` (for client). These files will be generated if not already existed, using the values specified in `knownClientsFile` and `knownServersFile`.
+    Only the first node that connects identifying as a certain host will be allowed to connect as the same host in the future. When connecting for the first time, the host and its certificate will be added to `knownClientsFile` (for server), or `knownServersFile` (for client). These files will be generated if not already existed, using the values specified in `knownClientsFile` and `knownServersFile`.
 
-  A config sample for `TOFU` trust mode is:
+    A config sample for `TOFU` trust mode is:
 
-  ```json
-  "sslConfig" : {
-    "tls" : "STRICT",
-    "generateKeyStoreIfNotExisted" : "true",
-    "serverKeyStore" : "server-keystore",
-    "serverKeyStorePassword" : "tessera",
-    "serverTrustMode" : "TOFU",
-    "clientKeyStore" : "client-keystore",
-    "clientKeyStorePassword" : "tessera",
-    "clientTrustMode" : "TOFU",
-    "knownClientsFile" : "knownClients",
-    "knownServersFile" : "knownServers"
-  }
-  ```
+    ```json
+    "sslConfig" : {
+        "tls" : "STRICT",
+        "generateKeyStoreIfNotExisted" : "true",
+        "serverKeyStore" : "server-keystore",
+        "serverKeyStorePassword" : "tessera",
+        "serverTrustMode" : "TOFU",
+        "clientKeyStore" : "client-keystore",
+        "clientKeyStorePassword" : "tessera",
+        "clientTrustMode" : "TOFU",
+        "knownClientsFile" : "knownClients",
+        "knownServersFile" : "knownServers"
+    }
+    ```
 
 * `WHITELIST`   
-  Only nodes that have previously connected to this node and have been added to the `knownClients` file will be allowed to connect. Similarly, this node will only be allowed to make connections to nodes that have been added to the `knownServers` file. This trust mode will not add new entries to the `knownClients` or `knownServers` files.
-
-  With this trust mode, the whitelist files (`knownClientsFile` and `knownServersFile`) must be provided. 
-
-  A config sample for `WHITELIST` trust mode is:
-
-  ```json
-  "sslConfig" : {
-    "tls" : "STRICT",
-    "generateKeyStoreIfNotExisted" : "true",
-    "serverKeyStore" : "server-keystore",
-    "serverKeyStorePassword" : "tessera",
-    "serverTrustMode" : "WHITELIST",
-    "clientKeyStore" : "client-keystore",
-    "clientKeyStorePassword" : "tessera",
-    "clientTrustMode" : "WHITELIST",
-    "knownClientsFile" : "knownClients",
-    "knownServersFile" : "knownServers"
-  }
-  ```
+    Only nodes that have previously connected to this node and have been added to the `knownClients` file will be allowed to connect. Similarly, this node will only be allowed to make connections to nodes that have been added to the `knownServers` file. This trust mode will not add new entries to the `knownClients` or `knownServers` files.
+    
+    With this trust mode, the whitelist files (`knownClientsFile` and `knownServersFile`) must be provided. 
+    
+    A config sample for `WHITELIST` trust mode is:
+    
+    ```json
+    "sslConfig" : {
+        "tls" : "STRICT",
+        "generateKeyStoreIfNotExisted" : "true",
+        "serverKeyStore" : "server-keystore",
+        "serverKeyStorePassword" : "tessera",
+        "serverTrustMode" : "WHITELIST",
+        "clientKeyStore" : "client-keystore",
+        "clientKeyStorePassword" : "tessera",
+        "clientTrustMode" : "WHITELIST",
+        "knownClientsFile" : "knownClients",
+        "knownServersFile" : "knownServers"
+    }
+    ```
 
 * `CA` 
-  Only nodes with a valid certificate and chain of trust are allowed to connect. For this trust mode, trust stores must be provided and must contain a list of trust certificates.
-
-  A config sample for `CA` trust mode is:
-
-  ```json
-  "sslConfig" : {
-    "tls" : "STRICT",
-    "generateKeyStoreIfNotExisted" : "false", //You can't generate trust stores when using CA
-    "serverKeyStore" : "server-keystore",
-    "serverKeyStorePassword" : "tessera",
-    "serverTrustStore" : "server-truststore",
-    "serverTrustStorePassword" : "tessera",
-    "serverTrustMode" : "CA",
-    "clientKeyStore" : "client-keystore",
-    "clientKeyStorePassword" : "tessera",
-    "clientTrustStore" : "client-truststore",
-    "clientTrustStorePassword" : "tessera",
-    "clientTrustMode" : "CA",
-    "knownClientsFile" : "knownClients",
-    "knownServersFile" : "knownServers"
-  }
-  ```
+    Only nodes with a valid certificate and chain of trust are allowed to connect. For this trust mode, trust stores must be provided and must contain a list of trust certificates.
+    
+    A config sample for `CA` trust mode is:
+    
+    ```json
+    "sslConfig" : {
+        "tls" : "STRICT",
+        "generateKeyStoreIfNotExisted" : "false", //You can't generate trust stores when using CA
+        "serverKeyStore" : "server-keystore",
+        "serverKeyStorePassword" : "tessera",
+        "serverTrustStore" : "server-truststore",
+        "serverTrustStorePassword" : "tessera",
+        "serverTrustMode" : "CA",
+        "clientKeyStore" : "client-keystore",
+        "clientKeyStorePassword" : "tessera",
+        "clientTrustStore" : "client-truststore",
+        "clientTrustStorePassword" : "tessera",
+        "clientTrustMode" : "CA",
+        "knownClientsFile" : "knownClients",
+        "knownServersFile" : "knownServers"
+    }
+    ```
