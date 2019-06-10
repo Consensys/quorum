@@ -1,19 +1,18 @@
 ### Tessera 
-[Tessera](https://github.com/jpmorganchase/tessera/wiki) is Quorum Transaction Manager.  Quorum privacy features depends on Tessera to Encryption/Decryption, and Broadcast the orchestrations of a Private Transaction Payload. 
-Tessera uses an enclave to perform the encryption/decryption of private Transactions Payload of which encryption keys should be stored in high secure environments such a hardware security module (HSM).
+[Tessera](https://github.com/jpmorganchase/tessera/wiki) is Quorum's Transaction Manager.  Quorum privacy features depends on Tessera to Encrypt/Decrypt, and broadcast the orchestrations of a private transaction payload. 
+Tessera uses an enclave to perform the encryption/decryption of private transactions payload. The encryption keys should be stored in high secure environments such a hardware security module (HSM).
 Tessera communication with its dependencies (Enclave, Quorum node, Payload Storage Database, Secret Storage Service) must be secured. To ensure the privacy and authentication of the communication between Tessera the network must be configured to Certificate Based Mutual Authentication (MTLS).
 
 ### Encryption Keys
-Encryption keys  must is the most critical element of the privacy model, if the encryption key is compromised the network looses its privacy. Tessera support integration with Trusted Platform Modules (TPM) and Hardware Security Modules (HSM) to reduce attack surface
-and provide high secure available environment.
+Encryption keys is the most critical element of the privacy model, if the encryption key is compromised the network loses its privacy. Tessera support integration with Trusted Platform Modules (TPM) and Hardware Security Modules (HSM) to reduce surface attack and provide highly secure environment.
 
 
 ### Security Checklist 
     
-    - Tessera should run in independent network segement in production
+    - Tessera should run in independent network segment in production
     - Tessera must leverage certificate based mutual authentication with its dependencies
     - Secret storage services must support key rotation.
-    - Depending on the deployment model Encryption Keys must be backedup in offline encrypted secure locations.
+    - Depending on the deployment model Encryption Keys must be backed-up in offline secured locations.
     - Secret storage service  must be in complete isolation of external network.
     - Tessera connection strings must not be stored in clear text in configuration files. 
     - Secret storage in cloud deployment should run under a single tenancy model.
