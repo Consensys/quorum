@@ -125,6 +125,7 @@ And there you have it. All 7 nodes are validating the same blockchain of transac
 Node Permissioning is a feature in Quorum that allows only a pre-defined set of nodes (as identified by their remotekey/enodes) to connect to the permissioned network.
 
 In this demo we will:
+
 - Set up a network with a combination of permissioned and non-permissioned nodes in the cluster
 - Look at the details of the `permissioned-nodes.json` file
 - Demonstrate that only the nodes that are specified in `permissioned-nodes.json` can connect to the network
@@ -220,3 +221,12 @@ After making these changes, the `raft-init.sh` and `raft-start.sh` scripts can b
     ```
 
 After saving this change, the `./runscript.sh private-contract.js` command can be run as usual to submit the private contract.  You can then follow steps described above to verify that node 5 can see the transaction payload and that nodes 2-4 are unable to see the payload.
+
+## Using a Tessera remote enclave
+Tessera v0.9 brought with it the option to have an enclave as a separate process from the Transaction
+Manager. This is a more secure way of being able to manage and interact with your keys.
+To use the remote enclave, call your desired start with using `tessera-remote` as the first
+parameter, e.g. `./raft-start.sh tessera-remote`. This will, by default, start 7 Transaction
+Managers, the first 4 of which use a remote enclave. If you wish to change this number, you
+will need to add the extra parameter `--remoteEnclaves X` in the `--tesseraOptions`, e.g.
+`./raft-start.sh tessera-remote --tesseraOptions "--remoteEnclaves 7"`.
