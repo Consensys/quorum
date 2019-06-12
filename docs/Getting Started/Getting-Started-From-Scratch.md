@@ -881,7 +881,7 @@ Same instructions as adding validator node **excluding** step 3 which proposes t
 
 ### Removing non-validator node
 
-Just execute step 4 instruction from removing a validator node.
+Just execute **step 4** instruction from removing a validator node.
 
 
 ## Adding privacy transaction manager
