@@ -254,6 +254,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 		//if input is empty for the smart contract call, return
 		if len(data) == 0 && isPrivate {
+			st.refundGas()
 			return nil, 0, false, nil
 		}
 
