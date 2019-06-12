@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
@@ -40,7 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -387,26 +385,6 @@ func (b *SimulatedBackend) SubscribeFilterLogs(ctx context.Context, query ethere
 			}
 		}
 	}), nil
-}
-
-// PreparePrivateTransaction in simulation doesn't actually send the encoded raw transaction to transaction manager,
-// returning the the same transaction payload.
-func (b *SimulatedBackend) PreparePrivateTransaction(ctx context.Context, encodedTx hexutil.Bytes, privateFrom string, privateFor []string) (hexutil.Bytes, error) {
-	if privateFor == nil {
-		return nil, errors.New("privateFor cannot be nil")
-	}
-	tx := new(types.Transaction)
-	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
-		return nil, err
-	}
-	// don't replace transaction payload in simulation
-	tx.SetPrivate()
-	newEncoded, err := rlp.EncodeToBytes(tx)
-	if err != nil {
-		return nil, err
-	}
-
-	return hexutil.Bytes(newEncoded), nil
 }
 
 // AdjustTime adds a time shift to the simulated clock.

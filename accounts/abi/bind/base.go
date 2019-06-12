@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/private"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
@@ -28,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // SignerFn is a signer function callback when a contract requires a method to
@@ -239,11 +239,12 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	// If this transaction is private, we need to substitute the data payload
 	// with the hash of the transaction from tessera/constellation.
 	if opts.PrivateFor != nil {
-		rawTx, err = c.preparePrivateTransaction(
-			ensureContext(opts.Context), rawTx, opts.PrivateFrom, opts.PrivateFor)
+		var payload []byte
+		payload, err = sendPrivateTx(rawTx, opts.PrivateFrom, opts.PrivateFor)
 		if err != nil {
 			return nil, err
 		}
+		rawTx = c.preparePrivateTransaction(rawTx, payload)
 	}
 
 	if opts.Signer == nil {
@@ -355,26 +356,32 @@ func (c *BoundContract) UnpackLog(out interface{}, event string, log types.Log) 
 	return parseTopics(out, indexed, log.Topics[1:])
 }
 
-// ensureContext is a helper method to ensure a context is not nil, even if the
-// user specified it as such.
+// preparePrivateTransaction replace the payload of private transaction to the hash from Tessera/Constellation
+func (c *BoundContract) preparePrivateTransaction(tx *types.Transaction, payload []byte) *types.Transaction {
+	var privateTx *types.Transaction
+	if tx.To() == nil {
+		privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), payload)
+	} else {
+		privateTx = types.NewTransaction(tx.Nonce(), c.address, tx.Value(), tx.Gas(), tx.GasPrice(), payload)
+	}
+	privateTx.SetPrivate()
+	return privateTx
+}
 
-// preparePrivateTransaction call c.transactor.PreparePrivateTransaction to send the private transaction
-// replace the payload of private transaction to the hash from Tessera/Constellation
-func (c *BoundContract) preparePrivateTransaction(ctx context.Context, tx *types.Transaction, privateFrom string, privateFor []string) (*types.Transaction, error) {
-	raw, _ := rlp.EncodeToBytes(tx)
-
-	privTxBytes, err := c.transactor.PreparePrivateTransaction(ctx, raw, privateFrom, privateFor)
+// sendPrivateTx send the private transaction to Tessera/Constellation
+func sendPrivateTx(tx *types.Transaction, privateFrom string, privateFor []string) ([]byte, error) {
+	if private.P == nil {
+		return nil, errors.New("transaction manager not set up")
+	}
+	data, err := private.P.Send(tx.Data(), privateFrom, privateFor)
 	if err != nil {
 		return nil, err
 	}
-
-	tx = new(types.Transaction)
-	if err := rlp.DecodeBytes(privTxBytes, tx); err != nil {
-		return nil, err
-	}
-	return tx, nil
+	return data, nil
 }
 
+// ensureContext is a helper method to ensure a context is not nil, even if the
+// user specified it as such.
 func ensureContext(ctx context.Context) context.Context {
 	if ctx == nil {
 		return context.TODO()
