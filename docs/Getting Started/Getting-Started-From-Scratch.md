@@ -62,8 +62,7 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
      "nonce": "0x0",
      "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
      "timestamp": "0x00"
-    }
-   
+    }   
     ```
 5. Generate node key and copy it into datadir
     ```
@@ -96,7 +95,6 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     INFO [06-07|15:45:17.527] Writing custom genesis block 
     INFO [06-07|15:45:17.527] Persisted trie from memory database      nodes=1 size=152.00B time=60.76µs  gcnodes=0 gcsize=0.00B gctime=0s livenodes=1 livesize=0.00B
     INFO [06-07|15:45:17.527] Successfully wrote genesis state         database=lightchaindata                              hash=ec0542…9665bf
-
     ```
 9. Start your node by first creating a script as below and then starting it:
     ```
@@ -110,7 +108,6 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     ``` 
 
     Your node is now operational and you may attach to it with below commands`. This configuration starts Quorum without privacy support as could be evidenced in prefix `PRIVATE_CONFIG=ignore`, please see below sections on [how to enable privacy with privacy transaction managers](#adding-privacy-transaction-manager).
-
 
     ```
     $ geth attach new-node-1/geth.ipc
@@ -150,8 +147,7 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     ```
 2. Retrieve current chains `genesis.json` and `static-nodes.json`. `static-nodes.json` should be placed into new nodes data dir
     ```
-    $ cp static-nodes.json new-node-2
-    
+    $ cp static-nodes.json new-node-2    
     ```
 
 3. Edit `static-nodes.json` and add new entry for the new node you are configuring (should be last)
@@ -164,8 +160,7 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
      "enode://56e81550db3ccbfb5eb69c0cfe3f4a7135c931a1bae79ea69a1a1c6092cdcbea4c76a556c3af977756f95d8bf9d7b38ab50ae070da390d3abb3d7e773099c1a9@127.0.0.1:21001?discport=0&raftport=50001"
    ]
    ```  
-
- 
+    
 4. Initialize new node as given below: 
 
     ```
@@ -180,7 +175,6 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     INFO [06-07|16:34:39.819] Writing custom genesis block 
     INFO [06-07|16:34:39.819] Persisted trie from memory database      nodes=1 size=152.00B time=43.733µs gcnodes=0 gcsize=0.00B gctime=0s livenodes=1 livesize=0.00B
     INFO [06-07|16:34:39.819] Successfully wrote genesis state         database=lightchaindata                                          hash=f02d0b…ed214a
-
     ```
     
 5. Connect to an already running node of the chain and execute raft `addPeer` command.
@@ -211,7 +205,6 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
         raftPort: 50000
     }]
     > exit
-
     ```
 6. Start your node by first creating a script as previous step and changing the ports you are going to use for Devp2p and raft.
     ```
@@ -227,7 +220,6 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
 7. Optional: share new `static-nodes.json` with all other chain participants
     ```
     $ cp new-node-2/static-nodes.json new-node-1
-
     ```
 
     Your additional node is now operational and is part of the same chain as the previously set up node.
@@ -288,7 +280,6 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     10554 ttys000    0:00.01 -bash
      9125 ttys002    0:00.51 -bash
     10695 ttys002    0:31.76 geth --datadir new-node-1 --nodiscover --verbosity 5 --networkid 31337 --raft --raftport 50000 --rpc --rpcaddr 0.0.0.0 --rpcport 22000 --rpcapi admin,db,eth,debug,miner,net,shh,txpoo
-
     ```
 
 
@@ -343,8 +334,7 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     	"NodeInfo": "enode://e53e92e5a51ac2685b0406d0d3c62288b53831c3b0f492b9dc4bc40334783702cfa74c49b836efa2761edde33a3282704273b2453537b855e7a4aeadcccdb43e@0.0.0.0:30303?discport=0"
     }
     
-    
-    
+        
     static-nodes.json
     [
     	"enode://dd333ec28f0a8910c92eb4d336461eea1c20803eed9cf2c056557f986e720f8e693605bba2f4e8f289b1162e5ac7c80c914c7178130711e393ca76abc1d92f57@0.0.0.0:30303?discport=0",
@@ -411,8 +401,8 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
      drwxr-xr-x  3 krish  staff    96 11 Jun 16:00 4
      -rwxr-xr-x  1 krish  staff  1878 11 Jun 16:00 genesis.json
      -rwxr-xr-x  1 krish  staff   832 11 Jun 16:00 static-nodes.json
-
     ```
+    
 5. Update `static-nodes.json` to include the intended IP and port numbers of all initial validator nodes. In `static-nodes.json`, you will see a different row for each node. For the rest of the installation guide, row Y refers to node Y and row 1 is assumed to correspond to the lead node
     ```
     $ cat static-nodes.json
@@ -424,8 +414,6 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     	"enode://3fe0ff0dd2730eaac7b6b379bdb51215b5831f4f48fa54a24a0298ad5ba8c2a332442948d53f4cd4fd28f373089a35e806ef722eb045659910f96a1278120516@127.0.0.1:30303?discport=0",
     	"enode://e53e92e5a51ac2685b0406d0d3c62288b53831c3b0f492b9dc4bc40334783702cfa74c49b836efa2761edde33a3282704273b2453537b855e7a4aeadcccdb43e@127.0.0.1:30304?discport=0"
     ]
-
-
     ```
 6. In each node's working directory, create a data directory called `data`, and inside `data` create the `geth` directory
     ```
@@ -514,7 +502,6 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     $ cp node0/2/nodekey node2/data/geth
     $ cp node0/3/nodekey node3/data/geth
     $ cp node0/4/nodekey node4/data/geth
-
     ```
 10. Switch into working directory of lead node and initialize it. Repeat for every working directory X created in step 3. *The resulting hash given by executing `geth init` must match for every node*
     ```
@@ -614,7 +601,6 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     36435 ttys002    0:00.19 geth --datadir data --nodiscover --istanbul.blockperiod 5 --syncmode full --mine --minerthreads 1 --verbosity 5 --networkid 10 --rpc --rpcaddr 0.0.0.0 --rpcport 22003 --rpcapi admin,
     36436 ttys002    0:00.19 geth --datadir data --nodiscover --istanbul.blockperiod 5 --syncmode full --mine --minerthreads 1 --verbosity 5 --networkid 10 --rpc --rpcaddr 0.0.0.0 --rpcport 22004 --rpcapi admin,
     $ 
-
     ```
 
     Your node is now operational and you may attach to it with `geth attach data/geth.ipc`. This configuration starts Quorum without privacy support
@@ -727,8 +713,8 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
      modules: admin:1.0 debug:1.0 eth:1.0 istanbul:1.0 miner:1.0 net:1.0 personal:1.0 rpc:1.0 txpool:1.0 web3:1.0
     
     > istanbul.propose("0x2aabbc1bb9bacef60a09764d1a1f4f04a47885c1",true)
-
-    ````
+    ```
+    
 4. Verify that the new validator has been added to the list of validators by running `istanbul.getValidators()`
     ```
     ... you can see below command now displays 6 node address as validators.
@@ -808,7 +794,6 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     36485 ttys002    0:00.15 geth --datadir data --nodiscover --istanbul.blockperiod 5 --syncmode full --mine --minerthreads 1 --verbosity 5 --networkid 10 --rpc --rpcaddr 0.0.0.0 --rpcport 22005 --rpcapi admin,
     36455 ttys003    0:00.04 -bash
     36467 ttys003    0:00.32 geth attach node3/data/geth.ipc
-
     ```
 
 ### Removing validator
@@ -867,7 +852,6 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     ```
     > istanbul.getValidators()
     ["0x189d23d201b03ae1cf9113672df29a5d672aefa3", "0x44b07d2c28b8ed8f02b45bd84ac7d9051b3349e6", "0x4c1ccd426833b9782729a212c857f2f03b7b4c0d", "0x7ae555d0f6faad7930434abdaac2274fd86ab516", "0xc1056df7c02b6f1a353052eaf0533cc7cb743b52"]
-
     ```
 4. Stop the `geth` process corresponding to the validator that was removed.
     ```
@@ -976,8 +960,8 @@ Just execute **step 4** instruction from removing a validator node.
        },
        "alwaysSendTo": []
     }
-
     ```
+    
 4. If you want to start another Tessera node, please repeat step 2 & step 3
     ```
     $ cd ..
@@ -1048,7 +1032,7 @@ Just execute **step 4** instruction from removing a validator node.
     }
     
     ```
-4. Start your tessera nodes and send then into background
+5. Start your tessera nodes and send then into background
     ```
     $ java -jar ../tessera.jar -configfile config.json >> tessera.log 2>&1 &
     [1] 38064
@@ -1063,10 +1047,9 @@ Just execute **step 4** instruction from removing a validator node.
      9125 ttys002    0:01.52 -bash
     38072 ttys002    1:18.42 /usr/bin/java -jar ../tessera.jar -configfile config.json
     38076 ttys002    1:15.86 /usr/bin/java -jar ../tessera.jar -configfile config.json
-
     ```
 
-5. Start Quorum nodes attached to running Tessera nodes from above and send it to background
+6. Start Quorum nodes attached to running Tessera nodes from above and send it to background
     ```
     ... update the start scripts to include PRIVATE_CONFIG
     $cd ..
@@ -1089,8 +1072,7 @@ Just execute **step 4** instruction from removing a validator node.
     38076 ttys002    0:47.60 /usr/bin/java -jar ../tessera.jar -configfile config.json
     38183 ttys002    0:08.15 geth --datadir new-node-1 --nodiscover --verbosity 5 --networkid 31337 --raft --raftport 50000 --rpc --rpcaddr 0.0.0.0 --rpcport 22000 --rpcapi admin,db,eth,debug,miner,net,shh,txpoo
     38204 ttys002    0:00.19 geth --datadir new-node-2 --nodiscover --verbosity 5 --networkid 31337 --raft --raftport 50001 --raftjoinexisting 2 --rpc --rpcaddr 0.0.0.0 --rpcport 22001 --rpcapi admin,db,eth,debu
-    36455 ttys003    0:00.15 -bash
-  
+    36455 ttys003    0:00.15 -bash  
     ```
 
     Your node is now operational and you may attach to it with `geth attach new-node-1/geth.ipc` to send private transactions. Tessera IPC bridge will be over a file name defined in your `config.json`, usually named `tm.ipc` as evidenced in prefix `PRIVATE_CONFIG=tm.ipc`. Your node is now able to send and receive private transactions, advertised public node key will be in the `new-node-1.pub` file. Tessera offers a lot of configuration flexibility, please refer [Configuration](../../Privacy/Tessera/Configuration/Configuration%20Overview) section under Tessera for complete and up to date configuration options.
