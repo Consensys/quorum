@@ -293,15 +293,17 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     $ export PATH=$PATH:/yourpath/quorum/build/bin
     ```
 2. Install [istanbul-tools](https://github.com/jpmorganchase/istanbul-tools)
+
     ```
-   $ mkdir fromscratchistanbul
-   $ cd fromscratchistanbul
-   $ git clone https://github.com/jpmorganchase/istanbul-tools.git
-   $ make
+    $ mkdir fromscratchistanbul
+    $ cd fromscratchistanbul
+    $ git clone https://github.com/jpmorganchase/istanbul-tools.git
+    $ make
     ```
+    
 3. Create a working directory for each of the X number of initial validator nodes
     ```
-   $ mkdir node0 node1 node2 node3 node4
+    $ mkdir node0 node1 node2 node3 node4
     ```
 4. Change into the lead (whichever one you consider first) node's working directory and generate the setup files for X initial validator nodes by executing `istanbul setup --num X --nodes --quorum --save --verbose` **only execute this instruction once, i.e. not X times**. This command will generate several items of interest: `static-nodes.json`, `genesis.json`, and nodekeys for all the initial validator nodes which will sit in numbered directories from 0 to X-1
     ```
@@ -658,8 +660,9 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
         "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
     }
     ```
+    
 3. Copy the address of the validator and run `istanbul.propose(<address>, true)` from more than half the number of current validators.
-    ````
+    ```
     $ cd ..
     $ geth attach node0/data/geth.ipc
     $ geth attach node0/data/geth.ipc
