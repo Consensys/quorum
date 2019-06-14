@@ -81,6 +81,7 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     [
       "enode://70399c3d1654c959a02b73acbdd4770109e39573a27a9b52bd391e5f79b91a42d8f2b9e982959402a97d2cbcb5656d778ba8661ec97909abc72e7bb04392ebd8@127.0.0.1:21000?discport=0&raftport=50000"
     ] 
+    $ cp static-nodes.json new-node-1
     ```
 8. Initialize new node with below command.
     ```
