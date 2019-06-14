@@ -1113,6 +1113,7 @@ Just execute **step 4** instruction from removing a validator node.
     });
     $
     $
+    ....Account opened in geth by default are locked, so please unlock account first before sending transaction
     $
     $ geth attach new-node-1/geth.ipc
     > eth.accounts
