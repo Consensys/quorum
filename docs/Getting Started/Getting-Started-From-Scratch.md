@@ -10,7 +10,7 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     $ git clone https://github.com/jpmorganchase/quorum.git
     $ cd quorum
     $ make all
-    $ export PATH=$PATH:/yourpath/quorum/build/bin
+    $ export PATH=$(pwd)/build/bin:$PATH
     ```
 
 2. Create a working directory which will be the base for the new node(s) and change into it
@@ -106,9 +106,11 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     $ chmod +x startnode1.sh 
     $ ./startnode1.sh
     ``` 
+    
+    !!! note
+        This configuration starts Quorum without privacy support as could be evidenced in prefix `PRIVATE_CONFIG=ignore`, please see below sections on [how to enable privacy with privacy transaction managers](#adding-privacy-transaction-manager).
 
-    Your node is now operational and you may attach to it with below commands`. This configuration starts Quorum without privacy support as could be evidenced in prefix `PRIVATE_CONFIG=ignore`, please see below sections on [how to enable privacy with privacy transaction managers](#adding-privacy-transaction-manager).
-
+    Your node is now operational and you may attach to it with below commands. 
     ```
     $ geth attach new-node-1/geth.ipc
     Welcome to the Geth JavaScript console!
@@ -152,7 +154,7 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
 
 3. Edit `static-nodes.json` and add new entry for the new node you are configuring (should be last)
    ```
-   $ vim static-nodes.json 
+   $ vim new-node-2/static-nodes.json 
    .... append new-node-2's enode generated in step 1, port 21001;IP 127.0.0.1 and raft port set as 50001
 
    [
@@ -285,22 +287,21 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
 
 
 ## Quorum with Istanbul BFT consensus
-1. On each machine build Quorum as described in the [getting set up](../Setup%20Overview%20%26%20Quickstart) section. Ensure that PATH contains geth and bootnode
+1. On each machine build Quorum as described in the [getting set up](../Setup%20Overview%20%26%20Quickstart) section. Ensure that PATH contains geth and boot node
     ```
     $ git clone https://github.com/jpmorganchase/quorum.git
     $ cd quorum
     $ make all
-    $ export PATH=$PATH:/yourpath/quorum/build/bin
+    $ export PATH=$(pwd)/build/bin:$PATH
     ```
 2. Install [istanbul-tools](https://github.com/jpmorganchase/istanbul-tools)
-
     ```
     $ mkdir fromscratchistanbul
     $ cd fromscratchistanbul
     $ git clone https://github.com/jpmorganchase/istanbul-tools.git
+    $ cd istanbul-tools
     $ make
-    ```
-    
+    ```    
 3. Create a working directory for each of the X number of initial validator nodes
     ```
     $ mkdir node0 node1 node2 node3 node4
@@ -604,12 +605,13 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     36436 ttys002    0:00.19 geth --datadir data --nodiscover --istanbul.blockperiod 5 --syncmode full --mine --minerthreads 1 --verbosity 5 --networkid 10 --rpc --rpcaddr 0.0.0.0 --rpcport 22004 --rpcapi admin,
     $ 
     ```
+    
+    !!! note
+        This configuration starts Quorum without privacy support as could be evidenced in prefix `PRIVATE_CONFIG=ignore`, please see below sections on [how to enable privacy with privacy transaction managers](#adding-privacy-transaction-manager).
+        Please note that istanbul-tools may be used to generate X number of nodes, more information is available in the [docs](https://github.com/jpmorganchase/istanbul-tools).
 
-    Your node is now operational and you may attach to it with `geth attach data/geth.ipc`. This configuration starts Quorum without privacy support
-    as could be evidenced in prefix `PRIVATE_CONFIG=ignore`, please see below sections on [how to enable privacy with privacy transaction managers](#adding-privacy-transaction-manager).
-
-    Please note that istanbul-tools may be used to generate X number of nodes, more information is available in the [docs](https://github.com/jpmorganchase/istanbul-tools).
-
+    Your node is now operational and you may attach to it with `geth attach data/geth.ipc`. 
+    
 ### Adding additional validator
 1. Create a working directory for the new node that needs to be added
     ```
@@ -726,8 +728,9 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     ```
 5. Copy `static-nodes.json` and genesis.json from the existing chain. `static-nodes.json` should be placed into new nodes data dir
     ```
+    $ cd node5
     $ mkdir -p data/geth
-    $ cp ../node0/static-nodes.json dat
+    $ cp ../node0/static-nodes.json data
     $ cp ../node0/genesis.json .
     ```
 6. Edit `static-nodes.json` and add the new validators node info to the end of the file. New validators node info can be got from the output of `istanbul setup --num 1 --verbose --quorum --save` command that was run in step 2. Update the IP address and port of the node info to match the IP address of the validator and port you want to use.
@@ -750,7 +753,7 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     ```
 8. Generate one or more accounts for this node and take down the account address.
     ```
-    $ geth --datadir node5 account new
+    $ geth --datadir data account new
     INFO [06-12|17:45:11.116] Maximum peer count                       ETH=25 LES=0 total=25
     Your new account is locked with a password. Please give a password. Do not forget this password.
     Passphrase: 
@@ -890,7 +893,7 @@ Just execute **step 4** instruction from removing a validator node.
     $ git clone https://github.com/jpmorganchase/quorum.git
     $ cd quorum
     $ make all
-    $ export PATH=$PATH:/yourpath/quorum/build/bin
+    $ export PATH=$(pwd)/build/bin:$PATH
     $ cd ..
     .... copy tessera jar to your desired destination and rename it as tessera
     $ mv tessera-app-0.9.2-app.jar tessera.jar
@@ -1035,7 +1038,7 @@ Just execute **step 4** instruction from removing a validator node.
     }
     
     ```
-5. Start your tessera nodes and send then into background
+5. Start your Tessera nodes and send then into background
     ```
     $ java -jar ../tessera.jar -configfile config.json >> tessera.log 2>&1 &
     [1] 38064
@@ -1078,7 +1081,10 @@ Just execute **step 4** instruction from removing a validator node.
     36455 ttys003    0:00.15 -bash  
     ```
 
-    Your node is now operational and you may attach to it with `geth attach new-node-1/geth.ipc` to send private transactions. Tessera IPC bridge will be over a file name defined in your `config.json`, usually named `tm.ipc` as evidenced in prefix `PRIVATE_CONFIG=tm.ipc`. Your node is now able to send and receive private transactions, advertised public node key will be in the `new-node-1.pub` file. Tessera offers a lot of configuration flexibility, please refer [Configuration](../../Privacy/Tessera/Configuration/Configuration%20Overview) section under Tessera for complete and up to date configuration options.
+    !!! note
+        Tessera IPC bridge will be over a file name defined in your `config.json`, usually named `tm.ipc` as evidenced in prefix `PRIVATE_CONFIG=tm.ipc`. Your node is now able to send and receive private transactions, advertised public node key will be in the `new-node-1.pub` file. Tessera offers a lot of configuration flexibility, please refer [Configuration](../../Privacy/Tessera/Configuration/Configuration%20Overview) section under Tessera for complete and up to date configuration options.
+        
+    Your node is now operational and you may attach to it with `geth attach new-node-1/geth.ipc` to send private transactions. 
     ```
     $ vim private-contract.js
     ... create simple private contract to send transaction from new-node-1 private for new-node-2's tessera public key
@@ -1128,7 +1134,10 @@ Just execute **step 4** instruction from removing a validator node.
 3. Start your constellation node and send it into background with `constellation-node --url=https://127.0.0.1:9001/ --port=9001 --workdir=. --socket=tm.ipc --publickeys=new-node-1.pub --privatekeys=new-node-1.key --othernodes=https://127.0.0.1:9001/ >> constellation.log 2>&1 &`
 4. Start your node and send it into background with `PRIVATE_CONFIG=tm.ipc nohup geth --datadir new-node-1 --nodiscover --verbosity 5 --networkid 31337 --raft --raftport 50000 --rpc --rpcaddr 0.0.0.0 --rpcport 22000 --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum,raft --emitcheckpoints --port 21000 2>>node.log &`
 
-Your node is now operational and you may attach to it with `geth attach new-node-1/geth.ipc`. Constellation IPC bridge will be over a file name defined in your configuration: in above step #3 see option `--socket=file-name.ipc`. Your node is now able to send and receive private transactions, advertised public node key will be in the `new-node-1.pub` file.
+    !!! note
+        Constellation IPC bridge will be over a file name defined in your configuration: in above step #3 see option `--socket=file-name.ipc`. Your node is now able to send and receive private transactions, advertised public node key will be in the `new-node-1.pub` file.
+
+    Your node is now operational and you may attach to it with `geth attach new-node-1/geth.ipc`. 
 
 
 ## Enabling permissioned configuration
