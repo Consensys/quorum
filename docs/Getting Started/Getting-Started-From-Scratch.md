@@ -1113,7 +1113,12 @@ Just execute **step 4** instruction from removing a validator node.
     });
     $
     $
-    ....Account opened in geth by default are locked, so please unlock account first before sending transaction
+    ```
+    
+    !!! note
+        Account opened in geth by default are locked, so please unlock account first before sending transaction
+        
+    ```
     $
     $ geth attach new-node-1/geth.ipc
     > eth.accounts
@@ -1127,7 +1132,7 @@ Just execute **step 4** instruction from removing a validator node.
     true
     > Contract mined! Address: 0xe975e1e11c5268b1efcbf39b7ee3cf7b8dc85fd7
     ```
-    
+
     You have **successfully** sent a private transaction from node 1 to node 2 !!
 
 ### Constellation
