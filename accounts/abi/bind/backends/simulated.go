@@ -319,6 +319,33 @@ func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transa
 	return nil
 }
 
+// SendPrivateTransaction is the same as SendTransaction in simulated.go
+func (b *SimulatedBackend) SendPrivateTransaction(ctx context.Context, tx *types.Transaction, privateFor []string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	sender, err := types.Sender(types.HomesteadSigner{}, tx)
+	if err != nil {
+		panic(fmt.Errorf("invalid transaction: %v", err))
+	}
+	nonce := b.pendingState.GetNonce(sender)
+	if tx.Nonce() != nonce {
+		panic(fmt.Errorf("invalid transaction nonce: got %d, want %d", tx.Nonce(), nonce))
+	}
+
+	blocks, _ := core.GenerateChain(b.config, b.blockchain.CurrentBlock(), ethash.NewFaker(), b.database, 1, func(number int, block *core.BlockGen) {
+		for _, tx := range b.pendingBlock.Transactions() {
+			block.AddTxWithChain(b.blockchain, tx)
+		}
+		block.AddTxWithChain(b.blockchain, tx)
+	})
+	statedb, _, _ := b.blockchain.State()
+
+	b.pendingBlock = blocks[0]
+	b.pendingState, _ = state.New(b.pendingBlock.Root(), statedb.Database())
+	return nil
+}
+
 // FilterLogs executes a log filter operation, blocking during execution and
 // returning all the results in one batch.
 //
