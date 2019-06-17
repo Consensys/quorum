@@ -22,7 +22,7 @@ build a controls to minimize a risk, the activities that are expected to be perf
 
 ### Security Checklist
 
-!!! success "Byznatine fault tolerant consensus protocol should be used if the Consortium member ledger nodes are managed by third party organization."
+!!! success "Use Byznatine fault tolerant consensus protocol in case ledgers servers are managed by an external service provider (E.g cloud provider)"
 
 !!! success "Consortium member should provide a reasonable network Service-Level Agreement (SLA)."
 
