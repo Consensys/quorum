@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private"
 	"io/ioutil"
 	"math/big"
@@ -398,6 +399,9 @@ type StoreRawArgs struct {
 	Payload string `json:"payload"`
 	From    string `json:"from"`
 }
+type StoreRawResp struct {
+	Key string `json:"key"`
+}
 
 // storeRaw calls the /storeraw API of tessera
 func storeRaw(data []byte, privateFrom string, url string) ([]byte, error) {
@@ -413,7 +417,10 @@ func storeRaw(data []byte, privateFrom string, url string) ([]byte, error) {
 	respBody, _ := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 
-	return respBody, nil
+	respBodyJSON := StoreRawResp{}
+	json.Unmarshal(respBody, respBodyJSON)
+	log.Info("storeraw API response", "key", respBodyJSON.Key)
+	return []byte(respBodyJSON.Key), nil
 }
 
 // ensureContext is a helper method to ensure a context is not nil, even if the
