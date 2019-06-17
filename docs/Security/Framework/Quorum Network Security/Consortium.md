@@ -26,7 +26,7 @@ build a controls to minimize a risk, the activities that are expected to be perf
 
 !!! success "Consortium member should provide a reasonable network Service-Level Agreement (SLA)."
 
-!!! success "Ensure Private/Public payloads data is stored in a appropiate Geografical legislation area. "
+!!! success "Ensure Private/Public payloads data is stored in a appropiate Geographical legislation area. "
 
 !!! success "Document the Consortium Governance Structure, Ownership, Liability, Memberships, Activities. "
 
