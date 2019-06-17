@@ -12,7 +12,7 @@ The following parameters are of interest to be collected and analyzed:
 
 ### Security Checklist
 
-!!! success "Ensure all activities of the Quorum hosts are being logged to centralized log system"
+!!! success "Ensure all activities of Quorum hosts are being logged to centralized log system"
 
 !!! success "Centralized log system most be able to provide query capabilites over the following parameters:"
     - Ethereum accounts on the network
