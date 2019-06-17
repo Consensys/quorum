@@ -506,6 +506,23 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", common.ToHex(data))
 }
 
+// Quorum
+// SendRawTxArgs represents the arguments to submit a new signed private transaction into the transaction pool.
+type SendRawTxArgs struct {
+	PrivateFor []string `json:"privateFor"`
+}
+
+// Quorum
+// SendPrivateTransaction sends raw private transaction hash to Quorum
+// after transaction bytestring has been sent from a third party to Tessera node using /storeraw
+func (ec *Client) SendPrivateTransaction(ctx context.Context, tx *types.Transaction, privateFor []string) error {
+	data, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return err
+	}
+	return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", common.ToHex(data), SendRawTxArgs{PrivateFor: privateFor})
+}
+
 func toCallArg(msg ethereum.CallMsg) interface{} {
 	arg := map[string]interface{}{
 		"from": msg.From,
