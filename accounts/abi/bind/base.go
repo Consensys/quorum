@@ -28,7 +28,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private"
 	"io/ioutil"
 	"math/big"
@@ -270,7 +269,6 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 			return nil, err
 		}
 	}
-
 	return signedTx, nil
 }
 
@@ -409,7 +407,7 @@ func storeRaw(data []byte, privateFrom string, url string) ([]byte, error) {
 		Payload: string(data),
 		From:    privateFrom}
 	reqBody, _ := json.Marshal(reqBodyJSON)
-	resp, err := http.Post(url+"/storeRaw", "application/json", bytes.NewBuffer(reqBody))
+	resp, err := http.Post(url+"/storeraw", "application/json", bytes.NewBuffer(reqBody))
 
 	if err != nil {
 		return nil, errors.New("Failed to call /storeRaw API on transaction manager.")
@@ -418,8 +416,7 @@ func storeRaw(data []byte, privateFrom string, url string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	respBodyJSON := StoreRawResp{}
-	json.Unmarshal(respBody, respBodyJSON)
-	log.Info("storeraw API response", "key", respBodyJSON.Key)
+	json.Unmarshal(respBody, &respBodyJSON)
 	return []byte(respBodyJSON.Key), nil
 }
 
