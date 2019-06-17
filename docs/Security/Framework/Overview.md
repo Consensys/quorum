@@ -3,6 +3,7 @@ The **objective** of this framework is to provide an in-depth reference to Quoru
  Decentralized Applications (dApps) security best practices.
 
 The following outlines the *scope* of the framework:
+
 - Quorum architecture security 
 - Quorum network security guidelines
 - Decentralized application (dApps) security best practices
