@@ -406,17 +406,26 @@ func storeRaw(data []byte, privateFrom string, url string) ([]byte, error) {
 	reqBodyJSON := &StoreRawArgs{
 		Payload: string(data),
 		From:    privateFrom}
-	reqBody, _ := json.Marshal(reqBodyJSON)
+	reqBody, err := json.Marshal(reqBodyJSON)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := http.Post(url+"/storeraw", "application/json", bytes.NewBuffer(reqBody))
 
 	if err != nil {
 		return nil, errors.New("Failed to call /storeRaw API on transaction manager.")
 	}
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 	defer resp.Body.Close()
 
 	respBodyJSON := StoreRawResp{}
-	json.Unmarshal(respBody, &respBodyJSON)
+	err = json.Unmarshal(respBody, &respBodyJSON)
+	if err != nil {
+		return nil, err
+	}
 	return []byte(respBodyJSON.Key), nil
 }
 
