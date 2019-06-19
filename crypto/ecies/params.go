@@ -39,6 +39,7 @@ import (
 	"crypto/elliptic"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/ecdsa"
 	"fmt"
 	"hash"
 
@@ -114,4 +115,12 @@ func AddParamsForCurve(curve elliptic.Curve, params *ECIESParams) {
 // Only the curves P256, P384, and P512 are supported.
 func ParamsFromCurve(curve elliptic.Curve) (params *ECIESParams) {
 	return paramsFromCurve[curve]
+}
+
+func HexToECDSA(prv string) (*ecdsa.PrivateKey, error) {
+	return ethcrypto.HexToECDSA(prv)
+}
+
+func ToECDSA(prv []byte)(*ecdsa.PrivateKey, error) {
+	return ethcrypto.ToECDSA(prv)
 }

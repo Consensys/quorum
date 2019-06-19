@@ -35,6 +35,8 @@ import (
 	"crypto/elliptic"
 	"crypto/hmac"
 	"crypto/subtle"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"hash"
 	"io"
@@ -291,6 +293,46 @@ func Encrypt(rand io.Reader, pub *PublicKey, m, s1, s2 []byte) (ct []byte, err e
 	return
 }
 
+func (prv *PrivateKey) EncryptShared(rand io.Reader, pub *PublicKey, m, s1, s2 []byte) (ct []byte, err error) {
+	params := pub.Params
+	if params == nil {
+		if params = ParamsFromCurve(pub.Curve); params == nil {
+			err = ErrUnsupportedECIESParameters
+			return
+		}
+	}
+
+	hash := params.Hash()
+	z, err := prv.GenerateShared(pub, params.KeyLen, params.KeyLen)
+	if err != nil {
+		return
+	}
+
+	K, err := concatKDF(hash, z, s1, params.KeyLen+params.KeyLen)
+	if err != nil {
+		return
+	}
+	Ke := K[:params.KeyLen]
+	Km := K[params.KeyLen:]
+	hash.Write(Km)
+	Km = hash.Sum(nil)
+	hash.Reset()
+
+	em, err := symEncrypt(rand, params, Ke, m)
+	if err != nil || len(em) <= params.BlockSize {
+		return
+	}
+
+	d := messageTag(params.Hash, Km, em, s2)
+
+	Rb := elliptic.Marshal(pub.Curve, prv.PublicKey.X, prv.PublicKey.Y)
+	ct = make([]byte, len(Rb)+len(em)+len(d))
+	copy(ct, Rb)
+	copy(ct[len(Rb):], em)
+	copy(ct[len(Rb)+len(em):], d)
+	return
+}
+
 // Decrypt decrypts an ECIES ciphertext.
 func (prv *PrivateKey) Decrypt(c, s1, s2 []byte) (m []byte, err error) {
 	if len(c) == 0 {
@@ -363,4 +405,87 @@ func (prv *PrivateKey) Decrypt(c, s1, s2 []byte) (m []byte, err error) {
 
 	m, err = symDecrypt(params, Ke, c[mStart:mEnd])
 	return
+}
+
+func (prv *PrivateKey) PublicKeyHex() string {
+	pubBytes := elliptic.Marshal(prv.PublicKey.Curve, prv.PublicKey.X, prv.PublicKey.Y)
+	return hex.EncodeToString(pubBytes)
+}
+
+func (prv *PrivateKey) PrivateKeyHex() string {
+	return hex.EncodeToString(prv.D.Bytes())
+}
+
+func Hex2PublicKey(hexkey string) (*PublicKey, error) {
+	b, err := hex.DecodeString(hexkey)
+	if err != nil {
+		return nil, err
+	}
+
+	x, y := elliptic.Unmarshal(DefaultCurve, b)
+	return &PublicKey{
+		X:      x,
+		Y:      y,
+		Curve:  DefaultCurve,
+		Params: ParamsFromCurve(DefaultCurve),
+	}, nil
+}
+
+func PublicKeyFromBytes(b []byte) (*PublicKey, error) {
+	x, y := elliptic.Unmarshal(DefaultCurve, b)
+	return &PublicKey{
+		X:      x,
+		Y:      y,
+		Curve:  DefaultCurve,
+		Params: ParamsFromCurve(DefaultCurve),
+	}, nil
+}
+
+func Hex2PrivateKey(prv string) (*PrivateKey, error) {
+	key, err := HexToECDSA(prv)
+	if err != nil {
+		return nil, err
+	}
+	return ImportECDSA(key), nil
+}
+
+func PrivateKeyFromBytes(prv []byte) (*PrivateKey, error) {
+	key, err := ToECDSA(prv)
+	if err != nil {
+		return nil, err
+	}
+	return ImportECDSA(key), nil
+}
+
+func Web3ECIESENC(priv, pub, input []byte) (cnt []byte, err error){
+   private, errp := PrivateKeyFromBytes(priv)
+   if errp != nil{
+   	 err = errp
+   	 return
+   }
+
+   public, errpub := PublicKeyFromBytes(pub)
+   if errpub != nil{
+   	 err = errpub
+   	 return
+   }
+
+   cnt, err = private.EncryptShared(rand.Reader, public, input, nil, nil)
+   return
+}
+
+func Web3ECIESDEC(priv, input []byte) (cnt []byte, err error){
+   private, errp := PrivateKeyFromBytes(priv)
+   if errp != nil{
+   	 err = errp
+   	 return
+   }
+
+   cnt, err = private.Decrypt(input, nil, nil)
+   return
+}
+
+func EccKeyPairHex() (string, string) {
+	prv, _ := GenerateKey(rand.Reader, DefaultCurve, nil)
+	return prv.PrivateKeyHex(), prv.PublicKeyHex()
 }

@@ -24,6 +24,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/ecies"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -461,4 +462,25 @@ func (s *PublicWeb3API) ClientVersion() string {
 // It assumes the input is hex encoded.
 func (s *PublicWeb3API) Sha3(input hexutil.Bytes) hexutil.Bytes {
 	return crypto.Keccak256(input)
+}
+
+// ECIESENC applies the ethereum ECIES encryption.
+// It assumes all inputs are hex encoded.
+func (s *PublicWeb3API) EciesEnc(priv, pub, input hexutil.Bytes) (hexutil.Bytes, error) {
+	return ecies.Web3ECIESENC(priv, pub, input)
+}
+
+// ECIESDEC applies the ethereum ECIES decryption.
+// It assumes all inputs are hex encoded.
+func (s *PublicWeb3API) EciesDec(priv, input hexutil.Bytes) (hexutil.Bytes, error) {
+	return ecies.Web3ECIESDEC(priv, input)
+}
+
+// Generates a ECC Key Pair
+func (s *PublicWeb3API) EccKeyPair() interface{} {
+	priv, pub := ecies.EccKeyPairHex()
+	return map[string]interface{}{
+     "privatekey": priv,
+     "publickey": pub,
+	}
 }
