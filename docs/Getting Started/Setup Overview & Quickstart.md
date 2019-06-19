@@ -37,4 +37,3 @@ Follow the installation instructions on the [Tessera project page](https://githu
 
 ## Getting Started from Scratch
 Follow the instructions given [here](../Getting-Started-From-Scratch).
-
