@@ -1,7 +1,13 @@
 # Setup Overview & Quickstart
 
 Using Quorum requires that a Quorum Node and a Constellation/Tessera Node are installed, configured and
-running (see build/installation instructions for both below). An overview of the steps to follow to manually set up Quorum, including key generation, genesis block & Constellation/Tessera configuration will be available soon, but for now the best way to get started is to use the Vagrant environment that has been made available for running the [Quorum Examples](../Quorum-Examples). The Vagrant environment automatically sets up a test Quorum network that is ready for development use within minutes and is the recommended approach if you are looking to get started with Quorum.  If you don't want to use the Quorum Examples approach and instead would like to manually set up Quorum then please see below (Note: this documentation is Work In Progress)
+running (see build/installation instructions for both below). An overview of the steps to follow to manually set up Quorum, including key generation, genesis block & Constellation/Tessera configuration will be available soon, but for now the best way to get started is to use the pre-configured Vagrant environment that has been made available our Quorum Examples repo. 
+
+## Quickstart using Quorum Examples
+
+The easiest way to get a network up and running is by following the steps in [Quorum Examples](../Quorum-Examples). This Vagrant environment automatically sets up a test Quorum network that is ready for development use within minutes and is the recommended approach if you are looking to get started with Quorum.
+
+If you don't want to use the Quorum Examples approach and instead would like to manually set up Quorum then please see the instructions below (Note: this documentation is Work In Progress)
 
 ## Building Quorum Node From Source
 
@@ -31,3 +37,4 @@ Follow the installation instructions on the [Tessera project page](https://githu
 
 ## Getting Started from Scratch
 Follow the instructions given [here](../Getting-Started-From-Scratch).
+
