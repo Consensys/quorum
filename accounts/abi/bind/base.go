@@ -17,10 +17,7 @@
 package bind
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -29,10 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/private"
-	"io/ioutil"
 	"math/big"
-	"net/http"
 )
 
 // SignerFn is a signer function callback when a contract requires a method to
@@ -54,9 +48,8 @@ type TransactOpts struct {
 	Nonce  *big.Int       // Nonce to use for the transaction execution (nil = use pending state)
 	Signer SignerFn       // Method to use for signing the transaction (mandatory)
 
-	TransactionManagerURL string   // Tessera/Constellation URL to call /storeraw API.
-	PrivateFrom           string   // The public key of the Tessera/Constellation identity to send this tx from.
-	PrivateFor            []string // The public keys of the Tessera/Constellation identities this tx is intended for.
+	PrivateFrom string   // The public key of the Tessera/Constellation identity to send this tx from.
+	PrivateFor  []string // The public keys of the Tessera/Constellation identities this tx is intended for.
 
 	Value    *big.Int // Funds to transfer along along the transaction (nil = 0 = no funds)
 	GasPrice *big.Int // Gas price to use for the transaction execution (nil = gas price oracle)
@@ -245,7 +238,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	// with the hash of the transaction from tessera/constellation.
 	if opts.PrivateFor != nil {
 		var payload []byte
-		payload, err = sendPrivateTx(rawTx, opts.PrivateFrom, opts.TransactionManagerURL)
+		payload, err = c.transactor.StoreRaw(rawTx.Data(), opts.PrivateFrom)
 		if err != nil {
 			return nil, err
 		}
@@ -379,59 +372,6 @@ func (c *BoundContract) preparePrivateTransaction(tx *types.Transaction, payload
 	}
 	privateTx.SetPrivate()
 	return privateTx
-}
-
-// sendPrivateTx send the private transaction to Tessera/Constellation
-func sendPrivateTx(tx *types.Transaction, privateFrom string, url string) ([]byte, error) {
-	if private.P == nil {
-		return nil, errors.New("transaction manager not set up")
-	}
-	data, err := storeRaw(tx.Data(), privateFrom, url)
-	if err != nil {
-		return nil, err
-	}
-	return data, nil
-}
-
-// storeraw API params
-type StoreRawArgs struct {
-	Payload string `json:"payload"`
-	From    string `json:"from"`
-}
-type StoreRawResp struct {
-	Key string `json:"key"`
-}
-
-// storeRaw calls the /storeraw API of tessera
-func storeRaw(data []byte, privateFrom string, url string) ([]byte, error) {
-	reqBodyJSON := &StoreRawArgs{
-		Payload: base64.StdEncoding.EncodeToString(data),
-		From:    privateFrom}
-	reqBody, err := json.Marshal(reqBodyJSON)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := http.Post(url+"/storeraw", "application/json", bytes.NewBuffer(reqBody))
-
-	if err != nil {
-		return nil, errors.New("Failed to call /storeRaw API on transaction manager.")
-	}
-	respBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	respBodyJSON := StoreRawResp{}
-	err = json.Unmarshal(respBody, &respBodyJSON)
-	if err != nil {
-		return nil, err
-	}
-	respBodyDecoded, err := base64.StdEncoding.DecodeString(respBodyJSON.Key)
-	if err != nil {
-		return nil, err
-	}
-	return respBodyDecoded, nil
 }
 
 // ensureContext is a helper method to ensure a context is not nil, even if the

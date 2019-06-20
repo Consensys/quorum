@@ -84,6 +84,8 @@ type ContractTransactor interface {
 	SendTransaction(ctx context.Context, tx *types.Transaction) error
 	// SendPrivateTransaction injects private transaction into the pending pool for execution.
 	SendPrivateTransaction(ctx context.Context, tx *types.Transaction, privateFor []string) error
+	// StoreRaw send the private transaction to Tessera/Constellation
+	StoreRaw(data []byte, privateFrom string) ([]byte, error)
 }
 
 // ContractFilterer defines the methods needed to access log events using one-off

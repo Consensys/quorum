@@ -18,11 +18,16 @@
 package ethclient
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/private"
+	"io/ioutil"
 	"math/big"
+	"net/http"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -34,7 +39,8 @@ import (
 
 // Client defines typed wrappers for the Ethereum RPC API.
 type Client struct {
-	c *rpc.Client
+	c                     *rpc.Client
+	TransactionManagerURL string // Tessera/Constellation URL to call /storeraw API.
 }
 
 // Dial connects a client to the given URL.
@@ -52,7 +58,7 @@ func DialContext(ctx context.Context, rawurl string) (*Client, error) {
 
 // NewClient creates a client that uses the given RPC client.
 func NewClient(c *rpc.Client) *Client {
-	return &Client{c}
+	return &Client{c, ""}
 }
 
 func (ec *Client) Close() {
@@ -506,13 +512,12 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", common.ToHex(data))
 }
 
-// Quorum
+// --- Quorum Changes Start ---
 // SendRawTxArgs represents the arguments to submit a new signed private transaction into the transaction pool.
 type SendRawTxArgs struct {
 	PrivateFor []string `json:"privateFor"`
 }
 
-// Quorum
 // SendPrivateTransaction sends raw private transaction hash to Quorum
 // after transaction bytestring has been sent from a third party to Tessera node using /storeraw
 func (ec *Client) SendPrivateTransaction(ctx context.Context, tx *types.Transaction, privateFor []string) error {
@@ -522,6 +527,56 @@ func (ec *Client) SendPrivateTransaction(ctx context.Context, tx *types.Transact
 	}
 	return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", common.ToHex(data), SendRawTxArgs{PrivateFor: privateFor})
 }
+
+// storeraw API params
+type StoreRawArgs struct {
+	Payload string `json:"payload"`
+	From    string `json:"from"`
+}
+type StoreRawResp struct {
+	Key string `json:"key"`
+}
+
+// storeRaw calls the /storeraw API of tessera
+func (ec *Client) StoreRaw(data []byte, privateFrom string) ([]byte, error) {
+	if ec.TransactionManagerURL == "" {
+		return nil, errors.New("transaction manager url is nil")
+	}
+	// sendPrivateTx send the private transaction to Tessera/Constellation
+	if private.P == nil {
+		return nil, errors.New("transaction manager not set up")
+	}
+	reqBodyJSON := &StoreRawArgs{
+		Payload: base64.StdEncoding.EncodeToString(data),
+		From:    privateFrom}
+	reqBody, err := json.Marshal(reqBodyJSON)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.Post(ec.TransactionManagerURL+"/storeraw", "application/json", bytes.NewBuffer(reqBody))
+
+	if err != nil {
+		return nil, errors.New("Failed to call /storeRaw API on transaction manager.")
+	}
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBodyJSON := StoreRawResp{}
+	err = json.Unmarshal(respBody, &respBodyJSON)
+	if err != nil {
+		return nil, err
+	}
+	respBodyDecoded, err := base64.StdEncoding.DecodeString(respBodyJSON.Key)
+	if err != nil {
+		return nil, err
+	}
+	return respBodyDecoded, nil
+}
+
+// --- Quorum Changes End ---
 
 func toCallArg(msg ethereum.CallMsg) interface{} {
 	arg := map[string]interface{}{
