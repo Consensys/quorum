@@ -20,13 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
-	"math/big"
 )
 
 // SignerFn is a signer function callback when a contract requires a method to
@@ -48,14 +49,15 @@ type TransactOpts struct {
 	Nonce  *big.Int       // Nonce to use for the transaction execution (nil = use pending state)
 	Signer SignerFn       // Method to use for signing the transaction (mandatory)
 
-	PrivateFrom string   // The public key of the Tessera/Constellation identity to send this tx from.
-	PrivateFor  []string // The public keys of the Tessera/Constellation identities this tx is intended for.
-
 	Value    *big.Int // Funds to transfer along along the transaction (nil = 0 = no funds)
 	GasPrice *big.Int // Gas price to use for the transaction execution (nil = gas price oracle)
 	GasLimit uint64   // Gas limit to set for the transaction execution (0 = estimate)
 
 	Context context.Context // Network context to support cancellation and timeouts (nil = no timeout)
+
+	// Quorum
+	PrivateFrom string   // The public key of the Tessera/Constellation identity to send this tx from.
+	PrivateFor  []string // The public keys of the Tessera/Constellation identities this tx is intended for.
 }
 
 // FilterOpts is the collection of options to fine tune filtering for events

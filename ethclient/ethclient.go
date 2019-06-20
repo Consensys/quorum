@@ -542,19 +542,18 @@ func (ec *Client) StoreRaw(data []byte, privateFrom string) ([]byte, error) {
 	if ec.TransactionManagerURL == "" {
 		return nil, errors.New("transaction manager url is nil")
 	}
-	// sendPrivateTx send the private transaction to Tessera/Constellation
 	if private.P == nil {
 		return nil, errors.New("transaction manager not set up")
 	}
+
 	reqBodyJSON := &StoreRawArgs{
-		Payload: base64.StdEncoding.EncodeToString(data),
+		Payload: base64.StdEncoding.EncodeToString(data), // payload need to be base64 encoded
 		From:    privateFrom}
 	reqBody, err := json.Marshal(reqBodyJSON)
 	if err != nil {
 		return nil, err
 	}
 	resp, err := http.Post(ec.TransactionManagerURL+"/storeraw", "application/json", bytes.NewBuffer(reqBody))
-
 	if err != nil {
 		return nil, errors.New("Failed to call /storeRaw API on transaction manager.")
 	}
@@ -564,6 +563,7 @@ func (ec *Client) StoreRaw(data []byte, privateFrom string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
+	// parse response
 	respBodyJSON := StoreRawResp{}
 	err = json.Unmarshal(respBody, &respBodyJSON)
 	if err != nil {
