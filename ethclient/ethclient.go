@@ -39,8 +39,8 @@ import (
 
 // Client defines typed wrappers for the Ethereum RPC API.
 type Client struct {
-	c                     *rpc.Client
-	TransactionManagerURL string // Tessera/Constellation URL to call /storeraw API.
+	c                         *rpc.Client
+	TransactionManagerHTTPURL string // Tessera/Constellation HTTP URL to call /storeraw API.
 }
 
 // Dial connects a client to the given URL.
@@ -538,8 +538,8 @@ type StoreRawResp struct {
 }
 
 // storeRaw calls the /storeraw API of tessera
-func (ec *Client) StoreRaw(data []byte, privateFrom string) ([]byte, error) {
-	if ec.TransactionManagerURL == "" {
+func (ec *Client) StoreRawHTTP(data []byte, privateFrom string) ([]byte, error) {
+	if ec.TransactionManagerHTTPURL == "" {
 		return nil, errors.New("transaction manager url is nil")
 	}
 	if private.P == nil {
@@ -553,7 +553,7 @@ func (ec *Client) StoreRaw(data []byte, privateFrom string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.Post(ec.TransactionManagerURL+"/storeraw", "application/json", bytes.NewBuffer(reqBody))
+	resp, err := http.Post(ec.TransactionManagerHTTPURL+"/storeraw", "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, errors.New("Failed to call /storeRaw API on transaction manager.")
 	}
