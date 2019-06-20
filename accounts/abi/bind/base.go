@@ -19,6 +19,7 @@ package bind
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -404,7 +405,7 @@ type StoreRawResp struct {
 // storeRaw calls the /storeraw API of tessera
 func storeRaw(data []byte, privateFrom string, url string) ([]byte, error) {
 	reqBodyJSON := &StoreRawArgs{
-		Payload: string(data),
+		Payload: base64.StdEncoding.EncodeToString(data),
 		From:    privateFrom}
 	reqBody, err := json.Marshal(reqBodyJSON)
 	if err != nil {
@@ -426,7 +427,11 @@ func storeRaw(data []byte, privateFrom string, url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []byte(respBodyJSON.Key), nil
+	respBodyDecoded, err := base64.StdEncoding.DecodeString(respBodyJSON.Key)
+	if err != nil {
+		return nil, err
+	}
+	return respBodyDecoded, nil
 }
 
 // ensureContext is a helper method to ensure a context is not nil, even if the
