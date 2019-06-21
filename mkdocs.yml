@@ -67,7 +67,7 @@ nav:
     - Cakeshop:
         - Overview: Cakeshop/Overview.md
         - Getting Started: Cakeshop/Getting started.md
-        - FAQ: Cakeshop/Cakeshop FAQ.md
+        - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
     - Product Roadmap: roadmap.md         
     - FAQ: FAQ.md
 
