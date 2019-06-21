@@ -1148,4 +1148,4 @@ Just execute **step 4** instruction from removing a validator node.
 
 
 ## Enabling permissioned configuration
-Quorum ships with a permissions system based on a custom whitelist. Detailed documentation is available in [Network Permissioning](../../Security/Security%20%26%20Permissioning).
+Quorum ships with a permissions system based on a custom whitelist. Detailed documentation is available in [Network Permissioning](../../Security/Framework/Quorum%20Network%20Security/Nodes/Permissioning/Network%20Permissioning).
