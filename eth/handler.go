@@ -831,17 +831,32 @@ type NodeInfo struct {
 	Genesis    common.Hash         `json:"genesis"`    // SHA3 hash of the host's genesis block
 	Config     *params.ChainConfig `json:"config"`     // Chain configuration for the fork rules
 	Head       common.Hash         `json:"head"`       // SHA3 hash of the host's best owned block
+	Consensus  string              `json:"consensus"`  // Consensus mechanism in use
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	currentBlock := pm.blockchain.CurrentBlock()
+
+	// Set up the Consensus field
+	consensus := "unknown"
+	if pm.blockchain.Config().Clique != nil {
+		consensus = "clique"
+	} else if pm.blockchain.Config().Istanbul != nil {
+		consensus = "istanbul"
+	} else if pm.blockchain.Config().Ethash != nil {
+		consensus = "ethash"
+	} else if pm.raftMode {
+		consensus = "raft"
+	}
+
 	return &NodeInfo{
 		Network:    pm.networkID,
 		Difficulty: pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64()),
 		Genesis:    pm.blockchain.Genesis().Hash(),
 		Config:     pm.blockchain.Config(),
 		Head:       currentBlock.Hash(),
+		Consensus:  consensus,
 	}
 }
 
