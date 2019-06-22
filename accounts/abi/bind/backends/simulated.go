@@ -346,8 +346,8 @@ func (b *SimulatedBackend) SendPrivateTransaction(ctx context.Context, tx *types
 	return nil
 }
 
-// StoreRawHTTP dummy implementation
-func (b *SimulatedBackend) StoreRawHTTP(data []byte, privateFrom string) ([]byte, error) {
+// PreparePrivateTransaction dummy implementation
+func (b *SimulatedBackend) PreparePrivateTransaction(data []byte, privateFrom string) ([]byte, error) {
 	return data, nil
 }
 

@@ -527,8 +527,8 @@ func (ec *Client) SendPrivateTransaction(ctx context.Context, tx *types.Transact
 	return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", common.ToHex(data), SendRawTxArgs{PrivateFor: privateFor})
 }
 
-// storeRaw calls the /storeraw API of tessera
-func (ec *Client) StoreRawHTTP(data []byte, privateFrom string) ([]byte, error) {
+// PreparePrivateTransaction calls the /storeraw API of tessera
+func (ec *Client) PreparePrivateTransaction(data []byte, privateFrom string) ([]byte, error) {
 	if ec.TransactionManagerHTTPURL == "" {
 		return nil, errors.New("transaction manager url is nil")
 	}
