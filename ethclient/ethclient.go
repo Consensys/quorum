@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/private"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -528,27 +527,18 @@ func (ec *Client) SendPrivateTransaction(ctx context.Context, tx *types.Transact
 	return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", common.ToHex(data), SendRawTxArgs{PrivateFor: privateFor})
 }
 
-// storeraw API params
-type StoreRawArgs struct {
-	Payload string `json:"payload"`
-	From    string `json:"from"`
-}
-type StoreRawResp struct {
-	Key string `json:"key"`
-}
-
 // storeRaw calls the /storeraw API of tessera
 func (ec *Client) StoreRawHTTP(data []byte, privateFrom string) ([]byte, error) {
 	if ec.TransactionManagerHTTPURL == "" {
 		return nil, errors.New("transaction manager url is nil")
 	}
-	if private.P == nil {
-		return nil, errors.New("transaction manager not set up")
-	}
 
-	reqBodyJSON := &StoreRawArgs{
-		Payload: base64.StdEncoding.EncodeToString(data), // payload need to be base64 encoded
-		From:    privateFrom}
+	reqBodyJSON := map[string]string{
+		"payload": base64.StdEncoding.EncodeToString(data), // payload need to be base64 encoded
+	}
+	if privateFrom != "" {
+		reqBodyJSON["from"] = privateFrom
+	}
 	reqBody, err := json.Marshal(reqBodyJSON)
 	if err != nil {
 		return nil, err
@@ -564,12 +554,12 @@ func (ec *Client) StoreRawHTTP(data []byte, privateFrom string) ([]byte, error) 
 	defer resp.Body.Close()
 
 	// parse response
-	respBodyJSON := StoreRawResp{}
+	var respBodyJSON map[string]string
 	err = json.Unmarshal(respBody, &respBodyJSON)
 	if err != nil {
 		return nil, err
 	}
-	respBodyDecoded, err := base64.StdEncoding.DecodeString(respBodyJSON.Key)
+	respBodyDecoded, err := base64.StdEncoding.DecodeString(respBodyJSON["key"])
 	if err != nil {
 		return nil, err
 	}
