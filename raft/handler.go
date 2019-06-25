@@ -332,6 +332,36 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 	return raftId, nil
 }
 
+func (pm *ProtocolManager) ProposeNewLearner(enodeId string) (uint16, error) {
+	node, err := enode.ParseV4(enodeId)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(node.IP()) != 4 {
+		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
+	}
+
+	if !node.HasRaftPort() {
+		return 0, fmt.Errorf("enodeId is missing raftport querystring parameter: %v", enodeId)
+	}
+
+	if err := pm.isNodeAlreadyInCluster(node); err != nil {
+		return 0, err
+	}
+
+	raftId := pm.nextRaftId()
+	address := newAddress(raftId, node.RaftPort(), node)
+
+	pm.confChangeProposalC <- raftpb.ConfChange{
+		Type:    raftpb.ConfChangeAddLearnerNode,
+		NodeID:  uint64(raftId),
+		Context: address.toBytes(),
+	}
+
+	return raftId, nil
+}
+
 func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) {
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:   raftpb.ConfChangeRemoveNode,
@@ -391,7 +421,6 @@ func (pm *ProtocolManager) startRaft() {
 	}
 	walExisted := wal.Exist(pm.waldir)
 	lastAppliedIndex := pm.loadAppliedIndex()
-
 
 	id := raftTypes.ID(pm.raftId).String()
 	log.Info("AJ-raft id", "id", id)
@@ -768,7 +797,7 @@ func (pm *ProtocolManager) eventLoop() {
 					case raftpb.ConfChangeAddNode:
 						if pm.isRaftIdRemoved(raftId) {
 							log.Info("ignoring ConfChangeAddNode for permanently-removed peer", "raft id", raftId)
-						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes))  {
+						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes)) {
 							// See initial cluster logic in startRaft() for more information.
 							log.Info("ignoring expected ConfChangeAddNode for initial peer", "raft id", raftId)
 
