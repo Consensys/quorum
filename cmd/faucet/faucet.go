@@ -27,6 +27,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"html/template"
 	"io/ioutil"
 	"math"
@@ -483,7 +484,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 				continue
 			}
 			// Submit the transaction and mark as funded if successful
-			if err := f.client.SendTransaction(context.Background(), signed); err != nil {
+			if err := f.client.SendTransaction(context.Background(), signed, bind.SendRawTxArgs{}); err != nil {
 				f.lock.Unlock()
 				if err = sendError(conn, err); err != nil {
 					log.Warn("Failed to send transaction transmission error to client", "err", err)

@@ -80,10 +80,8 @@ type ContractTransactor interface {
 	// transactions may be added or removed by miners, but it should provide a basis
 	// for setting a reasonable default.
 	EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error)
-	// SendTransaction injects public transaction into the pending pool for execution.
-	SendTransaction(ctx context.Context, tx *types.Transaction) error
-	// SendPrivateTransaction injects private transaction into the pending pool for execution.
-	SendPrivateTransaction(ctx context.Context, tx *types.Transaction, privateFor []string) error
+	// SendTransaction injects transaction into the pending pool for execution.
+	SendTransaction(ctx context.Context, tx *types.Transaction, args SendRawTxArgs) error
 	// PreparePrivateTransaction send the private transaction to Tessera/Constellation's /storeraw API using HTTP
 	PreparePrivateTransaction(data []byte, privateFrom string) ([]byte, error)
 }

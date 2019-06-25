@@ -34,6 +34,10 @@ import (
 // sign the transaction before submission.
 type SignerFn func(types.Signer, common.Address, *types.Transaction) (*types.Transaction, error)
 
+type SendRawTxArgs struct {
+	PrivateFor []string `json:"privateFor"`
+}
+
 // CallOpts is the collection of options to fine tune a contract call request.
 type CallOpts struct {
 	Pending bool           // Whether to operate on the pending state or the last known one
@@ -255,16 +259,10 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		return nil, err
 	}
 
-	// Choose the correct method to send public/private transaction
-	if opts.PrivateFor != nil {
-		if err := c.transactor.SendPrivateTransaction(ensureContext(opts.Context), signedTx, opts.PrivateFor); err != nil {
-			return nil, err
-		}
-	} else {
-		if err := c.transactor.SendTransaction(ensureContext(opts.Context), signedTx); err != nil {
-			return nil, err
-		}
+	if err := c.transactor.SendTransaction(ensureContext(opts.Context), signedTx, SendRawTxArgs{opts.PrivateFor}); err != nil {
+		return nil, err
 	}
+
 	return signedTx, nil
 }
 

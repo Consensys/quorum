@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -503,28 +504,16 @@ func (ec *Client) EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64
 //
 // If the transaction was a contract creation use the TransactionReceipt method to get the
 // contract address after the transaction has been mined.
-func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction, args bind.SendRawTxArgs) error {
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
 		return err
 	}
-	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", common.ToHex(data))
-}
-
-// --- Quorum Changes Start ---
-// SendRawTxArgs represents the arguments to submit a new signed private transaction into the transaction pool.
-type SendRawTxArgs struct {
-	PrivateFor []string `json:"privateFor"`
-}
-
-// SendPrivateTransaction sends raw private transaction hash to Quorum
-// after transaction bytestring has been sent from a third party to Tessera node using /storeraw
-func (ec *Client) SendPrivateTransaction(ctx context.Context, tx *types.Transaction, privateFor []string) error {
-	data, err := rlp.EncodeToBytes(tx)
-	if err != nil {
-		return err
+	if args.PrivateFor != nil {
+		return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", common.ToHex(data), bind.SendRawTxArgs{args.PrivateFor})
+	} else {
+		return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", common.ToHex(data))
 	}
-	return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", common.ToHex(data), SendRawTxArgs{PrivateFor: privateFor})
 }
 
 // PreparePrivateTransaction calls the /storeraw API of tessera
@@ -565,8 +554,6 @@ func (ec *Client) PreparePrivateTransaction(data []byte, privateFrom string) ([]
 	}
 	return respBodyDecoded, nil
 }
-
-// --- Quorum Changes End ---
 
 func toCallArg(msg ethereum.CallMsg) interface{} {
 	arg := map[string]interface{}{

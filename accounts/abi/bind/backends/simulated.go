@@ -293,34 +293,7 @@ func (b *SimulatedBackend) callContract(ctx context.Context, call ethereum.CallM
 
 // SendTransaction updates the pending block to include the given transaction.
 // It panics if the transaction is invalid.
-func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transaction) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	sender, err := types.Sender(types.HomesteadSigner{}, tx)
-	if err != nil {
-		panic(fmt.Errorf("invalid transaction: %v", err))
-	}
-	nonce := b.pendingState.GetNonce(sender)
-	if tx.Nonce() != nonce {
-		panic(fmt.Errorf("invalid transaction nonce: got %d, want %d", tx.Nonce(), nonce))
-	}
-
-	blocks, _ := core.GenerateChain(b.config, b.blockchain.CurrentBlock(), ethash.NewFaker(), b.database, 1, func(number int, block *core.BlockGen) {
-		for _, tx := range b.pendingBlock.Transactions() {
-			block.AddTxWithChain(b.blockchain, tx)
-		}
-		block.AddTxWithChain(b.blockchain, tx)
-	})
-	statedb, _, _ := b.blockchain.State()
-
-	b.pendingBlock = blocks[0]
-	b.pendingState, _ = state.New(b.pendingBlock.Root(), statedb.Database())
-	return nil
-}
-
-// SendPrivateTransaction is the same as SendTransaction in simulated.go
-func (b *SimulatedBackend) SendPrivateTransaction(ctx context.Context, tx *types.Transaction, privateFor []string) error {
+func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transaction, args bind.SendRawTxArgs) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
