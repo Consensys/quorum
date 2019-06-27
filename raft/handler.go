@@ -302,7 +302,7 @@ func (pm *ProtocolManager) isNodeAlreadyInCluster(node *enode.Node) error {
 	return nil
 }
 
-func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
+func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint16, error) {
 	node, err := enode.ParseV4(enodeId)
 	if err != nil {
 		return 0, err
@@ -323,44 +323,20 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 	raftId := pm.nextRaftId()
 	address := newAddress(raftId, node.RaftPort(), node)
 
-	pm.confChangeProposalC <- raftpb.ConfChange{
-		Type:    raftpb.ConfChangeAddNode,
-		NodeID:  uint64(raftId),
-		Context: address.toBytes(),
+	if isLearner {
+		pm.confChangeProposalC <- raftpb.ConfChange{
+			Type:    raftpb.ConfChangeAddLearnerNode,
+			NodeID:  uint64(raftId),
+			Context: address.toBytes(),
+		}
+	} else {
+		pm.confChangeProposalC <- raftpb.ConfChange{
+			Type:    raftpb.ConfChangeAddNode,
+			NodeID:  uint64(raftId),
+			Context: address.toBytes(),
+		}
 	}
 
-	return raftId, nil
-}
-
-func (pm *ProtocolManager) ProposeNewLearner(enodeId string) (uint16, error) {
-	log.Info("SMK-ProposeNewLearner @ 336")
-	node, err := enode.ParseV4(enodeId)
-	if err != nil {
-		return 0, err
-	}
-
-	if len(node.IP()) != 4 {
-		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
-	}
-
-	if !node.HasRaftPort() {
-		return 0, fmt.Errorf("enodeId is missing raftport querystring parameter: %v", enodeId)
-	}
-
-	if err := pm.isNodeAlreadyInCluster(node); err != nil {
-		return 0, err
-	}
-
-	raftId := pm.nextRaftId()
-	address := newAddress(raftId, node.RaftPort(), node)
-	log.Info("SMK-ProposeNewLearner @356", "raftId", raftId, "address", address)
-
-	pm.confChangeProposalC <- raftpb.ConfChange{
-		Type:    raftpb.ConfChangeAddLearnerNode,
-		NodeID:  uint64(raftId),
-		Context: address.toBytes(),
-	}
-	log.Info("SMK-ProposeNewLearner @ 336", "raftid", raftId)
 	return raftId, nil
 }
 
@@ -797,7 +773,7 @@ func (pm *ProtocolManager) eventLoop() {
 					forceSnapshot := false
 
 					switch cc.Type {
-					case raftpb.ConfChangeAddNode:
+					case raftpb.ConfChangeAddNode, raftpb.ConfChangeAddLearnerNode:
 						if pm.isRaftIdRemoved(raftId) {
 							log.Info("ignoring ConfChangeAddNode for permanently-removed peer", "raft id", raftId)
 						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes)) {
@@ -809,25 +785,11 @@ func (pm *ProtocolManager) eventLoop() {
 						} else if pm.isRaftIdUsed(raftId) {
 							log.Info("ignoring ConfChangeAddNode for already-used raft ID", "raft id", raftId)
 						} else {
-							log.Info("adding peer due to ConfChangeAddNode", "raft id", raftId)
-
-							forceSnapshot = true
-							pm.addPeer(bytesToAddress(cc.Context))
-						}
-
-					case raftpb.ConfChangeAddLearnerNode:
-						if pm.isRaftIdRemoved(raftId) {
-							log.Info("ignoring ConfChangeAddNode for permanently-removed peer", "raft id", raftId)
-						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes)) {
-							// See initial cluster logic in startRaft() for more information.
-							log.Info("ignoring expected ConfChangeAddNode for initial peer", "raft id", raftId)
-
-							// We need a snapshot to exist to reconnect to peers on start-up after a crash.
-							forceSnapshot = true
-						} else if pm.isRaftIdUsed(raftId) {
-							log.Info("ignoring ConfChangeAddNode for already-used raft ID", "raft id", raftId)
-						} else {
-							log.Info("adding peer due to ConfChangeAddLearnerNode", "raft id", raftId)
+							if cc.Type == raftpb.ConfChangeAddNode {
+								log.Info("adding peer due to ConfChangeAddNode", "raft id", raftId)
+							} else {
+								log.Info("adding peer due to ConfChangeAddLearnerNode", "raft id", raftId)
+							}
 
 							forceSnapshot = true
 							pm.addPeer(bytesToAddress(cc.Context))

@@ -23,11 +23,11 @@ func (s *PublicRaftAPI) Role() string {
 }
 
 func (s *PublicRaftAPI) AddPeer(enodeId string) (uint16, error) {
-	return s.raftService.raftProtocolManager.ProposeNewPeer(enodeId)
+	return s.raftService.raftProtocolManager.ProposeNewPeer(enodeId, false)
 }
 
 func (s *PublicRaftAPI) AddLearner(enodeId string) (uint16, error) {
-	return s.raftService.raftProtocolManager.ProposeNewLearner(enodeId)
+	return s.raftService.raftProtocolManager.ProposeNewPeer(enodeId, true)
 }
 func (s *PublicRaftAPI) RemovePeer(raftId uint16) {
 	s.raftService.raftProtocolManager.ProposePeerRemoval(raftId)
