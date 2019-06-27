@@ -67,7 +67,40 @@ The following Quorum-related libraries/applications have been created by Third P
 
 Thank you for your interest in contributing to Quorum!
 
-Quorum is built on open source and we invite you to contribute enhancements. Upon review you will be required to complete a Contributor License Agreement (CLA) before we are able to merge. If you have any questions about the contribution process, please feel free to send an email to [quorum_info@jpmorgan.com](mailto:quorum_info@jpmorgan.com).
+Quorum is built on open source and we invite you to contribute enhancements. Upon review you will be required to complete a Contributor License Agreement (CLA) before we are able to merge. If you have any questions about the contribution process, please feel free to send an email to [info@jpmorgan.com](mailto:info@goquorum.com).
+
+## Reporting Security Bugs
+Security is part of our commitment to our users. At Quorum we have a close relationship with the security community, we understand the realm, and encourage security researchers to become part of our mission of building secure reliable software. This section explains how to submit security bugs, and what to expect in return.
+
+All security bugs in [Quorum](https://github.com/jpmorganchase/quorum) and its ecosystem ([Tessera](https://github.com/jpmorganchase/tessera), [Constellation](https://github.com/jpmorganchase/constellation), [Cakeshop](https://github.com/jpmorganchase/cakeshop), ..etc)  should be reported by email to [info@goquorum.com](mailto:info@goquorum.com). Please use the prefix **[security]** in your subject. This email is delivered to Quorum security team. Your email will be acknowledged within 24 hours, and you'll receive a more detailed response to your email within 72 hours indicating the next steps in handling your report. For critical problems, you can encrypt your report using our PGP key (listed below). After the initial reply to your report, the security team will endeavor to keep you informed of the progress being made towards a fix and full announcement. These updates will be sent at least every five days.
+
+If you have not received a reply to your email within 48 hours or you have not heard from the security team for the past five days please contact directly [Chaddy Huussin (cucrisis)](go-quorum.slack.com).
+
+**Please note that Quorum slack channels are public discussion forum**. When escalating to this medium, please do not disclose the details of the issue. Simply state that you're trying to reach a member of the security team.
+
+
+#### Responsible Disclosure Process
+Quorum project uses the following responsible disclosure process:
+
+- Once the security report is received it is assigned a primary handler. This person coordinates the fix and release process.
+- The issue is confirmed and a list of affected software is determined.
+- Code is audited to find any potential similar problems.
+- If it is determined, in consultation with the submitter, that a CVE-ID is required, the primary handler obtains one via email.
+- Fixes are prepared for the two most recent major releases and the head/master revision. These fixes are not yet committed to the public repository.
+- A notification is sent to the Quorum-announce mailing/channel list to give users time to prepare their systems for the update.
+- five working days following this notification, the fixes are applied to the public repository and a new release is issued.
+- On the date that the fixes are applied, announcements are sent to Quorum-announce.
+- At this point you would be able to disclose publicly your finding.
+  
+
+**Note:** This process can take some time. Every effort will be made to handle the security bug in as timely a manner as possible, however it's important that we follow the process described above to ensure that disclosures are handled consistently.  
+
+#### Receiving Security Updates
+The best way to receive security announcements is to subscribe to the Quorum-announce mailing list/channel. Any messages pertaining to a security issue will be prefixed with **[security]**.
+
+Comments on This Policy
+If you have any suggestions to improve this policy, please send an email to info@goquorum.com for discussion.
+
 
 ## License
 
