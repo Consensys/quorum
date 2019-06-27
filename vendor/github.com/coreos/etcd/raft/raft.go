@@ -1266,16 +1266,22 @@ func (r *raft) addNode(id uint64) {
 }
 
 func (r *raft) addLearner(id uint64) {
+	r.logger.Infof("SMK-addLearner @1269")
 	r.addNodeOrLearnerNode(id, true)
 }
 
 func (r *raft) addNodeOrLearnerNode(id uint64, isLearner bool) {
+	r.logger.Infof("SMK-addNodeOrLearnerNode @1274")
 	r.pendingConf = false
 	pr := r.getProgress(id)
 	if pr == nil {
+		r.logger.Infof("SMK-addNodeOrLearnerNode @1278 %x", isLearner)
 		r.setProgress(id, 0, r.raftLog.lastIndex()+1, isLearner)
 	} else {
+		r.logger.Infof("SMK-addNodeOrLearnerNode @1281")
 		if isLearner && !pr.IsLearner {
+			r.logger.Infof("SMK-addNodeOrLearnerNode @1283")
+
 			// can only change Learner to Voter
 			r.logger.Infof("%x ignored addLeaner: do not support changing %x from raft peer to learner.", r.id, id)
 			return
@@ -1284,8 +1290,10 @@ func (r *raft) addNodeOrLearnerNode(id uint64, isLearner bool) {
 		if isLearner == pr.IsLearner {
 			// Ignore any redundant addNode calls (which can happen because the
 			// initial bootstrapping entries are applied twice).
+			r.logger.Infof("SMK-addNodeOrLearnerNode @1293")
 			return
 		}
+		r.logger.Infof("SMK-addNodeOrLearnerNode @1296")
 
 		// change Learner to Voter, use origin Learner progress
 		delete(r.learnerPrs, id)
@@ -1294,12 +1302,14 @@ func (r *raft) addNodeOrLearnerNode(id uint64, isLearner bool) {
 	}
 
 	if r.id == id {
+		r.logger.Infof("SMK-addNodeOrLearnerNode @1304")
 		r.isLearner = isLearner
 	}
 
 	// When a node is first added, we should mark it as recently active.
 	// Otherwise, CheckQuorum may cause us to step down if it is invoked
 	// before the added node has a chance to communicate with us.
+	r.logger.Infof("SMK-addNodeOrLearnerNode @1312")
 	pr = r.getProgress(id)
 	pr.RecentActive = true
 }
@@ -1327,6 +1337,7 @@ func (r *raft) removeNode(id uint64) {
 func (r *raft) resetPendingConf() { r.pendingConf = false }
 
 func (r *raft) setProgress(id, match, next uint64, isLearner bool) {
+	r.logger.Infof("SMK-setProgress isLearner - %x", isLearner)
 	if !isLearner {
 		delete(r.learnerPrs, id)
 		r.prs[id] = &Progress{Next: next, Match: match, ins: newInflights(r.maxInflight)}
@@ -1336,6 +1347,8 @@ func (r *raft) setProgress(id, match, next uint64, isLearner bool) {
 	if _, ok := r.prs[id]; ok {
 		panic(fmt.Sprintf("%x unexpected changing from voter to learner for %x", r.id, id))
 	}
+	r.logger.Infof("SMK-setProgress adding an entry into learnerPrs for id - %x r.id - %x", id, r.id)
+
 	r.learnerPrs[id] = &Progress{Next: next, Match: match, ins: newInflights(r.maxInflight), IsLearner: true}
 }
 

@@ -333,6 +333,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 }
 
 func (pm *ProtocolManager) ProposeNewLearner(enodeId string) (uint16, error) {
+	log.Info("SMK-ProposeNewLearner @ 336")
 	node, err := enode.ParseV4(enodeId)
 	if err != nil {
 		return 0, err
@@ -352,13 +353,14 @@ func (pm *ProtocolManager) ProposeNewLearner(enodeId string) (uint16, error) {
 
 	raftId := pm.nextRaftId()
 	address := newAddress(raftId, node.RaftPort(), node)
+	log.Info("SMK-ProposeNewLearner @356", "raftId", raftId, "address", address)
 
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddLearnerNode,
 		NodeID:  uint64(raftId),
 		Context: address.toBytes(),
 	}
-
+	log.Info("SMK-ProposeNewLearner @ 336", "raftid", raftId)
 	return raftId, nil
 }
 
@@ -641,6 +643,7 @@ func (pm *ProtocolManager) serveLocalProposals() {
 
 			confChangeCount++
 			cc.ID = confChangeCount
+			log.Info("SMK-serveLocalProposals @ 645 calling ProposeConfChange")
 			pm.rawNode().ProposeConfChange(context.TODO(), cc)
 		case <-pm.quitSync:
 			return
@@ -807,6 +810,24 @@ func (pm *ProtocolManager) eventLoop() {
 							log.Info("ignoring ConfChangeAddNode for already-used raft ID", "raft id", raftId)
 						} else {
 							log.Info("adding peer due to ConfChangeAddNode", "raft id", raftId)
+
+							forceSnapshot = true
+							pm.addPeer(bytesToAddress(cc.Context))
+						}
+
+					case raftpb.ConfChangeAddLearnerNode:
+						if pm.isRaftIdRemoved(raftId) {
+							log.Info("ignoring ConfChangeAddNode for permanently-removed peer", "raft id", raftId)
+						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes)) {
+							// See initial cluster logic in startRaft() for more information.
+							log.Info("ignoring expected ConfChangeAddNode for initial peer", "raft id", raftId)
+
+							// We need a snapshot to exist to reconnect to peers on start-up after a crash.
+							forceSnapshot = true
+						} else if pm.isRaftIdUsed(raftId) {
+							log.Info("ignoring ConfChangeAddNode for already-used raft ID", "raft id", raftId)
+						} else {
+							log.Info("adding peer due to ConfChangeAddLearnerNode", "raft id", raftId)
 
 							forceSnapshot = true
 							pm.addPeer(bytesToAddress(cc.Context))
