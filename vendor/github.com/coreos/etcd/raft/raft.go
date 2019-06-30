@@ -440,11 +440,13 @@ func (r *raft) send(m pb.Message) {
 }
 
 func (r *raft) getProgress(id uint64) *Progress {
-	r.logger.Infof("SMK-getProgress prs=%d learnerPrs=%d", len(r.prs), len(r.learnerPrs))
+	r.logger.Infof("SMK-getProgress @420 id - %x, pr size - %x, lrPrs size - %x", id, len(r.prs), len(r.learnerPrs))
+	r.logger.Infof("SMK-getProgress @421 %v -- %v", r.prs, r.learnerPrs)
 	if pr, ok := r.prs[id]; ok {
+		r.logger.Infof("SMK-getProgress @422")
 		return pr
 	}
-
+	r.logger.Infof("SMK-getProgress @426")
 	return r.learnerPrs[id]
 }
 
@@ -1362,7 +1364,7 @@ func (r *raft) removeNode(id uint64) {
 func (r *raft) resetPendingConf() { r.pendingConf = false }
 
 func (r *raft) setProgress(id, match, next uint64, isLearner bool) {
-	r.logger.Infof("SMK-setProgress isLearner - %v prs=%d learnerPrs=%d", isLearner, len(r.prs), len(r.learnerPrs))
+	r.logger.Infof("SMK-setProgress isLearner - %v, id - %x", isLearner, id)
 	if !isLearner {
 		delete(r.learnerPrs, id)
 		r.logger.Infof("SMK-setProgress @1497 removed learner %d", id)
