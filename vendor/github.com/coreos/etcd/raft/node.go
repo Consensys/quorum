@@ -354,7 +354,7 @@ func (n *node) run(r *raft) {
 			if cc.NodeID == None {
 				r.resetPendingConf()
 				select {
-				case n.confstatec <- pb.ConfState{Nodes: r.nodes()}:
+				case n.confstatec <- pb.ConfState{Nodes: r.voters(), Learners: r.learners()}:
 				case <-n.done:
 				}
 				break
@@ -378,7 +378,7 @@ func (n *node) run(r *raft) {
 				panic("unexpected conf type")
 			}
 			select {
-			case n.confstatec <- pb.ConfState{Nodes: r.nodes()}:
+			case n.confstatec <- pb.ConfState{Nodes: r.voters(), Learners: r.learners()}:
 			case <-n.done:
 			}
 		case <-n.tickc:

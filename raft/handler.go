@@ -321,7 +321,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 	}
 
 	raftId := pm.nextRaftId()
-	address := newAddress(raftId, node.RaftPort(), node)
+	address := newAddress(raftId, node.RaftPort(), node, isLearner)
 
 	if isLearner {
 		pm.confChangeProposalC <- raftpb.ConfChange{
@@ -479,11 +479,14 @@ func (pm *ProtocolManager) startRaft() {
 
 	if walExisted {
 		log.Info("remounting an existing raft log; connecting to peers.")
+		log.Info("AJ-startRaft walExisted 1")
 		pm.unsafeRawNode = etcdRaft.RestartNode(raftConfig)
 	} else if pm.joinExisting {
 		log.Info("newly joining an existing cluster; waiting for connections.")
+		log.Info("AJ-startRaft joinExisting 2")
 		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil)
 	} else {
+		log.Info("AJ-startRaft nowal and not joining existing 3")
 		if numPeers := len(pm.bootstrapNodes); numPeers == 0 {
 			panic("exiting due to empty raft peers list")
 		} else {
@@ -499,6 +502,7 @@ func (pm *ProtocolManager) startRaft() {
 		// these nodes before we see these log entries, and we always want our
 		// snapshots to have all addresses for each of the nodes in the ConfState.
 		for _, peerAddress := range peerAddresses {
+			log.Info("AJ-startRaft 3 addPeer","peerAddress", peerAddress)
 			pm.addPeer(peerAddress)
 		}
 
@@ -515,7 +519,7 @@ func (pm *ProtocolManager) setLocalAddress(addr *Address) {
 	pm.mu.Lock()
 	pm.address = addr
 	pm.mu.Unlock()
-
+	log.Info("AJ-raftURL", "url",raftUrl(addr))
 	// By setting `URLs` on the raft transport, we advertise our URL (in an HTTP
 	// header) to any recipient. This is necessary for a newcomer to the cluster
 	// to be able to accept a snapshot from us to bootstrap them.
@@ -769,7 +773,7 @@ func (pm *ProtocolManager) eventLoop() {
 					raftId := uint16(cc.NodeID)
 
 					pm.confState = *pm.rawNode().ApplyConfChange(cc)
-
+					log.Info("AJ-eventLoop confChange", "rawNode.applyConfChange", pm.confState )
 					forceSnapshot := false
 
 					switch cc.Type {
@@ -863,7 +867,7 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		// We initially get the raftPort from the enode ID's query string. As an alternative, we can move away from
 		// requiring the use of static peers for the initial set, and load them from e.g. another JSON file which
 		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
-		address := newAddress(raftId, node.RaftPort(), node)
+		address := newAddress(raftId, node.RaftPort(), node, false)
 		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
 			Context: address.toBytes(),

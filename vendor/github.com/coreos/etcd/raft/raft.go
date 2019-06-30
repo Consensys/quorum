@@ -293,11 +293,13 @@ func newRaft(c *Config) *raft {
 	}
 	raftlog := newLog(c.Storage, c.Logger)
 	hs, cs, err := c.Storage.InitialState()
+	c.Logger.Info("AJ-newRaft storage", "hs", hs, "cs", cs)
 	if err != nil {
 		panic(err) // TODO(bdarnell)
 	}
 	peers := c.peers
 	learners := c.learners
+	c.Logger.Info("AJ-newRaft @S1 ","peers", cs.Nodes, "learners", cs.Learners)
 	if len(cs.Nodes) > 0 || len(cs.Learners) > 0 {
 		if len(peers) > 0 || len(learners) > 0 {
 			// TODO(bdarnell): the peers argument is always nil except in
@@ -382,6 +384,27 @@ func (r *raft) nodes() []uint64 {
 	return nodes
 }
 
+func (r *raft) voters() []uint64 {
+	nodes := make([]uint64, 0, len(r.prs))
+	for id := range r.prs {
+		nodes = append(nodes, id)
+	}
+
+	sort.Sort(uint64Slice(nodes))
+	return nodes
+}
+
+//TODO (Amal): review
+func (r *raft) learners() []uint64 {
+	nodes := make([]uint64, 0, len(r.learnerPrs))
+
+	for id := range r.learnerPrs {
+		nodes = append(nodes, id)
+	}
+	sort.Sort(uint64Slice(nodes))
+	return nodes
+}
+
 // send persists state to stable storage and then sends to its mailbox.
 func (r *raft) send(m pb.Message) {
 	m.From = r.id
@@ -417,6 +440,7 @@ func (r *raft) send(m pb.Message) {
 }
 
 func (r *raft) getProgress(id uint64) *Progress {
+	r.logger.Infof("SMK-getProgress prs=%d learnerPrs=%d", len(r.prs), len(r.learnerPrs))
 	if pr, ok := r.prs[id]; ok {
 		return pr
 	}
@@ -1297,6 +1321,7 @@ func (r *raft) addNodeOrLearnerNode(id uint64, isLearner bool) {
 
 		// change Learner to Voter, use origin Learner progress
 		delete(r.learnerPrs, id)
+		r.logger.Infof("SMK-addNodeOrLearnerNode @1297 removed learner %d", id)
 		pr.IsLearner = false
 		r.prs[id] = pr
 	}
@@ -1337,9 +1362,10 @@ func (r *raft) removeNode(id uint64) {
 func (r *raft) resetPendingConf() { r.pendingConf = false }
 
 func (r *raft) setProgress(id, match, next uint64, isLearner bool) {
-	r.logger.Infof("SMK-setProgress isLearner - %x", isLearner)
+	r.logger.Infof("SMK-setProgress isLearner - %v prs=%d learnerPrs=%d", isLearner, len(r.prs), len(r.learnerPrs))
 	if !isLearner {
 		delete(r.learnerPrs, id)
+		r.logger.Infof("SMK-setProgress @1497 removed learner %d", id)
 		r.prs[id] = &Progress{Next: next, Match: match, ins: newInflights(r.maxInflight)}
 		return
 	}
@@ -1355,6 +1381,7 @@ func (r *raft) setProgress(id, match, next uint64, isLearner bool) {
 func (r *raft) delProgress(id uint64) {
 	delete(r.prs, id)
 	delete(r.learnerPrs, id)
+	r.logger.Infof("SMK-delProgress @1397 removed learner %d", id)
 }
 
 func (r *raft) loadState(state pb.HardState) {

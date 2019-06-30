@@ -36,7 +36,8 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	numNodes := len(pm.confState.Nodes)
+	numNodes := len(pm.confState.Nodes) + len(pm.confState.Learners)
+	log.Info("AJ - buildSnapshot num nodes", "nn", numNodes)
 	numRemovedNodes := pm.removedPeers.Cardinality()
 
 	snapshot := &Snapshot{
@@ -46,7 +47,7 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	}
 
 	// Populate addresses
-
+	idx := 0
 	for i, rawRaftId := range pm.confState.Nodes {
 		raftId := uint16(rawRaftId)
 
@@ -55,7 +56,23 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 		} else {
 			snapshot.addresses[i] = *pm.peers[raftId].address
 		}
+		idx = i + 1
 	}
+
+	log.Info("AJ - buildSnapshot ss voter addrs ", "addrs", snapshot.addresses)
+
+	for _, rawRaftId := range pm.confState.Learners {
+		raftId := uint16(rawRaftId)
+
+		if raftId == pm.raftId {
+			snapshot.addresses[idx] = *pm.address
+		} else {
+			snapshot.addresses[idx] = *pm.peers[raftId].address
+		}
+		idx++
+	}
+
+	log.Info("AJ - buildSnapshot ss learner addrs ", "addrs", snapshot.addresses)
 	sort.Sort(ByRaftId(snapshot.addresses))
 
 	// Populate removed IDs
@@ -64,7 +81,7 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 		snapshot.removedRaftIds[i] = removedIface.(uint16)
 		i++
 	}
-
+	log.Info("AJ-buildSnapshot", "ss", snapshot)
 	return snapshot
 }
 
@@ -81,7 +98,9 @@ func (pm *ProtocolManager) triggerSnapshot(index uint64) {
 
 	//snapData := pm.blockchain.CurrentBlock().Hash().Bytes()
 	//snap, err := pm.raftStorage.CreateSnapshot(pm.appliedIndex, &pm.confState, snapData)
-	snapData := pm.buildSnapshot().toBytes()
+	bs := pm.buildSnapshot()
+	snapData := bs.toBytes()
+	log.Info("AJ-triggerSnapshot", "confState", pm.confState, "bs", bs)
 	snap, err := pm.raftStorage.CreateSnapshot(index, &pm.confState, snapData)
 	if err != nil {
 		panic(err)
@@ -103,6 +122,10 @@ func (pm *ProtocolManager) triggerSnapshot(index uint64) {
 func confStateIdSet(confState raftpb.ConfState) mapset.Set {
 	set := mapset.NewSet()
 	for _, rawRaftId := range confState.Nodes {
+		set.Add(uint16(rawRaftId))
+	}
+
+	for _, rawRaftId := range confState.Learners {
 		set.Add(uint16(rawRaftId))
 	}
 	return set
@@ -158,6 +181,7 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 	}
 
 	pm.mu.Lock()
+	log.Info("AJ-UpdateClusterMembership", "newConfState", newConfState)
 	pm.confState = newConfState
 	pm.mu.Unlock()
 
@@ -180,7 +204,7 @@ func (pm *ProtocolManager) maybeTriggerSnapshot() {
 func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
 	if raftSnapshot := pm.readRaftSnapshot(); raftSnapshot != nil {
 		log.Info("loading snapshot")
-
+		log.Info("AJ-raft snapshot", "sshot", raftSnapshot.Metadata.ConfState)
 		pm.applyRaftSnapshot(*raftSnapshot)
 
 		return raftSnapshot
@@ -267,6 +291,7 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 
 	latestBlockHash := snapshot.headBlockHash
 
+	log.Info("AJ-applyRaftSnapshot", "metaConfStarte", raftSnapshot.Metadata.ConfState, "Addrs", snapshot.addresses)
 	pm.updateClusterMembership(raftSnapshot.Metadata.ConfState, snapshot.addresses, snapshot.removedRaftIds)
 
 	preSyncHead := pm.blockchain.CurrentBlock()
@@ -281,6 +306,7 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 	}
 
 	snapMeta := raftSnapshot.Metadata
+	log.Info("AJ-applyRaftSnapshot snapMeta", "confState", snapMeta.ConfState)
 	pm.confState = snapMeta.ConfState
 	pm.mu.Lock()
 	pm.snapshotIndex = snapMeta.Index
