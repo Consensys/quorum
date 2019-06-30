@@ -29,6 +29,11 @@ func (s *PublicRaftAPI) AddPeer(enodeId string) (uint16, error) {
 func (s *PublicRaftAPI) AddLearner(enodeId string) (uint16, error) {
 	return s.raftService.raftProtocolManager.ProposeNewPeer(enodeId, true)
 }
+
+func (s *PublicRaftAPI) PromoteToVoter(raftId uint16) (bool, error) {
+	return s.raftService.raftProtocolManager.PromoteToVoter(raftId)
+}
+
 func (s *PublicRaftAPI) RemovePeer(raftId uint16) {
 	s.raftService.raftProtocolManager.ProposePeerRemoval(raftId)
 }

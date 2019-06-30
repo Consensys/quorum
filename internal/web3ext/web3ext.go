@@ -729,6 +729,11 @@ web3._extend({
                        call: 'raft_addLearner',
                        params: 1
                }),
+				new web3._extend.Method({
+                       name: 'promoteToVoter',
+                       call: 'raft_promoteToVoter',
+                       params: 1
+               }),
                new web3._extend.Method({
                        name: 'removePeer',
                        call: 'raft_removePeer',
