@@ -215,7 +215,7 @@ func (f *Fetcher) run(ctx context.Context, peers *sync.Map) {
 			// all Fetcher context closed, can quit
 		case <-ctx.Done():
 			log.Trace("terminate fetcher", "request addr", f.addr)
-			// TODO: send cancelations to all peers left over in peers map (i.e., those we requested from)
+			// TODO: send cancellations to all peers left over in peers map (i.e., those we requested from)
 			return
 		}
 

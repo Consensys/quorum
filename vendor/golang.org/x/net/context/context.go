@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package context defines the Context type, which carries deadlines,
-// cancelation signals, and other request-scoped values across API boundaries
+// cancellation signals, and other request-scoped values across API boundaries
 // and between processes.
 //
 // Incoming requests to a server should create a Context, and outgoing calls to
@@ -38,7 +38,7 @@ package context // import "golang.org/x/net/context"
 
 import "time"
 
-// A Context carries a deadline, a cancelation signal, and other values across
+// A Context carries a deadline, a cancellation signal, and other values across
 // API boundaries.
 //
 // Context's methods may be called by multiple goroutines simultaneously.
@@ -76,7 +76,7 @@ type Context interface {
 	//  }
 	//
 	// See http://blog.golang.org/pipelines for more examples of how to use
-	// a Done channel for cancelation.
+	// a Done channel for cancellation.
 	Done() <-chan struct{}
 
 	// Err returns a non-nil error value after Done is closed. Err returns
