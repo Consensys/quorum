@@ -38,8 +38,8 @@ var (
 
 // Is this an exported - upper case - name?
 func isExported(name string) bool {
-	rune, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(rune)
+	r, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(r)
 }
 
 // Is this type exported or a builtin?
