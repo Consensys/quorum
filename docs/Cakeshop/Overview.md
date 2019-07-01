@@ -1,6 +1,6 @@
 ## What is it?
 
-_Cakeshop_ is a set of tools and APIs for working with [Ethereum](https://ethereum.org/)-like ledgers, packaged as a Java web application archive (WAR) that gets you up and running in under 60 seconds.
+[Cakeshop](https://github.com/jpmorganchase/cakeshop) is a set of tools and APIs for working with [Ethereum](https://ethereum.org/)-like ledgers, packaged as a Java web application archive (WAR) that gets you up and running in under 60 seconds.
 
 Cakeshop can either start up a geth node, which you can then interact with using the Cakeshop front-end, or it can be connected to an Ethereum-like node, such as Quorum, that you already have running. A given Cakeshop instance connects with one node on the blockchain network you connect to.
 
