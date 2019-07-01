@@ -266,7 +266,9 @@ func (tx *Transaction) Cost() *big.Int {
 	return total
 }
 
-func (tx *Transaction) RawSignatureValues() (*big.Int, *big.Int, *big.Int) {
+// RawSignatureValues returns the V, R, S signature values of the transaction.
+// The return values should not be modified by the caller.
+func (tx *Transaction) RawSignatureValues() (v, r, s *big.Int) {
 	return tx.data.V, tx.data.R, tx.data.S
 }
 
@@ -404,7 +406,7 @@ func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transa
 	for from, accTxs := range txs {
 		// Ensure the sender address is from the signer
 		acc, err := Sender(signer, accTxs[0])
-		if (err == nil) {
+		if err == nil {
 			heads = append(heads, accTxs[0])
 			txs[acc] = accTxs[1:]
 		} else {
