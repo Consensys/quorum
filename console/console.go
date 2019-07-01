@@ -17,7 +17,7 @@
 package console
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -314,40 +314,25 @@ func (c *Console) Welcome() {
 // Get the consensus mechanism that is in use
 func (c *Console) getConsensus() string {
 
-	_, err := c.jsre.Run(`
-			var nodeInfo; admin.getNodeInfo(function(err, obj){nodeInfo = JSON.stringify(obj)});
-		`)
-	if err != nil {
-		fmt.Fprintf(c.printer, "WARNING: call to admin.getNodeInfo() failed, unable to determine consensus mechanism\n")
-		return ""
-	}
-
-	nodeInfo, err := c.jsre.Get(`nodeInfo`)
-	if err != nil {
-		fmt.Fprintf(c.printer, "WARNING: could not get nodeInfo, unable to determine consensus mechanism\n")
-		return ""
-	}
-
-	var dat map[string]interface{}
-	val := []byte(nodeInfo.String())
-	if err := json.Unmarshal(val, &dat); err != nil {
-		fmt.Fprintf(c.printer, "WARNING: unable to determine consensus mechanism due to unmarshall error 1: %v\n", err)
-		return ""
-	}
-
-	protocols, ok := dat["protocols"].(map[string]interface{})
-	if ok {
-		eth, ok := protocols["eth"].(map[string]interface{})
-		if ok {
-			consensus, ok := eth["consensus"].(string)
-			if ok {
-				return consensus
+	var nodeInfo struct {
+		Protocols struct {
+			Eth struct { // only partial of eth/handler.go#NodeInfo
+				Consensus string
+			}
+			Istanbul struct { // a bit different from others
+				Consensus string
 			}
 		}
 	}
 
-	fmt.Fprintf(c.printer, "WARNING: unable to determine consensus mechanism\n")
-	return ""
+	if err := c.client.CallContext(context.Background(), &nodeInfo, "admin_nodeInfo"); err != nil {
+		_, _ = fmt.Fprintf(c.printer, "WARNING: call to admin.getNodeInfo() failed, unable to determine consensus mechanism\n")
+		return "unknown"
+	}
+	if nodeInfo.Protocols.Istanbul.Consensus != "" {
+		return nodeInfo.Protocols.Istanbul.Consensus
+	}
+	return nodeInfo.Protocols.Eth.Consensus
 }
 
 // Evaluate executes code and pretty prints the result to the specified output
