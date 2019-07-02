@@ -37,7 +37,7 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	defer pm.mu.RUnlock()
 
 	numNodes := len(pm.confState.Nodes) + len(pm.confState.Learners)
-	log.Info("AJ - buildSnapshot num nodes", "nn", numNodes)
+	log.Info("AJ - buildSnapshot num nodes", "nnodes", numNodes)
 	numRemovedNodes := pm.removedPeers.Cardinality()
 
 	snapshot := &Snapshot{
@@ -235,6 +235,7 @@ func bytesToSnapshot(bytes []byte) *Snapshot {
 }
 
 func (snapshot *Snapshot) EncodeRLP(w io.Writer) error {
+	log.Info("AJ-snapshotEncodeRLP", "addrs", snapshot.addresses)
 	return rlp.Encode(w, []interface{}{snapshot.addresses, snapshot.removedRaftIds, snapshot.headBlockHash})
 }
 

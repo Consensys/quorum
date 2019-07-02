@@ -1,14 +1,13 @@
 package raft
 
 import (
-	"io"
-	"net"
-
 	"fmt"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rlp"
+	"io"
 	"log"
+	"net"
 )
 
 // Serializable information about a Peer. Sufficient to build `etcdRaft.Peer`
@@ -20,10 +19,10 @@ type Address struct {
 	Ip       net.IP        `json:"ip"`
 	P2pPort  enr.TCP       `json:"p2pPort"`
 	RaftPort enr.RaftPort  `json:"raftPort"`
-	IsLearner bool			`json:"isLearner"`
 }
 
-func newAddress(raftId uint16, raftPort int, node *enode.Node, isLearner bool) *Address {
+
+func newAddress(raftId uint16, raftPort int, node *enode.Node) *Address {
 	// derive 64 byte nodeID from 128 byte enodeID
 	id, err := enode.RaftHexID(node.EnodeID())
 	if err != nil {
@@ -35,7 +34,6 @@ func newAddress(raftId uint16, raftPort int, node *enode.Node, isLearner bool) *
 		Ip:       node.IP(),
 		P2pPort:  enr.TCP(node.TCP()),
 		RaftPort: enr.RaftPort(raftPort),
-		IsLearner: isLearner,
 	}
 }
 
@@ -46,7 +44,7 @@ type Peer struct {
 }
 
 func (addr *Address) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{addr.RaftId, addr.NodeId, addr.Ip, addr.P2pPort, addr.RaftPort, addr.IsLearner})
+	return rlp.Encode(w, []interface{}{addr.RaftId, addr.NodeId, addr.Ip, addr.P2pPort, addr.RaftPort})
 }
 
 func (addr *Address) DecodeRLP(s *rlp.Stream) error {
@@ -60,25 +58,10 @@ func (addr *Address) DecodeRLP(s *rlp.Stream) error {
 		IsLearner bool
 	}
 
-	var tempOld struct {
-		RaftId   uint16
-		NodeId   enode.EnodeID
-		Ip       net.IP
-		P2pPort  enr.TCP
-		RaftPort enr.RaftPort
-	}
-
-	//TODO (Amal): review
 	if err := s.Decode(&temp); err != nil {
-		log.Printf("AJ - error decoding %v", err)
-		if err1 := s.Decode(&tempOld); err1 != nil {
-			return err1
-		}
-		addr.RaftId, addr.NodeId, addr.Ip, addr.P2pPort, addr.RaftPort, addr.IsLearner = tempOld.RaftId, tempOld.NodeId, tempOld.Ip, tempOld.P2pPort, tempOld.RaftPort, false
-		return nil
-		//return err
+		return err
 	} else {
-		addr.RaftId, addr.NodeId, addr.Ip, addr.P2pPort, addr.RaftPort, addr.IsLearner = temp.RaftId, temp.NodeId, temp.Ip, temp.P2pPort, temp.RaftPort, temp.IsLearner
+		addr.RaftId, addr.NodeId, addr.Ip, addr.P2pPort, addr.RaftPort = temp.RaftId, temp.NodeId, temp.Ip, temp.P2pPort, temp.RaftPort
 		return nil
 	}
 }

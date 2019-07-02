@@ -323,7 +323,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 	}
 
 	raftId := pm.nextRaftId()
-	address := newAddress(raftId, node.RaftPort(), node, isLearner)
+	address := newAddress(raftId, node.RaftPort(), node)
 
 	if isLearner {
 		pm.confChangeProposalC <- raftpb.ConfChange{
@@ -350,8 +350,11 @@ func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) {
 }
 
 func (pm *ProtocolManager) PromoteToVoter(raftId uint16) (bool, error) {
-	if p, ok := pm.peers[raftId]; ok {
-		if !p.address.IsLearner {
+	defer pm.mu.Unlock()
+	pm.mu.Lock()
+	log.Info("AJ - promoteToVoter " , "confState", pm.confState)
+	for _, n := range pm.confState.Nodes {
+		if uint16(n) == raftId {
 			return false, fmt.Errorf("%d is not a learner node. only learner node can be promoted to voter", raftId)
 		}
 	}
@@ -815,13 +818,8 @@ func (pm *ProtocolManager) eventLoop() {
 						} else if pm.isRaftIdUsed(raftId) {
 							log.Info("ConfChangeAddNode for already-used raft ID but not a removed one", "raft id", raftId)
 
-							if p := pm.peers[raftId]; p != nil {
+							if p := pm.peers[raftId]; p != nil || pm.raftId == raftId {
 								forceSnapshot = true
-								p.address.IsLearner = false
-								if pm.raftId == raftId {
-									pm.address = p.address
-									pm.peers[raftId] = p
-								}
 								log.Info("ConfChangeAddNode promoted learner node %d to voter node", raftId)
 							}
 
@@ -904,7 +902,7 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		// We initially get the raftPort from the enode ID's query string. As an alternative, we can move away from
 		// requiring the use of static peers for the initial set, and load them from e.g. another JSON file which
 		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
-		address := newAddress(raftId, node.RaftPort(), node, false)
+		address := newAddress(raftId, node.RaftPort(), node)
 		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
 			Context: address.toBytes(),
