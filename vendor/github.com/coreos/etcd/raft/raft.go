@@ -288,6 +288,15 @@ type raft struct {
 }
 
 func newRaft(c *Config) *raft {
+	return newRaftImpl(c, false)
+}
+
+//Quorum - used to start a new learner node when it joins for the network first time
+func newRaftLearner(c *Config) *raft {
+	return newRaftImpl(c, true)
+}
+
+func newRaftImpl(c *Config, isLearner bool) *raft {
 	if err := c.validate(); err != nil {
 		panic(err.Error())
 	}
@@ -299,7 +308,14 @@ func newRaft(c *Config) *raft {
 	}
 	peers := c.peers
 	learners := c.learners
-	c.Logger.Info("AJ-newRaft @S1 ","peers", cs.Nodes, "learners", cs.Learners)
+	c.Logger.Info("AJ-newRaft @S1 ", "peers", cs.Nodes, "learners", cs.Learners)
+
+	//Quorum - isLearner can be set to true only when learners from Storage or Config is empty.
+	//isLearner will be required to be set to true when a learner node joins a network for the first time.
+	if (len(cs.Learners) > 0 || len(learners) > 0) && isLearner {
+		panic("cannot specify both isLearner flag and cs.learners or config.learners")
+	}
+
 	if len(cs.Nodes) > 0 || len(cs.Learners) > 0 {
 		if len(peers) > 0 || len(learners) > 0 {
 			// TODO(bdarnell): the peers argument is always nil except in
@@ -313,7 +329,7 @@ func newRaft(c *Config) *raft {
 	r := &raft{
 		id:                        c.ID,
 		lead:                      None,
-		isLearner:                 false,
+		isLearner:                 isLearner,
 		raftLog:                   raftlog,
 		maxMsgSize:                c.MaxSizePerMsg,
 		maxInflight:               c.MaxInflightMsgs,
@@ -337,6 +353,7 @@ func newRaft(c *Config) *raft {
 		r.learnerPrs[p] = &Progress{Next: 1, ins: newInflights(r.maxInflight), IsLearner: true}
 		if r.id == p {
 			r.isLearner = true
+			r.logger.Infof("raft %d is a learner", r.id)
 		}
 	}
 
@@ -353,8 +370,8 @@ func newRaft(c *Config) *raft {
 		nodesStrs = append(nodesStrs, fmt.Sprintf("%x", n))
 	}
 
-	r.logger.Infof("newRaft %x [peers: [%s], term: %d, commit: %d, applied: %d, lastindex: %d, lastterm: %d]",
-		r.id, strings.Join(nodesStrs, ","), r.Term, r.raftLog.committed, r.raftLog.applied, r.raftLog.lastIndex(), r.raftLog.lastTerm())
+	r.logger.Infof("newRaft %x learner: %v [peers: [%s], term: %d, commit: %d, applied: %d, lastindex: %d, lastterm: %d]",
+		r.id, r.isLearner, strings.Join(nodesStrs, ","), r.Term, r.raftLog.committed, r.raftLog.applied, r.raftLog.lastIndex(), r.raftLog.lastTerm())
 	return r
 }
 
@@ -1223,6 +1240,7 @@ func (r *raft) handleHeartbeat(m pb.Message) {
 
 func (r *raft) handleSnapshot(m pb.Message) {
 	sindex, sterm := m.Snapshot.Metadata.Index, m.Snapshot.Metadata.Term
+
 	if r.restore(m.Snapshot) {
 		r.logger.Infof("%x [commit: %d] restored snapshot [index: %d, term: %d]",
 			r.id, r.raftLog.committed, sindex, sterm)
@@ -1237,6 +1255,7 @@ func (r *raft) handleSnapshot(m pb.Message) {
 // restore recovers the state machine from a snapshot. It restores the log and the
 // configuration of state machine.
 func (r *raft) restore(s pb.Snapshot) bool {
+	r.logger.Infof("AJ-restore snapshot %v", s)
 	if s.Metadata.Index <= r.raftLog.committed {
 		return false
 	}
@@ -1247,14 +1266,24 @@ func (r *raft) restore(s pb.Snapshot) bool {
 		return false
 	}
 
-	// The normal peer can't become learner.
-	if !r.isLearner {
-		for _, id := range s.Metadata.ConfState.Learners {
-			if id == r.id {
-				r.logger.Errorf("%x can't become learner when restores snapshot [index: %d, term: %d]", r.id, s.Metadata.Index, s.Metadata.Term)
-				return false
-			}
+	isLearnerNode := false
+	for _, id := range s.Metadata.ConfState.Learners {
+		if id == r.id {
+			isLearnerNode = true
+			break
 		}
+	}
+
+	// The learner node must be present in the learners list
+	if r.isLearner && !isLearnerNode {
+		panic("node is a leraner but it's missing in learners list")
+		return false
+	}
+
+	// The normal peer can't become learner.
+	if !r.isLearner && isLearnerNode {
+		r.logger.Errorf("%x can't become learner when restores snapshot [index: %d, term: %d]", r.id, s.Metadata.Index, s.Metadata.Term)
+		return false
 	}
 
 	r.logger.Infof("%x [commit: %d, lastindex: %d, lastterm: %d] starts to restore snapshot [index: %d, term: %d]",

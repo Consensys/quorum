@@ -41,10 +41,11 @@ type ProtocolManager struct {
 	stopped  bool
 
 	// Static configuration
-	joinExisting   bool // Whether to join an existing cluster when a WAL doesn't already exist
-	bootstrapNodes []*enode.Node
-	raftId         uint16
-	raftPort       uint16
+	joinExisting          bool // Whether to join an existing cluster when a WAL doesn't already exist
+	joinExistingAsLearner bool // Whether to join an existing cluster as learner when a WAL doesn't already exist
+	bootstrapNodes        []*enode.Node
+	raftId                uint16
+	raftPort              uint16
 
 	// Local peer state (protected by mu vs concurrent access via JS)
 	address       *Address
@@ -97,32 +98,33 @@ type ProtocolManager struct {
 // Public interface
 //
 
-func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
+func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, isLearner bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
 
 	manager := &ProtocolManager{
-		bootstrapNodes:      bootstrapNodes,
-		peers:               make(map[uint16]*Peer),
-		leader:              uint16(etcdRaft.None),
-		removedPeers:        mapset.NewSet(),
-		joinExisting:        joinExisting,
-		blockchain:          blockchain,
-		eventMux:            mux,
-		blockProposalC:      make(chan *types.Block),
-		confChangeProposalC: make(chan raftpb.ConfChange),
-		httpstopc:           make(chan struct{}),
-		httpdonec:           make(chan struct{}),
-		waldir:              waldir,
-		snapdir:             snapdir,
-		snapshotter:         snap.New(snapdir),
-		raftId:              raftId,
-		raftPort:            raftPort,
-		quitSync:            make(chan struct{}),
-		raftStorage:         etcdRaft.NewMemoryStorage(),
-		minter:              minter,
-		downloader:          downloader,
+		bootstrapNodes:        bootstrapNodes,
+		peers:                 make(map[uint16]*Peer),
+		leader:                uint16(etcdRaft.None),
+		removedPeers:          mapset.NewSet(),
+		joinExisting:          joinExisting,
+		joinExistingAsLearner: isLearner,
+		blockchain:            blockchain,
+		eventMux:              mux,
+		blockProposalC:        make(chan *types.Block),
+		confChangeProposalC:   make(chan raftpb.ConfChange),
+		httpstopc:             make(chan struct{}),
+		httpdonec:             make(chan struct{}),
+		waldir:                waldir,
+		snapdir:               snapdir,
+		snapshotter:           snap.New(snapdir),
+		raftId:                raftId,
+		raftPort:              raftPort,
+		quitSync:              make(chan struct{}),
+		raftStorage:           etcdRaft.NewMemoryStorage(),
+		minter:                minter,
+		downloader:            downloader,
 	}
 
 	if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
@@ -278,7 +280,6 @@ func (pm *ProtocolManager) isRaftIdUsed(raftId uint16) bool {
 	return pm.peers[raftId] != nil
 }
 
-
 func (pm *ProtocolManager) isNodeAlreadyInCluster(node *enode.Node) error {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
@@ -348,7 +349,7 @@ func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) {
 	}
 }
 
-func (pm *ProtocolManager) PromoteToVoter(raftId uint16) (bool,error) {
+func (pm *ProtocolManager) PromoteToVoter(raftId uint16) (bool, error) {
 	if p, ok := pm.peers[raftId]; ok {
 		if !p.address.IsLearner {
 			return false, fmt.Errorf("%d is not a learner node. only learner node can be promoted to voter", raftId)
@@ -378,6 +379,7 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 //
 
 func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error {
+	log.Info("AJ-handler Process", "msg", m)
 	return pm.rawNode().Step(ctx, m)
 }
 
@@ -494,11 +496,22 @@ func (pm *ProtocolManager) startRaft() {
 	if walExisted {
 		log.Info("remounting an existing raft log; connecting to peers.")
 		log.Info("AJ-startRaft walExisted 1")
+		/*var learners []uint16
+		for _, rid := range pm.peers {
+			if rid.address.IsLearner {
+				learners = append(learners, rid.address.RaftId)
+			}
+		}
+		if pm.address.IsLearner {
+			learners = append(learners, pm.address.RaftId)
+		}*/
+
 		pm.unsafeRawNode = etcdRaft.RestartNode(raftConfig)
 	} else if pm.joinExisting {
 		log.Info("newly joining an existing cluster; waiting for connections.")
 		log.Info("AJ-startRaft joinExisting 2")
-		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil)
+		//TODO (Amal): derive isLearner flag
+		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil, pm.joinExistingAsLearner)
 	} else {
 		log.Info("AJ-startRaft nowal and not joining existing 3")
 		if numPeers := len(pm.bootstrapNodes); numPeers == 0 {
@@ -516,13 +529,12 @@ func (pm *ProtocolManager) startRaft() {
 		// these nodes before we see these log entries, and we always want our
 		// snapshots to have all addresses for each of the nodes in the ConfState.
 		for _, peerAddress := range peerAddresses {
-			log.Info("AJ-startRaft 3 addPeer","peerAddress", peerAddress)
+			log.Info("AJ-startRaft 3 addPeer", "peerAddress", peerAddress)
 			pm.addPeer(peerAddress)
 		}
-
-		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, raftPeers)
+		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, raftPeers, false)
 	}
-
+	log.Info("AJ-raft node started")
 	go pm.serveRaft()
 	go pm.serveLocalProposals()
 	go pm.eventLoop()
@@ -533,7 +545,7 @@ func (pm *ProtocolManager) setLocalAddress(addr *Address) {
 	pm.mu.Lock()
 	pm.address = addr
 	pm.mu.Unlock()
-	log.Info("AJ-raftURL", "url",raftUrl(addr))
+	log.Info("AJ-raftURL", "url", raftUrl(addr))
 	// By setting `URLs` on the raft transport, we advertise our URL (in an HTTP
 	// header) to any recipient. This is necessary for a newcomer to the cluster
 	// to be able to accept a snapshot from us to bootstrap them.
@@ -729,8 +741,8 @@ func (pm *ProtocolManager) eventLoop() {
 		case <-ticker.C:
 			pm.rawNode().Tick()
 
-		// when the node is first ready it gives us entries to commit and messages
-		// to immediately publish
+			// when the node is first ready it gives us entries to commit and messages
+			// to immediately publish
 		case rd := <-pm.rawNode().Ready():
 			pm.wal.Save(rd.HardState, rd.Entries)
 
@@ -787,7 +799,7 @@ func (pm *ProtocolManager) eventLoop() {
 					raftId := uint16(cc.NodeID)
 
 					pm.confState = *pm.rawNode().ApplyConfChange(cc)
-					log.Info("AJ-eventLoop confChange", "rawNode.applyConfChange", pm.confState )
+					log.Info("AJ-eventLoop confChange", "rawNode.applyConfChange", pm.confState)
 					forceSnapshot := false
 
 					switch cc.Type {

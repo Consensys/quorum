@@ -60,8 +60,23 @@ func (addr *Address) DecodeRLP(s *rlp.Stream) error {
 		IsLearner bool
 	}
 
+	var tempOld struct {
+		RaftId   uint16
+		NodeId   enode.EnodeID
+		Ip       net.IP
+		P2pPort  enr.TCP
+		RaftPort enr.RaftPort
+	}
+
+	//TODO (Amal): review
 	if err := s.Decode(&temp); err != nil {
-		return err
+		log.Printf("AJ - error decoding %v", err)
+		if err1 := s.Decode(&tempOld); err1 != nil {
+			return err1
+		}
+		addr.RaftId, addr.NodeId, addr.Ip, addr.P2pPort, addr.RaftPort, addr.IsLearner = tempOld.RaftId, tempOld.NodeId, tempOld.Ip, tempOld.P2pPort, tempOld.RaftPort, false
+		return nil
+		//return err
 	} else {
 		addr.RaftId, addr.NodeId, addr.Ip, addr.P2pPort, addr.RaftPort, addr.IsLearner = temp.RaftId, temp.NodeId, temp.Ip, temp.P2pPort, temp.RaftPort, temp.IsLearner
 		return nil

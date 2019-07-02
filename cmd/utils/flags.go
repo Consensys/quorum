@@ -591,6 +591,10 @@ var (
 		Usage: "The raft ID to assume when joining an pre-existing cluster",
 		Value: 0,
 	}
+	RaftLearnerJoinExistingFlag = cli.BoolFlag{
+		Name:  "raftlearner",
+		Usage: "If enabled, this node will join the pre-existing cluster as a learner",
+	}
 	EmitCheckpointsFlag = cli.BoolFlag{
 		Name:  "emitcheckpoints",
 		Usage: "If enabled, emit specially formatted logging checkpoints",
