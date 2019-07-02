@@ -1979,16 +1979,17 @@ func TestEIP155SignerOnTxPool(t *testing.T) {
 		name           string
 		homesteadBlock *big.Int
 		eip155Block    *big.Int
+		signer         types.Signer
 	}{
-		{"hsnileip155nil", nil, nil},
-		{"hsnileip1550", nil, big.NewInt(0)},
-		{"hsnileip155100", nil, big.NewInt(100)},
-		{"hs0eip155nil", big.NewInt(0), nil},
-		{"hs0eip1550", big.NewInt(0), big.NewInt(0)},
-		{"hs0eip155100", big.NewInt(0), big.NewInt(100)},
-		{"hs100eip155nil", big.NewInt(100), nil},
-		{"hs100eip1550", big.NewInt(100), big.NewInt(0)},
-		{"hs100eip155100", big.NewInt(100), big.NewInt(100)},
+		{"hsnileip155nil", nil, nil, types.FrontierSigner{}},
+		{"hsnileip1550", nil, big.NewInt(0), types.EIP155Signer{}},
+		{"hsnileip155100", nil, big.NewInt(100), types.FrontierSigner{}},
+		{"hs0eip155nil", big.NewInt(0), nil, types.HomesteadSigner{}},
+		{"hs0eip1550", big.NewInt(0), big.NewInt(0), types.EIP155Signer{}},
+		{"hs0eip155100", big.NewInt(0), big.NewInt(100), types.HomesteadSigner{}},
+		{"hs100eip155nil", big.NewInt(100), nil, types.FrontierSigner{}},
+		{"hs100eip1550", big.NewInt(100), big.NewInt(0), types.EIP155Signer{}},
+		{"hs100eip155100", big.NewInt(100), big.NewInt(100), types.FrontierSigner{}},
 	}
 
 	for _, tt := range flagtests {
@@ -2009,7 +2010,7 @@ func TestEIP155SignerOnTxPool(t *testing.T) {
 
 			pool := NewTxPool(testTxPoolConfig, chainconfig, blockchain)
 
-			if reflect.TypeOf(types.EIP155Signer{}) != reflect.TypeOf(pool.signer) {
+			if reflect.TypeOf(tt.signer) != reflect.TypeOf(pool.signer) {
 				t.Fail()
 			}
 		})
