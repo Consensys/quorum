@@ -192,7 +192,11 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	if pm.role == minterRole {
 		roleDescription = "minter"
 	} else {
-		roleDescription = "verifier"
+		if pm.isThisVerifierNode() {
+			roleDescription = "verifier"
+		} else {
+			roleDescription = "learner"
+		}
 	}
 
 	peerAddresses := make([]*Address, len(pm.peers))
@@ -350,14 +354,11 @@ func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) {
 }
 
 func (pm *ProtocolManager) PromoteToVoter(raftId uint16) (bool, error) {
-	defer pm.mu.Unlock()
-	pm.mu.Lock()
-	log.Info("AJ - promoteToVoter " , "confState", pm.confState)
-	for _, n := range pm.confState.Nodes {
-		if uint16(n) == raftId {
-			return false, fmt.Errorf("%d is not a learner node. only learner node can be promoted to voter", raftId)
-		}
+	log.Info("AJ - promoteToVoter", "confState", pm.confState)
+	if !pm.isLearner(raftId) {
+		return false, fmt.Errorf("%d is not a learner. only learner can be promoted to voter", raftId)
 	}
+
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:   raftpb.ConfChangeAddNode,
 		NodeID: uint64(raftId),
@@ -382,7 +383,6 @@ func (pm *ProtocolManager) WriteMsg(msg p2p.Msg) error {
 //
 
 func (pm *ProtocolManager) Process(ctx context.Context, m raftpb.Message) error {
-	log.Info("AJ-handler Process", "msg", m)
 	return pm.rawNode().Step(ctx, m)
 }
 
@@ -420,7 +420,6 @@ func (pm *ProtocolManager) startRaft() {
 	lastAppliedIndex := pm.loadAppliedIndex()
 
 	id := raftTypes.ID(pm.raftId).String()
-	log.Info("AJ-raft id", "id", id)
 	ss := stats.NewServerStats(id, id)
 
 	pm.transport = &rafthttp.Transport{
@@ -498,25 +497,12 @@ func (pm *ProtocolManager) startRaft() {
 
 	if walExisted {
 		log.Info("remounting an existing raft log; connecting to peers.")
-		log.Info("AJ-startRaft walExisted 1")
-		/*var learners []uint16
-		for _, rid := range pm.peers {
-			if rid.address.IsLearner {
-				learners = append(learners, rid.address.RaftId)
-			}
-		}
-		if pm.address.IsLearner {
-			learners = append(learners, pm.address.RaftId)
-		}*/
 
 		pm.unsafeRawNode = etcdRaft.RestartNode(raftConfig)
 	} else if pm.joinExisting {
 		log.Info("newly joining an existing cluster; waiting for connections.")
-		log.Info("AJ-startRaft joinExisting 2")
-		//TODO (Amal): derive isLearner flag
 		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil, pm.joinExistingAsLearner)
 	} else {
-		log.Info("AJ-startRaft nowal and not joining existing 3")
 		if numPeers := len(pm.bootstrapNodes); numPeers == 0 {
 			panic("exiting due to empty raft peers list")
 		} else {
@@ -532,12 +518,11 @@ func (pm *ProtocolManager) startRaft() {
 		// these nodes before we see these log entries, and we always want our
 		// snapshots to have all addresses for each of the nodes in the ConfState.
 		for _, peerAddress := range peerAddresses {
-			log.Info("AJ-startRaft 3 addPeer", "peerAddress", peerAddress)
 			pm.addPeer(peerAddress)
 		}
 		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, raftPeers, false)
 	}
-	log.Info("AJ-raft node started")
+	log.Info("raft node started")
 	go pm.serveRaft()
 	go pm.serveLocalProposals()
 	go pm.eventLoop()
@@ -548,7 +533,6 @@ func (pm *ProtocolManager) setLocalAddress(addr *Address) {
 	pm.mu.Lock()
 	pm.address = addr
 	pm.mu.Unlock()
-	log.Info("AJ-raftURL", "url", raftUrl(addr))
 	// By setting `URLs` on the raft transport, we advertise our URL (in an HTTP
 	// header) to any recipient. This is necessary for a newcomer to the cluster
 	// to be able to accept a snapshot from us to bootstrap them.
@@ -579,6 +563,39 @@ func (pm *ProtocolManager) serveRaft() {
 	close(pm.httpdonec)
 }
 
+func (pm *ProtocolManager) isLearner(rid uint16) bool {
+	defer pm.mu.RUnlock()
+	pm.mu.RLock()
+	for _, n := range pm.confState.Learners {
+		if uint16(n) == rid {
+			return true
+		}
+	}
+	return false
+}
+
+func (pm *ProtocolManager) isThisLearnerNode() bool {
+	defer pm.mu.RUnlock()
+	pm.mu.RLock()
+	for _, n := range pm.confState.Learners {
+		if uint16(n) == pm.raftId {
+			return true
+		}
+	}
+	return false
+}
+
+func (pm *ProtocolManager) isThisVerifierNode() bool {
+	defer pm.mu.RUnlock()
+	pm.mu.RLock()
+	for _, n := range pm.confState.Nodes {
+		if uint16(n) == pm.raftId {
+			return true
+		}
+	}
+	return false
+}
+
 func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 	for {
 		select {
@@ -593,7 +610,11 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 				log.EmitCheckpoint(log.BecameMinter)
 				pm.minter.start()
 			} else { // verifier
-				log.EmitCheckpoint(log.BecameVerifier)
+				if pm.isThisVerifierNode() {
+					log.EmitCheckpoint(log.BecameVerifier)
+				} else {
+					log.EmitCheckpoint(log.BecameLearner)
+				}
 				pm.minter.stop()
 			}
 
@@ -802,7 +823,7 @@ func (pm *ProtocolManager) eventLoop() {
 					raftId := uint16(cc.NodeID)
 
 					pm.confState = *pm.rawNode().ApplyConfChange(cc)
-					log.Info("AJ-eventLoop confChange", "rawNode.applyConfChange", pm.confState)
+					log.Info("confChange", "confState", pm.confState)
 					forceSnapshot := false
 
 					switch cc.Type {
@@ -820,7 +841,7 @@ func (pm *ProtocolManager) eventLoop() {
 
 							if p := pm.peers[raftId]; p != nil || pm.raftId == raftId {
 								forceSnapshot = true
-								log.Info("ConfChangeAddNode promoted learner node %d to voter node", raftId)
+								log.Info("ConfChangeAddNode promoted learner node to voter node", "raft id", raftId)
 							}
 
 						} else {

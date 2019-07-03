@@ -302,13 +302,13 @@ func newRaftImpl(c *Config, isLearner bool) *raft {
 	}
 	raftlog := newLog(c.Storage, c.Logger)
 	hs, cs, err := c.Storage.InitialState()
-	c.Logger.Info("AJ-newRaft storage", "hs", hs, "cs", cs)
+	c.Logger.Info("newRaft storage", "hardState", hs, " confState", cs)
 	if err != nil {
 		panic(err) // TODO(bdarnell)
 	}
 	peers := c.peers
 	learners := c.learners
-	c.Logger.Info("AJ-newRaft @S1 ", "peers", cs.Nodes, "learners", cs.Learners)
+	c.Logger.Info("newRaft ", "config.peers", cs.Nodes, " config.learners", cs.Learners)
 
 	//Quorum - isLearner can be set to true only when learners from Storage or Config is empty.
 	//isLearner will be required to be set to true when a learner node joins a network for the first time.
@@ -457,13 +457,9 @@ func (r *raft) send(m pb.Message) {
 }
 
 func (r *raft) getProgress(id uint64) *Progress {
-	r.logger.Infof("SMK-getProgress @420 id - %x, pr size - %x, lrPrs size - %x", id, len(r.prs), len(r.learnerPrs))
-	r.logger.Infof("SMK-getProgress @421 %v -- %v", r.prs, r.learnerPrs)
 	if pr, ok := r.prs[id]; ok {
-		r.logger.Infof("SMK-getProgress @422")
 		return pr
 	}
-	r.logger.Infof("SMK-getProgress @426")
 	return r.learnerPrs[id]
 }
 
@@ -1255,7 +1251,6 @@ func (r *raft) handleSnapshot(m pb.Message) {
 // restore recovers the state machine from a snapshot. It restores the log and the
 // configuration of state machine.
 func (r *raft) restore(s pb.Snapshot) bool {
-	r.logger.Infof("AJ-restore snapshot %v", s)
 	if s.Metadata.Index <= r.raftLog.committed {
 		return false
 	}
@@ -1276,7 +1271,7 @@ func (r *raft) restore(s pb.Snapshot) bool {
 
 	// The learner node must be present in the learners list
 	if r.isLearner && !isLearnerNode {
-		panic("node is a leraner but it's missing in learners list")
+		panic("node is a leraner but it's missing in confSate.learners list")
 		return false
 	}
 
@@ -1321,22 +1316,16 @@ func (r *raft) addNode(id uint64) {
 }
 
 func (r *raft) addLearner(id uint64) {
-	r.logger.Infof("SMK-addLearner @1269")
 	r.addNodeOrLearnerNode(id, true)
 }
 
 func (r *raft) addNodeOrLearnerNode(id uint64, isLearner bool) {
-	r.logger.Infof("SMK-addNodeOrLearnerNode @1274")
 	r.pendingConf = false
 	pr := r.getProgress(id)
 	if pr == nil {
-		r.logger.Infof("SMK-addNodeOrLearnerNode @1278 %x", isLearner)
 		r.setProgress(id, 0, r.raftLog.lastIndex()+1, isLearner)
 	} else {
-		r.logger.Infof("SMK-addNodeOrLearnerNode @1281")
 		if isLearner && !pr.IsLearner {
-			r.logger.Infof("SMK-addNodeOrLearnerNode @1283")
-
 			// can only change Learner to Voter
 			r.logger.Infof("%x ignored addLeaner: do not support changing %x from raft peer to learner.", r.id, id)
 			return
@@ -1345,27 +1334,22 @@ func (r *raft) addNodeOrLearnerNode(id uint64, isLearner bool) {
 		if isLearner == pr.IsLearner {
 			// Ignore any redundant addNode calls (which can happen because the
 			// initial bootstrapping entries are applied twice).
-			r.logger.Infof("SMK-addNodeOrLearnerNode @1293")
 			return
 		}
-		r.logger.Infof("SMK-addNodeOrLearnerNode @1296")
 
 		// change Learner to Voter, use origin Learner progress
 		delete(r.learnerPrs, id)
-		r.logger.Infof("SMK-addNodeOrLearnerNode @1297 removed learner %d", id)
 		pr.IsLearner = false
 		r.prs[id] = pr
 	}
 
 	if r.id == id {
-		r.logger.Infof("SMK-addNodeOrLearnerNode @1304")
 		r.isLearner = isLearner
 	}
 
 	// When a node is first added, we should mark it as recently active.
 	// Otherwise, CheckQuorum may cause us to step down if it is invoked
 	// before the added node has a chance to communicate with us.
-	r.logger.Infof("SMK-addNodeOrLearnerNode @1312")
 	pr = r.getProgress(id)
 	pr.RecentActive = true
 }
@@ -1393,10 +1377,8 @@ func (r *raft) removeNode(id uint64) {
 func (r *raft) resetPendingConf() { r.pendingConf = false }
 
 func (r *raft) setProgress(id, match, next uint64, isLearner bool) {
-	r.logger.Infof("SMK-setProgress isLearner - %v, id - %x", isLearner, id)
 	if !isLearner {
 		delete(r.learnerPrs, id)
-		r.logger.Infof("SMK-setProgress @1497 removed learner %d", id)
 		r.prs[id] = &Progress{Next: next, Match: match, ins: newInflights(r.maxInflight)}
 		return
 	}
@@ -1404,7 +1386,6 @@ func (r *raft) setProgress(id, match, next uint64, isLearner bool) {
 	if _, ok := r.prs[id]; ok {
 		panic(fmt.Sprintf("%x unexpected changing from voter to learner for %x", r.id, id))
 	}
-	r.logger.Infof("SMK-setProgress adding an entry into learnerPrs for id - %x r.id - %x", id, r.id)
 
 	r.learnerPrs[id] = &Progress{Next: next, Match: match, ins: newInflights(r.maxInflight), IsLearner: true}
 }
@@ -1412,7 +1393,6 @@ func (r *raft) setProgress(id, match, next uint64, isLearner bool) {
 func (r *raft) delProgress(id uint64) {
 	delete(r.prs, id)
 	delete(r.learnerPrs, id)
-	r.logger.Infof("SMK-delProgress @1397 removed learner %d", id)
 }
 
 func (r *raft) loadState(state pb.HardState) {

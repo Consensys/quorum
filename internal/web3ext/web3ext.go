@@ -747,6 +747,10 @@ web3._extend({
                        name: 'cluster',
                        getter: 'raft_cluster'
                }),
+				new web3._extend.Property({
+                       name: 'confState',
+                       getter: 'raft_confState'
+               }),
        ]
 })
 `

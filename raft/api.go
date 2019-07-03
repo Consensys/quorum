@@ -1,5 +1,7 @@
 package raft
 
+import "github.com/coreos/etcd/raft/raftpb"
+
 type RaftNodeInfo struct {
 	ClusterSize    int        `json:"clusterSize"`
 	Role           string     `json:"role"`
@@ -20,6 +22,10 @@ func NewPublicRaftAPI(raftService *RaftService) *PublicRaftAPI {
 
 func (s *PublicRaftAPI) Role() string {
 	return s.raftService.raftProtocolManager.NodeInfo().Role
+}
+
+func (s *PublicRaftAPI) ConfState() (raftpb.ConfState, error) {
+	return s.raftService.raftProtocolManager.confState, nil
 }
 
 func (s *PublicRaftAPI) AddPeer(enodeId string) (uint16, error) {

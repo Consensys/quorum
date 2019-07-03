@@ -55,7 +55,6 @@ func (addr *Address) DecodeRLP(s *rlp.Stream) error {
 		Ip       net.IP
 		P2pPort  enr.TCP
 		RaftPort enr.RaftPort
-		IsLearner bool
 	}
 
 	if err := s.Decode(&temp); err != nil {

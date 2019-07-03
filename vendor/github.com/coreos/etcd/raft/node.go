@@ -296,7 +296,6 @@ func (n *node) RoleChan() *channels.RingChannel {
 }
 
 func (n *node) run(r *raft) {
-	n.logger.Infof("SMK-run @292")
 	var propc chan pb.Message
 	var readyc chan Ready
 	var advancec chan struct{}
@@ -371,7 +370,6 @@ func (n *node) run(r *raft) {
 			case pb.ConfChangeAddNode:
 				r.addNode(cc.NodeID)
 			case pb.ConfChangeAddLearnerNode:
-				r.logger.Infof("SMK-run @ 366 calling addLearner")
 				r.addLearner(cc.NodeID)
 			case pb.ConfChangeRemoveNode:
 				// block incoming proposal when local node is
@@ -456,7 +454,6 @@ func (n *node) Step(ctx context.Context, m pb.Message) error {
 }
 
 func (n *node) ProposeConfChange(ctx context.Context, cc pb.ConfChange) error {
-	n.logger.Infof("SMK-ProposeConfChange @449")
 	data, err := cc.Marshal()
 	if err != nil {
 		return err
