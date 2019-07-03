@@ -91,10 +91,7 @@ func (pm *ProtocolManager) triggerSnapshot(index uint64) {
 
 	log.Info("start snapshot", "applied index", pm.appliedIndex, "last snapshot index", snapshotIndex)
 
-	//snapData := pm.blockchain.CurrentBlock().Hash().Bytes()
-	//snap, err := pm.raftStorage.CreateSnapshot(pm.appliedIndex, &pm.confState, snapData)
-	bs := pm.buildSnapshot()
-	snapData := bs.toBytes()
+	snapData := pm.buildSnapshot().toBytes()
 	snap, err := pm.raftStorage.CreateSnapshot(index, &pm.confState, snapData)
 	if err != nil {
 		panic(err)

@@ -274,7 +274,7 @@ func (pm *ProtocolManager) isRaftIdRemoved(id uint16) bool {
 }
 
 func (pm *ProtocolManager) isRaftIdUsed(raftId uint16) bool {
-	if pm.raftId == raftId {
+	if pm.raftId == raftId || pm.isRaftIdRemoved(raftId) {
 		return true
 	}
 
@@ -353,8 +353,7 @@ func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) {
 	}
 }
 
-func (pm *ProtocolManager) PromoteToVoter(raftId uint16) (bool, error) {
-	log.Info("AJ - promoteToVoter", "confState", pm.confState)
+func (pm *ProtocolManager) PromoteToPeer(raftId uint16) (bool, error) {
 	if !pm.isLearner(raftId) {
 		return false, fmt.Errorf("%d is not a learner. only learner can be promoted to voter", raftId)
 	}
@@ -673,7 +672,6 @@ func (pm *ProtocolManager) serveLocalProposals() {
 
 			confChangeCount++
 			cc.ID = confChangeCount
-			log.Info("SMK-serveLocalProposals @ 645 calling ProposeConfChange")
 			pm.rawNode().ProposeConfChange(context.TODO(), cc)
 		case <-pm.quitSync:
 			return
@@ -828,6 +826,13 @@ func (pm *ProtocolManager) eventLoop() {
 
 					switch cc.Type {
 					case raftpb.ConfChangeAddNode, raftpb.ConfChangeAddLearnerNode:
+						//for debugging
+						if cc.Type == raftpb.ConfChangeAddNode {
+							log.Info("confChangeAddNode", "raft id", raftId)
+						} else {
+							log.Info("confChangeAddLearnerNode", "raft id", raftId)
+						}
+
 						if pm.isRaftIdRemoved(raftId) {
 							log.Info("ignoring ConfChangeAddNode for permanently-removed peer", "raft id", raftId)
 						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes)) {
@@ -836,23 +841,16 @@ func (pm *ProtocolManager) eventLoop() {
 
 							// We need a snapshot to exist to reconnect to peers on start-up after a crash.
 							forceSnapshot = true
-						} else if pm.isRaftIdUsed(raftId) {
-							log.Info("ConfChangeAddNode for already-used raft ID but not a removed one", "raft id", raftId)
-
-							if p := pm.peers[raftId]; p != nil || pm.raftId == raftId {
-								forceSnapshot = true
-								log.Info("ConfChangeAddNode promoted learner node to voter node", "raft id", raftId)
-							}
-
-						} else {
-							if cc.Type == raftpb.ConfChangeAddNode {
-								log.Info("adding peer due to ConfChangeAddNode", "raft id", raftId)
-							} else {
-								log.Info("adding peer due to ConfChangeAddLearnerNode", "raft id", raftId)
-							}
-
+						} else { // add peer or add learner or promote learner to voter
 							forceSnapshot = true
-							pm.addPeer(bytesToAddress(cc.Context))
+							if p := pm.peers[raftId]; p != nil || pm.raftId == raftId {
+								log.Info("promote learner node to voter node", "raft id", raftId)
+							}
+
+							if p := pm.peers[raftId]; pm.raftId != raftId && p == nil {
+								log.Info("confChange add peer", "raft id", raftId)
+								pm.addPeer(bytesToAddress(cc.Context))
+							}
 						}
 
 					case raftpb.ConfChangeRemoveNode:

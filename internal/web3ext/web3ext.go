@@ -730,8 +730,8 @@ web3._extend({
                        params: 1
                }),
 				new web3._extend.Method({
-                       name: 'promoteToVoter',
-                       call: 'raft_promoteToVoter',
+                       name: 'promoteToPeer',
+                       call: 'raft_promoteToPeer',
                        params: 1
                }),
                new web3._extend.Method({
@@ -747,7 +747,7 @@ web3._extend({
                        name: 'cluster',
                        getter: 'raft_cluster'
                }),
-				new web3._extend.Property({
+               new web3._extend.Property({
                        name: 'confState',
                        getter: 'raft_confState'
                }),
