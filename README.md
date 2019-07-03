@@ -1,6 +1,6 @@
-# <img src="https://raw.githubusercontent.com/jpmorganchase/quorum/master/logo.png" width="100" height="100"/>
+# <img src="https://raw.githubusercontent.com/jpmorganchase/quorum/master/logo.png" width="200" height="200"/>
 
-<a href="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
+<a href="https://bit.ly/quorum-slack" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
 [![Build Status](https://travis-ci.org/jpmorganchase/quorum.svg?branch=master)](https://travis-ci.org/jpmorganchase/quorum)
 [![Download](https://api.bintray.com/packages/quorumengineering/quorum/geth/images/download.svg)](https://bintray.com/quorumengineering/quorum/geth/_latestVersion)
 
@@ -21,13 +21,13 @@ Key enhancements over go-ethereum:
 
 ![Quorum Tessera Privacy Flow](https://raw.githubusercontent.com/jpmorganchase/quorum-docs/master/images/QuorumTransactionProcessing.JPG)
 
-The above diagram is a high-level overview of the privacy architecture used by Quorum. For more in-depth discussion of the components, refer to the [wiki](https://github.com/jpmorganchase/quorum/wiki) pages.
+The above diagram is a high-level overview of the privacy architecture used by Quorum. For more in-depth discussion of the components, refer to the [documentation site](https://docs.goquorum.com).
 
 ## Quickstart
 The quickest way to get started with Quorum is by following instructions in the [Quorum Examples](https://github.com/jpmorganchase/quorum-examples) repository.  This allows you to quickly create a network of Quorum nodes, and includes a step-by-step demonstration of the privacy features of Quorum.
 
 ## Further Reading
-Further documentation can be found in the [docs](docs/) folder and on the [wiki](https://github.com/jpmorganchase/quorum/wiki).
+Further documentation can be found in the [docs](docs/) folder and on the [documentation site](https://docs.goquorum.com).
 
 ## Official Docker Containers
 The official docker containers can be found under https://hub.docker.com/u/quorumengineering/ 
@@ -36,18 +36,21 @@ The official docker containers can be found under https://hub.docker.com/u/quoru
 ## See also
 
 * [Quorum](https://github.com/jpmorganchase/quorum): this repository
-* [Quorum Wiki](https://github.com/jpmorganchase/quorum/wiki)
+* [Quorum Documentation](https://docs.goquorum.com)
 * [quorum-examples](https://github.com/jpmorganchase/quorum-examples): Quorum demonstration examples
-* [Quorum Community Slack Inviter](https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/): Quorum Slack community entry point
+* [Quorum Community Slack Inviter](https://bit.ly/quorum-slack): Quorum Slack community entry point
 * Quorum Transaction Managers
    * [Constellation](https://github.com/jpmorganchase/constellation): Haskell implementation of peer-to-peer encrypted message exchange for transaction privacy
    * [Tessera](https://github.com/jpmorganchase/tessera): Java implementation of peer-to-peer encrypted message exchange for transaction privacy
 * Quorum supported consensuses
-   * [Raft Consensus Documentation](docs/Consensus/raft.md)
-   * [Istanbul BFT Consensus Documentation](https://github.com/ethereum/EIPs/issues/650): [RPC API](https://github.com/jpmorganchase/quorum/blob/master/docs/Consensus/istanbul-rpc-api.md) and [technical article](https://medium.com/getamis/istanbul-bft-ibft-c2758b7fe6ff). <span style="background-color: #ffffbf">Please note</span> that updated istanbul-tools is now hosted in [this](https://github.com/jpmorganchase/istanbul-tools/) repository
+   * [Raft Consensus Documentation](https://docs.goquorum.com/en/latest/Consensus/raft/)
+   * [Istanbul BFT Consensus Documentation](https://github.com/ethereum/EIPs/issues/650): [RPC API](https://docs.goquorum.com/en/latest/Consensus/istanbul-rpc-api/) and [technical article](https://medium.com/getamis/istanbul-bft-ibft-c2758b7fe6ff). __Please note__ that updated istanbul-tools is now hosted in [this](https://github.com/jpmorganchase/istanbul-tools/) repository
    * [Clique POA Consensus Documentation](https://github.com/ethereum/EIPs/issues/225) and a [guide to setup clique json](https://modalduality.org/posts/puppeth/) with [puppeth](https://blog.ethereum.org/2017/04/14/geth-1-6-puppeth-master/)
-* [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) wiki page and [documentation](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
-* [quorum-tools](https://github.com/jpmorganchase/quorum-tools): local cluster orchestration, and integration testing tool
+* Zero Knowledge on Quorum
+   * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) wiki page and [documentation](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
+   * [Anonymous Zether](https://github.com/jpmorganchase/anonymous-zether) implementation
+* [quorum-cloud](https://github.com/jpmorganchase/quorum-cloud): Tools to help deploy Quorum network in a cloud provider of choice
+* [Cakeshop](https://github.com/jpmorganchase/cakeshop): An integrated development environment and SDK for Quorum
 
 ## Third Party Tools/Libraries
 
