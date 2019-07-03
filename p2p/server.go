@@ -84,6 +84,9 @@ type Config struct {
 	// Disabling is useful for protocol debugging (manual topology).
 	NoDiscovery bool
 
+	//Hostname is a user set hostname that they wish to advertise over discovery
+	Hostname string
+
 	// DiscoveryV5 specifies whether the new topic-discovery based V5 discovery
 	// protocol should be started or not.
 	DiscoveryV5 bool `toml:",omitempty"`
@@ -383,32 +386,6 @@ func (srv *Server) Stop() {
 	srv.loopWG.Wait()
 }
 
-// sharedUDPConn implements a shared connection. Write sends messages to the underlying connection while read returns
-// messages that were found unprocessable and sent to the unhandled channel by the primary listener.
-type sharedUDPConn struct {
-	*net.UDPConn
-	unhandled chan discover.ReadPacket
-}
-
-// ReadFromUDP implements discv5.conn
-func (s *sharedUDPConn) ReadFromUDP(b []byte) (n int, addr *net.UDPAddr, err error) {
-	packet, ok := <-s.unhandled
-	if !ok {
-		return 0, nil, fmt.Errorf("Connection was closed")
-	}
-	l := len(packet.Data)
-	if l > len(b) {
-		l = len(b)
-	}
-	copy(b[:l], packet.Data[:l])
-	return l, packet.Addr, nil
-}
-
-// Close implements discv5.conn
-func (s *sharedUDPConn) Close() error {
-	return nil
-}
-
 // Start starts running the server.
 // Servers can not be re-used after stopping.
 func (srv *Server) Start() (err error) {
@@ -484,6 +461,9 @@ func (srv *Server) setupLocalNode() error {
 	srv.localnode = enode.NewLocalNode(db, srv.PrivateKey)
 	srv.localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 	srv.localnode.Set(capsByNameAndVersion(srv.ourHandshake.Caps))
+	if srv.Config.Hostname != "" {
+		srv.localnode.Set(enr.Hostname(srv.Config.Hostname))
+	}
 	// TODO: check conflicts
 	for _, p := range srv.Protocols {
 		for _, e := range p.Attributes {
@@ -533,25 +513,50 @@ func (srv *Server) setupDiscovery() error {
 	}
 	srv.localnode.SetFallbackUDP(realaddr.Port)
 
-	// Discovery V4
-	var unhandled chan discover.ReadPacket
-	var sconn *sharedUDPConn
+	//Quorum
+	quorumUnhandled := make(chan discover.ReadPacket, 100)
+	quorumSharedConnection := NewBaseSharedUDPConn(conn, quorumUnhandled)
+
+	// Discovery V4 Quorum
 	if !srv.NoDiscovery {
-		if srv.DiscoveryV5 {
-			unhandled = make(chan discover.ReadPacket, 100)
-			sconn = &sharedUDPConn{conn, unhandled}
-		}
 		cfg := discover.Config{
 			PrivateKey:  srv.PrivateKey,
 			NetRestrict: srv.NetRestrict,
 			Bootnodes:   srv.BootstrapNodes,
-			Unhandled:   unhandled,
+			Unhandled:   quorumUnhandled,
 		}
-		ntab, err := discover.ListenUDP(conn, srv.localnode, cfg)
+		ntab, err := discover.ListenUDPQuorum(conn, srv.localnode, cfg)
 		if err != nil {
 			return err
 		}
 		srv.ntab = ntab
+	}
+	//End Quorum
+
+	// Discovery V4
+	var unhandled chan discover.ReadPacket
+	var sconn UDPReader
+	if !srv.NoDiscovery {
+		if srv.DiscoveryV5 {
+			unhandled = make(chan discover.ReadPacket, 100)
+			sconn = NewSharedUDPConn(quorumSharedConnection, unhandled)
+		}
+		cfg := discover.Config{
+			PrivateKey:  srv.PrivateKey,
+			NetRestrict: srv.NetRestrict,
+			Bootnodes:   []*enode.Node{},
+			Unhandled:   unhandled,
+		}
+
+		var tab *discover.Table
+		if tabCasted, ok := srv.ntab.(*discover.Table); ok {
+			tab = tabCasted
+		}
+
+		_, err := discover.ListenUDPExisting(quorumSharedConnection, srv.localnode, cfg, tab)
+		if err != nil {
+			return err
+		}
 	}
 	// Discovery V5
 	if srv.DiscoveryV5 {
@@ -560,7 +565,7 @@ func (srv *Server) setupDiscovery() error {
 		if sconn != nil {
 			ntab, err = discv5.ListenUDP(srv.PrivateKey, sconn, "", srv.NetRestrict)
 		} else {
-			ntab, err = discv5.ListenUDP(srv.PrivateKey, conn, "", srv.NetRestrict)
+			ntab, err = discv5.ListenUDP(srv.PrivateKey, quorumSharedConnection, "", srv.NetRestrict)
 		}
 		if err != nil {
 			return err
@@ -1074,7 +1079,7 @@ func (srv *Server) NodeInfo() *NodeInfo {
 		Name:       srv.Name,
 		Enode:      node.String(),
 		ID:         node.ID().String(),
-		IP:         node.IP().String(),
+		IP:         node.Host(),
 		ListenAddr: srv.ListenAddr,
 		Protocols:  make(map[string]interface{}),
 	}

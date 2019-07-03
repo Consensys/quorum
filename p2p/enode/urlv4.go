@@ -103,6 +103,37 @@ func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp, raftPort int) *Node {
 	return n
 }
 
+// Quorum
+
+// NewV4Hostname creates a node from discovery v4 node information. The record
+// contained in the node has a zero-length signature. It sets the hostname of
+// the node instead of the IP address.
+func NewV4Hostname(pubkey *ecdsa.PublicKey, hostname string, tcp, udp, raftPort int) *Node {
+	var r enr.Record
+	if hostname != "" {
+		r.Set(enr.Hostname(hostname))
+	}
+	if udp != 0 {
+		r.Set(enr.UDP(udp))
+	}
+	if tcp != 0 {
+		r.Set(enr.TCP(tcp))
+	}
+
+	if raftPort != 0 {
+		r.Set(enr.RaftPort(raftPort))
+	}
+
+	signV4Compat(&r, pubkey)
+	n, err := New(v4CompatID{}, &r)
+	if err != nil {
+		panic(err)
+	}
+	return n
+}
+
+// End-Quorum
+
 func parseComplete(rawurl string) (*Node, error) {
 	var (
 		id               *ecdsa.PublicKey
@@ -129,7 +160,15 @@ func parseComplete(rawurl string) (*Node, error) {
 		return nil, fmt.Errorf("invalid host: %v", err)
 	}
 	if ip = net.ParseIP(host); ip == nil {
-		return nil, errors.New("invalid IP address")
+		// QUORUM
+		// attempt to look up IP addresses if host is a FQDN
+		lookupIPs, err := net.LookupIP(host)
+		if err != nil {
+			return nil, errors.New("invalid IP address")
+		}
+		// set to first ip by default
+		ip = lookupIPs[0]
+		// END QUORUM
 	}
 	// Ensure the IP is 4 bytes long for IPv4 addresses.
 	if ipv4 := ip.To4(); ipv4 != nil {
@@ -155,12 +194,12 @@ func parseComplete(rawurl string) (*Node, error) {
 		if err != nil {
 			return nil, errors.New("invalid raftport in query")
 		}
-		node = NewV4(id, ip, int(tcpPort), int(udpPort), int(raftPort))
+		node = NewV4Hostname(id, host, int(tcpPort), int(udpPort), int(raftPort)) // Quorum
 	} else {
-		node = NewV4(id, ip, int(tcpPort), int(udpPort), 0)
+		node = NewV4Hostname(id, host, int(tcpPort), int(udpPort), 0) // Quorum
 	}
-	return node, nil
 
+	return node, nil
 }
 
 func HexPubkey(h string) (*ecdsa.PublicKey, error) {
@@ -219,9 +258,17 @@ func (n *Node) v4URL() string {
 	if n.Incomplete() {
 		u.Host = nodeid
 	} else {
-		addr := net.TCPAddr{IP: n.IP(), Port: n.TCP()}
+		// Quorum
+		var addr string
+		if n.Host() == "" {
+			tcpAddr := net.TCPAddr{IP: n.IP(), Port: n.TCP()}
+			addr = tcpAddr.String()
+		} else {
+			addr = net.JoinHostPort(n.Host(), strconv.Itoa(n.TCP()))
+		}
+		// End-Quorum
 		u.User = url.User(nodeid)
-		u.Host = addr.String()
+		u.Host = addr // Quorum
 		if n.UDP() != n.TCP() {
 			u.RawQuery = "discport=" + strconv.Itoa(n.UDP())
 		}

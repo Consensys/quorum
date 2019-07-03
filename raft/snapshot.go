@@ -1,9 +1,13 @@
 package raft
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
 	"io"
 	"math/big"
+	"net"
 	"sort"
 	"time"
 
@@ -19,11 +23,24 @@ import (
 )
 
 // Snapshot
-
 type Snapshot struct {
 	addresses      []Address
-	removedRaftIds []uint16 // Raft IDs for permanently removed peers
+	removedRaftIds []uint16
 	headBlockHash  common.Hash
+}
+
+type OldAddress struct {
+	RaftId   uint16
+	NodeId   enode.EnodeID
+	Ip		 net.IP
+	P2pPort  enr.TCP
+	RaftPort enr.RaftPort
+}
+
+type SnapshotOld struct {
+	Addresses       []OldAddress
+	RemovedRaftIds  []uint16 // Raft IDs for permanently removed peers
+	HeadBlockHash   common.Hash
 }
 
 type ByRaftId []Address
@@ -81,7 +98,7 @@ func (pm *ProtocolManager) triggerSnapshot(index uint64) {
 
 	//snapData := pm.blockchain.CurrentBlock().Hash().Bytes()
 	//snap, err := pm.raftStorage.CreateSnapshot(pm.appliedIndex, &pm.confState, snapData)
-	snapData := pm.buildSnapshot().toBytes()
+	snapData := pm.buildSnapshot().toBytes(pm.useDns)
 	snap, err := pm.raftStorage.CreateSnapshot(index, &pm.confState, snapData)
 	if err != nil {
 		panic(err)
@@ -191,43 +208,72 @@ func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
 	}
 }
 
-func (snapshot *Snapshot) toBytes() []byte {
-	size, r, err := rlp.EncodeToReader(snapshot)
+func (snapshot *Snapshot) toBytes(useDns bool) []byte {
+	if useDns {
+		buffer, err := rlp.EncodeToBytes(snapshot)
+		if err != nil {
+			panic(fmt.Sprintf("error: failed to RLP-encode Snapshot: %s", err.Error()))
+		}
+		return buffer
+	}
+
+	oldSnapshot := new(SnapshotOld)
+	oldSnapshot.HeadBlockHash, oldSnapshot.RemovedRaftIds = snapshot.headBlockHash, snapshot.removedRaftIds
+	oldSnapshot.Addresses = make([]OldAddress, len(snapshot.addresses))
+
+	for index, addrWithHost := range snapshot.addresses {
+		oldSnapshot.Addresses[index] = OldAddress{
+			addrWithHost.RaftId,
+			addrWithHost.NodeId,
+			net.ParseIP(addrWithHost.Hostname),
+			addrWithHost.P2pPort,
+			addrWithHost.RaftPort,
+		}
+	}
+
+	buffer, err := rlp.EncodeToBytes(oldSnapshot)
 	if err != nil {
 		panic(fmt.Sprintf("error: failed to RLP-encode Snapshot: %s", err.Error()))
 	}
-	var buffer = make([]byte, uint32(size))
-	r.Read(buffer)
-
 	return buffer
 }
 
-func bytesToSnapshot(bytes []byte) *Snapshot {
-	var snapshot Snapshot
-	if err := rlp.DecodeBytes(bytes, &snapshot); err != nil {
-		fatalf("failed to RLP-decode Snapshot: %v", err)
+func bytesToSnapshot(input []byte) *Snapshot {
+	var err, errOld error
+
+	snapshot := new(Snapshot)
+	streamNewSnapshot := rlp.NewStream(bytes.NewReader(input), 0)
+	if err := streamNewSnapshot.Decode(snapshot); err == nil {
+		return snapshot
 	}
-	return &snapshot
+
+	snapshotOld := new(SnapshotOld)
+	streamOldSnapshot := rlp.NewStream(bytes.NewReader(input), 0)
+	if errOld = streamOldSnapshot.Decode(snapshotOld); errOld == nil {
+		var snapshotConverted Snapshot
+		snapshotConverted.removedRaftIds, snapshotConverted.headBlockHash = snapshotOld.RemovedRaftIds, snapshotOld.HeadBlockHash
+		snapshotConverted.addresses = make([]Address, len(snapshotOld.Addresses))
+
+		for index, oldAddrWithIp := range snapshotOld.Addresses {
+			snapshotConverted.addresses[index] = Address{
+				RaftId:   oldAddrWithIp.RaftId,
+				NodeId:   oldAddrWithIp.NodeId,
+				Ip:       nil,
+				P2pPort:  oldAddrWithIp.P2pPort,
+				RaftPort: oldAddrWithIp.RaftPort,
+				Hostname : oldAddrWithIp.Ip.String(),
+			}
+		}
+
+		return &snapshotConverted
+	}
+
+	fatalf("failed to RLP-decode Snapshot: %v, %v", err, errOld)
+	return nil
 }
 
 func (snapshot *Snapshot) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{snapshot.addresses, snapshot.removedRaftIds, snapshot.headBlockHash})
-}
-
-func (snapshot *Snapshot) DecodeRLP(s *rlp.Stream) error {
-	// These fields need to be public:
-	var temp struct {
-		Addresses      []Address
-		RemovedRaftIds []uint16
-		HeadBlockHash  common.Hash
-	}
-
-	if err := s.Decode(&temp); err != nil {
-		return err
-	} else {
-		snapshot.addresses, snapshot.removedRaftIds, snapshot.headBlockHash = temp.Addresses, temp.RemovedRaftIds, temp.HeadBlockHash
-		return nil
-	}
 }
 
 // Raft snapshot

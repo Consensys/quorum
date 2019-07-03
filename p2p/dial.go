@@ -356,7 +356,7 @@ func (t *dialTask) dial(srv *Server, dest *enode.Node) error {
 
 func (t *dialTask) String() string {
 	id := t.dest.ID()
-	return fmt.Sprintf("%v %x %v:%d", t.flags, id[:8], t.dest.IP(), t.dest.TCP())
+	return fmt.Sprintf("%v %x %v:%d", t.flags, id[:8], t.dest.Host(), t.dest.TCP())
 }
 
 func (t *discoverTask) Do(srv *Server) {

@@ -533,6 +533,13 @@ var (
 		Name:  "nodiscover",
 		Usage: "Disables the peer discovery mechanism (manual peer addition)",
 	}
+	// Quorum
+	HostnameFlag = cli.StringFlag{
+		Name:  "hostname",
+		Usage: "Sets the hostname to use for p2p",
+		Value: "",
+	}
+	// End-Quorum
 	DiscoveryV5Flag = cli.BoolFlag{
 		Name:  "v5disc",
 		Usage: "Enables the experimental RLPx V5 (Topic Discovery) mechanism",
@@ -602,6 +609,10 @@ var (
 		Name:  "raftport",
 		Usage: "The port to bind for the raft transport",
 		Value: 50400,
+	}
+	RaftDNSEnabledFlag = cli.BoolFlag{
+		Name: "raft.dns-enable",
+		Usage: "Enable DNS resolution of peers",
 	}
 
 	// Quorum
@@ -986,6 +997,9 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	}
 	if ctx.GlobalIsSet(NoDiscoverFlag.Name) || lightClient {
 		cfg.NoDiscovery = true
+	}
+	if ctx.GlobalIsSet(HostnameFlag.Name) {
+		cfg.Hostname = ctx.GlobalString(HostnameFlag.Name)
 	}
 
 	// if we're running a light client or server, force enable the v5 peer discovery

@@ -154,6 +154,7 @@ func (n *Node) Start() error {
 	n.serverConfig.PrivateKey = n.config.NodeKey()
 	n.serverConfig.Name = n.config.NodeName()
 	n.serverConfig.Logger = n.log
+	n.serverConfig.Hostname = n.config.P2P.Hostname
 	if n.serverConfig.StaticNodes == nil {
 		n.serverConfig.StaticNodes = n.config.StaticNodes()
 	}

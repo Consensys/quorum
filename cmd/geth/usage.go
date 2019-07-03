@@ -161,6 +161,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.RaftBlockTimeFlag,
 			utils.RaftJoinExistingFlag,
 			utils.RaftPortFlag,
+			utils.RaftDNSEnabledFlag,
 		},
 	},
 	{
@@ -202,6 +203,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.MaxPendingPeersFlag,
 			utils.NATFlag,
 			utils.NoDiscoverFlag,
+			utils.HostnameFlag, // Quorum
 			utils.DiscoveryV5Flag,
 			utils.NetrestrictFlag,
 			utils.NodeKeyFileFlag,

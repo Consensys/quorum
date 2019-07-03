@@ -268,6 +268,39 @@ func newUDP(c conn, ln *enode.LocalNode, cfg Config) (*Table, *udp, error) {
 	return udp.tab, udp, nil
 }
 
+// Quorum
+
+// ListenUDPExisting uses an existing table that listens for UDP packets on the connection.
+func ListenUDPExisting(c conn, ln *enode.LocalNode, cfg Config, tab *Table) (*Table, error) {
+	tab, _, err := newUDPExisting(c, ln, cfg, tab)
+	if err != nil {
+		return nil, err
+	}
+	return tab, nil
+}
+
+func newUDPExisting(c conn, ln *enode.LocalNode, cfg Config, tab *Table) (*Table, *udp, error) {
+	udp := &udp{
+		conn:        c,
+		priv:        cfg.PrivateKey,
+		netrestrict: cfg.NetRestrict,
+		localNode:   ln,
+		db:          ln.Database(),
+		closing:     make(chan struct{}),
+		gotreply:    make(chan reply),
+		addpending:  make(chan *pending),
+	}
+
+	udp.tab = tab
+
+	udp.wg.Add(2)
+	go udp.loop()
+	go udp.readLoop(cfg.Unhandled)
+	return udp.tab, udp, nil
+}
+
+// End-Quorum
+
 func (t *udp) self() *enode.Node {
 	return t.localNode.Node()
 }
