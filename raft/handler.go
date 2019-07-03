@@ -765,7 +765,7 @@ func (pm *ProtocolManager) eventLoop() {
 					case raftpb.ConfChangeAddNode:
 						if pm.isRaftIdRemoved(raftId) {
 							log.Info("ignoring ConfChangeAddNode for permanently-removed peer", "raft id", raftId)
-						} else if raftId <= uint16(len(pm.bootstrapNodes)) {
+						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes))  {
 							// See initial cluster logic in startRaft() for more information.
 							log.Info("ignoring expected ConfChangeAddNode for initial peer", "raft id", raftId)
 

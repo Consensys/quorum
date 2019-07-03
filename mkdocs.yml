@@ -1,0 +1,109 @@
+
+# Project information
+site_name: Quorum
+site_url: https://docs.goquorum.com/
+site_description: A permissioned implementation of Ethereum supporting data privacy
+site_author: Quorum
+copyright: Quorum 2019
+
+# Repository
+repo_name: quorum
+repo_url: https://github.com/jpmorganchase/quorum
+
+nav:
+    - Getting Started:
+        - Setup Overview & Quickstart: Getting Started/Setup Overview & Quickstart.md
+        - Getting Started From Scratch: Getting Started/Getting-Started-From-Scratch.md
+        - Quorum Examples:
+          - Overview: Getting Started/Quorum-Examples.md
+          - 7 Nodes Example: Getting Started/7Nodes.md
+        - Running Quorum: Getting Started/running.md
+        - Quorum API: Getting Started/api.md
+    - Consensus:
+        - Consensus: Consensus/Consensus.md
+        - Raft: Consensus/raft.md
+        - Istanbul: Consensus/istanbul-rpc-api.md
+    - Transaction Processing: Transaction Processing/Transaction Processing.md
+    - Quorum Security Framework:
+          - Overview: Security/Framework/Overview.md
+          - Quorum Network:
+            - Consortium: Security/Framework/Quorum Network Security/Consortium.md
+            - Quorum Node: 
+                - Overview: Security/Framework/Quorum Network Security/Nodes.md
+                - Permissioning:
+                    - Network Permissioning: Security/Framework/Quorum Network Security/Nodes/Permissioning/Network Permissioning.md
+            - Transaction Manager: Security/Framework/Quorum Network Security/Transaction Manager.md
+            - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
+          - Decentralized App:
+            - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
+            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
+    - Privacy:
+        - Tessera:
+            - What is Tessera: Privacy/Tessera/Tessera.md
+            - How Tessera works: Privacy/Tessera/How Tessera Works.md
+            - Configuration:
+                - Overview: Privacy/Tessera/Configuration/Configuration Overview.md
+                - Keys Config: Privacy/Tessera/Configuration/Keys.md
+                - TLS Config: Privacy/Tessera/Configuration/TLS.md
+                - Using CLI to override config: Privacy/Tessera/Configuration/Using CLI to override config.md
+                - Sample Configuration: Privacy/Tessera/Configuration/Sample Configuration.md
+            - Tessera Services:
+                - Transaction Manager: Privacy/Tessera/Tessera Services/Transaction Manager.md
+                - Enclave: Privacy/Tessera/Tessera Services/Enclave.md
+                - Keys:
+                    - Key Generation: Privacy/Tessera/Tessera Services/Keys/Keys.md
+                    - Setting up Hashicorp Vault: Privacy/Tessera/Tessera Services/Keys/Setting up a Hashicorp Vault.md
+                    - Setting up Azure Key Vault: Privacy/Tessera/Tessera Services/Keys/Setting up an Azure Key Vault.md
+            - Usage:
+                - Interfaces & API: Privacy/Tessera/Usage/Interface & API.md
+                - Admin Usage: Privacy/Tessera/Usage/Admin Usage.md
+                - Monitoring: Privacy/Tessera/Usage/Monitoring.md
+            - Migration from Constellation: Privacy/Tessera/Migration from Constellation.md
+        - Constellation:
+            - What is Constellation: Privacy/Constellation/Constellation.md
+            - How it works: Privacy/Constellation/How constellation works.md
+            - Sample Configuration: Privacy/Constellation/Sample Configuration.md
+            - Running Constellation: Privacy/Constellation/Installation & Running.md
+    - Product Roadmap: roadmap.md         
+    - FAQ: FAQ.md
+
+theme:
+  name: 'material'
+  custom_dir: 'docs/theme'
+  font:
+      text: 'Roboto'
+      code: 'Roboto Mono'
+  language: 'en'
+  logo: 'images/logo.png'
+  favicon: 'images/logo-48x48.png'
+
+extra_css:
+    - 'theme/assets/stylesheets/extra.css'
+
+markdown_extensions:
+    - toc:
+        permalink: true
+        toc_depth: 3
+    - codehilite
+    - admonition
+    - footnotes
+    - def_list
+    - abbr
+    - pymdownx.arithmatex
+    - pymdownx.betterem:
+          smart_enable: all
+    - pymdownx.keys
+    - pymdownx.details
+    - pymdownx.emoji
+    - pymdownx.magiclink
+    - pymdownx.mark
+    - pymdownx.smartsymbols
+    - pymdownx.superfences
+    - pymdownx.tasklist:
+          custom_checkbox: true
+    - pymdownx.tilde
+    - meta
+    - smarty
+
+plugins:
+    - search

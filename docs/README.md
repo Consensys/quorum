@@ -1,10 +1,26 @@
+[![Documentation Status](https://readthedocs.org/projects/goquorum/badge/?version=latest)](http://docs.goquorum.com/en/latest/?badge=latest)
 
 # Quorum documentation
 
-* [Whitepaper](./Quorum%20Whitepaper%20v0.2.pdf) (PDF) - Quorum Whitepaper [demo video](https://vimeo.com/user5833792/review/210456842/a42d0fcb87)
-* [Design](./design.md) - Quorum design overview
-  * [Raft Specific Documentation](./raft.md) - Overview of raft implementation
-  * [Istanbul RPC API](./istanbul-rpc-api.md) - Overview of Istanbul BFT APIs
-* [Privacy](./privacy.md) - Sending private transactions [privacy video](https://vimeo.com/user5833792/review/210456729/8f70cfaaa5)
-* [Running](./running.md) - Detailed instructions for running Quorum nodes (see also [Constellation](https://github.com/jpmorganchase/constellation), [Tessera](https://github.com/jpmorganchase/tessera))
-* [API](./api.md) - new privacy API
+New Quorum documentation is now published on https://docs.goquorum.com/
+
+## How to contribute
+
+Quorum documentation files are written in Markdown and configured with a
+YAML configuration file from [mkdocs](https://www.mkdocs.org/)
+
+The documentation site uses [Material theme](https://squidfunk.github.io/mkdocs-material/)
+which has been configured with number of theme [extensions](https://squidfunk.github.io/mkdocs-material/extensions/admonition/)
+to enhance documenting experience 
+
+To contribute, here is 3 simple steps
+
+- Use Python to install `mkdocs` and related dependencies
+    ```bash
+    pip install -r requirements.txt
+    ```
+- Add/Modify desired documentation files and preview the site
+    ```bash
+    mkdocs serve
+    ```
+- Commit and raise PR against master
