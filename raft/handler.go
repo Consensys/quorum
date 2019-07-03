@@ -355,7 +355,7 @@ func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) {
 
 func (pm *ProtocolManager) PromoteToPeer(raftId uint16) (bool, error) {
 	if !pm.isLearner(raftId) {
-		return false, fmt.Errorf("%d is not a learner. only learner can be promoted to voter", raftId)
+		return false, fmt.Errorf("%d is not a learner. only learner can be promoted to peer", raftId)
 	}
 
 	pm.confChangeProposalC <- raftpb.ConfChange{
