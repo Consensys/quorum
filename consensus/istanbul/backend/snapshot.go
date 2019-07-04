@@ -181,7 +181,7 @@ func (s *Snapshot) apply(headers []*types.Header) (*Snapshot, error) {
 		// Remove any votes on checkpoint blocks
 		number := header.Number.Uint64()
 		if number%s.Epoch == 0 {
-			snap.Votes = nil
+			snap.Votes = make([]*Vote, 0)
 			snap.Tally = make(map[common.Address]Tally)
 		}
 		// Resolve the authorization key and check against validators
