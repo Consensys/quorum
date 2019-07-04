@@ -42,7 +42,6 @@ type ProtocolManager struct {
 
 	// Static configuration
 	joinExisting          bool // Whether to join an existing cluster when a WAL doesn't already exist
-	joinExistingAsLearner bool // Whether to join an existing cluster as learner when a WAL doesn't already exist
 	bootstrapNodes        []*enode.Node
 	raftId                uint16
 	raftPort              uint16
@@ -98,7 +97,7 @@ type ProtocolManager struct {
 // Public interface
 //
 
-func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, isLearner bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
+func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -109,7 +108,6 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 		leader:                uint16(etcdRaft.None),
 		removedPeers:          mapset.NewSet(),
 		joinExisting:          joinExisting,
-		joinExistingAsLearner: isLearner,
 		blockchain:            blockchain,
 		eventMux:              mux,
 		blockProposalC:        make(chan *types.Block),
@@ -500,7 +498,7 @@ func (pm *ProtocolManager) startRaft() {
 		pm.unsafeRawNode = etcdRaft.RestartNode(raftConfig)
 	} else if pm.joinExisting {
 		log.Info("newly joining an existing cluster; waiting for connections.")
-		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil, pm.joinExistingAsLearner)
+		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil)
 	} else {
 		if numPeers := len(pm.bootstrapNodes); numPeers == 0 {
 			panic("exiting due to empty raft peers list")
@@ -519,7 +517,7 @@ func (pm *ProtocolManager) startRaft() {
 		for _, peerAddress := range peerAddresses {
 			pm.addPeer(peerAddress)
 		}
-		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, raftPeers, false)
+		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, raftPeers)
 	}
 	log.Info("raft node started")
 	go pm.serveRaft()

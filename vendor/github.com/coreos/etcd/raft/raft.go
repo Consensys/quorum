@@ -287,16 +287,8 @@ type raft struct {
 	logger Logger
 }
 
+
 func newRaft(c *Config) *raft {
-	return newRaftImpl(c, false)
-}
-
-//Quorum - used to start a new learner node when it joins for the network first time
-func newRaftLearner(c *Config) *raft {
-	return newRaftImpl(c, true)
-}
-
-func newRaftImpl(c *Config, isLearner bool) *raft {
 	if err := c.validate(); err != nil {
 		panic(err.Error())
 	}
@@ -310,11 +302,6 @@ func newRaftImpl(c *Config, isLearner bool) *raft {
 	learners := c.learners
 	c.Logger.Info("newRaft ", "config.peers", cs.Nodes, " config.learners", cs.Learners)
 
-	//Quorum - isLearner can be set to true only when learners from Storage or Config is empty.
-	//isLearner will be required to be set to true when a learner node joins a network for the first time.
-	if (len(cs.Learners) > 0 || len(learners) > 0) && isLearner {
-		panic("cannot specify both isLearner flag and cs.learners or config.learners")
-	}
 
 	if len(cs.Nodes) > 0 || len(cs.Learners) > 0 {
 		if len(peers) > 0 || len(learners) > 0 {
@@ -329,7 +316,7 @@ func newRaftImpl(c *Config, isLearner bool) *raft {
 	r := &raft{
 		id:                        c.ID,
 		lead:                      None,
-		isLearner:                 isLearner,
+		isLearner:                 false,
 		raftLog:                   raftlog,
 		maxMsgSize:                c.MaxSizePerMsg,
 		maxInflight:               c.MaxInflightMsgs,
@@ -1248,6 +1235,12 @@ func (r *raft) handleSnapshot(m pb.Message) {
 	}
 }
 
+func (r *raft) initialized() bool {
+	// empty 'prs' and 'learnerPrs' means that
+	// this peer is newly created by conf change
+	return len(r.prs) > 0 || len(r.learnerPrs) > 0
+}
+
 // restore recovers the state machine from a snapshot. It restores the log and the
 // configuration of state machine.
 func (r *raft) restore(s pb.Snapshot) bool {
@@ -1261,23 +1254,10 @@ func (r *raft) restore(s pb.Snapshot) bool {
 		return false
 	}
 
-	isLearnerNode := false
-	for _, id := range s.Metadata.ConfState.Learners {
-		if id == r.id {
-			isLearnerNode = true
-			break
-		}
-	}
-
-	// The learner node must be present in the learners list
-	if r.isLearner && !isLearnerNode {
-		panic("node is a leraner but it's missing in confSate.learners list")
-		return false
-	}
-
-	// The normal peer can't become learner.
-	if !r.isLearner && isLearnerNode {
-		r.logger.Errorf("%x can't become learner when restores snapshot [index: %d, term: %d]", r.id, s.Metadata.Index, s.Metadata.Term)
+	if r.initialized() && // 1. empty learner (just restored) should accept snapshot
+	// 2. prevent normal peer from becoming learner from snapshot
+		!r.isLearner {
+		r.logger.Errorf("%x can't become learner when restoring snapshot [index: %d, term: %d]", r.id, s.Metadata.Index, s.Metadata.Term)
 		return false
 	}
 

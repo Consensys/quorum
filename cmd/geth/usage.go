@@ -160,7 +160,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.RaftModeFlag,
 			utils.RaftBlockTimeFlag,
 			utils.RaftJoinExistingFlag,
-			utils.RaftLearnerJoinExistingFlag,
 			utils.RaftPortFlag,
 		},
 	},

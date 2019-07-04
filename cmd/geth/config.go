@@ -213,7 +213,6 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 	blockTimeMillis := ctx.GlobalInt(utils.RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(utils.RaftJoinExistingFlag.Name)
-	isLearnerNode := ctx.GlobalBool(utils.RaftLearnerJoinExistingFlag.Name)
 	raftPort := uint16(ctx.GlobalInt(utils.RaftPortFlag.Name))
 
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
@@ -252,7 +251,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 
 		ethereum := <-ethChan
 
-		return raft.New(ctx, ethereum.ChainConfig(), myId, raftPort, joinExisting, isLearnerNode, blockTimeNanos, ethereum, peers, datadir)
+		return raft.New(ctx, ethereum.ChainConfig(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir)
 	}); err != nil {
 		utils.Fatalf("Failed to register the Raft service: %v", err)
 	}

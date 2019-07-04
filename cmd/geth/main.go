@@ -137,7 +137,6 @@ var (
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,
-		utils.RaftLearnerJoinExistingFlag,
 		utils.RaftPortFlag,
 		utils.EmitCheckpointsFlag,
 		utils.IstanbulRequestTimeoutFlag,
