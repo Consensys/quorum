@@ -1473,7 +1473,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chai
 
 	trieWriteCacheDisabled := ctx.GlobalString(GCModeFlag.Name) == "archive"
 	//Quorum - set gcmode=archive for Raft
-	if ctx.GlobalBool(RaftModeFlag.Name) {
+	if !trieWriteCacheDisabled && ctx.GlobalBool(RaftModeFlag.Name) {
 		log.Info("set gcmode=archive for Raft")
 		trieWriteCacheDisabled = true
 	}
