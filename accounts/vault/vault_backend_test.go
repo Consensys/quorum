@@ -1,27 +1,81 @@
 package vault
 
 import (
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/core/types"
-	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 )
 
-func TestVaultBackend_Wallets(t *testing.T) {
+func TestNewHashicorpBackend_CreatesWalletsFromConfig(t *testing.T) {
+	makeConfs := func (url string, urls... string) []hashicorpWalletConfig {
+		var confs []hashicorpWalletConfig
+
+		confs = append(confs, hashicorpWalletConfig{Client: hashicorpClientConfig{Url: url}})
+
+		for _, u := range urls {
+			confs = append(confs, hashicorpWalletConfig{Client: hashicorpClientConfig{Url: u}})
+		}
+
+		return confs
+	}
+
+	// makeWlts crudely splits the urls to get them as accounts.URLs so as to not use the same parsing method as in the production code.  This is fine for simple urls but may not be suitable for tests that require more complex urls.
+	makeWlts := func(url string, urls... string) []accounts.Wallet {
+		var wlts []accounts.Wallet
+
+		s := strings.Split(url, "://")
+		scheme, path := s[0], s[1]
+
+		wlts = append(wlts, vaultWallet{Url: accounts.URL{Scheme: scheme, Path: path}})
+
+		for _, u := range urls {
+			s := strings.Split(u, "://")
+			scheme, path := s[0], s[1]
+
+			wlts = append(wlts, vaultWallet{Url: accounts.URL{Scheme: scheme, Path: path}})
+		}
+
+		return wlts
+	}
+
+	tests := map[string]struct{
+		in []hashicorpWalletConfig
+		want []accounts.Wallet
+	}{
+		"no config": {in: []hashicorpWalletConfig{}, want: []accounts.Wallet{}},
+		"single": {in: makeConfs("http://url:1"), want: makeWlts("http://url:1")},
+		"multiple": {in: makeConfs("http://url:1", "http://url:2"), want: makeWlts("http://url:1", "http://url:2")},
+		"orders by url":  {
+			in: makeConfs("https://url:1", "https://a:9", "http://url:2", "http://url:1"),
+			want: makeWlts("http://url:1", "http://url:2", "https://a:9", "https://url:1")},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			b := NewHashicorpBackend(tt.in)
+
+			if !reflect.DeepEqual(tt.want, b.wallets) {
+				t.Fatalf("\nwant: %v, \ngot : %v", tt.want, b.wallets)
+			}
+		})
+	}
+
+}
+
+func TestVaultBackend_Wallets_ReturnsWallets(t *testing.T) {
 	tests := map[string]struct {
 			in []accounts.Wallet
 			want []accounts.Wallet
 	}{
 		"empty": {in: []accounts.Wallet{}, want: []accounts.Wallet{}},
-		"single": {in: []accounts.Wallet{VaultWallet{}}, want: []accounts.Wallet{VaultWallet{}}},
-		"multiple": {in: []accounts.Wallet{VaultWallet{}, VaultWallet{}}, want: []accounts.Wallet{VaultWallet{}, VaultWallet{}}},
+		"single": {in: []accounts.Wallet{vaultWallet{}}, want: []accounts.Wallet{vaultWallet{}}},
+		"multiple": {in: []accounts.Wallet{vaultWallet{}, vaultWallet{}}, want: []accounts.Wallet{vaultWallet{}, vaultWallet{}}},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			b := vaultBackend{wallets: tt.in}
+			b := VaultBackend{wallets: tt.in}
 
 			got := b.Wallets()
 
@@ -33,11 +87,15 @@ func TestVaultBackend_Wallets(t *testing.T) {
 }
 
 func TestVaultBackend_Wallets_ReturnsCopy(t *testing.T) {
-	b := vaultBackend{wallets: []accounts.Wallet{VaultWallet{}}}
+	b := VaultBackend{
+		wallets: []accounts.Wallet{
+			vaultWallet{Url: accounts.URL{Scheme: "http", Path: "url"}},
+		},
+	}
 
 	got := b.Wallets()
 
-	got[0] = OtherVaultWallet{}
+	got[0] = vaultWallet{Url: accounts.URL{Scheme: "http", Path: "otherurl"}}
 
 	if reflect.DeepEqual(b.wallets, got) {
 		t.Fatal("changes to returned slice should not affect slice in backend")
@@ -46,7 +104,7 @@ func TestVaultBackend_Wallets_ReturnsCopy(t *testing.T) {
 
 func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeed(t *testing.T) {
 	subscriber := make(chan accounts.WalletEvent, 1)
-	b := vaultBackend{}
+	b := VaultBackend{}
 
 	b.Subscribe(subscriber)
 
@@ -55,7 +113,7 @@ func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeed(t *testing.T
 	}
 
 	// mock an event
-	event := accounts.WalletEvent{Wallet: VaultWallet{}, Kind: accounts.WalletOpened}
+	event := accounts.WalletEvent{Wallet: vaultWallet{}, Kind: accounts.WalletOpened}
 	b.updateFeed.Send(event)
 
 	if len(subscriber) != 1 {
@@ -68,104 +126,3 @@ func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeed(t *testing.T
 		t.Fatalf("want: %v, got: %v", event, got)
 	}
 }
-
-type OtherVaultWallet struct {}
-
-func (OtherVaultWallet) URL() accounts.URL {
-	panic("implement me")
-}
-
-func (OtherVaultWallet) Status() (string, error) {
-	panic("implement me")
-}
-
-func (OtherVaultWallet) Open(passphrase string) error {
-	panic("implement me")
-}
-
-func (OtherVaultWallet) Close() error {
-	panic("implement me")
-}
-
-func (OtherVaultWallet) Accounts() []accounts.Account {
-	panic("implement me")
-}
-
-func (OtherVaultWallet) Contains(account accounts.Account) bool {
-	panic("implement me")
-}
-
-func (OtherVaultWallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Account, error) {
-	panic("implement me")
-}
-
-func (OtherVaultWallet) SelfDerive(base accounts.DerivationPath, chain ethereum.ChainStateReader) {
-	panic("implement me")
-}
-
-func (OtherVaultWallet) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
-	panic("implement me")
-}
-
-func (OtherVaultWallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int, isQuorum bool) (*types.Transaction, error) {
-	panic("implement me")
-}
-
-func (OtherVaultWallet) SignHashWithPassphrase(account accounts.Account, passphrase string, hash []byte) ([]byte, error) {
-	panic("implement me")
-}
-
-func (OtherVaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
-	panic("implement me")
-}
-
-type VaultWallet struct {}
-
-func (VaultWallet) URL() accounts.URL {
-	panic("implement me")
-}
-
-func (VaultWallet) Status() (string, error) {
-	panic("implement me")
-}
-
-func (VaultWallet) Open(passphrase string) error {
-	panic("implement me")
-}
-
-func (VaultWallet) Close() error {
-	panic("implement me")
-}
-
-func (VaultWallet) Accounts() []accounts.Account {
-	panic("implement me")
-}
-
-func (VaultWallet) Contains(account accounts.Account) bool {
-	panic("implement me")
-}
-
-func (VaultWallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Account, error) {
-	panic("implement me")
-}
-
-func (VaultWallet) SelfDerive(base accounts.DerivationPath, chain ethereum.ChainStateReader) {
-	panic("implement me")
-}
-
-func (VaultWallet) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
-	panic("implement me")
-}
-
-func (VaultWallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int, isQuorum bool) (*types.Transaction, error) {
-	panic("implement me")
-}
-
-func (VaultWallet) SignHashWithPassphrase(account accounts.Account, passphrase string, hash []byte) ([]byte, error) {
-	panic("implement me")
-}
-
-func (VaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
-	panic("implement me")
-}
-
