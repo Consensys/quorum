@@ -27,13 +27,13 @@ func TestNewHashicorpBackend_CreatesWalletsFromConfig(t *testing.T) {
 		s := strings.Split(url, "://")
 		scheme, path := s[0], s[1]
 
-		wlts = append(wlts, vaultWallet{Url: accounts.URL{Scheme: scheme, Path: path}})
+		wlts = append(wlts, vaultWallet{url: accounts.URL{Scheme: scheme, Path: path}})
 
 		for _, u := range urls {
 			s := strings.Split(u, "://")
 			scheme, path := s[0], s[1]
 
-			wlts = append(wlts, vaultWallet{Url: accounts.URL{Scheme: scheme, Path: path}})
+			wlts = append(wlts, vaultWallet{url: accounts.URL{Scheme: scheme, Path: path}})
 		}
 
 		return wlts
@@ -89,13 +89,13 @@ func TestVaultBackend_Wallets_ReturnsWallets(t *testing.T) {
 func TestVaultBackend_Wallets_ReturnsCopy(t *testing.T) {
 	b := VaultBackend{
 		wallets: []accounts.Wallet{
-			vaultWallet{Url: accounts.URL{Scheme: "http", Path: "url"}},
+			vaultWallet{url: accounts.URL{Scheme: "http", Path: "url"}},
 		},
 	}
 
 	got := b.Wallets()
 
-	got[0] = vaultWallet{Url: accounts.URL{Scheme: "http", Path: "otherurl"}}
+	got[0] = vaultWallet{url: accounts.URL{Scheme: "http", Path: "otherurl"}}
 
 	if reflect.DeepEqual(b.wallets, got) {
 		t.Fatal("changes to returned slice should not affect slice in backend")

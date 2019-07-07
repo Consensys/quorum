@@ -1,22 +1,54 @@
 package vault
 
 import (
+	"errors"
+	"fmt"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/hashicorp/vault/api"
 	"math/big"
 )
 
 type vaultWallet struct {
-	Url accounts.URL
+	url accounts.URL
+	vault vaultService
+}
+
+// vault related behaviour that will be specific to each vault type
+type vaultService interface {
+	status() (string, error)
+}
+
+func newHashicorpWallet(config hashicorpWalletConfig) (vaultWallet, error) {
+	var url accounts.URL
+
+	//to parse a string url as an accounts.URL it must first be in json format
+	toParse := fmt.Sprintf("\"%v\"", config.Client.Url)
+
+	if err := url.UnmarshalJSON([]byte(toParse)); err != nil {
+		return vaultWallet{}, err
+	}
+
+	return vaultWallet{url: url, vault: hashicorpService{}}, nil
 }
 
 func (w vaultWallet) URL() accounts.URL {
-	return w.Url
+	return w.url
 }
 
+const (
+	open = "open"
+	closed = "closed"
+)
+
+// the vault service should return open and nil error if status is good
 func (w vaultWallet) Status() (string, error) {
-	panic("implement me")
+	if w.vault == nil {
+		return closed, nil
+	}
+
+	return w.vault.status()
 }
 
 func (w vaultWallet) Open(passphrase string) error {
@@ -59,3 +91,43 @@ func (w vaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase s
 	panic("implement me")
 }
 
+type hashicorpService struct {
+	client *api.Client
+}
+
+const (
+	hashicorpHealthcheckFailed = "Hashicorp Vault healthcheck failed"
+	hashicorpUninitialized = "Hashicorp Vault uninitialized"
+	hashicorpSealed = "Hashicorp Vault sealed"
+)
+
+var (
+	hashicorpSealedErr = errors.New(hashicorpSealed)
+	hashicorpUninitializedErr = errors.New(hashicorpUninitialized)
+)
+
+type hashicorpHealthcheckErr struct {
+	err error
+}
+
+func (e hashicorpHealthcheckErr) Error() string {
+	return fmt.Sprintf("%v: %v", hashicorpHealthcheckFailed, e.err)
+}
+
+func (c hashicorpService) status() (string, error) {
+	health, err := c.client.Sys().Health()
+
+	if err != nil {
+		return hashicorpHealthcheckFailed, hashicorpHealthcheckErr{err: err}
+	}
+
+	if !health.Initialized {
+		return hashicorpUninitialized, hashicorpUninitializedErr
+	}
+
+	if health.Sealed {
+		return hashicorpSealed, hashicorpSealedErr
+	}
+
+	return open, nil
+}
