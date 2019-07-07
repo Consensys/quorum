@@ -4,11 +4,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/hashicorp/vault/api"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -149,6 +151,10 @@ func TestVaultWallet_Open_Hashicorp_ReturnsErrIfAlreadyOpen(t *testing.T) {
 }
 
 func TestVaultWallet_Open_Hashicorp_CreatesClientFromConfig(t *testing.T) {
+	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
+		t.Fatal(err)
+	}
+
 	// create mock server which responds to all requests with the same response
 	mockResponse := api.Secret{RequestID: "myrequestid"}
 	b, err := json.Marshal(mockResponse)
@@ -201,6 +207,10 @@ func TestVaultWallet_Open_Hashicorp_CreatesClientFromConfig(t *testing.T) {
 }
 
 func TestVaultWallet_Open_Hashicorp_CreatesTLSClientFromConfig(t *testing.T) {
+	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
+		t.Fatal(err)
+	}
+
 	// create mock server which responds to all requests with an empty secret
 	mockResponse := api.Secret{}
 	b, err := json.Marshal(mockResponse)
@@ -243,7 +253,7 @@ func TestVaultWallet_Open_Hashicorp_CreatesTLSClientFromConfig(t *testing.T) {
 
 	serverTlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{keypair},
-		ClientAuth: tls.RequireAnyClientCert,
+		ClientAuth: tls.RequireAndVerifyClientCert,
 		ClientCAs: certPool,
 	}
 
@@ -288,9 +298,169 @@ func TestVaultWallet_Open_Hashicorp_CreatesTLSClientFromConfig(t *testing.T) {
 	}
 
 	// make a request to the vault server using the client - if TLS was applied correctly on the client then the request will be allowed
-	// TODO test passes even if vault client config contains no TLS certs
 	if _, err := got.Logical().Read("vaultpath/to/secret"); err != nil {
 		t.Fatalf("error making request using created client: %v", err)
+	}
+}
+
+func TestVaultWallet_Open_Hashicorp_CreatesAuthenticatedClient(t *testing.T) {
+	const (
+		myToken = "myToken"
+		myRoleId = "myRoleId"
+		mySecretId = "mySecretId"
+		myApproleToken = "myApproleToken"
+	)
+
+	setAndHandleErrors := func(t *testing.T, env, val string) {
+		if err := os.Setenv(env, val); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	set := func(t *testing.T, env string) {
+		switch env {
+		case api.EnvVaultToken:
+			setAndHandleErrors(t, api.EnvVaultToken, myToken)
+		case roleIDEnv:
+			setAndHandleErrors(t, roleIDEnv, myRoleId)
+		case secretIDEnv:
+			setAndHandleErrors(t, secretIDEnv, mySecretId)
+		}
+	}
+
+	// makeMockApproleVaultServer creates an httptest.Server for handling approle auth requests.  The server and its Close function are returned.  Close must be called to ensure the server is stopped (best to defer the function as soon as it is returned).
+	//
+	// The server will expose only the path /v1/auth/{approlePath}/login.  If approlePath = "" then the default value of "approle" will be used.  The server will respond with an api.Secret containing the provided token.
+	makeMockApproleVaultServer := func (t *testing.T, approlePath string) (*httptest.Server, func()) {
+
+		vaultResponse := &api.Secret{Auth: &api.SecretAuth{ClientToken: myApproleToken}}
+		b, err := json.Marshal(vaultResponse)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if approlePath == "" {
+			approlePath = "approle"
+		}
+
+		mux := http.NewServeMux()
+		mux.HandleFunc(fmt.Sprintf("/v1/auth/%v/login", approlePath), func(w http.ResponseWriter, r *http.Request) {
+			w.Write(b)
+		})
+
+		vaultServer := httptest.NewServer(mux)
+
+		return vaultServer, vaultServer.Close
+	}
+
+	tests := map[string]struct{
+		envVars []string
+		approle string
+		wantToken string
+	}{
+		"token auth": {envVars: []string{api.EnvVaultToken}, wantToken: myToken},
+		"default approle auth": {envVars: []string{roleIDEnv, secretIDEnv}, wantToken: myApproleToken},
+		"custom approle auth": {envVars: []string{roleIDEnv, secretIDEnv}, approle: "nondefault", wantToken: myApproleToken},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			//initialize environment
+			os.Clearenv()
+			for _, e := range tt.envVars {
+				set(t, e)
+				defer os.Unsetenv(e)
+			}
+
+			vaultServer, cleanup := makeMockApproleVaultServer(t, tt.approle)
+			defer cleanup()
+
+			config := hashicorpClientConfig{
+				Url: vaultServer.URL,
+				Approle: tt.approle,
+			}
+
+			w := vaultWallet{vault: &hashicorpService{config: config}}
+
+			if err := w.Open(""); err != nil {
+				t.Fatalf("error: %v", err)
+			}
+
+			// verify the client is set up as expected
+			v, ok := w.vault.(*hashicorpService)
+
+			if !ok {
+				t.Fatal("type assertion failed")
+			}
+
+			got := v.client
+
+			if got == nil {
+				t.Fatal("client not created")
+			}
+
+			if tt.wantToken != got.Token() {
+				t.Fatalf("incorrect client token: want: %v, got: %v", tt.wantToken, got.Token())
+			}
+		})
+	}
+}
+
+func TestVaultWallet_Open_Hashicorp_ErrCreatingAuthenticatedClient(t *testing.T) {
+	const (
+		myToken = "myToken"
+		myRoleId = "myRoleId"
+		mySecretId = "mySecretId"
+	)
+
+	setAndHandleErrors := func(t *testing.T, env, val string) {
+		if err := os.Setenv(env, val); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	set := func(t *testing.T, env string) {
+		switch env {
+		case api.EnvVaultToken:
+			setAndHandleErrors(t, api.EnvVaultToken, myToken)
+		case roleIDEnv:
+			setAndHandleErrors(t, roleIDEnv, myRoleId)
+		case secretIDEnv:
+			setAndHandleErrors(t, secretIDEnv, mySecretId)
+		}
+	}
+
+	tests := map[string]struct{
+		envVars []string
+		want error
+	}{
+		"no auth provided": {envVars: []string{}, want: noHashicorpEnvSetErr},
+		"only role id": {envVars: []string{roleIDEnv}, want: invalidApproleAuthErr},
+		"only secret id": {envVars: []string{secretIDEnv}, want: invalidApproleAuthErr},
+		"role id and token": {envVars: []string{api.EnvVaultToken, roleIDEnv}, want: invalidApproleAuthErr},
+		"secret id and token": {envVars: []string{api.EnvVaultToken, secretIDEnv}, want: invalidApproleAuthErr},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			//initialize environment
+			os.Clearenv()
+			for _, e := range tt.envVars {
+				set(t, e)
+				defer os.Unsetenv(e)
+			}
+
+			config := hashicorpClientConfig{
+				Url: "http://url:1",
+			}
+
+			w := vaultWallet{vault: &hashicorpService{config: config}}
+
+			if err := w.Open(""); err != tt.want {
+				t.Fatalf("want error: %v\ngot: %v", tt.want, err)
+			}
+		})
 	}
 }
 

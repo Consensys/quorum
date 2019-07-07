@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/hashicorp/vault/api"
 	"math/big"
+	"os"
 )
 
 type vaultWallet struct {
@@ -131,6 +132,16 @@ func (h *hashicorpService) status() (string, error) {
 	return open, nil
 }
 
+const (
+	roleIDEnv = "VAULT_ROLE_ID"
+	secretIDEnv = "VAULT_SECRET_ID"
+)
+
+var (
+	noHashicorpEnvSetErr = fmt.Errorf("environment variables must be set when creating the Hashicorp client.  Set %v and %v if the Vault is configured to use Approle authentication.  Else set %v", roleIDEnv, secretIDEnv, api.EnvVaultToken)
+	invalidApproleAuthErr = fmt.Errorf("both %v and %v must be set if using Approle authentication", roleIDEnv, secretIDEnv)
+)
+
 func (h *hashicorpService) open() error {
 	if h.client != nil {
 		return accounts.ErrWalletAlreadyOpen
@@ -155,7 +166,44 @@ func (h *hashicorpService) open() error {
 		return fmt.Errorf("error creating Hashicorp client: %v", err)
 	}
 
+	roleID := os.Getenv(roleIDEnv)
+	secretID := os.Getenv(secretIDEnv)
+
+	if roleID == "" && secretID == "" && os.Getenv(api.EnvVaultToken) == "" {
+		return noHashicorpEnvSetErr
+	}
+
+	if roleID == "" && secretID != "" || roleID != "" && secretID == "" {
+		return invalidApproleAuthErr
+	}
+
+	if usingApproleAuth(roleID, secretID) {
+		//authenticate the client using approle
+		body := map[string]interface{} {"role_id": roleID, "secret_id": secretID}
+
+		approle := h.config.Approle
+
+		if approle == "" {
+			approle = "approle"
+		}
+
+		resp, err := c.Logical().Write(fmt.Sprintf("auth/%s/login", approle), body)
+
+		if err != nil {
+			return err
+		}
+
+		token, err := resp.TokenID()
+
+		c.SetToken(token)
+	}
+
+	// api.Client uses the token at VAULT_TOKEN by default so nothing extra needs to be done when not using approle
 	h.client = c
 
 	return nil
+}
+
+func usingApproleAuth(roleID, secretID string) bool {
+	return roleID != "" && secretID != ""
 }
