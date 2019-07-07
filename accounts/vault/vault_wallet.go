@@ -18,6 +18,7 @@ type vaultWallet struct {
 // vault related behaviour that will be specific to each vault type
 type vaultService interface {
 	status() (string, error)
+	open() error
 }
 
 func newHashicorpWallet(config hashicorpWalletConfig) (vaultWallet, error) {
@@ -30,29 +31,20 @@ func newHashicorpWallet(config hashicorpWalletConfig) (vaultWallet, error) {
 		return vaultWallet{}, err
 	}
 
-	return vaultWallet{url: url, vault: hashicorpService{}}, nil
+	return vaultWallet{url: url, vault: &hashicorpService{config: config.Client}}, nil
 }
 
 func (w vaultWallet) URL() accounts.URL {
 	return w.url
 }
 
-const (
-	open = "open"
-	closed = "closed"
-)
-
 // the vault service should return open and nil error if status is good
 func (w vaultWallet) Status() (string, error) {
-	if w.vault == nil {
-		return closed, nil
-	}
-
 	return w.vault.status()
 }
 
 func (w vaultWallet) Open(passphrase string) error {
-	panic("implement me")
+	return w.vault.open()
 }
 
 func (w vaultWallet) Close() error {
@@ -93,9 +85,12 @@ func (w vaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase s
 
 type hashicorpService struct {
 	client *api.Client
+	config hashicorpClientConfig
 }
 
 const (
+	open = "open"
+	closed = "closed"
 	hashicorpHealthcheckFailed = "Hashicorp Vault healthcheck failed"
 	hashicorpUninitialized = "Hashicorp Vault uninitialized"
 	hashicorpSealed = "Hashicorp Vault sealed"
@@ -114,8 +109,12 @@ func (e hashicorpHealthcheckErr) Error() string {
 	return fmt.Sprintf("%v: %v", hashicorpHealthcheckFailed, e.err)
 }
 
-func (c hashicorpService) status() (string, error) {
-	health, err := c.client.Sys().Health()
+func (h *hashicorpService) status() (string, error) {
+	if h.client == nil {
+		return closed, nil
+	}
+
+	health, err := h.client.Sys().Health()
 
 	if err != nil {
 		return hashicorpHealthcheckFailed, hashicorpHealthcheckErr{err: err}
@@ -130,4 +129,33 @@ func (c hashicorpService) status() (string, error) {
 	}
 
 	return open, nil
+}
+
+func (h *hashicorpService) open() error {
+	if h.client != nil {
+		return accounts.ErrWalletAlreadyOpen
+	}
+
+	conf := api.DefaultConfig()
+	conf.Address = h.config.Url
+
+	tlsConfig := &api.TLSConfig{
+		CACert: h.config.CaCert,
+		ClientCert: h.config.ClientCert,
+		ClientKey: h.config.ClientKey,
+	}
+
+	if err := conf.ConfigureTLS(tlsConfig); err != nil {
+		return fmt.Errorf("error creating Hashicorp client: %v", err)
+	}
+
+	c, err := api.NewClient(conf)
+
+	if err != nil {
+		return fmt.Errorf("error creating Hashicorp client: %v", err)
+	}
+
+	h.client = c
+
+	return nil
 }
