@@ -104,8 +104,6 @@ Is a form of expanded Shared Custody Ownership that requires consensus over the 
 
 !!! success "Contract functions should explicitly declare visibility"
 
-!!! success "Contract shared code must be marked as private or internal"
-
 !!! success "Contract public functions should perform proper authorization checks "
 
 !!! success "Contract should validate the input of all public and external functions"
