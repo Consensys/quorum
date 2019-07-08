@@ -113,6 +113,22 @@ func DeployContract(opts *TransactOpts, abi abi.ABI, bytecode []byte, backend Co
 	return c.address, tx, c, nil
 }
 
+func DeployPrivateContract(opts *TransactOpts, abi abi.ABI, bytecode []byte, backend ContractBackend, privateFor []string, params ...interface{}) (common.Address, *types.Transaction, *BoundContract, error) {
+	// Otherwise try to deploy the contract
+	c := NewBoundContract(common.Address{}, abi, backend, backend, backend)
+
+	input, err := c.abi.Pack("", params...)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	tx, err := c.privateTransact(opts, nil, append(bytecode, input...), privateFor)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	c.address = crypto.CreateAddress(opts.From, tx.Nonce())
+	return c.address, tx, c, nil
+}
+
 // Call invokes the (constant) contract method with params as input values and
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
@@ -172,6 +188,15 @@ func (c *BoundContract) Transact(opts *TransactOpts, method string, params ...in
 		return nil, err
 	}
 	return c.transact(opts, &c.address, input)
+}
+
+func (c *BoundContract) PrivateTransact(opts *TransactOpts, method string, privateFor []string, params ...interface{}) (*types.Transaction, error) {
+	// Otherwise pack up the parameters and invoke the contract
+	input, err := c.abi.Pack(method, params...)
+	if err != nil {
+		return nil, err
+	}
+	return c.privateTransact(opts, &c.address, input, privateFor)
 }
 
 // Transfer initiates a plain transaction to move funds to the contract, calling
@@ -239,6 +264,68 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		return nil, err
 	}
 	if err := c.transactor.SendTransaction(ensureContext(opts.Context), signedTx); err != nil {
+		return nil, err
+	}
+	return signedTx, nil
+}
+
+func (c *BoundContract) privateTransact(opts *TransactOpts, contract *common.Address, input []byte, privateFor []string) (*types.Transaction, error) {
+	var err error
+
+	// Ensure a valid value field and resolve the account nonce
+	value := opts.Value
+	if value == nil {
+		value = new(big.Int)
+	}
+	var nonce uint64
+	if opts.Nonce == nil {
+		nonce, err = c.transactor.PendingNonceAt(ensureContext(opts.Context), opts.From)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
+		}
+	} else {
+		nonce = opts.Nonce.Uint64()
+	}
+	// Figure out the gas allowance and gas price values
+	gasPrice := opts.GasPrice
+	if gasPrice == nil {
+		gasPrice, err = c.transactor.SuggestGasPrice(ensureContext(opts.Context))
+		if err != nil {
+			return nil, fmt.Errorf("failed to suggest gas price: %v", err)
+		}
+	}
+	gasLimit := opts.GasLimit
+	if gasLimit == 0 {
+		// Gas estimation cannot succeed without code for method invocations
+		if contract != nil {
+			if code, err := c.transactor.PendingCodeAt(ensureContext(opts.Context), c.address); err != nil {
+				return nil, err
+			} else if len(code) == 0 {
+				return nil, ErrNoCode
+			}
+		}
+		// If the contract surely has code (or code is not needed), estimate the transaction
+		msg := ethereum.CallMsg{From: opts.From, To: contract, Value: value, Data: input}
+		gasLimit, err = c.transactor.EstimateGas(ensureContext(opts.Context), msg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to estimate gas needed: %v", err)
+		}
+	}
+	// Create the transaction, sign it and schedule it for execution
+	var rawTx *types.Transaction
+	if contract == nil {
+		rawTx = types.NewContractCreation(nonce, value, gasLimit, gasPrice, input)
+	} else {
+		rawTx = types.NewTransaction(nonce, c.address, value, gasLimit, gasPrice, input)
+	}
+	if opts.Signer == nil {
+		return nil, errors.New("no signer to authorize the transaction with")
+	}
+	signedTx, err := opts.Signer(types.HomesteadSigner{}, opts.From, rawTx)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.transactor.SendPrivateTransaction(ensureContext(opts.Context), signedTx, privateFor); err != nil {
 		return nil, err
 	}
 	return signedTx, nil

@@ -319,6 +319,11 @@ func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transa
 	return nil
 }
 
+func (b *SimulatedBackend) SendPrivateTransaction(ctx context.Context, tx *types.Transaction, privateFor []string) error {
+	//TODO
+	return nil
+}
+
 // FilterLogs executes a log filter operation, blocking during execution and
 // returning all the results in one batch.
 //

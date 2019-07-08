@@ -506,6 +506,21 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", common.ToHex(data))
 }
 
+func (ec *Client) SendPrivateTransaction(ctx context.Context, tx *types.Transaction, privateFor []string) error {
+	data, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return err
+	}
+	return ec.c.CallContext(ctx, nil, "eth_sendRawPrivateTransaction", common.ToHex(data), toPrivateForArgs(privateFor))
+}
+
+func toPrivateForArgs(privateFor []string) interface{} {
+	arg := map[string]interface{}{
+		"privateFor": privateFor,
+	}
+	return arg
+}
+
 func toCallArg(msg ethereum.CallMsg) interface{} {
 	arg := map[string]interface{}{
 		"from": msg.From,

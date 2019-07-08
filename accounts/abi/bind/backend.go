@@ -82,6 +82,8 @@ type ContractTransactor interface {
 	EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error)
 	// SendTransaction injects the transaction into the pending pool for execution.
 	SendTransaction(ctx context.Context, tx *types.Transaction) error
+	// SendPrivateTransaction injects the unsigned transaction into the peer for execution.
+	SendPrivateTransaction(ctx context.Context, tx *types.Transaction, privateFor []string) error
 }
 
 // ContractFilterer defines the methods needed to access log events using one-off
