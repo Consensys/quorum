@@ -28,22 +28,29 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
      Passphrase: 
      Repeat passphrase: 
      Address: {679fed8f4f3ea421689136b25073c6da7973418f}
+     
+     Please note the keystore file generated inside new-node-1 includes the address in the last part of its filename.
+     
+     $ ls new-node-1/keystore
+     UTC--2019-06-17T09-29-06.665107000Z--679fed8f4f3ea421689136b25073c6da7973418f
     ```
 
     !!! note 
-        You could generate one or more accounts (funded) accounts for additional node you want to start in advance and add them to genesis.json file as well
-    
-    
+        You could generate multiple accounts for a single node, or any number of accounts for additional nodes and pre-allocate them with funds in the genesis.json file (see below)
+       
 4. Create a `genesis.json` file see example [here](../genesis). The `alloc` field should be pre-populated with the account you generated at previous step
     ```
     $ vim genesis.json
-    ... paste below with account '679fed8f4f3ea421689136b25073c6da7973418f' created at previous step
+    ... alloc holds 'optional' accounts with a pre-funded amounts. In this example we are funding the accounts 679fed8f4f3ea421689136b25073c6da7973418f (generated from the step above) and c5c7b431e1629fb992eb18a79559f667228cd055.
     {
       "alloc": {
         "0x679fed8f4f3ea421689136b25073c6da7973418f": {
           "balance": "1000000000000000000000000000"
+        },
+       "0xc5c7b431e1629fb992eb18a79559f667228cd055": {
+          "balance": "2000000000000000000000000000"
         }
-      },
+    },
      "coinbase": "0x0000000000000000000000000000000000000000",
      "config": {
        "homesteadBlock": 0,
@@ -71,7 +78,8 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     ```
 6. Execute below command to display enode id of the new node
     ```
-    $ bootnode --nodekey=new-node-1/nodekey --writeaddress
+    $ bootnode --nodekey=new-node-1/nodekey --writeaddress > new-node-1/enode
+    $ cat new-node-1/enode  
     '70399c3d1654c959a02b73acbdd4770109e39573a27a9b52bd391e5f79b91a42d8f2b9e982959402a97d2cbcb5656d778ba8661ec97909abc72e7bb04392ebd8'
     ```
 7. Create a file called `static-nodes.json` and edit it to match this [example](../permissioned-nodes). Your file should contain a single line for your node with your enode's id and the ports you are going to use for devp2p and raft. Ensure that this file is in your nodes data directory
@@ -269,7 +277,7 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     > exit
     $
     $
-    $ ps
+    $ ps | grep geth
       PID TTY           TIME CMD
     10554 ttys000    0:00.01 -bash
      9125 ttys002    0:00.50 -bash
@@ -592,6 +600,11 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
     cd ../node4
     PRIVATE_CONFIG=ignore nohup geth --datadir data --nodiscover --istanbul.blockperiod 5 --syncmode full --mine --minerthreads 1 --verbosity 5 --networkid 10 --rpc --rpcaddr 0.0.0.0 --rpcport 22004 --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum,istanbul --emitcheckpoints --port 30304 2>>node.log &
     $
+    See if the any geth nodes are running.
+    $ ps | grep geth
+    Kill geth processes
+    $ killall -INT geth
+    $
     $ chmod +x startall.sh
     $ ./startall.sh
     $ ps
@@ -611,7 +624,7 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
         This configuration starts Quorum without privacy support as could be evidenced in prefix `PRIVATE_CONFIG=ignore`, please see below sections on [how to enable privacy with privacy transaction managers](#adding-privacy-transaction-manager).
         Please note that istanbul-tools may be used to generate X number of nodes, more information is available in the [docs](https://github.com/jpmorganchase/istanbul-tools).
 
-    Your node is now operational and you may attach to it with `geth attach data/geth.ipc`. 
+    Your node is now operational and you may attach to it with `geth attach node0/data/geth.ipc`. 
     
 ### Adding additional validator
 1. Create a working directory for the new node that needs to be added
@@ -1088,7 +1101,7 @@ Just execute **step 4** instruction from removing a validator node.
     Your node is now operational and you may attach to it with `geth attach new-node-1/geth.ipc` to send private transactions. 
     ```
     $ vim private-contract.js
-    ... create simple private contract to send transaction from new-node-1 private for new-node-2's tessera public key
+    ... create simple private contract to send transaction from new-node-1 private for new-node-2's tessera public key created in step 4
     a = eth.accounts[0]
     web3.eth.defaultAccount = a;
     
@@ -1134,6 +1147,13 @@ Just execute **step 4** instruction from removing a validator node.
     ```
 
     You have **successfully** sent a private transaction from node 1 to node 2 !!
+    
+    !!! note
+        if you do not have an valid public key in the array in private-contract.js, you will see the following error when the script in loaded.
+    ```
+    > loadScript("private-contract.js")
+    err creating contract Error: Non-200 status code: &{Status:400 Bad Request StatusCode:400 Proto:HTTP/1.1 ProtoMajor:1      ProtoMinor:1 Header:map[Date:[Mon, 17 Jun 2019 15:23:53 GMT] Content-Type:[text/plain] Content-Length:[73] Server:[Jetty(9.4.z-SNAPSHOT)]] Body:0xc01997a580 ContentLength:73 TransferEncoding:[] Close:false Uncompressed:false Trailer:map[] Request:0xc019788200 TLS:<nil>}
+    ```    
 
 ### Constellation
 1. Build Quorum and install [Constellation](https://github.com/jpmorganchase/constellation/releases) as described in the [getting set up](../Setup%20Overview%20%26%20Quickstart) section. Ensure that PATH contains geth, bootnode, and constellation-node binaries
