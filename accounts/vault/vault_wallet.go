@@ -16,6 +16,7 @@ type vaultWallet struct {
 	url accounts.URL
 	vault vaultService
 	updateFeed *event.Feed
+	accounts []accounts.Account
 }
 
 // vault related behaviour that will be specific to each vault type
@@ -62,7 +63,10 @@ func (w vaultWallet) Close() error {
 }
 
 func (w vaultWallet) Accounts() []accounts.Account {
-	panic("implement me")
+	cpy := make([]accounts.Account, len(w.accounts))
+	copy(cpy, w.accounts)
+
+	return cpy
 }
 
 func (w vaultWallet) Contains(account accounts.Account) bool {

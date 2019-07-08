@@ -550,3 +550,22 @@ func TestVaultWallet_Close_Hashicorp_ReturnsStateToBeforeOpen(t *testing.T) {
 		t.Fatalf("cmp does not consider the two wallets equal after one was opened and closed:\n%v", diff)
 	}
 }
+
+func TestVaultWallet_Accounts_ReturnsCopyOfAccountsInWallet(t *testing.T) {
+	w := vaultWallet{
+		accounts: []accounts.Account{{URL: accounts.URL{Scheme: "http", Path: "url:1"}}},
+	}
+
+	got := w.Accounts()
+
+	if !cmp.Equal(w.accounts, got) {
+		t.Fatalf("want: %v, got: %v", w.accounts, got)
+	}
+
+	got[0].URL = accounts.URL{Scheme: "http", Path: "changed:1"}
+
+	if cmp.Equal(w.accounts, got) {
+		t.Fatalf("changes to the returned accounts should not change the wallet's record of accounts")
+	}
+}
+
