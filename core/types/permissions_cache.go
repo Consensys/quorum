@@ -1,11 +1,12 @@
 package types
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/hashicorp/golang-lru"
 	"math/big"
 	"strings"
 	"sync"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/hashicorp/golang-lru"
 )
 
 type AccessType uint8
@@ -177,13 +178,10 @@ var NodeInfoMap = NewNodeCache()
 var RoleInfoMap = NewRoleCache()
 var AcctInfoMap = NewAcctCache()
 
-var orgKeyLock sync.Mutex
-
 func (pc *PermissionConfig) IsEmpty() bool {
 	return pc.InterfAddress == common.HexToAddress("0x0") || pc.NodeAddress == common.HexToAddress("0x0") || pc.AccountAddress == common.HexToAddress("0x0")
 }
 
-// sets default access to ReadOnly
 func SetSyncStatus() {
 	syncStarted = true
 }
@@ -192,12 +190,10 @@ func GetSyncStatus() bool {
 	return syncStarted
 }
 
-// sets default access to ReadOnly
-func SetDefaultAccess() {
+// sets default access to readonly and initializes the values for
+// network admin role and org admin role
+func SetDefaults(nwRoleId, oaRoleId string) {
 	DefaultAccess = ReadOnly
-}
-
-func SetAdminRole(nwRoleId, oaRoleId string) {
 	networkAdminRole = nwRoleId
 	orgAdminRole = oaRoleId
 }
@@ -244,11 +240,11 @@ func (o *OrgCache) GetOrg(orgId string) *OrgInfo {
 }
 
 func (o *OrgCache) GetOrgList() []OrgInfo {
-	var olist []OrgInfo
-	for _, k := range o.c.Keys() {
+	olist := make([]OrgInfo, len(o.c.Keys()))
+	for i, k := range o.c.Keys() {
 		v, _ := o.c.Get(k)
 		vp := v.(*OrgInfo)
-		olist = append(olist, *vp)
+		olist[i] = *vp
 	}
 	return olist
 }
@@ -273,12 +269,12 @@ func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
 	return nil
 }
 
-func (o *NodeCache) GetNodeList() []NodeInfo {
-	var olist []NodeInfo
-	for _, k := range o.c.Keys() {
-		v, _ := o.c.Get(k)
+func (n *NodeCache) GetNodeList() []NodeInfo {
+	olist := make([]NodeInfo, len(n.c.Keys()))
+	for i, k := range n.c.Keys() {
+		v, _ := n.c.Get(k)
 		vp := v.(*NodeInfo)
-		olist = append(olist, *vp)
+		olist[i] = *vp
 	}
 	return olist
 }
@@ -300,11 +296,11 @@ func (a *AcctCache) GetAccount(acct common.Address) *AccountInfo {
 }
 
 func (a *AcctCache) GetAcctList() []AccountInfo {
-	var alist []AccountInfo
-	for _, k := range a.c.Keys() {
+	alist := make([]AccountInfo, len(a.c.Keys()))
+	for i, k := range a.c.Keys() {
 		v, _ := a.c.Get(k)
 		vp := v.(*AccountInfo)
-		alist = append(alist, *vp)
+		alist[i] = *vp
 	}
 	return alist
 }
@@ -352,29 +348,37 @@ func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
 	return nil
 }
 
-func (o *RoleCache) GetRoleList() []RoleInfo {
-	var olist []RoleInfo
-	for _, k := range o.c.Keys() {
-		v, _ := o.c.Get(k)
+func (r *RoleCache) GetRoleList() []RoleInfo {
+	rlist := make([]RoleInfo, len(r.c.Keys()))
+	for i, k := range r.c.Keys() {
+		v, _ := r.c.Get(k)
 		vp := v.(*RoleInfo)
-		olist = append(olist, *vp)
+		rlist[i] = *vp
 	}
-	return olist
+	return rlist
 }
 
 // Returns the access type for an account. If not found returns
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
-	if a := AcctInfoMap.GetAccount(acctId); a != nil && a.Status == AcctActive {
-		if (a.RoleId == networkAdminRole || a.RoleId == orgAdminRole) && a.Status == AcctActive {
-			return FullAccess
-		}
-		if o := OrgInfoMap.GetOrg(a.OrgId); o != nil && o.Status == OrgApproved {
-			if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
-				return r.Access
-			}
-			if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
-				return r.Access
+	// check if the org status is fine to do the transction
+	a := AcctInfoMap.GetAccount(acctId)
+	if a != nil && a.Status == AcctActive {
+		// get the org details and ultimate org details. check org status
+		// if the org is not approved or pending suspension
+		o := OrgInfoMap.GetOrg(a.OrgId)
+		if o != nil && (o.Status == OrgApproved || o.Status == OrgPendingSuspension) {
+			u := OrgInfoMap.GetOrg(o.UltimateParent)
+			if u != nil && (u.Status == OrgApproved || u.Status == OrgPendingSuspension) {
+				if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+					return FullAccess
+				}
+				if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
+					return r.Access
+				}
+				if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
+					return r.Access
+				}
 			}
 		}
 	}

@@ -3,16 +3,18 @@ package permission
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"regexp"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
-	"math/big"
-	"regexp"
 )
 
 var isStringAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9_-]*$`).MatchString
@@ -38,7 +40,8 @@ const (
 	ApproveAdminRole
 	AddNewRole
 	RemoveRole
-	AssignAccountRole
+	AddAccountToOrg
+	ChangeAccountRole
 	UpdateAccountStatus
 )
 
@@ -75,7 +78,7 @@ type txArgs struct {
 	isAdmin    bool
 	acctId     common.Address
 	accessType uint8
-	status     uint8
+	action     uint8
 	voter      common.Address
 	morgId     string
 	tmKey      string
@@ -90,6 +93,13 @@ type PendingOpInfo struct {
 type ExecStatus struct {
 	Status bool   `json:"status"`
 	Msg    string `json:"msg"`
+}
+
+func (e ExecStatus) OpStatus() (string, error) {
+	if e.Status {
+		return e.Msg, nil
+	}
+	return "", fmt.Errorf("%s", e.Msg)
 }
 
 var (
@@ -110,7 +120,6 @@ var (
 	ErrOrgAdminExists     = ExecStatus{false, "Org admin exists for the org"}
 	ErrAccountInUse       = ExecStatus{false, "Account already in use in another organization"}
 	ErrRoleExists         = ExecStatus{false, "Role exists for the org"}
-	ErrRoleDoesNotExist   = ExecStatus{false, "Role not found for org. Add role first"}
 	ErrRoleActive         = ExecStatus{false, "Accounts linked to the role. Cannot be removed"}
 	ErrAdminRoles         = ExecStatus{false, "Admin role cannot be removed"}
 	ErrInvalidOrgName     = ExecStatus{false, "Org id cannot contain special characters"}
@@ -134,106 +143,348 @@ func NewQuorumControlsAPI(p *PermissionCtrl) *QuorumControlsAPI {
 	return &QuorumControlsAPI{p}
 }
 
-func (s *QuorumControlsAPI) OrgList() []types.OrgInfo {
+func (q *QuorumControlsAPI) OrgList() []types.OrgInfo {
 	return types.OrgInfoMap.GetOrgList()
 }
 
-func (s *QuorumControlsAPI) NodeList() []types.NodeInfo {
+func (q *QuorumControlsAPI) NodeList() []types.NodeInfo {
 	return types.NodeInfoMap.GetNodeList()
 }
 
-func (s *QuorumControlsAPI) RoleList() []types.RoleInfo {
+func (q *QuorumControlsAPI) RoleList() []types.RoleInfo {
 	return types.RoleInfoMap.GetRoleList()
 }
 
-func (s *QuorumControlsAPI) AcctList() []types.AccountInfo {
+func (q *QuorumControlsAPI) AcctList() []types.AccountInfo {
 	return types.AcctInfoMap.GetAcctList()
 }
 
-func (s *QuorumControlsAPI) GetOrgDetails(orgId string) types.OrgDetailInfo {
+func (q *QuorumControlsAPI) GetOrgDetails(orgId string) (types.OrgDetailInfo, error) {
 	if o := types.OrgInfoMap.GetOrg(orgId); o == nil {
-		return types.OrgDetailInfo{}
+		return types.OrgDetailInfo{}, errors.New("org does not exist")
 	}
 	var acctList []types.AccountInfo
 	var roleList []types.RoleInfo
 	var nodeList []types.NodeInfo
-	for _, a := range s.AcctList() {
+	for _, a := range q.AcctList() {
 		if a.OrgId == orgId {
 			acctList = append(acctList, a)
 		}
 	}
-	for _, a := range s.RoleList() {
+	for _, a := range q.RoleList() {
 		if a.OrgId == orgId {
 			roleList = append(roleList, a)
 		}
 	}
-	for _, a := range s.NodeList() {
+	for _, a := range q.NodeList() {
 		if a.OrgId == orgId {
 			nodeList = append(nodeList, a)
 		}
 	}
-	return types.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList, SubOrgList: types.OrgInfoMap.GetOrg(orgId).SubOrgList}
+	return types.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList, SubOrgList: types.OrgInfoMap.GetOrg(orgId).SubOrgList}, nil
 }
 
-func (s *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(AddOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
+func (q *QuorumControlsAPI) initOp(txa ethapi.SendTxArgs) (*pbind.PermInterfaceSession, ExecStatus) {
+	if !q.permEnabled {
+		return nil, ErrPermissionDisabled
+	}
+	var err error
+	var w accounts.Wallet
+
+	w, err = q.validateAccount(txa.From)
+	if err != nil {
+		return nil, ErrInvalidAccount
+	}
+	pinterf := q.newPermInterfaceSession(w, txa)
+
+	return pinterf, ExecSuccess
 }
 
-func (s *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(AddSubOrg, txArgs{porgId: porgId, orgId: orgId, url: url, acctId: acct, txa: txa})
+func (q *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, url: url, acctId: acct, txa: txa}
+
+	if execStatus := q.valAddOrg(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	tx, err := pinterf.AddOrg(args.orgId, args.url, args.acctId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", AddOrg, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", AddOrg, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
-func (s *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(ApproveOrg, txArgs{orgId: orgId, url: url, acctId: acct, txa: txa})
+func (q *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{porgId: porgId, orgId: orgId, url: url, txa: txa}
+
+	if execStatus := q.valAddSubOrg(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	tx, err := pinterf.AddSubOrg(args.porgId, args.orgId, args.url)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", AddSubOrg, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", AddSubOrg, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
-func (s *QuorumControlsAPI) UpdateOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(UpdateOrgStatus, txArgs{orgId: orgId, status: status, txa: txa})
+func (q *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, url: url, acctId: acct, txa: txa}
+	if execStatus := q.valApproveOrg(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	tx, err := pinterf.ApproveOrg(args.orgId, args.url, args.acctId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", ApproveOrg, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", ApproveOrg, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
-func (s *QuorumControlsAPI) AddNode(orgId string, url string, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(AddNode, txArgs{orgId: orgId, url: url, txa: txa})
+func (q *QuorumControlsAPI) UpdateOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, action: status, txa: txa}
+	if execStatus := q.valUpdateOrgStatus(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	// and in suspended state for suspension revoke
+	tx, err := pinterf.UpdateOrgStatus(args.orgId, big.NewInt(int64(args.action)))
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", UpdateOrgStatus, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", UpdateOrgStatus, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
-func (s *QuorumControlsAPI) UpdateNodeStatus(orgId string, url string, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(UpdateNodeStatus, txArgs{orgId: orgId, url: url, status: status, txa: txa})
+func (q *QuorumControlsAPI) AddNode(orgId string, url string, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, url: url, txa: txa}
+	if execStatus := q.valAddNode(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	// check if node is already there
+	tx, err := pinterf.AddNode(args.orgId, args.url)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", AddNode, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", AddNode, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
-func (s *QuorumControlsAPI) ApproveOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(ApproveOrgStatus, txArgs{orgId: orgId, status: status, txa: txa})
+func (q *QuorumControlsAPI) UpdateNodeStatus(orgId string, url string, status uint8, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, url: url, action: status, txa: txa}
+	if execStatus := q.valUpdateNodeStatus(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	// check node status for operation
+	tx, err := pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.action)))
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", UpdateNodeStatus, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", UpdateNodeStatus, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
-func (s *QuorumControlsAPI) AssignAdminRole(orgId string, acct common.Address, roleId string, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(AssignAdminRole, txArgs{orgId: orgId, acctId: acct, roleId: roleId, txa: txa})
+func (q *QuorumControlsAPI) ApproveOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, action: status, txa: txa}
+	if execStatus := q.valApproveOrgStatus(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	// validate that status change is pending approval
+	tx, err := pinterf.ApproveOrgStatus(args.orgId, big.NewInt(int64(args.action)))
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", UpdateNodeStatus, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", UpdateNodeStatus, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
-func (s *QuorumControlsAPI) ApproveAdminRole(orgId string, acct common.Address, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(ApproveAdminRole, txArgs{orgId: orgId, acctId: acct, txa: txa})
+func (q *QuorumControlsAPI) AssignAdminRole(orgId string, acct common.Address, roleId string, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, acctId: acct, roleId: roleId, txa: txa}
+	if execStatus := q.valAssignAdminRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	// check if account is already in use in another org
+	tx, err := pinterf.AssignAdminRole(args.orgId, args.acctId, args.roleId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", AssignAdminRole, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", AssignAdminRole, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
-func (s *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8, isVoter bool, isAdmin bool, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(AddNewRole, txArgs{orgId: orgId, roleId: roleId, accessType: access, isVoter: isVoter, isAdmin: isAdmin, txa: txa})
+func (q *QuorumControlsAPI) ApproveAdminRole(orgId string, acct common.Address, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, acctId: acct, txa: txa}
+	if execStatus := q.valApproveAdminRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	// check if anything is pending approval
+	tx, err := pinterf.ApproveAdminRole(args.orgId, args.acctId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", ApproveAdminRole, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", ApproveAdminRole, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
-func (s *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(RemoveRole, txArgs{orgId: orgId, roleId: roleId, txa: txa})
+func (q *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8, isVoter bool, isAdmin bool, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, roleId: roleId, accessType: access, isVoter: isVoter, isAdmin: isAdmin, txa: txa}
+	if execStatus := q.valAddNewRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	// check if role is already there in the org
+	tx, err := pinterf.AddNewRole(args.roleId, args.orgId, big.NewInt(int64(args.accessType)), args.isVoter, args.isAdmin)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", ApproveAdminRole, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", ApproveAdminRole, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
-func (s *QuorumControlsAPI) AssignAccountRole(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(AssignAccountRole, txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa})
+func (q *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, roleId: roleId, txa: txa}
+
+	if execStatus := q.valRemoveRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	tx, err := pinterf.RemoveRole(args.roleId, args.orgId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", RemoveRole, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", RemoveRole, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
-func (s *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Address, status uint8, txa ethapi.SendTxArgs) ExecStatus {
-	return s.executePermAction(UpdateAccountStatus, txArgs{orgId: orgId, acctId: acct, status: status, txa: txa})
+func (q *QuorumControlsAPI) AddAccountToOrg(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa}
+
+	if execStatus := q.valAssignRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	tx, err := pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", AddAccountToOrg, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", AddAccountToOrg, "tx", tx)
+	return ExecSuccess.OpStatus()
+}
+func (q *QuorumControlsAPI) ChangeAccountRole(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa}
+
+	if execStatus := q.valAssignRole(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	tx, err := pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", ChangeAccountRole, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", ChangeAccountRole, "tx", tx)
+	return ExecSuccess.OpStatus()
+}
+
+func (q *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Address, status uint8, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, acctId: acct, action: status, txa: txa}
+
+	if execStatus := q.valUpdateAccountStatus(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	tx, err := pinterf.UpdateAccountStatus(args.orgId, args.acctId, big.NewInt(int64(args.action)))
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", UpdateAccountStatus, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", UpdateAccountStatus, "tx", tx)
+	return ExecSuccess.OpStatus()
 }
 
 // check if the account is network admin
-func (s *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
+func (q *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
 	ac := types.AcctInfoMap.GetAccount(account)
-	return ac != nil && ac.RoleId == s.permCtrl.permConfig.NwAdminRole
+	return ac != nil && ac.RoleId == q.permCtrl.permConfig.NwAdminRole
 }
 
-func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) (ExecStatus, error) {
+func (q *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) (ExecStatus, error) {
 	org := types.OrgInfoMap.GetOrg(orgId)
 	if org == nil {
 		return ErrOrgDoesNotExists, errors.New("invalid org")
@@ -249,7 +500,7 @@ func (s *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) (Ex
 	return ExecSuccess, nil
 }
 
-func (s *QuorumControlsAPI) validateOrg(orgId, pOrgId string) (ExecStatus, error) {
+func (q *QuorumControlsAPI) validateOrg(orgId, pOrgId string) (ExecStatus, error) {
 	// validate Parent org id
 	if pOrgId != "" {
 		if types.OrgInfoMap.GetOrg(pOrgId) == nil {
@@ -259,47 +510,47 @@ func (s *QuorumControlsAPI) validateOrg(orgId, pOrgId string) (ExecStatus, error
 		if types.OrgInfoMap.GetOrg(locOrgId) != nil {
 			return ErrOrgExists, errors.New("org exists")
 		}
-	} else {
-		if types.OrgInfoMap.GetOrg(orgId) != nil {
-			return ErrOrgExists, errors.New("org exists")
-		}
+	} else if types.OrgInfoMap.GetOrg(orgId) != nil {
+		return ErrOrgExists, errors.New("org exists")
 	}
 	return ExecSuccess, nil
 }
 
-func (s *QuorumControlsAPI) validatePendingOp(authOrg, orgId, url string, account common.Address, pendingOp int64, pinterf *pbind.PermInterfaceSession) bool {
+func (q *QuorumControlsAPI) validatePendingOp(authOrg, orgId, url string, account common.Address, pendingOp int64, pinterf *pbind.PermInterfaceSession) bool {
 	pOrg, pUrl, pAcct, op, err := pinterf.GetPendingOp(authOrg)
 	return err == nil && (op.Int64() == pendingOp && pOrg == orgId && pUrl == url && pAcct == account)
 }
 
-func (s *QuorumControlsAPI) checkPendingOp(orgId string, pinterf *pbind.PermInterfaceSession) bool {
+func (q *QuorumControlsAPI) checkPendingOp(orgId string, pinterf *pbind.PermInterfaceSession) bool {
 	_, _, _, op, err := pinterf.GetPendingOp(orgId)
 	return err == nil && op.Int64() != 0
 }
 
-func (s *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) (ExecStatus, error) {
+func (q *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) (ExecStatus, error) {
 	org := types.OrgInfoMap.GetOrg(orgId)
+
+	if org == nil {
+		return ErrOrgDoesNotExists, errors.New("org does not exist")
+	}
 	// check if its a master org. operation is allowed only if its a master org
 	if org.Level.Cmp(big.NewInt(1)) != 0 {
-		return ErrNotMasterOrg, errors.New("Org not a master org")
+		return ErrNotMasterOrg, errors.New("org not a master org")
 	}
 
-	if !((op == 3 && org.Status == types.OrgApproved) || (op == 5 && org.Status == types.OrgSuspended)) {
+	if !((op == 1 && org.Status == types.OrgApproved) || (op == 2 && org.Status == types.OrgSuspended)) {
 		return ErrOpNotAllowed, errors.New("operation not allowed for current status")
 	}
 	return ExecSuccess, nil
 }
 
-func (s *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (ExecStatus, error) {
+func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (ExecStatus, error) {
 	// validates if the enode is linked the passed organization
 	// validate node id and
 	if len(url) == 0 {
 		return ErrInvalidNode, errors.New("invalid node id")
 	}
-	if execStatus, err := s.valNodeDetails(url); err != nil {
-		if execStatus != ErrNodePresent {
-			return execStatus, errors.New("node not found")
-		}
+	if execStatus, err := q.valNodeDetails(url); err != nil && execStatus != ErrNodePresent {
+		return execStatus, errors.New("node not found")
 	}
 
 	node := types.NodeInfoMap.GetNodeByUrl(url)
@@ -313,11 +564,11 @@ func (s *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (Ex
 		}
 
 		// validate the op and node status and check if the op can be performed
-		if op != 3 && op != 4 && op != 5 {
+		if op != 1 && op != 2 && op != 3 {
 			return ErrOpNotAllowed, errors.New("invalid node status change operation")
 		}
 
-		if (op == 3 && node.Status != types.NodeApproved) || (op == 4 && node.Status != types.NodeDeactivated) {
+		if (op == 1 && node.Status != types.NodeApproved) || (op == 2 && node.Status != types.NodeDeactivated) {
 			return ErrOpNotAllowed, errors.New("node status change cannot be performed")
 		}
 	} else {
@@ -327,19 +578,17 @@ func (s *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (Ex
 	return ExecSuccess, nil
 }
 
-func (s *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
+func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
 	var r *types.RoleInfo
 	r = types.RoleInfoMap.GetRole(orgId, roleId)
 	if r == nil {
 		r = types.RoleInfoMap.GetRole(types.OrgInfoMap.GetOrg(orgId).UltimateParent, roleId)
 	}
-	if r != nil {
-		log.Info("SMK-validateRole @370", "roleId", r.RoleId, "status", r.Active)
-	}
+
 	return r != nil && r.Active
 }
 
-func (s *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.Address, op int64) (ExecStatus, error) {
+func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.Address, op int64) (ExecStatus, error) {
 	// validates if the enode is linked the passed organization
 	ac := types.AcctInfoMap.GetAccount(account)
 
@@ -347,7 +596,7 @@ func (s *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 		return ErrAccountNotThere, errors.New("account not there")
 	}
 
-	if ac.IsOrgAdmin && (ac.RoleId == s.permCtrl.permConfig.NwAdminRole || ac.RoleId == s.permCtrl.permConfig.OrgAdminRole) && (op == 1 || op == 3) {
+	if ac.IsOrgAdmin && (ac.RoleId == q.permCtrl.permConfig.NwAdminRole || ac.RoleId == q.permConfig.OrgAdminRole) && (op == 1 || op == 3) {
 		return ErrOpNotAllowed, errors.New("operation not allowed on org admin account")
 	}
 
@@ -370,35 +619,35 @@ func (s *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 	return ExecSuccess, nil
 }
 
-func (s *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account common.Address) (ExecStatus, error) {
+func (q *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account common.Address) (ExecStatus, error) {
 	ac := types.AcctInfoMap.GetAccount(account)
 
 	if ac != nil {
 		if ac.OrgId != orgId {
 			return ErrAccountInUse, errors.New("account part of another org")
 		}
-		if roleId != "" && roleId == s.permCtrl.permConfig.OrgAdminRole && ac.IsOrgAdmin {
+		if roleId != "" && roleId == q.permCtrl.permConfig.OrgAdminRole && ac.IsOrgAdmin {
 			return ErrAccountOrgAdmin, errors.New("account already org admin for the org")
 		}
 	}
 	return ExecSuccess, nil
 }
 
-func (s *QuorumControlsAPI) valSubOrgBreadthDepth(porgId string) (ExecStatus, error) {
+func (q *QuorumControlsAPI) valSubOrgBreadthDepth(porgId string) (ExecStatus, error) {
 	org := types.OrgInfoMap.GetOrg(porgId)
 
-	if s.permCtrl.permConfig.SubOrgDepth.Cmp(org.Level) == 0 {
-		return ErrMaxDepth, errors.New("max depth for suborgs reached")
+	if q.permCtrl.permConfig.SubOrgDepth.Cmp(org.Level) == 0 {
+		return ErrMaxDepth, errors.New("max depth for sub orgs reached")
 	}
 
-	if s.permCtrl.permConfig.SubOrgBreadth.Cmp(big.NewInt(int64(len(org.SubOrgList)))) == 0 {
-		return ErrMaxBreadth, errors.New("max breadth for suborgs reached")
+	if q.permCtrl.permConfig.SubOrgBreadth.Cmp(big.NewInt(int64(len(org.SubOrgList)))) == 0 {
+		return ErrMaxBreadth, errors.New("max breadth for sub orgs reached")
 	}
 
 	return ExecSuccess, nil
 }
 
-func (s *QuorumControlsAPI) checkNodeExists(url, enodeId string) bool {
+func (q *QuorumControlsAPI) checkNodeExists(url, enodeId string) bool {
 	node := types.NodeInfoMap.GetNodeByUrl(url)
 	if node != nil {
 		return true
@@ -415,7 +664,7 @@ func (s *QuorumControlsAPI) checkNodeExists(url, enodeId string) bool {
 	return false
 }
 
-func (s *QuorumControlsAPI) valNodeDetails(url string) (ExecStatus, error) {
+func (q *QuorumControlsAPI) valNodeDetails(url string) (ExecStatus, error) {
 	// validate node id and
 	if len(url) != 0 {
 		enodeDet, err := enode.ParseV4(url)
@@ -423,316 +672,293 @@ func (s *QuorumControlsAPI) valNodeDetails(url string) (ExecStatus, error) {
 			return ErrInvalidNode, errors.New("invalid node id")
 		}
 		// check if node already there
-		if s.checkNodeExists(url, enodeDet.EnodeID()) {
+		if q.checkNodeExists(url, enodeDet.EnodeID()) {
 			return ErrNodePresent, errors.New("duplicate node")
 		}
 	}
 	return ExecSuccess, nil
 }
 
-// executePermAction helps to execute an action in permission contract
-func (s *QuorumControlsAPI) executePermAction(action PermAction, args txArgs) ExecStatus {
-	var err error
-	var w accounts.Wallet
+// all validations for add org operation
+func (q *QuorumControlsAPI) valAddOrg(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if the org id contains "."
+	if args.orgId == "" || args.url == "" || args.acctId == (common.Address{0}) {
+		return ErrInvalidInput
+	}
+	if !isStringAlphaNumeric(args.orgId) {
+		return ErrInvalidOrgName
+	}
 
-	w, err = s.validateAccount(args.txa.From)
-	if err != nil {
+	// check if caller is network admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+
+	// check if any previous op is pending approval for network admin
+	if q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg, pinterf) {
+		return ErrPendingApprovals
+	}
+	// check if org already exists
+	if execStatus, er := q.validateOrg(args.orgId, ""); er != nil {
+		return execStatus
+	}
+
+	// validate node id and
+	if execStatus, er := q.valNodeDetails(args.url); er != nil {
+		return execStatus
+	}
+
+	// check if account is already part of another org
+	if execStatus, er := q.checkOrgAdminExists(args.orgId, "", args.acctId); er != nil {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valApproveOrg(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check caller is network admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+	// check if anything pending approval
+	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, args.url, args.acctId, 1, pinterf) {
+		return ErrNothingToApprove
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valAddSubOrg(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if the org id contains "."
+	if args.orgId == "" {
+		return ErrInvalidInput
+	}
+	if !isStringAlphaNumeric(args.orgId) {
+		return ErrInvalidOrgName
+	}
+
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.porgId); er != nil {
+		return execStatus
+	}
+
+	// check if org already exists
+	if execStatus, er := q.validateOrg(args.orgId, args.porgId); er != nil {
+		return execStatus
+	}
+
+	if execStatus, er := q.valSubOrgBreadthDepth(args.porgId); er != nil {
+		return execStatus
+	}
+
+	if execStatus, er := q.valNodeDetails(args.url); er != nil {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valUpdateOrgStatus(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if called is network admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+	if args.action != 1 && args.action != 2 {
+		return ErrOpNotAllowed
+	}
+
+	//check if passed org id is network admin org. update should not be allowed
+	if args.orgId == q.permCtrl.permConfig.NwAdminOrg {
+		return ErrOpNotAllowed
+	}
+	// check if status update can be performed. Org should be approved for suspension
+	if execStatus, er := q.checkOrgStatus(args.orgId, args.action); er != nil {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valApproveOrgStatus(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if called is network admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+	// check if anything is pending approval
+	var pendingOp int64
+	if args.action == 1 {
+		pendingOp = 2
+	} else if args.action == 2 {
+		pendingOp = 3
+	} else {
+		return ErrOpNotAllowed
+	}
+	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, "", common.Address{}, pendingOp, pinterf) {
+		return ErrNothingToApprove
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valAddNode(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	if args.url == "" {
+		return ErrInvalidInput
+	}
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
+	}
+
+	if execStatus, er := q.valNodeDetails(args.url); er != nil {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valUpdateNodeStatus(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if org admin
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
+	}
+
+	// validation status change is with in allowed set
+	if execStatus, er := q.valNodeStatusChange(args.orgId, args.url, int64(args.action)); er != nil {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valAssignAdminRole(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	if args.acctId == (common.Address{0}) {
+		return ErrInvalidInput
+	}
+	// check if caller is network admin
+	if args.roleId != q.permCtrl.permConfig.OrgAdminRole && args.roleId != q.permConfig.NwAdminRole {
+		return ErrOpNotAllowed
+	}
+
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+
+	if _, err := q.validateOrg(args.orgId, ""); err == nil {
+		return ErrOrgDoesNotExists
+	}
+
+	// check if account is already part of another org
+	if execStatus, er := q.checkOrgAdminExists(args.orgId, args.roleId, args.acctId); er != nil && execStatus != ErrOrgAdminExists {
+		return execStatus
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valApproveAdminRole(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if caller is network admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+	// check if the org exists
+
+	// check if account is valid
+	ac := types.AcctInfoMap.GetAccount(args.acctId)
+	if ac == nil {
 		return ErrInvalidAccount
 	}
+	// validate pending op
+	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, ac.OrgId, "", args.acctId, 4, pinterf) {
+		return ErrNothingToApprove
+	}
+	return ExecSuccess
+}
 
-	pinterf := s.newPermInterfaceSession(w, args.txa)
-	var tx *types.Transaction
+func (q *QuorumControlsAPI) valAddNewRole(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	if args.roleId == "" {
+		return ErrInvalidInput
+	}
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
+	}
+	// validate if role is already present
+	if types.RoleInfoMap.GetRole(args.orgId, args.roleId) != nil {
+		return ErrRoleExists
+	}
+	return ExecSuccess
+}
 
-	switch action {
-
-	case AddOrg:
-		// check if the org id contains "."
-		if args.orgId == "" || args.url == "" || args.acctId == (common.Address{0}) {
-			return ErrInvalidInput
-		}
-		if !isStringAlphaNumeric(args.orgId) {
-			return ErrInvalidOrgName
-		}
-
-		// check if caller is network admin
-		if !s.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
-		}
-
-		// check if any previous op is pending approval for network admin
-		if s.checkPendingOp(s.permCtrl.permConfig.NwAdminOrg, pinterf) {
-			return ErrPendingApprovals
-		}
-		// check if org already exists
-		if execStatus, er := s.validateOrg(args.orgId, ""); er != nil {
-			return execStatus
-		}
-
-		// validate node id and
-		if execStatus, er := s.valNodeDetails(args.url); er != nil {
-			return execStatus
-		}
-
-		// check if account is already part of another org
-		if execStatus, er := s.checkOrgAdminExists(args.orgId, "", args.acctId); er != nil {
-			return execStatus
-		}
-
-		tx, err = pinterf.AddOrg(args.orgId, args.url, args.acctId)
-
-	case ApproveOrg:
-		// check caller is network admin
-		if !s.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
-		}
-
-		if !s.validatePendingOp(s.permCtrl.permConfig.NwAdminOrg, args.orgId, args.url, args.acctId, 1, pinterf) {
-			return ErrNothingToApprove
-		}
-
-		// check if anything pending approval
-		tx, err = pinterf.ApproveOrg(args.orgId, args.url, args.acctId)
-
-	case AddSubOrg:
-		// check if the org id contains "."
-		if args.orgId == "" {
-			return ErrInvalidInput
-		}
-		if !isStringAlphaNumeric(args.orgId) {
-			return ErrInvalidOrgName
-		}
-
-		// check if caller is network admin
-		if execStatus, er := s.isOrgAdmin(args.txa.From, args.porgId); er != nil {
-			return execStatus
-		}
-
-		// check if org already exists
-		if execStatus, er := s.validateOrg(args.orgId, args.porgId); er != nil {
-			return execStatus
-		}
-
-		if execStatus, er := s.valSubOrgBreadthDepth(args.porgId); er != nil {
-			return execStatus
-		}
-
-		if execStatus, er := s.valNodeDetails(args.url); er != nil {
-			return execStatus
-		}
-
-		// check if account is already part of another org
-		if (args.acctId != common.Address{}) {
-			if execStatus, er := s.checkOrgAdminExists(args.orgId, "", args.acctId); er != nil {
-				return execStatus
-			}
-		}
-
-		tx, err = pinterf.AddSubOrg(args.porgId, args.orgId, args.url, args.acctId)
-
-	case UpdateOrgStatus:
-		// check if called is network admin
-		if !s.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
-		}
-		if args.status != 3 && args.status != 5 {
-			return ErrOpNotAllowed
-		}
-		// check if status update can be performed. Org should be approved for suspension
-		if execStatus, er := s.checkOrgStatus(args.orgId, args.status); er != nil {
-			return execStatus
-		}
-		// and in suspended state for suspension revoke
-		tx, err = pinterf.UpdateOrgStatus(args.orgId, big.NewInt(int64(args.status)))
-
-	case ApproveOrgStatus:
-		// check if called is network admin
-		if !s.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
-		}
-
-		// check if anything is pending approval
-		var pendingOp int64
-		if args.status == 3 {
-			pendingOp = 2
-		} else if args.status == 5 {
-			pendingOp = 3
-		} else {
-			return ErrOpNotAllowed
-		}
-		if !s.validatePendingOp(s.permCtrl.permConfig.NwAdminOrg, args.orgId, "", common.Address{}, pendingOp, pinterf) {
-			return ErrNothingToApprove
-		}
-
-		// validate that status change is pending approval
-		tx, err = pinterf.ApproveOrgStatus(args.orgId, big.NewInt(int64(args.status)))
-
-	case AddNode:
-		if args.url == "" {
-			return ErrInvalidInput
-		}
-		// check if caller is network admin
-		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
-			return execStatus
-		}
-
-		if execStatus, er := s.valNodeDetails(args.url); er != nil {
-			return execStatus
-		}
-		// check if node is already there
-		tx, err = pinterf.AddNode(args.orgId, args.url)
-
-	case UpdateNodeStatus:
-		// check if org admin
-		// check if caller is network admin
-		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
-			return execStatus
-		}
-
-		// validation status change is with in allowed set
-		if execStatus, er := s.valNodeStatusChange(args.orgId, args.url, int64(args.status)); er != nil {
-			return execStatus
-		}
-
-		// check node status for operation
-		tx, err = pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.status)))
-
-	case AssignAdminRole:
-		if args.acctId == (common.Address{0}) {
-			return ErrInvalidInput
-		}
-		// check if caller is network admin
-		if args.roleId != s.permCtrl.permConfig.OrgAdminRole && args.roleId != s.permCtrl.permConfig.NwAdminRole {
-			return ErrOpNotAllowed
-		}
-
-		if !s.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
-		}
-
-		// check if account is already part of another org
-		if execStatus, er := s.checkOrgAdminExists(args.orgId, args.roleId, args.acctId); er != nil && execStatus != ErrOrgAdminExists {
-			return execStatus
-		}
-		// check if account is already in use in another org
-		tx, err = pinterf.AssignAdminRole(args.orgId, args.acctId, args.roleId)
-
-	case ApproveAdminRole:
-		// check if caller is network admin
-		if !s.isNetworkAdmin(args.txa.From) {
-			return ErrNotNetworkAdmin
-		}
-
-		// check if account is valid
-		ac := types.AcctInfoMap.GetAccount(args.acctId)
-		if ac == nil {
-			return ErrInvalidAccount
-		}
-		// validate pending op
-		if !s.validatePendingOp(s.permCtrl.permConfig.NwAdminOrg, ac.OrgId, "", args.acctId, 4, pinterf) {
-			return ErrNothingToApprove
-		}
-
-		// check if anything is pending approval
-		tx, err = pinterf.ApproveAdminRole(args.orgId, args.acctId)
-
-	case AddNewRole:
-		if args.roleId == "" {
-			return ErrInvalidInput
-		}
-		// check if caller is network admin
-		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
-			return execStatus
-		}
-		// validate if role is already present
-		if types.RoleInfoMap.GetRole(args.orgId, args.roleId) != nil {
-			return ErrRoleExists
-		}
-
-		// check if role is already there in the org
-		tx, err = pinterf.AddNewRole(args.roleId, args.orgId, big.NewInt(int64(args.accessType)), args.isVoter, args.isAdmin)
-
-	case RemoveRole:
-		// check if caller is network admin
-		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
-			return execStatus
-		}
-
-		// admin roles cannot be removed
-		if args.roleId == s.permCtrl.permConfig.OrgAdminRole || args.roleId == s.permCtrl.permConfig.NwAdminRole {
-			return ErrAdminRoles
-		}
-
-		// check if role is alraedy inactive
-		r := types.RoleInfoMap.GetRole(args.orgId, args.roleId)
-		if r == nil {
-			return ErrInvalidRole
-		} else if !r.Active {
-			return ErrInactiveRole
-		}
-
-		// check if the role has active accounts. if yes operations should not be allowed
-		if len(types.AcctInfoMap.GetAcctListRole(args.orgId, args.roleId)) != 0 {
-			return ErrRoleActive
-		}
-
-		tx, err = pinterf.RemoveRole(args.roleId, args.orgId)
-
-	case AssignAccountRole:
-		if args.acctId == (common.Address{0}) {
-			return ErrInvalidInput
-		}
-		if args.roleId == s.permCtrl.permConfig.OrgAdminRole || args.roleId == s.permCtrl.permConfig.NwAdminRole {
-			return ErrInvalidRole
-		}
-		// check if caller is network admin
-		if execStatus, er := s.isOrgAdmin(args.txa.From, args.orgId); er != nil {
-			return execStatus
-		}
-
-		// check if the role is valid
-		if !s.validateRole(args.orgId, args.roleId) {
-			return ErrInvalidRole
-		}
-
-		// check if the account is part of another org
-		if ac := types.AcctInfoMap.GetAccount(args.acctId); ac != nil {
-			if ac.OrgId != args.orgId {
-				return ErrAccountInUse
-			}
-		}
-
-		tx, err = pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
-
-	case UpdateAccountStatus:
-		// validation status change is with in allowed set
-		if execStatus, er := s.valAccountStatusChange(args.orgId, args.acctId, int64(args.status)); er != nil {
-			return execStatus
-		}
-
-		tx, err = pinterf.UpdateAccountStatus(args.orgId, args.acctId, big.NewInt(int64(args.status)))
+func (q *QuorumControlsAPI) valRemoveRole(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
 	}
 
-	if err != nil {
-		log.Error("Failed to execute permission action", "action", action, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}
+	// admin roles cannot be removed
+	if args.roleId == q.permCtrl.permConfig.OrgAdminRole || args.roleId == q.permConfig.NwAdminRole {
+		return ErrAdminRoles
 	}
-	log.Debug("executed permission action", "action", action, "tx", tx)
+
+	// check if role is alraedy inactive
+	r := types.RoleInfoMap.GetRole(args.orgId, args.roleId)
+	if r == nil {
+		return ErrInvalidRole
+	} else if !r.Active {
+		return ErrInactiveRole
+	}
+
+	// check if the role has active accounts. if yes operations should not be allowed
+	if len(types.AcctInfoMap.GetAcctListRole(args.orgId, args.roleId)) != 0 {
+		return ErrRoleActive
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valAssignRole(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	if args.acctId == (common.Address{0}) {
+		return ErrInvalidInput
+	}
+	if args.roleId == q.permCtrl.permConfig.OrgAdminRole || args.roleId == q.permConfig.NwAdminRole {
+		return ErrInvalidRole
+	}
+	// check if caller is network admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
+	}
+
+	// check if the role is valid
+	if !q.validateRole(args.orgId, args.roleId) {
+		return ErrInvalidRole
+	}
+
+	// check if the account is part of another org
+	if ac := types.AcctInfoMap.GetAccount(args.acctId); ac != nil {
+		if ac.OrgId != args.orgId {
+			return ErrAccountInUse
+		}
+	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valUpdateAccountStatus(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if the caller is org admin
+	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
+		return execStatus
+	}
+	// validation status change is with in allowed set
+	if execStatus, er := q.valAccountStatusChange(args.orgId, args.acctId, int64(args.action)); er != nil {
+		return execStatus
+	}
 	return ExecSuccess
 }
 
 // validateAccount validates the account and returns the wallet associated with that for signing the transaction
-func (s *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Wallet, error) {
+func (q *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Wallet, error) {
 	acct := accounts.Account{Address: from}
-	w, err := s.permCtrl.eth.AccountManager().Find(acct)
+	w, err := q.permCtrl.eth.AccountManager().Find(acct)
 	if err != nil {
 		return nil, err
 	}
 	return w, nil
 }
 
-func (s *QuorumControlsAPI) newPermInterfaceSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.PermInterfaceSession {
-	frmAcct, transactOpts, gasLimit, gasPrice, nonce := s.getTxParams(txa, w)
+func (q *QuorumControlsAPI) newPermInterfaceSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.PermInterfaceSession {
+	frmAcct, transactOpts, gasLimit, gasPrice, nonce := q.getTxParams(txa, w)
 	ps := &pbind.PermInterfaceSession{
 		Contract: s.permCtrl.permInterf,
 		CallOpts: bind.CallOpts{
@@ -750,7 +976,7 @@ func (s *QuorumControlsAPI) newPermInterfaceSession(w accounts.Wallet, txa ethap
 }
 
 // getTxParams extracts the transaction related parameters
-func (s *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) (accounts.Account, *bind.TransactOpts, uint64, *big.Int, *big.Int) {
+func (q *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) (accounts.Account, *bind.TransactOpts, uint64, *big.Int, *big.Int) {
 	frmAcct := accounts.Account{Address: txa.From}
 	transactOpts := bind.NewWalletTransactor(w, frmAcct)
 	gasLimit := defaultGasLimit

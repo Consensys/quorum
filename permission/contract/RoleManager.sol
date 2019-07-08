@@ -1,9 +1,11 @@
 pragma solidity ^0.5.3;
+
 import "./PermissionsUpgradable.sol";
 
 // TODO: check code comments
 contract RoleManager {
     PermissionsUpgradable private permUpgradable;
+
     struct RoleDetails {
         string roleId;
         string orgId;
@@ -30,6 +32,7 @@ contract RoleManager {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
+    // checks if the role is  active or not
     function roleExists(string memory _roleId, string memory _orgId, string memory _ultParent) public view returns (bool)
     {
         uint id;
@@ -44,6 +47,7 @@ contract RoleManager {
         return false;
     }
 
+    // returns the roles details for a given role id and org id
     function getRoleDetails(string calldata _roleId, string calldata _orgId) external view returns (string memory roleId, string memory orgId, uint accessType, bool voter, bool active)
     {
         if (!(roleExists(_roleId, _orgId, ""))) {
@@ -53,6 +57,7 @@ contract RoleManager {
         return (roleList[rIndex].roleId, roleList[rIndex].orgId, roleList[rIndex].baseAccess, roleList[rIndex].isVoter, roleList[rIndex].active);
     }
 
+    // returns the role details for a given index
     function getRoleDetailsFromIndex(uint rIndex) external view returns (string memory roleId, string memory orgId, uint accessType, bool voter, bool admin, bool active)
     {
         return (roleList[rIndex].roleId, roleList[rIndex].orgId, roleList[rIndex].baseAccess, roleList[rIndex].isVoter, roleList[rIndex].isAdmin, roleList[rIndex].active);
@@ -64,6 +69,7 @@ contract RoleManager {
         return roleList.length;
     }
 
+    // function to add a new role
     function addRole(string memory _roleId, string memory _orgId, uint _baseAccess, bool _voter, bool _admin) public
     {
         // Check if account already exists
@@ -75,7 +81,8 @@ contract RoleManager {
         }
     }
 
-    function removeRole(string calldata _roleId, string calldata _orgId) external{
+    // function to remove a role
+    function removeRole(string calldata _roleId, string calldata _orgId) external {
         if (roleIndex[keccak256(abi.encodePacked(_roleId, _orgId))] != 0) {
             uint rIndex = getRoleIndex(_roleId, _orgId);
             roleList[rIndex].active = false;
@@ -88,7 +95,7 @@ contract RoleManager {
         return roleIndex[keccak256(abi.encodePacked(_roleId, _orgId))] - 1;
     }
 
-
+    // checks if the role has full access
     function isFullAccessRole(string calldata _roleId, string calldata _orgId, string calldata _ultParent) external view returns (bool){
         if (!(roleExists(_roleId, _orgId, _ultParent))) {
             return false;
@@ -103,6 +110,7 @@ contract RoleManager {
         return (roleList[rIndex].active && roleList[rIndex].baseAccess == 3);
     }
 
+    // checks if the role is a voter role
     function isVoterRole(string calldata _roleId, string calldata _orgId, string calldata _ultParent) external view returns (bool){
         if (!(roleExists(_roleId, _orgId, _ultParent))) {
             return false;
@@ -117,6 +125,7 @@ contract RoleManager {
         return (roleList[rIndex].active && roleList[rIndex].isVoter);
     }
 
+    // checks if the role is admin role
     function isAdminRole(string calldata _roleId, string calldata _orgId, string calldata _ultParent) external view returns (bool){
         if (!(roleExists(_roleId, _orgId, _ultParent))) {
             return false;

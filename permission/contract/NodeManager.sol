@@ -1,13 +1,13 @@
 pragma solidity ^0.5.3;
-import "./PermissionsUpgradable.sol";
 
+import "./PermissionsUpgradable.sol";
 
 contract NodeManager {
     PermissionsUpgradable private permUpgradable;
     // enum and struct declaration
     // changing node status to integer (0-NotInList, 1- PendingApproval, 2-Approved, 3-Deactivated, 4-Blacklisted)
     //      PendingDeactivation, Deactivated, PendingActivation, PendingBlacklisting, Blacklisted)
-//    enum NodeStatus {NotInList, PendingApproval, Approved, PendingDeactivation, Deactivated, PendingActivation, PendingBlacklisting, Blacklisted}
+    //    enum NodeStatus {NotInList, PendingApproval, Approved, PendingDeactivation, Deactivated, PendingActivation, PendingBlacklisting, Blacklisted}
     struct NodeDetails {
         string enodeId; //e.g. 127.0.0.1:20005
         string orgId;
@@ -35,6 +35,7 @@ contract NodeManager {
     // node permission events for node blacklist
     event NodeBlacklisted(string _enodeId, string _orgId);
 
+    // checks if the caller is implementation contracts
     modifier onlyImpl
     {
         require(msg.sender == permUpgradable.getPermImpl());
@@ -55,6 +56,7 @@ contract NodeManager {
         _;
     }
 
+    // constructor. sets the upgradable address
     constructor (address _permUpgradable) public {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
@@ -65,11 +67,13 @@ contract NodeManager {
         uint nodeIndex = getNodeIndex(enodeId);
         return (nodeList[nodeIndex].orgId, nodeList[nodeIndex].enodeId, nodeList[nodeIndex].status);
     }
+
     // Get node details given index
     function getNodeDetailsFromIndex(uint nodeIndex) public view returns (string memory _orgId, string memory _enodeId, uint _nodeStatus)
     {
         return (nodeList[nodeIndex].orgId, nodeList[nodeIndex].enodeId, nodeList[nodeIndex].status);
     }
+
     // Get number of nodes
     function getNumberOfNodes() public view returns (uint)
     {
@@ -79,12 +83,13 @@ contract NodeManager {
     // Get node status by enode id
     function getNodeStatus(string memory _enodeId) public view returns (uint)
     {
-        if (nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] == 0){
+        if (nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] == 0) {
             return 0;
         }
         return nodeList[getNodeIndex(_enodeId)].status;
     }
-    //TODO - can the duplicacy in next 3 functions removed?
+
+    // called at the time of initialization for adding admin nodes
     function addAdminNode(string calldata _enodeId, string calldata _orgId) external
     onlyImpl
     enodeNotInList(_enodeId)
@@ -93,28 +98,31 @@ contract NodeManager {
         nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
         nodeList.push(NodeDetails(_enodeId, _orgId, 2));
     }
-    // TODO: addNode should be external
+
+    // called at the time of new org creation. will need approval for the node to be
+    // part of the network
     function addNode(string memory _enodeId, string memory _orgId) public
     onlyImpl
     enodeNotInList(_enodeId)
     {
         numberOfNodes++;
         nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
-        nodeList.push(NodeDetails(_enodeId, _orgId,  1));
+        nodeList.push(NodeDetails(_enodeId, _orgId, 1));
         emit NodeProposed(_enodeId, _orgId);
     }
 
+    // can be called by org admins to add new nodes to the org or sub orgs
     function addOrgNode(string calldata _enodeId, string calldata _orgId) external
     onlyImpl
     enodeNotInList(_enodeId)
     {
         numberOfNodes++;
         nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] = numberOfNodes;
-        nodeList.push(NodeDetails(_enodeId, _orgId,  2));
+        nodeList.push(NodeDetails(_enodeId, _orgId, 2));
         emit NodeApproved(_enodeId, _orgId);
     }
 
-    // Adds a node to the nodeList mapping and emits node added event if successfully and node exists event of node is already present
+    // updates the node status to approved and emits the event
     function approveNode(string memory _enodeId, string memory _orgId) public
     onlyImpl
     enodeInList(_enodeId)
@@ -128,7 +136,9 @@ contract NodeManager {
         emit NodeApproved(nodeList[nodeIndex].enodeId, nodeList[nodeIndex].orgId);
     }
 
-    function updateNodeStatus(string calldata _enodeId, string calldata _orgId, uint _status) external
+    // updates the node status. Used for deactivating or blacklisting a node and reactivating
+    // a deactivated node
+    function updateNodeStatus(string calldata _enodeId, string calldata _orgId, uint _action) external
     onlyImpl
     enodeInList(_enodeId)
     {
@@ -136,14 +146,14 @@ contract NodeManager {
         require(checkOrg(_enodeId, _orgId), "Node does not belong to the org");
         // changing node status to integer (0-NotInList, 1- PendingApproval, 2-Approved, 3-Deactivated, 4-Blacklisted)
         // operations that can be done 3-Deactivate Node, 4-ActivateNode, 5-Blacklist nodeList
-        require((_status == 3 || _status == 4 || _status == 5), "invalid operation");
+        require((_action == 1 || _action == 2 || _action == 3), "invalid operation");
 
-        if (_status == 3){
+        if (_action == 1) {
             require(getNodeStatus(_enodeId) == 2, "Op cannot be performed");
             nodeList[getNodeIndex(_enodeId)].status = 3;
             emit NodeDeactivated(_enodeId, _orgId);
         }
-        else if (_status == 4){
+        else if (_action == 2) {
             require(getNodeStatus(_enodeId) == 3, "Op cannot be performed");
             nodeList[getNodeIndex(_enodeId)].status = 2;
             emit NodeActivated(_enodeId, _orgId);
@@ -155,14 +165,16 @@ contract NodeManager {
     }
 
     /* private functions */
+    // returs the node index for given node id
     function getNodeIndex(string memory _enodeId) internal view
     returns (uint)
     {
         return nodeIdToIndex[keccak256(abi.encodePacked(_enodeId))] - 1;
     }
 
+    // checks if the node is linked to the passed org
     function checkOrg(string memory _enodeId, string memory _orgId) internal view
-    returns(bool)
+    returns (bool)
     {
         return (keccak256(abi.encodePacked(nodeList[getNodeIndex(_enodeId)].orgId)) == keccak256(abi.encodePacked(_orgId)));
     }

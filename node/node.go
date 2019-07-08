@@ -279,7 +279,6 @@ func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	for _, service := range services {
 		apis = append(apis, service.APIs()...)
 	}
-
 	// Start the various API endpoints, terminating all in case of errors
 	if err := n.startInProc(apis); err != nil {
 		return err

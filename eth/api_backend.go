@@ -19,6 +19,8 @@ package eth
 import (
 	"context"
 	"errors"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -33,7 +35,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
-	"math/big"
 )
 
 // EthAPIBackend implements ethapi.Backend for full nodes

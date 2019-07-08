@@ -347,7 +347,6 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode 
 	if d.synchroniseMock != nil {
 		return d.synchroniseMock(id, hash)
 	}
-
 	// Make sure only one goroutine is ever allowed past this point at once
 	if !atomic.CompareAndSwapInt32(&d.synchronising, 0, 1) {
 		return errBusy

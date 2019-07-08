@@ -285,8 +285,6 @@ func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainCo
 func (s *Ethereum) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.APIBackend)
 
-	//TODO add perm service
-
 	// Append any APIs exposed explicitly by the consensus engine
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
 

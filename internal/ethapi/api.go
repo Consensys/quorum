@@ -29,8 +29,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/davecgh/go-spew/spew"
 	"sync"
+
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -54,7 +55,10 @@ import (
 )
 
 const (
-	defaultGasPrice = params.GWei
+	defaultGasPrice = 50 * params.Shannon
+
+	//Hex-encoded 64 byte array of "17" values
+	maxPrivateIntrinsicDataHex = "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
 )
 
 // PublicEthereumAPI provides an API to access Ethereum related information.
@@ -395,7 +399,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		data := []byte(*args.Data)
 		if len(data) > 0 {
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err := private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
 			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			if err != nil {
 				return common.Hash{}, err
@@ -843,6 +847,33 @@ func (s *PublicBlockChainAPI) EstimateGas(ctx context.Context, args CallArgs) (h
 			return 0, fmt.Errorf("gas required exceeds allowance or always failing transaction")
 		}
 	}
+
+	//QUORUM
+
+	//We don't know if this is going to be a private or public transaction
+	//It is possible to have a data field that has a lower intrinsic value than the PTM hash
+	//so this checks that if we were to place a PTM hash (with all non-zero values) here then the transaction would
+	//still run
+	//This makes the return value a potential over-estimate of gas, rather than the exact cost to run right now
+
+	//if the transaction has a value then it cannot be private, so we can skip this check
+	if args.Value.ToInt().Cmp(big.NewInt(0)) == 0 {
+
+		isHomestead := s.b.ChainConfig().IsHomestead(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
+		intrinsicGasPublic, _ := core.IntrinsicGas(args.Data, args.To == nil, isHomestead)
+		intrinsicGasPrivate, _ := core.IntrinsicGas(common.Hex2Bytes(maxPrivateIntrinsicDataHex), args.To == nil, isHomestead)
+
+		if intrinsicGasPrivate > intrinsicGasPublic {
+			if math.MaxUint64-hi < intrinsicGasPrivate-intrinsicGasPublic {
+				return 0, fmt.Errorf("private intrinsic gas addition exceeds allowance")
+			}
+			return hexutil.Uint64(hi + (intrinsicGasPrivate - intrinsicGasPublic)), nil
+		}
+
+	}
+
+	//END QUORUM
+
 	return hexutil.Uint64(hi), nil
 }
 
@@ -1348,8 +1379,8 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 			log.Info("args.data is nil")
 		}
 
-		//Send private transaction to local Constellation node
 		if len(data) > 0 {
+			//Send private transaction to local Constellation node
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
 			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)

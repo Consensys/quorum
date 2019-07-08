@@ -1,4 +1,5 @@
 pragma solidity ^0.5.3;
+
 import "./PermissionsUpgradable.sol";
 
 contract AccountManager {
@@ -26,12 +27,14 @@ contract AccountManager {
     event AccountAccessRevoked(address _address, string _orgId, string _roleId, bool _orgAdmin);
     event AccountStatusChanged(address _address, string _orgId, uint _status);
 
+    // checks if the caller is implementation contracts
     modifier onlyImpl
     {
         require(msg.sender == permUpgradable.getPermImpl());
         _;
     }
 
+    // checks if the account is existing and part of the org
     modifier accountExists(string memory _orgId, address _account)
     {
         require((accountIndex[_account]) != 0, "account does not exists");
@@ -40,12 +43,12 @@ contract AccountManager {
         _;
     }
 
+    // constructor. sets the upgradable address
     constructor (address _permUpgradable) public {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
-    // Get account details given index
-
+    // checks if the org is already having an org admin account
     function orgAdminExists(string memory _orgId) public view returns (bool)
     {
         if (orgAdminIndex[keccak256(abi.encodePacked(_orgId))] != address(0)) {
@@ -56,6 +59,8 @@ contract AccountManager {
 
     }
 
+    // returns the status of input account. Returns 0 if the account is not
+    // existing
     function getAccountStatus(address _acct) internal view returns (uint)
     {
         if (accountIndex[_acct] == 0) {
@@ -65,6 +70,7 @@ contract AccountManager {
         return (acctAccessList[aIndex].status);
     }
 
+    // Gets account details for a given account
     function getAccountDetails(address _acct) external view returns (address, string memory, string memory, uint, bool)
     {
         if (accountIndex[_acct] == 0) {
@@ -74,6 +80,7 @@ contract AccountManager {
         return (acctAccessList[aIndex].acctId, acctAccessList[aIndex].orgId, acctAccessList[aIndex].role, acctAccessList[aIndex].status, acctAccessList[aIndex].orgAdmin);
     }
 
+    // Gets account details given index
     function getAccountDetailsFromIndex(uint aIndex) external view returns (address, string memory, string memory, uint, bool)
     {
         return (acctAccessList[aIndex].acctId, acctAccessList[aIndex].orgId, acctAccessList[aIndex].role, acctAccessList[aIndex].status, acctAccessList[aIndex].orgAdmin);
@@ -85,6 +92,7 @@ contract AccountManager {
         return acctAccessList.length;
     }
 
+    // sets the default values for network admin and org admin roles
     function setDefaults(string calldata _nwAdminRole, string calldata _oAdminRole) external
     onlyImpl
     {
@@ -92,6 +100,7 @@ contract AccountManager {
         orgAdminRole = _oAdminRole;
     }
 
+    // associates an account with a role and organization
     function setAccountRole(address _address, string memory _orgId, string memory _roleId, uint _status, bool _oAdmin) internal
     onlyImpl
     {
@@ -107,26 +116,11 @@ contract AccountManager {
             accountIndex[_address] = numberOfAccts;
             acctAccessList.push(AccountAccessDetails(_address, _orgId, _roleId, _status, _oAdmin));
         }
-        //        if (_oAdmin) {
-        //            orgAdminIndex[keccak256(abi.encodePacked(_orgId))] = _address;
-        //        }
         emit AccountAccessModified(_address, _orgId, _roleId, _oAdmin, _status);
     }
 
-    //    function changeOrgAdmin(address _address, string calldata _orgId, string calldata _roleId) external
-    //    onlyImpl
-    //    {
-    //        // this function can ony be called from network admin to assign the org admin role to a new account
-    //        setAccountRole(_address, _orgId, _roleId, 1, false);
-    //    }
-    //
-    //    // TODO: can we merge and remove this
-    //    function addNWAdminAccount(address _address, string calldata _orgId) external
-    //    onlyImpl
-    //    {
-    //        setAccountRole(_address, _orgId, adminRole, 2, true);
-    //    }
-
+    // this function can be only called for assigning org admin to network amdin roles and can be invoked by
+    // network admins only
     function assignAdminRole(address _address, string calldata _orgId, string calldata _roleId, uint _status) external
     onlyImpl
     {
@@ -137,6 +131,8 @@ contract AccountManager {
 
     }
 
+    // this function can be only called for assigning any roles to accounts can be called by
+    // org admins only
     function assignAccountRole(address _address, string calldata _orgId, string calldata _roleId, bool _adminRole) external
     onlyImpl
     {
@@ -144,6 +140,7 @@ contract AccountManager {
         setAccountRole(_address, _orgId, _roleId, 2, _adminRole);
     }
 
+    // this function removes an existing org admin from the admin role
     function removeExistingAdmin(string calldata _orgId) external
     onlyImpl
     returns (bool voterUpdate, address acct)
@@ -159,7 +156,7 @@ contract AccountManager {
         return (false, address(0));
     }
 
-
+    // this function associates a new account with org or network admin role
     function addNewAdmin(string calldata _orgId, address _address) external
     onlyImpl
     returns (bool voterUpdate)
@@ -179,17 +176,8 @@ contract AccountManager {
         return (keccak256(abi.encodePacked(acctAccessList[id].role)) == keccak256(abi.encodePacked(adminRole)));
     }
 
-    function revokeAccountRole(address _address) external
-    onlyImpl
-    {
-        // Check if account already exists
-        uint aIndex = getAcctIndex(_address);
-        if (accountIndex[_address] != 0) {
-            acctAccessList[aIndex].status = 3;
-            emit AccountAccessRevoked(_address, acctAccessList[aIndex].orgId, acctAccessList[aIndex].role, acctAccessList[aIndex].orgAdmin);
-        }
-    }
-
+    // this function can be called for updating the account status suspending or blaclisting an account
+    // and for revoking suspension of an account
     function updateAccountStatus(string calldata _orgId, address _account, uint _status) external
     onlyImpl
     accountExists(_orgId, _account)
@@ -218,6 +206,7 @@ contract AccountManager {
         emit AccountStatusChanged(_account, _orgId, newStat);
     }
 
+    // returns the account role
     function getAccountRole(address _acct) public view returns (string memory)
     {
         if (accountIndex[_acct] == 0) {
@@ -232,6 +221,8 @@ contract AccountManager {
         }
     }
 
+    // checks if the account is a org admin for the passed organization or for the ultimate
+    // parent organization
     function checkOrgAdmin(address _acct, string memory _orgId, string memory _ultParent) public view returns (bool)
     {
         // check if the account role is network admin. If yes return success

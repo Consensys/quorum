@@ -231,7 +231,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 	var (
 		leftoverGas uint64
-		evm = st.evm
+		evm         = st.evm
 		// vm errors do not effect consensus and are therefor
 		// not assigned to err, except for insufficient balance
 		// error.

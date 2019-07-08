@@ -4,9 +4,19 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/core/quorum"
+	"github.com/ethereum/go-ethereum/raft"
+	"gopkg.in/urfave/cli.v1"
+	"io/ioutil"
+	"math/big"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/controls"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -16,14 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
-	"github.com/ethereum/go-ethereum/raft"
-	"github.com/ethereum/go-ethereum/rpc"
-	"io/ioutil"
-	"math/big"
-	"os"
-	"path/filepath"
-	"sync"
-	"time"
 )
 
 type NodeOperation uint8
@@ -35,21 +37,21 @@ const (
 
 // permission config for bootstrapping
 type PermissionLocalConfig struct {
-	UpgrdAddress   string
-	InterfAddress  string
-	ImplAddress    string
-	NodeAddress    string
-	AccountAddress string
-	RoleAddress    string
-	VoterAddress   string
-	OrgAddress     string
-	NwAdminOrg     string
-	NwAdminRole    string
-	OrgAdminRole   string
+	UpgrdAddress   string `json:"upgrdableAddress"`
+	InterfAddress  string `json:"interfaceAddress"`
+	ImplAddress    string `json:"implAddress"`
+	NodeAddress    string `json:"nodeMgrAddress"`
+	AccountAddress string `json:"accountMgrAddress"`
+	RoleAddress    string `json:"roleMgrAddress"`
+	VoterAddress   string `json:"voterMgrAddress"`
+	OrgAddress     string `json:"orgMgrAddress"`
+	NwAdminOrg     string `json:"nwAdminOrg"`
+	NwAdminRole    string `json:"nwAdminRole"`
+	OrgAdminRole   string `json:"orgAdminRole"`
 
-	Accounts      []string //initial list of account that need full access
-	SubOrgBreadth string
-	SubOrgDepth   string
+	Accounts      []string `json:"accounts"` //initial list of account that need full access
+	SubOrgBreadth string   `json:"subOrgBreadth"`
+	SubOrgDepth   string   `json:"subOrgDepth"`
 }
 
 type PermissionCtrl struct {
@@ -70,10 +72,60 @@ type PermissionCtrl struct {
 	nodeChan   chan struct{}
 	roleChan   chan struct{}
 	acctChan   chan struct{}
+	mux              sync.Mutex
 }
 
-// This function takes the local config data where all the information is in string
-// converts that to address and populates the global permissions config
+// Starts the permission services. services will come up only when
+// geth is brought up in --permissioned mode and permission-config.json is present
+func StartQuorumPermissionService(ctx *cli.Context, stack *node.Node) error {
+
+	var quorumApis []string
+	dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
+
+	var permissionConfig types.PermissionConfig
+	var err error
+
+	if permissionConfig, err = ParsePermissionConifg(dataDir); err != nil {
+		log.Error("loading of permission-config.json failed", "error", err)
+		return nil
+	}
+
+	// start the permissions management service
+	pc, err := NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), &permissionConfig)
+	if err != nil {
+		return err
+	}
+
+	if err = pc.Start(); err == nil {
+		quorumApis = []string{"quorumPermission"}
+	} else {
+		return err
+	}
+
+	rpcClient, err := stack.Attach()
+	if err != nil {
+		return err
+	}
+	stateReader := ethclient.NewClient(rpcClient)
+
+	for _, apiName := range quorumApis {
+		v := stack.GetRPC(apiName)
+		if v == nil {
+			return errors.New("failed to start quorum permission api")
+		}
+		qapi := v.(*quorum.QuorumControlsAPI)
+
+		err = qapi.Init(stateReader, stack.GetNodeKey(), apiName, &permissionConfig, pc.Interface())
+		if err != nil {
+			log.Info("Failed to starts API", "apiName", apiName)
+		} else {
+			log.Info("API started", "apiName", apiName)
+		}
+	}
+	return nil
+}
+
+// converts local permissions data to global permissions config
 func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
 	var permConfig types.PermissionConfig
 	permConfig.UpgrdAddress = common.HexToAddress(config.UpgrdAddress)
@@ -99,11 +151,15 @@ func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
 	return permConfig
 }
 
-// this function reads the permissions config file passed and populates the
-// config structure accrodingly
+// function reads the permissions config file passed and populates the
+// config structure accordingly
 func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	fileName := "permission-config.json"
 	fullPath := filepath.Join(dir, fileName)
+	if _, err := os.Stat(fullPath); err != nil {
+		log.Warn("permission-config.json file is missing", "err", err)
+		return types.PermissionConfig{}, err
+	}
 
 	blob, err := ioutil.ReadFile(fullPath)
 
@@ -130,6 +186,9 @@ func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 	return permConfig, nil
 }
 
+// for cases where the node is joining an existing network, permission service
+// can be brought up only after block syncing is complete. This function
+// waits for block syncing before the starting permissions
 func waitForSync(e *eth.Ethereum) {
 	log.Info("AJ-wait for sync")
 	for !types.GetSyncStatus() {
@@ -278,14 +337,13 @@ func (p *PermissionCtrl) init() error {
 	}
 
 	// set the default access to ReadOnly
-	types.SetDefaultAccess()
-	types.SetAdminRole(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole)
+	types.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole)
 
 	return nil
 }
 
-// monitors org management related events happening via
-// smart contracts
+// monitors org management related events happening via smart contracts
+// and updates cache accordingly
 func (p *PermissionCtrl) manageOrgPermissions() {
 
 	chPendingApproval := make(chan *pbind.OrgManagerOrgPendingApproval, 1)
@@ -402,7 +460,8 @@ func (p *PermissionCtrl) manageNodePermissions() {
 	}
 }
 
-// Populates the new node information into the permissioned-nodes.json file
+// updates node information in the permissioned-nodes.json file based on node
+// management activities in smart contract
 func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeOperation) {
 	log.Debug("updatePermissionedNodes", "DataDir", p.dataDir, "file", params.PERMISSIONED_CONFIG)
 
@@ -418,8 +477,8 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeO
 		return
 	}
 
-	nodelist := []string{}
-	if err := json.Unmarshal(blob, &nodelist); err != nil {
+	var nodeList []string
+	if err := json.Unmarshal(blob, &nodeList); err != nil {
 		log.Error("updatePermissionedNodes: Failed to load nodes list", "err", err)
 		return
 	}
@@ -427,31 +486,30 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeO
 	// logic to update the permissioned-nodes.json file based on action
 	index := 0
 	recExists := false
-	for i, eid := range nodelist {
+	for i, eid := range nodeList {
 		if eid == enodeId {
 			index = i
 			recExists = true
 			break
 		}
 	}
+	if (operation == NodeAdd && recExists) || (operation == NodeDelete && !recExists) {
+		return
+	}
 	if operation == NodeAdd {
-		if !recExists {
-			nodelist = append(nodelist, enodeId)
-		}
+		nodeList = append(nodeList, enodeId)
 	} else {
-		if recExists {
-			nodelist = append(nodelist[:index], nodelist[index+1:]...)
-		}
+		nodeList = append(nodeList[:index], nodeList[index+1:]...)
 		p.disconnectNode(enodeId)
 	}
-	mu := sync.RWMutex{}
-	blob, _ = json.Marshal(nodelist)
+	blob, _ = json.Marshal(nodeList)
 
-	mu.Lock()
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
 	if err := ioutil.WriteFile(path, blob, 0644); err != nil {
 		log.Error("updatePermissionedNodes: Error writing new node info to file", "err", err)
 	}
-	mu.Unlock()
 }
 
 //this function populates the black listed node information into the disallowed-nodes.json file
@@ -487,14 +545,14 @@ func (p *PermissionCtrl) updateDisallowedNodes(url string) {
 	}
 
 	nodelist = append(nodelist, url)
-	mu := sync.RWMutex{}
 	blob, _ := json.Marshal(nodelist)
-	mu.Lock()
+
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
 	if err := ioutil.WriteFile(path, blob, 0644); err != nil {
 		log.Error("updateDisallowedNodes: Error writing new node info to file", "err", err)
 	}
-	mu.Unlock()
-
 	// Disconnect the peer if it is already connected
 	p.disconnectNode(url)
 }
@@ -544,7 +602,7 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 
 // Disconnect the node from the network
 func (p *PermissionCtrl) disconnectNode(enodeId string) {
-	if p.isRaft {
+	if p.eth.ChainConfig().Istanbul == nil && p.eth.ChainConfig().Clique == nil {
 		var raftService *raft.RaftService
 		if err := p.node.Service(&raftService); err == nil {
 			raftApi := raft.NewPublicRaftAPI(raftService)
@@ -553,22 +611,27 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 			raftId, err := raftApi.GetRaftId(enodeId)
 			if err == nil {
 				raftApi.RemovePeer(raftId)
+			} else {
+				log.Error("failed to get raft id", "err", err, "enodeId", enodeId)
 			}
 		}
 	} else {
-		// Istanbul - disconnect the peer
+		// Istanbul  or clique - disconnect the peer
 		server := p.node.Server()
 		if server != nil {
 			node, err := enode.ParseV4(enodeId)
 			if err == nil {
 				server.RemovePeer(node)
+			} else {
+				log.Error("failed parse node id", "err", err, "enodeId", enodeId)
 			}
 		}
 	}
+
 }
 
-// Thus function checks if the its the initial network boot up status and if no
-// populates permissioning model with details from permission-config.json
+// Thus function checks if the initial network boot up status and if no
+// populates permissions model with details from permission-config.json
 func (p *PermissionCtrl) populateInitPermissions() error {
 	auth := bind.NewKeyedTransactor(p.key)
 	permInterfSession := &pbind.PermInterfaceSession{
@@ -597,10 +660,18 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 		}
 	} else {
 		//populate orgs, nodes, roles and accounts from contract
-		p.populateOrgsFromContract(auth)
-		p.populateNodesFromContract(auth)
-		p.populateRolesFromContract(auth)
-		p.populateAccountsFromContract(auth)
+		if err := p.populateOrgsFromContract(auth); err != nil {
+			return err
+		}
+		if err := p.populateNodesFromContract(auth); err != nil {
+			return err
+		}
+		if err := p.populateRolesFromContract(auth); err != nil {
+			return err
+		}
+		if err := p.populateAccountsFromContract(auth); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -614,12 +685,12 @@ func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSes
 		return err
 	}
 	permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permInterfSession.TransactOpts.From))
-	if _, err := permInterfSession.Init(p.permConfig.OrgAddress, p.permConfig.RoleAddress, p.permConfig.AccountAddress, p.permConfig.VoterAddress, p.permConfig.NodeAddress, &p.permConfig.SubOrgBreadth, &p.permConfig.SubOrgDepth); err != nil {
+	if _, err := permInterfSession.Init(&p.permConfig.SubOrgBreadth, &p.permConfig.SubOrgDepth); err != nil {
 		log.Error("bootupNetwork init failed", "err", err)
 		return err
 	}
 
-	types.OrgInfoMap.UpsertOrg(p.permConfig.NwAdminOrg, "", "", big.NewInt(1), types.OrgApproved)
+	types.OrgInfoMap.UpsertOrg(p.permConfig.NwAdminOrg, "", p.permConfig.NwAdminOrg, big.NewInt(1), types.OrgApproved)
 	types.RoleInfoMap.UpsertRole(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, true, true, types.FullAccess, true)
 	// populate the initial node list from static-nodes.json
 	if err := p.populateStaticNodesToContract(permInterfSession); err != nil {
@@ -639,7 +710,7 @@ func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSes
 }
 
 // populates the account access details from contract into cache
-func (p *PermissionCtrl) populateAccountsFromContract(auth *bind.TransactOpts) {
+func (p *PermissionCtrl) populateAccountsFromContract(auth *bind.TransactOpts) error {
 	//populate accounts
 	permAcctSession := &pbind.AcctManagerSession{
 		Contract: p.permAcct,
@@ -647,6 +718,7 @@ func (p *PermissionCtrl) populateAccountsFromContract(auth *bind.TransactOpts) {
 			Pending: true,
 		},
 	}
+
 	if numberOfRoles, err := permAcctSession.GetNumberOfAccounts(); err == nil {
 		iOrgNum := numberOfRoles.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
@@ -654,12 +726,14 @@ func (p *PermissionCtrl) populateAccountsFromContract(auth *bind.TransactOpts) {
 				types.AcctInfoMap.UpsertAccount(org, role, addr, orgAdmin, types.AcctStatus(int(status.Int64())))
 			}
 		}
-
+	} else {
+		return err
 	}
+	return nil
 }
 
 // populates the role details from contract into cache
-func (p *PermissionCtrl) populateRolesFromContract(auth *bind.TransactOpts) {
+func (p *PermissionCtrl) populateRolesFromContract(auth *bind.TransactOpts) error {
 	//populate roles
 	permRoleSession := &pbind.RoleManagerSession{
 		Contract: p.permRole,
@@ -675,11 +749,14 @@ func (p *PermissionCtrl) populateRolesFromContract(auth *bind.TransactOpts) {
 			}
 		}
 
+	} else {
+		return err
 	}
+	return nil
 }
 
 // populates the node details from contract into cache
-func (p *PermissionCtrl) populateNodesFromContract(auth *bind.TransactOpts) {
+func (p *PermissionCtrl) populateNodesFromContract(auth *bind.TransactOpts) error {
 	//populate nodes
 	permNodeSession := &pbind.NodeManagerSession{
 		Contract: p.permNode,
@@ -695,12 +772,14 @@ func (p *PermissionCtrl) populateNodesFromContract(auth *bind.TransactOpts) {
 				types.NodeInfoMap.UpsertNode(nodeStruct.OrgId, nodeStruct.EnodeId, types.NodeStatus(int(nodeStruct.NodeStatus.Int64())))
 			}
 		}
-
+	} else {
+		return err
 	}
+	return nil
 }
 
 // populates the org details from contract into cache
-func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) {
+func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) error {
 	//populate orgs
 	permOrgSession := &pbind.OrgManagerSession{
 		Contract: p.permOrg,
@@ -715,7 +794,10 @@ func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) {
 				types.OrgInfoMap.UpsertOrg(orgId, porgId, ultParent, level, types.OrgStatus(int(status.Int64())))
 			}
 		}
+	} else {
+		return err
 	}
+	return nil
 }
 
 // Reads the node list from static-nodes.json and populates into the contract

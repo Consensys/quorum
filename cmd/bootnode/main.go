@@ -118,8 +118,6 @@ func main() {
 		}
 	}
 
-	var knownNodes []*enode.Node
-
 	if *runv5 {
 		if _, err := discv5.ListenUDP(nodeKey, conn, "", restrictList); err != nil {
 			utils.Fatalf("%v", err)
@@ -131,7 +129,7 @@ func main() {
 			PrivateKey:  nodeKey,
 			NetRestrict: restrictList,
 		}
-		if _, err := discover.ListenUDP(conn, ln, cfg, knownNodes); err != nil {
+		if _, err := discover.ListenUDP(conn, ln, cfg); err != nil {
 			utils.Fatalf("%v", err)
 		}
 	}

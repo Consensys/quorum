@@ -17,12 +17,14 @@
 package core
 
 import (
+	"errors"
 	"math/big"
 	"reflect"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/common"
+
 	//"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	//"github.com/ethereum/go-ethereum/core/vm"
@@ -44,7 +46,7 @@ func TestDefaultGenesisBlock(t *testing.T) {
 func TestSetupGenesis(t *testing.T) {
 	var (
 		// customghash = common.HexToHash("0x89c99d90b79719238d2645c7642f2c9295246e80775b38cfd162b696817fbd50")
-		customg     = Genesis{
+		customg = Genesis{
 			Config: &params.ChainConfig{HomesteadBlock: big.NewInt(3), IsQuorum: true},
 			Alloc: GenesisAlloc{
 				{1}: {Balance: big.NewInt(1), Storage: map[common.Hash]common.Hash{{1}: {1}}},
@@ -84,6 +86,15 @@ func TestSetupGenesis(t *testing.T) {
 			},
 			wantHash:   params.MainnetGenesisHash,
 			wantConfig: params.MainnetChainConfig,
+		},
+		{
+			name: "genesis with incorrect SizeLimit",
+			fn: func(db ethdb.Database) (*params.ChainConfig, common.Hash, error) {
+				customg.Config.TransactionSizeLimit = 100000
+				return SetupGenesisBlock(db, &customg)
+			},
+			wantErr:    errors.New("Genesis transaction size limit must be between 32 and 128"),
+			wantConfig: customg.Config,
 		},
 		// {
 		// 	name: "custom block in DB, genesis == nil",

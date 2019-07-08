@@ -23,10 +23,12 @@ import (
 	"math/big"
 	"sync/atomic"
 
-	"fmt"
+	fmt "fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -184,12 +186,8 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 	return nil
 }
 
-func (tx *Transaction) Data() []byte { return common.CopyBytes(tx.data.Payload) }
-func (tx *Transaction) Gas() uint64  { return tx.data.GasLimit }
-func (tx *Transaction) SetData(data []byte) {
-	tx.data.Payload = common.CopyBytes(data)
-}
-
+func (tx *Transaction) Data() []byte       { return common.CopyBytes(tx.data.Payload) }
+func (tx *Transaction) Gas() uint64        { return tx.data.GasLimit }
 func (tx *Transaction) GasPrice() *big.Int { return new(big.Int).Set(tx.data.Price) }
 func (tx *Transaction) Value() *big.Int    { return new(big.Int).Set(tx.data.Amount) }
 func (tx *Transaction) Nonce() uint64      { return tx.data.AccountNonce }
@@ -413,10 +411,14 @@ func NewTransactionsByPriceAndNonce(signer Signer, txs map[common.Address]Transa
 	// Initialize a price based heap with the head transactions
 	heads := make(TxByPrice, 0, len(txs))
 	for from, accTxs := range txs {
-		heads = append(heads, accTxs[0])
 		// Ensure the sender address is from the signer
-		acc, _ := Sender(signer, accTxs[0])
-		txs[acc] = accTxs[1:]
+		acc, err := Sender(signer, accTxs[0])
+		if err == nil {
+			heads = append(heads, accTxs[0])
+			txs[acc] = accTxs[1:]
+		} else {
+			log.Info("Failed to recovered sender address, this transaction is skipped", "from", from, "nonce", accTxs[0].data.AccountNonce, "err", err)
+		}
 		if from != acc {
 			delete(txs, from)
 		}
