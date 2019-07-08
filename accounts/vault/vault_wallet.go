@@ -16,7 +16,6 @@ type vaultWallet struct {
 	url accounts.URL
 	vault vaultService
 	updateFeed *event.Feed
-	accounts []accounts.Account
 }
 
 // vault related behaviour that will be specific to each vault type
@@ -24,6 +23,7 @@ type vaultService interface {
 	status() (string, error)
 	open() error
 	close() error
+	accounts() []accounts.Account
 }
 
 func newHashicorpWallet(config hashicorpWalletConfig, updateFeed *event.Feed) (vaultWallet, error) {
@@ -63,10 +63,7 @@ func (w vaultWallet) Close() error {
 }
 
 func (w vaultWallet) Accounts() []accounts.Account {
-	cpy := make([]accounts.Account, len(w.accounts))
-	copy(cpy, w.accounts)
-
-	return cpy
+	return w.vault.accounts()
 }
 
 func (w vaultWallet) Contains(account accounts.Account) bool {
@@ -74,7 +71,7 @@ func (w vaultWallet) Contains(account accounts.Account) bool {
 		return x.Address == y.Address && (x.URL == y.URL || x.URL == accounts.URL{} || y.URL == accounts.URL{})
 	}
 
-	accts := w.accounts
+	accts := w.Accounts()
 
 	for _, a := range accts {
 		if equal(a, account) {
@@ -85,12 +82,10 @@ func (w vaultWallet) Contains(account accounts.Account) bool {
 }
 
 func (w vaultWallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Account, error) {
-	panic("implement me")
+	return accounts.Account{}, accounts.ErrNotSupported
 }
 
-func (w vaultWallet) SelfDerive(base accounts.DerivationPath, chain ethereum.ChainStateReader) {
-	panic("implement me")
-}
+func (w vaultWallet) SelfDerive(base accounts.DerivationPath, chain ethereum.ChainStateReader) {}
 
 func (w vaultWallet) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
 	panic("implement me")
@@ -111,6 +106,7 @@ func (w vaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase s
 type hashicorpService struct {
 	client *api.Client
 	config hashicorpClientConfig
+	accts []accounts.Account
 }
 
 const (
@@ -236,4 +232,11 @@ func (h *hashicorpService) close() error {
 	h.client = nil
 
 	return nil
+}
+
+func (h *hashicorpService) accounts() []accounts.Account {
+	cpy := make([]accounts.Account, len(h.accts))
+	copy(cpy, h.accts)
+
+	return cpy
 }

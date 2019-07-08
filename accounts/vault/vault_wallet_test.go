@@ -554,18 +554,20 @@ func TestVaultWallet_Close_Hashicorp_ReturnsStateToBeforeOpen(t *testing.T) {
 
 func TestVaultWallet_Accounts_ReturnsCopyOfAccountsInWallet(t *testing.T) {
 	w := vaultWallet{
-		accounts: []accounts.Account{{URL: accounts.URL{Scheme: "http", Path: "url:1"}}},
+		vault: &hashicorpService{accts: []accounts.Account{{URL: accounts.URL{Scheme: "http", Path: "url:1"}}}},
 	}
 
 	got := w.Accounts()
 
-	if !cmp.Equal(w.accounts, got) {
-		t.Fatalf("want: %v, got: %v", w.accounts, got)
+	v := w.vault.(*hashicorpService)
+
+	if !cmp.Equal(v.accts, got) {
+		t.Fatalf("want: %v, got: %v", v.accts, got)
 	}
 
 	got[0].URL = accounts.URL{Scheme: "http", Path: "changed:1"}
 
-	if cmp.Equal(w.accounts, got) {
+	if cmp.Equal(v.accts, got) {
 		t.Fatalf("changes to the returned accounts should not change the wallet's record of accounts")
 	}
 }
@@ -603,7 +605,9 @@ func TestVaultWallet_Contains(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			w := vaultWallet{accounts: tt.accts}
+			w := vaultWallet{
+				vault: &hashicorpService{accts: tt.accts},
+			}
 
 			got := w.Contains(tt.toFind)
 
