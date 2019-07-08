@@ -2,12 +2,13 @@ package vault
 
 import (
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/event"
 	"reflect"
 	"strings"
 	"testing"
 )
 
-func TestNewHashicorpBackend_CreatesWalletsFromConfig(t *testing.T) {
+func TestNewHashicorpBackend_CreatesWalletsWithUrlsFromConfig(t *testing.T) {
 	makeConfs := func (url string, urls... string) []hashicorpWalletConfig {
 		var confs []hashicorpWalletConfig
 
@@ -20,47 +21,55 @@ func TestNewHashicorpBackend_CreatesWalletsFromConfig(t *testing.T) {
 		return confs
 	}
 
-	// makeWlts crudely splits the urls to get them as accounts.URLs so as to not use the same parsing method as in the production code.  This is fine for simple urls but may not be suitable for tests that require more complex urls.
-	makeWlts := func(url string, urls... string) []accounts.Wallet {
-		var wlts []accounts.Wallet
+	makeUrls := func(strUrl string, strUrls... string) []accounts.URL {
+		var urls []accounts.URL
 
-		s := strings.Split(url, "://")
+		s := strings.Split(strUrl, "://")
 		scheme, path := s[0], s[1]
 
-		wlts = append(wlts, vaultWallet{url: accounts.URL{Scheme: scheme, Path: path}})
+		urls = append(urls, accounts.URL{Scheme: scheme, Path: path})
 
-		for _, u := range urls {
+		for _, u := range strUrls {
 			s := strings.Split(u, "://")
 			scheme, path := s[0], s[1]
 
-			wlts = append(wlts, vaultWallet{url: accounts.URL{Scheme: scheme, Path: path}})
+			urls = append(urls, accounts.URL{Scheme: scheme, Path: path})
 		}
 
-		return wlts
+		return urls
 	}
 
 	tests := map[string]struct{
 		in []hashicorpWalletConfig
-		want []accounts.Wallet
+		wantUrls []accounts.URL
 	}{
-		"no config": {in: []hashicorpWalletConfig{}, want: []accounts.Wallet{}},
-		"single": {in: makeConfs("http://url:1"), want: makeWlts("http://url:1")},
-		"multiple": {in: makeConfs("http://url:1", "http://url:2"), want: makeWlts("http://url:1", "http://url:2")},
+		"no config": {in: []hashicorpWalletConfig{}, wantUrls: []accounts.URL(nil)},
+		"single": {in: makeConfs("http://url:1"), wantUrls: makeUrls("http://url:1")},
+		"multiple": {in: makeConfs("http://url:1", "http://url:2"), wantUrls: makeUrls("http://url:1", "http://url:2")},
 		"orders by url":  {
 			in: makeConfs("https://url:1", "https://a:9", "http://url:2", "http://url:1"),
-			want: makeWlts("http://url:1", "http://url:2", "https://a:9", "https://url:1")},
+			wantUrls: makeUrls("http://url:1", "http://url:2", "https://a:9", "https://url:1")},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			b := NewHashicorpBackend(tt.in)
 
-			if !reflect.DeepEqual(tt.want, b.wallets) {
-				t.Fatalf("\nwant: %v, \ngot : %v", tt.want, b.wallets)
+			if len(tt.wantUrls) != len(b.wallets) {
+				t.Fatalf("wallets created with incorrect urls or incorrectly ordered by url: want: %v, got: %v", len(tt.wantUrls), len(b.wallets))
+			}
+
+			var gotUrls []accounts.URL
+
+			for _, wlt := range b.wallets {
+				gotUrls = append(gotUrls, wlt.URL())
+			}
+
+			if !reflect.DeepEqual(tt.wantUrls, gotUrls) {
+				t.Fatalf("incorrect wallets created/wallets incorrectly ordered\nwant: %v\ngot : %v", tt.wantUrls, gotUrls)
 			}
 		})
 	}
-
 }
 
 func TestVaultBackend_Wallets_ReturnsWallets(t *testing.T) {
@@ -103,9 +112,9 @@ func TestVaultBackend_Wallets_ReturnsCopy(t *testing.T) {
 }
 
 func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeed(t *testing.T) {
-	subscriber := make(chan accounts.WalletEvent, 1)
-	b := VaultBackend{}
+	b := VaultBackend{updateFeed: &event.Feed{}}
 
+	subscriber := make(chan accounts.WalletEvent, 1)
 	b.Subscribe(subscriber)
 
 	if b.updateScope.Count() != 1 {
@@ -113,8 +122,8 @@ func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeed(t *testing.T
 	}
 
 	// mock an event
-	event := accounts.WalletEvent{Wallet: vaultWallet{}, Kind: accounts.WalletOpened}
-	b.updateFeed.Send(event)
+	e := accounts.WalletEvent{Wallet: vaultWallet{}, Kind: accounts.WalletOpened}
+	b.updateFeed.Send(e)
 
 	if len(subscriber) != 1 {
 		t.Fatal("event not added to subscriber")
@@ -122,7 +131,40 @@ func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeed(t *testing.T
 
 	got := <-subscriber
 
-	if !reflect.DeepEqual(event, got) {
-		t.Fatalf("want: %v, got: %v", event, got)
+	if !reflect.DeepEqual(e, got) {
+		t.Fatalf("want: %v, got: %v", e, got)
 	}
+}
+
+func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeedByHashicorpWallet(t *testing.T) {
+	conf := hashicorpWalletConfig{Client: hashicorpClientConfig{Url: "http://url:1"}}
+	b := NewHashicorpBackend([]hashicorpWalletConfig{conf})
+
+	if len(b.wallets) != 1 {
+		t.Fatalf("incorrect number of wallets: want: %v, got: %v", 1, len(b.wallets))
+	}
+
+	w := b.wallets[0].(vaultWallet)
+
+	subscriber := make(chan accounts.WalletEvent, 1)
+	b.Subscribe(subscriber)
+
+	if b.updateScope.Count() != 1 {
+		t.Fatalf("incorrect number of subscribers for backend: want: %v, got: %v", 1, b.updateScope.Count())
+	}
+
+	// mock an event
+	e := accounts.WalletEvent{Wallet: vaultWallet{}, Kind: accounts.WalletOpened}
+	w.updateFeed.Send(e)
+
+	if len(subscriber) != 1 {
+		t.Fatal("event not added to subscriber")
+	}
+
+	got := <-subscriber
+
+	if !reflect.DeepEqual(e, got) {
+		t.Fatalf("want: %v, got: %v", e, got)
+	}
+
 }

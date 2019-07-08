@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/hashicorp/vault/api"
 	"math/big"
 	"os"
@@ -14,6 +15,7 @@ import (
 type vaultWallet struct {
 	url accounts.URL
 	vault vaultService
+	updateFeed *event.Feed
 }
 
 // vault related behaviour that will be specific to each vault type
@@ -22,7 +24,7 @@ type vaultService interface {
 	open() error
 }
 
-func newHashicorpWallet(config hashicorpWalletConfig) (vaultWallet, error) {
+func newHashicorpWallet(config hashicorpWalletConfig, updateFeed *event.Feed) (vaultWallet, error) {
 	var url accounts.URL
 
 	//to parse a string url as an accounts.URL it must first be in json format
@@ -32,7 +34,7 @@ func newHashicorpWallet(config hashicorpWalletConfig) (vaultWallet, error) {
 		return vaultWallet{}, err
 	}
 
-	return vaultWallet{url: url, vault: &hashicorpService{config: config.Client}}, nil
+	return vaultWallet{url: url, vault: &hashicorpService{config: config.Client}, updateFeed: updateFeed}, nil
 }
 
 func (w vaultWallet) URL() accounts.URL {
@@ -45,7 +47,11 @@ func (w vaultWallet) Status() (string, error) {
 }
 
 func (w vaultWallet) Open(passphrase string) error {
-	return w.vault.open()
+	if err := w.vault.open(); err != nil {
+		return err
+	}
+	w.updateFeed.Send(accounts.WalletEvent{Wallet: w, Kind: accounts.WalletOpened})
+	return nil
 }
 
 func (w vaultWallet) Close() error {

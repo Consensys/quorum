@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/hashicorp/vault/api"
 	"io/ioutil"
 	"net/http"
@@ -150,7 +151,7 @@ func TestVaultWallet_Open_Hashicorp_ReturnsErrIfAlreadyOpen(t *testing.T) {
 	}
 }
 
-func TestVaultWallet_Open_Hashicorp_CreatesClientFromConfig(t *testing.T) {
+func TestVaultWallet_Open_Hashicorp_CreatesClientUsingConfig(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +173,7 @@ func TestVaultWallet_Open_Hashicorp_CreatesClientFromConfig(t *testing.T) {
 		Url: vaultServer.URL,
 	}
 
-	w := vaultWallet{vault: &hashicorpService{config: config}}
+	w := vaultWallet{vault: &hashicorpService{config: config}, updateFeed: &event.Feed{}}
 
 	if err := w.Open(""); err != nil {
 		t.Fatalf("error: %v", err)
@@ -206,7 +207,7 @@ func TestVaultWallet_Open_Hashicorp_CreatesClientFromConfig(t *testing.T) {
 	}
 }
 
-func TestVaultWallet_Open_Hashicorp_CreatesTLSClientFromConfig(t *testing.T) {
+func TestVaultWallet_Open_Hashicorp_CreatesTLSClientUsingConfig(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 		t.Fatal(err)
 	}
@@ -266,15 +267,12 @@ func TestVaultWallet_Open_Hashicorp_CreatesTLSClientFromConfig(t *testing.T) {
 	// create wallet with config and open
 	config := hashicorpClientConfig{
 		Url: vaultServer.URL,
-		//Approle: "myapprole",
 		CaCert: "testdata/caRoot.pem",
 		ClientCert: "testdata/quorum-client-chain.pem",
 		ClientKey: "testdata/quorum-client.key",
-		//EnvVarPrefix: "prefix",
-		//UseSecretCache: false,
 	}
 
-	w := vaultWallet{vault: &hashicorpService{config: config}}
+	w := vaultWallet{vault: &hashicorpService{config: config}, updateFeed: &event.Feed{}}
 
 	if err := w.Open(""); err != nil {
 		t.Fatalf("error: %v", err)
@@ -303,7 +301,7 @@ func TestVaultWallet_Open_Hashicorp_CreatesTLSClientFromConfig(t *testing.T) {
 	}
 }
 
-func TestVaultWallet_Open_Hashicorp_CreatesAuthenticatedClient(t *testing.T) {
+func TestVaultWallet_Open_Hashicorp_ClientAuthenticatesUsingEnvVars(t *testing.T) {
 	const (
 		myToken = "myToken"
 		myRoleId = "myRoleId"
@@ -381,7 +379,7 @@ func TestVaultWallet_Open_Hashicorp_CreatesAuthenticatedClient(t *testing.T) {
 				Approle: tt.approle,
 			}
 
-			w := vaultWallet{vault: &hashicorpService{config: config}}
+			w := vaultWallet{vault: &hashicorpService{config: config}, updateFeed: &event.Feed{}}
 
 			if err := w.Open(""); err != nil {
 				t.Fatalf("error: %v", err)
@@ -407,7 +405,7 @@ func TestVaultWallet_Open_Hashicorp_CreatesAuthenticatedClient(t *testing.T) {
 	}
 }
 
-func TestVaultWallet_Open_Hashicorp_ErrCreatingAuthenticatedClient(t *testing.T) {
+func TestVaultWallet_Open_Hashicorp_ErrAuthenticatingClient(t *testing.T) {
 	const (
 		myToken = "myToken"
 		myRoleId = "myRoleId"
@@ -464,3 +462,44 @@ func TestVaultWallet_Open_Hashicorp_ErrCreatingAuthenticatedClient(t *testing.T)
 	}
 }
 
+// Note: This is an integration test, as such the scope of the test is large, covering the VaultBackend, VaultWallet and HashicorpService
+func TestVaultWallet_Open_Hashicorp_SendsEventToBackendSubscribers(t *testing.T) {
+	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
+		t.Fatal(err)
+	}
+
+	walletConfig := hashicorpWalletConfig{
+		Client: hashicorpClientConfig{
+			Url: "http://url:1",
+		},
+	}
+
+	b := NewHashicorpBackend([]hashicorpWalletConfig{walletConfig})
+
+	if len(b.wallets) != 1 {
+		t.Fatalf("NewHashicorpBackend: incorrect number of wallets created: want 1, got: %v", len(b.wallets))
+	}
+
+	subscriber := make(chan accounts.WalletEvent, 1)
+	b.Subscribe(subscriber)
+
+	if b.updateScope.Count() != 1 {
+		t.Fatalf("incorrect number of subscribers for backend: want: %v, got: %v", 1, b.updateScope.Count())
+	}
+
+	if err := b.wallets[0].Open(""); err != nil {
+		t.Fatalf("error: %v", err)
+	}
+
+	if len(subscriber) != 1 {
+		t.Fatal("event not added to subscriber")
+	}
+
+	got := <-subscriber
+
+	want := accounts.WalletEvent{Wallet: b.wallets[0], Kind: accounts.WalletOpened}
+
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("want: %v, got: %v", want, got)
+	}
+}
