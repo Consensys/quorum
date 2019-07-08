@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/vault/api"
 	"io/ioutil"
 	"net/http"
@@ -501,5 +503,50 @@ func TestVaultWallet_Open_Hashicorp_SendsEventToBackendSubscribers(t *testing.T)
 
 	if !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %v, got: %v", want, got)
+	}
+}
+
+func TestVaultWallet_Close_Hashicorp_ReturnsStateToBeforeOpen(t *testing.T) {
+	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
+		t.Fatal(err)
+	}
+
+	config := hashicorpWalletConfig{
+		Client: hashicorpClientConfig{Url: "http://url:1"},
+		Secrets: []hashicorpSecretData{{Name: "secret1"}},
+	}
+
+	w, err := newHashicorpWallet(config, &event.Feed{})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	unopened, err := newHashicorpWallet(config, &event.Feed{})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmpOpts := []cmp.Option{cmp.AllowUnexported(vaultWallet{}, hashicorpService{}), cmpopts.IgnoreUnexported(event.Feed{})}
+
+	if diff := cmp.Diff(unopened, w, cmpOpts...); diff != "" {
+		t.Fatalf("cmp does not consider the two wallets equal\n%v", diff)
+	}
+
+	if err := w.Open(""); err != nil {
+		t.Fatalf("error: %v", err)
+	}
+
+	if diff := cmp.Diff(unopened, w, cmpOpts...); diff == "" {
+		t.Fatalf("cmp does not consider the wallets different after one was opened\n%v", diff)
+	}
+
+	if err := w.Close(); err != nil {
+		t.Fatalf("error: %v", err)
+	}
+
+	if diff := cmp.Diff(unopened, w, cmpOpts...); diff != "" {
+		t.Fatalf("cmp does not consider the two wallets equal after one was opened and closed:\n%v", diff)
 	}
 }

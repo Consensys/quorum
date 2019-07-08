@@ -11,7 +11,6 @@ type hashicorpClientConfig struct {
 	CaCert         string `toml:",omitempty"`
 	ClientCert     string `toml:",omitempty"`
 	ClientKey      string `toml:",omitempty"`
-	EnvVarPrefix   string `toml:",omitempty"`
 	UseSecretCache   bool   `toml:",omitempty"`
 }
 

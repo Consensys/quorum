@@ -22,6 +22,7 @@ type vaultWallet struct {
 type vaultService interface {
 	status() (string, error)
 	open() error
+	close() error
 }
 
 func newHashicorpWallet(config hashicorpWalletConfig, updateFeed *event.Feed) (vaultWallet, error) {
@@ -50,12 +51,14 @@ func (w vaultWallet) Open(passphrase string) error {
 	if err := w.vault.open(); err != nil {
 		return err
 	}
+
 	w.updateFeed.Send(accounts.WalletEvent{Wallet: w, Kind: accounts.WalletOpened})
+
 	return nil
 }
 
 func (w vaultWallet) Close() error {
-	panic("implement me")
+	return w.vault.close()
 }
 
 func (w vaultWallet) Accounts() []accounts.Account {
@@ -212,4 +215,10 @@ func (h *hashicorpService) open() error {
 
 func usingApproleAuth(roleID, secretID string) bool {
 	return roleID != "" && secretID != ""
+}
+
+func (h *hashicorpService) close() error {
+	h.client = nil
+
+	return nil
 }
