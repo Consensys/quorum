@@ -4,10 +4,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
-	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/core/quorum"
 	"github.com/ethereum/go-ethereum/raft"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/ethereum/go-ethereum/rpc"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -75,55 +73,6 @@ type PermissionCtrl struct {
 	mux              sync.Mutex
 }
 
-// Starts the permission services. services will come up only when
-// geth is brought up in --permissioned mode and permission-config.json is present
-func StartQuorumPermissionService(ctx *cli.Context, stack *node.Node) error {
-
-	var quorumApis []string
-	dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
-
-	var permissionConfig types.PermissionConfig
-	var err error
-
-	if permissionConfig, err = ParsePermissionConifg(dataDir); err != nil {
-		log.Error("loading of permission-config.json failed", "error", err)
-		return nil
-	}
-
-	// start the permissions management service
-	pc, err := NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), &permissionConfig)
-	if err != nil {
-		return err
-	}
-
-	if err = pc.Start(); err == nil {
-		quorumApis = []string{"quorumPermission"}
-	} else {
-		return err
-	}
-
-	rpcClient, err := stack.Attach()
-	if err != nil {
-		return err
-	}
-	stateReader := ethclient.NewClient(rpcClient)
-
-	for _, apiName := range quorumApis {
-		v := stack.GetRPC(apiName)
-		if v == nil {
-			return errors.New("failed to start quorum permission api")
-		}
-		qapi := v.(*quorum.QuorumControlsAPI)
-
-		err = qapi.Init(stateReader, stack.GetNodeKey(), apiName, &permissionConfig, pc.Interface())
-		if err != nil {
-			log.Info("Failed to starts API", "apiName", apiName)
-		} else {
-			log.Info("API started", "apiName", apiName)
-		}
-	}
-	return nil
-}
 
 // converts local permissions data to global permissions config
 func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
@@ -204,11 +153,11 @@ func waitForSync(e *eth.Ethereum) {
 func NewQuorumPermissionCtrl(stack *node.Node, isRaft bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
 	// Create a new ethclient to for interfacing with the contract
 	log.Info("AJ-permission eth client create")
-	return &PermissionCtrl{stack, nil, nil, isRaft, stack.GetNodeKey(), stack.DataDir(), nil, nil, nil, nil, nil, nil, pconfig, make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{})}, nil
+	return &PermissionCtrl{stack, nil, nil, isRaft, stack.GetNodeKey(), stack.DataDir(), nil, nil, nil, nil, nil, nil, pconfig, make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{}), sync.Mutex{}}, nil
 }
 
 func (p *PermissionCtrl) InitializeService() error {
-	clnt, ethereum, err := controls.CreateEthClient(p.node)
+	clnt, ethereum, err := CreateEthClient(p.node)
 	if err != nil {
 		log.Error("creating eth client failed")
 		return err
@@ -685,7 +634,8 @@ func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSes
 		return err
 	}
 	permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permInterfSession.TransactOpts.From))
-	if _, err := permInterfSession.Init(&p.permConfig.SubOrgBreadth, &p.permConfig.SubOrgDepth); err != nil {
+	if _, err := permInterfSession.Init(p.permConfig.OrgAddress, p.permConfig.RoleAddress, p.permConfig.AccountAddress, p.permConfig.VoterAddress, p.permConfig.NodeAddress,
+		&p.permConfig.SubOrgBreadth, &p.permConfig.SubOrgDepth); err != nil {
 		log.Error("bootupNetwork init failed", "err", err)
 		return err
 	}

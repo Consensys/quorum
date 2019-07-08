@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
@@ -185,9 +184,6 @@ func (q *QuorumControlsAPI) GetOrgDetails(orgId string) (types.OrgDetailInfo, er
 }
 
 func (q *QuorumControlsAPI) initOp(txa ethapi.SendTxArgs) (*pbind.PermInterfaceSession, ExecStatus) {
-	if !q.permEnabled {
-		return nil, ErrPermissionDisabled
-	}
 	var err error
 	var w accounts.Wallet
 
@@ -596,7 +592,7 @@ func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 		return ErrAccountNotThere, errors.New("account not there")
 	}
 
-	if ac.IsOrgAdmin && (ac.RoleId == q.permCtrl.permConfig.NwAdminRole || ac.RoleId == q.permConfig.OrgAdminRole) && (op == 1 || op == 3) {
+	if ac.IsOrgAdmin && (ac.RoleId == q.permCtrl.permConfig.NwAdminRole || ac.RoleId == q.permCtrl.permConfig.OrgAdminRole) && (op == 1 || op == 3) {
 		return ErrOpNotAllowed, errors.New("operation not allowed on org admin account")
 	}
 
@@ -830,7 +826,7 @@ func (q *QuorumControlsAPI) valAssignAdminRole(args txArgs, pinterf *pbind.PermI
 		return ErrInvalidInput
 	}
 	// check if caller is network admin
-	if args.roleId != q.permCtrl.permConfig.OrgAdminRole && args.roleId != q.permConfig.NwAdminRole {
+	if args.roleId != q.permCtrl.permConfig.OrgAdminRole && args.roleId != q.permCtrl.permConfig.NwAdminRole {
 		return ErrOpNotAllowed
 	}
 
@@ -890,7 +886,7 @@ func (q *QuorumControlsAPI) valRemoveRole(args txArgs, pinterf *pbind.PermInterf
 	}
 
 	// admin roles cannot be removed
-	if args.roleId == q.permCtrl.permConfig.OrgAdminRole || args.roleId == q.permConfig.NwAdminRole {
+	if args.roleId == q.permCtrl.permConfig.OrgAdminRole || args.roleId == q.permCtrl.permConfig.NwAdminRole {
 		return ErrAdminRoles
 	}
 
@@ -913,7 +909,7 @@ func (q *QuorumControlsAPI) valAssignRole(args txArgs, pinterf *pbind.PermInterf
 	if args.acctId == (common.Address{0}) {
 		return ErrInvalidInput
 	}
-	if args.roleId == q.permCtrl.permConfig.OrgAdminRole || args.roleId == q.permConfig.NwAdminRole {
+	if args.roleId == q.permCtrl.permConfig.OrgAdminRole || args.roleId == q.permCtrl.permConfig.NwAdminRole {
 		return ErrInvalidRole
 	}
 	// check if caller is network admin
@@ -960,7 +956,7 @@ func (q *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Walle
 func (q *QuorumControlsAPI) newPermInterfaceSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.PermInterfaceSession {
 	frmAcct, transactOpts, gasLimit, gasPrice, nonce := q.getTxParams(txa, w)
 	ps := &pbind.PermInterfaceSession{
-		Contract: s.permCtrl.permInterf,
+		Contract: q.permCtrl.permInterf,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
@@ -991,7 +987,7 @@ func (q *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet
 	if txa.Nonce != nil {
 		nonce = new(big.Int).SetUint64(uint64(*txa.Nonce))
 	} else {
-		nonce = new(big.Int).SetUint64(s.permCtrl.eth.TxPool().Nonce(frmAcct.Address))
+		nonce = new(big.Int).SetUint64(q.permCtrl.eth.TxPool().Nonce(frmAcct.Address))
 	}
 	return frmAcct, transactOpts, gasLimit, gasPrice, nonce
 }
