@@ -18,6 +18,4 @@ Out of the box you get:
 It provides tools for managing a local blockchain node, setting up clusters,
 exploring the state of the chain, and working with contracts.
 
-Included in the package are [geth](https://github.com/ethereum/go-ethereum), [quorum](https://github.com/jpmorganchase/quorum), [tessera](https://github.com/jpmorganchase/tessera),   [constellation](https://github.com/jpmorganchase/constellation), a [Solidity](https://solidity.readthedocs.org/en/latest/)
-compiler, and all dependencies.
-
+The Cakeshop package includes the [tessera](https://github.com/jpmorganchase/tessera) and [constellation](https://github.com/jpmorganchase/constellation) transaction managers, a [Solidity](https://solidity.readthedocs.org/en/latest/) compiler, and all dependencies. Cakeshop will download the latest version of [quorum](https://github.com/jpmorganchase/quorum) and bootnode from [geth](https://github.com/ethereum/go-ethereum) (to use a different version, see [here](docs/configuration.md#custom-quorum-binaries))
