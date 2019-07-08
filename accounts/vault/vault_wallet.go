@@ -70,7 +70,18 @@ func (w vaultWallet) Accounts() []accounts.Account {
 }
 
 func (w vaultWallet) Contains(account accounts.Account) bool {
-	panic("implement me")
+	equal := func(x, y accounts.Account) bool {
+		return x.Address == y.Address && (x.URL == y.URL || x.URL == accounts.URL{} || y.URL == accounts.URL{})
+	}
+
+	accts := w.accounts
+
+	for _, a := range accts {
+		if equal(a, account) {
+			return true
+		}
+	}
+	return false
 }
 
 func (w vaultWallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Account, error) {

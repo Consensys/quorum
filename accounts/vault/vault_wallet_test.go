@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -566,6 +567,50 @@ func TestVaultWallet_Accounts_ReturnsCopyOfAccountsInWallet(t *testing.T) {
 
 	if cmp.Equal(w.accounts, got) {
 		t.Fatalf("changes to the returned accounts should not change the wallet's record of accounts")
+	}
+}
+
+func TestVaultWallet_Contains(t *testing.T) {
+	makeAcct := func(addr, url string) accounts.Account {
+		var u accounts.URL
+
+		if url != "" {
+			//to parse a string url as an accounts.URL it must first be in json format
+			toParse := fmt.Sprintf("\"%v\"", url)
+
+			if err := u.UnmarshalJSON([]byte(toParse)); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		return accounts.Account{Address: common.StringToAddress(addr), URL: u}
+	}
+
+	tests := map[string]struct{
+		accts []accounts.Account
+		toFind accounts.Account
+		want bool
+	}{
+		"same addr and url": {accts: []accounts.Account{makeAcct("addr1", "http://url:1")}, toFind: makeAcct("addr1", "http://url:1"), want: true},
+		"same addr no url": {accts: []accounts.Account{makeAcct("addr1", "http://url:1")}, toFind: makeAcct("addr1", ""), want: true},
+		"multiple": {accts: []accounts.Account{makeAcct("addr1", "http://url:1"), makeAcct("addr2", "http://url:2")}, toFind: makeAcct("addr2", "http://url:2"), want: true},
+		"same addr diff url": {accts: []accounts.Account{makeAcct("addr1", "http://url:1")}, toFind: makeAcct("addr1", "http://url:2"), want: false},
+		"diff addr same url": {accts: []accounts.Account{makeAcct("addr1", "http://url:1")}, toFind: makeAcct("addr2", "http://url:1"), want: false},
+		"diff addr no url": {accts: []accounts.Account{makeAcct("addr1", "http://url:1")}, toFind: makeAcct("addr2", ""), want: false},
+		"diff addr diff url": {accts: []accounts.Account{makeAcct("addr1", "http://url:1")}, toFind: makeAcct("addr2", "http://url:2"), want: false},
+		"no accts": {toFind: makeAcct("addr1", "http://url:1"), want: false},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			w := vaultWallet{accounts: tt.accts}
+
+			got := w.Contains(tt.toFind)
+
+			if tt.want != got {
+				t.Fatalf("want: %v, got: %v", tt.want, got)
+			}
+		})
 	}
 }
 
