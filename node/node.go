@@ -185,7 +185,7 @@ func (n *Node) Start() error {
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
 
-	for ct, constructor := range n.serviceFuncs {
+	for _, constructor := range n.serviceFuncs {
 		// Create a new context for the particular service
 		ctx := &ServiceContext{
 			config:         n.config,
