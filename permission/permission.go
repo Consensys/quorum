@@ -337,6 +337,7 @@ func (p *PermissionCtrl) manageOrgPermissions() {
 			types.OrgInfoMap.UpsertOrg(evtOrgReactivated.OrgId, evtOrgReactivated.PorgId, evtOrgReactivated.UltParent, evtOrgReactivated.Level, types.OrgApproved)
 		case <-p.orgChan:
 			log.Info("quit org contract watch")
+			return
 		}
 	}
 }
@@ -542,6 +543,7 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 			types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Address, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
 		case <-p.acctChan:
 			log.Info("quit account contract watch")
+			return
 		}
 	}
 }
@@ -826,6 +828,7 @@ func (p *PermissionCtrl) manageRolePermissions() {
 			}
 		case <-p.roleChan:
 			log.Info("quit role contract watch")
+			return
 		}
 	}
 }
