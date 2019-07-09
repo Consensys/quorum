@@ -79,7 +79,6 @@ func IsPermissionEnabled(ctx *cli.Context) bool {
 }
 
 func StartNode(stack *node.Node) {
-	log.Info("AJ-start node2")
 
 	if err := stack.Start(); err != nil {
 		Fatalf("Error starting protocol stack: %v", err)

@@ -205,7 +205,7 @@ func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 		if permissionConfig, err = permission.ParsePermissionConifg(dataDir); err != nil {
 			utils.Fatalf("loading of permission-config.json failed", "error", err)
 		}
-		log.Info("AJ-permission ctrl new")
+
 		// start the permissions management service
 		pc, err := permission.NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.RaftModeFlag.Name), &permissionConfig)
 		if err != nil {

@@ -139,20 +139,17 @@ func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
 // can be brought up only after block syncing is complete. This function
 // waits for block syncing before the starting permissions
 func waitForSync(e *eth.Ethereum) {
-	log.Info("AJ-wait for sync")
 	for !types.GetSyncStatus() {
 		time.Sleep(10 * time.Millisecond)
 	}
 	for e.Downloader().Synchronising() {
 		time.Sleep(10 * time.Millisecond)
 	}
-	log.Info("AJ-wait for sync over")
 }
 
 // Creates the controls structure for permissions
 func NewQuorumPermissionCtrl(stack *node.Node, isRaft bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
 	// Create a new ethclient to for interfacing with the contract
-	log.Info("AJ-permission eth client create")
 	return &PermissionCtrl{stack, nil, nil, isRaft, stack.GetNodeKey(), stack.DataDir(), nil, nil, nil, nil, nil, nil, pconfig, make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{}), sync.Mutex{}}, nil
 }
 
