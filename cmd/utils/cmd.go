@@ -70,7 +70,7 @@ func IsPermissionEnabled(ctx *cli.Context) bool {
 		fileName := "permission-config.json"
 		fullPath := filepath.Join(ctx.GlobalString(DataDirFlag.Name), fileName)
 		if _, err := os.Stat(fullPath); err != nil {
-			log.Warn("permission-config.json file is missing. permission service will be disabled", err)
+			log.Warn("permission-config.json file is missing. permission service will be disabled", "err", err)
 			return false
 		}
 		return true
