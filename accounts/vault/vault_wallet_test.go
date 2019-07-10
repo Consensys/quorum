@@ -465,7 +465,7 @@ func TestVaultWallet_Open_Hashicorp_ErrAuthenticatingClient(t *testing.T) {
 	}
 }
 
-// Note: This is an integration test, as such the scope of the test is large, covering the VaultBackend, VaultWallet and HashicorpService
+// Note: This is an integration test, as such the scope of the test is large.  It covers the VaultBackend, vaultWallet and hashicorpService
 func TestVaultWallet_Open_Hashicorp_SendsEventToBackendSubscribers(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 		t.Fatal(err)
@@ -514,7 +514,7 @@ func TestVaultWallet_Close_Hashicorp_ReturnsStateToBeforeOpen(t *testing.T) {
 
 	config := hashicorpWalletConfig{
 		Client: hashicorpClientConfig{Url: "http://url:1"},
-		Secrets: []hashicorpSecretData{{Name: "secret1"}},
+		Secrets: []hashicorpSecretData{{AddressSecret: "addr1"}},
 	}
 
 	w, err := newHashicorpWallet(config, &event.Feed{})
