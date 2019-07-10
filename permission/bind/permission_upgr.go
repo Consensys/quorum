@@ -28,7 +28,7 @@ var (
 )
 
 // PermUpgrABI is the input ABI used to generate the binding from.
-const PermUpgrABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"getPermImpl\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_proposedImpl\",\"type\":\"address\"}],\"name\":\"confirmImplChange\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getCustodian\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getPermInterface\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_permInterface\",\"type\":\"address\"},{\"name\":\"_permImpl\",\"type\":\"address\"}],\"name\":\"init\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_custodian\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"}]"
+const PermUpgrABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"getPermImpl\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_proposedImpl\",\"type\":\"address\"}],\"name\":\"confirmImplChange\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getGuardian\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getPermInterface\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_permInterface\",\"type\":\"address\"},{\"name\":\"_permImpl\",\"type\":\"address\"}],\"name\":\"init\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_guardian\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"}]"
 
 // PermUpgr is an auto generated Go binding around an Ethereum contract.
 type PermUpgr struct {
@@ -172,30 +172,30 @@ func (_PermUpgr *PermUpgrTransactorRaw) Transact(opts *bind.TransactOpts, method
 	return _PermUpgr.Contract.contract.Transact(opts, method, params...)
 }
 
-// GetCustodian is a free data retrieval call binding the contract method 0xc561d4b7.
+// GetGuardian is a free data retrieval call binding the contract method 0xa75b87d2.
 //
-// Solidity: function getCustodian() constant returns(address)
-func (_PermUpgr *PermUpgrCaller) GetCustodian(opts *bind.CallOpts) (common.Address, error) {
+// Solidity: function getGuardian() constant returns(address)
+func (_PermUpgr *PermUpgrCaller) GetGuardian(opts *bind.CallOpts) (common.Address, error) {
 	var (
 		ret0 = new(common.Address)
 	)
 	out := ret0
-	err := _PermUpgr.contract.Call(opts, out, "getCustodian")
+	err := _PermUpgr.contract.Call(opts, out, "getGuardian")
 	return *ret0, err
 }
 
-// GetCustodian is a free data retrieval call binding the contract method 0xc561d4b7.
+// GetGuardian is a free data retrieval call binding the contract method 0xa75b87d2.
 //
-// Solidity: function getCustodian() constant returns(address)
-func (_PermUpgr *PermUpgrSession) GetCustodian() (common.Address, error) {
-	return _PermUpgr.Contract.GetCustodian(&_PermUpgr.CallOpts)
+// Solidity: function getGuardian() constant returns(address)
+func (_PermUpgr *PermUpgrSession) GetGuardian() (common.Address, error) {
+	return _PermUpgr.Contract.GetGuardian(&_PermUpgr.CallOpts)
 }
 
-// GetCustodian is a free data retrieval call binding the contract method 0xc561d4b7.
+// GetGuardian is a free data retrieval call binding the contract method 0xa75b87d2.
 //
-// Solidity: function getCustodian() constant returns(address)
-func (_PermUpgr *PermUpgrCallerSession) GetCustodian() (common.Address, error) {
-	return _PermUpgr.Contract.GetCustodian(&_PermUpgr.CallOpts)
+// Solidity: function getGuardian() constant returns(address)
+func (_PermUpgr *PermUpgrCallerSession) GetGuardian() (common.Address, error) {
+	return _PermUpgr.Contract.GetGuardian(&_PermUpgr.CallOpts)
 }
 
 // GetPermImpl is a free data retrieval call binding the contract method 0x0e32cf90.

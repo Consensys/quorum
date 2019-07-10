@@ -43,7 +43,7 @@ contract PermissionsUpgradable {
         setImpl(permImpl);
     }
 
-    function getCustodian() public view returns (address)
+    function getGuardian() public view returns (address)
     {
         return guardian;
     }
