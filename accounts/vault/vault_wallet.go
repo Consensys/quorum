@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/hashicorp/vault/api"
 	"math/big"
 	"os"
+	"strconv"
+	"time"
 )
 
 type vaultWallet struct {
@@ -36,7 +40,7 @@ func newHashicorpWallet(config hashicorpWalletConfig, updateFeed *event.Feed) (v
 		return vaultWallet{}, err
 	}
 
-	return vaultWallet{url: url, vault: &hashicorpService{config: config.Client}, updateFeed: updateFeed}, nil
+	return vaultWallet{url: url, vault: &hashicorpService{config: config.Client, secrets: config.Secrets}, updateFeed: updateFeed}, nil
 }
 
 func (w vaultWallet) URL() accounts.URL {
@@ -67,8 +71,8 @@ func (w vaultWallet) Accounts() []accounts.Account {
 }
 
 func (w vaultWallet) Contains(account accounts.Account) bool {
-	equal := func(x, y accounts.Account) bool {
-		return x.Address == y.Address && (x.URL == y.URL || x.URL == accounts.URL{} || y.URL == accounts.URL{})
+	equal := func(a, b accounts.Account) bool {
+		return a.Address == b.Address && (a.URL == b.URL || a.URL == accounts.URL{} || b.URL == accounts.URL{})
 	}
 
 	accts := w.Accounts()
@@ -106,6 +110,7 @@ func (w vaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase s
 type hashicorpService struct {
 	client *api.Client
 	config hashicorpClientConfig
+	secrets []hashicorpSecretData
 	accts []accounts.Account
 }
 
@@ -221,7 +226,84 @@ func (h *hashicorpService) open() error {
 	// api.Client uses the token at VAULT_TOKEN by default so nothing extra needs to be done when not using approle
 	h.client = c
 
+	// 10s polling interval by default
+	pollingIntervalSecs := h.config.VaultPollingIntervalSecs
+	if pollingIntervalSecs == 0 {
+		pollingIntervalSecs = 10
+	}
+	d := time.Duration(pollingIntervalSecs) * time.Second
+
+	go h.accountRetrievalLoop(time.NewTicker(d))
+
 	return nil
+}
+
+func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
+	for range ticker.C {
+		if len(h.accts) == len(h.secrets) {
+			ticker.Stop()
+			return
+		}
+
+		for _, s := range h.secrets {
+			path := fmt.Sprintf("%s/data/%s", s.SecretEngine, s.AddressSecret)
+
+			url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, s.AddressSecretVersion)
+
+			versionData := make(map[string][]string)
+			versionData["version"] = []string{strconv.Itoa(s.AddressSecretVersion)}
+
+			// get address from vault
+			resp, err := h.client.Logical().ReadWithData(path, versionData)
+
+			if err != nil {
+				log.Warn("unable to get secret from Hashicorp Vault", "url", url, "err", err)
+				continue
+			}
+
+			respData, ok := resp.Data["data"].(map[string]interface{})
+
+			if !ok {
+				log.Warn("Hashicorp Vault response does not contain data", "url", url)
+				continue
+			}
+
+			if len(respData) != 1 {
+				log.Warn("only one key/value pair is allowed in each Hashicorp Vault secret", "url", url)
+				continue
+			}
+
+			// get secret regardless of key in map
+			var addr interface{}
+			for _, d := range respData {
+				addr = d
+			}
+
+			address, ok := addr.(string)
+
+			if !ok {
+				log.Warn("Hashicorp Vault response data is not in string format", "url", url)
+				continue
+			}
+
+			// create accounts.Account
+			//to parse a string url as an accounts.URL it must first be in json format
+			toParse := fmt.Sprintf("\"%v\"", url)
+			var parsedUrl accounts.URL
+
+			if err := parsedUrl.UnmarshalJSON([]byte(toParse)); err != nil {
+				log.Warn("unable to parse url of account retrieved from Hashicorp Vault", "url", url, "err", err)
+				continue
+			}
+
+			acct := accounts.Account{
+				Address: common.HexToAddress(address),
+				URL: parsedUrl,
+			}
+
+			h.accts = append(h.accts, acct)
+		}
+	}
 }
 
 func usingApproleAuth(roleID, secretID string) bool {

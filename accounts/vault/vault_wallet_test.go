@@ -16,7 +16,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"sort"
 	"testing"
+	"time"
 )
 
 func TestVaultWallet_URL(t *testing.T) {
@@ -504,6 +506,242 @@ func TestVaultWallet_Open_Hashicorp_SendsEventToBackendSubscribers(t *testing.T)
 
 	if !reflect.DeepEqual(want, got) {
 		t.Fatalf("want: %v, got: %v", want, got)
+	}
+}
+
+type accountsByUrl []accounts.Account
+
+func (a accountsByUrl) Len() int {
+	return len(a)
+}
+
+func (a accountsByUrl) Less(i, j int) bool {
+	return (a[i].URL).Cmp(a[j].URL) < 0
+}
+
+func (a accountsByUrl) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func acctsEqual(a, b []accounts.Account) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	sort.Sort(accountsByUrl(a))
+	sort.Sort(accountsByUrl(b))
+
+	equal := func(a, b accounts.Account) bool {
+		return a.Address == b.Address && (a.URL == b.URL || a.URL == accounts.URL{} || b.URL == accounts.URL{})
+	}
+
+	for i := 0; i < len(a); i++ {
+		if !equal(a[i], b[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// TODO This is a long running test (~8secs) so perhaps should be excluded from test suite by default?
+func TestVaultWallet_Open_Hashicorp_AccountsAreRetrievedInTheBackground(t *testing.T) {
+	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
+		t.Fatal(err)
+	}
+
+	makeVaultResponse := func(keyValPairs map[string]string) []byte {
+		resp := api.Secret{
+			Data: map[string]interface{}{
+				"data": keyValPairs,
+			},
+		}
+
+		b, err := json.Marshal(resp)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return b
+	}
+
+	makeSecret := func(name string) hashicorpSecretData {
+		return hashicorpSecretData{AddressSecret: name, AddressSecretVersion: 1, SecretEngine: "kv"}
+	}
+
+	const (
+		secretEngine = "kv"
+		secret1 = "sec1"
+		secret2 = "sec2"
+		multiValSecret = "multiValSec"
+	)
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, secret1), func(w http.ResponseWriter, r *http.Request) {
+		body := makeVaultResponse(map[string]string{
+			"address": "ed9d02e382b34818e88b88a309c7fe71e65f419d",
+		})
+
+		w.Write(body)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, secret2), func(w http.ResponseWriter, r *http.Request) {
+		body := makeVaultResponse(map[string]string{
+			"otherAddress": "ca843569e3427144cead5e4d5999a3d0ccf92b8e",
+		})
+
+		w.Write(body)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, multiValSecret), func(w http.ResponseWriter, r *http.Request) {
+		body := makeVaultResponse(map[string]string{
+			"address": "ed9d02e382b34818e88b88a309c7fe71e65f419d",
+			"otherAddress": "ca843569e3427144cead5e4d5999a3d0ccf92b8e",
+		})
+
+		w.Write(body)
+	})
+
+	vaultServer := httptest.NewServer(mux)
+	defer vaultServer.Close()
+
+	tests := map[string]struct{
+		secrets []hashicorpSecretData
+		wantAccts []accounts.Account
+	}{
+		"account retrieved": {
+			secrets:   []hashicorpSecretData{makeSecret(secret1)},
+			wantAccts: []accounts.Account{
+				{Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")},
+			},
+		},
+		"account not retrieved when vault secret has multiple values": {
+			secrets:   []hashicorpSecretData{makeSecret(multiValSecret)},
+			wantAccts: []accounts.Account{},
+		},
+		"unretrievable accounts are ignored": {
+			secrets:   []hashicorpSecretData{makeSecret(multiValSecret), makeSecret(secret1)},
+			wantAccts: []accounts.Account{
+				{Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")},
+			},
+		},
+		"accounts retrieved regardless of vault secrets keyvalue key": {
+			secrets: []hashicorpSecretData{makeSecret(secret1), makeSecret(secret2)},
+			wantAccts: []accounts.Account{
+				{Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")},
+				{Address: common.HexToAddress("ca843569e3427144cead5e4d5999a3d0ccf92b8e")},
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			wltConfig := hashicorpWalletConfig{
+				Client: hashicorpClientConfig{
+					Url: vaultServer.URL,
+					VaultPollingIntervalSecs: 1,
+				},
+				Secrets: tt.secrets,
+			}
+
+			w, err := newHashicorpWallet(wltConfig, &event.Feed{})
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if err := w.Open(""); err != nil {
+				t.Fatal(err)
+			}
+
+			// need to block to let accountRetrievalLoop do its thing
+			// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
+			time.Sleep(2 * time.Second)
+
+			//TODO wantAccts do not have URLs set so URL equality is not being checked
+			if !acctsEqual(tt.wantAccts, w.Accounts()) {
+				t.Fatalf("wallet accounts do not equal wanted accounts\nwant: %v\ngot : %v", tt.wantAccts, w.Accounts())
+			}
+		})
+	}
+}
+
+// TODO This is a long running test (~10secs) so perhaps should be excluded from test suite by default?
+func TestVaultWallet_Open_Hashicorp_AccountsRetrievedWhenVaultAvailable(t *testing.T) {
+	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
+		t.Fatal(err)
+	}
+
+	makeVaultResponse := func(keyValPairs map[string]string) []byte {
+		resp := api.Secret{
+			Data: map[string]interface{}{
+				"data": keyValPairs,
+			},
+		}
+
+		b, err := json.Marshal(resp)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return b
+	}
+
+	body := makeVaultResponse(map[string]string{"address": "ed9d02e382b34818e88b88a309c7fe71e65f419d"})
+	vaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(body)
+	}))
+	defer vaultServer.Close()
+
+	// use an incorrect vault url to simulate an inaccessible vault
+	wltConfig := hashicorpWalletConfig{
+		Client: hashicorpClientConfig{
+			Url: "http://incorrecturl:1",
+			VaultPollingIntervalSecs: 1,
+		},
+		Secrets: []hashicorpSecretData{
+			{AddressSecret: "sec1", AddressSecretVersion: 1, SecretEngine: "kv"},
+		},
+	}
+
+	w, err := newHashicorpWallet(wltConfig, &event.Feed{})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := w.Open(""); err != nil {
+		t.Fatal(err)
+	}
+
+	// need to block to let accountRetrievalLoop do its thing
+	// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
+	time.Sleep(5 * time.Second)
+
+	if len(w.Accounts()) != 0 {
+		t.Fatalf("wallet should have no accounts as vault server is inaccessible: got: %v", w.Accounts())
+	}
+
+	// update vault client to use correct url to simulate vault becoming accessible
+	v := w.vault.(*hashicorpService)
+	if err := v.client.SetAddress(vaultServer.URL); err != nil {
+		t.Fatal(err)
+	}
+
+	// need to block to let accountRetrievalLoop do its thing
+	// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
+	time.Sleep(5 * time.Second)
+
+	wantAccts := []accounts.Account{
+		{Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")},
+	}
+
+	//TODO wantAccts do not have URLs set so URL equality is not being checked
+	if !acctsEqual(wantAccts, w.Accounts()) {
+		t.Fatalf("wallet accounts do not equal wanted accounts\nwant: %v\ngot : %v", wantAccts, w.Accounts())
 	}
 }
 
