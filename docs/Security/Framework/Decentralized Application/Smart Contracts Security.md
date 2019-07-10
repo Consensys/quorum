@@ -10,25 +10,25 @@ are the core element of Ethereum Blockchain, unlike other software concepts it i
 ### Ownership
 Unlike traditional software management process Smart Contracts support the following technologically enforced ownership model:
 
-Single Ownership:
+**Single Ownership**:
 The contract has one owner who is responsible for the contract administration process. 
 
-Shared Custody Ownership:
+**Shared Custody Ownership**:
 Suitable for agreement between two or more parties in a network of N parties, where any party can unilaterally perform administrative action over the contract.
 
-Consortium Based Ownership:
+**Consortium Based Ownership**:
 Is a form of expanded Shared Custody Ownership that requires consensus over the administrative actions. 
 
 
 ### Security Patterns:
 
-**Checks-Effects-Interaction Pattern** Interacting with other contracts should always be the last step in contract function. It’s crucial that the current contract has finished its functionality before handling control to other contract and does not depend on the execution of the other contract. 
+**Checks-Effects-Interaction Pattern**: Interacting with other contracts should always be the last step in contract function. It’s crucial that the current contract has finished its functionality before handling control to other contract and does not depend on the execution of the other contract. 
 
-**Circuit Breaker** is logical emergency stop execution logic. Implementing emergency stops in logic of smart contract is a good security practice. A Circuit breaker can be triggered manually by trusted parties included in the contract like the contract owner or by using programmatic consensus rules that automatically trigger the circuit breaker when the defined conditions are met.
+**Circuit Breaker**: is logical emergency stop execution logic. Implementing emergency stops in logic of smart contract is a good security practice. A Circuit breaker can be triggered manually by trusted parties included in the contract like the contract owner or by using programmatic consensus rules that automatically trigger the circuit breaker when the defined conditions are met.
 
-**Rate Limit** smart contract function within a period of time allows better control of resources that can be abused.
+**Rate Limit**: smart contract function within a period of time allows better control of resources that can be abused.
 
-**Speed Bumps** introduces a delay in the action execution allowing a time to act if action is considered malicious. 
+**Speed Bumps**: introduces a delay in the action execution allowing a time to act if action is considered malicious. 
 
 
 ### Common Contract Vulnerabilities 
