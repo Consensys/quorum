@@ -22,7 +22,7 @@ build a controls to minimize a risk, the activities that are expected to be perf
 
 ### Security Checklist
 
-!!! success "Use Byznatine fault tolerant consensus protocol in case nodes are managed by un-trusted participants"
+!!! success "Use Byzantine fault tolerant consensus protocol in case nodes are managed by un-trusted participants"
 
 !!! success "Consortium member should provide a reasonable network Service-Level Agreement (SLA)."
 
