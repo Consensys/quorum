@@ -24,12 +24,12 @@ nav:
         - Raft: Consensus/raft.md
         - Istanbul: Consensus/istanbul-rpc-api.md
     - Transaction Processing: Transaction Processing/Transaction Processing.md
-    - Quorum Security Framework:
+    - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
             - Consortium: Security/Framework/Quorum Network Security/Consortium.md
             - Quorum Node: 
-                - Overview: Security/Framework/Quorum Network Security/Nodes.md
+                - Overview: Security/Framework/Quorum Network Security/Node.md
                 - Permissioning:
                     - Network Permissioning: Security/Framework/Quorum Network Security/Nodes/Permissioning/Network Permissioning.md
             - Transaction Manager: Security/Framework/Quorum Network Security/Transaction Manager.md
