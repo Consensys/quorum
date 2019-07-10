@@ -64,6 +64,10 @@ nav:
             - How it works: Privacy/Constellation/How constellation works.md
             - Sample Configuration: Privacy/Constellation/Sample Configuration.md
             - Running Constellation: Privacy/Constellation/Installation & Running.md
+    - Cakeshop:
+        - Overview: Cakeshop/Overview.md
+        - Getting Started: Cakeshop/Getting started.md
+        - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
     - Product Roadmap: roadmap.md         
     - FAQ: FAQ.md
 
