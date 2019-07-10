@@ -14,7 +14,7 @@ Please refer to [set up](../setup). For an existing network running with an olde
 
 * Upgrade Quorum to the latest version 
 * Deploy the contracts 
-* Execute the `init` method of `PermissionsUpgradable.sol` from the custodian account
+* Execute the `init` method of `PermissionsUpgradable.sol` from the guardian account
 * Copy the `permission-config.json`  to the data directory of each node  
 * Bring `geth` up in `--permissioned` mode.
 
@@ -22,7 +22,7 @@ For a new network using the latest version of Quorum:
 
 * Bring up the initial set of nodes 
 * Deploy the contracts 
-* Execute the `init` method of `PermissionsUpgradable.sol` from the custodian account
+* Execute the `init` method of `PermissionsUpgradable.sol` from the guardian account
 * Upgrade Quorum to the latest version 
 * Copy the `permission-config.json`  to the data directory of each node  
 * Bring `geth` up in `--permissioned` mode.

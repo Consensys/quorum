@@ -4,23 +4,23 @@ import "./PermissionsInterface.sol";
 
 contract PermissionsUpgradable {
 
-    address private custodian;
+    address private guardian;
     address private permImpl;
     address private permInterface;
 
-    // sets the custodian account as part of constructor
+    // sets the guardian account as part of constructor
     // only this account will be able to change the implementation contract address
-    constructor (address _custodian) public
+    constructor (address _guardian) public
     {
-        custodian = _custodian;
+        guardian = _guardian;
     }
 
     modifier onlyCustodian {
-        require(msg.sender == custodian);
+        require(msg.sender == guardian);
         _;
     }
 
-    // executed by custodian, links interface and implementation contract addresses
+    // executed by guardian, links interface and implementation contract addresses
     function init(address _permInterface, address _permImpl) external
     onlyCustodian
     {
@@ -30,8 +30,8 @@ contract PermissionsUpgradable {
     }
 
 
-    // custodian can potentially become a contract
-    // implementation change and custodian change are sending from custodian
+    // guardian can potentially become a contract
+    // implementation change and guardian change are sending from guardian
     function confirmImplChange(address _proposedImpl) public
     onlyCustodian
     {
@@ -45,7 +45,7 @@ contract PermissionsUpgradable {
 
     function getCustodian() public view returns (address)
     {
-        return custodian;
+        return guardian;
     }
 
     function getPermImpl() public view returns (address)
