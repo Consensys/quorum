@@ -8,7 +8,7 @@ The easiest way to get a network up and running is by working through the [Quoru
 
 ## Creating a network from scratch
 
-[Creating a Network From Scratch](../Getting-Started-From-Scratch) provides a step-by-step walkthrough of how to create and configure a Quorum network suitable for either Raft or Istanbul consensus.  It also shows how to enable privacy and add/remove nodes as required.
+[Creating a Network From Scratch](../Creating-A-Network-From-Scratch) provides a step-by-step walkthrough of how to create and configure a Quorum network suitable for either Raft or Istanbul consensus.  It also shows how to enable privacy and add/remove nodes as required.
 
 ## Creating a network deployed in the cloud
 

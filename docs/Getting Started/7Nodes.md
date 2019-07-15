@@ -1,4 +1,7 @@
-# 7nodes
+# 7nodes Example
+## Set Up
+Start the 7nodes sample network by following the instructions in [7nodes Set Up](../7Nodes-Setup).
+
 ## Demonstrating Privacy
 The [7nodes example](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes) comes with some simple contracts to demonstrate the privacy features of Quorum. 
 
@@ -13,7 +16,7 @@ In this demo we will:
 
 ### Sending a private transaction
 
-First start running the 7nodes example by following the instructions in the [quorum-examples](../Quorum-Examples#getting-started), then send an example private contract from Node 1 to Node 7 (this is denoted by the public key passed via `privateFor: ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]` in `private-contract.js`):
+Send an example private contract from Node 1 to Node 7 (this is denoted by the Node 7's public key passed via `privateFor: ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]` in `private-contract.js`):
 ``` bash
 ./runscript.sh private-contract.js
 ```
@@ -21,11 +24,10 @@ Make note of the `TransactionHash` printed to the terminal.
 
 ### Inspecting the Quorum nodes
 
-We can inspect any of the Quorum nodes by using `geth attach` to open the Geth JavaScript console.  For this demo, we will be inspecting Node 1, Node 7 and Node 4.  
+We can inspect any of the Quorum nodes by using `geth attach` to open the Geth JavaScript console.  For this demo, we will be inspecting Node 1, Node 4 and Node 7.  
 
 It is recommended to use separate terminal windows for each node we are inspecting.  In each terminal, ensure you are in the `path/to/7nodes` directory, then:
 
-- If you aren't already running the 7nodes example, in terminal 1 run `./{consensus}-init.sh` followed by `./{consensus}-start.sh`
 - In terminal 1 run `geth attach ipc:qdata/dd1/geth.ipc` to attach to node 1
 - In terminal 2 run `geth attach ipc:qdata/dd4/geth.ipc` to attach to node 4
 - In terminal 3 run `geth attach ipc:qdata/dd7/geth.ipc` to attach to node 7
@@ -75,21 +77,22 @@ Next we'll use ```eth.contract``` to define a contract class with the simpleStor
 ```
 
 The function calls are now available on the contract instance and you can call those methods on the contract. Let's start by examining the initial value of the contract to make sure that only nodes 1 and 7 can see the initialized value.
+
 - In terminal window 1 (Node 1):
-``` javascript
-> private.get()
-42
-```
+    ``` javascript
+    > private.get()
+    42
+    ```
 - In terminal window 2 (Node 4):
-``` javascript
-> private.get()
-0
-```
+    ``` javascript
+    > private.get()
+    0
+    ```
 - In terminal window 3 (Node 7):
-``` javascript
-> private.get()
-42
-```
+    ``` javascript
+    > private.get()
+    42
+    ```
 
 So we can see nodes 1 and 7 are able to read the state of the private contract and its initial value is 42.  If you look in `private-contract.js` you will see that this was the value set when the contract was created.  Node 4 is unable to read the state. 
 
@@ -103,22 +106,23 @@ In terminal window 1 (Node 1):
 "0xacf293b491cccd1b99d0cfb08464a68791cc7b5bc14a9b6e4ff44b46889a8f70"
 ```
 You can check the log files in `7nodes/qdata/logs/` to see each node validating the block with this new private transaction. Once the block containing the transaction has been validated we can once again check the state from each node 1, 4, and 7.
+
 - In terminal window 1 (Node 1):
-``` javascript
-> private.get()
-4
-```
+    ``` javascript
+    > private.get()
+    4
+    ```
 - In terminal window 2 (Node 4):
-``` javascript
-> private.get()
-0
-```
+    ``` javascript
+    > private.get()
+    0
+    ```
 - In terminal window 3 (Node 7):
-``` javascript
-> private.get()
-4
-```
-And there you have it. All 7 nodes are validating the same blockchain of transactions, the private transactions carrying only a 512 bit hash, and only the parties to private transactions are able to view and update the state of private contracts.
+    ``` javascript
+    > private.get()
+    4
+    ```
+And there you have it; all 7 nodes are validating the same blockchain of transactions, the private transactions carrying only a 512 bit hash on-chain, and only the parties to private transactions being able to view and update the state of private contracts.
 
 ## Permissions
 
@@ -193,40 +197,5 @@ MISCELLANEOUS OPTIONS:
 ## Next steps
 Additional samples can be found in `quorum-examples/examples/7nodes/samples` for you to use and edit.  You can also create your own contracts to help you understand how the nodes in a Quorum network work together.
 
-## Reducing the number of nodes 
-It is easy to reduce the number of nodes used in the example.  You may want to do this for memory usage reasons or just to experiment with a different network configuration.
+Take a look at [Creating a Network From Scratch](../Creating-A-Network-From-Scratch) for step-by-step instructions on how to create your own Quorum network.
 
-To run the example with 5 nodes instead of 7, the following changes need to be made:
-1. In __`raft-start.sh`__:
- 
-    Comment out the following lines used to start Quorum nodes 6 & 7
-   ```sh
-   # PRIVATE_CONFIG=qdata/c6/tm.ipc nohup geth --datadir qdata/dd6 $ARGS --raftport 50406 --rpcport 22005 --port 21005 --unlock 0 --password passwords.txt 2>>qdata/logs/6.log &
-   # PRIVATE_CONFIG=qdata/c7/tm.ipc nohup geth --datadir qdata/dd7 $ARGS --raftport 50407 --rpcport 22006 --port 21006 --unlock 0 --password passwords.txt 2>>qdata/logs/7.log &
-   ```
-
-1. In __`constellation-start.sh`__ or __`tessera-start.sh`__ (depending on which privacy manager you are using): 
-
-    Change the 2 instances of `for i in {1..7}` to `for i in {1..5}`
-    
-After making these changes, the `raft-init.sh` and `raft-start.sh` scripts can be run as normal.
-
-`private-contract.js` will also need to be updated as this is set up to send a transaction from node 1 to node 7.  To update the private contract to instead send to node 5, the following steps need to be followed:
-
-1. Copy node 5's public key from `./keys/tm5.pub`
-
-2. Replace the existing `privateFor` in `private-contract.js` with the key copied from `tm5.pub` key, e.g.:
-    ``` javascript
-    var simple = simpleContract.new(42, {from:web3.eth.accounts[0], data: bytecode, gas: 0x47b760, privateFor: ["R56gy4dn24YOjwyesTczYa8m5xhP6hF2uTMCju/1xkY="]}, function(e, contract) {...}
-    ```
-
-After saving this change, the `./runscript.sh private-contract.js` command can be run as usual to submit the private contract.  You can then follow steps described above to verify that node 5 can see the transaction payload and that nodes 2-4 are unable to see the payload.
-
-## Using a Tessera remote enclave
-Tessera v0.9 brought with it the option to have an enclave as a separate process from the Transaction
-Manager. This is a more secure way of being able to manage and interact with your keys.
-To use the remote enclave, call your desired start with using `tessera-remote` as the first
-parameter, e.g. `./raft-start.sh tessera-remote`. This will, by default, start 7 Transaction
-Managers, the first 4 of which use a remote enclave. If you wish to change this number, you
-will need to add the extra parameter `--remoteEnclaves X` in the `--tesseraOptions`, e.g.
-`./raft-start.sh tessera-remote --tesseraOptions "--remoteEnclaves 7"`.

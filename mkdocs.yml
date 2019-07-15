@@ -14,10 +14,11 @@ nav:
     - Getting Started:
         - Overview: Getting Started/Getting Started Overview.md
         - Installing: Getting Started/Installing.md
-        - Getting Started From Scratch: Getting Started/Getting-Started-From-Scratch.md
         - Quorum Examples:
             - Overview: Getting Started/Quorum-Examples.md
-            - 7 Nodes Example: Getting Started/7Nodes.md
+            - 7nodes Set Up: Getting Started/7Nodes-Setup.md
+            - 7nodes Example: Getting Started/7Nodes.md
+        - Creating a Network From Scratch: Getting Started/Creating-A-Network-From-Scratch.md
         - Running Quorum: Getting Started/running.md
         - Quorum API: Getting Started/api.md
     - Consensus:
