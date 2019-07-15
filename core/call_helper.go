@@ -47,7 +47,12 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	cg.header.GasLimit = 4700000
 
 	signer := types.MakeSigner(params.QuorumTestChainConfig, cg.header.Number)
+	if private {
+		signer = types.QuorumPrivateTxSigner{}
+	}
+
 	tx, err := types.SignTx(types.NewTransaction(cg.TxNonce(from), to, new(big.Int), 1000000, new(big.Int), input), signer, key)
+
 	if err != nil {
 		return err
 	}
@@ -60,15 +65,13 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	publicState, privateState := cg.PublicState, cg.PrivateState
 	if !private {
 		privateState = publicState
-	} else {
-		tx.SetPrivate()
 	}
-
 	// TODO(joel): can we just pass nil instead of bc?
 	bc, _ := NewBlockChain(cg.db, nil, params.QuorumTestChainConfig, ethash.NewFaker(), vm.Config{}, nil)
 	context := NewEVMContext(msg, &cg.header, bc, &from)
 	vmenv := vm.NewEVM(context, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})
-	_, _, _, err = ApplyMessage(vmenv, msg, cg.gp)
+	sender := vm.AccountRef(msg.From())
+	vmenv.Call(sender, to, msg.Data(), 100000000, new(big.Int))
 	if err != nil {
 		return err
 	}
