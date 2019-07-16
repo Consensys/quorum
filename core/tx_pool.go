@@ -1151,7 +1151,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Transaction {
 	isQuorum := pool.chainconfig.IsQuorum
 	// Init delayed since tx pool could have been started before any state sync
-	if isQuorum && pool.pendingState == nil {
+	if isQuorum && pool.pendingNonces == nil {
 		pool.reset(nil, nil)
 	}
 	// Track the promoted transactions to broadcast them at once
