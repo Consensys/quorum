@@ -71,7 +71,7 @@ func TestDBNodeItemKey(t *testing.T) {
 	if id != keytestID {
 		t.Errorf("splitNodeItemKey returned wrong ID: %v", id)
 	}
-	if !bytes.Equal(ip, wantIP) {
+	if !ip.Equal(wantIP) {
 		t.Errorf("splitNodeItemKey returned wrong IP: %v", ip)
 	}
 	if field != wantField {
@@ -367,6 +367,30 @@ var nodeDBExpirationNodes = []struct {
 			30303,
 			30303,
 			0,
+		),
+		storeNode: true,
+		pong:      time.Now().Add(-dbNodeExpiration - time.Minute),
+		exp:       true,
+	},
+	// Just pong time, no node stored:
+	{
+		node: NewV4(
+			hexPubkey("b56670e0b6bad2c5dab9f9fe6f061a16cf78d68b6ae2cfda3144262d08d97ce5f46fd8799b6d1f709b1abe718f2863e224488bd7518e5e3b43809ac9bd1138ca"),
+			net.IP{127, 0, 0, 3},
+			30303,
+			30303,
+		),
+		storeNode: false,
+		pong:      time.Now().Add(-dbNodeExpiration - time.Minute),
+		exp:       true,
+	},
+	// Node with multiple pong times, all older than expiration.
+	{
+		node: NewV4(
+			hexPubkey("29f619cebfd32c9eab34aec797ed5e3fe15b9b45be95b4df3f5fe6a9ae892f433eb08d7698b2ef3621568b0fb70d57b515ab30d4e72583b798298e0f0a66b9d1"),
+			net.IP{127, 0, 0, 4},
+			30303,
+			30303,
 		),
 		storeNode: true,
 		pong:      time.Now().Add(-dbNodeExpiration - time.Minute),

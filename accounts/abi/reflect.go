@@ -31,6 +31,14 @@ func indirect(v reflect.Value) reflect.Value {
 	return v
 }
 
+// indirectInterfaceOrPtr recursively dereferences the value until value is not interface.
+func indirectInterfaceOrPtr(v reflect.Value) reflect.Value {
+	if (v.Kind() == reflect.Interface || v.Kind() == reflect.Ptr) && v.Elem().IsValid() {
+		return indirect(v.Elem())
+	}
+	return v
+}
+
 // reflectIntKind returns the reflect using the given size and
 // unsignedness.
 func reflectIntKindAndType(unsigned bool, size int) (reflect.Kind, reflect.Type) {
@@ -74,7 +82,7 @@ func mustArrayToByteSlice(value reflect.Value) reflect.Value {
 func set(dst, src reflect.Value) error {
 	dstType, srcType := dst.Type(), src.Type()
 	switch {
-	case dstType.Kind() == reflect.Interface:
+	case dstType.Kind() == reflect.Interface && dst.Elem().IsValid():
 		return set(dst.Elem(), src)
 	case dstType.Kind() == reflect.Ptr && dstType.Elem() != derefbigT:
 		return set(dst.Elem(), src)
