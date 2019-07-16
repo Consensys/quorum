@@ -32,7 +32,7 @@ docker pull quorumengineering/constellation
     make test
     ```
 
-### Privacy Manager
+### Privacy Managers
 
 #### Tessera
 Tessera is a production-ready implementation of Quorum's privacy manager.  It is undergoing active development with new features being added regularly.

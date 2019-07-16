@@ -12,7 +12,7 @@ git clone https://github.com/jpmorganchase/quorum-examples.git
 
 ## Prepare your environment
 
-A 7node Quorum network must be running before the example can be run.  The [`quorum-examples`](https://github.com/jpmorganchase/quorum-examples.git) repo provides the means to create a pre-configured sample network in minutes.  
+A 7 node Quorum network must be running before the example can be run.  The [`quorum-examples`](https://github.com/jpmorganchase/quorum-examples.git) repo provides the means to create a pre-configured sample network in minutes.  
 
 There are 3 ways to start the sample network, each method is detailed below:
 
@@ -22,7 +22,7 @@ There are 3 ways to start the sample network, each method is detailed below:
 
 Your environment must be prepared differently depending on the method being used to run the example.
 
-### Prepare Vagrant
+### Running with Vagrant
 1. Install [VirtualBox](https://www.virtualbox.org/wiki/Downloads)
 2. Install [Vagrant](https://www.vagrantup.com/downloads.html)
 3. Download and start the Vagrant instance (note: running `vagrant up` takes approx 5 mins):
@@ -53,7 +53,7 @@ issues with the version of curl bundled with Vagrant.
     1. If running the [7nodes example](../7Nodes), reduce the number of nodes started up.  See the [7nodes: Reducing the number of nodes](../7Nodes#reducing-the-number-of-nodes) for info on how to do this.
     1. Set up and run the examples locally.  Running locally reduces the load on your memory compared to running in Vagrant.
 
-### Prepare Docker
+### Running with Docker
 
 1. Install Docker (https://www.docker.com/get-started)
     - If your Docker distribution does not contain `docker-compose`, follow [this](https://docs.docker.com/compose/install/) to install Docker Compose
@@ -101,7 +101,7 @@ issues with the version of curl bundled with Vagrant.
         - [Docker Machine](https://docs.docker.com/machine/overview/): this depends on what Docker machine provider is used. Please refer to its documentation on how to configure shared folders/drives
 1. If you run Docker inside Docker, make sure to run the container with `--privileged`
 
-### Prepare locally
+### Running locally
 
 !!! info
     Quorum must be run on Ubuntu-based/macOS machines.  Constellation can only be run on Ubuntu-based machines.  Running the examples therefore requires an Ubuntu-based/macOS machine.  If running the examples using Constellation then an Ubuntu-based machine is required. 
@@ -151,9 +151,9 @@ The sample network can be created to run using Istanbul BFT, Raft or Clique POA 
         ```sh
         ./{consensus}-start.sh
         ```
-        By default, Constellation will be used as the privacy manager.  To use Tessera run the following:
+        By default, Tessera will be used as the privacy manager.  To use Constellation run the following:
         ```
-        ./{consensus}-start.sh tessera
+        ./{consensus}-start.sh constellation
         ```
 
     - If running locally:

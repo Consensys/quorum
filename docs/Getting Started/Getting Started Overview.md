@@ -12,4 +12,4 @@ The easiest way to get a network up and running is by working through the [Quoru
 
 ## Creating a network deployed in the cloud
 
-[Quorum Cloud](https://github.com/jpmorganchase/quorum-cloud) provides an example of how a Quorum network can be run on a cloud platform.  It uses Terraform to create a 7node Quorum network deployed on AWS using AWS ECS Fargate, S3 and an EC2.
+[Quorum Cloud](https://github.com/jpmorganchase/quorum-cloud) provides an example of how a Quorum network can be run on a cloud platform.  It uses Terraform to create a 7 node Quorum network deployed on AWS using AWS ECS Fargate, S3 and an EC2.
