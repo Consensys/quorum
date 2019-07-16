@@ -102,10 +102,6 @@ type Ethereum struct {
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
 }
 
-// HACK(joel) this was added just to make the eth chain config visible to RegisterRaftService
-func (s *Ethereum) ChainConfig() *params.ChainConfig {
-	return s.chainConfig
-}
 
 func (s *Ethereum) AddLesServer(ls LesServer) {
 	s.lesServer = ls
@@ -238,7 +234,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		return nil, err
 	}
 	eth.miner = miner.New(eth, &config.Miner, chainConfig, eth.EventMux(), eth.engine, eth.isLocalBlock)
-	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData, eth.ChainConfig().IsQuorum))
+	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData, eth.blockchain.Config().IsQuorum))
 
 	eth.APIBackend = &EthAPIBackend{ctx.ExtRPCEnabled(), eth, nil}
 	gpoParams := config.GPO

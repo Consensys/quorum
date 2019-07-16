@@ -17,6 +17,7 @@
 package external
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -180,7 +181,11 @@ func (api *ExternalSigner) SignText(account accounts.Account, text []byte) ([]by
 	return res, nil
 }
 
-func (api *ExternalSigner) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
+func (api *ExternalSigner) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int, isQuorum bool) (*types.Transaction, error) {
+	if isQuorum {
+		return nil, errors.New("Signing Quorum transactions from external signer not yet supported")
+	}
+
 	res := ethapi.SignTransactionResult{}
 	data := hexutil.Bytes(tx.Data())
 	var to *common.MixedcaseAddress

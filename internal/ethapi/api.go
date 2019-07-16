@@ -433,7 +433,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		log.Warn("Failed transaction send attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 		return common.Hash{}, err
 	}
-	return submitTransaction(ctx, s.b, signed, isPrivate)
+	return SubmitTransaction(ctx, s.b, signed, isPrivate)
 }
 
 // SignTransaction will create a transaction from the given arguments and
@@ -801,7 +801,7 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNr rpc.BlockNumb
 		gas = globalGasCap.Uint64()
 	}
 	gasPrice := args.GasPrice.ToInt()
-	if gasPrice.Sign() == 0 && !s.b.ChainConfig().IsQuorum {
+	if gasPrice.Sign() == 0 && !b.ChainConfig().IsQuorum {
 		gasPrice = new(big.Int).SetUint64(defaultGasPrice)
 	}
 
@@ -922,8 +922,8 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNr rpc.Bl
 	//if the transaction has a value then it cannot be private, so we can skip this check
 	if args.Value.ToInt().Cmp(big.NewInt(0)) == 0 {
 
-		isHomestead := s.b.ChainConfig().IsHomestead(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
-		intrinsicGasPublic, _ := core.IntrinsicGas(args.Data, args.To == nil, isHomestead)
+		isHomestead := b.ChainConfig().IsHomestead(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
+		intrinsicGasPublic, _ := core.IntrinsicGas([]byte(*args.Data), args.To == nil, isHomestead)
 		intrinsicGasPrivate, _ := core.IntrinsicGas(common.Hex2Bytes(maxPrivateIntrinsicDataHex), args.To == nil, isHomestead)
 
 		if intrinsicGasPrivate > intrinsicGasPublic {

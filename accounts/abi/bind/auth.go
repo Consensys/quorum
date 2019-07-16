@@ -90,7 +90,7 @@ func NewClefTransactor(clef *external.ExternalSigner, account accounts.Account) 
 			if address != account.Address {
 				return nil, errors.New("not authorized to sign this account")
 			}
-			return clef.SignTx(account, transaction, nil) // Clef enforces its own chain id
+			return clef.SignTx(account, transaction, nil, false) // Clef enforces its own chain id
 		},
 	}
 }

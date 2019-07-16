@@ -532,8 +532,8 @@ func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *state.StateDB,
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.
-func (bc *BlockChain) StateCache() state.Database {
-	return bc.stateCache
+func (bc *BlockChain) StateCache() (state.Database, state.Database) {
+	return bc.stateCache, bc.privateStateCache
 }
 
 // Reset purges the entire blockchain, restoring it to its genesis state.

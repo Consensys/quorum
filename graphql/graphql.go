@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/filters"
@@ -46,9 +45,9 @@ type Account struct {
 }
 
 // getState fetches the StateDB object for an account.
-func (a *Account) getState(ctx context.Context) (*state.StateDB, error) {
-	state, _, err := a.backend.StateAndHeaderByNumber(ctx, a.blockNumber)
-	return state, err
+func (a *Account) getState(ctx context.Context) (vm.MinimalApiState, error) {
+	stat, _, err := a.backend.StateAndHeaderByNumber(ctx, a.blockNumber)
+	return stat, err
 }
 
 func (a *Account) Address(ctx context.Context) (common.Address, error) {
@@ -1032,7 +1031,7 @@ func (r *Resolver) SendRawTransaction(ctx context.Context, args struct{ Data hex
 	if err := rlp.DecodeBytes(args.Data, tx); err != nil {
 		return common.Hash{}, err
 	}
-	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx)
+	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx, tx.IsPrivate())
 	return hash, err
 }
 
