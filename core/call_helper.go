@@ -2,6 +2,7 @@ package core
 
 import (
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -77,7 +78,7 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 
 // MakeCallHelper returns a new callHelper
 func MakeCallHelper() *callHelper {
-	memdb := ethdb.NewMemDatabase()
+	memdb := rawdb.NewMemoryDatabase()
 	db := state.NewDatabase(memdb)
 
 	publicState, err := state.New(common.Hash{}, db)

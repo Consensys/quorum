@@ -1130,7 +1130,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	if newHead == nil {
 		newHead = pool.chain.CurrentBlock().Header() // Special case during testing
 	}
-	statedb, err := pool.chain.StateAt(newHead.Root)
+	statedb, _, err := pool.chain.StateAt(newHead.Root)
 	if err != nil {
 		log.Error("Failed to reset txpool state", "err", err)
 		return
@@ -1170,9 +1170,10 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 			pool.all.Remove(hash)
 			log.Trace("Removed old queued transaction", "hash", hash)
 		}
+		var drops types.Transactions
 		if !isQuorum {
 			// Drop all transactions that are too costly (low balance or out of gas)
-			drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+			drops, _ = list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
 			for _, tx := range drops {
 				hash := tx.Hash()
 				pool.all.Remove(hash)

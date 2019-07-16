@@ -480,8 +480,8 @@ func (bc *BlockChain) FastSyncCommitHead(hash common.Hash) error {
 
 // GasLimit returns the gas limit of the current HEAD block.
 func (bc *BlockChain) GasLimit() uint64 {
-	bc.mu.RLock()
-	defer bc.mu.RUnlock()
+	bc.chainmu.RLock()
+	defer bc.chainmu.RUnlock()
 
 	if bc.Config().IsQuorum {
 		return math.MaxBig256.Uint64() // HACK(joel) a very large number
@@ -1656,12 +1656,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 		// alias state.New because we introduce a variable named state on the next line
 		stateNew := state.New
 
-		state, err := state.New(parent.Root, bc.stateCache)
+		statedb, err := state.New(parent.Root, bc.stateCache)
 		if err != nil {
 			return it.index, events, coalescedLogs, err
 		}
 		// Quorum
-		privateStateRoot := GetPrivateStateRoot(bc.db, parent.Root())
+		privateStateRoot := GetPrivateStateRoot(bc.db, parent.Root)
 		privateState, err := stateNew(privateStateRoot, bc.privateStateCache)
 		if err != nil {
 			return it.index, events, coalescedLogs, err
@@ -1676,7 +1676,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 			if followup, err := it.peek(); followup != nil && err == nil {
 				go func(start time.Time) {
 					throwaway, _ := state.New(parent.Root, bc.stateCache)
-					bc.prefetcher.Prefetch(followup, throwaway, bc.vmConfig, &followupInterrupt)
+					privatest, _ := stateNew(privateStateRoot, bc.privateStateCache)
+					bc.prefetcher.Prefetch(followup, throwaway, privatest, bc.vmConfig, &followupInterrupt)
 
 					blockPrefetchExecuteTimer.Update(time.Since(start))
 					if atomic.LoadUint32(&followupInterrupt) == 1 {
@@ -1687,27 +1688,27 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 		}
 		// Process block using the parent state as reference point
 		substart := time.Now()
-		receipts, privateReceipts, logs, usedGas, err := bc.processor.Process(block, state, privateState, bc.vmConfig)
+		receipts, privateReceipts, logs, usedGas, err := bc.processor.Process(block, statedb, privateState, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
 			atomic.StoreUint32(&followupInterrupt, 1)
 			return it.index, events, coalescedLogs, err
 		}
 		// Update the metrics touched during block processing
-		accountReadTimer.Update(state.AccountReads)     // Account reads are complete, we can mark them
-		storageReadTimer.Update(state.StorageReads)     // Storage reads are complete, we can mark them
-		accountUpdateTimer.Update(state.AccountUpdates) // Account updates are complete, we can mark them
-		storageUpdateTimer.Update(state.StorageUpdates) // Storage updates are complete, we can mark them
+		accountReadTimer.Update(statedb.AccountReads)     // Account reads are complete, we can mark them
+		storageReadTimer.Update(statedb.StorageReads)     // Storage reads are complete, we can mark them
+		accountUpdateTimer.Update(statedb.AccountUpdates) // Account updates are complete, we can mark them
+		storageUpdateTimer.Update(statedb.StorageUpdates) // Storage updates are complete, we can mark them
 
-		triehash := state.AccountHashes + state.StorageHashes // Save to not double count in validation
-		trieproc := state.AccountReads + state.AccountUpdates
-		trieproc += state.StorageReads + state.StorageUpdates
+		triehash := statedb.AccountHashes + statedb.StorageHashes // Save to not double count in validation
+		trieproc := statedb.AccountReads + statedb.AccountUpdates
+		trieproc += statedb.StorageReads + statedb.StorageUpdates
 
 		blockExecutionTimer.Update(time.Since(substart) - trieproc - triehash)
 
 		// Validate the state using the default validator
 		substart = time.Now()
-		if err := bc.validator.ValidateState(block, state, receipts, usedGas); err != nil {
+		if err := bc.validator.ValidateState(block, bc.GetBlockByHash(parent.Hash()), statedb, receipts, usedGas); err != nil {
 			bc.reportBlock(block, receipts, err)
 			atomic.StoreUint32(&followupInterrupt, 1)
 			return it.index, events, coalescedLogs, err
@@ -1724,18 +1725,17 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 
 		allReceipts := mergeReceipts(receipts, privateReceipts)
 
-		t2 := time.Now()
 		proctime := time.Since(start)
 
 		// Update the metrics touched during block validation
-		accountHashTimer.Update(state.AccountHashes) // Account hashes are complete, we can mark them
-		storageHashTimer.Update(state.StorageHashes) // Storage hashes are complete, we can mark them
+		accountHashTimer.Update(statedb.AccountHashes) // Account hashes are complete, we can mark them
+		storageHashTimer.Update(statedb.StorageHashes) // Storage hashes are complete, we can mark them
 
-		blockValidationTimer.Update(time.Since(substart) - (state.AccountHashes + state.StorageHashes - triehash))
+		blockValidationTimer.Update(time.Since(substart) - (statedb.AccountHashes + statedb.StorageHashes - triehash))
 
 		// Write the block to the chain and get the status.
 		substart = time.Now()
-		status, err := bc.writeBlockWithState(block, allReceipts, state, privateState)
+		status, err := bc.writeBlockWithState(block, allReceipts, statedb, privateState)
 		if err != nil {
 			atomic.StoreUint32(&followupInterrupt, 1)
 			return it.index, events, coalescedLogs, err
@@ -1745,10 +1745,10 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 			return it.index, events, coalescedLogs, err
 		}
 		// Update the metrics touched during block commit
-		accountCommitTimer.Update(state.AccountCommits) // Account commits are complete, we can mark them
-		storageCommitTimer.Update(state.StorageCommits) // Storage commits are complete, we can mark them
+		accountCommitTimer.Update(statedb.AccountCommits) // Account commits are complete, we can mark them
+		storageCommitTimer.Update(statedb.StorageCommits) // Storage commits are complete, we can mark them
 
-		blockWriteTimer.Update(time.Since(substart) - state.AccountCommits - state.StorageCommits)
+		blockWriteTimer.Update(time.Since(substart) - statedb.AccountCommits - statedb.StorageCommits)
 		blockInsertTimer.UpdateSince(start)
 
 		switch status {
