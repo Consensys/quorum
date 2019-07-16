@@ -148,7 +148,7 @@ func (s *stateObject) touch() {
 		// flattened journals.
 		s.db.journal.dirty(s.address)
 	}
-	c.touched = true
+	s.touched = true
 }
 
 func (s *stateObject) getTrie(db Database) Trie {
