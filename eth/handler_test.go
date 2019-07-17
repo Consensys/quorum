@@ -70,6 +70,45 @@ func TestProtocolCompatibility(t *testing.T) {
 	}
 }
 
+// Tests that correct consensus mechanism details are returned in NodeInfo.
+func TestNodeInfo(t *testing.T) {
+
+	// Define the tests to be run
+	tests := []struct {
+		consensus      string
+		cliqueConfig   *params.CliqueConfig
+		istanbulConfig *params.IstanbulConfig
+		raftMode       bool
+	}{
+		{"ethash", nil, nil, false},
+		{"raft", nil, nil, true},
+		{"istanbul", nil, &params.IstanbulConfig{1, 1}, false},
+		{"clique", &params.CliqueConfig{1, 1}, nil, false},
+	}
+
+	// Make sure anything we screw up is restored
+	backup := consensus.EthProtocol.Versions
+	defer func() { consensus.EthProtocol.Versions = backup }()
+
+	// Try all available consensus mechanisms and check for errors
+	for i, tt := range tests {
+
+		pm, _, err := newTestProtocolManagerConsensus(tt.consensus, tt.cliqueConfig, tt.istanbulConfig, tt.raftMode)
+
+		if pm != nil {
+			defer pm.Stop()
+		}
+		if err == nil {
+			pmConsensus := pm.getConsensusAlgorithm()
+			if tt.consensus != pmConsensus {
+				t.Errorf("test %d: consensus type error, wanted %v but got %v", i, tt.consensus, pmConsensus)
+			}
+		} else {
+			t.Errorf("test %d: consensus type error %v", i, err)
+		}
+	}
+}
+
 // Tests that block headers can be retrieved from a remote chain based on user queries.
 func TestGetBlockHeaders62(t *testing.T) { testGetBlockHeaders(t, 62) }
 func TestGetBlockHeaders63(t *testing.T) { testGetBlockHeaders(t, 63) }
