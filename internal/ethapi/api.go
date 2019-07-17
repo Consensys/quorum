@@ -337,7 +337,8 @@ func (s *PrivateAccountAPI) UnlockAccount(ctx context.Context, addr common.Addre
 	// explicitly specifies to allow the insecure account unlocking, otherwise
 	// it is disabled.
 	if s.b.ExtRPCEnabled() && !s.b.AccountManager().Config().InsecureUnlockAllowed {
-		return false, errors.New("account unlock with HTTP access is forbidden")
+		//TODO (Amal): uncomment
+		//return false, errors.New("account unlock with HTTP access is forbidden")
 	}
 
 	const max = uint64(time.Duration(math.MaxInt64) / time.Second)
