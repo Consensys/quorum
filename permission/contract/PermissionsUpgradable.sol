@@ -2,69 +2,85 @@ pragma solidity ^0.5.3;
 
 import "./PermissionsInterface.sol";
 
+/// @title Permissions Upgradable Contract
+/// @notice This contract holds the address of current permissions implementation
+/// @notice contract. The contract is owned by a guardian account. Only the
+/// @notice guardian account can change the implementation contract address as
+/// @notice business needs.
 contract PermissionsUpgradable {
 
     address private guardian;
     address private permImpl;
     address private permInterface;
 
-    // sets the guardian account as part of constructor
-    // only this account will be able to change the implementation contract address
-    constructor (address _guardian) public
-    {
+    /// @notice constructor
+    /// @param _guardian account address
+    constructor (address _guardian) public{
         guardian = _guardian;
     }
 
-    modifier onlyCustodian {
+    /// @notice modifier to verify that caller is guardian account
+    modifier onlyGuardian {
         require(msg.sender == guardian);
         _;
     }
 
-    // executed by guardian, links interface and implementation contract addresses
+    /// @notice executed by guardian. Links interface and implementation contract
+    /// @notice addresses. Can be executed by guardian account only
+    /// @param _permInterface permissions interface contract address
+    /// @param _permImpl implementation contract address
     function init(address _permInterface, address _permImpl) external
-    onlyCustodian
-    {
+    onlyGuardian {
         permImpl = _permImpl;
         permInterface = _permInterface;
-        setImpl(permImpl);
+        _setImpl(permImpl);
     }
 
-
-    // guardian can potentially become a contract
-    // implementation change and guardian change are sending from guardian
+    /// @notice changes the implementation contract address to the new address
+    /// @notice address passed. Can be executed by guardian account only
+    /// @param _proposedImpl address of the new permissions implementation contract
     function confirmImplChange(address _proposedImpl) public
-    onlyCustodian
-    {
-        // read the details from current implementation
+    onlyGuardian {
+        // The policy details needs to be carried forward from existing
+        // implementation to new. So first these are read from existing
+        // implementation and then updated in new implementation
         (string memory adminOrg, string memory adminRole, string memory orgAdminRole, bool bootStatus) = PermissionsImplementation(permImpl).getPolicyDetails();
-        setPolicy(_proposedImpl, adminOrg, adminRole, orgAdminRole, bootStatus);
-        // set these values in new implementation
+        _setPolicy(_proposedImpl, adminOrg, adminRole, orgAdminRole, bootStatus);
         permImpl = _proposedImpl;
-        setImpl(permImpl);
+        _setImpl(permImpl);
     }
-
-    function getGuardian() public view returns (address)
-    {
+    /// @notice function to fetch the guardian account address
+    /// @return _guardian guardian account address
+    function getGuardian() public view returns (address) {
         return guardian;
     }
 
-    function getPermImpl() public view returns (address)
-    {
+    /// @notice function to fetch the current implementation address
+    /// @return permissions implementation contract address
+    function getPermImpl() public view returns (address) {
         return permImpl;
     }
-
-    function getPermInterface() public view returns (address)
-    {
+    /// @notice function to fetch the interface address
+    /// @return defpermissions interface contract address
+    function getPermInterface() public view returns (address) {
         return permInterface;
     }
 
-    function setPolicy(address _permImpl, string memory _adminOrg, string memory _adminRole, string memory _orgAdminRole, bool _bootStatus) private
-    {
+    /// @notice function to set the permissions policy details in the
+    /// @notice permissions implementation contract
+    /// @param _permImpl permissions implementation contract address
+    /// @param _adminOrg name of admin organization
+    /// @param _adminRole name of the admin role
+    /// @param _orgAdminRole name of default organization admin role
+    /// @param _bootStatus network boot status
+    function _setPolicy(address _permImpl, string memory _adminOrg, string memory _adminRole, string memory _orgAdminRole, bool _bootStatus) private {
         PermissionsImplementation(_permImpl).setMigrationPolicy(_adminOrg, _adminRole, _orgAdminRole, _bootStatus);
     }
 
-    function setImpl(address _permImpl) private
-    {
+    /// @notice function to set the permissions implementation contract address
+    /// @notice in the permissions interface contract
+    /// @param _permImpl permissions implementation contract address
+    function _setImpl(address _permImpl) private {
         PermissionsInterface(permInterface).setPermImplementation(_permImpl);
     }
 
