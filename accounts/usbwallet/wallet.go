@@ -509,12 +509,12 @@ func (w *wallet) SignHash(account accounts.Account, hash []byte) ([]byte, error)
 // Note, if the version of the Ethereum application running on the Ledger wallet is
 // too old to sign EIP-155 transactions, but such is requested nonetheless, an error
 // will be returned opposed to silently signing in Homestead mode.
-func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int, isQuorum bool) (*types.Transaction, error) {
+func (w *wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	w.stateLock.RLock() // Comms have own mutex, this is for the state fields
 	defer w.stateLock.RUnlock()
 
-	if isQuorum {
-		return nil, errors.New("Signing Quorum transactions with a USB wallet not yet supported")
+	if tx.IsPrivate() {
+		return nil, errors.New("Signing Quorum Private transactions with a USB wallet not yet supported")
 	}
 
 	// If the wallet is closed, abort
@@ -563,5 +563,5 @@ func (w *wallet) SignHashWithPassphrase(account accounts.Account, passphrase str
 // transaction with the given account using passphrase as extra authentication.
 // Since USB wallets don't rely on passphrases, these are silently ignored.
 func (w *wallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
-	return w.SignTx(account, tx, chainID, false)
+	return w.SignTx(account, tx, chainID)
 }
