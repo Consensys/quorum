@@ -12,11 +12,13 @@ repo_url: https://github.com/jpmorganchase/quorum
 
 nav:
     - Getting Started:
-        - Setup Overview & Quickstart: Getting Started/Setup Overview & Quickstart.md
-        - Getting Started From Scratch: Getting Started/Getting-Started-From-Scratch.md
+        - Overview: Getting Started/Getting Started Overview.md
+        - Installing: Getting Started/Installing.md
         - Quorum Examples:
-          - Overview: Getting Started/Quorum-Examples.md
-          - 7 Nodes Example: Getting Started/7Nodes.md
+            - Overview: Getting Started/Quorum-Examples.md
+            - 7nodes Set Up: Getting Started/7Nodes-Setup.md
+            - 7nodes Example: Getting Started/7Nodes.md
+        - Creating a Network From Scratch: Getting Started/Creating-A-Network-From-Scratch.md
         - Running Quorum: Getting Started/running.md
         - Quorum API: Getting Started/api.md
     - Consensus:
@@ -28,7 +30,7 @@ nav:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
             - Consortium: Security/Framework/Quorum Network Security/Consortium.md
-            - Quorum Node: 
+            - Quorum Node:
                 - Overview: Security/Framework/Quorum Network Security/Node.md
                 - Permissioning:
                     - Network Permissioning: Security/Framework/Quorum Network Security/Nodes/Permissioning/Network Permissioning.md
@@ -64,7 +66,7 @@ nav:
             - How it works: Privacy/Constellation/How constellation works.md
             - Sample Configuration: Privacy/Constellation/Sample Configuration.md
             - Running Constellation: Privacy/Constellation/Installation & Running.md
-    - Product Roadmap: roadmap.md         
+    - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
 theme:
