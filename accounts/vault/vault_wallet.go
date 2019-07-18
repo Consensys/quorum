@@ -1,12 +1,14 @@
 package vault
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/hashicorp/vault/api"
@@ -112,6 +114,7 @@ type hashicorpService struct {
 	config hashicorpClientConfig
 	secrets []hashicorpSecretData
 	accts []accounts.Account
+	keys []*ecdsa.PrivateKey
 }
 
 const (
@@ -235,6 +238,10 @@ func (h *hashicorpService) open() error {
 
 	go h.accountRetrievalLoop(time.NewTicker(d))
 
+	if h.config.StorePrivateKeys {
+		go h.privateKeyRetrievalLoop(time.NewTicker(d))
+	}
+
 	return nil
 }
 
@@ -302,6 +309,67 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 			}
 
 			h.accts = append(h.accts, acct)
+		}
+	}
+}
+
+func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
+	for range ticker.C {
+		if len(h.keys) == len(h.secrets) {
+			ticker.Stop()
+			return
+		}
+
+		for _, s := range h.secrets {
+			path := fmt.Sprintf("%s/data/%s", s.SecretEngine, s.PrivateKeySecret)
+
+			url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, s.PrivateKeySecretVersion)
+
+			versionData := make(map[string][]string)
+			versionData["version"] = []string{strconv.Itoa(s.PrivateKeySecretVersion)}
+
+			// get key from vault
+			resp, err := h.client.Logical().ReadWithData(path, versionData)
+
+			if err != nil {
+				log.Warn("unable to get secret from Hashicorp Vault", "url", url, "err", err)
+				continue
+			}
+
+			respData, ok := resp.Data["data"].(map[string]interface{})
+
+			if !ok {
+				log.Warn("Hashicorp Vault response does not contain data", "url", url)
+				continue
+			}
+
+			if len(respData) != 1 {
+				log.Warn("only one key/value pair is allowed in each Hashicorp Vault secret", "url", url)
+				continue
+			}
+
+			// get secret regardless of key in map
+			var k interface{}
+			for _, d := range respData {
+				k = d
+			}
+
+			hex, ok := k.(string)
+
+			if !ok {
+				log.Warn("Hashicorp Vault response data is not in string format", "url", url)
+				continue
+			}
+
+			// create *ecdsa.PrivateKey
+			key, err := crypto.HexToECDSA(hex)
+
+			if err != nil {
+				log.Warn("unable to parse data from Hashicorp Vault to *ecdsa.PrivateKey", "url", url, "err", err)
+				continue
+			}
+
+			h.keys = append(h.keys, key)
 		}
 	}
 }

@@ -1,12 +1,14 @@
 package vault
 
 import (
+	"crypto/ecdsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -545,7 +547,7 @@ func acctsEqual(a, b []accounts.Account) bool {
 }
 
 // TODO This is a long running test (~8secs) so perhaps should be excluded from test suite by default?
-func TestVaultWallet_Open_Hashicorp_AccountsAreRetrievedInTheBackground(t *testing.T) {
+func TestVaultWallet_Open_Hashicorp_AccountsRetrieved(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 		t.Fatal(err)
 	}
@@ -745,6 +747,272 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrievedWhenVaultAvailable(t *testi
 	}
 }
 
+type keysByD []*ecdsa.PrivateKey
+
+func (k keysByD) Len() int {
+	return len(k)
+}
+
+func (k keysByD) Less(i, j int) bool {
+	return (k[i].D).Cmp(k[j].D) < 0
+}
+
+func (k keysByD) Swap(i, j int) {
+	k[i], k[j] = k[j], k[i]
+}
+
+func keysEqual(a, b []*ecdsa.PrivateKey) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	sort.Sort(keysByD(a))
+	sort.Sort(keysByD(b))
+
+	equal := func(a, b *ecdsa.PrivateKey) bool {
+		return a.D.Cmp(b.D) == 0
+	}
+
+	for i := 0; i < len(a); i++ {
+		if !equal(a[i], b[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// TODO This is a long running test (~8secs) so perhaps should be excluded from test suite by default?
+func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T) {
+	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
+		t.Fatal(err)
+	}
+
+	makeVaultResponse := func(keyValPairs map[string]string) []byte {
+		resp := api.Secret{
+			Data: map[string]interface{}{
+				"data": keyValPairs,
+			},
+		}
+
+		b, err := json.Marshal(resp)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return b
+	}
+
+	makeSecret := func(name string) hashicorpSecretData {
+		return hashicorpSecretData{PrivateKeySecret: name, PrivateKeySecretVersion: 1, SecretEngine: "kv"}
+	}
+
+	makeKey := func(hex string) *ecdsa.PrivateKey {
+		key, err := crypto.HexToECDSA(hex)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return key
+	}
+
+	const (
+		secretEngine = "kv"
+		secret1 = "sec1"
+		secret2 = "sec2"
+		multiValSecret = "multiValSec"
+	)
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, secret1), func(w http.ResponseWriter, r *http.Request) {
+		body := makeVaultResponse(map[string]string{
+			"key": "e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1",
+		})
+
+		w.Write(body)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, secret2), func(w http.ResponseWriter, r *http.Request) {
+		body := makeVaultResponse(map[string]string{
+			"otherKey": "4762e04d10832808a0aebdaa79c12de54afbe006bfffd228b3abcc494fe986f9",
+		})
+
+		w.Write(body)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, multiValSecret), func(w http.ResponseWriter, r *http.Request) {
+		body := makeVaultResponse(map[string]string{
+			"key": "e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1",
+			"otherKey": "4762e04d10832808a0aebdaa79c12de54afbe006bfffd228b3abcc494fe986f9",
+		})
+
+		w.Write(body)
+	})
+
+	vaultServer := httptest.NewServer(mux)
+	defer vaultServer.Close()
+
+	tests := map[string]struct{
+		secrets []hashicorpSecretData
+		wantKeys []*ecdsa.PrivateKey
+	}{
+		"key retrieved": {
+			secrets:   []hashicorpSecretData{makeSecret(secret1)},
+			wantKeys: []*ecdsa.PrivateKey{
+				makeKey("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1"),
+			},
+		},
+		"key not retrieved when vault secret has multiple values": {
+			secrets:   []hashicorpSecretData{makeSecret(multiValSecret)},
+			wantKeys: []*ecdsa.PrivateKey{},
+		},
+		"unretrievable keys are ignored": {
+			secrets:   []hashicorpSecretData{makeSecret(multiValSecret), makeSecret(secret1)},
+			wantKeys: []*ecdsa.PrivateKey{
+				makeKey("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1"),
+			},
+		},
+		"keys retrieved regardless of vault secrets keyvalue key": {
+			secrets: []hashicorpSecretData{makeSecret(secret1), makeSecret(secret2)},
+			wantKeys: []*ecdsa.PrivateKey{
+				makeKey("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1"),				makeKey("4762e04d10832808a0aebdaa79c12de54afbe006bfffd228b3abcc494fe986f9"),
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			wltConfig := hashicorpWalletConfig{
+				Client: hashicorpClientConfig{
+					Url: vaultServer.URL,
+					VaultPollingIntervalSecs: 1,
+					StorePrivateKeys: true,
+				},
+				Secrets: tt.secrets,
+			}
+
+			w, err := newHashicorpWallet(wltConfig, &event.Feed{})
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if err := w.Open(""); err != nil {
+				t.Fatal(err)
+			}
+
+			// need to block to let accountRetrievalLoop do its thing
+			// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
+			time.Sleep(2 * time.Second)
+
+			gotKeys := w.vault.(*hashicorpService).keys
+
+			if !keysEqual(tt.wantKeys, gotKeys) {
+				t.Fatalf("keys in vaultService do not equal wanted keys\nwant: %v\ngot : %v", tt.wantKeys, gotKeys)
+			}
+		})
+	}
+}
+
+// TODO This is a long running test (~20secs) so perhaps should be excluded from test suite by default?
+func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvailable(t *testing.T) {
+	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
+		t.Fatal(err)
+	}
+
+	makeKey := func(hex string) *ecdsa.PrivateKey {
+		key, err := crypto.HexToECDSA(hex)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return key
+	}
+
+	makeVaultResponse := func(keyValPairs map[string]string) []byte {
+		resp := api.Secret{
+			Data: map[string]interface{}{
+				"data": keyValPairs,
+			},
+		}
+
+		b, err := json.Marshal(resp)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return b
+	}
+
+	body := makeVaultResponse(map[string]string{"key": "e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1"})
+	vaultServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(body)
+	}))
+	defer vaultServer.Close()
+
+	tests := map[string]struct{
+		storePrivateKeys bool
+		wantKeys []*ecdsa.PrivateKey
+	}{
+		"disabled": {storePrivateKeys: false, wantKeys: []*ecdsa.PrivateKey{}},
+		"enabled": {storePrivateKeys: true, wantKeys: []*ecdsa.PrivateKey{makeKey("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1")}},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			// use an incorrect vault url to simulate an inaccessible vault
+			wltConfig := hashicorpWalletConfig{
+				Client: hashicorpClientConfig{
+					Url: "http://incorrecturl:1",
+					VaultPollingIntervalSecs: 1,
+					StorePrivateKeys: tt.storePrivateKeys,
+				},
+				Secrets: []hashicorpSecretData{
+					{PrivateKeySecret: "sec1", PrivateKeySecretVersion: 1, SecretEngine: "kv"},
+				},
+			}
+
+			w, err := newHashicorpWallet(wltConfig, &event.Feed{})
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if err := w.Open(""); err != nil {
+				t.Fatal(err)
+			}
+
+			// need to block to let accountRetrievalLoop do its thing
+			// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
+			time.Sleep(5 * time.Second)
+
+			v := w.vault.(*hashicorpService)
+
+			if len(v.keys) != 0 {
+				t.Fatalf("vaultService should have no keys as vault server is inaccessible: got: %v", v.keys)
+			}
+
+			// update vault client to use correct url to simulate vault becoming accessible
+			if err := v.client.SetAddress(vaultServer.URL); err != nil {
+				t.Fatal(err)
+			}
+
+			// need to block to let accountRetrievalLoop do its thing
+			// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
+			time.Sleep(5 * time.Second)
+
+			if !keysEqual(tt.wantKeys, v.keys) {
+				t.Fatalf("keys in vaultService do not equal wanted keys\nwant: %v\ngot : %v", tt.wantKeys, v.keys)
+			}
+		})
+	}
+}
+
 func TestVaultWallet_Close_Hashicorp_ReturnsStateToBeforeOpen(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 		t.Fatal(err)
@@ -855,4 +1123,3 @@ func TestVaultWallet_Contains(t *testing.T) {
 		})
 	}
 }
-
