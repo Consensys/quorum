@@ -1013,6 +1013,93 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 	}
 }
 
+func TestVaultWallet_Open_Hashicorp_RetrievalLoopsStopWhenAllSecretsRetrieved(t *testing.T) {
+	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
+		t.Fatal(err)
+	}
+
+	makeVaultResponse := func(keyValPairs map[string]string) []byte {
+		resp := api.Secret{
+			Data: map[string]interface{}{
+				"data": keyValPairs,
+			},
+		}
+
+		b, err := json.Marshal(resp)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return b
+	}
+
+	makeSecret := func(addrName, keyName string) hashicorpSecretData {
+		return hashicorpSecretData{AddressSecret: addrName, AddressSecretVersion: 1, PrivateKeySecret: keyName, PrivateKeySecretVersion: 1, SecretEngine: "kv"}
+	}
+
+	const (
+		secretEngine = "kv"
+		addrName = "addr1"
+		keyName = "key1"
+	)
+
+	var getAddrCount, getKeyCount int
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, addrName), func(w http.ResponseWriter, r *http.Request) {
+		getAddrCount++
+
+		body := makeVaultResponse(map[string]string{
+			"addr": "ed9d02e382b34818e88b88a309c7fe71e65f419d",
+		})
+
+		w.Write(body)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, keyName), func(w http.ResponseWriter, r *http.Request) {
+		getKeyCount++
+
+		body := makeVaultResponse(map[string]string{
+			"key": "e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1",
+		})
+
+		w.Write(body)
+	})
+
+	vaultServer := httptest.NewServer(mux)
+	defer vaultServer.Close()
+
+	wltConfig := hashicorpWalletConfig{
+		Client: hashicorpClientConfig{
+			Url: vaultServer.URL,
+			VaultPollingIntervalSecs: 1,
+			StorePrivateKeys: true,
+		},
+		Secrets: []hashicorpSecretData{makeSecret(addrName, keyName)},
+	}
+
+	w, err := newHashicorpWallet(wltConfig, &event.Feed{})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := w.Open(""); err != nil {
+		t.Fatal(err)
+	}
+
+	// need to block to let accountRetrievalLoop do its thing
+	// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
+	// the sleep length is long enough that multiple calls to the vault would occur if the loop did not stop once all secrets were retrieved
+	time.Sleep(5 * time.Second)
+
+	if getAddrCount != 1 || getKeyCount != 1 {
+		t.Fatalf("retrieval loops should have made just one call to vault, got secret and then stopped: \naccountRetrievalLoop vault call count: %v\nprivateKeyRetrievalLoop vault call count: %v", getAddrCount, getKeyCount)
+	}
+}
+
 func TestVaultWallet_Close_Hashicorp_ReturnsStateToBeforeOpen(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 		t.Fatal(err)
