@@ -1,12 +1,14 @@
 package vault
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
@@ -19,6 +21,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 )
@@ -568,8 +571,8 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrieved(t *testing.T) {
 		return b
 	}
 
-	makeSecret := func(name string) hashicorpSecretData {
-		return hashicorpSecretData{AddressSecret: name, AddressSecretVersion: 1, SecretEngine: "kv"}
+	makeSecret := func(name string) hashicorpSecretConfig {
+		return hashicorpSecretConfig{AddressSecret: name, AddressSecretVersion: 1, SecretEngine: "kv"}
 	}
 
 	const (
@@ -610,27 +613,27 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrieved(t *testing.T) {
 	defer vaultServer.Close()
 
 	tests := map[string]struct{
-		secrets []hashicorpSecretData
+		secrets []hashicorpSecretConfig
 		wantAccts []accounts.Account
 	}{
 		"account retrieved": {
-			secrets:   []hashicorpSecretData{makeSecret(secret1)},
+			secrets:   []hashicorpSecretConfig{makeSecret(secret1)},
 			wantAccts: []accounts.Account{
 				{Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")},
 			},
 		},
 		"account not retrieved when vault secret has multiple values": {
-			secrets:   []hashicorpSecretData{makeSecret(multiValSecret)},
+			secrets:   []hashicorpSecretConfig{makeSecret(multiValSecret)},
 			wantAccts: []accounts.Account{},
 		},
 		"unretrievable accounts are ignored": {
-			secrets:   []hashicorpSecretData{makeSecret(multiValSecret), makeSecret(secret1)},
+			secrets:   []hashicorpSecretConfig{makeSecret(multiValSecret), makeSecret(secret1)},
 			wantAccts: []accounts.Account{
 				{Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")},
 			},
 		},
 		"accounts retrieved regardless of vault secrets keyvalue key": {
-			secrets: []hashicorpSecretData{makeSecret(secret1), makeSecret(secret2)},
+			secrets: []hashicorpSecretConfig{makeSecret(secret1), makeSecret(secret2)},
 			wantAccts: []accounts.Account{
 				{Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")},
 				{Address: common.HexToAddress("ca843569e3427144cead5e4d5999a3d0ccf92b8e")},
@@ -704,7 +707,7 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrievedWhenVaultAvailable(t *testi
 			Url: "http://incorrecturl:1",
 			VaultPollingIntervalSecs: 1,
 		},
-		Secrets: []hashicorpSecretData{
+		Secrets: []hashicorpSecretConfig{
 			{AddressSecret: "sec1", AddressSecretVersion: 1, SecretEngine: "kv"},
 		},
 	}
@@ -782,6 +785,8 @@ func keysEqual(a, b []*ecdsa.PrivateKey) bool {
 	return true
 }
 
+// TODO use milliseconds instead of seconds as duration unit for retrieval loops to make these tests quicker to run by setting the retrieval period to 1ms
+
 // TODO This is a long running test (~8secs) so perhaps should be excluded from test suite by default?
 func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
@@ -804,8 +809,8 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T
 		return b
 	}
 
-	makeSecret := func(name string) hashicorpSecretData {
-		return hashicorpSecretData{PrivateKeySecret: name, PrivateKeySecretVersion: 1, SecretEngine: "kv"}
+	makeSecret := func(addrName, keyName string) hashicorpSecretConfig {
+		return hashicorpSecretConfig{AddressSecret: addrName, AddressSecretVersion: 1, PrivateKeySecret: keyName, PrivateKeySecretVersion: 1, SecretEngine: "kv"}
 	}
 
 	makeKey := func(hex string) *ecdsa.PrivateKey {
@@ -820,14 +825,24 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T
 
 	const (
 		secretEngine = "kv"
-		secret1 = "sec1"
-		secret2 = "sec2"
+		key1 = "key1"
+		key2 = "key2"
+		addr1 = "addr1"
+		addr2 = "addr2"
 		multiValSecret = "multiValSec"
 	)
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, secret1), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, addr1), func(w http.ResponseWriter, r *http.Request) {
+		body := makeVaultResponse(map[string]string{
+			"addr": "ed9d02e382b34818e88b88a309c7fe71e65f419d",
+		})
+
+		w.Write(body)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, key1), func(w http.ResponseWriter, r *http.Request) {
 		body := makeVaultResponse(map[string]string{
 			"key": "e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1",
 		})
@@ -835,7 +850,15 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T
 		w.Write(body)
 	})
 
-	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, secret2), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, addr2), func(w http.ResponseWriter, r *http.Request) {
+		body := makeVaultResponse(map[string]string{
+			"addr": "ca843569e3427144cead5e4d5999a3d0ccf92b8e",
+		})
+
+		w.Write(body)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/v1/%s/data/%s", secretEngine, key2), func(w http.ResponseWriter, r *http.Request) {
 		body := makeVaultResponse(map[string]string{
 			"otherKey": "4762e04d10832808a0aebdaa79c12de54afbe006bfffd228b3abcc494fe986f9",
 		})
@@ -856,27 +879,27 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T
 	defer vaultServer.Close()
 
 	tests := map[string]struct{
-		secrets []hashicorpSecretData
+		secrets []hashicorpSecretConfig
 		wantKeys []*ecdsa.PrivateKey
 	}{
 		"key retrieved": {
-			secrets:   []hashicorpSecretData{makeSecret(secret1)},
+			secrets:   []hashicorpSecretConfig{makeSecret(addr1, key1)},
 			wantKeys: []*ecdsa.PrivateKey{
 				makeKey("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1"),
 			},
 		},
 		"key not retrieved when vault secret has multiple values": {
-			secrets:   []hashicorpSecretData{makeSecret(multiValSecret)},
+			secrets:   []hashicorpSecretConfig{makeSecret(addr1, multiValSecret)},
 			wantKeys: []*ecdsa.PrivateKey{},
 		},
 		"unretrievable keys are ignored": {
-			secrets:   []hashicorpSecretData{makeSecret(multiValSecret), makeSecret(secret1)},
+			secrets:   []hashicorpSecretConfig{makeSecret(addr1, multiValSecret), makeSecret(addr2, key2)},
 			wantKeys: []*ecdsa.PrivateKey{
-				makeKey("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1"),
+				makeKey("4762e04d10832808a0aebdaa79c12de54afbe006bfffd228b3abcc494fe986f9"),
 			},
 		},
 		"keys retrieved regardless of vault secrets keyvalue key": {
-			secrets: []hashicorpSecretData{makeSecret(secret1), makeSecret(secret2)},
+			secrets: []hashicorpSecretConfig{makeSecret(addr1, key1), makeSecret(addr2, key2)},
 			wantKeys: []*ecdsa.PrivateKey{
 				makeKey("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1"),				makeKey("4762e04d10832808a0aebdaa79c12de54afbe006bfffd228b3abcc494fe986f9"),
 			},
@@ -906,15 +929,31 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T
 
 			// need to block to let accountRetrievalLoop do its thing
 			// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
-			time.Sleep(2 * time.Second)
+			time.Sleep(4 * time.Second)
 
-			gotKeys := w.vault.(*hashicorpService).keys
+			keyGetters := w.vault.(*hashicorpService).keyGetters
+
+			gotKeys := getRetrievedKeys(keyGetters)
 
 			if !keysEqual(tt.wantKeys, gotKeys) {
 				t.Fatalf("keys in vaultService do not equal wanted keys\nwant: %v\ngot : %v", tt.wantKeys, gotKeys)
 			}
 		})
 	}
+}
+
+func getRetrievedKeys(keyGetters map[common.Address]map[accounts.URL]hashicorpKeyGetter) []*ecdsa.PrivateKey {
+	gotKeys := []*ecdsa.PrivateKey{}
+
+	for _, g := range keyGetters {
+		for _, gg := range g {
+			if gg.key != nil {
+				gotKeys = append(gotKeys, gg.key)
+			}
+		}
+	}
+
+	return gotKeys
 }
 
 // TODO This is a long running test (~20secs) so perhaps should be excluded from test suite by default?
@@ -972,7 +1011,7 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 					VaultPollingIntervalSecs: 1,
 					StorePrivateKeys: tt.storePrivateKeys,
 				},
-				Secrets: []hashicorpSecretData{
+				Secrets: []hashicorpSecretConfig{
 					{PrivateKeySecret: "sec1", PrivateKeySecretVersion: 1, SecretEngine: "kv"},
 				},
 			}
@@ -993,8 +1032,10 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 
 			v := w.vault.(*hashicorpService)
 
-			if len(v.keys) != 0 {
-				t.Fatalf("vaultService should have no keys as vault server is inaccessible: got: %v", v.keys)
+			gotKeys := getRetrievedKeys(v.keyGetters)
+
+			if len(gotKeys) != 0 {
+				t.Fatalf("vaultService should have no keys as vault server is inaccessible: got: %v", gotKeys)
 			}
 
 			// update vault client to use correct url to simulate vault becoming accessible
@@ -1006,8 +1047,10 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 			// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
 			time.Sleep(5 * time.Second)
 
-			if !keysEqual(tt.wantKeys, v.keys) {
-				t.Fatalf("keys in vaultService do not equal wanted keys\nwant: %v\ngot : %v", tt.wantKeys, v.keys)
+			gotKeys = getRetrievedKeys(v.keyGetters)
+
+			if !keysEqual(tt.wantKeys, gotKeys) {
+				t.Fatalf("keys in vaultService do not equal wanted keys\nwant: %v\ngot : %v", tt.wantKeys, gotKeys)
 			}
 		})
 	}
@@ -1034,8 +1077,8 @@ func TestVaultWallet_Open_Hashicorp_RetrievalLoopsStopWhenAllSecretsRetrieved(t 
 		return b
 	}
 
-	makeSecret := func(addrName, keyName string) hashicorpSecretData {
-		return hashicorpSecretData{AddressSecret: addrName, AddressSecretVersion: 1, PrivateKeySecret: keyName, PrivateKeySecretVersion: 1, SecretEngine: "kv"}
+	makeSecret := func(addrName, keyName string) hashicorpSecretConfig {
+		return hashicorpSecretConfig{AddressSecret: addrName, AddressSecretVersion: 1, PrivateKeySecret: keyName, PrivateKeySecretVersion: 1, SecretEngine: "kv"}
 	}
 
 	const (
@@ -1077,7 +1120,7 @@ func TestVaultWallet_Open_Hashicorp_RetrievalLoopsStopWhenAllSecretsRetrieved(t 
 			VaultPollingIntervalSecs: 1,
 			StorePrivateKeys: true,
 		},
-		Secrets: []hashicorpSecretData{makeSecret(addrName, keyName)},
+		Secrets: []hashicorpSecretConfig{makeSecret(addrName, keyName)},
 	}
 
 	w, err := newHashicorpWallet(wltConfig, &event.Feed{})
@@ -1107,7 +1150,7 @@ func TestVaultWallet_Close_Hashicorp_ReturnsStateToBeforeOpen(t *testing.T) {
 
 	config := hashicorpWalletConfig{
 		Client: hashicorpClientConfig{Url: "http://url:1"},
-		Secrets: []hashicorpSecretData{{AddressSecret: "addr1"}},
+		Secrets: []hashicorpSecretConfig{{AddressSecret: "addr1"}},
 	}
 
 	w, err := newHashicorpWallet(config, &event.Feed{})
@@ -1122,7 +1165,10 @@ func TestVaultWallet_Close_Hashicorp_ReturnsStateToBeforeOpen(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmpOpts := []cmp.Option{cmp.AllowUnexported(vaultWallet{}, hashicorpService{}), cmpopts.IgnoreUnexported(event.Feed{})}
+	cmpOpts := []cmp.Option{
+		cmp.AllowUnexported(vaultWallet{}, hashicorpService{}),
+		cmpopts.IgnoreUnexported(event.Feed{}, sync.RWMutex{}),
+	}
 
 	if diff := cmp.Diff(unopened, w, cmpOpts...); diff != "" {
 		t.Fatalf("cmp does not consider the two wallets equal\n%v", diff)
@@ -1208,5 +1254,247 @@ func TestVaultWallet_Contains(t *testing.T) {
 				t.Fatalf("want: %v, got: %v", tt.want, got)
 			}
 		})
+	}
+}
+
+func TestVaultWallet_SignHash_Hashicorp_ErrorIfAccountNotKnown(t *testing.T) {
+	w := vaultWallet{
+		vault: &hashicorpService{
+			accts: []accounts.Account{},
+		},
+	}
+
+	acct := accounts.Account{Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")}
+
+	toSign := crypto.Keccak256([]byte("to_sign"))
+
+	if _, err := w.SignHash(acct, toSign); err != accounts.ErrUnknownAccount {
+		t.Fatalf("incorrect error returned:\nwant: %v\ngot : %v", accounts.ErrUnknownAccount, err)
+	}
+}
+
+func TestVaultWallet_SignHash_Hashicorp_SignsWithInMemoryKeyIfAvailableAndDoesNotZeroKey(t *testing.T) {
+	addr := common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")
+	url := accounts.URL{Scheme: "http", Path: "url:1"}
+	acct := accounts.Account{
+		Address: addr,
+		URL: url,
+	}
+
+	key, err := crypto.HexToECDSA("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := vaultWallet{
+		vault: &hashicorpService{
+			accts: []accounts.Account{acct},
+			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+				addr: {
+					url: hashicorpKeyGetter{key: key},
+				},
+			},
+		},
+	}
+
+	toSign := crypto.Keccak256([]byte("to_sign"))
+
+	got, err := w.SignHash(acct, toSign)
+
+	if err != nil {
+		t.Fatalf("error signing hash: %v", err)
+	}
+
+	want, err := crypto.Sign(toSign, key)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(want, got) {
+		t.Fatalf("incorrect signHash result:\nwant: %v\ngot : %v", want, got)
+	}
+
+	vaultServiceKey := w.vault.(*hashicorpService).keyGetters[acct.Address][acct.URL].key
+
+	if vaultServiceKey == nil || vaultServiceKey.D.Int64() == 0 {
+		t.Fatal("unlocked key was zeroed after use")
+	}
+}
+
+func TestVaultWallet_SignHash_Hashicorp_ErrorIfAmbiguousAccount(t *testing.T) {
+	addr := common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")
+
+	url1 := accounts.URL{Scheme: "http", Path: "url:1"}
+	url2 := accounts.URL{Scheme: "http", Path: "url:2"}
+
+	acct1 := accounts.Account{Address: addr, URL: url1}
+	acct2 := accounts.Account{Address: addr, URL: url2}
+
+	// Two accounts have the same address but different URLs
+	w := vaultWallet{
+		vault: &hashicorpService{
+			accts: []accounts.Account{acct1, acct2},
+			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+				addr: {
+					url1: hashicorpKeyGetter{},
+					url2: hashicorpKeyGetter{},
+				},
+			},
+		},
+	}
+
+	toSign := crypto.Keccak256([]byte("to_sign"))
+
+	// The provided account does not specify the exact account to use as no URL is provided
+	acct := accounts.Account{
+		Address: addr,
+	}
+
+	_, err := w.SignHash(acct, toSign)
+	e := err.(*keystore.AmbiguousAddrError)
+
+	want := []accounts.Account{acct1, acct2}
+
+	if diff := cmp.Diff(want, e.Matches); diff != "" {
+		t.Fatalf("ambiguous accounts mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestVaultWallet_SignHash_Hashicorp_AmbiguousAccountAllowedIfOnlyOneAccountWithGivenAddress(t *testing.T) {
+	addr := common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")
+	url := accounts.URL{Scheme: "http", Path: "url:1"}
+	acct1 := accounts.Account{Address: addr, URL: url}
+
+	key, err := crypto.HexToECDSA("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := vaultWallet{
+		vault: &hashicorpService{
+			accts: []accounts.Account{acct1},
+			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+				addr: {
+					url: hashicorpKeyGetter{key: key},
+				},
+			},
+		},
+	}
+
+	toSign := crypto.Keccak256([]byte("to_sign"))
+
+	// The provided account does not specify the exact account to use as no URL is provided
+	acct := accounts.Account{
+		Address: addr,
+	}
+
+	got, err := w.SignHash(acct, toSign)
+
+	if err != nil {
+		t.Fatalf("error signing hash: %v", err)
+	}
+
+	want, err := crypto.Sign(toSign, key)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(want, got) {
+		t.Fatalf("incorrect signHash result:\nwant: %v\ngot : %v", want, got)
+	}
+
+	vaultServiceKeyGetters := w.vault.(*hashicorpService).keyGetters[acct.Address]
+
+	var vaultServiceKey *ecdsa.PrivateKey
+
+	for _, g := range vaultServiceKeyGetters {
+		vaultServiceKey = g.key
+
+		if vaultServiceKey == nil || vaultServiceKey.D.Int64() == 0 {
+			t.Fatal("unlocked key was zeroed after use")
+		}
+	}
+}
+
+func TestVaultWallet_SignHash_Hashicorp_SignsWithKeyFromVaultAndDoesNotStoreInMemory(t *testing.T) {
+	makeMockHashicorpResponse := func(t *testing.T, hexKey string) []byte {
+		var vaultResponse api.Secret
+
+		vaultResponse.Data = map[string]interface{}{
+			"data": map[string]interface{}{
+				"key": hexKey,
+			},
+		}
+
+		b, err := json.Marshal(vaultResponse)
+
+		if err != nil {
+			t.Fatalf("err marshalling mock response: %v", err)
+		}
+
+		return b
+	}
+
+	acct := accounts.Account{
+		Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d"),
+		URL: accounts.URL{Scheme: "http", Path: "url:1"},
+	}
+
+	hexKey := "e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1"
+	key, err := crypto.HexToECDSA(hexKey)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client, cleanup := makeMockHashicorpClient(t, makeMockHashicorpResponse(t, hexKey))
+	defer cleanup()
+
+	secret := hashicorpSecretConfig{
+		PrivateKeySecret: "mykey",
+		PrivateKeySecretVersion: 1,
+		SecretEngine: "kv",
+	}
+
+	w := vaultWallet{
+		vault: &hashicorpService{
+			client: client,
+			accts: []accounts.Account{acct},
+			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+				acct.Address: {
+					acct.URL: {
+						secret: secret,
+					},
+				},
+			},
+		},
+	}
+
+	toSign := crypto.Keccak256([]byte("to_sign"))
+
+	got, err := w.SignHash(acct, toSign)
+
+	if err != nil {
+		t.Fatalf("error signing hash: %v", err)
+	}
+
+	want, err := crypto.Sign(toSign, key)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(want, got) {
+		t.Fatalf("incorrect signHash result:\nwant: %v\ngot : %v", want, got)
+	}
+
+	vaultServiceKey := w.vault.(*hashicorpService).keyGetters[acct.Address][acct.URL].key
+
+	if vaultServiceKey != nil {
+		t.Fatal("unlocked key should not be stored after use")
 	}
 }

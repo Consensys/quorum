@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -14,7 +15,9 @@ import (
 	"github.com/hashicorp/vault/api"
 	"math/big"
 	"os"
+	"sort"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -30,6 +33,7 @@ type vaultService interface {
 	open() error
 	close() error
 	accounts() []accounts.Account
+	getKey(acct accounts.Account) (key *ecdsa.PrivateKey, zeroFn func(), err error)
 }
 
 func newHashicorpWallet(config hashicorpWalletConfig, updateFeed *event.Feed) (vaultWallet, error) {
@@ -42,7 +46,13 @@ func newHashicorpWallet(config hashicorpWalletConfig, updateFeed *event.Feed) (v
 		return vaultWallet{}, err
 	}
 
-	return vaultWallet{url: url, vault: &hashicorpService{config: config.Client, secrets: config.Secrets}, updateFeed: updateFeed}, nil
+	w := vaultWallet{
+		url: url,
+		vault: newHashicorpService(config),
+		updateFeed: updateFeed,
+	}
+
+	return w, nil
 }
 
 func (w vaultWallet) URL() accounts.URL {
@@ -94,7 +104,19 @@ func (w vaultWallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Ac
 func (w vaultWallet) SelfDerive(base accounts.DerivationPath, chain ethereum.ChainStateReader) {}
 
 func (w vaultWallet) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
-	panic("implement me")
+	if !w.Contains(account) {
+		return nil, accounts.ErrUnknownAccount
+	}
+
+	key, zero, err := w.vault.getKey(account)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer zero()
+
+	return crypto.Sign(hash, key)
 }
 
 func (w vaultWallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int, isQuorum bool) (*types.Transaction, error) {
@@ -112,9 +134,27 @@ func (w vaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase s
 type hashicorpService struct {
 	client *api.Client
 	config hashicorpClientConfig
-	secrets []hashicorpSecretData
+	secrets []hashicorpSecretConfig
+	mutex sync.RWMutex
 	accts []accounts.Account
-	keys []*ecdsa.PrivateKey
+	keyGetters map[common.Address]map[accounts.URL]hashicorpKeyGetter
+
+}
+
+func newHashicorpService(config hashicorpWalletConfig) *hashicorpService {
+	s := &hashicorpService{
+		config: config.Client,
+		secrets: config.Secrets,
+		keyGetters: make(map[common.Address]map[accounts.URL]hashicorpKeyGetter),
+	}
+
+	return s
+}
+
+// TODO change name as it doesn't actually do any getting
+type hashicorpKeyGetter struct {
+	secret hashicorpSecretConfig
+	key *ecdsa.PrivateKey
 }
 
 const (
@@ -245,6 +285,7 @@ func (h *hashicorpService) open() error {
 	return nil
 }
 
+// TODO move account and key retrieval into function
 func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 	for range ticker.C {
 		if len(h.accts) == len(h.secrets) {
@@ -308,71 +349,168 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 				URL: parsedUrl,
 			}
 
+			// update state
+			h.mutex.Lock()
+
+			if _, ok := h.keyGetters[acct.Address]; !ok {
+				h.keyGetters[acct.Address] = make(map[accounts.URL]hashicorpKeyGetter)
+			}
+
+			keyGettersByUrl := h.keyGetters[acct.Address]
+
+			if _, ok := keyGettersByUrl[acct.URL]; ok {
+				log.Warn("Hashicorp Vault key getter already exists.  Not updated.", "url", url)
+				h.mutex.Unlock()
+				continue
+			}
+
+			keyGettersByUrl[acct.URL] = hashicorpKeyGetter{secret: s}
 			h.accts = append(h.accts, acct)
+
+			h.mutex.Unlock()
 		}
 	}
+}
+
+func countRetrievedKeys(keyGetters map[common.Address]map[accounts.URL]hashicorpKeyGetter) int {
+	var n int
+
+	for _, kgByUrl := range keyGetters {
+		for _, kg := range kgByUrl {
+			if kg.key != nil {
+				n++
+			}
+		}
+	}
+
+	return n
 }
 
 func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
 	for range ticker.C {
-		if len(h.keys) == len(h.secrets) {
+		h.mutex.RLock()
+		keyGetters := h.keyGetters
+		h.mutex.RUnlock()
+
+		if countRetrievedKeys(keyGetters) == len(h.secrets) {
 			ticker.Stop()
 			return
 		}
 
-		for _, s := range h.secrets {
-			path := fmt.Sprintf("%s/data/%s", s.SecretEngine, s.PrivateKeySecret)
+		for addr, byUrl := range keyGetters {
 
-			url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, s.PrivateKeySecretVersion)
+			for u, g := range byUrl {
+				path := fmt.Sprintf("%s/data/%s", g.secret.SecretEngine, g.secret.PrivateKeySecret)
 
-			versionData := make(map[string][]string)
-			versionData["version"] = []string{strconv.Itoa(s.PrivateKeySecretVersion)}
+				url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, g.secret.PrivateKeySecretVersion)
 
-			// get key from vault
-			resp, err := h.client.Logical().ReadWithData(path, versionData)
+				versionData := make(map[string][]string)
+				versionData["version"] = []string{strconv.Itoa(g.secret.PrivateKeySecretVersion)}
 
-			if err != nil {
-				log.Warn("unable to get secret from Hashicorp Vault", "url", url, "err", err)
-				continue
+				// get key from vault
+				resp, err := h.client.Logical().ReadWithData(path, versionData)
+
+				if err != nil {
+					log.Warn("unable to get secret from Hashicorp Vault", "url", url, "err", err)
+					continue
+				}
+
+				respData, ok := resp.Data["data"].(map[string]interface{})
+
+				if !ok {
+					log.Warn("Hashicorp Vault response does not contain data", "url", url)
+					continue
+				}
+
+				if len(respData) != 1 {
+					log.Warn("only one key/value pair is allowed in each Hashicorp Vault secret", "url", url)
+					continue
+				}
+
+				// get secret regardless of key in map
+				var k interface{}
+				for _, d := range respData {
+					k = d
+				}
+
+				hex, ok := k.(string)
+
+				if !ok {
+					log.Warn("Hashicorp Vault response data is not in string format", "url", url)
+					continue
+				}
+
+				// create *ecdsa.PrivateKey
+				key, err := crypto.HexToECDSA(hex)
+
+				if err != nil {
+					log.Warn("unable to parse data from Hashicorp Vault to *ecdsa.PrivateKey", "url", url, "err", err)
+					continue
+				}
+
+				h.mutex.Lock()
+				existing := h.keyGetters[addr][u]
+				updated := hashicorpKeyGetter{secret: existing.secret, key: key}
+				h.keyGetters[addr][u] = updated
+				h.mutex.Unlock()
 			}
-
-			respData, ok := resp.Data["data"].(map[string]interface{})
-
-			if !ok {
-				log.Warn("Hashicorp Vault response does not contain data", "url", url)
-				continue
-			}
-
-			if len(respData) != 1 {
-				log.Warn("only one key/value pair is allowed in each Hashicorp Vault secret", "url", url)
-				continue
-			}
-
-			// get secret regardless of key in map
-			var k interface{}
-			for _, d := range respData {
-				k = d
-			}
-
-			hex, ok := k.(string)
-
-			if !ok {
-				log.Warn("Hashicorp Vault response data is not in string format", "url", url)
-				continue
-			}
-
-			// create *ecdsa.PrivateKey
-			key, err := crypto.HexToECDSA(hex)
-
-			if err != nil {
-				log.Warn("unable to parse data from Hashicorp Vault to *ecdsa.PrivateKey", "url", url, "err", err)
-				continue
-			}
-
-			h.keys = append(h.keys, key)
 		}
 	}
 }
+
+func (h *hashicorpService) getKeyFromVault(s hashicorpSecretConfig) (*ecdsa.PrivateKey, error) {
+		path := fmt.Sprintf("%s/data/%s", s.SecretEngine, s.PrivateKeySecret)
+
+		url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, s.PrivateKeySecretVersion)
+
+		versionData := make(map[string][]string)
+		versionData["version"] = []string{strconv.Itoa(s.PrivateKeySecretVersion)}
+
+		// get key from vault
+		resp, err := h.client.Logical().ReadWithData(path, versionData)
+
+		if err != nil {
+			// TODO make an error type to be returned
+			log.Warn("unable to get secret from Hashicorp Vault", "url", url, "err", err)
+			return nil, nil
+		}
+
+		respData, ok := resp.Data["data"].(map[string]interface{})
+
+		if !ok {
+			log.Warn("Hashicorp Vault response does not contain data", "url", url)
+			return nil, nil
+		}
+
+		if len(respData) != 1 {
+			log.Warn("only one key/value pair is allowed in each Hashicorp Vault secret", "url", url)
+			return nil, nil
+		}
+
+		// get secret regardless of key in map
+		var k interface{}
+		for _, d := range respData {
+			k = d
+		}
+
+		hex, ok := k.(string)
+
+		if !ok {
+			log.Warn("Hashicorp Vault response data is not in string format", "url", url)
+			return nil, nil
+		}
+
+		// create *ecdsa.PrivateKey
+		key, err := crypto.HexToECDSA(hex)
+
+		if err != nil {
+			log.Warn("unable to parse data from Hashicorp Vault to *ecdsa.PrivateKey", "url", url, "err", err)
+			return nil, nil
+		}
+
+		return key, nil
+}
+
 
 func usingApproleAuth(roleID, secretID string) bool {
 	return roleID != "" && secretID != ""
@@ -389,4 +527,77 @@ func (h *hashicorpService) accounts() []accounts.Account {
 	copy(cpy, h.accts)
 
 	return cpy
+}
+
+type accountsByURL []accounts.Account
+
+func (s accountsByURL) Len() int           { return len(s) }
+func (s accountsByURL) Less(i, j int) bool { return s[i].URL.Cmp(s[j].URL) < 0 }
+func (s accountsByURL) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, func(), error) {
+	keyGettersByUrl, ok := h.keyGetters[acct.Address]
+
+	if !ok {
+		return nil, nil, accounts.ErrUnknownAccount
+	}
+
+	if (acct.URL == accounts.URL{}) && len(keyGettersByUrl) > 1 {
+		ambiguousAccounts := []accounts.Account{}
+
+		for url, _ := range keyGettersByUrl {
+			ambiguousAccounts = append(ambiguousAccounts, accounts.Account{Address: acct.Address, URL: url})
+		}
+
+		sort.Sort(accountsByURL(ambiguousAccounts))
+
+		err := &keystore.AmbiguousAddrError{
+			Addr: acct.Address,
+			Matches: ambiguousAccounts,
+		}
+
+		return nil, nil, err
+	}
+
+	// return the only key for this address
+	if (acct.URL == accounts.URL{}) && len(keyGettersByUrl) == 1 {
+		var keyGetter hashicorpKeyGetter
+
+		for _, g := range keyGettersByUrl {
+			keyGetter = g
+		}
+
+		return h.useKeyGetter(keyGetter)
+	}
+
+	keyGetter, ok := keyGettersByUrl[acct.URL]
+
+	if !ok {
+		return nil, nil, accounts.ErrUnknownAccount
+	}
+
+	return h.useKeyGetter(keyGetter)
+}
+
+func (h *hashicorpService) useKeyGetter(getter hashicorpKeyGetter) (*ecdsa.PrivateKey, func(), error) {
+	if key := getter.key; key != nil {
+		return key, func(){}, nil
+	}
+
+	key, err := h.getKeyFromVault(getter.secret)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// zeroFn zeroes the retrieved private key
+	zeroFn := func () {
+		b := key.D.Bits()
+		for i := range b {
+			b[i] = 0
+		}
+		key = nil
+	}
+
+	return key, zeroFn, nil
 }

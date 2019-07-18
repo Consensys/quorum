@@ -2,7 +2,7 @@ package vault
 
 type hashicorpWalletConfig struct {
 	Client  hashicorpClientConfig
-	Secrets []hashicorpSecretData
+	Secrets []hashicorpSecretConfig
 }
 
 type hashicorpClientConfig struct {
@@ -15,7 +15,7 @@ type hashicorpClientConfig struct {
 	VaultPollingIntervalSecs int `toml:",omitempty"`
 }
 
-type hashicorpSecretData struct {
+type hashicorpSecretConfig struct {
 	AddressSecret           string `toml:",omitempty"`
 	PrivateKeySecret        string `toml:",omitempty"`
 	AddressSecretVersion    int    `toml:",omitempty"`
