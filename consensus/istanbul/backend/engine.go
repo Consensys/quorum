@@ -405,7 +405,7 @@ func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, results
 	// update the block header timestamp and signature and propose the block to core engine
 	header := block.Header()
 	number := header.Number.Uint64()
-
+	log.Info("AJ-Seal1", "header", header, "number", number)
 	// Bail out if we're unauthorized to sign a block
 	snap, err := sb.snapshot(chain, number-1, header.ParentHash, nil)
 	if err != nil {
@@ -426,9 +426,11 @@ func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, results
 
 	// wait for the timestamp of header, use this to adjust the block period
 	delay := time.Unix(int64(block.Header().Time), 0).Sub(now())
+	log.Info("AJ-Seal2.1","delay", delay)
 	select {
 	case <-time.After(delay):
 	case <-stop:
+		log.Info("AJ-Seal2")
 		results <- nil
 		return nil
 	}
@@ -446,16 +448,20 @@ func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, results
 	go sb.EventMux().Post(istanbul.RequestEvent{
 		Proposal: block,
 	})
+	log.Info("AJ-Seal3 request event posted")
 	for {
+		log.Info("AJ-Seal3 waiting...","blk", header.Number.Uint64())
 		select {
 		case result := <-sb.commitCh:
 			// if the block hash and the hash from channel are the same,
 			// return the result. Otherwise, keep waiting the next hash.
 			if result != nil && block.Hash() == result.Hash() {
+				log.Info("AJ-Seal4")
 				results <- result
 				return nil
 			}
 		case <-stop:
+			log.Info("AJ-Seal5 stop requested")
 			results <- nil
 			return nil
 		}
@@ -493,6 +499,7 @@ func (sb *backend) APIs(chain consensus.ChainReader) []rpc.API {
 func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
+	log.Info("AJ-istanbul backend start")
 	if sb.coreStarted {
 		return istanbul.ErrStartedEngine
 	}
@@ -533,6 +540,7 @@ func (sb *backend) Stop() error {
 // snapshot retrieves the authorization snapshot at a given point in time.
 func (sb *backend) snapshot(chain consensus.ChainReader, number uint64, hash common.Hash, parents []*types.Header) (*Snapshot, error) {
 	// Search for a snapshot in memory or on disk for checkpoints
+	log.Info("AJ-IBFT snapshot1")
 	var (
 		headers []*types.Header
 		snap    *Snapshot
@@ -604,6 +612,7 @@ func (sb *backend) snapshot(chain consensus.ChainReader, number uint64, hash com
 		}
 		log.Trace("Stored voting snapshot to disk", "number", snap.Number, "hash", snap.Hash)
 	}
+	log.Info("AJ-IBFT snapshot2","s", snap)
 	return snap, err
 }
 

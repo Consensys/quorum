@@ -57,6 +57,7 @@ func New(backend istanbul.Backend, config *istanbul.Config) Engine {
 	r.Register("consensus/istanbul/core/consensus", c.consensusTimer)
 
 	c.validateFn = c.checkValidatorSignature
+	log.Info("AJ-new istanbul core","config", *config)
 	return c
 }
 
@@ -135,6 +136,7 @@ func (c *core) finalizeMessage(msg *message) ([]byte, error) {
 }
 
 func (c *core) broadcast(msg *message) {
+	log.Info("AJ-broadcast msg", "msg", msg)
 	logger := c.logger.New("state", c.state)
 
 	payload, err := c.finalizeMessage(msg)
@@ -190,6 +192,7 @@ func (c *core) commit() {
 
 // startNewRound starts a new round. if round equals to 0, it means to starts a new sequence
 func (c *core) startNewRound(round *big.Int) {
+	log.Info("AJ-startNewRound")
 	var logger log.Logger
 	if c.current == nil {
 		logger = c.logger.New("old_round", -1, "old_seq", 0)
@@ -332,7 +335,7 @@ func (c *core) newRoundChangeTimer() {
 	if round > 0 {
 		timeout += time.Duration(math.Pow(2, float64(round))) * time.Second
 	}
-
+	log.Info("AJ-newroundChangeTimer", "timeout", timeout)
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(timeoutEvent{})
 	})

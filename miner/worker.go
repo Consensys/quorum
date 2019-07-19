@@ -208,13 +208,14 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 		resubmitIntervalCh: make(chan time.Duration),
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
 	}
+	log.Info("AJ-new worker created")
 	if _, ok := engine.(consensus.Istanbul); ok || !chainConfig.IsQuorum || chainConfig.Clique != nil {
 		// Subscribe NewTxsEvent for tx pool
 		worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
 		// Subscribe events for blockchain
 		worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 		worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
-
+		log.Info("AJ-istanbul txsSub done")
 	// Sanitize recommit interval if the user-specified one is too short.
 	recommit := worker.config.Recommit
 	if recommit < minRecommitInterval {
@@ -223,9 +224,13 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 	}
 
 		go worker.mainLoop()
+		log.Info("AJ-worker main loop started")
 		go worker.newWorkLoop(recommit)
+		log.Info("AJ-newWrokLoop started")
 		go worker.resultLoop()
+		log.Info("AJ-newResultLoop started")
 		go worker.taskLoop()
+		log.Info("AJ-task loop started")
 
 		// Submit first work to initialize pending state.
 		worker.startCh <- struct{}{}
@@ -276,6 +281,7 @@ func (w *worker) pendingBlock() *types.Block {
 func (w *worker) start() {
 	atomic.StoreInt32(&w.running, 1)
 	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
+		log.Info("AJ-istanbul start..")
 		istanbul.Start(w.chain, w.chain.CurrentBlock, w.chain.HasBadBlock)
 	}
 	w.startCh <- struct{}{}
@@ -284,6 +290,7 @@ func (w *worker) start() {
 // stop sets the running status as 0.
 func (w *worker) stop() {
 	if istanbul, ok := w.engine.(consensus.Istanbul); ok {
+		log.Info("AJ-istanbul stopped")
 		istanbul.Stop()
 	}
 	atomic.StoreInt32(&w.running, 0)
@@ -354,13 +361,16 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	}
 
 	for {
+		log.Info("AJ-newWorkLoop")
 		select {
 		case <-w.startCh:
+			log.Info("AJ-w.startCh recieved")
 			clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
+			log.Info("AJ-w.chainHeadCh recieved","head", head)
 			if h, ok := w.engine.(consensus.Handler); ok {
 				h.NewChainHead()
 			}
@@ -381,6 +391,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 
 		case interval := <-w.resubmitIntervalCh:
+			log.Info("AJ-w.resubmitIntervalCh recvd", "interval", interval)
 			// Adjust resubmit interval explicitly by user.
 			if interval < minRecommitInterval {
 				log.Warn("Sanitizing miner recommit interval", "provided", interval, "updated", minRecommitInterval)
@@ -394,6 +405,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			}
 
 		case adjust := <-w.resubmitAdjustCh:
+			log.Info("AJ-w.resubmitAdjustCh rcvd", "adjust", adjust)
 			// Adjust resubmit interval by feedback.
 			if adjust.inc {
 				before := recommit
@@ -422,11 +434,14 @@ func (w *worker) mainLoop() {
 	defer w.chainSideSub.Unsubscribe()
 
 	for {
+		log.Info("AJ-mainLoop")
 		select {
 		case req := <-w.newWorkCh:
+			log.Info("AJ-newWorkCh recived", "req", req)
 			w.commitNewWork(req.interrupt, req.noempty, req.timestamp)
 
 		case ev := <-w.chainSideCh:
+			log.Info("AJ-chainSideCh got", "ev", ev)
 			// Short circuit for duplicate side blocks
 			if _, exist := w.localUncles[ev.Block.Hash()]; exist {
 				continue
@@ -466,6 +481,7 @@ func (w *worker) mainLoop() {
 			}
 
 		case ev := <-w.txsCh:
+			log.Info("AJ-txsCh recieved", "ev", ev)
 			// Apply transactions to the pending state if we're not mining.
 			//
 			// Note all transactions received may not be continuous with transactions
@@ -526,13 +542,17 @@ func (w *worker) taskLoop() {
 	// interrupt aborts the in-flight sealing task.
 	interrupt := func() {
 		if stopCh != nil {
+			log.Info("AJ-taskLoop interrupt")
 			close(stopCh)
 			stopCh = nil
 		}
 	}
 	for {
+		log.Info("AJ-taskLoop")
 		select {
 		case task := <-w.taskCh:
+			log.Info("AJ-taskCh recieved", "task", task)
+
 			if w.newTaskHook != nil {
 				w.newTaskHook(task)
 			}
@@ -553,6 +573,7 @@ func (w *worker) taskLoop() {
 			w.pendingMu.Unlock()
 			go w.seal(task.block, stopCh)
 		case <-w.exitCh:
+			log.Info("AJ-exit taskLoop")
 			interrupt()
 			return
 		}
@@ -560,6 +581,7 @@ func (w *worker) taskLoop() {
 }
 
 func (w *worker) seal(b *types.Block, stop <-chan struct{}) {
+	log.Info("AJ-seal", "block", b)
 	if err := w.engine.Seal(w.chain, b, w.resultCh, stop); err != nil {
 		log.Warn("Block sealing failed", "err", err)
 	}
@@ -569,8 +591,10 @@ func (w *worker) seal(b *types.Block, stop <-chan struct{}) {
 // and flush relative data to the database.
 func (w *worker) resultLoop() {
 	for {
+		log.Info("AJ-resultLoop")
 		select {
 		case block := <-w.resultCh:
+			log.Info("AJ-resultCh receieved", "bloclk", block)
 			// Short circuit when receiving empty result.
 			if block == nil {
 				continue

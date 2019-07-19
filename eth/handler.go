@@ -119,6 +119,12 @@ func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCh
 		raftMode:    raftMode,
 		engine:      engine,
 	}
+
+
+	if handler, ok := manager.engine.(consensus.Handler); ok {
+		handler.SetBroadcaster(manager)
+	}
+
 	if mode == downloader.FullSync {
 		// The database seems empty as the current block is the genesis. Yet the fast
 		// block is ahead, so fast sync was enabled for this node at a certain point.
@@ -311,6 +317,8 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 	p.Log().Debug("Ethereum peer connected", "name", p.Name())
 
+	p.Log().Info("AJ-Ethereum peer connected", "name", p.Name())
+
 	// Execute the Ethereum handshake
 	var (
 		genesis = pm.blockchain.Genesis()
@@ -383,6 +391,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	if err != nil {
 		return err
 	}
+	log.Info("AJ-p2p eth/handleMsg", "msg", msg)
 	if msg.Size > protocolMaxMsgSize {
 		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
 	}
@@ -404,6 +413,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if handled {
 			return err
 		}
+		log.Info("AJ-consensus engine handler - handled", "handled", handled, "err", err)
 	}
 
 	// Handle the message depending on its contents

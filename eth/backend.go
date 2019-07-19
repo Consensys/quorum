@@ -271,6 +271,7 @@ func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainCo
 	}
 	// If Istanbul is requested, set it up
 	if chainConfig.Istanbul != nil {
+		log.Info("AJ-createConsensus engine istanbul")
 		if chainConfig.Istanbul.Epoch != 0 {
 			config.Istanbul.Epoch = chainConfig.Istanbul.Epoch
 		}
