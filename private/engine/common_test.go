@@ -30,20 +30,20 @@ func TestPrivacyFlag_whenCheckingMultipleFlagsArray(t *testing.T) {
 	assert.True(flag.HasAll(PrivacyFlagStateValidation, PrivacyFlagPartyProtection))
 }
 
-func TestPrivacyFlag_whenCheckingLegacyFlag(t *testing.T) {
+func TestPrivacyFlag_whenCheckingStandardPrivateFlag(t *testing.T) {
 	assert := assert.New(t)
 
-	flag := PrivacyFlagLegacy
+	flag := PrivacyFlagStandardPrivate
 
-	assert.True(flag.IsLegacy())
+	assert.True(flag.IsStandardPrivate())
 }
 
-func TestPrivacyFlag_whenCheckingNotLegacyFlag(t *testing.T) {
+func TestPrivacyFlag_whenCheckingNotStandardPrivateFlag(t *testing.T) {
 	assert := assert.New(t)
 
 	flag := PrivacyFlagPartyProtection
 
-	assert.True(flag.IsNotLegacy())
+	assert.True(flag.IsNotStandardPrivate())
 }
 
 func TestPrivacyFlag_whenPrivateStateValidation(t *testing.T) {

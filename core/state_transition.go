@@ -312,18 +312,18 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			actualPrivacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 			//when privacyMetadata should have been recovered but wasnt (includes non-party)
 			//non party will only be caught here if sender provides privacyFlag
-			if err != nil && privacyFlag.IsNotLegacy() {
+			if err != nil && privacyFlag.IsNotStandardPrivate() {
 				return returnErrorFunc(nil, "PrivacyMetadata unable to be found", "err", err)
 			}
 			log.Trace("Privacy metadata", "affectedAddress", addr.Hex(), "metadata", actualPrivacyMetadata)
-			// both public and legacy contracts will be nil and can be skipped in acoth check
+			// both public and standard private contracts will be nil and can be skipped in acoth check
 			// public contracts - evm error for write, no error for reads
-			// legacy - only error if privacyFlag sent with tx or if no flag sent but other affecteds have privacyFlag
+			// standard private - only error if privacyFlag sent with tx or if no flag sent but other affecteds have privacyFlag
 			if actualPrivacyMetadata == nil {
 				continue
 			}
 			// Check that the affected contracts privacy flag matches the transaction privacy flag.
-			// I know that this is also checked by tessera, but it only checks for non legacy transactions.
+			// I know that this is also checked by tessera, but it only checks for non standard private transactions.
 			if actualPrivacyMetadata.PrivacyFlag != receivedPrivacyMetadata.PrivacyFlag {
 				return returnErrorFunc(nil, "Mismatched privacy flags",
 					"affectedContract.Address", addr.Hex(),

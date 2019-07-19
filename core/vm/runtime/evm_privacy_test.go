@@ -171,7 +171,7 @@ func TestPrivacyEnhancements_CreateC2FromC1Function(t *testing.T) {
 	assert.Contains(affectedContracts, c1Address, "Calling C1.newContractC2() affects C1")
 }
 
-func TestPrivacyEnhancements_CreateC1_Legacy(t *testing.T) {
+func TestPrivacyEnhancements_CreateC1_StandardPrivate(t *testing.T) {
 	assert := testifyassert.New(t)
 	cfg := newConfig()
 	initialValue := int64(42)
@@ -183,7 +183,7 @@ func TestPrivacyEnhancements_CreateC1_Legacy(t *testing.T) {
 	}
 	stubPrivateTx = newTypicalPrivateTx(cfg)
 	stubPrivateTx.SetTxPrivacyMetadata(&types.PrivacyMetadata{
-		PrivacyFlag: engine.PrivacyFlagLegacy,
+		PrivacyFlag: engine.PrivacyFlagStandardPrivate,
 	})
 
 	c1Address := createC1(assert, cfg, initialValue)

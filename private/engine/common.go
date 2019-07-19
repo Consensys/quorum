@@ -42,7 +42,7 @@ type ExtraMetadata struct {
 	ACHashes common.EncryptedPayloadHashes
 	// Root Hash of a Merkle Trie containing all affected contract account in state objects
 	ACMerkleRoot common.Hash
-	//Privacy flag for contract: legacy, partyProtection, psv
+	//Privacy flag for contract: standardPrivate, partyProtection, psv
 	PrivacyFlag PrivacyFlagType
 }
 
@@ -62,17 +62,17 @@ func (c *Client) Get(path string) (*http.Response, error) {
 type PrivacyFlagType uint64
 
 const (
-	PrivacyFlagLegacy          PrivacyFlagType = iota                              // 0
+	PrivacyFlagStandardPrivate PrivacyFlagType = iota                              // 0
 	PrivacyFlagPartyProtection PrivacyFlagType = 1 << PrivacyFlagType(iota-1)      // 1
 	PrivacyFlagStateValidation                 = iota | PrivacyFlagPartyProtection // 3 which includes PrivacyFlagPartyProtection
 )
 
-func (f PrivacyFlagType) IsNotLegacy() bool {
-	return !f.IsLegacy()
+func (f PrivacyFlagType) IsNotStandardPrivate() bool {
+	return !f.IsStandardPrivate()
 }
 
-func (f PrivacyFlagType) IsLegacy() bool {
-	return f == PrivacyFlagLegacy
+func (f PrivacyFlagType) IsStandardPrivate() bool {
+	return f == PrivacyFlagStandardPrivate
 }
 
 func (f PrivacyFlagType) Has(other PrivacyFlagType) bool {
@@ -88,7 +88,7 @@ func (f PrivacyFlagType) HasAll(others ...PrivacyFlagType) bool {
 }
 
 func (f PrivacyFlagType) Validate() error {
-	if f == PrivacyFlagLegacy || f == PrivacyFlagPartyProtection || f == PrivacyFlagStateValidation {
+	if f == PrivacyFlagStandardPrivate || f == PrivacyFlagPartyProtection || f == PrivacyFlagStateValidation {
 		return nil
 	}
 	return fmt.Errorf("invalid privacy flag")

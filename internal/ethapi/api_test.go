@@ -57,12 +57,12 @@ var (
 		big.NewInt(0),
 		arbitrarySimpleStorageContractEncryptedPayloadHash.Bytes())
 
-	arbitrarySimpleStorageContractAddress       common.Address
-	arbitraryLegacySimpleStorageContractAddress common.Address
+	arbitrarySimpleStorageContractAddress                common.Address
+	arbitraryStandardPrivateSimpleStorageContractAddress common.Address
 
-	simpleStorageContractMessageCallTx          *types.Transaction
-	legacySimpleStorageContractMessageCallTx    *types.Transaction
-	rawLegacySimpleStorageContractMessageCallTx *types.Transaction
+	simpleStorageContractMessageCallTx                   *types.Transaction
+	standardPrivateSimpleStorageContractMessageCallTx    *types.Transaction
+	rawStandardPrivateSimpleStorageContractMessageCallTx *types.Transaction
 
 	arbitraryCurrentBlockNumber = big.NewInt(1)
 
@@ -127,22 +127,22 @@ func setup() {
 		big.NewInt(0),
 		hexutil.MustDecode("0x60fe47b1000000000000000000000000000000000000000000000000000000000000000d"))
 
-	arbitraryLegacySimpleStorageContractAddress, err = callhelper.MakeCall(true, key, common.Address{}, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000002"))
+	arbitraryStandardPrivateSimpleStorageContractAddress, err = callhelper.MakeCall(true, key, common.Address{}, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000002"))
 	if err != nil {
 		panic(err)
 	}
 
-	legacySimpleStorageContractMessageCallTx = types.NewTransaction(
+	standardPrivateSimpleStorageContractMessageCallTx = types.NewTransaction(
 		0,
-		arbitraryLegacySimpleStorageContractAddress,
+		arbitraryStandardPrivateSimpleStorageContractAddress,
 		big.NewInt(0),
 		hexutil.MustDecodeUint64("0x47b760"),
 		big.NewInt(0),
 		hexutil.MustDecode("0x60fe47b1000000000000000000000000000000000000000000000000000000000000000e"))
 
-	rawLegacySimpleStorageContractMessageCallTx = types.NewTransaction(
+	rawStandardPrivateSimpleStorageContractMessageCallTx = types.NewTransaction(
 		0,
-		arbitraryLegacySimpleStorageContractAddress,
+		arbitraryStandardPrivateSimpleStorageContractAddress,
 		big.NewInt(0),
 		hexutil.MustDecodeUint64("0x47b760"),
 		big.NewInt(0),
@@ -155,16 +155,16 @@ func teardown() {
 	log.Root().SetHandler(log.DiscardHandler())
 }
 
-func TestSimulateExecution_whenLegacyCreation(t *testing.T) {
+func TestSimulateExecution_whenStandardPrivateCreation(t *testing.T) {
 	assert := assert.New(t)
-	privateTxArgs.PrivacyFlag = engine.PrivacyFlagLegacy
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
 	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
 
 	assert.NoError(err, "simulate execution")
 	assert.Empty(affectedCACreationTxHashes, "creation tx should not have any affected contract creation tx hashes")
 	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
-	assert.Equal(engine.PrivacyFlagLegacy, privacyFlag, "no privacy flag - legacy contract")
+	assert.Equal(engine.PrivacyFlagStandardPrivate, privacyFlag, "no privacy flag - standard private contract")
 }
 
 func TestSimulateExecution_whenPartyProtectionCreation(t *testing.T) {
@@ -191,22 +191,22 @@ func TestSimulateExecution_whenCreationWithStateValidation(t *testing.T) {
 	assert.Equal(engine.PrivacyFlagStateValidation, privacyFlag, "contract set with private state validation")
 }
 
-func TestSimulateExecution_whenLegacyMessageCall(t *testing.T) {
+func TestSimulateExecution_whenStandardPrivateMessageCall(t *testing.T) {
 	assert := assert.New(t)
-	privateTxArgs.PrivacyFlag = engine.PrivacyFlagLegacy
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
-	privateStateDB.SetCode(arbitraryLegacySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000002"))
-	privateStateDB.SetState(arbitraryLegacySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
+	privateStateDB.SetCode(arbitraryStandardPrivateSimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000002"))
+	privateStateDB.SetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, legacySimpleStorageContractMessageCallTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
 
-	log.Debug("state", "state", privateStateDB.GetState(arbitraryLegacySimpleStorageContractAddress, common.Hash{0}))
+	log.Debug("state", "state", privateStateDB.GetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}))
 
 	assert.NoError(err, "simulate execution")
-	assert.Empty(affectedCACreationTxHashes, "legacy contract should not have any affected contract creation tx hashes")
+	assert.Empty(affectedCACreationTxHashes, "standard private contract should not have any affected contract creation tx hashes")
 	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
-	assert.Equal(engine.PrivacyFlagLegacy, privacyFlag, "no privacy flag - legacy contract")
+	assert.Equal(engine.PrivacyFlagStandardPrivate, privacyFlag, "no privacy flag - standard private contract")
 }
 
 func TestSimulateExecution_whenPartyProtectionMessageCall(t *testing.T) {
@@ -264,24 +264,24 @@ func TestSimulateExecution_whenStateValidationMessageCall(t *testing.T) {
 }
 
 //mix and match flags
-func TestSimulateExecution_PrivacyFlagCallingLegacyContract_Error(t *testing.T) {
+func TestSimulateExecution_PrivacyFlagPartyProtectionCallingStandardPrivateContract_Error(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
-	privateStateDB.SetCode(arbitraryLegacySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000002"))
-	privateStateDB.SetState(arbitraryLegacySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
+	privateStateDB.SetCode(arbitraryStandardPrivateSimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000002"))
+	privateStateDB.SetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	_, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, legacySimpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
 
-	log.Debug("state", "state", privateStateDB.GetState(arbitraryLegacySimpleStorageContractAddress, common.Hash{0}))
+	log.Debug("state", "state", privateStateDB.GetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}))
 
 	assert.Error(err, "simulate execution")
 }
 
-func TestSimulateExecution_LegacyFlagCallingPartyProtectionContract_Error(t *testing.T) {
+func TestSimulateExecution_StandardPrivateFlagCallingPartyProtectionContract_Error(t *testing.T) {
 	assert := assert.New(t)
-	privateTxArgs.PrivacyFlag = engine.PrivacyFlagLegacy
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
 	_ = privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
@@ -297,9 +297,9 @@ func TestSimulateExecution_LegacyFlagCallingPartyProtectionContract_Error(t *tes
 	assert.Error(err, "simulate execution")
 }
 
-func TestSimulateExecution_LegacyFlagCallingStateValidationContract_Error(t *testing.T) {
+func TestSimulateExecution_StandardPrivateFlagCallingStateValidationContract_Error(t *testing.T) {
 	assert := assert.New(t)
-	privateTxArgs.PrivacyFlag = engine.PrivacyFlagLegacy
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
 	_ = privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
@@ -368,9 +368,9 @@ func TestHandlePrivateTransaction_whenInvalidFlag(t *testing.T) {
 
 	assert.Error(err, "invalid privacyFlag")
 }
-func TestHandlePrivateTransaction_whenLegacyCreation(t *testing.T) {
+func TestHandlePrivateTransaction_whenStandardPrivateCreation(t *testing.T) {
 	assert := assert.New(t)
-	privateTxArgs.PrivacyFlag = engine.PrivacyFlagLegacy
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
 	isPrivate, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, false)
 
@@ -381,36 +381,36 @@ func TestHandlePrivateTransaction_whenLegacyCreation(t *testing.T) {
 	assert.True(isPrivate, "must be a private transaction")
 }
 
-func TestHandlePrivateTransaction_whenPartyProtectionCallingLegacy(t *testing.T) {
+func TestHandlePrivateTransaction_whenPartyProtectionCallingStandardPrivate(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
-	isPrivate, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, legacySimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, false)
+	isPrivate, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, false)
 
 	assert.Error(err, "handle invalid message call")
 
 	assert.True(isPrivate, "must be a private transaction")
 }
 
-func TestHandlePrivateTransaction_whenRawLegacyCreation(t *testing.T) {
+func TestHandlePrivateTransaction_whenRawStandardPrivateCreation(t *testing.T) {
 	assert := assert.New(t)
 	private.P = &StubPrivateTransactionManager{creation: true}
-	privateTxArgs.PrivacyFlag = engine.PrivacyFlagLegacy
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
 	isPrivate, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, rawSimpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, true)
 
-	assert.NoError(err, "raw legacy creation succeeded")
+	assert.NoError(err, "raw standard private creation succeeded")
 	assert.True(isPrivate, "must be a private transaction")
 }
 
-func TestHandlePrivateTransaction_whenRawLegacyMessageCall(t *testing.T) {
+func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T) {
 	assert := assert.New(t)
 	private.P = &StubPrivateTransactionManager{creation: false}
-	privateTxArgs.PrivacyFlag = engine.PrivacyFlagLegacy
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
-	isPrivate, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, rawLegacySimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, true)
+	isPrivate, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, rawStandardPrivateSimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, true)
 
-	assert.NoError(err, "raw legacy msg call succeeded")
+	assert.NoError(err, "raw standard private msg call succeeded")
 	assert.True(isPrivate, "must be a private transaction")
 }
 

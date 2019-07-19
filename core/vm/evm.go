@@ -491,7 +491,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	}
 	if nil != evm.currentTx && evm.currentTx.IsPrivate() && evm.currentTx.PrivacyMetadata() != nil {
 		// for calls (reading contract state) or finding the affected contracts there is no transaction
-		if evm.currentTx.PrivacyMetadata().PrivacyFlag.IsNotLegacy() {
+		if evm.currentTx.PrivacyMetadata().PrivacyFlag.IsNotStandardPrivate() {
 			pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivacyFlag)
 			err := evm.StateDB.SetStatePrivacyMetadata(address, pm)
 			log.Trace("Set Privacy Metadata", "key", address, "privacyMetadata", pm)

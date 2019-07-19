@@ -1954,12 +1954,12 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
 		//privacyMetadata not found=non-party, or another db error
-		if err != nil && privacyFlag.IsNotLegacy() {
+		if err != nil && privacyFlag.IsNotStandardPrivate() {
 			return nil, common.Hash{}, privacyFlag, errors.New("PrivacyMetadata unable to be found: " + err.Error())
 		}
 		// when we run simulation, it's possible that affected contracts may contain public ones
 		// public contract will not have any privacyMetadata attached
-		// legacy will be nil
+		// standard private will be nil
 		if privacyMetadata == nil {
 			continue
 		}
