@@ -179,7 +179,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		prot := eth.engine.Protocol()
 		ProtocolVersions = prot.Versions
 		protocolName = prot.Name
-		log.Info("AJ-Protocols istanbul", "prot", prot)
 	}
 
 	// force to set the istanbul etherbase to node key address
@@ -279,7 +278,6 @@ func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainCo
 	}
 	// If Istanbul is requested, set it up
 	if chainConfig.Istanbul != nil {
-		log.Info("AJ-createConsensus engine istanbul")
 		if chainConfig.Istanbul.Epoch != 0 {
 			config.Istanbul.Epoch = chainConfig.Istanbul.Epoch
 		}

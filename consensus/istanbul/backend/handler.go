@@ -65,9 +65,7 @@ func (sb *backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
-	log.Info("AJ-HandleMsg - got msg from peer", "addrs", addr.String(), "msg", msg, "msg.code", msg.Code, "istanbulMsg", istanbulMsg)
 	if msg.Code == istanbulMsg {
-		log.Info("AJ-istanbulMsg")
 		if !sb.coreStarted {
 			return true, istanbul.ErrStoppedEngine
 		}
@@ -76,7 +74,6 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		if err != nil {
 			return true, errDecodeFailed
 		}
-		log.Info("AJ-istanbulMsg decoded")
 		// Mark peer's message
 		ms, ok := sb.recentMessages.Get(addr)
 		var m *lru.ARCCache
@@ -90,7 +87,6 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 
 		// Mark self known message
 		if _, ok := sb.knownMessages.Get(hash); ok {
-			log.Info("AJ-istanbulMsg known message")
 			return true, nil
 		}
 		sb.knownMessages.Add(hash, true)
@@ -98,14 +94,12 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		go sb.istanbulEventMux.Post(istanbul.MessageEvent{
 			Payload: data,
 		})
-		log.Info("AJ-istanbulMsg posted message event")
 		return true, nil
 	}
 	if msg.Code == NewBlockMsg && sb.core.IsProposer() { // eth.NewBlockMsg: import cycle
 		// this case is to safeguard the race of similar block which gets propagated from other node while this node is proposing
 		// as p2p.Msg can only be decoded once (get EOF for any subsequence read), we need to make sure the payload is restored after we decode it
 		log.Debug("Proposer received NewBlockMsg", "size", msg.Size, "payload.type", reflect.TypeOf(msg.Payload), "sender", addr)
-		log.Info("AJ-Proposer received NewBlockMsg", "size", msg.Size, "payload.type", reflect.TypeOf(msg.Payload), "sender", addr)
 		if reader, ok := msg.Payload.(*bytes.Reader); ok {
 			payload, err := ioutil.ReadAll(reader)
 			if err != nil {

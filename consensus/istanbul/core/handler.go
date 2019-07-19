@@ -19,12 +19,10 @@ package core
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 // Start implements core.Engine.Start
 func (c *core) Start() error {
-	log.Info("AJ-istanbul core start")
 	// Start a new round from last sequence + 1
 	c.startNewRound(common.Big0)
 
@@ -50,7 +48,6 @@ func (c *core) Stop() error {
 
 // Subscribe both internal and external events
 func (c *core) subscribeEvents() {
-	log.Info("AJ-subscribeEvents")
 	c.events = c.backend.EventMux().Subscribe(
 		// external events
 		istanbul.RequestEvent{},
@@ -81,7 +78,6 @@ func (c *core) handleEvents() {
 	}()
 
 	c.handlerWg.Add(1)
-	log.Info("AJ-handleEvents")
 	for {
 		select {
 		case event, ok := <-c.events.Chan():
@@ -91,7 +87,6 @@ func (c *core) handleEvents() {
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
 			case istanbul.RequestEvent:
-				log.Info("AJ-handleEvents requestEvent", "ev", ev)
 				r := &istanbul.Request{
 					Proposal: ev.Proposal,
 				}
@@ -100,12 +95,10 @@ func (c *core) handleEvents() {
 					c.storeRequestMsg(r)
 				}
 			case istanbul.MessageEvent:
-				log.Info("AJ-handleEvents messageEvent", "ev", ev)
 				if err := c.handleMsg(ev.Payload); err == nil {
 					c.backend.Gossip(c.valSet, ev.Payload)
 				}
 			case backlogEvent:
-				log.Info("AJ-handleEvent backlogevent", "ev", ev)
 				// No need to check signature for internal messages
 				if err := c.handleCheckedMsg(ev.msg, ev.src); err == nil {
 					p, err := ev.msg.Payload()
@@ -117,19 +110,16 @@ func (c *core) handleEvents() {
 				}
 			}
 		case _, ok := <-c.timeoutSub.Chan():
-			log.Info("AJ-handleEvent timeoutSub")
 			if !ok {
 				return
 			}
 			c.handleTimeoutMsg()
 		case event, ok := <-c.finalCommittedSub.Chan():
-			log.Info("AJ-handleEvent finalCommittedSub")
 			if !ok {
 				return
 			}
 			switch event.Data.(type) {
 			case istanbul.FinalCommittedEvent:
-				log.Info("AJ-handleEvent finalCommittedEvent")
 				c.handleFinalCommitted()
 			}
 		}

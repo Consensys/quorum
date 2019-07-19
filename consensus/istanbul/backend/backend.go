@@ -62,7 +62,6 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		knownMessages:    knownMessages,
 	}
 	backend.core = istanbulCore.New(backend, backend.config)
-	log.Info("AJ-create ethereum backend for istanbul engine")
 	return backend
 }
 
@@ -118,7 +117,6 @@ func (sb *backend) Validators(proposal istanbul.Proposal) istanbul.ValidatorSet 
 
 // Broadcast implements istanbul.Backend.Broadcast
 func (sb *backend) Broadcast(valSet istanbul.ValidatorSet, payload []byte) error {
-	log.Info("AJ-broadcast")
 	// send to others
 	sb.Gossip(valSet, payload)
 	// send to self
@@ -131,7 +129,6 @@ func (sb *backend) Broadcast(valSet istanbul.ValidatorSet, payload []byte) error
 
 // Broadcast implements istanbul.Backend.Gossip
 func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
-	log.Info("AJ-Gossip")
 	hash := istanbul.RLPHash(payload)
 	sb.knownMessages.Add(hash, true)
 
@@ -141,11 +138,8 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 			targets[val.Address()] = true
 		}
 	}
-	log.Info("AJ-Gossip", "targets", targets)
 	if sb.broadcaster != nil && len(targets) > 0 {
-		log.Info("AJ-gossip have targets")
 		ps := sb.broadcaster.FindPeers(targets)
-		log.Info("AJ-got peers", "pslen", len(ps), "peers", ps)
 		for addr, p := range ps {
 			ms, ok := sb.recentMessages.Get(addr)
 			var m *lru.ARCCache
@@ -153,7 +147,6 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 				m, _ = ms.(*lru.ARCCache)
 				if _, k := m.Get(hash); k {
 					// This peer had this event, skip it
-					log.Info("AJ-the peer had this event skip it")
 					continue
 				}
 			} else {
@@ -162,7 +155,6 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 
 			m.Add(hash, true)
 			sb.recentMessages.Add(addr, m)
-			log.Info("AJ-gossip send istanbulMsg", "p", addr.String())
 			go p.Send(istanbulMsg, payload)
 		}
 	}
@@ -171,7 +163,6 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 
 // Commit implements istanbul.Backend.Commit
 func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
-	log.Info("AJ-IBFT Commit", "p", proposal)
 	// Check if the proposal is a valid block
 	block := &types.Block{}
 	block, ok := proposal.(*types.Block)

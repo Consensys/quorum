@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"io/ioutil"
 	"sync/atomic"
@@ -95,7 +94,6 @@ func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 	if err != nil {
 		return err
 	}
-	log.Info("AJ-p2p send", "msgCode", msgcode, "data", data, "rlp", r)
 	return w.WriteMsg(Msg{Code: msgcode, Size: uint32(size), Payload: r})
 }
 

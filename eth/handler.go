@@ -208,7 +208,6 @@ func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
 	if _, ok = pm.engine.(consensus.Istanbul); ok {
 		prot = pm.engine.Protocol()
 		length = uint64(prot.Lengths[0])
-		log.Info("AJ-makeProtocol istanbul", "length", length)
 	} else {
 		length, ok = protocolLengths[version]
 		if !ok {
@@ -327,7 +326,6 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 	p.Log().Debug("Ethereum peer connected", "name", p.Name())
 
-	p.Log().Info("AJ-Ethereum peer connected", "name", p.Name())
 
 	// Execute the Ethereum handshake
 	var (
@@ -401,7 +399,6 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	if err != nil {
 		return err
 	}
-	log.Info("AJ-p2p eth/handleMsg", "msg", msg)
 	if msg.Size > protocolMaxMsgSize {
 		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, protocolMaxMsgSize)
 	}
@@ -423,7 +420,6 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if handled {
 			return err
 		}
-		log.Info("AJ-consensus engine handler - handled", "handled", handled, "err", err)
 	}
 
 	// Handle the message depending on its contents

@@ -416,7 +416,6 @@ func (rw *protoRW) WriteMsg(msg Msg) (err error) {
 func (rw *protoRW) ReadMsg() (Msg, error) {
 	select {
 	case msg := <-rw.in:
-		log.Info("AJ-ReadMsg", "msgcode", msg.Code, "offset", rw.offset, "rw", rw)
 		msg.Code -= rw.offset
 		return msg, nil
 	case <-rw.closed:

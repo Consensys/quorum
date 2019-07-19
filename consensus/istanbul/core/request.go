@@ -18,12 +18,10 @@ package core
 
 import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 func (c *core) handleRequest(request *istanbul.Request) error {
 	logger := c.logger.New("state", c.state, "seq", c.current.sequence)
-	log.Info("AJ-handleRequest")
 	if err := c.checkRequestMsg(request); err != nil {
 		if err == errInvalidMessage {
 			logger.Warn("invalid request")
@@ -33,12 +31,9 @@ func (c *core) handleRequest(request *istanbul.Request) error {
 		return err
 	}
 	logger.Trace("handleRequest", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
-	log.Info("AJ-handleRequest", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
-	log.Info("AJ-valid request message", "state", c.state.String())
 
 	c.current.pendingRequest = request
 	if c.state == StateAcceptRequest {
-		log.Info("AJ-stateAcceptRequest")
 		c.sendPreprepare(request)
 	}
 	return nil

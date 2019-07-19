@@ -19,12 +19,11 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"sync"
 	"time"
 
-	mapset "github.com/deckarep/golang-set"
+	"github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -197,7 +196,6 @@ func (p *peer) MarkTransaction(hash common.Hash) {
 // Send writes an RLP-encoded message with the given code.
 // data should encode as an RLP list.
 func (p *peer) Send(msgcode uint64, data interface{}) error {
-	log.Info("AJ-send","msgCode",msgcode)
 	return p2p.Send(p.rw, msgcode, data)
 }
 
