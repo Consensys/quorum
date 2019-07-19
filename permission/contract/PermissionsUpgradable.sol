@@ -12,6 +12,7 @@ contract PermissionsUpgradable {
     address private guardian;
     address private permImpl;
     address private permInterface;
+    // initDone ensures that init can be called only once
     bool private initDone;
 
     /// @notice constructor
@@ -65,7 +66,7 @@ contract PermissionsUpgradable {
         return permImpl;
     }
     /// @notice function to fetch the interface address
-    /// @return defpermissions interface contract address
+    /// @return permissions interface contract address
     function getPermInterface() public view returns (address) {
         return permInterface;
     }

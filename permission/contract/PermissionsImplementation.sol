@@ -342,11 +342,11 @@ contract PermissionsImplementation {
     /// @notice account only.
     /// @param _orgId unique id of the organization to which the account belongs
     /// @param _account account id
-    /// @param _status 1-suspending 2-activating back 3-blacklisting
+    /// @param _action 1-suspend 2-activate back 3-blacklist
     function updateAccountStatus(string calldata _orgId, address _account,
-        uint _status, address _caller) external onlyInterface
+        uint _action, address _caller) external onlyInterface
     orgAdmin(_caller, _orgId) {
-        accounts.updateAccountStatus(_orgId, _account, _status);
+        accounts.updateAccountStatus(_orgId, _account, _action);
     }
 
     // Node related functions
@@ -397,7 +397,7 @@ contract PermissionsImplementation {
     onlyInterface
     orgAdmin(_caller, _orgId)
     orgApproved(_orgId) {
-        require(validateAccount(_account, _orgId) == true, "Operation cannot be performed");
+        require(validateAccount(_account, _orgId) == true, "operation cannot be performed");
         require(_roleExists(_roleId, _orgId) == true, "role does not exists");
         bool admin = roles.isAdminRole(_roleId, _orgId, _getUltimateParent(_orgId));
         accounts.assignAccountRole(_account, _orgId, _roleId, admin);

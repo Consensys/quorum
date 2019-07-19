@@ -47,7 +47,6 @@ contract AccountManager {
     /// @param _account - account id
     modifier accountExists(string memory _orgId, address _account){
         require((accountIndex[_account]) != 0, "account does not exists");
-        // if account exists it should belong to the same orgAdminIndex
         require(keccak256(abi.encode(accountAccessList[_getAccountIndex(_account)].orgId)) == keccak256(abi.encode(_orgId)), "account in different org");
         _;
     }
@@ -113,7 +112,8 @@ contract AccountManager {
     function assignAdminRole(address _account, string calldata _orgId,
         string calldata _roleId, uint _status) external onlyImplementation {
         require(((keccak256(abi.encode(_roleId)) == keccak256(abi.encode(orgAdminRole))) ||
-        (keccak256(abi.encode(_roleId)) == keccak256(abi.encode(adminRole)))), "can be called to assign admin roles only");
+        (keccak256(abi.encode(_roleId)) == keccak256(abi.encode(adminRole)))),
+            "can be called to assign admin roles only");
 
         _setAccountRole(_account, _orgId, _roleId, _status, true);
 
@@ -182,34 +182,34 @@ contract AccountManager {
     /// @notice updates the account status to the passed status value
     /// @param _orgId - org id
     /// @param _account - account id
-    /// @param _status - new status of the account
-    function updateAccountStatus(string calldata _orgId, address _account, uint _status) external
+    /// @param _action - new status of the account
+    function updateAccountStatus(string calldata _orgId, address _account, uint _action) external
     onlyImplementation
     accountExists(_orgId, _account) {
         // operations that can be done 1-Suspend account, 2-Unsuspend Account, 3-Blacklist account
-        require((_status == 1 || _status == 2 || _status == 3), "invalid status change request");
+        require((_action == 1 || _action == 2 || _action == 3), "invalid status change request");
         // check if the account is org admin. if yes then do not allow any status change
-        require(checkOrgAdmin(_account, _orgId, "") != true, "org admin account status change cannot be done");
-        uint newStat;
-        if (_status == 1) {
-            // account current status should be active
+        require(checkOrgAdmin(_account, _orgId, "") != true, "status change not possible for org admin accounts");
+        uint newStatus;
+        if (_action == 1) {
+            // for suspending an account current status should be active
             require(accountAccessList[_getAccountIndex(_account)].status == 2,
                 "account is not in active status. operation cannot be done");
-            newStat = 4;
+            newStatus = 4;
         }
-        else if (_status == 2) {
-            // account current status should be suspended
+        else if (_action == 2) {
+            // for reactivating a suspended account, current status should be suspended
             require(accountAccessList[_getAccountIndex(_account)].status == 4,
                 "account is not in suspended status. operation cannot be done");
-            newStat = 2;
+            newStatus = 2;
         }
-        else if (_status == 3) {
+        else if (_action == 3) {
             require(accountAccessList[_getAccountIndex(_account)].status != 5,
                 "account is already blacklisted. operation cannot be done");
-            newStat = 5;
+            newStatus = 5;
         }
-        accountAccessList[_getAccountIndex(_account)].status = newStat;
-        emit AccountStatusChanged(_account, _orgId, newStat);
+        accountAccessList[_getAccountIndex(_account)].status = newStatus;
+        emit AccountStatusChanged(_account, _orgId, newStatus);
     }
 
     /// @notice checks if the passed account exists and if exists does it
@@ -223,7 +223,6 @@ contract AccountManager {
         if (accountIndex[_account] == 0) {
             return true;
         }
-        // check if the acount is part of this org else return false
         uint id = _getAccountIndex(_account);
         return (keccak256(abi.encode(accountAccessList[id].orgId)) == keccak256(abi.encode(_orgId)));
     }

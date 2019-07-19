@@ -149,10 +149,10 @@ contract PermissionsInterface {
     /// @notice this can be executed by org admin accounts only
     /// @param _orgId unique id of the organization to which the account belongs
     /// @param _account account id
-    /// @param _status 1-suspending 2-activating back 3-blacklisting
+    /// @param _action 1-suspending 2-activating back 3-blacklisting
     function updateAccountStatus(string calldata _orgId, address _account,
-        uint _status) external {
-        permImplementation.updateAccountStatus(_orgId, _account, _status, msg.sender);
+        uint _action) external {
+        permImplementation.updateAccountStatus(_orgId, _account, _action, msg.sender);
     }
 
     /// @notice interface to add a new node to the organization

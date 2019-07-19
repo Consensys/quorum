@@ -7,6 +7,8 @@ import "./PermissionsUpgradable.sol";
 /// @notice contract only. there are few view functions exposed as public and
 /// @notice can be called directly. these are invoked by quorum for populating
 /// @notice permissions data in cache
+/// @dev possible values of org status are - 0- NotInList, 1- Proposed,
+/// @dev 2- Approved, 3- PendingSuspension, 4- Suspended, 5- RevokeSuspension
 contract OrgManager {
     string private adminOrgId;
     PermissionsUpgradable private permUpgradable;

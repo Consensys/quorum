@@ -7,6 +7,7 @@ import "./PermissionsUpgradable.sol";
 /// @notice contract only. there are few view functions exposed as public and
 /// @notice can be called directly. these are invoked by quorum for populating
 /// @notice permissions data in cache
+
 contract NodeManager {
     PermissionsUpgradable private permUpgradable;
     struct NodeDetails {
@@ -17,9 +18,9 @@ contract NodeManager {
     // use an array to store node details
     // if we want to list all node one day, mapping is not capable
     NodeDetails[] private nodeList;
-    // use a mapping of enodeid to array index to track node
+    // mapping of enodeid to array index to track node
     mapping(bytes32 => uint) private nodeIdToIndex;
-    // keep track of node number
+    // tracking total number of nodes in network
     uint private numberOfNodes;
 
 
@@ -140,7 +141,6 @@ contract NodeManager {
         require(_checkOrg(_enodeId, _orgId), "enode id does not belong to the passed org id");
         require(_getNodeStatus(_enodeId) == 1, "nothing pending for approval");
         uint nodeIndex = _getNodeIndex(_enodeId);
-        // vote node
         nodeList[nodeIndex].status = 2;
         emit NodeApproved(nodeList[nodeIndex].enodeId, nodeList[nodeIndex].orgId);
     }
@@ -155,10 +155,6 @@ contract NodeManager {
     enodeExists(_enodeId) {
         // node should belong to the org
         require(_checkOrg(_enodeId, _orgId), "enode id does not belong to the passed org");
-        // changing node status to integer (0-NotInList, 1- PendingApproval,
-        // 2-Approved, 3-Deactivated, 4-Blacklisted)
-        // operations that can be done 3-Deactivate Node,
-        // 4-ActivateNode, 5-Blacklist nodeList
         require((_action == 1 || _action == 2 || _action == 3),
             "invalid operation. wrong action passed");
 

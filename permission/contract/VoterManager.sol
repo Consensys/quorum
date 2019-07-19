@@ -92,7 +92,7 @@ contract VoterManager {
         }
         else {
             uint id = _getVoterOrgIndex(_orgId);
-            // check of the voter already present in the list
+            // check if the voter is already present in the list
             if (orgVoterList[id].voterIndex[_vAccount] == 0) {
                 orgVoterList[id].voterCount++;
                 orgVoterList[id].voterIndex[_vAccount] = orgVoterList[id].voterCount;
@@ -126,7 +126,7 @@ contract VoterManager {
     }
 
     /// @notice function to a voting item for network admin accounts to vote
-    /// @param _authOrg org id of the authirizing org. it will be network admin org
+    /// @param _authOrg org id of the authorizing org. it will be network admin org
     /// @param _orgId - org id for which the voting record is being created
     /// @param _enodeId - enode id for which the voting record is being created
     /// @param _account - account id for which the voting record is being created
@@ -137,7 +137,7 @@ contract VoterManager {
         // check if anything is pending approval for the org.
         // If yes another item cannot be added
         require((_checkPendingOp(_authOrg, 0)),
-            "items pending approval. new item cannot be added");
+            "items pending for approval. new item cannot be added");
         uint id = _getVoterOrgIndex(_authOrg);
         orgVoterList[id].pendingOp.orgId = _orgId;
         orgVoterList[id].pendingOp.enodeId = _enodeId;
@@ -162,10 +162,10 @@ contract VoterManager {
     /// @return success of the voter process. either true or false
     function processVote(string calldata _authOrg, address _vAccount, uint _pendingOp)
     external onlyImplementation voterExists(_authOrg, _vAccount) returns (bool) {
-        // check something is pending approval
+        // check something if anything is pending approval
         require(_checkPendingOp(_authOrg, _pendingOp) == true, "nothing to approve");
         uint id = _getVoterOrgIndex(_authOrg);
-        // check if vote already processed
+        // check if vote is already processed
         require(orgVoterList[id].votingStatus[id][_vAccount] != true, "cannot double vote");
         orgVoterList[id].voteCount++;
         orgVoterList[id].votingStatus[id][_vAccount] = true;
@@ -181,7 +181,7 @@ contract VoterManager {
         return false;
     }
 
-    /// @notice returns the details of any pending oepration to be approved
+    /// @notice returns the details of any pending operation to be approved
     /// @param _orgId org id. this will be the org id of network admin org
     function getPendingOpDetails(string calldata _orgId) external view
     onlyImplementation returns (string memory, string memory, address, uint){
