@@ -539,14 +539,14 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 	for {
 		select {
 		case evtAccessModified = <-chAccessModified:
-			types.AcctInfoMap.UpsertAccount(evtAccessModified.OrgId, evtAccessModified.RoleId, evtAccessModified.Address, evtAccessModified.OrgAdmin, types.AcctStatus(int(evtAccessModified.Status.Uint64())))
+			types.AcctInfoMap.UpsertAccount(evtAccessModified.OrgId, evtAccessModified.RoleId, evtAccessModified.Account, evtAccessModified.OrgAdmin, types.AcctStatus(int(evtAccessModified.Status.Uint64())))
 
 		case evtAccessRevoked = <-chAccessRevoked:
-			types.AcctInfoMap.UpsertAccount(evtAccessRevoked.OrgId, evtAccessRevoked.RoleId, evtAccessRevoked.Address, evtAccessRevoked.OrgAdmin, types.AcctActive)
+			types.AcctInfoMap.UpsertAccount(evtAccessRevoked.OrgId, evtAccessRevoked.RoleId, evtAccessRevoked.Account, evtAccessRevoked.OrgAdmin, types.AcctActive)
 
 		case evtStatusChanged = <-chStatusChanged:
-			ac := types.AcctInfoMap.GetAccount(evtStatusChanged.Address)
-			types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Address, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
+			ac := types.AcctInfoMap.GetAccount(evtStatusChanged.Account)
+			types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Account, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
 		}
 	}
 }
@@ -760,7 +760,7 @@ func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind
 		nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
 		permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 
-		_, err := permissionsSession.AddAdminNodes(node.String())
+		_, err := permissionsSession.AddAdminNode(node.String())
 		if err != nil {
 			log.Warn("Failed to propose node", "err", err, "enode", enodeID)
 			return err
@@ -776,7 +776,7 @@ func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.Per
 	for _, a := range p.permConfig.Accounts {
 		nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
 		permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
-		_, er := permissionsSession.AddAdminAccounts(a)
+		_, er := permissionsSession.AddAdminAccount(a)
 		if er != nil {
 			log.Warn("Error adding permission initial account list", "err", er, "account", a)
 			return er

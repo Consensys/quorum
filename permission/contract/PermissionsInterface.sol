@@ -29,7 +29,8 @@ contract PermissionsInterface {
     /// @param _nwAdminOrg network admin organization id
     /// @param _nwAdminRole default network admin role id
     /// @param _oAdminRole default organization admin role id
-    function setPolicy(string calldata _nwAdminOrg, string calldata _nwAdminRole, string calldata _oAdminRole) external {
+    function setPolicy(string calldata _nwAdminOrg, string calldata _nwAdminRole,
+        string calldata _oAdminRole) external {
         permImplementation.setPolicy(_nwAdminOrg, _nwAdminRole, _oAdminRole);
     }
 
@@ -42,14 +43,14 @@ contract PermissionsInterface {
     }
     /// @notice interface to add new node to an admin organization
     /// @param _enodeId full enode id of the node to be added
-    function addAdminNodes(string calldata _enodeId) external {
-        permImplementation.addAdminNodes(_enodeId);
+    function addAdminNode(string calldata _enodeId) external {
+        permImplementation.addAdminNode(_enodeId);
     }
 
     /// @notice interface to add accounts to an admin organization
     /// @param _acct account address to be added
-    function addAdminAccounts(address _acct) external {
-        permImplementation.addAdminAccounts(_acct);
+    function addAdminAccount(address _acct) external {
+        permImplementation.addAdminAccount(_acct);
     }
 
     /// @notice interface to update network boot up status
@@ -57,7 +58,7 @@ contract PermissionsInterface {
     function updateNetworkBootStatus() external
     returns (bool)
     {
-        permImplementation.updateNetworkBootStatus();
+        return permImplementation.updateNetworkBootStatus();
     }
 
     /// @notice interface to fetch network boot status
@@ -70,7 +71,8 @@ contract PermissionsInterface {
     /// @param _orgId unique organization id
     /// @param _enodeId full enode id linked to the organization
     /// @param _account account id. this will have the org admin privileges
-    function addOrg(string calldata _orgId, string calldata _enodeId, address _account) external {
+    function addOrg(string calldata _orgId, string calldata _enodeId,
+        address _account) external {
         permImplementation.addOrg(_orgId, _enodeId, _account, msg.sender);
     }
 
@@ -78,7 +80,8 @@ contract PermissionsInterface {
     /// @param _orgId unique organization id
     /// @param _enodeId full enode id linked to the organization
     /// @param _account account id this will have the org admin privileges
-    function approveOrg(string calldata _orgId, string calldata _enodeId, address _account) external {
+    function approveOrg(string calldata _orgId, string calldata _enodeId,
+        address _account) external {
         permImplementation.approveOrg(_orgId, _enodeId, _account, msg.sender);
     }
 
@@ -86,7 +89,8 @@ contract PermissionsInterface {
     /// @param _pOrgId parent org id under which the sub org is being added
     /// @param _orgId unique id for the sub organization
     /// @param _enodeId full enode id linked to the sjb organization
-    function addSubOrg(string calldata _pOrgId, string calldata _orgId, string calldata _enodeId) external {
+    function addSubOrg(string calldata _pOrgId, string calldata _orgId,
+        string calldata _enodeId) external {
         permImplementation.addSubOrg(_pOrgId, _orgId, _enodeId, msg.sender);
     }
 
@@ -104,13 +108,14 @@ contract PermissionsInterface {
         permImplementation.approveOrgStatus(_orgId, _action, msg.sender);
     }
 
-    /// @notice interface to new role definition to an organization
+    /// @notice interface to add a new role definition to an organization
     /// @param _roleId unique id for the role
     /// @param _orgId unique id of the organization to which the role belongs
     /// @param _access 0-ReadOnly, 1-Transact, 2-ContractDeploy, 3-FullAccess
     /// @param _voter bool indicates if the role is voter role or not
     /// @param _admin bool indicates if the role is an admin role
-    function addNewRole(string calldata _roleId, string calldata _orgId, uint _access, bool _voter, bool _admin) external {
+    function addNewRole(string calldata _roleId, string calldata _orgId,
+        uint _access, bool _voter, bool _admin) external {
         permImplementation.addNewRole(_roleId, _orgId, _access, _voter, _admin, msg.sender);
     }
 
@@ -126,7 +131,8 @@ contract PermissionsInterface {
     /// @param _orgId unique id of the organization to which the account belongs
     /// @param _account account id
     /// @param _roleId role id to be assigned to the account
-    function assignAdminRole(string calldata _orgId, address _account, string calldata _roleId) external {
+    function assignAdminRole(string calldata _orgId, address _account,
+        string calldata _roleId) external {
         permImplementation.assignAdminRole(_orgId, _account, _roleId, msg.sender);
 
     }
@@ -144,7 +150,8 @@ contract PermissionsInterface {
     /// @param _orgId unique id of the organization to which the account belongs
     /// @param _account account id
     /// @param _status 1-suspending 2-activating back 3-blacklisting
-    function updateAccountStatus(string calldata _orgId, address _account, uint _status) external {
+    function updateAccountStatus(string calldata _orgId, address _account,
+        uint _status) external {
         permImplementation.updateAccountStatus(_orgId, _account, _status, msg.sender);
     }
 
@@ -160,14 +167,16 @@ contract PermissionsInterface {
     /// @param _orgId unique id of the organization to which the account belongs
     /// @param _enodeId full enode id being dded to the org
     /// @param _action 1-deactivate, 2-activate back, 3-blacklist the node
-    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, uint _action) external {
+    function updateNodeStatus(string calldata _orgId, string calldata _enodeId,
+        uint _action) external {
         permImplementation.updateNodeStatus(_orgId, _enodeId, _action, msg.sender);
     }
 
     /// @notice interface to fetch detail of any pending approval activities
     /// @notice for network admin organization
     /// @param _orgId unique id of the organization to which the account belongs
-    function getPendingOp(string calldata _orgId) external view returns (string memory, string memory, address, uint) {
+    function getPendingOp(string calldata _orgId) external view
+    returns (string memory, string memory, address, uint) {
         return permImplementation.getPendingOp(_orgId);
     }
 
@@ -189,7 +198,8 @@ contract PermissionsInterface {
     /// @param _account account id
     /// @param _orgId organization id to which the account belongs
     /// @param _roleId role id to be assigned to the account
-    function assignAccountRole(address _account, string calldata _orgId, string calldata _roleId) external {
+    function assignAccountRole(address _account, string calldata _orgId,
+        string calldata _roleId) external {
         permImplementation.assignAccountRole(_account, _orgId, _roleId, msg.sender);
 
     }
@@ -205,7 +215,8 @@ contract PermissionsInterface {
     /// @param _account account id
     /// @param _orgId organization id
     /// @return true/false
-    function isOrgAdmin(address _account, string calldata _orgId) external view returns (bool) {
+    function isOrgAdmin(address _account, string calldata _orgId)
+    external view returns (bool) {
         return permImplementation.isOrgAdmin(_account, _orgId);
     }
 
@@ -213,7 +224,8 @@ contract PermissionsInterface {
     /// @param _account account id
     /// @param _orgId organization id
     /// @return true/false
-    function validateAccount(address _account, string calldata _orgId) external view returns (bool) {
+    function validateAccount(address _account, string calldata _orgId)
+    external view returns (bool) {
         return permImplementation.validateAccount(_account, _orgId);
     }
 

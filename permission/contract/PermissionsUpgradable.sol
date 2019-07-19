@@ -12,11 +12,13 @@ contract PermissionsUpgradable {
     address private guardian;
     address private permImpl;
     address private permInterface;
+    bool private initDone;
 
     /// @notice constructor
     /// @param _guardian account address
     constructor (address _guardian) public{
         guardian = _guardian;
+        initDone = false;
     }
 
     /// @notice modifier to verify that caller is guardian account
@@ -31,9 +33,11 @@ contract PermissionsUpgradable {
     /// @param _permImpl implementation contract address
     function init(address _permInterface, address _permImpl) external
     onlyGuardian {
+        require(!initDone, "can be executed only once");
         permImpl = _permImpl;
         permInterface = _permInterface;
         _setImpl(permImpl);
+        initDone = true;
     }
 
     /// @notice changes the implementation contract address to the new address

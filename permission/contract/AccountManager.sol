@@ -2,20 +2,27 @@ pragma solidity ^0.5.3;
 
 import "./PermissionsUpgradable.sol";
 
+/// @title Account manager contract
+/// @notice This contract holds implementation logic for all account management
+/// @notice functionality. This can be called only by the implementation
+/// @notice contract only. there are few view functions exposed as public and
+/// @notice can be called directly. these are invoked by quorum for populating
+/// @notice permissions data in cache
 contract AccountManager {
     PermissionsUpgradable private permUpgradable;
-    //    enum AccountStatus {0-NotInList, 1-PendingApproval, 2-Active, 3-Inactive, 4-Suspended, 5-Blacklisted, 6-Revoked}
+    // enum AccountStatus {0-NotInList, 1-PendingApproval, 2-Active, 3-Inactive,
+    // 4-Suspended, 5-Blacklisted, 6-Revoked}
     struct AccountAccessDetails {
-        address acctId;
+        address account;
         string orgId;
         string role;
         uint status;
         bool orgAdmin;
     }
 
-    AccountAccessDetails[] private acctAccessList;
+    AccountAccessDetails[] private accountAccessList;
     mapping(address => uint) private accountIndex;
-    uint private numberOfAccts;
+    uint private numAccounts;
 
     string private adminRole;
     string private orgAdminRole;
@@ -23,233 +30,287 @@ contract AccountManager {
     mapping(bytes32 => address) private orgAdminIndex;
 
     // account permission events
-    event AccountAccessModified(address _address, string _orgId, string _roleId, bool _orgAdmin, uint _status);
-    event AccountAccessRevoked(address _address, string _orgId, string _roleId, bool _orgAdmin);
-    event AccountStatusChanged(address _address, string _orgId, uint _status);
+    event AccountAccessModified(address _account, string _orgId, string _roleId, bool _orgAdmin, uint _status);
+    event AccountAccessRevoked(address _account, string _orgId, string _roleId, bool _orgAdmin);
+    event AccountStatusChanged(address _account, string _orgId, uint _status);
 
-    // checks if the caller is implementation contracts
-    modifier onlyImpl
+    /// @notice confirms that the caller is the address of implementation
+    /// @notice contract
+    modifier onlyImplementation
     {
         require(msg.sender == permUpgradable.getPermImpl());
         _;
     }
 
-    // checks if the account is existing and part of the org
-    modifier accountExists(string memory _orgId, address _account)
-    {
+    /// checks if the account is exists and belongs to the org id passed
+    /// @param _orgId - org id
+    /// @param _account - account id
+    modifier accountExists(string memory _orgId, address _account){
         require((accountIndex[_account]) != 0, "account does not exists");
         // if account exists it should belong to the same orgAdminIndex
-        require(keccak256(abi.encodePacked(acctAccessList[getAcctIndex(_account)].orgId)) == keccak256(abi.encodePacked(_orgId)), "account in different org");
+        require(keccak256(abi.encode(accountAccessList[_getAccountIndex(_account)].orgId)) == keccak256(abi.encode(_orgId)), "account in different org");
         _;
     }
 
-    // constructor. sets the upgradable address
+    /// @notice constructor. sets the permissions upgradable address
     constructor (address _permUpgradable) public {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
-    // checks if the org is already having an org admin account
-    function orgAdminExists(string memory _orgId) public view returns (bool)
-    {
-        if (orgAdminIndex[keccak256(abi.encodePacked(_orgId))] != address(0)) {
-            address adminAcct = orgAdminIndex[keccak256(abi.encodePacked(_orgId))];
-            return getAccountStatus(adminAcct) == 2;
+
+    /// @notice returns the account details for a given account
+    /// @param _account account id
+    /// @return account id
+    /// @return org id of the account
+    /// @return role linked to the account
+    /// @return status of the account
+    /// @return bool indicating if the account is an org admin
+    function getAccountDetails(address _account) external view returns (address,
+        string memory, string memory, uint, bool){
+        if (accountIndex[_account] == 0) {
+            return (_account, "NONE", "", 0, false);
+        }
+        uint aIndex = _getAccountIndex(_account);
+        return (accountAccessList[aIndex].account, accountAccessList[aIndex].orgId,
+        accountAccessList[aIndex].role, accountAccessList[aIndex].status,
+        accountAccessList[aIndex].orgAdmin);
+    }
+
+    /// @notice returns the account details a given account index
+    /// @param  _aIndex account index
+    /// @return account id
+    /// @return org id of the account
+    /// @return role linked to the account
+    /// @return status of the account
+    /// @return bool indicating if the account is an org admin
+    function getAccountDetailsFromIndex(uint _aIndex) external view returns
+    (address, string memory, string memory, uint, bool) {
+        return (accountAccessList[_aIndex].account,
+        accountAccessList[_aIndex].orgId, accountAccessList[_aIndex].role,
+        accountAccessList[_aIndex].status, accountAccessList[_aIndex].orgAdmin);
+    }
+
+    /// @notice returns the total number of accounts
+    /// @return total number accounts
+    function getNumberOfAccounts() external view returns (uint) {
+        return accountAccessList.length;
+    }
+
+    /// @notice this is called at the time of network initialization to set
+    /// @notice the default values of network admin and org admin roles
+    function setDefaults(string calldata _nwAdminRole, string calldata _oAdminRole)
+    external onlyImplementation {
+        adminRole = _nwAdminRole;
+        orgAdminRole = _oAdminRole;
+    }
+
+    /// @notice this function is called to assign the org admin or network
+    /// @notice admin roles only to the passed account
+    /// @param _account - account id
+    /// @param _orgId - org to which it belongs
+    /// @param _roleId - role id to be assigned
+    /// @param _status - account status to be assigned
+    function assignAdminRole(address _account, string calldata _orgId,
+        string calldata _roleId, uint _status) external onlyImplementation {
+        require(((keccak256(abi.encode(_roleId)) == keccak256(abi.encode(orgAdminRole))) ||
+        (keccak256(abi.encode(_roleId)) == keccak256(abi.encode(adminRole)))), "can be called to assign admin roles only");
+
+        _setAccountRole(_account, _orgId, _roleId, _status, true);
+
+    }
+
+    /// @notice this function is called to assign the any role to the passed
+    /// @notice account.
+    /// @param _account - account id
+    /// @param _orgId - org to which it belongs
+    /// @param _roleId - role id to be assigned
+    /// @param _adminRole - indicates of the role is an admin role
+    function assignAccountRole(address _account, string calldata _orgId,
+        string calldata _roleId, bool _adminRole) external onlyImplementation {
+        require(((keccak256(abi.encode(_roleId)) != keccak256(abi.encode(adminRole)))
+        && (keccak256(abi.encode(abi.encode(_roleId))) != keccak256(abi.encode(orgAdminRole)))),
+            "cannot be called fro assigning org admin and network admin roles");
+        _setAccountRole(_account, _orgId, _roleId, 2, _adminRole);
+    }
+
+    /// @notice this function removes existing admin account. will be called at
+    /// @notice the time of adding a new account as org admin account. at org
+    /// @notice level there can be one org admin account only
+    /// @param _orgId - org id
+    /// @return bool to indicate if voter update is required or not
+    /// @return _adminRole - indicates of the role is an admin role
+    function removeExistingAdmin(string calldata _orgId) external
+    onlyImplementation
+    returns (bool voterUpdate, address account) {
+        // change the status of existing org admin to revoked
+        if (orgAdminExists(_orgId)) {
+            uint id = _getAccountIndex(orgAdminIndex[keccak256(abi.encode(_orgId))]);
+            accountAccessList[id].status = 6;
+            accountAccessList[id].orgAdmin = false;
+            emit AccountAccessModified(accountAccessList[id].account,
+                accountAccessList[id].orgId, accountAccessList[id].role,
+                accountAccessList[id].orgAdmin, accountAccessList[id].status);
+            return ((keccak256(abi.encode(accountAccessList[id].role)) == keccak256(abi.encode(adminRole))),
+            accountAccessList[id].account);
+        }
+        return (false, address(0));
+    }
+
+    /// @notice function to add an account as network admin or org admin.
+    /// @param _orgId - org id
+    /// @param _account - account id
+    /// @return bool to indicate if voter update is required or not
+    function addNewAdmin(string calldata _orgId, address _account) external
+    onlyImplementation
+    returns (bool voterUpdate) {
+        // check of the account role is org admin role and status is pending
+        // approval. if yes update the status to approved
+        string memory role = getAccountRole(_account);
+        uint status = _getAccountStatus(_account);
+        uint id = _getAccountIndex(_account);
+        if ((keccak256(abi.encode(role)) == keccak256(abi.encode(orgAdminRole))) &&
+            (status == 1)) {
+            orgAdminIndex[keccak256(abi.encode(_orgId))] = _account;
+        }
+        accountAccessList[id].status = 2;
+        accountAccessList[id].orgAdmin = true;
+        emit AccountAccessModified(_account, accountAccessList[id].orgId, accountAccessList[id].role,
+            accountAccessList[id].orgAdmin, accountAccessList[id].status);
+        return (keccak256(abi.encode(accountAccessList[id].role)) == keccak256(abi.encode(adminRole)));
+    }
+
+    /// @notice updates the account status to the passed status value
+    /// @param _orgId - org id
+    /// @param _account - account id
+    /// @param _status - new status of the account
+    function updateAccountStatus(string calldata _orgId, address _account, uint _status) external
+    onlyImplementation
+    accountExists(_orgId, _account) {
+        // operations that can be done 1-Suspend account, 2-Unsuspend Account, 3-Blacklist account
+        require((_status == 1 || _status == 2 || _status == 3), "invalid status change request");
+        // check if the account is org admin. if yes then do not allow any status change
+        require(checkOrgAdmin(_account, _orgId, "") != true, "org admin account status change cannot be done");
+        uint newStat;
+        if (_status == 1) {
+            // account current status should be active
+            require(accountAccessList[_getAccountIndex(_account)].status == 2,
+                "account is not in active status. operation cannot be done");
+            newStat = 4;
+        }
+        else if (_status == 2) {
+            // account current status should be suspended
+            require(accountAccessList[_getAccountIndex(_account)].status == 4,
+                "account is not in suspended status. operation cannot be done");
+            newStat = 2;
+        }
+        else if (_status == 3) {
+            require(accountAccessList[_getAccountIndex(_account)].status != 5,
+                "account is already blacklisted. operation cannot be done");
+            newStat = 5;
+        }
+        accountAccessList[_getAccountIndex(_account)].status = newStat;
+        emit AccountStatusChanged(_account, _orgId, newStat);
+    }
+
+    /// @notice checks if the passed account exists and if exists does it
+    /// @notice belong to the passed organization.
+    /// @param _account - account id
+    /// @param _orgId - org id
+    /// @return bool true if the account does not exists or exists and belongs
+    /// @return passed org
+    function validateAccount(address _account, string calldata _orgId) external
+    view returns (bool){
+        if (accountIndex[_account] == 0) {
+            return true;
+        }
+        // check if the acount is part of this org else return false
+        uint id = _getAccountIndex(_account);
+        return (keccak256(abi.encode(accountAccessList[id].orgId)) == keccak256(abi.encode(_orgId)));
+    }
+
+    /// @notice checks if org admin account exists for the passed org id
+    /// @param _orgId - org id
+    /// @return true if the org admin account exists and is approved
+    function orgAdminExists(string memory _orgId) public view returns (bool) {
+        if (orgAdminIndex[keccak256(abi.encode(_orgId))] != address(0)) {
+            address adminAcct = orgAdminIndex[keccak256(abi.encode(_orgId))];
+            return _getAccountStatus(adminAcct) == 2;
         }
         return false;
 
     }
 
-    // returns the status of input account. Returns 0 if the account is not
-    // existing
-    function getAccountStatus(address _acct) internal view returns (uint)
-    {
-        if (accountIndex[_acct] == 0) {
+    /// @notice returns the role id linked to the passed account
+    /// @param _account account id
+    /// @return role id
+    function getAccountRole(address _account) public view returns (string memory) {
+        if (accountIndex[_account] == 0) {
+            return "NONE";
+        }
+        uint acctIndex = _getAccountIndex(_account);
+        if (accountAccessList[acctIndex].status != 0) {
+            return accountAccessList[acctIndex].role;
+        }
+        else {
+            return "NONE";
+        }
+    }
+
+    /// @notice checks if the account is a org admin for the passed org or
+    /// @notice for the ultimate parent organization
+    /// @param _account account id
+    /// @param _orgId org id
+    /// @param _ultParent master org id or
+    function checkOrgAdmin(address _account, string memory _orgId,
+        string memory _ultParent) public view returns (bool) {
+        // check if the account role is network admin. If yes return success
+        if (keccak256(abi.encode(getAccountRole(_account))) == keccak256(abi.encode(adminRole))) {
+            // check of the orgid is network admin org. then return true
+            uint id = _getAccountIndex(_account);
+            return ((keccak256(abi.encode(accountAccessList[id].orgId)) == keccak256(abi.encode(_orgId)))
+            || (keccak256(abi.encode(accountAccessList[id].orgId)) == keccak256(abi.encode(_ultParent))));
+        }
+        return ((orgAdminIndex[keccak256(abi.encode(_orgId))] == _account) || (orgAdminIndex[keccak256(abi.encode(_ultParent))] == _account));
+    }
+
+    /// @notice returns the index for a given account id
+    /// @param _account account id
+    /// @return account index
+    function _getAccountIndex(address _account) internal view returns (uint) {
+        return accountIndex[_account] - 1;
+    }
+
+    /// @notice returns the account status for a given account
+    /// @param _account account id
+    /// @return account status
+    function _getAccountStatus(address _account) internal view returns (uint) {
+        if (accountIndex[_account] == 0) {
             return 0;
         }
-        uint aIndex = getAcctIndex(_acct);
-        return (acctAccessList[aIndex].status);
+        uint aIndex = _getAccountIndex(_account);
+        return (accountAccessList[aIndex].status);
     }
 
-    // Gets account details for a given account
-    function getAccountDetails(address _acct) external view returns (address, string memory, string memory, uint, bool)
-    {
-        if (accountIndex[_acct] == 0) {
-            return (_acct, "NONE", "", 0, false);
-        }
-        uint aIndex = getAcctIndex(_acct);
-        return (acctAccessList[aIndex].acctId, acctAccessList[aIndex].orgId, acctAccessList[aIndex].role, acctAccessList[aIndex].status, acctAccessList[aIndex].orgAdmin);
-    }
-
-    // Gets account details given index
-    function getAccountDetailsFromIndex(uint aIndex) external view returns (address, string memory, string memory, uint, bool)
-    {
-        return (acctAccessList[aIndex].acctId, acctAccessList[aIndex].orgId, acctAccessList[aIndex].role, acctAccessList[aIndex].status, acctAccessList[aIndex].orgAdmin);
-    }
-
-    // Get number of accounts
-    function getNumberOfAccounts() external view returns (uint)
-    {
-        return acctAccessList.length;
-    }
-
-    // sets the default values for network admin and org admin roles
-    function setDefaults(string calldata _nwAdminRole, string calldata _oAdminRole) external
-    onlyImpl
-    {
-        adminRole = _nwAdminRole;
-        orgAdminRole = _oAdminRole;
-    }
-
-    // associates an account with a role and organization
-    function setAccountRole(address _address, string memory _orgId, string memory _roleId, uint _status, bool _oAdmin) internal
-    onlyImpl
-    {
+    /// @notice sets the account role to the passed role id and sets the status
+    /// @param _account account id
+    /// @param _orgId org id
+    /// @param _status status to be set
+    /// @param _oAdmin bool to indicate if account is org admin
+    function _setAccountRole(address _account, string memory _orgId,
+        string memory _roleId, uint _status, bool _oAdmin) internal onlyImplementation {
         // Check if account already exists
-        uint aIndex = getAcctIndex(_address);
-        if (accountIndex[_address] != 0) {
-            acctAccessList[aIndex].role = _roleId;
-            acctAccessList[aIndex].status = _status;
-            acctAccessList[aIndex].orgAdmin = _oAdmin;
+        uint aIndex = _getAccountIndex(_account);
+        if (accountIndex[_account] != 0) {
+            accountAccessList[aIndex].role = _roleId;
+            accountAccessList[aIndex].status = _status;
+            accountAccessList[aIndex].orgAdmin = _oAdmin;
         }
         else {
-            numberOfAccts ++;
-            accountIndex[_address] = numberOfAccts;
-            acctAccessList.push(AccountAccessDetails(_address, _orgId, _roleId, _status, _oAdmin));
+            numAccounts ++;
+            accountIndex[_account] = numAccounts;
+            accountAccessList.push(AccountAccessDetails(_account, _orgId,
+                _roleId, _status, _oAdmin));
         }
-        emit AccountAccessModified(_address, _orgId, _roleId, _oAdmin, _status);
+        emit AccountAccessModified(_account, _orgId, _roleId, _oAdmin, _status);
     }
-
-    // this function can be only called for assigning org admin to network amdin roles and can be invoked by
-    // network admins only
-    function assignAdminRole(address _address, string calldata _orgId, string calldata _roleId, uint _status) external
-    onlyImpl
-    {
-        require(((keccak256(abi.encodePacked(_roleId)) == keccak256(abi.encodePacked(orgAdminRole))) ||
-        (keccak256(abi.encodePacked(_roleId)) == keccak256(abi.encodePacked(adminRole)))), "can be called to assign admin roles only");
-
-        setAccountRole(_address, _orgId, _roleId, _status, true);
-
-    }
-
-    // this function can be only called for assigning any roles to accounts can be called by
-    // org admins only
-    function assignAccountRole(address _address, string calldata _orgId, string calldata _roleId, bool _adminRole) external
-    onlyImpl
-    {
-        require(((keccak256(abi.encodePacked(_roleId)) != keccak256(abi.encodePacked(adminRole))) && (keccak256(abi.encodePacked(abi.encodePacked(_roleId))) != keccak256(abi.encodePacked(orgAdminRole)))), "cannot be called fro assigning org admin and network admin roles");
-        setAccountRole(_address, _orgId, _roleId, 2, _adminRole);
-    }
-
-    // this function removes an existing org admin from the admin role
-    function removeExistingAdmin(string calldata _orgId) external
-    onlyImpl
-    returns (bool voterUpdate, address acct)
-    {
-        // change the status of existing org admin to revoked
-        if (orgAdminExists(_orgId)) {
-            uint id = getAcctIndex(orgAdminIndex[keccak256(abi.encodePacked(_orgId))]);
-            acctAccessList[id].status = 6;
-            acctAccessList[id].orgAdmin = false;
-            emit AccountAccessModified(acctAccessList[id].acctId, acctAccessList[id].orgId, acctAccessList[id].role, acctAccessList[id].orgAdmin, acctAccessList[id].status);
-            return ((keccak256(abi.encodePacked(acctAccessList[id].role)) == keccak256(abi.encodePacked(adminRole))), acctAccessList[id].acctId);
-        }
-        return (false, address(0));
-    }
-
-    // this function associates a new account with org or network admin role
-    function addNewAdmin(string calldata _orgId, address _address) external
-    onlyImpl
-    returns (bool voterUpdate)
-    {
-        // check of the account role is ORGADMIN and status is pending approval
-        // if yes update the status to approved
-        string memory role = getAccountRole(_address);
-        uint status = getAccountStatus(_address);
-        uint id = getAcctIndex(_address);
-        if ((keccak256(abi.encodePacked(role)) == keccak256(abi.encodePacked(orgAdminRole))) &&
-            (status == 1)) {
-            orgAdminIndex[keccak256(abi.encodePacked(_orgId))] = _address;
-        }
-        acctAccessList[id].status = 2;
-        acctAccessList[id].orgAdmin = true;
-        emit AccountAccessModified(_address, acctAccessList[id].orgId, acctAccessList[id].role, acctAccessList[id].orgAdmin, acctAccessList[id].status);
-        return (keccak256(abi.encodePacked(acctAccessList[id].role)) == keccak256(abi.encodePacked(adminRole)));
-    }
-
-    // this function can be called for updating the account status suspending or blaclisting an account
-    // and for revoking suspension of an account
-    function updateAccountStatus(string calldata _orgId, address _account, uint _status) external
-    onlyImpl
-    accountExists(_orgId, _account)
-    {
-        // changing node status to integer (0-NotInList, 1-PendingApproval, 2-Active, 3-Suspended, 4-Blacklisted, 5-Revoked)
-        // operations that can be done 1-Suspend account, 2-Unsuspend Account, 3-Blacklist account
-        require((_status == 1 || _status == 2 || _status == 3), "invalid operation");
-        // check if the account is org admin. if yes then do not allow any status change
-        require(checkOrgAdmin(_account, _orgId, "") != true, "cannot perform the operation on org admin account");
-        uint newStat;
-        if (_status == 1) {
-            // account current status should be active
-            require(acctAccessList[getAcctIndex(_account)].status == 2, "account should be active");
-            newStat = 4;
-        }
-        else if (_status == 2) {
-            // account current status should be suspended
-            require(acctAccessList[getAcctIndex(_account)].status == 4, "account should be suspended");
-            newStat = 2;
-        }
-        else if (_status == 3) {
-            require(acctAccessList[getAcctIndex(_account)].status != 5, "account already blacklisted");
-            newStat = 5;
-        }
-        acctAccessList[getAcctIndex(_account)].status = newStat;
-        emit AccountStatusChanged(_account, _orgId, newStat);
-    }
-
-    // returns the account role
-    function getAccountRole(address _acct) public view returns (string memory)
-    {
-        if (accountIndex[_acct] == 0) {
-            return "NONE";
-        }
-        uint acctIndex = getAcctIndex(_acct);
-        if (acctAccessList[acctIndex].status != 0) {
-            return acctAccessList[acctIndex].role;
-        }
-        else {
-            return "NONE";
-        }
-    }
-
-    // checks if the account is a org admin for the passed organization or for the ultimate
-    // parent organization
-    function checkOrgAdmin(address _acct, string memory _orgId, string memory _ultParent) public view returns (bool)
-    {
-        // check if the account role is network admin. If yes return success
-        if (keccak256(abi.encodePacked(getAccountRole(_acct))) == keccak256(abi.encodePacked(adminRole))) {
-            // check of the orgid is network admin org. then return true
-            uint id = getAcctIndex(_acct);
-            return ((keccak256(abi.encodePacked(acctAccessList[id].orgId)) == keccak256(abi.encodePacked(_orgId)))
-            || (keccak256(abi.encodePacked(acctAccessList[id].orgId)) == keccak256(abi.encodePacked(_ultParent))));
-        }
-        return ((orgAdminIndex[keccak256(abi.encodePacked(_orgId))] == _acct) || (orgAdminIndex[keccak256(abi.encodePacked(_ultParent))] == _acct));
-    }
-
-    // this function checks if account access can be modified. Account access can be modified for a new account
-    // or if the call is from the orgadmin of the same org.
-    function validateAccount(address _acct, string calldata _orgId) external view returns (bool)
-    {
-        if (accountIndex[_acct] == 0) {
-            return true;
-        }
-        // check if the acount is part of this org else return false
-        uint id = getAcctIndex(_acct);
-        return (keccak256(abi.encodePacked(acctAccessList[id].orgId)) == keccak256(abi.encodePacked(_orgId)));
-    }
-    // Returns the account index based on account id
-    function getAcctIndex(address _acct) internal view returns (uint)
-    {
-        return accountIndex[_acct] - 1;
-    }
-
 }

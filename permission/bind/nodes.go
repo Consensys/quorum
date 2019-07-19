@@ -28,7 +28,7 @@ var (
 )
 
 // NodeManagerABI is the input ABI used to generate the binding from.
-const NodeManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_action\",\"type\":\"uint256\"}],\"name\":\"updateNodeStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"}],\"name\":\"getNodeStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"enodeId\",\"type\":\"string\"}],\"name\":\"getNodeDetails\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addOrgNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"approveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"nodeIndex\",\"type\":\"uint256\"}],\"name\":\"getNodeDetailsFromIndex\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addAdminNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeActivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"}]"
+const NodeManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_action\",\"type\":\"uint256\"}],\"name\":\"updateNodeStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"enodeId\",\"type\":\"string\"}],\"name\":\"getNodeDetails\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addOrgNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"approveNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_nodeIndex\",\"type\":\"uint256\"}],\"name\":\"getNodeDetailsFromIndex\",\"outputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_nodeStatus\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfNodes\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"addAdminNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeProposed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeApproved\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeDeactivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeActivated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_enodeId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"NodeBlacklisted\",\"type\":\"event\"}]"
 
 // NodeManager is an auto generated Go binding around an Ethereum contract.
 type NodeManager struct {
@@ -214,8 +214,8 @@ func (_NodeManager *NodeManagerCallerSession) GetNodeDetails(enodeId string) (st
 
 // GetNodeDetailsFromIndex is a free data retrieval call binding the contract method 0x97c07a9b.
 //
-// Solidity: function getNodeDetailsFromIndex(nodeIndex uint256) constant returns(_orgId string, _enodeId string, _nodeStatus uint256)
-func (_NodeManager *NodeManagerCaller) GetNodeDetailsFromIndex(opts *bind.CallOpts, nodeIndex *big.Int) (struct {
+// Solidity: function getNodeDetailsFromIndex(_nodeIndex uint256) constant returns(_orgId string, _enodeId string, _nodeStatus uint256)
+func (_NodeManager *NodeManagerCaller) GetNodeDetailsFromIndex(opts *bind.CallOpts, _nodeIndex *big.Int) (struct {
 	OrgId      string
 	EnodeId    string
 	NodeStatus *big.Int
@@ -226,56 +226,30 @@ func (_NodeManager *NodeManagerCaller) GetNodeDetailsFromIndex(opts *bind.CallOp
 		NodeStatus *big.Int
 	})
 	out := ret
-	err := _NodeManager.contract.Call(opts, out, "getNodeDetailsFromIndex", nodeIndex)
+	err := _NodeManager.contract.Call(opts, out, "getNodeDetailsFromIndex", _nodeIndex)
 	return *ret, err
 }
 
 // GetNodeDetailsFromIndex is a free data retrieval call binding the contract method 0x97c07a9b.
 //
-// Solidity: function getNodeDetailsFromIndex(nodeIndex uint256) constant returns(_orgId string, _enodeId string, _nodeStatus uint256)
-func (_NodeManager *NodeManagerSession) GetNodeDetailsFromIndex(nodeIndex *big.Int) (struct {
+// Solidity: function getNodeDetailsFromIndex(_nodeIndex uint256) constant returns(_orgId string, _enodeId string, _nodeStatus uint256)
+func (_NodeManager *NodeManagerSession) GetNodeDetailsFromIndex(_nodeIndex *big.Int) (struct {
 	OrgId      string
 	EnodeId    string
 	NodeStatus *big.Int
 }, error) {
-	return _NodeManager.Contract.GetNodeDetailsFromIndex(&_NodeManager.CallOpts, nodeIndex)
+	return _NodeManager.Contract.GetNodeDetailsFromIndex(&_NodeManager.CallOpts, _nodeIndex)
 }
 
 // GetNodeDetailsFromIndex is a free data retrieval call binding the contract method 0x97c07a9b.
 //
-// Solidity: function getNodeDetailsFromIndex(nodeIndex uint256) constant returns(_orgId string, _enodeId string, _nodeStatus uint256)
-func (_NodeManager *NodeManagerCallerSession) GetNodeDetailsFromIndex(nodeIndex *big.Int) (struct {
+// Solidity: function getNodeDetailsFromIndex(_nodeIndex uint256) constant returns(_orgId string, _enodeId string, _nodeStatus uint256)
+func (_NodeManager *NodeManagerCallerSession) GetNodeDetailsFromIndex(_nodeIndex *big.Int) (struct {
 	OrgId      string
 	EnodeId    string
 	NodeStatus *big.Int
 }, error) {
-	return _NodeManager.Contract.GetNodeDetailsFromIndex(&_NodeManager.CallOpts, nodeIndex)
-}
-
-// GetNodeStatus is a free data retrieval call binding the contract method 0x397eeccb.
-//
-// Solidity: function getNodeStatus(_enodeId string) constant returns(uint256)
-func (_NodeManager *NodeManagerCaller) GetNodeStatus(opts *bind.CallOpts, _enodeId string) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _NodeManager.contract.Call(opts, out, "getNodeStatus", _enodeId)
-	return *ret0, err
-}
-
-// GetNodeStatus is a free data retrieval call binding the contract method 0x397eeccb.
-//
-// Solidity: function getNodeStatus(_enodeId string) constant returns(uint256)
-func (_NodeManager *NodeManagerSession) GetNodeStatus(_enodeId string) (*big.Int, error) {
-	return _NodeManager.Contract.GetNodeStatus(&_NodeManager.CallOpts, _enodeId)
-}
-
-// GetNodeStatus is a free data retrieval call binding the contract method 0x397eeccb.
-//
-// Solidity: function getNodeStatus(_enodeId string) constant returns(uint256)
-func (_NodeManager *NodeManagerCallerSession) GetNodeStatus(_enodeId string) (*big.Int, error) {
-	return _NodeManager.Contract.GetNodeStatus(&_NodeManager.CallOpts, _enodeId)
+	return _NodeManager.Contract.GetNodeDetailsFromIndex(&_NodeManager.CallOpts, _nodeIndex)
 }
 
 // GetNumberOfNodes is a free data retrieval call binding the contract method 0xb81c806a.

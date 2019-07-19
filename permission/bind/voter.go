@@ -28,7 +28,7 @@ var (
 )
 
 // VoterManagerABI is the input ABI used to generate the binding from.
-const VoterManagerABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"checkIfVoterExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getPendingOpDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getVoteCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"addVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"deleteVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getNumberOfValidVoters\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getNumberOfVoters\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_authOrg\",\"type\":\"string\"},{\"name\":\"_vAccount\",\"type\":\"address\"},{\"name\":\"_pendingOp\",\"type\":\"uint256\"}],\"name\":\"processVote\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"checkVotingAccountExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_authOrg\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_pendingOp\",\"type\":\"uint256\"}],\"name\":\"addVotingItem\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"VoterDeleted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"VotingItemAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"VoteProcessed\",\"type\":\"event\"}]"
+const VoterManagerABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getPendingOpDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_vAccount\",\"type\":\"address\"}],\"name\":\"addVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_vAccount\",\"type\":\"address\"}],\"name\":\"deleteVoter\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_authOrg\",\"type\":\"string\"},{\"name\":\"_vAccount\",\"type\":\"address\"},{\"name\":\"_pendingOp\",\"type\":\"uint256\"}],\"name\":\"processVote\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_authOrg\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_pendingOp\",\"type\":\"uint256\"}],\"name\":\"addVotingItem\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_vAccount\",\"type\":\"address\"}],\"name\":\"VoterAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_vAccount\",\"type\":\"address\"}],\"name\":\"VoterDeleted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"VotingItemAdded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"VoteProcessed\",\"type\":\"event\"}]"
 
 // VoterManager is an auto generated Go binding around an Ethereum contract.
 type VoterManager struct {
@@ -172,110 +172,6 @@ func (_VoterManager *VoterManagerTransactorRaw) Transact(opts *bind.TransactOpts
 	return _VoterManager.Contract.contract.Transact(opts, method, params...)
 }
 
-// CheckIfVoterExists is a free data retrieval call binding the contract method 0x00b813df.
-//
-// Solidity: function checkIfVoterExists(_orgId string, _address address) constant returns(bool)
-func (_VoterManager *VoterManagerCaller) CheckIfVoterExists(opts *bind.CallOpts, _orgId string, _address common.Address) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _VoterManager.contract.Call(opts, out, "checkIfVoterExists", _orgId, _address)
-	return *ret0, err
-}
-
-// CheckIfVoterExists is a free data retrieval call binding the contract method 0x00b813df.
-//
-// Solidity: function checkIfVoterExists(_orgId string, _address address) constant returns(bool)
-func (_VoterManager *VoterManagerSession) CheckIfVoterExists(_orgId string, _address common.Address) (bool, error) {
-	return _VoterManager.Contract.CheckIfVoterExists(&_VoterManager.CallOpts, _orgId, _address)
-}
-
-// CheckIfVoterExists is a free data retrieval call binding the contract method 0x00b813df.
-//
-// Solidity: function checkIfVoterExists(_orgId string, _address address) constant returns(bool)
-func (_VoterManager *VoterManagerCallerSession) CheckIfVoterExists(_orgId string, _address common.Address) (bool, error) {
-	return _VoterManager.Contract.CheckIfVoterExists(&_VoterManager.CallOpts, _orgId, _address)
-}
-
-// CheckVotingAccountExists is a free data retrieval call binding the contract method 0xcb2c45dc.
-//
-// Solidity: function checkVotingAccountExists(_orgId string) constant returns(bool)
-func (_VoterManager *VoterManagerCaller) CheckVotingAccountExists(opts *bind.CallOpts, _orgId string) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _VoterManager.contract.Call(opts, out, "checkVotingAccountExists", _orgId)
-	return *ret0, err
-}
-
-// CheckVotingAccountExists is a free data retrieval call binding the contract method 0xcb2c45dc.
-//
-// Solidity: function checkVotingAccountExists(_orgId string) constant returns(bool)
-func (_VoterManager *VoterManagerSession) CheckVotingAccountExists(_orgId string) (bool, error) {
-	return _VoterManager.Contract.CheckVotingAccountExists(&_VoterManager.CallOpts, _orgId)
-}
-
-// CheckVotingAccountExists is a free data retrieval call binding the contract method 0xcb2c45dc.
-//
-// Solidity: function checkVotingAccountExists(_orgId string) constant returns(bool)
-func (_VoterManager *VoterManagerCallerSession) CheckVotingAccountExists(_orgId string) (bool, error) {
-	return _VoterManager.Contract.CheckVotingAccountExists(&_VoterManager.CallOpts, _orgId)
-}
-
-// GetNumberOfValidVoters is a free data retrieval call binding the contract method 0x7ca4cfee.
-//
-// Solidity: function getNumberOfValidVoters(_orgId string) constant returns(uint256)
-func (_VoterManager *VoterManagerCaller) GetNumberOfValidVoters(opts *bind.CallOpts, _orgId string) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _VoterManager.contract.Call(opts, out, "getNumberOfValidVoters", _orgId)
-	return *ret0, err
-}
-
-// GetNumberOfValidVoters is a free data retrieval call binding the contract method 0x7ca4cfee.
-//
-// Solidity: function getNumberOfValidVoters(_orgId string) constant returns(uint256)
-func (_VoterManager *VoterManagerSession) GetNumberOfValidVoters(_orgId string) (*big.Int, error) {
-	return _VoterManager.Contract.GetNumberOfValidVoters(&_VoterManager.CallOpts, _orgId)
-}
-
-// GetNumberOfValidVoters is a free data retrieval call binding the contract method 0x7ca4cfee.
-//
-// Solidity: function getNumberOfValidVoters(_orgId string) constant returns(uint256)
-func (_VoterManager *VoterManagerCallerSession) GetNumberOfValidVoters(_orgId string) (*big.Int, error) {
-	return _VoterManager.Contract.GetNumberOfValidVoters(&_VoterManager.CallOpts, _orgId)
-}
-
-// GetNumberOfVoters is a free data retrieval call binding the contract method 0x9b904f0a.
-//
-// Solidity: function getNumberOfVoters(_orgId string) constant returns(uint256)
-func (_VoterManager *VoterManagerCaller) GetNumberOfVoters(opts *bind.CallOpts, _orgId string) (*big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-	)
-	out := ret0
-	err := _VoterManager.contract.Call(opts, out, "getNumberOfVoters", _orgId)
-	return *ret0, err
-}
-
-// GetNumberOfVoters is a free data retrieval call binding the contract method 0x9b904f0a.
-//
-// Solidity: function getNumberOfVoters(_orgId string) constant returns(uint256)
-func (_VoterManager *VoterManagerSession) GetNumberOfVoters(_orgId string) (*big.Int, error) {
-	return _VoterManager.Contract.GetNumberOfVoters(&_VoterManager.CallOpts, _orgId)
-}
-
-// GetNumberOfVoters is a free data retrieval call binding the contract method 0x9b904f0a.
-//
-// Solidity: function getNumberOfVoters(_orgId string) constant returns(uint256)
-func (_VoterManager *VoterManagerCallerSession) GetNumberOfVoters(_orgId string) (*big.Int, error) {
-	return _VoterManager.Contract.GetNumberOfVoters(&_VoterManager.CallOpts, _orgId)
-}
-
 // GetPendingOpDetails is a free data retrieval call binding the contract method 0x014e6acc.
 //
 // Solidity: function getPendingOpDetails(_orgId string) constant returns(string, string, address, uint256)
@@ -310,55 +206,25 @@ func (_VoterManager *VoterManagerCallerSession) GetPendingOpDetails(_orgId strin
 	return _VoterManager.Contract.GetPendingOpDetails(&_VoterManager.CallOpts, _orgId)
 }
 
-// GetVoteCount is a free data retrieval call binding the contract method 0x069953a7.
+// AddVoter is a paid mutator transaction binding the contract method 0x5607395b.
 //
-// Solidity: function getVoteCount(_orgId string) constant returns(uint256, uint256)
-func (_VoterManager *VoterManagerCaller) GetVoteCount(opts *bind.CallOpts, _orgId string) (*big.Int, *big.Int, error) {
-	var (
-		ret0 = new(*big.Int)
-		ret1 = new(*big.Int)
-	)
-	out := &[]interface{}{
-		ret0,
-		ret1,
-	}
-	err := _VoterManager.contract.Call(opts, out, "getVoteCount", _orgId)
-	return *ret0, *ret1, err
-}
-
-// GetVoteCount is a free data retrieval call binding the contract method 0x069953a7.
-//
-// Solidity: function getVoteCount(_orgId string) constant returns(uint256, uint256)
-func (_VoterManager *VoterManagerSession) GetVoteCount(_orgId string) (*big.Int, *big.Int, error) {
-	return _VoterManager.Contract.GetVoteCount(&_VoterManager.CallOpts, _orgId)
-}
-
-// GetVoteCount is a free data retrieval call binding the contract method 0x069953a7.
-//
-// Solidity: function getVoteCount(_orgId string) constant returns(uint256, uint256)
-func (_VoterManager *VoterManagerCallerSession) GetVoteCount(_orgId string) (*big.Int, *big.Int, error) {
-	return _VoterManager.Contract.GetVoteCount(&_VoterManager.CallOpts, _orgId)
+// Solidity: function addVoter(_orgId string, _vAccount address) returns()
+func (_VoterManager *VoterManagerTransactor) AddVoter(opts *bind.TransactOpts, _orgId string, _vAccount common.Address) (*types.Transaction, error) {
+	return _VoterManager.contract.Transact(opts, "addVoter", _orgId, _vAccount)
 }
 
 // AddVoter is a paid mutator transaction binding the contract method 0x5607395b.
 //
-// Solidity: function addVoter(_orgId string, _address address) returns()
-func (_VoterManager *VoterManagerTransactor) AddVoter(opts *bind.TransactOpts, _orgId string, _address common.Address) (*types.Transaction, error) {
-	return _VoterManager.contract.Transact(opts, "addVoter", _orgId, _address)
+// Solidity: function addVoter(_orgId string, _vAccount address) returns()
+func (_VoterManager *VoterManagerSession) AddVoter(_orgId string, _vAccount common.Address) (*types.Transaction, error) {
+	return _VoterManager.Contract.AddVoter(&_VoterManager.TransactOpts, _orgId, _vAccount)
 }
 
 // AddVoter is a paid mutator transaction binding the contract method 0x5607395b.
 //
-// Solidity: function addVoter(_orgId string, _address address) returns()
-func (_VoterManager *VoterManagerSession) AddVoter(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _VoterManager.Contract.AddVoter(&_VoterManager.TransactOpts, _orgId, _address)
-}
-
-// AddVoter is a paid mutator transaction binding the contract method 0x5607395b.
-//
-// Solidity: function addVoter(_orgId string, _address address) returns()
-func (_VoterManager *VoterManagerTransactorSession) AddVoter(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _VoterManager.Contract.AddVoter(&_VoterManager.TransactOpts, _orgId, _address)
+// Solidity: function addVoter(_orgId string, _vAccount address) returns()
+func (_VoterManager *VoterManagerTransactorSession) AddVoter(_orgId string, _vAccount common.Address) (*types.Transaction, error) {
+	return _VoterManager.Contract.AddVoter(&_VoterManager.TransactOpts, _orgId, _vAccount)
 }
 
 // AddVotingItem is a paid mutator transaction binding the contract method 0xe98ac22d.
@@ -384,23 +250,23 @@ func (_VoterManager *VoterManagerTransactorSession) AddVotingItem(_authOrg strin
 
 // DeleteVoter is a paid mutator transaction binding the contract method 0x59cbd6fe.
 //
-// Solidity: function deleteVoter(_orgId string, _address address) returns()
-func (_VoterManager *VoterManagerTransactor) DeleteVoter(opts *bind.TransactOpts, _orgId string, _address common.Address) (*types.Transaction, error) {
-	return _VoterManager.contract.Transact(opts, "deleteVoter", _orgId, _address)
+// Solidity: function deleteVoter(_orgId string, _vAccount address) returns()
+func (_VoterManager *VoterManagerTransactor) DeleteVoter(opts *bind.TransactOpts, _orgId string, _vAccount common.Address) (*types.Transaction, error) {
+	return _VoterManager.contract.Transact(opts, "deleteVoter", _orgId, _vAccount)
 }
 
 // DeleteVoter is a paid mutator transaction binding the contract method 0x59cbd6fe.
 //
-// Solidity: function deleteVoter(_orgId string, _address address) returns()
-func (_VoterManager *VoterManagerSession) DeleteVoter(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _VoterManager.Contract.DeleteVoter(&_VoterManager.TransactOpts, _orgId, _address)
+// Solidity: function deleteVoter(_orgId string, _vAccount address) returns()
+func (_VoterManager *VoterManagerSession) DeleteVoter(_orgId string, _vAccount common.Address) (*types.Transaction, error) {
+	return _VoterManager.Contract.DeleteVoter(&_VoterManager.TransactOpts, _orgId, _vAccount)
 }
 
 // DeleteVoter is a paid mutator transaction binding the contract method 0x59cbd6fe.
 //
-// Solidity: function deleteVoter(_orgId string, _address address) returns()
-func (_VoterManager *VoterManagerTransactorSession) DeleteVoter(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _VoterManager.Contract.DeleteVoter(&_VoterManager.TransactOpts, _orgId, _address)
+// Solidity: function deleteVoter(_orgId string, _vAccount address) returns()
+func (_VoterManager *VoterManagerTransactorSession) DeleteVoter(_orgId string, _vAccount common.Address) (*types.Transaction, error) {
+	return _VoterManager.Contract.DeleteVoter(&_VoterManager.TransactOpts, _orgId, _vAccount)
 }
 
 // ProcessVote is a paid mutator transaction binding the contract method 0xb0213864.
@@ -615,14 +481,14 @@ func (it *VoterManagerVoterAddedIterator) Close() error {
 
 // VoterManagerVoterAdded represents a VoterAdded event raised by the VoterManager contract.
 type VoterManagerVoterAdded struct {
-	OrgId   string
-	Address common.Address
-	Raw     types.Log // Blockchain specific contextual infos
+	OrgId    string
+	VAccount common.Address
+	Raw      types.Log // Blockchain specific contextual infos
 }
 
 // FilterVoterAdded is a free log retrieval operation binding the contract event 0x424f3ad05c61ea35cad66f22b70b1fad7250d8229921238078c401db36d34574.
 //
-// Solidity: e VoterAdded(_orgId string, _address address)
+// Solidity: e VoterAdded(_orgId string, _vAccount address)
 func (_VoterManager *VoterManagerFilterer) FilterVoterAdded(opts *bind.FilterOpts) (*VoterManagerVoterAddedIterator, error) {
 
 	logs, sub, err := _VoterManager.contract.FilterLogs(opts, "VoterAdded")
@@ -634,7 +500,7 @@ func (_VoterManager *VoterManagerFilterer) FilterVoterAdded(opts *bind.FilterOpt
 
 // WatchVoterAdded is a free log subscription operation binding the contract event 0x424f3ad05c61ea35cad66f22b70b1fad7250d8229921238078c401db36d34574.
 //
-// Solidity: e VoterAdded(_orgId string, _address address)
+// Solidity: e VoterAdded(_orgId string, _vAccount address)
 func (_VoterManager *VoterManagerFilterer) WatchVoterAdded(opts *bind.WatchOpts, sink chan<- *VoterManagerVoterAdded) (event.Subscription, error) {
 
 	logs, sub, err := _VoterManager.contract.WatchLogs(opts, "VoterAdded")
@@ -738,14 +604,14 @@ func (it *VoterManagerVoterDeletedIterator) Close() error {
 
 // VoterManagerVoterDeleted represents a VoterDeleted event raised by the VoterManager contract.
 type VoterManagerVoterDeleted struct {
-	OrgId   string
-	Address common.Address
-	Raw     types.Log // Blockchain specific contextual infos
+	OrgId    string
+	VAccount common.Address
+	Raw      types.Log // Blockchain specific contextual infos
 }
 
 // FilterVoterDeleted is a free log retrieval operation binding the contract event 0x654cd85d9b2abaf3affef0a047625d088e6e4d0448935c9b5016b5f5aa0ca3b6.
 //
-// Solidity: e VoterDeleted(_orgId string, _address address)
+// Solidity: e VoterDeleted(_orgId string, _vAccount address)
 func (_VoterManager *VoterManagerFilterer) FilterVoterDeleted(opts *bind.FilterOpts) (*VoterManagerVoterDeletedIterator, error) {
 
 	logs, sub, err := _VoterManager.contract.FilterLogs(opts, "VoterDeleted")
@@ -757,7 +623,7 @@ func (_VoterManager *VoterManagerFilterer) FilterVoterDeleted(opts *bind.FilterO
 
 // WatchVoterDeleted is a free log subscription operation binding the contract event 0x654cd85d9b2abaf3affef0a047625d088e6e4d0448935c9b5016b5f5aa0ca3b6.
 //
-// Solidity: e VoterDeleted(_orgId string, _address address)
+// Solidity: e VoterDeleted(_orgId string, _vAccount address)
 func (_VoterManager *VoterManagerFilterer) WatchVoterDeleted(opts *bind.WatchOpts, sink chan<- *VoterManagerVoterDeleted) (event.Subscription, error) {
 
 	logs, sub, err := _VoterManager.contract.WatchLogs(opts, "VoterDeleted")

@@ -28,7 +28,7 @@ var (
 )
 
 // AcctManagerABI is the input ABI used to generate the binding from.
-const AcctManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_adminRole\",\"type\":\"bool\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"removeExistingAdmin\",\"outputs\":[{\"name\":\"voterUpdate\",\"type\":\"bool\"},{\"name\":\"acct\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"validateAccount\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"getAccountRole\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateAccountStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"orgAdminExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"aIndex\",\"type\":\"uint256\"}],\"name\":\"getAccountDetailsFromIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_address\",\"type\":\"address\"}],\"name\":\"addNewAdmin\",\"outputs\":[{\"name\":\"voterUpdate\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setDefaults\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_address\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"assignAdminRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"checkOrgAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"}],\"name\":\"AccountAccessRevoked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_address\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountStatusChanged\",\"type\":\"event\"}]"
+const AcctManagerABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_adminRole\",\"type\":\"bool\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"removeExistingAdmin\",\"outputs\":[{\"name\":\"voterUpdate\",\"type\":\"bool\"},{\"name\":\"account\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"getAccountDetails\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNumberOfAccounts\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"validateAccount\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"getAccountRole\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"updateAccountStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"orgAdminExists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_aIndex\",\"type\":\"uint256\"}],\"name\":\"getAccountDetailsFromIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"addNewAdmin\",\"outputs\":[{\"name\":\"voterUpdate\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setDefaults\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"assignAdminRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_ultParent\",\"type\":\"string\"}],\"name\":\"checkOrgAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permUpgradable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_account\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountAccessModified\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_account\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_roleId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_orgAdmin\",\"type\":\"bool\"}],\"name\":\"AccountAccessRevoked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"_account\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_orgId\",\"type\":\"string\"},{\"indexed\":false,\"name\":\"_status\",\"type\":\"uint256\"}],\"name\":\"AccountStatusChanged\",\"type\":\"event\"}]"
 
 // AcctManager is an auto generated Go binding around an Ethereum contract.
 type AcctManager struct {
@@ -174,34 +174,34 @@ func (_AcctManager *AcctManagerTransactorRaw) Transact(opts *bind.TransactOpts, 
 
 // CheckOrgAdmin is a free data retrieval call binding the contract method 0xe8b42bf4.
 //
-// Solidity: function checkOrgAdmin(_acct address, _orgId string, _ultParent string) constant returns(bool)
-func (_AcctManager *AcctManagerCaller) CheckOrgAdmin(opts *bind.CallOpts, _acct common.Address, _orgId string, _ultParent string) (bool, error) {
+// Solidity: function checkOrgAdmin(_account address, _orgId string, _ultParent string) constant returns(bool)
+func (_AcctManager *AcctManagerCaller) CheckOrgAdmin(opts *bind.CallOpts, _account common.Address, _orgId string, _ultParent string) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _AcctManager.contract.Call(opts, out, "checkOrgAdmin", _acct, _orgId, _ultParent)
+	err := _AcctManager.contract.Call(opts, out, "checkOrgAdmin", _account, _orgId, _ultParent)
 	return *ret0, err
 }
 
 // CheckOrgAdmin is a free data retrieval call binding the contract method 0xe8b42bf4.
 //
-// Solidity: function checkOrgAdmin(_acct address, _orgId string, _ultParent string) constant returns(bool)
-func (_AcctManager *AcctManagerSession) CheckOrgAdmin(_acct common.Address, _orgId string, _ultParent string) (bool, error) {
-	return _AcctManager.Contract.CheckOrgAdmin(&_AcctManager.CallOpts, _acct, _orgId, _ultParent)
+// Solidity: function checkOrgAdmin(_account address, _orgId string, _ultParent string) constant returns(bool)
+func (_AcctManager *AcctManagerSession) CheckOrgAdmin(_account common.Address, _orgId string, _ultParent string) (bool, error) {
+	return _AcctManager.Contract.CheckOrgAdmin(&_AcctManager.CallOpts, _account, _orgId, _ultParent)
 }
 
 // CheckOrgAdmin is a free data retrieval call binding the contract method 0xe8b42bf4.
 //
-// Solidity: function checkOrgAdmin(_acct address, _orgId string, _ultParent string) constant returns(bool)
-func (_AcctManager *AcctManagerCallerSession) CheckOrgAdmin(_acct common.Address, _orgId string, _ultParent string) (bool, error) {
-	return _AcctManager.Contract.CheckOrgAdmin(&_AcctManager.CallOpts, _acct, _orgId, _ultParent)
+// Solidity: function checkOrgAdmin(_account address, _orgId string, _ultParent string) constant returns(bool)
+func (_AcctManager *AcctManagerCallerSession) CheckOrgAdmin(_account common.Address, _orgId string, _ultParent string) (bool, error) {
+	return _AcctManager.Contract.CheckOrgAdmin(&_AcctManager.CallOpts, _account, _orgId, _ultParent)
 }
 
 // GetAccountDetails is a free data retrieval call binding the contract method 0x2aceb534.
 //
-// Solidity: function getAccountDetails(_acct address) constant returns(address, string, string, uint256, bool)
-func (_AcctManager *AcctManagerCaller) GetAccountDetails(opts *bind.CallOpts, _acct common.Address) (common.Address, string, string, *big.Int, bool, error) {
+// Solidity: function getAccountDetails(_account address) constant returns(address, string, string, uint256, bool)
+func (_AcctManager *AcctManagerCaller) GetAccountDetails(opts *bind.CallOpts, _account common.Address) (common.Address, string, string, *big.Int, bool, error) {
 	var (
 		ret0 = new(common.Address)
 		ret1 = new(string)
@@ -216,28 +216,28 @@ func (_AcctManager *AcctManagerCaller) GetAccountDetails(opts *bind.CallOpts, _a
 		ret3,
 		ret4,
 	}
-	err := _AcctManager.contract.Call(opts, out, "getAccountDetails", _acct)
+	err := _AcctManager.contract.Call(opts, out, "getAccountDetails", _account)
 	return *ret0, *ret1, *ret2, *ret3, *ret4, err
 }
 
 // GetAccountDetails is a free data retrieval call binding the contract method 0x2aceb534.
 //
-// Solidity: function getAccountDetails(_acct address) constant returns(address, string, string, uint256, bool)
-func (_AcctManager *AcctManagerSession) GetAccountDetails(_acct common.Address) (common.Address, string, string, *big.Int, bool, error) {
-	return _AcctManager.Contract.GetAccountDetails(&_AcctManager.CallOpts, _acct)
+// Solidity: function getAccountDetails(_account address) constant returns(address, string, string, uint256, bool)
+func (_AcctManager *AcctManagerSession) GetAccountDetails(_account common.Address) (common.Address, string, string, *big.Int, bool, error) {
+	return _AcctManager.Contract.GetAccountDetails(&_AcctManager.CallOpts, _account)
 }
 
 // GetAccountDetails is a free data retrieval call binding the contract method 0x2aceb534.
 //
-// Solidity: function getAccountDetails(_acct address) constant returns(address, string, string, uint256, bool)
-func (_AcctManager *AcctManagerCallerSession) GetAccountDetails(_acct common.Address) (common.Address, string, string, *big.Int, bool, error) {
-	return _AcctManager.Contract.GetAccountDetails(&_AcctManager.CallOpts, _acct)
+// Solidity: function getAccountDetails(_account address) constant returns(address, string, string, uint256, bool)
+func (_AcctManager *AcctManagerCallerSession) GetAccountDetails(_account common.Address) (common.Address, string, string, *big.Int, bool, error) {
+	return _AcctManager.Contract.GetAccountDetails(&_AcctManager.CallOpts, _account)
 }
 
 // GetAccountDetailsFromIndex is a free data retrieval call binding the contract method 0xb2018568.
 //
-// Solidity: function getAccountDetailsFromIndex(aIndex uint256) constant returns(address, string, string, uint256, bool)
-func (_AcctManager *AcctManagerCaller) GetAccountDetailsFromIndex(opts *bind.CallOpts, aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
+// Solidity: function getAccountDetailsFromIndex(_aIndex uint256) constant returns(address, string, string, uint256, bool)
+func (_AcctManager *AcctManagerCaller) GetAccountDetailsFromIndex(opts *bind.CallOpts, _aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
 	var (
 		ret0 = new(common.Address)
 		ret1 = new(string)
@@ -252,48 +252,48 @@ func (_AcctManager *AcctManagerCaller) GetAccountDetailsFromIndex(opts *bind.Cal
 		ret3,
 		ret4,
 	}
-	err := _AcctManager.contract.Call(opts, out, "getAccountDetailsFromIndex", aIndex)
+	err := _AcctManager.contract.Call(opts, out, "getAccountDetailsFromIndex", _aIndex)
 	return *ret0, *ret1, *ret2, *ret3, *ret4, err
 }
 
 // GetAccountDetailsFromIndex is a free data retrieval call binding the contract method 0xb2018568.
 //
-// Solidity: function getAccountDetailsFromIndex(aIndex uint256) constant returns(address, string, string, uint256, bool)
-func (_AcctManager *AcctManagerSession) GetAccountDetailsFromIndex(aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
-	return _AcctManager.Contract.GetAccountDetailsFromIndex(&_AcctManager.CallOpts, aIndex)
+// Solidity: function getAccountDetailsFromIndex(_aIndex uint256) constant returns(address, string, string, uint256, bool)
+func (_AcctManager *AcctManagerSession) GetAccountDetailsFromIndex(_aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
+	return _AcctManager.Contract.GetAccountDetailsFromIndex(&_AcctManager.CallOpts, _aIndex)
 }
 
 // GetAccountDetailsFromIndex is a free data retrieval call binding the contract method 0xb2018568.
 //
-// Solidity: function getAccountDetailsFromIndex(aIndex uint256) constant returns(address, string, string, uint256, bool)
-func (_AcctManager *AcctManagerCallerSession) GetAccountDetailsFromIndex(aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
-	return _AcctManager.Contract.GetAccountDetailsFromIndex(&_AcctManager.CallOpts, aIndex)
+// Solidity: function getAccountDetailsFromIndex(_aIndex uint256) constant returns(address, string, string, uint256, bool)
+func (_AcctManager *AcctManagerCallerSession) GetAccountDetailsFromIndex(_aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
+	return _AcctManager.Contract.GetAccountDetailsFromIndex(&_AcctManager.CallOpts, _aIndex)
 }
 
 // GetAccountRole is a free data retrieval call binding the contract method 0x81d66b23.
 //
-// Solidity: function getAccountRole(_acct address) constant returns(string)
-func (_AcctManager *AcctManagerCaller) GetAccountRole(opts *bind.CallOpts, _acct common.Address) (string, error) {
+// Solidity: function getAccountRole(_account address) constant returns(string)
+func (_AcctManager *AcctManagerCaller) GetAccountRole(opts *bind.CallOpts, _account common.Address) (string, error) {
 	var (
 		ret0 = new(string)
 	)
 	out := ret0
-	err := _AcctManager.contract.Call(opts, out, "getAccountRole", _acct)
+	err := _AcctManager.contract.Call(opts, out, "getAccountRole", _account)
 	return *ret0, err
 }
 
 // GetAccountRole is a free data retrieval call binding the contract method 0x81d66b23.
 //
-// Solidity: function getAccountRole(_acct address) constant returns(string)
-func (_AcctManager *AcctManagerSession) GetAccountRole(_acct common.Address) (string, error) {
-	return _AcctManager.Contract.GetAccountRole(&_AcctManager.CallOpts, _acct)
+// Solidity: function getAccountRole(_account address) constant returns(string)
+func (_AcctManager *AcctManagerSession) GetAccountRole(_account common.Address) (string, error) {
+	return _AcctManager.Contract.GetAccountRole(&_AcctManager.CallOpts, _account)
 }
 
 // GetAccountRole is a free data retrieval call binding the contract method 0x81d66b23.
 //
-// Solidity: function getAccountRole(_acct address) constant returns(string)
-func (_AcctManager *AcctManagerCallerSession) GetAccountRole(_acct common.Address) (string, error) {
-	return _AcctManager.Contract.GetAccountRole(&_AcctManager.CallOpts, _acct)
+// Solidity: function getAccountRole(_account address) constant returns(string)
+func (_AcctManager *AcctManagerCallerSession) GetAccountRole(_account common.Address) (string, error) {
+	return _AcctManager.Contract.GetAccountRole(&_AcctManager.CallOpts, _account)
 }
 
 // GetNumberOfAccounts is a free data retrieval call binding the contract method 0x309e36ef.
@@ -350,110 +350,110 @@ func (_AcctManager *AcctManagerCallerSession) OrgAdminExists(_orgId string) (boo
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
-// Solidity: function validateAccount(_acct address, _orgId string) constant returns(bool)
-func (_AcctManager *AcctManagerCaller) ValidateAccount(opts *bind.CallOpts, _acct common.Address, _orgId string) (bool, error) {
+// Solidity: function validateAccount(_account address, _orgId string) constant returns(bool)
+func (_AcctManager *AcctManagerCaller) ValidateAccount(opts *bind.CallOpts, _account common.Address, _orgId string) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _AcctManager.contract.Call(opts, out, "validateAccount", _acct, _orgId)
+	err := _AcctManager.contract.Call(opts, out, "validateAccount", _account, _orgId)
 	return *ret0, err
 }
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
-// Solidity: function validateAccount(_acct address, _orgId string) constant returns(bool)
-func (_AcctManager *AcctManagerSession) ValidateAccount(_acct common.Address, _orgId string) (bool, error) {
-	return _AcctManager.Contract.ValidateAccount(&_AcctManager.CallOpts, _acct, _orgId)
+// Solidity: function validateAccount(_account address, _orgId string) constant returns(bool)
+func (_AcctManager *AcctManagerSession) ValidateAccount(_account common.Address, _orgId string) (bool, error) {
+	return _AcctManager.Contract.ValidateAccount(&_AcctManager.CallOpts, _account, _orgId)
 }
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
-// Solidity: function validateAccount(_acct address, _orgId string) constant returns(bool)
-func (_AcctManager *AcctManagerCallerSession) ValidateAccount(_acct common.Address, _orgId string) (bool, error) {
-	return _AcctManager.Contract.ValidateAccount(&_AcctManager.CallOpts, _acct, _orgId)
+// Solidity: function validateAccount(_account address, _orgId string) constant returns(bool)
+func (_AcctManager *AcctManagerCallerSession) ValidateAccount(_account common.Address, _orgId string) (bool, error) {
+	return _AcctManager.Contract.ValidateAccount(&_AcctManager.CallOpts, _account, _orgId)
 }
 
 // AddNewAdmin is a paid mutator transaction binding the contract method 0xc214e5e5.
 //
-// Solidity: function addNewAdmin(_orgId string, _address address) returns(voterUpdate bool)
-func (_AcctManager *AcctManagerTransactor) AddNewAdmin(opts *bind.TransactOpts, _orgId string, _address common.Address) (*types.Transaction, error) {
-	return _AcctManager.contract.Transact(opts, "addNewAdmin", _orgId, _address)
+// Solidity: function addNewAdmin(_orgId string, _account address) returns(voterUpdate bool)
+func (_AcctManager *AcctManagerTransactor) AddNewAdmin(opts *bind.TransactOpts, _orgId string, _account common.Address) (*types.Transaction, error) {
+	return _AcctManager.contract.Transact(opts, "addNewAdmin", _orgId, _account)
 }
 
 // AddNewAdmin is a paid mutator transaction binding the contract method 0xc214e5e5.
 //
-// Solidity: function addNewAdmin(_orgId string, _address address) returns(voterUpdate bool)
-func (_AcctManager *AcctManagerSession) AddNewAdmin(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _AcctManager.Contract.AddNewAdmin(&_AcctManager.TransactOpts, _orgId, _address)
+// Solidity: function addNewAdmin(_orgId string, _account address) returns(voterUpdate bool)
+func (_AcctManager *AcctManagerSession) AddNewAdmin(_orgId string, _account common.Address) (*types.Transaction, error) {
+	return _AcctManager.Contract.AddNewAdmin(&_AcctManager.TransactOpts, _orgId, _account)
 }
 
 // AddNewAdmin is a paid mutator transaction binding the contract method 0xc214e5e5.
 //
-// Solidity: function addNewAdmin(_orgId string, _address address) returns(voterUpdate bool)
-func (_AcctManager *AcctManagerTransactorSession) AddNewAdmin(_orgId string, _address common.Address) (*types.Transaction, error) {
-	return _AcctManager.Contract.AddNewAdmin(&_AcctManager.TransactOpts, _orgId, _address)
+// Solidity: function addNewAdmin(_orgId string, _account address) returns(voterUpdate bool)
+func (_AcctManager *AcctManagerTransactorSession) AddNewAdmin(_orgId string, _account common.Address) (*types.Transaction, error) {
+	return _AcctManager.Contract.AddNewAdmin(&_AcctManager.TransactOpts, _orgId, _account)
 }
 
 // AssignAccountRole is a paid mutator transaction binding the contract method 0x143a5604.
 //
-// Solidity: function assignAccountRole(_address address, _orgId string, _roleId string, _adminRole bool) returns()
-func (_AcctManager *AcctManagerTransactor) AssignAccountRole(opts *bind.TransactOpts, _address common.Address, _orgId string, _roleId string, _adminRole bool) (*types.Transaction, error) {
-	return _AcctManager.contract.Transact(opts, "assignAccountRole", _address, _orgId, _roleId, _adminRole)
+// Solidity: function assignAccountRole(_account address, _orgId string, _roleId string, _adminRole bool) returns()
+func (_AcctManager *AcctManagerTransactor) AssignAccountRole(opts *bind.TransactOpts, _account common.Address, _orgId string, _roleId string, _adminRole bool) (*types.Transaction, error) {
+	return _AcctManager.contract.Transact(opts, "assignAccountRole", _account, _orgId, _roleId, _adminRole)
 }
 
 // AssignAccountRole is a paid mutator transaction binding the contract method 0x143a5604.
 //
-// Solidity: function assignAccountRole(_address address, _orgId string, _roleId string, _adminRole bool) returns()
-func (_AcctManager *AcctManagerSession) AssignAccountRole(_address common.Address, _orgId string, _roleId string, _adminRole bool) (*types.Transaction, error) {
-	return _AcctManager.Contract.AssignAccountRole(&_AcctManager.TransactOpts, _address, _orgId, _roleId, _adminRole)
+// Solidity: function assignAccountRole(_account address, _orgId string, _roleId string, _adminRole bool) returns()
+func (_AcctManager *AcctManagerSession) AssignAccountRole(_account common.Address, _orgId string, _roleId string, _adminRole bool) (*types.Transaction, error) {
+	return _AcctManager.Contract.AssignAccountRole(&_AcctManager.TransactOpts, _account, _orgId, _roleId, _adminRole)
 }
 
 // AssignAccountRole is a paid mutator transaction binding the contract method 0x143a5604.
 //
-// Solidity: function assignAccountRole(_address address, _orgId string, _roleId string, _adminRole bool) returns()
-func (_AcctManager *AcctManagerTransactorSession) AssignAccountRole(_address common.Address, _orgId string, _roleId string, _adminRole bool) (*types.Transaction, error) {
-	return _AcctManager.Contract.AssignAccountRole(&_AcctManager.TransactOpts, _address, _orgId, _roleId, _adminRole)
+// Solidity: function assignAccountRole(_account address, _orgId string, _roleId string, _adminRole bool) returns()
+func (_AcctManager *AcctManagerTransactorSession) AssignAccountRole(_account common.Address, _orgId string, _roleId string, _adminRole bool) (*types.Transaction, error) {
+	return _AcctManager.Contract.AssignAccountRole(&_AcctManager.TransactOpts, _account, _orgId, _roleId, _adminRole)
 }
 
 // AssignAdminRole is a paid mutator transaction binding the contract method 0xe3483a9d.
 //
-// Solidity: function assignAdminRole(_address address, _orgId string, _roleId string, _status uint256) returns()
-func (_AcctManager *AcctManagerTransactor) AssignAdminRole(opts *bind.TransactOpts, _address common.Address, _orgId string, _roleId string, _status *big.Int) (*types.Transaction, error) {
-	return _AcctManager.contract.Transact(opts, "assignAdminRole", _address, _orgId, _roleId, _status)
+// Solidity: function assignAdminRole(_account address, _orgId string, _roleId string, _status uint256) returns()
+func (_AcctManager *AcctManagerTransactor) AssignAdminRole(opts *bind.TransactOpts, _account common.Address, _orgId string, _roleId string, _status *big.Int) (*types.Transaction, error) {
+	return _AcctManager.contract.Transact(opts, "assignAdminRole", _account, _orgId, _roleId, _status)
 }
 
 // AssignAdminRole is a paid mutator transaction binding the contract method 0xe3483a9d.
 //
-// Solidity: function assignAdminRole(_address address, _orgId string, _roleId string, _status uint256) returns()
-func (_AcctManager *AcctManagerSession) AssignAdminRole(_address common.Address, _orgId string, _roleId string, _status *big.Int) (*types.Transaction, error) {
-	return _AcctManager.Contract.AssignAdminRole(&_AcctManager.TransactOpts, _address, _orgId, _roleId, _status)
+// Solidity: function assignAdminRole(_account address, _orgId string, _roleId string, _status uint256) returns()
+func (_AcctManager *AcctManagerSession) AssignAdminRole(_account common.Address, _orgId string, _roleId string, _status *big.Int) (*types.Transaction, error) {
+	return _AcctManager.Contract.AssignAdminRole(&_AcctManager.TransactOpts, _account, _orgId, _roleId, _status)
 }
 
 // AssignAdminRole is a paid mutator transaction binding the contract method 0xe3483a9d.
 //
-// Solidity: function assignAdminRole(_address address, _orgId string, _roleId string, _status uint256) returns()
-func (_AcctManager *AcctManagerTransactorSession) AssignAdminRole(_address common.Address, _orgId string, _roleId string, _status *big.Int) (*types.Transaction, error) {
-	return _AcctManager.Contract.AssignAdminRole(&_AcctManager.TransactOpts, _address, _orgId, _roleId, _status)
+// Solidity: function assignAdminRole(_account address, _orgId string, _roleId string, _status uint256) returns()
+func (_AcctManager *AcctManagerTransactorSession) AssignAdminRole(_account common.Address, _orgId string, _roleId string, _status *big.Int) (*types.Transaction, error) {
+	return _AcctManager.Contract.AssignAdminRole(&_AcctManager.TransactOpts, _account, _orgId, _roleId, _status)
 }
 
 // RemoveExistingAdmin is a paid mutator transaction binding the contract method 0x1d09dc93.
 //
-// Solidity: function removeExistingAdmin(_orgId string) returns(voterUpdate bool, acct address)
+// Solidity: function removeExistingAdmin(_orgId string) returns(voterUpdate bool, account address)
 func (_AcctManager *AcctManagerTransactor) RemoveExistingAdmin(opts *bind.TransactOpts, _orgId string) (*types.Transaction, error) {
 	return _AcctManager.contract.Transact(opts, "removeExistingAdmin", _orgId)
 }
 
 // RemoveExistingAdmin is a paid mutator transaction binding the contract method 0x1d09dc93.
 //
-// Solidity: function removeExistingAdmin(_orgId string) returns(voterUpdate bool, acct address)
+// Solidity: function removeExistingAdmin(_orgId string) returns(voterUpdate bool, account address)
 func (_AcctManager *AcctManagerSession) RemoveExistingAdmin(_orgId string) (*types.Transaction, error) {
 	return _AcctManager.Contract.RemoveExistingAdmin(&_AcctManager.TransactOpts, _orgId)
 }
 
 // RemoveExistingAdmin is a paid mutator transaction binding the contract method 0x1d09dc93.
 //
-// Solidity: function removeExistingAdmin(_orgId string) returns(voterUpdate bool, acct address)
+// Solidity: function removeExistingAdmin(_orgId string) returns(voterUpdate bool, account address)
 func (_AcctManager *AcctManagerTransactorSession) RemoveExistingAdmin(_orgId string) (*types.Transaction, error) {
 	return _AcctManager.Contract.RemoveExistingAdmin(&_AcctManager.TransactOpts, _orgId)
 }
@@ -569,7 +569,7 @@ func (it *AcctManagerAccountAccessModifiedIterator) Close() error {
 
 // AcctManagerAccountAccessModified represents a AccountAccessModified event raised by the AcctManager contract.
 type AcctManagerAccountAccessModified struct {
-	Address  common.Address
+	Account  common.Address
 	OrgId    string
 	RoleId   string
 	OrgAdmin bool
@@ -579,7 +579,7 @@ type AcctManagerAccountAccessModified struct {
 
 // FilterAccountAccessModified is a free log retrieval operation binding the contract event 0x68e62a03aeb0a125c2fc869eed72f2fca473680987bdd680c093a534e17cc776.
 //
-// Solidity: e AccountAccessModified(_address address, _orgId string, _roleId string, _orgAdmin bool, _status uint256)
+// Solidity: e AccountAccessModified(_account address, _orgId string, _roleId string, _orgAdmin bool, _status uint256)
 func (_AcctManager *AcctManagerFilterer) FilterAccountAccessModified(opts *bind.FilterOpts) (*AcctManagerAccountAccessModifiedIterator, error) {
 
 	logs, sub, err := _AcctManager.contract.FilterLogs(opts, "AccountAccessModified")
@@ -591,7 +591,7 @@ func (_AcctManager *AcctManagerFilterer) FilterAccountAccessModified(opts *bind.
 
 // WatchAccountAccessModified is a free log subscription operation binding the contract event 0x68e62a03aeb0a125c2fc869eed72f2fca473680987bdd680c093a534e17cc776.
 //
-// Solidity: e AccountAccessModified(_address address, _orgId string, _roleId string, _orgAdmin bool, _status uint256)
+// Solidity: e AccountAccessModified(_account address, _orgId string, _roleId string, _orgAdmin bool, _status uint256)
 func (_AcctManager *AcctManagerFilterer) WatchAccountAccessModified(opts *bind.WatchOpts, sink chan<- *AcctManagerAccountAccessModified) (event.Subscription, error) {
 
 	logs, sub, err := _AcctManager.contract.WatchLogs(opts, "AccountAccessModified")
@@ -695,7 +695,7 @@ func (it *AcctManagerAccountAccessRevokedIterator) Close() error {
 
 // AcctManagerAccountAccessRevoked represents a AccountAccessRevoked event raised by the AcctManager contract.
 type AcctManagerAccountAccessRevoked struct {
-	Address  common.Address
+	Account  common.Address
 	OrgId    string
 	RoleId   string
 	OrgAdmin bool
@@ -704,7 +704,7 @@ type AcctManagerAccountAccessRevoked struct {
 
 // FilterAccountAccessRevoked is a free log retrieval operation binding the contract event 0x6b5105396435a8a139aeed682dd573cd2a7e6279de77f8c11f95a30399212ad1.
 //
-// Solidity: e AccountAccessRevoked(_address address, _orgId string, _roleId string, _orgAdmin bool)
+// Solidity: e AccountAccessRevoked(_account address, _orgId string, _roleId string, _orgAdmin bool)
 func (_AcctManager *AcctManagerFilterer) FilterAccountAccessRevoked(opts *bind.FilterOpts) (*AcctManagerAccountAccessRevokedIterator, error) {
 
 	logs, sub, err := _AcctManager.contract.FilterLogs(opts, "AccountAccessRevoked")
@@ -716,7 +716,7 @@ func (_AcctManager *AcctManagerFilterer) FilterAccountAccessRevoked(opts *bind.F
 
 // WatchAccountAccessRevoked is a free log subscription operation binding the contract event 0x6b5105396435a8a139aeed682dd573cd2a7e6279de77f8c11f95a30399212ad1.
 //
-// Solidity: e AccountAccessRevoked(_address address, _orgId string, _roleId string, _orgAdmin bool)
+// Solidity: e AccountAccessRevoked(_account address, _orgId string, _roleId string, _orgAdmin bool)
 func (_AcctManager *AcctManagerFilterer) WatchAccountAccessRevoked(opts *bind.WatchOpts, sink chan<- *AcctManagerAccountAccessRevoked) (event.Subscription, error) {
 
 	logs, sub, err := _AcctManager.contract.WatchLogs(opts, "AccountAccessRevoked")
@@ -820,7 +820,7 @@ func (it *AcctManagerAccountStatusChangedIterator) Close() error {
 
 // AcctManagerAccountStatusChanged represents a AccountStatusChanged event raised by the AcctManager contract.
 type AcctManagerAccountStatusChanged struct {
-	Address common.Address
+	Account common.Address
 	OrgId   string
 	Status  *big.Int
 	Raw     types.Log // Blockchain specific contextual infos
@@ -828,7 +828,7 @@ type AcctManagerAccountStatusChanged struct {
 
 // FilterAccountStatusChanged is a free log retrieval operation binding the contract event 0x36b0ea38154dec5e98b6bf928b971a9db5e8cd4b6946350e9e43fb9848c70b25.
 //
-// Solidity: e AccountStatusChanged(_address address, _orgId string, _status uint256)
+// Solidity: e AccountStatusChanged(_account address, _orgId string, _status uint256)
 func (_AcctManager *AcctManagerFilterer) FilterAccountStatusChanged(opts *bind.FilterOpts) (*AcctManagerAccountStatusChangedIterator, error) {
 
 	logs, sub, err := _AcctManager.contract.FilterLogs(opts, "AccountStatusChanged")
@@ -840,7 +840,7 @@ func (_AcctManager *AcctManagerFilterer) FilterAccountStatusChanged(opts *bind.F
 
 // WatchAccountStatusChanged is a free log subscription operation binding the contract event 0x36b0ea38154dec5e98b6bf928b971a9db5e8cd4b6946350e9e43fb9848c70b25.
 //
-// Solidity: e AccountStatusChanged(_address address, _orgId string, _status uint256)
+// Solidity: e AccountStatusChanged(_account address, _orgId string, _status uint256)
 func (_AcctManager *AcctManagerFilterer) WatchAccountStatusChanged(opts *bind.WatchOpts, sink chan<- *AcctManagerAccountStatusChanged) (event.Subscription, error) {
 
 	logs, sub, err := _AcctManager.contract.WatchLogs(opts, "AccountStatusChanged")
