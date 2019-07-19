@@ -202,10 +202,20 @@ func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCh
 }
 
 func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
-	length, ok := protocolLengths[version]
-	if !ok {
-		panic("makeProtocol for unknown version")
+	var prot consensus.Protocol
+	var length uint64
+	ok := false
+	if _, ok = pm.engine.(consensus.Istanbul); ok {
+		prot = pm.engine.Protocol()
+		length = uint64(prot.Lengths[0])
+		log.Info("AJ-makeProtocol istanbul", "length", length)
+	} else {
+		length, ok = protocolLengths[version]
+		if !ok {
+			panic("makeProtocol for unknown version")
+		}
 	}
+
 
 	return p2p.Protocol{
 		Name:    protocolName,
