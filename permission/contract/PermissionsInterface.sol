@@ -21,7 +21,7 @@ contract PermissionsInterface {
     /// @notice modifier to verify that caller is permissions upgradable contract
     /// @notice address
     modifier onlyUpgradeable {
-        require(msg.sender == permImplUpgradeable);
+        require(msg.sender == permImplUpgradeable, "invalid caller");
         _;
     }
 

@@ -38,7 +38,7 @@ contract AccountManager {
     /// @notice contract
     modifier onlyImplementation
     {
-        require(msg.sender == permUpgradable.getPermImpl());
+        require(msg.sender == permUpgradable.getPermImpl(), "invalid caller");
         _;
     }
 

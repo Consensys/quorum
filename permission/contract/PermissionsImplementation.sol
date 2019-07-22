@@ -12,11 +12,11 @@ import "./PermissionsUpgradable.sol";
 /// @notice related functionality. This can be called only by the interface
 /// @notice contract.
 contract PermissionsImplementation {
-    AccountManager private accounts;
-    RoleManager private roles;
-    VoterManager private voter;
-    NodeManager private nodes;
-    OrgManager private org;
+    AccountManager private accountManager;
+    RoleManager private roleManager;
+    VoterManager private voterManager;
+    NodeManager private nodeManager;
+    OrgManager private orgManager;
     PermissionsUpgradable private permUpgradable;
 
     string private adminOrg;
@@ -39,7 +39,7 @@ contract PermissionsImplementation {
     }
     /// @notice modifier to confirm that caller is the upgradable contract
     modifier onlyUpgradeable {
-        require(msg.sender == address(permUpgradable));
+        require(msg.sender == address(permUpgradable), "invalid caller");
         _;
     }
 
@@ -91,17 +91,17 @@ contract PermissionsImplementation {
     /// @param _permUpgradable - address of permissions upgradable contract
     /// @param _orgManager - address of org manager contract
     /// @param _rolesManager - address of role manager contract
-    /// @param _acctManager - address of account manager contract
+    /// @param _accountManager - address of account manager contract
     /// @param _voterManager - address of voter manager contract
     /// @param _nodeManager - address of node manager contract
     constructor (address _permUpgradable, address _orgManager, address _rolesManager,
-        address _acctManager, address _voterManager, address _nodeManager) public {
+        address _accountManager, address _voterManager, address _nodeManager) public {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
-        org = OrgManager(_orgManager);
-        roles = RoleManager(_rolesManager);
-        accounts = AccountManager(_acctManager);
-        voter = VoterManager(_voterManager);
-        nodes = NodeManager(_nodeManager);
+        orgManager = OrgManager(_orgManager);
+        roleManager = RoleManager(_rolesManager);
+        accountManager = AccountManager(_accountManager);
+        voterManager = VoterManager(_voterManager);
+        nodeManager = NodeManager(_nodeManager);
     }
 
     // initial set up related functions
@@ -145,9 +145,9 @@ contract PermissionsImplementation {
     function init(uint _breadth, uint _depth) external
     onlyInterface
     networkBootStatus(false) {
-        org.setUpOrg(adminOrg, _breadth, _depth);
-        roles.addRole(adminRole, adminOrg, fullAccess, true, true);
-        accounts.setDefaults(adminRole, orgAdminRole);
+        orgManager.setUpOrg(adminOrg, _breadth, _depth);
+        roleManager.addRole(adminRole, adminOrg, fullAccess, true, true);
+        accountManager.setDefaults(adminRole, orgAdminRole);
     }
     /// @notice as a part of network initialization add all nodes which
     /// @notice are part of static-nodes.json as nodes belonging to
@@ -156,7 +156,7 @@ contract PermissionsImplementation {
     function addAdminNode(string calldata _enodeId) external
     onlyInterface
     networkBootStatus(false) {
-        nodes.addAdminNode(_enodeId, adminOrg);
+        nodeManager.addAdminNode(_enodeId, adminOrg);
     }
 
     /// @notice as a part of network initialization add all accounts which are
@@ -167,7 +167,7 @@ contract PermissionsImplementation {
     onlyInterface
     networkBootStatus(false) {
         updateVoterList(adminOrg, _account, true);
-        accounts.assignAdminRole(_account, adminOrg, adminRole, 2);
+        accountManager.assignAdminRole(_account, adminOrg, adminRole, 2);
     }
 
     /// @notice once the network initialization is complete, sets the network
@@ -196,12 +196,12 @@ contract PermissionsImplementation {
     onlyInterface
     networkBootStatus(true)
     networkAdmin(_caller) {
-        voter.addVotingItem(adminOrg, _orgId, _enodeId, _account, 1);
-        org.addOrg(_orgId);
-        nodes.addNode(_enodeId, _orgId);
+        voterManager.addVotingItem(adminOrg, _orgId, _enodeId, _account, 1);
+        orgManager.addOrg(_orgId);
+        nodeManager.addNode(_enodeId, _orgId);
         require(validateAccount(_account, _orgId) == true,
             "Operation cannot be performed");
-        accounts.assignAdminRole(_account, _orgId, orgAdminRole, 1);
+        accountManager.assignAdminRole(_account, _orgId, orgAdminRole, 1);
     }
 
     /// @notice functions to approve a pending approval org record by networ
@@ -214,10 +214,10 @@ contract PermissionsImplementation {
         address _account, address _caller) external onlyInterface networkAdmin(_caller) {
         require(_checkOrgStatus(_orgId, 1) == true, "Nothing to approve");
         if ((processVote(adminOrg, _caller, 1))) {
-            org.approveOrg(_orgId);
-            roles.addRole(orgAdminRole, _orgId, fullAccess, true, true);
-            nodes.approveNode(_enodeId, _orgId);
-            accounts.addNewAdmin(_orgId, _account);
+            orgManager.approveOrg(_orgId);
+            roleManager.addRole(orgAdminRole, _orgId, fullAccess, true, true);
+            nodeManager.approveNode(_enodeId, _orgId);
+            accountManager.addNewAdmin(_orgId, _account);
         }
     }
 
@@ -233,10 +233,10 @@ contract PermissionsImplementation {
     function addSubOrg(string calldata _pOrgId, string calldata _orgId,
         string calldata _enodeId, address _caller) external onlyInterface
     orgExists(_pOrgId) orgAdmin(_caller, _pOrgId) {
-        org.addSubOrg(_pOrgId, _orgId);
+        orgManager.addSubOrg(_pOrgId, _orgId);
         string memory pOrgId = string(abi.encode(_pOrgId, ".", _orgId));
         if (bytes(_enodeId).length > 0) {
-            nodes.addOrgNode(_enodeId, pOrgId);
+            nodeManager.addOrgNode(_enodeId, pOrgId);
         }
     }
 
@@ -247,8 +247,8 @@ contract PermissionsImplementation {
     function updateOrgStatus(string calldata _orgId, uint _action, address _caller)
     external onlyInterface networkAdmin(_caller) {
         uint pendingOp;
-        pendingOp = org.updateOrg(_orgId, _action);
-        voter.addVotingItem(adminOrg, _orgId, "", address(0), pendingOp);
+        pendingOp = orgManager.updateOrg(_orgId, _action);
+        voterManager.addVotingItem(adminOrg, _orgId, "", address(0), pendingOp);
     }
 
     /// @notice function to approve org status change. the org status is
@@ -271,7 +271,7 @@ contract PermissionsImplementation {
         }
         require(_checkOrgStatus(_orgId, orgStatus) == true, "operation not allowed");
         if ((processVote(adminOrg, _caller, pendingOp))) {
-            org.approveOrgStatusUpdate(_orgId, _action);
+            orgManager.approveOrgStatusUpdate(_orgId, _action);
         }
     }
 
@@ -288,7 +288,7 @@ contract PermissionsImplementation {
         uint _access, bool _voter, bool _admin, address _caller) external
     onlyInterface orgApproved(_orgId) orgAdmin(_caller, _orgId) {
         //add new roles can be created by org admins only
-        roles.addRole(_roleId, _orgId, _access, _voter, _admin);
+        roleManager.addRole(_roleId, _orgId, _access, _voter, _admin);
     }
 
     /// @notice function to remove a role definition from an organization
@@ -301,7 +301,7 @@ contract PermissionsImplementation {
         require(((keccak256(abi.encode(_roleId)) != keccak256(abi.encode(adminRole))) &&
         (keccak256(abi.encode(_roleId)) != keccak256(abi.encode(orgAdminRole)))),
             "admin roles cannot be removed");
-        roles.removeRole(_roleId, _orgId);
+        roleManager.removeRole(_roleId, _orgId);
     }
 
     // Account related functions
@@ -315,9 +315,9 @@ contract PermissionsImplementation {
     function assignAdminRole(string calldata _orgId, address _account,
         string calldata _roleId, address _caller) external
     onlyInterface orgExists(_orgId) networkAdmin(_caller) {
-        accounts.assignAdminRole(_account, _orgId, _roleId, 1);
+        accountManager.assignAdminRole(_account, _orgId, _roleId, 1);
         //add voting item
-        voter.addVotingItem(adminOrg, _orgId, "", _account, 4);
+        voterManager.addVotingItem(adminOrg, _orgId, "", _account, 4);
     }
 
     /// @notice function to approve network admin/org admin role assigment
@@ -327,11 +327,11 @@ contract PermissionsImplementation {
     function approveAdminRole(string calldata _orgId, address _account,
         address _caller) external onlyInterface networkAdmin(_caller) {
         if ((processVote(adminOrg, _caller, 4))) {
-            (bool ret, address acct) = accounts.removeExistingAdmin(_orgId);
+            (bool ret, address account) = accountManager.removeExistingAdmin(_orgId);
             if (ret) {
-                updateVoterList(adminOrg, acct, false);
+                updateVoterList(adminOrg, account, false);
             }
-            bool ret1 = accounts.addNewAdmin(_orgId, _account);
+            bool ret1 = accountManager.addNewAdmin(_orgId, _account);
             if (ret1) {
                 updateVoterList(adminOrg, _account, true);
             }
@@ -346,7 +346,7 @@ contract PermissionsImplementation {
     function updateAccountStatus(string calldata _orgId, address _account,
         uint _action, address _caller) external onlyInterface
     orgAdmin(_caller, _orgId) {
-        accounts.updateAccountStatus(_orgId, _account, _action);
+        accountManager.updateAccountStatus(_orgId, _account, _action);
     }
 
     // Node related functions
@@ -358,7 +358,7 @@ contract PermissionsImplementation {
     function addNode(string calldata _orgId, string calldata _enodeId, address _caller)
     external onlyInterface orgApproved(_orgId) orgAdmin(_caller, _orgId) {
         // check that the node is not part of another org
-        nodes.addOrgNode(_enodeId, _orgId);
+        nodeManager.addOrgNode(_enodeId, _orgId);
     }
 
     /// @notice function to update node status. can be invoked by org admin
@@ -369,7 +369,7 @@ contract PermissionsImplementation {
     function updateNodeStatus(string calldata _orgId, string calldata _enodeId,
         uint _action, address _caller) external onlyInterface
     orgAdmin(_caller, _orgId) {
-        nodes.updateNodeStatus(_enodeId, _orgId, _action);
+        nodeManager.updateNodeStatus(_enodeId, _orgId, _action);
     }
 
     /// @notice function to fetch network boot status
@@ -384,7 +384,7 @@ contract PermissionsImplementation {
     /// @param _orgId unique id of the organization to which the account belongs
     function getPendingOp(string calldata _orgId) external view
     returns (string memory, string memory, address, uint){
-        return voter.getPendingOpDetails(_orgId);
+        return voterManager.getPendingOpDetails(_orgId);
     }
 
     /// @notice function to assigns a role id to the account given account
@@ -399,8 +399,8 @@ contract PermissionsImplementation {
     orgApproved(_orgId) {
         require(validateAccount(_account, _orgId) == true, "operation cannot be performed");
         require(_roleExists(_roleId, _orgId) == true, "role does not exists");
-        bool admin = roles.isAdminRole(_roleId, _orgId, _getUltimateParent(_orgId));
-        accounts.assignAccountRole(_account, _orgId, _roleId, admin);
+        bool admin = roleManager.isAdminRole(_roleId, _orgId, _getUltimateParent(_orgId));
+        accountManager.assignAccountRole(_account, _orgId, _roleId, admin);
     }
 
     /// @notice function to check if passed account is an network admin account
@@ -408,7 +408,7 @@ contract PermissionsImplementation {
     /// @return true/false
     function isNetworkAdmin(address _account) public view
     returns (bool){
-        return (keccak256(abi.encode(accounts.getAccountRole(_account))) == keccak256(abi.encode(adminRole)));
+        return (keccak256(abi.encode(accountManager.getAccountRole(_account))) == keccak256(abi.encode(adminRole)));
     }
 
     /// @notice function to check if passed account is an org admin account
@@ -417,10 +417,10 @@ contract PermissionsImplementation {
     /// @return true/false
     function isOrgAdmin(address _account, string memory _orgId) public view
     returns (bool){
-        if (accounts.checkOrgAdmin(_account, _orgId, _getUltimateParent(_orgId))) {
+        if (accountManager.checkOrgAdmin(_account, _orgId, _getUltimateParent(_orgId))) {
             return true;
         }
-        return roles.isAdminRole(accounts.getAccountRole(_account), _orgId,
+        return roleManager.isAdminRole(accountManager.getAccountRole(_account), _orgId,
             _getUltimateParent(_orgId));
     }
 
@@ -430,7 +430,7 @@ contract PermissionsImplementation {
     /// @return true/false
     function validateAccount(address _account, string memory _orgId) public view
     returns (bool){
-        return (accounts.validateAccount(_account, _orgId));
+        return (accountManager.validateAccount(_account, _orgId));
     }
 
     /// @notice function to update the voter list at network level. this will
@@ -442,10 +442,10 @@ contract PermissionsImplementation {
     /// @param _add bool indicating if its an add or delete operation
     function updateVoterList(string memory _orgId, address _account, bool _add) internal {
         if (_add) {
-            voter.addVoter(_orgId, _account);
+            voterManager.addVoter(_orgId, _account);
         }
         else {
-            voter.deleteVoter(_orgId, _account);
+            voterManager.deleteVoter(_orgId, _account);
         }
     }
 
@@ -457,7 +457,7 @@ contract PermissionsImplementation {
     /// @dev the list of pending ops are managed in voter manager contract
     function processVote(string memory _orgId, address _caller, uint _pendingOp) internal
     returns (bool){
-        return voter.processVote(_orgId, _caller, _pendingOp);
+        return voterManager.processVote(_orgId, _caller, _pendingOp);
     }
 
     /// @notice returns various permissions policy related parameters
@@ -475,7 +475,7 @@ contract PermissionsImplementation {
     /// @return true/false
     function _checkOrgExists(string memory _orgId) internal view
     returns (bool){
-        return org.checkOrgExists(_orgId);
+        return orgManager.checkOrgExists(_orgId);
     }
 
     /// @notice checks if the passed org is in approved status
@@ -483,7 +483,7 @@ contract PermissionsImplementation {
     /// @return true/false
     function checkOrgApproved(string memory _orgId) internal view
     returns (bool){
-        return org.checkOrgStatus(_orgId, 2);
+        return orgManager.checkOrgStatus(_orgId, 2);
     }
 
     /// @notice checks if the passed org is in the status passed
@@ -492,7 +492,7 @@ contract PermissionsImplementation {
     /// @return true/false
     function _checkOrgStatus(string memory _orgId, uint _status) internal view
     returns (bool){
-        return org.checkOrgStatus(_orgId, _status);
+        return orgManager.checkOrgStatus(_orgId, _status);
     }
 
     /// @notice checks if org admin account exists for the passed org id
@@ -500,7 +500,7 @@ contract PermissionsImplementation {
     /// @return true/false
     function _checkOrgAdminExists(string memory _orgId) internal view
     returns (bool){
-        return accounts.orgAdminExists(_orgId);
+        return accountManager.orgAdminExists(_orgId);
     }
 
     /// @notice checks if role id exists for the passed org_id
@@ -509,7 +509,7 @@ contract PermissionsImplementation {
     /// @return true/false
     function _roleExists(string memory _roleId, string memory _orgId) internal view
     returns (bool){
-        return roles.roleExists(_roleId, _orgId, _getUltimateParent(_orgId));
+        return roleManager.roleExists(_roleId, _orgId, _getUltimateParent(_orgId));
     }
 
     /// @notice checks if the role id for the org is a voter role
@@ -518,7 +518,7 @@ contract PermissionsImplementation {
     /// @return true/false
     function _isVoterRole(string memory _roleId, string memory _orgId) internal view
     returns (bool){
-        return roles.isVoterRole(_roleId, _orgId, _getUltimateParent(_orgId));
+        return roleManager.isVoterRole(_roleId, _orgId, _getUltimateParent(_orgId));
     }
 
     /// @notice returns the ultimate parent for a given org id
@@ -526,7 +526,7 @@ contract PermissionsImplementation {
     /// @return ultimate parent org id
     function _getUltimateParent(string memory _orgId) internal view
     returns (string memory){
-        return org.getUltimateParent(_orgId);
+        return orgManager.getUltimateParent(_orgId);
     }
 
 }

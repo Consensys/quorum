@@ -39,7 +39,7 @@ contract NodeManager {
 
     /// @notice checks if the caller is implementation contract
     modifier onlyImplementation {
-        require(msg.sender == permUpgradable.getPermImpl());
+        require(msg.sender == permUpgradable.getPermImpl(), "invalid caller");
         _;
     }
 

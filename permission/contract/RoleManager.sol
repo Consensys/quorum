@@ -29,7 +29,7 @@ contract RoleManager {
 
     /// @notice checks if the caller is address of implementation contract   
     modifier onlyImplementation {
-        require(msg.sender == permUpgradable.getPermImpl());
+        require(msg.sender == permUpgradable.getPermImpl(), "invalid caller");
         _;
     }
 
@@ -47,12 +47,12 @@ contract RoleManager {
     function addRole(string memory _roleId, string memory _orgId, uint _baseAccess,
         bool _isVoter, bool _isAdmin) public onlyImplementation {
         // Check if account already exists
-        if (roleIndex[keccak256(abi.encode(_roleId, _orgId))] == 0) {
-            numberOfRoles ++;
-            roleIndex[keccak256(abi.encode(_roleId, _orgId))] = numberOfRoles;
-            roleList.push(RoleDetails(_roleId, _orgId, _baseAccess, _isVoter, _isAdmin, true));
-            emit RoleCreated(_roleId, _orgId, _baseAccess, _isVoter, _isAdmin);
-        }
+        require(roleIndex[keccak256(abi.encode(_roleId, _orgId))] == 0, "role exists for the org");
+        numberOfRoles ++;
+        roleIndex[keccak256(abi.encode(_roleId, _orgId))] = numberOfRoles;
+        roleList.push(RoleDetails(_roleId, _orgId, _baseAccess, _isVoter, _isAdmin, true));
+        emit RoleCreated(_roleId, _orgId, _baseAccess, _isVoter, _isAdmin);
+
     }
 
     /// @notice function to remove an existing role definition from an organization
@@ -60,11 +60,10 @@ contract RoleManager {
     /// @param _orgId - org id to which the role belongs
     function removeRole(string calldata _roleId, string calldata _orgId) external
     onlyImplementation {
-        if (roleIndex[keccak256(abi.encode(_roleId, _orgId))] != 0) {
-            uint rIndex = _getRoleIndex(_roleId, _orgId);
-            roleList[rIndex].active = false;
-            emit RoleRevoked(_roleId, _orgId);
-        }
+        require(roleIndex[keccak256(abi.encode(_roleId, _orgId))] != 0, "role does not exist");
+        uint rIndex = _getRoleIndex(_roleId, _orgId);
+        roleList[rIndex].active = false;
+        emit RoleRevoked(_roleId, _orgId);
     }
 
     /// @notice checks if the role is a voter role or not

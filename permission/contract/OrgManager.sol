@@ -48,7 +48,7 @@ contract OrgManager {
     /// @notice confirms that the caller is the address of implementation
     /// @notice contract
     modifier onlyImplementation{
-        require(msg.sender == permUpgradable.getPermImpl());
+        require(msg.sender == permUpgradable.getPermImpl(), "invalid caller");
         _;
     }
 

@@ -24,7 +24,7 @@ contract PermissionsUpgradable {
 
     /// @notice modifier to verify that caller is guardian account
     modifier onlyGuardian {
-        require(msg.sender == guardian);
+        require(msg.sender == guardian, "invalid caller");
         _;
     }
 
