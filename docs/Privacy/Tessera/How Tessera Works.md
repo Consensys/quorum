@@ -13,9 +13,9 @@ In this example, Party A and Party B are party to Transaction AB, whilst Party C
       
     1. generating a random master key (RMK) and a random Nonce 
     1. encrypting the Transaction payload with the nonce and RMK from a.
-    1. iterating through the list of Transaction recipients, in this case Parties A and B, and encrypting the RMK from a. with the shared key derived from Party A's private key and the recipient's public key (PGP encryption). Each encrypted RMK is unique for each recipient and will only be shared with the respective recipient.
-    1. returning the encrypted payload from step b. and all encrypted RMKs from step c. to the Transaction Manager
-    
+    1. iterating through the list of transaction recipients, in this case parties A and B, and encrypting the RMK from a. with the shared key derived from Party A's private key and the recipient's public key, along with another randomly generated nonce. Each encrypted RMK is unique for each recipient and will only be shared with the respective recipient.
+    1. returning the encrypted payload from step b. and all encrypted RMKs from step c. to the Transaction Manager   
+
 1. Party A's Transaction Manager calculates the SHA3-512 hash of the encrypted payload then stores the encrypted payload and encrypted RMKs against the hash in the database
 1. Party A's Transaction Manager then securely transfers (via HTTPS) the encrypted payload, and RMK that has been encrypted with shared key from previous step 4.c to Party B's Transaction Manager.  Party B's Transaction Manager responds with an Ack/Nack response. Note that if Party A does not receive a response/receives a Nack from Party B then the Transaction will not be propagated to the network.  It is a prerequisite for the recipients to store the communicated payload.
 1. Once the data transmission to Party B's Transaction Manager has been successful, Party A's Transaction Manager returns the hash to the Quorum Node which then replaces the Transaction's original payload with that hash, and changes the transaction's `V` value to 37 or 38, which will indicate to other nodes that this hash represents a private transaction with an associated encrypted payload as opposed to a public transaction with nonsensical bytecode.
