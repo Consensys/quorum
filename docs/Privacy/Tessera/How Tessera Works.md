@@ -12,9 +12,9 @@ In this example, Party A and Party B are party to Transaction AB, whilst Party C
 4. Party A's Enclave checks the private key for Party A and, once validated, performs the Transaction conversion. This entails: 
       
     1. generating a random master key (RMK) and a random Nonce 
-    1. encrypting the Transaction payload and Nonce with RMK from i.
-    1. calculating the SHA3-512 hash of the encrypted payload from ii.
-    1. iterating through the list of Transaction recipients, in this case Parties A and B, and encrypting the RMK from i. with the shared key of Party A's private key and Party B's public key (PGP encryption)
+    1. encrypting the Transaction payload and Nonce with RMK from a.
+    1. calculating the SHA3-512 hash of the encrypted payload from b.
+    1. iterating through the list of Transaction recipients, in this case Parties A and B, and encrypting the RMK from a. with the shared key of Party A's private key and Party B's public key (PGP encryption)
     1. returning the encrypted payload from step b., the hash from step c. and the encrypted keys (for each recipient) from step d. to the Transaction Manager
 5. Party A's Transaction manager then stores the encrypted payload (encrypted with the symmetric key) and encrypted symmetric key using the hash as the index, and then securely transfers (via HTTPS) the hash, encrypted payload, and encrypted symmetric key that has been encrypted with Party B's public key to Party B's Transaction Manager.  Party B's Transaction Manager responds with an Ack/Nack response. Note that if Party A does not receive a response/receives a Nack from Party B then the Transaction will not be propagated to the network.  It is a prerequisite for the recipients to store the communicated payload.
 6. Once the data transmission to Party B's Transaction Manager has been successful, Party A's Transaction Manager returns the hash to the Quorum Node which then replaces the Transaction's original payload with that hash, and changes the transaction's `V` value to 37 or 38, which will indicate to other nodes that this hash represents a private transaction with an associated encrypted payload as opposed to a public transaction with nonsensical bytecode.
