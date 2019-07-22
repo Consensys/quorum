@@ -38,7 +38,7 @@ contract PermissionsInterface {
     /// @notice sub organization management
     /// @param _breadth controls the number of sub org a parent org can have
     /// @param _depth controls the depth of nesting allowed for sub orgs
-    function init(uint _breadth, uint _depth) external {
+    function init(uint256 _breadth, uint256 _depth) external {
         permImplementation.init(_breadth, _depth);
     }
     /// @notice interface to add new node to an admin organization
@@ -97,14 +97,14 @@ contract PermissionsInterface {
     /// @notice interface to update the org status
     /// @param _orgId unique id of the organization
     /// @param _action 1 for suspending an org and 2 for revoke of suspension
-    function updateOrgStatus(string calldata _orgId, uint _action) external {
+    function updateOrgStatus(string calldata _orgId, uint256 _action) external {
         permImplementation.updateOrgStatus(_orgId, _action, msg.sender);
     }
 
     /// @notice interface to approve org status change
     /// @param _orgId unique id for the sub organization
     /// @param _action 1 for suspending an org and 2 for revoke of suspension
-    function approveOrgStatus(string calldata _orgId, uint _action) external {
+    function approveOrgStatus(string calldata _orgId, uint256 _action) external {
         permImplementation.approveOrgStatus(_orgId, _action, msg.sender);
     }
 
@@ -115,7 +115,7 @@ contract PermissionsInterface {
     /// @param _voter bool indicates if the role is voter role or not
     /// @param _admin bool indicates if the role is an admin role
     function addNewRole(string calldata _roleId, string calldata _orgId,
-        uint _access, bool _voter, bool _admin) external {
+        uint256 _access, bool _voter, bool _admin) external {
         permImplementation.addNewRole(_roleId, _orgId, _access, _voter, _admin, msg.sender);
     }
 
@@ -151,7 +151,7 @@ contract PermissionsInterface {
     /// @param _account account id
     /// @param _action 1-suspending 2-activating back 3-blacklisting
     function updateAccountStatus(string calldata _orgId, address _account,
-        uint _action) external {
+        uint256 _action) external {
         permImplementation.updateAccountStatus(_orgId, _account, _action, msg.sender);
     }
 
@@ -168,7 +168,7 @@ contract PermissionsInterface {
     /// @param _enodeId full enode id being dded to the org
     /// @param _action 1-deactivate, 2-activate back, 3-blacklist the node
     function updateNodeStatus(string calldata _orgId, string calldata _enodeId,
-        uint _action) external {
+        uint256 _action) external {
         permImplementation.updateNodeStatus(_orgId, _enodeId, _action, msg.sender);
     }
 
@@ -176,7 +176,7 @@ contract PermissionsInterface {
     /// @notice for network admin organization
     /// @param _orgId unique id of the organization to which the account belongs
     function getPendingOp(string calldata _orgId) external view
-    returns (string memory, string memory, address, uint) {
+    returns (string memory, string memory, address, uint256) {
         return permImplementation.getPendingOp(_orgId);
     }
 

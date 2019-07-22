@@ -13,17 +13,17 @@ contract RoleManager {
     struct RoleDetails {
         string roleId;
         string orgId;
-        uint baseAccess;
+        uint256 baseAccess;
         bool isVoter;
         bool isAdmin;
         bool active;
     }
 
     RoleDetails[] private roleList;
-    mapping(bytes32 => uint) private roleIndex;
-    uint private numberOfRoles;
+    mapping(bytes32 => uint256) private roleIndex;
+    uint256 private numberOfRoles;
 
-    event RoleCreated(string _roleId, string _orgId, uint _baseAccess,
+    event RoleCreated(string _roleId, string _orgId, uint256 _baseAccess,
         bool _isVoter, bool _isAdmin);
     event RoleRevoked(string _roleId, string _orgId);
 
@@ -44,7 +44,7 @@ contract RoleManager {
     /// @param _baseAccess - 0-ReadOnly, 1-Transact, 2-ContractDeply, 3- Full
     /// @param _isVoter - bool to indicate if voter role or not
     /// @param _isAdmin - bool to indicate if admin role or not
-    function addRole(string memory _roleId, string memory _orgId, uint _baseAccess,
+    function addRole(string memory _roleId, string memory _orgId, uint256 _baseAccess,
         bool _isVoter, bool _isAdmin) public onlyImplementation {
         // Check if account already exists
         require(roleIndex[keccak256(abi.encode(_roleId, _orgId))] == 0, "role exists for the org");
@@ -61,7 +61,7 @@ contract RoleManager {
     function removeRole(string calldata _roleId, string calldata _orgId) external
     onlyImplementation {
         require(roleIndex[keccak256(abi.encode(_roleId, _orgId))] != 0, "role does not exist");
-        uint rIndex = _getRoleIndex(_roleId, _orgId);
+        uint256 rIndex = _getRoleIndex(_roleId, _orgId);
         roleList[rIndex].active = false;
         emit RoleRevoked(_roleId, _orgId);
     }
@@ -77,7 +77,7 @@ contract RoleManager {
         if (!(roleExists(_roleId, _orgId, _ultParent))) {
             return false;
         }
-        uint rIndex;
+        uint256 rIndex;
         if (roleIndex[keccak256(abi.encode(_roleId, _orgId))] != 0) {
             rIndex = _getRoleIndex(_roleId, _orgId);
         }
@@ -98,7 +98,7 @@ contract RoleManager {
         if (!(roleExists(_roleId, _orgId, _ultParent))) {
             return false;
         }
-        uint rIndex;
+        uint256 rIndex;
         if (roleIndex[keccak256(abi.encode(_roleId, _orgId))] != 0) {
             rIndex = _getRoleIndex(_roleId, _orgId);
         }
@@ -118,11 +118,11 @@ contract RoleManager {
     /// @return bool to indicate if the role is active
     function getRoleDetails(string calldata _roleId, string calldata _orgId)
     external view returns (string memory roleId, string memory orgId,
-        uint accessType, bool voter, bool active) {
+        uint256 accessType, bool voter, bool active) {
         if (!(roleExists(_roleId, _orgId, ""))) {
             return (_roleId, "", 0, false, false);
         }
-        uint rIndex = _getRoleIndex(_roleId, _orgId);
+        uint256 rIndex = _getRoleIndex(_roleId, _orgId);
         return (roleList[rIndex].roleId, roleList[rIndex].orgId,
         roleList[rIndex].baseAccess, roleList[rIndex].isVoter, roleList[rIndex].active);
     }
@@ -134,8 +134,8 @@ contract RoleManager {
     /// @return access type
     /// @return bool to indicate if the role is a voter role
     /// @return bool to indicate if the role is active
-    function getRoleDetailsFromIndex(uint _rIndex) external view returns
-    (string memory roleId, string memory orgId, uint accessType,
+    function getRoleDetailsFromIndex(uint256 _rIndex) external view returns
+    (string memory roleId, string memory orgId, uint256 accessType,
         bool voter, bool admin, bool active) {
         return (roleList[_rIndex].roleId, roleList[_rIndex].orgId,
         roleList[_rIndex].baseAccess, roleList[_rIndex].isVoter,
@@ -144,7 +144,7 @@ contract RoleManager {
 
     /// @notice returns the total number of roles in the network
     /// @return total number of roles
-    function getNumberOfRoles() external view returns (uint) {
+    function getNumberOfRoles() external view returns (uint256) {
         return roleList.length;
     }
 
@@ -155,7 +155,7 @@ contract RoleManager {
     /// @return true or false
     function roleExists(string memory _roleId, string memory _orgId,
         string memory _ultParent) public view returns (bool) {
-        uint id;
+        uint256 id;
         if (roleIndex[keccak256(abi.encode(_roleId, _orgId))] != 0) {
             id = _getRoleIndex(_roleId, _orgId);
             return roleList[id].active;
@@ -172,7 +172,7 @@ contract RoleManager {
     /// @param _orgId - org id
     /// @return role index
     function _getRoleIndex(string memory _roleId, string memory _orgId)
-    internal view returns (uint) {
+    internal view returns (uint256) {
         return roleIndex[keccak256(abi.encode(_roleId, _orgId))] - 1;
     }
 }

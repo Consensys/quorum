@@ -223,7 +223,7 @@ contract AccountManager {
         if (accountIndex[_account] == 0) {
             return true;
         }
-        uint id = _getAccountIndex(_account);
+        uint256 id = _getAccountIndex(_account);
         return (keccak256(abi.encode(accountAccessList[id].orgId)) == keccak256(abi.encode(_orgId)));
     }
 
@@ -246,7 +246,7 @@ contract AccountManager {
         if (accountIndex[_account] == 0) {
             return "NONE";
         }
-        uint acctIndex = _getAccountIndex(_account);
+        uint256 acctIndex = _getAccountIndex(_account);
         if (accountAccessList[acctIndex].status != 0) {
             return accountAccessList[acctIndex].role;
         }
@@ -265,7 +265,7 @@ contract AccountManager {
         // check if the account role is network admin. If yes return success
         if (keccak256(abi.encode(getAccountRole(_account))) == keccak256(abi.encode(adminRole))) {
             // check of the orgid is network admin org. then return true
-            uint id = _getAccountIndex(_account);
+            uint256 id = _getAccountIndex(_account);
             return ((keccak256(abi.encode(accountAccessList[id].orgId)) == keccak256(abi.encode(_orgId)))
             || (keccak256(abi.encode(accountAccessList[id].orgId)) == keccak256(abi.encode(_ultParent))));
         }
@@ -275,18 +275,18 @@ contract AccountManager {
     /// @notice returns the index for a given account id
     /// @param _account account id
     /// @return account index
-    function _getAccountIndex(address _account) internal view returns (uint) {
+    function _getAccountIndex(address _account) internal view returns (uint256) {
         return accountIndex[_account] - 1;
     }
 
     /// @notice returns the account status for a given account
     /// @param _account account id
     /// @return account status
-    function _getAccountStatus(address _account) internal view returns (uint) {
+    function _getAccountStatus(address _account) internal view returns (uint256) {
         if (accountIndex[_account] == 0) {
             return 0;
         }
-        uint aIndex = _getAccountIndex(_account);
+        uint256 aIndex = _getAccountIndex(_account);
         return (accountAccessList[aIndex].status);
     }
 
@@ -296,9 +296,9 @@ contract AccountManager {
     /// @param _status status to be set
     /// @param _oAdmin bool to indicate if account is org admin
     function _setAccountRole(address _account, string memory _orgId,
-        string memory _roleId, uint _status, bool _oAdmin) internal onlyImplementation {
+        string memory _roleId, uint256 _status, bool _oAdmin) internal onlyImplementation {
         // Check if account already exists
-        uint aIndex = _getAccountIndex(_account);
+        uint256 aIndex = _getAccountIndex(_account);
         if (accountIndex[_account] != 0) {
             accountAccessList[aIndex].role = _roleId;
             accountAccessList[aIndex].status = _status;

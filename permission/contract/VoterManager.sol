@@ -16,7 +16,7 @@ contract VoterManager {
         string orgId;
         string enodeId;
         address account;
-        uint opType;
+        uint256 opType;
     }
 
     struct Voter {
@@ -26,18 +26,18 @@ contract VoterManager {
 
     struct OrgVoterDetails {
         string orgId;
-        uint voterCount;
-        uint validVoterCount;
-        uint voteCount;
+        uint256 voterCount;
+        uint256 validVoterCount;
+        uint256 voteCount;
         PendingOpDetails pendingOp;
         Voter [] voterList;
-        mapping(address => uint) voterIndex;
-        mapping(uint => mapping(address => bool)) votingStatus;
+        mapping(address => uint256) voterIndex;
+        mapping(uint256 => mapping(address => bool)) votingStatus;
     }
 
     OrgVoterDetails [] private orgVoterList;
-    mapping(bytes32 => uint) private VoterOrgIndex;
-    uint private orgNum = 0;
+    mapping(bytes32 => uint256) private VoterOrgIndex;
+    uint256 private orgNum = 0;
 
     // events related to managing voting accounts for the org
     event VoterAdded(string _orgId, address _vAccount);
@@ -78,7 +78,7 @@ contract VoterManager {
         if (VoterOrgIndex[keccak256(abi.encode(_orgId))] == 0) {
             orgNum++;
             VoterOrgIndex[keccak256(abi.encode(_orgId))] = orgNum;
-            uint id = orgVoterList.length++;
+            uint256 id = orgVoterList.length++;
             orgVoterList[id].orgId = _orgId;
             orgVoterList[id].voterCount = 1;
             orgVoterList[id].validVoterCount = 1;
@@ -91,7 +91,7 @@ contract VoterManager {
             orgVoterList[id].voterList.push(Voter(_vAccount, true));
         }
         else {
-            uint id = _getVoterOrgIndex(_orgId);
+            uint256 id = _getVoterOrgIndex(_orgId);
             // check if the voter is already present in the list
             if (orgVoterList[id].voterIndex[_vAccount] == 0) {
                 orgVoterList[id].voterCount++;
@@ -100,7 +100,7 @@ contract VoterManager {
                 orgVoterList[id].validVoterCount++;
             }
             else {
-                uint vid = _getVoterIndex(_orgId, _vAccount);
+                uint256 vid = _getVoterIndex(_orgId, _vAccount);
                 require(orgVoterList[id].voterList[vid].active != true, "already a voter");
                 orgVoterList[id].voterList[vid].active = true;
                 orgVoterList[id].validVoterCount++;
@@ -118,8 +118,8 @@ contract VoterManager {
     function deleteVoter(string calldata _orgId, address _vAccount) external
     onlyImplementation
     voterExists(_orgId, _vAccount) {
-        uint id = _getVoterOrgIndex(_orgId);
-        uint vId = _getVoterIndex(_orgId, _vAccount);
+        uint256 id = _getVoterOrgIndex(_orgId);
+        uint256 vId = _getVoterIndex(_orgId, _vAccount);
         orgVoterList[id].validVoterCount --;
         orgVoterList[id].voterList[vId].active = false;
         emit VoterDeleted(_orgId, _vAccount);
@@ -132,19 +132,19 @@ contract VoterManager {
     /// @param _account - account id for which the voting record is being created
     /// @param _pendingOp - operation for which voting is being done
     function addVotingItem(string calldata _authOrg, string calldata _orgId,
-        string calldata _enodeId, address _account, uint _pendingOp)
+        string calldata _enodeId, address _account, uint256 _pendingOp)
     external onlyImplementation {
         // check if anything is pending approval for the org.
         // If yes another item cannot be added
         require((_checkPendingOp(_authOrg, 0)),
             "items pending for approval. new item cannot be added");
-        uint id = _getVoterOrgIndex(_authOrg);
+        uint256 id = _getVoterOrgIndex(_authOrg);
         orgVoterList[id].pendingOp.orgId = _orgId;
         orgVoterList[id].pendingOp.enodeId = _enodeId;
         orgVoterList[id].pendingOp.account = _account;
         orgVoterList[id].pendingOp.opType = _pendingOp;
         // initialize vote status for voter accounts
-        for (uint i = 0; i < orgVoterList[id].voterList.length; i++) {
+        for (uint256 i = 0; i < orgVoterList[id].voterList.length; i++) {
             if (orgVoterList[id].voterList[i].active) {
                 orgVoterList[id].votingStatus[id][orgVoterList[id].voterList[i].vAccount] = false;
             }
@@ -160,11 +160,11 @@ contract VoterManager {
     /// @param _vAccount - account id of the voter
     /// @param _pendingOp - operation which is being approved
     /// @return success of the voter process. either true or false
-    function processVote(string calldata _authOrg, address _vAccount, uint _pendingOp)
+    function processVote(string calldata _authOrg, address _vAccount, uint256 _pendingOp)
     external onlyImplementation voterExists(_authOrg, _vAccount) returns (bool) {
         // check something if anything is pending approval
         require(_checkPendingOp(_authOrg, _pendingOp) == true, "nothing to approve");
-        uint id = _getVoterOrgIndex(_authOrg);
+        uint256 id = _getVoterOrgIndex(_authOrg);
         // check if vote is already processed
         require(orgVoterList[id].votingStatus[id][_vAccount] != true, "cannot double vote");
         orgVoterList[id].voteCount++;
@@ -184,8 +184,8 @@ contract VoterManager {
     /// @notice returns the details of any pending operation to be approved
     /// @param _orgId org id. this will be the org id of network admin org
     function getPendingOpDetails(string calldata _orgId) external view
-    onlyImplementation returns (string memory, string memory, address, uint){
-        uint orgIndex = _getVoterOrgIndex(_orgId);
+    onlyImplementation returns (string memory, string memory, address, uint256){
+        uint256 orgIndex = _getVoterOrgIndex(_orgId);
         return (orgVoterList[orgIndex].pendingOp.orgId, orgVoterList[orgIndex].pendingOp.enodeId,
         orgVoterList[orgIndex].pendingOp.account, orgVoterList[orgIndex].pendingOp.opType);
     }
@@ -196,11 +196,11 @@ contract VoterManager {
     /// @return true or false
     function _checkVoterExists(string memory _orgId, address _vAccount)
     internal view returns (bool){
-        uint orgIndex = _getVoterOrgIndex(_orgId);
+        uint256 orgIndex = _getVoterOrgIndex(_orgId);
         if (orgVoterList[orgIndex].voterIndex[_vAccount] == 0) {
             return false;
         }
-        uint voterIndex = _getVoterIndex(_orgId, _vAccount);
+        uint256 voterIndex = _getVoterIndex(_orgId, _vAccount);
         return orgVoterList[orgIndex].voterList[voterIndex].active;
     }
 
@@ -208,21 +208,21 @@ contract VoterManager {
     /// @param _orgId org id
     /// @param _pendingOp type of operation
     /// @return true or false
-    function _checkPendingOp(string memory _orgId, uint _pendingOp)
+    function _checkPendingOp(string memory _orgId, uint256 _pendingOp)
     internal view returns (bool){
         return (orgVoterList[_getVoterOrgIndex(_orgId)].pendingOp.opType == _pendingOp);
     }
 
     /// @notice returns the voter account index
     function _getVoterIndex(string memory _orgId, address _vAccount)
-    internal view returns (uint) {
-        uint orgIndex = _getVoterOrgIndex(_orgId);
+    internal view returns (uint256) {
+        uint256 orgIndex = _getVoterOrgIndex(_orgId);
         return orgVoterList[orgIndex].voterIndex[_vAccount] - 1;
     }
 
     /// @notice returns the org index for the org from voter list
     function _getVoterOrgIndex(string memory _orgId)
-    internal view returns (uint) {
+    internal view returns (uint256) {
         return VoterOrgIndex[keccak256(abi.encode(_orgId))] - 1;
     }
 

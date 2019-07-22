@@ -24,7 +24,7 @@ contract PermissionsImplementation {
     string private orgAdminRole;
 
 
-    uint private fullAccess = 3;
+    uint256 private fullAccess = 3;
 
     /// @dev this variable is meant for tracking the initial network boot up
     /// @dev once the network boot up is done the value is set to true
@@ -142,7 +142,7 @@ contract PermissionsImplementation {
     /// @notice sets the default values required by account manager contract
     /// @param _breadth - number of sub orgs allowed at parent level
     /// @param _depth - levels of sub org nesting allowed at parent level
-    function init(uint _breadth, uint _depth) external
+    function init(uint256 _breadth, uint256 _depth) external
     onlyInterface
     networkBootStatus(false) {
         orgManager.setUpOrg(adminOrg, _breadth, _depth);
@@ -244,9 +244,9 @@ contract PermissionsImplementation {
     /// @notice and adds a voting item for network admins to approve
     /// @param _orgId unique id of the organization
     /// @param _action 1 for suspending an org and 2 for revoke of suspension
-    function updateOrgStatus(string calldata _orgId, uint _action, address _caller)
+    function updateOrgStatus(string calldata _orgId, uint256 _action, address _caller)
     external onlyInterface networkAdmin(_caller) {
-        uint pendingOp;
+        uint256 pendingOp;
         pendingOp = orgManager.updateOrg(_orgId, _action);
         voterManager.addVotingItem(adminOrg, _orgId, "", address(0), pendingOp);
     }
@@ -256,11 +256,11 @@ contract PermissionsImplementation {
     /// @notice admin accounts.
     /// @param _orgId unique id for the sub organization
     /// @param _action 1 for suspending an org and 2 for revoke of suspension
-    function approveOrgStatus(string calldata _orgId, uint _action, address _caller)
+    function approveOrgStatus(string calldata _orgId, uint256 _action, address _caller)
     external onlyInterface networkAdmin(_caller) {
         require((_action == 1 || _action == 2), "Operation not allowed");
-        uint pendingOp;
-        uint orgStatus;
+        uint256 pendingOp;
+        uint256 orgStatus;
         if (_action == 1) {
             pendingOp = 2;
             orgStatus = 3;
@@ -285,7 +285,7 @@ contract PermissionsImplementation {
     /// @param _voter bool indicates if the role is voter role or not
     /// @param _admin bool indicates if the role is an admin role
     function addNewRole(string calldata _roleId, string calldata _orgId,
-        uint _access, bool _voter, bool _admin, address _caller) external
+        uint256 _access, bool _voter, bool _admin, address _caller) external
     onlyInterface orgApproved(_orgId) orgAdmin(_caller, _orgId) {
         //add new roles can be created by org admins only
         roleManager.addRole(_roleId, _orgId, _access, _voter, _admin);
@@ -344,7 +344,7 @@ contract PermissionsImplementation {
     /// @param _account account id
     /// @param _action 1-suspend 2-activate back 3-blacklist
     function updateAccountStatus(string calldata _orgId, address _account,
-        uint _action, address _caller) external onlyInterface
+        uint256 _action, address _caller) external onlyInterface
     orgAdmin(_caller, _orgId) {
         accountManager.updateAccountStatus(_orgId, _account, _action);
     }
@@ -367,7 +367,7 @@ contract PermissionsImplementation {
     /// @param _enodeId full enode id being dded to the org
     /// @param _action 1-deactivate, 2-activate back, 3-blacklist the node
     function updateNodeStatus(string calldata _orgId, string calldata _enodeId,
-        uint _action, address _caller) external onlyInterface
+        uint256 _action, address _caller) external onlyInterface
     orgAdmin(_caller, _orgId) {
         nodeManager.updateNodeStatus(_enodeId, _orgId, _action);
     }
@@ -383,7 +383,7 @@ contract PermissionsImplementation {
     /// @notice for network admin organization
     /// @param _orgId unique id of the organization to which the account belongs
     function getPendingOp(string calldata _orgId) external view
-    returns (string memory, string memory, address, uint){
+    returns (string memory, string memory, address, uint256){
         return voterManager.getPendingOpDetails(_orgId);
     }
 
@@ -455,7 +455,7 @@ contract PermissionsImplementation {
     /// @param _caller account which approving the operation
     /// @param _pendingOp operation for which the approval is being done
     /// @dev the list of pending ops are managed in voter manager contract
-    function processVote(string memory _orgId, address _caller, uint _pendingOp) internal
+    function processVote(string memory _orgId, address _caller, uint256 _pendingOp) internal
     returns (bool){
         return voterManager.processVote(_orgId, _caller, _pendingOp);
     }
@@ -490,7 +490,7 @@ contract PermissionsImplementation {
     /// @param _orgId org id
     /// @param _status status to be checked for
     /// @return true/false
-    function _checkOrgStatus(string memory _orgId, uint _status) internal view
+    function _checkOrgStatus(string memory _orgId, uint256 _status) internal view
     returns (bool){
         return orgManager.checkOrgStatus(_orgId, _status);
     }

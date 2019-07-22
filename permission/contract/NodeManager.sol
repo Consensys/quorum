@@ -13,15 +13,15 @@ contract NodeManager {
     struct NodeDetails {
         string enodeId; //e.g. 127.0.0.1:20005
         string orgId;
-        uint status;
+        uint256 status;
     }
     // use an array to store node details
     // if we want to list all node one day, mapping is not capable
     NodeDetails[] private nodeList;
     // mapping of enodeid to array index to track node
-    mapping(bytes32 => uint) private nodeIdToIndex;
+    mapping(bytes32 => uint256) private nodeIdToIndex;
     // tracking total number of nodes in network
-    uint private numberOfNodes;
+    uint256 private numberOfNodes;
 
 
     // node permission events for new node propose
@@ -70,8 +70,8 @@ contract NodeManager {
     /// @return enode id
     /// @return status of the node
     function getNodeDetails(string calldata enodeId) external view
-    returns (string memory _orgId, string memory _enodeId, uint _nodeStatus) {
-        uint nodeIndex = _getNodeIndex(enodeId);
+    returns (string memory _orgId, string memory _enodeId, uint256 _nodeStatus) {
+        uint256 nodeIndex = _getNodeIndex(enodeId);
         return (nodeList[nodeIndex].orgId, nodeList[nodeIndex].enodeId,
         nodeList[nodeIndex].status);
     }
@@ -81,15 +81,15 @@ contract NodeManager {
     /// @return org id
     /// @return enode id
     /// @return status of the node
-    function getNodeDetailsFromIndex(uint _nodeIndex) external view
-    returns (string memory _orgId, string memory _enodeId, uint _nodeStatus) {
+    function getNodeDetailsFromIndex(uint256 _nodeIndex) external view
+    returns (string memory _orgId, string memory _enodeId, uint256 _nodeStatus) {
         return (nodeList[_nodeIndex].orgId, nodeList[_nodeIndex].enodeId,
         nodeList[_nodeIndex].status);
     }
 
     /// @notice returns the total number of enodes in the network
     /// @return number of nodes
-    function getNumberOfNodes() external view returns (uint) {
+    function getNumberOfNodes() external view returns (uint256) {
         return numberOfNodes;
     }
 
@@ -140,7 +140,7 @@ contract NodeManager {
         // node should belong to the passed org
         require(_checkOrg(_enodeId, _orgId), "enode id does not belong to the passed org id");
         require(_getNodeStatus(_enodeId) == 1, "nothing pending for approval");
-        uint nodeIndex = _getNodeIndex(_enodeId);
+        uint256 nodeIndex = _getNodeIndex(_enodeId);
         nodeList[nodeIndex].status = 2;
         emit NodeApproved(nodeList[nodeIndex].enodeId, nodeList[nodeIndex].orgId);
     }
@@ -150,7 +150,7 @@ contract NodeManager {
     /// @param _enodeId enode id
     /// @param _orgId org or sub org id to which the enode belong
     /// @param _action 1- deactivate, 2- reactivate, 3- blacklist node
-    function updateNodeStatus(string calldata _enodeId, string calldata _orgId, uint _action) external
+    function updateNodeStatus(string calldata _enodeId, string calldata _orgId, uint256 _action) external
     onlyImplementation
     enodeExists(_enodeId) {
         // node should belong to the org
@@ -179,7 +179,7 @@ contract NodeManager {
     /// @param _enodeId enode id
     /// @return trur or false
     function _getNodeIndex(string memory _enodeId) internal view
-    returns (uint) {
+    returns (uint256) {
         return nodeIdToIndex[keccak256(abi.encode(_enodeId))] - 1;
     }
 
@@ -195,7 +195,7 @@ contract NodeManager {
     /// @notice returns the node status for a given enode id
     /// @param _enodeId enode id
     /// @return node status
-    function _getNodeStatus(string memory _enodeId) internal view returns (uint) {
+    function _getNodeStatus(string memory _enodeId) internal view returns (uint256) {
         if (nodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0) {
             return 0;
         }

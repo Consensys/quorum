@@ -76,7 +76,7 @@ contract OrgManager {
     /// @notice called at the time of network initialization. sets the depth
     /// @notice breadth for sub orgs creation. and creates the default network
     /// @notice admin org as per config file
-    function setUpOrg(string calldata _orgId, uint _breadth, uint _depth) external
+    function setUpOrg(string calldata _orgId, uint256 _breadth, uint256 _depth) external
     onlyImplementation {
         _addNewOrg("", _orgId, 1, 2);
         DEPTH_LIMIT = _depth;
@@ -104,16 +104,16 @@ contract OrgManager {
     /// @param _orgId unique org id to be added
     /// @param _action 1- suspend 2- activate back
     /// @dev status cannot be updated for sub orgs
-    function updateOrg(string calldata _orgId, uint _action) external
+    function updateOrg(string calldata _orgId, uint256 _action) external
     onlyImplementation
     orgExists(_orgId)
-    returns (uint){
+    returns (uint256){
         require((_action == 1 || _action == 2), "invalid action. operation not allowed");
-        uint id = _getOrgIndex(_orgId);
+        uint256 id = _getOrgIndex(_orgId);
         require(orgList[id].level == 1, "not a master org. operation not allowed");
 
-        uint reqStatus;
-        uint pendingOp;
+        uint256 reqStatus;
+        uint256 pendingOp;
         if (_action == 1) {
             reqStatus = 2;
             pendingOp = 2;
@@ -136,7 +136,7 @@ contract OrgManager {
     /// @notice function to approve org status change for master orgs
     /// @param _orgId unique org id to be added
     /// @param _action 1- suspend 2- activate back
-    function approveOrgStatusUpdate(string calldata _orgId, uint _action) external
+    function approveOrgStatusUpdate(string calldata _orgId, uint256 _action) external
     onlyImplementation
     orgExists(_orgId) {
         if (_action == 1) {
@@ -152,7 +152,7 @@ contract OrgManager {
     function approveOrg(string calldata _orgId) external
     onlyImplementation {
         require(checkOrgStatus(_orgId, 1) == true, "nothing to approve");
-        uint id = _getOrgIndex(_orgId);
+        uint256 id = _getOrgIndex(_orgId);
         orgList[id].status = 2;
         emit OrgApproved(orgList[id].orgId, orgList[id].parentId,
             orgList[id].ultParent, orgList[id].level, 2);
@@ -165,8 +165,8 @@ contract OrgManager {
     /// @return ultimate parent id
     /// @return level in the org tree
     /// @return status
-    function getOrgInfo(uint _orgIndex) external view returns (string memory,
-        string memory, string memory, uint, uint) {
+    function getOrgInfo(uint256 _orgIndex) external view returns (string memory,
+        string memory, string memory, uint256, uint256) {
         return (orgList[_orgIndex].orgId, orgList[_orgIndex].parentId,
         orgList[_orgIndex].ultParent, orgList[_orgIndex].level, orgList[_orgIndex].status);
     }
@@ -182,7 +182,7 @@ contract OrgManager {
 
     /// @notice returns the total number of orgs in the network
     /// @return master org id
-    function getNumberOfOrgs() public view returns (uint) {
+    function getNumberOfOrgs() public view returns (uint256) {
         return orgList.length;
     }
 
@@ -190,9 +190,9 @@ contract OrgManager {
     /// @param _orgId org id
     /// @param _orgStatus org status
     /// @return true or false
-    function checkOrgStatus(string memory _orgId, uint _orgStatus)
+    function checkOrgStatus(string memory _orgId, uint256 _orgStatus)
     public view returns (bool){
-        uint id = _getOrgIndex(_orgId);
+        uint256 id = _getOrgIndex(_orgId);
         return ((OrgIndex[keccak256(abi.encode(_orgId))] != 0)
         && orgList[id].status == _orgStatus);
     }
@@ -209,7 +209,7 @@ contract OrgManager {
     function _suspendOrg(string memory _orgId) internal {
         require(checkOrgStatus(_orgId, 2) == true,
             "org not in approved status. operation cannot be done");
-        uint id = _getOrgIndex(_orgId);
+        uint256 id = _getOrgIndex(_orgId);
         orgList[id].status = 3;
         emit OrgPendingApproval(orgList[id].orgId, orgList[id].parentId,
             orgList[id].ultParent, orgList[id].level, 3);
@@ -219,7 +219,7 @@ contract OrgManager {
     /// @param _orgId org id
     function _revokeOrgSuspension(string memory _orgId) internal {
         require(checkOrgStatus(_orgId, 4) == true, "org not in suspended state");
-        uint id = _getOrgIndex(_orgId);
+        uint256 id = _getOrgIndex(_orgId);
         orgList[id].status = 5;
         emit OrgPendingApproval(orgList[id].orgId, orgList[id].parentId,
             orgList[id].ultParent, orgList[id].level, 5);
@@ -229,7 +229,7 @@ contract OrgManager {
     /// @param _orgId org id
     function _approveOrgSuspension(string memory _orgId) internal {
         require(checkOrgStatus(_orgId, 3) == true, "nothing to approve");
-        uint id = _getOrgIndex(_orgId);
+        uint256 id = _getOrgIndex(_orgId);
         orgList[id].status = 4;
         emit OrgSuspended(orgList[id].orgId, orgList[id].parentId,
             orgList[id].ultParent, orgList[id].level);
@@ -239,7 +239,7 @@ contract OrgManager {
     /// @param _orgId org id
     function _approveOrgRevokeSuspension(string memory _orgId) internal {
         require(checkOrgStatus(_orgId, 5) == true, "nothing to approve");
-        uint id = _getOrgIndex(_orgId);
+        uint256 id = _getOrgIndex(_orgId);
         orgList[id].status = 2;
         emit OrgSuspensionRevoked(orgList[id].orgId, orgList[id].parentId,
             orgList[id].ultParent, orgList[id].level);
@@ -251,10 +251,10 @@ contract OrgManager {
     /// @param _level level in org hierarchy
     /// @param _status status of the org
     function _addNewOrg(string memory _pOrgId, string memory _orgId,
-        uint _level, uint _status) internal {
+        uint256 _level, uint _status) internal {
         bytes32 pid = "";
         bytes32 oid = "";
-        uint parentIndex = 0;
+        uint256 parentIndex = 0;
 
         if (_level == 1) {//root
             oid = keccak256(abi.encode(_orgId));
@@ -264,7 +264,7 @@ contract OrgManager {
         }
         orgNum++;
         OrgIndex[oid] = orgNum;
-        uint id = orgList.length++;
+        uint256 id = orgList.length++;
         if (_level == 1) {
             orgList[id].level = _level;
             orgList[id].pindex = 0;
@@ -281,7 +281,7 @@ contract OrgManager {
             orgList[id].level = orgList[parentIndex].level + 1;
             orgList[id].pindex = parentIndex;
             orgList[id].ultParent = orgList[parentIndex].ultParent;
-            uint subOrgId = orgList[parentIndex].subOrgIndexList.length++;
+            uint256 subOrgId = orgList[parentIndex].subOrgIndexList.length++;
             orgList[parentIndex].subOrgIndexList[subOrgId] = id;
             orgList[id].fullOrgId = string(abi.encode(_pOrgId, ".", _orgId));
         }
@@ -300,7 +300,7 @@ contract OrgManager {
 
     /// @notice returns the org index from the org list for the given org
     /// @return org index
-    function _getOrgIndex(string memory _orgId) internal view returns (uint) {
+    function _getOrgIndex(string memory _orgId) internal view returns (uint256) {
         return OrgIndex[keccak256(abi.encode(_orgId))] - 1;
     }
 
