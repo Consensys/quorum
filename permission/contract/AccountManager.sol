@@ -36,8 +36,7 @@ contract AccountManager {
 
     /// @notice confirms that the caller is the address of implementation
     /// @notice contract
-    modifier onlyImplementation
-    {
+    modifier onlyImplementation {
         require(msg.sender == permUpgradable.getPermImpl(), "invalid caller");
         _;
     }
@@ -45,7 +44,7 @@ contract AccountManager {
     /// checks if the account is exists and belongs to the org id passed
     /// @param _orgId - org id
     /// @param _account - account id
-    modifier accountExists(string memory _orgId, address _account){
+    modifier accountExists(string memory _orgId, address _account) {
         require((accountIndex[_account]) != 0, "account does not exists");
         require(keccak256(abi.encode(accountAccessList[_getAccountIndex(_account)].orgId)) == keccak256(abi.encode(_orgId)), "account in different org");
         _;

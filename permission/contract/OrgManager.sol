@@ -18,8 +18,6 @@ contract OrgManager {
     // variables which control the breadth and depth of the sub org tree
     uint private DEPTH_LIMIT = 4;
     uint private BREADTH_LIMIT = 4;
-    // enum OrgStatus {0- NotInList, 1- Proposed, 2- Approved,
-    // 3- PendingSuspension, 4- Suspended, 5- RevokeSuspension}
     struct OrgDetails {
         string orgId;
         uint status;
@@ -96,7 +94,7 @@ contract OrgManager {
     /// @dev org will be added if it does exist
     function addSubOrg(string calldata _pOrgId, string calldata _orgId) external
     onlyImplementation
-    orgDoesNotExist(string(abi.encode(_pOrgId, ".", _orgId))) {
+    orgDoesNotExist(string(abi.encodePacked(_pOrgId, ".", _orgId))) {
         _addNewOrg(_pOrgId, _orgId, 2, 2);
     }
 
@@ -193,7 +191,7 @@ contract OrgManager {
     function checkOrgStatus(string memory _orgId, uint256 _orgStatus)
     public view returns (bool){
         uint256 id = _getOrgIndex(_orgId);
-        return ((OrgIndex[keccak256(abi.encode(_orgId))] != 0)
+        return ((OrgIndex[keccak256(abi.encodePacked(_orgId))] != 0)
         && orgList[id].status == _orgStatus);
     }
 
@@ -201,7 +199,7 @@ contract OrgManager {
     /// @param _orgId org id
     /// @return true or false
     function checkOrgExists(string memory _orgId) public view returns (bool) {
-        return (!(OrgIndex[keccak256(abi.encode(_orgId))] == 0));
+        return (!(OrgIndex[keccak256(abi.encodePacked(_orgId))] == 0));
     }
 
     /// @notice updates the org status to suspended
@@ -257,10 +255,10 @@ contract OrgManager {
         uint256 parentIndex = 0;
 
         if (_level == 1) {//root
-            oid = keccak256(abi.encode(_orgId));
+            oid = keccak256(abi.encodePacked(_orgId));
         } else {
-            pid = keccak256(abi.encode(_pOrgId));
-            oid = keccak256(abi.encode(_pOrgId, ".", _orgId));
+            pid = keccak256(abi.encodePacked(_pOrgId));
+            oid = keccak256(abi.encodePacked(_pOrgId, ".", _orgId));
         }
         orgNum++;
         OrgIndex[oid] = orgNum;
@@ -283,7 +281,7 @@ contract OrgManager {
             orgList[id].ultParent = orgList[parentIndex].ultParent;
             uint256 subOrgId = orgList[parentIndex].subOrgIndexList.length++;
             orgList[parentIndex].subOrgIndexList[subOrgId] = id;
-            orgList[id].fullOrgId = string(abi.encode(_pOrgId, ".", _orgId));
+            orgList[id].fullOrgId = string(abi.encodePacked(_pOrgId, ".", _orgId));
         }
         orgList[id].orgId = _orgId;
         orgList[id].parentId = _pOrgId;
@@ -300,8 +298,8 @@ contract OrgManager {
 
     /// @notice returns the org index from the org list for the given org
     /// @return org index
-    function _getOrgIndex(string memory _orgId) internal view returns (uint256) {
-        return OrgIndex[keccak256(abi.encode(_orgId))] - 1;
+    function _getOrgIndex(string memory _orgId) public view returns (uint){
+        return OrgIndex[keccak256(abi.encodePacked(_orgId))] - 1;
     }
 
 }
