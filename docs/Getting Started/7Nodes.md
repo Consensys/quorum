@@ -102,7 +102,7 @@ Next we'll have Node 1 set the state to the value `4` and verify only nodes 1 an
 
 In terminal window 1 (Node 1):
 ``` javascript
-> private.set(4,{from:eth.coinbase,privateFor:["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]});
+> private.set(4,{from:eth.accounts[0],privateFor:["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]});
 "0xacf293b491cccd1b99d0cfb08464a68791cc7b5bc14a9b6e4ff44b46889a8f70"
 ```
 You can check the log files in `7nodes/qdata/logs/` to see each node validating the block with this new private transaction. Once the block containing the transaction has been validated we can once again check the state from each node 1, 4, and 7.
