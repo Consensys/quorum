@@ -88,11 +88,6 @@ type OrgDetailInfo struct {
 	SubOrgList []string      `json:"subOrgList"`
 }
 
-type OrgStruct struct {
-	OrgId string
-	Keys  []string
-}
-
 // permission config for bootstrapping
 type PermissionConfig struct {
 	UpgrdAddress   common.Address
@@ -177,8 +172,6 @@ var networkAdminRole string
 var orgAdminRole string
 
 const defaultMapLimit = 100
-
-//var OrgKeyMap, _ = lru.New(orgKeyMapLimit)
 
 var OrgInfoMap = NewOrgCache()
 var NodeInfoMap = NewNodeCache()

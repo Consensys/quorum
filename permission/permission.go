@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/core/quorum"
 	"github.com/ethereum/go-ethereum/raft"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/ethereum/go-ethereum/rpc"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -55,74 +54,23 @@ type PermissionLocalConfig struct {
 }
 
 type PermissionCtrl struct {
-	node             *node.Node
-	ethClnt          *ethclient.Client
-	eth              *eth.Ethereum
-	permissionedMode bool
-	key              *ecdsa.PrivateKey
-	dataDir          string
-	permUpgr         *pbind.PermUpgr
-	permInterf       *pbind.PermInterface
-	permNode         *pbind.NodeManager
-	permAcct         *pbind.AcctManager
-	permRole         *pbind.RoleManager
-	permOrg          *pbind.OrgManager
-	permConfig       *types.PermissionConfig
-	mux              sync.Mutex
-}
-
-func (p *PermissionCtrl) Interface() *pbind.PermInterface {
-	return p.permInterf
-}
-
-// Starts the permission services. services will come up only when
-// geth is brought up in --permissioned mode and permission-config.json is present
-func StartQuorumPermissionService(ctx *cli.Context, stack *node.Node) error {
-
-	var quorumApis []string
-	dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
-
-	var permissionConfig types.PermissionConfig
-	var err error
-
-	if permissionConfig, err = ParsePermissionConifg(dataDir); err != nil {
-		log.Error("loading of permission-config.json failed", "error", err)
-		return nil
-	}
-
-	// start the permissions management service
-	pc, err := NewQuorumPermissionCtrl(stack, ctx.GlobalBool(utils.EnableNodePermissionFlag.Name), &permissionConfig)
-	if err != nil {
-		return err
-	}
-
-	if err = pc.Start(); err == nil {
-		quorumApis = []string{"quorumPermission"}
-	} else {
-		return err
-	}
-
-	rpcClient, err := stack.Attach()
-	if err != nil {
-		return err
-	}
-	stateReader := ethclient.NewClient(rpcClient)
-
-	for _, apiName := range quorumApis {
-		v := stack.GetRPC(apiName)
-		if v == nil {
-			return errors.New("failed to start quorum permission api")
-		}
-		qapi := v.(*quorum.QuorumControlsAPI)
-
-		err = qapi.Init(stateReader, stack.GetNodeKey(), apiName, &permissionConfig, pc.Interface())
-		if err != nil {
-			log.Info("Failed to starts API", "apiName", apiName)
-		} else {
-			log.Info("API started", "apiName", apiName)
-		}
-	}
-	return nil
+	node       *node.Node
+	ethClnt    *ethclient.Client
+	eth        *eth.Ethereum
+	key        *ecdsa.PrivateKey
+	dataDir    string
+	permUpgr   *pbind.PermUpgr
+	permInterf *pbind.PermInterface
+	permNode   *pbind.NodeManager
+	permAcct   *pbind.AcctManager
+	permRole   *pbind.RoleManager
+	permOrg    *pbind.OrgManager
+	permConfig *types.PermissionConfig
+	orgChan    chan struct{}
+	nodeChan   chan struct{}
+	roleChan   chan struct{}
+	acctChan   chan struct{}
+	mux        sync.Mutex
 }
 
 // converts local permissions data to global permissions config
@@ -198,74 +146,103 @@ func waitForSync(e *eth.Ethereum) {
 	}
 }
 
-// Creates the controls structure for permissions
-func NewQuorumPermissionCtrl(stack *node.Node, permissionedMode bool, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
-	// Create a new eth client to for interfacing with the contract
-	stateReader, e, err := CreateEthClient(stack)
-	waitForSync(e)
-	if err != nil {
-		log.Error("Unable to create ethereum client for permissions check", "err", err)
-		return nil, err
+func StartPermissionService(stack *node.Node) {
+	//initialize permission as we can create eth client only after the node and RPC are started
+	var permissionService *PermissionCtrl
+	if err := stack.Service(&permissionService); err != nil {
+		utils.Fatalf("cannot access permissions service %v", err)
 	}
-
-	if pconfig.IsEmpty() && permissionedMode {
-		log.Error("permission-config.json is missing contract address")
-		return nil, errors.New("permission-config.json is missing contract address")
+	if permissionService == nil {
+		utils.Fatalf("permission service unavailable")
 	}
-	pu, err := pbind.NewPermUpgr(pconfig.UpgrdAddress, stateReader)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
+	//initialize the service to create eth client and get ethereum service
+	if err := permissionService.InitializeService(); err != nil {
+		utils.Fatalf("permissions service initialization failed %v", err)
 	}
-	// check if permissioning contract is there at address. If not return from here
-	pm, err := pbind.NewPermInterface(pconfig.InterfAddress, stateReader)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
+	if err := permissionService.Start(stack.Server()); err != nil {
+		utils.Fatalf("permissions service start failed %v", err)
 	}
-
-	pmAcct, err := pbind.NewAcctManager(pconfig.AccountAddress, stateReader)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
-	}
-
-	pmNode, err := pbind.NewNodeManager(pconfig.NodeAddress, stateReader)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
-	}
-
-	pmRole, err := pbind.NewRoleManager(pconfig.RoleAddress, stateReader)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
-	}
-
-	pmOrg, err := pbind.NewOrgManager(pconfig.OrgAddress, stateReader)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return nil, err
-	}
-	return &PermissionCtrl{
-		node:             stack,
-		ethClnt:          stateReader,
-		eth:              e,
-		permissionedMode: permissionedMode,
-		key:              stack.GetNodeKey(),
-		dataDir:          stack.DataDir(),
-		permUpgr:         pu,
-		permInterf:       pm,
-		permNode:         pmNode,
-		permAcct:         pmAcct,
-		permRole:         pmRole,
-		permOrg:          pmOrg,
-		permConfig:       pconfig,
-	}, nil
 }
 
-// Starts monitoring service for permissions events at contract level
-func (p *PermissionCtrl) Start() error {
+// Creates the controls structure for permissions
+func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
+	// Create a new ethclient to for interfacing with the contract
+	return &PermissionCtrl{stack, nil, nil, stack.GetNodeKey(), stack.DataDir(), nil, nil, nil, nil, nil, nil, pconfig, make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan struct{}), sync.Mutex{}}, nil
+}
+
+func (p *PermissionCtrl) InitializeService() error {
+	clnt, ethereum, err := CreateEthClient(p.node)
+	if err != nil {
+		log.Error("creating eth client failed")
+		return err
+	}
+	waitFor
+	Sync(ethereum)
+	if err != nil {
+		log.Error("Unable to create ethereum client for permissions check", "err", err)
+		return err
+	}
+
+	if p.permConfig.IsEmpty() {
+		log.Error("permission-config.json is missing contract address")
+		return errors.New("permission-config.json is missing contract address")
+	}
+	pu, err := pbind.NewPermUpgr(p.permConfig.UpgrdAddress, clnt)
+	if err != nil {
+		log.Error("Permissions not enabled for the network", "err", err)
+		return err
+	}
+	// check if permissioning contract is there at address. If not return from here
+	pm, err := pbind.NewPermInterface(p.permConfig.InterfAddress, clnt)
+	if err != nil {
+		log.Error("Permissions not enabled for the network", "err", err)
+		return err
+	}
+
+	pmAcct, err := pbind.NewAcctManager(p.permConfig.AccountAddress, clnt)
+	if err != nil {
+		log.Error("Permissions not enabled for the network", "err", err)
+		return err
+	}
+
+	pmNode, err := pbind.NewNodeManager(p.permConfig.NodeAddress, clnt)
+	if err != nil {
+		log.Error("Permissions not enabled for the network", "err", err)
+		return err
+	}
+
+	pmRole, err := pbind.NewRoleManager(p.permConfig.RoleAddress, clnt)
+	if err != nil {
+		log.Error("Permissions not enabled for the network", "err", err)
+		return err
+	}
+
+	pmOrg, err := pbind.NewOrgManager(p.permConfig.OrgAddress, clnt)
+	if err != nil {
+		log.Error("Permissions not enabled for the network", "err", err)
+		return err
+	}
+	p.permUpgr = pu
+	p.permInterf = pm
+	p.permAcct = pmAcct
+	p.permNode = pmNode
+	p.permRole = pmRole
+	p.permOrg = pmOrg
+	p.ethClnt = clnt
+	p.eth = ethereum
+	log.Info("permission service initalized")
+	return nil
+}
+
+// Starts the node permissioning and event monitoring for permissions
+// smart contracts
+func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
+
+	if p.ethClnt == nil || p.eth == nil {
+		log.Info("permission service not initialized")
+		return nil
+	}
+	log.Info("permission service start...")
 	// Permissions initialization
 	if err := p.init(); err != nil {
 		log.Error("Permissions init failed", "err", err)
@@ -283,7 +260,36 @@ func (p *PermissionCtrl) Start() error {
 
 	// monitor org level account management events
 	go p.manageAccountPermissions()
+	log.Info("permission service started")
+	return nil
+}
 
+func (s *PermissionCtrl) APIs() []rpc.API {
+	log.Info("permission rpc API called")
+	return []rpc.API{
+		{
+			Namespace: "quorumPermission",
+			Version:   "1.0",
+			Service:   NewQuorumControlsAPI(s),
+			Public:    true,
+		},
+	}
+}
+
+func (s *PermissionCtrl) Protocols() []p2p.Protocol {
+	return []p2p.Protocol{}
+}
+
+func (p *PermissionCtrl) Stop() error {
+	if p.eth == nil || p.ethClnt == nil {
+		return nil
+	}
+	log.Info("stopping permission service...")
+	p.roleChan <- struct{}{}
+	p.orgChan <- struct{}{}
+	p.acctChan <- struct{}{}
+	p.nodeChan <- struct{}{}
+	log.Info("stopped permission service")
 	return nil
 }
 
@@ -347,6 +353,9 @@ func (p *PermissionCtrl) manageOrgPermissions() {
 
 		case evtOrgReactivated = <-chOrgReactivated:
 			types.OrgInfoMap.UpsertOrg(evtOrgReactivated.OrgId, evtOrgReactivated.PorgId, evtOrgReactivated.UltParent, evtOrgReactivated.Level, types.OrgApproved)
+		case <-p.orgChan:
+			log.Info("quit org contract watch")
+			return
 		}
 	}
 }
@@ -409,6 +418,9 @@ func (p *PermissionCtrl) manageNodePermissions() {
 			p.updatePermissionedNodes(evtNodeBlacklisted.EnodeId, NodeDelete)
 			p.updateDisallowedNodes(evtNodeBlacklisted.EnodeId)
 			types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, types.NodeBlackListed)
+		case <-p.nodeChan:
+			log.Info("quit node contract watch")
+			return
 		}
 	}
 }
@@ -547,6 +559,9 @@ func (p *PermissionCtrl) manageAccountPermissions() {
 		case evtStatusChanged = <-chStatusChanged:
 			ac := types.AcctInfoMap.GetAccount(evtStatusChanged.Account)
 			types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Account, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
+		case <-p.acctChan:
+			log.Info("quit account contract watch")
+			return
 		}
 	}
 }
@@ -829,6 +844,9 @@ func (p *PermissionCtrl) manageRolePermissions() {
 			} else {
 				log.Error("Revoke role - cache is missing role", "org", evtRoleRevoked.OrgId, "role", evtRoleRevoked.RoleId)
 			}
+		case <-p.roleChan:
+			log.Info("quit role contract watch")
+			return
 		}
 	}
 }

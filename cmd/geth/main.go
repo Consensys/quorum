@@ -343,14 +343,10 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 	}()
 
-	//START - QUORUM permission service
-	go func() {
-		if ctx.GlobalBool(utils.EnableNodePermissionFlag.Name) {
-			if err := permission.StartQuorumPermissionService(ctx, stack); err != nil {
-				utils.Fatalf("Failed to start permissions service %v", err)
-			}
-		}
-	}()
+	//initialize permission as we can create eth client only after the node and RPC are started
+	if utils.IsPermissionEnabled(ctx) {
+		permission.StartPermissionService(stack)
+	}
 
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
