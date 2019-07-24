@@ -1,6 +1,7 @@
 package raft
 
 import (
+	rft "github.com/coreos/etcd/raft"
 	"math/big"
 	"testing"
 	"time"
@@ -12,6 +13,11 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/rlp"
 )
+
+func TestRaftFollower(t *testing.T) {
+
+	r := rft.NewRawNode()
+}
 
 func TestSignHeader(t *testing.T) {
 	//create only what we need to test the seal
