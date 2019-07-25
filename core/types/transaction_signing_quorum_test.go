@@ -59,7 +59,7 @@ func signTx(key *ecdsa.PrivateKey, signer Signer) (*Transaction, common.Address,
  * As of quorum v2.2.3 commit be7cc31ce208525ea1822e7d0fee88bf7f14500b 30 April 2019 behavior
  *
  * Test public transactions signed by homestead Signer. Homestead sets the v param on a signed transaction to
- * either 27 or 28. The v parameter is used for recovering the sender of the signed transation.
+ * either 27 or 28. The v parameter is used for recovering the sender of the signed transaction.
  *
  *  1. Homestead: should be 27, 28
  * $> go test -run TestSignQuorumHomesteadPublic
@@ -253,7 +253,7 @@ func TestSignQuorumHomesteadEIP155SigningPrivateQuorum(t *testing.T) {
 		signedTx, addr, err := signTx(key, homeSinger)
 
 		assert.Nil(err, err)
-		// set to privateTX after the intial signing, this explicitly sets the v param.
+		// set to privateTX after the initial signing, this explicitly sets the v param.
 		// Note: only works when the tx was signed with the homesteadSinger (v==27 | 28).
 		signedTx.SetPrivate()
 
