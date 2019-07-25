@@ -324,6 +324,10 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 		return 0, err
 	}
 
+	if pm.isThisLearnerNode() {
+		return 0, errors.New("learner node can't add peer or learner")
+	}
+
 	raftId := pm.nextRaftId()
 	address := newAddress(raftId, node.RaftPort(), node)
 
@@ -344,14 +348,22 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 	return raftId, nil
 }
 
-func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) {
+func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) error {
+	if pm.isThisLearnerNode() {
+		return errors.New("learner node can't remove peer")
+	}
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:   raftpb.ConfChangeRemoveNode,
 		NodeID: uint64(raftId),
 	}
+	return nil
 }
 
 func (pm *ProtocolManager) PromoteToPeer(raftId uint16) (bool, error) {
+	if pm.isThisLearnerNode() {
+		return false, errors.New("learner node can't promote to peer")
+	}
+
 	if !pm.isLearner(raftId) {
 		return false, fmt.Errorf("%d is not a learner. only learner can be promoted to peer", raftId)
 	}

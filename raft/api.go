@@ -40,8 +40,8 @@ func (s *PublicRaftAPI) PromoteToPeer(raftId uint16) (bool, error) {
 	return s.raftService.raftProtocolManager.PromoteToPeer(raftId)
 }
 
-func (s *PublicRaftAPI) RemovePeer(raftId uint16) {
-	s.raftService.raftProtocolManager.ProposePeerRemoval(raftId)
+func (s *PublicRaftAPI) RemovePeer(raftId uint16) error {
+	return s.raftService.raftProtocolManager.ProposePeerRemoval(raftId)
 }
 
 func (s *PublicRaftAPI) Leader() (string, error) {
