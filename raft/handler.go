@@ -836,29 +836,23 @@ func (pm *ProtocolManager) eventLoop() {
 
 					switch cc.Type {
 					case raftpb.ConfChangeAddNode, raftpb.ConfChangeAddLearnerNode:
-						//for debugging
-						if cc.Type == raftpb.ConfChangeAddNode {
-							log.Info("confChangeAddNode", "raft id", raftId)
-						} else {
-							log.Info("confChangeAddLearnerNode", "raft id", raftId)
-						}
-
+						log.Info(raftpb.ConfChangeType_name[int32(cc.Type)], "raft id", raftId)
 						if pm.isRaftIdRemoved(raftId) {
-							log.Info("ignoring ConfChangeAddNode for permanently-removed peer", "raft id", raftId)
+							log.Info("ignoring " + raftpb.ConfChangeType_name[int32(cc.Type)] + " for permanently-removed peer", "raft id", raftId)
 						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes)) {
 							// See initial cluster logic in startRaft() for more information.
-							log.Info("ignoring expected ConfChangeAddNode for initial peer", "raft id", raftId)
-
+							log.Info("ignoring expected " + raftpb.ConfChangeType_name[int32(cc.Type)] + " for initial peer", "raft id", raftId)
 							// We need a snapshot to exist to reconnect to peers on start-up after a crash.
 							forceSnapshot = true
 						} else { // add peer or add learner or promote learner to voter
 							forceSnapshot = true
-							if p := pm.peers[raftId]; p != nil || pm.raftId == raftId {
+							p := pm.peers[raftId]
+							//if raft id exists as peer, you are promoting learner to peer
+							if p != nil || pm.raftId == raftId {
 								log.Info("promote learner node to voter node", "raft id", raftId)
-							}
-
-							if p := pm.peers[raftId]; pm.raftId != raftId && p == nil {
-								log.Info("confChange add peer", "raft id", raftId)
+							} else if p == nil && pm.raftId != raftId {
+								//if raft id does not exist, you are adding peer/learner
+								log.Info("add peer/learner -> " + raftpb.ConfChangeType_name[int32(cc.Type)], "raft id", raftId)
 								pm.addPeer(bytesToAddress(cc.Context))
 							}
 						}
