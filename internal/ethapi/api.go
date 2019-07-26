@@ -1156,7 +1156,6 @@ func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, addr
 		if err != nil {
 			return nil, err
 		}
-		log.Info("AJ-pending block number ", "nonce", nonce)
 		return (*hexutil.Uint64)(&nonce), nil
 	}
 
