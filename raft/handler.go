@@ -846,11 +846,10 @@ func (pm *ProtocolManager) eventLoop() {
 							forceSnapshot = true
 						} else { // add peer or add learner or promote learner to voter
 							forceSnapshot = true
-							p := pm.peers[raftId]
 							//if raft id exists as peer, you are promoting learner to peer
-							if p != nil || pm.raftId == raftId {
+							if pm.isRaftIdUsed(raftId) {
 								log.Info("promote learner node to voter node", "raft id", raftId)
-							} else if p == nil && pm.raftId != raftId {
+							} else {
 								//if raft id does not exist, you are adding peer/learner
 								log.Info("add peer/learner -> " + raftpb.ConfChangeType_name[int32(cc.Type)], "raft id", raftId)
 								pm.addPeer(bytesToAddress(cc.Context))
