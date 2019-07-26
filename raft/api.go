@@ -1,7 +1,5 @@
 package raft
 
-import "github.com/coreos/etcd/raft/raftpb"
-
 type RaftNodeInfo struct {
 	ClusterSize    int        `json:"clusterSize"`
 	Role           string     `json:"role"`
@@ -22,10 +20,6 @@ func NewPublicRaftAPI(raftService *RaftService) *PublicRaftAPI {
 
 func (s *PublicRaftAPI) Role() string {
 	return s.raftService.raftProtocolManager.NodeInfo().Role
-}
-
-func (s *PublicRaftAPI) ConfState() (raftpb.ConfState, error) {
-	return s.raftService.raftProtocolManager.confState, nil
 }
 
 func (s *PublicRaftAPI) AddPeer(enodeId string) (uint16, error) {
@@ -53,7 +47,24 @@ func (s *PublicRaftAPI) Leader() (string, error) {
 	return addr.NodeId.String(), nil
 }
 
-func (s *PublicRaftAPI) Cluster() []*Address {
+func (s *PublicRaftAPI) Cluster() ([]ClusterInfo, error) {
 	nodeInfo := s.raftService.raftProtocolManager.NodeInfo()
-	return append(nodeInfo.PeerAddresses, nodeInfo.Address)
+	leaderAddr, err := s.raftService.raftProtocolManager.LeaderAddress()
+	if nil != err {
+		return []ClusterInfo{}, err
+	}
+	peerAddresses := append(nodeInfo.PeerAddresses, nodeInfo.Address)
+	clustInfo := make([]ClusterInfo, len(peerAddresses))
+	for i, a := range peerAddresses {
+		role := "verifier"
+		if a.RaftId == leaderAddr.RaftId {
+			role = "leader"
+		} else if s.raftService.raftProtocolManager.isLearner(a.RaftId) {
+			role = "learner"
+		} else {
+			role = "verifier"
+		}
+		clustInfo[i] = ClusterInfo{*a, role}
+	}
+	return clustInfo, nil
 }
