@@ -41,10 +41,10 @@ type ProtocolManager struct {
 	stopped  bool
 
 	// Static configuration
-	joinExisting          bool // Whether to join an existing cluster when a WAL doesn't already exist
-	bootstrapNodes        []*enode.Node
-	raftId                uint16
-	raftPort              uint16
+	joinExisting   bool // Whether to join an existing cluster when a WAL doesn't already exist
+	bootstrapNodes []*enode.Node
+	raftId         uint16
+	raftPort       uint16
 
 	// Local peer state (protected by mu vs concurrent access via JS)
 	address       *Address
@@ -103,26 +103,26 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
 
 	manager := &ProtocolManager{
-		bootstrapNodes:        bootstrapNodes,
-		peers:                 make(map[uint16]*Peer),
-		leader:                uint16(etcdRaft.None),
-		removedPeers:          mapset.NewSet(),
-		joinExisting:          joinExisting,
-		blockchain:            blockchain,
-		eventMux:              mux,
-		blockProposalC:        make(chan *types.Block),
-		confChangeProposalC:   make(chan raftpb.ConfChange),
-		httpstopc:             make(chan struct{}),
-		httpdonec:             make(chan struct{}),
-		waldir:                waldir,
-		snapdir:               snapdir,
-		snapshotter:           snap.New(snapdir),
-		raftId:                raftId,
-		raftPort:              raftPort,
-		quitSync:              make(chan struct{}),
-		raftStorage:           etcdRaft.NewMemoryStorage(),
-		minter:                minter,
-		downloader:            downloader,
+		bootstrapNodes:      bootstrapNodes,
+		peers:               make(map[uint16]*Peer),
+		leader:              uint16(etcdRaft.None),
+		removedPeers:        mapset.NewSet(),
+		joinExisting:        joinExisting,
+		blockchain:          blockchain,
+		eventMux:            mux,
+		blockProposalC:      make(chan *types.Block),
+		confChangeProposalC: make(chan raftpb.ConfChange),
+		httpstopc:           make(chan struct{}),
+		httpdonec:           make(chan struct{}),
+		waldir:              waldir,
+		snapdir:             snapdir,
+		snapshotter:         snap.New(snapdir),
+		raftId:              raftId,
+		raftPort:            raftPort,
+		quitSync:            make(chan struct{}),
+		raftStorage:         etcdRaft.NewMemoryStorage(),
+		minter:              minter,
+		downloader:          downloader,
 	}
 
 	if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
@@ -838,10 +838,10 @@ func (pm *ProtocolManager) eventLoop() {
 					case raftpb.ConfChangeAddNode, raftpb.ConfChangeAddLearnerNode:
 						log.Info(raftpb.ConfChangeType_name[int32(cc.Type)], "raft id", raftId)
 						if pm.isRaftIdRemoved(raftId) {
-							log.Info("ignoring " + raftpb.ConfChangeType_name[int32(cc.Type)] + " for permanently-removed peer", "raft id", raftId)
+							log.Info("ignoring "+raftpb.ConfChangeType_name[int32(cc.Type)]+" for permanently-removed peer", "raft id", raftId)
 						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes)) {
 							// See initial cluster logic in startRaft() for more information.
-							log.Info("ignoring expected " + raftpb.ConfChangeType_name[int32(cc.Type)] + " for initial peer", "raft id", raftId)
+							log.Info("ignoring expected "+raftpb.ConfChangeType_name[int32(cc.Type)]+" for initial peer", "raft id", raftId)
 							// We need a snapshot to exist to reconnect to peers on start-up after a crash.
 							forceSnapshot = true
 						} else { // add peer or add learner or promote learner to voter
@@ -851,7 +851,7 @@ func (pm *ProtocolManager) eventLoop() {
 								log.Info("promote learner node to voter node", "raft id", raftId)
 							} else {
 								//if raft id does not exist, you are adding peer/learner
-								log.Info("add peer/learner -> " + raftpb.ConfChangeType_name[int32(cc.Type)], "raft id", raftId)
+								log.Info("add peer/learner -> "+raftpb.ConfChangeType_name[int32(cc.Type)], "raft id", raftId)
 								pm.addPeer(bytesToAddress(cc.Context))
 							}
 						}
