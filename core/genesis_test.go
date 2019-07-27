@@ -104,7 +104,7 @@ func TestSetupGenesis(t *testing.T) {
 			wantErr:    errors.New("Genesis max code size must be between 24 and 128"),
 			wantConfig: customg.Config,
 		},
-		
+
 		// {
 		// 	name: "custom block in DB, genesis == nil",
 		// 	fn: func(db ethdb.Database) (*params.ChainConfig, common.Hash, error) {
