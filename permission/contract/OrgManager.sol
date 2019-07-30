@@ -1,14 +1,22 @@
 pragma solidity ^0.5.3;
 
 import "./PermissionsUpgradable.sol";
-/// @title Organization Manager contract
-/// @notice This contract holds implementation logic for all org management
-/// @notice functionality. This can be called only by the implementation
-/// @notice contract only. there are few view functions exposed as public and
-/// @notice can be called directly. these are invoked by quorum for populating
-/// @notice permissions data in cache
-/// @dev possible values of org status are - 0- NotInList, 1- Proposed,
-/// @dev 2- Approved, 3- PendingSuspension, 4- Suspended, 5- RevokeSuspension
+/** @title Organization manager contract
+  * @notice This contract holds implementation logic for all org management
+    functionality. This can be called only by the implementation
+    contract only. there are few view functions exposed as public and
+    can be called directly. these are invoked by quorum for populating
+    permissions data in cache
+  * @dev the status of the organization is denoted by a set of integer
+    values. These are as below:
+        0 - Not in list,
+        1 - Org proposed for approval by network admins
+        2 - Org in Approved status
+        3 - Org proposed for suspension and pending approval by network admins
+        4 - Org in Suspended,
+     Once the node is blacklisted no further activity on the node is
+     possible.
+  */
 contract OrgManager {
     string private adminOrgId;
     PermissionsUpgradable private permUpgradable;
@@ -43,65 +51,76 @@ contract OrgManager {
     event OrgSuspensionRevoked(string _orgId, string _porgId, string _ultParent,
         uint _level);
 
-    /// @notice confirms that the caller is the address of implementation
-    /// @notice contract
+    /** @notice confirms that the caller is the address of implementation
+        contract
+    */
     modifier onlyImplementation{
         require(msg.sender == permUpgradable.getPermImpl(), "invalid caller");
         _;
     }
 
-    /// checks if the org id does not exists
-    /// @param _orgId - org id
-    /// @return true if org does not exist
+    /** @notice checks if the org id does not exists
+      * @param _orgId - org id
+      * @return true if org does not exist
+      */
     modifier orgDoesNotExist(string memory _orgId) {
         require(checkOrgExists(_orgId) == false, "org exists");
         _;
     }
 
-    /// checks if the org id does exists
-    /// @param _orgId - org id
-    /// @return true if org exists
+    /** @notice checks if the org id does exists
+      * @param _orgId - org id
+      * @return true if org exists
+      */
     modifier orgExists(string memory _orgId) {
         require(checkOrgExists(_orgId) == true, "org does not exist");
         _;
     }
 
-    /// @notice constructor. sets the permissions upgradable address
+    /** @notice constructor. sets the permissions upgradable address
+      */
     constructor (address _permUpgradable) public {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
-    /// @notice called at the time of network initialization. sets the depth
-    /// @notice breadth for sub orgs creation. and creates the default network
-    /// @notice admin org as per config file
+    /** @notice called at the time of network initialization. sets the depth
+        breadth for sub orgs creation. and creates the default network
+        admin org as per config file
+      */
     function setUpOrg(string calldata _orgId, uint256 _breadth, uint256 _depth) external
     onlyImplementation {
         _addNewOrg("", _orgId, 1, 2);
         DEPTH_LIMIT = _depth;
         BREADTH_LIMIT = _breadth;
     }
-    /// @notice function for adding a new master org to the network
-    /// @param _orgId unique org id to be added
-    /// @dev org will be added if it does exist
+    /** @notice function for adding a new master org to the network
+      * @param _orgId unique org id to be added
+      * @dev org will be added if it does exist
+      */
     function addOrg(string calldata _orgId) external
     onlyImplementation
     orgDoesNotExist(_orgId) {
         _addNewOrg("", _orgId, 1, 1);
     }
 
-    /// @notice function for adding a new sub org under a parent org
-    /// @param _pOrgId unique org id to be added
-    /// @dev org will be added if it does exist
+    /** @notice function for adding a new sub org under a parent org
+      * @param _pOrgId unique org id to be added
+      * @dev org will be added if it does exist
+      */
     function addSubOrg(string calldata _pOrgId, string calldata _orgId) external
     onlyImplementation
     orgDoesNotExist(string(abi.encodePacked(_pOrgId, ".", _orgId))) {
         _addNewOrg(_pOrgId, _orgId, 2, 2);
     }
 
-    /// @notice updates the status of a master org.
-    /// @param _orgId unique org id to be added
-    /// @param _action 1- suspend 2- activate back
-    /// @dev status cannot be updated for sub orgs
+    /** @notice updates the status of a master org.
+      * @param _orgId unique org id to be added
+      * @param _action action being performed
+      * @dev status cannot be updated for sub orgs.
+        This function can be called for the following actions:
+            1 - to suspend an org
+            2 - to activate the org back
+      */
     function updateOrg(string calldata _orgId, uint256 _action) external
     onlyImplementation
     orgExists(_orgId)
@@ -131,9 +150,14 @@ contract OrgManager {
         return pendingOp;
     }
 
-    /// @notice function to approve org status change for master orgs
-    /// @param _orgId unique org id to be added
-    /// @param _action 1- suspend 2- activate back
+    /** @notice function to approve org status change for master orgs
+      * @param _orgId unique org id to be added
+      * @param _action approval for action
+      * @dev status cannot be updated for sub orgs.
+        This function can be called for the following actions:
+            1 - to suspend an org
+            2 - to activate the org back
+      */
     function approveOrgStatusUpdate(string calldata _orgId, uint256 _action) external
     onlyImplementation
     orgExists(_orgId) {
@@ -145,8 +169,9 @@ contract OrgManager {
         }
     }
 
-    /// @notice function to approve org status change for master orgs
-    /// @param _orgId unique org id to be added
+    /** @notice function to approve org status change for master orgs
+      * @param _orgId unique org id to be added
+      */
     function approveOrg(string calldata _orgId) external
     onlyImplementation {
         require(checkOrgStatus(_orgId, 1) == true, "nothing to approve");
@@ -156,38 +181,42 @@ contract OrgManager {
             orgList[id].ultParent, orgList[id].level, 2);
     }
 
-    /// @notice returns org info for a given org index
-    /// @param _orgIndex org index
-    /// @return org id
-    /// @return parent org id
-    /// @return ultimate parent id
-    /// @return level in the org tree
-    /// @return status
+    /** @notice returns org info for a given org index
+      * @param _orgIndex org index
+      * @return org id
+      * @return parent org id
+      * @return ultimate parent id
+      * @return level in the org tree
+      * @return status
+      */
     function getOrgInfo(uint256 _orgIndex) external view returns (string memory,
         string memory, string memory, uint256, uint256) {
         return (orgList[_orgIndex].orgId, orgList[_orgIndex].parentId,
         orgList[_orgIndex].ultParent, orgList[_orgIndex].level, orgList[_orgIndex].status);
     }
 
-    /// @notice returns the master org id for the given org or sub org
-    /// @param _orgId org id
-    /// @return master org id
+    /** @notice returns the master org id for the given org or sub org
+      * @param _orgId org id
+      * @return master org id
+      */
     function getUltimateParent(string calldata _orgId) external view
     onlyImplementation
     returns (string memory) {
         return orgList[_getOrgIndex(_orgId)].ultParent;
     }
 
-    /// @notice returns the total number of orgs in the network
-    /// @return master org id
+    /** @notice returns the total number of orgs in the network
+      * @return master org id
+      */
     function getNumberOfOrgs() public view returns (uint256) {
         return orgList.length;
     }
 
-    /// @notice confirms that org status is same as passed status
-    /// @param _orgId org id
-    /// @param _orgStatus org status
-    /// @return true or false
+    /** @notice confirms that org status is same as passed status
+      * @param _orgId org id
+      * @param _orgStatus org status
+      * @return true or false
+      */
     function checkOrgStatus(string memory _orgId, uint256 _orgStatus)
     public view returns (bool){
         uint256 id = _getOrgIndex(_orgId);
@@ -195,15 +224,17 @@ contract OrgManager {
         && orgList[id].status == _orgStatus);
     }
 
-    /// @notice confirms if the org exists in the network
-    /// @param _orgId org id
-    /// @return true or false
+    /** @notice confirms if the org exists in the network
+      * @param _orgId org id
+      * @return true or false
+      */
     function checkOrgExists(string memory _orgId) public view returns (bool) {
         return (!(OrgIndex[keccak256(abi.encodePacked(_orgId))] == 0));
     }
 
-    /// @notice updates the org status to suspended
-    /// @param _orgId org id
+    /** @notice updates the org status to suspended
+      * @param _orgId org id
+      */
     function _suspendOrg(string memory _orgId) internal {
         require(checkOrgStatus(_orgId, 2) == true,
             "org not in approved status. operation cannot be done");
@@ -213,8 +244,9 @@ contract OrgManager {
             orgList[id].ultParent, orgList[id].level, 3);
     }
 
-    /// @notice revokes the suspension of an org
-    /// @param _orgId org id
+    /** @notice revokes the suspension of an org
+      * @param _orgId org id
+      */
     function _revokeOrgSuspension(string memory _orgId) internal {
         require(checkOrgStatus(_orgId, 4) == true, "org not in suspended state");
         uint256 id = _getOrgIndex(_orgId);
@@ -223,8 +255,9 @@ contract OrgManager {
             orgList[id].ultParent, orgList[id].level, 5);
     }
 
-    /// @notice approval function for org suspension activity
-    /// @param _orgId org id
+    /** @notice approval function for org suspension activity
+      * @param _orgId org id
+      */
     function _approveOrgSuspension(string memory _orgId) internal {
         require(checkOrgStatus(_orgId, 3) == true, "nothing to approve");
         uint256 id = _getOrgIndex(_orgId);
@@ -233,8 +266,9 @@ contract OrgManager {
             orgList[id].ultParent, orgList[id].level);
     }
 
-    /// @notice approval function for revoking org suspension
-    /// @param _orgId org id
+    /** @notice approval function for revoking org suspension
+      * @param _orgId org id
+      */
     function _approveOrgRevokeSuspension(string memory _orgId) internal {
         require(checkOrgStatus(_orgId, 5) == true, "nothing to approve");
         uint256 id = _getOrgIndex(_orgId);
@@ -243,11 +277,12 @@ contract OrgManager {
             orgList[id].ultParent, orgList[id].level);
     }
 
-    /// @notice function to add a new organization
-    /// @param _pOrgId parent org id
-    /// @param _orgId org id
-    /// @param _level level in org hierarchy
-    /// @param _status status of the org
+    /** @notice function to add a new organization
+      * @param _pOrgId parent org id
+      * @param _orgId org id
+      * @param _level level in org hierarchy
+      * @param _status status of the org
+      */
     function _addNewOrg(string memory _pOrgId, string memory _orgId,
         uint256 _level, uint _status) internal {
         bytes32 pid = "";
@@ -296,9 +331,11 @@ contract OrgManager {
         }
     }
 
-    /// @notice returns the org index from the org list for the given org
-    /// @return org index
+    /** @notice returns the org index from the org list for the given org
+      * @return org index
+      */
     function _getOrgIndex(string memory _orgId) public view returns (uint){
+        require(OrgIndex[keccak256(abi.encodePacked(_orgId))] > 0, "org not in the map");
         return OrgIndex[keccak256(abi.encodePacked(_orgId))] - 1;
     }
 

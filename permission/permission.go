@@ -171,13 +171,12 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig) 
 }
 
 func (p *PermissionCtrl) InitializeService() error {
-	clnt, ethereum, err := CreateEthClient(p.node)
+	clnt, eth, err := CreateEthClient(p.node)
 	if err != nil {
 		log.Error("creating eth client failed")
 		return err
 	}
-	waitFor
-	Sync(ethereum)
+	waitForSync(eth)
 	if err != nil {
 		log.Error("Unable to create ethereum client for permissions check", "err", err)
 		return err
@@ -229,7 +228,7 @@ func (p *PermissionCtrl) InitializeService() error {
 	p.permRole = pmRole
 	p.permOrg = pmOrg
 	p.ethClnt = clnt
-	p.eth = ethereum
+	p.eth = eth
 	log.Info("permission service initalized")
 	return nil
 }

@@ -1,13 +1,21 @@
 pragma solidity ^0.5.3;
 
 import "./PermissionsUpgradable.sol";
-/// @title Node manager contract
-/// @notice This contract holds implementation logic for all node management
-/// @notice functionality. This can be called only by the implementation
-/// @notice contract only. there are few view functions exposed as public and
-/// @notice can be called directly. these are invoked by quorum for populating
-/// @notice permissions data in cache
-
+/** @title Node manager contract
+  * @notice This contract holds implementation logic for all node management
+    functionality. This can be called only by the implementation contract.
+    There are few view functions exposed as public and can be called directly.
+    These are invoked by quorum for populating permissions data in cache
+  * @dev node status is denoted by a fixed integer value. The values are
+    as below:
+        0 - Not in list
+        1 - Node pending approval
+        2 - Active
+        3 - Deactivated
+        4 - Blacklisted
+     Once the node is blacklisted no further activity on the node is
+     possible.
+  */
 contract NodeManager {
     PermissionsUpgradable private permUpgradable;
     struct NodeDetails {
@@ -37,38 +45,44 @@ contract NodeManager {
     // node permission events for node blacklist
     event NodeBlacklisted(string _enodeId, string _orgId);
 
-    /// @notice checks if the caller is implementation contract
+    /** @notice confirms that the caller is the address of implementation
+        contract
+    */
     modifier onlyImplementation {
         require(msg.sender == permUpgradable.getPermImpl(), "invalid caller");
         _;
     }
 
-    /// @notice  checks if the node exists in the network
-    /// @param _enodeId full enode id
+    /** @notice  checks if the node exists in the network
+      * @param _enodeId full enode id
+      */
     modifier enodeExists(string memory _enodeId) {
         require(nodeIdToIndex[keccak256(abi.encode(_enodeId))] != 0,
             "passed enode id does not exist");
         _;
     }
 
-    /// @notice  checks if the node does not exist in the network
-    /// @param _enodeId full enode id
+    /** @notice  checks if the node does not exist in the network
+      * @param _enodeId full enode id
+      */
     modifier enodeDoesNotExists(string memory _enodeId) {
         require(nodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0,
             "passed enode id exists");
         _;
     }
 
-    /// @notice constructor. sets the permissions upgradable address
+    /** @notice constructor. sets the permissions upgradable address
+      */
     constructor (address _permUpgradable) public {
         permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
-    /// @notice fetches the node details given an enode id
-    /// @param _enodeId full enode id
-    /// @return org id
-    /// @return enode id
-    /// @return status of the node
+    /** @notice fetches the node details given an enode id
+      * @param _enodeId full enode id
+      * @return org id
+      * @return enode id
+      * @return status of the node
+      */
     function getNodeDetails(string calldata enodeId) external view
     returns (string memory _orgId, string memory _enodeId, uint256 _nodeStatus) {
         uint256 nodeIndex = _getNodeIndex(enodeId);
@@ -76,27 +90,30 @@ contract NodeManager {
         nodeList[nodeIndex].status);
     }
 
-    /// @notice fetches the node details given the index of the enode
-    /// @param _nodeIndex node index
-    /// @return org id
-    /// @return enode id
-    /// @return status of the node
+    /** @notice fetches the node details given the index of the enode
+      * @param _nodeIndex node index
+      * @return org id
+      * @return enode id
+      * @return status of the node
+      */
     function getNodeDetailsFromIndex(uint256 _nodeIndex) external view
     returns (string memory _orgId, string memory _enodeId, uint256 _nodeStatus) {
         return (nodeList[_nodeIndex].orgId, nodeList[_nodeIndex].enodeId,
         nodeList[_nodeIndex].status);
     }
 
-    /// @notice returns the total number of enodes in the network
-    /// @return number of nodes
+    /** @notice returns the total number of enodes in the network
+      * @return number of nodes
+      */
     function getNumberOfNodes() external view returns (uint256) {
         return numberOfNodes;
     }
 
-    /// @notice called at the time of network initialization for adding
-    /// @notice admin nodes
-    /// @param _enodeId enode id
-    /// @param _orgId org id to which the enode belongs
+    /** @notice called at the time of network initialization for adding
+        admin nodes
+      * @param _enodeId enode id
+      * @param _orgId org id to which the enode belongs
+      */
     function addAdminNode(string calldata _enodeId, string calldata _orgId) external
     onlyImplementation
     enodeDoesNotExists(_enodeId) {
@@ -106,9 +123,10 @@ contract NodeManager {
         emit NodeApproved(_enodeId, _orgId);
     }
 
-    /// @notice called at the time of new org creation to add node to org
-    /// @param _enodeId enode id
-    /// @param _orgId org id to which the enode belongs
+    /** @notice called at the time of new org creation to add node to org
+      * @param _enodeId enode id
+      * @param _orgId org id to which the enode belongs
+      */
     function addNode(string calldata _enodeId, string calldata _orgId) external
     onlyImplementation
     enodeDoesNotExists(_enodeId) {
@@ -118,9 +136,10 @@ contract NodeManager {
         emit NodeProposed(_enodeId, _orgId);
     }
 
-    /// @notice called org admins to add new enodes to the org or sub orgs
-    /// @param _enodeId enode id
-    /// @param _orgId org or sub org id to which the enode belongs
+    /** @notice called org admins to add new enodes to the org or sub orgs
+      * @param _enodeId enode id
+      * @param _orgId org or sub org id to which the enode belongs
+      */
     function addOrgNode(string calldata _enodeId, string calldata _orgId) external
     onlyImplementation
     enodeDoesNotExists(_enodeId) {
@@ -130,10 +149,11 @@ contract NodeManager {
         emit NodeApproved(_enodeId, _orgId);
     }
 
-    /// @notice function to approve the node addition. only called at the time
-    /// @notice master org creation by network admin
-    /// @param _enodeId enode id
-    /// @param _orgId org or sub org id to which the enode belongs
+    /** @notice function to approve the node addition. only called at the time
+        master org creation by network admin
+      * @param _enodeId enode id
+      * @param _orgId org or sub org id to which the enode belongs
+      */
     function approveNode(string calldata _enodeId, string calldata _orgId) external
     onlyImplementation
     enodeExists(_enodeId) {
@@ -145,11 +165,16 @@ contract NodeManager {
         emit NodeApproved(nodeList[nodeIndex].enodeId, nodeList[nodeIndex].orgId);
     }
 
-    /// @notice updates the node status. can be called for deactivating/
-    /// @notice blacklisting  and reactivating a deactivated node
-    /// @param _enodeId enode id
-    /// @param _orgId org or sub org id to which the enode belong
-    /// @param _action 1- deactivate, 2- reactivate, 3- blacklist node
+    /** @notice updates the node status. can be called for deactivating/
+        blacklisting  and reactivating a deactivated node
+      * @param _enodeId enode id
+      * @param _orgId org or sub org id to which the enode belong
+      * @param _action action being performed
+      * @dev action can have any of the following values
+            1 - Suspend the node
+            2 - Revoke suspension of a suspended node
+            3 - blacklist a node
+      */
     function updateNodeStatus(string calldata _enodeId, string calldata _orgId, uint256 _action) external
     onlyImplementation
     enodeExists(_enodeId) {
@@ -169,32 +194,36 @@ contract NodeManager {
             emit NodeActivated(_enodeId, _orgId);
         }
         else {
-            nodeList[_getNodeIndex(_enodeId)].status = 5;
+            nodeList[_getNodeIndex(_enodeId)].status = 4;
             emit NodeBlacklisted(_enodeId, _orgId);
         }
     }
 
-    /* private functions */
-    /// @notice returns the node index for given enode id
-    /// @param _enodeId enode id
-    /// @return trur or false
+    // private functions
+    /** @notice returns the node index for given enode id
+      * @param _enodeId enode id
+      * @return trur or false
+      */
     function _getNodeIndex(string memory _enodeId) internal view
     returns (uint256) {
+        require(nodeIdToIndex[keccak256(abi.encode(_enodeId))] > 0, "node not in the map");
         return nodeIdToIndex[keccak256(abi.encode(_enodeId))] - 1;
     }
 
-    /// @notice checks if enode id is linked to the org id passed
-    /// @param _enodeId enode id
-    /// @param _orgId org or sub org id to which the enode belongs
-    /// @return true or false
+    /** @notice checks if enode id is linked to the org id passed
+      * @param _enodeId enode id
+      * @param _orgId org or sub org id to which the enode belongs
+      * @return true or false
+      */
     function _checkOrg(string memory _enodeId, string memory _orgId) internal view
     returns (bool) {
         return (keccak256(abi.encode(nodeList[_getNodeIndex(_enodeId)].orgId)) == keccak256(abi.encode(_orgId)));
     }
 
-    /// @notice returns the node status for a given enode id
-    /// @param _enodeId enode id
-    /// @return node status
+    /** @notice returns the node status for a given enode id
+      * @param _enodeId enode id
+      * @return node status
+      */
     function _getNodeStatus(string memory _enodeId) internal view returns (uint256) {
         if (nodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0) {
             return 0;

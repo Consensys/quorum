@@ -25,7 +25,6 @@ const (
 	OrgApproved
 	OrgPendingSuspension
 	OrgSuspended
-	OrgRevokeSuspension
 )
 
 type OrgInfo struct {
