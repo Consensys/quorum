@@ -549,7 +549,6 @@ func acctsEqual(a, b []accounts.Account) bool {
 	return true
 }
 
-// TODO This is a long running test (~8secs) so perhaps should be excluded from test suite by default?
 func TestVaultWallet_Open_Hashicorp_AccountsRetrieved(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 		t.Fatal(err)
@@ -646,7 +645,7 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrieved(t *testing.T) {
 			wltConfig := hashicorpWalletConfig{
 				Client: hashicorpClientConfig{
 					Url: vaultServer.URL,
-					VaultPollingIntervalSecs: 1,
+					VaultPollingIntervalMillis: 1,
 				},
 				Secrets: tt.secrets,
 			}
@@ -662,8 +661,7 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrieved(t *testing.T) {
 			}
 
 			// need to block to let accountRetrievalLoop do its thing
-			// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
-			time.Sleep(2 * time.Second)
+			time.Sleep(4 * time.Millisecond)
 
 			//TODO wantAccts do not have URLs set so URL equality is not being checked
 			if !acctsEqual(tt.wantAccts, w.Accounts()) {
@@ -673,7 +671,7 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrieved(t *testing.T) {
 	}
 }
 
-// TODO This is a long running test (~10secs) so perhaps should be excluded from test suite by default?
+// TODO This is a long running test (>5s) so perhaps should be excluded from test suite by default?
 func TestVaultWallet_Open_Hashicorp_AccountsRetrievedWhenVaultAvailable(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 		t.Fatal(err)
@@ -705,7 +703,7 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrievedWhenVaultAvailable(t *testi
 	wltConfig := hashicorpWalletConfig{
 		Client: hashicorpClientConfig{
 			Url: "http://incorrecturl:1",
-			VaultPollingIntervalSecs: 1,
+			VaultPollingIntervalMillis: 1,
 		},
 		Secrets: []hashicorpSecretConfig{
 			{AddressSecret: "sec1", AddressSecretVersion: 1, SecretEngine: "kv"},
@@ -724,7 +722,8 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrievedWhenVaultAvailable(t *testi
 
 	// need to block to let accountRetrievalLoop do its thing
 	// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
-	time.Sleep(5 * time.Second)
+	// such a long sleep is required because the vault client retries multiple times before determining that the vault cannot be reached
+	time.Sleep(3 * time.Second)
 
 	if len(w.Accounts()) != 0 {
 		t.Fatalf("wallet should have no accounts as vault server is inaccessible: got: %v", w.Accounts())
@@ -738,7 +737,8 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrievedWhenVaultAvailable(t *testi
 
 	// need to block to let accountRetrievalLoop do its thing
 	// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
-	time.Sleep(5 * time.Second)
+	// such a long sleep is required because we must wait for the vault client to finish any attempted request to the incorrect vault url
+	time.Sleep(3 * time.Second)
 
 	wantAccts := []accounts.Account{
 		{Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")},
@@ -785,9 +785,6 @@ func keysEqual(a, b []*ecdsa.PrivateKey) bool {
 	return true
 }
 
-// TODO use milliseconds instead of seconds as duration unit for retrieval loops to make these tests quicker to run by setting the retrieval period to 1ms
-
-// TODO This is a long running test (~8secs) so perhaps should be excluded from test suite by default?
 func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 		t.Fatal(err)
@@ -911,7 +908,7 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T
 			wltConfig := hashicorpWalletConfig{
 				Client: hashicorpClientConfig{
 					Url: vaultServer.URL,
-					VaultPollingIntervalSecs: 1,
+					VaultPollingIntervalMillis: 1,
 					StorePrivateKeys: true,
 				},
 				Secrets: tt.secrets,
@@ -928,8 +925,7 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T
 			}
 
 			// need to block to let accountRetrievalLoop do its thing
-			// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
-			time.Sleep(4 * time.Second)
+			time.Sleep(4 * time.Millisecond)
 
 			keyGetters := w.vault.(*hashicorpService).keyGetters
 
@@ -956,7 +952,7 @@ func getRetrievedKeys(keyGetters map[common.Address]map[accounts.URL]hashicorpKe
 	return gotKeys
 }
 
-// TODO This is a long running test (~20secs) so perhaps should be excluded from test suite by default?
+// TODO This is a long running test (>10s) so perhaps should be excluded from test suite by default?
 func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvailable(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 		t.Fatal(err)
@@ -1008,7 +1004,7 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 			wltConfig := hashicorpWalletConfig{
 				Client: hashicorpClientConfig{
 					Url: "http://incorrecturl:1",
-					VaultPollingIntervalSecs: 1,
+					VaultPollingIntervalMillis: 1,
 					StorePrivateKeys: tt.storePrivateKeys,
 				},
 				Secrets: []hashicorpSecretConfig{
@@ -1028,7 +1024,8 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 
 			// need to block to let accountRetrievalLoop do its thing
 			// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
-			time.Sleep(5 * time.Second)
+			// such a long sleep is required because the vault client retries multiple times before determining that the vault cannot be reached
+			time.Sleep(3 * time.Second)
 
 			v := w.vault.(*hashicorpService)
 
@@ -1045,7 +1042,8 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 
 			// need to block to let accountRetrievalLoop do its thing
 			// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
-			time.Sleep(5 * time.Second)
+			// such a long sleep is required because we must wait for the vault client to finish any attempted request to the incorrect vault url
+			time.Sleep(3 * time.Second)
 
 			gotKeys = getRetrievedKeys(v.keyGetters)
 
@@ -1117,7 +1115,7 @@ func TestVaultWallet_Open_Hashicorp_RetrievalLoopsStopWhenAllSecretsRetrieved(t 
 	wltConfig := hashicorpWalletConfig{
 		Client: hashicorpClientConfig{
 			Url: vaultServer.URL,
-			VaultPollingIntervalSecs: 1,
+			VaultPollingIntervalMillis: 1,
 			StorePrivateKeys: true,
 		},
 		Secrets: []hashicorpSecretConfig{makeSecret(addrName, keyName)},
@@ -1134,9 +1132,8 @@ func TestVaultWallet_Open_Hashicorp_RetrievalLoopsStopWhenAllSecretsRetrieved(t 
 	}
 
 	// need to block to let accountRetrievalLoop do its thing
-	// a long sleep is used here to give the vault client time to make its request to the vault and wait for the response before the go scheduler returns focus to this test
 	// the sleep length is long enough that multiple calls to the vault would occur if the loop did not stop once all secrets were retrieved
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Millisecond)
 
 	if getAddrCount != 1 || getKeyCount != 1 {
 		t.Fatalf("retrieval loops should have made just one call to vault, got secret and then stopped: \naccountRetrievalLoop vault call count: %v\nprivateKeyRetrievalLoop vault call count: %v", getAddrCount, getKeyCount)

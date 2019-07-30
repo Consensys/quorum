@@ -270,11 +270,11 @@ func (h *hashicorpService) open() error {
 	h.client = c
 
 	// 10s polling interval by default
-	pollingIntervalSecs := h.config.VaultPollingIntervalSecs
-	if pollingIntervalSecs == 0 {
-		pollingIntervalSecs = 10
+	pollingIntervalMillis := h.config.VaultPollingIntervalMillis
+	if pollingIntervalMillis == 0 {
+		pollingIntervalMillis = 10000
 	}
-	d := time.Duration(pollingIntervalSecs) * time.Second
+	d := time.Duration(pollingIntervalMillis) * time.Millisecond
 
 	go h.accountRetrievalLoop(time.NewTicker(d))
 

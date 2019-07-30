@@ -12,7 +12,7 @@ type hashicorpClientConfig struct {
 	ClientCert       string `toml:",omitempty"`
 	ClientKey        string `toml:",omitempty"`
 	StorePrivateKeys bool   `toml:",omitempty"`
-	VaultPollingIntervalSecs int `toml:",omitempty"`
+	VaultPollingIntervalMillis int `toml:",omitempty"`
 }
 
 type hashicorpSecretConfig struct {
