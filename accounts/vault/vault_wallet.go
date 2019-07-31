@@ -119,8 +119,30 @@ func (w vaultWallet) SignHash(account accounts.Account, hash []byte) ([]byte, er
 	return crypto.Sign(hash, key)
 }
 
-func (w vaultWallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int, isQuorum bool) (*types.Transaction, error) {
-	panic("implement me")
+func (w vaultWallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
+	if !w.Contains(account) {
+		return nil, accounts.ErrUnknownAccount
+	}
+
+	key, zero, err := w.vault.getKey(account)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer zero()
+
+	// start quorum specific
+	if tx.IsPrivate() {
+		log.Info("Private transaction signing with QuorumPrivateTxSigner")
+		return types.SignTx(tx, types.QuorumPrivateTxSigner{}, key)
+	} // End quorum specific
+
+	// Depending on the presence of the chain ID, sign with EIP155 or homestead
+	if chainID != nil {
+		return types.SignTx(tx, types.NewEIP155Signer(chainID), key)
+	}
+	return types.SignTx(tx, types.HomesteadSigner{}, key)
 }
 
 func (w vaultWallet) SignHashWithPassphrase(account accounts.Account, passphrase string, hash []byte) ([]byte, error) {

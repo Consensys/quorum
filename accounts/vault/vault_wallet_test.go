@@ -10,12 +10,14 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/vault/api"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1487,6 +1489,354 @@ func TestVaultWallet_SignHash_Hashicorp_SignsWithKeyFromVaultAndDoesNotStoreInMe
 
 	if !bytes.Equal(want, got) {
 		t.Fatalf("incorrect signHash result:\nwant: %v\ngot : %v", want, got)
+	}
+
+	vaultServiceKey := w.vault.(*hashicorpService).keyGetters[acct.Address][acct.URL].key
+
+	if vaultServiceKey != nil {
+		t.Fatal("unlocked key should not be stored after use")
+	}
+}
+
+func TestVaultWallet_SignTx_Hashicorp_UsesDifferentSigners(t *testing.T) {
+	addr := common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")
+	url := accounts.URL{Scheme: "http", Path: "url:1"}
+	acct := accounts.Account{
+		Address: addr,
+		URL: url,
+	}
+
+	key, err := crypto.HexToECDSA("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := vaultWallet{
+		vault: &hashicorpService{
+			accts: []accounts.Account{acct},
+			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+				addr: {
+					url: hashicorpKeyGetter{key: key},
+				},
+			},
+		},
+	}
+
+	makePublicTx := func() *types.Transaction {
+		return types.NewTransaction(0, common.Address{}, nil, 0, nil, nil)
+	}
+
+	makePrivateTx := func() *types.Transaction {
+		tx := makePublicTx()
+		tx.SetPrivate()
+		return tx
+	}
+
+	tests := map[string]struct{
+		toSign *types.Transaction
+		signer types.Signer
+		chainID *big.Int
+	}{
+		"private tx no chainID uses QuorumPrivateTxSigner": {toSign: makePrivateTx(), signer: types.QuorumPrivateTxSigner{}},
+		"private tx and chainID uses QuorumPrivateTxSigner": {toSign: makePrivateTx(), signer: types.QuorumPrivateTxSigner{}, chainID: big.NewInt(1)},
+		"public tx no chainID uses HomesteadSigner": {toSign: makePublicTx(), signer: types.HomesteadSigner{}},
+		"public tx and chainID uses EIP155Signer": {toSign: makePublicTx(), signer: types.NewEIP155Signer(big.NewInt(1)), chainID: big.NewInt(1)},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, err := w.SignTx(acct, tt.toSign, tt.chainID)
+
+			if err != nil {
+				t.Fatalf("error signing tx: %v", err)
+			}
+
+			h := tt.signer.Hash(tt.toSign)
+			wantSignature, err := crypto.Sign(h[:], key)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var toSignCpy types.Transaction
+			toSignCpy = *tt.toSign
+			want, err := toSignCpy.WithSignature(tt.signer, wantSignature)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(want, got) {
+				t.Fatalf("incorrect signTx result :\nwant: %v\ngot : %v", want, got)
+			}
+		})
+	}
+}
+
+func TestVaultWallet_SignTx_Hashicorp_ErrorIfAccountNotKnown(t *testing.T) {
+	w := vaultWallet{
+		vault: &hashicorpService{
+			accts: []accounts.Account{},
+		},
+	}
+
+	acct := accounts.Account{Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")}
+
+	toSign := &types.Transaction{}
+
+	if _, err := w.SignTx(acct, toSign, nil); err != accounts.ErrUnknownAccount {
+		t.Fatalf("incorrect error returned:\nwant: %v\ngot : %v", accounts.ErrUnknownAccount, err)
+	}
+}
+
+func TestVaultWallet_SignTx_Hashicorp_SignsWithInMemoryKeyIfAvailableAndDoesNotZeroKey(t *testing.T) {
+	addr := common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")
+	url := accounts.URL{Scheme: "http", Path: "url:1"}
+	acct := accounts.Account{
+		Address: addr,
+		URL: url,
+	}
+
+	key, err := crypto.HexToECDSA("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := vaultWallet{
+		vault: &hashicorpService{
+			accts: []accounts.Account{acct},
+			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+				addr: {
+					url: hashicorpKeyGetter{key: key},
+				},
+			},
+		},
+	}
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, nil)
+
+	got, err := w.SignTx(acct, toSign, nil)
+
+	if err != nil {
+		t.Fatalf("error signing hash: %v", err)
+	}
+
+	wantSigner := types.HomesteadSigner{}
+	h := wantSigner.Hash(toSign)
+	wantSignature, err := crypto.Sign(h[:], key)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var toSignCpy types.Transaction
+	toSignCpy = *toSign
+	want, err := toSignCpy.WithSignature(wantSigner, wantSignature)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("incorrect signTx result :\nwant: %v\ngot : %v", want, got)
+	}
+
+	vaultServiceKey := w.vault.(*hashicorpService).keyGetters[acct.Address][acct.URL].key
+
+	if vaultServiceKey == nil || vaultServiceKey.D.Int64() == 0 {
+		t.Fatal("unlocked key was zeroed after use")
+	}
+}
+
+func TestVaultWallet_SignTx_Hashicorp_ErrorIfAmbiguousAccount(t *testing.T) {
+	addr := common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")
+
+	url1 := accounts.URL{Scheme: "http", Path: "url:1"}
+	url2 := accounts.URL{Scheme: "http", Path: "url:2"}
+
+	acct1 := accounts.Account{Address: addr, URL: url1}
+	acct2 := accounts.Account{Address: addr, URL: url2}
+
+	// Two accounts have the same address but different URLs
+	w := vaultWallet{
+		vault: &hashicorpService{
+			accts: []accounts.Account{acct1, acct2},
+			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+				addr: {
+					url1: hashicorpKeyGetter{},
+					url2: hashicorpKeyGetter{},
+				},
+			},
+		},
+	}
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, nil)
+
+	// The provided account does not specify the exact account to use as no URL is provided
+	acct := accounts.Account{
+		Address: addr,
+	}
+
+	_, err := w.SignTx(acct, toSign, nil)
+	e := err.(*keystore.AmbiguousAddrError)
+
+	want := []accounts.Account{acct1, acct2}
+
+	if diff := cmp.Diff(want, e.Matches); diff != "" {
+		t.Fatalf("ambiguous accounts mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestVaultWallet_SignTx_Hashicorp_AmbiguousAccountAllowedIfOnlyOneAccountWithGivenAddress(t *testing.T) {
+	addr := common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")
+	url := accounts.URL{Scheme: "http", Path: "url:1"}
+	acct1 := accounts.Account{Address: addr, URL: url}
+
+	key, err := crypto.HexToECDSA("e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w := vaultWallet{
+		vault: &hashicorpService{
+			accts: []accounts.Account{acct1},
+			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+				addr: {
+					url: hashicorpKeyGetter{key: key},
+				},
+			},
+		},
+	}
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, nil)
+
+	// The provided account does not specify the exact account to use as no URL is provided
+	acct := accounts.Account{
+		Address: addr,
+	}
+
+	got, err := w.SignTx(acct, toSign, nil)
+
+	if err != nil {
+		t.Fatalf("error signing hash: %v", err)
+	}
+
+	wantSigner := types.HomesteadSigner{}
+	h := wantSigner.Hash(toSign)
+	wantSignature, err := crypto.Sign(h[:], key)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var toSignCpy types.Transaction
+	toSignCpy = *toSign
+	want, err := toSignCpy.WithSignature(wantSigner, wantSignature)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("incorrect signTx result :\nwant: %v\ngot : %v", want, got)
+	}
+
+	vaultServiceKeyGetters := w.vault.(*hashicorpService).keyGetters[acct.Address]
+
+	var vaultServiceKey *ecdsa.PrivateKey
+
+	for _, g := range vaultServiceKeyGetters {
+		vaultServiceKey = g.key
+
+		if vaultServiceKey == nil || vaultServiceKey.D.Int64() == 0 {
+			t.Fatal("unlocked key was zeroed after use")
+		}
+	}
+}
+
+func TestVaultWallet_SignTx_Hashicorp_SignsWithKeyFromVaultAndDoesNotStoreInMemory(t *testing.T) {
+	makeMockHashicorpResponse := func(t *testing.T, hexKey string) []byte {
+		var vaultResponse api.Secret
+
+		vaultResponse.Data = map[string]interface{}{
+			"data": map[string]interface{}{
+				"key": hexKey,
+			},
+		}
+
+		b, err := json.Marshal(vaultResponse)
+
+		if err != nil {
+			t.Fatalf("err marshalling mock response: %v", err)
+		}
+
+		return b
+	}
+
+	acct := accounts.Account{
+		Address: common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d"),
+		URL: accounts.URL{Scheme: "http", Path: "url:1"},
+	}
+
+	hexKey := "e6181caaffff94a09d7e332fc8da9884d99902c7874eb74354bdcadf411929f1"
+	key, err := crypto.HexToECDSA(hexKey)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client, cleanup := makeMockHashicorpClient(t, makeMockHashicorpResponse(t, hexKey))
+	defer cleanup()
+
+	secret := hashicorpSecretConfig{
+		PrivateKeySecret: "mykey",
+		PrivateKeySecretVersion: 1,
+		SecretEngine: "kv",
+	}
+
+	w := vaultWallet{
+		vault: &hashicorpService{
+			client: client,
+			accts: []accounts.Account{acct},
+			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+				acct.Address: {
+					acct.URL: {
+						secret: secret,
+					},
+				},
+			},
+		},
+	}
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, nil)
+
+	got, err := w.SignTx(acct, toSign, nil)
+
+	if err != nil {
+		t.Fatalf("error signing hash: %v", err)
+	}
+
+	wantSigner := types.HomesteadSigner{}
+	h := wantSigner.Hash(toSign)
+	wantSignature, err := crypto.Sign(h[:], key)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var toSignCpy types.Transaction
+	toSignCpy = *toSign
+	want, err := toSignCpy.WithSignature(wantSigner, wantSignature)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("incorrect signTx result :\nwant: %v\ngot : %v", want, got)
 	}
 
 	vaultServiceKey := w.vault.(*hashicorpService).keyGetters[acct.Address][acct.URL].key
