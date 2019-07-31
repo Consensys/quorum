@@ -154,27 +154,26 @@ func (w vaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase s
 }
 
 type hashicorpService struct {
-	client *api.Client
-	config hashicorpClientConfig
-	secrets []hashicorpSecretConfig
-	mutex sync.RWMutex
-	accts []accounts.Account
-	keyGetters map[common.Address]map[accounts.URL]hashicorpKeyGetter
+	client      *api.Client
+	config      hashicorpClientConfig
+	secrets     []hashicorpSecretConfig
+	mutex       sync.RWMutex
+	accts       []accounts.Account
+	keyHandlers map[common.Address]map[accounts.URL]hashicorpKeyHandler
 
 }
 
 func newHashicorpService(config hashicorpWalletConfig) *hashicorpService {
 	s := &hashicorpService{
-		config: config.Client,
-		secrets: config.Secrets,
-		keyGetters: make(map[common.Address]map[accounts.URL]hashicorpKeyGetter),
+		config:      config.Client,
+		secrets:     config.Secrets,
+		keyHandlers: make(map[common.Address]map[accounts.URL]hashicorpKeyHandler),
 	}
 
 	return s
 }
 
-// TODO change name as it doesn't actually do any getting
-type hashicorpKeyGetter struct {
+type hashicorpKeyHandler struct {
 	secret hashicorpSecretConfig
 	key *ecdsa.PrivateKey
 }
@@ -374,19 +373,19 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 			// update state
 			h.mutex.Lock()
 
-			if _, ok := h.keyGetters[acct.Address]; !ok {
-				h.keyGetters[acct.Address] = make(map[accounts.URL]hashicorpKeyGetter)
+			if _, ok := h.keyHandlers[acct.Address]; !ok {
+				h.keyHandlers[acct.Address] = make(map[accounts.URL]hashicorpKeyHandler)
 			}
 
-			keyGettersByUrl := h.keyGetters[acct.Address]
+			keyHandlersByUrl := h.keyHandlers[acct.Address]
 
-			if _, ok := keyGettersByUrl[acct.URL]; ok {
-				log.Warn("Hashicorp Vault key getter already exists.  Not updated.", "url", url)
+			if _, ok := keyHandlersByUrl[acct.URL]; ok {
+				log.Warn("Hashicorp Vault key handler already exists.  Not updated.", "url", url)
 				h.mutex.Unlock()
 				continue
 			}
 
-			keyGettersByUrl[acct.URL] = hashicorpKeyGetter{secret: s}
+			keyHandlersByUrl[acct.URL] = hashicorpKeyHandler{secret: s}
 			h.accts = append(h.accts, acct)
 
 			h.mutex.Unlock()
@@ -394,12 +393,12 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 	}
 }
 
-func countRetrievedKeys(keyGetters map[common.Address]map[accounts.URL]hashicorpKeyGetter) int {
+func countRetrievedKeys(keyHandlers map[common.Address]map[accounts.URL]hashicorpKeyHandler) int {
 	var n int
 
-	for _, kgByUrl := range keyGetters {
-		for _, kg := range kgByUrl {
-			if kg.key != nil {
+	for _, khByUrl := range keyHandlers {
+		for _, kh := range khByUrl {
+			if kh.key != nil {
 				n++
 			}
 		}
@@ -411,23 +410,23 @@ func countRetrievedKeys(keyGetters map[common.Address]map[accounts.URL]hashicorp
 func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
 	for range ticker.C {
 		h.mutex.RLock()
-		keyGetters := h.keyGetters
+		keyHandlers := h.keyHandlers
 		h.mutex.RUnlock()
 
-		if countRetrievedKeys(keyGetters) == len(h.secrets) {
+		if countRetrievedKeys(keyHandlers) == len(h.secrets) {
 			ticker.Stop()
 			return
 		}
 
-		for addr, byUrl := range keyGetters {
+		for addr, byUrl := range keyHandlers {
 
-			for u, g := range byUrl {
-				path := fmt.Sprintf("%s/data/%s", g.secret.SecretEngine, g.secret.PrivateKeySecret)
+			for u, kh := range byUrl {
+				path := fmt.Sprintf("%s/data/%s", kh.secret.SecretEngine, kh.secret.PrivateKeySecret)
 
-				url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, g.secret.PrivateKeySecretVersion)
+				url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, kh.secret.PrivateKeySecretVersion)
 
 				versionData := make(map[string][]string)
-				versionData["version"] = []string{strconv.Itoa(g.secret.PrivateKeySecretVersion)}
+				versionData["version"] = []string{strconv.Itoa(kh.secret.PrivateKeySecretVersion)}
 
 				// get key from vault
 				resp, err := h.client.Logical().ReadWithData(path, versionData)
@@ -471,9 +470,9 @@ func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
 				}
 
 				h.mutex.Lock()
-				existing := h.keyGetters[addr][u]
-				updated := hashicorpKeyGetter{secret: existing.secret, key: key}
-				h.keyGetters[addr][u] = updated
+				existing := h.keyHandlers[addr][u]
+				updated := hashicorpKeyHandler{secret: existing.secret, key: key}
+				h.keyHandlers[addr][u] = updated
 				h.mutex.Unlock()
 			}
 		}
@@ -558,16 +557,16 @@ func (s accountsByURL) Less(i, j int) bool { return s[i].URL.Cmp(s[j].URL) < 0 }
 func (s accountsByURL) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, func(), error) {
-	keyGettersByUrl, ok := h.keyGetters[acct.Address]
+	keyHandlersByUrl, ok := h.keyHandlers[acct.Address]
 
 	if !ok {
 		return nil, nil, accounts.ErrUnknownAccount
 	}
 
-	if (acct.URL == accounts.URL{}) && len(keyGettersByUrl) > 1 {
+	if (acct.URL == accounts.URL{}) && len(keyHandlersByUrl) > 1 {
 		ambiguousAccounts := []accounts.Account{}
 
-		for url, _ := range keyGettersByUrl {
+		for url, _ := range keyHandlersByUrl {
 			ambiguousAccounts = append(ambiguousAccounts, accounts.Account{Address: acct.Address, URL: url})
 		}
 
@@ -582,31 +581,31 @@ func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, fun
 	}
 
 	// return the only key for this address
-	if (acct.URL == accounts.URL{}) && len(keyGettersByUrl) == 1 {
-		var keyGetter hashicorpKeyGetter
+	if (acct.URL == accounts.URL{}) && len(keyHandlersByUrl) == 1 {
+		var keyHandler hashicorpKeyHandler
 
-		for _, g := range keyGettersByUrl {
-			keyGetter = g
+		for _, kh := range keyHandlersByUrl {
+			keyHandler = kh
 		}
 
-		return h.useKeyGetter(keyGetter)
+		return h.getKeyFromHandler(keyHandler)
 	}
 
-	keyGetter, ok := keyGettersByUrl[acct.URL]
+	keyHandler, ok := keyHandlersByUrl[acct.URL]
 
 	if !ok {
 		return nil, nil, accounts.ErrUnknownAccount
 	}
 
-	return h.useKeyGetter(keyGetter)
+	return h.getKeyFromHandler(keyHandler)
 }
 
-func (h *hashicorpService) useKeyGetter(getter hashicorpKeyGetter) (*ecdsa.PrivateKey, func(), error) {
-	if key := getter.key; key != nil {
+func (h *hashicorpService) getKeyFromHandler(handler hashicorpKeyHandler) (*ecdsa.PrivateKey, func(), error) {
+	if key := handler.key; key != nil {
 		return key, func(){}, nil
 	}
 
-	key, err := h.getKeyFromVault(getter.secret)
+	key, err := h.getKeyFromVault(handler.secret)
 
 	if err != nil {
 		return nil, nil, err

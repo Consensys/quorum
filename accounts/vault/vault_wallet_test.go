@@ -929,9 +929,9 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T
 			// need to block to let accountRetrievalLoop do its thing
 			time.Sleep(4 * time.Millisecond)
 
-			keyGetters := w.vault.(*hashicorpService).keyGetters
+			keyHandlers := w.vault.(*hashicorpService).keyHandlers
 
-			gotKeys := getRetrievedKeys(keyGetters)
+			gotKeys := getRetrievedKeys(keyHandlers)
 
 			if !keysEqual(tt.wantKeys, gotKeys) {
 				t.Fatalf("keys in vaultService do not equal wanted keys\nwant: %v\ngot : %v", tt.wantKeys, gotKeys)
@@ -940,11 +940,11 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T
 	}
 }
 
-func getRetrievedKeys(keyGetters map[common.Address]map[accounts.URL]hashicorpKeyGetter) []*ecdsa.PrivateKey {
+func getRetrievedKeys(keyHandlers map[common.Address]map[accounts.URL]hashicorpKeyHandler) []*ecdsa.PrivateKey {
 	gotKeys := []*ecdsa.PrivateKey{}
 
-	for _, g := range keyGetters {
-		for _, gg := range g {
+	for _, kh := range keyHandlers {
+		for _, gg := range kh {
 			if gg.key != nil {
 				gotKeys = append(gotKeys, gg.key)
 			}
@@ -1031,7 +1031,7 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 
 			v := w.vault.(*hashicorpService)
 
-			gotKeys := getRetrievedKeys(v.keyGetters)
+			gotKeys := getRetrievedKeys(v.keyHandlers)
 
 			if len(gotKeys) != 0 {
 				t.Fatalf("vaultService should have no keys as vault server is inaccessible: got: %v", gotKeys)
@@ -1047,7 +1047,7 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 			// such a long sleep is required because we must wait for the vault client to finish any attempted request to the incorrect vault url
 			time.Sleep(3 * time.Second)
 
-			gotKeys = getRetrievedKeys(v.keyGetters)
+			gotKeys = getRetrievedKeys(v.keyHandlers)
 
 			if !keysEqual(tt.wantKeys, gotKeys) {
 				t.Fatalf("keys in vaultService do not equal wanted keys\nwant: %v\ngot : %v", tt.wantKeys, gotKeys)
@@ -1289,9 +1289,9 @@ func TestVaultWallet_SignHash_Hashicorp_SignsWithInMemoryKeyIfAvailableAndDoesNo
 	w := vaultWallet{
 		vault: &hashicorpService{
 			accts: []accounts.Account{acct},
-			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+			keyHandlers: map[common.Address]map[accounts.URL]hashicorpKeyHandler{
 				addr: {
-					url: hashicorpKeyGetter{key: key},
+					url: hashicorpKeyHandler{key: key},
 				},
 			},
 		},
@@ -1315,7 +1315,7 @@ func TestVaultWallet_SignHash_Hashicorp_SignsWithInMemoryKeyIfAvailableAndDoesNo
 		t.Fatalf("incorrect signHash result:\nwant: %v\ngot : %v", want, got)
 	}
 
-	vaultServiceKey := w.vault.(*hashicorpService).keyGetters[acct.Address][acct.URL].key
+	vaultServiceKey := w.vault.(*hashicorpService).keyHandlers[acct.Address][acct.URL].key
 
 	if vaultServiceKey == nil || vaultServiceKey.D.Int64() == 0 {
 		t.Fatal("unlocked key was zeroed after use")
@@ -1335,10 +1335,10 @@ func TestVaultWallet_SignHash_Hashicorp_ErrorIfAmbiguousAccount(t *testing.T) {
 	w := vaultWallet{
 		vault: &hashicorpService{
 			accts: []accounts.Account{acct1, acct2},
-			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+			keyHandlers: map[common.Address]map[accounts.URL]hashicorpKeyHandler{
 				addr: {
-					url1: hashicorpKeyGetter{},
-					url2: hashicorpKeyGetter{},
+					url1: hashicorpKeyHandler{},
+					url2: hashicorpKeyHandler{},
 				},
 			},
 		},
@@ -1375,9 +1375,9 @@ func TestVaultWallet_SignHash_Hashicorp_AmbiguousAccountAllowedIfOnlyOneAccountW
 	w := vaultWallet{
 		vault: &hashicorpService{
 			accts: []accounts.Account{acct1},
-			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+			keyHandlers: map[common.Address]map[accounts.URL]hashicorpKeyHandler{
 				addr: {
-					url: hashicorpKeyGetter{key: key},
+					url: hashicorpKeyHandler{key: key},
 				},
 			},
 		},
@@ -1406,12 +1406,12 @@ func TestVaultWallet_SignHash_Hashicorp_AmbiguousAccountAllowedIfOnlyOneAccountW
 		t.Fatalf("incorrect signHash result:\nwant: %v\ngot : %v", want, got)
 	}
 
-	vaultServiceKeyGetters := w.vault.(*hashicorpService).keyGetters[acct.Address]
+	vaultServiceKeyHandlers := w.vault.(*hashicorpService).keyHandlers[acct.Address]
 
 	var vaultServiceKey *ecdsa.PrivateKey
 
-	for _, g := range vaultServiceKeyGetters {
-		vaultServiceKey = g.key
+	for _, kh := range vaultServiceKeyHandlers {
+		vaultServiceKey = kh.key
 
 		if vaultServiceKey == nil || vaultServiceKey.D.Int64() == 0 {
 			t.Fatal("unlocked key was zeroed after use")
@@ -1463,7 +1463,7 @@ func TestVaultWallet_SignHash_Hashicorp_SignsWithKeyFromVaultAndDoesNotStoreInMe
 		vault: &hashicorpService{
 			client: client,
 			accts: []accounts.Account{acct},
-			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+			keyHandlers: map[common.Address]map[accounts.URL]hashicorpKeyHandler{
 				acct.Address: {
 					acct.URL: {
 						secret: secret,
@@ -1491,7 +1491,7 @@ func TestVaultWallet_SignHash_Hashicorp_SignsWithKeyFromVaultAndDoesNotStoreInMe
 		t.Fatalf("incorrect signHash result:\nwant: %v\ngot : %v", want, got)
 	}
 
-	vaultServiceKey := w.vault.(*hashicorpService).keyGetters[acct.Address][acct.URL].key
+	vaultServiceKey := w.vault.(*hashicorpService).keyHandlers[acct.Address][acct.URL].key
 
 	if vaultServiceKey != nil {
 		t.Fatal("unlocked key should not be stored after use")
@@ -1515,9 +1515,9 @@ func TestVaultWallet_SignTx_Hashicorp_UsesDifferentSigners(t *testing.T) {
 	w := vaultWallet{
 		vault: &hashicorpService{
 			accts: []accounts.Account{acct},
-			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+			keyHandlers: map[common.Address]map[accounts.URL]hashicorpKeyHandler{
 				addr: {
-					url: hashicorpKeyGetter{key: key},
+					url: hashicorpKeyHandler{key: key},
 				},
 			},
 		},
@@ -1607,9 +1607,9 @@ func TestVaultWallet_SignTx_Hashicorp_SignsWithInMemoryKeyIfAvailableAndDoesNotZ
 	w := vaultWallet{
 		vault: &hashicorpService{
 			accts: []accounts.Account{acct},
-			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+			keyHandlers: map[common.Address]map[accounts.URL]hashicorpKeyHandler{
 				addr: {
-					url: hashicorpKeyGetter{key: key},
+					url: hashicorpKeyHandler{key: key},
 				},
 			},
 		},
@@ -1643,7 +1643,7 @@ func TestVaultWallet_SignTx_Hashicorp_SignsWithInMemoryKeyIfAvailableAndDoesNotZ
 		t.Fatalf("incorrect signTx result :\nwant: %v\ngot : %v", want, got)
 	}
 
-	vaultServiceKey := w.vault.(*hashicorpService).keyGetters[acct.Address][acct.URL].key
+	vaultServiceKey := w.vault.(*hashicorpService).keyHandlers[acct.Address][acct.URL].key
 
 	if vaultServiceKey == nil || vaultServiceKey.D.Int64() == 0 {
 		t.Fatal("unlocked key was zeroed after use")
@@ -1663,10 +1663,10 @@ func TestVaultWallet_SignTx_Hashicorp_ErrorIfAmbiguousAccount(t *testing.T) {
 	w := vaultWallet{
 		vault: &hashicorpService{
 			accts: []accounts.Account{acct1, acct2},
-			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+			keyHandlers: map[common.Address]map[accounts.URL]hashicorpKeyHandler{
 				addr: {
-					url1: hashicorpKeyGetter{},
-					url2: hashicorpKeyGetter{},
+					url1: hashicorpKeyHandler{},
+					url2: hashicorpKeyHandler{},
 				},
 			},
 		},
@@ -1703,9 +1703,9 @@ func TestVaultWallet_SignTx_Hashicorp_AmbiguousAccountAllowedIfOnlyOneAccountWit
 	w := vaultWallet{
 		vault: &hashicorpService{
 			accts: []accounts.Account{acct1},
-			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+			keyHandlers: map[common.Address]map[accounts.URL]hashicorpKeyHandler{
 				addr: {
-					url: hashicorpKeyGetter{key: key},
+					url: hashicorpKeyHandler{key: key},
 				},
 			},
 		},
@@ -1744,12 +1744,12 @@ func TestVaultWallet_SignTx_Hashicorp_AmbiguousAccountAllowedIfOnlyOneAccountWit
 		t.Fatalf("incorrect signTx result :\nwant: %v\ngot : %v", want, got)
 	}
 
-	vaultServiceKeyGetters := w.vault.(*hashicorpService).keyGetters[acct.Address]
+	vaultServiceKeyHandlers := w.vault.(*hashicorpService).keyHandlers[acct.Address]
 
 	var vaultServiceKey *ecdsa.PrivateKey
 
-	for _, g := range vaultServiceKeyGetters {
-		vaultServiceKey = g.key
+	for _, kh := range vaultServiceKeyHandlers {
+		vaultServiceKey = kh.key
 
 		if vaultServiceKey == nil || vaultServiceKey.D.Int64() == 0 {
 			t.Fatal("unlocked key was zeroed after use")
@@ -1801,7 +1801,7 @@ func TestVaultWallet_SignTx_Hashicorp_SignsWithKeyFromVaultAndDoesNotStoreInMemo
 		vault: &hashicorpService{
 			client: client,
 			accts: []accounts.Account{acct},
-			keyGetters: map[common.Address]map[accounts.URL]hashicorpKeyGetter{
+			keyHandlers: map[common.Address]map[accounts.URL]hashicorpKeyHandler{
 				acct.Address: {
 					acct.URL: {
 						secret: secret,
@@ -1839,7 +1839,7 @@ func TestVaultWallet_SignTx_Hashicorp_SignsWithKeyFromVaultAndDoesNotStoreInMemo
 		t.Fatalf("incorrect signTx result :\nwant: %v\ngot : %v", want, got)
 	}
 
-	vaultServiceKey := w.vault.(*hashicorpService).keyGetters[acct.Address][acct.URL].key
+	vaultServiceKey := w.vault.(*hashicorpService).keyHandlers[acct.Address][acct.URL].key
 
 	if vaultServiceKey != nil {
 		t.Fatal("unlocked key should not be stored after use")
