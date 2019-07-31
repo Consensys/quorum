@@ -306,7 +306,6 @@ func (h *hashicorpService) open() error {
 	return nil
 }
 
-// TODO move account and key retrieval into function
 func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 	for range ticker.C {
 		if len(h.accts) == len(h.secrets) {
@@ -319,44 +318,15 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 
 			url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, s.AddressSecretVersion)
 
-			versionData := make(map[string][]string)
-			versionData["version"] = []string{strconv.Itoa(s.AddressSecretVersion)}
-
-			// get address from vault
-			resp, err := h.client.Logical().ReadWithData(path, versionData)
+			address, err := h.getAddressFromVault(s)
 
 			if err != nil {
-				log.Warn("unable to get secret from Hashicorp Vault", "url", url, "err", err)
-				continue
-			}
-
-			respData, ok := resp.Data["data"].(map[string]interface{})
-
-			if !ok {
-				log.Warn("Hashicorp Vault response does not contain data", "url", url)
-				continue
-			}
-
-			if len(respData) != 1 {
-				log.Warn("only one key/value pair is allowed in each Hashicorp Vault secret", "url", url)
-				continue
-			}
-
-			// get secret regardless of key in map
-			var addr interface{}
-			for _, d := range respData {
-				addr = d
-			}
-
-			address, ok := addr.(string)
-
-			if !ok {
-				log.Warn("Hashicorp Vault response data is not in string format", "url", url)
+				log.Warn("unable to get address from Hashicorp Vault", "url", url, "err", err)
 				continue
 			}
 
 			// create accounts.Account
-			//to parse a string url as an accounts.URL it must first be in json format
+			// to parse a string url as an accounts.URL it must first be in json format
 			toParse := fmt.Sprintf("\"%v\"", url)
 			var parsedUrl accounts.URL
 
@@ -366,7 +336,7 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 			}
 
 			acct := accounts.Account{
-				Address: common.HexToAddress(address),
+				Address: address,
 				URL: parsedUrl,
 			}
 
@@ -391,6 +361,16 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 			h.mutex.Unlock()
 		}
 	}
+}
+
+func (h *hashicorpService) getAddressFromVault(s hashicorpSecretConfig) (common.Address, error) {
+	hexAddr, err := h.getSecretFromVault(s.AddressSecret, s.AddressSecretVersion, s.SecretEngine)
+
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	return common.HexToAddress(hexAddr), nil
 }
 
 func countRetrievedKeys(keyHandlers map[common.Address]map[accounts.URL]hashicorpKeyHandler) int {
@@ -419,53 +399,14 @@ func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
 		}
 
 		for addr, byUrl := range keyHandlers {
-
 			for u, kh := range byUrl {
-				path := fmt.Sprintf("%s/data/%s", kh.secret.SecretEngine, kh.secret.PrivateKeySecret)
-
-				url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, kh.secret.PrivateKeySecretVersion)
-
-				versionData := make(map[string][]string)
-				versionData["version"] = []string{strconv.Itoa(kh.secret.PrivateKeySecretVersion)}
-
-				// get key from vault
-				resp, err := h.client.Logical().ReadWithData(path, versionData)
+				key, err := h.getKeyFromVault(kh.secret)
 
 				if err != nil {
-					log.Warn("unable to get secret from Hashicorp Vault", "url", url, "err", err)
-					continue
-				}
+					path := fmt.Sprintf("%s/data/%s", kh.secret.SecretEngine, kh.secret.PrivateKeySecret)
+					url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, kh.secret.PrivateKeySecretVersion)
 
-				respData, ok := resp.Data["data"].(map[string]interface{})
-
-				if !ok {
-					log.Warn("Hashicorp Vault response does not contain data", "url", url)
-					continue
-				}
-
-				if len(respData) != 1 {
-					log.Warn("only one key/value pair is allowed in each Hashicorp Vault secret", "url", url)
-					continue
-				}
-
-				// get secret regardless of key in map
-				var k interface{}
-				for _, d := range respData {
-					k = d
-				}
-
-				hex, ok := k.(string)
-
-				if !ok {
-					log.Warn("Hashicorp Vault response data is not in string format", "url", url)
-					continue
-				}
-
-				// create *ecdsa.PrivateKey
-				key, err := crypto.HexToECDSA(hex)
-
-				if err != nil {
-					log.Warn("unable to parse data from Hashicorp Vault to *ecdsa.PrivateKey", "url", url, "err", err)
+					log.Warn("unable to get key from Hashicorp Vault", "url", url, "err", err)
 					continue
 				}
 
@@ -480,58 +421,57 @@ func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
 }
 
 func (h *hashicorpService) getKeyFromVault(s hashicorpSecretConfig) (*ecdsa.PrivateKey, error) {
-		path := fmt.Sprintf("%s/data/%s", s.SecretEngine, s.PrivateKeySecret)
+	hexKey, err := h.getSecretFromVault(s.PrivateKeySecret, s.PrivateKeySecretVersion, s.SecretEngine)
 
-		url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, s.PrivateKeySecretVersion)
+	if err != nil {
+		return nil, err
+	}
 
-		versionData := make(map[string][]string)
-		versionData["version"] = []string{strconv.Itoa(s.PrivateKeySecretVersion)}
+	key, err := crypto.HexToECDSA(hexKey)
 
-		// get key from vault
-		resp, err := h.client.Logical().ReadWithData(path, versionData)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse data from Hashicorp Vault to *ecdsa.PrivateKey: %v", err)
+	}
 
-		if err != nil {
-			// TODO make an error type to be returned
-			log.Warn("unable to get secret from Hashicorp Vault", "url", url, "err", err)
-			return nil, nil
-		}
-
-		respData, ok := resp.Data["data"].(map[string]interface{})
-
-		if !ok {
-			log.Warn("Hashicorp Vault response does not contain data", "url", url)
-			return nil, nil
-		}
-
-		if len(respData) != 1 {
-			log.Warn("only one key/value pair is allowed in each Hashicorp Vault secret", "url", url)
-			return nil, nil
-		}
-
-		// get secret regardless of key in map
-		var k interface{}
-		for _, d := range respData {
-			k = d
-		}
-
-		hex, ok := k.(string)
-
-		if !ok {
-			log.Warn("Hashicorp Vault response data is not in string format", "url", url)
-			return nil, nil
-		}
-
-		// create *ecdsa.PrivateKey
-		key, err := crypto.HexToECDSA(hex)
-
-		if err != nil {
-			log.Warn("unable to parse data from Hashicorp Vault to *ecdsa.PrivateKey", "url", url, "err", err)
-			return nil, nil
-		}
-
-		return key, nil
+	return key, nil
 }
 
+func (h *hashicorpService) getSecretFromVault(name string, version int, engine string) (string, error) {
+	path := fmt.Sprintf("%s/data/%s", engine, name)
+
+	versionData := make(map[string][]string)
+	versionData["version"] = []string{strconv.Itoa(version)}
+
+	resp, err := h.client.Logical().ReadWithData(path, versionData)
+
+	if err != nil {
+		return "", fmt.Errorf("unable to get secret from Hashicorp Vault: %v", err)
+	}
+
+	respData, ok := resp.Data["data"].(map[string]interface{})
+
+	if !ok {
+		return "", errors.New("Hashicorp Vault response does not contain data")
+	}
+
+	if len(respData) != 1 {
+		return "", errors.New("only one key/value pair is allowed in each Hashicorp Vault secret")
+	}
+
+	// get secret regardless of key in map
+	var s interface{}
+	for _, d := range respData {
+		s = d
+	}
+
+	secret, ok := s.(string)
+
+	if !ok {
+		return "", errors.New("Hashicorp Vault response data is not in string format")
+	}
+
+	return secret, nil
+}
 
 func usingApproleAuth(roleID, secretID string) bool {
 	return roleID != "" && secretID != ""
