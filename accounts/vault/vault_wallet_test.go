@@ -480,13 +480,13 @@ func TestVaultWallet_Open_Hashicorp_SendsEventToBackendSubscribers(t *testing.T)
 		t.Fatal(err)
 	}
 
-	walletConfig := hashicorpWalletConfig{
+	walletConfig := HashicorpWalletConfig{
 		Client: hashicorpClientConfig{
 			Url: "http://url:1",
 		},
 	}
 
-	b := NewHashicorpBackend([]hashicorpWalletConfig{walletConfig})
+	b := NewHashicorpBackend([]HashicorpWalletConfig{walletConfig})
 
 	if len(b.wallets) != 1 {
 		t.Fatalf("NewHashicorpBackend: incorrect number of wallets created: want 1, got: %v", len(b.wallets))
@@ -644,7 +644,7 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrieved(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			wltConfig := hashicorpWalletConfig{
+			wltConfig := HashicorpWalletConfig{
 				Client: hashicorpClientConfig{
 					Url: vaultServer.URL,
 					VaultPollingIntervalMillis: 1,
@@ -702,7 +702,7 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrievedWhenVaultAvailable(t *testi
 	defer vaultServer.Close()
 
 	// use an incorrect vault url to simulate an inaccessible vault
-	wltConfig := hashicorpWalletConfig{
+	wltConfig := HashicorpWalletConfig{
 		Client: hashicorpClientConfig{
 			Url: "http://incorrecturl:1",
 			VaultPollingIntervalMillis: 1,
@@ -907,7 +907,7 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabled(t *testing.T
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			wltConfig := hashicorpWalletConfig{
+			wltConfig := HashicorpWalletConfig{
 				Client: hashicorpClientConfig{
 					Url: vaultServer.URL,
 					VaultPollingIntervalMillis: 1,
@@ -1003,7 +1003,7 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			// use an incorrect vault url to simulate an inaccessible vault
-			wltConfig := hashicorpWalletConfig{
+			wltConfig := HashicorpWalletConfig{
 				Client: hashicorpClientConfig{
 					Url: "http://incorrecturl:1",
 					VaultPollingIntervalMillis: 1,
@@ -1114,7 +1114,7 @@ func TestVaultWallet_Open_Hashicorp_RetrievalLoopsStopWhenAllSecretsRetrieved(t 
 	vaultServer := httptest.NewServer(mux)
 	defer vaultServer.Close()
 
-	wltConfig := hashicorpWalletConfig{
+	wltConfig := HashicorpWalletConfig{
 		Client: hashicorpClientConfig{
 			Url: vaultServer.URL,
 			VaultPollingIntervalMillis: 1,
@@ -1147,7 +1147,7 @@ func TestVaultWallet_Close_Hashicorp_ReturnsStateToBeforeOpen(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config := hashicorpWalletConfig{
+	config := HashicorpWalletConfig{
 		Client: hashicorpClientConfig{Url: "http://url:1"},
 		Secrets: []hashicorpSecretConfig{{AddressSecret: "addr1"}},
 	}

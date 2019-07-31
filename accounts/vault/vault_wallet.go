@@ -36,7 +36,7 @@ type vaultService interface {
 	getKey(acct accounts.Account) (key *ecdsa.PrivateKey, zeroFn func(), err error)
 }
 
-func newHashicorpWallet(config hashicorpWalletConfig, updateFeed *event.Feed) (vaultWallet, error) {
+func newHashicorpWallet(config HashicorpWalletConfig, updateFeed *event.Feed) (vaultWallet, error) {
 	var url accounts.URL
 
 	//to parse a string url as an accounts.URL it must first be in json format
@@ -163,7 +163,7 @@ type hashicorpService struct {
 
 }
 
-func newHashicorpService(config hashicorpWalletConfig) *hashicorpService {
+func newHashicorpService(config HashicorpWalletConfig) *hashicorpService {
 	s := &hashicorpService{
 		config:      config.Client,
 		secrets:     config.Secrets,

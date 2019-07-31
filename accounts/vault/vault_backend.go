@@ -14,7 +14,7 @@ type VaultBackend struct {
 	// Other backend impls require mutexes for safety as their wallets can change at any time (e.g. if a file/usb is added/removed).  vaultWallets can only be created at startup so there is no danger of concurrent reads and writes.
 }
 
-func NewHashicorpBackend(walletConfigs []hashicorpWalletConfig) VaultBackend {
+func NewHashicorpBackend(walletConfigs []HashicorpWalletConfig) VaultBackend {
 	wallets := []accounts.Wallet{}
 
 	var updateFeed event.Feed

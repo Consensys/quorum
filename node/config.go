@@ -19,9 +19,11 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/vault"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 
@@ -78,6 +80,9 @@ type Config struct {
 	// DataDir. If DataDir is unspecified and KeyStoreDir is empty, an ephemeral directory
 	// is created by New and destroyed when the node is stopped.
 	KeyStoreDir string `toml:",omitempty"`
+
+	// HashicorpVault defines the configuration to enable retrieval of accounts from a Hashicorp Vault.
+	HashicorpVault vault.HashicorpWalletConfig `toml:",omitempty"`
 
 	// UseLightweightKDF lowers the memory and CPU requirements of the key store
 	// scrypt KDF at the expense of security.
@@ -439,5 +444,18 @@ func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
 			backends = append(backends, trezorhub)
 		}
 	}
+
+	// TODO to allow connection to more than one vault make conf.HashicorpVault a slice
+	if !reflect.DeepEqual(conf.HashicorpVault, vault.HashicorpWalletConfig{}) {
+		if err := conf.HashicorpVault.Validate(); err != nil {
+			return nil, "", err
+		}
+
+		c := []vault.HashicorpWalletConfig{conf.HashicorpVault}
+
+		vaultBackend := vault.NewHashicorpBackend(c)
+		backends = append(backends, &vaultBackend)
+	}
+
 	return accounts.NewManager(backends...), ephemeral, nil
 }

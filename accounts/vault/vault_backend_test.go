@@ -9,13 +9,13 @@ import (
 )
 
 func TestNewHashicorpBackend_CreatesWalletsWithUrlsFromConfig(t *testing.T) {
-	makeConfs := func (url string, urls... string) []hashicorpWalletConfig {
-		var confs []hashicorpWalletConfig
+	makeConfs := func (url string, urls... string) []HashicorpWalletConfig {
+		var confs []HashicorpWalletConfig
 
-		confs = append(confs, hashicorpWalletConfig{Client: hashicorpClientConfig{Url: url}})
+		confs = append(confs, HashicorpWalletConfig{Client: hashicorpClientConfig{Url: url}})
 
 		for _, u := range urls {
-			confs = append(confs, hashicorpWalletConfig{Client: hashicorpClientConfig{Url: u}})
+			confs = append(confs, HashicorpWalletConfig{Client: hashicorpClientConfig{Url: u}})
 		}
 
 		return confs
@@ -40,10 +40,10 @@ func TestNewHashicorpBackend_CreatesWalletsWithUrlsFromConfig(t *testing.T) {
 	}
 
 	tests := map[string]struct{
-		in []hashicorpWalletConfig
+		in []HashicorpWalletConfig
 		wantUrls []accounts.URL
 	}{
-		"no config": {in: []hashicorpWalletConfig{}, wantUrls: []accounts.URL(nil)},
+		"no config": {in: []HashicorpWalletConfig{}, wantUrls: []accounts.URL(nil)},
 		"single": {in: makeConfs("http://url:1"), wantUrls: makeUrls("http://url:1")},
 		"multiple": {in: makeConfs("http://url:1", "http://url:2"), wantUrls: makeUrls("http://url:1", "http://url:2")},
 		"orders by url":  {
@@ -137,8 +137,8 @@ func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeed(t *testing.T
 }
 
 func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeedByHashicorpWallet(t *testing.T) {
-	conf := hashicorpWalletConfig{Client: hashicorpClientConfig{Url: "http://url:1"}}
-	b := NewHashicorpBackend([]hashicorpWalletConfig{conf})
+	conf := HashicorpWalletConfig{Client: hashicorpClientConfig{Url: "http://url:1"}}
+	b := NewHashicorpBackend([]HashicorpWalletConfig{conf})
 
 	if len(b.wallets) != 1 {
 		t.Fatalf("incorrect number of wallets: want: %v, got: %v", 1, len(b.wallets))
