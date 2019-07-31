@@ -19,6 +19,8 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+const TEST_URL = "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404"
+
 func TestSignHeader(t *testing.T) {
 	//create only what we need to test the seal
 	var testRaftId uint16 = 5
@@ -75,35 +77,16 @@ func TestSignHeader(t *testing.T) {
 }
 
 func TestAddLearner_whenTypical(t *testing.T) {
-	//create only what we need to test add learner node
-	var testRaftId uint16 = 1
-	config := &node.Config{Name: "unit-test", DataDir: ""}
 
-	nodeKey := config.NodeKey()
-	enodeIdStr := fmt.Sprintf("%x", crypto.FromECDSAPub(&nodeKey.PublicKey)[1:])
-	url := enodeId(enodeIdStr, "127.0.0.1:21001", 50401)
-	err, peers := peerList(url)
-	if err != nil {
-		t.Errorf("getting peers failed %v", err)
-	}
-
-	raftProtocolManager := &ProtocolManager{
-		raftId:              testRaftId,
-		bootstrapNodes:      peers,
-		confChangeProposalC: make(chan raftpb.ConfChange),
-		removedPeers:        mapset.NewSet(),
-		confState:           raftpb.ConfState{Nodes: []uint64{uint64(testRaftId)}, Learners: []uint64{}},
-	}
-
-	raftService := &RaftService{nodeKey: nodeKey, raftProtocolManager: raftProtocolManager}
+	raftService := newTestRaftService(t, 1, []uint64{1}, []uint64{})
 
 	propPeer := func() {
-		raftid, err := raftService.raftProtocolManager.ProposeNewPeer("enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", true)
+		raftid, err := raftService.raftProtocolManager.ProposeNewPeer(TEST_URL, true)
 		if err != nil {
 			t.Errorf("propose new peer failed %v\n", err)
 		}
-		if raftid != testRaftId+1 {
-			t.Errorf("1. wrong raft id. expected %d got %d\n", testRaftId+1, raftid)
+		if raftid != raftService.raftProtocolManager.raftId+1 {
+			t.Errorf("1. wrong raft id. expected %d got %d\n", raftService.raftProtocolManager.raftId+1, raftid)
 		}
 	}
 	go propPeer()
@@ -112,8 +95,8 @@ func TestAddLearner_whenTypical(t *testing.T) {
 		if confChange.Type != raftpb.ConfChangeAddLearnerNode {
 			t.Errorf("expected ConfChangeAddLearnerNode but got %s", confChange.Type.String())
 		}
-		if uint16(confChange.NodeID) != testRaftId+1 {
-			t.Errorf("2. wrong raft id. expected %d got %d\n", testRaftId+1, uint16(confChange.NodeID))
+		if uint16(confChange.NodeID) != raftService.raftProtocolManager.raftId+1 {
+			t.Errorf("2. wrong raft id. expected %d got %d\n", raftService.raftProtocolManager.raftId+1, uint16(confChange.NodeID))
 		}
 	case <-time.After(time.Millisecond * 200):
 		t.Errorf("add learner conf change not recieved")
@@ -121,27 +104,8 @@ func TestAddLearner_whenTypical(t *testing.T) {
 }
 
 func TestPromoteLearnerToPeer_whenTypical(t *testing.T) {
-	//create only what we need to test add learner node
-	var testRaftId uint16 = 2
-	config := &node.Config{Name: "unit-test", DataDir: ""}
-
-	nodeKey := config.NodeKey()
-	enodeIdStr := fmt.Sprintf("%x", crypto.FromECDSAPub(&nodeKey.PublicKey)[1:])
-	enodeStr := enodeId(enodeIdStr, "127.0.0.1:21001", 50401)
-	err, peers := peerList(enodeStr)
-	if err != nil {
-		t.Errorf("getting peers failed %v", err)
-	}
-	learnerRaftId := uint16(1)
-
-	raftProtocolManager := &ProtocolManager{
-		raftId:              testRaftId,
-		bootstrapNodes:      peers,
-		confChangeProposalC: make(chan raftpb.ConfChange),
-		removedPeers:        mapset.NewSet(),
-		confState:           raftpb.ConfState{Nodes: []uint64{uint64(testRaftId)}, Learners: []uint64{uint64(learnerRaftId)}},
-	}
-	raftService := &RaftService{nodeKey: nodeKey, raftProtocolManager: raftProtocolManager}
+	learnerRaftId := uint16(3)
+	raftService := newTestRaftService(t, 2, []uint64{2}, []uint64{uint64(learnerRaftId)})
 	promoteToPeer := func() {
 		ok, err := raftService.raftProtocolManager.PromoteToPeer(learnerRaftId)
 		if err != nil || !ok {
@@ -163,29 +127,10 @@ func TestPromoteLearnerToPeer_whenTypical(t *testing.T) {
 }
 
 func TestAddLearnerOrPeer_fromLearner(t *testing.T) {
-	//create only what we need to test add learner node
-	var testRaftId uint16 = 1
-	config := &node.Config{Name: "unit-test", DataDir: ""}
 
-	nodeKey := config.NodeKey()
-	enodeIdStr := fmt.Sprintf("%x", crypto.FromECDSAPub(&nodeKey.PublicKey)[1:])
-	enodeStr := enodeId(enodeIdStr, "127.0.0.1:21001", 50401)
-	err, peers := peerList(enodeStr)
-	if err != nil {
-		t.Errorf("getting peers failed %v", err)
-	}
+	raftService := newTestRaftService(t, 3, []uint64{2}, []uint64{3})
 
-	raftProtocolManager := &ProtocolManager{
-		raftId:              testRaftId,
-		bootstrapNodes:      peers,
-		confChangeProposalC: make(chan raftpb.ConfChange),
-		removedPeers:        mapset.NewSet(),
-		confState:           raftpb.ConfState{Nodes: []uint64{}, Learners: []uint64{uint64(testRaftId)}},
-	}
-
-	raftService := &RaftService{nodeKey: nodeKey, raftProtocolManager: raftProtocolManager}
-
-	_, err = raftService.raftProtocolManager.ProposeNewPeer("enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", true)
+	_, err := raftService.raftProtocolManager.ProposeNewPeer(TEST_URL, true)
 
 	if err == nil {
 		t.Errorf("learner should not be allowed to add learner or peer")
@@ -195,7 +140,7 @@ func TestAddLearnerOrPeer_fromLearner(t *testing.T) {
 		t.Errorf("expect error message: propose new peer failed, got: %v\n", err)
 	}
 
-	_, err = raftService.raftProtocolManager.ProposeNewPeer("enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", false)
+	_, err = raftService.raftProtocolManager.ProposeNewPeer(TEST_URL, false)
 
 	if err == nil {
 		t.Errorf("learner should not be allowed to add learner or peer")
@@ -208,29 +153,10 @@ func TestAddLearnerOrPeer_fromLearner(t *testing.T) {
 }
 
 func TestPromoteLearnerToPeer_fromLearner(t *testing.T) {
-	//create only what we need to test add learner node
-	var testRaftId uint16 = 1
-	config := &node.Config{Name: "unit-test", DataDir: ""}
+	learnerRaftId := uint16(3)
+	raftService := newTestRaftService(t, 2, []uint64{1}, []uint64{2, uint64(learnerRaftId)})
 
-	nodeKey := config.NodeKey()
-	enodeIdStr := fmt.Sprintf("%x", crypto.FromECDSAPub(&nodeKey.PublicKey)[1:])
-	enodeStr := enodeId(enodeIdStr, "127.0.0.1:21001", 50401)
-	err, peers := peerList(enodeStr)
-	if err != nil {
-		t.Errorf("getting peers failed %v", err)
-	}
-	learnerRaftId := uint16(2)
-	raftProtocolManager := &ProtocolManager{
-		raftId:              testRaftId,
-		bootstrapNodes:      peers,
-		confChangeProposalC: make(chan raftpb.ConfChange),
-		removedPeers:        mapset.NewSet(),
-		confState:           raftpb.ConfState{Nodes: []uint64{}, Learners: []uint64{uint64(testRaftId), uint64(learnerRaftId)}},
-	}
-
-	raftService := &RaftService{nodeKey: nodeKey, raftProtocolManager: raftProtocolManager}
-
-	_, err = raftService.raftProtocolManager.PromoteToPeer(learnerRaftId)
+	_, err := raftService.raftProtocolManager.PromoteToPeer(learnerRaftId)
 
 	if err == nil {
 		t.Errorf("learner should not be allowed to promote to peer")
@@ -254,4 +180,25 @@ func peerList(url string) (error, []*enode.Node) {
 	}
 	nodes = append(nodes, node)
 	return nil, nodes
+}
+
+func newTestRaftService(t *testing.T, raftId uint16, nodes []uint64, learners []uint64) *RaftService {
+	//create only what we need to test add learner node
+	config := &node.Config{Name: "unit-test", DataDir: ""}
+	nodeKey := config.NodeKey()
+	enodeIdStr := fmt.Sprintf("%x", crypto.FromECDSAPub(&nodeKey.PublicKey)[1:])
+	url := enodeId(enodeIdStr, "127.0.0.1:21001", 50401)
+	err, peers := peerList(url)
+	if err != nil {
+		t.Errorf("getting peers failed %v", err)
+	}
+	raftProtocolManager := &ProtocolManager{
+		raftId:              raftId,
+		bootstrapNodes:      peers,
+		confChangeProposalC: make(chan raftpb.ConfChange),
+		removedPeers:        mapset.NewSet(),
+		confState:           raftpb.ConfState{Nodes: nodes, Learners: learners},
+	}
+	raftService := &RaftService{nodeKey: nodeKey, raftProtocolManager: raftProtocolManager}
+	return raftService
 }
