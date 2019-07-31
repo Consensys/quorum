@@ -1,4 +1,4 @@
-**Quorum client** is a thick-client whose Private Transaction feature operation depends on a Transaction Manager Client that encrypts and decrypts 
+**Quorum Node**, aka Quorum Client, is a thick-client whose Private Transaction feature operation depends on a Transaction Manager Client that encrypts and decrypts 
 private transactions payload. Both Quorum client and its dependencies i.e, Transaction Manager, Peers, and Enclave use traditional TCP/UDP transport layer to communicate.  
 
 As any asset in a network its security depends on multiple elements  (E.g the security of the Host, Data, and Accounts). In Quorum it will be the security of 
@@ -10,7 +10,7 @@ Operating systems, software and services will have vulnerabilities. Quorum netwo
 
 ### Client Security 
 Quorum client instance exposes a JSON-Remote Procedure Call (RPC) interface through HTTP, Web Socket, or Inter-Process communication techniques. The JSON-RPC interfaces
-allows the remote interaction with the ledger features, and Smart Contracts. The JRPC interface must be secured in order to preserve the integrity of the ledger runtime.
+allows the remote interaction with the ledger features, and Smart Contracts. The JSON-RPC interface must be secured in order to preserve the integrity of the ledger runtime.
 
 Each client in the network must be uniquely identified. In Quorum this is done by using nodes identity. Node identity is represented through a public key/private key, where
 the public key identifies the node in the network. Quorum Smart Contract Permissioning models depends on nodes identity to authorize TCP level communication between nodes, as such securing 
@@ -31,7 +31,7 @@ preserve the Private key from compromise. In Ethereum Accounts Private keys are 
 
 !!! success "Use Host Based Intrusion Detection System (HIDS) to monitoring Quorum node host."
 
-!!! success "Enable Host Based Firewall Rules that enforces network access to JRPC interface to only a preidentified, trusted and required systems."
+!!! success "Enable Host Based Firewall Rules that enforces network access to JSON-RPC interface to only a preidentified, trusted and required systems."
 
 !!! success "Implement a robust Patch Management Program, and always keep the host updated to latest stable version."
 
@@ -41,15 +41,15 @@ preserve the Private key from compromise. In Ethereum Accounts Private keys are 
 
 #### Client
 
-!!! success "Enable Secure Transport Security (TLS) to encrypt all communications from/to JRPC interface to prevent data leakage and man in the middle attacks (MITM)."
+!!! success "Enable Secure Transport Security (TLS) to encrypt all communications from/to JSON-RPC interface to prevent data leakage and man in the middle attacks (MITM)."
 
-!!! success "Enable Quorum Enterprise JRPC authorization model to enforce atomic access controls to ledger modules functionalities (e.g personal.OpenWallet)."
+!!! success "Enable Quorum Enterprise JSON-RPC authorization model to enforce atomic access controls to ledger modules functionalities (e.g personal.OpenWallet)."
 
 !!! success "Implement a robust Patch Management Prgoram, and always keep the client updated to latest stable version."
 
 !!! success "Ensure Quorum client run configuration is not started with unlocked accounts options."
 
-!!! success "Ensure cross domain access of the JRPC interface is configured appropriately.  "
+!!! success "Ensure cross domain access of the JSON-RPC interface is configured appropriately.  "
 
 !!! success "Ensure peer discovery is appropriately set based on the consortium requirements."
 

@@ -1,11 +1,10 @@
 ### Tessera 
-[Tessera](https://github.com/jpmorganchase/tessera/wiki) is Quorum's Transaction Manager.  Quorum privacy features depends on Tessera to Encrypt/Decrypt, and broadcast the orchestrations of a private transaction payload. 
+[Tessera](../../../../Privacy/Tessera/Tessera/) is Quorum's Transaction Manager.  Quorum privacy features depends on Tessera to Encrypt/Decrypt, and broadcast the orchestrations of a private transaction payload. 
 Tessera uses an enclave to perform the encryption/decryption of private transactions payload. The encryption keys should be stored in high secure environments such a hardware security module (HSM).
 Tessera communication with its dependencies (Enclave, Quorum node, Payload Storage Database, Secret Storage Service) must be secured. To ensure the privacy and authentication of the communication between Tessera the network must be configured to Certificate Based Mutual Authentication (MTLS).
 
 ### Encryption Keys
 Encryption keys is the most critical element of the privacy model, if the encryption key is compromised the network loses its privacy. Tessera support integration with Trusted Platform Modules (TPM) and Hardware Security Modules (HSM) to reduce surface attack and provide highly secure environment.
-
 
 ### Security Checklist 
     
