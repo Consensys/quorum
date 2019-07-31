@@ -146,11 +146,11 @@ func (w vaultWallet) SignTx(account accounts.Account, tx *types.Transaction, cha
 }
 
 func (w vaultWallet) SignHashWithPassphrase(account accounts.Account, passphrase string, hash []byte) ([]byte, error) {
-	panic("implement me")
+	return w.SignHash(account, hash)
 }
 
 func (w vaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
-	panic("implement me")
+	return w.SignTx(account, tx, chainID)
 }
 
 type hashicorpService struct {
