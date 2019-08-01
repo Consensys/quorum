@@ -212,10 +212,10 @@ contract PermissionsInterface {
       * @param _orgId unique id of the organization to which the account belongs
       * @param _enodeId full enode id being dded to the org
       */
-    //    function approveBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId)
-    //    external {
-    //        permImplementation.approveBlacklistedNodeRecovery(_orgId, _enodeId, msg.sender);
-    //    }
+    function approveBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId)
+    external {
+        permImplementation.approveBlacklistedNodeRecovery(_orgId, _enodeId, msg.sender);
+    }
 
     /** @notice interface to fetch detail of any pending approval activities
         for network admin organization

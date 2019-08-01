@@ -485,7 +485,7 @@ func (q *QuorumControlsAPI) RecoverBlackListedNode(orgId string, enodeId string,
 	}
 	args := txArgs{orgId: orgId, url: enodeId, txa: txa}
 
-	if execStatus := q.valRecoverNode(args, pinterf); execStatus != ExecSuccess {
+	if execStatus := q.valRecoverNode(args, pinterf, InitiateNodeRecovery); execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
 	tx, err := pinterf.StartBlacklistedNodeRecovery(args.orgId, args.url)
@@ -505,16 +505,16 @@ func (q *QuorumControlsAPI) ApproveBlackListedNodeRecovery(orgId string, enodeId
 	}
 	args := txArgs{orgId: orgId, url: enodeId, txa: txa}
 
-	if execStatus := q.valRecoverNode(args, pinterf); execStatus != ExecSuccess {
+	if execStatus := q.valRecoverNode(args, pinterf, ApproveNodeRecovery); execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
-	//tx, err := pinterf.ApproveNodeRecovery(args.orgId, args.url)
-	//if err != nil {
-	//	log.Error("Failed to execute permission action", "action", ApproveNodeRecovery, "err", err)
-	//	msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-	//	return ExecStatus{false, msg}.OpStatus()
-	//}
-	//log.Debug("executed permission action", "action", ApproveNodeRecovery, "tx", tx)
+	tx, err := pinterf.ApproveBlacklistedNodeRecovery(args.orgId, args.url)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", ApproveNodeRecovery, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", ApproveNodeRecovery, "tx", tx)
 	return ExecSuccess.OpStatus()
 }
 
@@ -1027,13 +1027,13 @@ func (q *QuorumControlsAPI) valUpdateAccountStatus(args txArgs, pinterf *pbind.P
 	return ExecSuccess
 }
 
-func (q *QuorumControlsAPI) valRecoverNode(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+func (q *QuorumControlsAPI) valRecoverNode(args txArgs, pinterf *pbind.PermInterfaceSession, action PermAction) ExecStatus {
 	// check if the caller is org admin
 	if !q.isNetworkAdmin(args.txa.From) {
 		return ErrNotNetworkAdmin
 	}
 
-	if q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg, pinterf) {
+	if action == InitiateNodeRecovery && q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg, pinterf) {
 		return ErrPendingApprovals
 	}
 

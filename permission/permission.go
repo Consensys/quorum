@@ -366,14 +366,16 @@ func (p *PermissionCtrl) manageNodePermissions() {
 	chNodeDeactivated := make(chan *pbind.NodeManagerNodeDeactivated, 1)
 	chNodeActivated := make(chan *pbind.NodeManagerNodeActivated, 1)
 	chNodeBlacklisted := make(chan *pbind.NodeManagerNodeBlacklisted)
-	chNodeRecovery := make(chan *pbind.NodeManagerNodeRecoveryInitiated, 1)
+	chNodeRecoveryInit := make(chan *pbind.NodeManagerNodeRecoveryInitiated, 1)
+	chNodeRecoveryDone := make(chan *pbind.NodeManagerNodeRecoveryCompleted, 1)
 
 	var evtNodeApproved *pbind.NodeManagerNodeApproved
 	var evtNodeProposed *pbind.NodeManagerNodeProposed
 	var evtNodeDeactivated *pbind.NodeManagerNodeDeactivated
 	var evtNodeActivated *pbind.NodeManagerNodeActivated
 	var evtNodeBlacklisted *pbind.NodeManagerNodeBlacklisted
-	var evtNodeRecovery *pbind.NodeManagerNodeRecoveryInitiated
+	var evtNodeRecoveryInit *pbind.NodeManagerNodeRecoveryInitiated
+	var evtNodeRecoveryDone *pbind.NodeManagerNodeRecoveryCompleted
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -398,8 +400,12 @@ func (p *PermissionCtrl) manageNodePermissions() {
 		log.Info("Failed NodeBlacklisting", "error", err)
 	}
 
-	if _, err := p.permNode.NodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecovery); err != nil {
-		log.Info("Failed NodeBlacklisting", "error", err)
+	if _, err := p.permNode.NodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecoveryInit); err != nil {
+		log.Info("Failed NodeRecoveryInitiated", "error", err)
+	}
+
+	if _, err := p.permNode.NodeManagerFilterer.WatchNodeRecoveryCompleted(opts, chNodeRecoveryDone); err != nil {
+		log.Info("Failed NodeRecoveryCompleted", "error", err)
 	}
 
 	for {
@@ -421,16 +427,69 @@ func (p *PermissionCtrl) manageNodePermissions() {
 
 		case evtNodeBlacklisted = <-chNodeBlacklisted:
 			p.updatePermissionedNodes(evtNodeBlacklisted.EnodeId, NodeDelete)
-			p.updateDisallowedNodes(evtNodeBlacklisted.EnodeId)
+			p.updateDisallowedNodes(evtNodeBlacklisted.EnodeId, NodeAdd)
 			types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, types.NodeBlackListed)
 
-		case evtNodeRecovery = <-chNodeRecovery:
-			types.NodeInfoMap.UpsertNode(evtNodeRecovery.OrgId, evtNodeRecovery.EnodeId, types.NodeRecoveryInitiated)
+		case evtNodeRecoveryInit = <-chNodeRecoveryInit:
+			types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, evtNodeRecoveryInit.EnodeId, types.NodeRecoveryInitiated)
+
+		case evtNodeRecoveryDone = <-chNodeRecoveryDone:
+			types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, evtNodeRecoveryDone.EnodeId, types.NodeApproved)
+			p.updateDisallowedNodes(evtNodeRecoveryDone.EnodeId, NodeDelete)
+			p.updatePermissionedNodes(evtNodeRecoveryDone.EnodeId, NodeAdd)
 
 		case <-p.nodeChan:
 			log.Info("quit node contract watch")
 			return
 		}
+	}
+}
+
+// adds or deletes and entry from a given file
+func (p *PermissionCtrl) updateFile(fileName, enodeId string, operation NodeOperation, createFile bool) {
+	// Load the nodes from the config file
+	var nodeList []string
+	index := 0
+	// if createFile is false means the file is already existing. read the file
+	if !createFile {
+		blob, err := ioutil.ReadFile(fileName)
+		if err != nil && !createFile {
+			log.Error("Failed to access the file", "fileName", fileName, "err", err)
+			return
+		}
+
+		if err := json.Unmarshal(blob, &nodeList); err != nil {
+			log.Error("Failed to load nodes list from file", "fileName", fileName, "err", err)
+			return
+		}
+
+		// logic to update the permissioned-nodes.json file based on action
+
+		recExists := false
+		for i, eid := range nodeList {
+			if eid == enodeId {
+				index = i
+				recExists = true
+				break
+			}
+		}
+		if (operation == NodeAdd && recExists) || (operation == NodeDelete && !recExists) {
+			return
+		}
+	}
+	if operation == NodeAdd {
+		nodeList = append(nodeList, enodeId)
+	} else {
+		nodeList = append(nodeList[:index], nodeList[index+1:]...)
+		p.disconnectNode(enodeId)
+	}
+	blob, _ := json.Marshal(nodeList)
+
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
+		log.Error("Error writing new node info to file", "fileName", fileName, "err", err)
 	}
 }
 
@@ -444,53 +503,15 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeO
 		log.Error("Read Error for permissioned-nodes.json file. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present", "err", err)
 		return
 	}
-	// Load the nodes from the config file
-	blob, err := ioutil.ReadFile(path)
-	if err != nil {
-		log.Error("updatePermissionedNodes: Failed to access permissioned-nodes.json", "err", err)
-		return
-	}
 
-	var nodeList []string
-	if err := json.Unmarshal(blob, &nodeList); err != nil {
-		log.Error("updatePermissionedNodes: Failed to load nodes list", "err", err)
-		return
-	}
-
-	// logic to update the permissioned-nodes.json file based on action
-	index := 0
-	recExists := false
-	for i, eid := range nodeList {
-		if eid == enodeId {
-			index = i
-			recExists = true
-			break
-		}
-	}
-	if (operation == NodeAdd && recExists) || (operation == NodeDelete && !recExists) {
-		return
-	}
-	if operation == NodeAdd {
-		nodeList = append(nodeList, enodeId)
-	} else {
-		nodeList = append(nodeList[:index], nodeList[index+1:]...)
-		p.disconnectNode(enodeId)
-	}
-	blob, _ = json.Marshal(nodeList)
-
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
-	if err := ioutil.WriteFile(path, blob, 0644); err != nil {
-		log.Error("updatePermissionedNodes: Error writing new node info to file", "err", err)
-	}
+	p.updateFile(path, enodeId, operation, false)
 }
 
 //this function populates the black listed node information into the disallowed-nodes.json file
-func (p *PermissionCtrl) updateDisallowedNodes(url string) {
+func (p *PermissionCtrl) updateDisallowedNodes(url string, operation NodeOperation) {
 	log.Debug("updateDisallowedNodes", "DataDir", p.dataDir, "file", params.BLACKLIST_CONFIG)
 
-	fileExisted := true
+	fileExists := true
 	path := filepath.Join(p.dataDir, params.BLACKLIST_CONFIG)
 	// Check if the file is existing. If the file is not existing create the file
 	if _, err := os.Stat(path); err != nil {
@@ -499,34 +520,15 @@ func (p *PermissionCtrl) updateDisallowedNodes(url string) {
 			log.Error("Failed to create disallowed-nodes.json file", "err", err)
 			return
 		}
-		fileExisted = false
+		fileExists = false
 	}
 
-	nodelist := []string{}
-	// Load the nodes from the config file
-	if fileExisted == true {
-		blob, err := ioutil.ReadFile(path)
-		if err != nil {
-			log.Error("updateDisallowedNodes Failed to access disallowed-nodes.json", "err", err)
-			return
-		}
-		if blob != nil {
-			if err := json.Unmarshal(blob, &nodelist); err != nil {
-				log.Error("updateDisallowedNodes: Failed to load nodes list", "err", err)
-				return
-			}
-		}
+	if fileExists {
+		p.updateFile(path, url, operation, false)
+	} else {
+		p.updateFile(path, url, operation, true)
 	}
 
-	nodelist = append(nodelist, url)
-	blob, _ := json.Marshal(nodelist)
-
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
-	if err := ioutil.WriteFile(path, blob, 0644); err != nil {
-		log.Error("updateDisallowedNodes: Error writing new node info to file", "err", err)
-	}
 	// Disconnect the peer if it is already connected
 	p.disconnectNode(url)
 }

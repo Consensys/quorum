@@ -51,6 +51,10 @@ contract NodeManager {
     // node
     event NodeRecoveryInitiated(string _enodeId, string _orgId);
 
+    // node permission events for completing the recovery of blacklisted
+    // node
+    event NodeRecoveryCompleted(string _enodeId, string _orgId);
+
     /** @notice confirms that the caller is the address of implementation
         contract
     */
@@ -188,7 +192,7 @@ contract NodeManager {
     enodeExists(_enodeId) {
         // node should belong to the org
         require(_checkOrg(_enodeId, _orgId), "enode id does not belong to the passed org");
-        require((_action == 1 || _action == 2 || _action == 3),
+        require((_action == 1 || _action == 2 || _action == 3 || _action == 4 || _action == 5),
             "invalid operation. wrong action passed");
 
         if (_action == 1) {
@@ -209,6 +213,11 @@ contract NodeManager {
             require(_getNodeStatus(_enodeId) == 4, "operation cannot be performed");
             nodeList[_getNodeIndex(_enodeId)].status = 5;
             emit NodeRecoveryInitiated(_enodeId, _orgId);
+        } else {
+            // node should be in initiated recovery state
+            require(_getNodeStatus(_enodeId) == 5, "operation cannot be performed");
+            nodeList[_getNodeIndex(_enodeId)].status = 2;
+            emit NodeRecoveryCompleted(_enodeId, _orgId);
         }
     }
 

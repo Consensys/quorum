@@ -199,7 +199,7 @@ contract PermissionsImplementation {
     networkBootStatus(false)
     returns (bool){
         networkBoot = true;
-        emit PermissionsInitialized(networkBoot);
+        //        emit PermissionsInitialized(networkBoot);
         return networkBoot;
     }
 
@@ -424,6 +424,23 @@ contract PermissionsImplementation {
         // add a voting record with pending op of 5 which corresponds to blacklisted node
         // recovery
         voterManager.addVotingItem(adminOrg, _orgId, _enodeId, address(0), 5);
+    }
+
+    /** @notice function to initaite blacklisted nodes recovery. this can be
+        invoked by an network admin account only
+      * @param _orgId unique id of the organization to which the account belongs
+      * @param _enodeId full enode id being dded to the org
+      * @dev this function creates a voting record for other network admins to
+        approve the operation. The recovery is complete only after majority voting
+      */
+    function approveBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId,
+        address _caller) external onlyInterface networkAdmin(_caller) {
+        // check if majority votes are received. pending op type is passed as 5
+        // which stands for black listed node recovery
+        if ((processVote(adminOrg, _caller, 5))) {
+            // update the node back to active
+            nodeManager.updateNodeStatus(_enodeId, _orgId, 5);
+        }
     }
 
     /** @notice function to fetch network boot status
