@@ -16,6 +16,7 @@ import "./PermissionsUpgradable.sol";
         2 - Org suspension activity
         3 - Revoke of org suspension
         4 - Assigning admin role for a new account
+        5 - Blacklisted node recovery
   */
 contract VoterManager {
     PermissionsUpgradable private permUpgradable;

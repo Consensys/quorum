@@ -409,6 +409,23 @@ contract PermissionsImplementation {
         nodeManager.updateNodeStatus(_enodeId, _orgId, _action);
     }
 
+    /** @notice function to initaite blacklisted nodes recovery. this can be
+        invoked by an network admin account only
+      * @param _orgId unique id of the organization to which the account belongs
+      * @param _enodeId full enode id being dded to the org
+      * @dev this function creates a voting record for other network admins to
+        approve the operation. The recovery is complete only after majority voting
+      */
+    function startBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId,
+        address _caller) external onlyInterface networkAdmin(_caller) {
+        // update the node status as recovery initiated. action for this is 4
+        nodeManager.updateNodeStatus(_enodeId, _orgId, 4);
+
+        // add a voting record with pending op of 5 which corresponds to blacklisted node
+        // recovery
+        voterManager.addVotingItem(adminOrg, _orgId, _enodeId, address(0), 5);
+    }
+
     /** @notice function to fetch network boot status
       * @return bool network boot status
       */

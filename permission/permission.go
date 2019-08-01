@@ -366,12 +366,14 @@ func (p *PermissionCtrl) manageNodePermissions() {
 	chNodeDeactivated := make(chan *pbind.NodeManagerNodeDeactivated, 1)
 	chNodeActivated := make(chan *pbind.NodeManagerNodeActivated, 1)
 	chNodeBlacklisted := make(chan *pbind.NodeManagerNodeBlacklisted)
+	chNodeRecovery := make(chan *pbind.NodeManagerNodeRecoveryInitiated, 1)
 
 	var evtNodeApproved *pbind.NodeManagerNodeApproved
 	var evtNodeProposed *pbind.NodeManagerNodeProposed
 	var evtNodeDeactivated *pbind.NodeManagerNodeDeactivated
 	var evtNodeActivated *pbind.NodeManagerNodeActivated
 	var evtNodeBlacklisted *pbind.NodeManagerNodeBlacklisted
+	var evtNodeRecovery *pbind.NodeManagerNodeRecoveryInitiated
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -396,6 +398,10 @@ func (p *PermissionCtrl) manageNodePermissions() {
 		log.Info("Failed NodeBlacklisting", "error", err)
 	}
 
+	if _, err := p.permNode.NodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecovery); err != nil {
+		log.Info("Failed NodeBlacklisting", "error", err)
+	}
+
 	for {
 		select {
 		case evtNodeApproved = <-chNodeApproved:
@@ -417,6 +423,10 @@ func (p *PermissionCtrl) manageNodePermissions() {
 			p.updatePermissionedNodes(evtNodeBlacklisted.EnodeId, NodeDelete)
 			p.updateDisallowedNodes(evtNodeBlacklisted.EnodeId)
 			types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, types.NodeBlackListed)
+
+		case evtNodeRecovery = <-chNodeRecovery:
+			types.NodeInfoMap.UpsertNode(evtNodeRecovery.OrgId, evtNodeRecovery.EnodeId, types.NodeRecoveryInitiated)
+
 		case <-p.nodeChan:
 			log.Info("quit node contract watch")
 			return

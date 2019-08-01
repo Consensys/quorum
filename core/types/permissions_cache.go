@@ -44,6 +44,7 @@ const (
 	NodeApproved
 	NodeDeactivated
 	NodeBlackListed
+	NodeRecoveryInitiated
 )
 
 type AcctStatus uint8

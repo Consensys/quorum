@@ -199,6 +199,24 @@ contract PermissionsInterface {
         permImplementation.updateNodeStatus(_orgId, _enodeId, _action, msg.sender);
     }
 
+    /** @notice interface to initiate blacklisted node recovery
+      * @param _orgId unique id of the organization to which the account belongs
+      * @param _enodeId full enode id being dded to the org
+      */
+    function startBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId)
+    external {
+        permImplementation.startBlacklistedNodeRecovery(_orgId, _enodeId, msg.sender);
+    }
+
+    /** @notice interface to approve blacklisted node recoevry
+      * @param _orgId unique id of the organization to which the account belongs
+      * @param _enodeId full enode id being dded to the org
+      */
+    //    function approveBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId)
+    //    external {
+    //        permImplementation.approveBlacklistedNodeRecovery(_orgId, _enodeId, msg.sender);
+    //    }
+
     /** @notice interface to fetch detail of any pending approval activities
         for network admin organization
       * @param _orgId unique id of the organization to which the account belongs

@@ -42,6 +42,10 @@ const (
 	AddAccountToOrg
 	ChangeAccountRole
 	UpdateAccountStatus
+	InitiateNodeRecovery
+	InitiateAccountRecovery
+	ApproveNodeRecovery
+	ApproveAccountRecovery
 )
 
 // OrgKeyAction represents an action in cluster contract
@@ -471,6 +475,86 @@ func (q *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Addres
 		return ExecStatus{false, msg}.OpStatus()
 	}
 	log.Debug("executed permission action", "action", UpdateAccountStatus, "tx", tx)
+	return ExecSuccess.OpStatus()
+}
+
+func (q *QuorumControlsAPI) RecoverBlackListedNode(orgId string, enodeId string, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, url: enodeId, txa: txa}
+
+	if execStatus := q.valRecoverNode(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	tx, err := pinterf.StartBlacklistedNodeRecovery(args.orgId, args.url)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", InitiateNodeRecovery, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", InitiateNodeRecovery, "tx", tx)
+	return ExecSuccess.OpStatus()
+}
+
+func (q *QuorumControlsAPI) ApproveBlackListedNodeRecovery(orgId string, enodeId string, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, url: enodeId, txa: txa}
+
+	if execStatus := q.valRecoverNode(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	//tx, err := pinterf.ApproveNodeRecovery(args.orgId, args.url)
+	//if err != nil {
+	//	log.Error("Failed to execute permission action", "action", ApproveNodeRecovery, "err", err)
+	//	msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+	//	return ExecStatus{false, msg}.OpStatus()
+	//}
+	//log.Debug("executed permission action", "action", ApproveNodeRecovery, "tx", tx)
+	return ExecSuccess.OpStatus()
+}
+
+func (q *QuorumControlsAPI) RecoverBlackListedAccount(orgId string, acctId common.Address, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, acctId: acctId, txa: txa}
+
+	if execStatus := q.valRecoverAccount(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	//tx, err := pinterf.RecoverBlacklistedAccount(args.orgId, args.acctId)
+	//if err != nil {
+	//	log.Error("Failed to execute permission action", "action", InitiateAccountRecovery, "err", err)
+	//	msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+	//	return ExecStatus{false, msg}.OpStatus()
+	//}
+	//log.Debug("executed permission action", "action", InitiateAccountRecovery, "tx", tx)
+	return ExecSuccess.OpStatus()
+}
+
+func (q *QuorumControlsAPI) ApproveBlackListedAccountRecovery(orgId string, acctId common.Address, txa ethapi.SendTxArgs) (string, error) {
+	pinterf, execStatus := q.initOp(txa)
+	if execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	args := txArgs{orgId: orgId, acctId: acctId, txa: txa}
+
+	if execStatus := q.valRecoverAccount(args, pinterf); execStatus != ExecSuccess {
+		return execStatus.OpStatus()
+	}
+	//tx, err := pinterf.ApproveAccountRecovery(args.orgId, args.acctId)
+	//if err != nil {
+	//	log.Error("Failed to execute permission action", "action", ApproveAccountRecovery, "err", err)
+	//	msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+	//	return ExecStatus{false, msg}.OpStatus()
+	//}
+	//log.Debug("executed permission action", "action", ApproveAccountRecovery, "tx", tx)
 	return ExecSuccess.OpStatus()
 }
 
@@ -940,6 +1024,32 @@ func (q *QuorumControlsAPI) valUpdateAccountStatus(args txArgs, pinterf *pbind.P
 	if execStatus, er := q.valAccountStatusChange(args.orgId, args.acctId, int64(args.action)); er != nil {
 		return execStatus
 	}
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valRecoverNode(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if the caller is org admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+
+	if q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg, pinterf) {
+		return ErrPendingApprovals
+	}
+
+	return ExecSuccess
+}
+
+func (q *QuorumControlsAPI) valRecoverAccount(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+	// check if the caller is org admin
+	if !q.isNetworkAdmin(args.txa.From) {
+		return ErrNotNetworkAdmin
+	}
+
+	if q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg, pinterf) {
+		return ErrPendingApprovals
+	}
+
 	return ExecSuccess
 }
 

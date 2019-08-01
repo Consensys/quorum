@@ -13,6 +13,8 @@ import "./PermissionsUpgradable.sol";
         2 - Active
         3 - Deactivated
         4 - Blacklisted
+        5 - Blacklisted node recovery initiated. Once approved the node
+            status will be updated to Active (2)
      Once the node is blacklisted no further activity on the node is
      possible.
   */
@@ -44,6 +46,10 @@ contract NodeManager {
 
     // node permission events for node blacklist
     event NodeBlacklisted(string _enodeId, string _orgId);
+
+    // node permission events for initiating the recovery of blacklisted
+    // node
+    event NodeRecoveryInitiated(string _enodeId, string _orgId);
 
     /** @notice confirms that the caller is the address of implementation
         contract
@@ -174,6 +180,8 @@ contract NodeManager {
             1 - Suspend the node
             2 - Revoke suspension of a suspended node
             3 - blacklist a node
+            4 - initiate the recovery of a blacklisted node
+            5 - blacklisted node recovery fully approved. mark to active
       */
     function updateNodeStatus(string calldata _enodeId, string calldata _orgId, uint256 _action) external
     onlyImplementation
@@ -193,9 +201,14 @@ contract NodeManager {
             nodeList[_getNodeIndex(_enodeId)].status = 2;
             emit NodeActivated(_enodeId, _orgId);
         }
-        else {
+        else if (_action == 3) {
             nodeList[_getNodeIndex(_enodeId)].status = 4;
             emit NodeBlacklisted(_enodeId, _orgId);
+        } else if (_action == 4) {
+            // node should be in blacklisted state
+            require(_getNodeStatus(_enodeId) == 4, "operation cannot be performed");
+            nodeList[_getNodeIndex(_enodeId)].status = 5;
+            emit NodeRecoveryInitiated(_enodeId, _orgId);
         }
     }
 

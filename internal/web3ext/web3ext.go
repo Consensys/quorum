@@ -831,6 +831,30 @@ web3._extend({
                        params: 4,
                        inputFormatter: [null, web3._extend.formatters.inputAddressFormatter,null,web3._extend.formatters.inputTransactionFormatter]
                }),
+			   new web3._extend.Method({
+                       name: 'recoverBlackListedNode',
+                       call: 'quorumPermission_recoverBlackListedNode',
+                       params: 3,
+                       inputFormatter: [null, null, web3._extend.formatters.inputTransactionFormatter]
+               }),
+			   new web3._extend.Method({
+                       name: 'approveBlackListedNodeRecovery',
+                       call: 'quorumPermission_approveBlackListedNodeRecovery',
+                       params: 3,
+                       inputFormatter: [null, null, web3._extend.formatters.inputTransactionFormatter]
+               }),
+			   new web3._extend.Method({
+                       name: 'recoverBlackListedAccount',
+                       call: 'quorumPermission_recoverBlackListedAccount',
+                       params: 3,
+                       inputFormatter: [null, web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
+               }),
+			   new web3._extend.Method({
+                       name: 'approveBlackListedAccountRecovery',
+                       call: 'quorumPermission_approveBlackListedAccountRecovery',
+                       params: 3,
+                       inputFormatter: [null, web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
+               }),
                new web3._extend.Method({
                        name: 'getOrgDetails',
                        call: 'quorumPermission_getOrgDetails',
