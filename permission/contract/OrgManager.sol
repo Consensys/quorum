@@ -335,7 +335,6 @@ contract OrgManager {
       * @return org index
       */
     function _getOrgIndex(string memory _orgId) public view returns (uint){
-        require(OrgIndex[keccak256(abi.encodePacked(_orgId))] > 0, "org not in the map");
         return OrgIndex[keccak256(abi.encodePacked(_orgId))] - 1;
     }
 

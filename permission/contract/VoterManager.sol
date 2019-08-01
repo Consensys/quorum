@@ -235,7 +235,6 @@ contract VoterManager {
     function _getVoterIndex(string memory _orgId, address _vAccount)
     internal view returns (uint256) {
         uint256 orgIndex = _getVoterOrgIndex(_orgId);
-        require(orgVoterList[orgIndex].voterIndex[_vAccount] > 0, "record not in the map");
         return orgVoterList[orgIndex].voterIndex[_vAccount] - 1;
     }
 
@@ -243,7 +242,6 @@ contract VoterManager {
       */
     function _getVoterOrgIndex(string memory _orgId)
     internal view returns (uint256) {
-        require(VoterOrgIndex[keccak256(abi.encode(_orgId))] > 0, "record not in the map");
         return VoterOrgIndex[keccak256(abi.encode(_orgId))] - 1;
     }
 

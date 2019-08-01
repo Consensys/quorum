@@ -303,7 +303,6 @@ contract AccountManager {
       * @return account index
       */
     function _getAccountIndex(address _account) internal view returns (uint256) {
-        require(accountIndex[_account] > 0, "account not in the map");
         return accountIndex[_account] - 1;
     }
 

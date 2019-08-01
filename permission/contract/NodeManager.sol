@@ -206,7 +206,6 @@ contract NodeManager {
       */
     function _getNodeIndex(string memory _enodeId) internal view
     returns (uint256) {
-        require(nodeIdToIndex[keccak256(abi.encode(_enodeId))] > 0, "node not in the map");
         return nodeIdToIndex[keccak256(abi.encode(_enodeId))] - 1;
     }
 

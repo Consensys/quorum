@@ -192,7 +192,6 @@ contract RoleManager {
       */
     function _getRoleIndex(string memory _roleId, string memory _orgId)
     internal view returns (uint256) {
-        require(roleIndex[keccak256(abi.encode(_roleId, _orgId))] > 0, "role not in the map");
         return roleIndex[keccak256(abi.encode(_roleId, _orgId))] - 1;
     }
 }
