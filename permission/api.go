@@ -639,16 +639,17 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (Ex
 			return ErrNodeOrgMismatch, errors.New("node does not belong to the organization passed")
 		}
 
-		if node.Status == types.NodeBlackListed {
+		if node.Status == types.NodeBlackListed && op != 4 {
 			return ErrBlacklistedNode, errors.New("blacklisted node. operation not allowed")
 		}
 
 		// validate the op and node status and check if the op can be performed
-		if op != 1 && op != 2 && op != 3 {
+		if op != 1 && op != 2 && op != 3 && op != 4 && op != 5 {
 			return ErrOpNotAllowed, errors.New("invalid node status change operation")
 		}
 
-		if (op == 1 && node.Status != types.NodeApproved) || (op == 2 && node.Status != types.NodeDeactivated) {
+		if (op == 1 && node.Status != types.NodeApproved) || (op == 2 && node.Status != types.NodeDeactivated) ||
+			(op == 4 && node.Status != types.NodeBlackListed) || (op == 5 && node.Status != types.NodeRecoveryInitiated) {
 			return ErrOpNotAllowed, errors.New("node status change cannot be performed")
 		}
 	} else {
@@ -1032,10 +1033,32 @@ func (q *QuorumControlsAPI) valRecoverNode(args txArgs, pinterf *pbind.PermInter
 	if !q.isNetworkAdmin(args.txa.From) {
 		return ErrNotNetworkAdmin
 	}
-
-	if action == InitiateNodeRecovery && q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg, pinterf) {
-		return ErrPendingApprovals
+	// validate inputs - org id is valid, node is valid and in blacklisted state
+	if execStatus, _ := q.validateOrg(args.orgId, ""); execStatus != ErrOrgExists {
+		return ErrInvalidOrgName
 	}
+
+	if action == InitiateNodeRecovery {
+		if execStatus, _ := q.valNodeStatusChange(args.orgId, args.url, 4); execStatus != ExecSuccess {
+			return execStatus
+		}
+		// check no pending approval items
+		if q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg, pinterf) {
+			return ErrPendingApprovals
+		}
+	} else {
+		// validate inputs - org id is valid, node is valid pending recovery state
+		if execStatus, _ := q.valNodeStatusChange(args.orgId, args.url, 5); execStatus != ExecSuccess {
+			return execStatus
+		}
+
+		// check that there is a pending approval item for node recovery
+		if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, args.url, common.Address{}, 5, pinterf) {
+			return ErrNothingToApprove
+		}
+	}
+
+	// if it is approval ensure that
 
 	return ExecSuccess
 }
