@@ -525,16 +525,16 @@ func (q *QuorumControlsAPI) RecoverBlackListedAccount(orgId string, acctId commo
 	}
 	args := txArgs{orgId: orgId, acctId: acctId, txa: txa}
 
-	if execStatus := q.valRecoverAccount(args, pinterf); execStatus != ExecSuccess {
+	if execStatus := q.valRecoverAccount(args, pinterf, InitiateAccountRecovery); execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
-	//tx, err := pinterf.RecoverBlacklistedAccount(args.orgId, args.acctId)
-	//if err != nil {
-	//	log.Error("Failed to execute permission action", "action", InitiateAccountRecovery, "err", err)
-	//	msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-	//	return ExecStatus{false, msg}.OpStatus()
-	//}
-	//log.Debug("executed permission action", "action", InitiateAccountRecovery, "tx", tx)
+	tx, err := pinterf.StartBlacklistedAccountRecovery(args.orgId, args.acctId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", InitiateAccountRecovery, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", InitiateAccountRecovery, "tx", tx)
 	return ExecSuccess.OpStatus()
 }
 
@@ -545,16 +545,16 @@ func (q *QuorumControlsAPI) ApproveBlackListedAccountRecovery(orgId string, acct
 	}
 	args := txArgs{orgId: orgId, acctId: acctId, txa: txa}
 
-	if execStatus := q.valRecoverAccount(args, pinterf); execStatus != ExecSuccess {
+	if execStatus := q.valRecoverAccount(args, pinterf, ApproveAccountRecovery); execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
-	//tx, err := pinterf.ApproveAccountRecovery(args.orgId, args.acctId)
-	//if err != nil {
-	//	log.Error("Failed to execute permission action", "action", ApproveAccountRecovery, "err", err)
-	//	msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-	//	return ExecStatus{false, msg}.OpStatus()
-	//}
-	//log.Debug("executed permission action", "action", ApproveAccountRecovery, "tx", tx)
+	tx, err := pinterf.ApproveBlacklistedAccountRecovery(args.orgId, args.acctId)
+	if err != nil {
+		log.Error("Failed to execute permission action", "action", ApproveAccountRecovery, "err", err)
+		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+		return ExecStatus{false, msg}.OpStatus()
+	}
+	log.Debug("executed permission action", "action", ApproveAccountRecovery, "tx", tx)
 	return ExecSuccess.OpStatus()
 }
 
@@ -685,16 +685,19 @@ func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 		return ErrOrgNotOwner, errors.New("account does not belong to the organization passed")
 	}
 
-	if ac.Status == types.AcctBlacklisted {
+	if ac.Status == types.AcctBlacklisted && op != 4 {
 		return ErrBlacklistedAccount, errors.New("blacklisted account. operation not allowed")
 	}
 
 	// validate the op and node status and check if the op can be performed
-	if op != 1 && op != 2 && op != 3 {
+	if op != 1 && op != 2 && op != 3 && op != 4 && op != 5 {
+		log.Info("SMK - at 694", "op", op)
 		return ErrOpNotAllowed, errors.New("invalid account status change operation")
 	}
 
-	if (op == 1 && ac.Status != types.AcctActive) || (op == 2 && ac.Status != types.AcctSuspended) {
+	if (op == 1 && ac.Status != types.AcctActive) || (op == 2 && ac.Status != types.AcctSuspended) ||
+		(op == 4 && ac.Status != types.AcctBlacklisted) || (op == 5 && ac.Status != types.AcctRecoveryInitiated) {
+		log.Info("SMK - at 700", "op", op, "acStatus", ac.Status)
 		return ErrOpNotAllowed, errors.New("account status change cannot be performed")
 	}
 	return ExecSuccess, nil
@@ -1063,16 +1066,30 @@ func (q *QuorumControlsAPI) valRecoverNode(args txArgs, pinterf *pbind.PermInter
 	return ExecSuccess
 }
 
-func (q *QuorumControlsAPI) valRecoverAccount(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+func (q *QuorumControlsAPI) valRecoverAccount(args txArgs, pinterf *pbind.PermInterfaceSession, action PermAction) ExecStatus {
 	// check if the caller is org admin
 	if !q.isNetworkAdmin(args.txa.From) {
 		return ErrNotNetworkAdmin
 	}
 
-	if q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg, pinterf) {
+	var opAction int64
+	if action == InitiateAccountRecovery {
+		opAction = 4
+	} else {
+		opAction = 5
+	}
+
+	if execStatus, err := q.valAccountStatusChange(args.orgId, args.acctId, opAction); err != nil {
+		return execStatus
+	}
+
+	if action == InitiateAccountRecovery && q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg, pinterf) {
 		return ErrPendingApprovals
 	}
 
+	if action == ApproveAccountRecovery && !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, "", args.acctId, 6, pinterf) {
+		return ErrNothingToApprove
+	}
 	return ExecSuccess
 }
 

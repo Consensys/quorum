@@ -409,7 +409,7 @@ contract PermissionsImplementation {
         nodeManager.updateNodeStatus(_enodeId, _orgId, _action);
     }
 
-    /** @notice function to initaite blacklisted nodes recovery. this can be
+    /** @notice function to initiate blacklisted nodes recovery. this can be
         invoked by an network admin account only
       * @param _orgId unique id of the organization to which the account belongs
       * @param _enodeId full enode id being dded to the org
@@ -426,7 +426,7 @@ contract PermissionsImplementation {
         voterManager.addVotingItem(adminOrg, _orgId, _enodeId, address(0), 5);
     }
 
-    /** @notice function to initaite blacklisted nodes recovery. this can be
+    /** @notice function to initiate blacklisted nodes recovery. this can be
         invoked by an network admin account only
       * @param _orgId unique id of the organization to which the account belongs
       * @param _enodeId full enode id being dded to the org
@@ -440,6 +440,39 @@ contract PermissionsImplementation {
         if ((processVote(adminOrg, _caller, 5))) {
             // update the node back to active
             nodeManager.updateNodeStatus(_enodeId, _orgId, 5);
+        }
+    }
+
+    /** @notice function to initaite blacklisted nodes recovery. this can be
+        invoked by an network admin account only
+      * @param _orgId unique id of the organization to which the account belongs
+      * @param _account account id being dded to the org
+      * @dev this function creates a voting record for other network admins to
+        approve the operation. The recovery is complete only after majority voting
+      */
+    function startBlacklistedAccountRecovery(string calldata _orgId, address _account,
+        address _caller) external onlyInterface networkAdmin(_caller) {
+        // update the account status as recovery initiated. action for this is 4
+        accountManager.updateAccountStatus(_orgId, _account, 4);
+        // add a voting record with pending op of 5 which corresponds to blacklisted node
+        // recovery
+        voterManager.addVotingItem(adminOrg, _orgId, "", _account, 6);
+    }
+
+    /** @notice function to initaite blacklisted nodes recovery. this can be
+        invoked by an network admin account only
+      * @param _orgId unique id of the organization to which the account belongs
+      * @param _account account id being dded to the org
+      * @dev this function creates a voting record for other network admins to
+        approve the operation. The recovery is complete only after majority voting
+      */
+    function approveBlacklistedAccountRecovery(string calldata _orgId, address _account,
+        address _caller) external onlyInterface networkAdmin(_caller) {
+        // check if majority votes are received. pending op type is passed as 6
+        // which stands for black listed account recovery
+        if ((processVote(adminOrg, _caller, 6))) {
+            // update the node back to active
+            accountManager.updateAccountStatus(_orgId, _account, 5);
         }
     }
 

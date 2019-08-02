@@ -16,6 +16,8 @@ import "./PermissionsUpgradable.sol";
         4 - Suspended
         5 - Blacklisted
         6 - Revoked
+        7 - Recovery Initiated for blacklisted accounts and pending approval
+            from network admins
      Once the account is blacklisted no further activity on the account is
      possible.
      When adding a new org admin account to an existing org, the existing org
@@ -204,12 +206,18 @@ contract AccountManager {
       * @param _orgId - org id
       * @param _account - account id
       * @param _action - new status of the account
+      * @dev the following actions are allowed
+            1 - Suspend the account
+            2 - Reactivate a suspended account
+            3 - Blacklist an account
+            4 - Initiate recovery for black listed account
+            5 - Complete recovery of black listed account and update status to active
       */
     function updateAccountStatus(string calldata _orgId, address _account, uint _action) external
     onlyImplementation
     accountExists(_orgId, _account) {
-        // operations that can be done 1-Suspend account, 2-Unsuspend Account, 3-Blacklist account
-        require((_action == 1 || _action == 2 || _action == 3), "invalid status change request");
+        require((_action > 0 && _action < 6), "invalid status change request");
+
         // check if the account is org admin. if yes then do not allow any status change
         require(checkOrgAdmin(_account, _orgId, "") != true, "status change not possible for org admin accounts");
         uint newStatus;
@@ -230,6 +238,16 @@ contract AccountManager {
                 "account is already blacklisted. operation cannot be done");
             newStatus = 5;
         }
+        else if (_action == 4) {
+            require(accountAccessList[_getAccountIndex(_account)].status == 5,
+                "account is not blacklisted. operation cannot be done");
+            newStatus = 7;
+        }
+        else if (_action == 5) {
+            require(accountAccessList[_getAccountIndex(_account)].status == 7, "account recovery not initiated. operation cannot be done");
+            newStatus = 2;
+        }
+
         accountAccessList[_getAccountIndex(_account)].status = newStatus;
         emit AccountStatusChanged(_account, _orgId, newStatus);
     }

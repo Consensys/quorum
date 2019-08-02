@@ -56,6 +56,8 @@ const (
 	AcctSuspended
 	AcctBlacklisted
 	AdminRevoked
+	AcctRecoveryInitiated
+	AcctRecoveryCompleted
 )
 
 type NodeInfo struct {

@@ -201,7 +201,7 @@ contract PermissionsInterface {
 
     /** @notice interface to initiate blacklisted node recovery
       * @param _orgId unique id of the organization to which the account belongs
-      * @param _enodeId full enode id being dded to the org
+      * @param _enodeId full enode id being recovered
       */
     function startBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId)
     external {
@@ -210,11 +210,29 @@ contract PermissionsInterface {
 
     /** @notice interface to approve blacklisted node recoevry
       * @param _orgId unique id of the organization to which the account belongs
-      * @param _enodeId full enode id being dded to the org
+      * @param _enodeId full enode id being recovered
       */
     function approveBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId)
     external {
         permImplementation.approveBlacklistedNodeRecovery(_orgId, _enodeId, msg.sender);
+    }
+
+    /** @notice interface to initiate blacklisted account recovery
+      * @param _orgId unique id of the organization to which the account belongs
+      * @param _account account id being recovered
+      */
+    function startBlacklistedAccountRecovery(string calldata _orgId, address _account)
+    external {
+        permImplementation.startBlacklistedAccountRecovery(_orgId, _account, msg.sender);
+    }
+
+    /** @notice interface to approve blacklisted node recovery
+      * @param _orgId unique id of the organization to which the account belongs
+      * @param _account account id being recovered
+      */
+    function approveBlacklistedAccountRecovery(string calldata _orgId, address _account)
+    external {
+        permImplementation.approveBlacklistedAccountRecovery(_orgId, _account, msg.sender);
     }
 
     /** @notice interface to fetch detail of any pending approval activities
