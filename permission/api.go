@@ -48,22 +48,31 @@ const (
 	ApproveAccountRecovery
 )
 
-// OrgKeyAction represents an action in cluster contract
-type OrgKeyAction int
-
-// return values for checkNodeDetails function
-type NodeCheckRetVal int
+type AccountUpdateAction int
 
 const (
-	Success NodeCheckRetVal = iota
+	SuspendAccount AccountUpdateAction = iota + 1
+	ActivateSuspendedAccount
+	BlacklistAccount
+	RecoverBlacklistedAccount
+	ApproveBlacklistedAccountRecovery
 )
 
-// Voter access type
-type VoterAccessType uint8
+type NodeUpdateAction int
 
 const (
-	Active VoterAccessType = iota
-	Inactive
+	SuspendNode NodeUpdateAction = iota + 1
+	ActivateSuspendedNode
+	BlacklistNode
+	RecoverBlacklistedNode
+	ApproveBlacklistedNodeRecovery
+)
+
+type OrgUpdateAction int
+
+const (
+	SuspendOrg OrgUpdateAction = iota + 1
+	ActivateSuspendedOrg
 )
 
 // QuorumControlsAPI provides an API to access Quorum's node permission and org key management related services
@@ -111,7 +120,6 @@ var (
 	ErrNodePresent        = ExecStatus{false, "EnodeId already part of network."}
 	ErrInvalidNode        = ExecStatus{false, "Invalid enode id"}
 	ErrInvalidAccount     = ExecStatus{false, "Invalid account id"}
-	ErrPermissionDisabled = ExecStatus{false, "Permissions control not enabled"}
 	ErrOrgExists          = ExecStatus{false, "Org already exists"}
 	ErrPendingApprovals   = ExecStatus{false, "Pending approvals for the organization. Approve first"}
 	ErrNothingToApprove   = ExecStatus{false, "Nothing to approve"}
@@ -331,11 +339,11 @@ func (q *QuorumControlsAPI) ApproveOrgStatus(orgId string, status uint8, txa eth
 	// validate that status change is pending approval
 	tx, err := pinterf.ApproveOrgStatus(args.orgId, big.NewInt(int64(args.action)))
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", UpdateNodeStatus, "err", err)
+		log.Error("Failed to execute permission action", "action", ApproveOrgStatus, "err", err)
 		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
 		return ExecStatus{false, msg}.OpStatus()
 	}
-	log.Debug("executed permission action", "action", UpdateNodeStatus, "tx", tx)
+	log.Debug("executed permission action", "action", ApproveOrgStatus, "tx", tx)
 	return ExecSuccess.OpStatus()
 }
 
@@ -391,11 +399,11 @@ func (q *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8
 	// check if role is already there in the org
 	tx, err := pinterf.AddNewRole(args.roleId, args.orgId, big.NewInt(int64(args.accessType)), args.isVoter, args.isAdmin)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", ApproveAdminRole, "err", err)
+		log.Error("Failed to execute permission action", "action", AddNewRole, "err", err)
 		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
 		return ExecStatus{false, msg}.OpStatus()
 	}
-	log.Debug("executed permission action", "action", ApproveAdminRole, "tx", tx)
+	log.Debug("executed permission action", "action", AddNewRole, "tx", tx)
 	return ExecSuccess.OpStatus()
 }
 
@@ -623,7 +631,7 @@ func (q *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) (ExecStatus, 
 	return ExecSuccess, nil
 }
 
-func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (ExecStatus, error) {
+func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdateAction) (ExecStatus, error) {
 	// validates if the enode is linked the passed organization
 	// validate node id and
 	if len(url) == 0 {
@@ -639,17 +647,20 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op int64) (Ex
 			return ErrNodeOrgMismatch, errors.New("node does not belong to the organization passed")
 		}
 
-		if node.Status == types.NodeBlackListed && op != 4 {
+		if node.Status == types.NodeBlackListed && op != RecoverBlacklistedNode {
 			return ErrBlacklistedNode, errors.New("blacklisted node. operation not allowed")
 		}
 
 		// validate the op and node status and check if the op can be performed
-		if op != 1 && op != 2 && op != 3 && op != 4 && op != 5 {
+		if op != SuspendNode && op != ActivateSuspendedNode && op != BlacklistNode &&
+			op != RecoverBlacklistedNode && op != ApproveBlacklistedNodeRecovery {
 			return ErrOpNotAllowed, errors.New("invalid node status change operation")
 		}
 
-		if (op == 1 && node.Status != types.NodeApproved) || (op == 2 && node.Status != types.NodeDeactivated) ||
-			(op == 4 && node.Status != types.NodeBlackListed) || (op == 5 && node.Status != types.NodeRecoveryInitiated) {
+		if (op == SuspendNode && node.Status != types.NodeApproved) ||
+			(op == ActivateSuspendedNode && node.Status != types.NodeDeactivated) ||
+			(op == RecoverBlacklistedNode && node.Status != types.NodeBlackListed) ||
+			(op == ApproveBlacklistedNodeRecovery && node.Status != types.NodeRecoveryInitiated) {
 			return ErrOpNotAllowed, errors.New("node status change cannot be performed")
 		}
 	} else {
@@ -669,7 +680,7 @@ func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
 	return r != nil && r.Active
 }
 
-func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.Address, op int64) (ExecStatus, error) {
+func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.Address, op AccountUpdateAction) (ExecStatus, error) {
 	// validates if the enode is linked the passed organization
 	ac := types.AcctInfoMap.GetAccount(account)
 
@@ -685,19 +696,20 @@ func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 		return ErrOrgNotOwner, errors.New("account does not belong to the organization passed")
 	}
 
-	if ac.Status == types.AcctBlacklisted && op != 4 {
+	if ac.Status == types.AcctBlacklisted && op != RecoverBlacklistedAccount {
 		return ErrBlacklistedAccount, errors.New("blacklisted account. operation not allowed")
 	}
 
 	// validate the op and node status and check if the op can be performed
-	if op != 1 && op != 2 && op != 3 && op != 4 && op != 5 {
-		log.Info("SMK - at 694", "op", op)
+	if op != SuspendAccount && op != ActivateSuspendedAccount && op != BlacklistAccount &&
+		op != RecoverBlacklistedAccount && op != ApproveBlacklistedAccountRecovery {
 		return ErrOpNotAllowed, errors.New("invalid account status change operation")
 	}
 
-	if (op == 1 && ac.Status != types.AcctActive) || (op == 2 && ac.Status != types.AcctSuspended) ||
-		(op == 4 && ac.Status != types.AcctBlacklisted) || (op == 5 && ac.Status != types.AcctRecoveryInitiated) {
-		log.Info("SMK - at 700", "op", op, "acStatus", ac.Status)
+	if (op == SuspendAccount && ac.Status != types.AcctActive) ||
+		(op == ActivateSuspendedAccount && ac.Status != types.AcctSuspended) ||
+		(op == RecoverBlacklistedAccount && ac.Status != types.AcctBlacklisted) ||
+		(op == ApproveBlacklistedAccountRecovery && ac.Status != types.AcctRecoveryInitiated) {
 		return ErrOpNotAllowed, errors.New("account status change cannot be performed")
 	}
 	return ExecSuccess, nil
@@ -845,7 +857,8 @@ func (q *QuorumControlsAPI) valUpdateOrgStatus(args txArgs, pinterf *pbind.PermI
 	if !q.isNetworkAdmin(args.txa.From) {
 		return ErrNotNetworkAdmin
 	}
-	if args.action != 1 && args.action != 2 {
+	if OrgUpdateAction(args.action) != SuspendOrg &&
+		OrgUpdateAction(args.action) != ActivateSuspendedOrg {
 		return ErrOpNotAllowed
 	}
 
@@ -903,7 +916,7 @@ func (q *QuorumControlsAPI) valUpdateNodeStatus(args txArgs, pinterf *pbind.Perm
 	}
 
 	// validation status change is with in allowed set
-	if execStatus, er := q.valNodeStatusChange(args.orgId, args.url, int64(args.action)); er != nil {
+	if execStatus, er := q.valNodeStatusChange(args.orgId, args.url, NodeUpdateAction(args.action)); er != nil {
 		return execStatus
 	}
 	return ExecSuccess
@@ -1025,7 +1038,7 @@ func (q *QuorumControlsAPI) valUpdateAccountStatus(args txArgs, pinterf *pbind.P
 		return execStatus
 	}
 	// validation status change is with in allowed set
-	if execStatus, er := q.valAccountStatusChange(args.orgId, args.acctId, int64(args.action)); er != nil {
+	if execStatus, er := q.valAccountStatusChange(args.orgId, args.acctId, AccountUpdateAction(args.action)); er != nil {
 		return execStatus
 	}
 	return ExecSuccess
@@ -1072,11 +1085,11 @@ func (q *QuorumControlsAPI) valRecoverAccount(args txArgs, pinterf *pbind.PermIn
 		return ErrNotNetworkAdmin
 	}
 
-	var opAction int64
+	var opAction AccountUpdateAction
 	if action == InitiateAccountRecovery {
-		opAction = 4
+		opAction = RecoverBlacklistedAccount
 	} else {
-		opAction = 5
+		opAction = ApproveBlacklistedAccountRecovery
 	}
 
 	if execStatus, err := q.valAccountStatusChange(args.orgId, args.acctId, opAction); err != nil {
