@@ -78,8 +78,8 @@ func TestVaultBackend_Wallets_ReturnsWallets(t *testing.T) {
 			want []accounts.Wallet
 	}{
 		"empty": {in: []accounts.Wallet{}, want: []accounts.Wallet{}},
-		"single": {in: []accounts.Wallet{vaultWallet{}}, want: []accounts.Wallet{vaultWallet{}}},
-		"multiple": {in: []accounts.Wallet{vaultWallet{}, vaultWallet{}}, want: []accounts.Wallet{vaultWallet{}, vaultWallet{}}},
+		"single": {in: []accounts.Wallet{VaultWallet{}}, want: []accounts.Wallet{VaultWallet{}}},
+		"multiple": {in: []accounts.Wallet{VaultWallet{}, VaultWallet{}}, want: []accounts.Wallet{VaultWallet{}, VaultWallet{}}},
 	}
 
 	for name, tt := range tests {
@@ -98,13 +98,13 @@ func TestVaultBackend_Wallets_ReturnsWallets(t *testing.T) {
 func TestVaultBackend_Wallets_ReturnsCopy(t *testing.T) {
 	b := VaultBackend{
 		wallets: []accounts.Wallet{
-			vaultWallet{url: accounts.URL{Scheme: "http", Path: "url"}},
+			VaultWallet{url: accounts.URL{Scheme: "http", Path: "url"}},
 		},
 	}
 
 	got := b.Wallets()
 
-	got[0] = vaultWallet{url: accounts.URL{Scheme: "http", Path: "otherurl"}}
+	got[0] = VaultWallet{url: accounts.URL{Scheme: "http", Path: "otherurl"}}
 
 	if reflect.DeepEqual(b.wallets, got) {
 		t.Fatal("changes to returned slice should not affect slice in backend")
@@ -122,7 +122,7 @@ func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeed(t *testing.T
 	}
 
 	// mock an event
-	e := accounts.WalletEvent{Wallet: vaultWallet{}, Kind: accounts.WalletOpened}
+	e := accounts.WalletEvent{Wallet: VaultWallet{}, Kind: accounts.WalletOpened}
 	b.updateFeed.Send(e)
 
 	if len(subscriber) != 1 {
@@ -144,7 +144,7 @@ func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeedByHashicorpWa
 		t.Fatalf("incorrect number of wallets: want: %v, got: %v", 1, len(b.wallets))
 	}
 
-	w := b.wallets[0].(vaultWallet)
+	w := b.wallets[0].(VaultWallet)
 
 	subscriber := make(chan accounts.WalletEvent, 1)
 	b.Subscribe(subscriber)
@@ -154,7 +154,7 @@ func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeedByHashicorpWa
 	}
 
 	// mock an event
-	e := accounts.WalletEvent{Wallet: vaultWallet{}, Kind: accounts.WalletOpened}
+	e := accounts.WalletEvent{Wallet: VaultWallet{}, Kind: accounts.WalletOpened}
 	w.updateFeed.Send(e)
 
 	if len(subscriber) != 1 {

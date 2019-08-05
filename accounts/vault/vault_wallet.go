@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-type vaultWallet struct {
+type VaultWallet struct {
 	url accounts.URL
 	vault vaultService
 	updateFeed *event.Feed
@@ -34,19 +34,21 @@ type vaultService interface {
 	close() error
 	accounts() []accounts.Account
 	getKey(acct accounts.Account) (key *ecdsa.PrivateKey, zeroFn func(), err error)
+	timedUnlock(acct accounts.Account, timeout time.Duration) error
+	lock(acct accounts.Account) error
 }
 
-func newHashicorpWallet(config HashicorpWalletConfig, updateFeed *event.Feed) (vaultWallet, error) {
+func newHashicorpWallet(config HashicorpWalletConfig, updateFeed *event.Feed) (VaultWallet, error) {
 	var url accounts.URL
 
 	//to parse a string url as an accounts.URL it must first be in json format
 	toParse := fmt.Sprintf("\"%v\"", config.Client.Url)
 
 	if err := url.UnmarshalJSON([]byte(toParse)); err != nil {
-		return vaultWallet{}, err
+		return VaultWallet{}, err
 	}
 
-	w := vaultWallet{
+	w := VaultWallet{
 		url: url,
 		vault: newHashicorpService(config),
 		updateFeed: updateFeed,
@@ -55,16 +57,16 @@ func newHashicorpWallet(config HashicorpWalletConfig, updateFeed *event.Feed) (v
 	return w, nil
 }
 
-func (w vaultWallet) URL() accounts.URL {
+func (w VaultWallet) URL() accounts.URL {
 	return w.url
 }
 
 // the vault service should return open and nil error if status is good
-func (w vaultWallet) Status() (string, error) {
+func (w VaultWallet) Status() (string, error) {
 	return w.vault.status()
 }
 
-func (w vaultWallet) Open(passphrase string) error {
+func (w VaultWallet) Open(passphrase string) error {
 	if err := w.vault.open(); err != nil {
 		return err
 	}
@@ -74,15 +76,15 @@ func (w vaultWallet) Open(passphrase string) error {
 	return nil
 }
 
-func (w vaultWallet) Close() error {
+func (w VaultWallet) Close() error {
 	return w.vault.close()
 }
 
-func (w vaultWallet) Accounts() []accounts.Account {
+func (w VaultWallet) Accounts() []accounts.Account {
 	return w.vault.accounts()
 }
 
-func (w vaultWallet) Contains(account accounts.Account) bool {
+func (w VaultWallet) Contains(account accounts.Account) bool {
 	equal := func(a, b accounts.Account) bool {
 		return a.Address == b.Address && (a.URL == b.URL || a.URL == accounts.URL{} || b.URL == accounts.URL{})
 	}
@@ -97,13 +99,13 @@ func (w vaultWallet) Contains(account accounts.Account) bool {
 	return false
 }
 
-func (w vaultWallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Account, error) {
+func (w VaultWallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Account, error) {
 	return accounts.Account{}, accounts.ErrNotSupported
 }
 
-func (w vaultWallet) SelfDerive(base accounts.DerivationPath, chain ethereum.ChainStateReader) {}
+func (w VaultWallet) SelfDerive(base accounts.DerivationPath, chain ethereum.ChainStateReader) {}
 
-func (w vaultWallet) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
+func (w VaultWallet) SignHash(account accounts.Account, hash []byte) ([]byte, error) {
 	if !w.Contains(account) {
 		return nil, accounts.ErrUnknownAccount
 	}
@@ -119,7 +121,7 @@ func (w vaultWallet) SignHash(account accounts.Account, hash []byte) ([]byte, er
 	return crypto.Sign(hash, key)
 }
 
-func (w vaultWallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
+func (w VaultWallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	if !w.Contains(account) {
 		return nil, accounts.ErrUnknownAccount
 	}
@@ -145,12 +147,28 @@ func (w vaultWallet) SignTx(account accounts.Account, tx *types.Transaction, cha
 	return types.SignTx(tx, types.HomesteadSigner{}, key)
 }
 
-func (w vaultWallet) SignHashWithPassphrase(account accounts.Account, passphrase string, hash []byte) ([]byte, error) {
+func (w VaultWallet) SignHashWithPassphrase(account accounts.Account, passphrase string, hash []byte) ([]byte, error) {
 	return w.SignHash(account, hash)
 }
 
-func (w vaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
+func (w VaultWallet) SignTxWithPassphrase(account accounts.Account, passphrase string, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	return w.SignTx(account, tx, chainID)
+}
+
+func (w VaultWallet) TimedUnlock(account accounts.Account, timeout time.Duration) error {
+	if !w.Contains(account) {
+		return accounts.ErrUnknownAccount
+	}
+
+	return w.vault.timedUnlock(account, timeout)
+}
+
+func (w VaultWallet) Lock(account accounts.Account) error {
+	if !w.Contains(account) {
+		return accounts.ErrUnknownAccount
+	}
+
+	return w.vault.lock(account)
 }
 
 type hashicorpService struct {
@@ -159,7 +177,7 @@ type hashicorpService struct {
 	secrets     []hashicorpSecretConfig
 	mutex       sync.RWMutex
 	accts       []accounts.Account
-	keyHandlers map[common.Address]map[accounts.URL]hashicorpKeyHandler
+	keyHandlers map[common.Address]map[accounts.URL]*hashicorpKeyHandler
 
 }
 
@@ -167,7 +185,7 @@ func newHashicorpService(config HashicorpWalletConfig) *hashicorpService {
 	s := &hashicorpService{
 		config:      config.Client,
 		secrets:     config.Secrets,
-		keyHandlers: make(map[common.Address]map[accounts.URL]hashicorpKeyHandler),
+		keyHandlers: make(map[common.Address]map[accounts.URL]*hashicorpKeyHandler),
 	}
 
 	return s
@@ -175,7 +193,9 @@ func newHashicorpService(config HashicorpWalletConfig) *hashicorpService {
 
 type hashicorpKeyHandler struct {
 	secret hashicorpSecretConfig
+	mutex       sync.RWMutex
 	key *ecdsa.PrivateKey
+	cancel chan struct{}
 }
 
 const (
@@ -344,7 +364,7 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 			h.mutex.Lock()
 
 			if _, ok := h.keyHandlers[acct.Address]; !ok {
-				h.keyHandlers[acct.Address] = make(map[accounts.URL]hashicorpKeyHandler)
+				h.keyHandlers[acct.Address] = make(map[accounts.URL]*hashicorpKeyHandler)
 			}
 
 			keyHandlersByUrl := h.keyHandlers[acct.Address]
@@ -355,7 +375,7 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 				continue
 			}
 
-			keyHandlersByUrl[acct.URL] = hashicorpKeyHandler{secret: s}
+			keyHandlersByUrl[acct.URL] = &hashicorpKeyHandler{secret: s}
 			h.accts = append(h.accts, acct)
 
 			h.mutex.Unlock()
@@ -373,7 +393,7 @@ func (h *hashicorpService) getAddressFromVault(s hashicorpSecretConfig) (common.
 	return common.HexToAddress(hexAddr), nil
 }
 
-func countRetrievedKeys(keyHandlers map[common.Address]map[accounts.URL]hashicorpKeyHandler) int {
+func countRetrievedKeys(keyHandlers map[common.Address]map[accounts.URL]*hashicorpKeyHandler) int {
 	var n int
 
 	for _, khByUrl := range keyHandlers {
@@ -411,9 +431,7 @@ func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
 				}
 
 				h.mutex.Lock()
-				existing := h.keyHandlers[addr][u]
-				updated := hashicorpKeyHandler{secret: existing.secret, key: key}
-				h.keyHandlers[addr][u] = updated
+				h.keyHandlers[addr][u].key = key
 				h.mutex.Unlock()
 			}
 		}
@@ -497,10 +515,20 @@ func (s accountsByURL) Less(i, j int) bool { return s[i].URL.Cmp(s[j].URL) < 0 }
 func (s accountsByURL) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, func(), error) {
+	keyHandler, err := h.getKeyHandler(acct)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return h.getKeyFromHandler(*keyHandler)
+}
+
+func (h *hashicorpService) getKeyHandler(acct accounts.Account) (*hashicorpKeyHandler, error) {
 	keyHandlersByUrl, ok := h.keyHandlers[acct.Address]
 
 	if !ok {
-		return nil, nil, accounts.ErrUnknownAccount
+		return nil, accounts.ErrUnknownAccount
 	}
 
 	if (acct.URL == accounts.URL{}) && len(keyHandlersByUrl) > 1 {
@@ -517,27 +545,28 @@ func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, fun
 			Matches: ambiguousAccounts,
 		}
 
-		return nil, nil, err
+		return nil, err
 	}
 
 	// return the only key for this address
 	if (acct.URL == accounts.URL{}) && len(keyHandlersByUrl) == 1 {
-		var keyHandler hashicorpKeyHandler
+		var keyHandler *hashicorpKeyHandler
 
 		for _, kh := range keyHandlersByUrl {
 			keyHandler = kh
+			break
 		}
 
-		return h.getKeyFromHandler(keyHandler)
+		return keyHandler, nil
 	}
 
 	keyHandler, ok := keyHandlersByUrl[acct.URL]
 
 	if !ok {
-		return nil, nil, accounts.ErrUnknownAccount
+		return nil, accounts.ErrUnknownAccount
 	}
 
-	return h.getKeyFromHandler(keyHandler)
+	return keyHandler, nil
 }
 
 func (h *hashicorpService) getKeyFromHandler(handler hashicorpKeyHandler) (*ecdsa.PrivateKey, func(), error) {
@@ -561,4 +590,103 @@ func (h *hashicorpService) getKeyFromHandler(handler hashicorpKeyHandler) (*ecds
 	}
 
 	return key, zeroFn, nil
+}
+
+func (h *hashicorpService) timedUnlock(acct accounts.Account, duration time.Duration) error {
+	keyHandler, err := h.getKeyHandler(acct)
+
+	if err != nil {
+		return err
+	}
+
+	alreadyExisted, err := h.updateKeyHandler(keyHandler)
+
+	if err != nil {
+		return err
+	}
+
+	if alreadyExisted {
+		if keyHandler.cancel == nil {
+			return nil
+		}
+
+		close(keyHandler.cancel)
+		keyHandler.cancel = nil
+	}
+
+	if duration == 0 {
+		keyHandler.cancel = nil
+	} else if duration > 0 {
+		go keyHandler.timedLock(duration)
+	}
+
+	return nil
+}
+
+func (h *hashicorpService) updateKeyHandler(handler *hashicorpKeyHandler) (bool, error) {
+	var (
+		key *ecdsa.PrivateKey
+		alreadyExisted bool
+	)
+
+	if k := handler.key; k != nil && k.D.Int64() != 0 {
+		key = k
+		alreadyExisted = true
+	} else {
+		var err error
+		key, err = h.getKeyFromVault(handler.secret)
+
+		if err != nil {
+			return false, err
+		}
+
+		handler.key = key
+	}
+
+	return alreadyExisted, nil
+}
+
+func (h *hashicorpService) lock(acct accounts.Account) error {
+	keyHandler, err := h.getKeyHandler(acct)
+
+	if err != nil {
+		return err
+	}
+
+	// cancel any existing timed lock
+	if keyHandler.cancel != nil {
+		close(keyHandler.cancel)
+		keyHandler.cancel = nil
+	}
+
+	// zero the key if it is present
+	if keyHandler.key != nil {
+		b := keyHandler.key.D.Bits()
+		for i := range b {
+			b[i] = 0
+		}
+		keyHandler.key = nil
+	}
+
+	return nil
+}
+
+func (h *hashicorpKeyHandler) timedLock(duration time.Duration) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
+	t := time.NewTimer(duration)
+	defer t.Stop()
+	h.cancel = make(chan struct{})
+
+	select {
+	case <-t.C:
+		b := h.key.D.Bits()
+		for i := range b {
+			b[i] = 0
+		}
+		h.key = nil
+	case <-h.cancel:
+		//do nothing
+	}
 }

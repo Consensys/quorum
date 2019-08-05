@@ -4,8 +4,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"reflect"
 	"sort"
 )
+
+// BackendType is the reflect type of a vault backend.
+var BackendType = reflect.TypeOf(&VaultBackend{})
 
 type VaultBackend struct {
 	wallets []accounts.Wallet

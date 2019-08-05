@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/vault"
 	"math/big"
 	"strings"
 	"time"
@@ -327,6 +328,7 @@ func (s *PrivateAccountAPI) ImportRawKey(privkey string, password string) (commo
 // UnlockAccount will unlock the account associated with the given address with
 // the given password for duration seconds. If duration is nil it will use a
 // default of 300 seconds. It returns an indication if the account was unlocked.
+// TODO it does not return an indication if the account was unlocked, need to make upstream change and also apply to UnlockVaultAccount
 func (s *PrivateAccountAPI) UnlockAccount(addr common.Address, password string, duration *uint64) (bool, error) {
 	const max = uint64(time.Duration(math.MaxInt64) / time.Second)
 	var d time.Duration
@@ -347,6 +349,65 @@ func (s *PrivateAccountAPI) UnlockAccount(addr common.Address, password string, 
 // LockAccount will lock the account associated with the given address when it's unlocked.
 func (s *PrivateAccountAPI) LockAccount(addr common.Address) bool {
 	return fetchKeystore(s.am).Lock(addr) == nil
+}
+
+// fetchVaultBackends retrieves the backends for all supported vaults from the account manager.
+func fetchVaultWallet(am *accounts.Manager, acct accounts.Account) (*vault.VaultWallet, error) {
+
+	for _, b := range am.Backends(vault.BackendType) {
+		for _, w := range b.Wallets() {
+			if w.Contains(acct) {
+				return w.(*vault.VaultWallet), nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no vault wallet found that contains account %v", acct)
+}
+
+// UnlockVaultAccount will unlock the account associated with the given address for duration seconds  if the account is stored in a vault. If duration is nil it will use a default of 300 seconds.
+func (s *PrivateAccountAPI) UnlockVaultAccount(addr common.Address, duration *uint64) (bool, error) {
+	const max = uint64(time.Duration(math.MaxInt64) / time.Second)
+	var d time.Duration
+	if duration == nil {
+		d = 300 * time.Second
+	} else if *duration > max {
+		return false, errors.New("unlock duration too large")
+	} else {
+		d = time.Duration(*duration) * time.Second
+	}
+
+	acct := accounts.Account{Address: addr}
+
+	w, err := fetchVaultWallet(s.am, acct)
+
+	if err != nil {
+		return false, err
+	}
+
+	err = w.TimedUnlock(accounts.Account{Address: addr}, d)
+
+	return err == nil, err
+}
+
+// LockVaultAccount will lock the account associated with the given address if the account is stored in a vault.  Returns true if successful, false if an error was encountered.  The error message is logged.
+// This exists as a separate API endpoint to the existing LockAccount method to prevent coupling it to Quorum-related changes
+func (s *PrivateAccountAPI) LockVaultAccount(addr common.Address) bool {
+	acct := accounts.Account{Address: addr}
+
+	w, err := fetchVaultWallet(s.am, acct)
+
+	if err != nil {
+		log.Warn("unable to lock account", "err", err)
+		return false
+	}
+
+	if err = w.Lock(acct); err != nil {
+		log.Warn("unable to lock account", "err", err)
+		return false
+	}
+
+	return true
 }
 
 // signTransactions sets defaults and signs the given transaction

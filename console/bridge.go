@@ -127,6 +127,8 @@ func (b *bridge) OpenWallet(call otto.FunctionCall) (response otto.Value) {
 	return val
 }
 
+// TODO Implement bridge methods for LockVaultAccount and UnlockVaultAccount
+
 // UnlockAccount is a wrapper around the personal.unlockAccount RPC method that
 // uses a non-echoing password prompt to acquire the passphrase and executes the
 // original RPC method (saved in jeth.unlockAccount) with it to actually execute
