@@ -1,4 +1,4 @@
-# Getting started from scratch
+# Creating a network from scratch
 
 This section details easy to follow step by step instructions of how to setup one or more Quorum nodes from scratch for all new starters.
 

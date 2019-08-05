@@ -135,6 +135,7 @@ type TxPoolConfig struct {
 	Rejournal time.Duration    // Time interval to regenerate the local transaction journal
 
 	TransactionSizeLimit uint64 // Maximum size allowed for valid transaction (in KB)
+	MaxCodeSize          uint64 // Maximum size allowed of contract code that can be deployed (in KB)
 
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
@@ -154,6 +155,7 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	Rejournal: time.Hour,
 
 	TransactionSizeLimit: 64,
+	MaxCodeSize:          24,
 
 	PriceLimit: 1,
 	PriceBump:  10,
