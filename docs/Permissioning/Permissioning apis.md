@@ -571,7 +571,52 @@ Via `geth` console
 > quorumPermission.updateAccountStatus("ABC", "0xf017976fdf1521de2e108e63b423380307f501f8", 1, {from: eth.accounts[1]})
 "Action completed successfully"
 ```
-Once a account is blacklisted no further action is allowed on it.
+Once a account is blacklisted it can only be recovered by network admins. Refer to [quorumPermission_recoverBlackListedAccount](#quorumpermission_recoverblacklistedaccount) and [quorumPermission_approveBlackListedAccountRecovery](#quorumpermission_approveblacklistedaccountrecovery) for further details.
+
+### `quorumPermission_recoverBlackListedAccount`
+This api can be executed by the network admin account to initiate the recovery of a blacklisted account. Post majority approval from network admin accounts, the blacklisted account will be marked as active.  
+#### Parameters
+* `orgId`: org or sub org id to which the node belongs
+* `acctId`: blacklisted account id
+#### Returns
+* `msg`: response message
+* `status`: `bool` indicating if the operation was success or failure
+
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_recoverBlackListedAccount","params":["ABC.SUB1.SUB2.SUB3", "0xf017976fdf1521de2e108e63b423380307f501f8", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
+
+// Response
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
+```
+Via `geth` console
+```javascript
+> quorumPermission.recoverBlackListedAccount("ABC.SUB1.SUB2.SUB3", "0xf017976fdf1521de2e108e63b423380307f501f8", {from: eth.accounts[1]})
+"Action completed successfully"
+```
+### `quorumPermission_approveBlackListedAccountRecovery`
+This api can be executed by the network admin approve the recovery of a blacklisted account. Once majority approvals from network admin accounts is received, the account is marked as active. 
+#### Parameters
+* `orgId`: org or sub org id to which the node belongs
+* `acctId`: blacklisted account id
+#### Returns
+* `msg`: response message
+* `status`: `bool` indicating if the operation was success or failure
+
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_approveBlackListedNodeRecovery","params":["ABC.SUB1.SUB2.SUB3", "0xf017976fdf1521de2e108e63b423380307f501f8", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
+
+// Response
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
+```
+Via `geth` console
+```javascript
+> quorumPermission.approveBlackListedNodeRecovery("ABC.SUB1.SUB2.SUB3", "0xf017976fdf1521de2e108e63b423380307f501f8", {from: eth.accounts[1]})
+"Action completed successfully"
+```
 
 ### `quorumPermission_assignAdminRole`
 This api can be executed by the network admin to add a new account as network admin or change the org admin account for an organization.
@@ -653,9 +698,6 @@ This api can be executed by the organization admin account to update the status 
 * `msg`: response message
 * `status`: `bool` indicating if the operation was success or failure
 #### Example
-* Input:  organization id or sub organization id, enode id, action (1 for deactivating the node, 2 for activating a deactivated node and 3 for blacklisting a node)
-* Output: Status of the operation
-* Example:
 Via JSON RPC
 ```jshelllanguage
 // Request
@@ -669,7 +711,52 @@ Via `geth` console
 > quorumPermission.updateNodeStatus("ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407",3, {from: eth.accounts[1]})
 "Action completed successfully"
 ```
-Once a node is blacklisted no further action is possible on the same.
+Once a node is blacklisted it can only be recovered by network admins. Refer to [quorumPermission_recoverBlackListedNode](#quorumpermission_recoverblacklistednode) and [quorumPermission_approveBlackListedNodeRecovery](#quorumpermission_approveblacklistednoderecovery) for further details.
+
+### `quorumPermission_recoverBlackListedNode`
+This api can be executed by the network admin account to initiate the recovery of a blacklisted node. Post majority approval from network admin accounts, the blacklisted node will be marked as active.  
+#### Parameters
+* `orgId`: org or sub org id to which the node belongs
+* `enodeId`: complete enode id
+#### Returns
+* `msg`: response message
+* `status`: `bool` indicating if the operation was success or failure
+
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_recoverBlackListedNode","params":["ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
+
+// Response
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
+```
+Via `geth` console
+```javascript
+> quorumPermission.recoverBlackListedNode("ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407", {from: eth.accounts[1]})
+"Action completed successfully"
+```
+### `quorumPermission_approveBlackListedNodeRecovery`
+This api can be executed by the network admin approve the recovery of a blacklisted node. Once majority approvals from network admin accounts is received, the node is marked as active. 
+#### Parameters
+* `orgId`: org or sub org id to which the node belongs
+* `enodeId`: complete enode id
+#### Returns
+* `msg`: response message
+* `status`: `bool` indicating if the operation was success or failure
+
+Via JSON RPC
+```jshelllanguage
+// Request
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPermission_approveBlackListedNodeRecovery","params":["ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407", {"from":"0xed9d02e382b34818e88b88a309c7fe71e65f419d"}],"id":10}' --header "Content-Type: application/json"
+
+// Response
+{"jsonrpc":"2.0","id":10,"result":"Action completed successfully"}
+```
+Via `geth` console
+```javascript
+> quorumPermission.approveBlackListedNodeRecovery("ABC.SUB1.SUB2.SUB3", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0&raftport=50407", {from: eth.accounts[1]})
+"Action completed successfully"
+```
 
 ## Roles
 The table below indicates the numeric value for each account access type.
@@ -704,23 +791,25 @@ The table below indicates the numeric value for various organization status.
 ### Account status types
 The table below indicates the numeric value for various account status.
 
-| AccountStatus   |           Value |
-| :-------------: | :-------------: |
-| NotInList       |               0 |
-| PendingApproval |               1 |
-| Active          |               2 |
-| Inactive        |               3 |
-| Suspended       |               4 |
-| Blacklisted     |               5 |
-| Revoked         |               6 |
+| AccountStatus                                         |             Value |
+| :-------------:                                       |   :-------------: |
+| Not In List                                           |                 0 |
+| Pending Approval                                      |                 1 |
+| Active                                                |                 2 |
+| Inactive                                              |                 3 |
+| Suspended                                             |                 4 |
+| Blacklisted                                           |                 5 |
+| Revoked                                               |                 6 |
+| Recovery initiated for Blacklisted accounts           |                 7 |
 
 ### Node Status types
 The table below indicates the numeric value for various node status.
 
-| NodeStatus                |           Value |
-| :-----------------------: | :-------------: |
-| NotInList                 |               0 |
-| PendingApproval           |               1 |
-| Approved                  |               2 |
-| Deactivated               |               3 |
-| Blacklisted               |               4 |
+| NodeStatus                                        |           Value |
+| :-----------------------:                         | :-------------: |
+| NotInList                                         |               0 |
+| PendingApproval                                   |               1 |
+| Approved                                          |               2 |
+| Deactivated                                       |               3 |
+| Blacklisted                                       |               4 |
+| Recovery initiated for Blacklisted Node           |               5 |
