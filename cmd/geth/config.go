@@ -162,16 +162,16 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
+	if utils.IsPermissionEnabled(ctx) {
+		RegisterPermissionService(ctx, stack)
+	}
+
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
 		RegisterRaftService(stack, ctx, cfg, ethChan)
 	}
 
 	if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
 		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
-	}
-
-	if utils.IsPermissionEnabled(ctx) {
-		RegisterPermissionService(ctx, stack)
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
