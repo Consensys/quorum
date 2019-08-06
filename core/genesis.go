@@ -169,8 +169,12 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 		if genesis.Config.TransactionSizeLimit == 0 {
 			genesis.Config.TransactionSizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
 		}
+		// Set default contract size limit that can be deployed if not set in genesis
+		if genesis.Config.MaxCodeSize == 0 {
+			genesis.Config.MaxCodeSize = DefaultTxPoolConfig.MaxCodeSize
+		}
 
-		// Check transaction size limit
+		// Check transaction size limit and max contract code size
 		err := genesis.Config.IsValid()
 		if err != nil {
 			return genesis.Config, common.Hash{}, err
