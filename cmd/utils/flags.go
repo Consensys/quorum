@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -57,7 +58,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	"gopkg.in/urfave/cli.v1"
-	"time"
 )
 
 var (
@@ -618,6 +618,11 @@ var (
 		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
 		Value: eth.DefaultConfig.Istanbul.BlockPeriod,
 	}
+	IstanbulAllowedFutureBlockTimeFlag = cli.Uint64Flag{
+		Name:  "istanbul.allowedfutureblocktime",
+		Usage: "Time threshold allowed when detecting future blocks in seconds",
+		Value: eth.DefaultConfig.Istanbul.AllowedFutureBlockTime,
+	}
 
 	// Metrics flags
 	MetricsEnabledFlag = cli.BoolFlag{
@@ -1125,6 +1130,9 @@ func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
 	}
 	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
 		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
+	}
+	if ctx.GlobalIsSet(IstanbulAllowedFutureBlockTimeFlag.Name) {
+		cfg.Istanbul.AllowedFutureBlockTime = ctx.GlobalUint64(IstanbulAllowedFutureBlockTimeFlag.Name)
 	}
 }
 

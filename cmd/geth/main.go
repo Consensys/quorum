@@ -141,6 +141,7 @@ var (
 		utils.EmitCheckpointsFlag,
 		utils.IstanbulRequestTimeoutFlag,
 		utils.IstanbulBlockPeriodFlag,
+		utils.IstanbulAllowedFutureBlockTimeFlag,
 	}
 
 	rpcFlags = []cli.Flag{

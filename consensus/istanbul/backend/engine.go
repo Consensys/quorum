@@ -119,8 +119,9 @@ func (sb *backend) verifyHeader(chain consensus.ChainReader, header *types.Heade
 		return errUnknownBlock
 	}
 
-	// Don't waste time checking blocks from the future
-	if header.Time.Cmp(big.NewInt(now().Unix())) > 0 {
+	// Don't waste time checking blocks from the future (adjusting for allowed threshold)
+	adjustedTimeNow := now().Add(time.Duration(sb.config.AllowedFutureBlockTime) * time.Second).Unix()
+	if header.Time.Cmp(big.NewInt(adjustedTimeNow)) > 0 {
 		return consensus.ErrFutureBlock
 	}
 
@@ -615,7 +616,6 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	hasher.Sum(hash[:0])
 	return hash
 }
-
 
 // SealHash returns the hash of a block prior to it being sealed.
 func (sb *backend) SealHash(header *types.Header) common.Hash {
