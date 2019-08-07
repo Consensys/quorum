@@ -26,6 +26,11 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 )
 
+const (
+	IBFT_FORMULA_CEIL_2N_3 uint8 = iota+1
+	IBFT_FORMULA_N_MINUS_F
+)
+
 type defaultValidator struct {
 	address common.Address
 }
@@ -199,3 +204,13 @@ func (valSet *defaultSet) Copy() istanbul.ValidatorSet {
 func (valSet *defaultSet) F() int { return int(math.Ceil(float64(valSet.Size())/3)) - 1 }
 
 func (valSet *defaultSet) Policy() istanbul.ProposerPolicy { return valSet.policy }
+
+func (valSet *defaultSet) QuorumSize(formulaType uint8) int {
+	if formulaType == IBFT_FORMULA_CEIL_2N_3 {
+		return int(math.Ceil(float64(2*valSet.Size())/3))
+	} else if formulaType == IBFT_FORMULA_N_MINUS_F {
+		return int(valSet.Size()-valSet.F())
+	} else {
+		return int(2*valSet.F()+1)
+	}
+}

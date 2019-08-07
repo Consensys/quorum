@@ -29,6 +29,8 @@ import (
 var (
 	testAddress  = "70524d664ffe731100208a0154e556f9bb679ae6"
 	testAddress2 = "b37866a925bccd69cfa98d43b510f1d23d78a851"
+	testAddress3 = "b37866a925bccd69cfa98d43b510f1d23d78a852"
+	testAddress4 = "70524d664ffe731100208a0154e556f9bb679ae7"
 )
 
 func TestValidatorSet(t *testing.T) {
@@ -37,6 +39,7 @@ func TestValidatorSet(t *testing.T) {
 	testEmptyValSet(t)
 	testStickyProposer(t)
 	testAddAndRemoveValidator(t)
+	testQuorumSize(t)
 }
 
 func testNewValidatorSet(t *testing.T) {
@@ -204,5 +207,78 @@ func testStickyProposer(t *testing.T) {
 	valSet.CalcProposer(lastProposer, uint64(3))
 	if val := valSet.GetProposer(); !reflect.DeepEqual(val, val2) {
 		t.Errorf("proposer mismatch: have %v, want %v", val, val2)
+	}
+}
+
+func testQuorumSize(t *testing.T) {
+	b1 := common.Hex2Bytes(testAddress)
+	b2 := common.Hex2Bytes(testAddress2)
+	addr1 := common.BytesToAddress(b1)
+	addr2 := common.BytesToAddress(b2)
+	
+	valSet := newDefaultSet([]common.Address{addr1, addr2}, istanbul.RoundRobin)
+	// N==2
+	// formulaType = 0, default 2f()+1 
+	if valSet.Size() != 2 {
+		t.Errorf("valSet.Size() expected: %v, got: %v", 2, valSet.Size())
+	}
+	if valSet.F() != 0 {
+		t.Errorf("valSet.F() expected: %v, got: %v", 0, valSet.F())
+	}
+	if valSet.QuorumSize(0) != 1 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 0, 2, 1, valSet.QuorumSize(0))
+	}
+	// formulaType = 1, proposed update Ceil(2N/3)
+	if valSet.QuorumSize(1) != 2 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 1, 2, 2, valSet.QuorumSize(1))
+	}
+	// formulaType = 2, proposed update N-f() 
+	if valSet.QuorumSize(2) != 2 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 2, 2, 2, valSet.QuorumSize(2))
+	}
+	// N==3
+	b3 := common.Hex2Bytes(testAddress3)
+	addr3 := common.BytesToAddress(b3)
+	valSet.AddValidator(addr3)
+	if valSet.Size() != 3 {
+		t.Errorf("valSet.Size() expected: %v, got: %v", 3, valSet.Size())
+	}
+	if valSet.F() != 0 {
+		t.Errorf("valSet.F() expected: %v, got: %v", 0, valSet.F())
+	}
+	// formulaType = 0, default 2f()+1 
+	if valSet.QuorumSize(0) != 1 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 0, 3, 1, valSet.QuorumSize(0))
+	}
+	// formulaType = 1, proposed update Ceil(2N/3)
+	if valSet.QuorumSize(1) != 2 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 1, 3, 2, valSet.QuorumSize(1))
+	}
+	// formulaType = 2, proposed update N-f() 
+	if valSet.QuorumSize(2) != 3 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 2, 3, 3, valSet.QuorumSize(2))
+	}
+
+	// N==4
+	b4 := common.Hex2Bytes(testAddress4)
+	addr4 := common.BytesToAddress(b4)
+	valSet.AddValidator(addr4)
+	if valSet.Size() != 4 {
+		t.Errorf("valSet.Size() expected: %v, got: %v", 4, valSet.Size())
+	}
+	if valSet.F() != 1 {
+		t.Errorf("valSet.F() expected: %v, got: %v", 1, valSet.F())
+	}
+	// formulaType = 0, default 2f()+1 
+	if valSet.QuorumSize(0) != 3 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 0, 4, 3, valSet.QuorumSize(0))
+	}
+	// formulaType = 1, proposed update Ceil(2N/3)
+	if valSet.QuorumSize(1) != 3 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 1, 4, 3, valSet.QuorumSize(1))
+	}
+	// formulaType = 2, proposed update N-f() 
+	if valSet.QuorumSize(2) != 3 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 2, 4, 3, valSet.QuorumSize(2))
 	}
 }
