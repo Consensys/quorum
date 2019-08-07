@@ -381,6 +381,11 @@ contract PermissionsImplementation {
     function updateAccountStatus(string calldata _orgId, address _account,
         uint256 _action, address _caller) external onlyInterface
     orgAdmin(_caller, _orgId) {
+        // ensure that the action passed to this call is proper and is not
+        // called with action 4 and 5 which are actions for blacklisted account
+        // recovery
+        require((_action == 1 || _action == 2 || _action == 3),
+            "invalid action. operation not allowed");
         accountManager.updateAccountStatus(_orgId, _account, _action);
     }
 
@@ -406,6 +411,11 @@ contract PermissionsImplementation {
     function updateNodeStatus(string calldata _orgId, string calldata _enodeId,
         uint256 _action, address _caller) external onlyInterface
     orgAdmin(_caller, _orgId) {
+        // ensure that the action passed to this call is proper and is not
+        // called with action 4 and 5 which are actions for blacklisted node
+        // recovery
+        require((_action == 1 || _action == 2 || _action == 3),
+            "invalid action. operation not allowed");
         nodeManager.updateNodeStatus(_enodeId, _orgId, _action);
     }
 

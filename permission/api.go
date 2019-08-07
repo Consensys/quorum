@@ -307,13 +307,13 @@ func (q *QuorumControlsAPI) AddNode(orgId string, url string, txa ethapi.SendTxA
 	return ExecSuccess.OpStatus()
 }
 
-func (q *QuorumControlsAPI) UpdateNodeStatus(orgId string, url string, status uint8, txa ethapi.SendTxArgs) (string, error) {
+func (q *QuorumControlsAPI) UpdateNodeStatus(orgId string, url string, action uint8, txa ethapi.SendTxArgs) (string, error) {
 	pinterf, execStatus := q.initOp(txa)
 	if execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
-	args := txArgs{orgId: orgId, url: url, action: status, txa: txa}
-	if execStatus := q.valUpdateNodeStatus(args, pinterf); execStatus != ExecSuccess {
+	args := txArgs{orgId: orgId, url: url, action: action, txa: txa}
+	if execStatus := q.valUpdateNodeStatus(args, UpdateNodeStatus, pinterf); execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
 	// check node status for operation
@@ -473,7 +473,7 @@ func (q *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Addres
 	}
 	args := txArgs{orgId: orgId, acctId: acct, action: status, txa: txa}
 
-	if execStatus := q.valUpdateAccountStatus(args, pinterf); execStatus != ExecSuccess {
+	if execStatus := q.valUpdateAccountStatus(args, UpdateAccountStatus, pinterf); execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
 	tx, err := pinterf.UpdateAccountStatus(args.orgId, args.acctId, big.NewInt(int64(args.action)))
@@ -631,7 +631,7 @@ func (q *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) (ExecStatus, 
 	return ExecSuccess, nil
 }
 
-func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdateAction) (ExecStatus, error) {
+func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdateAction, permAction PermAction) (ExecStatus, error) {
 	// validates if the enode is linked the passed organization
 	// validate node id and
 	if len(url) == 0 {
@@ -652,13 +652,15 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 		}
 
 		// validate the op and node status and check if the op can be performed
-		if op != SuspendNode && op != ActivateSuspendedNode && op != BlacklistNode &&
-			op != RecoverBlacklistedNode && op != ApproveBlacklistedNodeRecovery {
+		if (permAction == UpdateNodeStatus  && ( op != SuspendNode && op != ActivateSuspendedNode && op != BlacklistNode )) ||
+			(permAction == InitiateNodeRecovery && op != RecoverBlacklistedNode) ||
+			(permAction == ApproveNodeRecovery && op != ApproveBlacklistedNodeRecovery){
 			return ErrOpNotAllowed, errors.New("invalid node status change operation")
 		}
 
 		if (op == SuspendNode && node.Status != types.NodeApproved) ||
 			(op == ActivateSuspendedNode && node.Status != types.NodeDeactivated) ||
+			(op == BlacklistNode && node.Status == types.NodeRecoveryInitiated) ||
 			(op == RecoverBlacklistedNode && node.Status != types.NodeBlackListed) ||
 			(op == ApproveBlacklistedNodeRecovery && node.Status != types.NodeRecoveryInitiated) {
 			return ErrOpNotAllowed, errors.New("node status change cannot be performed")
@@ -680,7 +682,7 @@ func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
 	return r != nil && r.Active
 }
 
-func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.Address, op AccountUpdateAction) (ExecStatus, error) {
+func (q *QuorumControlsAPI) valAccountStatusChange(orgId string,  account common.Address, permAction PermAction, op AccountUpdateAction) (ExecStatus, error) {
 	// validates if the enode is linked the passed organization
 	ac := types.AcctInfoMap.GetAccount(account)
 
@@ -695,19 +697,20 @@ func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 	if ac.OrgId != orgId {
 		return ErrOrgNotOwner, errors.New("account does not belong to the organization passed")
 	}
+	if (permAction == UpdateAccountStatus && (op != SuspendAccount && op != ActivateSuspendedAccount && op != BlacklistAccount)) ||
+		(permAction == InitiateAccountRecovery && op != RecoverBlacklistedAccount ) ||
+		(permAction == ApproveAccountRecovery && op != ApproveBlacklistedAccountRecovery) {
+		return ErrOpNotAllowed, errors.New("invalid account status change operation")
+	}
 
 	if ac.Status == types.AcctBlacklisted && op != RecoverBlacklistedAccount {
 		return ErrBlacklistedAccount, errors.New("blacklisted account. operation not allowed")
 	}
 
-	// validate the op and node status and check if the op can be performed
-	if op != SuspendAccount && op != ActivateSuspendedAccount && op != BlacklistAccount &&
-		op != RecoverBlacklistedAccount && op != ApproveBlacklistedAccountRecovery {
-		return ErrOpNotAllowed, errors.New("invalid account status change operation")
-	}
 
 	if (op == SuspendAccount && ac.Status != types.AcctActive) ||
 		(op == ActivateSuspendedAccount && ac.Status != types.AcctSuspended) ||
+		(op == BlacklistAccount && ac.Status == types.AcctRecoveryInitiated) ||
 		(op == RecoverBlacklistedAccount && ac.Status != types.AcctBlacklisted) ||
 		(op == ApproveBlacklistedAccountRecovery && ac.Status != types.AcctRecoveryInitiated) {
 		return ErrOpNotAllowed, errors.New("account status change cannot be performed")
@@ -908,7 +911,7 @@ func (q *QuorumControlsAPI) valAddNode(args txArgs, pinterf *pbind.PermInterface
 	return ExecSuccess
 }
 
-func (q *QuorumControlsAPI) valUpdateNodeStatus(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+func (q *QuorumControlsAPI) valUpdateNodeStatus(args txArgs, permAction PermAction, pinterf *pbind.PermInterfaceSession) ExecStatus {
 	// check if org admin
 	// check if caller is network admin
 	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
@@ -916,7 +919,7 @@ func (q *QuorumControlsAPI) valUpdateNodeStatus(args txArgs, pinterf *pbind.Perm
 	}
 
 	// validation status change is with in allowed set
-	if execStatus, er := q.valNodeStatusChange(args.orgId, args.url, NodeUpdateAction(args.action)); er != nil {
+	if execStatus, er := q.valNodeStatusChange(args.orgId, args.url, NodeUpdateAction(args.action), permAction); er != nil {
 		return execStatus
 	}
 	return ExecSuccess
@@ -1032,13 +1035,13 @@ func (q *QuorumControlsAPI) valAssignRole(args txArgs, pinterf *pbind.PermInterf
 	return ExecSuccess
 }
 
-func (q *QuorumControlsAPI) valUpdateAccountStatus(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
+func (q *QuorumControlsAPI) valUpdateAccountStatus(args txArgs, permAction PermAction, pinterf *pbind.PermInterfaceSession) ExecStatus {
 	// check if the caller is org admin
 	if execStatus, er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
 		return execStatus
 	}
 	// validation status change is with in allowed set
-	if execStatus, er := q.valAccountStatusChange(args.orgId, args.acctId, AccountUpdateAction(args.action)); er != nil {
+	if execStatus, er := q.valAccountStatusChange(args.orgId, args.acctId, permAction, AccountUpdateAction(args.action)); er != nil {
 		return execStatus
 	}
 	return ExecSuccess
@@ -1055,7 +1058,7 @@ func (q *QuorumControlsAPI) valRecoverNode(args txArgs, pinterf *pbind.PermInter
 	}
 
 	if action == InitiateNodeRecovery {
-		if execStatus, _ := q.valNodeStatusChange(args.orgId, args.url, 4); execStatus != ExecSuccess {
+		if execStatus, _ := q.valNodeStatusChange(args.orgId, args.url, 4, InitiateAccountRecovery); execStatus != ExecSuccess {
 			return execStatus
 		}
 		// check no pending approval items
@@ -1064,7 +1067,7 @@ func (q *QuorumControlsAPI) valRecoverNode(args txArgs, pinterf *pbind.PermInter
 		}
 	} else {
 		// validate inputs - org id is valid, node is valid pending recovery state
-		if execStatus, _ := q.valNodeStatusChange(args.orgId, args.url, 5); execStatus != ExecSuccess {
+		if execStatus, _ := q.valNodeStatusChange(args.orgId, args.url, 5, ApproveNodeRecovery); execStatus != ExecSuccess {
 			return execStatus
 		}
 
@@ -1092,7 +1095,7 @@ func (q *QuorumControlsAPI) valRecoverAccount(args txArgs, pinterf *pbind.PermIn
 		opAction = ApproveBlacklistedAccountRecovery
 	}
 
-	if execStatus, err := q.valAccountStatusChange(args.orgId, args.acctId, opAction); err != nil {
+	if execStatus, err := q.valAccountStatusChange(args.orgId, args.acctId, action, opAction ); err != nil {
 		return execStatus
 	}
 
