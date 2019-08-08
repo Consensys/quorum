@@ -232,9 +232,9 @@ func testQuorumSize(t *testing.T) {
 	if valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3) != 2 {
 		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_CEIL_2N_3, 2, 2, valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3))
 	}
-	// formulaType = IBFT_FORMULA_N_MINUS_F, proposed update N-f() 
-	if valSet.QuorumSize(IBFT_FORMULA_N_MINUS_F) != 2 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_N_MINUS_F, 2, 2, valSet.QuorumSize(IBFT_FORMULA_N_MINUS_F))
+	// formulaType = IBFT_FORMULA_FLOOR_2N_3_PLUS_1, proposed update floor(2N/3)+1
+	if valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1) != 2 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_FLOOR_2N_3_PLUS_1, 2, 2, valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1))
 	}
 	// N==3
 	b3 := common.Hex2Bytes(testAddress3)
@@ -254,9 +254,9 @@ func testQuorumSize(t *testing.T) {
 	if valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3) != 2 {
 		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_CEIL_2N_3, 3, 2, valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3))
 	}
-	// formulaType = IBFT_FORMULA_N_MINUS_F, proposed update N-f() 
-	if valSet.QuorumSize(IBFT_FORMULA_N_MINUS_F) != 3 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_N_MINUS_F, 3, 3, valSet.QuorumSize(IBFT_FORMULA_N_MINUS_F))
+	// formulaType = IBFT_FORMULA_FLOOR_2N_3_PLUS_1, proposed update floor(2N/3)+1 
+	if valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1) != 3 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_FLOOR_2N_3_PLUS_1, 3, 3, valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1))
 	}
 
 	// N==4
@@ -277,8 +277,8 @@ func testQuorumSize(t *testing.T) {
 	if valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3) != 3 {
 		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_CEIL_2N_3, 4, 3, valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3))
 	}
-	// formulaType = IBFT_FORMULA_N_MINUS_F, proposed update N-f() 
-	if valSet.QuorumSize(IBFT_FORMULA_N_MINUS_F) != 3 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_N_MINUS_F, 4, 3, valSet.QuorumSize(IBFT_FORMULA_N_MINUS_F))
+	// formulaType = IBFT_FORMULA_FLOOR_2N_3_PLUS_1, proposed update floor(2N/3)+1 
+	if valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1) != 3 {
+		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_FLOOR_2N_3_PLUS_1, 4, 3, valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1))
 	}
 }
