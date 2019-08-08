@@ -28,7 +28,7 @@ import (
 
 const (
 	IBFT_FORMULA_CEIL_2N_3 uint8 = iota+1
-	IBFT_FORMULA_N_MINUS_F
+	IBFT_FORMULA_FLOOR_2N_3_PLUS_1
 )
 
 type defaultValidator struct {
@@ -208,8 +208,8 @@ func (valSet *defaultSet) Policy() istanbul.ProposerPolicy { return valSet.polic
 func (valSet *defaultSet) QuorumSize(formulaType uint8) int {
 	if formulaType == IBFT_FORMULA_CEIL_2N_3 {
 		return int(math.Ceil(float64(2*valSet.Size())/3))
-	} else if formulaType == IBFT_FORMULA_N_MINUS_F {
-		return int(valSet.Size()-valSet.F())
+	} else if formulaType == IBFT_FORMULA_FLOOR_2N_3_PLUS_1 {
+		return (2*valSet.Size()/3)+1
 	} else {
 		return int(2*valSet.F()+1)
 	}

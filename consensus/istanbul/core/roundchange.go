@@ -99,7 +99,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 			c.sendRoundChange(roundView.Round)
 		}
 		return nil
-	} else if num == c.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3) && (c.waitingForRoundChange || cv.Round.Cmp(roundView.Round) < 0) {
+	} else if num == c.valSet.QuorumSize(validator.IBFT_FORMULA_FLOOR_2N_3_PLUS_1) && (c.waitingForRoundChange || cv.Round.Cmp(roundView.Round) < 0) {
 		// We've received 2f+1 ROUND CHANGE messages, start a new round immediately.
 		c.startNewRound(roundView.Round)
 		return nil
