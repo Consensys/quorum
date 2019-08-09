@@ -28,6 +28,7 @@ The following endpoints are advertised on this interface:
 * `/push`
 * `/resend`
 * `/partyinfo`
+* `/validate`
 
 ### Third Party - Public API 
 
