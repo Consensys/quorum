@@ -118,4 +118,8 @@ The following endpoints are advertised on this API:
 
 - Delete hashed encrypted payload stored in Tessera nodes.
 
+**`validate`** - _Validates a node possesses a key_ 
+
+- Will request a node to decrypt a transaction in order to prove that it has access to the private part of its advertised public key.
+
 For more interactions with the API see the [Swagger documentation](https://jpmorganchase.github.io/tessera-swagger/index.html).
