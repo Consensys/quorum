@@ -4,10 +4,10 @@ import "testing"
 
 func getMinimumValidConfig() HashicorpWalletConfig {
 	return HashicorpWalletConfig{
-		Client: hashicorpClientConfig{
+		Client: HashicorpClientConfig{
 			Url: "someurl",
 		},
-		Secrets: []hashicorpSecretConfig{
+		Secrets: []HashicorpSecretConfig{
 			{
 				AddressSecret:         "addr",
 				PrivateKeySecret: "key",

@@ -12,10 +12,10 @@ func TestNewHashicorpBackend_CreatesWalletsWithUrlsFromConfig(t *testing.T) {
 	makeConfs := func (url string, urls... string) []HashicorpWalletConfig {
 		var confs []HashicorpWalletConfig
 
-		confs = append(confs, HashicorpWalletConfig{Client: hashicorpClientConfig{Url: url}})
+		confs = append(confs, HashicorpWalletConfig{Client: HashicorpClientConfig{Url: url}})
 
 		for _, u := range urls {
-			confs = append(confs, HashicorpWalletConfig{Client: hashicorpClientConfig{Url: u}})
+			confs = append(confs, HashicorpWalletConfig{Client: HashicorpClientConfig{Url: u}})
 		}
 
 		return confs
@@ -137,7 +137,7 @@ func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeed(t *testing.T
 }
 
 func TestVaultBackend_Subscribe_SubscriberReceivesEventsAddedToFeedByHashicorpWallet(t *testing.T) {
-	conf := HashicorpWalletConfig{Client: hashicorpClientConfig{Url: "http://url:1"}}
+	conf := HashicorpWalletConfig{Client: HashicorpClientConfig{Url: "http://url:1"}}
 	b := NewHashicorpBackend([]HashicorpWalletConfig{conf})
 
 	if len(b.wallets) != 1 {

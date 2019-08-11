@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/vault"
 	"io/ioutil"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -105,12 +106,13 @@ Print a short summary of all accounts`,
 				Name:   "new",
 				Usage:  "Create a new account",
 				Action: utils.MigrateFlags(accountCreate),
-				Flags: []cli.Flag{
+				Flags: append(
+					HashicorpVaultFlags,
 					utils.DataDirFlag,
 					utils.KeyStoreDirFlag,
 					utils.PasswordFileFlag,
 					utils.LightKDFFlag,
-				},
+				),
 				Description: `
     geth account new
 
@@ -299,6 +301,31 @@ func accountCreate(ctx *cli.Context) error {
 		}
 	}
 	utils.SetNodeConfig(ctx, &cfg.Node)
+
+	// start quorum
+	// doing a local (not global) bool lookup here as Vault CLI options are only defined on accountcmd
+	if ctx.Bool(utils.HashicorpFlag.Name) {
+		vaultConfig := cfg.Node.HashicorpVault
+
+		if err := vaultConfig.ValidateSkipVersion(); err != nil {
+			return err
+		}
+
+		address, secretUrls, err := vault.CreateAccount(vaultConfig)
+
+		for _, url := range secretUrls {
+			fmt.Printf("Written to Vault: %v\n", url)
+		}
+
+		if err != nil {
+			utils.Fatalf("Error creating account: %v", err)
+		}
+
+		fmt.Printf("Address: {%x}\n", address)
+		return nil
+	}
+	// end quorum
+
 	scryptN, scryptP, keydir, err := cfg.Node.AccountConfig()
 
 	if err != nil {

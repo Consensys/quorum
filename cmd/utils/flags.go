@@ -20,6 +20,7 @@ package utils
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/vault"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -127,6 +128,41 @@ var (
 		Name:  "nousb",
 		Usage: "Disables monitoring for and managing USB hardware wallets",
 	}
+	// start quorum
+	HashicorpFlag = cli.BoolFlag{
+		Name: "hashicorp",
+		Usage: "Store the newly created account in a Hashicorp Vault",
+	}
+	HashicorpUrlFlag = cli.StringFlag{
+		Name:  "hashicorp.url",
+		Usage: "Address of the Vault server expressed as a URL and port, for example: https://127.0.0.1:8200/",
+	}
+	HashicorpApproleFlag = cli.StringFlag{
+		Name:  "hashicorp.approle",
+		Usage: fmt.Sprintf("Vault path for an enabled Approle auth method (requires %v and %v env vars to be set)", vault.RoleIDEnv, vault.SecretIDEnv),
+		Value: "approle",
+	}
+	HashicorpClientCertFlag = cli.StringFlag{
+		Name:  "hashicorp.clientcert",
+		Usage: "Path to a PEM-encoded client certificate. Required when communicating with the Vault server using TLS",
+	}
+	HashicorpClientKeyFlag = cli.StringFlag{
+		Name:  "hashicorp.clientkey",
+		Usage: "Path to an unencrypted, PEM-encoded private key which corresponds to the matching client certificate",
+	}
+	HashicorpCaCertFlag = cli.StringFlag{
+		Name:  "hashicorp.cacert",
+		Usage: "Path to a PEM-encoded CA certificate file. Used to verify the Vault server's SSL certificate",
+	}
+	HashicorpEngineFlag = cli.StringFlag{
+		Name:  "hashicorp.engine",
+		Usage: "Vault path for an enabled KV v2 secret engine",
+	}
+	HashicorpNamePrefixFlag = cli.StringFlag{
+		Name:  "hashicorp.nameprefix",
+			Usage: "The new address and key will be created with name <prefix>Addr and <prefix>Key respectively.   Secrets with the same name in the Vault will be versioned and overwritten.",
+	}
+	// end quorum
 	NetworkIdFlag = cli.Uint64Flag{
 		Name:  "networkid",
 		Usage: "Network identifier (integer, 1=Frontier, 2=Morden (disused), 3=Ropsten, 4=Rinkeby, 5=Ottoman)",
@@ -1043,6 +1079,33 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	}
 	if ctx.GlobalIsSet(NoUSBFlag.Name) {
 		cfg.NoUSB = ctx.GlobalBool(NoUSBFlag.Name)
+	}
+	//start quorum
+	if ctx.Bool(HashicorpFlag.Name) {
+		setHashicorpVault(ctx, cfg)
+	}
+	//end quorum
+}
+
+// setHashicorpVault uses CLI options to set the config for a single Vault with a single key (Quorum)
+func setHashicorpVault(ctx *cli.Context, cfg *node.Config) {
+	c := vault.HashicorpClientConfig{
+		Url: ctx.String(HashicorpUrlFlag.Name),
+		Approle: ctx.String(HashicorpApproleFlag.Name),
+		ClientCert: ctx.String(HashicorpClientCertFlag.Name),
+		ClientKey: ctx.String(HashicorpClientKeyFlag.Name),
+		CaCert: ctx.String(HashicorpCaCertFlag.Name),
+	}
+
+	s := vault.HashicorpSecretConfig{
+		AddressSecret: fmt.Sprintf("%vAddr", ctx.String(HashicorpNamePrefixFlag.Name)),
+		PrivateKeySecret: fmt.Sprintf("%vKey", ctx.String(HashicorpNamePrefixFlag.Name)),
+		SecretEngine: ctx.String(HashicorpEngineFlag.Name),
+	}
+
+	cfg.HashicorpVault = vault.HashicorpWalletConfig{
+		Client: c,
+		Secrets: []vault.HashicorpSecretConfig{s},
 	}
 }
 

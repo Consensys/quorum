@@ -7,11 +7,11 @@ import (
 )
 
 type HashicorpWalletConfig struct {
-	Client  hashicorpClientConfig
-	Secrets []hashicorpSecretConfig
+	Client  HashicorpClientConfig
+	Secrets []HashicorpSecretConfig
 }
 
-type hashicorpClientConfig struct {
+type HashicorpClientConfig struct {
 	Url              string `toml:",omitempty"`
 	Approle          string `toml:",omitempty"`
 	CaCert           string `toml:",omitempty"`
@@ -21,7 +21,7 @@ type hashicorpClientConfig struct {
 	VaultPollingIntervalMillis int `toml:",omitempty"`
 }
 
-type hashicorpSecretConfig struct {
+type HashicorpSecretConfig struct {
 	AddressSecret           string `toml:",omitempty"`
 	PrivateKeySecret        string `toml:",omitempty"`
 	AddressSecretVersion    int    `toml:",omitempty"`

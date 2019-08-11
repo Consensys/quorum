@@ -282,6 +282,24 @@ var AppHelpFlagGroups = []flagGroup{
 	},
 }
 
+var HashicorpVaultFlags = []cli.Flag {
+	utils.HashicorpFlag,
+	utils.HashicorpUrlFlag,
+	utils.HashicorpApproleFlag,
+	utils.HashicorpClientCertFlag,
+	utils.HashicorpClientKeyFlag,
+	utils.HashicorpCaCertFlag,
+	utils.HashicorpEngineFlag,
+	utils.HashicorpNamePrefixFlag,
+}
+
+var VaultHelpFlagGroups = []flagGroup {
+	{
+		Name: "HASHICORP VAULT",
+		Flags: HashicorpVaultFlags,
+	},
+}
+
 // byCategory sorts an array of flagGroup by Name in the order
 // defined in AppHelpFlagGroups.
 type byCategory []flagGroup
@@ -305,7 +323,7 @@ func (a byCategory) Less(i, j int) bool {
 }
 
 func flagCategory(flag cli.Flag) string {
-	for _, category := range AppHelpFlagGroups {
+	for _, category := range append(AppHelpFlagGroups, VaultHelpFlagGroups...) {
 		for _, flg := range category.Flags {
 			if flg.GetName() == flag.GetName() {
 				return category.Name

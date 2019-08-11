@@ -445,7 +445,7 @@ func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
 		}
 	}
 
-	// TODO to allow connection to more than one vault make conf.HashicorpVault a slice
+	// TODO allow connection to more than one vault
 	if !reflect.DeepEqual(conf.HashicorpVault, vault.HashicorpWalletConfig{}) {
 		if err := conf.HashicorpVault.Validate(); err != nil {
 			return nil, "", err

@@ -2,6 +2,9 @@ package vault
 
 import (
 	"crypto/ecdsa"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum"
@@ -17,6 +20,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -36,6 +40,7 @@ type vaultService interface {
 	getKey(acct accounts.Account) (key *ecdsa.PrivateKey, zeroFn func(), err error)
 	timedUnlock(acct accounts.Account, timeout time.Duration) error
 	lock(acct accounts.Account) error
+	writeSecret(name, value, secretEngine string) (path string, version int64, err error)
 }
 
 func newHashicorpWallet(config HashicorpWalletConfig, updateFeed *event.Feed) (VaultWallet, error) {
@@ -171,10 +176,39 @@ func (w VaultWallet) Lock(account accounts.Account) error {
 	return w.vault.lock(account)
 }
 
+// Store writes the provided private key to the vault.  The hex string values of the key and address are stored in the locations specified by config.
+// TODO write tests
+func (w *VaultWallet) Store(key *ecdsa.PrivateKey, config HashicorpSecretConfig) (common.Address, []string, error) {
+	address := crypto.PubkeyToAddress(key.PublicKey)
+	// TODO check if this trim behaviour is in filesystem account creation
+	addrHex := strings.TrimPrefix(address.Hex(), "0x")
+
+	addrPath, addrVersion, err := w.vault.writeSecret(config.AddressSecret, addrHex, config.SecretEngine)
+
+	if err != nil {
+		return common.Address{}, nil, fmt.Errorf("unable to store address: %v", err.Error())
+	}
+
+	addrSecretUrl := fmt.Sprintf("%v/v1/%v?version=%v", w.url, addrPath, addrVersion)
+
+	keyBytes := crypto.FromECDSA(key)
+	keyHex := hex.EncodeToString(keyBytes)
+
+	keyPath, keyVersion, err := w.vault.writeSecret(config.PrivateKeySecret, keyHex, config.SecretEngine)
+
+	if err != nil {
+		return common.Address{}, nil, fmt.Errorf("unable to store key: %v", err.Error())
+	}
+
+	keySecretUrl := fmt.Sprintf("%v/v1/%v?version=%v", w.url, keyPath, keyVersion)
+
+	return address, []string{addrSecretUrl, keySecretUrl}, nil
+}
+
 type hashicorpService struct {
 	client      *api.Client
-	config      hashicorpClientConfig
-	secrets     []hashicorpSecretConfig
+	config      HashicorpClientConfig
+	secrets     []HashicorpSecretConfig
 	mutex       sync.RWMutex
 	accts       []accounts.Account
 	keyHandlers map[common.Address]map[accounts.URL]*hashicorpKeyHandler
@@ -192,9 +226,9 @@ func newHashicorpService(config HashicorpWalletConfig) *hashicorpService {
 }
 
 type hashicorpKeyHandler struct {
-	secret hashicorpSecretConfig
-	mutex       sync.RWMutex
-	key *ecdsa.PrivateKey
+	secret HashicorpSecretConfig
+	mutex  sync.RWMutex
+	key    *ecdsa.PrivateKey
 	cancel chan struct{}
 }
 
@@ -242,13 +276,13 @@ func (h *hashicorpService) status() (string, error) {
 }
 
 const (
-	roleIDEnv = "VAULT_ROLE_ID"
-	secretIDEnv = "VAULT_SECRET_ID"
+	RoleIDEnv   = "VAULT_ROLE_ID"
+	SecretIDEnv = "VAULT_SECRET_ID"
 )
 
 var (
-	noHashicorpEnvSetErr = fmt.Errorf("environment variables must be set when creating the Hashicorp client.  Set %v and %v if the Vault is configured to use Approle authentication.  Else set %v", roleIDEnv, secretIDEnv, api.EnvVaultToken)
-	invalidApproleAuthErr = fmt.Errorf("both %v and %v must be set if using Approle authentication", roleIDEnv, secretIDEnv)
+	noHashicorpEnvSetErr = fmt.Errorf("environment variables must be set when creating the Hashicorp client.  Set %v and %v if the Vault is configured to use Approle authentication.  Else set %v", RoleIDEnv, SecretIDEnv, api.EnvVaultToken)
+	invalidApproleAuthErr = fmt.Errorf("both %v and %v must be set if using Approle authentication", RoleIDEnv, SecretIDEnv)
 )
 
 func (h *hashicorpService) open() error {
@@ -275,8 +309,8 @@ func (h *hashicorpService) open() error {
 		return fmt.Errorf("error creating Hashicorp client: %v", err)
 	}
 
-	roleID := os.Getenv(roleIDEnv)
-	secretID := os.Getenv(secretIDEnv)
+	roleID := os.Getenv(RoleIDEnv)
+	secretID := os.Getenv(SecretIDEnv)
 
 	if roleID == "" && secretID == "" && os.Getenv(api.EnvVaultToken) == "" {
 		return noHashicorpEnvSetErr
@@ -383,7 +417,7 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 	}
 }
 
-func (h *hashicorpService) getAddressFromVault(s hashicorpSecretConfig) (common.Address, error) {
+func (h *hashicorpService) getAddressFromVault(s HashicorpSecretConfig) (common.Address, error) {
 	hexAddr, err := h.getSecretFromVault(s.AddressSecret, s.AddressSecretVersion, s.SecretEngine)
 
 	if err != nil {
@@ -438,7 +472,7 @@ func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
 	}
 }
 
-func (h *hashicorpService) getKeyFromVault(s hashicorpSecretConfig) (*ecdsa.PrivateKey, error) {
+func (h *hashicorpService) getKeyFromVault(s HashicorpSecretConfig) (*ecdsa.PrivateKey, error) {
 	hexKey, err := h.getSecretFromVault(s.PrivateKeySecret, s.PrivateKeySecretVersion, s.SecretEngine)
 
 	if err != nil {
@@ -671,6 +705,38 @@ func (h *hashicorpService) lock(acct accounts.Account) error {
 	return nil
 }
 
+// Even if error is returned, data might have been written to Vault.  path and version may contain useful information even in the case of an error. version = -1 indicates no version was retrieved from the Vault (Vault version numbers are >= 0)
+func (h *hashicorpService) writeSecret(name, value, secretEngine string) (string, int64, error) {
+	path := fmt.Sprintf("%s/data/%s", secretEngine, name)
+
+	data := make(map[string]interface{})
+	data["data"] = map[string]interface{}{
+		"secret": value,
+	}
+
+	resp, err := h.client.Logical().Write(path, data)
+
+	if err != nil {
+		return "", -1, fmt.Errorf("unable to write secret to vault: %v", err)
+	}
+
+	v, ok := resp.Data["version"]
+
+	if !ok {
+		v = json.Number("-1")
+	}
+
+	vJson, ok := v.(json.Number)
+
+	vInt, err := vJson.Int64()
+
+	if err != nil {
+		return path, -1, fmt.Errorf("unable to convert version in Vault response to int64: version number is %v", vJson.String())
+	}
+
+	return path, vInt, nil
+}
+
 func (h *hashicorpKeyHandler) timedLock(duration time.Duration) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -689,4 +755,61 @@ func (h *hashicorpKeyHandler) timedLock(duration time.Duration) {
 	case <-h.cancel:
 		//do nothing
 	}
+}
+
+// zeroKey zeroes a private key in memory
+// TODO use where appropriate
+func zeroKey(k *ecdsa.PrivateKey) {
+	b := k.D.Bits()
+	for i := range b {
+		b[i] = 0
+	}
+}
+
+// CreateAccount generates a secp256k1 key and corresponding Geth address and stored both in the Vault defined in the provided config.
+// The key and address are stored in hex string format.
+//
+// The generated key and address will be saved to only the first HashicorpSecretConfig provided.  Any other secret configs are ignored.
+func CreateAccount(config HashicorpWalletConfig) (common.Address, []string, error) {
+	w, err := newHashicorpWallet(config, &event.Feed{})
+
+	if err != nil {
+		return common.Address{}, nil, err
+	}
+
+	err = w.Open("")
+
+	if err != nil {
+		return common.Address{}, nil, err
+	}
+
+	if status, err := w.Status(); err != nil {
+		return common.Address{}, nil, err
+	} else if status != open {
+		return common.Address{}, nil, fmt.Errorf("error creating Vault client, %v", status)
+	}
+
+	key, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	if err != nil {
+		return common.Address{}, nil, err
+	}
+	defer zeroKey(key)
+
+	// This gets tricky as an error while storing the key would occur after the addr has already been stored.  The user should be made aware of this as data has been stored in the vault, so even if an error is returned address and secretInfo may still be populated.  We also need to close the wallet so  do not return straight away in the case of an error.
+	var errMsgs []string
+
+	address, secretInfo, err := w.Store(key, config.Secrets[0])
+	if err != nil {
+		errMsgs = append(errMsgs, err.Error())
+	}
+
+	if err := w.Close(); err != nil {
+		errMsgs = append(errMsgs, fmt.Sprintf("unable to close Hashicorp Vault wallet: %v", err))
+	}
+
+	if len(errMsgs) > 0 {
+		return address, secretInfo, fmt.Errorf(strings.Join(errMsgs, "\n"))
+	}
+
+	return address, secretInfo, nil
 }
