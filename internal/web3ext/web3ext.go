@@ -613,6 +613,18 @@ web3._extend({
 			params: 2,
 			inputFormatter: [web3._extend.formatters.inputTransactionFormatter, null]
 		}),
+		new web3._extend.Method({
+			name: 'unlockVaultAccount',
+			call: 'personal_unlockVaultAccount',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null]
+		}),
+		new web3._extend.Method({
+			name: 'lockVaultAccount',
+			call: 'personal_lockVaultAccount',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
+		}),
 	],
 	properties: [
 		new web3._extend.Property({
