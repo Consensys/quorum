@@ -187,9 +187,10 @@ Tessera provides an API `/partyinfo` on Tessera P2P server to discover all the p
 Default configuration for this is `false` as this is BREAKABLE change to lower versions to Tessera 0.10.0.To enable this, simple set below parameter to true in the configuration:
 
 ```
- "enableRemoteKeyValidation": true
+ "features": {
+    "enableRemoteKeyValidation": true
+  }
 ```
-
 
 ---
 
