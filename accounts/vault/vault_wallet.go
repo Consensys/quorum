@@ -255,24 +255,42 @@ func (e hashicorpHealthcheckErr) Error() string {
 
 func (h *hashicorpService) status() (string, error) {
 	if h.client == nil {
-		return closed, nil
+		return h.withAcctStatuses(closed), nil
 	}
 
 	health, err := h.client.Sys().Health()
 
 	if err != nil {
-		return hashicorpHealthcheckFailed, hashicorpHealthcheckErr{err: err}
+		return h.withAcctStatuses(hashicorpHealthcheckFailed), hashicorpHealthcheckErr{err: err}
 	}
 
 	if !health.Initialized {
-		return hashicorpUninitialized, hashicorpUninitializedErr
+		return h.withAcctStatuses(hashicorpUninitialized), hashicorpUninitializedErr
 	}
 
 	if health.Sealed {
-		return hashicorpSealed, hashicorpSealedErr
+		return h.withAcctStatuses(hashicorpSealed), hashicorpSealedErr
 	}
 
-	return open, nil
+	return h.withAcctStatuses(open), nil
+}
+
+func (h *hashicorpService) withAcctStatuses(walletStatus string) string {
+	status := []string{walletStatus}
+
+	for addr, h := range h.keyHandlers {
+		for _, hh := range h {
+			var acctStatus string
+			if hh.key == nil {
+				acctStatus = "locked"
+			} else {
+				acctStatus = "unlocked"
+			}
+			status = append(status, fmt.Sprintf("%v: %v", addr.Hex(), acctStatus))
+		}
+	}
+
+	return strings.Join(status, " | ")
 }
 
 const (
