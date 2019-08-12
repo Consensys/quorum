@@ -1945,7 +1945,6 @@ func TestVaultWallet_TimedUnlock_Hashicorp_StoresKeyInMemoryThenZeroesAfterSpeci
 	}
 }
 
-// TODO manually test these override cases to make sure that the decision to use a sleep in between the unlocks is representative of normal operation.  Without the sleep the cancel channel is not created when the second unlock call is executing but the key has already been retrieved so it thinks the key has been retrieved indefinitely and returns without doing anything
 func TestVaultWallet_TimedUnlock_Hashicorp_IfAlreadyUnlockedThenOverridesExistingDuration_DurationShortened(t *testing.T) {
 	makeMockHashicorpResponse := func(t *testing.T, hexKey string) []byte {
 		var vaultResponse api.Secret

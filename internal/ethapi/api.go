@@ -354,17 +354,17 @@ func (s *PrivateAccountAPI) LockAccount(addr common.Address) bool {
 }
 
 // fetchVaultBackends retrieves the backends for all supported vaults from the account manager.
-func fetchVaultWallet(am *accounts.Manager, acct accounts.Account) (*vault.VaultWallet, error) {
+func fetchVaultWallet(am *accounts.Manager, acct accounts.Account) (vault.VaultWallet, error) {
 
 	for _, b := range am.Backends(vault.BackendType) {
 		for _, w := range b.Wallets() {
 			if w.Contains(acct) {
-				return w.(*vault.VaultWallet), nil
+				return w.(vault.VaultWallet), nil
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("no vault wallet found that contains account %v", acct)
+	return vault.VaultWallet{}, fmt.Errorf("no vault wallet found that contains account %v", acct)
 }
 
 // UnlockVaultAccount will unlock the account associated with the given address for duration seconds  if the account is stored in a vault. If duration is nil it will use a default of 300 seconds.

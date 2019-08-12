@@ -514,7 +514,7 @@ func (h *hashicorpService) getSecretFromVault(name string, version int, engine s
 
 	resp, err := h.client.Logical().ReadWithData(path, versionData)
 
-	if err != nil {
+	if resp == nil || err != nil {
 		return "", fmt.Errorf("unable to get secret from Hashicorp Vault: %v", err)
 	}
 

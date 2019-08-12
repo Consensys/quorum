@@ -67,7 +67,7 @@ func (w HashicorpWalletConfig) validate(skipVersion bool) error {
 		}
 
 		if s.PrivateKeySecretVersion <= 0 && !skipVersion {
-			errs = append(errs, fmt.Sprintf("Invalid vault secret config, vault=%v, secret=%v: AddressSecretVersion must be specified for vault secret and must be greater than zero", w.Client.Url, s.PrivateKeySecret))
+			errs = append(errs, fmt.Sprintf("Invalid vault secret config, vault=%v, secret=%v: PrivateKeySecretVersion must be specified for vault secret and must be greater than zero", w.Client.Url, s.PrivateKeySecret))
 		}
 
 		if s.SecretEngine == "" {
