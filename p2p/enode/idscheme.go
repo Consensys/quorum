@@ -86,8 +86,7 @@ func (V4ID) NodeAddr(r *enr.Record) []byte {
 	buf := make([]byte, 64)
 	math.ReadBits(pubkey.X, buf[:32])
 	math.ReadBits(pubkey.Y, buf[32:])
-	b := crypto.Keccak256(buf)
-	return b
+	return crypto.Keccak256(buf)
 }
 
 // Secp256k1 is the "secp256k1" key, which holds a public key.

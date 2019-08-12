@@ -19,19 +19,17 @@ package ethapi
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 	"strings"
+	"sync"
 	"time"
 
-	"encoding/hex"
-	"encoding/json"
-	"net/http"
-
 	"github.com/davecgh/go-spew/spew"
-	"sync"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
@@ -56,8 +54,7 @@ import (
 )
 
 const (
-	defaultGasPrice = 50 * params.Shannon
-
+	defaultGasPrice = params.GWei
 	//Hex-encoded 64 byte array of "17" values
 	maxPrivateIntrinsicDataHex = "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
 )
