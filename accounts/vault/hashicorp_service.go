@@ -20,13 +20,12 @@ import (
 )
 
 type hashicorpService struct {
-	client      *api.Client
 	config      HashicorpClientConfig
 	secrets     []HashicorpSecretConfig
 	mutex       sync.RWMutex
+	client      *api.Client
 	accts       []accounts.Account
 	keyHandlers map[common.Address]map[accounts.URL]*hashicorpKeyHandler
-
 }
 
 func newHashicorpService(config HashicorpWalletConfig) *hashicorpService {
@@ -68,11 +67,16 @@ func (e hashicorpHealthcheckErr) Error() string {
 }
 
 func (h *hashicorpService) status() (string, error) {
-	if h.client == nil {
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
+
+	client := h.client
+
+	if client == nil {
 		return h.withAcctStatuses(closed), nil
 	}
 
-	health, err := h.client.Sys().Health()
+	health, err := client.Sys().Health()
 
 	if err != nil {
 		return h.withAcctStatuses(hashicorpHealthcheckFailed), hashicorpHealthcheckErr{err: err}
@@ -118,7 +122,7 @@ var (
 )
 
 func (h *hashicorpService) open() error {
-	if h.client != nil {
+	if h.getClient() != nil {
 		return accounts.ErrWalletAlreadyOpen
 	}
 
@@ -174,7 +178,7 @@ func (h *hashicorpService) open() error {
 	}
 
 	// api.Client uses the token at VAULT_TOKEN by default so nothing extra needs to be done when not using approle
-	h.client = c
+	h.setClient(c)
 
 	// 10s polling interval by default
 	pollingIntervalMillis := h.config.VaultPollingIntervalMillis
@@ -194,7 +198,7 @@ func (h *hashicorpService) open() error {
 
 func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 	for range ticker.C {
-		if len(h.accts) == len(h.secrets) {
+		if len(h.getAccts()) == len(h.secrets) {
 			ticker.Stop()
 			return
 		}
@@ -202,9 +206,11 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 		for _, s := range h.secrets {
 			path := fmt.Sprintf("%s/data/%s", s.SecretEngine, s.AddressSecret)
 
-			url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, s.AddressSecretVersion)
+			url := fmt.Sprintf("%v/v1/%v?version=%v", h.getClient().Address(), path, s.AddressSecretVersion)
 
+			h.mutex.RLock()
 			address, err := h.getAddressFromVault(s)
+			h.mutex.RUnlock()
 
 			if err != nil {
 				log.Warn("unable to get address from Hashicorp Vault", "url", url, "err", err)
@@ -237,12 +243,10 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 
 			if _, ok := keyHandlersByUrl[acct.URL]; ok {
 				log.Warn("Hashicorp Vault key handler already exists.  Not updated.", "url", url)
-				h.mutex.Unlock()
-				continue
+			} else {
+				keyHandlersByUrl[acct.URL] = &hashicorpKeyHandler{secret: s}
+				h.accts = append(h.accts, acct)
 			}
-
-			keyHandlersByUrl[acct.URL] = &hashicorpKeyHandler{secret: s}
-			h.accts = append(h.accts, acct)
 
 			h.mutex.Unlock()
 		}
@@ -286,11 +290,13 @@ func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
 
 		for addr, byUrl := range keyHandlers {
 			for u, kh := range byUrl {
+				h.mutex.RLock()
 				key, err := h.getKeyFromVault(kh.secret)
+				h.mutex.RUnlock()
 
 				if err != nil {
 					path := fmt.Sprintf("%s/data/%s", kh.secret.SecretEngine, kh.secret.PrivateKeySecret)
-					url := fmt.Sprintf("%v/v1/%v?version=%v", h.client.Address(), path, kh.secret.PrivateKeySecretVersion)
+					url := fmt.Sprintf("%v/v1/%v?version=%v", h.getClient().Address(), path, kh.secret.PrivateKeySecretVersion)
 
 					log.Warn("unable to get key from Hashicorp Vault", "url", url, "err", err)
 					continue
@@ -362,20 +368,26 @@ func usingApproleAuth(roleID, secretID string) bool {
 }
 
 func (h *hashicorpService) close() error {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
 	h.client = nil
 
 	return nil
 }
 
 func (h *hashicorpService) accounts() []accounts.Account {
-	cpy := make([]accounts.Account, len(h.accts))
-	copy(cpy, h.accts)
+	accts := h.getAccts()
+	cpy := make([]accounts.Account, len(accts))
+	copy(cpy, accts)
 
 	return cpy
 }
 
 func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, func(), error) {
+	h.mutex.RLock()
 	keyHandler, err := h.getKeyHandler(acct)
+	h.mutex.RUnlock()
 
 	if err != nil {
 		return nil, nil, err
@@ -434,7 +446,9 @@ func (h *hashicorpService) getKeyFromHandler(handler hashicorpKeyHandler) (*ecds
 		return key, func(){}, nil
 	}
 
+	h.mutex.RLock()
 	key, err := h.getKeyFromVault(handler.secret)
+	h.mutex.RUnlock()
 
 	if err != nil {
 		return nil, nil, err
@@ -453,6 +467,9 @@ func (h *hashicorpService) getKeyFromHandler(handler hashicorpKeyHandler) (*ecds
 }
 
 func (h *hashicorpService) timedUnlock(acct accounts.Account, duration time.Duration) error {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
 	keyHandler, err := h.getKeyHandler(acct)
 
 	if err != nil {
@@ -507,6 +524,9 @@ func (h *hashicorpService) updateKeyHandler(handler *hashicorpKeyHandler) (bool,
 }
 
 func (h *hashicorpService) lock(acct accounts.Account) error {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
 	keyHandler, err := h.getKeyHandler(acct)
 
 	if err != nil {
@@ -540,7 +560,7 @@ func (h *hashicorpService) writeSecret(name, value, secretEngine string) (string
 		"secret": value,
 	}
 
-	resp, err := h.client.Logical().Write(path, data)
+	resp, err := h.getClient().Logical().Write(path, data)
 
 	if err != nil {
 		return "", -1, fmt.Errorf("unable to write secret to vault: %v", err)
@@ -581,4 +601,27 @@ func (h *hashicorpKeyHandler) timedLock(duration time.Duration) {
 	case <-h.cancel:
 		//do nothing
 	}
+}
+
+// Each of these getters takes an RLock so care should be taken not to call these within an existing Lock otherwise this will cause a deadlock.
+// Should not be used if storing the returned client in a variable for later use as the fact it is a pointer means that you should be locking for the entirety of the usage of the client.
+func (h *hashicorpService) getClient() *api.Client {
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
+
+	return h.client
+}
+
+func (h *hashicorpService) getAccts() []accounts.Account {
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
+
+	return h.accts
+}
+
+func (h *hashicorpService) setClient(c *api.Client) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
+	h.client = c
 }

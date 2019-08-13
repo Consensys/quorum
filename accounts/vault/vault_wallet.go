@@ -169,10 +169,8 @@ func (w VaultWallet) Lock(account accounts.Account) error {
 }
 
 // Store writes the provided private key to the vault.  The hex string values of the key and address are stored in the locations specified by config.
-// TODO write tests
 func (w *VaultWallet) Store(key *ecdsa.PrivateKey, config HashicorpSecretConfig) (common.Address, []string, error) {
 	address := crypto.PubkeyToAddress(key.PublicKey)
-	// TODO check if this trim behaviour is in filesystem account creation
 	addrHex := strings.TrimPrefix(address.Hex(), "0x")
 
 	addrPath, addrVersion, err := w.vault.writeSecret(config.AddressSecret, addrHex, config.SecretEngine)
