@@ -487,8 +487,16 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 	ret, err := run(evm, contract, nil, false)
 
-	// check whether the max code size has been exceeded
-	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
+	var maxCodeSize int
+	if evm.ChainConfig().MaxCodeSize > 0 {
+		maxCodeSize = int(evm.ChainConfig().MaxCodeSize * 1024)
+	} else {
+		maxCodeSize = params.MaxCodeSize
+	}
+
+	// check whether the max code size has been exceeded, check maxcode size from chain config
+	// maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
+	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > maxCodeSize
 	// if the contract creation ran successfully and no errors were returned
 	// calculate the gas required to store the code. If the code could not
 	// be stored due to not enough gas set an error and let it be handled
@@ -580,6 +588,8 @@ func (env *EVM) Push(statedb StateDB) {
 	// Quorum : the read only depth to be set up only once for the entire
 	// op code execution. This will be set first time transition from
 	// private state to public state happens
+	// statedb will be the state of the contract being called.
+	// if a private contract is calling a public contract make it readonly.
 	if !env.quorumReadOnly && env.privateState != statedb {
 		env.quorumReadOnly = true
 		env.readOnlyDepth = env.currentStateDepth
