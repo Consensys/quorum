@@ -49,8 +49,26 @@ var intr = "0x4d3bfd7821e237ffe84209d8e638f9f309865b87" // address of the interf
 ```
 * At `geth` prompt load the above script after replacing the contract addresses appropriately and execute `upgr.init(intr, impl, {from: <guardian account>, gas: 4500000})`
 * Bring down the all `geth` nodes in the network and copy `permission-config.json` into the data directory of each node
-* In case migrating from an earlier version to current version, upgrade `geth`
-* Bring up all `geth` nodes in `--permissioned` mode for the new permissions model to take effect
+
+## Migrating from an earlier version
+The following steps needs to be followed when migrating from a earlier version for enabling permissions feature
+* Bring down the running network in the earlier version. 
+* The `maxCodeSize` attribute in `genesis.json` need to be set to 35. Update `genesis.json` to reflect the same
+```javascript
+  "config": {
+    "homesteadBlock": 0,
+    "byzantiumBlock": 0,
+    "chainId": 10,
+    "eip150Block": 0,
+    "eip155Block": 0,
+    "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "eip158Block": 0,
+    "maxCodeSize" : 35,
+    "isQuorum":
+```
+* Execute `geth --datadir <<data dir path>> init genesis.json`
+* Bring up the network with latest geth and deploy the contracts as explained earlier in the set up. The rest of the steps will be similar to bringing up a new network
 
 !!! Note
-    It should be noted that the new permission model will be in force only when `permission-config.json` is present in data directory. If this file is not there and the node is brought up with `--permissioned` flag, node level permissions as per the earlier model will be effective.
+* It should be noted that the new permission model will be in force only when `permission-config.json` is present in data directory. If this file is not there and the node is brought up with `--permissioned` flag, node level permissions as per the earlier model will be effective.
+* Please ensure that `maxCodeSize` in `genesis.json` is set to 35 
