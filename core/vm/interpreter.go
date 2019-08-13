@@ -207,10 +207,6 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		// Get the memory location of pc
 		op = contract.GetOp(pc)
 
-		if in.evm.quorumReadOnly && op.isMutating() {
-			return nil, fmt.Errorf("VM in read-only mode. Mutating opcode prohibited")
-		}
-
 		if in.cfg.Debug {
 			// Capture pre-execution values for tracing.
 			logged, pcCopy, gasCopy = false, pc, contract.Gas
@@ -221,6 +217,9 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		operation := in.cfg.JumpTable[op]
 		if !operation.valid {
 			return nil, fmt.Errorf("invalid opcode 0x%x", int(op))
+		}
+		if in.evm.quorumReadOnly && operation.writes {
+			return nil, fmt.Errorf("VM in read-only mode. Mutating opcode prohibited")
 		}
 		if err := operation.validateStack(stack); err != nil {
 			return nil, err
