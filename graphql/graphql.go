@@ -1031,7 +1031,7 @@ func (r *Resolver) SendRawTransaction(ctx context.Context, args struct{ Data hex
 	if err := rlp.DecodeBytes(args.Data, tx); err != nil {
 		return common.Hash{}, err
 	}
-	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx, tx.IsPrivate())
+	hash, err := ethapi.SubmitTransaction(ctx, r.backend, tx)
 	return hash, err
 }
 

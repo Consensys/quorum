@@ -12,19 +12,33 @@ repo_url: https://github.com/jpmorganchase/quorum
 
 nav:
     - Getting Started:
-        - Setup Overview & Quickstart: Getting Started/Setup Overview & Quickstart.md
-        - Getting Started From Scratch: Getting Started/Getting-Started-From-Scratch.md
+        - Overview: Getting Started/Getting Started Overview.md
+        - Installing: Getting Started/Installing.md
         - Quorum Examples:
-          - Overview: Getting Started/Quorum-Examples.md
-          - 7 Nodes Example: Getting Started/7Nodes.md
+            - Overview: Getting Started/Quorum-Examples.md
+            - 7nodes Set Up: Getting Started/7Nodes-Setup.md
+            - 7nodes Example: Getting Started/7Nodes.md
+        - Creating a Network From Scratch: Getting Started/Creating-A-Network-From-Scratch.md
         - Running Quorum: Getting Started/running.md
+        - Quorum API: Getting Started/api.md
     - Consensus:
         - Consensus: Consensus/Consensus.md
         - Raft: Consensus/raft.md
         - Istanbul: Consensus/istanbul-rpc-api.md
     - Transaction Processing: Transaction Processing/Transaction Processing.md
-    - Security:
-        - Security & Permissioning: Security/Security & Permissioning.md
+    - Security Framework:
+          - Overview: Security/Framework/Overview.md
+          - Quorum Network:
+            - Consortium: Security/Framework/Quorum Network Security/Consortium.md
+            - Quorum Node:
+                - Overview: Security/Framework/Quorum Network Security/Node.md
+                - Permissioning:
+                    - Network Permissioning: Security/Framework/Quorum Network Security/Nodes/Permissioning/Network Permissioning.md
+            - Transaction Manager: Security/Framework/Quorum Network Security/Transaction Manager.md
+            - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
+          - Decentralized App:
+            - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
+            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
     - Privacy:
         - Tessera:
             - What is Tessera: Privacy/Tessera/Tessera.md
@@ -52,6 +66,12 @@ nav:
             - How it works: Privacy/Constellation/How constellation works.md
             - Sample Configuration: Privacy/Constellation/Sample Configuration.md
             - Running Constellation: Privacy/Constellation/Installation & Running.md
+    - Cakeshop:
+        - Overview: Cakeshop/Overview.md
+        - Getting Started: Cakeshop/Getting started.md
+        - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
+    - Product Roadmap: roadmap.md         
+    - FAQ: FAQ.md
 
 theme:
   name: 'material'
@@ -61,6 +81,7 @@ theme:
       code: 'Roboto Mono'
   language: 'en'
   logo: 'images/logo.png'
+  favicon: 'images/logo-48x48.png'
 
 extra_css:
     - 'theme/assets/stylesheets/extra.css'

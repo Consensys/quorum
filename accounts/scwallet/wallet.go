@@ -698,10 +698,7 @@ func (w *Wallet) signHash(account accounts.Account, hash []byte) ([]byte, error)
 // about which fields or actions are needed. The user may retry by providing
 // the needed details via SignTxWithPassphrase, or by other means (e.g. unlock
 // the account in a keystore).
-func (w *Wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int, isQuorum bool) (*types.Transaction, error) {
-	if isQuorum {
-		return nil, errors.New("Signing Quorum transactions with a smartcard wallet not yet supported")
-	}
+func (w *Wallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	signer := types.NewEIP155Signer(chainID)
 	hash := signer.Hash(tx)
 	sig, err := w.signHash(account, hash[:])
@@ -762,7 +759,7 @@ func (w *Wallet) SignTxWithPassphrase(account accounts.Account, passphrase strin
 			return nil, err
 		}
 	}
-	return w.SignTx(account, tx, chainID, false)
+	return w.SignTx(account, tx, chainID)
 }
 
 // findAccountPath returns the derivation path for the provided account.

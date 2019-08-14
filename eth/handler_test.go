@@ -39,6 +39,76 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+var bigTxGas = new(big.Int).SetUint64(params.TxGas)
+
+// Tests that protocol versions and modes of operations are matched up properly.
+func TestProtocolCompatibility(t *testing.T) {
+	// Define the compatibility chart
+	tests := []struct {
+		version    uint
+		mode       downloader.SyncMode
+		compatible bool
+	}{
+		{61, downloader.FullSync, true}, {62, downloader.FullSync, true}, {63, downloader.FullSync, true},
+		{61, downloader.FastSync, false}, {62, downloader.FastSync, false}, {63, downloader.FastSync, true},
+	}
+	// Make sure anything we screw up is restored
+	backup := consensus.EthProtocol.Versions
+	defer func() { consensus.EthProtocol.Versions = backup }()
+
+	// Try all available compatibility configs and check for errors
+	for i, tt := range tests {
+		consensus.EthProtocol.Versions = []uint{tt.version}
+
+		pm, _, err := newTestProtocolManager(tt.mode, 0, nil, nil)
+		if pm != nil {
+			defer pm.Stop()
+		}
+		if (err == nil && !tt.compatible) || (err != nil && tt.compatible) {
+			t.Errorf("test %d: compatibility mismatch: have error %v, want compatibility %v", i, err, tt.compatible)
+		}
+	}
+}
+
+// Tests that correct consensus mechanism details are returned in NodeInfo.
+func TestNodeInfo(t *testing.T) {
+
+	// Define the tests to be run
+	tests := []struct {
+		consensus      string
+		cliqueConfig   *params.CliqueConfig
+		istanbulConfig *params.IstanbulConfig
+		raftMode       bool
+	}{
+		{"ethash", nil, nil, false},
+		{"raft", nil, nil, true},
+		{"istanbul", nil, &params.IstanbulConfig{1, 1}, false},
+		{"clique", &params.CliqueConfig{1, 1}, nil, false},
+	}
+
+	// Make sure anything we screw up is restored
+	backup := consensus.EthProtocol.Versions
+	defer func() { consensus.EthProtocol.Versions = backup }()
+
+	// Try all available consensus mechanisms and check for errors
+	for i, tt := range tests {
+
+		pm, _, err := newTestProtocolManagerConsensus(tt.consensus, tt.cliqueConfig, tt.istanbulConfig, tt.raftMode)
+
+		if pm != nil {
+			defer pm.Stop()
+		}
+		if err == nil {
+			pmConsensus := pm.getConsensusAlgorithm()
+			if tt.consensus != pmConsensus {
+				t.Errorf("test %d: consensus type error, wanted %v but got %v", i, tt.consensus, pmConsensus)
+			}
+		} else {
+			t.Errorf("test %d: consensus type error %v", i, err)
+		}
+	}
+}
+
 // Tests that block headers can be retrieved from a remote chain based on user queries.
 func TestGetBlockHeaders62(t *testing.T) { testGetBlockHeaders(t, 62) }
 func TestGetBlockHeaders63(t *testing.T) { testGetBlockHeaders(t, 63) }
@@ -581,7 +651,7 @@ func testBroadcastBlock(t *testing.T, totalPeers, broadcastExpected int) {
 	if err != nil {
 		t.Fatalf("failed to create new blockchain: %v", err)
 	}
-	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, new(testTxPool), pow, blockchain, db, 1, nil)
+	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, new(testTxPool), pow, blockchain, db, 1, nil, false)
 	if err != nil {
 		t.Fatalf("failed to start test protocol manager: %v", err)
 	}

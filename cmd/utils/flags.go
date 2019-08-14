@@ -1488,6 +1488,12 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	cfg.NoPruning = ctx.GlobalString(GCModeFlag.Name) == "archive"
 	cfg.NoPrefetch = ctx.GlobalBool(CacheNoPrefetchFlag.Name)
 
+	//Quorum - set gcmode=archive for Raft
+	if ctx.GlobalBool(RaftModeFlag.Name) {
+		log.Info("set gcmode=archive for Raft")
+		cfg.NoPruning = true
+	}
+
 	if ctx.GlobalIsSet(CacheFlag.Name) || ctx.GlobalIsSet(CacheTrieFlag.Name) {
 		cfg.TrieCleanCache = ctx.GlobalInt(CacheFlag.Name) * ctx.GlobalInt(CacheTrieFlag.Name) / 100
 	}
@@ -1743,7 +1749,16 @@ func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chai
 	if gcmode := ctx.GlobalString(GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
 		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)
 	}
+
+	trieWriteCacheDisabled := ctx.GlobalString(GCModeFlag.Name) == "archive"
+	//Quorum - set gcmode=archive for Raft
+	if !trieWriteCacheDisabled && ctx.GlobalBool(RaftModeFlag.Name) {
+		log.Info("set gcmode=archive for Raft")
+		trieWriteCacheDisabled = true
+	}
+
 	cache := &core.CacheConfig{
+		Disabled:            trieWriteCacheDisabled,
 		TrieCleanLimit:      eth.DefaultConfig.TrieCleanCache,
 		TrieCleanNoPrefetch: ctx.GlobalBool(CacheNoPrefetchFlag.Name),
 		TrieDirtyLimit:      eth.DefaultConfig.TrieDirtyCache,
