@@ -1,8 +1,8 @@
 package types
 
 import (
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
-	"strings"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -391,15 +391,25 @@ func ValidateNodeForTxn(enodeId string, from common.Address) bool {
 	if enodeId == "" {
 		return true
 	}
+
+	passedEnodeId, err := enode.ParseV4(enodeId)
+	if err != nil {
+		return false
+	}
+
 	ac := AcctInfoMap.GetAccount(from)
 	if ac == nil {
 		return true
 	}
+
 	ultimateParent := OrgInfoMap.GetOrg(ac.OrgId).UltimateParent
 	// scan through the node list and validate
 	for _, n := range NodeInfoMap.GetNodeList() {
-		if OrgInfoMap.GetOrg(n.OrgId).UltimateParent == ultimateParent && strings.Contains(n.Url, enodeId) {
-			return true
+		if OrgInfoMap.GetOrg(n.OrgId).UltimateParent == ultimateParent {
+			recEnodeId, _ := enode.ParseV4(n.Url)
+			if recEnodeId.ID() == passedEnodeId.ID() {
+				return true
+			}
 		}
 	}
 	return false
