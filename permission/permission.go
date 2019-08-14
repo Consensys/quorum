@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -143,22 +142,23 @@ func waitForSync(e *eth.Ethereum) {
 	}
 }
 
-func StartPermissionService(stack *node.Node) {
+func StartPermissionService(stack *node.Node) error {
 	//initialize permission as we can create eth client only after the node and RPC are started
 	var permissionService *PermissionCtrl
 	if err := stack.Service(&permissionService); err != nil {
-		utils.Fatalf("cannot access permissions service %v", err)
+		return fmt.Errorf("cannot access permissions service %v", err)
 	}
 	if permissionService == nil {
-		utils.Fatalf("permission service unavailable")
+		return fmt.Errorf("permission service unavailable")
 	}
 	//initialize the service to create eth client and get ethereum service
 	if err := permissionService.InitializeService(); err != nil {
-		utils.Fatalf("permissions service initialization failed %v", err)
+		return fmt.Errorf("permissions service initialization failed %v", err)
 	}
 	if err := permissionService.Start(stack.Server()); err != nil {
-		utils.Fatalf("permissions service start failed %v", err)
+		return fmt.Errorf("permissions service start failed %v", err)
 	}
+	return nil
 }
 
 // Creates the controls structure for permissions
