@@ -798,9 +798,13 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNr rpc.BlockNumb
 		log.Warn("Caller gas above allowance, capping", "requested", gas, "cap", globalGasCap)
 		gas = globalGasCap.Uint64()
 	}
-	gasPrice := args.GasPrice.ToInt()
-	if gasPrice.Sign() == 0 && !b.ChainConfig().IsQuorum {
-		gasPrice = new(big.Int).SetUint64(defaultGasPrice)
+	gasPrice := new(big.Int).SetUint64(defaultGasPrice)
+	// Set Quorum default gas price
+	if b.ChainConfig().IsQuorum {
+		gasPrice = new(big.Int).SetUint64(0)
+	}
+	if args.GasPrice != nil {
+		gasPrice = args.GasPrice.ToInt()
 	}
 
 	value := new(big.Int)
