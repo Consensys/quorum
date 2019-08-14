@@ -20,11 +20,9 @@ package utils
 import (
 	"compress/gzip"
 	"fmt"
-	"github.com/ethereum/go-ethereum/params"
 	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -63,18 +61,6 @@ func Fatalf(format string, args ...interface{}) {
 	}
 	fmt.Fprintf(w, "Fatal: "+format+"\n", args...)
 	os.Exit(1)
-}
-
-func IsPermissionEnabled(dataDir string, permissionFlag bool) bool {
-	if permissionFlag {
-		fullPath := filepath.Join(dataDir, params.PERMISSION_MODEL_CONFIG)
-		if _, err := os.Stat(fullPath); err != nil {
-			log.Warn("permission-config.json file is missing. permission service will be disabled", "err", err)
-			return false
-		}
-		return true
-	}
-	return false
 }
 
 func StartNode(stack *node.Node) {
