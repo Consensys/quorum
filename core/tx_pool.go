@@ -650,7 +650,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	// Check if the sender account is authorized to perform the transaction
 	if isQuorum {
 		if err := checkAccount(from, tx.To()); err != nil {
-			return ErrUnAuthorizedAccount
+			return err
 		}
 	}
 
@@ -1330,7 +1330,7 @@ func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 		return nil
 
 	case types.ReadOnly:
-		return errors.New("account does not have transaction permissions")
+		return errors.New("read only account. cannot transact")
 
 	case types.Transact:
 		if toAcct == nil {
