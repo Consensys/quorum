@@ -20,7 +20,7 @@ package utils
 import (
 	"compress/gzip"
 	"fmt"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/ethereum/go-ethereum/params"
 	"io"
 	"os"
 	"os/signal"
@@ -65,10 +65,9 @@ func Fatalf(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
-func IsPermissionEnabled(ctx *cli.Context) bool {
-	if ctx.GlobalBool(EnableNodePermissionFlag.Name) {
-		fileName := "permission-config.json"
-		fullPath := filepath.Join(ctx.GlobalString(DataDirFlag.Name), fileName)
+func IsPermissionEnabled(dataDir string, permissionFlag bool) bool {
+	if permissionFlag {
+		fullPath := filepath.Join(dataDir, params.PERMISSION_MODEL_CONFIG)
 		if _, err := os.Stat(fullPath); err != nil {
 			log.Warn("permission-config.json file is missing. permission service will be disabled", "err", err)
 			return false

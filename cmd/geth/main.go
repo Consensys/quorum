@@ -344,7 +344,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	}()
 
 	//initialize permission as we can create eth client only after the node and RPC are started
-	if utils.IsPermissionEnabled(ctx) {
+	if utils.IsPermissionEnabled(stack.Server().DataDir, stack.Server().EnableNodePermission) {
 		permission.StartPermissionService(stack)
 	}
 

@@ -162,7 +162,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
-	if utils.IsPermissionEnabled(ctx) {
+	if utils.IsPermissionEnabled(cfg.Node.DataDir, cfg.Node.EnableNodePermission) {
 		RegisterPermissionService(ctx, stack)
 	}
 
