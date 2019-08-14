@@ -70,13 +70,14 @@ __Important:__ Please note that before calling this API, a `storeraw` api need t
     - `privateFor`: `List<String>`  - When sending a private transaction, an array of the recipients' base64-encoded public keys.
 3. `Function` - (optional) If you pass a callback the HTTP request is made asynchronous. See [this note](#using-callbacks) for details.
 
- ##### Returns
+##### Returns
  `String` - The 32 Bytes transaction hash as HEX string.
  If the transaction was a contract creation use [web3.eth.getTransactionReceipt()](#web3ethgettransactionreceipt) to get the contract address, after the transaction was mined.
  
  
- ##### Example
-  ```js
+##### Example
+
+```js
  var Tx = require('ethereumjs-tx');
  var privateKey = new Buffer('e331b6d69882b4cb4ea581d88e0b604039a3de5967688d3dcffdd2270c0fd109', 'hex')
   var rawTx = {
@@ -97,7 +98,7 @@ __Important:__ Please note that before calling this API, a `storeraw` api need t
    if (!err)
      console.log(hash); // "0x7f9fade1c0d57a7af66ab4ead79fade1c0d57a7af66ab4ead7c2c2eb7b11a91385"
  });
- ```
+```
  
  
 
