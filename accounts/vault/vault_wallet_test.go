@@ -666,7 +666,7 @@ func TestVaultWallet_Open_Hashicorp_AccountsRetrieved(t *testing.T) {
 			}
 
 			// need to block to let accountRetrievalLoop do its thing
-			time.Sleep(4 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 
 			//TODO wantAccts do not have URLs set so URL equality is not being checked
 			if !acctsEqual(tt.wantAccts, w.Accounts()) {
@@ -930,7 +930,7 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedIndefinitelyWhenEnabled(
 			}
 
 			// need to block to let accountRetrievalLoop do its thing
-			time.Sleep(4 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 
 			keyHandlersMap := w.vault.(*hashicorpService).keyHandlers
 
