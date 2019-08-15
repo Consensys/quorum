@@ -71,8 +71,8 @@
 ??? question "What's the deal with the block timestamp being stored in nanoseconds (instead of seconds, like other consensus mechanisms)?"
     With raft-based consensus we can produce far more than one block per second, which vanilla Ethereum implicitly disallows (as the default timestamp resolution is in seconds and every block must have a timestamp greater than its parent). For Raft, we store the timestamp in nanoseconds and ensure it is incremented by at least 1 nanosecond per block.
 
-??? question "Why do I see "Error: Number can only safely store up to 53 bits" when using Web3 with Raft?"
-    As mentioned above, Raft stores the timestamp in nanoseconds, so it is too large to be retrieved as an 'int/uint'.
+??? question "Why do I see "Error: Number can only safely store up to 53 bits" when using web3js with Raft?"
+    As mentioned above, Raft stores the timestamp in nanoseconds, so it is too large to be held as a number in javascript.
     You need to modify your code to take account of this. An example can be seen [here](https://github.com/jpmorganchase/quorum.js/blob/master/lib/index.js#L35).
     A future quorum release will address this issue.
 
