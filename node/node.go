@@ -74,19 +74,6 @@ type Node struct {
 	log log.Logger
 }
 
-func (n *Node) GetRPC(name string) interface{} {
-	for _, v := range n.rpcAPIs {
-		if v.Namespace == name {
-			return v.Service
-		}
-	}
-	return nil
-}
-
-func (n *Node) GetNodeKey() *ecdsa.PrivateKey {
-	return n.config.NodeKey()
-}
-
 // New creates a new P2P node, ready for protocol registration.
 func New(conf *Config) (*Node, error) {
 	// Copy config and resolve the datadir so future changes to the current
@@ -540,6 +527,20 @@ func (n *Node) Service(service interface{}) error {
 		return nil
 	}
 	return ErrServiceUnknown
+}
+
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) IsPermissionEnabled() bool {
+	return n.config.IsPermissionEnabled()
+}
+
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) GetNodeKey() *ecdsa.PrivateKey {
+	return n.config.NodeKey()
 }
 
 // DataDir retrieves the current datadir used by the protocol stack.

@@ -4,15 +4,16 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
-	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/raft"
-	"github.com/ethereum/go-ethereum/rpc"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/raft"
+	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -101,34 +102,29 @@ func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
 
 // function reads the permissions config file passed and populates the
 // config structure accordingly
-func ParsePermissionConifg(dir string) (types.PermissionConfig, error) {
-	fileName := "permission-config.json"
-	fullPath := filepath.Join(dir, fileName)
-	if _, err := os.Stat(fullPath); err != nil {
-		log.Warn("permission-config.json file is missing", "err", err)
-		return types.PermissionConfig{}, err
-	}
-
-	blob, err := ioutil.ReadFile(fullPath)
-
+func ParsePermissionConfig(dir string) (types.PermissionConfig, error) {
+	fullPath := filepath.Join(dir, params.PERMISSION_MODEL_CONFIG)
+	f, err := os.Open(fullPath)
 	if err != nil {
-		log.Error("error reading permission-config.json file", err)
+		log.Error("can't open file", "file", fullPath, "error", err)
 		return types.PermissionConfig{}, err
 	}
+	defer func() {
+		_ = f.Close()
+	}()
 	var permlocConfig PermissionLocalConfig
-	err = json.Unmarshal(blob, &permlocConfig)
-	if err != nil {
-		log.Error("error unmarshalling permission-config.json file", err)
+	if err := json.NewDecoder(f).Decode(&permlocConfig); err != nil {
+		log.Error("error unmarshalling file", "file", fullPath, "error", err)
 		return types.PermissionConfig{}, err
 	}
 
 	permConfig := populateConfig(permlocConfig)
 	if len(permConfig.Accounts) == 0 {
-		return types.PermissionConfig{}, errors.New("no accounts given in permission-config.json. Network cannot boot up")
+		return types.PermissionConfig{}, fmt.Errorf("no accounts given in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
 	}
 
 	if permConfig.SubOrgDepth.Cmp(big.NewInt(0)) == 0 || permConfig.SubOrgBreadth.Cmp(big.NewInt(0)) == 0 {
-		return types.PermissionConfig{}, errors.New("sub org breadth depth not passed in permission-config.json. Network cannot boot up")
+		return types.PermissionConfig{}, fmt.Errorf("sub org breadth depth not passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
 	}
 
 	return permConfig, nil
@@ -146,22 +142,23 @@ func waitForSync(e *eth.Ethereum) {
 	}
 }
 
-func StartPermissionService(stack *node.Node) {
+func StartPermissionService(stack *node.Node) error {
 	//initialize permission as we can create eth client only after the node and RPC are started
 	var permissionService *PermissionCtrl
 	if err := stack.Service(&permissionService); err != nil {
-		utils.Fatalf("cannot access permissions service %v", err)
+		return fmt.Errorf("cannot access permissions service %v", err)
 	}
 	if permissionService == nil {
-		utils.Fatalf("permission service unavailable")
+		return fmt.Errorf("permission service unavailable")
 	}
 	//initialize the service to create eth client and get ethereum service
 	if err := permissionService.InitializeService(); err != nil {
-		utils.Fatalf("permissions service initialization failed %v", err)
+		return fmt.Errorf("permissions service initialization failed %v", err)
 	}
 	if err := permissionService.Start(stack.Server()); err != nil {
-		utils.Fatalf("permissions service start failed %v", err)
+		return fmt.Errorf("permissions service start failed %v", err)
 	}
+	return nil
 }
 
 // Creates the controls structure for permissions

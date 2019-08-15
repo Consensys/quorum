@@ -20,9 +20,6 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/permission"
 	"io"
 	"os"
 	"reflect"
@@ -162,8 +159,8 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
-	if utils.IsPermissionEnabled(cfg.Node.DataDir, cfg.Node.EnableNodePermission) {
-		RegisterPermissionService(ctx, stack)
+	if cfg.Node.IsPermissionEnabled() {
+		utils.RegisterPermissionService(ctx, stack)
 	}
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
@@ -195,28 +192,6 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		utils.RegisterEthStatsService(stack, cfg.Ethstats.URL)
 	}
 	return stack
-}
-
-func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
-	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
-		dataDir := ctx.GlobalString(utils.DataDirFlag.Name)
-		var permissionConfig types.PermissionConfig
-		var err error
-		if permissionConfig, err = permission.ParsePermissionConifg(dataDir); err != nil {
-			utils.Fatalf("loading of permission-config.json failed", "error", err)
-		}
-
-		// start the permissions management service
-		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig)
-		if err != nil {
-			utils.Fatalf("Failed to load the permission contracts as given in permissions-config.json %v", err)
-		}
-		log.Info("permission service created")
-		return pc, nil
-	}); err != nil {
-		utils.Fatalf("Failed to register the permission service: %v", err)
-	}
-	log.Info("permission service registered")
 }
 
 // dumpConfig is the dumpconfig command.
