@@ -373,60 +373,39 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args *SendTxArg
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return nil, err
 	}
-	// Assemble the transaction and sign with the wallet
-	tx := args.toTransaction()
 
-	return wallet.SignTxWithPassphrase(account, passwd, tx, s.b.ChainConfig().ChainID)
+	// Quorum
+	isPrivate := args.IsPrivate()
+	var tx *types.Transaction
+	if isPrivate {
+		tx, err = args.toPrivateTransaction()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Assemble the transaction and sign with the wallet
+		tx = args.toTransaction()
+	}
+	var chainID *big.Int
+	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !isPrivate {
+		chainID = config.ChainID
+	}
+	// /Quorum
+
+	return wallet.SignTxWithPassphrase(account, passwd, tx, chainID)
 }
 
 // SendTransaction will create a transaction from the given arguments and
 // tries to sign it with the key associated with args.To. If the given passwd isn't
 // able to decrypt the key it fails.
 func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
-	// Look up the wallet containing the requested signer
-	account := accounts.Account{Address: args.From}
-
-	wallet, err := s.am.Find(account)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
 	if args.Nonce == nil {
 		// Hold the addresse's mutex around signing to prevent concurrent assignment of
 		// the same nonce to multiple accounts.
 		s.nonceLock.LockAddr(args.From)
 		defer s.nonceLock.UnlockAddr(args.From)
 	}
-
-	// Set some sanity defaults and terminate on failure
-	if err := args.setDefaults(ctx, s.b); err != nil {
-		return common.Hash{}, err
-	}
-	// Assemble the transaction and sign with the wallet
-	tx := args.toTransaction()
-
-	isPrivate := args.IsPrivate()
-
-	if isPrivate {
-		data := []byte(*args.Data)
-		if len(data) > 0 {
-			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			if err != nil {
-				return common.Hash{}, err
-			}
-		}
-		// zekun: HACK
-		d := hexutil.Bytes(data)
-		args.Data = &d
-		tx = args.toTransaction()
-		// set to private before submitting to signer
-		// this sets the v value to 37 temporarily to indicate a private tx, and to choose the correct signer.
-		tx.SetPrivate()
-	}
-
-	signed, err := wallet.SignTxWithPassphrase(account, passwd, tx, s.b.ChainConfig().ChainID)
+	signed, err := s.signTransaction(ctx, &args, passwd)
 	if err != nil {
 		log.Warn("Failed transaction send attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
 		return common.Hash{}, err
@@ -816,6 +795,7 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNr rpc.BlockNumb
 	if args.Data != nil {
 		data = []byte(*args.Data)
 	}
+
 	// Create new call message
 	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, data, false)
 
@@ -1392,11 +1372,9 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 		}
 		args.Nonce = (*hexutil.Uint64)(&nonce)
 	}
-	//Quorum
-	if args.PrivateTxType == "" {
-		args.PrivateTxType = "restricted"
+	if args.Data != nil && args.Input != nil && !bytes.Equal(*args.Data, *args.Input) {
+		return errors.New(`Both "data" and "input" are set and not equal. Please use "input" to pass transaction call data.`)
 	}
-	//End-Quorum
 	if args.To == nil {
 		// Contract creation
 		var input []byte
@@ -1431,6 +1409,11 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 		args.Gas = &estimated
 		log.Trace("Estimate gas usage automatically", "gas", args.Gas)
 	}
+	//Quorum
+	if args.PrivateTxType == "" {
+		args.PrivateTxType = "restricted"
+	}
+	//End-Quorum
 	return nil
 }
 
@@ -1445,6 +1428,33 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 		return types.NewContractCreation(uint64(*args.Nonce), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 	}
 	return types.NewTransaction(uint64(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
+}
+
+// args to Quorum private transaction
+func (args *SendTxArgs) toPrivateTransaction() (tx *types.Transaction, err error) {
+	// create quorum tx
+	var data []byte
+	if args.Data != nil {
+		data = []byte(*args.Data)
+	} else {
+		log.Info("args.data is nil")
+	}
+
+	if len(data) > 0 {
+		//Send private transaction to local Constellation node
+		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+		if err != nil {
+			return nil, err
+		}
+	}
+	d := hexutil.Bytes(data)
+	args.Data = &d
+	// Assemble the transaction and sign with the wallet
+	tx = args.toTransaction()
+	tx.SetPrivate()
+	return tx, nil
 }
 
 // TODO: this submits a signed transaction, if it is a signed private transaction that should already be recorded in the tx.
@@ -1492,45 +1502,29 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		defer s.nonceLock.UnlockAddr(args.From)
 	}
 
-	isPrivate := args.IsPrivate()
-	var data []byte
-	if isPrivate {
-		if args.Data != nil {
-			data = []byte(*args.Data)
-		} else {
-			log.Info("args.data is nil")
-		}
-
-		if len(data) > 0 {
-			//Send private transaction to local Constellation node
-			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			if err != nil {
-				return common.Hash{}, err
-			}
-		}
-		// zekun: HACK
-		d := hexutil.Bytes(data)
-		args.Data = &d
-	}
-
 	// Set some sanity defaults and terminate on failure
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
 
-	// Assemble the transaction and sign with the wallet
-	tx := args.toTransaction()
-
+	// Quorum
+	isPrivate := args.IsPrivate()
+	var tx *types.Transaction
+	if isPrivate {
+		tx, err = args.toPrivateTransaction()
+		if err != nil {
+			return common.Hash{}, err
+		}
+	} else {
+		// Assemble the transaction and sign with the wallet
+		tx = args.toTransaction()
+	}
 	var chainID *big.Int
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !isPrivate {
 		chainID = config.ChainID
 	}
+	// /Quorum
 
-	if isPrivate {
-		tx.SetPrivate()
-	}
 	signed, err := wallet.SignTx(account, tx, chainID)
 	if err != nil {
 		return common.Hash{}, err
