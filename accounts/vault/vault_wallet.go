@@ -108,12 +108,11 @@ func (w VaultWallet) SignHash(account accounts.Account, hash []byte) ([]byte, er
 	}
 
 	key, zero, err := w.vault.getKey(account)
+	defer zero()
 
 	if err != nil {
 		return nil, err
 	}
-
-	defer zero()
 
 	return crypto.Sign(hash, key)
 }

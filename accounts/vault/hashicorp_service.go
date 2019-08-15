@@ -1,6 +1,7 @@
 package vault
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
@@ -388,16 +389,32 @@ func (h *hashicorpService) accounts() []accounts.Account {
 	return cpy
 }
 
+var (
+	incorrectKeyForAddrErr = errors.New("the address of the account provided does not match the address derived from the private key retrieved from the Vault.  Ensure the correct secret names and versions are specified in the node config.")
+)
+
 func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, func(), error) {
 	h.mutex.RLock()
 	keyHandler, err := h.getKeyHandler(acct)
 	h.mutex.RUnlock()
 
 	if err != nil {
-		return nil, nil, err
+		return nil, func(){}, err
 	}
 
-	return h.getKeyFromHandler(*keyHandler)
+	key, zeroFn, err := h.getKeyFromHandler(*keyHandler)
+
+	if err != nil {
+		return nil, zeroFn, err
+	}
+
+	// validate that the retrieved key is correct for the provided account
+	address := crypto.PubkeyToAddress(key.PublicKey)
+	if !bytes.Equal(address.Bytes(), acct.Address.Bytes()) {
+		return nil, zeroFn, incorrectKeyForAddrErr
+	}
+
+	return key, zeroFn, nil
 }
 
 func (h *hashicorpService) getKeyHandler(acct accounts.Account) (*hashicorpKeyHandler, error) {
@@ -455,7 +472,7 @@ func (h *hashicorpService) getKeyFromHandler(handler hashicorpKeyHandler) (*ecds
 	h.mutex.RUnlock()
 
 	if err != nil {
-		return nil, nil, err
+		return nil, func(){}, err
 	}
 
 	// zeroFn zeroes the retrieved private key

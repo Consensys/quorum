@@ -1346,6 +1346,40 @@ func TestVaultWallet_SignHash_Hashicorp_SignsWithInMemoryKeyIfAvailableAndDoesNo
 	}
 }
 
+func TestVaultWallet_SignHash_Hashicorp_ErrorIfSigningKeyIsNotRelatedToProvidedAccount(t *testing.T) {
+	addr := common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")
+	url := accounts.URL{Scheme: "http", Path: "url:1"}
+	acct := accounts.Account{Address: addr, URL: url}
+
+	unrelatedKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// the key retrieved from the vault this account is not the correct match (i.e. the address is not derivable from this key).  This situation could occur if the incorrect secret name or versions are configured (i.e. configuring node1Addr and node2Key together)
+	w := VaultWallet{
+		vault: &hashicorpService{
+			accts: []accounts.Account{acct},
+			keyHandlers: map[common.Address]map[accounts.URL]*hashicorpKeyHandler{
+				addr: {
+					url: {
+						key: unrelatedKey,
+					},
+				},
+			},
+		},
+	}
+
+	toSign := crypto.Keccak256([]byte("to_sign"))
+
+	_, err = w.SignHash(acct, toSign)
+
+	if err != incorrectKeyForAddrErr {
+		t.Fatalf("want err: %v\ngot err : %v", incorrectKeyForAddrErr, err)
+	}
+}
+
 func TestVaultWallet_SignHash_Hashicorp_ErrorIfAmbiguousAccount(t *testing.T) {
 	addr := common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")
 
@@ -1671,6 +1705,40 @@ func TestVaultWallet_SignTx_Hashicorp_SignsWithInMemoryKeyIfAvailableAndDoesNotZ
 
 	if vaultServiceKey == nil || vaultServiceKey.D.Int64() == 0 {
 		t.Fatal("unlocked key was zeroed after use")
+	}
+}
+
+func TestVaultWallet_SignTx_Hashicorp_ErrorIfSigningKeyIsNotRelatedToProvidedAccount(t *testing.T) {
+	addr := common.HexToAddress("ed9d02e382b34818e88b88a309c7fe71e65f419d")
+	url := accounts.URL{Scheme: "http", Path: "url:1"}
+	acct := accounts.Account{Address: addr, URL: url}
+
+	unrelatedKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// the key retrieved from the vault this account is not the correct match (i.e. the address is not derivable from this key).  This situation could occur if the incorrect secret name or versions are configured (i.e. configuring node1Addr and node2Key together)
+	w := VaultWallet{
+		vault: &hashicorpService{
+			accts: []accounts.Account{acct},
+			keyHandlers: map[common.Address]map[accounts.URL]*hashicorpKeyHandler{
+				addr: {
+					url: {
+						key: unrelatedKey,
+					},
+				},
+			},
+		},
+	}
+
+	toSign := types.NewTransaction(0, common.Address{}, nil, 0, nil, nil)
+
+	_, err = w.SignTx(acct, toSign, nil)
+
+	if err != incorrectKeyForAddrErr {
+		t.Fatalf("want err: %v\ngot err : %v", incorrectKeyForAddrErr, err)
 	}
 }
 
