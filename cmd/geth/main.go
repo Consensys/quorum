@@ -343,7 +343,9 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 	}()
 
-	//initialize permission as we can create eth client only after the node and RPC are started
+	// Quorum
+	//
+	// checking if permissions is enabled and staring the permissions service
 	if stack.IsPermissionEnabled() {
 		if err := permission.StartPermissionService(stack); err != nil {
 			utils.Fatalf("Unable to start Smart Contract based Permission Service due to %s", err)
