@@ -334,8 +334,12 @@ func (h *hashicorpService) getSecretFromVault(name string, version int, engine s
 
 	resp, err := h.client.Logical().ReadWithData(path, versionData)
 
-	if resp == nil || err != nil {
+	if err != nil {
 		return "", fmt.Errorf("unable to get secret from Hashicorp Vault: %v", err)
+	}
+
+	if resp == nil {
+		return "", fmt.Errorf("no data for secret in Hashicorp Vault")
 	}
 
 	respData, ok := resp.Data["data"].(map[string]interface{})
@@ -476,17 +480,19 @@ func (h *hashicorpService) timedUnlock(acct accounts.Account, duration time.Dura
 		return err
 	}
 
-	alreadyExisted, err := h.updateKeyHandler(keyHandler)
+	alreadyUnlocked, err := h.unlockKeyHandler(keyHandler)
 
 	if err != nil {
 		return err
 	}
 
-	if alreadyExisted {
+	if alreadyUnlocked {
+		// indefinitely unlocked, do not override
 		if keyHandler.cancel == nil {
 			return nil
 		}
 
+		// cancel existing timed unlock
 		close(keyHandler.cancel)
 		keyHandler.cancel = nil
 	}
@@ -500,27 +506,20 @@ func (h *hashicorpService) timedUnlock(acct accounts.Account, duration time.Dura
 	return nil
 }
 
-func (h *hashicorpService) updateKeyHandler(handler *hashicorpKeyHandler) (bool, error) {
-	var (
-		key *ecdsa.PrivateKey
-		alreadyExisted bool
-	)
-
+func (h *hashicorpService) unlockKeyHandler(handler *hashicorpKeyHandler) (alreadyUnlocked bool, err error) {
 	if k := handler.key; k != nil && k.D.Int64() != 0 {
-		key = k
-		alreadyExisted = true
-	} else {
-		var err error
-		key, err = h.getKeyFromVault(handler.secret)
-
-		if err != nil {
-			return false, err
-		}
-
-		handler.key = key
+		return true, nil
 	}
 
-	return alreadyExisted, nil
+	key, err := h.getKeyFromVault(handler.secret)
+
+	if err != nil {
+		return false, err
+	}
+
+	handler.key = key
+
+	return false, nil
 }
 
 func (h *hashicorpService) lock(acct accounts.Account) error {
