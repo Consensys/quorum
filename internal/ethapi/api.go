@@ -572,7 +572,7 @@ func (s *PublicBlockChainAPI) GetBalance(ctx context.Context, address common.Add
 	if state == nil || err != nil {
 		return nil, err
 	}
-	return (*hexutil.Big)(state.GetBalance(address)), nil
+	return (*hexutil.Big)(state.GetBalance(address)), state.Error()
 }
 
 // Result structs for GetProof
@@ -725,7 +725,7 @@ func (s *PublicBlockChainAPI) GetCode(ctx context.Context, address common.Addres
 		return nil, err
 	}
 	code := state.GetCode(address)
-	return code, nil
+	return code, state.Error()
 }
 
 // GetStorageAt returns the storage from the state at the given address, key and
@@ -737,7 +737,7 @@ func (s *PublicBlockChainAPI) GetStorageAt(ctx context.Context, address common.A
 		return nil, err
 	}
 	res := state.GetState(address, common.HexToHash(key))
-	return res[:], nil
+	return res[:], state.Error()
 }
 
 // CallArgs represents the arguments for a call.
@@ -1216,7 +1216,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, addr
 		return nil, err
 	}
 	nonce := state.GetNonce(address)
-	return (*hexutil.Uint64)(&nonce), nil
+	return (*hexutil.Uint64)(&nonce), state.Error()
 }
 
 // GetTransactionByHash returns the transaction for the given hash
