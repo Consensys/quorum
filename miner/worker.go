@@ -214,12 +214,12 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 		// Subscribe events for blockchain
 		worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 		worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
-	// Sanitize recommit interval if the user-specified one is too short.
-	recommit := worker.config.Recommit
-	if recommit < minRecommitInterval {
-		log.Warn("Sanitizing miner recommit interval", "provided", recommit, "updated", minRecommitInterval)
-		recommit = minRecommitInterval
-	}
+		// Sanitize recommit interval if the user-specified one is too short.
+		recommit := worker.config.Recommit
+		if recommit < minRecommitInterval {
+			log.Warn("Sanitizing miner recommit interval", "provided", recommit, "updated", minRecommitInterval)
+			recommit = minRecommitInterval
+		}
 
 		go worker.mainLoop()
 		go worker.newWorkLoop(recommit)
@@ -592,11 +592,11 @@ func (w *worker) resultLoop() {
 			}
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var (
-				receipts = make([]*types.Receipt, len(task.receipts))
+				work     = w.current
+				receipts = make([]*types.Receipt, len(task.receipts)+len(task.privateReceipts))
 				logs     []*types.Log
-				work  = w.current
 			)
-			for i, receipt := range append(work.receipts, work.privateReceipts...) {
+			for i, receipt := range append(task.receipts, work.privateReceipts...) {
 				// add block location fields
 				receipt.BlockHash = hash
 				receipt.BlockNumber = block.Number()
@@ -689,12 +689,12 @@ func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
 		return err
 	}
 	env := &environment{
-		signer:    types.MakeSigner(w.chainConfig, header.Number),
-		state:     publicState,
-		ancestors: mapset.NewSet(),
-		family:    mapset.NewSet(),
-		uncles:    mapset.NewSet(),
-		header:    header,
+		signer:       types.MakeSigner(w.chainConfig, header.Number),
+		state:        publicState,
+		ancestors:    mapset.NewSet(),
+		family:       mapset.NewSet(),
+		uncles:       mapset.NewSet(),
+		header:       header,
 		privateState: privateState,
 	}
 
