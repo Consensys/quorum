@@ -1,7 +1,9 @@
 # Set up
 The steps to enable new permissions model are as described below:
 
-* For a new network, bring up the initial set of nodes which will be part of the network
+## New network
+
+* Bring up the initial set of nodes which will be part of the network
 * Deploy the `PermissionsUpgradable.sol` in the network. The deployment of this contract will require a guardian account to be given as a part of deployment. 
 * Deploy the rest of the contracts. All the other contracts will require the address of `PermissionsUpgradable.sol` contract as a part of deployment.
 * Once all the contracts are deployed create a file `permission-config.json` which will have the following construct:
@@ -52,6 +54,7 @@ var intr = "0x4d3bfd7821e237ffe84209d8e638f9f309865b87" // address of the interf
 
 ## Migrating from an earlier version
 The following steps needs to be followed when migrating from a earlier version for enabling permissions feature
+
 * Bring down the running network in the earlier version. 
 * The `maxCodeSize` attribute in `genesis.json` need to be set to 35. Update `genesis.json` to reflect the same
 ```javascript
@@ -70,5 +73,5 @@ The following steps needs to be followed when migrating from a earlier version f
 * Bring up the network with latest geth and deploy the contracts as explained earlier in the set up. The rest of the steps will be similar to bringing up a new network
 
 !!! Note
-* It should be noted that the new permission model will be in force only when `permission-config.json` is present in data directory. If this file is not there and the node is brought up with `--permissioned` flag, node level permissions as per the earlier model will be effective.
-* Please ensure that `maxCodeSize` in `genesis.json` is set to 35 
+    * It should be noted that the new permission model will be in force only when `permission-config.json` is present in data directory. If this file is not there and the node is brought up with `--permissioned` flag, node level permissions as per the earlier model will be effective.
+    * Please ensure that `maxCodeSize` in `genesis.json` is set to 35 
