@@ -214,8 +214,8 @@ OUTER:
 			if r0.state != StatePreprepared {
 				t.Errorf("state mismatch: have %v, want %v", r0.state, StatePreprepared)
 			}
-			if r0.current.Prepares.Size() >= r0.valSet.QuorumSize(validator.IBFT_FORMULA_FLOOR_2N_3_PLUS_1) {
-				t.Errorf("the size of PREPARE messages should be less than %v", r0.valSet.QuorumSize(validator.IBFT_FORMULA_FLOOR_2N_3_PLUS_1))
+			if r0.current.Prepares.Size() >= r0.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3) {
+				t.Errorf("the size of PREPARE messages should be less than %v", r0.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3))
 			}
 			if r0.current.IsHashLocked() {
 				t.Errorf("block should not be locked")
@@ -225,7 +225,7 @@ OUTER:
 		}
 
 		// core should have 2F+1 PREPARE messages
-		if r0.current.Prepares.Size() < r0.valSet.QuorumSize(validator.IBFT_FORMULA_FLOOR_2N_3_PLUS_1) {
+		if r0.current.Prepares.Size() < r0.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3) {
 			t.Errorf("the size of PREPARE messages should be larger than or equal to QuorumSize(): size %v", r0.current.Commits.Size())
 		}
 
