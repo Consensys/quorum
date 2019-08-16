@@ -73,7 +73,7 @@ func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
 	//
 	// If we already have a proposal, we may have chance to speed up the consensus process
 	// by committing the proposal without PREPARE messages.
-	if c.current.Commits.Size() >= c.valSet.QuorumSize(validator.IBFT_FORMULA_FLOOR_2N_3_PLUS_1) && c.state.Cmp(StateCommitted) < 0 {
+	if c.current.Commits.Size() >= c.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3) && c.state.Cmp(StateCommitted) < 0 {
 		// Still need to call LockHash here since state can skip Prepared state and jump directly to the Committed state.
 		c.current.LockHash()
 		c.commit()
