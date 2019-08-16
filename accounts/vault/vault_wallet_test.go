@@ -912,9 +912,9 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedIndefinitelyWhenEnabled(
 		t.Run(name, func(t *testing.T) {
 			wltConfig := HashicorpWalletConfig{
 				Client: HashicorpClientConfig{
-					Url: vaultServer.URL,
+					Url:                        vaultServer.URL,
 					VaultPollingIntervalMillis: 1,
-					StorePrivateKeys: true,
+					UnlockAll:                  true,
 				},
 				Secrets: tt.secrets,
 			}
@@ -1029,9 +1029,9 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 			// use an incorrect vault url to simulate an inaccessible vault
 			wltConfig := HashicorpWalletConfig{
 				Client: HashicorpClientConfig{
-					Url: "http://incorrecturl:1",
+					Url:                        "http://incorrecturl:1",
 					VaultPollingIntervalMillis: 1,
-					StorePrivateKeys: tt.storePrivateKeys,
+					UnlockAll:                  tt.storePrivateKeys,
 				},
 				Secrets: []HashicorpSecretConfig{
 					{PrivateKeySecret: "sec1", PrivateKeySecretVersion: 1, SecretEngine: "kv"},
@@ -1140,9 +1140,9 @@ func TestVaultWallet_Open_Hashicorp_RetrievalLoopsStopWhenAllSecretsRetrieved(t 
 
 	wltConfig := HashicorpWalletConfig{
 		Client: HashicorpClientConfig{
-			Url: vaultServer.URL,
+			Url:                        vaultServer.URL,
 			VaultPollingIntervalMillis: 1,
-			StorePrivateKeys: true,
+			UnlockAll:                  true,
 		},
 		Secrets: []HashicorpSecretConfig{makeSecret(addrName, keyName)},
 	}

@@ -190,7 +190,7 @@ func (h *hashicorpService) open() error {
 
 	go h.accountRetrievalLoop(time.NewTicker(d))
 
-	if h.config.StorePrivateKeys {
+	if h.config.UnlockAll {
 		go h.privateKeyRetrievalLoop(time.NewTicker(d))
 	}
 

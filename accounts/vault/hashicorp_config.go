@@ -12,13 +12,13 @@ type HashicorpWalletConfig struct {
 }
 
 type HashicorpClientConfig struct {
-	Url              string `toml:",omitempty"`
-	Approle          string `toml:",omitempty"`
-	CaCert           string `toml:",omitempty"`
-	ClientCert       string `toml:",omitempty"`
-	ClientKey        string `toml:",omitempty"`
-	StorePrivateKeys bool   `toml:",omitempty"`
-	VaultPollingIntervalMillis int `toml:",omitempty"`
+	Url                        string `toml:",omitempty"`
+	Approle                    string `toml:",omitempty"`
+	CaCert                     string `toml:",omitempty"`
+	ClientCert                 string `toml:",omitempty"`
+	ClientKey                  string `toml:",omitempty"`
+	UnlockAll                  bool   `toml:",omitempty"`
+	VaultPollingIntervalMillis int    `toml:",omitempty"`
 }
 
 type HashicorpSecretConfig struct {
