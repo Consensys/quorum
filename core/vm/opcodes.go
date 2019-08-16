@@ -538,13 +538,3 @@ var stringToOp = map[string]OpCode{
 func StringToOp(str string) OpCode {
 	return stringToOp[str]
 }
-
-func (op OpCode) isMutating() bool {
-	switch op {
-	// TODO(joel): REVERT?
-	case SELFDESTRUCT, CREATE, SSTORE, LOG0, LOG1, LOG2, LOG3, LOG4:
-		return true
-	default:
-		return false
-	}
-}
