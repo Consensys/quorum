@@ -19,8 +19,8 @@ import (
 
 // VaultWallet implements accounts.Wallet and represents the common functionality shared by all wallets that manage accounts stored in vaults
 type VaultWallet struct {
-	url accounts.URL
-	vault vaultService
+	url        accounts.URL
+	vault      vaultService
 	updateFeed *event.Feed
 }
 
@@ -73,8 +73,8 @@ func newHashicorpWallet(config HashicorpWalletConfig, updateFeed *event.Feed) (V
 	}
 
 	w := VaultWallet{
-		url: url,
-		vault: newHashicorpService(config),
+		url:        url,
+		vault:      newHashicorpService(config),
 		updateFeed: updateFeed,
 	}
 

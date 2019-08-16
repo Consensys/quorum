@@ -51,15 +51,15 @@ type hashicorpKeyHandler struct {
 
 // Status for a hashicorpService
 const (
-	open = "open"
-	closed = "closed"
+	open                       = "open"
+	closed                     = "closed"
 	hashicorpHealthcheckFailed = "Hashicorp Vault healthcheck failed"
-	hashicorpUninitialized = "Hashicorp Vault uninitialized"
-	hashicorpSealed = "Hashicorp Vault sealed"
+	hashicorpUninitialized     = "Hashicorp Vault uninitialized"
+	hashicorpSealed            = "Hashicorp Vault sealed"
 )
 
 var (
-	hashicorpSealedErr = errors.New(hashicorpSealed)
+	hashicorpSealedErr        = errors.New(hashicorpSealed)
 	hashicorpUninitializedErr = errors.New(hashicorpUninitialized)
 )
 
@@ -125,7 +125,7 @@ const (
 )
 
 var (
-	noHashicorpEnvSetErr = fmt.Errorf("environment variables must be set when creating the Hashicorp client.  Set %v and %v if the Vault is configured to use Approle authentication.  Else set %v", RoleIDEnv, SecretIDEnv, api.EnvVaultToken)
+	noHashicorpEnvSetErr  = fmt.Errorf("environment variables must be set when creating the Hashicorp client.  Set %v and %v if the Vault is configured to use Approle authentication.  Else set %v", RoleIDEnv, SecretIDEnv, api.EnvVaultToken)
 	invalidApproleAuthErr = fmt.Errorf("both %v and %v must be set if using Approle authentication", RoleIDEnv, SecretIDEnv)
 )
 
@@ -143,9 +143,9 @@ func (h *hashicorpService) open() error {
 	conf.Address = h.config.Url
 
 	tlsConfig := &api.TLSConfig{
-		CACert: h.config.CaCert,
+		CACert:     h.config.CaCert,
 		ClientCert: h.config.ClientCert,
-		ClientKey: h.config.ClientKey,
+		ClientKey:  h.config.ClientKey,
 	}
 
 	if err := conf.ConfigureTLS(tlsConfig); err != nil {
@@ -171,7 +171,7 @@ func (h *hashicorpService) open() error {
 
 	if usingApproleAuth(roleID, secretID) {
 		//authenticate the client using approle
-		body := map[string]interface{} {"role_id": roleID, "secret_id": secretID}
+		body := map[string]interface{}{"role_id": roleID, "secret_id": secretID}
 
 		approle := h.config.Approle
 
@@ -247,7 +247,7 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 
 			acct := accounts.Account{
 				Address: address,
-				URL: parsedUrl,
+				URL:     parsedUrl,
 			}
 
 			// update state
@@ -428,21 +428,21 @@ func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, fun
 	h.mutex.RUnlock()
 
 	if err != nil {
-		return nil, func(){}, err
+		return nil, func() {}, err
 	}
 
 	key, zeroFn, err := h.getKeyFromHandler(*keyHandler)
 
 	if err != nil {
 		zeroFn()
-		return nil, func(){}, err
+		return nil, func() {}, err
 	}
 
 	// validate that the retrieved key is correct for the provided account
 	address := crypto.PubkeyToAddress(key.PublicKey)
 	if !bytes.Equal(address.Bytes(), acct.Address.Bytes()) {
 		zeroFn()
-		return nil, func(){}, incorrectKeyForAddrErr
+		return nil, func() {}, incorrectKeyForAddrErr
 	}
 
 	return key, zeroFn, nil
@@ -466,7 +466,7 @@ func (h *hashicorpService) getKeyHandler(acct accounts.Account) (*hashicorpKeyHa
 		sort.Sort(accountsByURL(ambiguousAccounts))
 
 		err := &keystore.AmbiguousAddrError{
-			Addr: acct.Address,
+			Addr:    acct.Address,
 			Matches: ambiguousAccounts,
 		}
 
@@ -500,7 +500,7 @@ func (h *hashicorpService) getKeyHandler(acct accounts.Account) (*hashicorpKeyHa
 func (h *hashicorpService) getKeyFromHandler(handler hashicorpKeyHandler) (*ecdsa.PrivateKey, func(), error) {
 	if key := handler.key; key != nil {
 		// the account has been unlocked so we return an empty zero function to prevent the caller from being able to lock it
-		return key, func(){}, nil
+		return key, func() {}, nil
 	}
 
 	h.mutex.RLock()
@@ -508,11 +508,11 @@ func (h *hashicorpService) getKeyFromHandler(handler hashicorpKeyHandler) (*ecds
 	h.mutex.RUnlock()
 
 	if err != nil {
-		return nil, func(){}, err
+		return nil, func() {}, err
 	}
 
 	// zeroFn zeroes the retrieved private key
-	zeroFn := func () {
+	zeroFn := func() {
 		b := key.D.Bits()
 		for i := range b {
 			b[i] = 0

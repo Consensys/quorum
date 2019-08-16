@@ -130,7 +130,7 @@ var (
 	}
 	// start quorum
 	HashicorpFlag = cli.BoolFlag{
-		Name: "hashicorp",
+		Name:  "hashicorp",
 		Usage: "Store the newly created account in a Hashicorp Vault",
 	}
 	HashicorpUrlFlag = cli.StringFlag{
@@ -160,7 +160,7 @@ var (
 	}
 	HashicorpNamePrefixFlag = cli.StringFlag{
 		Name:  "hashicorp.nameprefix",
-			Usage: "The new address and key will be created with name <prefix>Addr and <prefix>Key respectively.   Secrets with the same name in the Vault will be versioned and overwritten.",
+		Usage: "The new address and key will be created with name <prefix>Addr and <prefix>Key respectively.   Secrets with the same name in the Vault will be versioned and overwritten.",
 	}
 	// end quorum
 	NetworkIdFlag = cli.Uint64Flag{
@@ -1090,21 +1090,21 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 // setHashicorpVault uses CLI options to set the config for a single Vault with a single key (Quorum)
 func setHashicorpVault(ctx *cli.Context, cfg *node.Config) {
 	c := vault.HashicorpClientConfig{
-		Url: ctx.String(HashicorpUrlFlag.Name),
-		Approle: ctx.String(HashicorpApproleFlag.Name),
+		Url:        ctx.String(HashicorpUrlFlag.Name),
+		Approle:    ctx.String(HashicorpApproleFlag.Name),
 		ClientCert: ctx.String(HashicorpClientCertFlag.Name),
-		ClientKey: ctx.String(HashicorpClientKeyFlag.Name),
-		CaCert: ctx.String(HashicorpCaCertFlag.Name),
+		ClientKey:  ctx.String(HashicorpClientKeyFlag.Name),
+		CaCert:     ctx.String(HashicorpCaCertFlag.Name),
 	}
 
 	s := vault.HashicorpSecretConfig{
-		AddressSecret: fmt.Sprintf("%vAddr", ctx.String(HashicorpNamePrefixFlag.Name)),
+		AddressSecret:    fmt.Sprintf("%vAddr", ctx.String(HashicorpNamePrefixFlag.Name)),
 		PrivateKeySecret: fmt.Sprintf("%vKey", ctx.String(HashicorpNamePrefixFlag.Name)),
-		SecretEngine: ctx.String(HashicorpEngineFlag.Name),
+		SecretEngine:     ctx.String(HashicorpEngineFlag.Name),
 	}
 
 	cfg.HashicorpVault = vault.HashicorpWalletConfig{
-		Client: c,
+		Client:  c,
 		Secrets: []vault.HashicorpSecretConfig{s},
 	}
 }

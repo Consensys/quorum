@@ -9,18 +9,18 @@ func getMinimumValidConfig() HashicorpWalletConfig {
 		},
 		Secrets: []HashicorpSecretConfig{
 			{
-				AddressSecret:         "addr",
-				PrivateKeySecret: "key",
-				AddressSecretVersion: 1,
+				AddressSecret:           "addr",
+				PrivateKeySecret:        "key",
+				AddressSecretVersion:    1,
 				PrivateKeySecretVersion: 1,
-				SecretEngine: "kv",
+				SecretEngine:            "kv",
 			},
 			{
-				AddressSecret:         "otherAddr",
-				PrivateKeySecret: "otherKey",
-				AddressSecretVersion: 1,
+				AddressSecret:           "otherAddr",
+				PrivateKeySecret:        "otherKey",
+				AddressSecretVersion:    1,
 				PrivateKeySecretVersion: 1,
-				SecretEngine: "kv",
+				SecretEngine:            "kv",
 			},
 		},
 	}

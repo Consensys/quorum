@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewHashicorpBackend_CreatesWalletsWithUrlsFromConfig(t *testing.T) {
-	makeConfs := func (url string, urls... string) []HashicorpWalletConfig {
+	makeConfs := func(url string, urls ...string) []HashicorpWalletConfig {
 		var confs []HashicorpWalletConfig
 
 		confs = append(confs, HashicorpWalletConfig{Client: HashicorpClientConfig{Url: url}})
@@ -21,7 +21,7 @@ func TestNewHashicorpBackend_CreatesWalletsWithUrlsFromConfig(t *testing.T) {
 		return confs
 	}
 
-	makeUrls := func(strUrl string, strUrls... string) []accounts.URL {
+	makeUrls := func(strUrl string, strUrls ...string) []accounts.URL {
 		var urls []accounts.URL
 
 		s := strings.Split(strUrl, "://")
@@ -39,15 +39,15 @@ func TestNewHashicorpBackend_CreatesWalletsWithUrlsFromConfig(t *testing.T) {
 		return urls
 	}
 
-	tests := map[string]struct{
-		in []HashicorpWalletConfig
+	tests := map[string]struct {
+		in       []HashicorpWalletConfig
 		wantUrls []accounts.URL
 	}{
 		"no config": {in: []HashicorpWalletConfig{}, wantUrls: []accounts.URL(nil)},
-		"single": {in: makeConfs("http://url:1"), wantUrls: makeUrls("http://url:1")},
-		"multiple": {in: makeConfs("http://url:1", "http://url:2"), wantUrls: makeUrls("http://url:1", "http://url:2")},
-		"orders by url":  {
-			in: makeConfs("https://url:1", "https://a:9", "http://url:2", "http://url:1"),
+		"single":    {in: makeConfs("http://url:1"), wantUrls: makeUrls("http://url:1")},
+		"multiple":  {in: makeConfs("http://url:1", "http://url:2"), wantUrls: makeUrls("http://url:1", "http://url:2")},
+		"orders by url": {
+			in:       makeConfs("https://url:1", "https://a:9", "http://url:2", "http://url:1"),
 			wantUrls: makeUrls("http://url:1", "http://url:2", "https://a:9", "https://url:1")},
 	}
 
@@ -74,11 +74,11 @@ func TestNewHashicorpBackend_CreatesWalletsWithUrlsFromConfig(t *testing.T) {
 
 func TestVaultBackend_Wallets_ReturnsWallets(t *testing.T) {
 	tests := map[string]struct {
-			in []accounts.Wallet
-			want []accounts.Wallet
+		in   []accounts.Wallet
+		want []accounts.Wallet
 	}{
-		"empty": {in: []accounts.Wallet{}, want: []accounts.Wallet{}},
-		"single": {in: []accounts.Wallet{VaultWallet{}}, want: []accounts.Wallet{VaultWallet{}}},
+		"empty":    {in: []accounts.Wallet{}, want: []accounts.Wallet{}},
+		"single":   {in: []accounts.Wallet{VaultWallet{}}, want: []accounts.Wallet{VaultWallet{}}},
 		"multiple": {in: []accounts.Wallet{VaultWallet{}, VaultWallet{}}, want: []accounts.Wallet{VaultWallet{}, VaultWallet{}}},
 	}
 

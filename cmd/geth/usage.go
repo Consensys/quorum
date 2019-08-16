@@ -282,7 +282,7 @@ var AppHelpFlagGroups = []flagGroup{
 	},
 }
 
-var HashicorpVaultFlags = []cli.Flag {
+var HashicorpVaultFlags = []cli.Flag{
 	utils.HashicorpFlag,
 	utils.HashicorpUrlFlag,
 	utils.HashicorpApproleFlag,
@@ -293,9 +293,9 @@ var HashicorpVaultFlags = []cli.Flag {
 	utils.HashicorpNamePrefixFlag,
 }
 
-var VaultHelpFlagGroups = []flagGroup {
+var VaultHelpFlagGroups = []flagGroup{
 	{
-		Name: "HASHICORP VAULT",
+		Name:  "HASHICORP VAULT",
 		Flags: HashicorpVaultFlags,
 	},
 }

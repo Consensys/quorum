@@ -13,9 +13,9 @@ var BackendType = reflect.TypeOf(&VaultBackend{})
 
 // VaultBackend implements accounts.Backend to manage all wallets for a particular vendor's vault
 type VaultBackend struct {
-	wallets []accounts.Wallet
+	wallets     []accounts.Wallet
 	updateScope event.SubscriptionScope
-	updateFeed *event.Feed
+	updateFeed  *event.Feed
 	// Other backend impls require mutexes for safety as their wallets can change at any time (e.g. if a file/usb is added/removed).  vaultWallets can only be created at startup so there is no danger of concurrent reads and writes.
 }
 
@@ -37,7 +37,7 @@ func NewHashicorpBackend(walletConfigs []HashicorpWalletConfig) VaultBackend {
 	sort.Sort(walletsByUrl(wallets))
 
 	return VaultBackend{
-		wallets: wallets,
+		wallets:    wallets,
 		updateFeed: &updateFeed,
 	}
 }
