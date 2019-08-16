@@ -20,6 +20,7 @@ import (
 	"time"
 )
 
+// hashicorpService implements vault.vaultService and represents the Hashicorp Vault-specific functionality used by hashicorp wallets
 type hashicorpService struct {
 	config      HashicorpClientConfig
 	secrets     []HashicorpSecretConfig
@@ -29,6 +30,7 @@ type hashicorpService struct {
 	keyHandlers map[common.Address]map[accounts.URL]*hashicorpKeyHandler
 }
 
+// newHashicorpService creates a hashicorpService using the provided config
 func newHashicorpService(config HashicorpWalletConfig) *hashicorpService {
 	s := &hashicorpService{
 		config:      config.Client,
@@ -39,6 +41,7 @@ func newHashicorpService(config HashicorpWalletConfig) *hashicorpService {
 	return s
 }
 
+// hashicorpKeyHandler is used to relate the config for a Hashicorp-stored private key to the key itself when retrieved from the Vault
 type hashicorpKeyHandler struct {
 	secret HashicorpSecretConfig
 	mutex  sync.RWMutex
@@ -46,6 +49,7 @@ type hashicorpKeyHandler struct {
 	cancel chan struct{}
 }
 
+// Status for a hashicorpService
 const (
 	open = "open"
 	closed = "closed"
@@ -67,6 +71,7 @@ func (e hashicorpHealthcheckErr) Error() string {
 	return fmt.Sprintf("%v: %v", hashicorpHealthcheckFailed, e.err)
 }
 
+// status implements vault.vaultService and returns the status of the Vault API client and the unlocked status of any accounts managed by the service.
 func (h *hashicorpService) status() (string, error) {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
@@ -94,6 +99,7 @@ func (h *hashicorpService) status() (string, error) {
 	return h.withAcctStatuses(open), nil
 }
 
+// withAcctStatuses appends the locked/unlocked status of the accounts managed by the service to the provided walletStatus.
 func (h *hashicorpService) withAcctStatuses(walletStatus string) string {
 	status := []string{walletStatus}
 
@@ -112,6 +118,7 @@ func (h *hashicorpService) withAcctStatuses(walletStatus string) string {
 	return strings.Join(status, " | ")
 }
 
+// Environment variable name for Hashicorp Approle authentication credential
 const (
 	RoleIDEnv   = "VAULT_ROLE_ID"
 	SecretIDEnv = "VAULT_SECRET_ID"
@@ -122,6 +129,11 @@ var (
 	invalidApproleAuthErr = fmt.Errorf("both %v and %v must be set if using Approle authentication", RoleIDEnv, SecretIDEnv)
 )
 
+// open implements vault.vaultService creating a Vault API client from the config properties of the hashicorpService.  Once open, the client will start a loop to retrieve the account addresses for all configured secrets from the vault.  Another loop will be started to retrieve account private keys if the service has been configured to unlock all accounts by default.
+//
+// If Approle authentication credentials are set as environment variables, the client will attempt to authenticate with the Vault server using those credentials.  If the approle credentials are not present the Vault will attempt to use a token credential.
+//
+// An error is returned if the service is already open.
 func (h *hashicorpService) open() error {
 	if h.getClient() != nil {
 		return accounts.ErrWalletAlreadyOpen
@@ -199,6 +211,9 @@ func (h *hashicorpService) open() error {
 	return nil
 }
 
+// accountRetrievalLoop periodically goes through the configured secrets and attempts to retrieve the account address from the Vault if not already retrieved.
+//
+// The loop will stop once all accounts are retrieved or when the ticker is stopped.
 func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 	for range ticker.C {
 		if len(h.getAccts()) == len(h.secrets) {
@@ -256,6 +271,7 @@ func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
 	}
 }
 
+// getAddressFromVault retrieves the address component of the provided secret from the Vault.
 func (h *hashicorpService) getAddressFromVault(s HashicorpSecretConfig) (common.Address, error) {
 	hexAddr, err := h.getSecretFromVault(s.AddressSecret, s.AddressSecretVersion, s.SecretEngine)
 
@@ -266,6 +282,7 @@ func (h *hashicorpService) getAddressFromVault(s HashicorpSecretConfig) (common.
 	return common.HexToAddress(hexAddr), nil
 }
 
+// countRetrievedKeys returns the number of keyHandlers which have retrieved keys associated with them.
 func countRetrievedKeys(keyHandlers map[common.Address]map[accounts.URL]*hashicorpKeyHandler) int {
 	var n int
 
@@ -280,6 +297,9 @@ func countRetrievedKeys(keyHandlers map[common.Address]map[accounts.URL]*hashico
 	return n
 }
 
+// privateKeyRetrievalLoop periodically goes through the configured secrets and attempts to retrieve the account private key from the Vault if not already retrieved.
+//
+// The loop will stop once all private keys are retrieved or when the ticker is stopped.
 func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
 	for range ticker.C {
 		h.mutex.RLock()
@@ -313,6 +333,7 @@ func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
 	}
 }
 
+// getAddressFromVault retrieves the private key component of the provided secret from the Vault.
 func (h *hashicorpService) getKeyFromVault(s HashicorpSecretConfig) (*ecdsa.PrivateKey, error) {
 	hexKey, err := h.getSecretFromVault(s.PrivateKeySecret, s.PrivateKeySecretVersion, s.SecretEngine)
 
@@ -329,6 +350,7 @@ func (h *hashicorpService) getKeyFromVault(s HashicorpSecretConfig) (*ecdsa.Priv
 	return key, nil
 }
 
+// getSecretFromVault retrieves a particular version of the secret 'name' from the provided secret engine.
 func (h *hashicorpService) getSecretFromVault(name string, version int, engine string) (string, error) {
 	path := fmt.Sprintf("%s/data/%s", engine, name)
 
@@ -374,6 +396,7 @@ func usingApproleAuth(roleID, secretID string) bool {
 	return roleID != "" && secretID != ""
 }
 
+// close removes the client from the service preventing it from being able to retrieve data from the Vault.
 func (h *hashicorpService) close() error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -383,6 +406,7 @@ func (h *hashicorpService) close() error {
 	return nil
 }
 
+// accounts returns a copy of the list of signing accounts the wallet is currently aware of.
 func (h *hashicorpService) accounts() []accounts.Account {
 	accts := h.getAccts()
 	cpy := make([]accounts.Account, len(accts))
@@ -395,6 +419,9 @@ var (
 	incorrectKeyForAddrErr = errors.New("the address of the account provided does not match the address derived from the private key retrieved from the Vault.  Ensure the correct secret names and versions are specified in the node config.")
 )
 
+// getKey returns the key for the given account, making a request to the vault if the account is locked.  zeroFn is the corresponding zero function for the returned key and should be called to clean up once the key has been used.
+//
+// The returned key will first be validated to make sure that it is the correct key for the given address.  If not an error will be returned
 func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, func(), error) {
 	h.mutex.RLock()
 	keyHandler, err := h.getKeyHandler(acct)
@@ -421,6 +448,7 @@ func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, fun
 	return key, zeroFn, nil
 }
 
+// getKeyHandler returns the associated keyHandler for the given account.  If the provided account does not specify a URL and more than one keyHandler is found for the given address, then an AmbiguousAddrErr error is returned.
 func (h *hashicorpService) getKeyHandler(acct accounts.Account) (*hashicorpKeyHandler, error) {
 	keyHandlersByUrl, ok := h.keyHandlers[acct.Address]
 
@@ -466,8 +494,12 @@ func (h *hashicorpService) getKeyHandler(acct accounts.Account) (*hashicorpKeyHa
 	return keyHandler, nil
 }
 
+// getKeyFromHandler uses the config in the keyHandler to return the key from the Vault along with the necessary zero function to remove the key from memory after use.
+//
+// If the key is already present in the keyHandler then it is simply returned along with an empty zero function without going to the Vault.
 func (h *hashicorpService) getKeyFromHandler(handler hashicorpKeyHandler) (*ecdsa.PrivateKey, func(), error) {
 	if key := handler.key; key != nil {
+		// the account has been unlocked so we return an empty zero function to prevent the caller from being able to lock it
 		return key, func(){}, nil
 	}
 
@@ -491,6 +523,11 @@ func (h *hashicorpService) getKeyFromHandler(handler hashicorpKeyHandler) (*ecds
 	return key, zeroFn, nil
 }
 
+// timedUnlock implements vault.vaultService unlocking the given account for the specified duration. A timeout of 0 unlocks the account until the program exits.
+//
+// If the account address is already unlocked for a duration, TimedUnlock extends or
+// shortens the active unlock timeout. If the address was previously unlocked
+// indefinitely the timeout is not altered.
 func (h *hashicorpService) timedUnlock(acct accounts.Account, duration time.Duration) error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -527,6 +564,7 @@ func (h *hashicorpService) timedUnlock(acct accounts.Account, duration time.Dura
 	return nil
 }
 
+// unlockKeyHandler retrieves the private key from the Vault using the config in the handler and adds the key to the handler.  If the handler already has a stored key no call to the Vault is made and alreadyUnlocked is returned true.
 func (h *hashicorpService) unlockKeyHandler(handler *hashicorpKeyHandler) (alreadyUnlocked bool, err error) {
 	if k := handler.key; k != nil && k.D.Int64() != 0 {
 		return true, nil
@@ -543,6 +581,7 @@ func (h *hashicorpService) unlockKeyHandler(handler *hashicorpKeyHandler) (alrea
 	return false, nil
 }
 
+// lock implements vault.vaultService and cancels any existing timed unlocks for the provided account and zeroes the corresponding private key if it is present
 func (h *hashicorpService) lock(acct accounts.Account) error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -571,7 +610,7 @@ func (h *hashicorpService) lock(acct accounts.Account) error {
 	return nil
 }
 
-// Even if error is returned, data might have been written to Vault.  path and version may contain useful information even in the case of an error. version = -1 indicates no version was retrieved from the Vault (Vault version numbers are >= 0)
+// writeSecret implements vault.vaultService stores the provided value to a secret name at the provided secretEngine.
 func (h *hashicorpService) writeSecret(name, value, secretEngine string) (string, int64, error) {
 	path := fmt.Sprintf("%s/data/%s", secretEngine, name)
 
@@ -603,6 +642,7 @@ func (h *hashicorpService) writeSecret(name, value, secretEngine string) (string
 	return path, vInt, nil
 }
 
+// timedLock locks the hashicorpKeyHandler by zeroing the key after the duration.  A cancel channel is created in the hashicorpKeyHandler to enable manual cancellation of the timedLock.
 func (h *hashicorpKeyHandler) timedLock(duration time.Duration) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -623,8 +663,13 @@ func (h *hashicorpKeyHandler) timedLock(duration time.Duration) {
 	}
 }
 
-// Each of these getters takes an RLock so care should be taken not to call these within an existing Lock otherwise this will cause a deadlock.
-// Should not be used if storing the returned client in a variable for later use as the fact it is a pointer means that you should be locking for the entirety of the usage of the client.
+// getClient returns the client property of the hashicorpService by taking an RLock.
+//
+// Care should be taken not to call this within an existing Lock otherwise this a deadlock will occur.
+//
+// This should not be used if storing the returned client in a variable for later
+// use as the fact it is a pointer means that a full Lock should be held for the
+// entirety of the usage of the client.
 func (h *hashicorpService) getClient() *api.Client {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()
@@ -632,6 +677,13 @@ func (h *hashicorpService) getClient() *api.Client {
 	return h.client
 }
 
+// getAccts returns the accts property of the hashicorpService by taking an RLock.
+//
+// Care should be taken not to call this within an existing Lock otherwise this a deadlock will occur.
+//
+// This should not be used if storing the returned accts in a variable for later
+// use as the fact it is a pointer means that a full Lock should be held for the
+// entirety of the usage of the client.
 func (h *hashicorpService) getAccts() []accounts.Account {
 	h.mutex.RLock()
 	defer h.mutex.RUnlock()

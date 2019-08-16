@@ -11,6 +11,7 @@ import (
 // BackendType is the reflect type of a vault backend.
 var BackendType = reflect.TypeOf(&VaultBackend{})
 
+// VaultBackend implements accounts.Backend to manage all wallets for a particular vendor's vault
 type VaultBackend struct {
 	wallets []accounts.Wallet
 	updateScope event.SubscriptionScope
@@ -18,6 +19,7 @@ type VaultBackend struct {
 	// Other backend impls require mutexes for safety as their wallets can change at any time (e.g. if a file/usb is added/removed).  vaultWallets can only be created at startup so there is no danger of concurrent reads and writes.
 }
 
+// NewHashicorpBackend creates a VaultBackend containing Hashicorp Vault compatible vaultWallets for each of the provided walletConfigs
 func NewHashicorpBackend(walletConfigs []HashicorpWalletConfig) VaultBackend {
 	wallets := []accounts.Wallet{}
 
@@ -40,12 +42,14 @@ func NewHashicorpBackend(walletConfigs []HashicorpWalletConfig) VaultBackend {
 	}
 }
 
+// Wallets implements accounts.Backend returning a copy of the list of wallets managed by the VaultBackend
 func (b *VaultBackend) Wallets() []accounts.Wallet {
 	cpy := make([]accounts.Wallet, len(b.wallets))
 	copy(cpy, b.wallets)
 	return cpy
 }
 
+// Subscribe implements accounts.Backend, creating an async subscription to receive notifications on the additional of vaultWallets
 func (b *VaultBackend) Subscribe(sink chan<- accounts.WalletEvent) event.Subscription {
 	return b.updateScope.Track(b.updateFeed.Subscribe(sink))
 }
