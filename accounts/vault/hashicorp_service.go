@@ -179,7 +179,9 @@ func (h *hashicorpService) open() error {
 	}
 
 	// api.Client uses the token at VAULT_TOKEN by default so nothing extra needs to be done when not using approle
-	h.setClient(c)
+	h.mutex.Lock()
+	h.client = c
+	h.mutex.Unlock()
 
 	// 10s polling interval by default
 	pollingIntervalMillis := h.config.VaultPollingIntervalMillis
@@ -581,7 +583,7 @@ func (h *hashicorpService) writeSecret(name, value, secretEngine string) (string
 	resp, err := h.getClient().Logical().Write(path, data)
 
 	if err != nil {
-		return "", -1, fmt.Errorf("unable to write secret to vault: %v", err)
+		return "", -1, fmt.Errorf("error writing secret to vault: %v", err)
 	}
 
 	v, ok := resp.Data["version"]
@@ -595,7 +597,7 @@ func (h *hashicorpService) writeSecret(name, value, secretEngine string) (string
 	vInt, err := vJson.Int64()
 
 	if err != nil {
-		return path, -1, fmt.Errorf("unable to convert version in Vault response to int64: version number is %v", vJson.String())
+		return "", -1, fmt.Errorf("unable to convert version in Vault response to int64: version number is %v", vJson.String())
 	}
 
 	return path, vInt, nil
@@ -635,11 +637,4 @@ func (h *hashicorpService) getAccts() []accounts.Account {
 	defer h.mutex.RUnlock()
 
 	return h.accts
-}
-
-func (h *hashicorpService) setClient(c *api.Client) {
-	h.mutex.Lock()
-	defer h.mutex.Unlock()
-
-	h.client = c
 }
