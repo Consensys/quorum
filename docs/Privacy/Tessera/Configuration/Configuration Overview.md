@@ -181,3 +181,17 @@ It is possible to configure a node that will be sent a copy of every transaction
 
 ---
 
+### Remote-Key-Validation
+Tessera provides an API `/partyinfo` on Tessera P2P server to discover all the peers in the network. In order to prevent attackers trying to inject malicious addresses against public keys, where they will try to assign the address to direct private transactions to them instead of the real owner of the key, we have added a feature to enable node level validation on the remote key that checks the remote node does in fact own the keys that were advertised. Only after the keys are validated with the remote node to ensure they own them, the keys are added to the local network info (partyinfo) store.
+
+Default configuration for this is `false` as this is BREAKABLE change to lower versions to Tessera 0.10.0. To enable this, simple set below parameter to true in the configuration:
+
+```
+ "features": {
+    "enableRemoteKeyValidation": true
+  }
+```
+
+---
+
+
