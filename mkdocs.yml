@@ -26,6 +26,11 @@ nav:
         - Raft: Consensus/raft.md
         - Istanbul: Consensus/istanbul-rpc-api.md
     - Transaction Processing: Transaction Processing/Transaction Processing.md
+    - Managing Accounts:
+        - Overview: Security/Accounts/Overview.md
+        - Configuring Hashicorp Vault: Security/Accounts/Configuring-Hashicorp-Vault.md
+        - Creating new accounts in Vault: Security/Accounts/Creating-new-accounts-in-Vault.md
+        - Using accounts stored in Vault: Security/Accounts/Using-accounts-stored-in-Vault.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
