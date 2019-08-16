@@ -405,13 +405,15 @@ func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, fun
 	key, zeroFn, err := h.getKeyFromHandler(*keyHandler)
 
 	if err != nil {
-		return nil, zeroFn, err
+		zeroFn()
+		return nil, func(){}, err
 	}
 
 	// validate that the retrieved key is correct for the provided account
 	address := crypto.PubkeyToAddress(key.PublicKey)
 	if !bytes.Equal(address.Bytes(), acct.Address.Bytes()) {
-		return nil, zeroFn, incorrectKeyForAddrErr
+		zeroFn()
+		return nil, func(){}, incorrectKeyForAddrErr
 	}
 
 	return key, zeroFn, nil
