@@ -1079,7 +1079,7 @@ func TestVaultWallet_Open_Hashicorp_PrivateKeysRetrievedWhenEnabledAndVaultAvail
 	}
 }
 
-func TestVaultWallet_Open_Hashicorp_RetrievalLoopsStopWhenAllSecretsRetrieved(t *testing.T) {
+func TestVaultWallet_Open_Hashicorp_RetrievalLoopStopsWhenAllSecretsRetrieved(t *testing.T) {
 	if err := os.Setenv(api.EnvVaultToken, "mytoken"); err != nil {
 		t.Fatal(err)
 	}
@@ -1161,7 +1161,7 @@ func TestVaultWallet_Open_Hashicorp_RetrievalLoopsStopWhenAllSecretsRetrieved(t 
 	time.Sleep(10 * time.Millisecond)
 
 	if getAddrCount != 1 || getKeyCount != 1 {
-		t.Fatalf("retrieval loops should have made just one call to vault, got secret and then stopped: \naccountRetrievalLoop vault call count: %v\nprivateKeyRetrievalLoop vault call count: %v", getAddrCount, getKeyCount)
+		t.Fatalf("retrieval loop should have made just one call to vault, got secret and then stopped: \n get address from Vault call count: %v\nget private key from Vault call count: %v", getAddrCount, getKeyCount)
 	}
 }
 

@@ -202,73 +202,119 @@ func (h *hashicorpService) open() error {
 	}
 	d := time.Duration(pollingIntervalMillis) * time.Millisecond
 
-	go h.accountRetrievalLoop(time.NewTicker(d))
-
-	if h.config.UnlockAll {
-		go h.privateKeyRetrievalLoop(time.NewTicker(d))
-	}
+	go h.accountRetrievalLoop(time.NewTicker(d), h.config.UnlockAll)
 
 	return nil
 }
 
-// accountRetrievalLoop periodically goes through the configured secrets and attempts to retrieve the account address from the Vault if not already retrieved.
+// accountRetrievalLoop periodically goes through the configured secrets and attempts to retrieve the account address
+// from the Vault if not already retrieved.  If unlockAll is true the private key for each configured secret will also
+// be attempted to be retrieved.
 //
-// The loop will stop once all accounts are retrieved or when the ticker is stopped.
-func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker) {
+// The loop will continue until all accounts (and keys if unlockAll is true) are retrieved or when the ticker is
+// stopped.
+func (h *hashicorpService) accountRetrievalLoop(ticker *time.Ticker, unlockAll bool) {
+	// attempt account retrieval once without waiting for the ticker, the loop will be used to retrieve any accounts that are left
+	toRetrieve := h.tryRetrieveAccounts(h.secrets, unlockAll)
+
 	for range ticker.C {
-		if len(h.getAccts()) == len(h.secrets) {
+		if len(toRetrieve) == 0 {
 			ticker.Stop()
 			return
 		}
 
-		for _, s := range h.secrets {
-			path := fmt.Sprintf("%s/data/%s", s.SecretEngine, s.AddressSecret)
+		notRetrieved := h.tryRetrieveAccounts(toRetrieve, unlockAll)
+		toRetrieve = notRetrieved
+	}
+}
 
-			url := fmt.Sprintf("%v/v1/%v?version=%v", h.getClient().Address(), path, s.AddressSecretVersion)
+// tryRetrieveAccounts attempts to retrieve the account addresses for the toRetrieve secret configs.  If unlockAll is
+// true then the private key for each secret in toRetrieve will also be attempted to be retrieved.  Returns any configs
+// for which the address (or address/key if unlockAll is true) could not be retrieved.
+func (h *hashicorpService) tryRetrieveAccounts(toRetrieve []HashicorpSecretConfig, unlockAll bool) []HashicorpSecretConfig {
+	var notRetrieved []HashicorpSecretConfig
 
-			h.mutex.RLock()
-			address, err := h.getAddressFromVault(s)
-			h.mutex.RUnlock()
+	for _, secret := range toRetrieve {
+		acct, err := h.tryRetrieveAddress(secret)
 
-			if err != nil {
-				log.Warn("unable to get address from Hashicorp Vault", "url", url, "err", err)
+		if err != nil {
+			log.Error("unable to retrieve address", "err", err)
+			notRetrieved = append(notRetrieved, secret)
+			continue
+		}
+
+		if unlockAll {
+			if err := h.timedUnlock(acct, 0); err != nil {
+				log.Error("unable to unlock acct", "acct", acct.URL.String(), "err", err)
+				notRetrieved = append(notRetrieved, secret)
 				continue
 			}
-
-			// create accounts.Account
-			// to parse a string url as an accounts.URL it must first be in json format
-			toParse := fmt.Sprintf("\"%v\"", url)
-			var parsedUrl accounts.URL
-
-			if err := parsedUrl.UnmarshalJSON([]byte(toParse)); err != nil {
-				log.Warn("unable to parse url of account retrieved from Hashicorp Vault", "url", url, "err", err)
-				continue
-			}
-
-			acct := accounts.Account{
-				Address: address,
-				URL:     parsedUrl,
-			}
-
-			// update state
-			h.mutex.Lock()
-
-			if _, ok := h.keyHandlers[acct.Address]; !ok {
-				h.keyHandlers[acct.Address] = make(map[accounts.URL]*hashicorpKeyHandler)
-			}
-
-			keyHandlersByUrl := h.keyHandlers[acct.Address]
-
-			if _, ok := keyHandlersByUrl[acct.URL]; ok {
-				log.Warn("Hashicorp Vault key handler already exists.  Not updated.", "url", url)
-			} else {
-				keyHandlersByUrl[acct.URL] = &hashicorpKeyHandler{secret: s}
-				h.accts = append(h.accts, acct)
-			}
-
-			h.mutex.Unlock()
 		}
 	}
+
+	return notRetrieved
+}
+
+// TODO rlock getter for keyhandlers - will protect against colliding with the full lock applied in this method.
+//  Use whenever reading from the keyhandler, shouldn't be used to store as a variable
+// tryRetrieveAddress attempts to get the address component of the provided secret from the Vault, updating the
+// hashicorpService's keyHandlers and returning the corresponding accounts.Account if successful.  If the address has
+// already been retrieved for the given secret then the corresponding account will be returned without making another
+// request to the Vault.
+func (h *hashicorpService) tryRetrieveAddress(secret HashicorpSecretConfig) (accounts.Account, error) {
+	// check if the address has already been retrieved for this secret
+	for addr, khByUrl := range h.keyHandlers {
+		for url, kh := range khByUrl {
+			if kh.secret == secret {
+				return accounts.Account{URL: url, Address: addr}, nil
+			}
+		}
+	}
+
+	// try and get the address from the Vault
+	path := fmt.Sprintf("%s/data/%s", secret.SecretEngine, secret.AddressSecret)
+	url := fmt.Sprintf("%v/v1/%v?version=%v", h.getClient().Address(), path, secret.AddressSecretVersion)
+
+	// to parse a string url as an accounts.URL it must first be in json format
+	toParse := fmt.Sprintf("\"%v\"", url)
+	var parsedUrl accounts.URL
+
+	if err := parsedUrl.UnmarshalJSON([]byte(toParse)); err != nil {
+		return accounts.Account{}, fmt.Errorf("unable to parse %v to accounts.URL, err: %v", url, err.Error())
+	}
+
+	h.mutex.RLock()
+	address, err := h.getAddressFromVault(secret)
+	h.mutex.RUnlock()
+
+	if err != nil {
+		return accounts.Account{}, fmt.Errorf("unable to get address from Vault for %v, err: %v", url, err.Error())
+	}
+
+	acct := accounts.Account{
+		Address: address,
+		URL:     parsedUrl,
+	}
+
+	// update state
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
+	if _, ok := h.keyHandlers[acct.Address]; !ok {
+		h.keyHandlers[acct.Address] = make(map[accounts.URL]*hashicorpKeyHandler)
+	}
+
+	keyHandlersByUrl := h.keyHandlers[acct.Address]
+
+	if _, ok := keyHandlersByUrl[acct.URL]; ok {
+		log.Warn("Address has already been retrieved.  Ignoring.", "url", url)
+		return acct, nil
+	}
+
+	keyHandlersByUrl[acct.URL] = &hashicorpKeyHandler{secret: secret}
+	h.accts = append(h.accts, acct)
+
+	return acct, nil
 }
 
 // getAddressFromVault retrieves the address component of the provided secret from the Vault.
@@ -280,57 +326,6 @@ func (h *hashicorpService) getAddressFromVault(s HashicorpSecretConfig) (common.
 	}
 
 	return common.HexToAddress(hexAddr), nil
-}
-
-// countRetrievedKeys returns the number of keyHandlers which have retrieved keys associated with them.
-func countRetrievedKeys(keyHandlers map[common.Address]map[accounts.URL]*hashicorpKeyHandler) int {
-	var n int
-
-	for _, khByUrl := range keyHandlers {
-		for _, kh := range khByUrl {
-			if kh.key != nil {
-				n++
-			}
-		}
-	}
-
-	return n
-}
-
-// privateKeyRetrievalLoop periodically goes through the configured secrets and attempts to retrieve the account private key from the Vault if not already retrieved.
-//
-// The loop will stop once all private keys are retrieved or when the ticker is stopped.
-func (h *hashicorpService) privateKeyRetrievalLoop(ticker *time.Ticker) {
-	for range ticker.C {
-		h.mutex.RLock()
-		keyHandlers := h.keyHandlers
-		h.mutex.RUnlock()
-
-		if countRetrievedKeys(keyHandlers) == len(h.secrets) {
-			ticker.Stop()
-			return
-		}
-
-		for addr, byUrl := range keyHandlers {
-			for u, kh := range byUrl {
-				h.mutex.RLock()
-				key, err := h.getKeyFromVault(kh.secret)
-				h.mutex.RUnlock()
-
-				if err != nil {
-					path := fmt.Sprintf("%s/data/%s", kh.secret.SecretEngine, kh.secret.PrivateKeySecret)
-					url := fmt.Sprintf("%v/v1/%v?version=%v", h.getClient().Address(), path, kh.secret.PrivateKeySecretVersion)
-
-					log.Warn("unable to get key from Hashicorp Vault", "url", url, "err", err)
-					continue
-				}
-
-				h.mutex.Lock()
-				h.keyHandlers[addr][u].key = key
-				h.mutex.Unlock()
-			}
-		}
-	}
 }
 
 // getAddressFromVault retrieves the private key component of the provided secret from the Vault.
