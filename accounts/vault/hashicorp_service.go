@@ -100,6 +100,7 @@ func (h *hashicorpService) status() (string, error) {
 }
 
 // withAcctStatuses appends the locked/unlocked status of the accounts managed by the service to the provided walletStatus.
+// Expects RLock to be held.
 func (h *hashicorpService) withAcctStatuses(walletStatus string) string {
 	status := []string{walletStatus}
 
@@ -263,6 +264,7 @@ func (h *hashicorpService) tryRetrieveAccounts(toRetrieve []HashicorpSecretConfi
 // request to the Vault.
 func (h *hashicorpService) tryRetrieveAddress(secret HashicorpSecretConfig) (accounts.Account, error) {
 	// check if the address has already been retrieved for this secret
+	h.mutex.RLock()
 	for addr, khByUrl := range h.keyHandlers {
 		for url, kh := range khByUrl {
 			if kh.secret == secret {
@@ -270,6 +272,7 @@ func (h *hashicorpService) tryRetrieveAddress(secret HashicorpSecretConfig) (acc
 			}
 		}
 	}
+	h.mutex.RUnlock()
 
 	// try and get the address from the Vault
 	path := fmt.Sprintf("%s/data/%s", secret.SecretEngine, secret.AddressSecret)
@@ -317,7 +320,7 @@ func (h *hashicorpService) tryRetrieveAddress(secret HashicorpSecretConfig) (acc
 	return acct, nil
 }
 
-// getAddressFromVault retrieves the address component of the provided secret from the Vault.
+// getAddressFromVault retrieves the address component of the provided secret from the Vault.  Expects RLock to be held.
 func (h *hashicorpService) getAddressFromVault(s HashicorpSecretConfig) (common.Address, error) {
 	hexAddr, err := h.getSecretFromVault(s.AddressSecret, s.AddressSecretVersion, s.SecretEngine)
 
@@ -328,7 +331,7 @@ func (h *hashicorpService) getAddressFromVault(s HashicorpSecretConfig) (common.
 	return common.HexToAddress(hexAddr), nil
 }
 
-// getAddressFromVault retrieves the private key component of the provided secret from the Vault.
+// getAddressFromVault retrieves the private key component of the provided secret from the Vault. Expects RLock to be held.
 func (h *hashicorpService) getKeyFromVault(s HashicorpSecretConfig) (*ecdsa.PrivateKey, error) {
 	hexKey, err := h.getSecretFromVault(s.PrivateKeySecret, s.PrivateKeySecretVersion, s.SecretEngine)
 
@@ -345,7 +348,7 @@ func (h *hashicorpService) getKeyFromVault(s HashicorpSecretConfig) (*ecdsa.Priv
 	return key, nil
 }
 
-// getSecretFromVault retrieves a particular version of the secret 'name' from the provided secret engine.
+// getSecretFromVault retrieves a particular version of the secret 'name' from the provided secret engine. Expects RLock to be held.
 func (h *hashicorpService) getSecretFromVault(name string, version int, engine string) (string, error) {
 	path := fmt.Sprintf("%s/data/%s", engine, name)
 
@@ -443,7 +446,7 @@ func (h *hashicorpService) getKey(acct accounts.Account) (*ecdsa.PrivateKey, fun
 	return key, zeroFn, nil
 }
 
-// getKeyHandler returns the associated keyHandler for the given account.  If the provided account does not specify a URL and more than one keyHandler is found for the given address, then an AmbiguousAddrErr error is returned.
+// getKeyHandler returns the associated keyHandler for the given account.  If the provided account does not specify a URL and more than one keyHandler is found for the given address, then an AmbiguousAddrErr error is returned.  Expects RLock to be held.
 func (h *hashicorpService) getKeyHandler(acct accounts.Account) (*hashicorpKeyHandler, error) {
 	keyHandlersByUrl, ok := h.keyHandlers[acct.Address]
 
@@ -559,7 +562,7 @@ func (h *hashicorpService) timedUnlock(acct accounts.Account, duration time.Dura
 	return nil
 }
 
-// unlockKeyHandler retrieves the private key from the Vault using the config in the handler and adds the key to the handler.  If the handler already has a stored key no call to the Vault is made and alreadyUnlocked is returned true.
+// unlockKeyHandler retrieves the private key from the Vault using the config in the handler and adds the key to the handler.  If the handler already has a stored key no call to the Vault is made and alreadyUnlocked is returned true.  Expects RLock to be held.
 func (h *hashicorpService) unlockKeyHandler(handler *hashicorpKeyHandler) (alreadyUnlocked bool, err error) {
 	if k := handler.key; k != nil && k.D.Int64() != 0 {
 		return true, nil
