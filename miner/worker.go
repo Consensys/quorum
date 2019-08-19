@@ -532,7 +532,6 @@ func (w *worker) taskLoop() {
 	for {
 		select {
 		case task := <-w.taskCh:
-
 			if w.newTaskHook != nil {
 				w.newTaskHook(task)
 			}
@@ -592,11 +591,10 @@ func (w *worker) resultLoop() {
 			}
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var (
-				work     = w.current
 				receipts = make([]*types.Receipt, len(task.receipts)+len(task.privateReceipts))
 				logs     []*types.Log
 			)
-			for i, receipt := range append(task.receipts, work.privateReceipts...) {
+			for i, receipt := range append(task.receipts, task.privateReceipts...) {
 				// add block location fields
 				receipt.BlockHash = hash
 				receipt.BlockNumber = block.Number()
@@ -611,25 +609,25 @@ func (w *worker) resultLoop() {
 				}
 			}
 
-			for _, log := range append(work.state.Logs(), work.privateState.Logs()...) {
+			for _, log := range append(task.state.Logs(), task.privateState.Logs()...) {
 				log.BlockHash = hash
 			}
 
 			// write private transacions
-			privateStateRoot, _ := work.privateState.Commit(w.chainConfig.IsEIP158(block.Number()))
+			privateStateRoot, _ := task.privateState.Commit(w.chainConfig.IsEIP158(block.Number()))
 			core.WritePrivateStateRoot(w.eth.ChainDb(), block.Root(), privateStateRoot)
-			allReceipts := mergeReceipts(work.receipts, work.privateReceipts)
+			allReceipts := mergeReceipts(task.receipts, task.privateReceipts)
 
 			// Commit block and state to database.
 			w.mu.Lock()
-			stat, err := w.chain.WriteBlockWithState(block, allReceipts, work.state, nil)
+			stat, err := w.chain.WriteBlockWithState(block, allReceipts, task.state, nil)
 			w.mu.Unlock()
 			if err != nil {
 				log.Error("Failed writWriteBlockAndStating block to chain", "err", err)
 				continue
 			}
 
-			if err := core.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), work.privateReceipts); err != nil {
+			if err := core.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts); err != nil {
 				log.Error("Failed writing private block bloom", "err", err)
 				continue
 			}
@@ -641,7 +639,7 @@ func (w *worker) resultLoop() {
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 			var events []interface{}
-			logs = append(work.state.Logs(), work.privateState.Logs()...)
+			logs = append(task.state.Logs(), task.privateState.Logs()...)
 
 			switch stat {
 			case core.CanonStatTy:
@@ -1039,8 +1037,8 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 
 	privateReceipts := make([]*types.Receipt, len(w.current.privateReceipts))
 	for i, l := range w.current.privateReceipts {
-		receipts[i] = new(types.Receipt)
-		*receipts[i] = *l
+		privateReceipts[i] = new(types.Receipt)
+		*privateReceipts[i] = *l
 	}
 
 	s := w.current.state.Copy()
