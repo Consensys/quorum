@@ -422,9 +422,9 @@ func (p *PermissionCtrl) manageNodePermissions() {
 			types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, evtNodeActivated.EnodeId, types.NodeApproved)
 
 		case evtNodeBlacklisted = <-chNodeBlacklisted:
-			p.updatePermissionedNodes(evtNodeBlacklisted.EnodeId, NodeDelete)
-			p.updateDisallowedNodes(evtNodeBlacklisted.EnodeId, NodeAdd)
 			types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, types.NodeBlackListed)
+			p.updateDisallowedNodes(evtNodeBlacklisted.EnodeId, NodeAdd)
+			p.updatePermissionedNodes(evtNodeBlacklisted.EnodeId, NodeDelete)
 
 		case evtNodeRecoveryInit = <-chNodeRecoveryInit:
 			types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, evtNodeRecoveryInit.EnodeId, types.NodeRecoveryInitiated)
@@ -477,7 +477,6 @@ func (p *PermissionCtrl) updateFile(fileName, enodeId string, operation NodeOper
 		nodeList = append(nodeList, enodeId)
 	} else {
 		nodeList = append(nodeList[:index], nodeList[index+1:]...)
-		p.disconnectNode(enodeId)
 	}
 	blob, _ := json.Marshal(nodeList)
 
@@ -501,6 +500,9 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeO
 	}
 
 	p.updateFile(path, enodeId, operation, false)
+	if operation == NodeDelete {
+		p.disconnectNode(enodeId)
+	}
 }
 
 //this function populates the black listed node information into the disallowed-nodes.json file
@@ -524,9 +526,6 @@ func (p *PermissionCtrl) updateDisallowedNodes(url string, operation NodeOperati
 	} else {
 		p.updateFile(path, url, operation, true)
 	}
-
-	// Disconnect the peer if it is already connected
-	p.disconnectNode(url)
 }
 
 // Monitors account access related events and updates the cache accordingly

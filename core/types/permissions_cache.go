@@ -200,6 +200,10 @@ func SetDefaults(nwRoleId, oaRoleId string) {
 	orgAdminRole = oaRoleId
 }
 
+func GetDefaults() (string, string, AccessType){
+	return networkAdminRole, orgAdminRole, DefaultAccess
+}
+
 func (o *OrgCache) UpsertOrg(orgId, parentOrg, ultimateParent string, level *big.Int, status OrgStatus) {
 	defer o.mux.Unlock()
 	o.mux.Lock()
