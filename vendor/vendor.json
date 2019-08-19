@@ -213,6 +213,48 @@
 			"revisionTime": "2016-08-13T22:13:03Z"
 		},
 		{
+			"checksumSHA1": "eQIjS1AvkQQsf9jzI63bLpfpwoc=",
+			"path": "github.com/hashicorp/vault/api",
+			"revision": "6f9fe647f06e4dcb9f45ff258c37661183ceb7a7",
+			"revisionTime": "2019-08-19T13:21:39Z"
+		},
+		{
+			"checksumSHA1": "l86GWkjHrwPSmRvItKhUf/1+y24=",
+			"path": "github.com/hashicorp/vault/sdk/helper/compressutil",
+			"revision": "6f9fe647f06e4dcb9f45ff258c37661183ceb7a7",
+			"revisionTime": "2019-08-19T13:21:39Z"
+		},
+		{
+			"checksumSHA1": "QLsh8PxjqpjSfExFILz7SNGIxGw=",
+			"path": "github.com/hashicorp/vault/sdk/helper/consts",
+			"revision": "6f9fe647f06e4dcb9f45ff258c37661183ceb7a7",
+			"revisionTime": "2019-08-19T13:21:39Z"
+		},
+		{
+			"checksumSHA1": "3rDg2hwAH3Zo0UjIdHMKylE09uY=",
+			"path": "github.com/hashicorp/vault/sdk/helper/hclutil",
+			"revision": "6f9fe647f06e4dcb9f45ff258c37661183ceb7a7",
+			"revisionTime": "2019-08-19T13:21:39Z"
+		},
+		{
+			"checksumSHA1": "MZUsffvYhiwfk2OakVd4BebUXXE=",
+			"path": "github.com/hashicorp/vault/sdk/helper/jsonutil",
+			"revision": "6f9fe647f06e4dcb9f45ff258c37661183ceb7a7",
+			"revisionTime": "2019-08-19T13:21:39Z"
+		},
+		{
+			"checksumSHA1": "ogvIW19/BzvED4rAlrpElQZbH7o=",
+			"path": "github.com/hashicorp/vault/sdk/helper/parseutil",
+			"revision": "6f9fe647f06e4dcb9f45ff258c37661183ceb7a7",
+			"revisionTime": "2019-08-19T13:21:39Z"
+		},
+		{
+			"checksumSHA1": "v7TPN1NM871TIcUo1+Sm40SRNxk=",
+			"path": "github.com/hashicorp/vault/sdk/helper/strutil",
+			"revision": "6f9fe647f06e4dcb9f45ff258c37661183ceb7a7",
+			"revisionTime": "2019-08-19T13:21:39Z"
+		},
+		{
 			"checksumSHA1": "f55gR+6YClh0i/FOhdy66SOUiwY=",
 			"path": "github.com/huin/goupnp",
 			"revision": "679507af18f3c7ba2bcc7905392ce23e148661c3",
@@ -945,6 +987,30 @@
 			"path": "gopkg.in/sourcemap.v1/base64vlq",
 			"revision": "6e83acea0053641eff084973fee085f0c193c61a",
 			"revisionTime": "2017-02-13T14:20:43Z"
+		},
+		{
+			"checksumSHA1": "oRfTuL23MIBG2nCwjweTJz4Eiqg=",
+			"path": "gopkg.in/square/go-jose.v2",
+			"revision": "730df5f748271903322feb182be83b43ebbbe27d",
+			"revisionTime": "2019-04-10T21:58:30Z"
+		},
+		{
+			"checksumSHA1": "Ho5sr2GbiR8S35IRni7vC54d5Js=",
+			"path": "gopkg.in/square/go-jose.v2/cipher",
+			"revision": "730df5f748271903322feb182be83b43ebbbe27d",
+			"revisionTime": "2019-04-10T21:58:30Z"
+		},
+		{
+			"checksumSHA1": "JFun0lWY9eqd80Js2iWsehu1gc4=",
+			"path": "gopkg.in/square/go-jose.v2/json",
+			"revision": "730df5f748271903322feb182be83b43ebbbe27d",
+			"revisionTime": "2019-04-10T21:58:30Z"
+		},
+		{
+			"checksumSHA1": "ArWEYi3WR6KVH3dZcElUJTi+pdA=",
+			"path": "gopkg.in/square/go-jose.v2/jwt",
+			"revision": "730df5f748271903322feb182be83b43ebbbe27d",
+			"revisionTime": "2019-04-10T21:58:30Z"
 		},
 		{
 			"checksumSHA1": "Yx1MU40fyGe7hhqW9+dkv8kXa60=",
