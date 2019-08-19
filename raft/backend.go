@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth"
@@ -31,21 +33,23 @@ type RaftService struct {
 	startPeers          []*enode.Node
 
 	// we need an event mux to instantiate the blockchain
-	eventMux *event.TypeMux
-	minter   *minter
-	nodeKey  *ecdsa.PrivateKey
+	eventMux         *event.TypeMux
+	minter           *minter
+	nodeKey          *ecdsa.PrivateKey
+	calcGasLimitFunc func(block *types.Block) uint64
 }
 
 func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftId, raftPort uint16, joinExisting bool, blockTime time.Duration, e *eth.Ethereum, startPeers []*enode.Node, datadir string) (*RaftService, error) {
 	service := &RaftService{
-		eventMux:       ctx.EventMux,
-		chainDb:        e.ChainDb(),
-		blockchain:     e.BlockChain(),
-		txPool:         e.TxPool(),
-		accountManager: e.AccountManager(),
-		downloader:     e.Downloader(),
-		startPeers:     startPeers,
-		nodeKey:        ctx.NodeKey(),
+		eventMux:         ctx.EventMux,
+		chainDb:          e.ChainDb(),
+		blockchain:       e.BlockChain(),
+		txPool:           e.TxPool(),
+		accountManager:   e.AccountManager(),
+		downloader:       e.Downloader(),
+		startPeers:       startPeers,
+		nodeKey:          ctx.NodeKey(),
+		calcGasLimitFunc: e.CalcGasLimit,
 	}
 
 	service.minter = newMinter(chainConfig, service, blockTime)

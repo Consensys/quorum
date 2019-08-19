@@ -263,13 +263,15 @@ func runTessera() (*osExec.Cmd, error) {
 }
 
 // 600a600055600060006001a1
-// [1] PUSH1 0x0a (store value)
-// [3] PUSH1 0x00 (store addr)
-// [4] SSTORE
-// [6] PUSH1 0x00
-// [8] PUSH1 0x00
-// [10] PUSH1 0x01
-// [11] LOG1
+// 60 0a, 60 00, 55,  60 00, 60 00, 60 01,  a1
+// [1] (0x60) PUSH1 0x0a (store value)
+// [3] (0x60) PUSH1 0x00 (store addr)
+// [4] (0x55) SSTORE  (Store (k-00,v-a))
+
+// [6] (0x60) PUSH1 0x00
+// [8] (0x60) PUSH1 0x00
+// [10](0x60) PUSH1 0x01
+// [11](0xa1) LOG1 offset(0x01), len(0x00), topic(0x00)
 //
 // Store then log
 func TestPrivateTransaction(t *testing.T) {
@@ -294,10 +296,12 @@ func TestPrivateTransaction(t *testing.T) {
 
 	prvContractAddr := common.Address{1}
 	pubContractAddr := common.Address{2}
+	// SSTORE (K,V) SSTORE(0, 10): 600a600055
+	// +
+	// LOG1 OFFSET LEN TOPIC,  LOG1 (a1) 01, 00, 00: 600060006001a1
 	privateState.SetCode(prvContractAddr, common.Hex2Bytes("600a600055600060006001a1"))
-	privateState.SetState(prvContractAddr, common.Hash{}, common.Hash{9})
+	// SSTORE (K,V) SSTORE(0, 14): 6014600055
 	publicState.SetCode(pubContractAddr, common.Hex2Bytes("6014600055"))
-	publicState.SetState(pubContractAddr, common.Hash{}, common.Hash{19})
 
 	if publicState.Exist(prvContractAddr) {
 		t.Error("didn't expect private contract address to exist on public state")
@@ -305,6 +309,7 @@ func TestPrivateTransaction(t *testing.T) {
 
 	// Private transaction 1
 	err = helper.MakeCall(true, key, prvContractAddr, nil)
+
 	if err != nil {
 		t.Fatal(err)
 	}

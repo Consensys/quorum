@@ -209,3 +209,27 @@ func UploadSFTP(identityFile, host, dir string, files []string) error {
 	stdin.Close()
 	return sftp.Wait()
 }
+
+// Read QUORUM_IGNORE_TEST_PACKAGES env and remove from packages
+func IgnorePackages(packages []string) []string {
+	ignore := os.Getenv("QUORUM_IGNORE_TEST_PACKAGES")
+	if ignore == "" {
+		return packages
+	}
+	ret := make([]string, 0, len(packages))
+	ignorePackages := strings.Split(ignore, ",")
+
+	for _, p := range packages {
+		mustInclude := true
+		for _, ig := range ignorePackages {
+			if strings.Index(p, strings.TrimSpace(ig)) == 0 {
+				mustInclude = false
+				break
+			}
+		}
+		if mustInclude {
+			ret = append(ret, p)
+		}
+	}
+	return ret
+}
