@@ -3,12 +3,12 @@ package permission
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"time"
 
@@ -70,7 +70,9 @@ type PermissionCtrl struct {
 	permOrg    *pbind.OrgManager
 	permConfig *types.PermissionConfig
 
-	stopFeed event.Feed
+	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependenies are ready before we start the service
+	stopFeed       event.Feed      // broadcasting stopEvent when service is being stopped
+	errorChan      chan error      // channel to capture error when starting aysnc
 
 	mux sync.Mutex
 }
@@ -132,178 +134,166 @@ func ParsePermissionConfig(dir string) (types.PermissionConfig, error) {
 		return types.PermissionConfig{}, fmt.Errorf("sub org breadth depth not passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
 	}
 
+	if permConfig.IsEmpty() {
+		return types.PermissionConfig{}, fmt.Errorf("missing contract addresses in %s", params.PERMISSION_MODEL_CONFIG)
+	}
 	return permConfig, nil
 }
 
-// for cases where the node is joining an existing network, permission service
-// can be brought up only after block syncing is complete. This function
-// waits for block syncing before the starting permissions
-func waitForSync(e *eth.Ethereum) {
-	for !types.GetSyncStatus() {
-		time.Sleep(10 * time.Millisecond)
-	}
-	for e.Downloader().Synchronising() {
-		time.Sleep(10 * time.Millisecond)
-	}
-}
-
-func StartPermissionService(stack *node.Node) error {
-	//initialize permission as we can create eth client only after the node and RPC are started
-	var permissionService *PermissionCtrl
-	if err := stack.Service(&permissionService); err != nil {
-		return fmt.Errorf("cannot access permissions service %v", err)
-	}
-	if permissionService == nil {
-		return fmt.Errorf("permission service unavailable")
-	}
-	//initialize the service to create eth client and get ethereum service
-	if err := permissionService.InitializeService(); err != nil {
-		return fmt.Errorf("permissions service initialization failed %v", err)
-	}
-	if err := permissionService.Start(stack.Server()); err != nil {
-		return fmt.Errorf("permissions service start failed %v", err)
-	}
-	return nil
-}
-
-// Creates the controls structure for permissions
-func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
-	// Create a new ethclient to for interfacing with the contract
-	return &PermissionCtrl{
-		node:       stack,
-		key:        stack.GetNodeKey(),
-		dataDir:    stack.DataDir(),
-		permConfig: pconfig,
-	}, nil
-}
-
-// subscribe to ChainHeadEvent in order to capture contract references
+// Create a service instance for permissioning
 //
-// this is for a scenario where node is sync-ing blocks containing the permission contracts
-func (p *PermissionCtrl) BeforeStart() error {
-
-	return nil
-}
-
-// setup contract references
-func (p *PermissionCtrl) AfterStart() error {
-	p.eth.APIBackend.Get
-}
-
-func (p *PermissionCtrl) InitializeService() error {
-	// synchronization might be happening, we need to wait until
-	// all contracts are available in the local blockchain
-
-	if p.permConfig.IsEmpty() {
-		log.Error("permission-config.json is missing contract address")
-		return errors.New("permission-config.json is missing contract address")
+// Permission Service depends on the following:
+// 1. EthService to be ready
+// 2. Downloader to sync up blocks
+// 3. InProc RPC server to be ready
+func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig) (*PermissionCtrl, error) {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	p := &PermissionCtrl{
+		node:           stack,
+		key:            stack.GetNodeKey(),
+		dataDir:        stack.DataDir(),
+		permConfig:     pconfig,
+		startWaitGroup: wg,
+		errorChan:      make(chan error),
 	}
-	pu, err := pbind.NewPermUpgr(p.permConfig.UpgrdAddress, clnt)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return err
-	}
-	// check if permissioning contract is there at address. If not return from here
-	pm, err := pbind.NewPermInterface(p.permConfig.InterfAddress, clnt)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return err
-	}
-
-	pmAcct, err := pbind.NewAcctManager(p.permConfig.AccountAddress, clnt)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return err
-	}
-
-	pmNode, err := pbind.NewNodeManager(p.permConfig.NodeAddress, clnt)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return err
-	}
-
-	pmRole, err := pbind.NewRoleManager(p.permConfig.RoleAddress, clnt)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return err
-	}
-
-	pmOrg, err := pbind.NewOrgManager(p.permConfig.OrgAddress, clnt)
-	if err != nil {
-		log.Error("Permissions not enabled for the network", "err", err)
-		return err
-	}
-	p.permUpgr = pu
-	p.permInterf = pm
-	p.permAcct = pmAcct
-	p.permNode = pmNode
-	p.permRole = pmRole
-	p.permOrg = pmOrg
-	p.ethClnt = clnt
-	p.eth = eth
-	log.Info("permission service initalized")
-	return nil
-}
-
-// Permissioning depends on few things before it can fully start:
-// 1. EthService
-// 2. Downloader (to sync blocks which contains the transactions containing smart contracts)
-// 3. InProc RPC Server
-func (p *PermissionCtrl) start(ethereum *eth.Ethereum, srvr *p2p.Server) {
-	stopChan, stopSubscription := p.subscribeStopEvent()
-	defer stopSubscription.Unsubscribe()
-	inProcRPCServerSub := p.node.EventMux().Subscribe(rpc.InProcServerReadyEvent{})
-	defer inProcRPCServerSub.Unsubscribe()
-	// wait for dependencies
-	for {
+	go func(_wg *sync.WaitGroup) {
+		log.Debug("permission service: waiting for InProcRPC Server")
+		stopChan, stopSubscription := p.subscribeStopEvent()
+		inProcRPCServerSub := stack.EventMux().Subscribe(rpc.InProcServerReadyEvent{})
+		defer func(start time.Time) {
+			log.Debug("permission service: InProcRPC server is ready", "took", time.Since(start))
+			stopSubscription.Unsubscribe()
+			inProcRPCServerSub.Unsubscribe()
+			_wg.Done()
+		}(time.Now())
 		select {
 		case <-inProcRPCServerSub.Chan():
-			break
 		case <-stopChan:
-			return
+		}
+	}(wg) // wait for inproc RPC to be ready
+	return p, nil
+}
+
+func (p *PermissionCtrl) bindContract(contractInstance interface{}, bindFunc func() (interface{}, error)) error {
+	element := reflect.ValueOf(contractInstance).Elem()
+	instance, err := bindFunc()
+	if err != nil {
+		return err
+	}
+	element.Set(reflect.ValueOf(instance))
+	return nil
+}
+
+// This is to make sure all contract instances are ready and initialized
+//
+// Required to be call after standard service start lifecycle
+func (p *PermissionCtrl) AfterStart() error {
+	log.Debug("permission service: binding contracts")
+	err := <-p.errorChan // capture any error happened during asyncStart. Also wait here if asyncStart is not yet finish
+	if err != nil {
+		return err
+	}
+	client, err := p.node.Attach()
+	if err != nil {
+		return fmt.Errorf("unable to create rpc client: %v", err)
+	}
+	p.ethClnt = ethclient.NewClient(client)
+	if err := p.bindContract(&p.permUpgr, func() (interface{}, error) { return pbind.NewPermUpgr(p.permConfig.UpgrdAddress, p.ethClnt) }); err != nil {
+		return err
+	}
+	if err := p.bindContract(&p.permInterf, func() (interface{}, error) { return pbind.NewPermInterface(p.permConfig.InterfAddress, p.ethClnt) }); err != nil {
+		return err
+	}
+	if err := p.bindContract(&p.permAcct, func() (interface{}, error) { return pbind.NewAcctManager(p.permConfig.AccountAddress, p.ethClnt) }); err != nil {
+		return err
+	}
+	if err := p.bindContract(&p.permNode, func() (interface{}, error) { return pbind.NewNodeManager(p.permConfig.NodeAddress, p.ethClnt) }); err != nil {
+		return err
+	}
+	if err := p.bindContract(&p.permRole, func() (interface{}, error) { return pbind.NewRoleManager(p.permConfig.RoleAddress, p.ethClnt) }); err != nil {
+		return err
+	}
+	if err := p.bindContract(&p.permOrg, func() (interface{}, error) { return pbind.NewOrgManager(p.permConfig.OrgAddress, p.ethClnt) }); err != nil {
+		return err
+	}
+
+	// populate the initial list of permissioned nodes and account accesses
+	if err := p.populateInitPermissions(); err != nil {
+		return fmt.Errorf("populateInitPermissions failed: %v", err)
+	}
+
+	// set the default access to ReadOnly
+	types.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole)
+
+	for _, f := range []func() error{
+		p.manageOrgPermissions,     // monitor org management related events
+		p.manageNodePermissions,    // monitor org  level node management events
+		p.manageRolePermissions,    // monitor org level role management events
+		p.manageAccountPermissions, // monitor org level account management events
+	} {
+		if err := f(); err != nil {
+			return err
 		}
 	}
+
+	log.Info("permission service: is now ready")
+
+	return nil
+}
+
+// start service asynchronously due to dependencies
+func (p *PermissionCtrl) asyncStart() {
+	var ethereum *eth.Ethereum
+	// will be blocked here until node is up
+	if err := p.node.Service(&ethereum); err != nil {
+		p.errorChan <- fmt.Errorf("dependent ethereum service not started")
+		return
+	}
+	defer func() {
+		p.errorChan <- nil
+	}()
+	// for cases where the node is joining an existing network, permission service
+	// can be brought up only after block syncing is complete. This function
+	// waits for block syncing before the starting permissions
+	p.startWaitGroup.Add(1)
+	go func(_wg *sync.WaitGroup) {
+		log.Debug("permission service: waiting for downloader")
+		stopChan, stopSubscription := p.subscribeStopEvent()
+		pollingTicker := time.NewTicker(10 * time.Millisecond)
+		defer func(start time.Time) {
+			log.Debug("permission service: downloader completed", "took", time.Since(start))
+			stopSubscription.Unsubscribe()
+			pollingTicker.Stop()
+			_wg.Done()
+		}(time.Now())
+		for {
+			select {
+			case <-pollingTicker.C:
+				if types.GetSyncStatus() && !ethereum.Downloader().Synchronising() {
+					return
+				}
+			case <-stopChan:
+				return
+			}
+		}
+	}(p.startWaitGroup) // wait for downloader to sync if any
+
+	log.Debug("permission service: waiting for all dependencies to be ready")
+	p.startWaitGroup.Wait()
 	p.eth = ethereum
-	client, e := p.node.Attach()
-	p.ethClnt = ethclient.NewClient(e)
 }
 
 func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
-	var ethereum *eth.Ethereum
-	if err := p.node.Service(&ethereum); err != nil {
-		return fmt.Errorf("dependent ethereum service not started")
-	}
-	go p.start(ethereum, srvr)
-	return nil
-
-	if p.ethClnt == nil || p.eth == nil {
-		log.Info("permission service not initialized")
-		return nil
-	}
-	log.Info("permission service start...")
-	// Permissions initialization
-	if err := p.init(); err != nil {
-		log.Error("Permissions init failed", "err", err)
-		return err
-	}
-
-	// monitor org management related events
-	go p.manageOrgPermissions()
-
-	// monitor org  level node management events
-	go p.manageNodePermissions()
-
-	// monitor org level role management events
-	go p.manageRolePermissions()
-
-	// monitor org level account management events
-	go p.manageAccountPermissions()
-	log.Info("permission service started")
+	log.Debug("permission service: starting")
+	go func() {
+		log.Debug("permission service: starting aysnc")
+		p.asyncStart()
+	}()
 	return nil
 }
 
 func (p *PermissionCtrl) APIs() []rpc.API {
-	log.Info("permission rpc API called")
 	return []rpc.API{
 		{
 			Namespace: "quorumPermission",
@@ -319,79 +309,63 @@ func (p *PermissionCtrl) Protocols() []p2p.Protocol {
 }
 
 func (p *PermissionCtrl) Stop() error {
-	log.Info("stopping permission service...")
+	log.Info("permission service: stopping")
 	p.stopFeed.Send(stopEvent{})
-	log.Info("stopped permission service")
-	return nil
-}
-
-// Sets the initial values for the network
-func (p *PermissionCtrl) init() error {
-	// populate the initial list of permissioned nodes and account accesses
-	if err := p.populateInitPermissions(); err != nil {
-		return err
-	}
-
-	// set the default access to ReadOnly
-	types.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole)
-
+	log.Info("permission service: stopped")
 	return nil
 }
 
 // monitors org management related events happening via smart contracts
 // and updates cache accordingly
-func (p *PermissionCtrl) manageOrgPermissions() {
-
+func (p *PermissionCtrl) manageOrgPermissions() error {
 	chPendingApproval := make(chan *pbind.OrgManagerOrgPendingApproval, 1)
 	chOrgApproved := make(chan *pbind.OrgManagerOrgApproved, 1)
 	chOrgSuspended := make(chan *pbind.OrgManagerOrgSuspended, 1)
 	chOrgReactivated := make(chan *pbind.OrgManagerOrgSuspensionRevoked, 1)
-
-	var evtPendingApproval *pbind.OrgManagerOrgPendingApproval
-	var evtOrgApproved *pbind.OrgManagerOrgApproved
-	var evtOrgSuspended *pbind.OrgManagerOrgSuspended
-	var evtOrgReactivated *pbind.OrgManagerOrgSuspensionRevoked
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
 
 	if _, err := p.permOrg.OrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
-		log.Info("Failed WatchNodePendingApproval: %v", err)
+		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
 	if _, err := p.permOrg.OrgManagerFilterer.WatchOrgApproved(opts, chOrgApproved); err != nil {
-		log.Info("Failed WatchNodePendingApproval: %v", err)
+		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
 	if _, err := p.permOrg.OrgManagerFilterer.WatchOrgSuspended(opts, chOrgSuspended); err != nil {
-		log.Info("Failed WatchNodePendingApproval: %v", err)
+		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
 	if _, err := p.permOrg.OrgManagerFilterer.WatchOrgSuspensionRevoked(opts, chOrgReactivated); err != nil {
-		log.Info("Failed WatchNodePendingApproval: %v", err)
+		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
-	stopChan, stopSubscription := p.subscribeStopEvent()
-	defer stopSubscription.Unsubscribe()
-	for {
-		select {
-		case evtPendingApproval = <-chPendingApproval:
-			types.OrgInfoMap.UpsertOrg(evtPendingApproval.OrgId, evtPendingApproval.PorgId, evtPendingApproval.UltParent, evtPendingApproval.Level, types.OrgStatus(evtPendingApproval.Status.Uint64()))
+	go func() {
+		stopChan, stopSubscription := p.subscribeStopEvent()
+		defer stopSubscription.Unsubscribe()
+		for {
+			select {
+			case evtPendingApproval := <-chPendingApproval:
+				types.OrgInfoMap.UpsertOrg(evtPendingApproval.OrgId, evtPendingApproval.PorgId, evtPendingApproval.UltParent, evtPendingApproval.Level, types.OrgStatus(evtPendingApproval.Status.Uint64()))
 
-		case evtOrgApproved = <-chOrgApproved:
-			types.OrgInfoMap.UpsertOrg(evtOrgApproved.OrgId, evtOrgApproved.PorgId, evtOrgApproved.UltParent, evtOrgApproved.Level, types.OrgApproved)
+			case evtOrgApproved := <-chOrgApproved:
+				types.OrgInfoMap.UpsertOrg(evtOrgApproved.OrgId, evtOrgApproved.PorgId, evtOrgApproved.UltParent, evtOrgApproved.Level, types.OrgApproved)
 
-		case evtOrgSuspended = <-chOrgSuspended:
-			types.OrgInfoMap.UpsertOrg(evtOrgSuspended.OrgId, evtOrgSuspended.PorgId, evtOrgSuspended.UltParent, evtOrgSuspended.Level, types.OrgSuspended)
+			case evtOrgSuspended := <-chOrgSuspended:
+				types.OrgInfoMap.UpsertOrg(evtOrgSuspended.OrgId, evtOrgSuspended.PorgId, evtOrgSuspended.UltParent, evtOrgSuspended.Level, types.OrgSuspended)
 
-		case evtOrgReactivated = <-chOrgReactivated:
-			types.OrgInfoMap.UpsertOrg(evtOrgReactivated.OrgId, evtOrgReactivated.PorgId, evtOrgReactivated.UltParent, evtOrgReactivated.Level, types.OrgApproved)
-		case <-stopChan:
-			log.Info("quit org contract watch")
-			return
+			case evtOrgReactivated := <-chOrgReactivated:
+				types.OrgInfoMap.UpsertOrg(evtOrgReactivated.OrgId, evtOrgReactivated.PorgId, evtOrgReactivated.UltParent, evtOrgReactivated.Level, types.OrgApproved)
+			case <-stopChan:
+				log.Info("quit org contract watch")
+				return
+			}
 		}
-	}
+	}()
+	return nil
 }
 
 func (p *PermissionCtrl) subscribeStopEvent() (chan stopEvent, event.Subscription) {
@@ -401,7 +375,7 @@ func (p *PermissionCtrl) subscribeStopEvent() (chan stopEvent, event.Subscriptio
 }
 
 // Monitors node management events and updates cache accordingly
-func (p *PermissionCtrl) manageNodePermissions() {
+func (p *PermissionCtrl) manageNodePermissions() error {
 	chNodeApproved := make(chan *pbind.NodeManagerNodeApproved, 1)
 	chNodeProposed := make(chan *pbind.NodeManagerNodeProposed, 1)
 	chNodeDeactivated := make(chan *pbind.NodeManagerNodeDeactivated, 1)
@@ -410,82 +384,77 @@ func (p *PermissionCtrl) manageNodePermissions() {
 	chNodeRecoveryInit := make(chan *pbind.NodeManagerNodeRecoveryInitiated, 1)
 	chNodeRecoveryDone := make(chan *pbind.NodeManagerNodeRecoveryCompleted, 1)
 
-	var evtNodeApproved *pbind.NodeManagerNodeApproved
-	var evtNodeProposed *pbind.NodeManagerNodeProposed
-	var evtNodeDeactivated *pbind.NodeManagerNodeDeactivated
-	var evtNodeActivated *pbind.NodeManagerNodeActivated
-	var evtNodeBlacklisted *pbind.NodeManagerNodeBlacklisted
-	var evtNodeRecoveryInit *pbind.NodeManagerNodeRecoveryInitiated
-	var evtNodeRecoveryDone *pbind.NodeManagerNodeRecoveryCompleted
-
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
 
 	if _, err := p.permNode.NodeManagerFilterer.WatchNodeApproved(opts, chNodeApproved); err != nil {
-		log.Info("Failed WatchNodeApproved", "error", err)
+		return fmt.Errorf("failed WatchNodeApproved: %v", err)
 	}
 
 	if _, err := p.permNode.NodeManagerFilterer.WatchNodeProposed(opts, chNodeProposed); err != nil {
-		log.Info("Failed WatchNodeProposed", "error", err)
+		return fmt.Errorf("failed WatchNodeProposed: %v", err)
 	}
 
 	if _, err := p.permNode.NodeManagerFilterer.WatchNodeDeactivated(opts, chNodeDeactivated); err != nil {
-		log.Info("Failed NodeDeactivated", "error", err)
+		return fmt.Errorf("failed NodeDeactivated: %v", err)
 	}
 	if _, err := p.permNode.NodeManagerFilterer.WatchNodeActivated(opts, chNodeActivated); err != nil {
-		log.Info("Failed WatchNodeActivated", "error", err)
+		return fmt.Errorf("failed WatchNodeActivated: %v", err)
 	}
 
 	if _, err := p.permNode.NodeManagerFilterer.WatchNodeBlacklisted(opts, chNodeBlacklisted); err != nil {
-		log.Info("Failed NodeBlacklisting", "error", err)
+		return fmt.Errorf("failed NodeBlacklisting: %v", err)
 	}
 
 	if _, err := p.permNode.NodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecoveryInit); err != nil {
-		log.Info("Failed NodeRecoveryInitiated", "error", err)
+		return fmt.Errorf("failed NodeRecoveryInitiated: %v", err)
 	}
 
 	if _, err := p.permNode.NodeManagerFilterer.WatchNodeRecoveryCompleted(opts, chNodeRecoveryDone); err != nil {
-		log.Info("Failed NodeRecoveryCompleted", "error", err)
+		return fmt.Errorf("failed NodeRecoveryCompleted: %v", err)
 	}
 
-	stopChan, stopSubscription := p.subscribeStopEvent()
-	defer stopSubscription.Unsubscribe()
-	for {
-		select {
-		case evtNodeApproved = <-chNodeApproved:
-			p.updatePermissionedNodes(evtNodeApproved.EnodeId, NodeAdd)
-			types.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, evtNodeApproved.EnodeId, types.NodeApproved)
+	go func() {
+		stopChan, stopSubscription := p.subscribeStopEvent()
+		defer stopSubscription.Unsubscribe()
+		for {
+			select {
+			case evtNodeApproved := <-chNodeApproved:
+				p.updatePermissionedNodes(evtNodeApproved.EnodeId, NodeAdd)
+				types.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, evtNodeApproved.EnodeId, types.NodeApproved)
 
-		case evtNodeProposed = <-chNodeProposed:
-			types.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, evtNodeProposed.EnodeId, types.NodePendingApproval)
+			case evtNodeProposed := <-chNodeProposed:
+				types.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, evtNodeProposed.EnodeId, types.NodePendingApproval)
 
-		case evtNodeDeactivated = <-chNodeDeactivated:
-			p.updatePermissionedNodes(evtNodeDeactivated.EnodeId, NodeDelete)
-			types.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, evtNodeDeactivated.EnodeId, types.NodeDeactivated)
+			case evtNodeDeactivated := <-chNodeDeactivated:
+				p.updatePermissionedNodes(evtNodeDeactivated.EnodeId, NodeDelete)
+				types.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, evtNodeDeactivated.EnodeId, types.NodeDeactivated)
 
-		case evtNodeActivated = <-chNodeActivated:
-			p.updatePermissionedNodes(evtNodeActivated.EnodeId, NodeAdd)
-			types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, evtNodeActivated.EnodeId, types.NodeApproved)
+			case evtNodeActivated := <-chNodeActivated:
+				p.updatePermissionedNodes(evtNodeActivated.EnodeId, NodeAdd)
+				types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, evtNodeActivated.EnodeId, types.NodeApproved)
 
-		case evtNodeBlacklisted = <-chNodeBlacklisted:
-			types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, types.NodeBlackListed)
-			p.updateDisallowedNodes(evtNodeBlacklisted.EnodeId, NodeAdd)
-			p.updatePermissionedNodes(evtNodeBlacklisted.EnodeId, NodeDelete)
+			case evtNodeBlacklisted := <-chNodeBlacklisted:
+				types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, types.NodeBlackListed)
+				p.updateDisallowedNodes(evtNodeBlacklisted.EnodeId, NodeAdd)
+				p.updatePermissionedNodes(evtNodeBlacklisted.EnodeId, NodeDelete)
 
-		case evtNodeRecoveryInit = <-chNodeRecoveryInit:
-			types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, evtNodeRecoveryInit.EnodeId, types.NodeRecoveryInitiated)
+			case evtNodeRecoveryInit := <-chNodeRecoveryInit:
+				types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, evtNodeRecoveryInit.EnodeId, types.NodeRecoveryInitiated)
 
-		case evtNodeRecoveryDone = <-chNodeRecoveryDone:
-			types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, evtNodeRecoveryDone.EnodeId, types.NodeApproved)
-			p.updateDisallowedNodes(evtNodeRecoveryDone.EnodeId, NodeDelete)
-			p.updatePermissionedNodes(evtNodeRecoveryDone.EnodeId, NodeAdd)
+			case evtNodeRecoveryDone := <-chNodeRecoveryDone:
+				types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, evtNodeRecoveryDone.EnodeId, types.NodeApproved)
+				p.updateDisallowedNodes(evtNodeRecoveryDone.EnodeId, NodeDelete)
+				p.updatePermissionedNodes(evtNodeRecoveryDone.EnodeId, NodeAdd)
 
-		case <-stopChan:
-			log.Info("quit node contract watch")
-			return
+			case <-stopChan:
+				log.Info("quit node contract watch")
+				return
+			}
 		}
-	}
+	}()
+	return nil
 }
 
 // adds or deletes and entry from a given file
@@ -576,49 +545,48 @@ func (p *PermissionCtrl) updateDisallowedNodes(url string, operation NodeOperati
 }
 
 // Monitors account access related events and updates the cache accordingly
-func (p *PermissionCtrl) manageAccountPermissions() {
+func (p *PermissionCtrl) manageAccountPermissions() error {
 	chAccessModified := make(chan *pbind.AcctManagerAccountAccessModified)
 	chAccessRevoked := make(chan *pbind.AcctManagerAccountAccessRevoked)
 	chStatusChanged := make(chan *pbind.AcctManagerAccountStatusChanged)
-
-	var evtAccessModified *pbind.AcctManagerAccountAccessModified
-	var evtAccessRevoked *pbind.AcctManagerAccountAccessRevoked
-	var evtStatusChanged *pbind.AcctManagerAccountStatusChanged
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
 
 	if _, err := p.permAcct.AcctManagerFilterer.WatchAccountAccessModified(opts, chAccessModified); err != nil {
-		log.Info("Failed NewNodeProposed", "error", err)
+		return fmt.Errorf("failed AccountAccessModified: %v", err)
 	}
 
 	if _, err := p.permAcct.AcctManagerFilterer.WatchAccountAccessRevoked(opts, chAccessRevoked); err != nil {
-		log.Info("Failed NewNodeProposed", "error", err)
+		return fmt.Errorf("failed AccountAccessRevoked: %v", err)
 	}
 
 	if _, err := p.permAcct.AcctManagerFilterer.WatchAccountStatusChanged(opts, chStatusChanged); err != nil {
-		log.Info("Failed NewNodeProposed", "error", err)
+		return fmt.Errorf("failed AccountStatusChanged: %v", err)
 	}
 
-	stopChan, stopSubscription := p.subscribeStopEvent()
-	defer stopSubscription.Unsubscribe()
-	for {
-		select {
-		case evtAccessModified = <-chAccessModified:
-			types.AcctInfoMap.UpsertAccount(evtAccessModified.OrgId, evtAccessModified.RoleId, evtAccessModified.Account, evtAccessModified.OrgAdmin, types.AcctStatus(int(evtAccessModified.Status.Uint64())))
+	go func() {
+		stopChan, stopSubscription := p.subscribeStopEvent()
+		defer stopSubscription.Unsubscribe()
+		for {
+			select {
+			case evtAccessModified := <-chAccessModified:
+				types.AcctInfoMap.UpsertAccount(evtAccessModified.OrgId, evtAccessModified.RoleId, evtAccessModified.Account, evtAccessModified.OrgAdmin, types.AcctStatus(int(evtAccessModified.Status.Uint64())))
 
-		case evtAccessRevoked = <-chAccessRevoked:
-			types.AcctInfoMap.UpsertAccount(evtAccessRevoked.OrgId, evtAccessRevoked.RoleId, evtAccessRevoked.Account, evtAccessRevoked.OrgAdmin, types.AcctActive)
+			case evtAccessRevoked := <-chAccessRevoked:
+				types.AcctInfoMap.UpsertAccount(evtAccessRevoked.OrgId, evtAccessRevoked.RoleId, evtAccessRevoked.Account, evtAccessRevoked.OrgAdmin, types.AcctActive)
 
-		case evtStatusChanged = <-chStatusChanged:
-			ac := types.AcctInfoMap.GetAccount(evtStatusChanged.Account)
-			types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Account, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
-		case <-stopChan:
-			log.Info("quit account contract watch")
-			return
+			case evtStatusChanged := <-chStatusChanged:
+				ac := types.AcctInfoMap.GetAccount(evtStatusChanged.Account)
+				types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Account, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
+			case <-stopChan:
+				log.Info("quit account contract watch")
+				return
+			}
 		}
-	}
+	}()
+	return nil
 }
 
 // Disconnect the node from the network
@@ -681,17 +649,15 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 		}
 	} else {
 		//populate orgs, nodes, roles and accounts from contract
-		if err := p.populateOrgsFromContract(auth); err != nil {
-			return err
-		}
-		if err := p.populateNodesFromContract(auth); err != nil {
-			return err
-		}
-		if err := p.populateRolesFromContract(auth); err != nil {
-			return err
-		}
-		if err := p.populateAccountsFromContract(auth); err != nil {
-			return err
+		for _, f := range []func(auth *bind.TransactOpts) error{
+			p.populateOrgsFromContract,
+			p.populateNodesFromContract,
+			p.populateRolesFromContract,
+			p.populateAccountsFromContract,
+		} {
+			if err := f(auth); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -869,41 +835,41 @@ func (p *PermissionCtrl) updateNetworkStatus(permissionsSession *pbind.PermInter
 }
 
 // monitors role management related events and updated cache
-func (p *PermissionCtrl) manageRolePermissions() {
+func (p *PermissionCtrl) manageRolePermissions() error {
 	chRoleCreated := make(chan *pbind.RoleManagerRoleCreated, 1)
 	chRoleRevoked := make(chan *pbind.RoleManagerRoleRevoked, 1)
-
-	var evtRoleCreated *pbind.RoleManagerRoleCreated
-	var evtRoleRevoked *pbind.RoleManagerRoleRevoked
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
 
 	if _, err := p.permRole.RoleManagerFilterer.WatchRoleCreated(opts, chRoleCreated); err != nil {
-		log.Info("Failed WatchRoleCreated: %v", err)
+		return fmt.Errorf("failed WatchRoleCreated: %v", err)
 	}
 
 	if _, err := p.permRole.RoleManagerFilterer.WatchRoleRevoked(opts, chRoleRevoked); err != nil {
-		log.Info("Failed WatchRoleRemoved: %v", err)
+		return fmt.Errorf("failed WatchRoleRemoved: %v", err)
 	}
 
-	stopChan, stopSubscription := p.subscribeStopEvent()
-	defer stopSubscription.Unsubscribe()
-	for {
-		select {
-		case evtRoleCreated = <-chRoleCreated:
-			types.RoleInfoMap.UpsertRole(evtRoleCreated.OrgId, evtRoleCreated.RoleId, evtRoleCreated.IsVoter, evtRoleCreated.IsAdmin, types.AccessType(int(evtRoleCreated.BaseAccess.Uint64())), true)
+	go func() {
+		stopChan, stopSubscription := p.subscribeStopEvent()
+		defer stopSubscription.Unsubscribe()
+		for {
+			select {
+			case evtRoleCreated := <-chRoleCreated:
+				types.RoleInfoMap.UpsertRole(evtRoleCreated.OrgId, evtRoleCreated.RoleId, evtRoleCreated.IsVoter, evtRoleCreated.IsAdmin, types.AccessType(int(evtRoleCreated.BaseAccess.Uint64())), true)
 
-		case evtRoleRevoked = <-chRoleRevoked:
-			if r := types.RoleInfoMap.GetRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId); r != nil {
-				types.RoleInfoMap.UpsertRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId, r.IsVoter, r.IsAdmin, r.Access, false)
-			} else {
-				log.Error("Revoke role - cache is missing role", "org", evtRoleRevoked.OrgId, "role", evtRoleRevoked.RoleId)
+			case evtRoleRevoked := <-chRoleRevoked:
+				if r := types.RoleInfoMap.GetRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId); r != nil {
+					types.RoleInfoMap.UpsertRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId, r.IsVoter, r.IsAdmin, r.Access, false)
+				} else {
+					log.Error("Revoke role - cache is missing role", "org", evtRoleRevoked.OrgId, "role", evtRoleRevoked.RoleId)
+				}
+			case <-stopChan:
+				log.Info("quit role contract watch")
+				return
 			}
-		case <-stopChan:
-			log.Info("quit role contract watch")
-			return
 		}
-	}
+	}()
+	return nil
 }
