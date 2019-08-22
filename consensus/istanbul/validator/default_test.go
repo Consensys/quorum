@@ -29,6 +29,8 @@ import (
 var (
 	testAddress  = "70524d664ffe731100208a0154e556f9bb679ae6"
 	testAddress2 = "b37866a925bccd69cfa98d43b510f1d23d78a851"
+	testAddress3 = "b37866a925bccd69cfa98d43b510f1d23d78a852"
+	testAddress4 = "70524d664ffe731100208a0154e556f9bb679ae7"
 )
 
 func TestValidatorSet(t *testing.T) {

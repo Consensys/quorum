@@ -26,6 +26,11 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 )
 
+const (
+	IBFT_FORMULA_CEIL_2N_3 uint8 = iota+1
+	IBFT_FORMULA_FLOOR_2N_3_PLUS_1
+)
+
 type defaultValidator struct {
 	address common.Address
 }
