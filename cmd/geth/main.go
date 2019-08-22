@@ -347,8 +347,12 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	//
 	// checking if permissions is enabled and staring the permissions service
 	if stack.IsPermissionEnabled() {
-		if err := permission.StartPermissionService(stack); err != nil {
-			utils.Fatalf("Unable to start Smart Contract based Permission Service due to %s", err)
+		var permissionService *permission.PermissionCtrl
+		if err := stack.Service(&permissionService); err != nil {
+			utils.Fatalf("Permission service not runnning: %v", err)
+		}
+		if err := permissionService.AfterStart(); err != nil {
+			utils.Fatalf("Permission service post construct failure: %v", err)
 		}
 	}
 

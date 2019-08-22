@@ -1399,12 +1399,12 @@ func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
 		permissionConfig, err := permission.ParsePermissionConfig(stack.DataDir())
 		if err != nil {
-			Fatalf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
+			return nil, fmt.Errorf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}
 		// start the permissions management service
 		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig)
 		if err != nil {
-			Fatalf("Failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
+			return nil, fmt.Errorf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}
 		return pc, nil
 	}); err != nil {

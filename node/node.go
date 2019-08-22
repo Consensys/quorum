@@ -293,7 +293,7 @@ func (n *Node) startInProc(apis []rpc.API) error {
 		n.log.Debug("InProc registered", "service", api.Service, "namespace", api.Namespace)
 	}
 	n.inprocHandler = handler
-	return nil
+	return n.eventmux.Post(rpc.InProcServerReadyEvent{})
 }
 
 // stopInProc terminates the in-process RPC endpoint.
