@@ -289,8 +289,8 @@ func (sb *backend) verifyCommittedSeals(chain consensus.ChainReader, header *typ
 		}
 	}
 
-	// The validSeal number should be greater than equal to ceil(2N/3) i.e., quorum size   
-	if validSeal < snap.ValSet.QuorumSize() {
+	// The length of validSeal should be larger than number of faulty node + 1  
+	if validSeal <= snap.ValSet.F() {
 		return errInvalidCommittedSeals
 	}
 

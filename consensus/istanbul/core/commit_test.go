@@ -205,7 +205,7 @@ OUTER:
 			t.Errorf("the size of commit messages should be atleast ceil(2N/3): size %v", r0.valSet.QuorumSize())
 		}
 
-		// check signatures large than 2F+1
+		// check signatures are atleast ceil(2N/3) i.e., quorum size 
 		signedCount := 0
 		committedSeals := v0.committedMsgs[0].committedSeals
 		for _, validator := range r0.valSet.List() {
@@ -216,8 +216,8 @@ OUTER:
 				}
 			}
 		}
-		if signedCount <= 2*r0.valSet.F() {
-			t.Errorf("the expected signed count should be larger than %v, but got %v", 2*r0.valSet.F(), signedCount)
+		if signedCount < r0.valSet.QuorumSize() {
+			t.Errorf("the expected signed count should be larger than equal to %v, but got %v", r0.valSet.QuorumSize(), signedCount)
 		}
 		if !r0.current.IsHashLocked() {
 			t.Errorf("block should be locked")

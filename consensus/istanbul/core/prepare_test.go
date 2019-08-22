@@ -20,7 +20,7 @@ import (
 	"math/big"
 	"reflect"
 	"testing"
-
+	"math"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
@@ -156,12 +156,12 @@ func TestHandlePrepare(t *testing.T) {
 			errInconsistentSubject,
 		},
 		{
-			// less than 2F+1
+			// less than ceil(2N/3)
 			func() *testSystem {
 				sys := NewTestSystemWithBackend(N, F)
 
-				// save less than 2*F+1 replica
-				sys.backends = sys.backends[2*int(F)+1:]
+				// save less than ceil(2*N/3) replica
+				sys.backends = sys.backends[int(math.Ceil(float64(2*N)/3)):]
 
 				for i, backend := range sys.backends {
 					c := backend.engine.(*core)

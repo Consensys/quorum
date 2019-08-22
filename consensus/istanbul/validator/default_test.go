@@ -212,8 +212,8 @@ func testQuorumSize(t *testing.T) {
 	valSet := newDefaultSet([]common.Address{}, istanbul.RoundRobin)
 	for i:=1; i<=1000; i++ {
 		valSet.AddValidator(common.StringToAddress(string(i)));
-		if valSet.QuorumSize() <= (valSet.Size() - valSet.QuorumSize() + valSet.F()) {
-			t.Errorf("quorumSize constraint failed, expected value (QuorumSize > Size-QuorumSize+F) to be:%v, got: %v, for size: %v", true, false, valSet.Size());
+		if 2*valSet.QuorumSize() <= (valSet.Size() + valSet.F()) ||  2*valSet.QuorumSize() > (valSet.Size() + valSet.F()+2) {
+			t.Errorf("quorumSize constraint failed, expected value (2*QuorumSize > Size+F && 2*QuorumSize <= Size+F+2) to be:%v, got: %v, for size: %v", true, false, valSet.Size());
 		}
 	}
 }
