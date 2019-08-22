@@ -28,7 +28,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -289,8 +288,8 @@ func (sb *backend) verifyCommittedSeals(chain consensus.ChainReader, header *typ
 		}
 	}
 
-	// The length of validSeal should be larger than number of faulty node + 1
-	if validSeal < snap.ValSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3) {
+	// The validSeal number should be greater than equal to quorum size   
+	if validSeal < snap.ValSet.QuorumSize() {
 		return errInvalidCommittedSeals
 	}
 

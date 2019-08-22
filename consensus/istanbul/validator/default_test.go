@@ -29,8 +29,6 @@ import (
 var (
 	testAddress  = "70524d664ffe731100208a0154e556f9bb679ae6"
 	testAddress2 = "b37866a925bccd69cfa98d43b510f1d23d78a851"
-	testAddress3 = "b37866a925bccd69cfa98d43b510f1d23d78a852"
-	testAddress4 = "70524d664ffe731100208a0154e556f9bb679ae7"
 )
 
 func TestValidatorSet(t *testing.T) {
@@ -211,74 +209,11 @@ func testStickyProposer(t *testing.T) {
 }
 
 func testQuorumSize(t *testing.T) {
-	b1 := common.Hex2Bytes(testAddress)
-	b2 := common.Hex2Bytes(testAddress2)
-	addr1 := common.BytesToAddress(b1)
-	addr2 := common.BytesToAddress(b2)
-	
-	valSet := newDefaultSet([]common.Address{addr1, addr2}, istanbul.RoundRobin)
-	// N==2
-	// formulaType = 0, default 2f()+1 
-	if valSet.Size() != 2 {
-		t.Errorf("valSet.Size() expected: %v, got: %v", 2, valSet.Size())
-	}
-	if valSet.F() != 0 {
-		t.Errorf("valSet.F() expected: %v, got: %v", 0, valSet.F())
-	}
-	if valSet.QuorumSize(0) != 1 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 0, 2, 1, valSet.QuorumSize(0))
-	}
-	// formulaType = IBFT_FORMULA_CEIL_2N_3, proposed update Ceil(2N/3)
-	if valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3) != 2 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_CEIL_2N_3, 2, 2, valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3))
-	}
-	// formulaType = IBFT_FORMULA_FLOOR_2N_3_PLUS_1, proposed update floor(2N/3)+1
-	if valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1) != 2 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_FLOOR_2N_3_PLUS_1, 2, 2, valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1))
-	}
-	// N==3
-	b3 := common.Hex2Bytes(testAddress3)
-	addr3 := common.BytesToAddress(b3)
-	valSet.AddValidator(addr3)
-	if valSet.Size() != 3 {
-		t.Errorf("valSet.Size() expected: %v, got: %v", 3, valSet.Size())
-	}
-	if valSet.F() != 0 {
-		t.Errorf("valSet.F() expected: %v, got: %v", 0, valSet.F())
-	}
-	// formulaType = 0, default 2f()+1 
-	if valSet.QuorumSize(0) != 1 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 0, 3, 1, valSet.QuorumSize(0))
-	}
-	// formulaType = IBFT_FORMULA_CEIL_2N_3, proposed update Ceil(2N/3)
-	if valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3) != 2 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_CEIL_2N_3, 3, 2, valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3))
-	}
-	// formulaType = IBFT_FORMULA_FLOOR_2N_3_PLUS_1, proposed update floor(2N/3)+1 
-	if valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1) != 3 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_FLOOR_2N_3_PLUS_1, 3, 3, valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1))
-	}
-
-	// N==4
-	b4 := common.Hex2Bytes(testAddress4)
-	addr4 := common.BytesToAddress(b4)
-	valSet.AddValidator(addr4)
-	if valSet.Size() != 4 {
-		t.Errorf("valSet.Size() expected: %v, got: %v", 4, valSet.Size())
-	}
-	if valSet.F() != 1 {
-		t.Errorf("valSet.F() expected: %v, got: %v", 1, valSet.F())
-	}
-	// formulaType = 0, default 2f()+1 
-	if valSet.QuorumSize(0) != 3 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", 0, 4, 3, valSet.QuorumSize(0))
-	}
-	// formulaType = IBFT_FORMULA_CEIL_2N_3, proposed update Ceil(2N/3)
-	if valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3) != 3 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_CEIL_2N_3, 4, 3, valSet.QuorumSize(IBFT_FORMULA_CEIL_2N_3))
-	}
-	// formulaType = IBFT_FORMULA_FLOOR_2N_3_PLUS_1, proposed update floor(2N/3)+1 
-	if valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1) != 3 {
-		t.Errorf("QuorumSize wrong for formulaType: %v,  N: %v, expected: %v, got: %v", IBFT_FORMULA_FLOOR_2N_3_PLUS_1, 4, 3, valSet.QuorumSize(IBFT_FORMULA_FLOOR_2N_3_PLUS_1))
+	valSet := newDefaultSet([]common.Address{}, istanbul.RoundRobin)
+	for i:=1; i<=1000; i++ {
+		valSet.AddValidator(common.StringToAddress(string(i)));
+		if valSet.QuorumSize() <= (valSet.Size() - valSet.QuorumSize() + valSet.F()) {
+			t.Errorf("quorumSize constraint failed, expected value (QuorumSize > Size-QuorumSize+F) to be:%v, got: %v, for size: %v", true, false, valSet.Size());
+		}
 	}
 }

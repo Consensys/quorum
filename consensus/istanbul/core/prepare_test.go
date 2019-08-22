@@ -23,7 +23,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -214,8 +213,8 @@ OUTER:
 			if r0.state != StatePreprepared {
 				t.Errorf("state mismatch: have %v, want %v", r0.state, StatePreprepared)
 			}
-			if r0.current.Prepares.Size() >= r0.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3) {
-				t.Errorf("the size of PREPARE messages should be less than %v", r0.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3))
+			if r0.current.Prepares.Size() >= r0.valSet.QuorumSize() {
+				t.Errorf("the size of PREPARE messages should be less than %v", r0.valSet.QuorumSize())
 			}
 			if r0.current.IsHashLocked() {
 				t.Errorf("block should not be locked")
@@ -224,12 +223,12 @@ OUTER:
 			continue
 		}
 
-		// core should have 2F+1 PREPARE messages
-		if r0.current.Prepares.Size() < r0.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3) {
-			t.Errorf("the size of PREPARE messages should be larger than or equal to QuorumSize(): size %v", r0.current.Commits.Size())
+		// core should have ceil(2N/3) PREPARE messages
+		if r0.current.Prepares.Size() < r0.valSet.QuorumSize() {
+			t.Errorf("the size of PREPARE messages should be atleast ceil(2N/3) size %v", r0.current.Commits.Size())
 		}
 
-		// a message will be delivered to backend if 2F+1
+		// a message will be delivered to backend if ceil(2N/3)
 		if int64(len(v0.sentMsgs)) != 1 {
 			t.Errorf("the Send() should be called once: times %v", len(test.system.backends[0].sentMsgs))
 		}

@@ -191,8 +191,8 @@ OUTER:
 			if r0.state != StatePrepared {
 				t.Errorf("state mismatch: have %v, want %v", r0.state, StatePrepared)
 			}
-			if r0.current.Commits.Size() >= r0.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3) {
-				t.Errorf("the size of commit messages should be less than %v", r0.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3))
+			if r0.current.Commits.Size() >= r0.valSet.QuorumSize() {
+				t.Errorf("the size of commit messages should be less than %v", r0.valSet.QuorumSize())
 			}
 			if r0.current.IsHashLocked() {
 				t.Errorf("block should not be locked")
@@ -200,9 +200,9 @@ OUTER:
 			continue
 		}
 
-		// core should have 2F+1 prepare messages
-		if r0.current.Commits.Size() < r0.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3) {
-			t.Errorf("the size of commit messages should be larger than 2F+1: size %v", r0.valSet.QuorumSize(validator.IBFT_FORMULA_CEIL_2N_3))
+		// core should have ceil(2N/3) prepare messages for N validators
+		if r0.current.Commits.Size() < r0.valSet.QuorumSize() {
+			t.Errorf("the size of commit messages should be atleast ceil(2N/3): size %v", r0.valSet.QuorumSize())
 		}
 
 		// check signatures large than 2F+1
