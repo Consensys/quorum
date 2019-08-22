@@ -287,7 +287,7 @@ func (p *PermissionCtrl) asyncStart() {
 func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
 	log.Debug("permission service: starting")
 	go func() {
-		log.Debug("permission service: starting aysnc")
+		log.Debug("permission service: starting async")
 		p.asyncStart()
 	}()
 	return nil
