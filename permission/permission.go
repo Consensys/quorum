@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/ethclient"
+
 	"github.com/ethereum/go-ethereum/event"
 
 	"github.com/ethereum/go-ethereum/raft"
@@ -193,11 +195,6 @@ func (p *PermissionCtrl) AfterStart() error {
 	if err != nil {
 		return err
 	}
-	client, err := p.node.Attach()
-	if err != nil {
-		return fmt.Errorf("unable to create rpc client: %v", err)
-	}
-	p.ethClnt = ethclient.NewClient(client)
 	if err := p.bindContract(&p.permUpgr, func() (interface{}, error) { return pbind.NewPermUpgr(p.permConfig.UpgrdAddress, p.ethClnt) }); err != nil {
 		return err
 	}
@@ -280,6 +277,12 @@ func (p *PermissionCtrl) asyncStart() {
 
 	log.Debug("permission service: waiting for all dependencies to be ready")
 	p.startWaitGroup.Wait()
+	client, err := p.node.Attach()
+	if err != nil {
+		p.errorChan <- fmt.Errorf("unable to create rpc client: %v", err)
+		return
+	}
+	p.ethClnt = ethclient.NewClient(client)
 	p.eth = ethereum
 }
 

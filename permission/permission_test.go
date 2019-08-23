@@ -4,17 +4,22 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
+
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/eth"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/node"
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
 )
 
@@ -28,7 +33,36 @@ func TestPermissionCtrl_InitializeService(t *testing.T) {
 			Balance: big.NewInt(100000000000000),
 		},
 	}
-	sb := backends.NewSimulatedBackend(genesisAlloc, 100000000000000)
+	// Create a networkless protocol stack and start an Ethereum service within
+	stack, err := node.New(&node.Config{
+		DataDir:           "",
+		UseLightweightKDF: true,
+		P2P: p2p.Config{
+			PrivateKey: guardianKey,
+		},
+	})
+	if err != nil {
+		t.Fatalf("failed to create node: %v", err)
+	}
+	ethConf := &eth.Config{
+		Genesis:   &core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 10000000000, Alloc: genesisAlloc},
+		Etherbase: guardianAddress,
+		Ethash: ethash.Config{
+			PowMode: ethash.ModeTest,
+		},
+	}
+	if err = stack.Register(func(ctx *node.ServiceContext) (node.Service, error) { return eth.New(ctx, ethConf) }); err != nil {
+		t.Fatalf("failed to register Ethereum protocol: %v", err)
+	}
+	// Start the node and assemble the JavaScript console around it
+	if err = stack.Start(); err != nil {
+		t.Fatalf("failed to start test stack: %v", err)
+	}
+	var ethereum *eth.Ethereum
+	if err := stack.Service(&ethereum); err != nil {
+		t.Fatal(err)
+	}
+	sb := backends.NewSimulatedBackendFrom(ethereum)
 
 	permUpgrAddress, _, permUpgrInstance, err := pbind.DeployPermUpgr(guardianTransactor, sb, guardianAddress)
 	if err != nil {
@@ -66,16 +100,7 @@ func TestPermissionCtrl_InitializeService(t *testing.T) {
 	if _, err := permUpgrInstance.Init(guardianTransactor, permInterfaceAddress, permImplAddress); err != nil {
 		t.Fatal(err)
 	}
-
-	sNode, err := node.New(&node.Config{
-		P2P: p2p.Config{
-			PrivateKey: guardianKey,
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	testObject, err := NewQuorumPermissionCtrl(sNode, &types.PermissionConfig{
+	testObject, err := NewQuorumPermissionCtrl(stack, &types.PermissionConfig{
 		UpgrdAddress:   permUpgrAddress,
 		InterfAddress:  permInterfaceAddress,
 		ImplAddress:    permImplAddress,
@@ -96,8 +121,13 @@ func TestPermissionCtrl_InitializeService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	testObject.ethClnt = sb
+	testObject.eth = ethereum
+	go func() {
+		testObject.errorChan <- nil
+	}()
 
-	err = testObject.InitializeService()
+	err = testObject.AfterStart()
 
 	assert.NoError(t, err)
 }
