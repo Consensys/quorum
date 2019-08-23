@@ -50,7 +50,7 @@ issues with the version of curl bundled with Vagrant.
 
 * If the machine you are using has less than 8 GB memory you will likely encounter system issues such as slow down and unresponsiveness when starting the Vagrant instance as your machine will not have the capacity to run the VM.  There are several steps that can be taken to overcome this:
     1. Shutdown any running processes that are not required
-    1. If running the [7nodes example](../7Nodes), reduce the number of nodes started up.  See the [7nodes: Reducing the number of nodes](../7Nodes#reducing-the-number-of-nodes) for info on how to do this.
+    1. If running the [7nodes example](../7Nodes), reduce the number of nodes started up.  See the [7nodes: Reducing the number of nodes](../7Nodes-Setup#reducing-the-number-of-nodes) for info on how to do this.
     1. Set up and run the examples locally.  Running locally reduces the load on your memory compared to running in Vagrant.
 
 ### Running with Docker
