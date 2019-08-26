@@ -668,12 +668,12 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 
 // initialize the permissions model and populate initial values
 func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSession) error {
-	permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permInterfSession.TransactOpts.From))
+	// permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().State().GetNonce(permInterfSession.TransactOpts.From))
 	if _, err := permInterfSession.SetPolicy(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole); err != nil {
 		log.Error("bootupNetwork SetPolicy failed", "err", err)
 		return err
 	}
-	permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permInterfSession.TransactOpts.From))
+	// permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().State().GetNonce(permInterfSession.TransactOpts.From))
 	if _, err := permInterfSession.Init(&p.permConfig.SubOrgBreadth, &p.permConfig.SubOrgDepth); err != nil {
 		log.Error("bootupNetwork init failed", "err", err)
 		return err
@@ -812,8 +812,8 @@ func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind
 // set of accounts access to full access
 func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.PermInterfaceSession) error {
 	for _, a := range p.permConfig.Accounts {
-		nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
-		permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
+		//nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
+		//permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 		_, er := permissionsSession.AddAdminAccount(a)
 		if er != nil {
 			log.Warn("Error adding permission initial account list", "err", er, "account", a)
@@ -826,8 +826,8 @@ func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.Per
 
 // updates network boot status to true
 func (p *PermissionCtrl) updateNetworkStatus(permissionsSession *pbind.PermInterfaceSession) error {
-	nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
-	permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
+	//nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
+	//permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 	_, err := permissionsSession.UpdateNetworkBootStatus()
 	if err != nil {
 		log.Warn("Failed to udpate network boot status ", "err", err)

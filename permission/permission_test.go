@@ -1,6 +1,7 @@
 package permission
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -23,8 +24,10 @@ import (
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
 )
 
-func TestPermissionCtrl_InitializeService(t *testing.T) {
+func TestPermissionCtrl_AfterStart(t *testing.T) {
 	guardianKey, _ := crypto.GenerateKey()
+	nodeKey, _ := crypto.GenerateKey()
+
 	guardianAddress := crypto.PubkeyToAddress(guardianKey.PublicKey)
 
 	guardianTransactor := bind.NewKeyedTransactor(guardianKey)
@@ -38,7 +41,7 @@ func TestPermissionCtrl_InitializeService(t *testing.T) {
 		DataDir:           "",
 		UseLightweightKDF: true,
 		P2P: p2p.Config{
-			PrivateKey: guardianKey,
+			PrivateKey: nodeKey,
 		},
 	})
 	if err != nil {
@@ -126,7 +129,7 @@ func TestPermissionCtrl_InitializeService(t *testing.T) {
 	go func() {
 		testObject.errorChan <- nil
 	}()
-
+	fmt.Println("after start")
 	err = testObject.AfterStart()
 
 	assert.NoError(t, err)
