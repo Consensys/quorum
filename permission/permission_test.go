@@ -1,9 +1,13 @@
 package permission
 
 import (
-	"fmt"
+	"crypto/ecdsa"
+	"log"
 	"math/big"
+	"os"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/params"
 
@@ -18,17 +22,35 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
 )
 
-func TestPermissionCtrl_AfterStart(t *testing.T) {
-	guardianKey, _ := crypto.GenerateKey()
+var (
+	testObject  *PermissionCtrl
+	guardianKey *ecdsa.PrivateKey
+	backend     bind.ContractBackend
+	permUpgrAddress, permInterfaceAddress, permImplAddress, voterManagerAddress,
+	nodeManagerAddress, roleManagerAddress, accountManagerAddress, orgManagerAddress common.Address
+	ethereum        *eth.Ethereum
+	stack           *node.Node
+	guardianAddress common.Address
+)
+
+func TestMain(m *testing.M) {
+	setup()
+	ret := m.Run()
+	teardown()
+	os.Exit(ret)
+}
+
+func setup() {
+	t := log.New(os.Stdout, "", 0)
+	guardianKey, _ = crypto.GenerateKey()
 	nodeKey, _ := crypto.GenerateKey()
 
-	guardianAddress := crypto.PubkeyToAddress(guardianKey.PublicKey)
+	guardianAddress = crypto.PubkeyToAddress(guardianKey.PublicKey)
 
 	guardianTransactor := bind.NewKeyedTransactor(guardianKey)
 	genesisAlloc := map[common.Address]core.GenesisAccount{
@@ -36,8 +58,9 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 			Balance: big.NewInt(100000000000000),
 		},
 	}
+	var err error
 	// Create a networkless protocol stack and start an Ethereum service within
-	stack, err := node.New(&node.Config{
+	stack, err = node.New(&node.Config{
 		DataDir:           "",
 		UseLightweightKDF: true,
 		P2P: p2p.Config{
@@ -61,41 +84,41 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 	if err = stack.Start(); err != nil {
 		t.Fatalf("failed to start test stack: %v", err)
 	}
-	var ethereum *eth.Ethereum
 	if err := stack.Service(&ethereum); err != nil {
 		t.Fatal(err)
 	}
-	sb := backends.NewSimulatedBackendFrom(ethereum)
+	backend = backends.NewSimulatedBackendFrom(ethereum)
 
-	permUpgrAddress, _, permUpgrInstance, err := pbind.DeployPermUpgr(guardianTransactor, sb, guardianAddress)
+	var permUpgrInstance *pbind.PermUpgr
+	permUpgrAddress, _, permUpgrInstance, err = pbind.DeployPermUpgr(guardianTransactor, backend, guardianAddress)
 	if err != nil {
 		t.Fatal(err)
 	}
-	permInterfaceAddress, _, _, err := pbind.DeployPermInterface(guardianTransactor, sb, permUpgrAddress)
+	permInterfaceAddress, _, _, err = pbind.DeployPermInterface(guardianTransactor, backend, permUpgrAddress)
 	if err != nil {
 		t.Fatal(err)
 	}
-	nodeManagerAddress, _, _, err := pbind.DeployNodeManager(guardianTransactor, sb, permUpgrAddress)
+	nodeManagerAddress, _, _, err = pbind.DeployNodeManager(guardianTransactor, backend, permUpgrAddress)
 	if err != nil {
 		t.Fatal(err)
 	}
-	roleManagerAddress, _, _, err := pbind.DeployRoleManager(guardianTransactor, sb, permUpgrAddress)
+	roleManagerAddress, _, _, err = pbind.DeployRoleManager(guardianTransactor, backend, permUpgrAddress)
 	if err != nil {
 		t.Fatal(err)
 	}
-	accountManagerAddress, _, _, err := pbind.DeployAcctManager(guardianTransactor, sb, permUpgrAddress)
+	accountManagerAddress, _, _, err = pbind.DeployAcctManager(guardianTransactor, backend, permUpgrAddress)
 	if err != nil {
 		t.Fatal(err)
 	}
-	orgManagerAddress, _, _, err := pbind.DeployOrgManager(guardianTransactor, sb, permUpgrAddress)
+	orgManagerAddress, _, _, err = pbind.DeployOrgManager(guardianTransactor, backend, permUpgrAddress)
 	if err != nil {
 		t.Fatal(err)
 	}
-	voterManagerAddress, _, _, err := pbind.DeployVoterManager(guardianTransactor, sb, permUpgrAddress)
+	voterManagerAddress, _, _, err = pbind.DeployVoterManager(guardianTransactor, backend, permUpgrAddress)
 	if err != nil {
 		t.Fatal(err)
 	}
-	permImplAddress, _, _, err := pbind.DeployPermImpl(guardianTransactor, sb, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+	permImplAddress, _, _, err = pbind.DeployPermImpl(guardianTransactor, backend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,6 +126,72 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 	if _, err := permUpgrInstance.Init(guardianTransactor, permInterfaceAddress, permImplAddress); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func teardown() {
+
+}
+
+func TestPermissionCtrl_AfterStart(t *testing.T) {
+	testObject := typicalPermissionCtrl(t)
+
+	err := testObject.AfterStart()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, testObject.permOrg)
+	assert.NotNil(t, testObject.permRole)
+	assert.NotNil(t, testObject.permNode)
+	assert.NotNil(t, testObject.permAcct)
+	assert.NotNil(t, testObject.permInterf)
+	assert.NotNil(t, testObject.permUpgr)
+
+	networkBooted, err := testObject.permInterf.GetNetworkBootStatus(&bind.CallOpts{
+		Pending: true,
+	})
+	assert.NoError(t, err)
+	assert.True(t, networkBooted)
+}
+
+func TestPermissionCtrl_PopulateInitPermissions_whenNetworkIsInitialized(t *testing.T) {
+	testObject := typicalPermissionCtrl(t)
+	assert.NoError(t, testObject.AfterStart())
+
+	err := testObject.populateInitPermissions()
+
+	assert.NoError(t, err)
+
+	// assert cache
+	assert.Equal(t, 1, len(types.OrgInfoMap.GetOrgList()))
+	cachedOrg := types.OrgInfoMap.GetOrgList()[0]
+	assert.Equal(t, "NETWORK_ADMIN", cachedOrg.OrgId)
+	assert.Equal(t, "NETWORK_ADMIN", cachedOrg.FullOrgId)
+	assert.Equal(t, "NETWORK_ADMIN", cachedOrg.UltimateParent)
+	assert.Equal(t, "", cachedOrg.ParentOrgId)
+	assert.Equal(t, types.OrgApproved, cachedOrg.Status)
+	assert.Equal(t, 0, len(cachedOrg.SubOrgList))
+	assert.Equal(t, big.NewInt(1), cachedOrg.Level)
+
+	assert.Equal(t, 1, len(types.RoleInfoMap.GetRoleList()))
+	cachedRole := types.RoleInfoMap.GetRoleList()[0]
+	assert.Equal(t, "NETWORK_ADMIN", cachedRole.OrgId)
+	assert.Equal(t, "NETWORK_ADMIN_ROLE", cachedRole.RoleId)
+	assert.True(t, cachedRole.Active)
+	assert.True(t, cachedRole.IsAdmin)
+	assert.True(t, cachedRole.IsVoter)
+	assert.Equal(t, types.FullAccess, cachedRole.Access)
+
+	assert.Equal(t, 0, len(types.NodeInfoMap.GetNodeList()))
+
+	assert.Equal(t, 1, len(types.AcctInfoMap.GetAcctList()))
+	cachedAccount := types.AcctInfoMap.GetAcctList()[0]
+	assert.Equal(t, "NETWORK_ADMIN", cachedAccount.OrgId)
+	assert.Equal(t, "NETWORK_ADMIN_ROLE", cachedAccount.RoleId)
+	assert.Equal(t, types.AcctActive, cachedAccount.Status)
+	assert.True(t, cachedAccount.IsOrgAdmin)
+	assert.Equal(t, guardianAddress, cachedAccount.AcctId)
+}
+
+func typicalPermissionCtrl(t *testing.T) *PermissionCtrl {
 	testObject, err := NewQuorumPermissionCtrl(stack, &types.PermissionConfig{
 		UpgrdAddress:   permUpgrAddress,
 		InterfAddress:  permInterfaceAddress,
@@ -124,13 +213,10 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	testObject.ethClnt = sb
+	testObject.ethClnt = backend
 	testObject.eth = ethereum
 	go func() {
 		testObject.errorChan <- nil
 	}()
-	fmt.Println("after start")
-	err = testObject.AfterStart()
-
-	assert.NoError(t, err)
+	return testObject
 }
