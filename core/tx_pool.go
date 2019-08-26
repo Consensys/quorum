@@ -1035,13 +1035,11 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 	}
 	// Check for pending transactions for every account that sent new ones
 	promoted := pool.promoteExecutables(promoteAddrs)
-	log.Info("AJ-promoted", "prm", promoted)
 	for _, tx := range promoted {
 		addr, _ := types.Sender(pool.signer, tx)
 		if _, ok := events[addr]; !ok {
 			events[addr] = newTxSortedMap()
 		}
-		log.Info("AJ-events","addr",addr, "tx", tx)
 		events[addr].Put(tx)
 	}
 	// If a new block appeared, validate the pool of pending transactions. This will
@@ -1067,7 +1065,6 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 		for _, set := range events {
 			txs = append(txs, set.Flatten()...)
 		}
-		log.Info("AJ-notify new tx","txs", txs)
 		pool.txFeed.Send(NewTxsEvent{txs})
 	}
 }
@@ -1171,7 +1168,6 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 	// Iterate over all accounts and promote any executable transactions
 	for _, addr := range accounts {
 		list := pool.queue[addr]
-		log.Info("AJ-list","l",list)
 		if list == nil {
 			continue // Just in case someone calls with a non existing account
 		}
@@ -1196,14 +1192,11 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 
 		// Gather all executable transactions and promote them
 		readies := list.Ready(pool.pendingNonces.get(addr))
-		log.Info("AJ-readies","rd", readies)
 		for _, tx := range readies {
 			hash := tx.Hash()
 			log.Trace("Promoting queued transaction", "hash", hash)
-			log.Info("AJ-Promoting queued transaction", "hash", hash)
 			if pool.promoteTx(addr, hash, tx) {
 				log.Trace("Promoting queued transaction", "hash", hash)
-				log.Info("AJ-Promoted queued transaction", "hash", hash)
 				promoted = append(promoted, tx)
 			}
 		}
