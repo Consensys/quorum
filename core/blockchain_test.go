@@ -147,12 +147,12 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 		if err != nil {
 			return err
 		}
-		receipts, _, usedGas, err := blockchain.processor.Process(block, statedb, statedb, vm.Config{})
+		receipts, _, _, usedGas, err := blockchain.processor.Process(block, statedb, statedb, vm.Config{})
 		if err != nil {
 			blockchain.reportBlock(block, receipts, err)
 			return err
 		}
-		err = blockchain.validator.ValidateState(block, statedb, receipts, usedGas)
+		err = blockchain.validator.ValidateState(block, blockchain.GetBlockByHash(block.ParentHash()), statedb, receipts, usedGas)
 		if err != nil {
 			blockchain.reportBlock(block, receipts, err)
 			return err
@@ -513,8 +513,6 @@ func testReorgBadHashes(t *testing.T, full bool) {
 	if err != nil {
 		t.Fatalf("failed to create new chain manager: %v", err)
 	}
-	defer ncm.Stop()
-
 	if full {
 		if ncm.CurrentBlock().Hash() != blocks[2].Header().Hash() {
 			t.Errorf("last block hash mismatch: have: %x, want %x", ncm.CurrentBlock().Hash(), blocks[2].Header().Hash())
@@ -602,9 +600,12 @@ func TestFastVsFullChains(t *testing.T) {
 		genesis = gspec.MustCommit(gendb)
 		signer  = types.NewEIP155Signer(gspec.Config.ChainID)
 	)
+	fmt.Println("addr", address.String())
+
 	blocks, receipts := GenerateChain(gspec.Config, genesis, ethash.NewFaker(), gendb, 1024, func(i int, block *BlockGen) {
 		block.SetCoinbase(common.Address{0x00})
 
+		fmt.Println("")
 		// If the block number is multiple of 3, send a few bonus transactions to the miner
 		if i%3 == 2 {
 			for j := 0; j < i%4+1; j++ {
@@ -2242,59 +2243,4 @@ func BenchmarkBlockChain_1x1000Executions(b *testing.B) {
 		return nil
 	}
 	benchmarkLargeNumberOfValueToNonexisting(b, numTxs, numBlocks, recipientFn, dataFn)
-}
-
-// Tests that importing a very large side fork, which is larger than the canon chain,
-// but where the difficulty per block is kept low: this means that it will not
-// overtake the 'canon' chain until after it's passed canon by about 200 blocks.
-//
-// Details at:
-//  - https://github.com/ethereum/go-ethereum/issues/18977
-//  - https://github.com/ethereum/go-ethereum/pull/18988
-func TestLowDiffLongChain(t *testing.T) {
-	// Generate a canonical chain to act as the main dataset
-	engine := ethash.NewFaker()
-	db := ethdb.NewMemDatabase()
-	genesis := new(Genesis).MustCommit(db)
-
-	// We must use a pretty long chain to ensure that the fork doesn't overtake us
-	// until after at least 128 blocks post tip
-	blocks, _ := GenerateChain(params.TestChainConfig, genesis, engine, db, 6*triesInMemory, func(i int, b *BlockGen) {
-		b.SetCoinbase(common.Address{1})
-		b.OffsetTime(-9)
-	})
-
-	// Import the canonical chain
-	diskdb := ethdb.NewMemDatabase()
-	new(Genesis).MustCommit(diskdb)
-
-	chain, err := NewBlockChain(diskdb, nil, params.TestChainConfig, engine, vm.Config{}, nil)
-	if err != nil {
-		t.Fatalf("failed to create tester chain: %v", err)
-	}
-	if n, err := chain.InsertChain(blocks); err != nil {
-		t.Fatalf("block %d: failed to insert into chain: %v", n, err)
-	}
-	// Generate fork chain, starting from an early block
-	parent := blocks[10]
-	fork, _ := GenerateChain(params.TestChainConfig, parent, engine, db, 8*triesInMemory, func(i int, b *BlockGen) {
-		b.SetCoinbase(common.Address{2})
-	})
-
-	// And now import the fork
-	if i, err := chain.InsertChain(fork); err != nil {
-		t.Fatalf("block %d: failed to insert into chain: %v", i, err)
-	}
-	head := chain.CurrentBlock()
-	if got := fork[len(fork)-1].Hash(); got != head.Hash() {
-		t.Fatalf("head wrong, expected %x got %x", head.Hash(), got)
-	}
-	// Sanity check that all the canonical numbers are present
-	header := chain.CurrentHeader()
-	for number := head.NumberU64(); number > 0; number-- {
-		if hash := chain.GetHeaderByNumber(number).Hash(); hash != header.Hash() {
-			t.Fatalf("header %d: canonical hash mismatch: have %x, want %x", number, hash, header.Hash())
-		}
-		header = chain.GetHeader(header.ParentHash, number-1)
-	}
 }

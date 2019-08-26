@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"testing"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 
 	testifyassert "github.com/stretchr/testify/assert"
@@ -30,7 +30,7 @@ func verifyGasPoolCalculation(t *testing.T, pm private.PrivateTransactionManager
 	arbitraryEncryptedPayload := "4ab80888354582b92ab442a317828386e4bf21ea4a38d1a9183fbb715f199475269d7686939017f4a6b28310d5003ebd8e012eade530b79e157657ce8dd9692a"
 	expectedGasPool := new(GasPool).AddGas(174712) // only intrinsic gas is deducted
 
-	db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
 	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	msg := privateCallMsg{
