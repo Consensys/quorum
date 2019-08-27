@@ -151,14 +151,14 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 	assert.NotNil(t, testObject.permInterf)
 	assert.NotNil(t, testObject.permUpgr)
 
-	networkBooted, err := testObject.permInterf.GetNetworkBootStatus(&bind.CallOpts{
+	isNetworkInitialized, err := testObject.permInterf.GetNetworkBootStatus(&bind.CallOpts{
 		Pending: true,
 	})
 	assert.NoError(t, err)
-	assert.True(t, networkBooted)
+	assert.True(t, isNetworkInitialized)
 }
 
-func TestPermissionCtrl_PopulateInitPermissions_whenNetworkIsInitialized(t *testing.T) {
+func TestPermissionCtrl_PopulateInitPermissions_AfterNetworkIsInitialized(t *testing.T) {
 	testObject := typicalPermissionCtrl(t)
 	assert.NoError(t, testObject.AfterStart())
 
