@@ -62,17 +62,17 @@ web3.eth.sendRawPrivateTransaction(signedTransactionData [, privateData] [, call
 
 Sends a pre-signed transaction. For example can be signed using: https://github.com/SilentCicero/ethereumjs-accounts
 
-__Important:__ Please note that before calling this API, a `storeraw` api need to be called first to Quorum's private transaction manager. Instructions on how to do this can be found [here](https://github.com/jpmorganchase/tessera/wiki/Interface-&-API).
+__Important:__ Please note that before calling this API, a `storeraw` api need to be called first to Quorum's private transaction manager. Instructions on how to do this can be found [here](../../Privacy/Tessera/Usage/Interface%20&%20API/).
 
 ##### Parameters
  1. `String` - Signed transaction data in HEX format
  2. `Object` - Private data to send
     - `privateFor`: `List<String>`  - When sending a private transaction, an array of the recipients' base64-encoded public keys.
-3. `Function` - (optional) If you pass a callback the HTTP request is made asynchronous. See [this note](#using-callbacks) for details.
+3. `Function` - (optional) If you pass a callback the HTTP request is made asynchronous.
 
 ##### Returns
  `String` - The 32 Bytes transaction hash as HEX string.
- If the transaction was a contract creation use [web3.eth.getTransactionReceipt()](#web3ethgettransactionreceipt) to get the contract address, after the transaction was mined.
+ If the transaction was a contract creation use `web3.eth.getTransactionReceipt()` to get the contract address, after the transaction was mined.
  
  
 ##### Example
