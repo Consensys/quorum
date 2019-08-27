@@ -668,12 +668,10 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 
 // initialize the permissions model and populate initial values
 func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSession) error {
-	// permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().State().GetNonce(permInterfSession.TransactOpts.From))
 	if _, err := permInterfSession.SetPolicy(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole); err != nil {
 		log.Error("bootupNetwork SetPolicy failed", "err", err)
 		return err
 	}
-	// permInterfSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().State().GetNonce(permInterfSession.TransactOpts.From))
 	if _, err := permInterfSession.Init(&p.permConfig.SubOrgBreadth, &p.permConfig.SubOrgDepth); err != nil {
 		log.Error("bootupNetwork init failed", "err", err)
 		return err
@@ -756,7 +754,6 @@ func (p *PermissionCtrl) populateNodesFromContract(auth *bind.TransactOpts) erro
 	if numberOfNodes, err := permNodeSession.GetNumberOfNodes(); err == nil {
 		iOrgNum := numberOfNodes.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
-			permNodeSession.TransactOpts.Nonce = new(big.Int).SetUint64(p.eth.TxPool().Nonce(permNodeSession.TransactOpts.From))
 			if nodeStruct, err := permNodeSession.GetNodeDetailsFromIndex(big.NewInt(int64(k))); err == nil {
 				types.NodeInfoMap.UpsertNode(nodeStruct.OrgId, nodeStruct.EnodeId, types.NodeStatus(int(nodeStruct.NodeStatus.Int64())))
 			}
@@ -793,14 +790,9 @@ func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) error
 func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind.PermInterfaceSession) error {
 	nodes := p2p.ParsePermissionedNodes(p.dataDir)
 	for _, node := range nodes {
-
-		enodeID := node.EnodeID()
-		nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
-		permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
-
 		_, err := permissionsSession.AddAdminNode(node.String())
 		if err != nil {
-			log.Warn("Failed to propose node", "err", err, "enode", enodeID)
+			log.Warn("Failed to propose node", "err", err, "enode", node.EnodeID())
 			return err
 		}
 		types.NodeInfoMap.UpsertNode(p.permConfig.NwAdminOrg, node.String(), 2)
@@ -812,8 +804,6 @@ func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind
 // set of accounts access to full access
 func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.PermInterfaceSession) error {
 	for _, a := range p.permConfig.Accounts {
-		//nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
-		//permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 		_, er := permissionsSession.AddAdminAccount(a)
 		if er != nil {
 			log.Warn("Error adding permission initial account list", "err", er, "account", a)
@@ -826,8 +816,6 @@ func (p *PermissionCtrl) populateInitAccountAccess(permissionsSession *pbind.Per
 
 // updates network boot status to true
 func (p *PermissionCtrl) updateNetworkStatus(permissionsSession *pbind.PermInterfaceSession) error {
-	//nonce := p.eth.TxPool().Nonce(permissionsSession.TransactOpts.From)
-	//permissionsSession.TransactOpts.Nonce = new(big.Int).SetUint64(nonce)
 	_, err := permissionsSession.UpdateNetworkBootStatus()
 	if err != nil {
 		log.Warn("Failed to udpate network boot status ", "err", err)

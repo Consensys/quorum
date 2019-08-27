@@ -27,6 +27,12 @@ import (
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
 )
 
+const (
+	arbitraryNetworkAdminOrg  = "NETWORK_ADMIN"
+	arbitraryNetworkAdminRole = "NETWORK_ADMIN_ROLE"
+	arbitraryOrgAdminRole     = "ORG_ADMIN_ROLE"
+)
+
 var (
 	testObject  *PermissionCtrl
 	guardianKey *ecdsa.PrivateKey
@@ -163,9 +169,9 @@ func TestPermissionCtrl_PopulateInitPermissions_whenNetworkIsInitialized(t *test
 	// assert cache
 	assert.Equal(t, 1, len(types.OrgInfoMap.GetOrgList()))
 	cachedOrg := types.OrgInfoMap.GetOrgList()[0]
-	assert.Equal(t, "NETWORK_ADMIN", cachedOrg.OrgId)
-	assert.Equal(t, "NETWORK_ADMIN", cachedOrg.FullOrgId)
-	assert.Equal(t, "NETWORK_ADMIN", cachedOrg.UltimateParent)
+	assert.Equal(t, arbitraryNetworkAdminOrg, cachedOrg.OrgId)
+	assert.Equal(t, arbitraryNetworkAdminOrg, cachedOrg.FullOrgId)
+	assert.Equal(t, arbitraryNetworkAdminOrg, cachedOrg.UltimateParent)
 	assert.Equal(t, "", cachedOrg.ParentOrgId)
 	assert.Equal(t, types.OrgApproved, cachedOrg.Status)
 	assert.Equal(t, 0, len(cachedOrg.SubOrgList))
@@ -173,8 +179,8 @@ func TestPermissionCtrl_PopulateInitPermissions_whenNetworkIsInitialized(t *test
 
 	assert.Equal(t, 1, len(types.RoleInfoMap.GetRoleList()))
 	cachedRole := types.RoleInfoMap.GetRoleList()[0]
-	assert.Equal(t, "NETWORK_ADMIN", cachedRole.OrgId)
-	assert.Equal(t, "NETWORK_ADMIN_ROLE", cachedRole.RoleId)
+	assert.Equal(t, arbitraryNetworkAdminOrg, cachedRole.OrgId)
+	assert.Equal(t, arbitraryNetworkAdminRole, cachedRole.RoleId)
 	assert.True(t, cachedRole.Active)
 	assert.True(t, cachedRole.IsAdmin)
 	assert.True(t, cachedRole.IsVoter)
@@ -184,8 +190,8 @@ func TestPermissionCtrl_PopulateInitPermissions_whenNetworkIsInitialized(t *test
 
 	assert.Equal(t, 1, len(types.AcctInfoMap.GetAcctList()))
 	cachedAccount := types.AcctInfoMap.GetAcctList()[0]
-	assert.Equal(t, "NETWORK_ADMIN", cachedAccount.OrgId)
-	assert.Equal(t, "NETWORK_ADMIN_ROLE", cachedAccount.RoleId)
+	assert.Equal(t, arbitraryNetworkAdminOrg, cachedAccount.OrgId)
+	assert.Equal(t, arbitraryNetworkAdminRole, cachedAccount.RoleId)
 	assert.Equal(t, types.AcctActive, cachedAccount.Status)
 	assert.True(t, cachedAccount.IsOrgAdmin)
 	assert.Equal(t, guardianAddress, cachedAccount.AcctId)
@@ -201,9 +207,9 @@ func typicalPermissionCtrl(t *testing.T) *PermissionCtrl {
 		RoleAddress:    roleManagerAddress,
 		VoterAddress:   voterManagerAddress,
 		OrgAddress:     orgManagerAddress,
-		NwAdminOrg:     "NETWORK_ADMIN",
-		NwAdminRole:    "NETWORK_ADMIN_ROLE",
-		OrgAdminRole:   "ORG_ADMIN_ROLE",
+		NwAdminOrg:     arbitraryNetworkAdminOrg,
+		NwAdminRole:    arbitraryNetworkAdminRole,
+		OrgAdminRole:   arbitraryOrgAdminRole,
 		Accounts: []common.Address{
 			guardianAddress,
 		},

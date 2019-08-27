@@ -652,9 +652,9 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 		}
 
 		// validate the op and node status and check if the op can be performed
-		if (permAction == UpdateNodeStatus  && ( op != SuspendNode && op != ActivateSuspendedNode && op != BlacklistNode )) ||
+		if (permAction == UpdateNodeStatus && (op != SuspendNode && op != ActivateSuspendedNode && op != BlacklistNode)) ||
 			(permAction == InitiateNodeRecovery && op != RecoverBlacklistedNode) ||
-			(permAction == ApproveNodeRecovery && op != ApproveBlacklistedNodeRecovery){
+			(permAction == ApproveNodeRecovery && op != ApproveBlacklistedNodeRecovery) {
 			return ErrOpNotAllowed, errors.New("invalid node status change operation")
 		}
 
@@ -682,7 +682,7 @@ func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
 	return r != nil && r.Active
 }
 
-func (q *QuorumControlsAPI) valAccountStatusChange(orgId string,  account common.Address, permAction PermAction, op AccountUpdateAction) (ExecStatus, error) {
+func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.Address, permAction PermAction, op AccountUpdateAction) (ExecStatus, error) {
 	// validates if the enode is linked the passed organization
 	ac := types.AcctInfoMap.GetAccount(account)
 
@@ -698,7 +698,7 @@ func (q *QuorumControlsAPI) valAccountStatusChange(orgId string,  account common
 		return ErrOrgNotOwner, errors.New("account does not belong to the organization passed")
 	}
 	if (permAction == UpdateAccountStatus && (op != SuspendAccount && op != ActivateSuspendedAccount && op != BlacklistAccount)) ||
-		(permAction == InitiateAccountRecovery && op != RecoverBlacklistedAccount ) ||
+		(permAction == InitiateAccountRecovery && op != RecoverBlacklistedAccount) ||
 		(permAction == ApproveAccountRecovery && op != ApproveBlacklistedAccountRecovery) {
 		return ErrOpNotAllowed, errors.New("invalid account status change operation")
 	}
@@ -706,7 +706,6 @@ func (q *QuorumControlsAPI) valAccountStatusChange(orgId string,  account common
 	if ac.Status == types.AcctBlacklisted && op != RecoverBlacklistedAccount {
 		return ErrBlacklistedAccount, errors.New("blacklisted account. operation not allowed")
 	}
-
 
 	if (op == SuspendAccount && ac.Status != types.AcctActive) ||
 		(op == ActivateSuspendedAccount && ac.Status != types.AcctSuspended) ||
@@ -1095,7 +1094,7 @@ func (q *QuorumControlsAPI) valRecoverAccount(args txArgs, pinterf *pbind.PermIn
 		opAction = ApproveBlacklistedAccountRecovery
 	}
 
-	if execStatus, err := q.valAccountStatusChange(args.orgId, args.acctId, action, opAction ); err != nil {
+	if execStatus, err := q.valAccountStatusChange(args.orgId, args.acctId, action, opAction); err != nil {
 		return execStatus
 	}
 
@@ -1120,7 +1119,7 @@ func (q *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Walle
 }
 
 func (q *QuorumControlsAPI) newPermInterfaceSession(w accounts.Wallet, txa ethapi.SendTxArgs) *pbind.PermInterfaceSession {
-	frmAcct, transactOpts, gasLimit, gasPrice, nonce := q.getTxParams(txa, w)
+	frmAcct, transactOpts, gasLimit, gasPrice := q.getTxParams(txa, w)
 	ps := &pbind.PermInterfaceSession{
 		Contract: q.permCtrl.permInterf,
 		CallOpts: bind.CallOpts{
@@ -1131,14 +1130,13 @@ func (q *QuorumControlsAPI) newPermInterfaceSession(w accounts.Wallet, txa ethap
 			GasLimit: gasLimit,
 			GasPrice: gasPrice,
 			Signer:   transactOpts.Signer,
-			Nonce:    nonce,
 		},
 	}
 	return ps
 }
 
 // getTxParams extracts the transaction related parameters
-func (q *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) (accounts.Account, *bind.TransactOpts, uint64, *big.Int, *big.Int) {
+func (q *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) (accounts.Account, *bind.TransactOpts, uint64, *big.Int) {
 	frmAcct := accounts.Account{Address: txa.From}
 	transactOpts := bind.NewWalletTransactor(w, frmAcct)
 	gasLimit := defaultGasLimit
@@ -1149,11 +1147,5 @@ func (q *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet
 	if txa.Gas != nil {
 		gasLimit = uint64(*txa.Gas)
 	}
-	var nonce *big.Int
-	if txa.Nonce != nil {
-		nonce = new(big.Int).SetUint64(uint64(*txa.Nonce))
-	} else {
-		nonce = new(big.Int).SetUint64(q.permCtrl.eth.TxPool().Nonce(frmAcct.Address))
-	}
-	return frmAcct, transactOpts, gasLimit, gasPrice, nonce
+	return frmAcct, transactOpts, gasLimit, gasPrice
 }
