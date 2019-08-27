@@ -18,6 +18,7 @@ package core
 
 import (
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"time"
 
@@ -269,7 +270,7 @@ func (t *testSystem) stop(core bool) {
 
 func (t *testSystem) NewBackend(id uint64) *testSystemBackend {
 	// assume always success
-	ethDB := ethdb.NewMemDatabase()
+	ethDB := rawdb.NewMemoryDatabase()
 	backend := &testSystemBackend{
 		id:     id,
 		sys:    t,
