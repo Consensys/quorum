@@ -5,7 +5,7 @@ This section details easy to follow step by step instructions of how to setup on
 Let's go through step by step instructions to setup a Quorum node with Raft consensus.
 
 ## Quorum with Raft consensus
-1. On each machine build Quorum as described in the [getting set up](../Setup%20Overview%20%26%20Quickstart) section. Ensure that PATH contains geth and bootnode
+1. On each machine build Quorum as described in the [Installing](../Installing) section. Ensure that PATH contains geth and bootnode
     ```
     $ git clone https://github.com/jpmorganchase/quorum.git
     $ cd quorum
@@ -296,7 +296,7 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
 
 
 ## Quorum with Istanbul BFT consensus
-1. On each machine build Quorum as described in the [getting set up](../Setup%20Overview%20%26%20Quickstart) section. Ensure that PATH contains geth and boot node
+1. On each machine build Quorum as described in the [Installing](../Installing) section. Ensure that PATH contains geth and boot node
     ```
     $ git clone https://github.com/jpmorganchase/quorum.git
     $ cd quorum
@@ -902,7 +902,7 @@ Just execute **step 4** instruction from removing a validator node.
 
 ## Adding privacy transaction manager
 ### Tessera
-1. Build Quorum and install [Tessera](https://github.com/jpmorganchase/tessera/releases) as described in the [getting set up](../Setup%20Overview%20%26%20Quickstart) section. Ensure that PATH contains geth and bootnode. Be aware of the location of the `tessera.jar` release file
+1. Build Quorum and install [Tessera](https://github.com/jpmorganchase/tessera/releases) as described in the [Installing](../Installing) section. Ensure that PATH contains geth and bootnode. Be aware of the location of the `tessera.jar` release file
     ```
     $ git clone https://github.com/jpmorganchase/quorum.git
     $ cd quorum
@@ -1156,7 +1156,7 @@ Just execute **step 4** instruction from removing a validator node.
     ```    
 
 ### Constellation
-1. Build Quorum and install [Constellation](https://github.com/jpmorganchase/constellation/releases) as described in the [getting set up](../Setup%20Overview%20%26%20Quickstart) section. Ensure that PATH contains geth, bootnode, and constellation-node binaries
+1. Build Quorum and install [Constellation](https://github.com/jpmorganchase/constellation/releases) as described in the [Installing](../Installing) section. Ensure that PATH contains geth, bootnode, and constellation-node binaries
 2. Generate new keys with `constellation-node --generatekeys=new-node-1`
 3. Start your constellation node and send it into background with `constellation-node --url=https://127.0.0.1:9001/ --port=9001 --workdir=. --socket=tm.ipc --publickeys=new-node-1.pub --privatekeys=new-node-1.key --othernodes=https://127.0.0.1:9001/ >> constellation.log 2>&1 &`
 4. Start your node and send it into background with `PRIVATE_CONFIG=tm.ipc nohup geth --datadir new-node-1 --nodiscover --verbosity 5 --networkid 31337 --raft --raftport 50000 --rpc --rpcaddr 0.0.0.0 --rpcport 22000 --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum,raft --emitcheckpoints --port 21000 2>>node.log &`
