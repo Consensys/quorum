@@ -81,7 +81,7 @@ func newTestProtocolManager(mode downloader.SyncMode, blocks int, generator func
 
 // newTestProtocolManagerConsensus creates a new protocol manager for testing purposes,
 // that uses the specified consensus mechanism.
-func newTestProtocolManagerConsensus(consensusAlgo string, cliqueConfig *params.CliqueConfig, istanbulConfig *params.IstanbulConfig, raftMode bool) (*ProtocolManager, *ethdb.MemDatabase, error) {
+func newTestProtocolManagerConsensus(consensusAlgo string, cliqueConfig *params.CliqueConfig, istanbulConfig *params.IstanbulConfig, raftMode bool) (*ProtocolManager, ethdb.Database, error) {
 
 	config := params.QuorumTestChainConfig
 	config.Clique = cliqueConfig
@@ -91,7 +91,7 @@ func newTestProtocolManagerConsensus(consensusAlgo string, cliqueConfig *params.
 		blocks                  = 0
 		evmux                   = new(event.TypeMux)
 		engine consensus.Engine = ethash.NewFaker()
-		db                      = ethdb.NewMemDatabase()
+		db                      = rawdb.NewMemoryDatabase()
 		gspec                   = &core.Genesis{
 			Config: params.TestChainConfig,
 			Alloc:  core.GenesisAlloc{testBank: {Balance: big.NewInt(1000000)}},
@@ -123,7 +123,7 @@ func newTestProtocolManagerConsensus(consensusAlgo string, cliqueConfig *params.
 		engine = ethash.NewFaker()
 	}
 
-	pm, err := NewProtocolManager(config, 61, DefaultConfig.NetworkId, evmux, &testTxPool{added: nil}, engine, blockchain, db, raftMode)
+	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, evmux, &testTxPool{added: nil}, engine, blockchain, db, 1, nil, raftMode)
 	if err != nil {
 		return nil, nil, err
 	}
