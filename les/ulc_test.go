@@ -191,7 +191,7 @@ func newFullPeerPair(t *testing.T, index int, numberOfblocks int) pairPeer {
 		t.Fatal("generate key err:", err)
 	}
 	peerPairFull.Key = key
-	peerPairFull.Node = enode.NewV4(&key.PublicKey, net.ParseIP("127.0.0.1"), 35000, 35000)
+	peerPairFull.Node = enode.NewV4(&key.PublicKey, net.ParseIP("127.0.0.1"), 35000, 35000, 0)
 	return peerPairFull
 }
 
@@ -214,6 +214,6 @@ func newLightPeer(t *testing.T, ulcServers []string, ulcFraction int) pairPeer {
 		t.Fatal("generate key err:", err)
 	}
 	peerPairLight.Key = key
-	peerPairLight.Node = enode.NewV4(&key.PublicKey, net.IP{}, 35000, 35000)
+	peerPairLight.Node = enode.NewV4(&key.PublicKey, net.IP{}, 35000, 35000, 0)
 	return peerPairLight
 }

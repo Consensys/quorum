@@ -148,5 +148,5 @@ func newNodeID(t *testing.T) *enode.Node {
 	if err != nil {
 		t.Fatal("generate key err:", err)
 	}
-	return enode.NewV4(&key.PublicKey, net.IP{}, 35000, 35000)
+	return enode.NewV4(&key.PublicKey, net.IP{}, 35000, 35000, 0)
 }
