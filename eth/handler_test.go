@@ -39,37 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-var bigTxGas = new(big.Int).SetUint64(params.TxGas)
-
-// Tests that protocol versions and modes of operations are matched up properly.
-func TestProtocolCompatibility(t *testing.T) {
-	// Define the compatibility chart
-	tests := []struct {
-		version    uint
-		mode       downloader.SyncMode
-		compatible bool
-	}{
-		{61, downloader.FullSync, true}, {62, downloader.FullSync, true}, {63, downloader.FullSync, true},
-		{61, downloader.FastSync, false}, {62, downloader.FastSync, false}, {63, downloader.FastSync, true},
-	}
-	// Make sure anything we screw up is restored
-	backup := consensus.EthProtocol.Versions
-	defer func() { consensus.EthProtocol.Versions = backup }()
-
-	// Try all available compatibility configs and check for errors
-	for i, tt := range tests {
-		consensus.EthProtocol.Versions = []uint{tt.version}
-
-		pm, _, err := newTestProtocolManager(tt.mode, 0, nil, nil)
-		if pm != nil {
-			defer pm.Stop()
-		}
-		if (err == nil && !tt.compatible) || (err != nil && tt.compatible) {
-			t.Errorf("test %d: compatibility mismatch: have error %v, want compatibility %v", i, err, tt.compatible)
-		}
-	}
-}
-
 // Tests that correct consensus mechanism details are returned in NodeInfo.
 func TestNodeInfo(t *testing.T) {
 
