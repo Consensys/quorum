@@ -158,27 +158,4 @@ To add a node to the cluster, attach to a JS console and issue `raft.addPeer(eno
 
 ## FAQ
 
-**Could you have a single- or two-node cluster? More generally, could you have an even number of nodes ?**
-
-A cluster can tolerate failures that leave a quorum (majority) available. So a cluster of two nodes can't tolerate any failures, three nodes can tolerate one, and five nodes can tolerate two. Typically Raft clusters have an odd number of nodes, since an even number provides no failure tolerance benefit.
-
-**What happens if you don't assume minter and leader are the same node?**
-
-There's no hard reason they couldn't be different. We just co-locate the minter and leader as an optimization.
-
-* It saves one network call communicating the block to the leader.
-* It provides a simple way to choose a minter. If we didn't use the Raft leader we'd have to build in "minter election" at a higher level.
-
-Additionally there could even be multiple minters running at the same time, but this would produce contention for which blocks actually extend the chain, reducing the productivity of the cluster (see "races" above).
-
-**I thought there were no forks in a Raft-based blockchain. What's the deal with "speculative minting"?**
-
-"Speculative chains" are not forks in the blockchain. They represent a series ("chain") of blocks that have been sent through Raft, after which each of the blocks may or may not actually end up being included in *the blockchain*.
-
-**Can transactions be reversed? Since raft log entries can be disregarded as "no-ops", does this imply transaction reversal?**
-
-No. When a Raft log entry containing a new block is disregarded as a "no-op", its transactions will remain in the transaction pool, and so they will be included in a future block in the chain.
-
-**What's the deal with the block timestamp being stored in nanoseconds (instead of seconds, like other consensus mechanisms)?**
-
-With raft-based consensus we can produce far more than one block per second, which vanilla Ethereum implicitly disallows (as the default timestamp resolution is in seconds and every block must have a timestamp greater than its parent). For Raft, we store the timestamp in nanoseconds and ensure it is incremented by at least 1 nanosecond per block.
+Answers to frequently asked questions can be found on the main [Quorum FAQ page](../FAQ.md).
