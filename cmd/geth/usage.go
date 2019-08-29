@@ -297,6 +297,9 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.IstanbulBlockPeriodFlag,
 		},
 	},
+	{
+		Name: "MISC",
+	},
 }
 
 // byCategory sorts an array of flagGroup by Name in the order

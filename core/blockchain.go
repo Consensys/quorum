@@ -1722,9 +1722,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 		if err := WritePrivateStateRoot(bc.db, block.Root(), privateStateRoot); err != nil {
 			return it.index, events, coalescedLogs, err
 		}
-		// /Quorum
-
 		allReceipts := mergeReceipts(receipts, privateReceipts)
+		// /Quorum
 
 		proctime := time.Since(start)
 
