@@ -108,16 +108,18 @@ func TestFreezerBasicsClosing(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Write 15 bytes 255 times, results in 85 files
-	for x := 0; x < 50; x++ {
+	for x := 0; x < 10; x++ {
 		data := getChunk(15, x)
+		t.Logf("l1 x=%d append", x)
 		f.Append(uint64(x), data)
 		f.Close()
-		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 20, true)
+		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 10, true)
 	}
 	defer f.Close()
 
-	for y := 0; y < 50; y++ {
+	for y := 0; y < 10; y++ {
 		exp := getChunk(15, y)
+		t.Logf("l2 y=%d append", y)
 		got, err := f.Retrieve(uint64(y))
 		if err != nil {
 			t.Fatal(err)
@@ -126,7 +128,7 @@ func TestFreezerBasicsClosing(t *testing.T) {
 			t.Fatalf("test %d, got \n%x != \n%x", y, got, exp)
 		}
 		f.Close()
-		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 20, true)
+		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 10, true)
 		if err != nil {
 			t.Fatal(err)
 		}
