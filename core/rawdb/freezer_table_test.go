@@ -108,7 +108,7 @@ func TestFreezerBasicsClosing(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Write 15 bytes 255 times, results in 85 files
-	for x := 0; x < 10; x++ {
+	for x := 0; x < 3; x++ {
 		data := getChunk(15, x)
 		t.Logf("l1 x=%d append", x)
 		f.Append(uint64(x), data)
@@ -117,7 +117,7 @@ func TestFreezerBasicsClosing(t *testing.T) {
 	}
 	defer f.Close()
 
-	for y := 0; y < 10; y++ {
+	for y := 0; y < 3; y++ {
 		exp := getChunk(15, y)
 		t.Logf("l2 y=%d append", y)
 		got, err := f.Retrieve(uint64(y))
