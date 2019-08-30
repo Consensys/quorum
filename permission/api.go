@@ -208,6 +208,12 @@ func (q *QuorumControlsAPI) initOp(txa ethapi.SendTxArgs) (*pbind.PermInterfaceS
 	return pinterf, ExecSuccess
 }
 
+func reportExecError(action PermAction, err error) (string, error){
+	log.Error("Failed to execute permission action", "action", action, "err", err)
+	msg := fmt.Sprintf("failed to execute permissions action: %v", err)
+	return ExecStatus{false, msg}.OpStatus()
+}
+
 func (q *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) (string, error) {
 	pinterf, execStatus := q.initOp(txa)
 	if execStatus != ExecSuccess {
@@ -220,9 +226,7 @@ func (q *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address
 	}
 	tx, err := pinterf.AddOrg(args.orgId, args.url, args.acctId)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", AddOrg, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(AddOrg, err)
 	}
 	log.Debug("executed permission action", "action", AddOrg, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -240,9 +244,7 @@ func (q *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, txa etha
 	}
 	tx, err := pinterf.AddSubOrg(args.porgId, args.orgId, args.url)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", AddSubOrg, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(AddSubOrg, err)
 	}
 	log.Debug("executed permission action", "action", AddSubOrg, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -259,9 +261,7 @@ func (q *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Add
 	}
 	tx, err := pinterf.ApproveOrg(args.orgId, args.url, args.acctId)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", ApproveOrg, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(ApproveOrg, err)
 	}
 	log.Debug("executed permission action", "action", ApproveOrg, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -279,9 +279,7 @@ func (q *QuorumControlsAPI) UpdateOrgStatus(orgId string, status uint8, txa etha
 	// and in suspended state for suspension revoke
 	tx, err := pinterf.UpdateOrgStatus(args.orgId, big.NewInt(int64(args.action)))
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", UpdateOrgStatus, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(UpdateOrgStatus, err)
 	}
 	log.Debug("executed permission action", "action", UpdateOrgStatus, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -299,9 +297,7 @@ func (q *QuorumControlsAPI) AddNode(orgId string, url string, txa ethapi.SendTxA
 	// check if node is already there
 	tx, err := pinterf.AddNode(args.orgId, args.url)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", AddNode, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(AddNode, err)
 	}
 	log.Debug("executed permission action", "action", AddNode, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -319,9 +315,7 @@ func (q *QuorumControlsAPI) UpdateNodeStatus(orgId string, url string, action ui
 	// check node status for operation
 	tx, err := pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.action)))
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", UpdateNodeStatus, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(UpdateNodeStatus, err)
 	}
 	log.Debug("executed permission action", "action", UpdateNodeStatus, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -339,9 +333,7 @@ func (q *QuorumControlsAPI) ApproveOrgStatus(orgId string, status uint8, txa eth
 	// validate that status change is pending approval
 	tx, err := pinterf.ApproveOrgStatus(args.orgId, big.NewInt(int64(args.action)))
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", ApproveOrgStatus, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(ApproveOrgStatus, err)
 	}
 	log.Debug("executed permission action", "action", ApproveOrgStatus, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -359,9 +351,7 @@ func (q *QuorumControlsAPI) AssignAdminRole(orgId string, acct common.Address, r
 	// check if account is already in use in another org
 	tx, err := pinterf.AssignAdminRole(args.orgId, args.acctId, args.roleId)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", AssignAdminRole, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(AssignAdminRole, err)
 	}
 	log.Debug("executed permission action", "action", AssignAdminRole, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -379,9 +369,7 @@ func (q *QuorumControlsAPI) ApproveAdminRole(orgId string, acct common.Address, 
 	// check if anything is pending approval
 	tx, err := pinterf.ApproveAdminRole(args.orgId, args.acctId)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", ApproveAdminRole, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(ApproveAdminRole, err)
 	}
 	log.Debug("executed permission action", "action", ApproveAdminRole, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -399,9 +387,7 @@ func (q *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8
 	// check if role is already there in the org
 	tx, err := pinterf.AddNewRole(args.roleId, args.orgId, big.NewInt(int64(args.accessType)), args.isVoter, args.isAdmin)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", AddNewRole, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(AddNewRole, err)
 	}
 	log.Debug("executed permission action", "action", AddNewRole, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -419,9 +405,7 @@ func (q *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.S
 	}
 	tx, err := pinterf.RemoveRole(args.roleId, args.orgId)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", RemoveRole, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(RemoveRole, err)
 	}
 	log.Debug("executed permission action", "action", RemoveRole, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -439,9 +423,7 @@ func (q *QuorumControlsAPI) AddAccountToOrg(acct common.Address, orgId string, r
 	}
 	tx, err := pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", AddAccountToOrg, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(AddAccountToOrg, err)
 	}
 	log.Debug("executed permission action", "action", AddAccountToOrg, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -458,9 +440,7 @@ func (q *QuorumControlsAPI) ChangeAccountRole(acct common.Address, orgId string,
 	}
 	tx, err := pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", ChangeAccountRole, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(ChangeAccountRole, err)
 	}
 	log.Debug("executed permission action", "action", ChangeAccountRole, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -478,9 +458,7 @@ func (q *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Addres
 	}
 	tx, err := pinterf.UpdateAccountStatus(args.orgId, args.acctId, big.NewInt(int64(args.action)))
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", UpdateAccountStatus, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(UpdateAccountStatus, err)
 	}
 	log.Debug("executed permission action", "action", UpdateAccountStatus, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -498,9 +476,7 @@ func (q *QuorumControlsAPI) RecoverBlackListedNode(orgId string, enodeId string,
 	}
 	tx, err := pinterf.StartBlacklistedNodeRecovery(args.orgId, args.url)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", InitiateNodeRecovery, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(InitiateNodeRecovery, err)
 	}
 	log.Debug("executed permission action", "action", InitiateNodeRecovery, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -518,9 +494,7 @@ func (q *QuorumControlsAPI) ApproveBlackListedNodeRecovery(orgId string, enodeId
 	}
 	tx, err := pinterf.ApproveBlacklistedNodeRecovery(args.orgId, args.url)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", ApproveNodeRecovery, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(ApproveNodeRecovery, err)
 	}
 	log.Debug("executed permission action", "action", ApproveNodeRecovery, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -538,9 +512,7 @@ func (q *QuorumControlsAPI) RecoverBlackListedAccount(orgId string, acctId commo
 	}
 	tx, err := pinterf.StartBlacklistedAccountRecovery(args.orgId, args.acctId)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", InitiateAccountRecovery, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(InitiateAccountRecovery, err)
 	}
 	log.Debug("executed permission action", "action", InitiateAccountRecovery, "tx", tx)
 	return ExecSuccess.OpStatus()
@@ -558,9 +530,7 @@ func (q *QuorumControlsAPI) ApproveBlackListedAccountRecovery(orgId string, acct
 	}
 	tx, err := pinterf.ApproveBlacklistedAccountRecovery(args.orgId, args.acctId)
 	if err != nil {
-		log.Error("Failed to execute permission action", "action", ApproveAccountRecovery, "err", err)
-		msg := fmt.Sprintf("failed to execute permissions action: %v", err)
-		return ExecStatus{false, msg}.OpStatus()
+		return reportExecError(ApproveAccountRecovery, err)
 	}
 	log.Debug("executed permission action", "action", ApproveAccountRecovery, "tx", tx)
 	return ExecSuccess.OpStatus()

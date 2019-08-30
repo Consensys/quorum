@@ -181,7 +181,7 @@ var RoleInfoMap = NewRoleCache()
 var AcctInfoMap = NewAcctCache()
 
 func (pc *PermissionConfig) IsEmpty() bool {
-	return pc.InterfAddress == common.HexToAddress("0x0") || pc.NodeAddress == common.HexToAddress("0x0") || pc.AccountAddress == common.HexToAddress("0x0")
+	return pc.InterfAddress == common.HexToAddress("0x0")
 }
 
 func SetSyncStatus() {
