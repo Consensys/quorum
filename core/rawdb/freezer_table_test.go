@@ -137,7 +137,7 @@ func TestFreezerBasicsClosing(t *testing.T) {
 
 // TestFreezerRepairDanglingHead tests that we can recover if index entries are removed
 func TestFreezerRepairDanglingHead(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	rm, wm, sc := metrics.NewMeter(), metrics.NewMeter(), metrics.NewCounter()
 	fname := fmt.Sprintf("dangling_headtest-%d", rand.Uint64())
 
