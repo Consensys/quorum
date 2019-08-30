@@ -103,20 +103,20 @@ func TestFreezerBasicsClosing(t *testing.T) {
 		f          *freezerTable
 		err        error
 	)
-	f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 50, true)
+	f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 20, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Write 15 bytes 255 times, results in 85 files
-	for x := 0; x < 100; x++ {
+	for x := 0; x < 50; x++ {
 		data := getChunk(15, x)
 		f.Append(uint64(x), data)
 		f.Close()
-		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 50, true)
+		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 20, true)
 	}
 	defer f.Close()
 
-	for y := 0; y < 100; y++ {
+	for y := 0; y < 50; y++ {
 		exp := getChunk(15, y)
 		got, err := f.Retrieve(uint64(y))
 		if err != nil {
@@ -126,7 +126,7 @@ func TestFreezerBasicsClosing(t *testing.T) {
 			t.Fatalf("test %d, got \n%x != \n%x", y, got, exp)
 		}
 		f.Close()
-		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 50, true)
+		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 20, true)
 		if err != nil {
 			t.Fatal(err)
 		}
