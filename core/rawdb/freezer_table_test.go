@@ -108,7 +108,7 @@ func TestFreezerBasicsClosing(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Write 15 bytes 255 times, results in 85 files
-	for x := 0; x < 255; x++ {
+	for x := 0; x < 100; x++ {
 		data := getChunk(15, x)
 		f.Append(uint64(x), data)
 		f.Close()
@@ -116,7 +116,7 @@ func TestFreezerBasicsClosing(t *testing.T) {
 	}
 	defer f.Close()
 
-	for y := 0; y < 255; y++ {
+	for y := 0; y < 100; y++ {
 		exp := getChunk(15, y)
 		got, err := f.Retrieve(uint64(y))
 		if err != nil {
