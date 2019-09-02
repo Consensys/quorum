@@ -103,23 +103,21 @@ func TestFreezerBasicsClosing(t *testing.T) {
 		f          *freezerTable
 		err        error
 	)
-	f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 20, true)
+	f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 50, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Write 15 bytes 255 times, results in 85 files
-	for x := 0; x < 3; x++ {
+	for x := 0; x < 255; x++ {
 		data := getChunk(15, x)
-		t.Logf("l1 x=%d append", x)
 		f.Append(uint64(x), data)
 		f.Close()
-		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 10, true)
+		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 50, true)
 	}
 	defer f.Close()
 
-	for y := 0; y < 3; y++ {
+	for y := 0; y < 255; y++ {
 		exp := getChunk(15, y)
-		t.Logf("l2 y=%d append", y)
 		got, err := f.Retrieve(uint64(y))
 		if err != nil {
 			t.Fatal(err)
@@ -128,7 +126,7 @@ func TestFreezerBasicsClosing(t *testing.T) {
 			t.Fatalf("test %d, got \n%x != \n%x", y, got, exp)
 		}
 		f.Close()
-		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 10, true)
+		f, err = newCustomTable(os.TempDir(), fname, rm, wm, sc, 50, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -137,7 +135,7 @@ func TestFreezerBasicsClosing(t *testing.T) {
 
 // TestFreezerRepairDanglingHead tests that we can recover if index entries are removed
 func TestFreezerRepairDanglingHead(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 	rm, wm, sc := metrics.NewMeter(), metrics.NewMeter(), metrics.NewCounter()
 	fname := fmt.Sprintf("dangling_headtest-%d", rand.Uint64())
 
