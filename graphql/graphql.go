@@ -20,6 +20,7 @@ package graphql
 import (
 	"context"
 	"errors"
+	"github.com/ethereum/go-ethereum/private"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -326,6 +327,32 @@ func (t *Transaction) Logs(ctx context.Context) (*[]*Log, error) {
 	}
 	return &ret, nil
 }
+
+// Quorum
+func (t *Transaction) IsPrivate(ctx context.Context) (*bool, error) {
+	ret := false
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &ret, err
+	}
+	ret = tx.IsPrivate()
+	return &ret, nil
+}
+
+func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &hexutil.Bytes{}, err
+	}
+	privateInputData, err := private.P.Receive(tx.Data())
+	if err != nil || tx == nil {
+		return &hexutil.Bytes{}, err
+	}
+	ret := hexutil.Bytes(privateInputData)
+	return &ret, nil
+}
+
+// END QUORUM
 
 type BlockType int
 
