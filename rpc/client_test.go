@@ -374,7 +374,9 @@ func TestClientNotificationStorm(t *testing.T) {
 				return
 			}
 		}
-
+		if wantError {
+			t.Fatalf("didn't get expected error")
+		}
 	}
 
 	doTest(8000, false)

@@ -256,7 +256,7 @@ func init() {
 			// Make sure we're not on any supported preconfigured testnet either
 			if !ctx.GlobalIsSet(utils.TestnetFlag.Name) && !ctx.GlobalIsSet(utils.RinkebyFlag.Name) && !ctx.GlobalIsSet(utils.GoerliFlag.Name) {
 				// Nope, we're really on mainnet. Bump that cache up!
-				log.Info("Bumping default cache on mainnet", "provided", ctx.GlobalInt(utils.CacheFlag.Name), "updated", 4096)
+				//log.Info("Bumping default cache on mainnet", "provided", ctx.GlobalInt(utils.CacheFlag.Name), "updated", 4096)
 				ctx.GlobalSet(utils.CacheFlag.Name, strconv.Itoa(4096))
 			}
 		}
