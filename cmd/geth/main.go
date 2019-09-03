@@ -250,6 +250,7 @@ func init() {
 		if err := debug.Setup(ctx, logdir); err != nil {
 			return err
 		}
+		// Quorum: The following piece of code should only be called in `geth console` and `geth` start. It is resolved as part of https://github.com/ethereum/go-ethereum/pull/19911 on the ethereum upstream.
 		// If we're a full node on mainnet without --cache specified, bump default cache allowance
 		if ctx.GlobalString(utils.SyncModeFlag.Name) != "light" && !ctx.GlobalIsSet(utils.CacheFlag.Name) && !ctx.GlobalIsSet(utils.NetworkIdFlag.Name) {
 			// Make sure we're not on any supported preconfigured testnet either

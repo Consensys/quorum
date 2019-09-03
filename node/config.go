@@ -162,7 +162,6 @@ type Config struct {
 	// private APIs to untrusted users is a major security risk.
 	WSExposeAll bool `toml:",omitempty"`
 
-	EnableNodePermission bool `toml:",omitempty"`
 	// GraphQLHost is the host interface on which to start the GraphQL server. If this
 	// field is empty, no GraphQL API endpoint will be started.
 	GraphQLHost string `toml:",omitempty"`
@@ -192,6 +191,9 @@ type Config struct {
 	staticNodesWarning     bool
 	trustedNodesWarning    bool
 	oldGethResourceWarning bool
+
+	// Quorum: EnableNodePermission comes from EnableNodePermissionFlag --permissioned.
+	EnableNodePermission bool `toml:",omitempty"`
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
