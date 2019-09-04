@@ -361,6 +361,7 @@ func (c *ChainConfig) String() string {
 	)
 }
 
+// Quorum - validate code size and transaction size limit
 func (c *ChainConfig) IsValid() error {
 
 	if c.TransactionSizeLimit < 32 || c.TransactionSizeLimit > 128 {
