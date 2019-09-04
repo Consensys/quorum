@@ -297,9 +297,9 @@ type ChainConfig struct {
 	Clique   *CliqueConfig   `json:"clique,omitempty"`
 	Istanbul *IstanbulConfig `json:"istanbul,omitempty"`
 
-	IsQuorum             bool   `json:"isQuorum"`
-	TransactionSizeLimit uint64 `json:"txnSizeLimit"`
-	MaxCodeSize          uint64 `json:"maxCodeSize"`
+	IsQuorum             bool   `json:"isQuorum"`     // Quorum flag
+	TransactionSizeLimit uint64 `json:"txnSizeLimit"` // Quorum - transaction size limit
+	MaxCodeSize          uint64 `json:"maxCodeSize"`  // Quorum -  maximum CodeSize of contract
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
