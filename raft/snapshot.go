@@ -271,8 +271,19 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 
 	preSyncHead := pm.blockchain.CurrentBlock()
 
-	if latestBlock := pm.blockchain.GetBlockByHash(latestBlockHash); latestBlock == nil {
-		pm.syncBlockchainUntil(latestBlockHash)
+	latestBlock := pm.blockchain.GetBlockByHash(latestBlockHash);
+	if  latestBlock == nil {
+		pm.syncBlockchain(latestBlockHash, downloader.BoundedFullSync)
+		pm.logNewlyAcceptedTransactions(preSyncHead)
+
+		log.Info(chainExtensionMessage, "hash", pm.blockchain.CurrentBlock().Hash())
+	} else if latestBlock.Number().Uint64() > preSyncHead.Number().Uint64() {
+		// this scenario can happen when chain is running in gcmode full and had a
+		// non-graceful shutdown. when the node is brought back up, at blockchain level
+		// it will rewind to a different block where as the local logs will still have the
+		// all the blocks before the node shutdown. in such scenario we enforce a full sync
+		// from the current block with the network
+		pm.syncBlockchain(preSyncHead.Hash(), downloader.FullSync)
 		pm.logNewlyAcceptedTransactions(preSyncHead)
 
 		log.Info(chainExtensionMessage, "hash", pm.blockchain.CurrentBlock().Hash())
@@ -287,7 +298,7 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 	pm.mu.Unlock()
 }
 
-func (pm *ProtocolManager) syncBlockchainUntil(hash common.Hash) {
+func (pm *ProtocolManager) syncBlockchain(hash common.Hash, mode downloader.SyncMode) {
 	pm.mu.RLock()
 	peerMap := make(map[uint16]*Peer, len(pm.peers))
 	for raftId, peer := range pm.peers {
@@ -302,7 +313,16 @@ func (pm *ProtocolManager) syncBlockchainUntil(hash common.Hash) {
 			peerId := peer.p2pNode.ID().String()
 			peerIdPrefix := fmt.Sprintf("%x", peer.p2pNode.ID().Bytes()[:8])
 
-			if err := pm.downloader.Synchronise(peerIdPrefix, hash, big.NewInt(0), downloader.BoundedFullSync); err != nil {
+			var err error
+
+			if mode == downloader.FullSync {
+				err = pm.downloader.Synchronise(peerIdPrefix, hash, big.NewInt(0), downloader.FullSync)
+
+			} else {
+				err = pm.downloader.Synchronise(peerIdPrefix, hash, big.NewInt(0), downloader.BoundedFullSync)
+			}
+
+			if err != nil {
 				log.Info("failed to synchronize with peer", "peer id", peerId)
 
 				time.Sleep(500 * time.Millisecond)
