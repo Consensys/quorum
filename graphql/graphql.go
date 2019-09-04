@@ -20,7 +20,6 @@ package graphql
 import (
 	"context"
 	"errors"
-	"github.com/ethereum/go-ethereum/private"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -31,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
