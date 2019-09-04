@@ -2,8 +2,8 @@ package permission
 
 import (
 	"crypto/ecdsa"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -79,7 +79,7 @@ func setup() {
 	defer os.RemoveAll(ksdir)
 
 	if err != nil {
-		t.Fatal("failed to create keystore: %v\n", err)
+		t.Fatalf("failed to create keystore: %v\n", err)
 	}
 	nodeKey, _ := crypto.GenerateKey()
 	guardianKey, _ = crypto.GenerateKey()

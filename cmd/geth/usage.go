@@ -270,15 +270,15 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.MinerLegacyEtherbaseFlag,
 			utils.MinerLegacyExtraDataFlag,
 		},
-	},
-	{
-		Name: "MISC",
 	}, {
 		Name: "ISTANBUL",
 		Flags: []cli.Flag{
 			utils.IstanbulRequestTimeoutFlag,
 			utils.IstanbulBlockPeriodFlag,
 		},
+	},
+	{
+		Name: "MISC",
 	},
 }
 

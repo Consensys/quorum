@@ -588,6 +588,8 @@ func (env *EVM) Push(statedb StateDB) {
 	// Quorum : the read only depth to be set up only once for the entire
 	// op code execution. This will be set first time transition from
 	// private state to public state happens
+	// statedb will be the state of the contract being called.
+	// if a private contract is calling a public contract make it readonly.
 	if !env.quorumReadOnly && env.privateState != statedb {
 		env.quorumReadOnly = true
 		env.readOnlyDepth = env.currentStateDepth
