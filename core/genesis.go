@@ -164,7 +164,7 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 			log.Info("Writing custom genesis block")
 		}
 
-		// Set default transaction size limit if not set in genesis
+		// Quorum: Set default transaction size limit if not set in genesis
 		if genesis.Config.TransactionSizeLimit == 0 {
 			genesis.Config.TransactionSizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
 		}
@@ -178,6 +178,8 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 		if err != nil {
 			return genesis.Config, common.Hash{}, err
 		}
+
+		// /Quorum
 
 		block, err := genesis.Commit(db)
 		return genesis.Config, block.Hash(), err
