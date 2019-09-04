@@ -95,6 +95,9 @@ const (
 	Bn256PairingBaseGas        uint64 = 100000 // Base price for an elliptic curve pairing check
 	Bn256PairingPerPointGas    uint64 = 80000  // Per-point price for an elliptic curve pairing check
 	QuorumMaximumExtraDataSize uint64 = 65     // Maximum size extra data may be after Genesis.
+
+	// Quorum - payload for a transaction, the size of the buffer to 128kb to match the maximum allowed in chain config
+	QuorumMaxPayloadBufferSize uint64 = 128
 )
 
 var (
