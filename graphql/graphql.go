@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -326,6 +327,32 @@ func (t *Transaction) Logs(ctx context.Context) (*[]*Log, error) {
 	}
 	return &ret, nil
 }
+
+// Quorum
+func (t *Transaction) IsPrivate(ctx context.Context) (*bool, error) {
+	ret := false
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &ret, err
+	}
+	ret = tx.IsPrivate()
+	return &ret, nil
+}
+
+func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return &hexutil.Bytes{}, err
+	}
+	privateInputData, err := private.P.Receive(tx.Data())
+	if err != nil || tx == nil {
+		return &hexutil.Bytes{}, err
+	}
+	ret := hexutil.Bytes(privateInputData)
+	return &ret, nil
+}
+
+// END QUORUM
 
 type BlockType int
 
