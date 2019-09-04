@@ -22,6 +22,70 @@ import (
 	"testing"
 )
 
+// Quorum - test code size and transaction size limit in chain config
+func TestMaxCodeSizeAndTransactionSizeLimit(t *testing.T) {
+	type testData struct {
+		size  uint64
+		valid bool
+		err   string
+	}
+	type testDataType struct {
+		isCodeSize bool
+		data       []testData
+	}
+
+	const codeSizeErr = "Genesis max code size must be between 24 and 128"
+	const txSizeErr = "Genesis transaction size limit must be between 32 and 128"
+	var codeSizeData = []testData{
+		{23, false, codeSizeErr},
+		{24, true, ""},
+		{50, true, ""},
+		{128, true, ""},
+		{129, false, codeSizeErr},
+	}
+
+	var txSizeData = []testData{
+		{31, false, txSizeErr},
+		{32, true, ""},
+		{50, true, ""},
+		{128, true, ""},
+		{129, false, txSizeErr},
+	}
+
+	var testDataArr = []testDataType{
+		{true, codeSizeData},
+		{false, txSizeData},
+	}
+
+	for _, td := range testDataArr {
+		var ccfg *ChainConfig
+		for _, d := range td.data {
+			var msgPrefix string
+			if td.isCodeSize {
+				ccfg = &ChainConfig{MaxCodeSize: d.size, TransactionSizeLimit: 50}
+				msgPrefix = "max code size"
+			} else {
+				ccfg = &ChainConfig{MaxCodeSize: 50, TransactionSizeLimit: d.size}
+				msgPrefix = "transaction size limit"
+			}
+			err := ccfg.IsValid()
+			if d.valid {
+				if err != nil {
+					t.Errorf(msgPrefix+" %d, expected no error but got %v", d.size, err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf(msgPrefix+" %d, expected error but got none", d.size)
+				} else {
+					if err.Error() != d.err {
+						t.Errorf(msgPrefix+" %d, expected error but got %v", d.size, err.Error())
+					}
+				}
+			}
+		}
+	}
+}
+
 func TestCheckCompatible(t *testing.T) {
 	type test struct {
 		stored, new *ChainConfig
