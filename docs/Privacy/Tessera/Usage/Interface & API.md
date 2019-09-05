@@ -28,6 +28,7 @@ The following endpoints are advertised on this interface:
 * `/push`
 * `/resend`
 * `/partyinfo`
+* `/partyinfo/validate`
 
 ### Third Party - Public API 
 
@@ -88,6 +89,10 @@ The following endpoints are advertised on this API:
 
 - GET: Request public keys/url of all known peer nodes.
 - POST: accepts a stream that contains the caller node's network information, and returns a merged copy with the callee node's network information
+
+**`partyinfo/validate`** - _Validates a node possesses a key_ 
+
+- Will request a node to decrypt a transaction in order to prove that it has access to the private part of its advertised public key.
 
 **`sendraw`** - _Send transaction bytestring_
 

@@ -171,7 +171,7 @@ Any additions to the `permissioned-nodes.json` file will be dynamically picked u
 Removing existing connected nodes from the `permissioned-nodes.json` file will not immediately drop those existing connected nodes. However, if the connection is dropped for any reason, and a subsequent connect request is made from the dropped node ids, it will be rejected as part of that new request.
 
 ## Quorum API
-Please see the [Quorum API](../../api) page for details.
+Please see the [Quorum API](../api) page for details.
 
 ## Network and Chain ID
 
@@ -192,6 +192,7 @@ In Quorum, transactions are considered private if the `v` parameter is set to `3
 If you are running a version prior to version 2.1.0, EIP-155 signing is not used, thus a chain ID of `1` was allowed; you will need to change this using `geth init` before running an updated version.
 
 
+# Zero Knowledge Work
 ## ZSL Proof of Concept
 
 J.P. Morgan and the Zcash team partnered to create a proof of concept (POC) implementation of ZSL for Quorum, which enables the issuance of digital assets using ZSL-enabled public smart contracts (z-contracts). We refer to such digital assets as “z-tokens”. Z-tokens can be shielded from public view and transacted privately. Proof that a shielded transaction has been executed can be presented to a private contract, thereby allowing the private contract to update its state in response to shielded transactions that are executed using public z-contracts. 
@@ -200,6 +201,15 @@ This combination of Constellation/Tessera’s private contracts with ZSL’s z-c
 
 For more information, see the [ZSL](../../ZSL) page of this wiki.
 
+## Anonymous Zether
+
+This is a private payment system, an _anonymous_ extension of Bünz, Agrawal, Zamani and Boneh's [Zether protocol](https://crypto.stanford.edu/~buenz/papers/zether.pdf).
+
+The outlines of an anonymous approach are sketched in the authors' original manuscript. We develop an explicit proof protocol for this extension, described in the technical note [AnonZether.pdf](https://github.com/jpmorganchase/anonymous-zether/blob/master/docs/AnonZether.pdf). We also provide a full implementation of the anonymous protocol (including a proof generator, verification contracts, and a client / front-end).
+
+For more information, see the [Anonymous Zether](https://github.com/jpmorganchase/anonymous-zether/) repo.
+
+# Quorum Genesis Options
 ## Configurable transaction size:
 
 Quorum allows operators of blockchains to increase maximum transaction size of accepted transactions via the genesis block. The Quorum default is currently increased to `64kb` from Ethereum's default `32kb` transaction size.  This is configurable up to `128kb` by adding `txnSizeLimit` to the config section of the genesis file:
@@ -213,3 +223,15 @@ Quorum allows operators of blockchains to increase maximum transaction size of a
 }
 ```
 
+## Contract code size:
+
+Quorum allows operators of blockchains to increase maximum contract code size of accepted smart contracts via the genesis block. The Quorum default is currently increased to `32kb` from Ethereum's default `24kb` contract code size.  This is configurable up to `128kb` by adding `maxCodeSize` to the config section of the genesis file:
+
+``` json
+"config": {
+    "chainId": 10,
+    "isQuorum":true.
+    ...
+    "maxCodeSize": 128
+}
+```
