@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"net"
 	"testing"
 	"testing/quick"
 
@@ -142,4 +143,24 @@ func TestID_logdistEqual(t *testing.T) {
 	if LogDist(x, x) != 0 {
 		t.Errorf("LogDist(x, x) != 0")
 	}
+}
+
+//Quorum - test raft port in node detail
+func TestNodeInfoForRaftPort(t *testing.T) {
+	node := NewV4(
+		hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+		net.IP{192, 168, 0, 1},
+		30302,
+		30303,
+		2021,
+	)
+	wantIP := enr.IPv4{192, 168, 0, 1}
+	wantUdp := 30303
+	wantTcp := 30302
+	wantRaftPort := 2021
+	assert.Equal(t, wantRaftPort, node.RaftPort(), "node raft port mismatch")
+	assert.Equal(t, net.IP(wantIP), node.IP(), "node ip mismatch")
+	assert.Equal(t, wantUdp, node.UDP(), "node UDP port mismatch")
+	assert.Equal(t, wantTcp, node.TCP(), "node TCP port mismatch")
+
 }
