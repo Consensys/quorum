@@ -247,6 +247,19 @@ func TestQuorumControlsAPI_TestAPIs(t *testing.T) {
 	assert.NoError(t, err)
 	q := NewQuorumControlsAPI(testObject)
 
+	testGetters(t, q)
+
+	tempAcct := getNewAccount()
+	invalidTxa := ethapi.SendTxArgs{From: tempAcct}
+	txa := ethapi.SendTxArgs{From: guardianAddress}
+
+	testOrgAPIs(t,q,txa, invalidTxa)
+	testNodeAPIs(t,q,txa, invalidTxa)
+	testRoleAndAccountsAPIs(t,q,txa, invalidTxa)
+}
+
+
+func testGetters(t *testing.T, q *QuorumControlsAPI){
 	// test GetOrgDetails
 	orgDetails, err := q.GetOrgDetails(arbitraryNetworkAdminOrg)
 	assert.NoError(t, err)
@@ -264,27 +277,21 @@ func TestQuorumControlsAPI_TestAPIs(t *testing.T) {
 	assert.True(t, len(q.OrgList()) > 0, fmt.Sprintf("expected non zero org list"))
 	// test RoleList
 	assert.True(t, len(q.RoleList()) > 0, fmt.Sprintf("expected non zero org list"))
+}
 
+func testOrgAPIs(t *testing.T, q *QuorumControlsAPI, txa, invalidTxa ethapi.SendTxArgs){
 	// test AddOrg
 	orgAdminKey, _ := crypto.GenerateKey()
 	orgAdminAddress := crypto.PubkeyToAddress(orgAdminKey.PublicKey)
 
-	tempAcct := getNewAccount()
-	invalidTxa := ethapi.SendTxArgs{From: tempAcct}
-
-
-	_, err = q.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, invalidTxa)
+	_, err := q.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
-
-	txa := ethapi.SendTxArgs{From: guardianAddress}
-	//time.Sleep(10 * time.Second)
 
 	_, err = q.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, txa)
 	assert.NoError(t, err)
 
 	_, err = q.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, txa)
 	assert.Equal(t, err, ErrPendingApproval)
-
 
 	_, err = q.ApproveOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -323,7 +330,13 @@ func TestQuorumControlsAPI_TestAPIs(t *testing.T) {
 	_, err = q.AddSubOrg(arbitraryNetworkAdminOrg, "", "", txa)
 	assert.Equal(t, err, errors.New("Invalid input"))
 
-	_, err = q.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
+	_, err = q.GetOrgDetails(arbitraryOrgToAdd)
+	assert.NoError(t, err)
+
+}
+
+func testNodeAPIs(t *testing.T, q *QuorumControlsAPI, txa, invalidTxa ethapi.SendTxArgs){
+	_, err := q.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
 	_, err = q.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
@@ -361,9 +374,11 @@ func TestQuorumControlsAPI_TestAPIs(t *testing.T) {
 	_, err = q.ApproveBlackListedNodeRecovery(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
+}
 
+func testRoleAndAccountsAPIs(t *testing.T, q *QuorumControlsAPI, txa, invalidTxa ethapi.SendTxArgs){
 	acct := getNewAccount()
-	_, err = q.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, invalidTxa)
+	_, err := q.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
 	_, err = q.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, txa)
@@ -440,9 +455,6 @@ func TestQuorumControlsAPI_TestAPIs(t *testing.T) {
 	_, err = q.ApproveBlackListedAccountRecovery(arbitraryNetworkAdminOrg, acct, txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctActive)
-
-	_, err = q.GetOrgDetails(arbitraryOrgToAdd)
-	assert.NoError(t, err)
 
 }
 
