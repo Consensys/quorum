@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"io/ioutil"
 	"log"
 	"math/big"
 	"os"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 
 	"github.com/ethereum/go-ethereum/core/types"
 
@@ -52,16 +53,14 @@ var ErrAcctBlacklisted = errors.New("Blacklisted account. Operation not allowed"
 var ErrNodeBlacklisted = errors.New("Blacklisted node. Operation not allowed")
 
 var (
-	testObject                                                                       *PermissionCtrl
-	guardianKey                                                                      *ecdsa.PrivateKey
-	guardianAccount                                                                  accounts.Account
-	backend                                                                          bind.ContractBackend
+	guardianKey     *ecdsa.PrivateKey
+	guardianAccount accounts.Account
+	backend         bind.ContractBackend
 	permUpgrAddress, permInterfaceAddress, permImplAddress, voterManagerAddress,
 	nodeManagerAddress, roleManagerAddress, accountManagerAddress, orgManagerAddress common.Address
 	ethereum        *eth.Ethereum
 	stack           *node.Node
 	guardianAddress common.Address
-	ksdir           string
 )
 
 func TestMain(m *testing.M) {
@@ -178,7 +177,6 @@ func teardown() {
 
 }
 
-
 func TestPermissionCtrl_AfterStart(t *testing.T) {
 	testObject := typicalPermissionCtrl(t)
 
@@ -238,227 +236,230 @@ func TestPermissionCtrl_PopulateInitPermissions_AfterNetworkIsInitialized(t *tes
 	assert.Equal(t, guardianAddress, cachedAccount.AcctId)
 }
 
-func TestQuorumControlsAPI_TestAPIs(t *testing.T) {
-	testObject := typicalPermissionCtrl(t)
-	assert.NoError(t, testObject.AfterStart())
-
-	err := testObject.populateInitPermissions()
-
-	assert.NoError(t, err)
-	q := NewQuorumControlsAPI(testObject)
-
-	testGetters(t, q)
-
-	tempAcct := getNewAccount()
-	invalidTxa := ethapi.SendTxArgs{From: tempAcct}
-	txa := ethapi.SendTxArgs{From: guardianAddress}
-
-	testOrgAPIs(t,q,txa, invalidTxa)
-	testNodeAPIs(t,q,txa, invalidTxa)
-	testRoleAndAccountsAPIs(t,q,txa, invalidTxa)
+func typicalQuorumControlsAPI(t *testing.T) *QuorumControlsAPI {
+	pc := typicalPermissionCtrl(t)
+	if !assert.NoError(t, pc.AfterStart()) {
+		t.Fail()
+	}
+	if !assert.NoError(t, pc.populateInitPermissions()) {
+		t.Fail()
+	}
+	return NewQuorumControlsAPI(pc)
 }
 
+func TestQuorumControlsAPI_ListAPIs(t *testing.T) {
+	testObject := typicalQuorumControlsAPI(t)
 
-func testGetters(t *testing.T, q *QuorumControlsAPI){
-	// test GetOrgDetails
-	orgDetails, err := q.GetOrgDetails(arbitraryNetworkAdminOrg)
+	orgDetails, err := testObject.GetOrgDetails(arbitraryNetworkAdminOrg)
 	assert.NoError(t, err)
 	assert.Equal(t, orgDetails.AcctList[0].AcctId, guardianAddress)
 	assert.Equal(t, orgDetails.RoleList[0].RoleId, arbitraryNetworkAdminRole)
 
-	orgDetails, err = q.GetOrgDetails("XYZ")
+	orgDetails, err = testObject.GetOrgDetails("XYZ")
 	assert.Equal(t, err, errors.New("org does not exist"))
 
 	// test NodeList
-	assert.Equal(t, len(q.NodeList()), 0)
+	assert.Equal(t, len(testObject.NodeList()), 0)
 	// test AcctList
-	assert.True(t, len(q.AcctList()) > 0, fmt.Sprintf("expected non zero account list"))
+	assert.True(t, len(testObject.AcctList()) > 0, fmt.Sprintf("expected non zero account list"))
 	// test OrgList
-	assert.True(t, len(q.OrgList()) > 0, fmt.Sprintf("expected non zero org list"))
+	assert.True(t, len(testObject.OrgList()) > 0, fmt.Sprintf("expected non zero org list"))
 	// test RoleList
-	assert.True(t, len(q.RoleList()) > 0, fmt.Sprintf("expected non zero org list"))
+	assert.True(t, len(testObject.RoleList()) > 0, fmt.Sprintf("expected non zero org list"))
 }
 
-func testOrgAPIs(t *testing.T, q *QuorumControlsAPI, txa, invalidTxa ethapi.SendTxArgs){
+func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
+	testObject := typicalQuorumControlsAPI(t)
+	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
+	txa := ethapi.SendTxArgs{From: guardianAddress}
+
 	// test AddOrg
 	orgAdminKey, _ := crypto.GenerateKey()
 	orgAdminAddress := crypto.PubkeyToAddress(orgAdminKey.PublicKey)
 
-	_, err := q.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, invalidTxa)
+	_, err := testObject.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, txa)
+	_, err = testObject.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, txa)
 	assert.NoError(t, err)
 
-	_, err = q.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, txa)
+	_, err = testObject.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, txa)
 	assert.Equal(t, err, ErrPendingApproval)
 
-	_, err = q.ApproveOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, invalidTxa)
+	_, err = testObject.ApproveOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.ApproveOrg("XYZ", arbitraryNode1, orgAdminAddress, txa)
+	_, err = testObject.ApproveOrg("XYZ", arbitraryNode1, orgAdminAddress, txa)
 	assert.Equal(t, err, errors.New("Nothing to approve"))
 
-	_, err = q.ApproveOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, txa)
+	_, err = testObject.ApproveOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, txa)
 	assert.NoError(t, err)
 
 	types.OrgInfoMap.UpsertOrg(arbitraryOrgToAdd, "", arbitraryOrgToAdd, big.NewInt(1), types.OrgApproved)
-	_, err = q.UpdateOrgStatus(arbitraryOrgToAdd, uint8(SuspendOrg), invalidTxa)
+	_, err = testObject.UpdateOrgStatus(arbitraryOrgToAdd, uint8(SuspendOrg), invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.UpdateOrgStatus(arbitraryOrgToAdd, uint8(SuspendOrg), txa)
+	_, err = testObject.UpdateOrgStatus(arbitraryOrgToAdd, uint8(SuspendOrg), txa)
 	assert.NoError(t, err)
 
 	types.OrgInfoMap.UpsertOrg(arbitraryOrgToAdd, "", arbitraryOrgToAdd, big.NewInt(1), types.OrgSuspended)
-	_, err = q.ApproveOrgStatus(arbitraryOrgToAdd, uint8(SuspendOrg), invalidTxa)
+	_, err = testObject.ApproveOrgStatus(arbitraryOrgToAdd, uint8(SuspendOrg), invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.ApproveOrgStatus(arbitraryOrgToAdd, uint8(SuspendOrg), txa)
+	_, err = testObject.ApproveOrgStatus(arbitraryOrgToAdd, uint8(SuspendOrg), txa)
 	assert.NoError(t, err)
 
-	_, err = q.AddSubOrg(arbitraryNetworkAdminOrg, arbitrarySubOrg, "", invalidTxa)
+	_, err = testObject.AddSubOrg(arbitraryNetworkAdminOrg, arbitrarySubOrg, "", invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.AddSubOrg(arbitraryNetworkAdminOrg, arbitrarySubOrg, "", txa)
+	_, err = testObject.AddSubOrg(arbitraryNetworkAdminOrg, arbitrarySubOrg, "", txa)
 	assert.NoError(t, err)
 	types.OrgInfoMap.UpsertOrg(arbitrarySubOrg, arbitraryNetworkAdminOrg, arbitraryNetworkAdminOrg, big.NewInt(2), types.OrgApproved)
 
 	suborg := "ABC.12345"
-	_, err = q.AddSubOrg(arbitraryNetworkAdminOrg, suborg, "", txa)
+	_, err = testObject.AddSubOrg(arbitraryNetworkAdminOrg, suborg, "", txa)
 	assert.Equal(t, err, errors.New("Org id cannot contain special characters"))
 
-	_, err = q.AddSubOrg(arbitraryNetworkAdminOrg, "", "", txa)
+	_, err = testObject.AddSubOrg(arbitraryNetworkAdminOrg, "", "", txa)
 	assert.Equal(t, err, errors.New("Invalid input"))
 
-	_, err = q.GetOrgDetails(arbitraryOrgToAdd)
+	_, err = testObject.GetOrgDetails(arbitraryOrgToAdd)
 	assert.NoError(t, err)
 
 }
 
-func testNodeAPIs(t *testing.T, q *QuorumControlsAPI, txa, invalidTxa ethapi.SendTxArgs){
-	_, err := q.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
+func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
+	testObject := typicalQuorumControlsAPI(t)
+	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
+	txa := ethapi.SendTxArgs{From: guardianAddress}
+
+	_, err := testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
+	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
 
-	_, err = q.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(SuspendNode), invalidTxa)
+	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(SuspendNode), invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(SuspendNode), txa)
+	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(SuspendNode), txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeDeactivated)
 
-	_, err = q.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(ActivateSuspendedNode), txa)
+	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(ActivateSuspendedNode), txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
 
-	_, err = q.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(BlacklistNode), txa)
+	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(BlacklistNode), txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeBlackListed)
 
-	_, err = q.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(ActivateSuspendedNode), txa)
+	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(ActivateSuspendedNode), txa)
 	assert.Equal(t, err, ErrNodeBlacklisted)
 
-	_, err = q.RecoverBlackListedNode(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
+	_, err = testObject.RecoverBlackListedNode(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.RecoverBlackListedNode(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
+	_, err = testObject.RecoverBlackListedNode(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeRecoveryInitiated)
 
-	_, err = q.ApproveBlackListedNodeRecovery(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
+	_, err = testObject.ApproveBlackListedNodeRecovery(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.ApproveBlackListedNodeRecovery(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
+	_, err = testObject.ApproveBlackListedNodeRecovery(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
 }
 
-func testRoleAndAccountsAPIs(t *testing.T, q *QuorumControlsAPI, txa, invalidTxa ethapi.SendTxArgs){
-	acct := getNewAccount()
-	_, err := q.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, invalidTxa)
+func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
+	testObject := typicalQuorumControlsAPI(t)
+	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
+	txa := ethapi.SendTxArgs{From: guardianAddress}
+	acct := getArbitraryAccount()
+
+	_, err := testObject.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, txa)
+	_, err = testObject.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, txa)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, types.AcctPendingApproval)
 
-	_, err = q.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
+	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
+	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, txa)
+	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, types.AcctActive)
 
-	_, err = q.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(types.FullAccess), false, false, invalidTxa)
+	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(types.FullAccess), false, false, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(types.FullAccess), false, false, txa)
+	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(types.FullAccess), false, false, txa)
 	assert.NoError(t, err)
 	types.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, false, false, types.FullAccess, true)
 
-	acct = getNewAccount()
-	_, err = q.AddAccountToOrg(acct, arbitraryNetworkAdminOrg, arbitrartNewRole1, invalidTxa)
+	acct = getArbitraryAccount()
+	_, err = testObject.AddAccountToOrg(acct, arbitraryNetworkAdminOrg, arbitrartNewRole1, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.AddAccountToOrg(acct, arbitraryNetworkAdminOrg, arbitrartNewRole1, txa)
+	_, err = testObject.AddAccountToOrg(acct, arbitraryNetworkAdminOrg, arbitrartNewRole1, txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole1, acct, true, types.AcctActive)
 
-	_, err = q.RemoveRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, invalidTxa)
+	_, err = testObject.RemoveRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.RemoveRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, txa)
+	_, err = testObject.RemoveRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, txa)
 	assert.Equal(t, err, ErrAccountsLinked)
 
-	_, err = q.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole2, uint8(types.FullAccess), false, false, txa)
+	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole2, uint8(types.FullAccess), false, false, txa)
 	assert.NoError(t, err)
 	types.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, arbitrartNewRole2, false, false, types.FullAccess, true)
 
-	_, err = q.ChangeAccountRole(acct, arbitraryNetworkAdminOrg, arbitrartNewRole2, invalidTxa)
+	_, err = testObject.ChangeAccountRole(acct, arbitraryNetworkAdminOrg, arbitrartNewRole2, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.ChangeAccountRole(acct, arbitraryNetworkAdminOrg, arbitrartNewRole2, txa)
+	_, err = testObject.ChangeAccountRole(acct, arbitraryNetworkAdminOrg, arbitrartNewRole2, txa)
 	assert.NoError(t, err)
 
-	_, err = q.RemoveRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, txa)
+	_, err = testObject.RemoveRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, txa)
 	assert.Equal(t, err, ErrAccountsLinked)
 
-	_, err = q.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(SuspendAccount), invalidTxa)
+	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(SuspendAccount), invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(SuspendAccount), txa)
+	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(SuspendAccount), txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctSuspended)
 
-	_, err = q.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
+	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctActive)
 
-	_, err = q.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(BlacklistAccount), txa)
+	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(BlacklistAccount), txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctBlacklisted)
 
-	_, err = q.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
+	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
 	assert.Equal(t, err, ErrAcctBlacklisted)
 
-	_, err = q.RecoverBlackListedAccount(arbitraryNetworkAdminOrg, acct, invalidTxa)
+	_, err = testObject.RecoverBlackListedAccount(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = q.RecoverBlackListedAccount(arbitraryNetworkAdminOrg, acct, txa)
+	_, err = testObject.RecoverBlackListedAccount(arbitraryNetworkAdminOrg, acct, txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctRecoveryInitiated)
-	_, err = q.ApproveBlackListedAccountRecovery(arbitraryNetworkAdminOrg, acct, txa)
+	_, err = testObject.ApproveBlackListedAccountRecovery(arbitraryNetworkAdminOrg, acct, txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctActive)
 
 }
 
-func getNewAccount() common.Address {
+func getArbitraryAccount() common.Address {
 	acctKey, _ := crypto.GenerateKey()
 	return crypto.PubkeyToAddress(acctKey.PublicKey)
 }
@@ -500,12 +501,14 @@ func tmpKeyStore(encrypted bool) (string, *keystore.KeyStore, error) {
 	}
 	new := keystore.NewPlaintextKeyStore
 	if encrypted {
-		new = func(kd string) *keystore.KeyStore { return keystore.NewKeyStore(kd, keystore.LightScryptN, keystore.LightScryptP) }
+		new = func(kd string) *keystore.KeyStore {
+			return keystore.NewKeyStore(kd, keystore.LightScryptN, keystore.LightScryptP)
+		}
 	}
 	return d, new(d), err
 }
 
-func TestPermissionCtrl_updateFile(t *testing.T) {
+func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	testObject := typicalPermissionCtrl(t)
 	assert.NoError(t, testObject.AfterStart())
 
@@ -516,7 +519,7 @@ func TestPermissionCtrl_updateFile(t *testing.T) {
 	defer os.RemoveAll(d)
 
 	testObject.dataDir = d
-	testObject.updatePermissionedNodes(arbitraryNode1,NodeAdd)
+	testObject.updatePermissionedNodes(arbitraryNode1, NodeAdd)
 
 	permFile, _ := os.Create(d + "/" + "permissioned-nodes.json")
 
@@ -535,8 +538,8 @@ func TestPermissionCtrl_updateFile(t *testing.T) {
 		return
 	}
 	assert.Equal(t, len(nodeList), 1)
-	testObject.updatePermissionedNodes(arbitraryNode1,NodeAdd)
-	testObject.updatePermissionedNodes(arbitraryNode1,NodeDelete)
+	testObject.updatePermissionedNodes(arbitraryNode1, NodeAdd)
+	testObject.updatePermissionedNodes(arbitraryNode1, NodeDelete)
 
 	blob, err = ioutil.ReadFile(permFile.Name())
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
@@ -581,7 +584,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	tmpPermCofig.OrgAddress = "0x0"
 	tmpPermCofig.NodeAddress = "0x0"
 	blob, err := json.Marshal(tmpPermCofig)
-	if err := ioutil.WriteFile( fileName, blob, 0644); err != nil {
+	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)
 	}
 	_, err = ParsePermissionConfig(d)
@@ -591,7 +594,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	tmpPermCofig.SubOrgBreadth = "4"
 	tmpPermCofig.SubOrgDepth = "4"
 	blob, _ = json.Marshal(tmpPermCofig)
-	if err := ioutil.WriteFile( fileName, blob, 0644); err != nil {
+	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)
 	}
 	_, err = ParsePermissionConfig(d)
@@ -600,7 +603,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	_ = os.Remove(fileName)
 	tmpPermCofig.Accounts = append(tmpPermCofig.Accounts, "0xed9d02e382b34818e88b88a309c7fe71e65f419d")
 	blob, err = json.Marshal(tmpPermCofig)
-	if err := ioutil.WriteFile( fileName, blob, 0644); err != nil {
+	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)
 	}
 	_, err = ParsePermissionConfig(d)
@@ -609,7 +612,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	_ = os.Remove(fileName)
 	tmpPermCofig.InterfAddress = "0xed9d02e382b34818e88b88a309c7fe71e65f419d"
 	blob, err = json.Marshal(tmpPermCofig)
-	if err := ioutil.WriteFile( fileName, blob, 0644); err != nil {
+	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)
 	}
 	permConfig, err := ParsePermissionConfig(d)

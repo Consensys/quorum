@@ -208,7 +208,7 @@ func (q *QuorumControlsAPI) initOp(txa ethapi.SendTxArgs) (*pbind.PermInterfaceS
 	return pinterf, ExecSuccess
 }
 
-func reportExecError(action PermAction, err error) (string, error){
+func reportExecError(action PermAction, err error) (string, error) {
 	log.Error("Failed to execute permission action", "action", action, "err", err)
 	msg := fmt.Sprintf("failed to execute permissions action: %v", err)
 	return ExecStatus{false, msg}.OpStatus()
