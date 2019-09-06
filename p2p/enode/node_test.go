@@ -164,3 +164,19 @@ func TestNodeInfoForRaftPort(t *testing.T) {
 	assert.Equal(t, wantTcp, node.TCP(), "node TCP port mismatch")
 
 }
+
+// Quorum - test parsing url with hostname (if host is FQDN)
+func TestNodeParseUrlWithHostnameForQuorum(t *testing.T) {
+	var url = "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@localhost:21000?discport=0&raftport=50401"
+	n, err := ParseV4(url)
+	if err != nil {
+		t.Errorf("parsing host failed %v", err)
+	}
+	assert.Equal(t, 50401, n.RaftPort())
+
+	url = "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@localhost1:21000?discport=0&raftport=50401"
+	_, err = ParseV4(url)
+	if err != nil {
+		assert.Equal(t, "invalid IP address", err.Error())
+	}
+}
