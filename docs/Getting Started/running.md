@@ -171,7 +171,7 @@ Any additions to the `permissioned-nodes.json` file will be dynamically picked u
 Removing existing connected nodes from the `permissioned-nodes.json` file will not immediately drop those existing connected nodes. However, if the connection is dropped for any reason, and a subsequent connect request is made from the dropped node ids, it will be rejected as part of that new request.
 
 ## Quorum API
-Please see the [Quorum API](../../api) page for details.
+Please see the [Quorum API](../api) page for details.
 
 ## Network and Chain ID
 

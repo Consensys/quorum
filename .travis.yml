@@ -4,7 +4,7 @@
 
 language: go
 go_import_path: github.com/ethereum/go-ethereum
-go: 1.11.12
+go: 1.11.x
 sudo: true
 branches:
   only:
