@@ -413,9 +413,27 @@ func (pm *ProtocolManager) startRaft() {
 		maybeRaftSnapshot = pm.loadSnapshot() // re-establishes peer connections
 	}
 
-	pm.wal = pm.replayWAL(maybeRaftSnapshot)
+	loadedWal, entries := pm.replayWAL(maybeRaftSnapshot)
+	pm.wal = loadedWal
 
 	if walExisted {
+		if maybeRaftSnapshot != nil {
+			for _, entry := range entries {
+				if len(entry.Data) == 0 {
+					continue
+				}
+				var block types.Block
+				err := rlp.DecodeBytes(entry.Data, &block)
+				if err != nil {
+					log.Error("error decoding block: ", err)
+				} else {
+					blocks := types.Blocks(make([]*types.Block, 0))
+					blocks = append(blocks, &block)
+					pm.blockchain.InsertChain(blocks)
+				}
+			}
+		}
+
 		if hardState, _, err := pm.raftStorage.InitialState(); err != nil {
 			panic(fmt.Sprintf("failed to read initial state from raft while restarting: %v", err))
 		} else {
