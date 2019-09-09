@@ -480,8 +480,8 @@ func typicalPermissionCtrl(t *testing.T) *PermissionCtrl {
 		Accounts: []common.Address{
 			guardianAddress,
 		},
-		SubOrgDepth:   *big.NewInt(3),
-		SubOrgBreadth: *big.NewInt(3),
+		SubOrgDepth:   big.NewInt(3),
+		SubOrgBreadth: big.NewInt(3),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -572,17 +572,20 @@ func TestParsePermissionConfig(t *testing.T) {
 	assert.True(t, err != nil, "expected unmarshalling error")
 
 	// write permission-config.json into the temp dir
-	var tmpPermCofig PermissionLocalConfig
+	var tmpPermCofig types.PermissionConfig
 	tmpPermCofig.NwAdminOrg = arbitraryNetworkAdminOrg
 	tmpPermCofig.NwAdminRole = arbitraryNetworkAdminRole
 	tmpPermCofig.OrgAdminRole = arbitraryOrgAdminRole
-	tmpPermCofig.InterfAddress = "0x0"
-	tmpPermCofig.ImplAddress = "0x0"
-	tmpPermCofig.UpgrdAddress = "0x0"
-	tmpPermCofig.VoterAddress = "0x0"
-	tmpPermCofig.RoleAddress = "0x0"
-	tmpPermCofig.OrgAddress = "0x0"
-	tmpPermCofig.NodeAddress = "0x0"
+	tmpPermCofig.InterfAddress = common.Address{}
+	tmpPermCofig.ImplAddress = common.Address{}
+	tmpPermCofig.UpgrdAddress = common.Address{}
+	tmpPermCofig.VoterAddress = common.Address{}
+	tmpPermCofig.RoleAddress = common.Address{}
+	tmpPermCofig.OrgAddress = common.Address{}
+	tmpPermCofig.NodeAddress = common.Address{}
+	tmpPermCofig.SubOrgBreadth = new(big.Int)
+	tmpPermCofig.SubOrgDepth = new(big.Int)
+
 	blob, err := json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)
@@ -591,8 +594,8 @@ func TestParsePermissionConfig(t *testing.T) {
 	assert.True(t, err != nil, "expected sub org depth not set error")
 
 	_ = os.Remove(fileName)
-	tmpPermCofig.SubOrgBreadth = "4"
-	tmpPermCofig.SubOrgDepth = "4"
+	tmpPermCofig.SubOrgBreadth.Set(big.NewInt(4))
+	tmpPermCofig.SubOrgDepth.Set(big.NewInt(4))
 	blob, _ = json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)
@@ -601,7 +604,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	assert.True(t, err != nil, "expected account not given  error")
 
 	_ = os.Remove(fileName)
-	tmpPermCofig.Accounts = append(tmpPermCofig.Accounts, "0xed9d02e382b34818e88b88a309c7fe71e65f419d")
+	tmpPermCofig.Accounts = append(tmpPermCofig.Accounts, common.StringToAddress("0xed9d02e382b34818e88b88a309c7fe71e65f419d"))
 	blob, err = json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)
@@ -610,7 +613,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	assert.True(t, err != nil, "expected contract address error")
 
 	_ = os.Remove(fileName)
-	tmpPermCofig.InterfAddress = "0xed9d02e382b34818e88b88a309c7fe71e65f419d"
+	tmpPermCofig.InterfAddress = common.StringToAddress("0xed9d02e382b34818e88b88a309c7fe71e65f419d")
 	blob, err = json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)

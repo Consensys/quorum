@@ -59,9 +59,18 @@ func TestOrgCache_UpsertOrg(t *testing.T) {
 
 	//add another org and check get org list
 	OrgInfoMap.UpsertOrg(ORGADMIN, "", ORGADMIN, big.NewInt(1), OrgApproved)
-
 	orgList := OrgInfoMap.GetOrgList()
 	assert.True(len(orgList) == 2, fmt.Sprintf("Expected 2 entries, got %v", len(orgList)))
+
+	//add sub org and check get orglist
+	OrgInfoMap.UpsertOrg("SUB1", ORGADMIN, ORGADMIN, big.NewInt(2), OrgApproved)
+	orgList = OrgInfoMap.GetOrgList()
+	assert.True(len(orgList) == 3, fmt.Sprintf("Expected 3 entries, got %v", len(orgList)))
+
+	//suspend the sub org and check get orglist
+	OrgInfoMap.UpsertOrg("SUB1", ORGADMIN, ORGADMIN, big.NewInt(2), OrgSuspended)
+	orgList = OrgInfoMap.GetOrgList()
+	assert.True(len(orgList) == 3, fmt.Sprintf("Expected 3 entries, got %v", len(orgList)))
 }
 
 func TestNodeCache_UpsertNode(t *testing.T) {

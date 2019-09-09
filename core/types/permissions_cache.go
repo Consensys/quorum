@@ -92,21 +92,21 @@ type OrgDetailInfo struct {
 
 // permission config for bootstrapping
 type PermissionConfig struct {
-	UpgrdAddress   common.Address
-	InterfAddress  common.Address
-	ImplAddress    common.Address
-	NodeAddress    common.Address
-	AccountAddress common.Address
-	RoleAddress    common.Address
-	VoterAddress   common.Address
-	OrgAddress     common.Address
-	NwAdminOrg     string
-	NwAdminRole    string
-	OrgAdminRole   string
+	UpgrdAddress   common.Address `json:"upgrdableAddress"`
+	InterfAddress  common.Address `json:"interfaceAddress"`
+	ImplAddress    common.Address `json:"implAddress"`
+	NodeAddress    common.Address `json:"nodeMgrAddress"`
+	AccountAddress common.Address `json:"accountMgrAddress"`
+	RoleAddress    common.Address `json:"roleMgrAddress"`
+	VoterAddress   common.Address `json:"voterMgrAddress"`
+	OrgAddress     common.Address `json:"orgMgrAddress"`
+	NwAdminOrg     string         `json:"nwAdminOrg"`
+	NwAdminRole    string         `json:"nwAdminRole"`
+	OrgAdminRole   string         `json:"orgAdminRole"`
 
-	Accounts      []common.Address //initial list of account that need full access
-	SubOrgDepth   big.Int
-	SubOrgBreadth big.Int
+	Accounts      []common.Address `json:"accounts"` //initial list of account that need full access
+	SubOrgDepth   *big.Int          `json:"subOrgBreadth"`
+	SubOrgBreadth *big.Int          `json:"subOrgDepth"`
 }
 
 type OrgKey struct {
@@ -134,17 +134,14 @@ type OrgCache struct {
 
 type NodeCache struct {
 	c   *lru.Cache
-	mux sync.Mutex
 }
 
 type RoleCache struct {
 	c   *lru.Cache
-	mux sync.Mutex
 }
 
 type AcctCache struct {
 	c   *lru.Cache
-	mux sync.Mutex
 }
 
 func NewOrgCache() *OrgCache {
@@ -154,17 +151,17 @@ func NewOrgCache() *OrgCache {
 
 func NewNodeCache() *NodeCache {
 	c, _ := lru.New(defaultMapLimit)
-	return &NodeCache{c, sync.Mutex{}}
+	return &NodeCache{c}
 }
 
 func NewRoleCache() *RoleCache {
 	c, _ := lru.New(defaultMapLimit)
-	return &RoleCache{c, sync.Mutex{}}
+	return &RoleCache{c}
 }
 
 func NewAcctCache() *AcctCache {
 	c, _ := lru.New(defaultMapLimit)
-	return &AcctCache{c, sync.Mutex{}}
+	return &AcctCache{c}
 }
 
 var syncStarted = false
@@ -200,7 +197,7 @@ func SetDefaults(nwRoleId, oaRoleId string) {
 	orgAdminRole = oaRoleId
 }
 
-func GetDefaults() (string, string, AccessType){
+func GetDefaults() (string, string, AccessType) {
 	return networkAdminRole, orgAdminRole, DefaultAccess
 }
 
@@ -256,15 +253,11 @@ func (o *OrgCache) GetOrgList() []OrgInfo {
 }
 
 func (n *NodeCache) UpsertNode(orgId string, url string, status NodeStatus) {
-	defer n.mux.Unlock()
-	n.mux.Lock()
 	key := NodeKey{OrgId: orgId, Url: url}
 	n.c.Add(key, &NodeInfo{orgId, url, status})
 }
 
 func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
-	defer n.mux.Unlock()
-	n.mux.Lock()
 	for _, k := range n.c.Keys() {
 		ent := k.(NodeKey)
 		if ent.Url == url {
@@ -286,15 +279,11 @@ func (n *NodeCache) GetNodeList() []NodeInfo {
 }
 
 func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address, orgAdmin bool, status AcctStatus) {
-	defer a.mux.Unlock()
-	a.mux.Lock()
 	key := AccountKey{acct}
 	a.c.Add(key, &AccountInfo{orgId, role, acct, orgAdmin, status})
 }
 
 func (a *AcctCache) GetAccount(acct common.Address) *AccountInfo {
-	defer a.mux.Unlock()
-	a.mux.Lock()
 	if v, ok := a.c.Get(AccountKey{acct}); ok {
 		return v.(*AccountInfo)
 	}
@@ -337,16 +326,12 @@ func (a *AcctCache) GetAcctListRole(orgId, roleId string) []AccountInfo {
 }
 
 func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, admin bool, access AccessType, active bool) {
-	defer r.mux.Unlock()
-	r.mux.Lock()
 	key := RoleKey{orgId, role}
 	r.c.Add(key, &RoleInfo{orgId, role, voter, admin, access, active})
 
 }
 
 func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
-	defer r.mux.Unlock()
-	r.mux.Lock()
 	key := RoleKey{OrgId: orgId, RoleId: roleId}
 	if ent, ok := r.c.Get(key); ok {
 		return ent.(*RoleInfo)

@@ -20,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/log"
@@ -37,25 +36,6 @@ const (
 	NodeAdd NodeOperation = iota
 	NodeDelete
 )
-
-// permission config for bootstrapping
-type PermissionLocalConfig struct {
-	UpgrdAddress   string `json:"upgrdableAddress"`
-	InterfAddress  string `json:"interfaceAddress"`
-	ImplAddress    string `json:"implAddress"`
-	NodeAddress    string `json:"nodeMgrAddress"`
-	AccountAddress string `json:"accountMgrAddress"`
-	RoleAddress    string `json:"roleMgrAddress"`
-	VoterAddress   string `json:"voterMgrAddress"`
-	OrgAddress     string `json:"orgMgrAddress"`
-	NwAdminOrg     string `json:"nwAdminOrg"`
-	NwAdminRole    string `json:"nwAdminRole"`
-	OrgAdminRole   string `json:"orgAdminRole"`
-
-	Accounts      []string `json:"accounts"` //initial list of account that need full access
-	SubOrgBreadth string   `json:"subOrgBreadth"`
-	SubOrgDepth   string   `json:"subOrgDepth"`
-}
 
 type PermissionCtrl struct {
 	node       *node.Node
@@ -82,32 +62,6 @@ type PermissionCtrl struct {
 type stopEvent struct {
 }
 
-// converts local permissions data to global permissions config
-func populateConfig(config PermissionLocalConfig) types.PermissionConfig {
-	var permConfig types.PermissionConfig
-	permConfig.UpgrdAddress = common.HexToAddress(config.UpgrdAddress)
-	permConfig.InterfAddress = common.HexToAddress(config.InterfAddress)
-	permConfig.ImplAddress = common.HexToAddress(config.ImplAddress)
-	permConfig.OrgAddress = common.HexToAddress(config.OrgAddress)
-	permConfig.RoleAddress = common.HexToAddress(config.RoleAddress)
-	permConfig.NodeAddress = common.HexToAddress(config.NodeAddress)
-	permConfig.AccountAddress = common.HexToAddress(config.AccountAddress)
-	permConfig.VoterAddress = common.HexToAddress(config.VoterAddress)
-
-	permConfig.NwAdminOrg = config.NwAdminOrg
-	permConfig.NwAdminRole = config.NwAdminRole
-	permConfig.OrgAdminRole = config.OrgAdminRole
-
-	// populate the account list as passed in config
-	for _, val := range config.Accounts {
-		permConfig.Accounts = append(permConfig.Accounts, common.HexToAddress(val))
-	}
-	permConfig.SubOrgBreadth.SetString(config.SubOrgBreadth, 10)
-	permConfig.SubOrgDepth.SetString(config.SubOrgDepth, 10)
-
-	return permConfig
-}
-
 // function reads the permissions config file passed and populates the
 // config structure accordingly
 func ParsePermissionConfig(dir string) (types.PermissionConfig, error) {
@@ -120,24 +74,28 @@ func ParsePermissionConfig(dir string) (types.PermissionConfig, error) {
 	defer func() {
 		_ = f.Close()
 	}()
-	var permlocConfig PermissionLocalConfig
-	if err := json.NewDecoder(f).Decode(&permlocConfig); err != nil {
-		log.Error("error unmarshalling file", "file", fullPath, "error", err)
-		return types.PermissionConfig{}, err
+
+	var permConfig types.PermissionConfig
+	blob, err := ioutil.ReadFile(fullPath)
+	if err != nil {
+		log.Error("error reading file", "err", err, "file", fullPath)
 	}
 
-	permConfig := populateConfig(permlocConfig)
+	err = json.Unmarshal(blob, &permConfig)
+	if err != nil {
+		log.Error("error unmarshalling the file", "err", err, "file", fullPath)
+	}
+
 	if len(permConfig.Accounts) == 0 {
 		return types.PermissionConfig{}, fmt.Errorf("no accounts given in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
 	}
-
 	if permConfig.SubOrgDepth.Cmp(big.NewInt(0)) == 0 || permConfig.SubOrgBreadth.Cmp(big.NewInt(0)) == 0 {
 		return types.PermissionConfig{}, fmt.Errorf("sub org breadth depth not passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
 	}
-
 	if permConfig.IsEmpty() {
 		return types.PermissionConfig{}, fmt.Errorf("missing contract addresses in %s", params.PERMISSION_MODEL_CONFIG)
 	}
+
 	return permConfig, nil
 }
 
@@ -672,7 +630,7 @@ func (p *PermissionCtrl) bootupNetwork(permInterfSession *pbind.PermInterfaceSes
 		log.Error("bootupNetwork SetPolicy failed", "err", err)
 		return err
 	}
-	if _, err := permInterfSession.Init(&p.permConfig.SubOrgBreadth, &p.permConfig.SubOrgDepth); err != nil {
+	if _, err := permInterfSession.Init(p.permConfig.SubOrgBreadth, p.permConfig.SubOrgDepth); err != nil {
 		log.Error("bootupNetwork init failed", "err", err)
 		return err
 	}
