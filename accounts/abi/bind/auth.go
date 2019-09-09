@@ -62,6 +62,8 @@ func NewKeyedTransactor(key *ecdsa.PrivateKey) *TransactOpts {
 	}
 }
 
+// Quorum
+//
 // NewWalletTransactor is a utility method to easily create a transaction signer
 // from a wallet account
 func NewWalletTransactor(w accounts.Wallet, from accounts.Account) *TransactOpts {

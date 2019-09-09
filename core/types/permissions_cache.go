@@ -1,12 +1,13 @@
 package types
 
 import (
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/p2p/enode"
+
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 type AccessType uint8
@@ -105,8 +106,8 @@ type PermissionConfig struct {
 	OrgAdminRole   string         `json:"orgAdminRole"`
 
 	Accounts      []common.Address `json:"accounts"` //initial list of account that need full access
-	SubOrgDepth   *big.Int          `json:"subOrgBreadth"`
-	SubOrgBreadth *big.Int          `json:"subOrgDepth"`
+	SubOrgDepth   *big.Int         `json:"subOrgBreadth"`
+	SubOrgBreadth *big.Int         `json:"subOrgDepth"`
 }
 
 type OrgKey struct {
@@ -133,15 +134,15 @@ type OrgCache struct {
 }
 
 type NodeCache struct {
-	c   *lru.Cache
+	c *lru.Cache
 }
 
 type RoleCache struct {
-	c   *lru.Cache
+	c *lru.Cache
 }
 
 type AcctCache struct {
-	c   *lru.Cache
+	c *lru.Cache
 }
 
 func NewOrgCache() *OrgCache {
