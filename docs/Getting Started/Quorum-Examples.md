@@ -1,6 +1,6 @@
 # Examples
 
-The following is a incomplete of official and unofficial projects and samples highlighting and showcasing functionality offered by Quorum platform. [quorum-examples](https://github.com/jpmorganchase/quorum-examples.git), is the official sample repository and it provides the means to easily create pre-configured networks for testing/development.
+The following is an incomplete list of official and unofficial projects and samples highlighting and showcasing functionality offered by Quorum platform. [quorum-examples](https://github.com/jpmorganchase/quorum-examples.git), is the official sample repository and it provides the means to easily create pre-configured networks for testing/development.
 
 Current examples include:
 
