@@ -427,9 +427,17 @@ func (pm *ProtocolManager) startRaft() {
 				if err != nil {
 					log.Error("error decoding block: ", err)
 				} else {
-					blocks := types.Blocks(make([]*types.Block, 0))
-					blocks = append(blocks, &block)
-					pm.blockchain.InsertChain(blocks)
+					if pm.blockchain.GetBlockByHash(block.Hash()) != nil {
+						// check if the block is already existing in the local chain and insert
+						latestBlock := pm.blockchain.CurrentBlock().Number()
+						thisBlock := pm.blockchain.GetBlockByHash(block.Hash()).Number()
+						if thisBlock.Cmp(latestBlock) > 0 {
+							// insert the record only if we have already seen the block
+							blocks := types.Blocks(make([]*types.Block, 0))
+							blocks = append(blocks, &block)
+							pm.blockchain.InsertChain(blocks)
+						}
+					}
 				}
 			}
 		}
@@ -783,7 +791,7 @@ func (pm *ProtocolManager) eventLoop() {
 					case raftpb.ConfChangeAddNode:
 						if pm.isRaftIdRemoved(raftId) {
 							log.Info("ignoring ConfChangeAddNode for permanently-removed peer", "raft id", raftId)
-						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes))  {
+						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes)) {
 							// See initial cluster logic in startRaft() for more information.
 							log.Info("ignoring expected ConfChangeAddNode for initial peer", "raft id", raftId)
 
