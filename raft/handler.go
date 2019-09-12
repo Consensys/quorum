@@ -418,24 +418,26 @@ func (pm *ProtocolManager) startRaft() {
 
 	if walExisted {
 		if maybeRaftSnapshot != nil {
+			currentChainHead := pm.blockchain.CurrentBlock().Number()
 			for _, entry := range entries {
-				if len(entry.Data) == 0 {
-					continue
-				}
-				var block types.Block
-				err := rlp.DecodeBytes(entry.Data, &block)
-				if err != nil {
-					log.Error("error decoding block: ", err)
-				} else {
-					if pm.blockchain.GetBlockByHash(block.Hash()) != nil {
-						// check if the block is already existing in the local chain and insert
-						latestBlock := pm.blockchain.CurrentBlock().Number()
-						thisBlock := pm.blockchain.GetBlockByHash(block.Hash()).Number()
-						if thisBlock.Cmp(latestBlock) > 0 {
-							// insert the record only if we have already seen the block
-							blocks := types.Blocks(make([]*types.Block, 0))
-							blocks = append(blocks, &block)
-							pm.blockchain.InsertChain(blocks)
+				if entry.Type == raftpb.EntryNormal {
+					var block types.Block
+					err := rlp.DecodeBytes(entry.Data, &block)
+					if err != nil {
+						log.Error("error decoding block: ", err)
+					} else {
+						if pm.blockchain.GetBlockByHash(block.Hash()) != nil {
+							// check if the block is already existing in the local chain
+							// and the block number is greater than current chain head
+							thisBlockHead := pm.blockchain.GetBlockByHash(block.Hash()).Number()
+							if thisBlockHead.Cmp(currentChainHead) > 0 {
+								// insert the block only if its already seen
+								blocks := types.Blocks(make([]*types.Block, 0))
+								blocks = append(blocks, &block)
+								if _, err := pm.blockchain.InsertChain(blocks); err != nil {
+									log.Error("error inserting the block into the chain", "err", err)
+								}
+							}
 						}
 					}
 				}
