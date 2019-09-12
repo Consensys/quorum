@@ -2,17 +2,19 @@ package types
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	testifyassert "github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	testifyassert "github.com/stretchr/testify/assert"
 )
 
 var (
 	NETWORKADMIN = "NWADMIN"
-	ORGADMIN = "OADMIN"
-	NODE1 = "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@127.0.0.1:21000?discport=0&raftport=50401"
-	NODE2 = "enode://0ba6b9f606a43a95edc6247cdb1c1e105145817be7bcafd6b2c0ba15d58145f0dc1a194f70ba73cd6f4cdd6864edc7687f311254c7555cc32e4d45aeb1b80416@127.0.0.1:21001?discport=0&raftport=50402"
+	ORGADMIN     = "OADMIN"
+	NODE1        = "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@127.0.0.1:21000?discport=0&raftport=50401"
+	NODE2        = "enode://0ba6b9f606a43a95edc6247cdb1c1e105145817be7bcafd6b2c0ba15d58145f0dc1a194f70ba73cd6f4cdd6864edc7687f311254c7555cc32e4d45aeb1b80416@127.0.0.1:21001?discport=0&raftport=50402"
 )
 
 var Acct1 = common.BytesToAddress([]byte("permission"))
@@ -98,19 +100,19 @@ func TestRoleCache_UpsertRole(t *testing.T) {
 	assert := testifyassert.New(t)
 
 	// add a role into the cache and validate
-	RoleInfoMap.UpsertRole(NETWORKADMIN, NETWORKADMIN, true, true, FullAccess, true )
+	RoleInfoMap.UpsertRole(NETWORKADMIN, NETWORKADMIN, true, true, FullAccess, true)
 	roleInfo := RoleInfoMap.GetRole(NETWORKADMIN, NETWORKADMIN)
 	assert.False(roleInfo == nil, fmt.Sprintf("Expected role details, got nil"))
 	assert.True(roleInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id for node %v, got %v", NETWORKADMIN, roleInfo.OrgId))
 	assert.True(roleInfo.RoleId == NETWORKADMIN, fmt.Sprintf("Expected node id %v, got %v", NETWORKADMIN, roleInfo.RoleId))
 
 	// add another role and validate the list function
-	RoleInfoMap.UpsertRole(ORGADMIN, ORGADMIN, true, true, FullAccess, true )
+	RoleInfoMap.UpsertRole(ORGADMIN, ORGADMIN, true, true, FullAccess, true)
 	roleList := RoleInfoMap.GetRoleList()
 	assert.True(len(roleList) == 2, fmt.Sprintf("Expected 2 entries, got %v", len(roleList)))
 
 	// update role status and validate
-	RoleInfoMap.UpsertRole(ORGADMIN, ORGADMIN, true, true, FullAccess, false )
+	RoleInfoMap.UpsertRole(ORGADMIN, ORGADMIN, true, true, FullAccess, false)
 	roleInfo = RoleInfoMap.GetRole(ORGADMIN, ORGADMIN)
 	assert.True(roleInfo.Active == false, fmt.Sprintf("Expected role active status to be %v, got %v", true, roleInfo.Active))
 }
@@ -119,19 +121,19 @@ func TestAcctCache_UpsertAccount(t *testing.T) {
 	assert := testifyassert.New(t)
 
 	// add an account into the cache and validate
-	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive )
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
 	acctInfo := AcctInfoMap.GetAccount(Acct1)
 	assert.False(acctInfo == nil, fmt.Sprintf("Expected account details, got nil"))
 	assert.True(acctInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id for the account to be %v, got %v", NETWORKADMIN, acctInfo.OrgId))
 	assert.True(acctInfo.AcctId == Acct1, fmt.Sprintf("Expected account id %x, got %x", Acct1, acctInfo.AcctId))
 
 	// add a second account and validate the list function
-	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct2, true, AcctActive )
+	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct2, true, AcctActive)
 	acctList := AcctInfoMap.GetAcctList()
 	assert.True(len(acctList) == 2, fmt.Sprintf("Expected 2 entries, got %v", len(acctList)))
 
 	// update account status and validate
-	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct2, true, AcctBlacklisted )
+	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct2, true, AcctBlacklisted)
 	acctInfo = AcctInfoMap.GetAccount(Acct2)
 	assert.True(acctInfo.Status == AcctBlacklisted, fmt.Sprintf("Expected account status to be %v, got %v", AcctBlacklisted, acctInfo.Status))
 
@@ -152,10 +154,10 @@ func TestGetAcctAccess(t *testing.T) {
 
 	// Create an org with two roles and two accounts linked to different roles. Validate account access
 	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
-	RoleInfoMap.UpsertRole(NETWORKADMIN, NETWORKADMIN, true, true, FullAccess, true )
-	RoleInfoMap.UpsertRole(NETWORKADMIN, "ROLE1", true, true, FullAccess, true )
-	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive )
-	AcctInfoMap.UpsertAccount(NETWORKADMIN, "ROLE1", Acct2, true, AcctActive )
+	RoleInfoMap.UpsertRole(NETWORKADMIN, NETWORKADMIN, true, true, FullAccess, true)
+	RoleInfoMap.UpsertRole(NETWORKADMIN, "ROLE1", true, true, FullAccess, true)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, "ROLE1", Acct2, true, AcctActive)
 
 	access = GetAcctAccess(Acct1)
 	assert.True(access == FullAccess, fmt.Sprintf("Expected account access to be %v, got %v", FullAccess, access))
@@ -172,7 +174,7 @@ func TestGetAcctAccess(t *testing.T) {
 
 	// mark the role as inactive and account access should now nbe read only
 	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
-	RoleInfoMap.UpsertRole(NETWORKADMIN, "ROLE1", true, true, FullAccess, false )
+	RoleInfoMap.UpsertRole(NETWORKADMIN, "ROLE1", true, true, FullAccess, false)
 	access = GetAcctAccess(Acct2)
 	assert.True(access == ReadOnly, fmt.Sprintf("Expected account access to be %v, got %v", ReadOnly, access))
 }
@@ -195,14 +197,27 @@ func TestValidateNodeForTxn(t *testing.T) {
 	// populate an org, account and node. validate access
 	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
 	NodeInfoMap.UpsertNode(NETWORKADMIN, NODE1, NodeApproved)
-	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive )
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
 	txnAllowed = ValidateNodeForTxn(NODE1, Acct1)
 	assert.True(txnAllowed == true, "Expected access %v, got %v", true, txnAllowed)
 
 	// test access from a node not linked to the org. should return false
 	OrgInfoMap.UpsertOrg(ORGADMIN, "", ORGADMIN, big.NewInt(1), OrgApproved)
 	NodeInfoMap.UpsertNode(ORGADMIN, NODE2, NodeApproved)
-	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct2, true, AcctActive )
+	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct2, true, AcctActive)
 	txnAllowed = ValidateNodeForTxn(NODE1, Acct2)
 	assert.True(txnAllowed == false, "Expected access %v, got %v", true, txnAllowed)
+}
+
+// This is to make sure enode.ParseV4() honors single hexNodeId value eventhough it does follow enode URI scheme
+func TestValidateNodeForTxn_whenUsingOnlyHexNodeId(t *testing.T) {
+	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
+	NodeInfoMap.UpsertNode(NETWORKADMIN, NODE1, NodeApproved)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
+	arbitraryPrivateKey, _ := crypto.GenerateKey()
+	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&arbitraryPrivateKey.PublicKey)[1:])
+
+	txnAllowed := ValidateNodeForTxn(hexNodeId, Acct1)
+
+	testifyassert.False(t, txnAllowed)
 }
