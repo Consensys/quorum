@@ -14,23 +14,22 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package core
+package rawdb
 
 import (
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"testing"
 )
 
 // Tests that setting the flag for Quorum EIP155 activation read values correctly
 func TestIsQuorumEIP155Active(t *testing.T) {
-	db := rawdb.NewMemoryDatabase()
+	db := NewMemoryDatabase()
 
 	isQuorumEIP155Active := GetIsQuorumEIP155Activated(db)
 	if isQuorumEIP155Active {
 		t.Fatal("Quorum EIP155 active read to be set, but wasn't set beforehand")
 	}
 
-	dbSet := rawdb.NewMemoryDatabase()
+	dbSet := NewMemoryDatabase()
 	WriteQuorumEIP155Activation(dbSet)
 
 	isQuorumEIP155ActiveAfterSetting := GetIsQuorumEIP155Activated(dbSet)

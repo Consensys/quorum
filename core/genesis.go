@@ -230,7 +230,7 @@ func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig
 	if height == nil {
 		return newcfg, stored, fmt.Errorf("missing block number for head header hash")
 	}
-	compatErr := storedcfg.CheckCompatible(newcfg, *height, GetIsQuorumEIP155Activated(db))
+	compatErr := storedcfg.CheckCompatible(newcfg, *height, rawdb.GetIsQuorumEIP155Activated(db))
 	if compatErr != nil && *height != 0 && compatErr.RewindTo != 0 {
 		return newcfg, stored, compatErr
 	}

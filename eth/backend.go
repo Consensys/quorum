@@ -154,9 +154,9 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		}
 	}
 
-	if !core.GetIsQuorumEIP155Activated(chainDb) && chainConfig.ChainID != nil {
+	if !rawdb.GetIsQuorumEIP155Activated(chainDb) && chainConfig.ChainID != nil {
 		//Upon starting the node, write the flag to disallow changing ChainID/EIP155 block after HF
-		core.WriteQuorumEIP155Activation(chainDb)
+		rawdb.WriteQuorumEIP155Activation(chainDb)
 	}
 
 	eth := &Ethereum{

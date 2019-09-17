@@ -19,6 +19,7 @@ package filters
 import (
 	"context"
 	"errors"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -223,7 +224,7 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 		}
 
 		bloomMatches := bloomFilter(header.Bloom, f.addresses, f.topics) ||
-			bloomFilter(core.GetPrivateBlockBloom(f.db, uint64(blockNumber)), f.addresses, f.topics)
+			bloomFilter(rawdb.GetPrivateBlockBloom(f.db, uint64(blockNumber)), f.addresses, f.topics)
 		if bloomMatches {
 			found, err := f.checkMatches(ctx, header)
 			if err != nil {

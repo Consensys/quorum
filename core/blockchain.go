@@ -341,7 +341,7 @@ func (bc *BlockChain) loadLastState() error {
 	}
 
 	// Quorum
-	if _, err := state.New(GetPrivateStateRoot(bc.db, currentBlock.Root()), bc.privateStateCache); err != nil {
+	if _, err := state.New(rawdb.GetPrivateStateRoot(bc.db, currentBlock.Root()), bc.privateStateCache); err != nil {
 		log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
 		return bc.Reset()
 	}
@@ -524,7 +524,7 @@ func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *state.StateDB,
 	if publicStateDbErr != nil {
 		return nil, nil, publicStateDbErr
 	}
-	privateStateDb, privateStateDbErr := state.New(GetPrivateStateRoot(bc.db, root), bc.privateStateCache)
+	privateStateDb, privateStateDbErr := state.New(rawdb.GetPrivateStateRoot(bc.db, root), bc.privateStateCache)
 	if privateStateDbErr != nil {
 		return nil, nil, privateStateDbErr
 	}
@@ -1662,7 +1662,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 			return it.index, events, coalescedLogs, err
 		}
 		// Quorum
-		privateStateRoot := GetPrivateStateRoot(bc.db, parent.Root)
+		privateStateRoot := rawdb.GetPrivateStateRoot(bc.db, parent.Root)
 		privateState, err := stateNew(privateStateRoot, bc.privateStateCache)
 		if err != nil {
 			return it.index, events, coalescedLogs, err
@@ -1719,7 +1719,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 		if privateStateRoot, err = privateState.Commit(bc.Config().IsEIP158(block.Number())); err != nil {
 			return it.index, events, coalescedLogs, err
 		}
-		if err := WritePrivateStateRoot(bc.db, block.Root(), privateStateRoot); err != nil {
+		if err := rawdb.WritePrivateStateRoot(bc.db, block.Root(), privateStateRoot); err != nil {
 			return it.index, events, coalescedLogs, err
 		}
 		allReceipts := mergeReceipts(receipts, privateReceipts)
@@ -1741,7 +1741,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 			return it.index, events, coalescedLogs, err
 		}
 		atomic.StoreUint32(&followupInterrupt, 1)
-		if err := WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts); err != nil {
+		if err := rawdb.WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts); err != nil {
 			return it.index, events, coalescedLogs, err
 		}
 		// Update the metrics touched during block commit

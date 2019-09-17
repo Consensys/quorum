@@ -19,6 +19,7 @@ package miner
 import (
 	"bytes"
 	"errors"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -615,7 +616,7 @@ func (w *worker) resultLoop() {
 
 			// write private transacions
 			privateStateRoot, _ := task.privateState.Commit(w.chainConfig.IsEIP158(block.Number()))
-			core.WritePrivateStateRoot(w.eth.ChainDb(), block.Root(), privateStateRoot)
+			rawdb.WritePrivateStateRoot(w.eth.ChainDb(), block.Root(), privateStateRoot)
 			allReceipts := mergeReceipts(task.receipts, task.privateReceipts)
 
 			// Commit block and state to database.
@@ -627,7 +628,7 @@ func (w *worker) resultLoop() {
 				continue
 			}
 
-			if err := core.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts); err != nil {
+			if err := rawdb.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts); err != nil {
 				log.Error("Failed writing private block bloom", "err", err)
 				continue
 			}
