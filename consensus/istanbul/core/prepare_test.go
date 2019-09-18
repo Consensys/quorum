@@ -17,6 +17,7 @@
 package core
 
 import (
+	"math"
 	"math/big"
 	"reflect"
 	"testing"
@@ -156,12 +157,12 @@ func TestHandlePrepare(t *testing.T) {
 			errInconsistentSubject,
 		},
 		{
-			// less than 2F+1
+			// less than Ceil(2N/3)
 			func() *testSystem {
 				sys := NewTestSystemWithBackend(N, F)
 
-				// save less than 2*F+1 replica
-				sys.backends = sys.backends[2*int(F)+1:]
+				// save less than Ceil(2*N/3) replica
+				sys.backends = sys.backends[int(math.Ceil(float64(2*N)/3)):]
 
 				for i, backend := range sys.backends {
 					c := backend.engine.(*core)
@@ -214,8 +215,8 @@ OUTER:
 			if r0.state != StatePreprepared {
 				t.Errorf("state mismatch: have %v, want %v", r0.state, StatePreprepared)
 			}
-			if r0.current.Prepares.Size() > 2*r0.valSet.F() {
-				t.Errorf("the size of PREPARE messages should be less than %v", 2*r0.valSet.F()+1)
+			if r0.current.Prepares.Size() >= r0.QuorumSize() {
+				t.Errorf("the size of PREPARE messages should be less than %v", r0.QuorumSize())
 			}
 			if r0.current.IsHashLocked() {
 				t.Errorf("block should not be locked")
@@ -224,9 +225,9 @@ OUTER:
 			continue
 		}
 
-		// core should have 2F+1 PREPARE messages
-		if r0.current.Prepares.Size() <= 2*r0.valSet.F() {
-			t.Errorf("the size of PREPARE messages should be larger than 2F+1: size %v", r0.current.Commits.Size())
+		// core should have 2F+1 before Ceil2Nby3Block and Ceil(2N/3) after Ceil2Nby3Block PREPARE messages
+		if r0.current.Prepares.Size() < r0.QuorumSize() {
+			t.Errorf("the size of PREPARE messages should be larger than 2F+1 or ceil(2N/3): size %v", r0.current.Commits.Size())
 		}
 
 		// a message will be delivered to backend if 2F+1

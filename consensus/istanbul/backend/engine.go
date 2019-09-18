@@ -290,7 +290,7 @@ func (sb *backend) verifyCommittedSeals(chain consensus.ChainReader, header *typ
 	}
 
 	// The length of validSeal should be larger than number of faulty node + 1
-	if validSeal <= 2*snap.ValSet.F() {
+	if validSeal <= snap.ValSet.F() {
 		return errInvalidCommittedSeals
 	}
 
@@ -615,7 +615,6 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	hasher.Sum(hash[:0])
 	return hash
 }
-
 
 // SealHash returns the hash of a block prior to it being sealed.
 func (sb *backend) SealHash(header *types.Header) common.Hash {
