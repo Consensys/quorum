@@ -22,6 +22,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -149,4 +151,31 @@ func TestToFilterArg(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestClient_PreparePrivateTransaction_whenTypical(t *testing.T) {
+	testObject := NewClient(nil)
+
+	_, err := testObject.PreparePrivateTransaction([]byte("arbitrary payload"), "arbitrary private from")
+
+	assert.Error(t, err)
+}
+
+func TestClient_PreparePrivateTransaction_whenClientIsConfigured(t *testing.T) {
+	expectedData := []byte("arbitrary data")
+	testObject := NewClient(nil)
+	testObject.pc = &privateTransactionManagerStubClient{expectedData}
+
+	actualData, err := testObject.PreparePrivateTransaction([]byte("arbitrary payload"), "arbitrary private from")
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedData, actualData)
+}
+
+type privateTransactionManagerStubClient struct {
+	expectedData []byte
+}
+
+func (s *privateTransactionManagerStubClient) storeRaw(data []byte, privateFrom string) ([]byte, error) {
+	return s.expectedData, nil
 }
