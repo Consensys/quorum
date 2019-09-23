@@ -34,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -459,6 +460,11 @@ func (lc *LightChain) GetHeaderByNumberOdr(ctx context.Context, number uint64) (
 		return header, nil
 	}
 	return GetHeaderByNumber(ctx, lc.odr, number)
+}
+
+// GetContractIndexer returns a new instance of ContractIndexer
+func (self *LightChain) GetContractIndexer() *index.ContractIndex {
+	return index.NewContractIndex(self.chainDb)
 }
 
 // Config retrieves the header chain's chain configuration.

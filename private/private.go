@@ -33,9 +33,9 @@ type Identifiable interface {
 type PrivateTransactionManager interface {
 	Identifiable
 
-	Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error)
+	Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]string, common.EncryptedPayloadHash, error)
 	StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error)
-	SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error)
+	SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]string, []byte, error)
 	// Returns nil payload if not found
 	Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error)
 	// Returns nil payload if not found

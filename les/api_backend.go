@@ -35,9 +35,12 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/light"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 type LesApiBackend struct {
@@ -279,4 +282,22 @@ func (b *LesApiBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	for i := 0; i < bloomFilterThreads; i++ {
 		go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.eth.bloomRequests)
 	}
+}
+
+func (b *LesApiBackend) ContractIndexer() *index.ContractIndex {
+	return index.NewContractIndex(b.ChainDb())
+}
+
+func (b *LesApiBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*security.ContractSecurityAttribute) bool {
+	caDecisionManager, err := b.eth.securityPlugin.ContractAccessDecisionManager()
+	if err != nil {
+		// TODO log the error
+		return false
+	}
+	auth, err := caDecisionManager.IsAuthorized(ctx, authToken, attributes)
+	if err != nil {
+		// TODO log the error
+		return false
+	}
+	return auth
 }

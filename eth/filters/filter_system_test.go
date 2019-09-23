@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
@@ -34,8 +34,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 type testBackend struct {
@@ -151,6 +154,14 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 	}()
 }
 
+func (b *testBackend) ContractIndexer() *index.ContractIndex {
+	return nil
+}
+
+func (b *testBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*security.ContractSecurityAttribute) bool {
+	return true
+}
+
 // TestBlockSubscription tests if a block subscription returns block hashes for posted chain events.
 // It creates multiple subscriptions:
 // - one at the start and should receive all posted chain events and a second (blockHashes)
@@ -244,7 +255,7 @@ func TestPendingTxFilter(t *testing.T) {
 
 	timeout := time.Now().Add(1 * time.Second)
 	for {
-		results, err := api.GetFilterChanges(fid0)
+		results, err := api.GetFilterChanges(context.Background(), fid0)
 		if err != nil {
 			t.Fatalf("Unable to retrieve logs: %v", err)
 		}
@@ -464,7 +475,7 @@ func TestLogFilter(t *testing.T) {
 		var fetched []*types.Log
 		timeout := time.Now().Add(1 * time.Second)
 		for { // fetch all expected logs
-			results, err := api.GetFilterChanges(tt.id)
+			results, err := api.GetFilterChanges(context.Background(), tt.id)
 			if err != nil {
 				t.Fatalf("Unable to fetch logs: %v", err)
 			}

@@ -79,6 +79,16 @@ func (sp *SecurityPluginTemplate) AuthenticationManager() (security.Authenticati
 	return security.NewDeferredAuthenticationManager(deferFunc), nil
 }
 
+// TODO plugin: dispense from the plugin client instead of default implementation
+func (sp *SecurityPluginTemplate) AcccountAccessDecisionManager() (security.AccountAccessDecisionManager, error) {
+	return &security.DefaultAccountAccessDecisionManager{}, nil
+}
+
+// TODO plugin: dispense from the plugin client instead of default implementation
+func (sp *SecurityPluginTemplate) ContractAccessDecisionManager() (security.ContractAccessDecisionManager, error) {
+	return &security.DefaultContractAccessDecisionManager{}, nil
+}
+
 type ReloadableAccountServiceFactory struct {
 	*basePlugin
 }

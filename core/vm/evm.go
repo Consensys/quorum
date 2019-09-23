@@ -17,6 +17,7 @@
 package vm
 
 import (
+	"fmt"
 	"math/big"
 	"sync/atomic"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -62,8 +64,17 @@ func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 		// During DelegateCall() CodeAddr is the address of the delegated account
 		address := *contract.CodeAddr
 		if _, ok := evm.affectedContracts[address]; !ok {
-			evm.affectedContracts[address] = MessageCall
+			evm.affectedContracts[address] = newAffectedType(MessageCall, ModeUnknown)
 		}
+		// When delegatecall, need to capture the operation mode in the context of contract.Address()
+		// the affected contract is required read only mode
+		if address != contract.Address() {
+			evm.pushAddress(contract.Address())
+			evm.affectedContracts[address].mode = ModeRead
+		} else {
+			evm.pushAddress(address)
+		}
+		defer evm.popAddress()
 		precompiles := PrecompiledContractsHomestead
 		if evm.chainRules.IsByzantium {
 			precompiles = PrecompiledContractsByzantium
@@ -101,6 +112,8 @@ type Context struct {
 	Transfer TransferFunc
 	// GetHash returns the hash corresponding to n
 	GetHash GetHashFunc
+
+	ContractIndexer *index.ContractIndex
 
 	// Message information
 	Origin   common.Address // Provides information for ORIGIN
@@ -165,16 +178,30 @@ type EVM struct {
 	readOnlyDepth  uint
 
 	// these are for privacy enhancements
-	affectedContracts map[common.Address]AffectedType // affected contract account address -> type
+	affectedContracts map[common.Address]*AffectedType // affected contract account address -> type
 	currentTx         *types.Transaction              // transaction currently being applied on this EVM
+	addressStack      []common.Address
 }
 
-type AffectedType byte
+type AffectedType struct {
+	reason AffectedReason
+	mode   AffectedMode
+}
+
+type AffectedReason byte
 
 const (
-	_                     = iota
-	Creation AffectedType = iota
+	_        AffectedReason = iota
+	Creation                = iota
 	MessageCall
+)
+
+type AffectedMode byte
+
+const (
+	ModeUnknown AffectedMode = iota
+	ModeRead                 = iota
+	ModeWrite                = ModeRead << 1
 )
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
@@ -191,7 +218,8 @@ func NewEVM(ctx Context, statedb, privateState StateDB, chainConfig *params.Chai
 		publicState:  statedb,
 		privateState: privateState,
 
-		affectedContracts: make(map[common.Address]AffectedType),
+		affectedContracts: make(map[common.Address]*AffectedType),
+		addressStack:      make([]common.Address, 0),
 	}
 
 	if chainConfig.IsEWASM(ctx.BlockNumber) {
@@ -493,7 +521,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
 	evm.StateDB.CreateAccount(address)
-	evm.affectedContracts[address] = Creation
+	evm.affectedContracts[address] = newAffectedType(Creation, ModeWrite)
 	if evm.chainRules.IsEIP158 {
 		evm.StateDB.SetNonce(address, 1)
 	}
@@ -607,61 +635,128 @@ func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *
 func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 
 // Quorum functions for dual state
-func getDualState(env *EVM, addr common.Address) StateDB {
+func getDualState(evm *EVM, addr common.Address) StateDB {
 	// priv: (a) -> (b)  (private)
 	// pub:   a  -> [b]  (private -> public)
 	// priv: (a) ->  b   (public)
-	state := env.StateDB
+	state := evm.StateDB
 
-	if env.PrivateState().Exist(addr) {
-		state = env.PrivateState()
-	} else if env.PublicState().Exist(addr) {
-		state = env.PublicState()
+	if evm.PrivateState().Exist(addr) {
+		state = evm.PrivateState()
+	} else if evm.PublicState().Exist(addr) {
+		state = evm.PublicState()
 	}
 
 	return state
 }
 
-func (env *EVM) PublicState() PublicState           { return env.publicState }
-func (env *EVM) PrivateState() PrivateState         { return env.privateState }
-func (env *EVM) SetCurrentTX(tx *types.Transaction) { env.currentTx = tx }
-func (env *EVM) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
-	env.currentTx.SetTxPrivacyMetadata(pm)
+func (evm *EVM) PublicState() PublicState           { return env.publicState }
+func (evm *EVM) PrivateState() PrivateState         { return env.privateState }
+func (evm *EVM) SetCurrentTX(tx *types.Transaction) { env.currentTx = tx }
+func (evm *EVM) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
+	evm.currentTx.SetTxPrivacyMetadata(pm)
 }
-func (env *EVM) Push(statedb StateDB) {
+func (evm *EVM) Push(statedb StateDB) {
 	// Quorum : the read only depth to be set up only once for the entire
 	// op code execution. This will be set first time transition from
 	// private state to public state happens
 	// statedb will be the state of the contract being called.
 	// if a private contract is calling a public contract make it readonly.
-	if !env.quorumReadOnly && env.privateState != statedb {
-		env.quorumReadOnly = true
-		env.readOnlyDepth = env.currentStateDepth
+	if !evm.quorumReadOnly && evm.privateState != statedb {
+		evm.quorumReadOnly = true
+		evm.readOnlyDepth = evm.currentStateDepth
 	}
 
 	if castedStateDb, ok := statedb.(*state.StateDB); ok {
-		env.states[env.currentStateDepth] = castedStateDb
-		env.currentStateDepth++
+		evm.states[evm.currentStateDepth] = castedStateDb
+		evm.currentStateDepth++
 	}
 
-	env.StateDB = statedb
+	evm.StateDB = statedb
 }
-func (env *EVM) Pop() {
-	env.currentStateDepth--
-	if env.quorumReadOnly && env.currentStateDepth == env.readOnlyDepth {
-		env.quorumReadOnly = false
+func (evm *EVM) Pop() {
+	evm.currentStateDepth--
+	if evm.quorumReadOnly && evm.currentStateDepth == evm.readOnlyDepth {
+		evm.quorumReadOnly = false
 	}
-	env.StateDB = env.states[env.currentStateDepth-1]
+	evm.StateDB = evm.states[evm.currentStateDepth-1]
 }
 
-func (env *EVM) Depth() int { return env.depth }
+func (evm *EVM) Depth() int { return evm.depth }
 
 // We only need to revert the current state because when we call from private
 // public state it's read only, there wouldn't be anything to reset.
 // (A)->(B)->C->(B): A failure in (B) wouldn't need to reset C, as C was flagged
 // read only.
-func (self *EVM) RevertToSnapshot(snapshot int) {
-	self.StateDB.RevertToSnapshot(snapshot)
+func (evm *EVM) RevertToSnapshot(snapshot int) {
+	evm.StateDB.RevertToSnapshot(snapshot)
+}
+
+// Quorum
+//
+// Returns addresses of contracts which are message-called
+func (evm *EVM) CalledContracts() []common.Address {
+	addr := make([]common.Address, 0, len(evm.affectedContracts))
+	for a, t := range evm.affectedContracts {
+		if t.reason == MessageCall {
+			addr = append(addr, a)
+		}
+	}
+	return addr[:]
+}
+
+// Quorum
+//
+// Returns addresses of contracts which are newly created
+func (evm *EVM) CreatedContracts() []common.Address {
+	addr := make([]common.Address, 0, len(evm.affectedContracts))
+	for a, t := range evm.affectedContracts {
+		if t.reason == Creation {
+			addr = append(addr, a)
+		}
+	}
+	return addr[:]
+}
+
+func (evm *EVM) pushAddress(addresses common.Address) {
+	evm.addressStack = append(evm.addressStack, addresses)
+}
+
+func (evm *EVM) popAddress() {
+	l := len(evm.addressStack)
+	if l == 0 {
+		return
+	}
+	evm.addressStack = evm.addressStack[:l-1]
+}
+
+func (evm *EVM) captureOperationMode(isWriteOperation bool) {
+	l := len(evm.addressStack)
+	if l == 0 {
+		return
+	}
+	currentAddress := evm.addressStack[l-1]
+	if t, ok := evm.affectedContracts[currentAddress]; ok {
+		if isWriteOperation {
+			t.mode = t.mode | ModeWrite
+		} else {
+			t.mode = t.mode | ModeRead
+		}
+	}
+}
+
+func (evm *EVM) AffectedMode(a common.Address) (AffectedMode, error) {
+	if t, ok := evm.affectedContracts[a]; ok {
+		return t.mode, nil
+	}
+	return ModeUnknown, fmt.Errorf("address not found")
+}
+
+func newAffectedType(r AffectedReason, m AffectedMode) *AffectedType {
+	return &AffectedType{
+		reason: r,
+		mode:   m,
+	}
 }
 
 // Returns all affected contracts that are NOT due to creation transaction

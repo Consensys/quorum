@@ -17,14 +17,17 @@
 package core
 
 import (
+	"encoding/hex"
 	"errors"
 	"math"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
@@ -314,6 +317,18 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 	st.refundGas()
 	st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
+
+	ci := st.evm.Context.ContractIndexer
+	if contractCreation && ci != nil {
+		addresses := evm.CreatedContracts()
+		for _, address := range addresses {
+			contractParties := &index.ContractParties{CreatorAddress: msg.From(), ParticipantAddreses: managedParties}
+			log.Debug("Writing index", "address", strings.ToLower(address.Hex()), "creator", strings.ToLower(msg.From().Hex()))
+			if err := ci.WriteIndex(address, contractParties); err != nil {
+				log.Error("Writing index failed", "error", err)
+			}
+		}
+	}
 
 	if isPrivate {
 		return ret, 0, vmerr != nil, err

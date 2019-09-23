@@ -303,7 +303,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 							extraMetaData.ACMerkleRoot = storageRoot
 						}
 					}
-					hashOfStateData, err := service.ptm.Send(entireStateData, "", fetchedParties, &extraMetaData)
+					_, hashOfStateData, err := service.ptm.Send(entireStateData, "", fetchedParties, &extraMetaData)
 
 					if err != nil {
 						log.Error("[ptm] service.ptm.Send", "stateDataInHex", hex.EncodeToString(entireStateData[:]), "recipients", fetchedParties, "error", err)

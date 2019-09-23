@@ -31,7 +31,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 var (
@@ -346,6 +348,13 @@ func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([
 	if err != nil {
 		return nil, err
 	}
+	ok, err := api.isAuthorized(ctx, logs)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("not authorized")
+	}
 	return returnLogs(logs), err
 }
 
@@ -401,6 +410,13 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 	if err != nil {
 		return nil, err
 	}
+	ok, err := api.isAuthorized(ctx, logs)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("not authorized")
+	}
 	return returnLogs(logs), nil
 }
 
@@ -411,7 +427,7 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 // (pending)Log filters return []Log.
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
-func (api *PublicFilterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
+func (api *PublicFilterAPI) GetFilterChanges(ctx context.Context, id rpc.ID) (interface{}, error) {
 	api.filtersMu.Lock()
 	defer api.filtersMu.Unlock()
 
@@ -431,6 +447,14 @@ func (api *PublicFilterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
 		case LogsSubscription:
 			logs := f.logs
 			f.logs = nil
+			ok, err := api.isAuthorized(ctx, logs)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, fmt.Errorf("not authorized")
+			}
+
 			return returnLogs(logs), nil
 		}
 	}
@@ -573,4 +597,42 @@ func decodeTopic(s string) (common.Hash, error) {
 		err = fmt.Errorf("hex has invalid length %d after decoding; expected %d for topic", len(b), common.HashLength)
 	}
 	return common.BytesToHash(b), err
+}
+
+// Quorum
+//
+func (api *PublicFilterAPI) isAuthorized(ctx context.Context, logs []*types.Log) (bool, error) {
+	if len(logs) == 0 {
+		return true, nil
+	}
+	authToken, isPreauthenticated := ctx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	if isPreauthenticated {
+		contractIndex := api.backend.ContractIndexer()
+		attributes := make([]*security.ContractSecurityAttribute, 0)
+		for _, l := range logs {
+			ca := l.Address
+			cp, err := contractIndex.ReadIndex(ca)
+			if err != nil {
+				return false, fmt.Errorf("%s not found in the index due to %s", ca.Hex(), err.Error())
+			}
+			attr := &security.ContractSecurityAttribute{
+				AccountStateSecurityAttribute: &security.AccountStateSecurityAttribute{
+					From: cp.CreatorAddress, // TODO must figure out what this value must be when tighten access control for account
+					To:   cp.CreatorAddress,
+				},
+				Action:  "read",
+				Parties: cp.ParticipantAddreses,
+			}
+			if len(cp.ParticipantAddreses) == 0 {
+				attr.Visibility = "public"
+			} else {
+				attr.Visibility = "private"
+			}
+			attributes = append(attributes, attr)
+		}
+		if !api.backend.IsAuthorized(ctx, authToken, attributes) {
+			return false, nil
+		}
+	}
+	return true, nil
 }

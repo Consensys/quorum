@@ -36,9 +36,12 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/params"
 	pcore "github.com/ethereum/go-ethereum/permission/core"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 // EthAPIBackend implements ethapi.Backend for full nodes
@@ -354,6 +357,24 @@ func (b *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	for i := 0; i < bloomFilterThreads; i++ {
 		go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.eth.bloomRequests)
 	}
+}
+
+func (b *EthAPIBackend) ContractIndexer() *index.ContractIndex {
+	return index.NewContractIndex(b.ChainDb())
+}
+
+func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*security.ContractSecurityAttribute) bool {
+	caDecisionManager, err := b.eth.securityPlugin.ContractAccessDecisionManager()
+	if err != nil {
+		// TODO log the error
+		return false
+	}
+	auth, err := caDecisionManager.IsAuthorized(ctx, authToken, attributes)
+	if err != nil {
+		// TODO log the error
+		return false
+	}
+	return auth
 }
 
 // used by Quorum
