@@ -106,8 +106,8 @@ type PermissionConfig struct {
 	OrgAdminRole   string         `json:"orgAdminRole"`
 
 	Accounts      []common.Address `json:"accounts"` //initial list of account that need full access
-	SubOrgDepth   *big.Int         `json:"subOrgBreadth"`
-	SubOrgBreadth *big.Int         `json:"subOrgDepth"`
+	SubOrgDepth   *big.Int         `json:"subOrgDepth"`
+	SubOrgBreadth *big.Int         `json:"subOrgBreadth"`
 }
 
 type OrgKey struct {
