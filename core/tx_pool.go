@@ -82,9 +82,6 @@ var (
 	// ErrEtherValueUnsupported is returned if a transaction specifies an Ether Value
 	// for a private Quorum transaction.
 	ErrEtherValueUnsupported = errors.New("ether value is not supported for private transactions")
-	// ErrUnahorizedAccount is returned if the sender account is not authorized by the
-	// permissions module
-	ErrUnAuthorizedAccount = errors.New("Account not authorized for this operation")
 )
 
 var (
