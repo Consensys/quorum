@@ -1309,10 +1309,6 @@ func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 	access := types.GetAcctAccess(fromAcct)
 
 	switch access {
-	case types.FullAccess:
-	case types.ContractDeploy:
-		return nil
-
 	case types.ReadOnly:
 		return errors.New("read only account. cannot transact")
 
@@ -1320,6 +1316,10 @@ func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 		if toAcct == nil {
 			return errors.New("account does not have contract create permissions")
 		}
+
+	case types.FullAccess, types.ContractDeploy:
+		return nil
+
 	}
 	return nil
 }

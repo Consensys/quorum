@@ -168,6 +168,7 @@ func NewAcctCache() *AcctCache {
 var syncStarted = false
 
 var DefaultAccess = FullAccess
+var QIP714BlockReached = false
 var networkAdminRole string
 var orgAdminRole string
 
@@ -190,10 +191,15 @@ func GetSyncStatus() bool {
 	return syncStarted
 }
 
+// sets the default access to Readonly upon QIP714Blokc
+func SetDefaultAccess(){
+	DefaultAccess = ReadOnly
+	QIP714BlockReached = true
+}
+
 // sets default access to readonly and initializes the values for
 // network admin role and org admin role
 func SetDefaults(nwRoleId, oaRoleId string) {
-	DefaultAccess = ReadOnly
 	networkAdminRole = nwRoleId
 	orgAdminRole = oaRoleId
 }
@@ -377,12 +383,12 @@ func GetAcctAccess(acctId common.Address) AccessType {
 	return DefaultAccess
 }
 
-func ValidateNodeForTxn(enodeId string, from common.Address) bool {
-	if enodeId == "" {
+func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
+	if !QIP714BlockReached || hexnodeId == ""{
 		return true
 	}
 
-	passedEnodeId, err := enode.ParseV4(enodeId)
+	passedEnodeId, err := enode.ParseV4(hexnodeId)
 	if err != nil {
 		return false
 	}
