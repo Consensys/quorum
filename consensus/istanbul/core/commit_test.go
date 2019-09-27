@@ -191,8 +191,8 @@ OUTER:
 			if r0.state != StatePrepared {
 				t.Errorf("state mismatch: have %v, want %v", r0.state, StatePrepared)
 			}
-			if r0.current.Commits.Size() >= r0.valSet.QuorumSize() {
-				t.Errorf("the size of commit messages should be less than %v", r0.valSet.QuorumSize())
+			if r0.current.Commits.Size() >= r0.QuorumSize() {
+				t.Errorf("the size of commit messages should be less than %v", r0.QuorumSize())
 			}
 			if r0.current.IsHashLocked() {
 				t.Errorf("block should not be locked")
@@ -200,12 +200,12 @@ OUTER:
 			continue
 		}
 
-		// core should have ceil(2N/3) prepare messages for N validators
-		if r0.current.Commits.Size() < r0.valSet.QuorumSize() {
-			t.Errorf("the size of commit messages should be atleast ceil(2N/3): size %v", r0.valSet.QuorumSize())
+		// core should have 2F+1 before Ceil2Nby3Block or Ceil(2N/3) prepare messages
+		if r0.current.Commits.Size() < r0.QuorumSize() {
+			t.Errorf("the size of commit messages should be larger than 2F+1 or Ceil(2N/3): size %v", r0.QuorumSize())
 		}
 
-		// check signatures are larger than F()
+		// check signatures large than F
 		signedCount := 0
 		committedSeals := v0.committedMsgs[0].committedSeals
 		for _, validator := range r0.valSet.List() {

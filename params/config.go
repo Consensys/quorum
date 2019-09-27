@@ -124,6 +124,7 @@ var (
 		Istanbul: &IstanbulConfig{
 			Epoch:          30000,
 			ProposerPolicy: 0,
+			Ceil2Nby3Block: big.NewInt(0),
 		},
 	}
 
@@ -214,8 +215,9 @@ func (c *CliqueConfig) String() string {
 
 // IstanbulConfig is the consensus engine configs for Istanbul based sealing.
 type IstanbulConfig struct {
-	Epoch          uint64 `json:"epoch"`  // Epoch length to reset votes and checkpoint
-	ProposerPolicy uint64 `json:"policy"` // The policy for proposer selection
+	Epoch          uint64   `json:"epoch"`                    // Epoch length to reset votes and checkpoint
+	ProposerPolicy uint64   `json:"policy"`                   // The policy for proposer selection
+	Ceil2Nby3Block *big.Int `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
 }
 
 // String implements the stringer interface, returning the consensus engine details.
@@ -374,6 +376,9 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, head *big.Int, isQuor
 	}
 	if isForkIncompatible(c.EWASMBlock, newcfg.EWASMBlock, head) {
 		return newCompatError("ewasm fork block", c.EWASMBlock, newcfg.EWASMBlock)
+	}
+	if c.Istanbul != nil && newcfg.Istanbul != nil && isForkIncompatible(c.Istanbul.Ceil2Nby3Block, newcfg.Istanbul.Ceil2Nby3Block, head) {
+		return newCompatError("Ceil 2N/3 fork block", c.Istanbul.Ceil2Nby3Block, newcfg.Istanbul.Ceil2Nby3Block)
 	}
 	return nil
 }

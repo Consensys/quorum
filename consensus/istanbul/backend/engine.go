@@ -616,7 +616,6 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	return hash
 }
 
-
 // SealHash returns the hash of a block prior to it being sealed.
 func (sb *backend) SealHash(header *types.Header) common.Hash {
 	return sigHash(header)
