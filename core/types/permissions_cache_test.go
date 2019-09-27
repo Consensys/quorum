@@ -40,6 +40,10 @@ func TestSetDefaults(t *testing.T) {
 
 	assert.True(networkAdminRole == NETWORKADMIN, fmt.Sprintf("Expected network admin role %v, got %v", NETWORKADMIN, networkAdminRole))
 	assert.True(orgAdminRole == ORGADMIN, fmt.Sprintf("Expected network admin role %v, got %v", ORGADMIN, orgAdminRole))
+	assert.True(defaultAccess == FullAccess, fmt.Sprintf("Expected network admin role %v, got %v", FullAccess, defaultAccess))
+
+	SetDefaultAccess()
+	networkAdminRole, orgAdminRole, defaultAccess = GetDefaults()
 	assert.True(defaultAccess == ReadOnly, fmt.Sprintf("Expected network admin role %v, got %v", ReadOnly, defaultAccess))
 }
 
@@ -149,6 +153,7 @@ func TestGetAcctAccess(t *testing.T) {
 
 	// default access when the cache is not populated, should return default access
 	SetDefaults(NETWORKADMIN, ORGADMIN)
+	SetDefaultAccess()
 	access := GetAcctAccess(Acct1)
 	assert.True(access == ReadOnly, fmt.Sprintf("Expected account access to be %v, got %v", ReadOnly, access))
 
@@ -185,6 +190,8 @@ func TestValidateNodeForTxn(t *testing.T) {
 	txnAllowed := ValidateNodeForTxn("", Acct1)
 	assert.True(txnAllowed == true, "Expected access %v, got %v", true, txnAllowed)
 
+	SetDefaultAccess()
+
 	// if a proper enode id is not passed, return should be false
 	txnAllowed = ValidateNodeForTxn("ABCDE", Acct1)
 	assert.True(txnAllowed == false, "Expected access %v, got %v", true, txnAllowed)
@@ -216,6 +223,8 @@ func TestValidateNodeForTxn_whenUsingOnlyHexNodeId(t *testing.T) {
 	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
 	arbitraryPrivateKey, _ := crypto.GenerateKey()
 	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&arbitraryPrivateKey.PublicKey)[1:])
+
+	SetDefaultAccess()
 
 	txnAllowed := ValidateNodeForTxn(hexNodeId, Acct1)
 
