@@ -359,7 +359,13 @@ func (r *RoleCache) GetRoleList() []RoleInfo {
 // Returns the access type for an account. If not found returns
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
-	// check if the org status is fine to do the transction
+	//if we have not reached QIP714 block return default access
+	//which will be full access
+	if !QIP714BlockReached {
+		return DefaultAccess
+	}
+
+	// check if the org status is fine to do the transaction
 	a := AcctInfoMap.GetAccount(acctId)
 	if a != nil && a.Status == AcctActive {
 		// get the org details and ultimate org details. check org status

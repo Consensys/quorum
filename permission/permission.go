@@ -277,8 +277,7 @@ func (p *PermissionCtrl) Stop() error {
 	return nil
 }
 
-// monitors org management related events happening via smart contracts
-// and updates cache accordingly
+// monitors QIP714Block and set default access
 func (p *PermissionCtrl) monitorQIP714Block() error {
 	// if QIP714block is not given, set the default access
 	// to readonly
