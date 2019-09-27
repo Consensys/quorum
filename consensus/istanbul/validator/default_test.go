@@ -37,7 +37,6 @@ func TestValidatorSet(t *testing.T) {
 	testEmptyValSet(t)
 	testStickyProposer(t)
 	testAddAndRemoveValidator(t)
-	testQuorumSize(t)
 }
 
 func testNewValidatorSet(t *testing.T) {
@@ -205,15 +204,5 @@ func testStickyProposer(t *testing.T) {
 	valSet.CalcProposer(lastProposer, uint64(3))
 	if val := valSet.GetProposer(); !reflect.DeepEqual(val, val2) {
 		t.Errorf("proposer mismatch: have %v, want %v", val, val2)
-	}
-}
-
-func testQuorumSize(t *testing.T) {
-	valSet := newDefaultSet([]common.Address{}, istanbul.RoundRobin)
-	for i:=1; i<=1000; i++ {
-		valSet.AddValidator(common.StringToAddress(string(i)));
-		if 2*valSet.QuorumSize() <= (valSet.Size() + valSet.F()) ||  2*valSet.QuorumSize() > (valSet.Size() + valSet.F()+2) {
-			t.Errorf("quorumSize constraint failed, expected value (2*QuorumSize > Size+F && 2*QuorumSize <= Size+F+2) to be:%v, got: %v, for size: %v", true, false, valSet.Size());
-		}
 	}
 }

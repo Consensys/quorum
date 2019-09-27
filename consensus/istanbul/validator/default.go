@@ -199,5 +199,3 @@ func (valSet *defaultSet) Copy() istanbul.ValidatorSet {
 func (valSet *defaultSet) F() int { return int(math.Ceil(float64(valSet.Size())/3)) - 1 }
 
 func (valSet *defaultSet) Policy() istanbul.ProposerPolicy { return valSet.policy }
-
-func (valSet *defaultSet) QuorumSize() int { return int(math.Ceil(float64(2*valSet.Size())/3)) }

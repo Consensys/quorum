@@ -73,8 +73,6 @@ type ValidatorSet interface {
 	F() int
 	// Get proposer policy
 	Policy() ProposerPolicy
-	// Get quorum size based on quorum formula type
-	QuorumSize() int
 }
 
 // ----------------------------------------------------------------------------
