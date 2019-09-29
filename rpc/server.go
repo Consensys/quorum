@@ -127,7 +127,7 @@ func (s *Server) serveRequest(ctx context.Context, codec ServerCodec, singleShot
 
 	defer func() {
 		if err := recover(); err != nil {
-			const size = 64 << 10
+			const size = 128 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
 			log.Error(string(buf))

@@ -729,7 +729,7 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 	}
 
 	// Add P2P connection:
-	p2pNode := enode.NewV4(pubKey, address.Ip, 0, int(address.P2pPort), int(address.RaftPort))
+	p2pNode := enode.NewV4(pubKey, address.Ip, int(address.P2pPort), 0, int(address.RaftPort))
 	pm.p2pServer.AddPeer(p2pNode)
 
 	// Add raft transport connection:
@@ -939,10 +939,6 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 	}
 
 	return
-}
-
-func sleep(duration time.Duration) {
-	<-time.NewTimer(duration).C
 }
 
 func blockExtendsChain(block *types.Block, chain *core.BlockChain) bool {
