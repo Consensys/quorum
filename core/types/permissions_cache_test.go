@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -229,4 +230,15 @@ func TestValidateNodeForTxn_whenUsingOnlyHexNodeId(t *testing.T) {
 	txnAllowed := ValidateNodeForTxn(hexNodeId, Acct1)
 
 	testifyassert.False(t, txnAllowed)
+}
+
+// test the cache limit
+func TestLRUCacheLimit(t *testing.T) {
+	for i := 0; i < defaultMapLimit ; i++ {
+		orgName := "ORG" + strconv.Itoa(i)
+		OrgInfoMap.UpsertOrg(orgName, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
+	}
+
+	o := OrgInfoMap.GetOrg("ORG1")
+	testifyassert.True(t, o != nil)
 }

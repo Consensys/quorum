@@ -172,7 +172,7 @@ var QIP714BlockReached = false
 var networkAdminRole string
 var orgAdminRole string
 
-const defaultMapLimit = 100
+const defaultMapLimit = 1000000
 
 var OrgInfoMap = NewOrgCache()
 var NodeInfoMap = NewNodeCache()
