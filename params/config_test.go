@@ -81,7 +81,7 @@ func TestCheckCompatible(t *testing.T) {
 			new:    &ChainConfig{Istanbul: &IstanbulConfig{Ceil2Nby3Block: big.NewInt(20)}},
 			head:   30,
 			wantErr: &ConfigCompatError{
-				What:         "Quorum size ceil block",
+				What:         "Ceil 2N/3 fork block",
 				StoredConfig: big.NewInt(10),
 				NewConfig:    big.NewInt(20),
 				RewindTo:     9,
