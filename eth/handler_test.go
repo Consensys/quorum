@@ -82,7 +82,7 @@ func TestNodeInfo(t *testing.T) {
 	}{
 		{"ethash", nil, nil, false},
 		{"raft", nil, nil, true},
-		{"istanbul", nil, &params.IstanbulConfig{1, 1}, false},
+		{"istanbul", nil, &params.IstanbulConfig{1, 1, big.NewInt(0)}, false},
 		{"clique", &params.CliqueConfig{1, 1}, nil, false},
 	}
 

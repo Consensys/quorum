@@ -342,6 +342,15 @@ func (c *core) checkValidatorSignature(data []byte, sig []byte) (common.Address,
 	return istanbul.CheckValidatorSignature(c.valSet, data, sig)
 }
 
+func (c *core) QuorumSize() int {
+	if c.config.Ceil2Nby3Block == nil || (c.current != nil && c.current.sequence.Cmp(c.config.Ceil2Nby3Block) < 0) {
+		c.logger.Trace("Confirmation Formula used 2F+ 1")
+		return (2 * c.valSet.F()) + 1
+	}
+	c.logger.Trace("Confirmation Formula used ceil(2N/3)")
+	return int(math.Ceil(float64(2*c.valSet.Size()) / 3))
+}
+
 // PrepareCommittedSeal returns a committed seal for the given hash
 func PrepareCommittedSeal(hash common.Hash) []byte {
 	var buf bytes.Buffer
