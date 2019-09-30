@@ -143,17 +143,6 @@ var AppHelpFlagGroups = []flagGroup{
 		},
 	},
 	{
-		Name: "ETHASH",
-		Flags: []cli.Flag{
-			utils.EthashCacheDirFlag,
-			utils.EthashCachesInMemoryFlag,
-			utils.EthashCachesOnDiskFlag,
-			utils.EthashDatasetDirFlag,
-			utils.EthashDatasetsInMemoryFlag,
-			utils.EthashDatasetsOnDiskFlag,
-		},
-	},
-	{
 		Name: "PERFORMANCE TUNING",
 		Flags: []cli.Flag{
 			utils.CacheFlag,
@@ -161,21 +150,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.CacheTrieFlag,
 			utils.CacheGCFlag,
 			utils.CacheNoPrefetchFlag,
-		},
-	},
-	{
-		Name: "QUORUM",
-		Flags: []cli.Flag{
-			utils.EnableNodePermissionFlag,
-		},
-	},
-	{
-		Name: "RAFT",
-		Flags: []cli.Flag{
-			utils.RaftModeFlag,
-			utils.RaftBlockTimeFlag,
-			utils.RaftJoinExistingFlag,
-			utils.RaftPortFlag,
 		},
 	},
 	{
@@ -288,6 +262,22 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.MinerLegacyExtraDataFlag,
 		},
 	},
+	// QUORUM
+	{
+		Name: "QUORUM",
+		Flags: []cli.Flag{
+			utils.EnableNodePermissionFlag,
+		},
+	},
+	{
+		Name: "RAFT",
+		Flags: []cli.Flag{
+			utils.RaftModeFlag,
+			utils.RaftBlockTimeFlag,
+			utils.RaftJoinExistingFlag,
+			utils.RaftPortFlag,
+		},
+	},
 	{
 		Name: "ISTANBUL",
 		Flags: []cli.Flag{
@@ -295,6 +285,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.IstanbulBlockPeriodFlag,
 		},
 	},
+	// END QUORUM
 	{
 		Name: "MISC",
 	},
