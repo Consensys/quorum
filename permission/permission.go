@@ -778,7 +778,7 @@ func (p *PermissionCtrl) populateOrgsFromContract(auth *bind.TransactOpts) error
 
 // Reads the node list from static-nodes.json and populates into the contract
 func (p *PermissionCtrl) populateStaticNodesToContract(permissionsSession *pbind.PermInterfaceSession) error {
-	nodes := p2p.ParsePermissionedNodes(p.dataDir)
+	nodes := p.node.Server().Config.StaticNodes
 	for _, node := range nodes {
 		_, err := permissionsSession.AddAdminNode(node.String())
 		if err != nil {
