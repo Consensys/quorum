@@ -234,7 +234,7 @@ func TestValidateNodeForTxn_whenUsingOnlyHexNodeId(t *testing.T) {
 
 // test the cache limit
 func TestLRUCacheLimit(t *testing.T) {
-	for i := 0; i < defaultMapLimit ; i++ {
+	for i := 0; i < defaultOrgMapLimit ; i++ {
 		orgName := "ORG" + strconv.Itoa(i)
 		OrgInfoMap.UpsertOrg(orgName, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
 	}

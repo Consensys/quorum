@@ -146,22 +146,22 @@ type AcctCache struct {
 }
 
 func NewOrgCache() *OrgCache {
-	c, _ := lru.New(defaultMapLimit)
+	c, _ := lru.New(defaultOrgMapLimit)
 	return &OrgCache{c, sync.Mutex{}}
 }
 
 func NewNodeCache() *NodeCache {
-	c, _ := lru.New(defaultMapLimit)
+	c, _ := lru.New(defaultNodeMapLimit)
 	return &NodeCache{c}
 }
 
 func NewRoleCache() *RoleCache {
-	c, _ := lru.New(defaultMapLimit)
+	c, _ := lru.New(defaultRoleMapLimit)
 	return &RoleCache{c}
 }
 
 func NewAcctCache() *AcctCache {
-	c, _ := lru.New(defaultMapLimit)
+	c, _ := lru.New(defaultAccountMapLimit)
 	return &AcctCache{c}
 }
 
@@ -172,7 +172,10 @@ var QIP714BlockReached = false
 var networkAdminRole string
 var orgAdminRole string
 
-const defaultMapLimit = 1000000
+const defaultOrgMapLimit = 2000
+const defaultRoleMapLimit = 2500
+const defaultNodeMapLimit = 1000
+const defaultAccountMapLimit = 6000
 
 var OrgInfoMap = NewOrgCache()
 var NodeInfoMap = NewNodeCache()
