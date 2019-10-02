@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 
 	"github.com/ethereum/go-ethereum/common"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 )
 
 type AccessType uint8
@@ -129,40 +129,86 @@ type AccountKey struct {
 }
 
 type OrgCache struct {
-	c   *lru.Cache
-	mux sync.Mutex
+	c       *lru.Cache
+	mux     sync.Mutex
+	reqCh   chan string
+	respCh  chan *OrgInfo
+	evicted bool
 }
 
 type NodeCache struct {
-	c *lru.Cache
+	c       *lru.Cache
+	reqCh   chan string
+	respCh  chan *NodeInfo
+	evicted bool
 }
 
 type RoleCache struct {
-	c *lru.Cache
+	c       *lru.Cache
+	reqCh   chan *RoleKey
+	respCh  chan *RoleInfo
+	evicted bool
 }
 
 type AcctCache struct {
-	c *lru.Cache
+	c       *lru.Cache
+	reqCh   chan common.Address
+	respCh  chan *AccountInfo
+	evicted bool
 }
 
 func NewOrgCache() *OrgCache {
-	c, _ := lru.New(defaultOrgMapLimit)
-	return &OrgCache{c, sync.Mutex{}}
+	orgCache := OrgCache{reqCh: make(chan string, 10), respCh: make(chan *OrgInfo, 10), evicted: false}
+	onEvictedFunc := func(k interface{}, v interface{}) {
+		orgCache.evicted = true
+	}
+	orgCache.c, _ = lru.NewWithEvict(defaultOrgMapLimit, onEvictedFunc)
+	return &orgCache
 }
 
 func NewNodeCache() *NodeCache {
-	c, _ := lru.New(defaultNodeMapLimit)
-	return &NodeCache{c}
+	nodeCache := NodeCache{reqCh: make(chan string, 1), respCh: make(chan *NodeInfo, 1), evicted: false}
+	onEvictedFunc := func(k interface{}, v interface{}) {
+		nodeCache.evicted = true
+
+	}
+	nodeCache.c, _ = lru.NewWithEvict(defaultNodeMapLimit, onEvictedFunc)
+	return &nodeCache
 }
 
 func NewRoleCache() *RoleCache {
-	c, _ := lru.New(defaultRoleMapLimit)
-	return &RoleCache{c}
+	roleCache := RoleCache{reqCh: make(chan *RoleKey, 1), respCh: make(chan *RoleInfo, 1), evicted: false}
+	onEvictedFunc := func(k interface{}, v interface{}) {
+		roleCache.evicted = true
+	}
+	roleCache.c, _ = lru.NewWithEvict(defaultRoleMapLimit, onEvictedFunc)
+	return &roleCache
 }
 
 func NewAcctCache() *AcctCache {
-	c, _ := lru.New(defaultAccountMapLimit)
-	return &AcctCache{c}
+	acctCache := AcctCache{reqCh: make(chan common.Address, 1), respCh: make(chan *AccountInfo, 1), evicted: false}
+	onEvictedFunc := func(k interface{}, v interface{}) {
+		acctCache.evicted = true
+	}
+
+	acctCache.c, _ = lru.NewWithEvict(defaultAccountMapLimit, onEvictedFunc)
+	return &acctCache
+}
+
+func (a *AcctCache) GetAcctCacheChannels() (chan common.Address, chan *AccountInfo) {
+	return a.reqCh, a.respCh
+}
+
+func (o *OrgCache) GetOrgCacheChannels() (chan string, chan *OrgInfo) {
+	return o.reqCh, o.respCh
+}
+
+func (r *RoleCache) GetRoleCacheChannels() (chan *RoleKey, chan *RoleInfo) {
+	return r.reqCh, r.respCh
+}
+
+func (n *NodeCache) GetNodeCacheChannels() (chan string, chan *NodeInfo) {
+	return n.reqCh, n.respCh
 }
 
 var syncStarted = false
@@ -172,10 +218,14 @@ var QIP714BlockReached = false
 var networkAdminRole string
 var orgAdminRole string
 
-const defaultOrgMapLimit = 2000
-const defaultRoleMapLimit = 2500
-const defaultNodeMapLimit = 1000
-const defaultAccountMapLimit = 6000
+//const defaultOrgMapLimit = 2000
+//const defaultRoleMapLimit = 2500
+//const defaultNodeMapLimit = 1000
+//const defaultAccountMapLimit = 6000
+const defaultOrgMapLimit = 2
+const defaultRoleMapLimit = 100
+const defaultNodeMapLimit = 100
+const defaultAccountMapLimit = 2
 
 var OrgInfoMap = NewOrgCache()
 var NodeInfoMap = NewNodeCache()
@@ -195,7 +245,7 @@ func GetSyncStatus() bool {
 }
 
 // sets the default access to Readonly upon QIP714Blokc
-func SetDefaultAccess(){
+func SetDefaultAccess() {
 	DefaultAccess = ReadOnly
 	QIP714BlockReached = true
 }
@@ -243,11 +293,26 @@ func containsKey(s []string, e string) bool {
 }
 
 func (o *OrgCache) GetOrg(orgId string) *OrgInfo {
-	defer o.mux.Unlock()
-	o.mux.Lock()
 	key := OrgKey{OrgId: orgId}
 	if ent, ok := o.c.Get(key); ok {
 		return ent.(*OrgInfo)
+	}
+	// check if the org cache is evicted. if yes we need
+	// fetch the record from the contract
+	if o.evicted {
+		// send the org details on a channel for permissions to
+		// populate details from contracts
+		o.reqCh <- orgId
+		orgRec := <-o.respCh
+
+		if orgRec == nil {
+			return nil
+		}
+		// insert the received record into cache
+		o.UpsertOrg(orgRec.OrgId, orgRec.ParentOrgId, orgRec.UltimateParent, orgRec.Level, orgRec.Status)
+
+		//return the record
+		return orgRec
 	}
 	return nil
 }
@@ -275,6 +340,24 @@ func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
 			return v.(*NodeInfo)
 		}
 	}
+	// check if the node cache is evicted. if yes we need
+	// fetch the record from the contract
+	if n.evicted {
+
+		// send the node details on a channel for permissions to
+		// populate details from contracts
+		n.reqCh <- url
+		nodeRec := <- n.respCh
+
+		if nodeRec == nil {
+			return nil
+		}
+
+		// insert the received record into cache
+		n.UpsertNode(nodeRec.OrgId, nodeRec.Url, nodeRec.Status)
+		//return the record
+		return nodeRec
+	}
 	return nil
 }
 
@@ -296,6 +379,23 @@ func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address
 func (a *AcctCache) GetAccount(acct common.Address) *AccountInfo {
 	if v, ok := a.c.Get(AccountKey{acct}); ok {
 		return v.(*AccountInfo)
+	}
+
+	// check if the account cache is evicted. if yes we need
+	// fetch the record from the contract
+	if a.evicted {
+		// send the account details on a channel for permissions to
+		// populate details from contracts
+		a.reqCh <- acct
+		acctRec := <-a.respCh
+
+		// insert the received record into cache
+		if acctRec == nil {
+			return nil
+		}
+		a.UpsertAccount(acctRec.OrgId, acctRec.RoleId, acctRec.AcctId, acctRec.IsOrgAdmin, acctRec.Status)
+		//return the record
+		return acctRec
 	}
 	return nil
 }
@@ -346,6 +446,22 @@ func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
 	if ent, ok := r.c.Get(key); ok {
 		return ent.(*RoleInfo)
 	}
+	// check if the role cache is evicted. if yes we need
+	// fetch the record from the contract
+	if r.evicted{
+		// send the role details on a channel for permissions to
+		// populate details from contracts
+		r.reqCh <- &key
+		roleRec := <-r.respCh
+		if roleRec == nil {
+			return nil
+		}
+		// insert the received record into cache
+		r.UpsertRole(roleRec.OrgId, roleRec.RoleId, roleRec.IsVoter, roleRec.IsAdmin, roleRec.Access, roleRec.Active)
+
+		//return the record
+		return roleRec
+	}
 	return nil
 }
 
@@ -393,7 +509,7 @@ func GetAcctAccess(acctId common.Address) AccessType {
 }
 
 func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
-	if !QIP714BlockReached || hexnodeId == ""{
+	if !QIP714BlockReached || hexnodeId == "" {
 		return true
 	}
 
@@ -412,7 +528,7 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 	for _, n := range NodeInfoMap.GetNodeList() {
 		if OrgInfoMap.GetOrg(n.OrgId).UltimateParent == ultimateParent {
 			recEnodeId, _ := enode.ParseV4(n.Url)
-			if recEnodeId.ID() == passedEnodeId.ID() {
+			if recEnodeId.ID() == passedEnodeId.ID() && n.Status == NodeApproved {
 				return true
 			}
 		}
