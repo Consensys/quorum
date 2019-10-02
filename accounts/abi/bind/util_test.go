@@ -76,7 +76,7 @@ func TestWaitDeployed(t *testing.T) {
 		}()
 
 		// Send and mine the transaction.
-		backend.SendTransaction(ctx, tx)
+		backend.SendTransaction(ctx, tx, bind.PrivateTxArgs{})
 		backend.Commit()
 
 		select {

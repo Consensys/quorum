@@ -29,8 +29,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/davecgh/go-spew/spew"
 	"sync"
+
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -1592,7 +1593,7 @@ func (s *PublicTransactionPoolAPI) Resend(ctx context.Context, sendArgs SendTxAr
 			}
 			newTx := sendArgs.toTransaction()
 			// set v param to 37 to indicate private tx before submitting to the signer.
-			if len(sendArgs.PrivateFor) > 0 {
+			if sendArgs.PrivateFor != nil {
 				newTx.SetPrivate()
 			}
 			signedTx, err := s.sign(sendArgs.From, newTx)
