@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"io/ioutil"
 	"math/big"
@@ -310,6 +311,9 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 // monitors org management related events happening via smart contracts
 // and updates cache accordingly
 func (p *PermissionCtrl) manageOrgPermissions() error {
+	// set the cache function
+	types.OrgInfoMap.PopulateCacheFunc(p.populateOrgToCache)
+
 	chPendingApproval := make(chan *pbind.OrgManagerOrgPendingApproval, 1)
 	chOrgApproved := make(chan *pbind.OrgManagerOrgApproved, 1)
 	chOrgSuspended := make(chan *pbind.OrgManagerOrgSuspended, 1)
@@ -368,6 +372,10 @@ func (p *PermissionCtrl) subscribeStopEvent() (chan stopEvent, event.Subscriptio
 
 // Monitors node management events and updates cache accordingly
 func (p *PermissionCtrl) manageNodePermissions() error {
+	// populate function to populate cache
+	types.NodeInfoMap.PopulateValidateFunc(p.populateNodeCacheAndValidate)
+	types.NodeInfoMap.PopulateCacheFunc(p.populateNodeCache)
+
 	chNodeApproved := make(chan *pbind.NodeManagerNodeApproved, 1)
 	chNodeProposed := make(chan *pbind.NodeManagerNodeProposed, 1)
 	chNodeDeactivated := make(chan *pbind.NodeManagerNodeDeactivated, 1)
@@ -538,6 +546,9 @@ func (p *PermissionCtrl) updateDisallowedNodes(url string, operation NodeOperati
 
 // Monitors account access related events and updates the cache accordingly
 func (p *PermissionCtrl) manageAccountPermissions() error {
+	// set the function for cache population
+	types.AcctInfoMap.PopulateCacheFunc(p.populateAccountToCache)
+
 	chAccessModified := make(chan *pbind.AcctManagerAccountAccessModified)
 	chAccessRevoked := make(chan *pbind.AcctManagerAccountAccessRevoked)
 	chStatusChanged := make(chan *pbind.AcctManagerAccountStatusChanged)
@@ -652,17 +663,6 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 			}
 		}
 	}
-
-	// start the cache monitoring functions
-	for _, f := range []func(){
-		p.populateAccountCache,
-		p.populateNodeCache,
-		p.populateOrgCache,
-		p.populateRoleCache,
-	} {
-		f()
-	}
-
 	return nil
 }
 
@@ -826,6 +826,9 @@ func (p *PermissionCtrl) updateNetworkStatus(permissionsSession *pbind.PermInter
 
 // monitors role management related events and updated cache
 func (p *PermissionCtrl) manageRolePermissions() error {
+	// populate function for cache population
+	types.RoleInfoMap.PopulateCacheFunc(p.populateRoleToCache)
+
 	chRoleCreated := make(chan *pbind.RoleManagerRoleCreated, 1)
 	chRoleRevoked := make(chan *pbind.RoleManagerRoleRevoked, 1)
 
@@ -865,118 +868,102 @@ func (p *PermissionCtrl) manageRolePermissions() error {
 }
 
 // getter to get an account record from the contract
-func (p *PermissionCtrl) populateAccountCache() {
+func (p *PermissionCtrl) populateAccountToCache(acctId common.Address) *types.AccountInfo {
 	permAcctInterface := &pbind.AcctManagerSession{
 		Contract: p.permAcct,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 	}
-	reqCh, respCh := types.AcctInfoMap.GetAcctCacheChannels()
-	go func() {
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case acctId := <-reqCh:
-				account, orgId, roleId, status, isAdmin, _ := permAcctInterface.GetAccountDetails(acctId)
-				if orgId == "NONE" {
-					respCh <- nil
-				}
-				respCh <- &types.AccountInfo{AcctId: account, OrgId: orgId, RoleId: roleId, Status: types.AcctStatus(status.Int64()), IsOrgAdmin: isAdmin}
-
-			case <-stopChan:
-				return
-			}
-		}
-	}()
+	account, orgId, roleId, status, isAdmin, _ := permAcctInterface.GetAccountDetails(acctId)
+	if status.Int64() == 0 {
+		return nil
+	}
+	return &types.AccountInfo{AcctId: account, OrgId: orgId, RoleId: roleId, Status: types.AcctStatus(status.Int64()), IsOrgAdmin: isAdmin}
 }
 
 // getter to get a org record from the contract
-func (p *PermissionCtrl) populateOrgCache() {
+func (p *PermissionCtrl) populateOrgToCache(orgId string) *types.OrgInfo {
 	permOrgInterface := &pbind.OrgManagerSession{
 		Contract: p.permOrg,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 	}
-	reqCh, respCh := types.OrgInfoMap.GetOrgCacheChannels()
-	go func() {
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case orgId := <-reqCh:
-				org, parentOrgId, ultimateParentId, orgLevel, orgStatus, _ := permOrgInterface.GetOrgDetails(orgId)
-				if ultimateParentId == "" {
-					respCh <- nil
-				}
-				respCh <- &types.OrgInfo{OrgId: org, ParentOrgId: parentOrgId, UltimateParent: ultimateParentId, Status: types.OrgStatus(orgStatus.Int64()), Level: orgLevel}
+	org, parentOrgId, ultimateParentId, orgLevel, orgStatus, _ := permOrgInterface.GetOrgDetails(orgId)
+	if orgStatus.Int64() == 0 {
+		return nil
+	}
+	orgInfo := types.OrgInfo{OrgId: org, ParentOrgId: parentOrgId, UltimateParent: ultimateParentId, Status: types.OrgStatus(orgStatus.Int64()), Level: orgLevel}
+	// now need to build the list of sub orgs for this org
+	subOrgIndexes, _ := permOrgInterface.GetSubOrgIndexes(orgId)
 
-			case <-stopChan:
-				return
+	if len(subOrgIndexes) == 0 {
+		return &orgInfo
+	}
 
-			}
+	// range through the sub org indexes and get the org ids to populate the suborg list
+	for _, s := range subOrgIndexes {
+		subOrgId, _, _, _, _, err := permOrgInterface.GetOrgInfo(s)
+		if err == nil {
+			orgInfo.SubOrgList = append(orgInfo.SubOrgList, orgId+"."+subOrgId)
 		}
-	}()
-
+	}
+	return &orgInfo
 }
 
 // getter to get a role record from the contract
-func (p *PermissionCtrl) populateRoleCache(){
+func (p *PermissionCtrl) populateRoleToCache(roleKey *types.RoleKey) *types.RoleInfo {
 	permRoleInterface := &pbind.RoleManagerSession{
 		Contract: p.permRole,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 	}
-	reqCh, respCh := types.RoleInfoMap.GetRoleCacheChannels()
-	go func() {
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-
-		for {
-			select {
-			case roleKey := <-reqCh:
-				roleDetails, _ := permRoleInterface.GetRoleDetails(roleKey.RoleId, roleKey.OrgId)
-				if roleDetails.OrgId == "" {
-					respCh <- nil
-				}
-				respCh <- &types.RoleInfo{OrgId: roleDetails.OrgId, RoleId: roleDetails.RoleId, IsVoter: roleDetails.Voter, IsAdmin: roleDetails.Admin, Access: types.AccessType(roleDetails.AccessType.Int64()), Active: roleDetails.Active}
-
-			case <-stopChan:
-				return
-			}
-		}
-	}()
+	roleDetails, _ := permRoleInterface.GetRoleDetails(roleKey.RoleId, roleKey.OrgId)
+	if roleDetails.OrgId == "" {
+		return nil
+	}
+	return  &types.RoleInfo{OrgId: roleDetails.OrgId, RoleId: roleDetails.RoleId, IsVoter: roleDetails.Voter, IsAdmin: roleDetails.Admin, Access: types.AccessType(roleDetails.AccessType.Int64()), Active: roleDetails.Active}
 }
-
-// getter to get a node record from the contract
-func (p *PermissionCtrl) populateNodeCache() {
+// getter to get a role record from the contract
+func (p *PermissionCtrl) populateNodeCache(url string) *types.NodeInfo {
 	permNodeInterface := &pbind.NodeManagerSession{
 		Contract: p.permNode,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 	}
-	reqCh, respCh := types.NodeInfoMap.GetNodeCacheChannels()
+	nodeDetails, _ := permNodeInterface.GetNodeDetails(url)
+	if nodeDetails.NodeStatus.Int64() == 0{
+		return nil
+	}
+	return  &types.NodeInfo{OrgId:nodeDetails.OrgId, Url: nodeDetails.EnodeId, Status:types.NodeStatus(nodeDetails.NodeStatus.Int64()) }
+}
 
-	go func(){
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-
-		for {
-			select {
-			case url := <-reqCh:
-				nodeDetails, _ := permNodeInterface.GetNodeDetails(url)
-				if nodeDetails.NodeStatus.Cmp(big.NewInt(0)) == 0 {
-					respCh <- nil
+// getter to get a node record from the contract
+func (p *PermissionCtrl) populateNodeCacheAndValidate(hexNodeId, ultimateParentId string) bool {
+	permNodeInterface := &pbind.NodeManagerSession{
+		Contract: p.permNode,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+	}
+	txnAllowed := false
+	passedEnode, _ := enode.ParseV4(hexNodeId)
+	if numberOfNodes, err := permNodeInterface.GetNumberOfNodes(); err == nil {
+		numNodes := numberOfNodes.Uint64()
+		for k := uint64(0); k < numNodes; k++ {
+			if nodeStruct, err := permNodeInterface.GetNodeDetailsFromIndex(big.NewInt(int64(k))); err == nil {
+				if types.OrgInfoMap.GetOrg(nodeStruct.OrgId).UltimateParent == ultimateParentId {
+					recEnode, _ := enode.ParseV4(nodeStruct.EnodeId);
+					if recEnode.ID() == passedEnode.ID() {
+						txnAllowed = true
+						types.NodeInfoMap.UpsertNode(nodeStruct.OrgId, nodeStruct.EnodeId, types.NodeStatus(int(nodeStruct.NodeStatus.Int64())))
+					}
 				}
-				respCh <- &types.NodeInfo{OrgId: nodeDetails.OrgId, Url: nodeDetails.EnodeId, Status: types.NodeStatus(nodeDetails.NodeStatus.Int64())}
-			case <-stopChan:
-				return
 			}
 		}
-	}()
-
+	}
+	return txnAllowed
 }

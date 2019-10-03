@@ -114,51 +114,19 @@ type OrgKey struct {
 	OrgId string
 }
 
-type NodeKey struct {
-	OrgId string
-	Url   string
-}
-
-type RoleKey struct {
-	OrgId  string
-	RoleId string
-}
-
-type AccountKey struct {
-	AcctId common.Address
-}
-
 type OrgCache struct {
-	c       *lru.Cache
-	mux     sync.Mutex
-	reqCh   chan string
-	respCh  chan *OrgInfo
-	evicted bool
+	c                 *lru.Cache
+	mux               sync.Mutex
+	evicted           bool
+	populateCacheFunc func(orgId string) *OrgInfo
 }
 
-type NodeCache struct {
-	c       *lru.Cache
-	reqCh   chan string
-	respCh  chan *NodeInfo
-	evicted bool
-}
-
-type RoleCache struct {
-	c       *lru.Cache
-	reqCh   chan *RoleKey
-	respCh  chan *RoleInfo
-	evicted bool
-}
-
-type AcctCache struct {
-	c       *lru.Cache
-	reqCh   chan common.Address
-	respCh  chan *AccountInfo
-	evicted bool
+func (o *OrgCache) PopulateCacheFunc(cf func(string) *OrgInfo) {
+	o.populateCacheFunc = cf
 }
 
 func NewOrgCache() *OrgCache {
-	orgCache := OrgCache{reqCh: make(chan string, 10), respCh: make(chan *OrgInfo, 10), evicted: false}
+	orgCache := OrgCache{evicted: false}
 	onEvictedFunc := func(k interface{}, v interface{}) {
 		orgCache.evicted = true
 	}
@@ -166,8 +134,52 @@ func NewOrgCache() *OrgCache {
 	return &orgCache
 }
 
+type RoleKey struct {
+	OrgId  string
+	RoleId string
+}
+
+type RoleCache struct {
+	c                 *lru.Cache
+	evicted           bool
+	populateCacheFunc func(*RoleKey) *RoleInfo
+}
+
+func (r *RoleCache) PopulateCacheFunc(cf func(*RoleKey) *RoleInfo) {
+	r.populateCacheFunc = cf
+}
+
+func NewRoleCache() *RoleCache {
+	roleCache := RoleCache{evicted: false}
+	onEvictedFunc := func(k interface{}, v interface{}) {
+		roleCache.evicted = true
+	}
+	roleCache.c, _ = lru.NewWithEvict(defaultRoleMapLimit, onEvictedFunc)
+	return &roleCache
+}
+
+type NodeKey struct {
+	OrgId string
+	Url   string
+}
+
+type NodeCache struct {
+	c                       *lru.Cache
+	evicted                 bool
+	populateCacheFunc       func(string) *NodeInfo
+	populateAndValidateFunc func(string, string) bool
+}
+
+func (n *NodeCache) PopulateValidateFunc(cf func(string, string) bool) {
+	n.populateAndValidateFunc = cf
+}
+
+func (n *NodeCache) PopulateCacheFunc(cf func(string) *NodeInfo) {
+	n.populateCacheFunc = cf
+}
+
 func NewNodeCache() *NodeCache {
-	nodeCache := NodeCache{reqCh: make(chan string, 1), respCh: make(chan *NodeInfo, 1), evicted: false}
+	nodeCache := NodeCache{evicted: false}
 	onEvictedFunc := func(k interface{}, v interface{}) {
 		nodeCache.evicted = true
 
@@ -176,39 +188,28 @@ func NewNodeCache() *NodeCache {
 	return &nodeCache
 }
 
-func NewRoleCache() *RoleCache {
-	roleCache := RoleCache{reqCh: make(chan *RoleKey, 1), respCh: make(chan *RoleInfo, 1), evicted: false}
-	onEvictedFunc := func(k interface{}, v interface{}) {
-		roleCache.evicted = true
-	}
-	roleCache.c, _ = lru.NewWithEvict(defaultRoleMapLimit, onEvictedFunc)
-	return &roleCache
+type AccountKey struct {
+	AcctId common.Address
+}
+
+type AcctCache struct {
+	c                 *lru.Cache
+	evicted           bool
+	populateCacheFunc func(account common.Address) *AccountInfo
+}
+
+func (a *AcctCache) PopulateCacheFunc(cf func(common.Address) *AccountInfo) {
+	a.populateCacheFunc = cf
 }
 
 func NewAcctCache() *AcctCache {
-	acctCache := AcctCache{reqCh: make(chan common.Address, 1), respCh: make(chan *AccountInfo, 1), evicted: false}
+	acctCache := AcctCache{evicted: false}
 	onEvictedFunc := func(k interface{}, v interface{}) {
 		acctCache.evicted = true
 	}
 
 	acctCache.c, _ = lru.NewWithEvict(defaultAccountMapLimit, onEvictedFunc)
 	return &acctCache
-}
-
-func (a *AcctCache) GetAcctCacheChannels() (chan common.Address, chan *AccountInfo) {
-	return a.reqCh, a.respCh
-}
-
-func (o *OrgCache) GetOrgCacheChannels() (chan string, chan *OrgInfo) {
-	return o.reqCh, o.respCh
-}
-
-func (r *RoleCache) GetRoleCacheChannels() (chan *RoleKey, chan *RoleInfo) {
-	return r.reqCh, r.respCh
-}
-
-func (n *NodeCache) GetNodeCacheChannels() (chan string, chan *NodeInfo) {
-	return n.reqCh, n.respCh
 }
 
 var syncStarted = false
@@ -223,8 +224,8 @@ var orgAdminRole string
 //const defaultNodeMapLimit = 1000
 //const defaultAccountMapLimit = 6000
 const defaultOrgMapLimit = 2
-const defaultRoleMapLimit = 100
-const defaultNodeMapLimit = 100
+const defaultRoleMapLimit = 2
+const defaultNodeMapLimit = 2
 const defaultAccountMapLimit = 2
 
 var OrgInfoMap = NewOrgCache()
@@ -283,6 +284,17 @@ func (o *OrgCache) UpsertOrg(orgId, parentOrg, ultimateParent string, level *big
 	o.c.Add(key, norg)
 }
 
+func (o *OrgCache) UpsertOrgWithSubOrgList(orgRec *OrgInfo) {
+	var key OrgKey
+	if orgRec.ParentOrgId == "" {
+		key = OrgKey{OrgId: orgRec.OrgId}
+	} else {
+		key = OrgKey{OrgId: orgRec.ParentOrgId + "." + orgRec.OrgId}
+	}
+	orgRec.FullOrgId = key.OrgId
+	o.c.Add(key, orgRec)
+}
+
 func containsKey(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
@@ -300,17 +312,14 @@ func (o *OrgCache) GetOrg(orgId string) *OrgInfo {
 	// check if the org cache is evicted. if yes we need
 	// fetch the record from the contract
 	if o.evicted {
-		// send the org details on a channel for permissions to
-		// populate details from contracts
-		o.reqCh <- orgId
-		orgRec := <-o.respCh
+		// call cache population function to populate from contract
+		orgRec := o.populateCacheFunc(orgId)
 
 		if orgRec == nil {
 			return nil
 		}
 		// insert the received record into cache
-		o.UpsertOrg(orgRec.OrgId, orgRec.ParentOrgId, orgRec.UltimateParent, orgRec.Level, orgRec.Status)
-
+		o.UpsertOrgWithSubOrgList(orgRec)
 		//return the record
 		return orgRec
 	}
@@ -344,10 +353,8 @@ func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
 	// fetch the record from the contract
 	if n.evicted {
 
-		// send the node details on a channel for permissions to
-		// populate details from contracts
-		n.reqCh <- url
-		nodeRec := <- n.respCh
+		// call cache population function to populate from contract
+		nodeRec := n.populateCacheFunc(url)
 
 		if nodeRec == nil {
 			return nil
@@ -384,11 +391,8 @@ func (a *AcctCache) GetAccount(acct common.Address) *AccountInfo {
 	// check if the account cache is evicted. if yes we need
 	// fetch the record from the contract
 	if a.evicted {
-		// send the account details on a channel for permissions to
-		// populate details from contracts
-		a.reqCh <- acct
-		acctRec := <-a.respCh
-
+		// call function to populate cache with the record
+		acctRec := a.populateCacheFunc(acct)
 		// insert the received record into cache
 		if acctRec == nil {
 			return nil
@@ -448,11 +452,9 @@ func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
 	}
 	// check if the role cache is evicted. if yes we need
 	// fetch the record from the contract
-	if r.evicted{
-		// send the role details on a channel for permissions to
-		// populate details from contracts
-		r.reqCh <- &key
-		roleRec := <-r.respCh
+	if r.evicted {
+		// call cache population function to populate from contract
+		roleRec := r.populateCacheFunc(&RoleKey{RoleId: roleId, OrgId: orgId})
 		if roleRec == nil {
 			return nil
 		}
@@ -507,6 +509,10 @@ func GetAcctAccess(acctId common.Address) AccessType {
 	}
 	return DefaultAccess
 }
+func (n *NodeCache) rebuildCacheAndValidate(hexNodeId, ultimateParent string) bool {
+	// node list has evictions, need to validate with contract data
+	return n.populateAndValidateFunc(hexNodeId, ultimateParent)
+}
 
 func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 	if !QIP714BlockReached || hexnodeId == "" {
@@ -533,5 +539,9 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 			}
 		}
 	}
+	if NodeInfoMap.evicted {
+		return NodeInfoMap.rebuildCacheAndValidate(hexnodeId, ultimateParent)
+	}
+
 	return false
 }

@@ -212,6 +212,16 @@ contract OrgManager {
         return (orgList[_orgIndex].orgId, orgList[_orgIndex].parentId,
         orgList[_orgIndex].ultParent, orgList[_orgIndex].level, orgList[_orgIndex].status);
     }
+
+    /** @notice returns the array of sub org indexes for the given org
+      * @param _orgId org id
+      * @return array of sub org indexes
+      */
+    function getSubOrgIndexes(string calldata _orgId) external view returns (uint[] memory) {
+        require(checkOrgExists(_orgId) == true, "org does not exist");
+        uint256 _orgIndex = _getOrgIndex(_orgId);
+        return (orgList[_orgIndex].subOrgIndexList);
+    }
     /** @notice returns the master org id for the given org or sub org
       * @param _orgId org id
       * @return master org id
