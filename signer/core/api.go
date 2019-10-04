@@ -501,11 +501,18 @@ func (api *SignerAPI) SignTransaction(ctx context.Context, args SendTxArgs, meth
 	var (
 		err    error
 		result SignTxResponse
+		msgs   *ValidationMessages
 	)
-	msgs, err := api.validator.ValidateTransaction(methodSelector, &args)
-	if err != nil {
-		return nil, err
+	if args.IsPrivate {
+		msgs = new(ValidationMessages)
+		msgs.Info(fmt.Sprintf("Quorum private transaction. Key: %s", args.Data))
+	} else {
+		msgs, err = api.validator.ValidateTransaction(methodSelector, &args)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	// If we are in 'rejectMode', then reject rather than show the user warnings
 	if api.rejectMode {
 		if err := msgs.getWarnings(); err != nil {
