@@ -1593,7 +1593,7 @@ func (s *PublicTransactionPoolAPI) Resend(ctx context.Context, sendArgs SendTxAr
 			}
 			newTx := sendArgs.toTransaction()
 			// set v param to 37 to indicate private tx before submitting to the signer.
-			if len(sendArgs.PrivateFor) > 0 {
+			if sendArgs.PrivateFor != nil {
 				newTx.SetPrivate()
 			}
 			signedTx, err := s.sign(sendArgs.From, newTx)

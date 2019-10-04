@@ -865,10 +865,6 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 	return
 }
 
-func sleep(duration time.Duration) {
-	<-time.NewTimer(duration).C
-}
-
 func blockExtendsChain(block *types.Block, chain *core.BlockChain) bool {
 	return block.ParentHash() == chain.CurrentBlock().Hash()
 }

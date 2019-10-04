@@ -258,6 +258,8 @@ func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainCo
 			config.Istanbul.Epoch = chainConfig.Istanbul.Epoch
 		}
 		config.Istanbul.ProposerPolicy = istanbul.ProposerPolicy(chainConfig.Istanbul.ProposerPolicy)
+		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
+
 		return istanbulBackend.New(&config.Istanbul, ctx.NodeKey(), db)
 	}
 

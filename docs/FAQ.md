@@ -60,7 +60,7 @@
     * It saves one network call communicating the block to the leader.
     * It provides a simple way to choose a minter. If we didn't use the Raft leader we'd have to build in "minter election" at a higher level.
 
-    Additionally there could even be multiple minters running at the same time, but this would produce contention for which blocks actually extend the chain, reducing the productivity of the cluster (see "races" above).
+    Additionally there could even be multiple minters running at the same time, but this would produce contention for which blocks actually extend the chain, reducing the productivity of the cluster (see [Raft: Chain extension, races, and correctness](../Consensus/raft/#chain-extension-races-and-correctness) above).
 
 ??? question "I thought there were no forks in a Raft-based blockchain. What's the deal with "speculative minting"?"
     "Speculative chains" are not forks in the blockchain. They represent a series ("chain") of blocks that have been sent through Raft, after which each of the blocks may or may not actually end up being included in *the blockchain*.
