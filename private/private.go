@@ -12,12 +12,13 @@ type PrivateTransactionManager interface {
 	Receive(data []byte) ([]byte, error)
 }
 
-func FromEnvironmentOrNil(name string) PrivateTransactionManager {
+func FromEnvironment(name string) PrivateTransactionManager {
 	cfgPath := os.Getenv(name)
 	if cfgPath == "" {
-		return nil
+		//no privacy manager specified, start in public-only mode
+		return constellation.MustNew("ignore")
 	}
 	return constellation.MustNew(cfgPath)
 }
 
-var P = FromEnvironmentOrNil("PRIVATE_CONFIG")
+var P = FromEnvironment("PRIVATE_CONFIG")

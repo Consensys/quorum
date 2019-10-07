@@ -18,12 +18,12 @@ type Constellation struct {
 }
 
 var (
-	ErrConstellationIsntInit = errors.New("Constellation not in use")
+	ErrPrivateTransactionManagerNotUsed = errors.New("private transaction manager not in use")
 )
 
 func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
 	if g.isConstellationNotInUse {
-		return nil, ErrConstellationIsntInit
+		return nil, ErrPrivateTransactionManagerNotUsed
 	}
 	out, err = g.node.SendPayload(data, from, to)
 	if err != nil {
@@ -35,7 +35,7 @@ func (g *Constellation) Send(data []byte, from string, to []string) (out []byte,
 
 func (g *Constellation) SendSignedTx(data []byte, to []string) (out []byte, err error) {
 	if g.isConstellationNotInUse {
-		return nil, ErrConstellationIsntInit
+		return nil, ErrPrivateTransactionManagerNotUsed
 	}
 	out, err = g.node.SendSignedPayload(data, to)
 	if err != nil {
