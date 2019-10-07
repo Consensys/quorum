@@ -195,30 +195,44 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	chain, engine := newBlockChain(4)
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	otherBlock := makeBlockWithoutSeal(chain, engine, block)
+	expectedCommittedSeal := append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, types.IstanbulExtraSeal-3)...)
+
 	eventSub := engine.EventMux().Subscribe(istanbul.RequestEvent{})
-	eventLoop := func() {
+	blockOutputChannel := make(chan *types.Block)
+	stopChannel := make(chan struct{})
+
+	go func() {
 		select {
 		case ev := <-eventSub.Chan():
-			_, ok := ev.Data.(istanbul.RequestEvent)
-			if !ok {
+			if _, ok := ev.Data.(istanbul.RequestEvent); !ok {
 				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 			}
-			engine.Commit(otherBlock, [][]byte{})
+			if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}); err != nil {
+				t.Error(err.Error())
+			}
 		}
 		eventSub.Unsubscribe()
-	}
-	go eventLoop()
-	seal := func() {
-		engine.Seal(chain, block, nil, make(chan struct{}))
-		t.Error("seal should not be completed")
-	}
-	go seal()
+	}()
 
-	const timeoutDura = 2 * time.Second
-	timeout := time.NewTimer(timeoutDura)
+	go func() {
+		if err := engine.Seal(chain, block, blockOutputChannel, stopChannel); err != nil {
+			t.Error(err.Error())
+		}
+	}()
+
 	select {
-	case <-timeout.C:
-		// wait 2 seconds to ensure we cannot get any blocks from Istanbul
+	case <-blockOutputChannel:
+		t.Error("Wrong block found!")
+	default:
+		//no block found, stop the sealing
+		close(stopChannel)
+	}
+
+	select {
+	case output := <-blockOutputChannel:
+		if output != nil {
+			t.Error("Block not nil!")
+		}
 	}
 }
 

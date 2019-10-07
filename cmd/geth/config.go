@@ -159,6 +159,10 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
+	if cfg.Node.IsPermissionEnabled() {
+		utils.RegisterPermissionService(ctx, stack)
+	}
+
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
 		RegisterRaftService(stack, ctx, cfg, ethChan)
 	}
