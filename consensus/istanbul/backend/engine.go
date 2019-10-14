@@ -423,42 +423,45 @@ func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, results
 		return err
 	}
 
-	// wait for the timestamp of header, use this to adjust the block period
 	delay := time.Unix(int64(block.Header().Time), 0).Sub(now())
-	select {
-	case <-time.After(delay):
-	case <-stop:
-		results <- nil
-		return nil
-	}
 
-	// get the proposed block hash and clear it if the seal() is completed.
-	sb.sealMu.Lock()
-	sb.proposedBlockHash = block.Hash()
-	clear := func() {
-		sb.proposedBlockHash = common.Hash{}
-		sb.sealMu.Unlock()
-	}
-	defer clear()
-
-	// post block into Istanbul engine
-	go sb.EventMux().Post(istanbul.RequestEvent{
-		Proposal: block,
-	})
-	for {
+	go func() {
+		// wait for the timestamp of header, use this to adjust the block period
 		select {
-		case result := <-sb.commitCh:
-			// if the block hash and the hash from channel are the same,
-			// return the result. Otherwise, keep waiting the next hash.
-			if result != nil && block.Hash() == result.Hash() {
-				results <- result
-				return nil
-			}
+		case <-time.After(delay):
 		case <-stop:
 			results <- nil
-			return nil
+			return
 		}
-	}
+
+		// get the proposed block hash and clear it if the seal() is completed.
+		sb.sealMu.Lock()
+		sb.proposedBlockHash = block.Hash()
+
+		defer func() {
+			sb.proposedBlockHash = common.Hash{}
+			sb.sealMu.Unlock()
+		}()
+		// post block into Istanbul engine
+		go sb.EventMux().Post(istanbul.RequestEvent{
+			Proposal: block,
+		})
+		for {
+			select {
+			case result := <-sb.commitCh:
+				// if the block hash and the hash from channel are the same,
+				// return the result. Otherwise, keep waiting the next hash.
+				if result != nil && block.Hash() == result.Hash() {
+					results <- result
+					return
+				}
+			case <-stop:
+				results <- nil
+				return
+			}
+		}
+	}()
+	return nil
 }
 
 // update timestamp and signature of the block based on its number of transactions

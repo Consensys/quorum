@@ -242,7 +242,8 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	eth.miner = miner.New(eth, &config.Miner, chainConfig, eth.EventMux(), eth.engine, eth.isLocalBlock)
 	eth.miner.SetExtra(makeExtraData(config.Miner.ExtraData, eth.blockchain.Config().IsQuorum))
 
-	eth.APIBackend = &EthAPIBackend{ctx.ExtRPCEnabled(), eth, nil}
+	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&ctx.NodeKey().PublicKey)[1:]) // Quorum
+	eth.APIBackend = &EthAPIBackend{ctx.ExtRPCEnabled(), eth, nil, hexNodeId}
 	gpoParams := config.GPO
 	if gpoParams.Default == nil {
 		gpoParams.Default = config.Miner.GasPrice
@@ -324,7 +325,7 @@ func (s *Ethereum) APIs() []rpc.API {
 	}
 
 	// Append all the local APIs and return
-	return append(apis, []rpc.API{
+	apis = append(apis, []rpc.API{
 		{
 			Namespace: "eth",
 			Version:   "1.0",
@@ -370,6 +371,7 @@ func (s *Ethereum) APIs() []rpc.API {
 			Public:    true,
 		},
 	}...)
+	return apis
 }
 
 func (s *Ethereum) ResetWithGenesisBlock(gb *types.Block) {

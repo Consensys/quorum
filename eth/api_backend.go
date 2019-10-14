@@ -43,6 +43,11 @@ type EthAPIBackend struct {
 	extRPCEnabled bool
 	eth           *Ethereum
 	gpo           *gasprice.Oracle
+
+	// Quorum
+	//
+	// hex node id from node public key
+	hexNodeId string
 }
 
 // ChainConfig returns the active chain configuration.
@@ -188,6 +193,11 @@ func (b *EthAPIBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 }
 
 func (b *EthAPIBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
+	// validation for node need to happen here and cannot be done as a part of
+	// validateTx in tx_pool.go as tx_pool validation will happen in every node
+	if b.hexNodeId != "" && !types.ValidateNodeForTxn(b.hexNodeId, signedTx.From()) {
+		return errors.New("cannot send transaction from this node")
+	}
 	return b.eth.txPool.AddLocal(signedTx)
 }
 

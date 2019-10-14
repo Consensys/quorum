@@ -19,7 +19,6 @@ package miner
 import (
 	"bytes"
 	"errors"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -551,17 +550,14 @@ func (w *worker) taskLoop() {
 			w.pendingMu.Lock()
 			w.pendingTasks[w.engine.SealHash(task.block.Header())] = task
 			w.pendingMu.Unlock()
-			go w.seal(task.block, stopCh)
+
+			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
+				log.Warn("Block sealing failed", "err", err)
+			}
 		case <-w.exitCh:
 			interrupt()
 			return
 		}
-	}
-}
-
-func (w *worker) seal(b *types.Block, stop <-chan struct{}) {
-	if err := w.engine.Seal(w.chain, b, w.resultCh, stop); err != nil {
-		log.Warn("Block sealing failed", "err", err)
 	}
 }
 
@@ -608,31 +604,32 @@ func (w *worker) resultLoop() {
 				for _, log := range receipt.Logs {
 					log.BlockHash = hash
 				}
+				logs = append(logs, receipt.Logs...)
 			}
 
-			for _, log := range append(task.state.Logs(), task.privateState.Logs()...) {
-				log.BlockHash = hash
-			}
 
 			// write private transacions
-			privateStateRoot, _ := task.privateState.Commit(w.chainConfig.IsEIP158(block.Number()))
-			rawdb.WritePrivateStateRoot(w.eth.ChainDb(), block.Root(), privateStateRoot)
+				privateStateRoot, err := task.privateState.Commit(w.chainConfig.IsEIP158(block.Number()))
+			if err != nil {
+				log.Error("Failed committing private state root", "err", err)
+				continue
+			}
+			if err := core.WritePrivateStateRoot(w.eth.ChainDb(), block.Root(), privateStateRoot); err != nil {
+				log.Error("Failed writing private state root", "err", err)
+				continue
+			}
 			allReceipts := mergeReceipts(task.receipts, task.privateReceipts)
 
 			// Commit block and state to database.
-			w.mu.Lock()
 			stat, err := w.chain.WriteBlockWithState(block, allReceipts, task.state, nil)
-			w.mu.Unlock()
 			if err != nil {
-				log.Error("Failed writWriteBlockAndStating block to chain", "err", err)
+				log.Error("Failed writing block to chain", "err", err)
 				continue
 			}
-
-			if err := rawdb.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts); err != nil {
+			if err := core.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts); err != nil {
 				log.Error("Failed writing private block bloom", "err", err)
 				continue
 			}
-
 			log.Info("Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
 				"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
 

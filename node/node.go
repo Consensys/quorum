@@ -17,6 +17,7 @@
 package node
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"net"
@@ -320,7 +321,7 @@ func (n *Node) startInProc(apis []rpc.API) error {
 		n.log.Debug("InProc registered", "namespace", api.Namespace)
 	}
 	n.inprocHandler = handler
-	return nil
+	return n.eventmux.Post(rpc.InProcServerReadyEvent{})
 }
 
 // stopInProc terminates the in-process RPC endpoint.
@@ -554,6 +555,20 @@ func (n *Node) Service(service interface{}) error {
 		return nil
 	}
 	return ErrServiceUnknown
+}
+
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) IsPermissionEnabled() bool {
+	return n.config.IsPermissionEnabled()
+}
+
+// Quorum
+//
+// delegate call to node.Config
+func (n *Node) GetNodeKey() *ecdsa.PrivateKey {
+	return n.config.NodeKey()
 }
 
 // DataDir retrieves the current datadir used by the protocol stack.

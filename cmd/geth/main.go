@@ -42,7 +42,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-	cli "gopkg.in/urfave/cli.v1"
+	"github.com/ethereum/go-ethereum/permission"
+	"gopkg.in/urfave/cli.v1"
 )
 
 const (
@@ -426,6 +427,20 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}()
 	}
 
+
+	// Quorum
+	//
+	// checking if permissions is enabled and staring the permissions service
+	if stack.IsPermissionEnabled() {
+		var permissionService *permission.PermissionCtrl
+		if err := stack.Service(&permissionService); err != nil {
+			utils.Fatalf("Permission service not runnning: %v", err)
+		}
+		if err := permissionService.AfterStart(); err != nil {
+			utils.Fatalf("Permission service post construct failure: %v", err)
+		}
+	}
+
 	// Start auxiliary services if enabled
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		// Mining only makes sense if a full Ethereum node is running
@@ -451,6 +466,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
 	}
+
 }
 
 // unlockAccounts unlocks any account specifically requested.

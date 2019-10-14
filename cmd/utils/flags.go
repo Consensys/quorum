@@ -29,6 +29,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/permission"
+
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -1650,6 +1653,27 @@ func RegisterGraphQLService(stack *node.Node, endpoint string, cors, vhosts []st
 	}); err != nil {
 		Fatalf("Failed to register the GraphQL service: %v", err)
 	}
+}
+
+// Quorum
+//
+// Configure smart-contract-based permissioning service
+func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
+	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
+		permissionConfig, err := permission.ParsePermissionConfig(stack.DataDir())
+		if err != nil {
+			return nil, fmt.Errorf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
+		}
+		// start the permissions management service
+		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
+		}
+		return pc, nil
+	}); err != nil {
+		Fatalf("Failed to register the permission service: %v", err)
+	}
+	log.Info("permission service registered")
 }
 
 func SetupMetrics(ctx *cli.Context) {

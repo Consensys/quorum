@@ -36,6 +36,12 @@ nav:
           - Decentralized App:
             - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
             - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
+    - Permissioning:
+        - Overview: Permissioning/Overview.md
+        - Design: Permissioning/Contract Design.md
+        - Setup: Permissioning/setup.md
+        - APIs: Permissioning/Permissioning apis.md
+        - Usage: Permissioning/Usage.md
     - Privacy:
         - Tessera:
             - What is Tessera: Privacy/Tessera/Tessera.md

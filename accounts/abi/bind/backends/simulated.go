@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/eth"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -77,6 +79,20 @@ func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.Genesis
 		blockchain: blockchain,
 		config:     genesis.Config,
 		events:     filters.NewEventSystem(new(event.TypeMux), &filterBackend{database, blockchain}, false),
+	}
+	backend.rollback()
+	return backend
+}
+
+// Quorum
+//
+// Create a simulated backend based on existing Ethereum service
+func NewSimulatedBackendFrom(ethereum *eth.Ethereum) *SimulatedBackend {
+	backend := &SimulatedBackend{
+		database:   ethereum.ChainDb(),
+		blockchain: ethereum.BlockChain(),
+		config:     ethereum.ChainConfig(),
+		events:     filters.NewEventSystem(new(event.TypeMux), &filterBackend{ethereum.ChainDb(), ethereum.BlockChain()}, false),
 	}
 	backend.rollback()
 	return backend
