@@ -76,6 +76,9 @@ type SendTxArgs struct {
 	// We accept "data" and "input" for backwards-compatibility reasons.
 	Data  *hexutil.Bytes `json:"data"`
 	Input *hexutil.Bytes `json:"input,omitempty"`
+	// QUORUM
+	IsPrivate bool `json:"isPrivate,omitempty"`
+	// END QUORUM
 }
 
 func (args SendTxArgs) String() string {
@@ -86,7 +89,7 @@ func (args SendTxArgs) String() string {
 	return err.Error()
 }
 
-func (args *SendTxArgs) toTransaction() *types.Transaction {
+func (args *SendTxArgs) toTransaction() (tx *types.Transaction) {
 	var input []byte
 	if args.Data != nil {
 		input = *args.Data
@@ -94,7 +97,12 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 		input = *args.Input
 	}
 	if args.To == nil {
-		return types.NewContractCreation(uint64(args.Nonce), (*big.Int)(&args.Value), uint64(args.Gas), (*big.Int)(&args.GasPrice), input)
+		tx = types.NewContractCreation(uint64(args.Nonce), (*big.Int)(&args.Value), uint64(args.Gas), (*big.Int)(&args.GasPrice), input)
+	} else {
+		tx = types.NewTransaction(uint64(args.Nonce), args.To.Address(), (*big.Int)(&args.Value), (uint64)(args.Gas), (*big.Int)(&args.GasPrice), input)
 	}
-	return types.NewTransaction(uint64(args.Nonce), args.To.Address(), (*big.Int)(&args.Value), (uint64)(args.Gas), (*big.Int)(&args.GasPrice), input)
+	if args.IsPrivate {
+		tx.SetPrivate()
+	}
+	return
 }

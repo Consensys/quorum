@@ -59,7 +59,7 @@ func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
 
 	// Change to Prepared state if we've received enough PREPARE messages or it is locked
 	// and we are in earlier state before Prepared state.
-	if ((c.current.IsHashLocked() && prepare.Digest == c.current.GetLockedHash()) || c.current.GetPrepareOrCommitSize() > 2*c.valSet.F()) &&
+	if ((c.current.IsHashLocked() && prepare.Digest == c.current.GetLockedHash()) || c.current.GetPrepareOrCommitSize() >= c.QuorumSize()) &&
 		c.state.Cmp(StatePrepared) < 0 {
 		c.current.LockHash()
 		c.setState(StatePrepared)

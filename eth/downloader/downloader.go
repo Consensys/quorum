@@ -1884,13 +1884,25 @@ func (d *Downloader) syncWithPeerUntil(p *peerConnection, hash common.Hash, td *
 		log.Info("Synchronisation terminated", "duration", time.Since(start))
 	}(time.Now())
 
-	remoteHeader, err := d.fetchHeader(p, hash)
+	frozen, _ := d.stateDB.Ancients()
+	localHeight := d.blockchain.CurrentBlock().NumberU64()
+
+	// check if recovering state db and only ancient db is present
+	// in this case its possible that local hash is not the latest
+	// as per raft wal. change header to remote header
+	var remoteHeader *types.Header
+	if localHeight == 0 && frozen > 0 {
+		// statedb was removed and is being recovered now
+		// we trust the peer height and sync upto that
+		remoteHeader, err = d.fetchHeight(p)
+	} else {
+		remoteHeader, err = d.fetchHeader(p, hash)
+	}
 	if err != nil {
 		return err
 	}
 
 	remoteHeight := remoteHeader.Number.Uint64()
-	localHeight := d.blockchain.CurrentBlock().NumberU64()
 
 	d.syncStatsLock.Lock()
 	if d.syncStatsChainHeight <= localHeight || d.syncStatsChainOrigin > localHeight {
