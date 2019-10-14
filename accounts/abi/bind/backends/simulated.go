@@ -91,7 +91,7 @@ func NewSimulatedBackendFrom(ethereum *eth.Ethereum) *SimulatedBackend {
 	backend := &SimulatedBackend{
 		database:   ethereum.ChainDb(),
 		blockchain: ethereum.BlockChain(),
-		config:     ethereum.ChainConfig(),
+		config:     ethereum.BlockChain().Config(),
 		events:     filters.NewEventSystem(new(event.TypeMux), &filterBackend{ethereum.ChainDb(), ethereum.BlockChain()}, false),
 	}
 	backend.rollback()

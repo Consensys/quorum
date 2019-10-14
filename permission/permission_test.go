@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/miner"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -111,7 +112,7 @@ func setup() {
 	}
 	ethConf := &eth.Config{
 		Genesis:   &core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 10000000000, Alloc: genesisAlloc},
-		Etherbase: guardianAddress,
+		Miner: miner.Config{Etherbase: guardianAddress},
 		Ethash: ethash.Config{
 			PowMode: ethash.ModeTest,
 		},
@@ -499,13 +500,13 @@ func tmpKeyStore(encrypted bool) (string, *keystore.KeyStore, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	new := keystore.NewPlaintextKeyStore
+	newKs := keystore.NewPlaintextKeyStore
 	if encrypted {
-		new = func(kd string) *keystore.KeyStore {
+		newKs = func(kd string) *keystore.KeyStore {
 			return keystore.NewKeyStore(kd, keystore.LightScryptN, keystore.LightScryptP)
 		}
 	}
-	return d, new(d), err
+	return d, newKs(d), err
 }
 
 func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
