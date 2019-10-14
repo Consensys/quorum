@@ -21,7 +21,9 @@ nav:
     - Consensus:
         - Consensus: Consensus/Consensus.md
         - Raft: Consensus/raft.md
-        - Istanbul: Consensus/istanbul-rpc-api.md
+        - Istanbul BFT:
+            - Consensus/ibft/istanbul-rpc-api.md
+            - Consensus/ibft/ibft-parameters.md
     - Transaction Processing: Transaction Processing/Transaction Processing.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
