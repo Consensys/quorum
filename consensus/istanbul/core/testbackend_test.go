@@ -110,7 +110,7 @@ func (self *testSystemBackend) Verify(proposal istanbul.Proposal) (time.Duration
 
 func (self *testSystemBackend) Sign(data []byte) ([]byte, error) {
 	testLogger.Warn("not sign any data")
-	return data, nil
+	return self.address.Bytes(), nil
 }
 
 func (self *testSystemBackend) CheckSignature([]byte, common.Address, []byte) error {
@@ -118,7 +118,7 @@ func (self *testSystemBackend) CheckSignature([]byte, common.Address, []byte) er
 }
 
 func (self *testSystemBackend) CheckValidatorSignature(data []byte, sig []byte) (common.Address, error) {
-	return common.Address{}, nil
+	return common.BytesToAddress(sig), nil
 }
 
 func (self *testSystemBackend) Hash(b interface{}) common.Hash {
