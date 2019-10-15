@@ -146,7 +146,6 @@ func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.
 			return errInvalidSigner
 		}
 	}
-	// Still return the message even the err is not nil
 	return nil
 }
 
