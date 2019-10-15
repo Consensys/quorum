@@ -109,7 +109,7 @@ func (self *testSystemBackend) Verify(proposal istanbul.Proposal) (time.Duration
 }
 
 func (self *testSystemBackend) Sign(data []byte) ([]byte, error) {
-	testLogger.Warn("not sign any data")
+	testLogger.Info("returning current backend address so that CheckValidatorSignature returns the same value")
 	return self.address.Bytes(), nil
 }
 
