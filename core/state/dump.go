@@ -19,7 +19,6 @@ package state
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -69,6 +68,27 @@ func (self *StateDB) RawDump() Dump {
 		dump.Accounts[common.Bytes2Hex(addr)] = account
 	}
 	return dump
+}
+
+func (self *StateDB) DumpAddress(address common.Address) (DumpAccount, bool) {
+	if !self.Exist(address) {
+		return DumpAccount{}, false
+	}
+
+	obj := self.getStateObject(address)
+	account := DumpAccount{
+		Balance:  obj.data.Balance.String(),
+		Nonce:    obj.data.Nonce,
+		Root:     common.Bytes2Hex(obj.data.Root[:]),
+		CodeHash: common.Bytes2Hex(obj.data.CodeHash),
+		Code:     common.Bytes2Hex(obj.Code(self.db)),
+		Storage:  make(map[string]string),
+	}
+	storageIt := trie.NewIterator(obj.getTrie(self.db).NodeIterator(nil))
+	for storageIt.Next() {
+		account.Storage[common.Bytes2Hex(self.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(storageIt.Value)
+	}
+	return account, true
 }
 
 func (self *StateDB) Dump() []byte {
