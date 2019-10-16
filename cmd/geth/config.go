@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	contractExtension "github.com/ethereum/go-ethereum/contract-extension"
 	"io"
 	"os"
 	"reflect"
@@ -171,6 +172,10 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
 	}
 
+	if os.Getenv("CONTRACT_EXTENSION_SERVER") != "" {
+		RegisterExtensionService(stack)
+	}
+
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
 	shhEnabled := enableWhisper(ctx)
 	shhAutoEnabled := !ctx.GlobalIsSet(utils.WhisperEnabledFlag.Name) && ctx.GlobalIsSet(utils.DeveloperFlag.Name)
@@ -276,6 +281,14 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 	}
 }
 
+func RegisterExtensionService(stack *node.Node) {
+	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
+		return contractExtension.New(stack)
+	}
+	if err := stack.Register(registerFunc); err != nil {
+		utils.Fatalf("Failed to register the Privacy service: %v", err)
+	}
+}
 // quorumValidatePrivateTransactionManager returns whether the "PRIVATE_CONFIG"
 // environment variable is set
 func quorumValidatePrivateTransactionManager() bool {
