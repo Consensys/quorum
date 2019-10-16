@@ -124,10 +124,11 @@ func testSubjectWithSignature(t *testing.T) {
 
 	subjectPayload, _ := Encode(s)
 	// 1. Encode test
+	address := common.HexToAddress("0x1234567890")
 	m := &message{
 		Code:          msgPreprepare,
 		Msg:           subjectPayload,
-		Address:       common.HexToAddress("0x1234567890"),
+		Address:       address,
 		Signature:     expectedSig,
 		CommittedSeal: []byte{},
 	}
@@ -141,7 +142,7 @@ func testSubjectWithSignature(t *testing.T) {
 	// 2.1 Test normal validate func
 	decodedMsg := new(message)
 	err = decodedMsg.FromPayload(msgPayload, func(data []byte, sig []byte) (common.Address, error) {
-		return common.Address{}, nil
+		return address, nil
 	})
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want nil", err)
