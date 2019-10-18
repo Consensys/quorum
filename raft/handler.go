@@ -422,8 +422,7 @@ func (pm *ProtocolManager) startRaft() {
 			for _, entry := range entries {
 				if entry.Type == raftpb.EntryNormal {
 					var block types.Block
-					err := rlp.DecodeBytes(entry.Data, &block)
-					if err != nil {
+					if err := rlp.DecodeBytes(entry.Data, &block); err != nil {
 						log.Error("error decoding block: ", err)
 						continue
 					}
@@ -431,8 +430,7 @@ func (pm *ProtocolManager) startRaft() {
 					if thisBlockHead := pm.blockchain.GetBlockByHash(block.Hash()); thisBlockHead != nil {
 						// check if the block is already existing in the local chain
 						// and the block number is greater than current chain head
-						thisBlockHeadNum := thisBlockHead.Number()
-						if thisBlockHeadNum.Cmp(currentChainHead) > 0 {
+						if thisBlockHeadNum := thisBlockHead.Number(); thisBlockHeadNum.Cmp(currentChainHead) > 0 {
 							// insert the block only if its already seen
 							blocks := []*types.Block{&block}
 							if _, err := pm.blockchain.InsertChain(blocks); err != nil {
