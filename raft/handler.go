@@ -32,7 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/syndtr/goleveldb/leveldb"
 
-	"github.com/deckarep/golang-set"
+	mapset "github.com/deckarep/golang-set"
 )
 
 type ProtocolManager struct {
@@ -793,7 +793,7 @@ func (pm *ProtocolManager) eventLoop() {
 					case raftpb.ConfChangeAddNode:
 						if pm.isRaftIdRemoved(raftId) {
 							log.Info("ignoring ConfChangeAddNode for permanently-removed peer", "raft id", raftId)
-						} else if pm.isRaftIdUsed(raftId) && raftId <= uint16(len(pm.bootstrapNodes))  {
+						} else if pm.isRaftIdUsed(raftId) && raftId <= uint16(len(pm.bootstrapNodes)) {
 							// See initial cluster logic in startRaft() for more information.
 							log.Info("ignoring expected ConfChangeAddNode for initial peer", "raft id", raftId)
 
@@ -893,10 +893,6 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 	return
 }
 
-func sleep(duration time.Duration) {
-	<-time.NewTimer(duration).C
-}
-
 func blockExtendsChain(block *types.Block, chain *core.BlockChain) bool {
 	return block.ParentHash() == chain.CurrentBlock().Hash()
 }
@@ -957,4 +953,18 @@ func (pm *ProtocolManager) LeaderAddress() (*Address, error) {
 	}
 	// We expect to reach this if pm.leader is 0, which is how etcd denotes the lack of a leader.
 	return nil, errors.New("no leader is currently elected")
+}
+
+// Returns the raft id for a given enodeId
+func (pm *ProtocolManager) FetchRaftId(enodeId string) (uint16, error) {
+	node, err := enode.ParseV4(enodeId)
+	if err != nil {
+		return 0, err
+	}
+	for raftId, peer := range pm.peers {
+		if peer.p2pNode.ID() == node.ID() {
+			return raftId, nil
+		}
+	}
+	return 0, fmt.Errorf("node not found in the cluster: %v", enodeId)
 }

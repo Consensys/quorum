@@ -5,10 +5,11 @@ import (
 	"net"
 
 	"fmt"
+	"log"
+
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rlp"
-	"log"
 )
 
 // Serializable information about a Peer. Sufficient to build `etcdRaft.Peer`

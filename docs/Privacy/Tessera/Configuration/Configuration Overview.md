@@ -135,6 +135,28 @@ Unix Socket:
 ### TLS/SSL: server sub-config
 See [TLS/SSL](../TLS) page.
 
+### CORS: server sub-config
+For the ThirdParty server type it may be relevant to configure CORS.
+```
+{
+    "app":"ThirdParty",
+    "enabled": true,
+    "serverAddress": "http://localhost:9081",
+    "communicationType" : "REST",
+    "cors" : {
+        "allowedMethods" : ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+        "allowedOrigins" : ["http://localhost:63342"],
+        "allowedHeaders" : ["content-type"],
+        "allowCredentials" : true
+    }
+},
+```
+The configurale fields are:
+* `allowedMethods` - the list of allowed HTTP methods. If omitted the default list containing `"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"` is used.
+* `allowedOrigins` - the list of domains from which to accept cross origin requests (browser enforced). Each entry in the list can contain the "*" (wildcard) character which matches any sequence of characters. Ex: "*locahost" would match "http://localhost" or "https://localhost". There is no default for this field.
+* `allowedHeaders` - the list of allowed headers. If omitted the request `Access-Control-Request-Headers` are copied into the response as `Access-Control-Allow-Headers`.
+* `allowCredentials` - the value for the `Access-Control-Allow-Credentials` response header. If omitted the default `true` value would be used.  
+
 ### InfluxDB Config: server sub-config
 Configuration details to allow Tessera to record monitoring data to a running InfluxDB instance.
 ```

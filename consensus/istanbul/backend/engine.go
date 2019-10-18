@@ -27,8 +27,8 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
+	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -289,8 +289,8 @@ func (sb *backend) verifyCommittedSeals(chain consensus.ChainReader, header *typ
 		}
 	}
 
-	// The length of validSeal should be larger than number of faulty node + 1
-	if validSeal <= 2*snap.ValSet.F() {
+	// The length of validSeal should be larger than number of faulty node + 1  
+	if validSeal <= snap.ValSet.F() {
 		return errInvalidCommittedSeals
 	}
 
@@ -416,42 +416,45 @@ func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, results
 		return err
 	}
 
-	// wait for the timestamp of header, use this to adjust the block period
-	delay := time.Unix(block.Header().Time.Int64(), 0).Sub(now())
-	select {
-	case <-time.After(delay):
-	case <-stop:
-		results <- nil
-		return nil
-	}
+	delay := time.Unix(header.Time.Int64(), 0).Sub(now())
 
-	// get the proposed block hash and clear it if the seal() is completed.
-	sb.sealMu.Lock()
-	sb.proposedBlockHash = block.Hash()
-	clear := func() {
-		sb.proposedBlockHash = common.Hash{}
-		sb.sealMu.Unlock()
-	}
-	defer clear()
-
-	// post block into Istanbul engine
-	go sb.EventMux().Post(istanbul.RequestEvent{
-		Proposal: block,
-	})
-	for {
+	go func() {
+		// wait for the timestamp of header, use this to adjust the block period
 		select {
-		case result := <-sb.commitCh:
-			// if the block hash and the hash from channel are the same,
-			// return the result. Otherwise, keep waiting the next hash.
-			if result != nil && block.Hash() == result.Hash() {
-				results <- result
-				return nil
-			}
+		case <-time.After(delay):
 		case <-stop:
 			results <- nil
-			return nil
+			return
 		}
-	}
+
+		// get the proposed block hash and clear it if the seal() is completed.
+		sb.sealMu.Lock()
+		sb.proposedBlockHash = block.Hash()
+
+		defer func() {
+			sb.proposedBlockHash = common.Hash{}
+			sb.sealMu.Unlock()
+		}()
+		// post block into Istanbul engine
+		go sb.EventMux().Post(istanbul.RequestEvent{
+			Proposal: block,
+		})
+		for {
+			select {
+			case result := <-sb.commitCh:
+				// if the block hash and the hash from channel are the same,
+				// return the result. Otherwise, keep waiting the next hash.
+				if result != nil && block.Hash() == result.Hash() {
+					results <- result
+					return
+				}
+			case <-stop:
+				results <- nil
+				return
+			}
+		}
+	}()
+	return nil
 }
 
 // update timestamp and signature of the block based on its number of transactions
@@ -615,7 +618,6 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	hasher.Sum(hash[:0])
 	return hash
 }
-
 
 // SealHash returns the hash of a block prior to it being sealed.
 func (sb *backend) SealHash(header *types.Header) common.Hash {

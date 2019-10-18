@@ -2,13 +2,14 @@
 
 ## Introduction
 
-The link attached holds an implementation of a [Raft](https://raft.github.io)-based consensus mechanism (using [etcd](https://github.com/coreos/etcd)'s [Raft implementation](https://github.com/coreos/etcd/tree/master/raft)) as an alternative to Ethereum's default proof-of-work. This is useful for closed-membership/consortium settings where byzantine fault tolerance is not a requirement, and there is a desire for faster blocktimes (on the order of milliseconds instead of seconds) and transaction finality (the absence of forking.) Also, compared with QuorumChain, this consensus mechanism does not "unnecessarily" create empty blocks, and effectively creates blocks "on-demand."
+Quorum includes an implementation of a [Raft](https://raft.github.io)-based consensus mechanism (using [etcd](https://github.com/coreos/etcd)'s [Raft implementation](https://github.com/coreos/etcd/tree/master/raft)) as an alternative to Ethereum's default proof-of-work. This is useful for closed-membership/consortium settings where byzantine fault tolerance is not a requirement, and there is a desire for faster blocktimes (on the order of milliseconds instead of seconds) and transaction finality (the absence of forking.) This consensus mechanism does not "unnecessarily" create empty blocks, and effectively creates blocks "on-demand."
 
 When the `geth` binary is passed the `--raft` flag, the node will operate in "raft mode."
 
 ## Some implementation basics
 
-Note: Though we use the etcd implementation of the Raft protocol, we speak of "Raft" more broadly to refer to the Raft protocol, and its use to achieve consensus for Quorum/Ethereum.
+!!! note 
+    Though we use the etcd implementation of the Raft protocol, we speak of "Raft" more broadly to refer to the Raft protocol, and its use to achieve consensus for Quorum/Ethereum.
 
 Both Raft and Ethereum have their own notion of a "node":
 
@@ -25,7 +26,7 @@ verifier | follower
 
 The main reasons we co-locate the leader and minter are (1) convenience, in that Raft ensures there is only one leader at a time, and (2) to avoid a network hop from a node minting blocks to the leader, through which all Raft writes must flow. Our implementation watches Raft leadership changes -- if a node becomes a leader it will start minting, and if a node loses its leadership, it will stop minting.
 
-An observant reader might note that during raft leadership transitions, there could be a small period of time where more than one node might assume that it has minting duties; we detail how correctness is preserved in more detail later in this document.
+An observant reader might note that during raft leadership transitions, there could be a small period of time where more than one node might assume that it has minting duties; we detail how correctness is preserved in the [Chain extension, races, and correctness](#chain-extension-races-and-correctness) section.
 
 We use the existing Ethereum p2p transport layer to communicate transactions between nodes, but we communicate blocks only through the Raft transport layer. They are created by the minter and flow from there to the rest of the cluster, always in the same order, via Raft.
 
@@ -45,7 +46,7 @@ Let's follow the lifecycle of a typical transaction:
 #### on the minter:
 
 3. It reaches the minter, where it's included in the next block (see `mintNewBlock`) via the transaction pool.
-4. Block creation triggers a [`NewMinedBlockEvent`](https://godoc.org/github.com/jpmorganchase/quorum/core#NewMinedBlockEvent), which the Raft protocol manager receives via its subscription `minedBlockSub`. The `minedBroadcastLoop` (in raft/handler.go) puts this new block to the `ProtocolManager.blockProposalC` channel.
+4. Block creation triggers a [`NewMinedBlockEvent`](https://godoc.org/github.com/jpmorganchase/quorum/core#NewMinedBlockEvent), which the Raft protocol manager receives via its subscription `minedBlockSub`. The `minedBroadcastLoop` (in `raft/handler.go`) puts this new block to the `ProtocolManager.blockProposalC` channel.
 5. `serveLocalProposals` is waiting at the other end of the channel. Its job is to RLP-encode blocks and propose them to Raft. Once it flows through Raft, this block will likely become the new head of the blockchain (on all nodes.)
 
 #### on every node:
@@ -57,9 +58,9 @@ Let's follow the lifecycle of a typical transaction:
 8. The block is now handled by `applyNewChainHead`. This method checks whether the block extends the chain (i.e. it's parent is the current head of the chain; see below). If it does not extend the chain, it is simply ignored as a no-op. If it does extend chain, the block is validated and then written as the new head of the chain by [`InsertChain`](https://godoc.org/github.com/jpmorganchase/quorum/core#BlockChain.InsertChain).
 
 9. A [`ChainHeadEvent`](https://godoc.org/github.com/jpmorganchase/quorum/core#ChainHeadEvent) is posted to notify listeners that a new block has been accepted. This is relevant to us because:
-* It removes the relevant transaction from the transaction pool.
-* It removes the relevant transaction from `speculativeChain`'s `proposedTxes` (see below).
-* It triggers `requestMinting` in (minter.go), telling the node to schedule the minting of a new block if any more transactions are pending.
+    * It removes the relevant transaction from the transaction pool.
+    * It removes the relevant transaction from `speculativeChain`'s `proposedTxes` (see below).
+    * It triggers `requestMinting` in (`minter.go`), telling the node to schedule the minting of a new block if any more transactions are pending.
 
 The transaction is now available on all nodes in the cluster with complete finality. Because Raft guarantees a single ordering of entries stored in its log, and because everything that is committed is guaranteed to remain so, there is no forking of the blockchain built upon Raft.
 
@@ -118,13 +119,13 @@ This default of 50ms is configurable via the `--raftblocktime` flag to geth.
 
 One of the ways our approach differs from vanilla Ethereum is that we introduce a new concept of "speculative minting." This is not strictly required for the core functionality of Raft-based Ethereum consensus, but rather it is an optimization that affords lower latency between blocks (or: faster transaction "finality.")
 
-It takes some time for a block to flow through Raft (consensus) to become the head of the chain. If we synchronously waited for a block to become the new head of the chain before creating the new block, any transactions that we receive would take more time to make it into the chain.
+It takes some time for a block to flow through Raft (consensus) and become the head of the chain. If we synchronously waited for a block to become the new head of the chain before creating the new block, any transactions that we receive would take more time to make it into the chain.
 
 In speculative minting we allow the creation of a new block (and its proposal to Raft) before its parent has made it all the way through Raft and into the blockchain.
 
 Since this can happen repeatedly, these blocks (which each have a reference to their parent block) can form a sort of chain. We call this a "speculative chain."
 
-During the course of operation that a speculative chain forms, we keep track of the subset of transactions in the pool that we have already put into blocks (in the speculative chain) that have not yet made it into the blockchain (and whereupon a [`core.ChainHeadEvent`](https://godoc.org/github.com/jpmorganchase/quorum/core#ChainHeadEvent) occurs.) These are called "proposed transactions" (see speculative_chain.go).
+During the course of operation that a speculative chain forms, we keep track of the subset of transactions in the pool that we have already put into blocks (in the speculative chain) that have not yet made it into the blockchain (and whereupon a [`core.ChainHeadEvent`](https://godoc.org/github.com/jpmorganchase/quorum/core#ChainHeadEvent) occurs.) These are called "proposed transactions" (see `speculative_chain.go`).
 
 Per the presence of "races" (as we detail above), it is possible that a block somewhere in the middle of a speculative chain ends up not making into the chain. In this scenario an [`InvalidRaftOrdering`](https://godoc.org/github.com/jpmorganchase/quorum/raft#InvalidRaftOrdering) event will occur, and we clean up the state of the speculative chain accordingly.
 
@@ -135,14 +136,14 @@ There is currently no limit to the length of these speculative chains, but we pl
 * `head`: The last-created speculative block. This can be `nil` if the last-created block is already included in the blockchain.
 * `proposedTxes`: The set of transactions which have been proposed to Raft in some block, but not yet included in the blockchain.
 * `unappliedBlocks`: A queue of blocks which have been proposed to Raft but not yet committed to the blockchain.
-  - When minting a new block, we enqueue it at the end of this queue
-  - `accept` is called to remove the oldest speculative block when it's accepted into the blockchain.
-  - When an [`InvalidRaftOrdering`](https://godoc.org/github.com/jpmorganchase/quorum/raft#InvalidRaftOrdering) occurs, we unwind the queue by popping the most recent blocks from the "new end" of the queue until we find the invalid block. We must repeatedly remove these "newer" speculative blocks because they are all dependent on a block that we know has not been included in the blockchain.
+    - When minting a new block, we enqueue it at the end of this queue
+    - `accept` is called to remove the oldest speculative block when it's accepted into the blockchain.
+    - When an [`InvalidRaftOrdering`](https://godoc.org/github.com/jpmorganchase/quorum/raft#InvalidRaftOrdering) occurs, we unwind the queue by popping the most recent blocks from the "new end" of the queue until we find the invalid block. We must repeatedly remove these "newer" speculative blocks because they are all dependent on a block that we know has not been included in the blockchain.
 * `expectedInvalidBlockHashes`: The set of blocks which build on an invalid block, but haven't passsed through Raft yet. We remove these as we get them back. When these non-extending blocks come back through Raft we remove them from the speculative chain. We use this set as a "guard" against trying to trim the speculative chain when we shouldn't.
 
 ## The Raft transport layer
 
-We communicate blocks over the HTTP transport layer built in to etcd Raft. It's also (at least theoretically) possible to use p2p protocol built-in to Ethereum as a transport for Raft. In our testing we found the default etcd HTTP transport to be more reliable than the p2p (at least as implemented in geth) under high load.
+We communicate blocks over the HTTP transport layer built in to etcd Raft. It's also (at least theoretically) possible to use the p2p protocol built-in to Ethereum as a transport for Raft. In our testing we found the default etcd HTTP transport to be more reliable than the p2p (at least as implemented in geth) under high load.
 
 Quorum listens on port 50400 by default for the raft transport, but this is configurable with the `--raftport` flag.
 
