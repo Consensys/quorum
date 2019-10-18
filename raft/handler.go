@@ -425,18 +425,18 @@ func (pm *ProtocolManager) startRaft() {
 					err := rlp.DecodeBytes(entry.Data, &block)
 					if err != nil {
 						log.Error("error decoding block: ", err)
-					} else {
-						if pm.blockchain.GetBlockByHash(block.Hash()) != nil {
-							// check if the block is already existing in the local chain
-							// and the block number is greater than current chain head
-							thisBlockHead := pm.blockchain.GetBlockByHash(block.Hash()).Number()
-							if thisBlockHead.Cmp(currentChainHead) > 0 {
-								// insert the block only if its already seen
-								blocks := types.Blocks(make([]*types.Block, 0))
-								blocks = append(blocks, &block)
-								if _, err := pm.blockchain.InsertChain(blocks); err != nil {
-									log.Error("error inserting the block into the chain", "err", err)
-								}
+						continue
+					}
+
+					if thisBlockHead := pm.blockchain.GetBlockByHash(block.Hash()); thisBlockHead != nil {
+						// check if the block is already existing in the local chain
+						// and the block number is greater than current chain head
+						thisBlockHeadNum := thisBlockHead.Number()
+						if thisBlockHeadNum.Cmp(currentChainHead) > 0 {
+							// insert the block only if its already seen
+							blocks := []*types.Block{&block}
+							if _, err := pm.blockchain.InsertChain(blocks); err != nil {
+								log.Error("error inserting the block into the chain", "number", block.NumberU64(), "hash", block.Hash(), "err", err)
 							}
 						}
 					}
