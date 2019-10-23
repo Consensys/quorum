@@ -432,7 +432,6 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}()
 	}
 
-
 	// Quorum
 	//
 	// checking if permissions is enabled and staring the permissions service

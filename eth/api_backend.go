@@ -168,7 +168,7 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 
 }
 
-func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error) {
+func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (vm.MinimalApiState, *types.Header, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return b.StateAndHeaderByNumber(ctx, blockNr)
 	}
@@ -183,8 +183,9 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 		if blockNrOrHash.RequireCanonical && b.eth.blockchain.GetCanonicalHash(header.Number.Uint64()) != hash {
 			return nil, nil, errors.New("hash is not currently canonical")
 		}
-		stateDb, err := b.eth.BlockChain().StateAt(header.Root)
-		return stateDb, header, err
+		stateDb, privateState, err := b.eth.BlockChain().StateAt(header.Root)
+		return EthAPIState{stateDb, privateState}, header, err
+
 	}
 	return nil, nil, errors.New("invalid arguments; neither block nor hash specified")
 }
@@ -361,6 +362,46 @@ func (s EthAPIState) GetCode(addr common.Address) []byte {
 		return s.privateState.GetCode(addr)
 	}
 	return s.state.GetCode(addr)
+}
+
+func (s EthAPIState) SetNonce(addr common.Address, nonce uint64) {
+	if s.privateState.Exist(addr) {
+		s.privateState.SetNonce(addr, nonce)
+	} else {
+		s.state.SetNonce(addr, nonce)
+	}
+}
+
+func (s EthAPIState) SetCode(addr common.Address, code []byte) {
+	if s.privateState.Exist(addr) {
+		s.privateState.SetCode(addr, code)
+	} else {
+		s.state.SetCode(addr, code)
+	}
+}
+
+func (s EthAPIState) SetBalance(addr common.Address, balance *big.Int) {
+	if s.privateState.Exist(addr) {
+		s.privateState.SetBalance(addr, balance)
+	} else {
+		s.state.SetBalance(addr, balance)
+	}
+}
+
+func (s EthAPIState) SetStorage(addr common.Address, storage map[common.Hash]common.Hash) {
+	if s.privateState.Exist(addr) {
+		s.privateState.SetStorage(addr, storage)
+	} else {
+		s.state.SetStorage(addr, storage)
+	}
+}
+
+func (s EthAPIState) SetState(a common.Address, key common.Hash, value common.Hash) {
+	if s.privateState.Exist(a) {
+		s.privateState.SetState(a, key, value)
+	} else {
+		s.state.SetState(a, key, value)
+	}
 }
 
 func (s EthAPIState) GetState(a common.Address, b common.Hash) common.Hash {

@@ -424,12 +424,12 @@ func (api *PrivateDebugAPI) AccountRange(ctx context.Context, start *common.Hash
 	block := api.eth.blockchain.CurrentBlock()
 
 	if len(block.Transactions()) == 0 {
-		statedb, err = api.computeStateDB(block, defaultTraceReexec)
+		statedb, _, err = api.computeStateDB(block, defaultTraceReexec)
 		if err != nil {
 			return AccountRangeResult{}, err
 		}
 	} else {
-		_, _, statedb, err = api.computeTxEnv(block.Hash(), len(block.Transactions())-1, 0)
+		_, _, _, statedb, err = api.computeTxEnv(block.Hash(), len(block.Transactions())-1, 0)
 		if err != nil {
 			return AccountRangeResult{}, err
 		}

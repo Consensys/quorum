@@ -608,9 +608,8 @@ func (w *worker) resultLoop() {
 				logs = append(logs, receipt.Logs...)
 			}
 
-
 			// write private transacions
-				privateStateRoot, err := task.privateState.Commit(w.chainConfig.IsEIP158(block.Number()))
+			privateStateRoot, err := task.privateState.Commit(w.chainConfig.IsEIP158(block.Number()))
 			if err != nil {
 				log.Error("Failed committing private state root", "err", err)
 				continue

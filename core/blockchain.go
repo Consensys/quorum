@@ -213,7 +213,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		bodyRLPCache:      bodyRLPCache,
 		receiptsCache:     receiptsCache,
 		blockCache:        blockCache,
-		txLookupCache:  txLookupCache,
+		txLookupCache:     txLookupCache,
 		futureBlocks:      futureBlocks,
 		engine:            engine,
 		vmConfig:          vmConfig,

@@ -825,7 +825,7 @@ func (api *PrivateDebugAPI) computeTxEnv(blockHash common.Hash, txIndex int, ree
 	}
 
 	if txIndex == 0 && len(block.Transactions()) == 0 {
-		return nil, vm.Context{}, statedb, nil
+		return nil, vm.Context{}, statedb, privateStateDb, nil
 	}
 
 	// Recompute transactions up to the target index.

@@ -67,7 +67,6 @@ const (
 // encoded size instead of the transaction count
 const txSizeCostLimit = 0x4000
 
-
 const (
 	announceTypeNone = iota
 	announceTypeSimple
