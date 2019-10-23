@@ -277,6 +277,8 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 
 		log.Info(chainExtensionMessage, "hash", pm.blockchain.CurrentBlock().Hash())
 	} else {
+		// added for permissions changes to indicate node sync up has started
+		types.SetSyncStatus()
 		log.Info("blockchain is caught up; no need to synchronize")
 	}
 
