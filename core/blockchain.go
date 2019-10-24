@@ -1149,6 +1149,11 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		// If the chain is terminating, stop processing blocks
 		if atomic.LoadInt32(&bc.procInterrupt) == 1 {
 			log.Debug("Premature abort during blocks processing")
+			// QUORUM
+			if bc.chainConfig.Istanbul == nil && bc.chainConfig.Clique == nil {
+				return i, events, coalescedLogs, ErrInsertChainInterrupted
+			}
+			// END QUORUM
 			break
 		}
 		// If the header is a banned one, straight out abort
