@@ -28,8 +28,13 @@ func CheckIfExtensionHappened(txLogs []*types.Log, privateState *state.StateDB) 
 		if err := extension.ContractExtensionABI.Unpack(decodedLog, "StateShared", txLog.Data); err != nil {
 			return
 		}
+		accounts, found := FetchStateData(decodedLog.Hash, decodedLog.Uuid)
+		if !found {
+			return
+		}
+
 		snapshotId := privateState.Snapshot()
-		if success := HandleExtensionRequest(decodedLog.Hash, decodedLog.Uuid, privateState); !success {
+		if success := SetState(privateState, accounts); !success {
 			privateState.RevertToSnapshot(snapshotId)
 		}
 	}
@@ -42,32 +47,29 @@ func LogContainsExtensionTopic(receivedLog *types.Log) bool {
 	return receivedLog.Topics[0].String() == stateSharedTopicHash
 }
 
-func HandleExtensionRequest(hash string, uuid string, privateState *state.StateDB) bool {
+func FetchStateData(hash string, uuid string) (map[string]extension.AccountWithMetadata, bool) {
 	if uuidIsSentByUs := UuidIsOwn(uuid); !uuidIsSentByUs {
-		return false
+		return nil, false
 	}
 
-	stateData, ok := FetchData(hash)
+	stateData, ok := FetchDataFromPTM(hash)
 	if !ok {
 		//there is nothing to do here, the state wasn't shared with us
 		log.Info("Extension", "No state shared with us")
-		return false
+		return nil, false
 	}
 
 	var accounts map[string]extension.AccountWithMetadata
 	if err := json.Unmarshal(stateData, &accounts); err != nil {
 		log.Info("Extension", "Could not unmarshal data")
-		return false
+		return nil, false
 	}
-
-	SetState(privateState, accounts)
-
-	return true
+	return accounts, true
 }
 
 // Checks
 
-func FetchData(hash string) ([]byte, bool){
+func FetchDataFromPTM(hash string) ([]byte, bool){
 	ptmHash, _ := base64.StdEncoding.DecodeString(hash)
 	stateData, err := private.P.Receive(ptmHash)
 
