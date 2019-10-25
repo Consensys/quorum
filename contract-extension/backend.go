@@ -70,6 +70,7 @@ type ExtensionContract struct {
 type PrivacyService struct {
 	ethereum		 *eth.Ethereum
 	client			 *ethclient.Client
+	ptm				 private.PrivateTransactionManager
 
 	dataDir 		 string
 
@@ -77,12 +78,13 @@ type PrivacyService struct {
 	currentContracts map[common.Address]*ExtensionContract
 }
 
-func New(node *node.Node) (*PrivacyService, error) {
+func New(node *node.Node, ptm private.PrivateTransactionManager) (*PrivacyService, error) {
 	dataDir := node.InstanceDir()
 
 	service := &PrivacyService{
 		currentContracts: make(map[common.Address]*ExtensionContract),
 		dataDir:		  dataDir,
+		ptm:			  ptm,
 	}
 
 	go service.initialise(node)
@@ -226,7 +228,7 @@ func (service *PrivacyService) watchForVoteCompleteEvents(address common.Address
 
 		//fetch all the participants and send
 		payload := common.BytesToEncryptedPayloadHash(extensionEntry.CreationData)
-		fetchedParties, err := private.P.GetParticipants(payload)
+		fetchedParties, err := service.ptm.GetParticipants(payload)
 		if err != nil {
 			log.Error("Extension", "Unable to fetch parties for PSV extension")
 			return
@@ -241,14 +243,14 @@ func (service *PrivacyService) watchForVoteCompleteEvents(address common.Address
 
 		recipientHash, _ := caller.TargetRecipientPublicKeyHash(&bind.CallOpts{Pending: false})
 		decoded, _ := base64.StdEncoding.DecodeString(recipientHash)
-		recipient, _ := private.P.Receive(decoded)
+		recipient, _ := service.ptm.Receive(decoded)
 
 		//we found the account, so we can send
 		privateState, _ := service.privateState(event.Raw.BlockHash)
 		jsonMap := getAddressState(privateState, extensionEntry.Address)
 
 		//send to PTM
-		hash, _ := private.P.Send(jsonMap, "", []string{string(recipient)})
+		hash, _ := service.ptm.Send(jsonMap, "", []string{string(recipient)})
 		hashB64 := base64.StdEncoding.EncodeToString(hash)
 
 		transactor, _ := extension.NewContractExtenderTransactor(event.Raw.Address, service.client)
