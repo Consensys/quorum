@@ -17,7 +17,7 @@ of the other nodes who the extender wants to vote, as well as the **PTM public k
 
 The API is invoked like so:
 ```
-quorum.extendContract(
+quorumExtension.extendContract(
     "<address of contract to share>", 
     "<new recipient public key>", 
     [<ethereum addresses who can vote>],
@@ -30,7 +30,7 @@ quorum.extendContract(
  
 The API is invoked like so:
 ```
-quorum.accept(
+quorumExtension.accept(
     "<extension management contract address>", 
     <normal tx args, which are used to send the transactions>
 )
@@ -42,7 +42,7 @@ of all the votes.
 
 The API is invoked like so:
 ```
-quorum.voteOnContract(
+quorumExtension.voteOnContract(
     "<extension management contract address>", 
     <boolean, which way to vote>, 
     <normal tx args, which are used to send the transactions>
@@ -61,12 +61,8 @@ contract.
 
 ### Viewing outstanding contracts
 
-Current extension requests can be viewed by calling the `quorum.activeExtensionContracts` endpoint which
-will return a list of currently active contracts. The result looks like:
-
-```
-
-```
+Current extension requests can be viewed by calling the `quorumExtension.activeExtensionContracts` endpoint which
+will return a list of currently active contracts.
 
 ### Cancelling an extension
 
@@ -77,7 +73,7 @@ all get the notification that the extension is cancelled.
 
 The API is invoked like so:
 ```
-quorum.cancel(
+quorumExtension.cancel(
     "<extension management contract address>", 
     <normal tx args, which are used to send the transactions>
 )
