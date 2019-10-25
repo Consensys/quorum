@@ -9,12 +9,19 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private"
-	"math/big"
 )
 
-const stateSharedTopicHash = "0x40b79448ff8678eac1487385427aa682ee6ee831ce0702c09f95255645428531"
+var DefaultExtensionHandler = NewExtensionHandler(private.P)
 
-func CheckIfExtensionHappened(txLogs []*types.Log, privateState *state.StateDB) {
+type ExtensionHandler struct {
+	ptm 			private.PrivateTransactionManager
+}
+
+func NewExtensionHandler(transactionManager private.PrivateTransactionManager) *ExtensionHandler {
+	return &ExtensionHandler{ptm: transactionManager}
+}
+
+func (handler *ExtensionHandler) CheckIfExtensionHappened(txLogs []*types.Log, privateState *state.StateDB) {
 	// there should be two logs,
 	// the first being the state extension log, the second being the event finished log
 	if len(txLogs) != 2 {
@@ -22,37 +29,30 @@ func CheckIfExtensionHappened(txLogs []*types.Log, privateState *state.StateDB) 
 		return
 	}
 
-	if txLog := txLogs[0]; LogContainsExtensionTopic(txLog) {
+	if txLog := txLogs[0]; logContainsExtensionTopic(txLog) {
 		//this is a direct state share
 		decodedLog := new(extension.ContractExtenderStateShared)
 		if err := extension.ContractExtensionABI.Unpack(decodedLog, "StateShared", txLog.Data); err != nil {
 			return
 		}
-		accounts, found := FetchStateData(decodedLog.Hash, decodedLog.Uuid)
+		accounts, found := handler.FetchStateData(decodedLog.Hash, decodedLog.Uuid)
 		if !found {
 			return
 		}
 
 		snapshotId := privateState.Snapshot()
-		if success := SetState(privateState, accounts); !success {
+		if success := setState(privateState, accounts); !success {
 			privateState.RevertToSnapshot(snapshotId)
 		}
 	}
 }
 
-func LogContainsExtensionTopic(receivedLog *types.Log) bool {
-	if len(receivedLog.Topics) != 1 {
-		return false
-	}
-	return receivedLog.Topics[0].String() == stateSharedTopicHash
-}
-
-func FetchStateData(hash string, uuid string) (map[string]extension.AccountWithMetadata, bool) {
-	if uuidIsSentByUs := UuidIsOwn(uuid); !uuidIsSentByUs {
+func (handler *ExtensionHandler) FetchStateData(hash string, uuid string) (map[string]extension.AccountWithMetadata, bool) {
+	if uuidIsSentByUs := handler.UuidIsOwn(uuid); !uuidIsSentByUs {
 		return nil, false
 	}
 
-	stateData, ok := FetchDataFromPTM(hash)
+	stateData, ok := handler.FetchDataFromPTM(hash)
 	if !ok {
 		//there is nothing to do here, the state wasn't shared with us
 		log.Info("Extension", "No state shared with us")
@@ -69,9 +69,9 @@ func FetchStateData(hash string, uuid string) (map[string]extension.AccountWithM
 
 // Checks
 
-func FetchDataFromPTM(hash string) ([]byte, bool){
+func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, bool){
 	ptmHash, _ := base64.StdEncoding.DecodeString(hash)
-	stateData, err := private.P.Receive(ptmHash)
+	stateData, err := handler.ptm.Receive(ptmHash)
 
 	if stateData == nil || err != nil {
 		return nil, false
@@ -79,7 +79,7 @@ func FetchDataFromPTM(hash string) ([]byte, bool){
 	return stateData, true
 }
 
-func UuidIsOwn(uuid string) bool {
+func (handler *ExtensionHandler) UuidIsOwn(uuid string) bool {
 	if uuid == "" {
 		//we never called accept
 		log.Info("Extension", "State shared by accept never called")
@@ -87,32 +87,10 @@ func UuidIsOwn(uuid string) bool {
 	}
 	encryptedTxHash := common.BytesToEncryptedPayloadHash(common.FromHex(uuid))
 
-	isSender, err := private.P.IsSender(encryptedTxHash)
+	isSender, err := handler.ptm.IsSender(encryptedTxHash)
 	if err != nil || !isSender {
 		log.Info("Extension", "We are not the sender")
 		return false
-	}
-	return true
-}
-
-func SetState(privateState *state.StateDB, accounts map[string]extension.AccountWithMetadata) bool {
-	for key, value := range accounts {
-		stateDump := value.State
-
-		contractAddress := common.HexToAddress(key)
-
-		newBalance, errBalanceSet := new(big.Int).SetString(stateDump.Balance, 10)
-		if !errBalanceSet {
-			log.Warn("could not set address balance", "address", key, "balance", stateDump.Balance)
-			return false
-		}
-
-		privateState.SetBalance(contractAddress, newBalance)
-		privateState.SetNonce(contractAddress, stateDump.Nonce)
-		privateState.SetCode(contractAddress, common.Hex2Bytes(stateDump.Code))
-		for keyStore, valueStore := range stateDump.Storage {
-			privateState.SetState(contractAddress, common.HexToHash(keyStore), common.HexToHash(valueStore))
-		}
 	}
 	return true
 }
