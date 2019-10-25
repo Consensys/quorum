@@ -92,7 +92,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 			txLogs = append(txLogs, privateReceipt.Logs...)
 		}
 
-		privacy_extension.CheckIfExtensionHappened(txLogs, privateState)
+		privacy_extension.DefaultExtensionHandler.CheckIfExtensionHappened(txLogs, privateState)
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
