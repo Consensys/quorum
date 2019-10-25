@@ -13,7 +13,7 @@ import (
 var ptmMessage = []byte("extension-data")
 
 type PrivateExtensionAPI struct {
-	privacyService *PrivacyService
+	privacyService 	*PrivacyService
 }
 
 func NewPrivateExtensionAPI(privacyService *PrivacyService) *PrivateExtensionAPI {
@@ -70,7 +70,7 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 		return common.Hash{}, err
 	}
 
-	recipientHash, err := private.P.Send([]byte(newRecipient), txa.PrivateFrom, []string{})
+	recipientHash, err := api.privacyService.ptm.Send([]byte(newRecipient), txa.PrivateFrom, []string{})
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -94,7 +94,7 @@ func (api *PrivateExtensionAPI) Accept(ctx context.Context, addressToVoteOn comm
 		return common.Hash{}, err
 	}
 
-	uuid, err := generateUuid(txArgs.PrivateFrom)
+	uuid, err := generateUuid(txArgs.PrivateFrom, api.privacyService.ptm)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -120,7 +120,7 @@ func (api *PrivateExtensionAPI) setUuid(addressToVoteOn common.Address, txArgs *
 		return common.Hash{}, err
 	}
 
-	uuid, err := generateUuid(txArgs.PrivateFrom)
+	uuid, err := generateUuid(txArgs.PrivateFrom, api.privacyService.ptm)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -151,8 +151,8 @@ func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa eth
 	return tx.Hash(), nil
 }
 
-func generateUuid(privateFrom string) (string, error) {
-	hash, err := private.P.Send(ptmMessage, privateFrom, []string{})
+func generateUuid(privateFrom string, ptm private.PrivateTransactionManager) (string, error) {
+	hash, err := ptm.Send(ptmMessage, privateFrom, []string{})
 	if err != nil {
 		return "", err
 	}
