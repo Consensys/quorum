@@ -51,7 +51,7 @@ contract ContractExtender {
         }
 
         //set the sender to vote true, else why would they create the contract?
-        //doVote(true);
+        doVote(true);
 
         emit NewContractExtensionContractCreated(contractAddress);
     }
