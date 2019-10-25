@@ -31,15 +31,14 @@ func (handler *ExtensionHandler) CheckIfExtensionHappened(txLogs []*types.Log, p
 
 	if txLog := txLogs[0]; logContainsExtensionTopic(txLog) {
 		//this is a direct state share
-		decodedLog := new(extension.ContractExtenderStateShared)
-		if err := extension.ContractExtensionABI.Unpack(decodedLog, "StateShared", txLog.Data); err != nil {
+		hash, uuid, err := extension.UnpackStateSharedLog(txLog.Data)
+		if err != nil {
 			return
 		}
-		accounts, found := handler.FetchStateData(decodedLog.Hash, decodedLog.Uuid)
+		accounts, found := handler.FetchStateData(hash, uuid)
 		if !found {
 			return
 		}
-
 		snapshotId := privateState.Snapshot()
 		if success := setState(privateState, accounts); !success {
 			privateState.RevertToSnapshot(snapshotId)
