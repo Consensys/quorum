@@ -76,7 +76,8 @@ contract ContractExtender {
         return walletAddressesToVote.length == numberOfVotesSoFar;
     }
 
-    //single node vote
+    // single node vote to either extend or not
+    // can't have voted before
     function doVote(bool vote) public notFinished() {
         require(walletAddressesToVoteMap[msg.sender], "not allowed to vote");
         require(!hasVotedMapping[msg.sender], "already voted");
@@ -86,9 +87,11 @@ contract ContractExtender {
         numberOfVotesSoFar++;
         totalVote = totalVote && vote;
 
+        // check if voting has finished
         checkVotes();
     }
 
+    // the target recipient has accepted the request to do the state share
     function shareAcceptStatus(string memory nextuuid) public {
         setUuid(nextuuid);
         targetHasAccepted = true;
@@ -103,6 +106,7 @@ contract ContractExtender {
         }
     }
 
+    //state has been shared off chain via a private transaction, the hash the PTM generated is set here
     function setSharedStateHash(string memory hash) public onlyCreator() notFinished() {
         bytes memory hashAsBytes = bytes(sharedDataHash);
         bytes memory incomingAsBytes = bytes(hash);
@@ -118,6 +122,7 @@ contract ContractExtender {
         finish();
     }
 
+    //close the contract to further modifications
     function finish() public notFinished() onlyCreator() {
         setFinished();
     }
@@ -133,6 +138,8 @@ contract ContractExtender {
         emit ExtensionFinished();
     }
 
+    // checks if all the conditions for voting have been met
+    // either all voted true and target accepted, or someone voted false
     function checkVotes() internal {
         if (!totalVote) {
             emit AllNodesHaveVoted(totalVote);
