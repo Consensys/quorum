@@ -223,6 +223,7 @@ func (service *PrivacyService) watchForVoteCompleteEvents(address common.Address
 
 		from := accounts.Account{Address: extensionEntry.Initiator}
 		if _, err := service.ethereum.AccountManager().Find(from); err != nil {
+			log.Warn("Account used to sign extension contract no longer available", "account", from.Address.Hex())
 			return
 		}
 

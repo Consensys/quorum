@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -171,7 +172,7 @@ func (c *Client) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
 	}
 
 	if res.StatusCode != 200 {
-		return false, fmt.Errorf("Non-200 status code: %+v", res)
+		return false, fmt.Errorf("non-200 status code: %+v", res)
 	}
 
 	out, err := ioutil.ReadAll(res.Body)
@@ -179,7 +180,7 @@ func (c *Client) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
 		return false, err
 	}
 
-	return string(out) == "true", nil
+	return strconv.ParseBool(string(out))
 }
 
 func (c *Client) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {

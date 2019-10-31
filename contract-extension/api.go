@@ -2,7 +2,6 @@ package contractExtension
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	extension "github.com/ethereum/go-ethereum/contract-extension/contractExtensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -83,7 +82,7 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 		return common.Hash{}, err
 	}
 
-	//Return the address of the deployed contract
+	//Return the transaction hash for later lookup
 	return tx.Hash(), nil
 }
 
@@ -110,26 +109,6 @@ func (api *PrivateExtensionAPI) Accept(ctx context.Context, addressToVoteOn comm
 		return common.Hash{}, err
 	}
 
-	return tx.Hash(), nil
-}
-
-func (api *PrivateExtensionAPI) setUuid(addressToVoteOn common.Address, txArgs *bind.TransactOpts) (common.Hash, error) {
-	//Find the extension contract in order to interact with it
-	extender, err := extension.NewContractExtenderTransactor(addressToVoteOn, api.privacyService.client)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	uuid, err := generateUuid(txArgs.PrivateFrom, api.privacyService.ptm)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	//Perform the vote transaction.
-	tx, err := extender.SetUuid(txArgs, uuid)
-	if err != nil {
-		return common.Hash{}, err
-	}
 	return tx.Hash(), nil
 }
 
