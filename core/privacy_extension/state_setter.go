@@ -21,7 +21,7 @@ func NewExtensionHandler(transactionManager private.PrivateTransactionManager) *
 	return &ExtensionHandler{ptm: transactionManager}
 }
 
-func (handler *ExtensionHandler) CheckIfExtensionHappened(txLogs []*types.Log, privateState *state.StateDB) {
+func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB) {
 	// there should be two logs,
 	// the first being the state extension log, the second being the event finished log
 	if len(txLogs) != 2 {
@@ -87,9 +87,9 @@ func (handler *ExtensionHandler) UuidIsOwn(uuid string) bool {
 	encryptedTxHash := common.BytesToEncryptedPayloadHash(common.FromHex(uuid))
 
 	isSender, err := handler.ptm.IsSender(encryptedTxHash)
-	if err != nil || !isSender {
-		log.Info("Extension", "We are not the sender")
+	if err != nil {
+		log.Warn("Extension: could not determine if we are sender", "err", err.Error())
 		return false
 	}
-	return true
+	return isSender
 }
