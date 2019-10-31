@@ -22,26 +22,21 @@ func NewExtensionHandler(transactionManager private.PrivateTransactionManager) *
 }
 
 func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB) {
-	// there should be two logs,
-	// the first being the state extension log, the second being the event finished log
-	if len(txLogs) != 2 {
-		//not an extension transaction, so don't check
-		return
-	}
-
-	if txLog := txLogs[0]; logContainsExtensionTopic(txLog) {
-		//this is a direct state share
-		hash, uuid, err := extension.UnpackStateSharedLog(txLog.Data)
-		if err != nil {
-			return
-		}
-		accounts, found := handler.FetchStateData(hash, uuid)
-		if !found {
-			return
-		}
-		snapshotId := privateState.Snapshot()
-		if success := setState(privateState, accounts); !success {
-			privateState.RevertToSnapshot(snapshotId)
+	for _, txLog := range txLogs {
+		if logContainsExtensionTopic(txLog) {
+			//this is a direct state share
+			hash, uuid, err := extension.UnpackStateSharedLog(txLog.Data)
+			if err != nil {
+				continue
+			}
+			accounts, found := handler.FetchStateData(hash, uuid)
+			if !found {
+				continue
+			}
+			snapshotId := privateState.Snapshot()
+			if success := setState(privateState, accounts); !success {
+				privateState.RevertToSnapshot(snapshotId)
+			}
 		}
 	}
 }
