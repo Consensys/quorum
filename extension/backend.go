@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -54,6 +55,11 @@ var (
 	defaultGasLimit = uint64(4712384)
 	//default gas price to use if not passed in sendTxArgs
 	defaultGasPrice = big.NewInt(0)
+)
+
+var (
+	//Private participants must be specified for contract extension related transactions
+	errNotPrivate = errors.New("must specify private participants")
 )
 
 type ExtensionContract struct {
@@ -260,6 +266,9 @@ func (service *PrivacyService) watchForVoteCompleteEvents(address common.Address
 }
 
 func (service *PrivacyService) generateTransactOpts(txa ethapi.SendTxArgs) (*bind.TransactOpts, error) {
+	if txa.PrivateFor == nil {
+		return nil, errNotPrivate
+	}
 	return generateTransactOpts(service.ethereum.AccountManager(), txa)
 }
 
