@@ -1,4 +1,4 @@
-package contractExtension
+package extension
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	extension "github.com/ethereum/go-ethereum/contract-extension/contractExtensionContracts"
+	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -150,8 +150,8 @@ func (service *PrivacyService) watchForNewContracts() {
 			tx, _, _ := service.client.TransactionByHash(context.Background(), foundLog.TxHash)
 			from, _ := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
 
-			a := new(extension.ContractExtenderNewContractExtensionContractCreated)
-			if err := extension.ContractExtensionABI.Unpack(a, "NewContractExtensionContractCreated", foundLog.Data); err != nil {
+			a := new(extensionContracts.ContractExtenderNewContractExtensionContractCreated)
+			if err := extensionContracts.ContractExtensionABI.Unpack(a, "NewContractExtensionContractCreated", foundLog.Data); err != nil {
 				log.Error("Error unpacking extension creation log", err.Error())
 				log.Debug("Errored log", foundLog)
 				service.mu.Unlock()
@@ -200,8 +200,8 @@ func (service *PrivacyService) watchForCancelledContracts() {
 }
 
 func (service *PrivacyService) watchForVoteCompleteEvents(address common.Address, startBlock uint64, stopCh <-chan struct{}) {
-	logSink := make(chan *extension.ContractExtenderAllNodesHaveVoted)
-	filterer, _ := extension.NewContractExtenderFilterer(address, service.client)
+	logSink := make(chan *extensionContracts.ContractExtenderAllNodesHaveVoted)
+	filterer, _ := extensionContracts.NewContractExtenderFilterer(address, service.client)
 	subscription, _ := filterer.WatchAllNodesHaveVoted(&bind.WatchOpts{Start: &startBlock}, logSink)
 
 	select {
@@ -240,7 +240,7 @@ func (service *PrivacyService) watchForVoteCompleteEvents(address common.Address
 		})
 
 		//Find the extension contract in order to interact with it
-		caller, _ := extension.NewContractExtenderCaller(event.Raw.Address, service.client)
+		caller, _ := extensionContracts.NewContractExtenderCaller(event.Raw.Address, service.client)
 
 		recipientHash, _ := caller.TargetRecipientPublicKeyHash(&bind.CallOpts{Pending: false})
 		decoded, _ := base64.StdEncoding.DecodeString(recipientHash)
@@ -254,7 +254,7 @@ func (service *PrivacyService) watchForVoteCompleteEvents(address common.Address
 		hash, _ := service.ptm.Send(jsonMap, "", []string{string(recipient)})
 		hashB64 := base64.StdEncoding.EncodeToString(hash)
 
-		transactor, _ := extension.NewContractExtenderTransactor(event.Raw.Address, service.client)
+		transactor, _ := extensionContracts.NewContractExtenderTransactor(event.Raw.Address, service.client)
 		transactor.SetSharedStateHash(txArgs, hashB64)
 	}
 }

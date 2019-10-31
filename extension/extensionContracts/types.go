@@ -1,4 +1,4 @@
-package contractExtensionContracts
+package extensionContracts
 
 import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
