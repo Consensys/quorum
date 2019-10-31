@@ -275,3 +275,7 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 		utils.Fatalf("Consensus not specified. Exiting!!")
 	}
 }
+
+func quorumValidatePrivateTransactionManager() bool {
+	return os.Getenv("PRIVATE_CONFIG") == ""
+}
