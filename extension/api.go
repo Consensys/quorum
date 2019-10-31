@@ -41,6 +41,11 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 		return common.Hash{}, err
 	}
 
+	uuid, err := generateUuid(txArgs.PrivateFrom, api.privacyService.ptm)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
 	//Find the extension contract in order to interact with it
 	extender, err := extension.NewContractExtenderTransactor(addressToVoteOn, api.privacyService.client)
 	if err != nil {
@@ -48,7 +53,7 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 	}
 
 	//Perform the vote transaction.
-	tx, err := extender.DoVote(txArgs, vote)
+	tx, err := extender.DoVote(txArgs, vote, uuid)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -76,8 +81,13 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 
 	recipientHashBase64 := common.BytesToEncryptedPayloadHash(recipientHash).ToBase64()
 
+	uuid, err := generateUuid(txArgs.PrivateFrom, api.privacyService.ptm)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
 	//Deploy the contract
-	_, tx, _, err := extension.DeployContractExtender(txArgs, api.privacyService.client, toExtend, voters, recipientHashBase64)
+	_, tx, _, err := extension.DeployContractExtender(txArgs, api.privacyService.client, toExtend, voters, recipientHashBase64, uuid)
 	if err != nil {
 		return common.Hash{}, err
 	}

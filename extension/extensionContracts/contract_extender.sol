@@ -34,7 +34,7 @@ contract ContractExtender {
     event StateShared(string hash, string uuid); //when the state is shared and can be replayed into the database
     event UpdateMembers(address toExtend, string uuid); //to update the original transaction hash for the new party member
 
-    constructor(address contractAddress, address[] memory walletAddresses, string memory recipientHash) public {
+    constructor(address contractAddress, address[] memory walletAddresses, string memory recipientHash, string memory uuid) public {
         creator = msg.sender;
 
         targetRecipientPublicKeyHash = recipientHash;
@@ -46,12 +46,17 @@ contract ContractExtender {
         totalVote = true;
         numberOfVotesSoFar = 0;
 
+        //we always want to have ourselves in this contract, so if we weren't specified, add us
+//        bool foundOwnAddress = false;
         for (uint256 i = 0; i < walletAddresses.length; i++) {
+//            foundOwnAddress = foundOwnAddress || (walletAddresses[i] == msg.sender);
             walletAddressesToVoteMap[walletAddresses[i]] = true;
         }
+//        walletAddressesToVote.push(msg.sender);
+//        walletAddressesToVoteMap[msg.sender] = true;
 
         //set the sender to vote true, else why would they create the contract?
-        doVote(true);
+        doVote(true, uuid);
 
         emit NewContractExtensionContractCreated(contractAddress);
     }
@@ -78,7 +83,7 @@ contract ContractExtender {
 
     // single node vote to either extend or not
     // can't have voted before
-    function doVote(bool vote) public notFinished() {
+    function doVote(bool vote, string memory nextuuid) public notFinished() {
         require(walletAddressesToVoteMap[msg.sender], "not allowed to vote");
         require(!hasVotedMapping[msg.sender], "already voted");
 
@@ -86,6 +91,10 @@ contract ContractExtender {
         votes[msg.sender] = vote;
         numberOfVotesSoFar++;
         totalVote = totalVote && vote;
+
+        if (vote) {
+            setUuid(nextuuid);
+        }
 
         // check if voting has finished
         checkVotes();
