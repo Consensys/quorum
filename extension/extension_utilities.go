@@ -1,4 +1,4 @@
-package contractExtension
+package extension
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/contract-extension/contractExtensionContracts"
+	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
@@ -15,10 +15,10 @@ import (
 )
 
 func getAddressState(privateState *state.StateDB, addressToShare common.Address) []byte {
-	keepAddresses := make(map[string]contractExtensionContracts.AccountWithMetadata)
+	keepAddresses := make(map[string]extensionContracts.AccountWithMetadata)
 
 	if account, found := privateState.DumpAddress(addressToShare); found {
-		keepAddresses[addressToShare.Hex()] = contractExtensionContracts.AccountWithMetadata{
+		keepAddresses[addressToShare.Hex()] = extensionContracts.AccountWithMetadata{
 			State: account,
 		}
 	}

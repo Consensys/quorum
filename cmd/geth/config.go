@@ -20,7 +20,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	contractExtension "github.com/ethereum/go-ethereum/contract-extension"
+	"github.com/ethereum/go-ethereum/extension"
 	"github.com/ethereum/go-ethereum/private"
 	"io"
 	"os"
@@ -284,7 +284,7 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 
 func RegisterExtensionService(stack *node.Node) {
 	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
-		return contractExtension.New(stack, private.P)
+		return extension.New(stack, private.P)
 	}
 	if err := stack.Register(registerFunc); err != nil {
 		utils.Fatalf("Failed to register the Privacy service: %v", err)

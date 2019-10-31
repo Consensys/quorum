@@ -1,4 +1,4 @@
-package contractExtension
+package extension
 
 import (
 	"encoding/json"

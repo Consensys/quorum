@@ -1,4 +1,4 @@
-package contractExtensionContracts
+package extensionContracts
 
 func UnpackStateSharedLog(logData []byte) (string, string, error) {
 	decodedLog := new(ContractExtenderStateShared)
