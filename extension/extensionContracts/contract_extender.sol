@@ -30,6 +30,7 @@ contract ContractExtender {
     // General housekeeping
     event NewContractExtensionContractCreated(address toExtend); //to tell nodes a new extension is happening
     event AllNodesHaveVoted(bool outcome); //when all nodes have voted
+    event CanPerformStateShare(); //when all nodes have voted & the recipient has accepted
     event ExtensionFinished(); //if the extension is cancelled or completed
     event StateShared(string hash, string uuid); //when the state is shared and can be replayed into the database
     event UpdateMembers(address toExtend, string uuid); //to update the original transaction hash for the new party member
@@ -46,16 +47,12 @@ contract ContractExtender {
         voteOutcome = true;
         numberOfVotesSoFar = 0;
 
-        //we always want to have ourselves in this contract, so if we weren't specified, add us
-//        bool foundOwnAddress = false;
         for (uint256 i = 0; i < walletAddresses.length; i++) {
-//            foundOwnAddress = foundOwnAddress || (walletAddresses[i] == msg.sender);
             walletAddressesToVoteMap[walletAddresses[i]] = true;
         }
-//        walletAddressesToVote.push(msg.sender);
-//        walletAddressesToVoteMap[msg.sender] = true;
 
         //set the sender to vote true, else why would they create the contract?
+        //note: this actually fails the contract creation if they didn't specify themselves
         doVote(true, uuid);
 
         emit NewContractExtensionContractCreated(contractAddress);
@@ -153,10 +150,15 @@ contract ContractExtender {
         if (!voteOutcome) {
             emit AllNodesHaveVoted(false);
             setFinished();
+            return;
         }
 
-        if (haveAllNodesVoted() && targetHasAccepted) {
-            emit AllNodesHaveVoted(voteOutcome);
+        if (haveAllNodesVoted()) {
+            emit AllNodesHaveVoted(true);
+        }
+
+        if(haveAllNodesVoted() && targetHasAccepted){
+            emit CanPerformStateShare();
         }
     }
 
