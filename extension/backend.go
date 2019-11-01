@@ -30,8 +30,9 @@ import (
 )
 
 const (
-	newExtensionTopic      = "0x1bb7909ad96bc757f60de4d9ce11daf7b006e8f398ce028dceb10ce7fdca0f68"
-	finishedExtensionTopic = "0x79c47b570b18a8a814b785800e5fcbf104e067663589cef1bba07756e3c6ede9"
+	newExtensionTopic      	= "0x1bb7909ad96bc757f60de4d9ce11daf7b006e8f398ce028dceb10ce7fdca0f68"
+	finishedExtensionTopic 	= "0x79c47b570b18a8a814b785800e5fcbf104e067663589cef1bba07756e3c6ede9"
+	voteCompletedTopic 		= "0xc05e76a85299aba9028bd0e0c3ab6fd798db442ed25ce08eb9d2098acc5a2904"
 
 	ExtensionContractData = "activeExtensions.json"
 )
@@ -49,6 +50,13 @@ var (
 		FromBlock: nil,
 		ToBlock:   nil,
 		Topics:    [][]common.Hash{{common.HexToHash(finishedExtensionTopic)}},
+		Addresses: []common.Address{},
+	}
+
+	voteCompletedQuery = ethereum.FilterQuery{
+		FromBlock: nil,
+		ToBlock:   nil,
+		Topics:    [][]common.Hash{{common.HexToHash(voteCompletedTopic)}},
 		Addresses: []common.Address{},
 	}
 
@@ -70,8 +78,6 @@ type ExtensionContract struct {
 	ManagementContractAddress common.Address `json:"managementcontractaddress"`
 	CreationData              []byte         `json:"creationData"`
 	CreatedBlock              uint64         `json:"createdBlock"`
-
-	stopCh chan struct{} `json:"-"`
 }
 
 type PrivacyService struct {
@@ -132,14 +138,9 @@ func (service *PrivacyService) initialise(node *node.Node) {
 		panic("could not set PTM")
 	}
 
-	for _, item := range service.currentContracts {
-		extensionEntry := item
-		extensionEntry.stopCh = make(chan struct{})
-		go service.watchForVoteCompleteEvents(extensionEntry.ManagementContractAddress, extensionEntry.CreatedBlock, extensionEntry.stopCh)
-	}
-
 	go service.watchForNewContracts()
 	go service.watchForCancelledContracts()
+	go service.watch()
 }
 
 func (service *PrivacyService) watchForNewContracts() {
@@ -172,11 +173,9 @@ func (service *PrivacyService) watchForNewContracts() {
 				ManagementContractAddress: foundLog.Address,
 				CreationData:              tx.Data(),
 				CreatedBlock:              foundLog.BlockNumber,
-				stopCh:                    make(chan struct{}),
 			}
 
 			service.currentContracts[foundLog.Address] = &newContractExtension
-			go service.watchForVoteCompleteEvents(foundLog.Address, foundLog.BlockNumber, newContractExtension.stopCh)
 			writeContentsToFile(service.currentContracts, service.dataDir)
 			service.mu.Unlock()
 		}
@@ -195,74 +194,84 @@ func (service *PrivacyService) watchForCancelledContracts() {
 			return
 		case l := <-logsChan:
 			service.mu.Lock()
-			if entry, ok := service.currentContracts[l.Address]; ok {
-				close(entry.stopCh)
+			if _, ok := service.currentContracts[l.Address]; ok {
 				delete(service.currentContracts, l.Address)
 				writeContentsToFile(service.currentContracts, service.dataDir)
 			}
 			service.mu.Unlock()
 		}
 	}
-
 }
 
-func (service *PrivacyService) watchForVoteCompleteEvents(address common.Address, startBlock uint64, stopCh <-chan struct{}) {
-	logSink := make(chan *extensionContracts.ContractExtenderAllNodesHaveVoted)
-	filterer, _ := extensionContracts.NewContractExtenderFilterer(address, service.client)
-	subscription, _ := filterer.WatchAllNodesHaveVoted(&bind.WatchOpts{Start: &startBlock}, logSink)
+func (service *PrivacyService) watch() {
+	logsChan := make(chan types.Log)
+	service.client.SubscribeFilterLogs(context.Background(), voteCompletedQuery, logsChan)
 
-	select {
-	case err := <-subscription.Err():
-		log.Error("Contract extension watcher subscription error", err)
-	case <-stopCh:
-		log.Info("No longer watching extension request", "address", address)
-	case event := <-logSink:
-		service.mu.Lock()
-		defer service.mu.Unlock()
+	for {
+		select {
+		case l := <-logsChan:
+			service.mu.Lock()
+			event := new(extensionContracts.ContractExtenderAllNodesHaveVoted)
+			if err := extensionContracts.ContractExtensionABI.Unpack(event, "AllNodesHaveVoted", l.Data); err != nil {
+				log.Error("Error unpacking extension creation log", err.Error())
+				log.Debug("Errored log", l)
+				service.mu.Unlock()
+				continue
+			}
 
-		if !event.Outcome {
-			return
+			if !event.Outcome {
+				service.mu.Unlock()
+				continue
+			}
+
+			extensionEntry, ok := service.currentContracts[l.Address]
+			if !ok {
+				// we didn't have this management contract, so ignore it
+				service.mu.Unlock()
+				continue
+			}
+			extensionEntry.AllHaveVoted = true
+			writeContentsToFile(service.currentContracts, service.dataDir)
+
+			from := accounts.Account{Address: extensionEntry.Initiator}
+			if _, err := service.ethereum.AccountManager().Find(from); err != nil {
+				log.Warn("Account used to sign extension contract no longer available", "account", from.Address.Hex())
+				service.mu.Unlock()
+				continue
+			}
+
+			//fetch all the participants and send
+			payload := common.BytesToEncryptedPayloadHash(extensionEntry.CreationData)
+			fetchedParties, err := service.ptm.GetParticipants(payload)
+			if err != nil {
+				log.Error("Extension", "Unable to fetch parties for PSV extension")
+				service.mu.Unlock()
+				continue
+			}
+			txArgs, _ := service.generateTransactOpts(ethapi.SendTxArgs{
+				From:       extensionEntry.Initiator,
+				PrivateFor: fetchedParties,
+			})
+
+			//Find the extension contract in order to interact with it
+			caller, _ := extensionContracts.NewContractExtenderCaller(l.Address, service.client)
+
+			recipientHash, _ := caller.TargetRecipientPublicKeyHash(&bind.CallOpts{Pending: false})
+			decoded, _ := base64.StdEncoding.DecodeString(recipientHash)
+			recipient, _ := service.ptm.Receive(decoded)
+
+			//we found the account, so we can send
+			privateState, _ := service.privateState(l.BlockHash)
+			jsonMap := getAddressState(privateState, extensionEntry.Address)
+
+			//send to PTM
+			hash, _ := service.ptm.Send(jsonMap, "", []string{string(recipient)})
+			hashB64 := base64.StdEncoding.EncodeToString(hash)
+
+			transactor, _ := extensionContracts.NewContractExtenderTransactor(l.Address, service.client)
+			transactor.SetSharedStateHash(txArgs, hashB64)
+			service.mu.Unlock()
 		}
-
-		extensionEntry := service.currentContracts[address]
-		extensionEntry.AllHaveVoted = true
-		writeContentsToFile(service.currentContracts, service.dataDir)
-
-		from := accounts.Account{Address: extensionEntry.Initiator}
-		if _, err := service.ethereum.AccountManager().Find(from); err != nil {
-			log.Warn("Account used to sign extension contract no longer available", "account", from.Address.Hex())
-			return
-		}
-
-		//fetch all the participants and send
-		payload := common.BytesToEncryptedPayloadHash(extensionEntry.CreationData)
-		fetchedParties, err := service.ptm.GetParticipants(payload)
-		if err != nil {
-			log.Error("Extension", "Unable to fetch parties for PSV extension")
-			return
-		}
-		txArgs, _ := service.generateTransactOpts(ethapi.SendTxArgs{
-			From:       extensionEntry.Initiator,
-			PrivateFor: fetchedParties,
-		})
-
-		//Find the extension contract in order to interact with it
-		caller, _ := extensionContracts.NewContractExtenderCaller(event.Raw.Address, service.client)
-
-		recipientHash, _ := caller.TargetRecipientPublicKeyHash(&bind.CallOpts{Pending: false})
-		decoded, _ := base64.StdEncoding.DecodeString(recipientHash)
-		recipient, _ := service.ptm.Receive(decoded)
-
-		//we found the account, so we can send
-		privateState, _ := service.privateState(event.Raw.BlockHash)
-		jsonMap := getAddressState(privateState, extensionEntry.Address)
-
-		//send to PTM
-		hash, _ := service.ptm.Send(jsonMap, "", []string{string(recipient)})
-		hashB64 := base64.StdEncoding.EncodeToString(hash)
-
-		transactor, _ := extensionContracts.NewContractExtenderTransactor(event.Raw.Address, service.client)
-		transactor.SetSharedStateHash(txArgs, hashB64)
 	}
 }
 
