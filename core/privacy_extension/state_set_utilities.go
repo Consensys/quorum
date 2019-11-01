@@ -1,12 +1,13 @@
 package privacy_extension
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
-	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/log"
-	"math/big"
 )
 
 const stateSharedTopicHash = "0x40b79448ff8678eac1487385427aa682ee6ee831ce0702c09f95255645428531"

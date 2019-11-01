@@ -1,9 +1,10 @@
 package extensionContracts
 
 import (
+	"strings"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/state"
-	"strings"
 )
 
 var (
@@ -12,5 +13,5 @@ var (
 )
 
 type AccountWithMetadata struct {
-	State 			state.DumpAccount		`json:"state"`
+	State state.DumpAccount `json:"state"`
 }

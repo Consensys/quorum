@@ -5,31 +5,32 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"math/big"
+	"os"
+	"path/filepath"
+	"sync"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rpc"
-	"io/ioutil"
-	"math/big"
-	"os"
-	"path/filepath"
-	"sync"
 )
 
 const (
-	newExtensionTopic = "0x1bb7909ad96bc757f60de4d9ce11daf7b006e8f398ce028dceb10ce7fdca0f68"
+	newExtensionTopic      = "0x1bb7909ad96bc757f60de4d9ce11daf7b006e8f398ce028dceb10ce7fdca0f68"
 	finishedExtensionTopic = "0x79c47b570b18a8a814b785800e5fcbf104e067663589cef1bba07756e3c6ede9"
 
 	ExtensionContractData = "activeExtensions.json"
@@ -63,22 +64,22 @@ var (
 )
 
 type ExtensionContract struct {
-	Address      				common.Address  `json:"address"`
-	AllHaveVoted 				bool			`json:"allhavevoted"`
-	Initiator					common.Address  `json:"initiator"`
-	ManagementContractAddress 	common.Address  `json:"managementcontractaddress"`
-	CreationData				[]byte			`json:"creationData"`
-	CreatedBlock				uint64			`json:"createdBlock"`
+	Address                   common.Address `json:"address"`
+	AllHaveVoted              bool           `json:"allhavevoted"`
+	Initiator                 common.Address `json:"initiator"`
+	ManagementContractAddress common.Address `json:"managementcontractaddress"`
+	CreationData              []byte         `json:"creationData"`
+	CreatedBlock              uint64         `json:"createdBlock"`
 
-	stopCh						chan struct{}	`json:"-"`
+	stopCh chan struct{} `json:"-"`
 }
 
 type PrivacyService struct {
-	ethereum		 *eth.Ethereum
-	client			 *ethclient.Client
-	ptm				 private.PrivateTransactionManager
+	ethereum *eth.Ethereum
+	client   *ethclient.Client
+	ptm      private.PrivateTransactionManager
 
-	dataDir 		 string
+	dataDir string
 
 	mu               sync.Mutex
 	currentContracts map[common.Address]*ExtensionContract
@@ -89,8 +90,8 @@ func New(node *node.Node, ptm private.PrivateTransactionManager) (*PrivacyServic
 
 	service := &PrivacyService{
 		currentContracts: make(map[common.Address]*ExtensionContract),
-		dataDir:		  dataDir,
-		ptm:			  ptm,
+		dataDir:          dataDir,
+		ptm:              ptm,
 	}
 
 	go service.initialise(node)
@@ -165,13 +166,13 @@ func (service *PrivacyService) watchForNewContracts() {
 			}
 
 			newContractExtension := ExtensionContract{
-				Address:      				a.ToExtend,
-				AllHaveVoted: 				false,
-				Initiator:	  				from,
-				ManagementContractAddress: 	foundLog.Address,
-				CreationData: 				tx.Data(),
-				CreatedBlock:				foundLog.BlockNumber,
-				stopCh:						make(chan struct{}),
+				Address:                   a.ToExtend,
+				AllHaveVoted:              false,
+				Initiator:                 from,
+				ManagementContractAddress: foundLog.Address,
+				CreationData:              tx.Data(),
+				CreatedBlock:              foundLog.BlockNumber,
+				stopCh:                    make(chan struct{}),
 			}
 
 			service.currentContracts[foundLog.Address] = &newContractExtension
@@ -241,8 +242,8 @@ func (service *PrivacyService) watchForVoteCompleteEvents(address common.Address
 			return
 		}
 		txArgs, _ := service.generateTransactOpts(ethapi.SendTxArgs{
-			From:          extensionEntry.Initiator,
-			PrivateFor:    fetchedParties,
+			From:       extensionEntry.Initiator,
+			PrivateFor: fetchedParties,
 		})
 
 		//Find the extension contract in order to interact with it

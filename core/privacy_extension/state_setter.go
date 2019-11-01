@@ -3,10 +3,11 @@ package privacy_extension
 import (
 	"encoding/base64"
 	"encoding/json"
+
 	"github.com/ethereum/go-ethereum/common"
-	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/private"
 )
@@ -14,7 +15,7 @@ import (
 var DefaultExtensionHandler = NewExtensionHandler(private.P)
 
 type ExtensionHandler struct {
-	ptm 			private.PrivateTransactionManager
+	ptm private.PrivateTransactionManager
 }
 
 func NewExtensionHandler(transactionManager private.PrivateTransactionManager) *ExtensionHandler {
@@ -63,7 +64,7 @@ func (handler *ExtensionHandler) FetchStateData(hash string, uuid string) (map[s
 
 // Checks
 
-func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, bool){
+func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, bool) {
 	ptmHash, _ := base64.StdEncoding.DecodeString(hash)
 	stateData, err := handler.ptm.Receive(ptmHash)
 

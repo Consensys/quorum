@@ -2,6 +2,10 @@ package extension
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"math/big"
+	"testing"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -11,9 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"io/ioutil"
-	"math/big"
-	"testing"
 )
 
 func TestWriteContentsToFileWritesOkay(t *testing.T) {
@@ -127,8 +128,8 @@ func TestGenerateTransactionOptionsGivesDefaults(t *testing.T) {
 	from := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
 	sendTxArgs := ethapi.SendTxArgs{
-		From: from,
-		PrivateFor: []string{"privateFor1", "privateFor2"},
+		From:        from,
+		PrivateFor:  []string{"privateFor1", "privateFor2"},
 		PrivateFrom: "privateFrom",
 	}
 
@@ -168,15 +169,14 @@ func TestGenerateTransactionOptionsGivesDefaults(t *testing.T) {
 	}
 }
 
-
 func TestGenerateTransactionOptionsGivesNonDefaultsWhenSpecified(t *testing.T) {
 	from := common.HexToAddress("0x2222222222222222222222222222222222222222")
 	gasLimit := hexutil.Uint64(5000)
 	gasPrice := hexutil.Big(*big.NewInt(50))
 
 	sendTxArgs := ethapi.SendTxArgs{
-		From: from,
-		Gas: &gasLimit,
+		From:     from,
+		Gas:      &gasLimit,
 		GasPrice: &gasPrice,
 	}
 
