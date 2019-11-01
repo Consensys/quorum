@@ -68,13 +68,23 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 // - the contract address we want to extend
 // - the new PTM public key
 // - the Ethereum addresses of who can vote to extend the contract
-func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend common.Address, newRecipient string, voters []common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
+func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend common.Address, newRecipientPtmPublicKey string, voters []common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
+	//generate some valid transaction options for sending in the transaction
 	txArgs, err := api.privacyService.generateTransactOpts(txa)
 	if err != nil {
 		return common.Hash{}, err
 	}
 
-	recipientHash, err := api.privacyService.ptm.Send([]byte(newRecipient), txa.PrivateFrom, []string{})
+	// check the the intended new recipient will actually receive the extension request
+	found := false
+	for _, recipient := range txArgs.PrivateFor {
+		found = found || (recipient == newRecipientPtmPublicKey)
+	}
+	if !found {
+		txArgs.PrivateFor = append(txArgs.PrivateFor, newRecipientPtmPublicKey)
+	}
+
+	recipientHash, err := api.privacyService.ptm.Send([]byte(newRecipientPtmPublicKey), txa.PrivateFrom, []string{})
 	if err != nil {
 		return common.Hash{}, err
 	}
