@@ -30,9 +30,9 @@ import (
 )
 
 const (
-	newExtensionTopic      	= "0x1bb7909ad96bc757f60de4d9ce11daf7b006e8f398ce028dceb10ce7fdca0f68"
-	finishedExtensionTopic 	= "0x79c47b570b18a8a814b785800e5fcbf104e067663589cef1bba07756e3c6ede9"
-	voteCompletedTopic 		= "0xc05e76a85299aba9028bd0e0c3ab6fd798db442ed25ce08eb9d2098acc5a2904"
+	newExtensionTopic      = "0x1bb7909ad96bc757f60de4d9ce11daf7b006e8f398ce028dceb10ce7fdca0f68"
+	finishedExtensionTopic = "0x79c47b570b18a8a814b785800e5fcbf104e067663589cef1bba07756e3c6ede9"
+	voteCompletedTopic     = "0xc05e76a85299aba9028bd0e0c3ab6fd798db442ed25ce08eb9d2098acc5a2904"
 
 	ExtensionContractData = "activeExtensions.json"
 )
@@ -180,7 +180,6 @@ func (service *PrivacyService) watchForNewContracts() {
 			service.mu.Unlock()
 		}
 	}
-
 }
 
 func (service *PrivacyService) watchForCancelledContracts() {
@@ -253,7 +252,7 @@ func (service *PrivacyService) watchForCompletionEvents() {
 				continue
 			}
 
-			txArgs, _ := service.generateTransactOpts(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties,})
+			txArgs, _ := service.generateTransactOpts(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties})
 
 			recipientHash, _ := caller.TargetRecipientPublicKeyHash(&bind.CallOpts{Pending: false})
 			decoded, _ := base64.StdEncoding.DecodeString(recipientHash)

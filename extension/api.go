@@ -1,14 +1,12 @@
 package extension
 
 import (
-	"context"
 	"encoding/base64"
 	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
 	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/private"
 )
 
 //this exists to send to the PTM to be encrypted, returning a non-deterministic hash
@@ -71,7 +69,7 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 // - the contract address we want to extend
 // - the new PTM public key
 // - the Ethereum addresses of who can vote to extend the contract
-func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend common.Address, newRecipientPtmPublicKey string, voters []common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
+func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecipientPtmPublicKey string, voters []common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
 	// check the new key is valid
 	if _, err := base64.StdEncoding.DecodeString(newRecipientPtmPublicKey); err != nil {
 		return common.Hash{}, errors.New("invalid new recipient key provided")
@@ -114,8 +112,8 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 	return tx.Hash(), nil
 }
 
-// Accept
-func (api *PrivateExtensionAPI) Accept(ctx context.Context, addressToVoteOn common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
+// Accept allows the target recipient to say they want to receive this extension
+func (api *PrivateExtensionAPI) Accept(addressToVoteOn common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
 	txArgs, err := api.privacyService.generateTransactOpts(txa)
 	if err != nil {
 		return common.Hash{}, err
@@ -140,6 +138,8 @@ func (api *PrivateExtensionAPI) Accept(ctx context.Context, addressToVoteOn comm
 	return tx.Hash(), nil
 }
 
+// Cancel allows the creator to cancel the given extension contract, ensuring
+// that no more calls for votes or accepting can be made
 func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
 	txArgs, err := api.privacyService.generateTransactOpts(txa)
 	if err != nil {
@@ -156,12 +156,4 @@ func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa eth
 		return common.Hash{}, err
 	}
 	return tx.Hash(), nil
-}
-
-func generateUuid(privateFrom string, ptm private.PrivateTransactionManager) (string, error) {
-	hash, err := ptm.Send(ptmMessage, privateFrom, []string{})
-	if err != nil {
-		return "", err
-	}
-	return common.BytesToEncryptedPayloadHash(hash).String(), nil
 }
