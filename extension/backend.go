@@ -140,7 +140,7 @@ func (service *PrivacyService) initialise(node *node.Node) {
 
 	go service.watchForNewContracts()
 	go service.watchForCancelledContracts()
-	go service.watch()
+	go service.watchForCompletionEvents()
 }
 
 func (service *PrivacyService) watchForNewContracts() {
@@ -203,7 +203,7 @@ func (service *PrivacyService) watchForCancelledContracts() {
 	}
 }
 
-func (service *PrivacyService) watch() {
+func (service *PrivacyService) watchForCompletionEvents() {
 	logsChan := make(chan types.Log)
 	service.client.SubscribeFilterLogs(context.Background(), voteCompletedQuery, logsChan)
 
