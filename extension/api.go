@@ -2,6 +2,8 @@ package extension
 
 import (
 	"context"
+	"encoding/base64"
+	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -69,6 +71,11 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 // - the new PTM public key
 // - the Ethereum addresses of who can vote to extend the contract
 func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend common.Address, newRecipientPtmPublicKey string, voters []common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
+	// check the new key is valid
+	if _, err := base64.StdEncoding.DecodeString(newRecipientPtmPublicKey); err != nil {
+		return common.Hash{}, errors.New("invalid new recipient key provided")
+	}
+
 	//generate some valid transaction options for sending in the transaction
 	txArgs, err := api.privacyService.generateTransactOpts(txa)
 	if err != nil {
