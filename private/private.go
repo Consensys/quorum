@@ -1,8 +1,9 @@
 package private
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"os"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/ethereum/go-ethereum/private/constellation"
 )

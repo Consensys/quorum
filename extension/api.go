@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
 	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -14,7 +15,7 @@ import (
 var ptmMessage = []byte("extension-data")
 
 type PrivateExtensionAPI struct {
-	privacyService 	*PrivacyService
+	privacyService *PrivacyService
 }
 
 func NewPrivateExtensionAPI(privacyService *PrivacyService) *PrivateExtensionAPI {
@@ -114,7 +115,7 @@ func (api *PrivateExtensionAPI) ExtendContract(ctx context.Context, toExtend com
 }
 
 // Accept
-func (api *PrivateExtensionAPI) Accept(ctx context.Context, addressToVoteOn common.Address, txa ethapi.SendTxArgs) (common.Hash, error){
+func (api *PrivateExtensionAPI) Accept(ctx context.Context, addressToVoteOn common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
 	txArgs, err := api.privacyService.generateTransactOpts(txa)
 	if err != nil {
 		return common.Hash{}, err

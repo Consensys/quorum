@@ -3,15 +3,16 @@ package extension
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
-	"io/ioutil"
-	"path/filepath"
 )
 
 func getAddressState(privateState *state.StateDB, addressToShare common.Address) []byte {

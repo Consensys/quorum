@@ -3,11 +3,12 @@ package constellation
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/patrickmn/go-cache"
 )

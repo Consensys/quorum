@@ -20,13 +20,14 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/extension"
-	"github.com/ethereum/go-ethereum/private"
 	"io"
 	"os"
 	"reflect"
 	"time"
 	"unicode"
+
+	"github.com/ethereum/go-ethereum/extension"
+	"github.com/ethereum/go-ethereum/private"
 
 	"gopkg.in/urfave/cli.v1"
 

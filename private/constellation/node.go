@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/tv42/httpunix"
 )
@@ -156,7 +157,7 @@ func (c *Client) ReceivePayload(key []byte) ([]byte, error) {
 }
 
 func (c *Client) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
-	req, err := http.NewRequest("GET", "http+unix://c/transaction/" + url.PathEscape(txHash.ToBase64()) +  "/isSender", nil)
+	req, err := http.NewRequest("GET", "http+unix://c/transaction/"+url.PathEscape(txHash.ToBase64())+"/isSender", nil)
 	if err != nil {
 		return false, err
 	}

@@ -3,17 +3,18 @@ package privacy_extension
 import (
 	"bytes"
 	"encoding/json"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/common"
-	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"testing"
+	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 )
 
 func TestLogContainsExtensionTopicWithWrongLengthReturnsFalse(t *testing.T) {
 	testLog := &types.Log{
-		Topics:      []common.Hash{{}, {}},
+		Topics: []common.Hash{{}, {}},
 	}
 
 	contained := logContainsExtensionTopic(testLog)
@@ -25,7 +26,7 @@ func TestLogContainsExtensionTopicWithWrongLengthReturnsFalse(t *testing.T) {
 
 func TestLogContainsExtensionTopicWithWrongHashReturnsFalse(t *testing.T) {
 	testLog := &types.Log{
-		Topics:      []common.Hash{common.HexToHash("0xc05e76a85299aba9028bd0e0c3ab6fd798db442ed25ce08eb9d2098acc5a2904")},
+		Topics: []common.Hash{common.HexToHash("0xc05e76a85299aba9028bd0e0c3ab6fd798db442ed25ce08eb9d2098acc5a2904")},
 	}
 
 	contained := logContainsExtensionTopic(testLog)
@@ -37,7 +38,7 @@ func TestLogContainsExtensionTopicWithWrongHashReturnsFalse(t *testing.T) {
 
 func TestLogContainsExtensionTopicWithCorrectHashReturnsTrue(t *testing.T) {
 	testLog := &types.Log{
-		Topics:      []common.Hash{common.HexToHash("0x40b79448ff8678eac1487385427aa682ee6ee831ce0702c09f95255645428531")},
+		Topics: []common.Hash{common.HexToHash("0x40b79448ff8678eac1487385427aa682ee6ee831ce0702c09f95255645428531")},
 	}
 
 	contained := logContainsExtensionTopic(testLog)
