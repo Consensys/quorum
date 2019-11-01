@@ -233,7 +233,15 @@ func (service *PrivacyService) watchForCompletionEvents() {
 			extensionEntry.AllHaveVoted = true
 			writeContentsToFile(service.currentContracts, service.dataDir)
 
-			from := accounts.Account{Address: extensionEntry.Initiator}
+			//Find the extension contract in order to interact with it
+			caller, _ := extensionContracts.NewContractExtenderCaller(l.Address, service.client)
+			contractCreator, err := caller.Creator(nil)
+			if err != nil {
+				service.mu.Unlock()
+				continue
+			}
+
+			from := accounts.Account{Address: contractCreator}
 			if _, err := service.ethereum.AccountManager().Find(from); err != nil {
 				log.Warn("Account used to sign extension contract no longer available", "account", from.Address.Hex())
 				service.mu.Unlock()
@@ -248,13 +256,8 @@ func (service *PrivacyService) watchForCompletionEvents() {
 				service.mu.Unlock()
 				continue
 			}
-			txArgs, _ := service.generateTransactOpts(ethapi.SendTxArgs{
-				From:       extensionEntry.Initiator,
-				PrivateFor: fetchedParties,
-			})
 
-			//Find the extension contract in order to interact with it
-			caller, _ := extensionContracts.NewContractExtenderCaller(l.Address, service.client)
+			txArgs, _ := service.generateTransactOpts(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties,})
 
 			recipientHash, _ := caller.TargetRecipientPublicKeyHash(&bind.CallOpts{Pending: false})
 			decoded, _ := base64.StdEncoding.DecodeString(recipientHash)

@@ -2,7 +2,7 @@ pragma solidity ^0.5.3;
 
 contract ContractExtender {
 
-    address creator;
+    address public creator;
     string public targetRecipientPublicKeyHash;
     bool public targetHasAccepted;
 
