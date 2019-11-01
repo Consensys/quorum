@@ -235,11 +235,7 @@ func (service *PrivacyService) watchForCompletionEvents() {
 
 			//Find the extension contract in order to interact with it
 			caller, _ := extensionContracts.NewContractExtenderCaller(l.Address, service.client)
-			contractCreator, err := caller.Creator(nil)
-			if err != nil {
-				service.mu.Unlock()
-				continue
-			}
+			contractCreator, _ := caller.Creator(nil)
 
 			from := accounts.Account{Address: contractCreator}
 			if _, err := service.ethereum.AccountManager().Find(from); err != nil {
@@ -265,7 +261,8 @@ func (service *PrivacyService) watchForCompletionEvents() {
 
 			//we found the account, so we can send
 			privateState, _ := service.privateState(l.BlockHash)
-			jsonMap := getAddressState(privateState, extensionEntry.Address)
+			contractToExtend, _ := caller.ContractToExtend(nil)
+			jsonMap := getAddressState(privateState, contractToExtend)
 
 			//send to PTM
 			hash, _ := service.ptm.Send(jsonMap, "", []string{string(recipient)})
