@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	"github.com/ethereum/go-ethereum/private"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -62,4 +64,16 @@ func writeContentsToFile(extensionContracts map[common.Address]*ExtensionContrac
 		return errSaving
 	}
 	return nil
+}
+
+// generateUuid sends some data to the linked Private Transaction Manager which
+// uses a randomly generated key to encrypt the data and then hash it this
+// means we get a effectively random hash, whilst also having a reference
+// transaction inside the PTM
+func generateUuid(privateFrom string, ptm private.PrivateTransactionManager) (string, error) {
+	hash, err := ptm.Send(ptmMessage, privateFrom, []string{})
+	if err != nil {
+		return "", err
+	}
+	return common.BytesToEncryptedPayloadHash(hash).String(), nil
 }
