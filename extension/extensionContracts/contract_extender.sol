@@ -18,7 +18,7 @@ contract ContractExtender {
 
     //contains the total outcome of voting
     //true if ALL nodes vote true, false if ANY node votes false
-    bool public totalVote;
+    bool public voteOutcome;
 
     //the hash of the shared payload
     string public sharedDataHash;
@@ -43,7 +43,7 @@ contract ContractExtender {
         walletAddressesToVote = walletAddresses;
         sharedDataHash = "";
 
-        totalVote = true;
+        voteOutcome = true;
         numberOfVotesSoFar = 0;
 
         //we always want to have ourselves in this contract, so if we weren't specified, add us
@@ -90,7 +90,7 @@ contract ContractExtender {
         hasVotedMapping[msg.sender] = true;
         votes[msg.sender] = vote;
         numberOfVotesSoFar++;
-        totalVote = totalVote && vote;
+        voteOutcome = voteOutcome && vote;
 
         if (vote) {
             setUuid(nextuuid);
@@ -150,13 +150,13 @@ contract ContractExtender {
     // checks if all the conditions for voting have been met
     // either all voted true and target accepted, or someone voted false
     function checkVotes() internal {
-        if (!totalVote) {
-            emit AllNodesHaveVoted(totalVote);
+        if (!voteOutcome) {
+            emit AllNodesHaveVoted(false);
             setFinished();
         }
 
         if (haveAllNodesVoted() && targetHasAccepted) {
-            emit AllNodesHaveVoted(totalVote);
+            emit AllNodesHaveVoted(voteOutcome);
         }
     }
 
