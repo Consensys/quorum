@@ -32,7 +32,7 @@ contract ContractExtender {
     event AllNodesHaveVoted(bool outcome); //when all nodes have voted
     event CanPerformStateShare(); //when all nodes have voted & the recipient has accepted
     event ExtensionFinished(); //if the extension is cancelled or completed
-    event StateShared(string hash, string uuid); //when the state is shared and can be replayed into the database
+    event StateShared(address toExtend, string hash, string uuid); //when the state is shared and can be replayed into the database
     event UpdateMembers(address toExtend, string uuid); //to update the original transaction hash for the new party member
 
     constructor(address contractAddress, address[] memory walletAddresses, string memory recipientHash, string memory uuid) public {
@@ -122,7 +122,7 @@ contract ContractExtender {
         sharedDataHash = hash;
 
         for(uint256 i = 0; i < uuids.length; i++) {
-            emit StateShared(sharedDataHash, uuids[i]);
+            emit StateShared(contractToExtend, sharedDataHash, uuids[i]);
         }
 
         finish();

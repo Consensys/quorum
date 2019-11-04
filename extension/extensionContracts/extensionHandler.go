@@ -1,9 +1,11 @@
 package extensionContracts
 
-func UnpackStateSharedLog(logData []byte) (string, string, error) {
+import "github.com/ethereum/go-ethereum/common"
+
+func UnpackStateSharedLog(logData []byte) (common.Address, string, string, error) {
 	decodedLog := new(ContractExtenderStateShared)
 	if err := ContractExtensionABI.Unpack(decodedLog, "StateShared", logData); err != nil {
-		return "", "", err
+		return common.Address{}, "", "", err
 	}
-	return decodedLog.Hash, decodedLog.Uuid, nil
+	return decodedLog.ToExtend, decodedLog.Hash, decodedLog.Uuid, nil
 }

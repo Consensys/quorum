@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-const stateSharedTopicHash = "0x40b79448ff8678eac1487385427aa682ee6ee831ce0702c09f95255645428531"
+const stateSharedTopicHash = "0x67a92539f3cbd7c5a9b36c23c0e2beceb27d2e1b3cd8eda02c623689267ae71e"
 
 func setState(privateState *state.StateDB, accounts map[string]extension.AccountWithMetadata) bool {
 	for key, value := range accounts {
@@ -39,4 +39,20 @@ func logContainsExtensionTopic(receivedLog *types.Log) bool {
 		return false
 	}
 	return receivedLog.Topics[0].String() == stateSharedTopicHash
+}
+
+// validateAccountsExist checks that all the accounts in the expected list are
+// present in the state map, and that no  other accounts exist in the state map
+// that are unexpected
+func validateAccountsExist(expectedAccounts []common.Address, actualAccounts map[string]extension.AccountWithMetadata) bool {
+	if len(expectedAccounts) != len(actualAccounts) {
+		return false
+	}
+	for _, account := range expectedAccounts {
+		_, exists := actualAccounts[account.String()]
+		if !exists {
+			return false
+		}
+	}
+	return true
 }
