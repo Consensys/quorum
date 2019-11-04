@@ -20,7 +20,7 @@ func setState(privateState *state.StateDB, accounts map[string]extension.Account
 
 		newBalance, errBalanceSet := new(big.Int).SetString(stateDump.Balance, 10)
 		if !errBalanceSet {
-			log.Warn("could not set address balance", "address", key, "balance", stateDump.Balance)
+			log.Error("could not set address balance", "address", key, "balance", stateDump.Balance)
 			return false
 		}
 
