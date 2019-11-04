@@ -84,7 +84,10 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	// check the the intended new recipient will actually receive the extension request
 	found := false
 	for _, recipient := range txArgs.PrivateFor {
-		found = found || (recipient == newRecipientPtmPublicKey)
+		if recipient == newRecipientPtmPublicKey {
+			found = true
+			break
+		}
 	}
 	if !found {
 		txArgs.PrivateFor = append(txArgs.PrivateFor, newRecipientPtmPublicKey)
