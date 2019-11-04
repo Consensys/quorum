@@ -50,13 +50,13 @@ func (handler *ExtensionHandler) FetchStateData(hash string, uuid string) (map[s
 	stateData, ok := handler.FetchDataFromPTM(hash)
 	if !ok {
 		//there is nothing to do here, the state wasn't shared with us
-		log.Info("Extension", "No state shared with us")
+		log.Error("Extension", "No state shared with us")
 		return nil, false
 	}
 
 	var accounts map[string]extension.AccountWithMetadata
 	if err := json.Unmarshal(stateData, &accounts); err != nil {
-		log.Info("Extension", "Could not unmarshal data")
+		log.Error("Extension", "Could not unmarshal data")
 		return nil, false
 	}
 	return accounts, true
@@ -68,7 +68,12 @@ func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, bool) {
 	ptmHash, _ := base64.StdEncoding.DecodeString(hash)
 	stateData, err := handler.ptm.Receive(ptmHash)
 
-	if stateData == nil || err != nil {
+	if stateData == nil {
+		log.Error("No state data found in PTM", "ptm hash", hash)
+		return nil, false
+	}
+	if err != nil {
+		log.Error("Error receiving state data from PTM", "ptm hash", hash, "err", err.Error())
 		return nil, false
 	}
 	return stateData, true
@@ -77,14 +82,14 @@ func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, bool) {
 func (handler *ExtensionHandler) UuidIsOwn(uuid string) bool {
 	if uuid == "" {
 		//we never called accept
-		log.Info("Extension", "State shared by accept never called")
+		log.Warn("Extension", "State shared by accept never called")
 		return false
 	}
 	encryptedTxHash := common.BytesToEncryptedPayloadHash(common.FromHex(uuid))
 
 	isSender, err := handler.ptm.IsSender(encryptedTxHash)
 	if err != nil {
-		log.Warn("Extension: could not determine if we are sender", "err", err.Error())
+		log.Error("Extension: could not determine if we are sender", "err", err.Error())
 		return false
 	}
 	return isSender
