@@ -146,6 +146,11 @@ web3._extend({
 	property: 'admin',
 	methods: [
 		new web3._extend.Method({
+			name: 'reloadPlugin',
+			call: 'admin_reloadPlugin',
+			params: 1
+		}),
+		new web3._extend.Method({
 			name: 'addPeer',
 			call: 'admin_addPeer',
 			params: 1

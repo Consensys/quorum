@@ -71,6 +71,14 @@ nav:
             - How it works: Privacy/Constellation/How constellation works.md
             - Sample Configuration: Privacy/Constellation/Sample Configuration.md
             - Running Constellation: Privacy/Constellation/Installation & Running.md
+    - Pluggable Architecture:
+        - Overview: PluggableArchitecture/Overview.md
+        - Settings: PluggableArchitecture/Settings.md
+        - Supported Interfaces: PluggableArchitecture/SupportedInterfaces.md # this is auto generated from ./plugin/proto package
+        - Plugin Development: PluggableArchitecture/PluginDevelopment.md
+        - Internals: PluggableArchitecture/Internals.md
+        - Plugin List: PluggableArchitecture/PluginList.md
+    - Product Roadmap: roadmap.md
     - Cakeshop:
         - Overview: Cakeshop/Overview.md
         - Getting Started: Cakeshop/Getting started.md
@@ -115,6 +123,8 @@ markdown_extensions:
     - pymdownx.tilde
     - meta
     - smarty
+    - plantuml_markdown:
+        server: http://www.plantuml.com/plantuml
 
 plugins:
     - search

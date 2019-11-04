@@ -1,0 +1,71 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	iplugin "github.com/ethereum/go-ethereum/internal/plugin"
+	"github.com/ethereum/go-ethereum/plugin/proto"
+	"github.com/hashicorp/go-plugin"
+)
+
+// this is to demonstrate how to write a plugin that implements HelloWorld plugin interface
+func main() {
+	log.SetFlags(0) // don't display time
+	plugin.Serve(&plugin.ServeConfig{
+		HandshakeConfig: iplugin.DefaultHandshakeConfig,
+		Plugins: map[string]plugin.Plugin{
+			"impl": &HelloWorldPluginIml{},
+		},
+		GRPCServer: plugin.DefaultGRPCServer,
+	})
+}
+
+// implements 2 interfaces:
+// 1. Initializer plugin interface - mandatory
+// 2. HelloWorld plugin interface
+type HelloWorldPluginIml struct {
+	plugin.Plugin
+	cfg *config
+}
+
+type config struct {
+	Language string
+}
+
+func (c *config) validate() error {
+	switch l := c.Language; l {
+	case "en", "es":
+		return nil
+	default:
+		return fmt.Errorf("unsupported language: [%s]", l)
+	}
+}
+
+func (h *HelloWorldPluginIml) Init(_ context.Context, req *proto.PluginInitialization_Request) (*proto.PluginInitialization_Response, error) {
+	var cfg config
+	if err := json.Unmarshal(req.RawConfiguration, &cfg); err != nil {
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid config: %s, err: %s", string(req.RawConfiguration), err.Error()))
+	}
+	if err := cfg.validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	h.cfg = &cfg
+	return &proto.PluginInitialization_Response{}, nil
+}
+
+func (h *HelloWorldPluginIml) Greeting(_ context.Context, req *proto.PluginHelloWorld_Request) (*proto.PluginHelloWorld_Response, error) {
+	switch l := h.cfg.Language; l {
+	case "en":
+		return &proto.PluginHelloWorld_Response{Msg: fmt.Sprintf("Hello %s!", req.Msg)}, nil
+	case "es":
+		return &proto.PluginHelloWorld_Response{Msg: fmt.Sprintf("Hola %s!", req.Msg)}, nil
+	default:
+		return nil, status.Error(codes.Internal, fmt.Sprintf("language [%s] not supported", l))
+	}
+}

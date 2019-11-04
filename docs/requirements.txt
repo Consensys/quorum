@@ -5,3 +5,4 @@ Markdown==3.0.1
 markdown-fenced-code-tabs==1.0.5
 markdown-include==0.5.1
 MarkupSafe==1.1.0
+plantuml-markdown==3.1.2
