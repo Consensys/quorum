@@ -26,12 +26,17 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 	for _, txLog := range txLogs {
 		if logContainsExtensionTopic(txLog) {
 			//this is a direct state share
-			hash, uuid, err := extension.UnpackStateSharedLog(txLog.Data)
+			address, hash, uuid, err := extension.UnpackStateSharedLog(txLog.Data)
 			if err != nil {
 				continue
 			}
 			accounts, found := handler.FetchStateData(hash, uuid)
 			if !found {
+				continue
+			}
+			if !validateAccountsExist([]common.Address{address}, accounts) {
+				log.Error("Account mismatch when extending")
+				log.Debug("Account mismatch", "expected", address, "found", accounts)
 				continue
 			}
 			snapshotId := privateState.Snapshot()
