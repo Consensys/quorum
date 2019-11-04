@@ -1,4 +1,4 @@
-package privacy_extension
+package privacyExtension
 
 import (
 	"math/big"
