@@ -27,7 +27,7 @@ func (api *PrivateExtensionAPI) ActiveExtensionContracts() []ExtensionContract {
 	api.privacyService.mu.Lock()
 	defer api.privacyService.mu.Unlock()
 
-	var extracted []ExtensionContract
+	extracted := make([]ExtensionContract, 0, len(api.privacyService.currentContracts))
 	for _, contract := range api.privacyService.currentContracts {
 		extracted = append(extracted, *contract)
 	}
