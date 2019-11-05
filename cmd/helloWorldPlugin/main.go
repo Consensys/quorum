@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 
+	"google.golang.org/grpc"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -29,9 +31,20 @@ func main() {
 // implements 2 interfaces:
 // 1. Initializer plugin interface - mandatory
 // 2. HelloWorld plugin interface
+// 3. GRPC Plugin from go-plugin
 type HelloWorldPluginIml struct {
 	plugin.Plugin
 	cfg *config
+}
+
+func (h *HelloWorldPluginIml) GRPCServer(_ *plugin.GRPCBroker, s *grpc.Server) error {
+	proto.RegisterPluginInitializerServer(s, h)
+	proto.RegisterPluginGreetingServer(s, h)
+	return nil
+}
+
+func (h *HelloWorldPluginIml) GRPCClient(context.Context, *plugin.GRPCBroker, *grpc.ClientConn) (interface{}, error) {
+	return nil, iplugin.ErrNotSupported
 }
 
 type config struct {

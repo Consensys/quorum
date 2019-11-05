@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -47,6 +49,8 @@ type basePlugin struct {
 	logger           log.Logger
 }
 
+var basePluginPointerType = reflect.TypeOf(&basePlugin{})
+
 func newBasePlugin(pm *PluginManager, pluginInterface PluginInterfaceName, pluginDefinition *PluginDefinition, gateways plugin.PluginSet) (*basePlugin, error) {
 	gateways[initializer.ConnectorName] = &initializer.PluginConnector{}
 
@@ -63,13 +67,11 @@ func newBasePlugin(pm *PluginManager, pluginInterface PluginInterfaceName, plugi
 
 // metadata.Command must be populated correctly here
 func (bp *basePlugin) load() error {
-
 	// Get plugin distribution path
 	pluginDistFilePath, err := bp.pm.downloader.Download(bp.pluginDefinition)
 	if err != nil {
 		return err
 	}
-
 	// get file checksum
 	pluginChecksum, err := bp.checksum(pluginDistFilePath)
 	if err != nil {
@@ -80,26 +82,18 @@ func (bp *basePlugin) load() error {
 		return err
 	}
 	bp.logger.Info("unpacking plugin", "checksum", pluginChecksum)
-
 	// Unpack plugin
 	unPackDir, pluginMeta, err := unpackPlugin(pluginDistFilePath)
 	if err != nil {
 		return err
 	}
-
-	// initialize plugin centralClient to prepare for plugin execution
-	var command *exec.Cmd
-	executable := pluginMeta.EntryPoint
-
-	// Ensure received execution path exists
-	_, err = exec.LookPath(executable)
-	if err != nil { // not in PATH
-		executable = path.Join(unPackDir, executable)
-		if !common.FileExist(executable) {
-			return fmt.Errorf("entry point can't be executed")
-		}
-	}
 	// Create Execution Command
+	var command *exec.Cmd
+	executable := path.Join(unPackDir, pluginMeta.EntryPoint)
+	if !common.FileExist(executable) {
+		return fmt.Errorf("entry point does not exist")
+	}
+	bp.logger.Debug("Plugin executable", "path", executable)
 	if len(pluginMeta.Parameters) == 0 {
 		command = exec.Command(executable)
 		bp.commands = []string{executable}
@@ -122,6 +116,10 @@ func (bp *basePlugin) load() error {
 }
 
 func (bp *basePlugin) Start() (err error) {
+	startTime := time.Now()
+	defer func(startTime time.Time) {
+		bp.logger.Info("Plugin started", "error", err, "took", time.Since(startTime))
+	}(startTime)
 	bp.logger.Info("Starting plugin")
 	err = bp.load()
 	if err != nil {
@@ -137,7 +135,6 @@ func (bp *basePlugin) Start() (err error) {
 		}
 	}()
 	err = bp.init()
-
 	return
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"unsafe"
 
 	"github.com/ethereum/go-ethereum/log"
 
@@ -19,8 +20,9 @@ type PluginManager struct {
 	centralClient *CentralClient
 	downloader    *Downloader
 	settings      *Settings
-	mux           sync.Mutex
-	plugins       map[PluginInterfaceName]managedPlugin
+	mux           sync.Mutex                            // control concurrent access to plugins cache
+	plugins       map[PluginInterfaceName]managedPlugin // lazy load the actual plugin templates
+	basePlugins   map[PluginInterfaceName]managedPlugin // prepopulate during initialization of plugin manager, needed for starting plugins
 }
 
 func (s *PluginManager) Protocols() []p2p.Protocol { return nil }
@@ -38,7 +40,7 @@ func (s *PluginManager) APIs() []rpc.API {
 			log.Info("plugin: instance not ready", "name", HelloWorldPluginInterfaceName, "err", err)
 		} else {
 			helloWorldAPI = append(helloWorldAPI, rpc.API{
-				Namespace: fmt.Sprintf("plugin[%s]", HelloWorldPluginInterfaceName),
+				Namespace: fmt.Sprintf("plugin@%s", HelloWorldPluginInterfaceName),
 				Service:   pluginInstance,
 				Version:   "1.0",
 				Public:    true,
@@ -56,9 +58,9 @@ func (s *PluginManager) APIs() []rpc.API {
 }
 
 func (s *PluginManager) Start(_ *p2p.Server) (err error) {
-	log.Info("Starting all plugins", "count", len(s.plugins))
-	startedPlugins := make([]managedPlugin, 0, len(s.plugins))
-	for _, p := range s.plugins {
+	log.Info("Starting all plugins", "count", len(s.basePlugins))
+	startedPlugins := make([]managedPlugin, 0, len(s.basePlugins))
+	for _, p := range s.basePlugins {
 		if err = p.Start(); err != nil {
 			break
 		} else {
@@ -98,23 +100,25 @@ func (s *PluginManager) GetPluginTemplate(name PluginInterfaceName, v managedPlu
 	}
 	if p, ok := s.plugins[name]; ok {
 		return recoverToErrorFunc(func() {
-			rv.Elem().Set(reflect.ValueOf(p))
+			cachedValue := reflect.ValueOf(p)
+			rv.Elem().Set(cachedValue.Elem())
 		})
 	}
-	pluginDefinition, ok := s.settings.GetPluginDefinition(name)
+	base, ok := s.basePlugins[name]
 	if !ok {
-		return fmt.Errorf("no plugin definition for %s", name)
-	}
-	pluginProvider, ok := pluginProviders[name]
-	if !ok {
-		return fmt.Errorf("plugin %s not supported", name)
-	}
-	base, err := newBasePlugin(s, name, pluginDefinition, pluginProvider)
-	if err != nil {
-		return fmt.Errorf("plugin [%s] %s", name, err.Error())
+		return fmt.Errorf("plugin: [%s] is not found", name)
 	}
 	if err := recoverToErrorFunc(func() {
-		rv.Elem().FieldByName("BasePlugin").Set(reflect.ValueOf(base))
+		basePluginValue := reflect.ValueOf(base)
+		// the first field in the plugin template object is the basePlugin
+		// it indicates that the plugin template "extends" basePlugin
+		basePluginField := rv.Elem().FieldByName("basePlugin")
+		if !basePluginField.IsValid() || basePluginField.Type() != basePluginPointerType {
+			panic(fmt.Sprintf("plugin template must extend *basePlugin"))
+		}
+		// need to have write access to the unexported field in the target object
+		basePluginField = reflect.NewAt(basePluginField.Type(), unsafe.Pointer(basePluginField.UnsafeAddr())).Elem()
+		basePluginField.Set(basePluginValue)
 	}); err != nil {
 		return err
 	}
@@ -159,6 +163,7 @@ func NewPluginManager(nodeName string, settings *Settings, skipVerify bool, loca
 		pluginBaseDir: settings.BaseDir.String(),
 		centralClient: NewPluginCentralClient(settings.CentralConfig),
 		plugins:       make(map[PluginInterfaceName]managedPlugin),
+		basePlugins:   make(map[PluginInterfaceName]managedPlugin),
 		settings:      settings,
 	}
 	pm.downloader = NewDownloader(pm)
@@ -170,6 +175,18 @@ func NewPluginManager(nodeName string, settings *Settings, skipVerify bool, loca
 		if pm.verifier, err = NewVerifier(pm, localVerify, publicKey); err != nil {
 			return nil, err
 		}
+	}
+	for pluginName, pluginDefinition := range settings.Providers {
+		log.Debug("Preparing plugin", "provider", pluginName, "name", pluginDefinition.Name, "version", pluginDefinition.Version)
+		pluginProvider, ok := pluginProviders[pluginName]
+		if !ok {
+			return nil, fmt.Errorf("plugin: [%s] is not supported", pluginName)
+		}
+		base, err := newBasePlugin(pm, pluginName, &pluginDefinition, pluginProvider)
+		if err != nil {
+			return nil, fmt.Errorf("plugin [%s] %s", pluginName, err.Error())
+		}
+		pm.basePlugins[pluginName] = base
 	}
 	return pm, nil
 }
