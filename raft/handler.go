@@ -887,8 +887,10 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 			log.EmitCheckpoint(log.TxAccepted, "tx", tx.Hash().Hex())
 		}
 
+		pm.minter.stateMu.Lock()
 		_, err := pm.blockchain.InsertChain([]*types.Block{block})
-
+		pm.minter.stateMu.Unlock()
+		
 		if err != nil {
 			panic(fmt.Sprintf("failed to extend chain: %s", err.Error()))
 		}

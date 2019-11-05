@@ -54,6 +54,7 @@ type work struct {
 type minter struct {
 	config           *params.ChainConfig
 	mu               sync.Mutex
+	stateMu			 sync.Mutex // lock to prevent concurrent access to state.Commit and InsertChain
 	mux              *event.TypeMux
 	eth              *RaftService
 	chain            *core.BlockChain
@@ -350,6 +351,8 @@ func (minter *minter) mintNewBlock() {
 
 	log.Info("Generated next block", "block num", block.Number(), "num txes", txCount)
 
+	minter.stateMu.Lock()
+	defer minter.stateMu.Unlock()
 	deleteEmptyObjects := minter.chain.Config().IsEIP158(block.Number())
 	if _, err := work.publicState.Commit(deleteEmptyObjects); err != nil {
 		panic(fmt.Sprint("error committing public state: ", err))
