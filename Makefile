@@ -12,12 +12,10 @@ define QUORUM_PLUGIN_SETTINGS_SAMPLE
 {
 	"baseDir": "$(shell pwd)/build/bin",
 	"providers": {
-		"helloWorld": {
+		"helloworld": {
 			"name":"quorum-plugin-helloWorld",
 			"version":"1.0.0",
-			"config": {
-				"language": "en"
-			}
+			"config": "file://$(shell pwd)/build/bin/helloWorld-plugin-config.json"
 		}
 	}
 }
@@ -174,6 +172,7 @@ geth-windows-amd64:
 
 helloWorldPlugin:
 	build/env.sh go run build/ci.go install ./cmd/helloWorldPlugin
+	@cp ./cmd/helloWorldPlugin/helloWorld-plugin-config.json build/bin/
 	@zip -j -FS -q build/bin/quorum-plugin-helloWorld-1.0.0.zip ./cmd/helloWorldPlugin/plugin-meta.json build/bin/helloWorldPlugin
 	@echo "$$QUORUM_PLUGIN_SETTINGS_SAMPLE" > build/bin/plugin-settings.json
 	@echo "Done building."

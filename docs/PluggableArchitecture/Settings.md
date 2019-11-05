@@ -8,7 +8,7 @@
   "baseDir": string,
   "central": object(PluginCentralConfiguration),
   "providers": {
-    "security": object(PluginDefinition)
+     <string>: object(PluginDefinition)
   }
 }
 ```
@@ -21,18 +21,18 @@
     # [Node.Plugins.Central]
     # .. = .. from object(PluginCentralConfiguration)
     [[Node.Plugins.Providers]]
-        Security = object(PluginDefinition) # as inline table
+        <string> = object(PluginDefinition) # as inline table
         # Or as key-value table
-        # [[Node.Plugins.Providers.Security]]
+        # [[Node.Plugins.Providers.<string>]]
         # .. = .. from object(PluginDefinition)
 ```
 
-| Fields      | Description                                                                                              |
-|:------------|:---------------------------------------------------------------------------------------------------------|
+| Fields      | Description                                                                                                                                                                                                        |
+|:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `baseDir`   | A string indicates local directory from where plugins are read. If empty, default to `<datadir>/plugins`. <br/> To read from arbitrary enviroment variable (e.g: `MY_BASE_DIR`), provide value `env://MY_BASE_DIR` |
-| `central`   | A configuration of the remote plugin central
-| `providers` | A map specifies supported plugin interfaces with the respected plugin provider definitions               |
-| `security`  | A string constant indicates the security plugin interface                                                |
+| `central`   | A configuration of the remote plugin central                                                                                                                                                                       |
+| `providers` | A map specifies supported plugin interfaces with the respected plugin provider definitions                                                                                                                         |
+| `<string>`  | A string constant indicates the plugin interface. E.g: `helloWorld`                                                                                                                                                |
 
 ## `PluginCentralConfiguration`
 

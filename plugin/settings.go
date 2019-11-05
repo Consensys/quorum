@@ -92,7 +92,7 @@ func (m *PluginDefinition) SignatureFileName() string {
 }
 
 const (
-	HelloWorldPluginInterfaceName = PluginInterfaceName("helloWorld")
+	HelloWorldPluginInterfaceName = PluginInterfaceName("helloworld") // lower-case always
 )
 
 // define additional plugins here

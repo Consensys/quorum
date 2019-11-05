@@ -8,9 +8,13 @@ type HellowWorldPluginTemplate struct {
 }
 
 func (p *HellowWorldPluginTemplate) Get() (helloWorld.PluginHelloWorld, error) {
-	raw, err := p.dispense(helloWorld.ConnectorName)
-	if err != nil {
-		return nil, err
-	}
-	return raw.(helloWorld.PluginHelloWorld), nil
+	return &helloWorld.ReloadablePluginHelloWorld{
+		DeferFunc: func() (helloWorld.PluginHelloWorld, error) {
+			raw, err := p.dispense(helloWorld.ConnectorName)
+			if err != nil {
+				return nil, err
+			}
+			return raw.(helloWorld.PluginHelloWorld), nil
+		},
+	}, nil
 }

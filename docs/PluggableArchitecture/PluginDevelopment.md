@@ -63,13 +63,9 @@ There are mandatory key value pairs which must be present.
 E.g.:
 ```json
 {
-  "name": "quorum-plugin-simple-security-manager",
+  "name": "quorum-plugin-helloWorld",
   "version": "1.0.0",
-  "entrypoint": "java",
-  "parameters": [
-    "-jar",
-    "quorum-plugin-simple-security-manager-1.0.0.jar"
-  ]
+  "entrypoint": "helloWorldPlugin"
 }
 ```
 
@@ -98,4 +94,4 @@ in the [handshake](https://github.com/hashicorp/go-plugin/blob/master/docs/inter
 
 ## Examples
 
-Sample implementations (in Go, Java and Python) of [security]((../SupportedInterfaces/#securityproto)) plugin interface can be found [here](https://github.com/jpmorganchase/quorum-plugin-simple-security-manager).
+Please visit [Overview](../Overview/#example-helloworld-plugin) page for a built-in HelloWorld plugin example.

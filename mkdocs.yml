@@ -75,8 +75,8 @@ nav:
         - Overview: PluggableArchitecture/Overview.md
         - Settings: PluggableArchitecture/Settings.md
         - Supported Interfaces: PluggableArchitecture/SupportedInterfaces.md # this is auto generated from ./plugin/proto package
-        - Plugin Development: PluggableArchitecture/PluginDevelopment.md
         - Internals: PluggableArchitecture/Internals.md
+        - Plugin Development: PluggableArchitecture/PluginDevelopment.md
         - Plugin List: PluggableArchitecture/PluginList.md
     - Product Roadmap: roadmap.md
     - Cakeshop:

@@ -153,7 +153,7 @@ func createArbitraryZip(tmpDir string) (string, error) {
 var (
 	arbitraryChecksum = "bf9a942afca462a9fb45f471f8d4db8c79cf332d"
 	// signature of the signed arbitraryChecksum
-	validSignature    = []byte(`
+	validSignature = []byte(`
 -----BEGIN PGP SIGNATURE-----
 
 iQJBBAEBCAArFiEEHGpboPTpUoYceZX2PIgUS38YTSgFAl1C/8ENHGFiY0B0ZXN0

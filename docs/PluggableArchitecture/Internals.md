@@ -139,5 +139,3 @@ It manages plugins being used inside `geth`. It reads the [configuration](../Set
 ### Plugin Reloading
 
 `PluginManager` exposes an API (`admin_reloadPlugin`) that allows reloading a plugin. This would attempt to restart the current plugin process. 
-In a special case with `security` plugin, it is required to perform `geth attach` via Unix Socket in order to reload. 
-
