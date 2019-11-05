@@ -1559,7 +1559,7 @@ func TestTransactionDeduplication(t *testing.T) {
 
 	// Create the pool to test the pricing enforcement with
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
-	blockchain := &testBlockChain{statedb, 1000000, new(event.Feed)}
+	blockchain := &testBlockChain{statedb, statedb, 1000000, new(event.Feed)}
 
 	pool := NewTxPool(testTxPoolConfig, params.TestChainConfig, blockchain)
 	defer pool.Stop()

@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"math/big"
 	"net"
 	"testing"
@@ -177,6 +178,9 @@ func TestNodeParseUrlWithHostnameForQuorum(t *testing.T) {
 	url = "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@localhost1:21000?discport=0&raftport=50401"
 	_, err = ParseV4(url)
 	if err != nil {
-		assert.Equal(t, "invalid IP address", err.Error())
+		errMsg := err.Error()
+		hasError := strings.Contains(errMsg, "no such host")
+
+		assert.Equal(t, true, hasError, err.Error())
 	}
 }
