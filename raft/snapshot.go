@@ -24,9 +24,9 @@ import (
 
 // Snapshot
 type Snapshot struct {
-	addresses      []Address
-	removedRaftIds []uint16
-	headBlockHash  common.Hash
+	Addresses      []Address
+	RemovedRaftIds []uint16
+	HeadBlockHash  common.Hash
 }
 
 type OldAddress struct {
@@ -57,9 +57,9 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	numRemovedNodes := pm.removedPeers.Cardinality()
 
 	snapshot := &Snapshot{
-		addresses:      make([]Address, numNodes),
-		removedRaftIds: make([]uint16, numRemovedNodes),
-		headBlockHash:  pm.blockchain.CurrentBlock().Hash(),
+		Addresses:      make([]Address, numNodes),
+		RemovedRaftIds: make([]uint16, numRemovedNodes),
+		HeadBlockHash:  pm.blockchain.CurrentBlock().Hash(),
 	}
 
 	// Populate addresses
@@ -68,17 +68,17 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 		raftId := uint16(rawRaftId)
 
 		if raftId == pm.raftId {
-			snapshot.addresses[i] = *pm.address
+			snapshot.Addresses[i] = *pm.address
 		} else {
-			snapshot.addresses[i] = *pm.peers[raftId].address
+			snapshot.Addresses[i] = *pm.peers[raftId].address
 		}
 	}
-	sort.Sort(ByRaftId(snapshot.addresses))
+	sort.Sort(ByRaftId(snapshot.Addresses))
 
 	// Populate removed IDs
 	i := 0
 	for removedIface := range pm.removedPeers.Iterator().C {
-		snapshot.removedRaftIds[i] = removedIface.(uint16)
+		snapshot.RemovedRaftIds[i] = removedIface.(uint16)
 		i++
 	}
 
@@ -218,10 +218,10 @@ func (snapshot *Snapshot) toBytes(useDns bool) []byte {
 	}
 
 	oldSnapshot := new(SnapshotOld)
-	oldSnapshot.HeadBlockHash, oldSnapshot.RemovedRaftIds = snapshot.headBlockHash, snapshot.removedRaftIds
-	oldSnapshot.Addresses = make([]OldAddress, len(snapshot.addresses))
+	oldSnapshot.HeadBlockHash, oldSnapshot.RemovedRaftIds = snapshot.HeadBlockHash, snapshot.RemovedRaftIds
+	oldSnapshot.Addresses = make([]OldAddress, len(snapshot.Addresses))
 
-	for index, addrWithHost := range snapshot.addresses {
+	for index, addrWithHost := range snapshot.Addresses {
 		oldSnapshot.Addresses[index] = OldAddress{
 			addrWithHost.RaftId,
 			addrWithHost.NodeId,
@@ -243,7 +243,7 @@ func bytesToSnapshot(input []byte) *Snapshot {
 
 	snapshot := new(Snapshot)
 	streamNewSnapshot := rlp.NewStream(bytes.NewReader(input), 0)
-	if err := streamNewSnapshot.Decode(snapshot); err == nil {
+	if err = streamNewSnapshot.Decode(snapshot); err == nil {
 		return snapshot
 	}
 
@@ -251,11 +251,11 @@ func bytesToSnapshot(input []byte) *Snapshot {
 	streamOldSnapshot := rlp.NewStream(bytes.NewReader(input), 0)
 	if errOld = streamOldSnapshot.Decode(snapshotOld); errOld == nil {
 		var snapshotConverted Snapshot
-		snapshotConverted.removedRaftIds, snapshotConverted.headBlockHash = snapshotOld.RemovedRaftIds, snapshotOld.HeadBlockHash
-		snapshotConverted.addresses = make([]Address, len(snapshotOld.Addresses))
+		snapshotConverted.RemovedRaftIds, snapshotConverted.HeadBlockHash = snapshotOld.RemovedRaftIds, snapshotOld.HeadBlockHash
+		snapshotConverted.Addresses = make([]Address, len(snapshotOld.Addresses))
 
 		for index, oldAddrWithIp := range snapshotOld.Addresses {
-			snapshotConverted.addresses[index] = Address{
+			snapshotConverted.Addresses[index] = Address{
 				RaftId:   oldAddrWithIp.RaftId,
 				NodeId:   oldAddrWithIp.NodeId,
 				Ip:       nil,
@@ -273,7 +273,7 @@ func bytesToSnapshot(input []byte) *Snapshot {
 }
 
 func (snapshot *Snapshot) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{snapshot.addresses, snapshot.removedRaftIds, snapshot.headBlockHash})
+	return rlp.Encode(w, []interface{}{snapshot.Addresses, snapshot.RemovedRaftIds, snapshot.HeadBlockHash})
 }
 
 // Raft snapshot
@@ -311,9 +311,9 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 	}
 	snapshot := bytesToSnapshot(raftSnapshot.Data)
 
-	latestBlockHash := snapshot.headBlockHash
+	latestBlockHash := snapshot.HeadBlockHash
 
-	pm.updateClusterMembership(raftSnapshot.Metadata.ConfState, snapshot.addresses, snapshot.removedRaftIds)
+	pm.updateClusterMembership(raftSnapshot.Metadata.ConfState, snapshot.Addresses, snapshot.RemovedRaftIds)
 
 	preSyncHead := pm.blockchain.CurrentBlock()
 
