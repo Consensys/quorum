@@ -74,25 +74,20 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		privateState.Prepare(tx.Hash(), block.Hash(), i)
 
-		var txLogs []*types.Log
-
 		receipt, privateReceipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
-		txLogs = append(txLogs, receipt.Logs...)
 
 		// if the private receipt is nil this means the tx was public
 		// and we do not need to apply the additional logic.
 		if privateReceipt != nil {
 			privateReceipts = append(privateReceipts, privateReceipt)
 			allLogs = append(allLogs, privateReceipt.Logs...)
-			txLogs = append(txLogs, privateReceipt.Logs...)
+			privacyExtension.DefaultExtensionHandler.CheckExtensionAndSetPrivateState(privateReceipt.Logs, privateState)
 		}
-
-		privacyExtension.DefaultExtensionHandler.CheckExtensionAndSetPrivateState(txLogs, privateState)
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
 	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
