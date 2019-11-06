@@ -428,7 +428,7 @@ func (pm *ProtocolManager) startRaft() {
 				if entry.Type == raftpb.EntryNormal {
 					var block types.Block
 					if err := rlp.DecodeBytes(entry.Data, &block); err != nil {
-						log.Error("error decoding block: ", err)
+						log.Error("error decoding block: ", "err", err)
 						continue
 					}
 
