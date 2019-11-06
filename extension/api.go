@@ -1,16 +1,16 @@
 package extension
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
+	"github.com/ethereum/go-ethereum/crypto"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 )
-
-//this exists to send to the PTM to be encrypted, returning a non-deterministic hash
-var ptmMessage = []byte("extension-data")
 
 type PrivateExtensionAPI struct {
 	privacyService *PrivacyService
@@ -42,7 +42,7 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 		return common.Hash{}, err
 	}
 
-	uuid, err := generateUuid(txArgs.PrivateFrom, api.privacyService.ptm)
+	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.privacyService.ptm)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -100,7 +100,14 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 
 	recipientHashBase64 := common.BytesToEncryptedPayloadHash(recipientHash).ToBase64()
 
-	uuid, err := generateUuid(txArgs.PrivateFrom, api.privacyService.ptm)
+	nonce, err := api.privacyService.client.PendingNonceAt(context.Background(), txArgs.From)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	txArgs.Nonce = new(big.Int).SetUint64(nonce)
+	managementAddress := crypto.CreateAddress(txArgs.From, nonce)
+
+	uuid, err := generateUuid(managementAddress, txArgs.PrivateFrom, api.privacyService.ptm)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -122,7 +129,7 @@ func (api *PrivateExtensionAPI) Accept(addressToVoteOn common.Address, txa ethap
 		return common.Hash{}, err
 	}
 
-	uuid, err := generateUuid(txArgs.PrivateFrom, api.privacyService.ptm)
+	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.privacyService.ptm)
 	if err != nil {
 		return common.Hash{}, err
 	}

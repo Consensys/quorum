@@ -1,6 +1,7 @@
 package privacyExtension
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 
@@ -30,7 +31,7 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 			if err != nil {
 				continue
 			}
-			accounts, found := handler.FetchStateData(hash, uuid)
+			accounts, found := handler.FetchStateData(txLog.Address, hash, uuid)
 			if !found {
 				continue
 			}
@@ -47,8 +48,8 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 	}
 }
 
-func (handler *ExtensionHandler) FetchStateData(hash string, uuid string) (map[string]extension.AccountWithMetadata, bool) {
-	if uuidIsSentByUs := handler.UuidIsOwn(uuid); !uuidIsSentByUs {
+func (handler *ExtensionHandler) FetchStateData(address common.Address, hash string, uuid string) (map[string]extension.AccountWithMetadata, bool) {
+	if uuidIsSentByUs := handler.UuidIsOwn(address, uuid); !uuidIsSentByUs {
 		return nil, false
 	}
 
@@ -84,7 +85,7 @@ func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, bool) {
 	return stateData, true
 }
 
-func (handler *ExtensionHandler) UuidIsOwn(uuid string) bool {
+func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) bool {
 	if uuid == "" {
 		//we never called accept
 		log.Warn("Extension", "State shared by accept never called")
@@ -95,6 +96,12 @@ func (handler *ExtensionHandler) UuidIsOwn(uuid string) bool {
 	isSender, err := handler.ptm.IsSender(encryptedTxHash)
 	if err != nil {
 		log.Error("Extension: could not determine if we are sender", "err", err.Error())
+		return false
+	}
+	data, _ := handler.ptm.Receive(encryptedTxHash.Bytes())
+	retrievedAddress := common.BytesToAddress(data)
+	if !bytes.Equal(retrievedAddress.Bytes(), address.Bytes()) {
+		log.Error("Extension: wrong address in retrieved UUID")
 		return false
 	}
 	return isSender

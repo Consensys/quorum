@@ -70,8 +70,8 @@ func writeContentsToFile(extensionContracts map[common.Address]*ExtensionContrac
 // uses a randomly generated key to encrypt the data and then hash it this
 // means we get a effectively random hash, whilst also having a reference
 // transaction inside the PTM
-func generateUuid(privateFrom string, ptm private.PrivateTransactionManager) (string, error) {
-	hash, err := ptm.Send(ptmMessage, privateFrom, []string{})
+func generateUuid(contractAddress common.Address, privateFrom string, ptm private.PrivateTransactionManager) (string, error) {
+	hash, err := ptm.Send(contractAddress.Bytes(), privateFrom, []string{})
 	if err != nil {
 		return "", err
 	}
