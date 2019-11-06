@@ -59,7 +59,7 @@ var xxx_messageInfo_PluginInitialization proto.InternalMessageInfo
 //
 // Initialization data for the plugin
 type PluginInitialization_Request struct {
-	// `geth` node name
+	// `geth` node identity
 	HostIdentity string `protobuf:"bytes,1,opt,name=hostIdentity,proto3" json:"hostIdentity,omitempty"`
 	// raw configuration to be processed by the plugin
 	RawConfiguration     []byte   `protobuf:"bytes,2,opt,name=rawConfiguration,proto3" json:"rawConfiguration,omitempty"`

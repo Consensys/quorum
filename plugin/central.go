@@ -41,16 +41,12 @@ func (cc *CentralClient) getNewSecureDialer() Dialer {
 		// support certificate pinning?
 		if cc.config.CertFingerprint != "" {
 			conState := c.ConnectionState()
-			keyPinValid := false
 			for _, peercert := range conState.PeerCertificates {
 				if bytes.Compare(peercert.Signature[0:], []byte(cc.config.CertFingerprint)) == 0 {
-					keyPinValid = true
-					break
+					return c, nil
 				}
 			}
-			if keyPinValid == false {
-				return nil, fmt.Errorf("certificate pinning failed")
-			}
+			return nil, fmt.Errorf("certificate pinning failed")
 		}
 		return c, nil
 	}

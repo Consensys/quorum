@@ -74,10 +74,12 @@ nav:
     - Pluggable Architecture:
         - Overview: PluggableArchitecture/Overview.md
         - Settings: PluggableArchitecture/Settings.md
-        - Supported Interfaces: PluggableArchitecture/SupportedInterfaces.md # this is auto generated from ./plugin/proto package
         - Internals: PluggableArchitecture/Internals.md
+        - Plugins:
+            - helloworld:
+                - Interface: PluggableArchitecture/Plugins/helloworld/interface.md
+                - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
         - Plugin Development: PluggableArchitecture/PluginDevelopment.md
-        - Plugin List: PluggableArchitecture/PluginList.md
     - Product Roadmap: roadmap.md
     - Cakeshop:
         - Overview: Cakeshop/Overview.md
@@ -121,6 +123,8 @@ markdown_extensions:
     - pymdownx.tasklist:
           custom_checkbox: true
     - pymdownx.tilde
+    - markdown_include.include:
+        base_path: docs
     - meta
     - smarty
     - plantuml_markdown:

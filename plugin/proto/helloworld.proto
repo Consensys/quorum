@@ -24,8 +24,7 @@ message PluginHelloWorld {
 }
 
 /*
- * `Optional`
- * Ping Pong a message
+ * Greeting service
  */
 service PluginGreeting {
     rpc Greeting(PluginHelloWorld.Request) returns (PluginHelloWorld.Response);

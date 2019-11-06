@@ -16,7 +16,7 @@ message PluginInitialization {
      * Initialization data for the plugin
      */
     message Request {
-        // `geth` node name
+        // `geth` node identity
         string hostIdentity = 1;
         // raw configuration to be processed by the plugin
         bytes rawConfiguration = 2;
@@ -26,7 +26,6 @@ message PluginInitialization {
 }
 
 /*
- * `Required`
  * Plugin Manager to initialize the plugin after plugin process is started successfully
  */
 service PluginInitializer {

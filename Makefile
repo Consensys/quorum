@@ -8,20 +8,6 @@
 .PHONY: geth-darwin geth-darwin-386 geth-darwin-amd64
 .PHONY: geth-windows geth-windows-386 geth-windows-amd64
 
-define QUORUM_PLUGIN_SETTINGS_SAMPLE
-{
-	"baseDir": "$(shell pwd)/build/bin",
-	"providers": {
-		"helloworld": {
-			"name":"quorum-plugin-helloWorld",
-			"version":"1.0.0",
-			"config": "file://$(shell pwd)/build/bin/helloWorld-plugin-config.json"
-		}
-	}
-}
-endef
-export QUORUM_PLUGIN_SETTINGS_SAMPLE
-
 GOBIN = $(shell pwd)/build/bin
 GO ?= latest
 
@@ -174,5 +160,5 @@ helloWorldPlugin:
 	build/env.sh go run build/ci.go install ./cmd/helloWorldPlugin
 	@cp ./cmd/helloWorldPlugin/helloWorld-plugin-config.json build/bin/
 	@zip -j -FS -q build/bin/quorum-plugin-helloWorld-1.0.0.zip ./cmd/helloWorldPlugin/plugin-meta.json build/bin/helloWorldPlugin
-	@echo "$$QUORUM_PLUGIN_SETTINGS_SAMPLE" > build/bin/plugin-settings.json
+	@cp ./cmd/helloWorldPlugin/geth-plugin-settings.json build/bin/
 	@echo "Done building."

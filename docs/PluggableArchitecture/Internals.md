@@ -1,3 +1,5 @@
+title: Internals - Pluggable Architecture - Quorum
+
 Quorum Client is a modified `geth` with plugin support for extensibility. Each plugin provides an implementation for a [specific interface](../SupportedInterfaces)
 such as TLS configuration source, RPC authorization, etc.
 Plugins are executed as a seperate process and communicate with the main `geth` over gRPC interfaces.

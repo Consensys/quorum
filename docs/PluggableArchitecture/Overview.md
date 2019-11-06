@@ -1,3 +1,5 @@
+title: Overview - Pluggable Architecture - Quorum
+
 Quorum Client is a modified `geth` client. One of the unique enhancements
 is the pluggable architecture which allows adding additional features as plugins to the core `geth`, 
 providing extensibility, flexibility, and isolation of Quorum features.
@@ -45,11 +47,11 @@ remotely with custom plugin central - reference the [`Settings`](../Settings/) s
 If the flag `--plugins.skipverify` is provided at runtime the plugin verification process will be disabled.
 
 !!! warning
-    Using `--plugins.skipverify`  is not advices for production settings and it should be avoided as introduces security risks.
+    Using `--plugins.skipverify`  is not adviced for production settings and it should be avoided as it introduces security risks.
 
 ## Example: `HelloWorld` plugin
 
-In this example, `HelloWorld` plugin exposes an JSON RPC endpoint to return a greeting message in the configured language.
+In this example, `HelloWorld` plugin exposes a JSON RPC endpoint to return a greeting message in the configured language.
 This plugin is reloadable which means we can use `admin_reloadPlugin` JSON RPC API to reload the plugin.
 
 The `HelloWorld` plugin example is available in Quorum Git repository. In actual plugin development, plugin source code is maintained in a separate repository.
@@ -58,21 +60,21 @@ Prequisites to run this example are similar to those for building `geth` with `m
 
 1. Clone Quorum repository
    ```bash
-   git clone https://github.com/jpmorganchase/quorum.git
-   cd quorum
+   › git clone https://github.com/jpmorganchase/quorum.git
+   › cd quorum
    ```
 1. Build `geth` and the plugin
    ```bash
-   make geth helloWorldPlugin
+   quorum› make geth helloWorldPlugin
    ```
    Notice that there are files being created under `build/bin` directory:
-    - `plugin-settings.json` which is the plugin settings file for `geth`
+    - `geth-plugin-settings.json` which is the plugin settings file for `geth`
     - `quorum-plugin-helloWorld-1.0.0.zip` which is the `HelloWorld` plugin distribution zip file
     - `helloWorld-plugin-config.json` which is the config file for the plugin
 1. Run `geth` with plugin
    ```bash
-   PRIVATE_CONFIG=ignore \
-   geth \
+   quorum› PRIVATE_CONFIG=ignore \
+   build/bin/geth \
         --nodiscover \
         --verbosity 5 \
         --networkid 10 \
@@ -81,13 +83,13 @@ Prequisites to run this example are similar to those for building `geth` with `m
         --datadir ./build/_workspace/test \
         --rpc \
         --rpcapi eth,debug,admin,net,web3,plugin@helloworld \
-        --plugins file://./build/bin/plugin-settings.json \
+        --plugins file://./build/bin/geth-plugin-settings.json \
         --plugins.skipverify
    ```
    `ps -ef | grep helloWorld` would reveal the `HelloWorld` plugin process
 1. Call the JSON RPC
    ```bash
-   curl -X POST http://localhost:8545 \
+   quorum› curl -X POST http://localhost:8545 \
         -H "Content-type: application/json" \
         --data '{"jsonrpc":"2.0","method":"plugin@helloworld_greeting","params":["Quorum Plugin"],"id":1}'
    {"jsonrpc":"2.0","id":1,"result":"Hello Quorum Plugin!"}
@@ -95,18 +97,18 @@ Prequisites to run this example are similar to those for building `geth` with `m
 1. Update plugin config to support `es` language
    ```bash
    # update language to "es"
-   vi build/bin/helloWorld-plugin-config.json
+   quorum› vi build/bin/helloWorld-plugin-config.json
    ```
 1. Reload the plugin
    ```bash
-   curl -X POST http://localhost:8545 \
+   quorum› curl -X POST http://localhost:8545 \
         -H "Content-type: application/json" \
         --data '{"jsonrpc":"2.0","method":"admin_reloadPlugin","params":["helloworld"],"id":1}'
    {"jsonrpc":"2.0","id":1,"result":true}
    ```
 1. Call the JSON RPC
    ```bash
-   curl -X POST http://localhost:8545 \
+   quorum› curl -X POST http://localhost:8545 \
         -H "Content-type: application/json" \
         --data '{"jsonrpc":"2.0","method":"plugin@helloworld_greeting","params":["Quorum Plugin"],"id":1}'
    {"jsonrpc":"2.0","id":1,"result":"Hola Quorum Plugin!"}

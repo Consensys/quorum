@@ -22,7 +22,7 @@ func main() {
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: iplugin.DefaultHandshakeConfig,
 		Plugins: map[string]plugin.Plugin{
-			"impl": &HelloWorldPluginIml{},
+			"impl": &HelloWorldPluginImpl{},
 		},
 		GRPCServer: plugin.DefaultGRPCServer,
 	})
@@ -32,18 +32,18 @@ func main() {
 // 1. Initializer plugin interface - mandatory
 // 2. HelloWorld plugin interface
 // 3. GRPC Plugin from go-plugin
-type HelloWorldPluginIml struct {
+type HelloWorldPluginImpl struct {
 	plugin.Plugin
 	cfg *config
 }
 
-func (h *HelloWorldPluginIml) GRPCServer(_ *plugin.GRPCBroker, s *grpc.Server) error {
+func (h *HelloWorldPluginImpl) GRPCServer(_ *plugin.GRPCBroker, s *grpc.Server) error {
 	proto.RegisterPluginInitializerServer(s, h)
 	proto.RegisterPluginGreetingServer(s, h)
 	return nil
 }
 
-func (h *HelloWorldPluginIml) GRPCClient(context.Context, *plugin.GRPCBroker, *grpc.ClientConn) (interface{}, error) {
+func (h *HelloWorldPluginImpl) GRPCClient(context.Context, *plugin.GRPCBroker, *grpc.ClientConn) (interface{}, error) {
 	return nil, iplugin.ErrNotSupported
 }
 
@@ -60,7 +60,7 @@ func (c *config) validate() error {
 	}
 }
 
-func (h *HelloWorldPluginIml) Init(_ context.Context, req *proto.PluginInitialization_Request) (*proto.PluginInitialization_Response, error) {
+func (h *HelloWorldPluginImpl) Init(_ context.Context, req *proto.PluginInitialization_Request) (*proto.PluginInitialization_Response, error) {
 	var cfg config
 	if err := json.Unmarshal(req.RawConfiguration, &cfg); err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid config: %s, err: %s", string(req.RawConfiguration), err.Error()))
@@ -72,7 +72,7 @@ func (h *HelloWorldPluginIml) Init(_ context.Context, req *proto.PluginInitializ
 	return &proto.PluginInitialization_Response{}, nil
 }
 
-func (h *HelloWorldPluginIml) Greeting(_ context.Context, req *proto.PluginHelloWorld_Request) (*proto.PluginHelloWorld_Response, error) {
+func (h *HelloWorldPluginImpl) Greeting(_ context.Context, req *proto.PluginHelloWorld_Request) (*proto.PluginHelloWorld_Response, error) {
 	switch l := h.cfg.Language; l {
 	case "en":
 		return &proto.PluginHelloWorld_Response{Msg: fmt.Sprintf("Hello %s!", req.Msg)}, nil

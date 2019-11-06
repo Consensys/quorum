@@ -1,3 +1,5 @@
+title: Plugin Development - Pluggable Architecture - Quorum
+
 We leverage HashiCorp's [`go-plugin`](https://github.com/hashicorp/go-plugin) to enable our plugin-based architecture using gRPC.
 
 We recommend background reading the [`go-plugin` gRPC examples](https://github.com/hashicorp/go-plugin/tree/master/examples/grpc).
@@ -6,7 +8,7 @@ Some of advanced topics which are not available in `go-plugin` documentation wil
 ## Life Cycle
 
 A plugin is started as a separate process and communicates with Quorum Client host process via gRPC service interfaces.
-This is done over a mutually-authenticated TLS connection on the local machine. The implementation is done in side `go-plugin`
+This is done over a mutually-authenticated TLS connection on the local machine. The implementation is done inside `go-plugin`
 library which benefits plugins written in Golang. For plugins written in other languages, plugin authors need to have
 a understanding about the model as described below:
 
@@ -19,14 +21,14 @@ a understanding about the model as described below:
 1. `geth` imports the plugin RPC server certificate
 1. `geth` and the plugin communicate via RPC over TLS using mutual TLS
 
-Each plugin must implements [`PluginInitializer`](../SupportedInterfaces/#initproto) gRPC service interface.
+Each plugin must implement [`PluginInitializer`](#plugininitializer) gRPC service interface.
 After plugin process is successfully started and connection with Quorum Client is successfully established,
 Quorum Client invokes `Init()` gRPC in order to initialize the plugin with configuration data 
 read from plugin definition's `config` field in [settings](../Settings/#plugindefinition) file.
 
 ## Configuration Data
 
-A plugin receives its [configuration data](../SupportedInterfaces/#proto.PluginInitialization.Request) from Quorum Client via `Init()` gRPC. 
+A plugin receives its [configuration data](#proto.PluginInitialization.Request) from Quorum Client via `Init()` gRPC. 
 
 ## Distribution
 
@@ -95,3 +97,7 @@ in the [handshake](https://github.com/hashicorp/go-plugin/blob/master/docs/inter
 ## Examples
 
 Please visit [Overview](../Overview/#example-helloworld-plugin) page for a built-in HelloWorld plugin example.
+
+<a name="plugininitializer"></a>
+
+{!./PluggableArchitecture/Plugins/init_interface.md!}

@@ -1,3 +1,5 @@
+title: Settings - Pluggable Architecture - Quorum
+
 `geth` can load plugins from:
 
 - JSON file which is passed via `--plugins` flag
@@ -30,9 +32,9 @@
 | Fields      | Description                                                                                                                                                                                                        |
 |:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `baseDir`   | A string indicates local directory from where plugins are read. If empty, default to `<datadir>/plugins`. <br/> To read from arbitrary enviroment variable (e.g: `MY_BASE_DIR`), provide value `env://MY_BASE_DIR` |
-| `central`   | A configuration of the remote plugin central                                                                                                                                                                       |
-| `providers` | A map specifies supported plugin interfaces with the respected plugin provider definitions                                                                                                                         |
-| `<string>`  | A string constant indicates the plugin interface. E.g: `helloWorld`                                                                                                                                                |
+| `central`   | A configuration of the remote plugin central. See [PluginCentralConfiguration](#plugincentralconfiguration)                                                                                                        |
+| `providers` | A map specifies supported plugin interfaces with the respected plugin provider definitions (see [PluginDefinition](#plugindefinition))                                                                             |
+| `<string>`  | A string constant indicates the plugin interface. E.g: `helloworld`.                                                                                                                                               |
 
 ## `PluginCentralConfiguration`
 
@@ -57,12 +59,12 @@ PublicKeyURI = string
 InsecureSkipVerify = bool
 ```
 
-| Fields      | Description                                                                                              |
-|:------------|:---------------------------------------------------------------------------------------------------------|
-| `baseURL`   | A string indicating the remote plugin central URL (ex.`https://plugins.mycorp.com`) |
-| `certFingerprint` | A string containing hex representation of the http server public key finger print to be used for certificate pinning | 
-| `publicKeyURI` | A string that reference the location of the PGP public key to be used to perform the signature verification |
-| `insecureSkipVerify` | If true, verify the server's certificate chain and host name |
+| Fields               | Description                                                                                                          |
+|:---------------------|:---------------------------------------------------------------------------------------------------------------------|
+| `baseURL`            | A string indicating the remote plugin central URL (ex.`https://plugins.mycorp.com`)                                  |
+| `certFingerprint`    | A string containing hex representation of the http server public key finger print to be used for certificate pinning |
+| `publicKeyURI`       | A string that reference the location of the PGP public key to be used to perform the signature verification          |
+| `insecureSkipVerify` | If true, verify the server's certificate chain and host name                                                         |
 
 ## `PluginDefinition`
 

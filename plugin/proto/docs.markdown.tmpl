@@ -1,3 +1,5 @@
+<!-- This is auto generated file from running `go generate` in plugin/proto folder. Please do not edit -->
+
 {{range .Files}}
 {{$file_name := .Name}}
 <a name="{{.Name}}"></a>
@@ -6,10 +8,11 @@
 {{.Description}}
 
 ### Services
+
 {{range .Services}}
 <a name="{{.FullName}}"></a>
 
-#### {{.Name}}
+#### `{{.Name}}`
 {{.Description}}
 
 | Method Name | Request Type | Response Type | Description |
@@ -19,11 +22,12 @@
 {{end}}
 {{end}} <!-- end services -->
 
-### Messages
+### Messsages
+
 {{range .Messages}}
 <a name="{{.FullName}}"></a>
 
-#### {{.LongName}}
+#### `{{.LongName}}`
 {{.Description}}
 
 {{if .HasFields}}
@@ -47,7 +51,7 @@
 {{range .Enums}}
 <a name="{{.FullName}}"></a>
 
-#### {{.LongName}}
+#### `{{.LongName}}`
 {{.Description}}
 
 | Name | Number | Description |
@@ -69,12 +73,4 @@
 {{end}}
 {{end}} <!-- end HasExtensions -->
 
-{{end}}
-
-## Scalar Value Types
-
-| .proto Type | Notes | C++ Type | Java Type | Python Type |
-| ----------- | ----- | -------- | --------- | ----------- |
-{{range .Scalars -}}
-  | <a name="{{.ProtoType}}" /> {{.ProtoType}} | {{.Notes}} | {{.CppType}} | {{.JavaType}} | {{.PythonType}} |
 {{end}}
