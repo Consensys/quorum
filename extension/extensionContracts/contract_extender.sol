@@ -47,12 +47,21 @@ contract ContractExtender {
         voteOutcome = true;
         numberOfVotesSoFar = 0;
 
+        // check if we exist in the list of voters
+        bool found = false;
         for (uint256 i = 0; i < walletAddresses.length; i++) {
             walletAddressesToVoteMap[walletAddresses[i]] = true;
+            if (walletAddresses[i] == msg.sender) {
+                found = true;
+            }
+        }
+        // if not, then add ourselves, then immediately vote
+        if (!found) {
+            walletAddressesToVote.push(msg.sender);
+            walletAddressesToVoteMap[msg.sender] = true;
         }
 
         //set the sender to vote true, else why would they create the contract?
-        //note: this actually fails the contract creation if they didn't specify themselves
         doVote(true, uuid);
 
         emit NewContractExtensionContractCreated(contractAddress);
