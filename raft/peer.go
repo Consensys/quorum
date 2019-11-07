@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"log"
 
+	"net"
+
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rlp"
-	"net"
 )
 
 // Serializable information about a Peer. Sufficient to build `etcdRaft.Peer`
@@ -17,14 +18,14 @@ import (
 type Address struct {
 	RaftId   uint16        `json:"raftId"`
 	NodeId   enode.EnodeID `json:"nodeId"`
-	Ip		 net.IP  	   `json:"-"`
+	Ip       net.IP        `json:"-"`
 	P2pPort  enr.TCP       `json:"p2pPort"`
 	RaftPort enr.RaftPort  `json:"raftPort"`
 
-	Hostname string         `json:"hostname"`
+	Hostname string `json:"hostname"`
 
 	// Ignore additional fields (for forward compatibility).
-	Rest     []rlp.RawValue `json:"-" rlp:"tail"`
+	Rest []rlp.RawValue `json:"-" rlp:"tail"`
 }
 
 func newAddress(raftId uint16, raftPort int, node *enode.Node) *Address {
@@ -89,11 +90,11 @@ func bytesToAddress(input []byte) *Address {
 	}
 
 	return &Address{
-		RaftId   : temp.RaftId,
-		NodeId   : temp.NodeId,
-		Ip       : nil,
-		P2pPort  : temp.P2pPort,
-		RaftPort : temp.RaftPort,
-		Hostname : temp.Ip.String(),
+		RaftId:   temp.RaftId,
+		NodeId:   temp.NodeId,
+		Ip:       nil,
+		P2pPort:  temp.P2pPort,
+		RaftPort: temp.RaftPort,
+		Hostname: temp.Ip.String(),
 	}
 }

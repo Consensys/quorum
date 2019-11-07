@@ -85,7 +85,7 @@ type Config struct {
 	NoDiscovery bool
 
 	//Hostname is a user set hostname that they wish to advertise over discovery
-	Hostname string
+	Hostname string `toml:",omitempty"`
 
 	// DiscoveryV5 specifies whether the new topic-discovery based V5 discovery
 	// protocol should be started or not.
