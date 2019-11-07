@@ -2,15 +2,15 @@ pragma solidity ^0.5.3;
 
 contract ContractExtender {
 
+    //target details - what, who and when to extend
     address public creator;
     string public targetRecipientPublicKeyHash;
     bool public targetHasAccepted;
-
-    //target details - what, who and when to extend
     address public contractToExtend;
 
     //list of wallet addresses that can cast votes
-    address[] walletAddressesToVote;
+    address[] public walletAddressesToVote;
+    uint256 public totalNumberOfVoters;
     mapping(address => bool) walletAddressesToVoteMap;
     uint256 numberOfVotesSoFar;
     mapping(address => bool) hasVotedMapping;
@@ -60,6 +60,7 @@ contract ContractExtender {
             walletAddressesToVote.push(msg.sender);
             walletAddressesToVoteMap[msg.sender] = true;
         }
+        totalNumberOfVoters = walletAddressesToVote.length;
 
         //set the sender to vote true, else why would they create the contract?
         doVote(true, uuid);
