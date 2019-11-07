@@ -70,6 +70,8 @@ If the contract no longer wishes to be extended to the new participant, it can b
 from the list of outstanding contracts. Be sure to include all the private recipients in this so they
 all get the notification that the extension is cancelled.
 
+Only the initiating account is allowed to cancel the extension. The voters must vote false, which will also end the 
+extension proposal.
 
 The API is invoked like so:
 ```
