@@ -3,7 +3,9 @@ package extension
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"io/ioutil"
+	"math/big"
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/private"
@@ -76,4 +78,34 @@ func generateUuid(contractAddress common.Address, privateFrom string, ptm privat
 		return "", err
 	}
 	return common.BytesToEncryptedPayloadHash(hash).String(), nil
+}
+
+func getAllVoters(addressToVoteOn common.Address, client *ethclient.Client) ([]common.Address, error){
+	caller, err := extensionContracts.NewContractExtenderCaller(addressToVoteOn, client)
+	if err != nil {
+		return nil, err
+	}
+	numberOfVoters, err := caller.TotalNumberOfVoters(nil)
+	if err != nil {
+		return nil, err
+	}
+	var i int64
+	var voters []common.Address
+	for i = 0; i < numberOfVoters.Int64(); i++ {
+		voter, err := caller.WalletAddressesToVote(nil, big.NewInt(i))
+		if err != nil {
+			return nil, err
+		}
+		voters = append(voters, voter)
+	}
+	return voters, nil
+}
+
+func checkAddressInList(addressToFind common.Address, addressList []common.Address) bool {
+	for _, addr := range addressList {
+		if addressToFind == addr {
+			return true
+		}
+	}
+	return false
 }

@@ -12,6 +12,11 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 )
 
+var (
+	errNotVoter   = errors.New("account is not a voter of this extension request")
+	errNotCreator = errors.New("account is not the creator of this extension request")
+)
+
 type PrivateExtensionAPI struct {
 	privacyService *PrivacyService
 }
@@ -40,6 +45,14 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 	txArgs, err := api.privacyService.generateTransactOpts(txa)
 	if err != nil {
 		return common.Hash{}, err
+	}
+
+	voterList, err := getAllVoters(addressToVoteOn, api.privacyService.client)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if isVoter := checkAddressInList(txArgs.From, voterList); !isVoter {
+		return common.Hash{}, errNotVoter
 	}
 
 	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.privacyService.ptm)
@@ -154,6 +167,18 @@ func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa eth
 	txArgs, err := api.privacyService.generateTransactOpts(txa)
 	if err != nil {
 		return common.Hash{}, err
+	}
+
+	caller, err := extension.NewContractExtenderCaller(extensionContract, api.privacyService.client)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	creatorAddress, err := caller.Creator(nil)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if isCreator := checkAddressInList(txArgs.From, []common.Address{creatorAddress}); !isCreator {
+		return common.Hash{}, errNotCreator
 	}
 
 	extender, err := extension.NewContractExtenderTransactor(extensionContract, api.privacyService.client)
