@@ -5,9 +5,9 @@
 In this example, we have a smart contract between two existing participants, A & B, who want the contract shared to a 
 new recipient, C.
 
-1. Node A proposes the extension of the contract, citing B and C's PTM public keys as private participants of this 
-extension, node B's public Ethereum key as a voter on this extension, and node C's PTM public key as the target 
-receiver.
+1. Node A proposes the extension of the contract, citing B and C's Private Transaction Manager(PTM) public keys as 
+private participants of this extension, node B's public Ethereum key as a voter on this extension, and node C's PTM 
+public key as the target receiver.
 Before creating the contract, Node A submits Node C's public key to its own PTM as a "private transaction", actually 
 using the PTM as a private store.
 Node A then creates the contract with this information, substituting the Node C's public key with the returned PTM hash.
@@ -17,7 +17,7 @@ events that may happen. It will also write the details of the extension to disk 
 information available over the RPC API.
 
 3a. Node A and B must now submit their vote to the extension, indicating whether they want the extension to take place 
-or not. They should include the voters PTM public keys to make sure the visible to all.
+or not. They should include the voters PTM public keys to make sure the transaction is visible to all.
 
 3b. Node C must accept the proposal. Since the state sharing does not execute the transactions that generate the state 
 (in order to keep past history private), there is no proof that can be provided by the proposer that the state is 
