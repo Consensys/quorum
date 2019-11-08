@@ -26,9 +26,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/ethereum/go-ethereum/extension"
-	"github.com/ethereum/go-ethereum/private"
-
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -175,7 +172,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 
 	if os.Getenv("CONTRACT_EXTENSION_SERVER") != "" {
-		RegisterExtensionService(stack)
+		utils.RegisterExtensionService(stack)
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode

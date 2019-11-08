@@ -20,6 +20,8 @@ package utils
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/ethereum/go-ethereum/extension"
+	"github.com/ethereum/go-ethereum/private"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -1412,6 +1414,15 @@ func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 		Fatalf("Failed to register the permission service: %v", err)
 	}
 	log.Info("permission service registered")
+}
+
+func RegisterExtensionService(stack *node.Node) {
+	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
+		return extension.New(stack, private.P)
+	}
+	if err := stack.Register(registerFunc); err != nil {
+		Fatalf("Failed to register the Privacy service: %v", err)
+	}
 }
 
 func SetupMetrics(ctx *cli.Context) {
