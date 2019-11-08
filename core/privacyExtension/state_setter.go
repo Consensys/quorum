@@ -36,8 +36,7 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 				continue
 			}
 			if !validateAccountsExist([]common.Address{address}, accounts) {
-				log.Error("Account mismatch when extending")
-				log.Debug("Account mismatch", "expected", address, "found", accounts)
+				log.Error("Account mismatch", "expected", address, "found", accounts)
 				continue
 			}
 			snapshotId := privateState.Snapshot()
