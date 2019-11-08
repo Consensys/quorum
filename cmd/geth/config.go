@@ -26,9 +26,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/ethereum/go-ethereum/extension"
-	"github.com/ethereum/go-ethereum/private"
-
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -175,7 +172,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 
 	if os.Getenv("CONTRACT_EXTENSION_SERVER") != "" {
-		RegisterExtensionService(stack)
+		utils.RegisterExtensionService(stack)
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
@@ -280,14 +277,5 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 
 	if !isRaft && ethereum.ChainConfig().Istanbul == nil && ethereum.ChainConfig().Clique == nil {
 		utils.Fatalf("Consensus not specified. Exiting!!")
-	}
-}
-
-func RegisterExtensionService(stack *node.Node) {
-	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
-		return extension.New(stack, private.P)
-	}
-	if err := stack.Register(registerFunc); err != nil {
-		utils.Fatalf("Failed to register the Privacy service: %v", err)
 	}
 }
