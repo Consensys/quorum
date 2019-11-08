@@ -70,6 +70,7 @@ var genesis = `{
 // Tests that a node embedded within a console can be started up properly and
 // then terminated by closing the input stream.
 func TestConsoleWelcome(t *testing.T) {
+	defer SetResetPrivateConfig("ignore")()
 	coinbase := "0x491937757d1b26e29c507b8d4c0b233c2747e68d"
 
 	datadir := setupIstanbul(t)
@@ -107,6 +108,7 @@ at block: 0 ({{niltime}})
 
 // Tests that a console can be attached to a running node via various means.
 func TestIPCAttachWelcome(t *testing.T) {
+	defer SetResetPrivateConfig("ignore")()
 	// Configure the instance for IPC attachement
 	coinbase := "0x491937757d1b26e29c507b8d4c0b233c2747e68d"
 	var ipc string
@@ -134,6 +136,7 @@ func TestIPCAttachWelcome(t *testing.T) {
 }
 
 func TestHTTPAttachWelcome(t *testing.T) {
+	defer SetResetPrivateConfig("ignore")()
 	coinbase := "0x491937757d1b26e29c507b8d4c0b233c2747e68d"
 	port := strconv.Itoa(trulyRandInt(1024, 65536)) // Yeah, sometimes this will fail, sorry :P
 
@@ -152,6 +155,7 @@ func TestHTTPAttachWelcome(t *testing.T) {
 }
 
 func TestWSAttachWelcome(t *testing.T) {
+	defer SetResetPrivateConfig("ignore")()
 	coinbase := "0x491937757d1b26e29c507b8d4c0b233c2747e68d"
 	port := strconv.Itoa(trulyRandInt(1024, 65536)) // Yeah, sometimes this will fail, sorry :P
 
@@ -230,4 +234,12 @@ func setupIstanbul(t *testing.T) string {
 	runGeth(t, "--datadir", datadir, "init", json).WaitExit()
 
 	return datadir
+}
+
+func SetResetPrivateConfig(value string) func() {
+	existingValue := os.Getenv("PRIVATE_CONFIG")
+	os.Setenv("PRIVATE_CONFIG", value)
+	return func() {
+		os.Setenv("PRIVATE_CONFIG", existingValue)
+	}
 }
