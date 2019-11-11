@@ -17,6 +17,7 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 
@@ -137,10 +138,15 @@ func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.
 			return err
 		}
 
-		_, err = validateFn(payload, m.Signature)
+		signerAdd, err := validateFn(payload, m.Signature)
+		if err != nil {
+			return err
+		}
+		if bytes.Compare(signerAdd.Bytes(), m.Address.Bytes()) != 0 {
+			return errInvalidSigner
+		}
 	}
-	// Still return the message even the err is not nil
-	return err
+	return nil
 }
 
 func (m *message) Payload() ([]byte, error) {
