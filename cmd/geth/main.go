@@ -18,6 +18,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -321,6 +322,11 @@ func geth(ctx *cli.Context) error {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
 	prepare(ctx)
+
+	if !quorumValidatePrivateTransactionManager() {
+		return errors.New("the PRIVATE_CONFIG environment variable must be specified for Quorum")
+	}
+
 	node := makeFullNode(ctx)
 	defer node.Close()
 	startNode(ctx, node)

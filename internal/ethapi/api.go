@@ -1721,7 +1721,14 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Sen
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return nil, err
 	}
-	tx, err := s.sign(args.From, args.toTransaction())
+
+	toSign := args.toTransaction()
+
+	if args.PrivateFor != nil {
+		toSign.SetPrivate()
+	}
+
+	tx, err := s.sign(args.From, toSign)
 	if err != nil {
 		return nil, err
 	}
