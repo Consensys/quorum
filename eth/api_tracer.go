@@ -785,7 +785,7 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, v
 	}
 
 	// Set the private state to public state if it is not a private message
-	if msg, ok := message.(core.PrivateMessage); !ok || !api.config.IsQuorum || !msg.IsPrivate() {
+	if msg, ok := message.(core.PrivateMessage); !ok || !api.eth.config.Genesis.Config.IsQuorum || !msg.IsPrivate() {
 		privateStateDb = statedb
 	}
 
