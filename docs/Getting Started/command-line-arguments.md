@@ -13,5 +13,5 @@ are laid out here.
 `--hostname <name>` - the hostname you want to advertise to other peers to connect to you. e.g. `--hostname host1.com` would
 set your enode ID to be `enode://<hex node ID>@host1.com:21005`.
 
-`--raft.dns-enable` - DNS support for the RAFT layer must be explicitly enabled, and is incompatible with older 
+`--raftdnsenable` - DNS support for the RAFT layer must be explicitly enabled, and is incompatible with older 
 versions. This should be enabled when all nodes have upgraded to version 2.3.1.

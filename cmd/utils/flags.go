@@ -611,7 +611,7 @@ var (
 		Value: 50400,
 	}
 	RaftDNSEnabledFlag = cli.BoolFlag{
-		Name: "raft.dns-enable",
+		Name: "raftdnsenable",
 		Usage: "Enable DNS resolution of peers",
 	}
 
