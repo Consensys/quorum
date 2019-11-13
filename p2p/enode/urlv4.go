@@ -189,15 +189,17 @@ func parseComplete(rawurl string) (*Node, error) {
 
 	var node *Node
 
+	// Quorum
 	if qv.Get("raftport") != "" {
 		raftPort, err := strconv.ParseUint(qv.Get("raftport"), 10, 16)
 		if err != nil {
 			return nil, errors.New("invalid raftport in query")
 		}
-		node = NewV4Hostname(id, host, int(tcpPort), int(udpPort), int(raftPort)) // Quorum
+		node = NewV4Hostname(id, host, int(tcpPort), int(udpPort), int(raftPort))
 	} else {
-		node = NewV4Hostname(id, host, int(tcpPort), int(udpPort), 0) // Quorum
+		node = NewV4Hostname(id, host, int(tcpPort), int(udpPort), 0)
 	}
+	// End-Quorum
 
 	return node, nil
 }

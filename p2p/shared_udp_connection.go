@@ -6,8 +6,9 @@ import (
 	"net"
 )
 
-// UDPReader implements a shared connection. Write sends messages to the underlying connection while read returns
-// messages that were found unprocessable and sent to the unhandled channel by the primary listener.
+// UDPReader implements a shared connection. Write sends messages to the
+// underlying connection while read returns messages that were found
+// unprocessable and sent to the unhandled channel by the primary listener.
 type UDPReader interface {
 	ReadFromUDP([]byte) (int, *net.UDPAddr, error)
 
@@ -16,15 +17,17 @@ type UDPReader interface {
 	LocalAddr() net.Addr
 }
 
-// baseSharedUDPConn implements a shared connection. Read/Write reads/sends messages to the underlying connection while
-// whilst messages that were found unprocessable are sent to the unhandled channel to be processed later.
+// baseSharedUDPConn implements a shared connection. Read/Write reads/sends
+// messages to the underlying connection whilst messages that were found
+// unprocessable are sent to the unhandled channel to be processed later.
 type baseSharedUDPConn struct {
 	*net.UDPConn
 	unhandled chan discover.ReadPacket
 }
 
-// sharedUDPConn implements a shared connection. Write sends messages to the underlying connection while read returns
-// messages that were found unprocessable and sent to the unhandled channel by the primary listener.
+// sharedUDPConn implements a shared connection. Write sends messages to the
+// underlying connection while read returns messages that were found
+// unprocessable and sent to the unhandled channel by the primary listener.
 type sharedUDPConn struct {
 	parent UDPReader
 	unhandled chan discover.ReadPacket
