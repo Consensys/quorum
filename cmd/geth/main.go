@@ -112,7 +112,6 @@ var (
 		utils.MinerNoVerfiyFlag,
 		utils.NATFlag,
 		utils.NoDiscoverFlag,
-		utils.HostnameFlag, // Quorum
 		utils.DiscoveryV5Flag,
 		utils.NetrestrictFlag,
 		utils.NodeKeyFileFlag,
@@ -135,7 +134,9 @@ var (
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		configFileFlag,
+		// Quorum
 		utils.EnableNodePermissionFlag,
+		utils.HostnameFlag,
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,
@@ -144,6 +145,7 @@ var (
 		utils.EmitCheckpointsFlag,
 		utils.IstanbulRequestTimeoutFlag,
 		utils.IstanbulBlockPeriodFlag,
+		// End-Quorum
 	}
 
 	rpcFlags = []cli.Flag{

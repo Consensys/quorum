@@ -152,6 +152,7 @@ var AppHelpFlagGroups = []flagGroup{
 		Name: "QUORUM",
 		Flags: []cli.Flag{
 			utils.EnableNodePermissionFlag,
+			utils.HostnameFlag,
 		},
 	},
 	{
@@ -203,7 +204,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.MaxPendingPeersFlag,
 			utils.NATFlag,
 			utils.NoDiscoverFlag,
-			utils.HostnameFlag, // Quorum
 			utils.DiscoveryV5Flag,
 			utils.NetrestrictFlag,
 			utils.NodeKeyFileFlag,
