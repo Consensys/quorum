@@ -6,7 +6,7 @@ providing extensibility, flexibility, and isolation of Quorum features.
 
 ## Why this?
  
-This enhancement brings number benefits to the table:
+This enhancement brings number benefits:
 
 1. Allowing selective components to decide their implementations at configuration time.
 1. Supporting our community to make Quorum Client better with innovative implementations.
