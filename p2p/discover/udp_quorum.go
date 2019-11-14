@@ -118,7 +118,14 @@ func (t *udpQuorum) nodeFromRPC(sender *net.UDPAddr, rn rpcNodeQuorum) (*node, e
 	if err != nil {
 		return nil, err
 	}
-	n := wrapNode(enode.NewV4Hostname(key, rn.Hostname, int(rn.TCP), int(rn.UDP), 0))
+
+	var n *node
+	if rn.Hostname == "" {
+		n = wrapNode(enode.NewV4(key, rn.IP, int(rn.TCP), int(rn.UDP), 0))
+	} else {
+		n = wrapNode(enode.NewV4Hostname(key, rn.Hostname, int(rn.TCP), int(rn.UDP), 0))
+	}
+
 	err = n.ValidateComplete()
 	return n, err
 }
