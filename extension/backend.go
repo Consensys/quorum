@@ -99,7 +99,7 @@ type PrivacyService struct {
 	currentContracts map[common.Address]*ExtensionContract
 }
 
-func New(node *node.Node, ptm private.PrivateTransactionManager) (*PrivacyService, error) {
+func New(node *node.Node, ptm private.PrivateTransactionManager, thirdpartyunixfile string) (*PrivacyService, error) {
 	dataDir := node.InstanceDir()
 
 	service := &PrivacyService{
@@ -108,12 +108,12 @@ func New(node *node.Node, ptm private.PrivateTransactionManager) (*PrivacyServic
 		ptm:              ptm,
 	}
 
-	go service.initialise(node)
+	go service.initialise(node, thirdpartyunixfile)
 
 	return service, nil
 }
 
-func (service *PrivacyService) initialise(node *node.Node) {
+func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile string) {
 	service.mu.Lock()
 	defer service.mu.Unlock()
 
@@ -141,8 +141,7 @@ func (service *PrivacyService) initialise(node *node.Node) {
 	}
 
 	client := ethclient.NewClient(rpcClient)
-	clientAddress := os.Getenv("CONTRACT_EXTENSION_SERVER")
-	if service.client, err = client.WithPrivateTransactionManager(clientAddress); err != nil {
+	if service.client, err = client.WithPrivateTransactionManager(thirdpartyunixfile); err != nil {
 		panic("could not set PTM")
 	}
 

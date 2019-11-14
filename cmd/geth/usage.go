@@ -152,6 +152,7 @@ var AppHelpFlagGroups = []flagGroup{
 		Name: "QUORUM",
 		Flags: []cli.Flag{
 			utils.EnableNodePermissionFlag,
+			utils.ContractExtensionServerFlag,
 		},
 	},
 	{

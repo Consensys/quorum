@@ -137,6 +137,7 @@ var (
 		configFileFlag,
 		// Quorum
 		utils.EnableNodePermissionFlag,
+		utils.ContractExtensionServerFlag,
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,

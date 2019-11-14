@@ -171,8 +171,8 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
 	}
 
-	if os.Getenv("CONTRACT_EXTENSION_SERVER") != "" {
-		utils.RegisterExtensionService(stack)
+	if cfg.Eth.ContractExtensionServer != "" {
+		utils.RegisterExtensionService(stack, cfg.Eth.ContractExtensionServer)
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode

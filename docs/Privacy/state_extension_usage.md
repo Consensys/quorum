@@ -7,8 +7,8 @@ calculated.
 
 ## Setup
 In order to use the contract extension, the node must have access to one of Tessera's `THIRD_PARTY` servers, so that it
-can send private transaction using the ethclient. The address of the third party server should be stored in the 
-`CONTRACT_EXTENSION_SERVER` environment variable.
+can send private transaction using the ethclient. The address of the third party server should be provided by the 
+`--contractextension.server` CLI parameter.
 
 ## Guide
 
