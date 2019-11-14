@@ -612,6 +612,12 @@ var (
 		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
 	}
 
+	// Contract Extension
+	ContractExtensionServerFlag = cli.StringFlag{
+		Name:  "contractextension.server",
+		Usage: "The Tessera Third Party server to connect to for use with contract extension",
+	}
+
 	// Istanbul settings
 	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
 		Name:  "istanbul.requesttimeout",
@@ -1200,6 +1206,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setEthash(ctx, cfg)
 	setIstanbul(ctx, cfg)
 
+	if ctx.GlobalIsSet(ContractExtensionServerFlag.Name) {
+		cfg.ContractExtensionServer = ctx.GlobalString(ContractExtensionServerFlag.Name)
+	}
+
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
@@ -1415,9 +1425,9 @@ func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 	log.Info("permission service registered")
 }
 
-func RegisterExtensionService(stack *node.Node) {
+func RegisterExtensionService(stack *node.Node, thirdpartyunixfile string) {
 	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
-		return extension.New(stack, private.P)
+		return extension.New(stack, private.P, thirdpartyunixfile)
 	}
 	if err := stack.Register(registerFunc); err != nil {
 		Fatalf("Failed to register the Privacy service: %v", err)
