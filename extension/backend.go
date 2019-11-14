@@ -141,7 +141,7 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 	}
 
 	client := ethclient.NewClient(rpcClient)
-	if service.client, err = client.WithPrivateTransactionManager(thirdpartyunixfile); err != nil {
+	if service.client, err = client.WithIPCPrivateTransactionManager(thirdpartyunixfile); err != nil {
 		panic("could not set PTM")
 	}
 

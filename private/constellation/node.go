@@ -45,14 +45,14 @@ func unixTransport(socketPath string) *httpunix.Transport {
 	return t
 }
 
-func unixClient(socketPath string) *http.Client {
+func UnixClient(socketPath string) *http.Client {
 	return &http.Client{
 		Transport: unixTransport(socketPath),
 	}
 }
 
 func RunNode(socketPath string) error {
-	c := unixClient(socketPath)
+	c := UnixClient(socketPath)
 	res, err := c.Get("http+unix://c/upcheck")
 	if err != nil {
 		return err
@@ -217,6 +217,6 @@ func (c *Client) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, 
 
 func NewClient(socketPath string) (*Client, error) {
 	return &Client{
-		httpClient: unixClient(socketPath),
+		httpClient: UnixClient(socketPath),
 	}, nil
 }
