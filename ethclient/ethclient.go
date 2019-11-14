@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/private/constellation"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -67,6 +68,13 @@ func (ec *Client) WithPrivateTransactionManager(rawurl string) (*Client, error) 
 	if err != nil {
 		return nil, err
 	}
+	return ec, nil
+}
+
+func (ec *Client) WithIPCPrivateTransactionManager(unixsocketPath string) (*Client, error) {
+	httpClient := constellation.UnixClient(unixsocketPath)
+
+	ec.pc = newPrivateTransactionManagerClientNoValidation("http+unix://c", httpClient)
 	return ec, nil
 }
 
