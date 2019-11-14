@@ -278,14 +278,14 @@ func (service *PrivacyService) watchForCompletionEvents() {
 			//we found the account, so we can send
 			privateState, _ := service.privateState(l.BlockHash)
 			contractToExtend, _ := caller.ContractToExtend(nil)
-			jsonMap := getAddressState(privateState, contractToExtend)
+			entireStateData := getAddressState(privateState, contractToExtend)
 
 			//send to PTM
-			hash, _ := service.ptm.Send(jsonMap, "", []string{string(recipient)})
-			hashB64 := base64.StdEncoding.EncodeToString(hash)
+			hashOfStateData, _ := service.ptm.Send(entireStateData, "", []string{string(recipient)})
+			hashofStateDataBase64 := base64.StdEncoding.EncodeToString(hashOfStateData)
 
 			transactor, _ := extensionContracts.NewContractExtenderTransactor(l.Address, service.client)
-			transactor.SetSharedStateHash(txArgs, hashB64)
+			transactor.SetSharedStateHash(txArgs, hashofStateDataBase64)
 			service.mu.Unlock()
 		}
 	}
