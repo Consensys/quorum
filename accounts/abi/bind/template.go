@@ -92,6 +92,8 @@ var (
 	// {{.Type}}ABI is the input ABI used to generate the binding from.
 	const {{.Type}}ABI = "{{.InputABI}}"
 
+	var {{.Type}}ParsedABI, _ = abi.JSON(strings.NewReader({{.Type}}ABI))
+
 	{{if .InputBin}}
 		// {{.Type}}Bin is the compiled bytecode used for deploying new contracts.
 		const {{.Type}}Bin = ` + "`" + `{{.InputBin}}` + "`" + `

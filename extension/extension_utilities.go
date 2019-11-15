@@ -112,7 +112,7 @@ func checkAddressInList(addressToFind common.Address, addressList []common.Addre
 
 func unpackNewExtension(data []byte) (*extensionContracts.ContractExtenderNewContractExtensionContractCreated, error){
 	newExtensionEvent := new(extensionContracts.ContractExtenderNewContractExtensionContractCreated)
-	err := extensionContracts.ContractExtensionABI.Unpack(newExtensionEvent, "NewContractExtensionContractCreated", data)
+	err := extensionContracts.ContractExtenderParsedABI.Unpack(newExtensionEvent, "NewContractExtensionContractCreated", data)
 
 	return newExtensionEvent, err
 }
