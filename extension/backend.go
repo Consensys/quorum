@@ -29,42 +29,35 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-const (
-	newExtensionTopic      			= "0x1bb7909ad96bc757f60de4d9ce11daf7b006e8f398ce028dceb10ce7fdca0f68"
-	finishedExtensionTopic 			= "0x79c47b570b18a8a814b785800e5fcbf104e067663589cef1bba07756e3c6ede9"
-	voteCompletedTopic     			= "0xc05e76a85299aba9028bd0e0c3ab6fd798db442ed25ce08eb9d2098acc5a2904"
-	canPerformStateShareTopic     	= "0xfd46cafaa71d87561071b8095703a7f081265fad232945049f5cf2d2c39b3d28"
-
-	ExtensionContractData = "activeExtensions.json"
-)
+const extensionContractData = "activeExtensions.json"
 
 var (
 	//Log queries
 	newExtensionQuery = ethereum.FilterQuery{
 		FromBlock: nil,
 		ToBlock:   nil,
-		Topics:    [][]common.Hash{{common.HexToHash(newExtensionTopic)}},
+		Topics:    [][]common.Hash{{common.HexToHash(extensionContracts.NewContractExtensionContractCreatedTopicHash)}},
 		Addresses: []common.Address{},
 	}
 
 	finishedExtensionQuery = ethereum.FilterQuery{
 		FromBlock: nil,
 		ToBlock:   nil,
-		Topics:    [][]common.Hash{{common.HexToHash(finishedExtensionTopic)}},
+		Topics:    [][]common.Hash{{common.HexToHash(extensionContracts.ExtensionFinishedTopicHash)}},
 		Addresses: []common.Address{},
 	}
 
 	voteCompletedQuery = ethereum.FilterQuery{
 		FromBlock: nil,
 		ToBlock:   nil,
-		Topics:    [][]common.Hash{{common.HexToHash(voteCompletedTopic)}},
+		Topics:    [][]common.Hash{{common.HexToHash(extensionContracts.AllNodesHaveVotedTopicHash)}},
 		Addresses: []common.Address{},
 	}
 
 	canPerformStateShareQuery = ethereum.FilterQuery{
 		FromBlock: nil,
 		ToBlock:   nil,
-		Topics:    [][]common.Hash{{common.HexToHash(canPerformStateShareTopic)}},
+		Topics:    [][]common.Hash{{common.HexToHash(extensionContracts.CanPerformStateShareTopicHash)}},
 		Addresses: []common.Address{},
 	}
 
@@ -117,7 +110,7 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 	defer service.mu.Unlock()
 
 	//repopulate existing extensions
-	path := filepath.Join(service.dataDir, ExtensionContractData)
+	path := filepath.Join(service.dataDir, extensionContractData)
 
 	if _, err := os.Stat(path); err == nil || !os.IsNotExist(err) {
 		blob, err := ioutil.ReadFile(path)
@@ -165,8 +158,8 @@ func (service *PrivacyService) watchForNewContracts() {
 			tx, _, _ := service.client.TransactionByHash(context.Background(), foundLog.TxHash)
 			from, _ := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
 
-			a := new(extensionContracts.ContractExtenderNewContractExtensionContractCreated)
-			if err := extensionContracts.ContractExtensionABI.Unpack(a, "NewContractExtensionContractCreated", foundLog.Data); err != nil {
+			newExtensionEvent, err := unpackNewExtension(foundLog.Data)
+			if err != nil {
 				log.Error("Error unpacking extension creation log", err.Error())
 				log.Debug("Errored log", foundLog)
 				service.mu.Unlock()
@@ -174,7 +167,7 @@ func (service *PrivacyService) watchForNewContracts() {
 			}
 
 			newContractExtension := ExtensionContract{
-				Address:                   a.ToExtend,
+				Address:                   newExtensionEvent.ToExtend,
 				AllHaveVoted:              false,
 				Initiator:                 from,
 				ManagementContractAddress: foundLog.Address,
