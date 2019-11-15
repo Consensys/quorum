@@ -85,7 +85,6 @@ type ExtensionContract struct {
 	Initiator                 common.Address `json:"initiator"`
 	ManagementContractAddress common.Address `json:"managementcontractaddress"`
 	CreationData              []byte         `json:"creationData"`
-	CreatedBlock              uint64         `json:"createdBlock"`
 }
 
 type PrivacyService struct {
@@ -180,7 +179,6 @@ func (service *PrivacyService) watchForNewContracts() {
 				Initiator:                 from,
 				ManagementContractAddress: foundLog.Address,
 				CreationData:              tx.Data(),
-				CreatedBlock:              foundLog.BlockNumber,
 			}
 
 			service.currentContracts[foundLog.Address] = &newContractExtension

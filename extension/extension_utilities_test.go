@@ -25,8 +25,6 @@ func TestWriteContentsToFileWritesOkay(t *testing.T) {
 		Initiator:                 common.HexToAddress("0x3333333333333333333333333333333333333333"),
 		ManagementContractAddress: common.HexToAddress("0x2222222222222222222222222222222222222222"),
 		CreationData:              []byte("Sample Transaction Data"),
-		CreatedBlock:              100,
-		stopCh:                    make(chan struct{}),
 	}
 
 	datadir, err := ioutil.TempDir("", t.Name())
