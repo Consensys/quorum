@@ -13,25 +13,10 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 )
-
-func getAddressState(privateState *state.StateDB, addressToShare common.Address) []byte {
-	keepAddresses := make(map[string]extensionContracts.AccountWithMetadata)
-
-	if account, found := privateState.DumpAddress(addressToShare); found {
-		keepAddresses[addressToShare.Hex()] = extensionContracts.AccountWithMetadata{
-			State: account,
-		}
-	}
-
-	//types can be marshalled, so errors can't occur
-	out, _ := json.Marshal(&keepAddresses)
-	return out
-}
 
 func generateTransactOpts(accountManager *accounts.Manager, txa ethapi.SendTxArgs) (*bind.TransactOpts, error) {
 	//Find the account we plan to send the transaction from

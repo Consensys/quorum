@@ -15,8 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -84,6 +82,7 @@ type PrivacyService struct {
 	ethereum *eth.Ethereum
 	client   *ethclient.Client
 	ptm      private.PrivateTransactionManager
+	stateFetcher *StateFetcher
 
 	dataDir string
 
@@ -126,6 +125,8 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 	if err := node.Service(&service.ethereum); err != nil {
 		panic("extension: could not connect to ethereum service")
 	}
+
+	service.stateFetcher = NewStateFetcher(service.ethereum.ChainDb(), service.ethereum.BlockChain())
 
 	rpcClient, err := node.Attach()
 	if err != nil {
@@ -267,9 +268,8 @@ func (service *PrivacyService) watchForCompletionEvents() {
 			recipient, _ := service.ptm.Receive(decoded)
 
 			//we found the account, so we can send
-			privateState, _ := service.privateState(l.BlockHash)
 			contractToExtend, _ := caller.ContractToExtend(nil)
-			entireStateData := getAddressState(privateState, contractToExtend)
+			entireStateData, _ := service.stateFetcher.GetAddressStateFromBlock(l.BlockHash, contractToExtend)
 
 			//send to PTM
 			hashOfStateData, _ := service.ptm.Send(entireStateData, "", []string{string(recipient)})
@@ -287,14 +287,6 @@ func (service *PrivacyService) generateTransactOpts(txa ethapi.SendTxArgs) (*bin
 		return nil, errNotPrivate
 	}
 	return generateTransactOpts(service.ethereum.AccountManager(), txa)
-}
-
-func (service *PrivacyService) privateState(blockHash common.Hash) (*state.StateDB, error) {
-	db := service.ethereum.ChainDb()
-	block := service.ethereum.BlockChain().GetBlockByHash(blockHash)
-
-	privateStateRoot := core.GetPrivateStateRoot(db, block.Root())
-	return state.New(privateStateRoot, state.NewDatabase(db))
 }
 
 // node.Service interface methods:
