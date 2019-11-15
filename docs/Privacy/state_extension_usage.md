@@ -19,8 +19,8 @@ of the other nodes who the extender wants to vote, as well as the **PTM public k
 The API is invoked like so:
 ```
 quorumExtension.extendContract(
-    "<address of contract to share>", 
-    "<new recipient public key>", 
+    "<address of contract to share>",
+    "<new recipient public key>",
     [<ethereum addresses who can vote>],
     <normal tx args, which are used to send the transactions>
 )
@@ -32,7 +32,7 @@ quorumExtension.extendContract(
 The API is invoked like so:
 ```
 quorumExtension.accept(
-    "<extension management contract address>", 
+    "<extension management contract address>",
     <normal tx args, which are used to send the transactions>
 )
 ```
@@ -44,8 +44,8 @@ of all the votes.
 The API is invoked like so:
 ```
 quorumExtension.voteOnContract(
-    "<extension management contract address>", 
-    <boolean, which way to vote>, 
+    "<extension management contract address>",
+    <boolean, which way to vote>,
     <normal tx args, which are used to send the transactions>
 )
 ```
@@ -77,7 +77,7 @@ extension proposal.
 The API is invoked like so:
 ```
 quorumExtension.cancel(
-    "<extension management contract address>", 
+    "<extension management contract address>",
     <normal tx args, which are used to send the transactions>
 )
 ```
