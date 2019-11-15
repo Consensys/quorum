@@ -36,7 +36,7 @@ func TestWriteContentsToFileWritesOkay(t *testing.T) {
 		t.Errorf("error writing data to file, error: %s", err.Error())
 	}
 
-	data, err := ioutil.ReadFile(datadir + "/" + ExtensionContractData)
+	data, err := ioutil.ReadFile(datadir + "/" + extensionContractData)
 	if err != nil {
 		t.Errorf("error reading data from file, error: %s", err.Error())
 	}

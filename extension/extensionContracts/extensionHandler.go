@@ -7,5 +7,5 @@ func UnpackStateSharedLog(logData []byte) (common.Address, string, string, error
 	if err := ContractExtensionABI.Unpack(decodedLog, "StateShared", logData); err != nil {
 		return common.Address{}, "", "", err
 	}
-	return decodedLog.ToExtend, decodedLog.Hash, decodedLog.Uuid, nil
+	return decodedLog.ToExtend, decodedLog.Tesserahash, decodedLog.Uuid, nil
 }
