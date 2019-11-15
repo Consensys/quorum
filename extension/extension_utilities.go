@@ -60,7 +60,7 @@ func writeContentsToFile(extensionContracts map[common.Address]*ExtensionContrac
 	//no unmarshallable types, so can't error
 	output, _ := json.Marshal(&extensionContracts)
 
-	path := filepath.Join(datadir, ExtensionContractData)
+	path := filepath.Join(datadir, extensionContractData)
 	if errSaving := ioutil.WriteFile(path, output, 0644); errSaving != nil {
 		log.Error("Couldn't save outstanding extension contract details")
 		return errSaving
