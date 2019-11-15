@@ -398,6 +398,7 @@ var (
 			return &{{$contract.Type}}{{.Normalized.Name}}Iterator{contract: _{{$contract.Type}}.contract, event: "{{.Original.Name}}", logs: logs, sub: sub}, nil
  		}
 
+		var {{.Normalized.Name}}TopicHash = "0x{{printf "%x" .Original.Id}}"
 		// Watch{{.Normalized.Name}} is a free log subscription operation binding the contract event 0x{{printf "%x" .Original.Id}}.
 		//
 		// Solidity: {{.Original.String}}
