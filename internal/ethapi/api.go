@@ -361,20 +361,15 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args *SendTxArg
 		return nil, err
 	}
 
-	// Quorum
-	isPrivate := args.IsPrivate()
-	var tx *types.Transaction
-	if isPrivate {
-		tx, err = args.toPrivateTransaction()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// Assemble the transaction and sign with the wallet
-		tx = args.toTransaction()
+	// Assemble the transaction and sign with the wallet
+	tx := args.toTransaction()
+
+	if args.IsPrivate() {
+		tx.SetPrivate()
 	}
+
 	var chainID *big.Int
-	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !isPrivate {
+	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !tx.IsPrivate() {
 		chainID = config.ChainID
 	}
 	// /Quorum
@@ -1724,7 +1719,7 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Sen
 
 	toSign := args.toTransaction()
 
-	if args.PrivateFor != nil {
+	if args.IsPrivate() {
 		toSign.SetPrivate()
 	}
 
@@ -1732,9 +1727,7 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Sen
 	if err != nil {
 		return nil, err
 	}
-	if args.IsPrivate() {
-		tx.SetPrivate()
-	}
+
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
 		return nil, err
@@ -1809,7 +1802,7 @@ func (s *PublicTransactionPoolAPI) Resend(ctx context.Context, sendArgs SendTxAr
 			}
 			newTx := sendArgs.toTransaction()
 			// set v param to 37 to indicate private tx before submitting to the signer.
-			if sendArgs.PrivateFor != nil {
+			if sendArgs.IsPrivate() {
 				newTx.SetPrivate()
 			}
 			signedTx, err := s.sign(sendArgs.From, newTx)
