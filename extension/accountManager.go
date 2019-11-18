@@ -20,6 +20,20 @@ var (
 	errNotPrivate = errors.New("must specify private participants")
 )
 
+// IAccountManager is an interface for transaction and account generation
+// based operations
+type IAccountManager interface {
+	// Exists returns whether a given address is managed by this account manager or not
+	Exists(address common.Address) bool
+
+	// GenerateTransactOptions transforms API input arguments to ethclient
+	// compatible arguments
+	// It will validate based on use in the Privacy Extension context, namely
+	// it will check the account is managed by the this node, and that it is a
+	// private transaction
+	GenerateTransactOptions(apiArguments ethapi.SendTxArgs) (*bind.TransactOpts, error)
+}
+
 type AccountManager struct {
 	manager *accounts.Manager
 }
@@ -29,12 +43,11 @@ func NewAccountManager(manager *accounts.Manager) *AccountManager {
 }
 
 func (manager *AccountManager) Exists(address common.Address) bool {
-	from := accounts.Account{Address: address}
-	_, err := manager.manager.Find(from)
+	_, err := manager.manager.Find(accounts.Account{Address: address})
 	return err == nil
 }
 
-func (manager *AccountManager) generateTransactOpts(txa ethapi.SendTxArgs) (*bind.TransactOpts, error) {
+func (manager *AccountManager) GenerateTransactOptions(txa ethapi.SendTxArgs) (*bind.TransactOpts, error) {
 	if txa.PrivateFor == nil {
 		return nil, errNotPrivate
 	}
@@ -43,10 +56,10 @@ func (manager *AccountManager) generateTransactOpts(txa ethapi.SendTxArgs) (*bin
 	}
 
 	//Find the account we plan to send the transaction from
-	frmAcct := accounts.Account{Address: txa.From}
-	wallet, _ := manager.manager.Find(frmAcct)
+	from := accounts.Account{Address: txa.From}
+	wallet, _ := manager.manager.Find(from)
 
-	txArgs := bind.NewWalletTransactor(wallet, frmAcct)
+	txArgs := bind.NewWalletTransactor(wallet, from)
 	txArgs.PrivateFrom = txa.PrivateFrom
 	txArgs.PrivateFor = txa.PrivateFor
 	txArgs.GasLimit = defaultGasLimit
