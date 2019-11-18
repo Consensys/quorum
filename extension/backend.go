@@ -274,7 +274,5 @@ func (service *PrivacyService) Start(p2pServer *p2p.Server) error {
 }
 
 func (service *PrivacyService) Stop() error {
-	service.mu.Lock()
-	defer service.mu.Unlock()
-	return service.dataHandler.Save(service.currentContracts)
+	return nil
 }
