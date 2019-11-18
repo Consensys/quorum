@@ -250,7 +250,7 @@ func (service *PrivacyService) watchForCompletionEvents() {
 				continue
 			}
 
-			txArgs, _ := service.accountManager.generateTransactOpts(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties})
+			txArgs, _ := service.accountManager.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties})
 
 			recipientHash, _ := caller.TargetRecipientPublicKeyHash(&bind.CallOpts{Pending: false})
 			decoded, _ := base64.StdEncoding.DecodeString(recipientHash)
