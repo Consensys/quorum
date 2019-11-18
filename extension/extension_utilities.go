@@ -2,7 +2,6 @@ package extension
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"io/ioutil"
 	"math/big"
@@ -10,36 +9,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/private"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 )
-
-func generateTransactOpts(accountManager *accounts.Manager, txa ethapi.SendTxArgs) (*bind.TransactOpts, error) {
-	//Find the account we plan to send the transaction from
-	frmAcct := accounts.Account{Address: txa.From}
-	wallet, err := accountManager.Find(frmAcct)
-	if err != nil {
-		return nil, fmt.Errorf("no wallet found for account %s", txa.From.String())
-	}
-
-	txArgs := bind.NewWalletTransactor(wallet, frmAcct)
-	txArgs.PrivateFrom = txa.PrivateFrom
-	txArgs.PrivateFor = txa.PrivateFor
-	txArgs.GasLimit = defaultGasLimit
-	txArgs.GasPrice = defaultGasPrice
-
-	if txa.GasPrice != nil {
-		txArgs.GasPrice = txa.GasPrice.ToInt()
-	}
-	if txa.Gas != nil {
-		txArgs.GasLimit = uint64(*txa.Gas)
-	}
-	return txArgs, nil
-}
 
 func writeContentsToFile(extensionContracts map[common.Address]*ExtensionContract, datadir string) error {
 	//no unmarshallable types, so can't error
