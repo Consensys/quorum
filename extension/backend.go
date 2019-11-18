@@ -4,15 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"io/ioutil"
-	"math/big"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -58,16 +55,6 @@ var (
 		Topics:    [][]common.Hash{{common.HexToHash(extensionContracts.CanPerformStateShareTopicHash)}},
 		Addresses: []common.Address{},
 	}
-
-	//default gas limit to use if not passed in sendTxArgs
-	defaultGasLimit = uint64(4712384)
-	//default gas price to use if not passed in sendTxArgs
-	defaultGasPrice = big.NewInt(0)
-)
-
-var (
-	//Private participants must be specified for contract extension related transactions
-	errNotPrivate = errors.New("must specify private participants")
 )
 
 type ExtensionContract struct {
@@ -79,10 +66,11 @@ type ExtensionContract struct {
 }
 
 type PrivacyService struct {
-	ethereum *eth.Ethereum
 	client   *ethclient.Client
 	ptm      private.PrivateTransactionManager
+
 	stateFetcher *StateFetcher
+	accountManager *AccountManager
 
 	dataDir string
 
@@ -122,11 +110,13 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 		}
 	}
 
-	if err := node.Service(&service.ethereum); err != nil {
+	var ethService *eth.Ethereum
+	if err := node.Service(&ethService); err != nil {
 		panic("extension: could not connect to ethereum service")
 	}
 
-	service.stateFetcher = NewStateFetcher(service.ethereum.ChainDb(), service.ethereum.BlockChain())
+	service.stateFetcher = NewStateFetcher(ethService.ChainDb(), ethService.BlockChain())
+	service.accountManager = NewAccountManager(ethService.AccountManager())
 
 	rpcClient, err := node.Attach()
 	if err != nil {
@@ -245,9 +235,8 @@ func (service *PrivacyService) watchForCompletionEvents() {
 			caller, _ := extensionContracts.NewContractExtenderCaller(l.Address, service.client)
 			contractCreator, _ := caller.Creator(nil)
 
-			from := accounts.Account{Address: contractCreator}
-			if _, err := service.ethereum.AccountManager().Find(from); err != nil {
-				log.Warn("Account used to sign extension contract no longer available", "account", from.Address.Hex())
+			if !service.accountManager.Exists(contractCreator) {
+				log.Warn("Account used to sign extension contract no longer available", "account", contractCreator.Hex())
 				service.mu.Unlock()
 				continue
 			}
@@ -261,7 +250,7 @@ func (service *PrivacyService) watchForCompletionEvents() {
 				continue
 			}
 
-			txArgs, _ := service.generateTransactOpts(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties})
+			txArgs, _ := service.accountManager.generateTransactOpts(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties})
 
 			recipientHash, _ := caller.TargetRecipientPublicKeyHash(&bind.CallOpts{Pending: false})
 			decoded, _ := base64.StdEncoding.DecodeString(recipientHash)
@@ -280,13 +269,6 @@ func (service *PrivacyService) watchForCompletionEvents() {
 			service.mu.Unlock()
 		}
 	}
-}
-
-func (service *PrivacyService) generateTransactOpts(txa ethapi.SendTxArgs) (*bind.TransactOpts, error) {
-	if txa.PrivateFor == nil {
-		return nil, errNotPrivate
-	}
-	return generateTransactOpts(service.ethereum.AccountManager(), txa)
 }
 
 // node.Service interface methods:

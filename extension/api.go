@@ -42,7 +42,7 @@ func (api *PrivateExtensionAPI) ActiveExtensionContracts() []ExtensionContract {
 // VoteOnContract submits the vote to the specified extension management contract. The vote indicates whether to extend
 // a given contract to a new participant or not
 func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (common.Hash, error) {
-	txArgs, err := api.privacyService.generateTransactOpts(txa)
+	txArgs, err := api.privacyService.accountManager.generateTransactOpts(txa)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -89,7 +89,7 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	}
 
 	//generate some valid transaction options for sending in the transaction
-	txArgs, err := api.privacyService.generateTransactOpts(txa)
+	txArgs, err := api.privacyService.accountManager.generateTransactOpts(txa)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -137,7 +137,7 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 
 // Accept allows the target recipient to say they want to receive this extension
 func (api *PrivateExtensionAPI) Accept(addressToVoteOn common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
-	txArgs, err := api.privacyService.generateTransactOpts(txa)
+	txArgs, err := api.privacyService.accountManager.generateTransactOpts(txa)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -164,7 +164,7 @@ func (api *PrivateExtensionAPI) Accept(addressToVoteOn common.Address, txa ethap
 // Cancel allows the creator to cancel the given extension contract, ensuring
 // that no more calls for votes or accepting can be made
 func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
-	txArgs, err := api.privacyService.generateTransactOpts(txa)
+	txArgs, err := api.privacyService.accountManager.generateTransactOpts(txa)
 	if err != nil {
 		return common.Hash{}, err
 	}
