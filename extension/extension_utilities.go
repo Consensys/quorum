@@ -1,30 +1,13 @@
 package extension
 
 import (
-	"encoding/json"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"io/ioutil"
-	"math/big"
-	"path/filepath"
-
 	"github.com/ethereum/go-ethereum/private"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
-	"github.com/ethereum/go-ethereum/log"
 )
-
-func writeContentsToFile(extensionContracts map[common.Address]*ExtensionContract, datadir string) error {
-	//no unmarshallable types, so can't error
-	output, _ := json.Marshal(&extensionContracts)
-
-	path := filepath.Join(datadir, extensionContractData)
-	if errSaving := ioutil.WriteFile(path, output, 0644); errSaving != nil {
-		log.Error("Couldn't save outstanding extension contract details")
-		return errSaving
-	}
-	return nil
-}
 
 // generateUuid sends some data to the linked Private Transaction Manager which
 // uses a randomly generated key to encrypt the data and then hash it this

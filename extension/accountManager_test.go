@@ -1,6 +1,9 @@
 package extension
 
 import (
+	"math/big"
+	"testing"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -8,8 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"math/big"
-	"testing"
 )
 
 type MockBackend struct {
@@ -86,7 +87,7 @@ func TestGenerateTransactionOptionsErrorsWhenNoPrivateParticipants(t *testing.T)
 
 func TestGenerateTransactionOptionsErrorsWhenAccountNotFound(t *testing.T) {
 	sendTxArgs := ethapi.SendTxArgs{
-		From: common.Address{},
+		From:       common.Address{},
 		PrivateFor: []string{},
 	}
 
@@ -156,9 +157,9 @@ func TestGenerateTransactionOptionsGivesNonDefaultsWhenSpecified(t *testing.T) {
 	gasPrice := hexutil.Big(*big.NewInt(50))
 
 	sendTxArgs := ethapi.SendTxArgs{
-		From:     from,
-		Gas:      &gasLimit,
-		GasPrice: &gasPrice,
+		From:       from,
+		Gas:        &gasLimit,
+		GasPrice:   &gasPrice,
 		PrivateFor: []string{},
 	}
 

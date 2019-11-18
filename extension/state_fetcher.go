@@ -2,6 +2,7 @@ package extension
 
 import (
 	"encoding/json"
+	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -10,7 +11,11 @@ import (
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 )
 
-// Object definition and constructor
+// BlockRetriever provides methods to fetch blocks from the local blockchain
+type BlockRetriever interface {
+	// GetBlockByHash retrieves a block from the local chain.
+	GetBlockByHash(common.Hash) *types.Block
+}
 
 // StateFetcher manages retrieving state from the database and returning it in
 // a usable form by the extension API.
@@ -27,8 +32,6 @@ func NewStateFetcher(db ethdb.Database, blockRetriever BlockRetriever) *StateFet
 	}
 }
 
-// Public methods
-
 // GetAddressStateFromBlock is a public method that combines the other
 // functions of a StateFetcher, retrieving the state of an address at a given
 // block, represented in JSON.
@@ -39,8 +42,6 @@ func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, add
 	}
 	return fetcher.addressStateAsJson(privateState, addressToFetch), nil
 }
-
-// Private methods
 
 // privateState returns the private state database for a given block hash.
 func (fetcher *StateFetcher) privateState(blockHash common.Hash) (*state.StateDB, error) {
