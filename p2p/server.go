@@ -461,9 +461,16 @@ func (srv *Server) setupLocalNode() error {
 	srv.localnode = enode.NewLocalNode(db, srv.PrivateKey)
 	srv.localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 	srv.localnode.Set(capsByNameAndVersion(srv.ourHandshake.Caps))
+	// Quorum
 	if srv.Config.Hostname != "" {
+		// if the host the user gave can't be resolved, other nodes won't be
+		// able to find it, so don't start the node and let the user know
+		if _, err := net.LookupIP(srv.Config.Hostname); err != nil {
+			return err
+		}
 		srv.localnode.Set(enr.Hostname(srv.Config.Hostname))
 	}
+	// Quorum-End
 	// TODO: check conflicts
 	for _, p := range srv.Protocols {
 		for _, e := range p.Attributes {
@@ -947,6 +954,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	if srv.EnableNodePermission {
 		clog.Trace("Node Permissioning is Enabled.")
 		node := c.node.ID().String()
+		clog.Info("PETER", "id", node)
 		direction := "INCOMING"
 		if dialDest != nil {
 			node = dialDest.ID().String()
