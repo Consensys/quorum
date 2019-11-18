@@ -3,10 +3,6 @@ package extension
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/ethereum/go-ethereum"
@@ -23,8 +19,6 @@ import (
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/rpc"
 )
-
-const extensionContractData = "activeExtensions.json"
 
 var (
 	//Log queries
@@ -66,25 +60,22 @@ type ExtensionContract struct {
 }
 
 type PrivacyService struct {
-	client   *ethclient.Client
-	ptm      private.PrivateTransactionManager
+	client *ethclient.Client
+	ptm    private.PrivateTransactionManager
 
-	stateFetcher *StateFetcher
+	stateFetcher   *StateFetcher
 	accountManager *AccountManager
-
-	dataDir string
+	dataHandler    DataHandler
 
 	mu               sync.Mutex
 	currentContracts map[common.Address]*ExtensionContract
 }
 
 func New(node *node.Node, ptm private.PrivateTransactionManager, thirdpartyunixfile string) (*PrivacyService, error) {
-	dataDir := node.InstanceDir()
-
 	service := &PrivacyService{
 		currentContracts: make(map[common.Address]*ExtensionContract),
-		dataDir:          dataDir,
 		ptm:              ptm,
+		dataHandler:      NewJsonFileDataHandler(node.InstanceDir()),
 	}
 
 	go service.initialise(node, thirdpartyunixfile)
@@ -96,20 +87,6 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 	service.mu.Lock()
 	defer service.mu.Unlock()
 
-	//repopulate existing extensions
-	path := filepath.Join(service.dataDir, extensionContractData)
-
-	if _, err := os.Stat(path); err == nil || !os.IsNotExist(err) {
-		blob, err := ioutil.ReadFile(path)
-		if err != nil {
-			panic("could not read existing extension contracts")
-		}
-
-		if err = json.Unmarshal(blob, &service.currentContracts); err != nil {
-			panic("could not unmarshal existing contract file")
-		}
-	}
-
 	var ethService *eth.Ethereum
 	if err := node.Service(&ethService); err != nil {
 		panic("extension: could not connect to ethereum service")
@@ -117,6 +94,12 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 
 	service.stateFetcher = NewStateFetcher(ethService.ChainDb(), ethService.BlockChain())
 	service.accountManager = NewAccountManager(ethService.AccountManager())
+
+	currentContracts, err := service.dataHandler.Load()
+	if err != nil {
+		panic("could not load existing extension contracts. error: " + err.Error())
+	}
+	service.currentContracts = currentContracts
 
 	rpcClient, err := node.Attach()
 	if err != nil {
@@ -166,7 +149,7 @@ func (service *PrivacyService) watchForNewContracts() {
 			}
 
 			service.currentContracts[foundLog.Address] = &newContractExtension
-			writeContentsToFile(service.currentContracts, service.dataDir)
+			service.dataHandler.Save(service.currentContracts)
 			service.mu.Unlock()
 		}
 	}
@@ -185,7 +168,7 @@ func (service *PrivacyService) watchForCancelledContracts() {
 			service.mu.Lock()
 			if _, ok := service.currentContracts[l.Address]; ok {
 				delete(service.currentContracts, l.Address)
-				writeContentsToFile(service.currentContracts, service.dataDir)
+				service.dataHandler.Save(service.currentContracts)
 			}
 			service.mu.Unlock()
 		}
@@ -209,12 +192,11 @@ func (service *PrivacyService) watchForVotingCompletedContracts() {
 			// we aren't that bothered about the case where someone declines and emits this event
 			// because it will immediately be deleted from the API
 			extensionEntry.AllHaveVoted = true
-			writeContentsToFile(service.currentContracts, service.dataDir)
+			service.dataHandler.Save(service.currentContracts)
 			service.mu.Unlock()
 		}
 	}
 }
-
 
 func (service *PrivacyService) watchForCompletionEvents() {
 	logsChan := make(chan types.Log)
@@ -294,5 +276,5 @@ func (service *PrivacyService) Start(p2pServer *p2p.Server) error {
 func (service *PrivacyService) Stop() error {
 	service.mu.Lock()
 	defer service.mu.Unlock()
-	return writeContentsToFile(service.currentContracts, service.dataDir)
+	return service.dataHandler.Save(service.currentContracts)
 }
