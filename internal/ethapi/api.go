@@ -372,7 +372,6 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args *SendTxArg
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !tx.IsPrivate() {
 		chainID = config.ChainID
 	}
-	// /Quorum
 
 	return wallet.SignTxWithPassphrase(account, passwd, tx, chainID)
 }
@@ -387,6 +386,20 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		s.nonceLock.LockAddr(args.From)
 		defer s.nonceLock.UnlockAddr(args.From)
 	}
+
+	// Quorum
+	isPrivate := args.IsPrivate()
+	if isPrivate {
+		// replace args.Data field to tm hash for quorum private tx
+		data, err := args.getHashFromTM()
+		if err != nil {
+			return common.Hash{}, err
+		}
+		d := hexutil.Bytes(data)
+		args.Data = &d
+	}
+	// /Quorum
+
 	signed, err := s.signTransaction(ctx, &args, passwd)
 	if err != nil {
 		log.Warn("Failed transaction send attempt", "from", args.From, "to", args.To, "value", args.Value.ToInt(), "err", err)
@@ -1506,31 +1519,23 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	return types.NewTransaction(uint64(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 }
 
-// args to Quorum private transaction
-func (args *SendTxArgs) toPrivateTransaction() (tx *types.Transaction, err error) {
-	// create quorum tx
-	var data []byte
+// getHashFromTM send the actual private transaction payload to Tessera and returns the tm hash
+func (args *SendTxArgs) getHashFromTM() (data []byte, err error) {
 	if args.Data != nil {
 		data = []byte(*args.Data)
+		if len(data) > 0 {
+			//Send private transaction to local Constellation node
+			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			if err != nil {
+				return nil, err
+			}
+		}
 	} else {
 		log.Info("args.data is nil")
 	}
-
-	if len(data) > 0 {
-		//Send private transaction to local Constellation node
-		log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-		log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-		if err != nil {
-			return nil, err
-		}
-	}
-	d := hexutil.Bytes(data)
-	args.Data = &d
-	// Assemble the transaction and sign with the wallet
-	tx = args.toTransaction()
-	tx.SetPrivate()
-	return tx, nil
+	return data, nil
 }
 
 // TODO: this submits a signed transaction, if it is a signed private transaction that should already be recorded in the tx.
@@ -1587,16 +1592,25 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	isPrivate := args.IsPrivate()
 	var tx *types.Transaction
 	if isPrivate {
-		tx, err = args.toPrivateTransaction()
+		// replace args.Data field to tm hash for quorum private tx
+		var data []byte
+		data, err = args.getHashFromTM()
 		if err != nil {
 			return common.Hash{}, err
 		}
-	} else {
-		// Assemble the transaction and sign with the wallet
-		tx = args.toTransaction()
+		d := hexutil.Bytes(data)
+		args.Data = &d
 	}
+
+	// Assemble the transaction and sign with the wallet
+	tx = args.toTransaction()
+
+	if isPrivate {
+		tx.SetPrivate()
+	}
+
 	var chainID *big.Int
-	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !isPrivate {
+	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !tx.IsPrivate() {
 		chainID = config.ChainID
 	}
 	// /Quorum
