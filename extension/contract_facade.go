@@ -38,10 +38,8 @@ func (facade EthclientManagementContractFacade) Deploy(args *bind.TransactOpts, 
 	return tx, err
 }
 
-/////////
-
 func (facade EthclientManagementContractFacade) GetAllVoters(addressToVoteOn common.Address) ([]common.Address, error) {
-	caller, err := extensionContracts.NewContractExtenderCaller(addressToVoteOn, facade.client)
+	caller, err := facade.Caller(addressToVoteOn)
 	if err != nil {
 		return nil, err
 	}
