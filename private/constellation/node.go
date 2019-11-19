@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/tv42/httpunix"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +13,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/tv42/httpunix"
 )
 
 func launchNode(cfgPath string) (*exec.Cmd, error) {

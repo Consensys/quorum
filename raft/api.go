@@ -69,3 +69,7 @@ func (s *PublicRaftAPI) Cluster() ([]ClusterInfo, error) {
 	}
 	return clustInfo, nil
 }
+
+func (s *PublicRaftAPI) GetRaftId(enodeId string) (uint16, error) {
+	return s.raftService.raftProtocolManager.FetchRaftId(enodeId)
+}
