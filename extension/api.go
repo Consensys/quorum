@@ -8,7 +8,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 )
 
@@ -47,7 +46,7 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 		return common.Hash{}, err
 	}
 
-	voterList, err := getAllVoters(addressToVoteOn, api.privacyService.client)
+	voterList, err := api.privacyService.managementContractFacade.GetAllVoters(addressToVoteOn)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -61,7 +60,7 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 	}
 
 	//Find the extension contract in order to interact with it
-	extender, err := extension.NewContractExtenderTransactor(addressToVoteOn, api.privacyService.client)
+	extender, err := api.privacyService.managementContractFacade.Transactor(addressToVoteOn)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -126,7 +125,7 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	}
 
 	//Deploy the contract
-	_, tx, _, err := extension.DeployContractExtender(txArgs, api.privacyService.client, toExtend, voters, recipientHashBase64, uuid)
+	tx, err := api.privacyService.managementContractFacade.Deploy(txArgs, toExtend, voters, recipientHashBase64, uuid)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -148,7 +147,7 @@ func (api *PrivateExtensionAPI) Accept(addressToVoteOn common.Address, txa ethap
 	}
 
 	//Find the extension contract in order to interact with it
-	extender, err := extension.NewContractExtenderTransactor(addressToVoteOn, api.privacyService.client)
+	extender, err := api.privacyService.managementContractFacade.Transactor(addressToVoteOn)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -169,7 +168,7 @@ func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa eth
 		return common.Hash{}, err
 	}
 
-	caller, err := extension.NewContractExtenderCaller(extensionContract, api.privacyService.client)
+	caller, err := api.privacyService.managementContractFacade.Caller(extensionContract)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -181,7 +180,7 @@ func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa eth
 		return common.Hash{}, errNotCreator
 	}
 
-	extender, err := extension.NewContractExtenderTransactor(extensionContract, api.privacyService.client)
+	extender, err := api.privacyService.managementContractFacade.Transactor(extensionContract)
 	if err != nil {
 		return common.Hash{}, err
 	}
