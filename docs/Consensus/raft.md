@@ -18,7 +18,7 @@ In Raft, a node in normal operation can be a "leader", "follower" or "learner." 
 ### Leader
 - mints blocks and sends the blocks to the verifier and learner nodes
 - takes part in voting during re-election and can become verifier if it does not win majority of votes
-- affects the quorum of the network if it dies
+- the network triggers re-election if the leader node dies. 
 - can add/remove learner/verifier and promote learner to verifier
 
 ### Verifier
@@ -26,7 +26,6 @@ In Raft, a node in normal operation can be a "leader", "follower" or "learner." 
 - applies the blocks minted by the leader
 - takes part in voting during re-election and can become leader if it wins majority of votes
 - sends confirmation to leader
-- affects the quorum of the network if it dies
 - can add/remove learner/verifier and promote learner to verifier
 
 ### Learner
