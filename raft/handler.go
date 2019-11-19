@@ -426,6 +426,19 @@ func (pm *ProtocolManager) startRaft() {
 				// the single call to `pm.applyNewChainHead` for more context.
 				lastAppliedIndex = lastPersistedCommittedIndex
 			}
+
+			// fix raft applied index out of range
+			firstIndex, err := pm.raftStorage.FirstIndex()
+			if err != nil {
+				panic(fmt.Sprintf("failed to read last persisted applied index from raft while restarting: %v", err))
+			}
+			lastPersistedAppliedIndex := firstIndex - 1
+			if lastPersistedAppliedIndex > lastAppliedIndex {
+				log.Debug("set lastAppliedIndex to lastPersistedAppliedIndex", "last applied index", lastAppliedIndex, "last persisted applied index", lastPersistedAppliedIndex)
+
+				lastAppliedIndex = lastPersistedAppliedIndex
+				pm.advanceAppliedIndex(lastAppliedIndex)
+			}
 		}
 	}
 
