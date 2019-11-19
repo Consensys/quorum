@@ -33,6 +33,6 @@ var (
 	// next one expected based on the local chain.
 	ErrNonceTooHigh = errors.New("nonce too high")
 
-	// ErrInsertChainInterrupted is returned if bc.insertChain is interrupted under raft mode
-	ErrInsertChainInterrupted = errors.New("chain insertion interrupted")
+	// ErrAbortBlocksProcessing is returned if bc.insertChain is interrupted under raft mode
+	ErrAbortBlocksProcessing = errors.New("abort during blocks processing")
 )

@@ -894,12 +894,11 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) bool {
 		_, err := pm.blockchain.InsertChain([]*types.Block{block})
 
 		if err != nil {
-			if err == core.ErrInsertChainInterrupted {
-				log.Debug("Insert chain interrupted... Please restart node.")
+			if err == core.ErrAbortBlocksProcessing {
+				log.Error(fmt.Sprintf("failed to extend chain: %s", err.Error()))
 				return false
-			} else {
-				panic(fmt.Sprintf("failed to extend chain: %s", err.Error()))
 			}
+			panic(fmt.Sprintf("failed to extend chain: %s", err.Error()))
 		}
 
 		log.EmitCheckpoint(log.BlockCreated, "block", fmt.Sprintf("%x", block.Hash()))

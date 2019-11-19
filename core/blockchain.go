@@ -1151,7 +1151,8 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			log.Debug("Premature abort during blocks processing")
 			// QUORUM
 			if bc.chainConfig.Istanbul == nil && bc.chainConfig.Clique == nil {
-				return i, events, coalescedLogs, ErrInsertChainInterrupted
+				// Only returns an error for raft mode
+				return i, events, coalescedLogs, ErrAbortBlocksProcessing
 			}
 			// END QUORUM
 			break
