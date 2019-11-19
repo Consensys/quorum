@@ -18,3 +18,16 @@ flag is set to something that does not resolve to your IP address, then other pe
 the wrong address and fail, so it is important that this value is correct.
 If you provide a value that does not resolve to any IP address, the node will fail to start up and emit an error
 notifying the node operator of such; but it cannot protect against valid but incorrect hostname being provided.
+
+Note: the hostname of connected peers can be seen in the `admin.peers` list, but only for outgoing connections. For 
+incoming connections, we don't know the hostname (if there even is one), so it will still display the remote IP address.
+
+## Compatibility
+For IBFT and Clique, nodes are compatible with all versions of Quorum (insofar as DNS). If performing discovery, older
+nodes will only propagate the IP address. Because of this, DNS is always turned on.
+
+For Raft, the whole network must be on version 2.3.1 of Quorum for DNS to function properly; because of this, DNS must 
+be explicitly enabled using the `--raftdnsenable` flag. 
+
+The network will support older nodes mixed with newer nodes if DNS is not enabled via this flag, and it is safe to 
+enable DNS only on some nodes if all nodes are on at least version 2.3.1. This allows for a clear upgrade path.

@@ -954,7 +954,6 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	if srv.EnableNodePermission {
 		clog.Trace("Node Permissioning is Enabled.")
 		node := c.node.ID().String()
-		clog.Info("PETER", "id", node)
 		direction := "INCOMING"
 		if dialDest != nil {
 			node = dialDest.ID().String()
