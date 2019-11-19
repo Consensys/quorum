@@ -729,7 +729,7 @@ web3._extend({
                        call: 'raft_addLearner',
                        params: 1
                }),
-				new web3._extend.Method({
+               new web3._extend.Method({
                        name: 'promoteToPeer',
                        call: 'raft_promoteToPeer',
                        params: 1
@@ -746,10 +746,6 @@ web3._extend({
                new web3._extend.Property({
                        name: 'cluster',
                        getter: 'raft_cluster'
-               }),
-               new web3._extend.Property({
-                       name: 'confState',
-                       getter: 'raft_confState'
                }),
        ]
 })

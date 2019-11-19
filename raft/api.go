@@ -41,7 +41,7 @@ func (s *PublicRaftAPI) RemovePeer(raftId uint16) error {
 func (s *PublicRaftAPI) Leader() (string, error) {
 
 	addr, err := s.raftService.raftProtocolManager.LeaderAddress()
-	if nil != err {
+	if err != nil {
 		return "", err
 	}
 	return addr.NodeId.String(), nil
@@ -50,7 +50,10 @@ func (s *PublicRaftAPI) Leader() (string, error) {
 func (s *PublicRaftAPI) Cluster() ([]ClusterInfo, error) {
 	nodeInfo := s.raftService.raftProtocolManager.NodeInfo()
 	leaderAddr, err := s.raftService.raftProtocolManager.LeaderAddress()
-	if nil != err {
+	if err != nil {
+		if err == errNoLeaderElected && s.Role() == "" {
+			return []ClusterInfo{}, nil
+		}
 		return []ClusterInfo{}, err
 	}
 	peerAddresses := append(nodeInfo.PeerAddresses, nodeInfo.Address)
@@ -58,11 +61,9 @@ func (s *PublicRaftAPI) Cluster() ([]ClusterInfo, error) {
 	for i, a := range peerAddresses {
 		role := "verifier"
 		if a.RaftId == leaderAddr.RaftId {
-			role = "leader"
+			role = "minter"
 		} else if s.raftService.raftProtocolManager.isLearner(a.RaftId) {
 			role = "learner"
-		} else {
-			role = "verifier"
 		}
 		clustInfo[i] = ClusterInfo{*a, role}
 	}
