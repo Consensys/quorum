@@ -23,11 +23,10 @@ Note: the hostname of connected peers can be seen in the `admin.peers` list, but
 incoming connections, we don't know the hostname (if there even is one), so it will still display the remote IP address.
 
 ## Compatibility
-For IBFT and Clique, nodes are compatible with all versions of Quorum (insofar as DNS). If performing discovery, older
-nodes will only propagate the IP address. Because of this, DNS is always turned on.
-
 For Raft, the whole network must be on version 2.3.1 of Quorum for DNS to function properly; because of this, DNS must 
 be explicitly enabled using the `--raftdnsenable` flag. 
-
 The network will support older nodes mixed with newer nodes if DNS is not enabled via this flag, and it is safe to 
 enable DNS only on some nodes if all nodes are on at least version 2.3.1. This allows for a clear upgrade path.
+
+For IBFT and Clique, nodes are compatible with all versions of Quorum (insofar as DNS), which means that DNS can 
+(and is) always enabled. Note that if performing discovery, older nodes will only propagate the IP address.
