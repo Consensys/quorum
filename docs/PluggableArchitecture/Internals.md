@@ -7,8 +7,8 @@ Plugins are executed as a seperate process and communicate with the main `geth` 
 ## Background
 
 ### Go Plugin
-`geth` is written in Go programming language. [Go 1.8 introduced](https://golang.org/doc/go1.8#plugin) a new plugin architecture 
-which allows to build plugins (via `plugin` build mode) and load such plugins at runtime (via `plugin` package). 
+`geth` is written in the Go programming language. [Go 1.8 introduced](https://golang.org/doc/go1.8#plugin) a new plugin architecture 
+which allows for the creation of plugins (via `plugin` build mode) and to use these plugins at runtime (via `plugin` package). 
 In order to utilize this architecture, there are strict requirements in developing plugins. 
 
 By using the network RPC interface, the plugin is independently built and distributed without having to rebuild `geth`. 
@@ -23,8 +23,8 @@ and it has been proven in many plugin-based production systems.
 There are number of benefits:
 
 - Statically compiled binaries are much larger then dynamically-linked binaries.
-- We value the ability to isolate failures. E.g.: Quorum Client would continue mining/validating even when security plugin was crashed.
-- Support open source plugins written in different languages other than Go.
+- We value the ability to isolate failures. E.g.: Quorum client would continue mining/validating even if security plugin has crashed.
+- Easily enables support for open source plugins written in languages other than Go.
 
 ## Design
 
@@ -129,15 +129,18 @@ impl2 -up- grpcI2
 
 ### Discovery
 
-Quorum Client reads the plugin [settings](../Settings) file to determine which plugins are going to be loaded and searches for installed plugins
-(`<name>-<version>.zip` files) in plugin `baseDir` (default to `<datadir>\plugins`). If the required  plugin doesnt exist in the path Quorum will attempt to use `plugin central` if set at configuration time to download the plugin
+The Quorum client reads the plugin [settings](../Settings) file to determine which plugins are going to be loaded and searches for installed plugins
+(`<name>-<version>.zip` files) in the plugin `baseDir` (defaults to `<datadir>/plugins`). If the required plugin doesnt exist in the path, Quorum will attempt to use the configured `plugin central` to download the plugin.
 
 ### PluginManager
 
-It manages plugins being used inside `geth`. It reads the [configuration](../Settings) and builds a registry of plugins.
-`PluginManager` implements standard `Service` interface in `geth` hence being embedded into `geth` service life cycle, i.e.: expose service APIs, start and stop.
-`PluginManager` service is first registered right after node config is made. This is to make sure to fail fast without impacting other services.
+The `PluginManager` manages the plugins being used inside `geth`. It reads the [configuration](../Settings) and builds a registry of plugins.
+`PluginManager` implements the standard `Service` interface in `geth`, hence being embedded into the `geth` service life cycle, i.e.: expose service APIs, start and stop.
+The `PluginManager` service is registered as early as possible in the node lifecycle. This is to ensure the node fails fast if an issue is encountered when registering the `PluginManager`, so as not to impact other services.
 
 ### Plugin Reloading
 
-`PluginManager` exposes an API (`admin_reloadPlugin`) that allows reloading a plugin. This would attempt to restart the current plugin process. 
+The `PluginManager` exposes an API (`admin_reloadPlugin`) that allows reloading a plugin. This attempts to restart the current plugin process.   
+
+Any changes to the plugin config after initial node start will be applied when reloading the plugin.  
+This is demonstrated in the [HelloWorld plugin example](http://localhost:8000/PluggableArchitecture/Overview/#example-helloworld-plugin).

@@ -2,29 +2,29 @@ title: Plugin Development - Pluggable Architecture - Quorum
 
 We leverage HashiCorp's [`go-plugin`](https://github.com/hashicorp/go-plugin) to enable our plugin-based architecture using gRPC.
 
-We recommend background reading the [`go-plugin` gRPC examples](https://github.com/hashicorp/go-plugin/tree/master/examples/grpc).
-Some of advanced topics which are not available in `go-plugin` documentation will be covered.
+We recommend reading the [`go-plugin` gRPC examples](https://github.com/hashicorp/go-plugin/tree/master/examples/grpc).
+Some advanced topics which are not available in the `go-plugin` documentation will be covered here.
 
 ## Life Cycle
 
-A plugin is started as a separate process and communicates with Quorum Client host process via gRPC service interfaces.
+A plugin is started as a separate process and communicates with the Quorum client host process via gRPC service interfaces.
 This is done over a mutually-authenticated TLS connection on the local machine. The implementation is done inside `go-plugin`
 library which benefits plugins written in Golang. For plugins written in other languages, plugin authors need to have
 a understanding about the model as described below:
 
-1. `geth` lookups the plugin distribution file after reading the plugin definition from settings
+1. `geth` looks for the plugin distribution file after reading the plugin definition from settings
 1. `geth` verifies the plugin distribution file integrity
 1. `geth` generates a self-signed certificate (aka client certificate)
-1. `geth` spawns plugin with the client certificate
-1. The plugin imports the client certificate and generate a self-signed server certificate for its RPC server
+1. `geth` spawns the plugin with the client certificate
+1. The plugin imports the client certificate and generates a self-signed server certificate for its RPC server
 1. The plugin includes the RPC server certificate in the handshake
 1. `geth` imports the plugin RPC server certificate
 1. `geth` and the plugin communicate via RPC over TLS using mutual TLS
 
-Each plugin must implement [`PluginInitializer`](#plugininitializer) gRPC service interface.
-After plugin process is successfully started and connection with Quorum Client is successfully established,
+Each plugin must implement the [`PluginInitializer`](#plugininitializer) gRPC service interface.
+After the plugin process is successfully started and connection with the Quorum client is successfully established,
 Quorum Client invokes `Init()` gRPC in order to initialize the plugin with configuration data 
-read from plugin definition's `config` field in [settings](../Settings/#plugindefinition) file.
+read from the plugin definition's `config` field in [settings](../Settings/#plugindefinition) file.
 
 ## Configuration Data
 
@@ -73,8 +73,8 @@ E.g.:
 
 ## Advanced topics for non-Go plugins
 
-Most of knowledge is well-documented in [`go-plugin` Github](https://github.com/hashicorp/go-plugin/blob/master/docs/guide-plugin-write-non-go.md).
-Only some of advanced topics which are not available are described here. 
+Writing non-Go plugins is well-documented in [`go-plugin` Github](https://github.com/hashicorp/go-plugin/blob/master/docs/guide-plugin-write-non-go.md).
+Some additional advanced topics are described here.
 
 ### Magic Cookie
 
@@ -88,10 +88,10 @@ If the magic cookie doesn't match, plugin should show human-friendly output.
 
 ### Mutual TLS Authentication
 
-Quorum Client requires plugin to authenticate and secure the connection via mutual TLS. 
+The Quorum client requires the plugin to authenticate and secure the connection via mutual TLS. 
 `PLUGIN_CLIENT_CERT` environment variable is populated with Quorum Client certificate (in PEM format).
 A plugin would need to include this certificate to its trusted certificate pool, then
-generate a self-signed certificate and append base64-encoded value of the certificate (in DER format)
+generate a self-signed certificate and append the base64-encoded value of the certificate (in DER format)
 in the [handshake](https://github.com/hashicorp/go-plugin/blob/master/docs/internals.md#handshake) message.
 
 ## Examples

@@ -1,22 +1,22 @@
 title: Overview - Pluggable Architecture - Quorum
 
-Quorum Client is a modified `geth` client. One of the unique enhancements
+The Quorum client is a modified `geth` client. One of the unique enhancements
 is the pluggable architecture which allows adding additional features as plugins to the core `geth`, 
 providing extensibility, flexibility, and isolation of Quorum features.
 
 ## Why this?
  
-This enhancement brings number benefits:
+This enhancement provides a number of benefits, including:
 
-1. Allowing selective components to decide their implementations at configuration time.
-1. Supporting our community to make Quorum Client better with innovative implementations.
-1. Decoupling new enterprise features from core `geth` therefore allowing us to update the code base in line with `go-ethereum` faster.
+1. Allowing the implementation of certain components of the Quorum client to be changed at configuration time.
+1. Supporting our community to improve the Quorum client with their own innovative implementations of the supported pluggable components.
+1. Decoupling new Quorum-specific features from core `geth` thereby simplifying the process of pulling in changes from upstream `geth`.
 
 ## How it works?
 
-Each plugin exposes an implementation for a specific [plugin interface](../SupportedInterfaces).
-Plugins are executed as a separate process and communicate with the main Quorum Client `geth` process
-over an [gRPC](https://grpc.io/) interface.
+Each plugin exposes an implementation for a [supported plugin interface](../SupportedInterfaces).
+Plugins are executed as a separate process and communicate with the main Quorum client `geth` process
+over a [gRPC](https://grpc.io/) interface.
 
 The plugin implementation must adhere to certain gRPC services defined in a `.proto` file corresponding to the plugin interface.
 Plugins can be written in different languages as gRPC provides a mechanism to generate stub code from `.proto` files. 
@@ -25,7 +25,7 @@ The network communication and RPC are handled automatically by high-level plugin
 
 ## Installing Plugins
 
-Currently plugins must be manually installed into a directory (default to `plugins` directory inside `geth` data directory or via `baseDir` value in [plugins settings](../Settings)).
+Currently plugins must be manually installed into a directory (defaults to `plugins` directory inside `geth` data directory - default can be overriden by setting `baseDir` in [plugins settings](../Settings)).
  
 In the future, plugins distributed by Quorum are automatically installed by Quorum Client.
 
@@ -47,7 +47,7 @@ remotely with custom plugin central - reference the [`Settings`](../Settings/) s
 If the flag `--plugins.skipverify` is provided at runtime the plugin verification process will be disabled.
 
 !!! warning
-    Using `--plugins.skipverify`  is not adviced for production settings and it should be avoided as it introduces security risks.
+    Using `--plugins.skipverify`  is not advised for production settings and it should be avoided as it introduces security risks.
 
 ## Example: `HelloWorld` plugin
 

@@ -16,7 +16,7 @@ title: helloworld - Plugin Implementation - Quorum
 
 | Fields     | Description                                                              |
 |:-----------|:-------------------------------------------------------------------------|
-| `language` | A string indicates the language to greet. Supported values: `en` or `es` |
+| `language` | A string indicating the language to greet. Supported values: `en` or `es` |
 
 ## Change Log
 

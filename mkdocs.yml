@@ -80,12 +80,11 @@ nav:
                 - Interface: PluggableArchitecture/Plugins/helloworld/interface.md
                 - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
         - Plugin Development: PluggableArchitecture/PluginDevelopment.md
-    - Product Roadmap: roadmap.md
     - Cakeshop:
         - Overview: Cakeshop/Overview.md
         - Getting Started: Cakeshop/Getting started.md
         - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
-    - Product Roadmap: roadmap.md         
+    - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
 theme:
