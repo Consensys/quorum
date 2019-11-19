@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
@@ -84,7 +83,7 @@ func (service *PrivacyService) watchForNewContracts() {
 			service.mu.Lock()
 
 			tx, _, _ := service.client.TransactionByHash(context.Background(), foundLog.TxHash)
-			from, _ := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
+			from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
 
 			newExtensionEvent, err := unpackNewExtension(foundLog.Data)
 			if err != nil {
@@ -168,7 +167,7 @@ func (service *PrivacyService) watchForCompletionEvents() {
 			}
 
 			//Find the extension contract in order to interact with it
-			caller, _ := extensionContracts.NewContractExtenderCaller(l.Address, service.client)
+			caller, _ := service.managementContractFacade.Caller(l.Address)
 			contractCreator, _ := caller.Creator(nil)
 
 			if !service.accountManager.Exists(contractCreator) {
