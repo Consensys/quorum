@@ -275,3 +275,9 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 		utils.Fatalf("Consensus not specified. Exiting!!")
 	}
 }
+
+// quorumValidatePrivateTransactionManager returns whether the "PRIVATE_CONFIG"
+// environment variable is set
+func quorumValidatePrivateTransactionManager() bool {
+	return os.Getenv("PRIVATE_CONFIG") != ""
+}
