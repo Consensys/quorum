@@ -3,6 +3,7 @@ package extension
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -41,6 +42,12 @@ func New(node *node.Node, ptm private.PrivateTransactionManager, thirdpartyunixf
 		accountManager:   NewAccountManager(ethService.AccountManager()),
 	}
 
+	var err error
+	service.currentContracts, err = service.dataHandler.Load()
+	if err != nil {
+		return nil, errors.New("could not load existing extension contracts: " + err.Error())
+	}
+
 	go service.initialise(node, thirdpartyunixfile)
 
 	return service, nil
@@ -50,21 +57,12 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 	service.mu.Lock()
 	defer service.mu.Unlock()
 
-	currentContracts, err := service.dataHandler.Load()
-	if err != nil {
-		panic("could not load existing extension contracts. error: " + err.Error())
-	}
-	service.currentContracts = currentContracts
-
 	rpcClient, err := node.Attach()
 	if err != nil {
 		panic("extension: could not connect to ethereum client rpc")
 	}
 
-	client := ethclient.NewClient(rpcClient)
-	if service.client, err = client.WithIPCPrivateTransactionManager(thirdpartyunixfile); err != nil {
-		panic("could not set PTM")
-	}
+	service.client, _ = ethclient.NewClient(rpcClient).WithIPCPrivateTransactionManager(thirdpartyunixfile)
 	service.managementContractFacade = NewManagementContractFacade(service.client)
 
 	go service.watchForNewContracts()
@@ -202,7 +200,7 @@ func (service *PrivacyService) watchForCompletionEvents() {
 			hashOfStateData, _ := service.ptm.Send(entireStateData, "", []string{string(recipient)})
 			hashofStateDataBase64 := base64.StdEncoding.EncodeToString(hashOfStateData)
 
-			transactor, _ := extensionContracts.NewContractExtenderTransactor(l.Address, service.client)
+			transactor, _ := service.managementContractFacade.Transactor(l.Address)
 			transactor.SetSharedStateHash(txArgs, hashofStateDataBase64)
 			service.mu.Unlock()
 		}
