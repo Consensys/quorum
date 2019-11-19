@@ -3,13 +3,14 @@ package raft
 import (
 	"errors"
 	"fmt"
-	"github.com/coreos/etcd/raft/raftpb"
-	"github.com/deckarep/golang-set"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/coreos/etcd/raft/raftpb"
+	"github.com/deckarep/golang-set"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"

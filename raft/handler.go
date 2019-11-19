@@ -584,14 +584,7 @@ func (pm *ProtocolManager) isLearner(rid uint16) bool {
 }
 
 func (pm *ProtocolManager) isThisLearnerNode() bool {
-	defer pm.mu.RUnlock()
-	pm.mu.RLock()
-	for _, n := range pm.confState.Learners {
-		if uint16(n) == pm.raftId {
-			return true
-		}
-	}
-	return false
+	return pm.isLearner(pm.raftId)
 }
 
 func (pm *ProtocolManager) isThisVerifierNode() bool {
@@ -839,7 +832,7 @@ func (pm *ProtocolManager) eventLoop() {
 						log.Info(raftpb.ConfChangeType_name[int32(cc.Type)], "raft id", raftId)
 						if pm.isRaftIdRemoved(raftId) {
 							log.Info("ignoring "+raftpb.ConfChangeType_name[int32(cc.Type)]+" for permanently-removed peer", "raft id", raftId)
-						} else if peer := pm.peers[raftId]; peer != nil && raftId <= uint16(len(pm.bootstrapNodes)) {
+						} else if pm.isRaftIdUsed(raftId) && raftId <= uint16(len(pm.bootstrapNodes)) {
 							// See initial cluster logic in startRaft() for more information.
 							log.Info("ignoring expected "+raftpb.ConfChangeType_name[int32(cc.Type)]+" for initial peer", "raft id", raftId)
 							// We need a snapshot to exist to reconnect to peers on start-up after a crash.

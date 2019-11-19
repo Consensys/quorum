@@ -46,7 +46,7 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 	}
 
 	// Populate addresses
-	idx := 0
+
 	for i, rawRaftId := range pm.confState.Nodes {
 		raftId := uint16(rawRaftId)
 
@@ -55,8 +55,9 @@ func (pm *ProtocolManager) buildSnapshot() *Snapshot {
 		} else {
 			snapshot.addresses[i] = *pm.peers[raftId].address
 		}
-		idx = i + 1
 	}
+
+	idx := len(pm.confState.Nodes)
 
 	for _, rawRaftId := range pm.confState.Learners {
 		raftId := uint16(rawRaftId)
