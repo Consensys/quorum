@@ -22,10 +22,8 @@ type JsonFileDataHandler struct {
 }
 
 func NewJsonFileDataHandler(dataDirectory string) *JsonFileDataHandler {
-	saveFile := filepath.Join(dataDirectory, extensionContractData)
-
 	return &JsonFileDataHandler{
-		saveFile: saveFile,
+		saveFile: filepath.Join(dataDirectory, extensionContractData),
 	}
 }
 
