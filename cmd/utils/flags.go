@@ -1347,7 +1347,7 @@ func SetDashboardConfig(ctx *cli.Context, cfg *dashboard.Config) {
 }
 
 // RegisterEthService adds an Ethereum client to the stack.
-func RegisterEthService(stack *node.Node, cfg *eth.Config) <-chan *eth.Ethereum {
+func RegisterEthService(stack *node.Node, cfg *eth.Config) chan *eth.Ethereum {
 	nodeChan := make(chan *eth.Ethereum, 1)
 	var err error
 	if cfg.SyncMode == downloader.LightSync {
@@ -1426,9 +1426,9 @@ func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 	log.Info("permission service registered")
 }
 
-func RegisterExtensionService(stack *node.Node, thirdpartyunixfile string) {
+func RegisterExtensionService(stack *node.Node, thirdpartyunixfile string, ethChan chan *eth.Ethereum) {
 	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
-		return extension.New(stack, private.P, thirdpartyunixfile)
+		return extension.New(stack, private.P, thirdpartyunixfile, <-ethChan)
 	}
 	if err := stack.Register(registerFunc); err != nil {
 		Fatalf("Failed to register the Privacy service: %v", err)

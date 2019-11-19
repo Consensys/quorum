@@ -172,7 +172,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 
 	if cfg.Eth.ContractExtensionServer != "" {
-		utils.RegisterExtensionService(stack, cfg.Eth.ContractExtensionServer)
+		utils.RegisterExtensionService(stack, cfg.Eth.ContractExtensionServer, ethChan)
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
@@ -217,7 +217,7 @@ func dumpConfig(ctx *cli.Context) error {
 	return nil
 }
 
-func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, ethChan <-chan *eth.Ethereum) {
+func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, ethChan chan *eth.Ethereum) {
 	blockTimeMillis := ctx.GlobalInt(utils.RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(utils.RaftJoinExistingFlag.Name)
@@ -259,6 +259,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 		}
 
 		ethereum := <-ethChan
+		ethChan <- ethereum
 		return raft.New(ctx, ethereum.ChainConfig(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, useDns)
 	}); err != nil {
 		utils.Fatalf("Failed to register the Raft service: %v", err)
