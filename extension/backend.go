@@ -23,19 +23,22 @@ type PrivacyService struct {
 	client *ethclient.Client
 	ptm    private.PrivateTransactionManager
 
-	stateFetcher   *StateFetcher
-	accountManager *AccountManager
-	dataHandler    DataHandler
+	stateFetcher             *StateFetcher
+	accountManager           *AccountManager
+	dataHandler              DataHandler
+	managementContractFacade ManagementContractFacade
 
 	mu               sync.Mutex
 	currentContracts map[common.Address]*ExtensionContract
 }
 
-func New(node *node.Node, ptm private.PrivateTransactionManager, thirdpartyunixfile string) (*PrivacyService, error) {
+func New(node *node.Node, ptm private.PrivateTransactionManager, thirdpartyunixfile string, ethService *eth.Ethereum) (*PrivacyService, error) {
 	service := &PrivacyService{
 		currentContracts: make(map[common.Address]*ExtensionContract),
 		ptm:              ptm,
 		dataHandler:      NewJsonFileDataHandler(node.InstanceDir()),
+		stateFetcher:     NewStateFetcher(ethService.ChainDb(), ethService.BlockChain()),
+		accountManager:   NewAccountManager(ethService.AccountManager()),
 	}
 
 	go service.initialise(node, thirdpartyunixfile)
@@ -46,14 +49,6 @@ func New(node *node.Node, ptm private.PrivateTransactionManager, thirdpartyunixf
 func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile string) {
 	service.mu.Lock()
 	defer service.mu.Unlock()
-
-	var ethService *eth.Ethereum
-	if err := node.Service(&ethService); err != nil {
-		panic("extension: could not connect to ethereum service")
-	}
-
-	service.stateFetcher = NewStateFetcher(ethService.ChainDb(), ethService.BlockChain())
-	service.accountManager = NewAccountManager(ethService.AccountManager())
 
 	currentContracts, err := service.dataHandler.Load()
 	if err != nil {
@@ -70,6 +65,7 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 	if service.client, err = client.WithIPCPrivateTransactionManager(thirdpartyunixfile); err != nil {
 		panic("could not set PTM")
 	}
+	service.managementContractFacade = NewManagementContractFacade(service.client)
 
 	go service.watchForNewContracts()
 	go service.watchForCancelledContracts()
