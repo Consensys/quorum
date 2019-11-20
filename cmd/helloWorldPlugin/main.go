@@ -28,7 +28,7 @@ func main() {
 	})
 }
 
-// implements 2 interfaces:
+// implements 3 interfaces:
 // 1. Initializer plugin interface - mandatory
 // 2. HelloWorld plugin interface
 // 3. GRPC Plugin from go-plugin
