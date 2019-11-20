@@ -84,6 +84,12 @@ func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp, raftPort int) *Node {
 	if ip != nil {
 		r.Set(enr.IP(ip))
 	}
+	return newV4(pubkey, r, tcp, udp, raftPort)
+}
+
+// broken out from `func NewV4` (above) same in upstream go-ethereum, but taken out
+// to avoid code duplication b/t NewV4 and NewV4Hostname
+func newV4(pubkey *ecdsa.PublicKey, r enr.Record, tcp, udp, raftPort int) *Node {
 	if udp != 0 {
 		r.Set(enr.UDP(udp))
 	}
@@ -91,7 +97,7 @@ func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp, raftPort int) *Node {
 		r.Set(enr.TCP(tcp))
 	}
 
-	if raftPort != 0 {
+	if raftPort != 0 { // Quorum
 		r.Set(enr.RaftPort(raftPort))
 	}
 
@@ -113,23 +119,7 @@ func NewV4Hostname(pubkey *ecdsa.PublicKey, hostname string, tcp, udp, raftPort 
 	if hostname != "" {
 		r.Set(enr.Hostname(hostname))
 	}
-	if udp != 0 {
-		r.Set(enr.UDP(udp))
-	}
-	if tcp != 0 {
-		r.Set(enr.TCP(tcp))
-	}
-
-	if raftPort != 0 {
-		r.Set(enr.RaftPort(raftPort))
-	}
-
-	signV4Compat(&r, pubkey)
-	n, err := New(v4CompatID{}, &r)
-	if err != nil {
-		panic(err)
-	}
-	return n
+	return newV4(pubkey, r, tcp, udp, raftPort)
 }
 
 // End-Quorum
