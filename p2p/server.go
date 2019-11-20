@@ -386,6 +386,32 @@ func (srv *Server) Stop() {
 	srv.loopWG.Wait()
 }
 
+// sharedUDPConn implements a shared connection. Write sends messages to the underlying connection while read returns
+// messages that were found unprocessable and sent to the unhandled channel by the primary listener.
+type sharedUDPConn struct {
+	*net.UDPConn
+	unhandled chan discover.ReadPacket
+}
+
+// ReadFromUDP implements discv5.conn
+func (s *sharedUDPConn) ReadFromUDP(b []byte) (n int, addr *net.UDPAddr, err error) {
+	packet, ok := <-s.unhandled
+	if !ok {
+		return 0, nil, fmt.Errorf("Connection was closed")
+	}
+	l := len(packet.Data)
+	if l > len(b) {
+		l = len(b)
+	}
+	copy(b[:l], packet.Data[:l])
+	return l, packet.Addr, nil
+}
+
+// Close implements discv5.conn
+func (s *sharedUDPConn) Close() error {
+	return nil
+}
+
 // Start starts running the server.
 // Servers can not be re-used after stopping.
 func (srv *Server) Start() (err error) {
@@ -521,8 +547,8 @@ func (srv *Server) setupDiscovery() error {
 	srv.localnode.SetFallbackUDP(realaddr.Port)
 
 	//Quorum
-	quorumUnhandled := make(chan discover.ReadPacket, 100)
-	quorumSharedConnection := NewBaseSharedUDPConn(conn, quorumUnhandled)
+	originalUnhandled := make(chan discover.ReadPacket, 100)
+	originalSharedConnection := &sharedUDPConn{conn, originalUnhandled}
 
 	// Discovery V4 Quorum
 	if !srv.NoDiscovery {
@@ -530,7 +556,7 @@ func (srv *Server) setupDiscovery() error {
 			PrivateKey:  srv.PrivateKey,
 			NetRestrict: srv.NetRestrict,
 			Bootnodes:   srv.BootstrapNodes,
-			Unhandled:   quorumUnhandled,
+			Unhandled:   originalUnhandled,
 		}
 		ntab, err := discover.ListenUDPQuorum(conn, srv.localnode, cfg)
 		if err != nil {
@@ -542,11 +568,11 @@ func (srv *Server) setupDiscovery() error {
 
 	// Discovery V4
 	var unhandled chan discover.ReadPacket
-	var sconn UDPReader
+	var sconn *discover.SharedUDPConnDelegate
 	if !srv.NoDiscovery {
 		if srv.DiscoveryV5 {
 			unhandled = make(chan discover.ReadPacket, 100)
-			sconn = NewSharedUDPConn(quorumSharedConnection, unhandled)
+			sconn = discover.NewSharedUDPConnDelegate(originalSharedConnection, unhandled)
 		}
 		cfg := discover.Config{
 			PrivateKey:  srv.PrivateKey,
@@ -560,7 +586,7 @@ func (srv *Server) setupDiscovery() error {
 			tab = tabCasted
 		}
 
-		_, err := discover.ListenUDPExisting(quorumSharedConnection, srv.localnode, cfg, tab)
+		_, err := discover.ListenUDPExisting(originalSharedConnection, srv.localnode, cfg, tab)
 		if err != nil {
 			return err
 		}
@@ -572,7 +598,7 @@ func (srv *Server) setupDiscovery() error {
 		if sconn != nil {
 			ntab, err = discv5.ListenUDP(srv.PrivateKey, sconn, "", srv.NetRestrict)
 		} else {
-			ntab, err = discv5.ListenUDP(srv.PrivateKey, quorumSharedConnection, "", srv.NetRestrict)
+			ntab, err = discv5.ListenUDP(srv.PrivateKey, originalSharedConnection, "", srv.NetRestrict)
 		}
 		if err != nil {
 			return err
