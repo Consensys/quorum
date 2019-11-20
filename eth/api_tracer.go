@@ -633,6 +633,12 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, v
 	default:
 		tracer = vm.NewStructLogger(config.LogConfig)
 	}
+
+	// Set the private state to public state if it is not a private message
+	if msg, ok := message.(core.PrivateMessage); !ok || !api.config.IsQuorum || !msg.IsPrivate() {
+		privateStateDb = statedb
+	}
+
 	// Run the transaction with tracing enabled.
 	vmenv := vm.NewEVM(vmctx, statedb, privateStateDb, api.config, vm.Config{Debug: true, Tracer: tracer})
 
