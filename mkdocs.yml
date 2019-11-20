@@ -18,7 +18,6 @@ nav:
         - Creating a Network From Scratch: Getting Started/Creating-A-Network-From-Scratch.md
         - Running Quorum: Getting Started/running.md
         - Quorum API: Getting Started/api.md
-        - CLI arguments: Getting Started/command-line-arguments.md
     - Consensus:
         - Consensus: Consensus/Consensus.md
         - Raft: Consensus/raft.md
