@@ -272,12 +272,13 @@ func TestQuorumControlsAPI_ListAPIs(t *testing.T) {
 func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
 	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
-	txa := ethapi.SendTxArgs{From: guardianAddress}
+
 
 	// test AddOrg
 	orgAdminKey, _ := crypto.GenerateKey()
 	orgAdminAddress := crypto.PubkeyToAddress(orgAdminKey.PublicKey)
 
+	txa := ethapi.SendTxArgs{From: guardianAddress}
 	_, err := testObject.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
