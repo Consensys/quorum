@@ -103,11 +103,7 @@ func NewWalletTransactor(w accounts.Wallet, from accounts.Account) *TransactOpts
 	return &TransactOpts{
 		From: from.Address,
 		Signer: func(signer types.Signer, address common.Address, tx *types.Transaction) (*types.Transaction, error) {
-			signature, err := w.SignText(from, signer.Hash(tx).Bytes())
-			if err != nil {
-				return nil, err
-			}
-			return tx.WithSignature(signer, signature)
+			return w.SignTx(from, tx, nil)
 		},
 	}
 }
