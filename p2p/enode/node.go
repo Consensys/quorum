@@ -70,9 +70,17 @@ func (n *Node) Load(k enr.Entry) error {
 
 // IP returns the IP address of the node.
 func (n *Node) IP() net.IP {
-	var ip net.IP
-	n.Load((*enr.IP)(&ip))
-	return ip
+	// QUORUM
+	// attempt to look up IP addresses if host is a FQDN
+	lookupIPs, err := net.LookupIP(n.Host())
+	if err != nil {
+		var ip net.IP
+		n.Load((*enr.IP)(&ip))
+		return ip
+	}
+	// set to first ip by default
+	return lookupIPs[0]
+	// END QUORUM
 }
 
 // Quorum
