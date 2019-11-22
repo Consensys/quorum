@@ -191,9 +191,9 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	roleDescription := ""
 	if pm.role == minterRole {
 		roleDescription = "minter"
-	} else if pm.isThisVerifierNode() {
+	} else if pm.isVerifierNode() {
 		roleDescription = "verifier"
-	} else if pm.isThisLearnerNode() {
+	} else if pm.isLearnerNode() {
 		roleDescription = "learner"
 	}
 
@@ -307,7 +307,7 @@ func (pm *ProtocolManager) isNodeAlreadyInCluster(node *enode.Node) error {
 }
 
 func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint16, error) {
-	if pm.isThisLearnerNode() {
+	if pm.isLearnerNode() {
 		return 0, errors.New("learner node can't add peer or learner")
 	}
 
@@ -347,7 +347,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 }
 
 func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) error {
-	if pm.isThisLearnerNode() && raftId != pm.raftId {
+	if pm.isLearnerNode() && raftId != pm.raftId {
 		return errors.New("learner node can't remove other peer")
 	}
 	pm.confChangeProposalC <- raftpb.ConfChange{
@@ -358,7 +358,7 @@ func (pm *ProtocolManager) ProposePeerRemoval(raftId uint16) error {
 }
 
 func (pm *ProtocolManager) PromoteToPeer(raftId uint16) (bool, error) {
-	if pm.isThisLearnerNode() {
+	if pm.isLearnerNode() {
 		return false, errors.New("learner node can't promote to peer")
 	}
 
@@ -581,11 +581,11 @@ func (pm *ProtocolManager) isLearner(rid uint16) bool {
 	return false
 }
 
-func (pm *ProtocolManager) isThisLearnerNode() bool {
+func (pm *ProtocolManager) isLearnerNode() bool {
 	return pm.isLearner(pm.raftId)
 }
 
-func (pm *ProtocolManager) isThisVerifierNode() bool {
+func (pm *ProtocolManager) isVerifierNode() bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	for _, n := range pm.confState.Nodes {
@@ -610,7 +610,7 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 				log.EmitCheckpoint(log.BecameMinter)
 				pm.minter.start()
 			} else { // verifier
-				if pm.isThisVerifierNode() {
+				if pm.isVerifierNode() {
 					log.EmitCheckpoint(log.BecameVerifier)
 				} else {
 					log.EmitCheckpoint(log.BecameLearner)
