@@ -114,10 +114,13 @@ func newV4(pubkey *ecdsa.PublicKey, r enr.Record, tcp, udp, raftPort int) *Node 
 // NewV4Hostname creates a node from discovery v4 node information. The record
 // contained in the node has a zero-length signature. It sets the hostname of
 // the node instead of the IP address.
-func NewV4Hostname(pubkey *ecdsa.PublicKey, hostname string, tcp, udp, raftPort int) *Node {
+func NewV4Hostname(pubkey *ecdsa.PublicKey, hostname string, ip net.IP, tcp, udp, raftPort int) *Node {
 	var r enr.Record
 	if hostname != "" {
 		r.Set(enr.Hostname(hostname))
+	}
+	if ip != nil {
+		r.Set(enr.IP(ip))
 	}
 	return newV4(pubkey, r, tcp, udp, raftPort)
 }
@@ -175,9 +178,9 @@ func parseComplete(rawurl string) (*Node, error) {
 		if err != nil {
 			return nil, errors.New("invalid raftport in query")
 		}
-		node = NewV4Hostname(id, u.Hostname(), int(tcpPort), int(udpPort), int(raftPort))
+		node = NewV4Hostname(id, u.Hostname(), ip, int(tcpPort), int(udpPort), int(raftPort))
 	} else {
-		node = NewV4Hostname(id, u.Hostname(), int(tcpPort), int(udpPort), 0)
+		node = NewV4Hostname(id, u.Hostname(), ip, int(tcpPort), int(udpPort), 0)
 	}
 	// End-Quorum
 
@@ -240,17 +243,9 @@ func (n *Node) v4URL() string {
 	if n.Incomplete() {
 		u.Host = nodeid
 	} else {
-		// Quorum
-		var addr string
-		if n.Host() == "" {
-			tcpAddr := net.TCPAddr{IP: n.IP(), Port: n.TCP()}
-			addr = tcpAddr.String()
-		} else {
-			addr = net.JoinHostPort(n.Host(), strconv.Itoa(n.TCP()))
-		}
-		// End-Quorum
+		addr := net.TCPAddr{IP: n.IP(), Port: n.TCP()}
 		u.User = url.User(nodeid)
-		u.Host = addr // Quorum
+		u.Host = addr.String()
 		if n.UDP() != n.TCP() {
 			u.RawQuery = "discport=" + strconv.Itoa(n.UDP())
 		}

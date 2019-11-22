@@ -28,11 +28,21 @@ type Address struct {
 	Rest []rlp.RawValue `json:"-" rlp:"tail"`
 }
 
-func newAddress(raftId uint16, raftPort int, node *enode.Node) *Address {
+func newAddress(raftId uint16, raftPort int, node *enode.Node, withHostname bool) *Address {
 	// derive 64 byte nodeID from 128 byte enodeID
 	id, err := enode.RaftHexID(node.EnodeID())
 	if err != nil {
 		panic(err)
+	}
+	if withHostname {
+		return &Address{
+			RaftId:   raftId,
+			NodeId:   id,
+			Ip:       nil,
+			P2pPort:  enr.TCP(node.TCP()),
+			RaftPort: enr.RaftPort(raftPort),
+			Hostname: node.Host(),
+		}
 	}
 	return &Address{
 		RaftId:   raftId,
@@ -40,7 +50,7 @@ func newAddress(raftId uint16, raftPort int, node *enode.Node) *Address {
 		Ip:       nil,
 		P2pPort:  enr.TCP(node.TCP()),
 		RaftPort: enr.RaftPort(raftPort),
-		Hostname: node.Host(),
+		Hostname: node.IP().String(),
 	}
 }
 

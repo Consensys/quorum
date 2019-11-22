@@ -270,12 +270,8 @@ func TestUDP_findnode(t *testing.T) {
 			}
 		})
 	}
-	foundNodes := 0
-	for foundNodes < bucketSize-maxNeighbors {
-		waitNeighbors(expected.entries[foundNodes:foundNodes+maxNeighbors])
-		foundNodes += maxNeighbors
-	}
-	waitNeighbors(expected.entries[foundNodes:])
+	waitNeighbors(expected.entries[:maxNeighbors])
+	waitNeighbors(expected.entries[maxNeighbors:])
 }
 
 func TestUDP_findnodeMultiReply(t *testing.T) {
@@ -307,10 +303,10 @@ func TestUDP_findnodeMultiReply(t *testing.T) {
 
 	// send the reply as two packets.
 	list := []*node{
-		wrapNode(enode.NewV4(parsePubkey("ba85011c70bcc5c04d8607d3a0ed29aa6179c092cbdda10d5d32684fb33ed01bd94f588ca8f91ac48318087dcb02eaf36773a7a453f0eedd6742af668097b29c"), net.ParseIP("10.0.1.16"), 30303, 30304, 0)),
-		wrapNode(enode.NewV4(parsePubkey("81fa361d25f157cd421c60dcc28d8dac5ef6a89476633339c5df30287474520caca09627da18543d9079b5b288698b542d56167aa5c09111e55acdbbdf2ef799"), net.ParseIP("10.0.1.16"), 30303, 30303, 0)),
-		wrapNode(enode.NewV4(parsePubkey("9bffefd833d53fac8e652415f4973bee289e8b1a5c6c4cbe70abf817ce8a64cee11b823b66a987f51aaa9fba0d6a91b3e6bf0d5a5d1042de8e9eeea057b217f8"), net.ParseIP("10.0.1.36"), 30301, 17, 0)),
-		wrapNode(enode.NewV4(parsePubkey("1b5b4aa662d7cb44a7221bfba67302590b643028197a7d5214790f3bac7aaa4a3241be9e83c09cf1f6c69d007c634faae3dc1b1221793e8446c0b3a09de65960"), net.ParseIP("10.0.1.16"), 30303, 30303, 0)),
+		wrapNode(enode.MustParseV4("enode://ba85011c70bcc5c04d8607d3a0ed29aa6179c092cbdda10d5d32684fb33ed01bd94f588ca8f91ac48318087dcb02eaf36773a7a453f0eedd6742af668097b29c@10.0.1.16:30303?discport=30304")),
+		wrapNode(enode.MustParseV4("enode://81fa361d25f157cd421c60dcc28d8dac5ef6a89476633339c5df30287474520caca09627da18543d9079b5b288698b542d56167aa5c09111e55acdbbdf2ef799@10.0.1.16:30303")),
+		wrapNode(enode.MustParseV4("enode://9bffefd833d53fac8e652415f4973bee289e8b1a5c6c4cbe70abf817ce8a64cee11b823b66a987f51aaa9fba0d6a91b3e6bf0d5a5d1042de8e9eeea057b217f8@10.0.1.36:30301?discport=17")),
+		wrapNode(enode.MustParseV4("enode://1b5b4aa662d7cb44a7221bfba67302590b643028197a7d5214790f3bac7aaa4a3241be9e83c09cf1f6c69d007c634faae3dc1b1221793e8446c0b3a09de65960@10.0.1.16:30303")),
 	}
 	rpclist := make([]rpcNode, len(list))
 	for i := range list {
@@ -570,12 +566,4 @@ func (c *dgramPipe) waitPacketOut() []byte {
 	copy(c.queue, c.queue[1:])
 	c.queue = c.queue[:len(c.queue)-1]
 	return p
-}
-
-// parse the public key from enode ID, ignoring errors
-func parsePubkey(in string) *ecdsa.PublicKey {
-	b, _ := hex.DecodeString(in)
-	b = append([]byte{0x4}, b...)
-	out, _ := crypto.UnmarshalPubkey(b)
-	return out
 }

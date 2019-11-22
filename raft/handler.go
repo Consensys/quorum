@@ -306,13 +306,14 @@ func (pm *ProtocolManager) isNodeAlreadyInCluster(node *enode.Node) error {
 }
 
 func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
+	parsedUrl, _ := url.Parse(enodeId)
 	node, err := enode.ParseV4(enodeId)
 	if err != nil {
 		return 0, err
 	}
 
 	//use the hostname instead of the IP, since if DNS is not enabled, the hostname should *be* the IP
-	ip := net.ParseIP(node.Host())
+	ip := net.ParseIP(parsedUrl.Hostname())
 	if !pm.useDns && (len(ip.To4()) != 4) {
 		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
 	}
@@ -326,7 +327,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 	}
 
 	raftId := pm.nextRaftId()
-	address := newAddress(raftId, node.RaftPort(), node)
+	address := newAddress(raftId, node.RaftPort(), node, pm.useDns)
 
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddNode,
@@ -658,7 +659,6 @@ func (pm *ProtocolManager) raftUrl(address *Address) string {
 		return fmt.Sprintf("http://[%s]:%d", parsedIp, address.RaftPort)
 	}
 	return fmt.Sprintf("http://%s:%d", address.Hostname, address.RaftPort)
-
 }
 
 func (pm *ProtocolManager) addPeer(address *Address) {
@@ -676,19 +676,17 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 
 	// Add P2P connection:
 	var ip net.IP
-	if ip = net.ParseIP(address.Hostname); ip == nil {
-		// QUORUM
-		// attempt to look up IP addresses if host is a FQDN
-		lookupIPs, err := net.LookupIP(string(address.Hostname))
-		if err != nil {
-			panic(err.Error())
-		}
-		// set to first ip by default
-		ip = lookupIPs[0]
-		// END QUORUM
+	ips, err := net.LookupIP(address.Hostname)
+	if err != nil {
+		panic(err.Error())
+	}
+	ip = ips[0]
+	// Ensure the IP is 4 bytes long for IPv4 addresses.
+	if ipv4 := ip.To4(); ipv4 != nil {
+		ip = ipv4
 	}
 
-	p2pNode := enode.NewV4Hostname(pubKey, address.Hostname, int(address.P2pPort), 0, int(address.RaftPort))
+	p2pNode := enode.NewV4(pubKey, ip, int(address.P2pPort), 0, int(address.RaftPort))
 	pm.p2pServer.AddPeer(p2pNode)
 
 	// Add raft transport connection:
@@ -880,7 +878,7 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		// We initially get the raftPort from the enode ID's query string. As an alternative, we can move away from
 		// requiring the use of static peers for the initial set, and load them from e.g. another JSON file which
 		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
-		address := newAddress(raftId, node.RaftPort(), node)
+		address := newAddress(raftId, node.RaftPort(), node, pm.useDns)
 		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
 			Context: address.toBytes(pm.useDns),
