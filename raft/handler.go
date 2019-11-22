@@ -112,7 +112,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 		joinExisting:        joinExisting,
 		blockchain:          blockchain,
 		eventMux:            mux,
-		blockProposalC:      make(chan *types.Block),
+		blockProposalC:      make(chan *types.Block, 10),
 		confChangeProposalC: make(chan raftpb.ConfChange),
 		httpstopc:           make(chan struct{}),
 		httpdonec:           make(chan struct{}),
