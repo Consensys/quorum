@@ -1427,7 +1427,11 @@ func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 
 func RegisterExtensionService(stack *node.Node, thirdpartyunixfile string, ethChan chan *eth.Ethereum) {
 	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
-		return extension.New(stack, private.P, thirdpartyunixfile, <-ethChan)
+		factory, err := extension.NewServicesFactory(stack, private.P, thirdpartyunixfile, <-ethChan)
+		if err != nil {
+			return nil, err
+		}
+		return factory.BackendService(), nil
 	}
 	if err := stack.Register(registerFunc); err != nil {
 		Fatalf("Failed to register the Privacy service: %v", err)
