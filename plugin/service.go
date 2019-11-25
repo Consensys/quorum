@@ -31,7 +31,7 @@ func (s *PluginManager) APIs() []rpc.API {
 	// the below code show how to expose APIs of a pluggin via JSON RPC
 	// this is only for demonstration purposes
 	helloWorldAPI := make([]rpc.API, 0)
-	helloWorldPluginTemplate := new(HellowWorldPluginTemplate)
+	helloWorldPluginTemplate := new(HelloWorldPluginTemplate)
 	if err := s.GetPluginTemplate(HelloWorldPluginInterfaceName, helloWorldPluginTemplate); err != nil {
 		log.Info("plugin: not configured", "name", HelloWorldPluginInterfaceName, "err", err)
 	} else {

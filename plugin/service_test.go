@@ -25,7 +25,7 @@ func TestPluginManager_GetPluginTemplate_whenTypical(t *testing.T) {
 	assert := testifyassert.New(t)
 	testObject := typicalPluginManager(t)
 
-	p := new(HellowWorldPluginTemplate)
+	p := new(HelloWorldPluginTemplate)
 	err := testObject.GetPluginTemplate(HelloWorldPluginInterfaceName, p)
 
 	assert.NoError(err)
@@ -35,7 +35,7 @@ func TestPluginManager_GetPluginTemplate_whenTypical(t *testing.T) {
 func TestPluginManager_GetPlugin_whenReadFromCache(t *testing.T) {
 	assert := testifyassert.New(t)
 	testObject := typicalPluginManager(t)
-	p := new(HellowWorldPluginTemplate)
+	p := new(HelloWorldPluginTemplate)
 	err := testObject.GetPluginTemplate(HelloWorldPluginInterfaceName, p)
 	assert.NoError(err)
 	assert.NotNil(p)
@@ -49,12 +49,12 @@ func TestPluginManager_GetPlugin_whenReadFromCache(t *testing.T) {
 func TestPluginManager_GetPluginTemplate_whenReadFromCache(t *testing.T) {
 	assert := testifyassert.New(t)
 	testObject := typicalPluginManager(t)
-	p := new(HellowWorldPluginTemplate)
+	p := new(HelloWorldPluginTemplate)
 	err := testObject.GetPluginTemplate(HelloWorldPluginInterfaceName, p)
 	assert.NoError(err)
 	assert.NotNil(p)
 
-	actual := new(HellowWorldPluginTemplate)
+	actual := new(HelloWorldPluginTemplate)
 	err = testObject.GetPluginTemplate(HelloWorldPluginInterfaceName, actual)
 
 	assert.NoError(err)

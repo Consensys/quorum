@@ -3,11 +3,11 @@ package plugin
 import "github.com/ethereum/go-ethereum/plugin/helloWorld"
 
 // a template that returns the hello world plugin instance
-type HellowWorldPluginTemplate struct {
+type HelloWorldPluginTemplate struct {
 	*basePlugin
 }
 
-func (p *HellowWorldPluginTemplate) Get() (helloWorld.PluginHelloWorld, error) {
+func (p *HelloWorldPluginTemplate) Get() (helloWorld.PluginHelloWorld, error) {
 	return &helloWorld.ReloadablePluginHelloWorld{
 		DeferFunc: func() (helloWorld.PluginHelloWorld, error) {
 			raw, err := p.dispense(helloWorld.ConnectorName)
