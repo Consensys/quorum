@@ -13,8 +13,8 @@ network, or have discovery enabled.
 
 ## Discovery
 
-DNS is not supported for the discovery protocol. Use a bootnode instead, which can use a DNS name which is resolved 
-once at startup.
+DNS is not supported for the discovery protocol. Use a bootnode instead, which can use a DNS name that is repeatedly
+resolved.
 
 ## Compatibility
 For Raft, the whole network must be on version 2.3.1 of Quorum for DNS to function properly; because of this, DNS must 

@@ -3,18 +3,19 @@ package raft
 import (
 	"bytes"
 	"fmt"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/p2p/enr"
 	"io"
 	"math/big"
 	"net"
 	"sort"
 	"time"
 
+	mapset "github.com/deckarep/golang-set"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal/walpb"
-	"github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -32,15 +33,15 @@ type Snapshot struct {
 type OldAddress struct {
 	RaftId   uint16
 	NodeId   enode.EnodeID
-	Ip		 net.IP
+	Ip       net.IP
 	P2pPort  enr.TCP
 	RaftPort enr.RaftPort
 }
 
 type SnapshotOld struct {
-	Addresses       []OldAddress
-	RemovedRaftIds  []uint16 // Raft IDs for permanently removed peers
-	HeadBlockHash   common.Hash
+	Addresses      []OldAddress
+	RemovedRaftIds []uint16 // Raft IDs for permanently removed peers
+	HeadBlockHash  common.Hash
 }
 
 type ByRaftId []Address
@@ -261,7 +262,7 @@ func bytesToSnapshot(input []byte) *Snapshot {
 				Ip:       nil,
 				P2pPort:  oldAddrWithIp.P2pPort,
 				RaftPort: oldAddrWithIp.RaftPort,
-				Hostname : oldAddrWithIp.Ip.String(),
+				Hostname: oldAddrWithIp.Ip.String(),
 			}
 		}
 
