@@ -1,7 +1,6 @@
 package extension
 
 import (
-	"context"
 	"encoding/base64"
 	"errors"
 	"sync"
@@ -20,13 +19,13 @@ import (
 )
 
 type PrivacyService struct {
-	client *ethclient.Client
 	ptm    private.PrivateTransactionManager
 
 	stateFetcher             *StateFetcher
 	accountManager           *AccountManager
 	dataHandler              DataHandler
 	managementContractFacade ManagementContractFacade
+	extClient                Client
 
 	mu               sync.Mutex
 	currentContracts map[common.Address]*ExtensionContract
@@ -61,8 +60,9 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 		panic("extension: could not connect to ethereum client rpc")
 	}
 
-	service.client, _ = ethclient.NewClient(rpcClient).WithIPCPrivateTransactionManager(thirdpartyunixfile)
-	service.managementContractFacade = NewManagementContractFacade(service.client)
+	client, _ := ethclient.NewClient(rpcClient).WithIPCPrivateTransactionManager(thirdpartyunixfile)
+	service.managementContractFacade = NewManagementContractFacade(client)
+	service.extClient = NewInProcessClient(client)
 
 	go service.watchForNewContracts()
 	go service.watchForCancelledContracts()
@@ -71,8 +71,7 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 }
 
 func (service *PrivacyService) watchForNewContracts() {
-	incomingLogs := make(chan types.Log)
-	subscription, _ := service.client.SubscribeFilterLogs(context.Background(), newExtensionQuery, incomingLogs)
+	incomingLogs, subscription, _ := service.extClient.SubscribeToLogs(newExtensionQuery)
 
 	for {
 		select {
@@ -82,7 +81,7 @@ func (service *PrivacyService) watchForNewContracts() {
 		case foundLog := <-incomingLogs:
 			service.mu.Lock()
 
-			tx, _, _ := service.client.TransactionByHash(context.Background(), foundLog.TxHash)
+			tx, _ := service.extClient.TransactionByHash(foundLog.TxHash)
 			from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
 
 			newExtensionEvent, err := unpackNewExtension(foundLog.Data)
@@ -109,15 +108,14 @@ func (service *PrivacyService) watchForNewContracts() {
 }
 
 func (service *PrivacyService) watchForCancelledContracts() {
-	logsChan := make(chan types.Log)
-	subscription, _ := service.client.SubscribeFilterLogs(context.Background(), finishedExtensionQuery, logsChan)
+	incomingLogs, subscription, _ := service.extClient.SubscribeToLogs(finishedExtensionQuery)
 
 	for {
 		select {
 		case err := <-subscription.Err():
 			log.Error("Contract cancellation extension watcher subscription error", err)
 			return
-		case l := <-logsChan:
+		case l := <-incomingLogs:
 			service.mu.Lock()
 			if _, ok := service.currentContracts[l.Address]; ok {
 				delete(service.currentContracts, l.Address)
@@ -129,12 +127,11 @@ func (service *PrivacyService) watchForCancelledContracts() {
 }
 
 func (service *PrivacyService) watchForVotingCompletedContracts() {
-	logsChan := make(chan types.Log)
-	service.client.SubscribeFilterLogs(context.Background(), voteCompletedQuery, logsChan)
+	incomingLogs, _, _ := service.extClient.SubscribeToLogs(voteCompletedQuery)
 
 	for {
 		select {
-		case l := <-logsChan:
+		case l := <-incomingLogs:
 			service.mu.Lock()
 			extensionEntry, ok := service.currentContracts[l.Address]
 			if !ok {
@@ -152,12 +149,11 @@ func (service *PrivacyService) watchForVotingCompletedContracts() {
 }
 
 func (service *PrivacyService) watchForCompletionEvents() {
-	logsChan := make(chan types.Log)
-	service.client.SubscribeFilterLogs(context.Background(), canPerformStateShareQuery, logsChan)
+	incomingLogs, _, _ := service.extClient.SubscribeToLogs(voteCompletedQuery)
 
 	for {
 		select {
-		case l := <-logsChan:
+		case l := <-incomingLogs:
 			service.mu.Lock()
 			extensionEntry, ok := service.currentContracts[l.Address]
 			if !ok {

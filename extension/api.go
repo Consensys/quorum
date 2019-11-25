@@ -1,7 +1,6 @@
 package extension
 
 import (
-	"context"
 	"encoding/base64"
 	"errors"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -112,7 +111,7 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 
 	recipientHashBase64 := common.BytesToEncryptedPayloadHash(recipientHash).ToBase64()
 
-	nonce, err := api.privacyService.client.PendingNonceAt(context.Background(), txArgs.From)
+	nonce, err := api.privacyService.extClient.NextNonce(txArgs.From)
 	if err != nil {
 		return common.Hash{}, err
 	}
