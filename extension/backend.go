@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
@@ -22,7 +21,7 @@ type PrivacyService struct {
 	ptm    private.PrivateTransactionManager
 
 	stateFetcher             *StateFetcher
-	accountManager           *AccountManager
+	accountManager           IAccountManager
 	dataHandler              DataHandler
 	managementContractFacade ManagementContractFacade
 	extClient                Client
@@ -31,13 +30,13 @@ type PrivacyService struct {
 	currentContracts map[common.Address]*ExtensionContract
 }
 
-func New(node *node.Node, ptm private.PrivateTransactionManager, thirdpartyunixfile string, ethService *eth.Ethereum) (*PrivacyService, error) {
+func New(ptm private.PrivateTransactionManager, manager IAccountManager, handler DataHandler, fetcher *StateFetcher) (*PrivacyService, error) {
 	service := &PrivacyService{
 		currentContracts: make(map[common.Address]*ExtensionContract),
 		ptm:              ptm,
-		dataHandler:      NewJsonFileDataHandler(node.InstanceDir()),
-		stateFetcher:     NewStateFetcher(ethService.ChainDb(), ethService.BlockChain()),
-		accountManager:   NewAccountManager(ethService.AccountManager()),
+		dataHandler:      handler,
+		stateFetcher:     fetcher,
+		accountManager:   manager,
 	}
 
 	var err error
@@ -45,8 +44,6 @@ func New(node *node.Node, ptm private.PrivateTransactionManager, thirdpartyunixf
 	if err != nil {
 		return nil, errors.New("could not load existing extension contracts: " + err.Error())
 	}
-
-	go service.initialise(node, thirdpartyunixfile)
 
 	return service, nil
 }
@@ -212,7 +209,7 @@ func (service *PrivacyService) APIs() []rpc.API {
 		{
 			Namespace: "quorumExtension",
 			Version:   "1.0",
-			Service:   NewPrivateExtensionAPI(service),
+			Service:   NewPrivateExtensionAPI(service, service.accountManager),
 			Public:    true,
 		},
 	}
