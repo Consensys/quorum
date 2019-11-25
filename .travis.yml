@@ -88,9 +88,6 @@ matrix:
       os: osx
       script:
         - |
-          brew update
-          brew install caskroom/cask/brew-cask
-          brew cask install osxfuse
           echo "Increase the maximum number of open file descriptors on macOS"
           NOFILE=20480
           sudo sysctl -w kern.maxfiles=$NOFILE
