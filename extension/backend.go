@@ -209,7 +209,7 @@ func (service *PrivacyService) APIs() []rpc.API {
 		{
 			Namespace: "quorumExtension",
 			Version:   "1.0",
-			Service:   NewPrivateExtensionAPI(service, service.accountManager),
+			Service:   NewPrivateExtensionAPI(service, service.accountManager, service.ptm),
 			Public:    true,
 		},
 	}

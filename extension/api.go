@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/private"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -18,12 +19,14 @@ var (
 type PrivateExtensionAPI struct {
 	privacyService *PrivacyService
 	accountManager IAccountManager
+	ptm    		   private.PrivateTransactionManager
 }
 
-func NewPrivateExtensionAPI(privacyService *PrivacyService, accountManager IAccountManager) *PrivateExtensionAPI {
+func NewPrivateExtensionAPI(privacyService *PrivacyService, accountManager IAccountManager, ptm private.PrivateTransactionManager) *PrivateExtensionAPI {
 	return &PrivateExtensionAPI{
 		privacyService: privacyService,
 		accountManager: accountManager,
+		ptm: ptm,
 	}
 }
 
@@ -55,7 +58,7 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 		return common.Hash{}, errNotVoter
 	}
 
-	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.privacyService.ptm)
+	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.ptm)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -106,7 +109,7 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 		txArgs.PrivateFor = append(txArgs.PrivateFor, newRecipientPtmPublicKey)
 	}
 
-	recipientHash, err := api.privacyService.ptm.Send([]byte(newRecipientPtmPublicKey), txa.PrivateFrom, []string{})
+	recipientHash, err := api.ptm.Send([]byte(newRecipientPtmPublicKey), txa.PrivateFrom, []string{})
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -120,7 +123,7 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	txArgs.Nonce = new(big.Int).SetUint64(nonce)
 	managementAddress := crypto.CreateAddress(txArgs.From, nonce)
 
-	uuid, err := generateUuid(managementAddress, txArgs.PrivateFrom, api.privacyService.ptm)
+	uuid, err := generateUuid(managementAddress, txArgs.PrivateFrom, api.ptm)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -142,7 +145,7 @@ func (api *PrivateExtensionAPI) Accept(addressToVoteOn common.Address, txa ethap
 		return common.Hash{}, err
 	}
 
-	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.privacyService.ptm)
+	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.ptm)
 	if err != nil {
 		return common.Hash{}, err
 	}
