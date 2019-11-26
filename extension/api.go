@@ -138,32 +138,6 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	return tx.Hash(), nil
 }
 
-// Accept allows the target recipient to say they want to receive this extension
-func (api *PrivateExtensionAPI) Accept(addressToVoteOn common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
-	txArgs, err := api.accountManager.GenerateTransactOptions(txa)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.ptm)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	//Find the extension contract in order to interact with it
-	extender, err := api.privacyService.managementContractFacade.Transactor(addressToVoteOn)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	tx, err := extender.ShareAcceptStatus(txArgs, uuid)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	return tx.Hash(), nil
-}
-
 // Cancel allows the creator to cancel the given extension contract, ensuring
 // that no more calls for votes or accepting can be made
 func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {

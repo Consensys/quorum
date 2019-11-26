@@ -5,7 +5,6 @@ contract ContractExtender {
     //target details - what, who and when to extend
     address public creator;
     string public targetRecipientPublicKeyHash;
-    bool public targetHasAccepted;
     address public contractToExtend;
 
     //list of wallet addresses that can cast votes
@@ -101,13 +100,6 @@ contract ContractExtender {
         emit NewVote();
     }
 
-    // the target recipient has accepted the request to do the state share
-    function shareAcceptStatus(string memory nextuuid) public {
-        setUuid(nextuuid);
-        targetHasAccepted = true;
-        checkVotes();
-    }
-
     // this event is emitted to tell each node to use this tx as the original tx
     // only if they voted for it
     function updatePartyMembers() public {
@@ -159,9 +151,6 @@ contract ContractExtender {
 
         if (haveAllNodesVoted()) {
             emit AllNodesHaveVoted(true);
-        }
-
-        if(haveAllNodesVoted() && targetHasAccepted){
             emit CanPerformStateShare();
         }
     }
