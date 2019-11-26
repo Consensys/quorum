@@ -586,10 +586,14 @@ func (pm *ProtocolManager) isLearnerNode() bool {
 }
 
 func (pm *ProtocolManager) isVerifierNode() bool {
+	return pm.isVerifier(pm.raftId)
+}
+
+func (pm *ProtocolManager) isVerifier(rid uint16) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	for _, n := range pm.confState.Nodes {
-		if uint16(n) == pm.raftId {
+		if uint16(n) == rid {
 			return true
 		}
 	}

@@ -49,6 +49,9 @@ func (s *PublicRaftAPI) Leader() (string, error) {
 
 func (s *PublicRaftAPI) Cluster() ([]ClusterInfo, error) {
 	nodeInfo := s.raftService.raftProtocolManager.NodeInfo()
+	if nodeInfo.Role == "" {
+		return []ClusterInfo{}, nil
+	}
 	leaderAddr, err := s.raftService.raftProtocolManager.LeaderAddress()
 	if err != nil {
 		if err == errNoLeaderElected && s.Role() == "" {
@@ -59,11 +62,13 @@ func (s *PublicRaftAPI) Cluster() ([]ClusterInfo, error) {
 	peerAddresses := append(nodeInfo.PeerAddresses, nodeInfo.Address)
 	clustInfo := make([]ClusterInfo, len(peerAddresses))
 	for i, a := range peerAddresses {
-		role := "verifier"
+		role := ""
 		if a.RaftId == leaderAddr.RaftId {
 			role = "minter"
 		} else if s.raftService.raftProtocolManager.isLearner(a.RaftId) {
 			role = "learner"
+		} else if s.raftService.raftProtocolManager.isVerifier(a.RaftId) {
+			role = "verifier"
 		}
 		clustInfo[i] = ClusterInfo{*a, role}
 	}
