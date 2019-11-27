@@ -2,7 +2,6 @@ package extension
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 	"github.com/ethereum/go-ethereum/private"
 )
 
@@ -25,11 +24,4 @@ func checkAddressInList(addressToFind common.Address, addressList []common.Addre
 		}
 	}
 	return false
-}
-
-func unpackNewExtension(data []byte) (*extensionContracts.ContractExtenderNewContractExtensionContractCreated, error){
-	newExtensionEvent := new(extensionContracts.ContractExtenderNewContractExtensionContractCreated)
-	err := extensionContracts.ContractExtenderParsedABI.Unpack(newExtensionEvent, "NewContractExtensionContractCreated", data)
-
-	return newExtensionEvent, err
 }

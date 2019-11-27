@@ -5,6 +5,8 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/extension/extensionContracts"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -18,7 +20,7 @@ import (
 )
 
 type PrivacyService struct {
-	ptm    private.PrivateTransactionManager
+	ptm private.PrivateTransactionManager
 
 	stateFetcher             *StateFetcher
 	accountManager           IAccountManager
@@ -81,7 +83,7 @@ func (service *PrivacyService) watchForNewContracts() {
 			tx, _ := service.extClient.TransactionByHash(foundLog.TxHash)
 			from, _ := types.QuorumPrivateTxSigner{}.Sender(tx)
 
-			newExtensionEvent, err := unpackNewExtension(foundLog.Data)
+			newExtensionEvent, err := extensionContracts.UnpackNewExtensionCreatedLog(foundLog.Data)
 			if err != nil {
 				log.Error("Error unpacking extension creation log", err.Error())
 				log.Debug("Errored log", foundLog)
