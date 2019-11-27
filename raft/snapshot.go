@@ -23,14 +23,13 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// Snapshot
-type Snapshot struct {
+type SnapshotWithHostnames struct {
 	Addresses      []Address
 	RemovedRaftIds []uint16
 	HeadBlockHash  common.Hash
 }
 
-type OldAddress struct {
+type AddressWithoutHostname struct {
 	RaftId   uint16
 	NodeId   enode.EnodeID
 	Ip       net.IP
@@ -38,8 +37,8 @@ type OldAddress struct {
 	RaftPort enr.RaftPort
 }
 
-type SnapshotOld struct {
-	Addresses      []OldAddress
+type SnapshotWithoutHostnames struct {
+	Addresses      []AddressWithoutHostname
 	RemovedRaftIds []uint16 // Raft IDs for permanently removed peers
 	HeadBlockHash  common.Hash
 }
@@ -50,14 +49,14 @@ func (a ByRaftId) Len() int           { return len(a) }
 func (a ByRaftId) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByRaftId) Less(i, j int) bool { return a[i].RaftId < a[j].RaftId }
 
-func (pm *ProtocolManager) buildSnapshot() *Snapshot {
+func (pm *ProtocolManager) buildSnapshot() *SnapshotWithHostnames {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
 	numNodes := len(pm.confState.Nodes)
 	numRemovedNodes := pm.removedPeers.Cardinality()
 
-	snapshot := &Snapshot{
+	snapshot := &SnapshotWithHostnames{
 		Addresses:      make([]Address, numNodes),
 		RemovedRaftIds: make([]uint16, numRemovedNodes),
 		HeadBlockHash:  pm.blockchain.CurrentBlock().Hash(),
@@ -209,7 +208,8 @@ func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
 	}
 }
 
-func (snapshot *Snapshot) toBytes(useDns bool) []byte {
+func (snapshot *SnapshotWithHostnames) toBytes(useDns bool) []byte {
+	// we have DNS enabled, so only use the new snapshot type
 	if useDns {
 		buffer, err := rlp.EncodeToBytes(snapshot)
 		if err != nil {
@@ -218,12 +218,13 @@ func (snapshot *Snapshot) toBytes(useDns bool) []byte {
 		return buffer
 	}
 
-	oldSnapshot := new(SnapshotOld)
+	// DNS is not enabled, use the old snapshot type, converting from hostnames to IP addresses
+	oldSnapshot := new(SnapshotWithoutHostnames)
 	oldSnapshot.HeadBlockHash, oldSnapshot.RemovedRaftIds = snapshot.HeadBlockHash, snapshot.RemovedRaftIds
-	oldSnapshot.Addresses = make([]OldAddress, len(snapshot.Addresses))
+	oldSnapshot.Addresses = make([]AddressWithoutHostname, len(snapshot.Addresses))
 
 	for index, addrWithHost := range snapshot.Addresses {
-		oldSnapshot.Addresses[index] = OldAddress{
+		oldSnapshot.Addresses[index] = AddressWithoutHostname{
 			addrWithHost.RaftId,
 			addrWithHost.NodeId,
 			net.ParseIP(addrWithHost.Hostname),
@@ -239,19 +240,19 @@ func (snapshot *Snapshot) toBytes(useDns bool) []byte {
 	return buffer
 }
 
-func bytesToSnapshot(input []byte) *Snapshot {
+func bytesToSnapshot(input []byte) *SnapshotWithHostnames {
 	var err, errOld error
 
-	snapshot := new(Snapshot)
+	snapshot := new(SnapshotWithHostnames)
 	streamNewSnapshot := rlp.NewStream(bytes.NewReader(input), 0)
 	if err = streamNewSnapshot.Decode(snapshot); err == nil {
 		return snapshot
 	}
 
-	snapshotOld := new(SnapshotOld)
+	snapshotOld := new(SnapshotWithoutHostnames)
 	streamOldSnapshot := rlp.NewStream(bytes.NewReader(input), 0)
 	if errOld = streamOldSnapshot.Decode(snapshotOld); errOld == nil {
-		var snapshotConverted Snapshot
+		var snapshotConverted SnapshotWithHostnames
 		snapshotConverted.RemovedRaftIds, snapshotConverted.HeadBlockHash = snapshotOld.RemovedRaftIds, snapshotOld.HeadBlockHash
 		snapshotConverted.Addresses = make([]Address, len(snapshotOld.Addresses))
 
@@ -273,7 +274,7 @@ func bytesToSnapshot(input []byte) *Snapshot {
 	return nil
 }
 
-func (snapshot *Snapshot) EncodeRLP(w io.Writer) error {
+func (snapshot *SnapshotWithHostnames) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{snapshot.Addresses, snapshot.RemovedRaftIds, snapshot.HeadBlockHash})
 }
 
