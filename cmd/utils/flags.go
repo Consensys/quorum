@@ -624,7 +624,7 @@ var (
 	}
 	PluginPublicKeyFlag = cli.StringFlag{
 		Name:  "plugins.publickey",
-		Usage: fmt.Sprintf("The URI of PGP public key for local plugin verification. E.g.: file:///opt/geth/pubkey.pgp.asc. This flag is only valid if --%s is set", PluginLocalVerifyFlag.Name),
+		Usage: fmt.Sprintf("The URI of PGP public key for local plugin verification. E.g.: file:///opt/geth/pubkey.pgp.asc. This flag is only valid if --%s is set (default = file:///<pluginBaseDir>/%s)", PluginLocalVerifyFlag.Name, plugin.DefaultPublicKeyFile),
 	}
 	PluginSkipVerifyFlag = cli.BoolFlag{
 		Name:  "plugins.skipverify",

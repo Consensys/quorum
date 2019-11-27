@@ -164,7 +164,7 @@ type PluginCentralConfiguration struct {
 var quorumPluginCentralConfiguration = &PluginCentralConfiguration{
 	CertFingerprint:    "13ae1ae0e6d0e70b6b9e17fcd02d821b23f491f5867fe1472363a5d98d44884f",
 	BaseURL:            "https://plugins.goquorum.com",
-	PublicKeyURI:       "/" + defaultPublicKeyFile,
+	PublicKeyURI:       "/" + DefaultPublicKeyFile,
 	InsecureSkipVerify: false,
 }
 

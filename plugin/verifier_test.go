@@ -17,7 +17,7 @@ func TestNewVerifier_whenResolvingDefaultPublicKeyLocation(t *testing.T) {
 	defer func() {
 		_ = os.RemoveAll(tmpDir)
 	}()
-	if err := ioutil.WriteFile(path.Join(tmpDir, defaultPublicKeyFile), []byte("foo"), 0644); err != nil {
+	if err := ioutil.WriteFile(path.Join(tmpDir, DefaultPublicKeyFile), []byte("foo"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	arbitraryPM := &PluginManager{

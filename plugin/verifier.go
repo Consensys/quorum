@@ -28,7 +28,7 @@ func NewVerifier(pm *PluginManager, localVerify bool, publicKey string) (Verifie
 	centralClient := pm.centralClient
 	// resolve public key
 	if publicKey == "" {
-		publicKey = fmt.Sprintf("file://%s", path.Join(pluginBaseDir, defaultPublicKeyFile))
+		publicKey = fmt.Sprintf("file://%s", path.Join(pluginBaseDir, DefaultPublicKeyFile))
 	}
 	publicKeyPath, err := resolveFilePath(publicKey)
 	if err != nil {

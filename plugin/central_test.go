@@ -14,11 +14,11 @@ import (
 )
 
 func TestCentralClient_PublicKey(t *testing.T) {
-	arbitraryServer := newTestServer("/"+defaultPublicKeyFile, arbitraryPubKey)
+	arbitraryServer := newTestServer("/"+DefaultPublicKeyFile, arbitraryPubKey)
 	defer arbitraryServer.Close()
 	arbitraryConfig := &PluginCentralConfiguration{
 		BaseURL:      arbitraryServer.URL,
-		PublicKeyURI: defaultPublicKeyFile,
+		PublicKeyURI: DefaultPublicKeyFile,
 	}
 
 	testObject := NewPluginCentralClient(arbitraryConfig)
@@ -32,12 +32,12 @@ func TestCentralClient_PublicKey(t *testing.T) {
 }
 
 func TestCentralClient_PublicKey_withSSL(t *testing.T) {
-	arbitraryServer := httptest.NewTLSServer(newMux("/"+defaultPublicKeyFile, arbitraryPubKey))
+	arbitraryServer := httptest.NewTLSServer(newMux("/"+DefaultPublicKeyFile, arbitraryPubKey))
 	defer arbitraryServer.Close()
 	arbitraryConfig := &PluginCentralConfiguration{
 		CertFingerprint:    string(arbitraryServer.Certificate().Signature),
 		BaseURL:            arbitraryServer.URL,
-		PublicKeyURI:       defaultPublicKeyFile,
+		PublicKeyURI:       DefaultPublicKeyFile,
 		InsecureSkipVerify: true,
 	}
 
