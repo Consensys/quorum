@@ -4,7 +4,7 @@ The Quorum client is a modified `geth` client. One of the unique enhancements
 is the pluggable architecture which allows adding additional features as plugins to the core `geth`, 
 providing extensibility, flexibility, and isolation of Quorum features.
 
-## Why this?
+## Benefits
  
 This enhancement provides a number of benefits, including:
 
@@ -14,21 +14,19 @@ This enhancement provides a number of benefits, including:
 
 ## How it works?
 
-Each plugin exposes an implementation for a [supported plugin interface](../SupportedInterfaces).
+Each plugin exposes an implementation for a specific [plugin interface](https://github.com/jpmorganchase/quorum-plugin-definitions) (or see `Pluggable Architecture -> Plugins` for more details)
 Plugins are executed as a separate process and communicate with the main Quorum client `geth` process
 over a [gRPC](https://grpc.io/) interface.
 
 The plugin implementation must adhere to certain gRPC services defined in a `.proto` file corresponding to the plugin interface.
 Plugins can be written in different languages as gRPC provides a mechanism to generate stub code from `.proto` files. 
 
-The network communication and RPC are handled automatically by high-level plugin library.
+The network communication and RPC are handled automatically by the [high-level plugin library](https://github.com/hashicorp/go-plugin).
 
 ## Installing Plugins
 
 Currently plugins must be manually installed into a directory (defaults to `plugins` directory inside `geth` data directory - default can be overriden by setting `baseDir` in [plugins settings](../Settings)).
  
-In the future, plugins distributed by Quorum are automatically installed by Quorum Client.
-
 ## Using Plugins
 
 [Plugins settings file](../Settings) contains a JSON that describes what plugins to be used. 

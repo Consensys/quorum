@@ -45,7 +45,7 @@ A plugin metadata file `plugin-meta.json` must be included in the distribution Z
 Although the JSON object can include any desired information.
 There are mandatory key value pairs which must be present. 
 
-<pre>
+```json
 {
     "name": string,
     "version": string,
@@ -53,7 +53,7 @@ There are mandatory key value pairs which must be present.
     "parameters": array(string),
     ...
 }
-</pre>
+```
 
 | Fields       | Description                                                        |
 |:-------------|:-------------------------------------------------------------------|
@@ -82,9 +82,12 @@ Magic Cookie key and value are used as a very basic verification that a plugin i
 This is not a security measure, just a UX feature. 
 
 Magic Cookie key and value are injected as an environment variable while executing the plugin process.
-Pre-defined magic cookie key and value to be used in a plugin can be found [here]().
 
-If the magic cookie doesn't match, plugin should show human-friendly output.
+```
+QUORUM_PLUGIN_MAGIC_COOKIE="CB9F51969613126D93468868990F77A8470EB9177503C5A38D437FEFF7786E0941152E05C06A9A3313391059132A7F9CED86C0783FE63A8B38F01623C8257664"
+```
+
+The plugin and the Quorum client's magic cookies are compared.  If they are equal then the plugin is loaded.   If the they are not equal, the plugin should show human-friendly output.
 
 ### Mutual TLS Authentication
 
@@ -94,10 +97,10 @@ A plugin would need to include this certificate to its trusted certificate pool,
 generate a self-signed certificate and append the base64-encoded value of the certificate (in DER format)
 in the [handshake](https://github.com/hashicorp/go-plugin/blob/master/docs/internals.md#handshake) message.
 
-## Examples
-
-Please visit [Overview](../Overview/#example-helloworld-plugin) page for a built-in HelloWorld plugin example.
-
 <a name="plugininitializer"></a>
 
 {!./PluggableArchitecture/Plugins/init_interface.md!}
+
+## Examples
+
+Please visit [Overview](../Overview/#example-helloworld-plugin) page for a built-in HelloWorld plugin example.
