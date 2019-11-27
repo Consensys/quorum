@@ -36,8 +36,8 @@ import (
 )
 
 const (
+	maxRequestContentLength = 1024 * 1024 * 5
 	contentType             = "application/json"
-	maxRequestContentLength = 1024 * 1024 * 512
 )
 
 // https://www.jsonrpc.org/historical/json-rpc-over-http.html#id13
