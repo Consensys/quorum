@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"math/bits"
 	"math/rand"
 	"net"
@@ -78,6 +79,7 @@ func (n *Node) IP() net.IP {
 	// attempt to look up IP addresses if host is a FQDN
 	lookupIPs, err := net.LookupIP(n.Host())
 	if err != nil {
+		log.Debug("hostname couldn't resolve, using IP instead", "hostname", n.Host(), "err", err.Error())
 		return n.loadIP()
 	}
 	// set to first ip by default
