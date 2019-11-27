@@ -18,27 +18,26 @@ title: Settings - Pluggable Architecture - Quorum
 ```toml tab="TOML"
 [Node.Plugins]
     BaseDir = string
-    Central = object(PluginCentralConfiguration) # as inline table
-    # Or as key-value table
-    # [Node.Plugins.Central]
-    # .. = .. from object(PluginCentralConfiguration)
+    
+    [Node.Plugins.Central]
+        .. = .. from object(PluginCentralConfiguration)
+    
     [[Node.Plugins.Providers]]
-        <string> = object(PluginDefinition) # as inline table
-        # Or as key-value table
-        # [[Node.Plugins.Providers.<string>]]
-        # .. = .. from object(PluginDefinition)
+        [[Node.Plugins.Providers.<string>]]
+        .. = .. from object(PluginDefinition)
 ```
 
 | Fields      | Description                                                                                                                                                                                                        |
 |:------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `baseDir`   | A string indicating the local directory from where plugins are read. If empty, defaults to `<datadir>/plugins`. <br/> To read from arbitrary enviroment variable (e.g: `MY_BASE_DIR`), provide value `env://MY_BASE_DIR` |
 | `central`   | A configuration of the remote plugin central. See [PluginCentralConfiguration](#plugincentralconfiguration)                                                                                                        |
-| `providers` | A map specifies supported plugin interfaces with the respected plugin provider definitions (see [PluginDefinition](#plugindefinition))                                                                             |
+| `providers` | A map of the supported plugin interfaces being used (e.g. `helloworld`), mapped to their respective plugin provider definitions (see [PluginDefinition](#plugindefinition))                                                                             |
 | `<string>`  | A string constant indicates the plugin interface. E.g: `helloworld`.                                                                                                                                               |
 
 ## `PluginCentralConfiguration`
 
-Quorum Plugin Central Server will be used, modify this section to customize your own local plugin central
+[Plugin Integrity Verification](../Overview/#plugin-integrity-verification) uses the Quorum Plugin Central Server by default.  
+Modifying this section configures your own local plugin central for Plugin Integrity Verification:
 
 ```json tab="JSON"
 {
@@ -50,21 +49,18 @@ Quorum Plugin Central Server will be used, modify this section to customize your
 ```
 
 ```toml tab="TOML"
-# as inline table
-{ BaseURL = string, CertFingerPrint = string, PublicKeyURI = string, InsecureSkipVerify = bool }
-# as key-value table
 BaseURL = string
 CertFingerPrint = string
 PublicKeyURI = string
 InsecureSkipVerify = bool
 ```
 
-| Fields               | Description                                                                                                          |
-|:---------------------|:---------------------------------------------------------------------------------------------------------------------|
-| `baseURL`            | A string indicating the remote plugin central URL (ex.`https://plugins.mycorp.com`)                                  |
-| `certFingerprint`    | A string containing hex representation of the http server public key finger print to be used for certificate pinning |
-| `publicKeyURI`       | A string defining the location of the PGP public key to be used to perform the signature verification          |
-| `insecureSkipVerify` | If true, verify the server's certificate chain and host name                                                         |
+| Fields               | Description                                                                                                               |
+|:---------------------|:--------------------------------------------------------------------------------------------------------------------------|
+| `baseURL`            | A string indicating the remote plugin central URL (ex.`https://plugins.mycorp.com`)                                       |
+| `certFingerprint`    | A string containing hex representation of the http server public key finger print <br/>to be used for certificate pinning |
+| `publicKeyURI`       | A string defining the location of the PGP public key <br/>to be used to perform the signature verification                |
+| `insecureSkipVerify` | If true, **do not** verify the server's certificate chain and host name                                                   |
 
 ## `PluginDefinition`
 
@@ -79,9 +75,6 @@ Defines the plugin and its configuration
 ```
 
 ```toml tab="TOML"
-# as inline table
-{ Name = string, Version = string, Config = file/string/array/object }
-# as key-value table
 Name = string
 Version = string
 Config = file/string/array/object

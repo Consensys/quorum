@@ -1,9 +1,5 @@
 title: Internals - Pluggable Architecture - Quorum
 
-Quorum Client is a modified `geth` with plugin support for extensibility. Each plugin provides an implementation for a [specific interface](../SupportedInterfaces)
-such as TLS configuration source, RPC authorization, etc.
-Plugins are executed as a seperate process and communicate with the main `geth` over gRPC interfaces.
-
 ## Background
 
 ### Go Plugin
@@ -18,11 +14,11 @@ This makes it easy for you to build a prototype feature or even a proprietary pl
 We use HashiCorp's [`go-plugin`](https://github.com/hashicorp/go-plugin) library as it fits our asks 
 and it has been proven in many plugin-based production systems.
 
-### Why not combined?
+### Why we decided to use plugins
 
 There are number of benefits:
 
-- Statically compiled binaries are much larger then dynamically-linked binaries.
+- Dynamically-linked binaries (which you get when using plugins) are much smaller than statically compiled binaries.
 - We value the ability to isolate failures. E.g.: Quorum client would continue mining/validating even if security plugin has crashed.
 - Easily enables support for open source plugins written in languages other than Go.
 

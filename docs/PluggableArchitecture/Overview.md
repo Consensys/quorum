@@ -29,7 +29,7 @@ Currently plugins must be manually installed into a directory (defaults to `plug
  
 ## Using Plugins
 
-[Plugins settings file](../Settings) contains a JSON that describes what plugins to be used. 
+[Plugins settings file](../Settings) contains a JSON that describes what plugins to be used.
 Then start `geth` with `--plugins` as below:
 
 ```bash
@@ -50,9 +50,10 @@ If the flag `--plugins.skipverify` is provided at runtime the plugin verificatio
 ## Example: `HelloWorld` plugin
 
 In this example, `HelloWorld` plugin exposes a JSON RPC endpoint to return a greeting message in the configured language.
-This plugin is reloadable which means we can use `admin_reloadPlugin` JSON RPC API to reload the plugin.
+This plugin is [reloadable](../Internals/#plugin-reloading).
 
-The `HelloWorld` plugin example is available in Quorum Git repository. In actual plugin development, plugin source code is maintained in a separate repository.
+The `HelloWorld` example plugin is included in the [Quorum GitHub repository](https://github.com/jpmorganchase/quorum/) for demo purposes. 
+Usually, the source code for a plugin will be maintained in a separate repository.
 
 Prequisites to run this example are similar to those for building `geth` with `make`
 

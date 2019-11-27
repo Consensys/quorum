@@ -9,8 +9,8 @@ Some advanced topics which are not available in the `go-plugin` documentation wi
 
 A plugin is started as a separate process and communicates with the Quorum client host process via gRPC service interfaces.
 This is done over a mutually-authenticated TLS connection on the local machine. The implementation is done inside `go-plugin`
-library which benefits plugins written in Golang. For plugins written in other languages, plugin authors need to have
-a understanding about the model as described below:
+library.  Usage is simplest when developing plugins in Golang. For plugins written in other languages, plugin authors need to have
+an understanding of the following lifecycle (see [Advanced topics for non-Go plugins](#advanced-topics-for-non-go-plugins) for more info):
 
 1. `geth` looks for the plugin distribution file after reading the plugin definition from settings
 1. `geth` verifies the plugin distribution file integrity
@@ -23,19 +23,15 @@ a understanding about the model as described below:
 
 Each plugin must implement the [`PluginInitializer`](#plugininitializer) gRPC service interface.
 After the plugin process is successfully started and connection with the Quorum client is successfully established,
-Quorum Client invokes `Init()` gRPC in order to initialize the plugin with configuration data 
+Quorum client invokes [`Init()`](#proto.PluginInitialization.Request) gRPC method in order to initialize the plugin with configuration data 
 read from the plugin definition's `config` field in [settings](../Settings/#plugindefinition) file.
-
-## Configuration Data
-
-A plugin receives its [configuration data](#proto.PluginInitialization.Request) from Quorum Client via `Init()` gRPC. 
 
 ## Distribution
 
 ### File format
 
 Plugin distribution file must be a ZIP file. File name format is `<name>-<version>.zip`. 
-Where `<name>` and `<version>` are from plugin definition in [settings](../Settings/#plugindefinition) file.
+`<name>` and `<version>` must be the same as the values defined in the [`PluginDefinition` object](../Settings/#plugindefinition) in the settings file.
 
 ### Metadata 
 
