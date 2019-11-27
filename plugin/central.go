@@ -34,7 +34,7 @@ func NewPluginCentralClient(config *PluginCentralConfiguration) *CentralClient {
 // Builds a Dialer that supports CA Verification & Certificate Pinning.
 func (cc *CentralClient) getNewSecureDialer() Dialer {
 	return func(network, addr string) (net.Conn, error) {
-		c, err := tls.Dial(network, addr, &tls.Config{InsecureSkipVerify: cc.config.InsecureSkipVerify})
+		c, err := tls.Dial(network, addr, &tls.Config{InsecureSkipVerify: cc.config.InsecureSkipTLSVerify})
 		if err != nil {
 			return c, err
 		}

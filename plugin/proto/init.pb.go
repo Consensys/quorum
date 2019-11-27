@@ -25,6 +25,8 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
+//*
+// A wrapper message to logically group other messages
 type PluginInitialization struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -59,7 +61,7 @@ var xxx_messageInfo_PluginInitialization proto.InternalMessageInfo
 //
 // Initialization data for the plugin
 type PluginInitialization_Request struct {
-	// `geth` node identity
+	// `geth` node name
 	HostIdentity string `protobuf:"bytes,1,opt,name=hostIdentity,proto3" json:"hostIdentity,omitempty"`
 	// raw configuration to be processed by the plugin
 	RawConfiguration     []byte   `protobuf:"bytes,2,opt,name=rawConfiguration,proto3" json:"rawConfiguration,omitempty"`

@@ -2,7 +2,6 @@ package utils
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -17,7 +16,7 @@ func TestSetPlugins_whenPluginsNotEnabled(t *testing.T) {
 	arbitraryNodeConfig := &node.Config{}
 	arbitraryCLIContext := cli.NewContext(nil, &flag.FlagSet{}, nil)
 
-	setPlugins(arbitraryCLIContext, arbitraryNodeConfig)
+	assert.NoError(t, setPlugins(arbitraryCLIContext, arbitraryNodeConfig))
 
 	assert.Nil(t, arbitraryNodeConfig.Plugins)
 }
@@ -32,13 +31,13 @@ func TestSetPlugins_whenInvalidFlagsCombination(t *testing.T) {
 	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginSettingsFlag.Name, "arbitrary value"))
 
-	verifyFatalMessage(t, arbitraryCLIContext, arbitraryNodeConfig, "Only --plugins.skipverify or --plugins.localverify must be set")
+	verifyErrorMessage(t, arbitraryCLIContext, arbitraryNodeConfig, "only --plugins.skipverify or --plugins.localverify must be set")
 
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginSkipVerifyFlag.Name, "false"))
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginLocalVerifyFlag.Name, "false"))
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginPublicKeyFlag.Name, "arbitry value"))
 
-	verifyFatalMessage(t, arbitraryCLIContext, arbitraryNodeConfig, "--plugins.localverify is required for setting --plugins.publickey")
+	verifyErrorMessage(t, arbitraryCLIContext, arbitraryNodeConfig, "--plugins.localverify is required for setting --plugins.publickey")
 }
 
 func TestSetPlugins_whenInvalidPluginSettingsURL(t *testing.T) {
@@ -48,7 +47,7 @@ func TestSetPlugins_whenInvalidPluginSettingsURL(t *testing.T) {
 	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginSettingsFlag.Name, "arbitrary value"))
 
-	verifyFatalMessage(t, arbitraryCLIContext, arbitraryNodeConfig, "plugins: unable to create reader due to unsupported scheme ")
+	verifyErrorMessage(t, arbitraryCLIContext, arbitraryNodeConfig, "plugins: unable to create reader due to unsupported scheme ")
 }
 
 func TestSetPlugins_whenTypical(t *testing.T) {
@@ -69,34 +68,12 @@ func TestSetPlugins_whenTypical(t *testing.T) {
 	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginSettingsFlag.Name, "file://"+arbitraryJSONFile))
 
-	setPlugins(arbitraryCLIContext, arbitraryNodeConfig)
+	assert.NoError(t, setPlugins(arbitraryCLIContext, arbitraryNodeConfig))
 
 	assert.NotNil(t, arbitraryNodeConfig.Plugins)
 }
 
-func verifyFatalMessage(t *testing.T, ctx *cli.Context, cfg *node.Config, expectedMsg string) {
-	msgCaptor := newFatalMessageCaptor()
-	saved := fatalfFunc
-	defer func() {
-		fatalfFunc = saved
-		recover() // as tests would result fatal, we need to assert here
-		assert.Equal(t, expectedMsg, msgCaptor.capturedValue)
-	}()
-	fatalfFunc = msgCaptor.fatalfFunc
-
-	setPlugins(ctx, cfg)
-}
-
-type fatalMessageCaptor struct {
-	fatalfFunc    func(format string, args ...interface{})
-	capturedValue string
-}
-
-func newFatalMessageCaptor() *fatalMessageCaptor {
-	captor := &fatalMessageCaptor{}
-	captor.fatalfFunc = func(format string, args ...interface{}) {
-		captor.capturedValue = fmt.Sprintf(format, args...)
-		panic("suspending")
-	}
-	return captor
+func verifyErrorMessage(t *testing.T, ctx *cli.Context, cfg *node.Config, expectedMsg string) {
+	err := setPlugins(ctx, cfg)
+	assert.EqualError(t, err, expectedMsg)
 }

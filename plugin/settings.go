@@ -11,14 +11,32 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/plugin/helloWorld"
 	"github.com/hashicorp/go-plugin"
 
-	"github.com/ethereum/go-ethereum/plugin/helloWorld"
 	"github.com/naoina/toml"
 )
 
+const (
+	HelloWorldPluginInterfaceName = PluginInterfaceName("helloworld") // lower-case always
+)
+
+var (
+	// define additional plugins here
+	pluginProviders = map[PluginInterfaceName]plugin.PluginSet{
+		HelloWorldPluginInterfaceName: {
+			helloWorld.ConnectorName: &helloWorld.PluginConnector{},
+		},
+	}
+	quorumPluginCentralConfiguration = &PluginCentralConfiguration{
+		CertFingerprint:       "13ae1ae0e6d0e70b6b9e17fcd02d821b23f491f5867fe1472363a5d98d44884f",
+		BaseURL:               "https://plugins.goquorum.com",
+		PublicKeyURI:          "/" + DefaultPublicKeyFile,
+		InsecureSkipTLSVerify: false,
+	}
+)
+
 type Version string
-type RawConfiguration []byte
 
 // This is to describe a plugin
 //
@@ -91,17 +109,6 @@ func (m *PluginDefinition) SignatureFileName() string {
 	return fmt.Sprintf("%s.sig", m.FullName())
 }
 
-const (
-	HelloWorldPluginInterfaceName = PluginInterfaceName("helloworld") // lower-case always
-)
-
-// define additional plugins here
-var pluginProviders = map[PluginInterfaceName]plugin.PluginSet{
-	HelloWorldPluginInterfaceName: {
-		helloWorld.ConnectorName: &helloWorld.PluginConnector{},
-	},
-}
-
 // must be always be lowercase when define constants
 // as when unmarshaling from config, value will be case-lowered
 type PluginInterfaceName string
@@ -155,17 +162,10 @@ func (s *Settings) SetDefaults() {
 type PluginCentralConfiguration struct {
 	// To implement certificate pinning while communicating with PluginCentral
 	// if it's empty, we skip cert pinning logic
-	CertFingerprint    string `json:"certFingerprint" toml:""`
-	BaseURL            string `json:"baseURL" toml:""`
-	PublicKeyURI       string `json:"publicKeyURI" toml:""`
-	InsecureSkipVerify bool   `json:"insecureSkipVerify" toml:""`
-}
-
-var quorumPluginCentralConfiguration = &PluginCentralConfiguration{
-	CertFingerprint:    "13ae1ae0e6d0e70b6b9e17fcd02d821b23f491f5867fe1472363a5d98d44884f",
-	BaseURL:            "https://plugins.goquorum.com",
-	PublicKeyURI:       "/" + DefaultPublicKeyFile,
-	InsecureSkipVerify: false,
+	CertFingerprint       string `json:"certFingerprint" toml:""`
+	BaseURL               string `json:"baseURL" toml:""`
+	PublicKeyURI          string `json:"publicKeyURI" toml:""`
+	InsecureSkipTLSVerify bool   `json:"insecureSkipTLSVerify" toml:""`
 }
 
 // support URI format with 'env' scheme during JSON/TOML/TEXT unmarshalling

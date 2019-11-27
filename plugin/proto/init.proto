@@ -1,7 +1,9 @@
 /*
- * This plugin interface specifies how a plugin can be initialized.
- *
  * It is __mandatory__ that every plugin must implement this RPC service
+ *
+ * Via this service, plugins receive a raw configuration sent by `geth`.
+ * It's up to the plugin to interpret and parse the configuration then do the initialization
+ * to make sure the plugin is ready to serve
  */
 syntax = "proto3";
 
@@ -11,12 +13,15 @@ option go_package = "proto";
 option java_package = "com.quorum.plugin.proto";
 option java_outer_classname = "Initializer";
 
+/**
+ * A wrapper message to logically group other messages
+ */
 message PluginInitialization {
     /*
      * Initialization data for the plugin
      */
     message Request {
-        // `geth` node identity
+        // `geth` node name
         string hostIdentity = 1;
         // raw configuration to be processed by the plugin
         bytes rawConfiguration = 2;
@@ -26,7 +31,8 @@ message PluginInitialization {
 }
 
 /*
- * Plugin Manager to initialize the plugin after plugin process is started successfully
+ * `Required`
+ * RPC service to initialize the plugin after plugin process is started successfully
  */
 service PluginInitializer {
     rpc Init(PluginInitialization.Request) returns (PluginInitialization.Response);

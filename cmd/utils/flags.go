@@ -1067,42 +1067,42 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	if ctx.GlobalIsSet(NoUSBFlag.Name) {
 		cfg.NoUSB = ctx.GlobalBool(NoUSBFlag.Name)
 	}
-	setPlugins(ctx, cfg)
+	if err := setPlugins(ctx, cfg); err != nil {
+		Fatalf(err.Error())
+	}
 }
-
-// Quorum: this is to make code unit-testable
-var fatalfFunc = Fatalf
 
 // Quorum
 //
 // Read plugin settings from --plugins flag. Overwrite settings defined in --config if any
-func setPlugins(ctx *cli.Context, cfg *node.Config) {
+func setPlugins(ctx *cli.Context, cfg *node.Config) error {
 	if ctx.GlobalIsSet(PluginSettingsFlag.Name) {
 		// validate flag combination
 		if ctx.GlobalBool(PluginSkipVerifyFlag.Name) && ctx.GlobalBool(PluginLocalVerifyFlag.Name) {
-			fatalfFunc("Only --%s or --%s must be set", PluginSkipVerifyFlag.Name, PluginLocalVerifyFlag.Name)
+			return fmt.Errorf("only --%s or --%s must be set", PluginSkipVerifyFlag.Name, PluginLocalVerifyFlag.Name)
 		}
 		if !ctx.GlobalBool(PluginLocalVerifyFlag.Name) && ctx.GlobalIsSet(PluginPublicKeyFlag.Name) {
-			fatalfFunc("--%s is required for setting --%s", PluginLocalVerifyFlag.Name, PluginPublicKeyFlag.Name)
+			return fmt.Errorf("--%s is required for setting --%s", PluginLocalVerifyFlag.Name, PluginPublicKeyFlag.Name)
 		}
 		pluginSettingsURL, err := url.Parse(ctx.GlobalString(PluginSettingsFlag.Name))
 		if err != nil {
-			fatalfFunc("plugins: Invalid URL for --%s", PluginSettingsFlag.Name)
+			return fmt.Errorf("plugins: Invalid URL for --%s due to %s", PluginSettingsFlag.Name, err)
 		}
 		var pluginSettings plugin.Settings
 		r, err := urlReader(pluginSettingsURL)
 		if err != nil {
-			fatalfFunc("plugins: unable to create reader due to %s", err)
+			return fmt.Errorf("plugins: unable to create reader due to %s", err)
 		}
 		defer func() {
 			_ = r.Close()
 		}()
 		if err := json.NewDecoder(r).Decode(&pluginSettings); err != nil {
-			fatalfFunc("plugins: unable to parse settings due to %s", err)
+			return fmt.Errorf("plugins: unable to parse settings due to %s", err)
 		}
 		pluginSettings.SetDefaults()
 		cfg.Plugins = &pluginSettings
 	}
+	return nil
 }
 
 func urlReader(u *url.URL) (io.ReadCloser, error) {

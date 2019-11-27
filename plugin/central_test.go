@@ -35,10 +35,10 @@ func TestCentralClient_PublicKey_withSSL(t *testing.T) {
 	arbitraryServer := httptest.NewTLSServer(newMux("/"+DefaultPublicKeyFile, arbitraryPubKey))
 	defer arbitraryServer.Close()
 	arbitraryConfig := &PluginCentralConfiguration{
-		CertFingerprint:    string(arbitraryServer.Certificate().Signature),
-		BaseURL:            arbitraryServer.URL,
-		PublicKeyURI:       DefaultPublicKeyFile,
-		InsecureSkipVerify: true,
+		CertFingerprint:       string(arbitraryServer.Certificate().Signature),
+		BaseURL:               arbitraryServer.URL,
+		PublicKeyURI:          DefaultPublicKeyFile,
+		InsecureSkipTLSVerify: true,
 	}
 
 	testObject := NewPluginCentralClient(arbitraryConfig)

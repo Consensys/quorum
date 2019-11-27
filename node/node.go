@@ -218,7 +218,7 @@ func (n *Node) Start() error {
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
 	}
-	// Obtain security plugin if configured
+	// Retrieve PluginManager service if configured
 	if pm, hasPluginManager := services[reflect.TypeOf(&plugin.PluginManager{})]; hasPluginManager {
 		n.pluginManager = pm.(*plugin.PluginManager)
 	} else {

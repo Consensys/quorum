@@ -5,9 +5,11 @@
 <a name="init.proto"></a>
 
 ## init.proto
-This plugin interface specifies how a plugin can be initialized.
-
 It is __mandatory__ that every plugin must implement this RPC service
+
+Via this service, plugins receive a raw configuration sent by `geth`.
+It's up to the plugin to interpret and parse the configuration then do the initialization
+to make sure the plugin is ready to serve
 
 ### Services
 
@@ -15,7 +17,8 @@ It is __mandatory__ that every plugin must implement this RPC service
 <a name="proto.PluginInitializer"></a>
 
 #### `PluginInitializer`
-Plugin Manager to initialize the plugin after plugin process is started successfully
+`Required`
+RPC service to initialize the plugin after plugin process is started successfully
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
@@ -29,7 +32,7 @@ Plugin Manager to initialize the plugin after plugin process is started successf
 <a name="proto.PluginInitialization"></a>
 
 #### `PluginInitialization`
-
+A wrapper message to logically group other messages
 
 
 
@@ -44,7 +47,7 @@ Initialization data for the plugin
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| hostIdentity | [string](#string) |  | `geth` node identity |
+| hostIdentity | [string](#string) |  | `geth` node name |
 | rawConfiguration | [bytes](#bytes) |  | raw configuration to be processed by the plugin |
 
 

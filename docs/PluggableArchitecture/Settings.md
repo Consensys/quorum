@@ -44,7 +44,7 @@ Modifying this section configures your own local plugin central for Plugin Integ
   "baseURL": string,
   "certFingerprint": string,
   "publicKeyURI": string,
-  "insecureSkipVerify": bool
+  "insecureSkipTLSVerify": bool
 }
 ```
 
@@ -52,15 +52,15 @@ Modifying this section configures your own local plugin central for Plugin Integ
 BaseURL = string
 CertFingerPrint = string
 PublicKeyURI = string
-InsecureSkipVerify = bool
+InsecureSkipTLSVerify = bool
 ```
 
-| Fields               | Description                                                                                                               |
-|:---------------------|:--------------------------------------------------------------------------------------------------------------------------|
-| `baseURL`            | A string indicating the remote plugin central URL (ex.`https://plugins.mycorp.com`)                                       |
-| `certFingerprint`    | A string containing hex representation of the http server public key finger print <br/>to be used for certificate pinning |
-| `publicKeyURI`       | A string defining the location of the PGP public key <br/>to be used to perform the signature verification                |
-| `insecureSkipVerify` | If true, **do not** verify the server's certificate chain and host name                                                   |
+| Fields                  | Description                                                                                                               |
+|:------------------------|:--------------------------------------------------------------------------------------------------------------------------|
+| `baseURL`               | A string indicating the remote plugin central URL (ex.`https://plugins.mycorp.com`)                                       |
+| `certFingerprint`       | A string containing hex representation of the http server public key finger print <br/>to be used for certificate pinning |
+| `publicKeyURI`          | A string defining the location of the PGP public key <br/>to be used to perform the signature verification                |
+| `insecureSkipTLSVerify` | If true, **do not** verify the server's certificate chain and host name                                                   |
 
 ## `PluginDefinition`
 

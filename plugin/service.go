@@ -28,7 +28,7 @@ type PluginManager struct {
 func (s *PluginManager) Protocols() []p2p.Protocol { return nil }
 
 func (s *PluginManager) APIs() []rpc.API {
-	// the below code show how to expose APIs of a pluggin via JSON RPC
+	// the below code show how to expose APIs of a plugin via JSON RPC
 	// this is only for demonstration purposes
 	helloWorldAPI := make([]rpc.API, 0)
 	helloWorldPluginTemplate := new(HelloWorldPluginTemplate)
