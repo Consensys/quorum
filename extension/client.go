@@ -12,6 +12,7 @@ type Client interface {
 	SubscribeToLogs(query ethereum.FilterQuery) (<-chan types.Log, ethereum.Subscription, error)
 	NextNonce(from common.Address) (uint64, error)
 	TransactionByHash(hash common.Hash) (*types.Transaction, error)
+	TransactionInBlock(blockHash common.Hash, txIndex uint) (*types.Transaction, error)
 }
 
 type InProcessClient struct {
@@ -37,4 +38,8 @@ func (client *InProcessClient) NextNonce(from common.Address) (uint64, error) {
 func (client *InProcessClient) TransactionByHash(hash common.Hash) (*types.Transaction, error) {
 	tx, _, err := client.client.TransactionByHash(context.Background(), hash)
 	return tx, err
+}
+
+func (client *InProcessClient) TransactionInBlock(blockHash common.Hash, txIndex uint) (*types.Transaction, error) {
+	return client.client.TransactionInBlock(context.Background(), blockHash, txIndex)
 }

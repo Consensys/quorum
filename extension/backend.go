@@ -66,7 +66,7 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 	go service.watchForNewContracts()
 	go service.watchForCancelledContracts()
 	go service.watchForCompletionEvents()
-	go service.watchForVotingCompletedContracts()
+	go service.watchForNewVotes()
 }
 
 func (service *PrivacyService) watchForNewContracts() {
@@ -93,7 +93,7 @@ func (service *PrivacyService) watchForNewContracts() {
 
 			newContractExtension := ExtensionContract{
 				Address:                   newExtensionEvent.ToExtend,
-				AllHaveVoted:              false,
+				HasVoted:                  false,
 				Initiator:                 from,
 				ManagementContractAddress: foundLog.Address,
 				CreationData:              tx.Data(),
@@ -101,6 +101,38 @@ func (service *PrivacyService) watchForNewContracts() {
 
 			service.currentContracts[foundLog.Address] = &newContractExtension
 			service.dataHandler.Save(service.currentContracts)
+			service.mu.Unlock()
+		}
+	}
+}
+
+func (service *PrivacyService) watchForNewVotes() {
+	incomingLogs, _, _ := service.extClient.SubscribeToLogs(newVoteQuery)
+
+	for {
+		select {
+		case l := <-incomingLogs:
+			service.mu.Lock()
+
+			managementContract, ok := service.currentContracts[l.Address]
+			if !ok {
+				// we didn't have this management contract, so ignore it
+				service.mu.Unlock()
+				continue
+			}
+
+			tx, err := service.extClient.TransactionInBlock(l.BlockHash, l.TxIndex)
+			if err != nil {
+				service.mu.Unlock()
+				continue
+			}
+
+			data := common.BytesToEncryptedPayloadHash(tx.Data())
+			isSender, err := service.ptm.IsSender(data)
+			if err != nil {
+				log.Warn("couldn't determine if sender of private transaction", "tx", tx.Hash().String(), "err", err.Error())
+			}
+			managementContract.HasVoted = isSender
 			service.mu.Unlock()
 		}
 	}
@@ -125,30 +157,8 @@ func (service *PrivacyService) watchForCancelledContracts() {
 	}
 }
 
-func (service *PrivacyService) watchForVotingCompletedContracts() {
-	incomingLogs, _, _ := service.extClient.SubscribeToLogs(voteCompletedQuery)
-
-	for {
-		select {
-		case l := <-incomingLogs:
-			service.mu.Lock()
-			extensionEntry, ok := service.currentContracts[l.Address]
-			if !ok {
-				// we didn't have this management contract, so ignore it
-				service.mu.Unlock()
-				continue
-			}
-			// we aren't that bothered about the case where someone declines and emits this event
-			// because it will immediately be deleted from the API
-			extensionEntry.AllHaveVoted = true
-			service.dataHandler.Save(service.currentContracts)
-			service.mu.Unlock()
-		}
-	}
-}
-
 func (service *PrivacyService) watchForCompletionEvents() {
-	incomingLogs, _, _ := service.extClient.SubscribeToLogs(voteCompletedQuery)
+	incomingLogs, _, _ := service.extClient.SubscribeToLogs(canPerformStateShareQuery)
 
 	for {
 		select {
@@ -175,7 +185,7 @@ func (service *PrivacyService) watchForCompletionEvents() {
 			payload := common.BytesToEncryptedPayloadHash(extensionEntry.CreationData)
 			fetchedParties, err := service.ptm.GetParticipants(payload)
 			if err != nil {
-				log.Error("Extension", "Unable to fetch parties for PSV extension")
+				log.Error("Extension", "Unable to fetch all parties for extension management contract")
 				service.mu.Unlock()
 				continue
 			}
