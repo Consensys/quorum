@@ -11,22 +11,14 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/ethereum/go-ethereum/log"
-
-	"github.com/ethereum/go-ethereum/p2p/enr"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
-
-	"github.com/ethereum/go-ethereum/p2p/enode"
-
-	"github.com/ethereum/go-ethereum/eth"
-
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -69,21 +61,15 @@ func TestProtocolManager_whenAppliedIndexOutOfSync(t *testing.T) {
 		}
 	}
 	waitFunc()
-	// update the index to mimic the issue
+	// update the index to mimic the issue (set applied index behind for node 0)
 	raftNodes[0].raftProtocolManager.advanceAppliedIndex(1)
 	// now stop and restart the nodes
 	for i := 0; i < count; i++ {
 		if err := raftNodes[i].Stop(); err != nil {
 			t.Fatal(err)
 		}
-		for {
-			time.Sleep(200 * time.Millisecond)
-			if raftNodes[i].raftProtocolManager.stopped {
-				break
-			}
-		}
 	}
-	log.Debug("start raft cluster again")
+	log.Debug("restart raft cluster")
 	for i := 0; i < count; i++ {
 		if s, err := startRaftNode(uint16(i+1), ports[i], tmpWorkingDir, nodeKeys[i], peers); err != nil {
 			t.Fatal(err)
@@ -100,53 +86,6 @@ func mustNewNodeKey(t *testing.T) *ecdsa.PrivateKey {
 		t.Fatal(err)
 	}
 	return k
-}
-
-func startRaftNode(id, port uint16, tmpWorkingDir string, key *ecdsa.PrivateKey, nodes []*enode.Node) (*RaftService, error) {
-	datadir := fmt.Sprintf("%s/node%d", tmpWorkingDir, id)
-	ctx, _, err := prepareServiceContext(key)
-	if err != nil {
-		return nil, err
-	}
-	ethCfg := &eth.Config{
-		Genesis:   &core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 10000000000},
-		Etherbase: common.HexToAddress("0x8605cdbbdb6d264aa742e77020dcbc58fcdce182"),
-		Ethash: ethash.Config{
-			PowMode: ethash.ModeTest,
-		},
-	}
-	e, err := eth.New(ctx, ethCfg)
-	if err != nil {
-		return nil, err
-	}
-	s, err := New(ctx, params.QuorumTestChainConfig, id, port, false, 100*time.Millisecond, e, nodes, datadir)
-	if err != nil {
-		return nil, err
-	}
-	trustedID := enode.PubkeyToIDV4(&key.PublicKey)
-	srv := &p2p.Server{
-		Config: p2p.Config{
-			PrivateKey:   key,
-			MaxPeers:     10,
-			NoDial:       true,
-			TrustedNodes: []*enode.Node{newNode(trustedID, nil)},
-		},
-	}
-	if err := srv.Start(); err != nil {
-		return nil, fmt.Errorf("could not start: %v", err)
-	}
-	if err := s.Start(srv); err != nil {
-		return nil, err
-	}
-	return s, nil
-}
-
-func newNode(id enode.ID, ip net.IP) *enode.Node {
-	var r enr.Record
-	if ip != nil {
-		r.Set(enr.IP(ip))
-	}
-	return enode.SignNull(&r, id)
 }
 
 func nextPort(t *testing.T) uint16 {
@@ -178,4 +117,39 @@ func prepareServiceContext(key *ecdsa.PrivateKey) (ctx *node.ServiceContext, cfg
 	configField = reflect.NewAt(configField.Type(), unsafe.Pointer(configField.UnsafeAddr())).Elem()
 	configField.Set(reflect.ValueOf(cfg))
 	return
+}
+
+func startRaftNode(id, port uint16, tmpWorkingDir string, key *ecdsa.PrivateKey, nodes []*enode.Node) (*RaftService, error) {
+	datadir := fmt.Sprintf("%s/node%d", tmpWorkingDir, id)
+
+	ctx, _, err := prepareServiceContext(key)
+	if err != nil {
+		return nil, err
+	}
+
+	e, err := eth.New(ctx, &eth.Config{
+		Genesis: &core.Genesis{Config: params.QuorumTestChainConfig},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	s, err := New(ctx, params.QuorumTestChainConfig, id, port, false, 100*time.Millisecond, e, nodes, datadir)
+	if err != nil {
+		return nil, err
+	}
+
+	srv := &p2p.Server{
+		Config: p2p.Config{
+			PrivateKey: key,
+		},
+	}
+	if err := srv.Start(); err != nil {
+		return nil, fmt.Errorf("could not start: %v", err)
+	}
+	if err := s.Start(srv); err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
