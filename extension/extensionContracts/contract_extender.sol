@@ -31,7 +31,7 @@ contract ContractExtender {
     event AllNodesHaveVoted(bool outcome); //when all nodes have voted
     event CanPerformStateShare(); //when all nodes have voted & the recipient has accepted
     event ExtensionFinished(); //if the extension is cancelled or completed
-    event NewVote(); // when someone voted (either true or false)
+    event NewVote(bool vote, address voter); // when someone voted (either true or false)
     event StateShared(address toExtend, string tesserahash, string uuid); //when the state is shared and can be replayed into the database
     event UpdateMembers(address toExtend, string uuid); //to update the original transaction hash for the new party member
 
@@ -92,12 +92,12 @@ contract ContractExtender {
     // can't have voted before
     function doVote(bool vote, string memory nextuuid) public notFinished() {
         cast(vote);
-        // check if voting has finished
-        checkVotes();
         if (vote) {
             setUuid(nextuuid);
         }
-        emit NewVote();
+        // check if voting has finished
+        checkVotes();
+        emit NewVote(vote, msg.sender);
     }
 
     // this event is emitted to tell each node to use this tx as the original tx
