@@ -32,6 +32,7 @@ contract ContractExtender {
     event AllNodesHaveVoted(bool outcome); //when all nodes have voted
     event CanPerformStateShare(); //when all nodes have voted & the recipient has accepted
     event ExtensionFinished(); //if the extension is cancelled or completed
+    event NewVote(); // when someone voted (either true or false)
     event StateShared(address toExtend, string tesserahash, string uuid); //when the state is shared and can be replayed into the database
     event UpdateMembers(address toExtend, string uuid); //to update the original transaction hash for the new party member
 
@@ -62,10 +63,10 @@ contract ContractExtender {
         }
         totalNumberOfVoters = walletAddressesToVote.length;
 
+        emit NewContractExtensionContractCreated(contractAddress);
+
         //set the sender to vote true, else why would they create the contract?
         doVote(true, uuid);
-
-        emit NewContractExtensionContractCreated(contractAddress);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////
@@ -91,20 +92,13 @@ contract ContractExtender {
     // single node vote to either extend or not
     // can't have voted before
     function doVote(bool vote, string memory nextuuid) public notFinished() {
-        require(walletAddressesToVoteMap[msg.sender], "not allowed to vote");
-        require(!hasVotedMapping[msg.sender], "already voted");
-
-        hasVotedMapping[msg.sender] = true;
-        votes[msg.sender] = vote;
-        numberOfVotesSoFar++;
-        voteOutcome = voteOutcome && vote;
-
+        cast(vote);
+        // check if voting has finished
+        checkVotes();
         if (vote) {
             setUuid(nextuuid);
         }
-
-        // check if voting has finished
-        checkVotes();
+        emit NewVote();
     }
 
     // the target recipient has accepted the request to do the state share
@@ -172,4 +166,14 @@ contract ContractExtender {
         }
     }
 
+    function cast(bool vote) internal {
+        require(walletAddressesToVoteMap[msg.sender], "not allowed to vote");
+        require(!hasVotedMapping[msg.sender], "already voted");
+        require(voteOutcome, "voting already declined");
+
+        hasVotedMapping[msg.sender] = true;
+        votes[msg.sender] = vote;
+        numberOfVotesSoFar++;
+        voteOutcome = voteOutcome && vote;
+    }
 }

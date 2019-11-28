@@ -29,6 +29,13 @@ var (
 		Addresses: []common.Address{},
 	}
 
+	newVoteQuery = ethereum.FilterQuery{
+		FromBlock: nil,
+		ToBlock:   nil,
+		Topics:    [][]common.Hash{{common.HexToHash(extensionContracts.NewVoteTopicHash)}},
+		Addresses: []common.Address{},
+	}
+
 	canPerformStateShareQuery = ethereum.FilterQuery{
 		FromBlock: nil,
 		ToBlock:   nil,
@@ -39,7 +46,7 @@ var (
 
 type ExtensionContract struct {
 	Address                   common.Address `json:"address"`
-	AllHaveVoted              bool           `json:"allhavevoted"`
+	HasVoted              	  bool           `json:"hasVoted"`
 	Initiator                 common.Address `json:"initiator"`
 	ManagementContractAddress common.Address `json:"managementcontractaddress"`
 	CreationData              []byte         `json:"creationData"`
