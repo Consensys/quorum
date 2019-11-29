@@ -217,6 +217,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 	blockTimeMillis := ctx.GlobalInt(utils.RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(utils.RaftJoinExistingFlag.Name)
+	useDns := ctx.GlobalBool(utils.RaftDNSEnabledFlag.Name)
 
 	raftPort := uint16(ctx.GlobalInt(utils.RaftPortFlag.Name))
 
@@ -255,7 +256,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 		}
 
 		ethereum := <-ethChan
-		return raft.New(ctx, ethereum.ChainConfig(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir)
+		return raft.New(ctx, ethereum.ChainConfig(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, useDns)
 	}); err != nil {
 		utils.Fatalf("Failed to register the Raft service: %v", err)
 	}
@@ -274,4 +275,10 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 	if !isRaft && ethereum.ChainConfig().Istanbul == nil && ethereum.ChainConfig().Clique == nil {
 		utils.Fatalf("Consensus not specified. Exiting!!")
 	}
+}
+
+// quorumValidatePrivateTransactionManager returns whether the "PRIVATE_CONFIG"
+// environment variable is set
+func quorumValidatePrivateTransactionManager() bool {
+	return os.Getenv("PRIVATE_CONFIG") != ""
 }

@@ -155,7 +155,24 @@ Passphrase: {{.InputLine "foobar"}}
 	}
 }
 
+func TestGethDoesntStartWithoutPrivateTransactionManagerVariableSet(t *testing.T) {
+	defer SetResetPrivateConfig("")()
+
+	datadir := tmpDatadirWithKeystore(t)
+	geth := runGeth(t,
+		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
+		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a")
+	geth.ExpectExit()
+
+	expectedText := "the PRIVATE_CONFIG environment variable must be specified for Quorum"
+	result := strings.TrimSpace(geth.StderrText())
+	if result != expectedText {
+		geth.Fatalf("bad stderr text. want '%s', got '%s'", expectedText, result)
+	}
+}
+
 func TestUnlockFlagWrongPassword(t *testing.T) {
+	defer SetResetPrivateConfig("ignore")()
 	datadir := tmpDatadirWithKeystore(t)
 	geth := runGeth(t,
 		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
@@ -222,6 +239,7 @@ func TestUnlockFlagPasswordFile(t *testing.T) {
 }
 
 func TestUnlockFlagPasswordFileWrongPassword(t *testing.T) {
+	defer SetResetPrivateConfig("ignore")()
 	datadir := tmpDatadirWithKeystore(t)
 	geth := runGeth(t,
 		"--datadir", datadir, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",
@@ -271,6 +289,7 @@ In order to avoid this warning, you need to remove the following duplicate key f
 }
 
 func TestUnlockFlagAmbiguousWrongPassword(t *testing.T) {
+	defer SetResetPrivateConfig("ignore")()
 	store := filepath.Join("..", "..", "accounts", "keystore", "testdata", "dupes")
 	geth := runGeth(t,
 		"--keystore", store, "--nat", "none", "--nodiscover", "--maxpeers", "0", "--port", "0",

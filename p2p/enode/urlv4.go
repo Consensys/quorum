@@ -84,6 +84,12 @@ func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp, raftPort int) *Node {
 	if ip != nil {
 		r.Set(enr.IP(ip))
 	}
+	return newV4(pubkey, r, tcp, udp, raftPort)
+}
+
+// broken out from `func NewV4` (above) same in upstream go-ethereum, but taken out
+// to avoid code duplication b/t NewV4 and NewV4Hostname
+func newV4(pubkey *ecdsa.PublicKey, r enr.Record, tcp, udp, raftPort int) *Node {
 	if udp != 0 {
 		r.Set(enr.UDP(udp))
 	}
@@ -91,7 +97,7 @@ func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp, raftPort int) *Node {
 		r.Set(enr.TCP(tcp))
 	}
 
-	if raftPort != 0 {
+	if raftPort != 0 { // Quorum
 		r.Set(enr.RaftPort(raftPort))
 	}
 
@@ -103,10 +109,24 @@ func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp, raftPort int) *Node {
 	return n
 }
 
+// Quorum
+
+// NewV4Hostname creates a node from discovery v4 node information. The record
+// contained in the node has a zero-length signature. It sets the hostname of
+// the node instead of the IP address.
+func NewV4Hostname(pubkey *ecdsa.PublicKey, hostname string, tcp, udp, raftPort int) *Node {
+	var r enr.Record
+	if hostname != "" {
+		r.Set(enr.Hostname(hostname))
+	}
+	return newV4(pubkey, r, tcp, udp, raftPort)
+}
+
+// End-Quorum
+
 func parseComplete(rawurl string) (*Node, error) {
 	var (
 		id               *ecdsa.PublicKey
-		ip               net.IP
 		tcpPort, udpPort uint64
 	)
 	u, err := url.Parse(rawurl)
@@ -123,20 +143,8 @@ func parseComplete(rawurl string) (*Node, error) {
 	if id, err = parsePubkey(u.User.String()); err != nil {
 		return nil, fmt.Errorf("invalid node ID (%v)", err)
 	}
-	// Parse the IP address.
-	host, port, err := net.SplitHostPort(u.Host)
-	if err != nil {
-		return nil, fmt.Errorf("invalid host: %v", err)
-	}
-	if ip = net.ParseIP(host); ip == nil {
-		return nil, errors.New("invalid IP address")
-	}
-	// Ensure the IP is 4 bytes long for IPv4 addresses.
-	if ipv4 := ip.To4(); ipv4 != nil {
-		ip = ipv4
-	}
 	// Parse the port numbers.
-	if tcpPort, err = strconv.ParseUint(port, 10, 16); err != nil {
+	if tcpPort, err = strconv.ParseUint(u.Port(), 10, 16); err != nil {
 		return nil, errors.New("invalid port")
 	}
 	udpPort = tcpPort
@@ -150,17 +158,19 @@ func parseComplete(rawurl string) (*Node, error) {
 
 	var node *Node
 
+	// Quorum
 	if qv.Get("raftport") != "" {
 		raftPort, err := strconv.ParseUint(qv.Get("raftport"), 10, 16)
 		if err != nil {
 			return nil, errors.New("invalid raftport in query")
 		}
-		node = NewV4(id, ip, int(tcpPort), int(udpPort), int(raftPort))
+		node = NewV4Hostname(id, u.Hostname(), int(tcpPort), int(udpPort), int(raftPort))
 	} else {
-		node = NewV4(id, ip, int(tcpPort), int(udpPort), 0)
+		node = NewV4Hostname(id, u.Hostname(), int(tcpPort), int(udpPort), 0)
 	}
-	return node, nil
+	// End-Quorum
 
+	return node, nil
 }
 
 func HexPubkey(h string) (*ecdsa.PublicKey, error) {
