@@ -143,6 +143,8 @@ func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
 	pm.p2pServer = p2pServer
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	pm.startRaft()
+	// update raft peers info to p2p server
+	pm.p2pServer.SetCheckPeerInRaft(pm.peerExist)
 	go pm.minedBroadcastLoop()
 }
 
@@ -303,6 +305,18 @@ func (pm *ProtocolManager) isNodeAlreadyInCluster(node *enode.Node) error {
 	}
 
 	return nil
+}
+
+func (pm *ProtocolManager) peerExist(node *enode.Node) bool {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	for _, p := range pm.peers {
+		if node.ID() == p.p2pNode.ID() {
+			return true
+		}
+	}
+	return false
 }
 
 func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
