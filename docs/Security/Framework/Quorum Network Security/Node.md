@@ -45,7 +45,7 @@ preserve the Private key from compromise. In Ethereum Accounts Private keys are 
 
 !!! success "Enable Quorum Enterprise JSON-RPC authorization model to enforce atomic access controls to ledger modules functionalities (e.g personal.OpenWallet)."
 
-!!! success "Implement a robust Patch Management Prgoram, and always keep the client updated to latest stable version."
+!!! success "Implement a robust Patch Management Program, and always keep the client updated to latest stable version."
 
 !!! success "Ensure Quorum client run configuration is not started with unlocked accounts options."
 

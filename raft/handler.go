@@ -3,6 +3,7 @@ package raft
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -59,6 +60,7 @@ type ProtocolManager struct {
 
 	// P2P transport
 	p2pServer *p2p.Server // Initialized in start()
+	useDns	  bool
 
 	// Blockchain services
 	blockchain *core.BlockChain
@@ -97,7 +99,7 @@ type ProtocolManager struct {
 // Public interface
 //
 
-func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
+func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader, useDns bool) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -110,7 +112,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 		joinExisting:        joinExisting,
 		blockchain:          blockchain,
 		eventMux:            mux,
-		blockProposalC:      make(chan *types.Block),
+		blockProposalC:      make(chan *types.Block, 10),
 		confChangeProposalC: make(chan raftpb.ConfChange),
 		httpstopc:           make(chan struct{}),
 		httpdonec:           make(chan struct{}),
@@ -123,6 +125,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 		raftStorage:         etcdRaft.NewMemoryStorage(),
 		minter:              minter,
 		downloader:          downloader,
+		useDns:				 useDns,
 	}
 
 	if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
@@ -317,12 +320,15 @@ func (pm *ProtocolManager) peerExist(node *enode.Node) bool {
 }
 
 func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
+	parsedUrl, _ := url.Parse(enodeId)
 	node, err := enode.ParseV4(enodeId)
 	if err != nil {
 		return 0, err
 	}
 
-	if len(node.IP()) != 4 {
+	//use the hostname instead of the IP, since if DNS is not enabled, the hostname should *be* the IP
+	ip := net.ParseIP(parsedUrl.Hostname())
+	if !pm.useDns && (len(ip.To4()) != 4) {
 		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
 	}
 
@@ -335,12 +341,12 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string) (uint16, error) {
 	}
 
 	raftId := pm.nextRaftId()
-	address := newAddress(raftId, node.RaftPort(), node)
+	address := newAddress(raftId, node.RaftPort(), node, pm.useDns)
 
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddNode,
 		NodeID:  uint64(raftId),
-		Context: address.toBytes(),
+		Context: address.toBytes(pm.useDns),
 	}
 
 	return raftId, nil
@@ -523,7 +529,7 @@ func (pm *ProtocolManager) setLocalAddress(addr *Address) {
 	// By setting `URLs` on the raft transport, we advertise our URL (in an HTTP
 	// header) to any recipient. This is necessary for a newcomer to the cluster
 	// to be able to accept a snapshot from us to bootstrap them.
-	if urls, err := raftTypes.NewURLs([]string{raftUrl(addr)}); err == nil {
+	if urls, err := raftTypes.NewURLs([]string{pm.raftUrl(addr)}); err == nil {
 		pm.transport.URLs = urls
 	} else {
 		panic(fmt.Sprintf("error: could not create URL from local address: %v", addr))
@@ -652,8 +658,21 @@ func (pm *ProtocolManager) entriesToApply(allEntries []raftpb.Entry) (entriesToA
 	return
 }
 
-func raftUrl(address *Address) string {
-	return fmt.Sprintf("http://%s:%d", address.Ip, address.RaftPort)
+func (pm *ProtocolManager) raftUrl(address *Address) string {
+	if !pm.useDns {
+		parsedIp := net.ParseIP(address.Hostname)
+		return fmt.Sprintf("http://%s:%d", parsedIp.To4(), address.RaftPort)
+	}
+
+	if parsedIp := net.ParseIP(address.Hostname); parsedIp != nil {
+		if ipv4 := parsedIp.To4(); ipv4 != nil {
+			//this is an IPv4 address
+			return fmt.Sprintf("http://%s:%d", ipv4, address.RaftPort)
+		}
+		//this is an IPv6 address
+		return fmt.Sprintf("http://[%s]:%d", parsedIp, address.RaftPort)
+	}
+	return fmt.Sprintf("http://%s:%d", address.Hostname, address.RaftPort)
 }
 
 func (pm *ProtocolManager) addPeer(address *Address) {
@@ -670,11 +689,11 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 	}
 
 	// Add P2P connection:
-	p2pNode := enode.NewV4(pubKey, address.Ip, int(address.P2pPort), 0, int(address.RaftPort))
+	p2pNode := enode.NewV4Hostname(pubKey, address.Hostname, int(address.P2pPort), 0, int(address.RaftPort))
 	pm.p2pServer.AddPeer(p2pNode)
 
 	// Add raft transport connection:
-	pm.transport.AddPeer(raftTypes.ID(raftId), []string{raftUrl(address)})
+	pm.transport.AddPeer(raftTypes.ID(raftId), []string{pm.raftUrl(address)})
 	pm.peers[raftId] = &Peer{address, p2pNode}
 }
 
@@ -862,10 +881,10 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		// We initially get the raftPort from the enode ID's query string. As an alternative, we can move away from
 		// requiring the use of static peers for the initial set, and load them from e.g. another JSON file which
 		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
-		address := newAddress(raftId, node.RaftPort(), node)
+		address := newAddress(raftId, node.RaftPort(), node, pm.useDns)
 		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
-			Context: address.toBytes(),
+			Context: address.toBytes(pm.useDns),
 		}
 
 		if raftId == pm.raftId {
