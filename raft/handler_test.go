@@ -134,7 +134,7 @@ func startRaftNode(id, port uint16, tmpWorkingDir string, key *ecdsa.PrivateKey,
 		return nil, err
 	}
 
-	s, err := New(ctx, params.QuorumTestChainConfig, id, port, false, 100*time.Millisecond, e, nodes, datadir)
+	s, err := New(ctx, params.QuorumTestChainConfig, id, port, false, 100*time.Millisecond, e, nodes, datadir, false)
 	if err != nil {
 		return nil, err
 	}
