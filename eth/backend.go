@@ -171,11 +171,12 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		bloomIndexer:   NewBloomIndexer(chainDb, params.BloomBitsBlocks, params.BloomConfirms),
 	}
 
-	// Quorum - set ProtocolVersion for Istanbul
-	if _, ok := eth.engine.(consensus.Istanbul); ok {
-		prot := eth.engine.Protocol()
-		ProtocolVersions = prot.Versions
-		protocolName = prot.Name
+	// Quorum: Set protocol Name/Version
+	if chainConfig.IsQuorum {
+		quorumProtocol := eth.engine.Protocol()
+		protocolName = quorumProtocol.Name
+		ProtocolVersions = quorumProtocol.Versions
+		protocolLengths = quorumProtocol.Lengths
 	}
 
 	// force to set the istanbul etherbase to node key address

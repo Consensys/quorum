@@ -209,22 +209,14 @@ func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCh
 }
 
 func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
-	// Quorum: Set p2p.Protocol for IBFT
-	var length uint64
-	if _, ok := pm.engine.(consensus.Istanbul); ok {
-		prot := pm.engine.Protocol()
-		version = prot.Versions[0]
-		length = uint64(prot.Lengths[0])
-	} else {
-		// Default to Eth protocol
-		length, ok = protocolLengths[version]
-		if !ok {
-			panic("makeProtocol for unknown version")
-		}
+	// Quorum: Set p2p.Protocol info from engine.Protocol()
+	length, ok := pm.engine.Protocol().Lengths[version]
+	if !ok {
+		panic("makeProtocol for unknown version")
 	}
 
 	return p2p.Protocol{
-		Name:    protocolName,
+		Name:    pm.engine.Protocol().Name,
 		Version: version,
 		Length:  length,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {

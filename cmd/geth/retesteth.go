@@ -197,11 +197,7 @@ type NoRewardEngine struct {
 }
 
 func (sb *NoRewardEngine) Protocol() consensus.Protocol {
-	return consensus.Protocol{
-		Name:     "Norewards",
-		Versions: []uint{0},
-		Lengths:  []uint64{0},
-	}
+	return consensus.NorewardsProtocol
 }
 
 func (e *NoRewardEngine) Author(header *types.Header) (common.Address, error) {
