@@ -933,8 +933,9 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	// If raft is running, check if the dialing node is in the raft cluster
 	// Node doesn't belong to raft cluster is not allowed to join the p2p network
 	if srv.checkPeerInRaft != nil && !srv.checkPeerInRaft(c.node) {
-		log.Trace("incoming connection peer is not in the raft cluster", "enode.id", c.node.ID())
-		return nil
+		node := c.node.ID().String()
+		log.Trace("incoming connection peer is not in the raft cluster", "enode.id", node)
+		return newPeerError(errNotInRaftCluster, "id=%s…%s", node[:4], node[len(node)-4:])
 	}
 
 	//START - QUORUM Permissioning
@@ -960,7 +961,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 		}
 
 		if !isNodePermissioned(node, currentNode, srv.DataDir, direction) {
-			return nil
+			return newPeerError(errPermissionDenied, "id=%s…%s %s id=%s…%s", currentNode[:4], currentNode[len(currentNode)-4:], direction, node[:4], node[len(node)-4:])
 		}
 	} else {
 		clog.Trace("Node Permissioning is Disabled.")
