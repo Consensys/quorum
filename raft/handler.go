@@ -11,29 +11,27 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
-
+	"github.com/coreos/etcd/etcdserver/stats"
 	"github.com/coreos/etcd/pkg/fileutil"
+	raftTypes "github.com/coreos/etcd/pkg/types"
+	etcdRaft "github.com/coreos/etcd/raft"
+	"github.com/coreos/etcd/raft/raftpb"
+	"github.com/coreos/etcd/rafthttp"
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal"
+	mapset "github.com/deckarep/golang-set"
+	"github.com/syndtr/goleveldb/leveldb"
+	"golang.org/x/net/context"
+
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/rlp"
-
-	"github.com/coreos/etcd/etcdserver/stats"
-	raftTypes "github.com/coreos/etcd/pkg/types"
-	etcdRaft "github.com/coreos/etcd/raft"
-	"github.com/coreos/etcd/raft/raftpb"
-	"github.com/coreos/etcd/rafthttp"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/syndtr/goleveldb/leveldb"
-
-	mapset "github.com/deckarep/golang-set"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type ProtocolManager struct {
@@ -445,6 +443,19 @@ func (pm *ProtocolManager) startRaft() {
 				// Roll back our applied index. See the logic and explanation around
 				// the single call to `pm.applyNewChainHead` for more context.
 				lastAppliedIndex = lastPersistedCommittedIndex
+			}
+
+			// fix raft applied index out of range
+			firstIndex, err := pm.raftStorage.FirstIndex()
+			if err != nil {
+				panic(fmt.Sprintf("failed to read last persisted applied index from raft while restarting: %v", err))
+			}
+			lastPersistedAppliedIndex := firstIndex - 1
+			if lastPersistedAppliedIndex > lastAppliedIndex {
+				log.Debug("set lastAppliedIndex to lastPersistedAppliedIndex", "last applied index", lastAppliedIndex, "last persisted applied index", lastPersistedAppliedIndex)
+
+				lastAppliedIndex = lastPersistedAppliedIndex
+				pm.advanceAppliedIndex(lastAppliedIndex)
 			}
 		}
 	}
