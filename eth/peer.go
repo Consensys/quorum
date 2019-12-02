@@ -360,7 +360,7 @@ func (p *peer) RequestReceipts(hashes []common.Hash) error {
 
 // Handshake executes the eth protocol handshake, negotiating version number,
 // network IDs, difficulties, head and genesis blocks.
-func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis common.Hash, forkID forkid.ID, forkFilter forkid.Filter) error {
+func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis common.Hash, forkID forkid.ID, forkFilter forkid.Filter, protocolName string) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 
@@ -370,7 +370,7 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 	)
 	go func() {
 		switch {
-		case p.version == eth63:
+		case p.version == eth63 || protocolName == "istanbul":
 			errc <- p2p.Send(p.rw, StatusMsg, &statusData63{
 				ProtocolVersion: uint32(p.version),
 				NetworkId:       network,
@@ -393,7 +393,7 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 	}()
 	go func() {
 		switch {
-		case p.version == eth63:
+		case p.version == eth63 || protocolName == "istanbul":
 			errc <- p.readStatusLegacy(network, &status63, genesis)
 		case p.version == eth64:
 			errc <- p.readStatus(network, &status, genesis, forkFilter)
@@ -414,7 +414,7 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 		}
 	}
 	switch {
-	case p.version == eth63:
+	case p.version == eth63 || protocolName == "istanbul":
 		p.td, p.head = status63.TD, status63.CurrentBlock
 	case p.version == eth64:
 		p.td, p.head = status.TD, status.Head
