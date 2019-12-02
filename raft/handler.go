@@ -431,9 +431,40 @@ func (pm *ProtocolManager) startRaft() {
 		maybeRaftSnapshot = pm.loadSnapshot() // re-establishes peer connections
 	}
 
-	pm.wal = pm.replayWAL(maybeRaftSnapshot)
+	loadedWal, entries := pm.replayWAL(maybeRaftSnapshot)
+	pm.wal = loadedWal
 
 	if walExisted {
+
+		// If we shutdown but didn't manage to flush the state to disk, then it will be the case that we will only sync
+		// up to the snapshot. In this case, we can replay the raft entries that we have in saved to replay the blocks
+		// back into our chain. We output errors but cannot do much if one occurs, since we can't fork to a different
+		// chain and all other nodes in the network have confirmed these blocks
+		if maybeRaftSnapshot != nil {
+			currentChainHead := pm.blockchain.CurrentBlock().Number()
+			for _, entry := range entries {
+				if entry.Type == raftpb.EntryNormal {
+					var block types.Block
+					if err := rlp.DecodeBytes(entry.Data, &block); err != nil {
+						log.Error("error decoding block: ", "err", err)
+						continue
+					}
+
+					if thisBlockHead := pm.blockchain.GetBlockByHash(block.Hash()); thisBlockHead != nil {
+						// check if the block is already existing in the local chain
+						// and the block number is greater than current chain head
+						if thisBlockHeadNum := thisBlockHead.Number(); thisBlockHeadNum.Cmp(currentChainHead) > 0 {
+							// insert the block only if its already seen
+							blocks := []*types.Block{&block}
+							if _, err := pm.blockchain.InsertChain(blocks); err != nil {
+								log.Error("error inserting the block into the chain", "number", block.NumberU64(), "hash", block.Hash(), "err", err)
+							}
+						}
+					}
+				}
+			}
+		}
+
 		if hardState, _, err := pm.raftStorage.InitialState(); err != nil {
 			panic(fmt.Sprintf("failed to read initial state from raft while restarting: %v", err))
 		} else {
