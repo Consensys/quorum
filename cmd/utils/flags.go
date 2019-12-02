@@ -604,6 +604,10 @@ var (
 		Usage: "The port to bind for the raft transport",
 		Value: 50400,
 	}
+	RaftDNSEnabledFlag = cli.BoolFlag{
+		Name: "raftdnsenable",
+		Usage: "Enable DNS resolution of peers",
+	}
 
 	// Quorum
 	EnableNodePermissionFlag = cli.BoolFlag{

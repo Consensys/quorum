@@ -1,8 +1,10 @@
 package raft
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -10,29 +12,26 @@ import (
 	"sync"
 	"time"
 
-	"context"
-
+	"github.com/coreos/etcd/etcdserver/stats"
 	"github.com/coreos/etcd/pkg/fileutil"
+	raftTypes "github.com/coreos/etcd/pkg/types"
+	etcdRaft "github.com/coreos/etcd/raft"
+	"github.com/coreos/etcd/raft/raftpb"
+	"github.com/coreos/etcd/rafthttp"
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal"
+	mapset "github.com/deckarep/golang-set"
+	"github.com/syndtr/goleveldb/leveldb"
+
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/rlp"
-
-	"github.com/coreos/etcd/etcdserver/stats"
-	raftTypes "github.com/coreos/etcd/pkg/types"
-	etcdRaft "github.com/coreos/etcd/raft"
-	"github.com/coreos/etcd/raft/raftpb"
-	"github.com/coreos/etcd/rafthttp"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/syndtr/goleveldb/leveldb"
-
-	mapset "github.com/deckarep/golang-set"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type ProtocolManager struct {
@@ -59,6 +58,7 @@ type ProtocolManager struct {
 
 	// P2P transport
 	p2pServer *p2p.Server // Initialized in start()
+	useDns    bool
 
 	// Blockchain services
 	blockchain *core.BlockChain
@@ -99,7 +99,7 @@ var errNoLeaderElected = errors.New("no leader is currently elected")
 // Public interface
 //
 
-func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader) (*ProtocolManager, error) {
+func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader, useDns bool) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -125,6 +125,7 @@ func NewProtocolManager(raftId uint16, raftPort uint16, blockchain *core.BlockCh
 		raftStorage:         etcdRaft.NewMemoryStorage(),
 		minter:              minter,
 		downloader:          downloader,
+		useDns:              useDns,
 	}
 
 	if db, err := openQuorumRaftDb(quorumRaftDbLoc); err != nil {
@@ -142,6 +143,8 @@ func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
 	pm.p2pServer = p2pServer
 	pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	pm.startRaft()
+	// update raft peers info to p2p server
+	pm.p2pServer.SetCheckPeerInRaft(pm.peerExist)
 	go pm.minedBroadcastLoop()
 }
 
@@ -306,17 +309,31 @@ func (pm *ProtocolManager) isNodeAlreadyInCluster(node *enode.Node) error {
 	return nil
 }
 
+func (pm *ProtocolManager) peerExist(node *enode.Node) bool {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	for _, p := range pm.peers {
+		if node.ID() == p.p2pNode.ID() {
+			return true
+		}
+	}
+	return false
+}
+
 func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint16, error) {
 	if pm.isLearnerNode() {
 		return 0, errors.New("learner node can't add peer or learner")
 	}
-
+	parsedUrl, _ := url.Parse(enodeId)
 	node, err := enode.ParseV4(enodeId)
 	if err != nil {
 		return 0, err
 	}
 
-	if len(node.IP()) != 4 {
+	//use the hostname instead of the IP, since if DNS is not enabled, the hostname should *be* the IP
+	ip := net.ParseIP(parsedUrl.Hostname())
+	if !pm.useDns && (len(ip.To4()) != 4) {
 		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
 	}
 
@@ -329,7 +346,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 	}
 
 	raftId := pm.nextRaftId()
-	address := newAddress(raftId, node.RaftPort(), node)
+	address := newAddress(raftId, node.RaftPort(), node, pm.useDns)
 
 	confChangeType := raftpb.ConfChangeAddNode
 
@@ -340,7 +357,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    confChangeType,
 		NodeID:  uint64(raftId),
-		Context: address.toBytes(),
+		Context: address.toBytes(pm.useDns),
 	}
 
 	return raftId, nil
@@ -461,6 +478,19 @@ func (pm *ProtocolManager) startRaft() {
 				// the single call to `pm.applyNewChainHead` for more context.
 				lastAppliedIndex = lastPersistedCommittedIndex
 			}
+
+			// fix raft applied index out of range
+			firstIndex, err := pm.raftStorage.FirstIndex()
+			if err != nil {
+				panic(fmt.Sprintf("failed to read last persisted applied index from raft while restarting: %v", err))
+			}
+			lastPersistedAppliedIndex := firstIndex - 1
+			if lastPersistedAppliedIndex > lastAppliedIndex {
+				log.Debug("set lastAppliedIndex to lastPersistedAppliedIndex", "last applied index", lastAppliedIndex, "last persisted applied index", lastPersistedAppliedIndex)
+
+				lastAppliedIndex = lastPersistedAppliedIndex
+				pm.advanceAppliedIndex(lastAppliedIndex)
+			}
 		}
 	}
 
@@ -543,7 +573,7 @@ func (pm *ProtocolManager) setLocalAddress(addr *Address) {
 	// By setting `URLs` on the raft transport, we advertise our URL (in an HTTP
 	// header) to any recipient. This is necessary for a newcomer to the cluster
 	// to be able to accept a snapshot from us to bootstrap them.
-	if urls, err := raftTypes.NewURLs([]string{raftUrl(addr)}); err == nil {
+	if urls, err := raftTypes.NewURLs([]string{pm.raftUrl(addr)}); err == nil {
 		pm.transport.URLs = urls
 	} else {
 		panic(fmt.Sprintf("error: could not create URL from local address: %v", addr))
@@ -706,8 +736,21 @@ func (pm *ProtocolManager) entriesToApply(allEntries []raftpb.Entry) (entriesToA
 	return
 }
 
-func raftUrl(address *Address) string {
-	return fmt.Sprintf("http://%s:%d", address.Ip, address.RaftPort)
+func (pm *ProtocolManager) raftUrl(address *Address) string {
+	if !pm.useDns {
+		parsedIp := net.ParseIP(address.Hostname)
+		return fmt.Sprintf("http://%s:%d", parsedIp.To4(), address.RaftPort)
+	}
+
+	if parsedIp := net.ParseIP(address.Hostname); parsedIp != nil {
+		if ipv4 := parsedIp.To4(); ipv4 != nil {
+			//this is an IPv4 address
+			return fmt.Sprintf("http://%s:%d", ipv4, address.RaftPort)
+		}
+		//this is an IPv6 address
+		return fmt.Sprintf("http://[%s]:%d", parsedIp, address.RaftPort)
+	}
+	return fmt.Sprintf("http://%s:%d", address.Hostname, address.RaftPort)
 }
 
 func (pm *ProtocolManager) addPeer(address *Address) {
@@ -724,11 +767,11 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 	}
 
 	// Add P2P connection:
-	p2pNode := enode.NewV4(pubKey, address.Ip, int(address.P2pPort), 0, int(address.RaftPort))
+	p2pNode := enode.NewV4Hostname(pubKey, address.Hostname, int(address.P2pPort), 0, int(address.RaftPort))
 	pm.p2pServer.AddPeer(p2pNode)
 
 	// Add raft transport connection:
-	pm.transport.AddPeer(raftTypes.ID(raftId), []string{raftUrl(address)})
+	pm.transport.AddPeer(raftTypes.ID(raftId), []string{pm.raftUrl(address)})
 	pm.peers[raftId] = &Peer{address, p2pNode}
 }
 
@@ -817,7 +860,11 @@ func (pm *ProtocolManager) eventLoop() {
 						headBlockHash := pm.blockchain.CurrentBlock().Hash()
 						log.Warn("not applying already-applied block", "block hash", block.Hash(), "parent", block.ParentHash(), "head", headBlockHash)
 					} else {
-						pm.applyNewChainHead(&block)
+						if !pm.applyNewChainHead(&block) {
+							// return false only if insert chain is interrupted
+							// stop eventloop
+							return
+						}
 					}
 
 				case raftpb.EntryConfChange:
@@ -920,10 +967,10 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		// We initially get the raftPort from the enode ID's query string. As an alternative, we can move away from
 		// requiring the use of static peers for the initial set, and load them from e.g. another JSON file which
 		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
-		address := newAddress(raftId, node.RaftPort(), node)
+		address := newAddress(raftId, node.RaftPort(), node, pm.useDns)
 		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
-			Context: address.toBytes(),
+			Context: address.toBytes(pm.useDns),
 		}
 
 		if raftId == pm.raftId {
@@ -941,7 +988,7 @@ func blockExtendsChain(block *types.Block, chain *core.BlockChain) bool {
 	return block.ParentHash() == chain.CurrentBlock().Hash()
 }
 
-func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
+func (pm *ProtocolManager) applyNewChainHead(block *types.Block) bool {
 	if !blockExtendsChain(block, pm.blockchain) {
 		headBlock := pm.blockchain.CurrentBlock()
 
@@ -962,11 +1009,16 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) {
 		_, err := pm.blockchain.InsertChain([]*types.Block{block})
 
 		if err != nil {
+			if err == core.ErrAbortBlocksProcessing {
+				log.Error(fmt.Sprintf("failed to extend chain: %s", err.Error()))
+				return false
+			}
 			panic(fmt.Sprintf("failed to extend chain: %s", err.Error()))
 		}
 
 		log.EmitCheckpoint(log.BlockCreated, "block", fmt.Sprintf("%x", block.Hash()))
 	}
+	return true
 }
 
 // Sets new appliedIndex in-memory, *and* writes this appliedIndex to LevelDB.
