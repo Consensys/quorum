@@ -101,6 +101,7 @@ type ProtocolManager struct {
 	// and processing
 	wg sync.WaitGroup
 
+	// Quorum
 	raftMode bool
 	engine   consensus.Engine
 }
@@ -125,9 +126,11 @@ func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCh
 		engine:      engine,
 	}
 
+	// Quorum
 	if handler, ok := manager.engine.(consensus.Handler); ok {
 		handler.SetBroadcaster(manager)
 	}
+	// /Quorum
 
 	if mode == downloader.FullSync {
 		// The database seems empty as the current block is the genesis. Yet the fast
@@ -206,21 +209,14 @@ func NewProtocolManager(config *params.ChainConfig, checkpoint *params.TrustedCh
 }
 
 func (pm *ProtocolManager) makeProtocol(version uint) p2p.Protocol {
-	var prot consensus.Protocol
-	var length uint64
-	ok := false
-	if _, ok = pm.engine.(consensus.Istanbul); ok {
-		prot = pm.engine.Protocol()
-		length = uint64(prot.Lengths[0])
-	} else {
-		length, ok = protocolLengths[version]
-		if !ok {
-			panic("makeProtocol for unknown version")
-		}
+	// Quorum: Set p2p.Protocol info from engine.Protocol()
+	length, ok := pm.engine.Protocol().Lengths[version]
+	if !ok {
+		panic("makeProtocol for unknown version")
 	}
 
 	return p2p.Protocol{
-		Name:    protocolName,
+		Name:    pm.engine.Protocol().Name,
 		Version: version,
 		Length:  length,
 		Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
@@ -273,6 +269,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
 	go pm.txBroadcastLoop()
 
+	// Quorum
 	if !pm.raftMode {
 		// broadcast mined blocks
 		pm.minedBlockSub = pm.eventMux.Subscribe(core.NewMinedBlockEvent{})
@@ -283,6 +280,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 		// this would never be set otherwise.
 		atomic.StoreUint32(&pm.acceptTxs, 1)
 	}
+	// /Quorum
 
 	// start sync handlers
 	go pm.syncer()
@@ -337,7 +335,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		number  = head.Number.Uint64()
 		td      = pm.blockchain.GetTd(hash, number)
 	)
-	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash(), forkid.NewID(pm.blockchain), pm.forkFilter); err != nil {
+	if err := p.Handshake(pm.networkID, td, hash, genesis.Hash(), forkid.NewID(pm.blockchain), pm.forkFilter, pm.engine.Protocol().Name); err != nil {
 		p.Log().Debug("Ethereum handshake failed", "err", err)
 		return err
 	}
@@ -406,6 +404,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	}
 	defer msg.Discard()
 
+	// Quorum
 	if pm.raftMode {
 		if msg.Code != TxMsg &&
 			msg.Code != GetBlockHeadersMsg && msg.Code != BlockHeadersMsg &&
@@ -423,6 +422,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			return err
 		}
 	}
+	// /Quorum
 
 	// Handle the message depending on its contents
 	switch {
@@ -789,6 +789,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	return nil
 }
 
+// Quorum
 func (pm *ProtocolManager) Enqueue(id string, block *types.Block) {
 	pm.fetcher.Enqueue(id, block)
 }
@@ -896,7 +897,6 @@ type NodeInfo struct {
 // NodeInfo retrieves some protocol metadata about the running host node.
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	currentBlock := pm.blockchain.CurrentBlock()
-
 	return &NodeInfo{
 		Network:    pm.networkID,
 		Difficulty: pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64()),
@@ -907,6 +907,7 @@ func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	}
 }
 
+// Quorum
 func (pm *ProtocolManager) getConsensusAlgorithm() string {
 	var consensusAlgo string
 	if pm.raftMode { // raft does not use consensus interface

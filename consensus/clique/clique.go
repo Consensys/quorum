@@ -739,5 +739,5 @@ func encodeSigHeader(w io.Writer, header *types.Header) {
 
 // Protocol implements consensus.Engine.Protocol
 func (c *Clique) Protocol() consensus.Protocol {
-	return consensus.EthProtocol
+	return consensus.CliqueProtocol
 }

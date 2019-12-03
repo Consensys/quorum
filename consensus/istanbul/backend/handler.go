@@ -45,11 +45,7 @@ var (
 
 // Protocol implements consensus.Engine.Protocol
 func (sb *backend) Protocol() consensus.Protocol {
-	return consensus.Protocol{
-		Name:     "istanbul",
-		Versions: []uint{64},
-		Lengths:  []uint64{18},
-	}
+	return consensus.IstanbulProtocol
 }
 
 func (sb *backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {

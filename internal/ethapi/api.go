@@ -360,18 +360,18 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args *SendTxArg
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return nil, err
 	}
-
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
 
+	// Quorum
 	if args.IsPrivate() {
 		tx.SetPrivate()
 	}
-
 	var chainID *big.Int
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !tx.IsPrivate() {
 		chainID = config.ChainID
 	}
+	// /Quorum
 
 	return wallet.SignTxWithPassphrase(account, passwd, tx, chainID)
 }
@@ -1394,7 +1394,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	return fields, nil
 }
 
-// quorum: if signing a private TX set with tx.SetPrivate() before calling this method.
+// Quorum: if signing a private TX, set with tx.SetPrivate() before calling this method.
 // sign is a helper function that signs a transaction with the private key of the given address.
 func (s *PublicTransactionPoolAPI) sign(addr common.Address, tx *types.Transaction) (*types.Transaction, error) {
 	// Look up the wallet containing the requested signer
@@ -1404,11 +1404,15 @@ func (s *PublicTransactionPoolAPI) sign(addr common.Address, tx *types.Transacti
 	if err != nil {
 		return nil, err
 	}
-	// Request the wallet to sign the transaction
+
+	// Quorum
 	var chainID *big.Int
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !tx.IsPrivate() {
 		chainID = config.ChainID
 	}
+	// /Quorum
+
+	// Request the wallet to sign the transaction
 	return wallet.SignTx(account, tx, chainID)
 }
 
@@ -1727,21 +1731,21 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Sen
 		gas := (hexutil.Uint64)(90000)
 		args.Gas = (*hexutil.Uint64)(&gas)
 	}
+	// /Quorum
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return nil, err
 	}
-
+	// Quorum
 	toSign := args.toTransaction()
 
 	if args.IsPrivate() {
 		toSign.SetPrivate()
 	}
-
+	// /Quorum
 	tx, err := s.sign(args.From, toSign)
 	if err != nil {
 		return nil, err
 	}
-
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
 		return nil, err

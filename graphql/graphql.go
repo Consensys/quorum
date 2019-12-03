@@ -802,7 +802,6 @@ func (b *Block) Call(ctx context.Context, args struct {
 			return nil, err
 		}
 	}
-
 	result, gas, failed, err := ethapi.DoCall(ctx, b.backend, args.Data, *b.numberOrHash, nil, vm.Config{}, 5*time.Second, b.backend.RPCGasCap())
 	status := hexutil.Uint64(1)
 	if failed {
