@@ -25,7 +25,7 @@ import (
 // pm.advanceAppliedIndex() and state updates are in different
 // transaction boundaries hence there's a probablity that they are
 // out of sync due to premature shutdown
-func TestProtocolManager_whenAppliedIndexOutOfSync(t *testing.T) {
+func IgnoreTestProtocolManager_whenAppliedIndexOutOfSync(t *testing.T) {
 	tmpWorkingDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatal(err)
