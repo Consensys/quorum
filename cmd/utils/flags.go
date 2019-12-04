@@ -598,6 +598,7 @@ var (
 		Usage: "The raft ID to assume when joining an pre-existing cluster",
 		Value: 0,
 	}
+
 	EmitCheckpointsFlag = cli.BoolFlag{
 		Name:  "emitcheckpoints",
 		Usage: "If enabled, emit specially formatted logging checkpoints",
@@ -606,6 +607,10 @@ var (
 		Name:  "raftport",
 		Usage: "The port to bind for the raft transport",
 		Value: 50400,
+	}
+	RaftDNSEnabledFlag = cli.BoolFlag{
+		Name: "raftdnsenable",
+		Usage: "Enable DNS resolution of peers",
 	}
 
 	// Quorum
@@ -898,10 +903,11 @@ func makeDatabaseHandles() int {
 	if err != nil {
 		Fatalf("Failed to retrieve file descriptor allowance: %v", err)
 	}
-	if err := fdlimit.Raise(uint64(limit)); err != nil {
+	raised, err := fdlimit.Raise(uint64(limit))
+	if err != nil {
 		Fatalf("Failed to raise file descriptor allowance: %v", err)
 	}
-	return limit / 2 // Leave half for networking and other stuff
+	return int(raised / 2) // Leave half for networking and other stuff
 }
 
 // MakeAddress converts an account specified directly as a hex encoded string or
@@ -1286,11 +1292,6 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	}
 	cfg.NoPruning = ctx.GlobalString(GCModeFlag.Name) == "archive"
 
-	//Quorum - set gcmode=archive for Raft
-	if ctx.GlobalBool(RaftModeFlag.Name) {
-		log.Info("set gcmode=archive for Raft")
-		cfg.NoPruning = true
-	}
 
 	if ctx.GlobalIsSet(CacheFlag.Name) || ctx.GlobalIsSet(CacheGCFlag.Name) {
 		cfg.TrieCache = ctx.GlobalInt(CacheFlag.Name) * ctx.GlobalInt(CacheGCFlag.Name) / 100
@@ -1572,15 +1573,8 @@ func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chai
 		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)
 	}
 
-	trieWriteCacheDisabled := ctx.GlobalString(GCModeFlag.Name) == "archive"
-	//Quorum - set gcmode=archive for Raft
-	if !trieWriteCacheDisabled && ctx.GlobalBool(RaftModeFlag.Name) {
-		log.Info("set gcmode=archive for Raft")
-		trieWriteCacheDisabled = true
-	}
-
 	cache := &core.CacheConfig{
-		Disabled:      trieWriteCacheDisabled,
+		Disabled:      ctx.GlobalString(GCModeFlag.Name) == "archive",
 		TrieNodeLimit: eth.DefaultConfig.TrieCache,
 		TrieTimeLimit: eth.DefaultConfig.TrieTimeout,
 	}

@@ -135,11 +135,13 @@ var (
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		configFileFlag,
+		// Quorum
 		utils.EnableNodePermissionFlag,
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,
 		utils.RaftPortFlag,
+		utils.RaftDNSEnabledFlag,
 		utils.EmitCheckpointsFlag,
 		utils.IstanbulRequestTimeoutFlag,
 		utils.IstanbulBlockPeriodFlag,
@@ -147,6 +149,7 @@ var (
 		utils.PluginSkipVerifyFlag,
 		utils.PluginLocalVerifyFlag,
 		utils.PluginPublicKeyFlag,
+		// End-Quorum
 	}
 
 	rpcFlags = []cli.Flag{

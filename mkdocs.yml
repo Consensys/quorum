@@ -84,6 +84,8 @@ nav:
         - Overview: Cakeshop/Overview.md
         - Getting Started: Cakeshop/Getting started.md
         - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
+    - Quorum Features:
+        - DNS: Features/dns.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
