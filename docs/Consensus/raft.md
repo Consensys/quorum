@@ -13,9 +13,33 @@ When the `geth` binary is passed the `--raft` flag, the node will operate in "ra
 
 Both Raft and Ethereum have their own notion of a "node":
 
-In Raft, a node in normal operation is either a "leader" or a "follower." There is a single leader for the entire cluster, which all log entries must flow through. There's also the concept of a "candidate", but only during leader election. We won't go into more detail about Raft here, because by design these details are opaque to applications built on it.
+In Raft, a node in normal operation can be a "leader", "follower" or "learner." There is a single leader for the entire cluster, through which all log entries must flow through. There's also the concept of a "candidate", but only during leader election. We won't go into more detail about Raft here, because by design these details are opaque to applications built on it. A Raft network can be started with a set of verifiers and one of them would get elected as a leader when the network starts. If the leader node dies, re-election is triggered and new leader is elected by the network. Once the network is up additional verifier nodes(peers) or learner nodes can be added to this network. Brief summary of each type of nodes is given below:
 
-In vanilla Ethereum, there is no such thing as a "leader" or "follower." It's possible for any node in the network to mine a new block -- which is akin to being the leader for that round.
+### Leader
+- mints blocks and sends the blocks to the verifier and learner nodes
+- takes part in voting during re-election and can become verifier if it does not win majority of votes
+- the network triggers re-election if the leader node dies. 
+- can add/remove learner/verifier and promote learner to verifier
+
+### Verifier
+- follows the leader
+- applies the blocks minted by the leader
+- takes part in voting during re-election and can become leader if it wins majority of votes
+- sends confirmation to leader
+- can add/remove learner/verifier and promote learner to verifier
+
+### Learner
+- follows the leader
+- applies the blocks minted by the leader 
+- cannot take part in voting during re-election
+- cannot become a verifier on its own
+- it needs to be promoted to be a verifier by a leader or verifier 
+- it cannot add learner/verifier or promote learner to verifier
+- it cannot remove other learner/verifier but it can remove itself
+
+It should be noted that when a node is added/removed as a verifier (peer), it impacts the Raft Quorum. However adding a node as learner does not change the Raft Quroum. Hence its recommended that when a new node is added to a long running network, the node is first added as a learner. Once the learner node syncs fully with the network, it can then be promoted to become a verifier.
+
+In vanilla Ethereum, there is no such thing as a "leader", "learner" or "follower." It's possible for any node in the network to mine a new block -- which is akin to being the leader for that round.
 
 In Raft-based consensus, we impose a one-to-one correspondence between Raft and Ethereum nodes: each Ethereum node is also a Raft node, and by convention, the leader of the Raft cluster is the only Ethereum node that should mine (or "mint") new blocks. A minter is responsible for bundling transactions into a block just like an Ethereum miner, but does not present a proof of work.
 
@@ -23,6 +47,8 @@ Ethereum | Raft
 -------- | ----
 minter   | leader
 verifier | follower
+
+A learner node is passive node that just syncs blocks and can initiate transactions. 
 
 The main reasons we co-locate the leader and minter are (1) convenience, in that Raft ensures there is only one leader at a time, and (2) to avoid a network hop from a node minting blocks to the leader, through which all Raft writes must flow. Our implementation watches Raft leadership changes -- if a node becomes a leader it will start minting, and if a node loses its leadership, it will stop minting.
 
@@ -34,11 +60,12 @@ When the minter creates a block, unlike in vanilla Ethereum where the block is w
 
 From the point of view of Ethereum, Raft is integrated via an implementation of the [`Service`](https://godoc.org/github.com/jpmorganchase/quorum/node#Service) interface in [`node/service.go`](https://github.com/jpmorganchase/quorum/blob/master/node/service.go): "an individual protocol that can be registered into a node". Other examples of services are [`Ethereum`](https://godoc.org/github.com/jpmorganchase/quorum/eth#Ethereum) and [`Whisper`](https://godoc.org/github.com/jpmorganchase/quorum/whisper/whisperv5#Whisper).
 
+
 ## The lifecycle of a transaction
 
 Let's follow the lifecycle of a typical transaction:
 
-#### on any node (whether minter or verifier):
+#### on any node (whether minter, verifier or learner):
 
 1. The transaction is submitted via an RPC call to geth.
 2. Using the existing (p2p) transaction propagation mechanism in Ethereum, the transaction is announced to all peers and, because our cluster is currently configured to use "static nodes," every transaction is sent to all peers in the cluster.
@@ -155,7 +182,11 @@ Currently Raft-based consensus requires that all _initial_ nodes in the cluster 
 
 To remove a node from the cluster, attach to a JS console and issue `raft.removePeer(raftId)`, where `raftId` is the number of the node you wish to remove. For initial nodes in the cluster, this number is the 1-indexed position of the node's enode ID in the static peers list. Once a node has been removed from the cluster, it is permanent; this raft ID can not ever re-connect to the cluster in the future, and the party must re-join the cluster with a new raft ID.
 
-To add a node to the cluster, attach to a JS console and issue `raft.addPeer(enodeId)`. Note that like the enode IDs listed in the static peers JSON file, this enode ID should include a `raftport` querystring parameter. This call will allocate and return a raft ID that was not already in use. After `addPeer`, start the new geth node with the flag `--raftjoinexisting RAFTID` in addition to `--raft`.
+* To add a verifier node to the cluster, attach to a JS console and issue `raft.addPeer(enodeId)`
+* To add a learner node to the cluster, attach to a JS console and issue `raft.addLearner(enodeId)` 
+* To promote a learner to become verifier in the cluster, attach to a JS console of leader/verifier node and issue `raft.promoteToPeer(raftId)`. 
+
+Note that like the enode IDs listed in the static peers JSON file, this enode ID should include a `raftport` querystring parameter. This call will allocate and return a raft ID that was not already in use. After `addPeer`, start the new geth node with the flag `--raftjoinexisting RAFTID` in addition to `--raft`.
 
 ## FAQ
 

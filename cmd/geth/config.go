@@ -218,7 +218,6 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(utils.RaftJoinExistingFlag.Name)
 	useDns := ctx.GlobalBool(utils.RaftDNSEnabledFlag.Name)
-
 	raftPort := uint16(ctx.GlobalInt(utils.RaftPortFlag.Name))
 
 	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
