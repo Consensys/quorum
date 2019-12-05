@@ -27,6 +27,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -102,6 +103,23 @@ func (n *Node) Load(k enr.Entry) error {
 
 // IP returns the IP address of the node. This prefers IPv4 addresses.
 func (n *Node) IP() net.IP {
+	// QUORUM
+	// no host is set, so use the IP directly
+	if n.Host() == "" {
+		return n.loadIP()
+	}
+	// attempt to look up IP addresses if host is a FQDN
+	lookupIPs, err := net.LookupIP(n.Host())
+	if err != nil {
+		log.Debug("hostname couldn't resolve, using IP instead", "hostname", n.Host(), "err", err.Error())
+		return n.loadIP()
+	}
+	// set to first ip by default
+	return lookupIPs[0]
+	// END QUORUM
+}
+
+func (n *Node) loadIP() net.IP {
 	var (
 		ip4 enr.IPv4
 		ip6 enr.IPv6
@@ -114,6 +132,15 @@ func (n *Node) IP() net.IP {
 	}
 	return nil
 }
+
+// Quorum
+func (n *Node) Host() string {
+	var hostname string
+	n.Load((*enr.Hostname)(&hostname))
+	return hostname
+}
+
+// End-Quorum
 
 // UDP returns the UDP port of the node.
 func (n *Node) UDP() int {

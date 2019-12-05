@@ -350,6 +350,7 @@ func TestUDPv4_findnodeMultiReply(t *testing.T) {
 	rpclist := make([]rpcNode, len(list))
 	for i := range list {
 		rpclist[i] = nodeToRPC(list[i])
+		list[i] = wrapNode(enode.NewV4(list[i].Pubkey(), list[i].IP(), list[i].TCP(), list[i].UDP(), 0))
 	}
 	test.packetIn(nil, &neighborsV4{Expiration: futureExp, Nodes: rpclist[:2]})
 	test.packetIn(nil, &neighborsV4{Expiration: futureExp, Nodes: rpclist[2:]})

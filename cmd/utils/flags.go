@@ -32,8 +32,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/ethereum/go-ethereum/permission"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -63,6 +61,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/permission"
 	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	pcsclite "github.com/gballet/go-libpcsclite"
@@ -719,6 +718,7 @@ var (
 		Usage: "The raft ID to assume when joining an pre-existing cluster",
 		Value: 0,
 	}
+
 	EmitCheckpointsFlag = cli.BoolFlag{
 		Name:  "emitcheckpoints",
 		Usage: "If enabled, emit specially formatted logging checkpoints",
@@ -727,6 +727,10 @@ var (
 		Name:  "raftport",
 		Usage: "The port to bind for the raft transport",
 		Value: 50400,
+	}
+	RaftDNSEnabledFlag = cli.BoolFlag{
+		Name:  "raftdnsenable",
+		Usage: "Enable DNS resolution of peers",
 	}
 
 	// Quorum
@@ -1513,12 +1517,6 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	if ctx.GlobalIsSet(GCModeFlag.Name) {
 		cfg.NoPruning = ctx.GlobalString(GCModeFlag.Name) == "archive"
 	}
-	//Quorum - set gcmode=archive for Raft
-	if ctx.GlobalBool(RaftModeFlag.Name) {
-		log.Info("set gcmode=archive for Raft")
-		cfg.NoPruning = true
-	}
-
 	if ctx.GlobalIsSet(CacheNoPrefetchFlag.Name) {
 		cfg.NoPrefetch = ctx.GlobalBool(CacheNoPrefetchFlag.Name)
 	}
@@ -1798,16 +1796,7 @@ func MakeChain(ctx *cli.Context, stack *node.Node) (chain *core.BlockChain, chai
 	if gcmode := ctx.GlobalString(GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
 		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)
 	}
-
-	trieWriteCacheDisabled := ctx.GlobalString(GCModeFlag.Name) == "archive"
-	//Quorum - set gcmode=archive for Raft
-	if !trieWriteCacheDisabled && ctx.GlobalBool(RaftModeFlag.Name) {
-		log.Info("set gcmode=archive for Raft")
-		trieWriteCacheDisabled = true
-	}
-
 	cache := &core.CacheConfig{
-		Disabled:            trieWriteCacheDisabled,
 		TrieCleanLimit:      eth.DefaultConfig.TrieCleanCache,
 		TrieCleanNoPrefetch: ctx.GlobalBool(CacheNoPrefetchFlag.Name),
 		TrieDirtyLimit:      eth.DefaultConfig.TrieDirtyCache,
