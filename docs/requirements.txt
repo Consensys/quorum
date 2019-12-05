@@ -1,5 +1,5 @@
 mkdocs>=1.0
-pymdown-extensions==6.0
+pymdown-extensions==6.2
 mkdocs-material>=4.1
 Markdown==3.0.1
 markdown-fenced-code-tabs==1.0.5
