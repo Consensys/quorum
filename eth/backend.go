@@ -176,7 +176,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		quorumProtocol := eth.engine.Protocol()
 		protocolName = quorumProtocol.Name
 		ProtocolVersions = quorumProtocol.Versions
-		protocolLengths = quorumProtocol.Lengths
 	}
 
 	// force to set the istanbul etherbase to node key address
