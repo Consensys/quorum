@@ -72,35 +72,30 @@ func ParseV4(rawurl string) (*Node, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid public key (%v)", err)
 		}
-		return NewV4(id, nil, 0, 0, 0), nil
+		return NewV4(id, nil, 0, 0), nil
 	}
 	return parseComplete(rawurl)
 }
 
 // NewV4 creates a node from discovery v4 node information. The record
 // contained in the node has a zero-length signature.
-func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp, raftPort int) *Node {
+func NewV4(pubkey *ecdsa.PublicKey, ip net.IP, tcp, udp int) *Node {
 	var r enr.Record
 	if len(ip) > 0 {
 		r.Set(enr.IP(ip))
 	}
-	return newV4(pubkey, r, tcp, udp, raftPort)
+	return newV4(pubkey, r, tcp, udp)
 }
 
 // broken out from `func NewV4` (above) same in upstream go-ethereum, but taken out
 // to avoid code duplication b/t NewV4 and NewV4Hostname
-func newV4(pubkey *ecdsa.PublicKey, r enr.Record, tcp, udp, raftPort int) *Node {
+func newV4(pubkey *ecdsa.PublicKey, r enr.Record, tcp, udp int) *Node {
 	if udp != 0 {
 		r.Set(enr.UDP(udp))
 	}
 	if tcp != 0 {
 		r.Set(enr.TCP(tcp))
 	}
-
-	if raftPort != 0 { // Quorum
-		r.Set(enr.RaftPort(raftPort))
-	}
-
 	signV4Compat(&r, pubkey)
 	n, err := New(v4CompatID{}, &r)
 	if err != nil {
@@ -117,15 +112,23 @@ func isNewV4(n *Node) bool {
 
 // Quorum
 
-// NewV4Hostname creates a node from discovery v4 node information. The record
-// contained in the node has a zero-length signature. It sets the hostname of
-// the node instead of the IP address.
+// NewV4 creates a node from discovery v4 node information. The record
+// contained in the node has a zero-length signature. It sets the hostname or ip
+// of the node depends on hostname context
 func NewV4Hostname(pubkey *ecdsa.PublicKey, hostname string, tcp, udp, raftPort int) *Node {
 	var r enr.Record
-	if hostname != "" {
+
+	if ip := net.ParseIP(hostname); ip == nil {
 		r.Set(enr.Hostname(hostname))
+	} else {
+		r.Set(enr.IP(ip))
 	}
-	return newV4(pubkey, r, tcp, udp, raftPort)
+
+	if raftPort != 0 {
+		r.Set(enr.RaftPort(raftPort))
+	}
+
+	return newV4(pubkey, r, tcp, udp)
 }
 
 // End-Quorum
@@ -133,6 +136,7 @@ func NewV4Hostname(pubkey *ecdsa.PublicKey, hostname string, tcp, udp, raftPort 
 func parseComplete(rawurl string) (*Node, error) {
 	var (
 		id               *ecdsa.PublicKey
+		ip               net.IP
 		tcpPort, udpPort uint64
 	)
 	u, err := url.Parse(rawurl)
@@ -149,13 +153,27 @@ func parseComplete(rawurl string) (*Node, error) {
 	if id, err = parsePubkey(u.User.String()); err != nil {
 		return nil, fmt.Errorf("invalid public key (%v)", err)
 	}
-
+	// move qv up to here
+	qv := u.Query()
+	// Parse the IP address.
+	ips, err := net.LookupIP(u.Hostname())
+	if err != nil {
+		// Quorum: if IP look up fail don't return error for raft url
+		if qv.Get("raftport") == "" {
+			return nil, err
+		}
+	} else {
+		ip = ips[0]
+		// Ensure the IP is 4 bytes long for IPv4 addresses.
+		if ipv4 := ip.To4(); ipv4 != nil {
+			ip = ipv4
+		}
+	}
 	// Parse the port numbers.
 	if tcpPort, err = strconv.ParseUint(u.Port(), 10, 16); err != nil {
 		return nil, errors.New("invalid port")
 	}
 	udpPort = tcpPort
-	qv := u.Query()
 	if qv.Get("discport") != "" {
 		udpPort, err = strconv.ParseUint(qv.Get("discport"), 10, 16)
 		if err != nil {
@@ -163,21 +181,17 @@ func parseComplete(rawurl string) (*Node, error) {
 		}
 	}
 
-	var node *Node
-
 	// Quorum
 	if qv.Get("raftport") != "" {
 		raftPort, err := strconv.ParseUint(qv.Get("raftport"), 10, 16)
 		if err != nil {
 			return nil, errors.New("invalid raftport in query")
 		}
-		node = NewV4Hostname(id, u.Hostname(), int(tcpPort), int(udpPort), int(raftPort))
-	} else {
-		node = NewV4Hostname(id, u.Hostname(), int(tcpPort), int(udpPort), 0)
+		return NewV4Hostname(id, u.Hostname(), int(tcpPort), int(udpPort), int(raftPort)), nil
 	}
 	// End-Quorum
 
-	return node, nil
+	return NewV4(id, ip, int(tcpPort), int(udpPort)), nil
 }
 
 func HexPubkey(h string) (*ecdsa.PublicKey, error) {
@@ -236,9 +250,14 @@ func (n *Node) URLv4() string {
 	if n.Incomplete() {
 		u.Host = nodeid
 	} else {
-		addr := net.TCPAddr{IP: n.IP(), Port: n.TCP()}
 		u.User = url.User(nodeid)
-		u.Host = addr.String()
+		if n.Host() != "" && net.ParseIP(n.Host()) == nil {
+			// Quorum
+			u.Host = net.JoinHostPort(n.Host(), strconv.Itoa(n.TCP()))
+		} else {
+			addr := net.TCPAddr{IP: n.IP(), Port: n.TCP()}
+			u.Host = addr.String()
+		}
 		if n.UDP() != n.TCP() {
 			u.RawQuery = "discport=" + strconv.Itoa(n.UDP())
 		}

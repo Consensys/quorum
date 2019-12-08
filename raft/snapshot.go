@@ -97,7 +97,7 @@ func (pm *ProtocolManager) triggerSnapshot(index uint64) {
 
 	//snapData := pm.blockchain.CurrentBlock().Hash().Bytes()
 	//snap, err := pm.raftStorage.CreateSnapshot(pm.appliedIndex, &pm.confState, snapData)
-	snapData := pm.buildSnapshot().toBytes(pm.useDns)
+	snapData := pm.buildSnapshot().toBytes()
 	snap, err := pm.raftStorage.CreateSnapshot(index, &pm.confState, snapData)
 	if err != nil {
 		panic(err)
@@ -206,32 +206,8 @@ func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
 	}
 }
 
-func (snapshot *SnapshotWithHostnames) toBytes(useDns bool) []byte {
-	// we have DNS enabled, so only use the new snapshot type
-	if useDns {
-		buffer, err := rlp.EncodeToBytes(snapshot)
-		if err != nil {
-			panic(fmt.Sprintf("error: failed to RLP-encode Snapshot: %s", err.Error()))
-		}
-		return buffer
-	}
-
-	// DNS is not enabled, use the old snapshot type, converting from hostnames to IP addresses
-	oldSnapshot := new(SnapshotWithoutHostnames)
-	oldSnapshot.HeadBlockHash, oldSnapshot.RemovedRaftIds = snapshot.HeadBlockHash, snapshot.RemovedRaftIds
-	oldSnapshot.Addresses = make([]AddressWithoutHostname, len(snapshot.Addresses))
-
-	for index, addrWithHost := range snapshot.Addresses {
-		oldSnapshot.Addresses[index] = AddressWithoutHostname{
-			addrWithHost.RaftId,
-			addrWithHost.NodeId,
-			net.ParseIP(addrWithHost.Hostname),
-			addrWithHost.P2pPort,
-			addrWithHost.RaftPort,
-		}
-	}
-
-	buffer, err := rlp.EncodeToBytes(oldSnapshot)
+func (snapshot *SnapshotWithHostnames) toBytes() []byte {
+	buffer, err := rlp.EncodeToBytes(snapshot)
 	if err != nil {
 		panic(fmt.Sprintf("error: failed to RLP-encode Snapshot: %s", err.Error()))
 	}

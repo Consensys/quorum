@@ -153,7 +153,7 @@ func TestUDPv4_pingTimeout(t *testing.T) {
 
 	key := newkey()
 	toaddr := &net.UDPAddr{IP: net.ParseIP("1.2.3.4"), Port: 2222}
-	node := enode.NewV4(&key.PublicKey, toaddr.IP, 0, toaddr.Port, 0)
+	node := enode.NewV4(&key.PublicKey, toaddr.IP, 0, toaddr.Port)
 	if _, err := test.udp.ping(node); err != errTimeout {
 		t.Error("expected timeout error, got", err)
 	}
@@ -271,7 +271,7 @@ func TestUDPv4_findnode(t *testing.T) {
 	for i := 0; i < numCandidates; i++ {
 		key := newkey()
 		ip := net.IP{10, 13, 0, byte(i)}
-		n := wrapNode(enode.NewV4(&key.PublicKey, ip, 0, 2000, 0))
+		n := wrapNode(enode.NewV4(&key.PublicKey, ip, 0, 2000))
 		// Ensure half of table content isn't verified live yet.
 		if i > numCandidates/2 {
 			n.livenessChecks = 1
@@ -350,7 +350,6 @@ func TestUDPv4_findnodeMultiReply(t *testing.T) {
 	rpclist := make([]rpcNode, len(list))
 	for i := range list {
 		rpclist[i] = nodeToRPC(list[i])
-		list[i] = wrapNode(enode.NewV4(list[i].Pubkey(), list[i].IP(), list[i].TCP(), list[i].UDP(), 0))
 	}
 	test.packetIn(nil, &neighborsV4{Expiration: futureExp, Nodes: rpclist[:2]})
 	test.packetIn(nil, &neighborsV4{Expiration: futureExp, Nodes: rpclist[2:]})
