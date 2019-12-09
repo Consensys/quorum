@@ -139,9 +139,9 @@ e.g.
   "unixSocketFile": "Path",
   "features": {
     "enableRemoteKeyValidation": false
+    }
    "encryptor": {
       "type":"EC",
      }
-  }
 }
 ```
