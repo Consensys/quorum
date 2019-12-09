@@ -141,7 +141,13 @@
     "enableRemoteKeyValidation": false
   },
   "encryptor": {
-    "type": "EC"
+    "type": "EC",
+    "properties":{
+      "symmetricCipher":"AES/GCM/NoPadding",
+      "ellipticCurve":"secp256r1",
+      "nonceLength":"24",
+      "sharedKeyLength":"32"
+    }
   }
 }
 ```
