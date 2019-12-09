@@ -141,7 +141,7 @@ e.g.
     "enableRemoteKeyValidation": false
     }
    "encryptor": {
-      "type":"EC",
+      "type":"EC"
      }
 }
 ```
