@@ -17,7 +17,6 @@ DNS is not supported for the discovery protocol. Use a bootnode instead, which c
 resolved.
 
 ## Compatibility
-For Raft, the whole network must be on version 2.3.1 of Quorum for DNS to function properly; because of this, DNS must 
+For Raft, the whole network must be on version 2.4.0 of Quorum for DNS to function properly; because of this, DNS must 
 be explicitly enabled using the `--raftdnsenable` flag. 
-The network will support older nodes mixed with newer nodes if DNS is not enabled via this flag, and it is safe to 
-enable DNS only on some nodes if all nodes are on at least version 2.3.1. This allows for a clear upgrade path.
+The network can still run with older nodes  if DNS is not enabled via this flag.
