@@ -202,7 +202,8 @@ For the ThirdParty server type it may be relevant to configure CORS.
     }
 },
 ```
-The configurale fields are:
+The configurable fields are:
+
 * `allowedMethods` - the list of allowed HTTP methods. If omitted the default list containing `"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"` is used.
 * `allowedOrigins` - the list of domains from which to accept cross origin requests (browser enforced). Each entry in the list can contain the "*" (wildcard) character which matches any sequence of characters. Ex: "*locahost" would match "http://localhost" or "https://localhost". There is no default for this field.
 * `allowedHeaders` - the list of allowed headers. If omitted the request `Access-Control-Request-Headers` are copied into the response as `Access-Control-Allow-Headers`.

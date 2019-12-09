@@ -1,18 +1,21 @@
 **Changes:**
-- Added configuration to choose alternative curves/symmetric ciphers. If no encryptor configuration is provided it will default to NACL.
 
-e.g.
-```
-  "encryptor": {
-      "type":"EC",
-      "properties":{
-          "symmetricCipher":"AES/GCM/NoPadding",
-          "ellipticCurve":"secp256r1",
-          "nonceLength":"24",
-          "sharedKeyLength":"32"
+- The `keys.keyData.passwords` field is no longer supported.  Instead, use `keys.keyData.passwordFile` or utilise the [CLI password prompt](../Keys#providing-key-passwords-at-runtime) when starting the node.
+
+- Added configuration to choose alternative curves/symmetric ciphers. If no encryptor configuration is provided it will default to NaCl (see [Supporting alternative curves in Tessera](../Configuration Overview#supporting-alternative-curves-in-tessera) for more details).
+
+    e.g.
+    ```
+      "encryptor": {
+          "type":"EC",
+          "properties":{
+              "symmetricCipher":"AES/GCM/NoPadding",
+              "ellipticCurve":"secp256r1",
+              "nonceLength":"24",
+              "sharedKeyLength":"32"
+          }
       }
-  }
-``` 
+    ``` 
 
 **Sample:**
 
@@ -86,9 +89,6 @@ e.g.
     }
   ],
   "keys": {
-    "passwords": [
-      "String..."
-    ],
     "passwordFile": "Path",
     "azureKeyVaultConfig": {
       "url": "Azure Key Vault url"
@@ -139,9 +139,9 @@ e.g.
   "unixSocketFile": "Path",
   "features": {
     "enableRemoteKeyValidation": false
-    }
-   "encryptor": {
-      "type":"EC"
-     }
+  },
+  "encryptor": {
+    "type": "EC"
+  }
 }
 ```
