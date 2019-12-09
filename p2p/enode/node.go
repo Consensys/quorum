@@ -82,8 +82,13 @@ func (n *Node) IP() net.IP {
 		log.Debug("hostname couldn't resolve, using IP instead", "hostname", n.Host(), "err", err.Error())
 		return n.loadIP()
 	}
-	// set to first ip by default
-	return lookupIPs[0]
+	// set to first ip by default & as Ethereum upstream
+	ip := lookupIPs[0]
+	// Ensure the IP is 4 bytes long for IPv4 addresses.
+	if ipv4 := ip.To4(); ipv4 != nil {
+		ip = ipv4
+	}
+	return ip
 	// END QUORUM
 }
 
@@ -99,6 +104,7 @@ func (n *Node) Host() string {
 	n.Load((*enr.Hostname)(&hostname))
 	return hostname
 }
+
 // End-Quorum
 
 // UDP returns the UDP port of the node.

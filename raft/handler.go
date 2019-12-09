@@ -330,10 +330,10 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 		return 0, err
 	}
 
-	//use the hostname instead of the IP, since if DNS is not enabled, the hostname should *be* the IP
-	if ip := net.ParseIP(node.Host()); !pm.useDns && (len(ip.To4()) != 4) {
-		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
-	}
+	// Commented out since IPv4 & IPv6 are both supported
+	//if len(node.IP()) != 4 {
+	//	return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
+	//}
 
 	if !node.HasRaftPort() {
 		return 0, fmt.Errorf("enodeId is missing raftport querystring parameter: %v", enodeId)
