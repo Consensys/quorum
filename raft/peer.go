@@ -65,13 +65,15 @@ type Peer struct {
 }
 
 // RLP Address encoding, for transport over raft and storage in LevelDB.
-func (addr *Address) toBytes(withHostname bool) []byte {
+func (addr *Address) toBytes() []byte {
 	var toEncode interface{}
 
-	if withHostname {
-		toEncode = addr
+	// need to check if addr.Hostname is hostname/ip
+	ip := net.ParseIP(addr.Hostname)
+	if ip != nil {
+		toEncode = []interface{}{addr.RaftId, addr.NodeId, ip, addr.P2pPort, addr.RaftPort}
 	} else {
-		toEncode = []interface{}{addr.RaftId, addr.NodeId, net.ParseIP(addr.Hostname), addr.P2pPort, addr.RaftPort}
+		toEncode = addr
 	}
 
 	buffer, err := rlp.EncodeToBytes(toEncode)
