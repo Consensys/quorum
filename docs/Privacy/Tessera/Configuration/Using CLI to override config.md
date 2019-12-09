@@ -55,3 +55,6 @@ The override could also be used to override the value in the config file
 ```
 tessera -configfile <path> --encryptor.type EC
 ```
+
+!!! info
+    Please note with the above config, the default curve properties will be used. To update properties such as using a different curve or length, etc... please use the config file - click here[../Tessera v0.10.2 sample settings] for sample
