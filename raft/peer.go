@@ -65,15 +65,20 @@ type Peer struct {
 }
 
 // RLP Address encoding, for transport over raft and storage in LevelDB.
-func (addr *Address) toBytes() []byte {
+func (addr *Address) toBytes(useDns bool) []byte {
 	var toEncode interface{}
 
-	// need to check if addr.Hostname is hostname/ip
-	ip := net.ParseIP(addr.Hostname)
-	if ip != nil {
-		toEncode = []interface{}{addr.RaftId, addr.NodeId, ip, addr.P2pPort, addr.RaftPort}
-	} else {
+	if useDns {
+		// we have DNS enabled, so only use the new address encoding
 		toEncode = addr
+	} else {
+		// DNS is not enabled, need to check if addr.Hostname is hostname/ip
+		ip := net.ParseIP(addr.Hostname)
+		if ip != nil {
+			toEncode = []interface{}{addr.RaftId, addr.NodeId, ip, addr.P2pPort, addr.RaftPort}
+		} else {
+			toEncode = addr
+		}
 	}
 
 	buffer, err := rlp.EncodeToBytes(toEncode)
@@ -84,14 +89,14 @@ func (addr *Address) toBytes() []byte {
 }
 
 func bytesToAddress(input []byte) *Address {
-	//try the new format first
+	// try the new format first
 	addr := new(Address)
 	streamNew := rlp.NewStream(bytes.NewReader(input), 0)
 	if err := streamNew.Decode(addr); err == nil {
 		return addr
 	}
 
-	//else try the old format
+	// else try the old format
 	var temp struct {
 		RaftId   uint16
 		NodeId   enode.EnodeID

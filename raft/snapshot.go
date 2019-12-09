@@ -211,8 +211,8 @@ func (snapshot *SnapshotWithHostnames) toBytes(useDns bool) []byte {
 		useOldSnapshot bool
 		oldSnapshot    SnapshotWithoutHostnames
 	)
-	// we have DNS enabled, so only use the new snapshot type
 	if useDns {
+		// we have DNS enabled, so only use the new snapshot type
 		useOldSnapshot = false
 	} else {
 		// DNS is not enabled, use old snapshot if all snapshot.Addresses are ips

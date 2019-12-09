@@ -355,7 +355,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    confChangeType,
 		NodeID:  uint64(raftId),
-		Context: address.toBytes(),
+		Context: address.toBytes(pm.useDns),
 	}
 
 	return raftId, nil
@@ -994,7 +994,7 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		address := newAddress(raftId, node.RaftPort(), node, pm.useDns)
 		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
-			Context: address.toBytes(),
+			Context: address.toBytes(pm.useDns),
 		}
 
 		if raftId == pm.raftId {
