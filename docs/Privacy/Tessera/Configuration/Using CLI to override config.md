@@ -1,4 +1,4 @@
-CLI options can be used to add to, or override, configuration defined in a `configfile`.  
+CLI options can be used to add to, or override, configuration defined in a `configfile` or for `keygen`.  
 
 Standard Tessera CLI options are prefixed with a single hyphen (e.g. `-configfile <PATH>`), whilst the config override options are prefixed with a double hyphen (e.g. `--alwaysSendTo <STRING[]...>`).  Use `tessera help` to see a complete list of CLI options.  
 
@@ -45,3 +45,13 @@ then Tessera will be started with the following equivalent configuration:
 }
 ```
 As demonstrated in this example, in certain cases multiple values can be provided by repeating the CLI option.  This is supported for the `peer.url`, `alwaysSendTo`, `server.sslConfig.serverTrustCertificates` and `server.sslConfig.clientTrustCertificates` options.  
+
+If you want to generate a key with alternative curve other than default NaCL, use the `encryptor.type` override as follows:
+
+```
+tessera -keygen --encryptor.type EC
+```
+The override could also be used to override the value in the config file
+```
+tessera -configfile <path> --encryptor.type EC
+```
