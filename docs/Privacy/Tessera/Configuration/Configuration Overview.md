@@ -268,33 +268,37 @@ Default configuration for this is `false` as this is BREAKABLE change to lower v
 
 ---
 
-### Supporting alternative curves in Tessera
+### Encryptor - Supporting alternative curves in Tessera
 
-By default tessera uses the [NaCl(salt)](https://nacl.cr.yp.to/) library in order to encrypt private payloads (which uses a particular combination of Curve25519, Salsa20, and Poly1305 under the hood). 
-If you would like to use alternative curves/symmetric ciphers you can choose to configure the EC Encryptor (which relies on JCA to perform a similar logic to NaCl). 
+By default Tessera uses the [NaCl(salt)](https://nacl.cr.yp.to/) library in order to encrypt private payloads (which uses a particular combination of Curve25519, Salsa20, and Poly1305 under the hood). 
 
-The tessera initialization script uses the the following environment variables to generate the encryptor section of the tessera configuration file:
+Alternative curves/symmetric ciphers can be used by configuring the EC Encryptor (which relies on JCA to perform a similar logic to NaCl).
 
-Environment Variable Name|Default Value|Description
--------------|-------------|-----------
-ENCRYPTOR_TYPE|NACL|The encryptor type. Possible values are EC or NACL.
-ENCRYPTOR_EC_ELLIPTIC_CURVE|secp256r1|The elliptic curve to use. See [SunEC provider](https://docs.oracle.com/javase/8/docs/technotes/guides/security/SunProviders.html#SunEC) for other options. Depending on the JCE provider you are using there may be additional curves available.
-ENCRYPTOR_EC_SYMMETRIC_CIPHER|AES/GCM/NoPadding|The symmetric cipher to use for encrypting data (GCM IS MANDATORY as an initialisation vector is supplied during encryption).
-ENCRYPTOR_EC_NONCE_LENGTH|24|The nonce length (used as the initialization vector - IV - for symmetric encryption).
-ENCRYPTOR_EC_SHARED_KEY_LENGTH|32|The key length used for symmetric encryption (keep in mind the key derivation operation always produces 32 byte keys - so the encryption algorithm must support it).
-
-Based on the default values above (provided ENCRYPTOR_TYPE is defined as EC) the following configuration entry is produced:
+This is a feature introduced in Tessera v0.10.2.  Providing no `encryptor` configuration results in the standard pre-v0.10.2 Tessera behaviour.
 
 ```
- "encryptor": {
-     "type":"EC",
-     "properties":{
-         "symmetricCipher":"AES/GCM/NoPadding",
-         "ellipticCurve":"secp256r1",
-         "nonceLength":"24",
-         "sharedKeyLength":"32"
-      }
-  }
+"encryptor": {
+    "type":"EC",
+    "properties":{
+        "symmetricCipher":"AES/GCM/NoPadding",
+        "ellipticCurve":"secp256r1",
+        "nonceLength":"24",
+        "sharedKeyLength":"32"
+    }
+}
 ``` 
+
+Field|Default Value|Description
+-------------|-------------|-----------
+`type`|`NACL`|The encryptor type. Possible values are `EC` or `NACL`.
+
+If `type` is set to `EC`, the following `properties` fields can also be configured:
+
+Field|Default Value|Description
+-------------|-------------|-----------
+`ellipticCurve`|`secp256r1`|The elliptic curve to use. See [SunEC provider](https://docs.oracle.com/javase/8/docs/technotes/guides/security/SunProviders.html#SunEC) for other options. Depending on the JCE provider you are using there may be additional curves available.
+`symmetricCipher`|`AES/GCM/NoPadding`|The symmetric cipher to use for encrypting data (GCM IS MANDATORY as an initialisation vector is supplied during encryption).
+`nonceLength`|`24`|The nonce length (used as the initialization vector - IV - for symmetric encryption).
+`sharedKeyLength`|`32`|The key length used for symmetric encryption (keep in mind the key derivation operation always produces 32 byte keys - so the encryption algorithm must support it).
 
 ---

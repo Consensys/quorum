@@ -46,7 +46,7 @@ then Tessera will be started with the following equivalent configuration:
 ```
 As demonstrated in this example, in certain cases multiple values can be provided by repeating the CLI option.  This is supported for the `peer.url`, `alwaysSendTo`, `server.sslConfig.serverTrustCertificates` and `server.sslConfig.clientTrustCertificates` options.  
 
-If you want to generate a key with alternative curve other than default NaCL, use the `encryptor.type` override as follows:
+If you want to generate a key with alternative curve other than default NaCl, use the `encryptor.type` override as follows:
 
 ```
 tessera -keygen --encryptor.type EC
@@ -57,4 +57,4 @@ tessera -configfile <path> --encryptor.type EC
 ```
 
 !!! info
-    Please note with the above config, the default curve properties will be used. To update properties such as using a different curve or length, etc... please use the config file - click [here](../../Tessera%20v0.10.2%20sample%20settings) for sample
+    Please note with the above config, the default curve properties will be used. To update properties such as using a different curve or length, etc... please use the config file - click [here](../Tessera v0.10.2 sample settings) for sample
