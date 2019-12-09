@@ -106,7 +106,7 @@ func newV4(pubkey *ecdsa.PublicKey, r enr.Record, tcp, udp int) *Node {
 
 // Quorum
 
-// NewV4 creates a node from discovery v4 node information. The record
+// NewV4Hostname creates a node from discovery v4 node information. The record
 // contained in the node has a zero-length signature. It sets the hostname or ip
 // of the node depends on hostname context
 func NewV4Hostname(pubkey *ecdsa.PublicKey, hostname string, tcp, udp, raftPort int) *Node {

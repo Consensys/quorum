@@ -330,10 +330,15 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 		return 0, err
 	}
 
-	// Commented out since IPv4 & IPv6 are both supported
-	//if len(node.IP()) != 4 {
-	//	return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
-	//}
+	if !pm.useDns {
+		// hostname is not allowed if DNS is not enabled
+		if node.Host() != "" {
+			return 0, fmt.Errorf("raft must enable dns to use hostname")
+		}
+		if len(node.IP()) != 4 {
+			return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
+		}
+	}
 
 	if !node.HasRaftPort() {
 		return 0, fmt.Errorf("enodeId is missing raftport querystring parameter: %v", enodeId)
