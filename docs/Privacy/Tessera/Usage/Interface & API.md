@@ -13,7 +13,7 @@ We currently have an implementation of gRPC for peer node communication as exper
 Please note that communication between Quorum and Tessera are still via unix socket. This communication flag provides additional options for Tessera peer-to-peer communication. If gRPC is the option specified, please ensure the peers urls are provided with the appropriate ports.
 
 !!! info
-    gRPC as a protocol for peer-to-peer communication will be deprecated from Tessera version 0.10.2
+    gRPC as a protocol for peer-to-peer communication will be removed from Tessera version 0.10.2
 
 ---
 
