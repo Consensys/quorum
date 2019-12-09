@@ -38,7 +38,7 @@ func newAddress(raftId uint16, raftPort int, node *enode.Node, withHostname bool
 	if err != nil {
 		panic(err)
 	}
-	if withHostname {
+	if withHostname && node.Host() != "" {
 		return &Address{
 			RaftId:   raftId,
 			NodeId:   id,
