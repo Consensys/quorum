@@ -141,7 +141,13 @@
     "enableRemoteKeyValidation": false
   },
   "encryptor": {
-    "type": "EC"
+    "type": "Enumeration: NACL, EC",
+    "properties":{
+      "symmetricCipher":"String (defaults to AES/GCM/NoPadding if type = EC)",
+      "ellipticCurve": "String (defaults to secp256r1 if type = EC)", 
+      "nonceLength": "String (defaults to 24 if type = EC)",
+      "sharedKeyLength": "String (defaults to 32 if type = EC)"
+    }
   }
 }
 ```
