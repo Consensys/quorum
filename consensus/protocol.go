@@ -17,16 +17,9 @@ const (
 var (
 	IstanbulProtocol = Protocol{
 		Name:     "istanbul",
-		Versions: []uint{IstanbulOld},
-		Lengths:  map[uint]uint64{IstanbulOld: 18},
+		Versions: []uint{IstanbulNew, IstanbulOld},
+		Lengths:  map[uint]uint64{IstanbulNew: 18, IstanbulOld: 18},
 	}
-
-	// Commented out because of a synchronization issue for istanbul/99
-	//IstanbulProtocol = Protocol{
-	//	Name:     "istanbul",
-	//	Versions: []uint{IstanbulNew, IstanbulOld},
-	//	Lengths:  map[uint]uint64{IstanbulNew: 18, IstanbulOld: 18},
-	//}
 
 	CliqueProtocol = Protocol{
 		Name:     "clique",

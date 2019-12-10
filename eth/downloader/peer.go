@@ -22,6 +22,7 @@ package downloader
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/consensus"
 	"math"
 	"math/big"
 	"sort"
@@ -524,7 +525,7 @@ func (ps *peerSet) idlePeers(minProtocol, maxProtocol int, idleCheck func(*peerC
 
 	idle, total := make([]*peerConnection, 0, len(ps.peers)), 0
 	for _, p := range ps.peers {
-		if p.version >= minProtocol && p.version <= maxProtocol {
+		if p.version >= minProtocol && p.version <= maxProtocol || p.version == consensus.IstanbulNew {
 			if idleCheck(p) {
 				idle = append(idle, p)
 			}
