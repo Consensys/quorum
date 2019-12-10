@@ -66,7 +66,6 @@ NOTE: you can use the Attach mode and/or Multi-Instance setup configuration to r
     ```
 2. Navigate to path/to/cakeshop/war/data/local
 3. Make the following edits to the application.properties file:
-  * set `geth.url` to the `rpcport` of your ethereum node, i.e. if your geth `rpcport` is 22001 then `geth.url=http\://localhost\:22001`
   * ensure `geth.auto.start` is set to `false`
   * ensure `geth.auto.stop` is set to `false`
 4. Run:
@@ -75,6 +74,9 @@ NOTE: you can use the Attach mode and/or Multi-Instance setup configuration to r
     $ java -jar cakeshop.war 
     ```
 5. Open **http://localhost:8080/** in your browser (Firefox/Chrome supported)
+6. The dropdown menu on the top right of the page should show "Manage Nodes" if you haven't attached to any yet. Click on that to go to the Manage Nodes page.
+7. Click Add Node and input the RPC url of your Quorum node (i.e. http://localhost:22000) and the path to the Tessera P2P Party Info endpoint (i.e. http://localhost:9001/partyinfo).
+8. Once added, click on View to attach to the node and return to the main Cakeshop page
 
 ### Multi-Instance Setup
 

@@ -132,7 +132,7 @@ func newServerPeer(t *testing.T, blocks int, protocol int) (*testServer, *enode.
 		t.Fatal("generate key err:", err)
 	}
 	s.handler.server.privateKey = key
-	n := enode.NewV4(&key.PublicKey, net.ParseIP("127.0.0.1"), 35000, 35000, 0)
+	n := enode.NewV4(&key.PublicKey, net.ParseIP("127.0.0.1"), 35000, 35000)
 	return s, n, teardown
 }
 

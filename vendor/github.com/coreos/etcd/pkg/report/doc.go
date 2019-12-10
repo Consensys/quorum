@@ -12,30 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package wal
-
-import (
-	"os"
-
-	"github.com/coreos/etcd/wal/walpb"
-)
-
-func (w *WAL) renameWal(tmpdirpath string) (*WAL, error) {
-	// rename of directory with locked files doesn't work on
-	// windows; close the WAL to release the locks so the directory
-	// can be renamed
-	w.Close()
-	if err := os.Rename(tmpdirpath, w.dir); err != nil {
-		return nil, err
-	}
-	// reopen and relock
-	newWAL, oerr := Open(w.dir, walpb.Snapshot{})
-	if oerr != nil {
-		return nil, oerr
-	}
-	if _, _, _, err := newWAL.ReadAll(); err != nil {
-		newWAL.Close()
-		return nil, err
-	}
-	return newWAL, nil
-}
+// Package report generates human-readable benchmark reports.
+package report

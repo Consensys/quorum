@@ -73,13 +73,16 @@ var parseNodeTests = []struct {
 		wantError: `invalid discport in query`,
 	},
 	{
+		input:      "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@localhost:3?discport=0&raftport=50401",
+		wantResult: NewV4Hostname(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"), "localhost", 3, 0, 50401),
+	},
+	{
 		input: "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@127.0.0.1:52150",
 		wantResult: NewV4(
 			hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
 			net.IP{127, 0, 0, 1},
 			52150,
 			52150,
-			0,
 		),
 	},
 	{
@@ -89,7 +92,6 @@ var parseNodeTests = []struct {
 			net.ParseIP("::"),
 			52150,
 			52150,
-			0,
 		),
 	},
 	{
@@ -99,7 +101,6 @@ var parseNodeTests = []struct {
 			net.ParseIP("2001:db8:3c4d:15::abcd:ef12"),
 			52150,
 			52150,
-			0,
 		),
 	},
 	{
@@ -109,7 +110,6 @@ var parseNodeTests = []struct {
 			net.IP{0x7f, 0x0, 0x0, 0x1},
 			52150,
 			22334,
-			0,
 		),
 	},
 	// Incomplete node URLs with no address
@@ -117,7 +117,7 @@ var parseNodeTests = []struct {
 		input: "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439",
 		wantResult: NewV4(
 			hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
-			nil, 0, 0, 0,
+			nil, 0, 0,
 		),
 	},
 	// Invalid URLs
@@ -160,7 +160,21 @@ func hexPubkey(h string) *ecdsa.PublicKey {
 }
 
 func TestParseNode(t *testing.T) {
-	for _, test := range parseNodeTests {
+	// Quorum extra tests for NewV4Hostname with raft port
+	extraTests := []struct {
+		input      string
+		wantError  string
+		wantResult *Node
+	}{
+		{
+			input:      "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@invalid:3?discport=0&raftport=50401",
+			wantResult: NewV4Hostname(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"), "invalid", 3, 0, 50401),
+		},
+	}
+
+	testNodes := append(parseNodeTests, extraTests...)
+
+	for _, test := range testNodes {
 		n, err := Parse(ValidSchemes, test.input)
 		if test.wantError != "" {
 			if err == nil {

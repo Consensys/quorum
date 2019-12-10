@@ -8,15 +8,17 @@ import (
 
 // Constants to match up protocol versions and messages
 const (
-	eth63 = 63
-	eth64 = 64
+	eth63       = 63
+	eth64       = 64
+	IstanbulOld = 64
+	IstanbulNew = 99
 )
 
 var (
 	IstanbulProtocol = Protocol{
 		Name:     "istanbul",
-		Versions: []uint{eth64},
-		Lengths:  map[uint]uint64{eth64: 18},
+		Versions: []uint{IstanbulNew, IstanbulOld},
+		Lengths:  map[uint]uint64{IstanbulNew: 18, IstanbulOld: 18},
 	}
 
 	CliqueProtocol = Protocol{

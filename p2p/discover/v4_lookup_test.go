@@ -243,7 +243,7 @@ func (tn *preminedTestnet) nodes() []*enode.Node {
 func (tn *preminedTestnet) node(dist, index int) *enode.Node {
 	key := tn.dists[dist][index]
 	ip := net.IP{127, byte(dist >> 8), byte(dist), byte(index)}
-	return enode.NewV4(&key.PublicKey, ip, 0, 5000, 0)
+	return enode.NewV4(&key.PublicKey, ip, 0, 5000)
 }
 
 func (tn *preminedTestnet) nodeByAddr(addr *net.UDPAddr) (*enode.Node, *ecdsa.PrivateKey) {
