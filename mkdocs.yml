@@ -75,7 +75,9 @@ nav:
         - Overview: Cakeshop/Overview.md
         - Getting Started: Cakeshop/Getting started.md
         - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
-    - Remix Plugin: "https://medium.com/remix-ide/quorum-plugin-for-remix-ee232ebca64c"
+    - Remix Plugin:
+        - Overview: RemixPlugin/Overview.md
+        - Getting Started: RemixPlugin/Getting started.md
     - Quorum Features:
         - DNS: Features/dns.md
     - Product Roadmap: roadmap.md
