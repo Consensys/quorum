@@ -261,9 +261,9 @@ func (n *Node) URLv4() string {
 		if n.UDP() != n.TCP() {
 			u.RawQuery = "discport=" + strconv.Itoa(n.UDP())
 		}
-		raftPort := n.RaftPort()
-		if raftPort != 0 {
-			raftQuery := "raftport=" + strconv.Itoa(raftPort)
+		// Quorum
+		if n.HasRaftPort() {
+			raftQuery := "raftport=" + strconv.Itoa(n.RaftPort())
 			if len(u.RawQuery) > 0 {
 				u.RawQuery = u.RawQuery + "&" + raftQuery
 			} else {
