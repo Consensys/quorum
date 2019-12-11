@@ -727,6 +727,16 @@ web3._extend({
                        params: 1
                }),
                new web3._extend.Method({
+                       name: 'addLearner',
+                       call: 'raft_addLearner',
+                       params: 1
+               }),
+               new web3._extend.Method({
+                       name: 'promoteToPeer',
+                       call: 'raft_promoteToPeer',
+                       params: 1
+               }),
+               new web3._extend.Method({
                        name: 'removePeer',
                        call: 'raft_removePeer',
                        params: 1
@@ -922,13 +932,29 @@ web3._extend({
 			name: 'discard',
 			call: 'istanbul_discard',
 			params: 1
-		})
+		}),
+
+		new web3._extend.Method({
+			name: 'getSignersFromBlock',
+			call: 'istanbul_getSignersFromBlock',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getSignersFromBlockByHash',
+			call: 'istanbul_getSignersFromBlockByHash',
+			params: 1
+		}),
 	],
 	properties:
 	[
 		new web3._extend.Property({
 			name: 'candidates',
 			getter: 'istanbul_candidates'
+		}),
+		new web3._extend.Property({
+			name: 'nodeAddress',
+			getter: 'istanbul_nodeAddress'
 		}),
 	]
 });

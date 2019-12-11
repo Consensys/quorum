@@ -12,7 +12,6 @@ func TestWriteContentsToFileWritesOkay(t *testing.T) {
 	extensionContracts := make(map[common.Address]*ExtensionContract)
 	extensionContracts[common.HexToAddress("0x2222222222222222222222222222222222222222")] = &ExtensionContract{
 		Address:                   common.HexToAddress("0x1111111111111111111111111111111111111111"),
-		AllHaveVoted:              false,
 		Initiator:                 common.HexToAddress("0x3333333333333333333333333333333333333333"),
 		ManagementContractAddress: common.HexToAddress("0x2222222222222222222222222222222222222222"),
 		CreationData:              []byte("Sample Transaction Data"),

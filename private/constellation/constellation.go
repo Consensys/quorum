@@ -20,12 +20,12 @@ type Constellation struct {
 }
 
 var (
-	ErrConstellationIsntInit = errors.New("Constellation not in use")
+	errPrivateTransactionManagerNotUsed = errors.New("private transaction manager not in use")
 )
 
 func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
 	if g.isConstellationNotInUse {
-		return nil, ErrConstellationIsntInit
+		return nil, errPrivateTransactionManagerNotUsed
 	}
 	out, err = g.node.SendPayload(data, from, to)
 	if err != nil {
@@ -37,7 +37,7 @@ func (g *Constellation) Send(data []byte, from string, to []string) (out []byte,
 
 func (g *Constellation) SendSignedTx(data []byte, to []string) (out []byte, err error) {
 	if g.isConstellationNotInUse {
-		return nil, ErrConstellationIsntInit
+		return nil, errPrivateTransactionManagerNotUsed
 	}
 	out, err = g.node.SendSignedPayload(data, to)
 	if err != nil {
@@ -69,14 +69,14 @@ func (g *Constellation) Receive(data []byte) ([]byte, error) {
 
 func (g *Constellation) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
 	if g.isConstellationNotInUse {
-		return false, ErrConstellationIsntInit
+		return false, errPrivateTransactionManagerNotUsed
 	}
 	return g.node.IsSender(txHash)
 }
 
 func (g *Constellation) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
 	if g.isConstellationNotInUse {
-		return nil, ErrConstellationIsntInit
+		return nil, errPrivateTransactionManagerNotUsed
 	}
 	return g.node.GetParticipants(txHash)
 }
@@ -124,11 +124,4 @@ func MustNew(path string) *Constellation {
 		panic(fmt.Sprintf("MustNew: Failed to connect to Constellation (%s): %v", path, err))
 	}
 	return g
-}
-
-func MaybeNew(path string) *Constellation {
-	if path == "" {
-		return nil
-	}
-	return MustNew(path)
 }
