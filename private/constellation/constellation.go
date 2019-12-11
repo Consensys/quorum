@@ -69,14 +69,14 @@ func (g *Constellation) Receive(data []byte) ([]byte, error) {
 
 func (g *Constellation) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
 	if g.isConstellationNotInUse {
-		return false, ErrConstellationIsntInit
+		return false, errPrivateTransactionManagerNotUsed
 	}
 	return g.node.IsSender(txHash)
 }
 
 func (g *Constellation) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
 	if g.isConstellationNotInUse {
-		return nil, ErrConstellationIsntInit
+		return nil, errPrivateTransactionManagerNotUsed
 	}
 	return g.node.GetParticipants(txHash)
 }

@@ -281,14 +281,6 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 	}
 }
 
-func RegisterExtensionService(stack *node.Node) {
-	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
-		return extension.New(stack, private.P)
-	}
-	if err := stack.Register(registerFunc); err != nil {
-		utils.Fatalf("Failed to register the Privacy service: %v", err)
-	}
-}
 // quorumValidatePrivateTransactionManager returns whether the "PRIVATE_CONFIG"
 // environment variable is set
 func quorumValidatePrivateTransactionManager() bool {
