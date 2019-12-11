@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-
 	"net"
 
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -26,6 +25,11 @@ type Address struct {
 
 	// Ignore additional fields (for forward compatibility).
 	Rest []rlp.RawValue `json:"-" rlp:"tail"`
+}
+
+type ClusterInfo struct {
+	Address
+	Role string `json:"role"`
 }
 
 func newAddress(raftId uint16, raftPort int, node *enode.Node, withHostname bool) *Address {
