@@ -69,11 +69,10 @@ func (addr *Address) toBytes() []byte {
 	var toEncode interface{}
 
 	// need to check if addr.Hostname is hostname/ip
-	ip := net.ParseIP(addr.Hostname)
-	if ip != nil {
-		toEncode = []interface{}{addr.RaftId, addr.NodeId, ip, addr.P2pPort, addr.RaftPort}
-	} else {
+	if ip := net.ParseIP(addr.Hostname); ip == nil {
 		toEncode = addr
+	} else {
+		toEncode = []interface{}{addr.RaftId, addr.NodeId, ip, addr.P2pPort, addr.RaftPort}
 	}
 
 	buffer, err := rlp.EncodeToBytes(toEncode)

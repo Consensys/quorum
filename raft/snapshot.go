@@ -210,6 +210,7 @@ func (snapshot *SnapshotWithHostnames) toBytes() []byte {
 	var (
 		useOldSnapshot bool
 		oldSnapshot    SnapshotWithoutHostnames
+		toEncode       interface{}
 	)
 
 	// use old snapshot if all snapshot.Addresses are ips
@@ -225,31 +226,27 @@ func (snapshot *SnapshotWithHostnames) toBytes() []byte {
 			// this is a hostname
 			useOldSnapshot = false
 			break
-		} else {
-			// this is an ip
-			oldSnapshot.Addresses[index] = AddressWithoutHostname{
-				addrWithHost.RaftId,
-				addrWithHost.NodeId,
-				ip,
-				addrWithHost.P2pPort,
-				addrWithHost.RaftPort,
-			}
+		}
+		// this is an ip
+		oldSnapshot.Addresses[index] = AddressWithoutHostname{
+			addrWithHost.RaftId,
+			addrWithHost.NodeId,
+			ip,
+			addrWithHost.P2pPort,
+			addrWithHost.RaftPort,
 		}
 	}
 
 	if useOldSnapshot {
-		buffer, err := rlp.EncodeToBytes(oldSnapshot)
-		if err != nil {
-			panic(fmt.Sprintf("error: failed to RLP-encode Snapshot: %s", err.Error()))
-		}
-		return buffer
+		toEncode = oldSnapshot
 	} else {
-		buffer, err := rlp.EncodeToBytes(snapshot)
-		if err != nil {
-			panic(fmt.Sprintf("error: failed to RLP-encode Snapshot: %s", err.Error()))
-		}
-		return buffer
+		toEncode = snapshot
 	}
+	buffer, err := rlp.EncodeToBytes(toEncode)
+	if err != nil {
+		panic(fmt.Sprintf("error: failed to RLP-encode Snapshot: %s", err.Error()))
+	}
+	return buffer
 }
 
 func bytesToSnapshot(input []byte) *SnapshotWithHostnames {
