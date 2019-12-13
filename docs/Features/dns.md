@@ -19,11 +19,11 @@ resolved.
 ## Compatibility
 For Raft, the whole network must be on version 2.4.0 of Quorum for DNS to function properly.  DNS must 
 be explicitly enabled using the `--raftdnsenable` flag for each node once the node has migrated to version 2.4.0 of Quorum
-The network can still run in fine when some nodes are in 2.4.0 version and some in older version as long as this feature is not enabled. For safe migration the recommended approach is as below:
+The network runs fine when some nodes are in 2.4.0 version and some in older version as long as this feature is not enabled. For safe migration the recommended approach is as below:
 * migrate the nodes to `geth` 2.4.0 version without using `--raftdnsenable` flag
 * once the network is fully migrated, restart the nodes with `--raftdnsenable` to enable the feature
 
 Please note that in a partially migrated network  (where some nodes are on version 2.4.0 and others on lower version) **with DNS feature enabled** for migrated nodes, `raft.addPeer` should not be invoked with Hostname till entire network migrates to 2.4.0 version. If invoked, this call will crash all nodes running in older version and these nodes will have to restarted with `geth` of version 2.4.0 of Quorum. `raft.addPeer` can still be invoked with IP address and network will work fine. 
 
-### Known Issue
-In a network where all nodes are running on Quorum version 2.4.0, with few nodes enabled for DNS, we recommend the `--verbosity` to be 3 or below. We have observed that nodes which are not enabled for DNS fail to restart if `raft.addPeer` is invoked with host name if `--verbosity` is set above 3. We are working on this issue.
+### Note
+In a network where all nodes are running on Quorum version 2.4.0, with few nodes enabled for DNS, we recommend the `--verbosity` to be 3 or below. We have observed that nodes which are not enabled for DNS fail to restart if `raft.addPeer` is invoked with host name if `--verbosity` is set above 3. We are currently fixing the same.
