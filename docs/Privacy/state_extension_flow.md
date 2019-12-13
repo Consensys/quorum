@@ -16,14 +16,13 @@ Node A then creates the contract with this information, substituting the Node C'
 events that may happen. It will also write the details of the extension to disk in case of restarts, and make the 
 information available over the RPC API.
 
-3.  a. Node A and B must now submit their vote to the extension, indicating whether they want the extension to take place 
-or not. They should include the voters PTM public keys to make sure the transaction is visible to all.
-
-    b. Node C must accept the proposal. Since the state sharing does not execute the transactions that generate the state 
+3.  Node B and C must now submit their vote to the extension, indicating whether they want the extension to take place 
+or not. Node A automatically votes to extend by virtue of creating the extension contract. Since the state sharing does 
+not execute the transactions that generate the state 
 (in order to keep past history private), there is no proof that can be provided by the proposer that the state is 
 correct. In order to remedy this, the receiver must accept the proposal for the contract as the proof. It also submits 
 a self-transaction to its own PTM, and includes the returned hash in the contract, as a proof that it called the 
-accept function when looked at a later date. This prevents someone else calling "accept" impersonating Node C.
+accept function when looked at a later date.
 
 4. Once all votes and acceptances have been gathered, Node A fetches the state of the contract and sends it as a 
 "private transaction" to Node C. It then submits the PTM hash of that state to the contract, including the recipient's 

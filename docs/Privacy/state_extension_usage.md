@@ -26,17 +26,6 @@ quorumExtension.extendContract(
 )
 ```
 
-2. Since no validation can occur on direct state sharing, the new recipient must explicitly declare to
- accept the new state when it arrives. This is a local commitment and should not be shared to other parties.
- 
-The API is invoked like so:
-```
-quorumExtension.accept(
-    "<extension management contract address>",
-    <normal tx args, which are used to send the transactions>
-)
-```
-
 3. All nodes who are required to vote should do so before the extender shares the state of the contract.
 The only **required** private recipient of this vote is the creator of the contract, so they can keep track
 of all the votes.
