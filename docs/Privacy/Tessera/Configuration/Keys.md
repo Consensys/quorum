@@ -159,6 +159,27 @@ Passwords must be provided so that Tessera can decrypt and use the private keys.
 | Direct | `"passwords": ["pwd1", "pwd2", ...]`<br/>Empty strings should be used for unlocked keys.  Passwords must be provided in the order that key pairs are defined in the config.  Not recommended for production use.     |
 | CLI    | Tessera will prompt on the CLI for the passwords of any encrypted keys that have not had passwords provided in the config.  This process only needs to be performed once, when starting the node.              |
 
+### AWS Secrets Manager key pairs
+The keys in the pair are stored as secrets in the _AWS Secrets Manager_.  This requires providing the secret IDs for both keys, while the endpoint is optional as the _AWS SDK_ can choose the right one based on _AWS_REGION_ environment variable value:
+```json
+"keys": {
+        "awsKeyVaultConfig":{
+            "endpoint": "https://secretsmanager.us-west-2.amazonaws.com"
+        },
+        "keyData": [
+            {
+                "awsSecretsManagerPublicKeyId": "secretIdPub",
+                "awsSecretsManagerPrivateKeyId": "secretIdKey"
+            }
+        ]
+    }
+```
+
+This example configuration will retrieve the specified versions of the secrets `secretIdPub` and `secretIdKey` from the _AWS Secrets Manager_ using the endpoint `https://secretsmanager.us-west-2.amazonaws.com`.
+
+!!! info
+    Environment variables must be set if using an _AWS Secrets Manager_, for more information see [Setting up an AWS Secrets Manager](../../Tessera%20Services/Keys/Setting%20up%20an%20AWS%20Secrets%20Manager.md)
+
 ### Azure Key Vault key pairs
 The keys in the pair are stored as secrets in an Azure Key Vault.  This requires providing the vault url and the secret IDs for both keys:
 ```json
