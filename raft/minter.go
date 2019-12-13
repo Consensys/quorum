@@ -265,7 +265,7 @@ func (minter *minter) createWork() *work {
 		GasLimit:   minter.eth.calcGasLimitFunc(parent),
 		GasUsed:    0,
 		Coinbase:   minter.coinbase,
-		Time:       big.NewInt(tstamp),
+		Time:       big.NewInt(time.Now().Unix()),
 	}
 
 	publicState, privateState, err := minter.chain.StateAt(parent.Root())
