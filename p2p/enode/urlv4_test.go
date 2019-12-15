@@ -114,6 +114,21 @@ var parseNodeTests = []struct {
 		rawurl:    "://foo",
 		wantError: `parse ://foo: missing protocol scheme`,
 	},
+	{
+		// Quorum: raft url with invalid hostname (no error, hostname will be saved)
+		rawurl:     "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@hostname:3?raftport=50401",
+		wantResult: NewV4Hostname(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"), "hostname", 3, 3, 50401),
+	},
+	{
+		// Quorum: raft url with valid hostname
+		rawurl:     "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@localhost:3?raftport=50401",
+		wantResult: NewV4Hostname(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"), "localhost", 3, 3, 50401),
+	},
+	{
+		// Quorum: raft url with no hostname
+		rawurl:    "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@:3?raftport=50401",
+		wantError: `empty hostname in raft url`,
+	},
 }
 
 func hexPubkey(h string) *ecdsa.PublicKey {
@@ -125,20 +140,7 @@ func hexPubkey(h string) *ecdsa.PublicKey {
 }
 
 func TestParseNode(t *testing.T) {
-	extraTests := []struct {
-		rawurl     string
-		wantError  string
-		wantResult *Node
-	}{
-		{
-			rawurl:     "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@hostname:3?raftport=50401",
-			wantResult: NewV4Hostname(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"), "hostname", 3, 3, 50401),
-		},
-	}
-
-	testNodes := append(parseNodeTests, extraTests...)
-
-	for _, test := range testNodes {
+	for _, test := range parseNodeTests {
 		n, err := ParseV4(test.rawurl)
 		if test.wantError != "" {
 			if err == nil {

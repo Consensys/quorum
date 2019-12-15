@@ -181,6 +181,9 @@ func parseComplete(rawurl string) (*Node, error) {
 		if err != nil {
 			return nil, errors.New("invalid raftport in query")
 		}
+		if u.Hostname() == "" {
+			return nil, errors.New("empty hostname in raft url")
+		}
 		return NewV4Hostname(id, u.Hostname(), int(tcpPort), int(udpPort), int(raftPort)), nil
 	}
 	// End-Quorum
