@@ -245,7 +245,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		evm.StateDB.CreateAccount(addr)
 	}
 	if evm.ChainConfig().IsQuorum {
-		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
+		// skip transfer if value == 0 (see note: Quorum, States, and Value Transfer)
 		if value.Sign() != 0 {
 			if evm.quorumReadOnly {
 				return nil, gas, ErrReadOnlyValueTransfer
@@ -459,7 +459,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		evm.StateDB.SetNonce(address, 1)
 	}
 	if evm.ChainConfig().IsQuorum {
-		// skip transfer if value /= 0 (see note: Quorum, States, and Value Transfer)
+		// skip transfer if value == 0 (see note: Quorum, States, and Value Transfer)
 		if value.Sign() != 0 {
 			if evm.quorumReadOnly {
 				return nil, common.Address{}, gas, ErrReadOnlyValueTransfer

@@ -77,7 +77,13 @@ var (
 	// making the transaction invalid, rather a DOS protection.
 	ErrOversizedData = errors.New("oversized data")
 
+	// ErrInvalidGasPrice is returned if gas price is disabled, but a gas price
+	// is specified in the transaction
 	ErrInvalidGasPrice = errors.New("Gas price not 0")
+
+	// ErrMissingGasPrice is returned if gas price is enabled, but a gas price
+	// of zero is given in the transaction
+	ErrMissingGasPrice = errors.New("Gas price cannot be 0")
 
 	// ErrEtherValueUnsupported is returned if a transaction specifies an Ether Value
 	// for a private Quorum transaction.
@@ -157,7 +163,7 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	TransactionSizeLimit: 64,
 	MaxCodeSize:          24,
 
-	PriceLimit: 1,
+	PriceLimit: 0, //Quorum
 	PriceBump:  10,
 
 	AccountSlots: 16,
@@ -176,7 +182,7 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 		log.Warn("Sanitizing invalid txpool journal time", "provided", conf.Rejournal, "updated", time.Second)
 		conf.Rejournal = time.Second
 	}
-	if conf.PriceLimit < 1 {
+	if conf.PriceLimit < 1 && DefaultTxPoolConfig.PriceLimit > 0 {
 		log.Warn("Sanitizing invalid txpool price limit", "provided", conf.PriceLimit, "updated", DefaultTxPoolConfig.PriceLimit)
 		conf.PriceLimit = DefaultTxPoolConfig.PriceLimit
 	}
@@ -479,6 +485,13 @@ func (pool *TxPool) GasPrice() *big.Int {
 // SetGasPrice updates the minimum price required by the transaction pool for a
 // new transaction, and drops all transactions below this threshold.
 func (pool *TxPool) SetGasPrice(price *big.Int) {
+	//Quorum
+	if !pool.chainconfig.EnableGasPrice {
+		log.Info("Transaction pool price threshold not updated as gasPrice is not enabled")
+		return
+	}
+	//End-Quorum
+
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
@@ -584,9 +597,17 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		sizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
 	}
 
-	if isQuorum && tx.GasPrice().Cmp(common.Big0) != 0 {
+	//Quorum
+	// Reject transaction if gas price is disabled, but gas price is specified
+	if (!pool.chainconfig.EnableGasPrice) && tx.GasPrice().Cmp(common.Big0) != 0 {
 		return ErrInvalidGasPrice
 	}
+	// Reject transaction if gas price is enabled, but gas price is not specified
+	if pool.chainconfig.EnableGasPrice && tx.GasPrice().Cmp(common.Big0) == 0 {
+		return ErrMissingGasPrice
+	}
+	//End-Quorum
+
 	// Reject transactions over 32KB (or manually set limit) to prevent DOS attacks
 	if float64(tx.Size()) > float64(sizeLimit*1024) {
 		return ErrOversizedData
@@ -607,7 +628,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Drop non-local transactions under our own minimal accepted gas price
 	local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
-	if !isQuorum && !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
+	if !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
 		return ErrUnderpriced
 	}
 	// Ensure the transaction adheres to nonce ordering
@@ -665,7 +686,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	// If the transaction pool is full, discard underpriced transactions
 	if uint64(pool.all.Count()) >= pool.config.GlobalSlots+pool.config.GlobalQueue {
 		// If the new transaction is underpriced, don't accept it
-		if !pool.chainconfig.IsQuorum && !local && pool.priced.Underpriced(tx, pool.locals) {
+		if !local && pool.priced.Underpriced(tx, pool.locals) {
 			log.Trace("Discarding underpriced transaction", "hash", hash, "price", tx.GasPrice())
 			underpricedTxCounter.Inc(1)
 			return false, ErrUnderpriced
@@ -979,16 +1000,14 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			pool.all.Remove(hash)
 			pool.priced.Removed()
 		}
-		if !isQuorum {
-			// Drop all transactions that are too costly (low balance or out of gas)
-			drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
-			for _, tx := range drops {
-				hash := tx.Hash()
-				log.Trace("Removed unpayable queued transaction", "hash", hash)
-				pool.all.Remove(hash)
-				pool.priced.Removed()
-				queuedNofundsCounter.Inc(1)
-			}
+		// Drop all transactions that are too costly (low balance or out of gas)
+		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		for _, tx := range drops {
+			hash := tx.Hash()
+			log.Trace("Removed unpayable queued transaction", "hash", hash)
+			pool.all.Remove(hash)
+			pool.priced.Removed()
+			queuedNofundsCounter.Inc(1)
 		}
 		// Gather all executable transactions and promote them
 		for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {

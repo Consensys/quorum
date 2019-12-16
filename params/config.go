@@ -133,19 +133,19 @@ var (
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, new(EthashConfig), nil, nil, false, 32, 50, big.NewInt(0)}
+	AllEthashProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, new(EthashConfig), nil, nil, false, false, 32, 50, big.NewInt(0)}
 
 	// AllCliqueProtocolChanges contains every protocol change (EIPs) introduced
 	// and accepted by the Ethereum core developers into the Clique consensus.
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
-	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil, false, 32, 32, big.NewInt(0)}
+	AllCliqueProtocolChanges = &ChainConfig{big.NewInt(1337), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, &CliqueConfig{Period: 0, Epoch: 30000}, nil, false, false, 32, 32, big.NewInt(0)}
 
-	TestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, new(EthashConfig), nil, nil, false, 32, 32, big.NewInt(0)}
+	TestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, new(EthashConfig), nil, nil, false, false, 32, 32, big.NewInt(0)}
 	TestRules       = TestChainConfig.Rules(new(big.Int))
 
-	QuorumTestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, nil, common.Hash{}, nil, nil, nil, nil, nil, new(EthashConfig), nil, nil, true, 64, 32, big.NewInt(0)}
+	QuorumTestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, nil, common.Hash{}, nil, nil, nil, nil, nil, new(EthashConfig), nil, nil, true, false, 64, 32, big.NewInt(0)}
 )
 
 // TrustedCheckpoint represents a set of post-processed trie roots (CHT and
@@ -190,6 +190,7 @@ type ChainConfig struct {
 	Istanbul *IstanbulConfig `json:"istanbul,omitempty"`
 
 	IsQuorum             bool   `json:"isQuorum"`
+	EnableGasPrice       bool   `json:"enableGasPrice"` //Quorum
 	TransactionSizeLimit uint64 `json:"txnSizeLimit"`
 	MaxCodeSize          uint64 `json:"maxCodeSize"`
 	// Quorum
@@ -242,7 +243,7 @@ func (c *ChainConfig) String() string {
 	default:
 		engine = "unknown"
 	}
-	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v IsQuorum: %v Constantinople: %v TransactionSizeLimit: %v MaxCodeSize: %v Engine: %v}",
+	return fmt.Sprintf("{ChainID: %v Homestead: %v DAO: %v DAOSupport: %v EIP150: %v EIP155: %v EIP158: %v Byzantium: %v IsQuorum: %v EnableGasPrice: %v Constantinople: %v TransactionSizeLimit: %v MaxCodeSize: %v Engine: %v}",
 		c.ChainID,
 		c.HomesteadBlock,
 		c.DAOForkBlock,
@@ -252,6 +253,7 @@ func (c *ChainConfig) String() string {
 		c.EIP158Block,
 		c.ByzantiumBlock,
 		c.IsQuorum,
+		c.EnableGasPrice, //Quorum
 		c.ConstantinopleBlock,
 		c.TransactionSizeLimit,
 		c.MaxCodeSize,

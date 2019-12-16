@@ -757,6 +757,8 @@ func (s *PublicBlockChainAPI) doCall(ctx context.Context, args CallArgs, blockNr
 		gas = math.MaxUint64 / 2
 	}
 
+	// NOTE: if gas price is passed as zero, then we leave it unchanged for now for Quorum,
+	// but note this as a spot that might be tweaked in the future.
 	if gasPrice.Sign() == 0 && !s.b.ChainConfig().IsQuorum {
 		gasPrice = new(big.Int).SetUint64(defaultGasPrice)
 	}
