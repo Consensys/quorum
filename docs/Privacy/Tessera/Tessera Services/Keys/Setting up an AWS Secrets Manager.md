@@ -19,7 +19,7 @@ To use environment variables set the following:
 1. `AWS_ACCESS_KEY_ID`: your_access_key_id
 1. `AWS_SECRET_ACCESS_KEY`: your_secret_access_key
 
-To retrieve the last two values you should log into your [AWS Managemenet Console](https://aws.amazon.com/)
+The `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` for a particular user can be retrieved from the [AWS IAM Management Console](https://console.aws.amazon.com/iam).
 
 ### Dependencies
 The AWS Secrets Manager dependencies are included in the `tessera-app-<version>-app.jar`.  If using the `tessera-simple-<version>-app.jar` then `aws-key-vault-<version>-all.jar` must be added to the classpath.
