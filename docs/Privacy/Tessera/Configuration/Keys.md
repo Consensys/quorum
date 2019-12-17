@@ -178,6 +178,9 @@ The keys in the pair are stored as secrets in the _AWS Secrets Manager_.  This r
 This example configuration will retrieve the secrets `secretIdPub` and `secretIdKey` from the _AWS Secrets Manager_ using the endpoint `https://secretsmanager.us-west-2.amazonaws.com`.
 
 !!! info
+    A `Credential should be scoped to a valid region` error when starting means that the region specified in the `endpoint` differs from the region the AWS SDK has retrieved from its [property retrieval chain](https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html).  This can be resolved by setting the `AWS_REGION` environment variable to the same region as defined in the `endpoint`.
+
+!!! info
     Environment variables must be set if using an _AWS Secrets Manager_, for more information see [Setting up an AWS Secrets Manager](../../Tessera%20Services/Keys/Setting%20up%20an%20AWS%20Secrets%20Manager)
 
 ### Azure Key Vault key pairs
