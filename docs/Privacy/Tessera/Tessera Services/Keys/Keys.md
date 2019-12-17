@@ -1,5 +1,5 @@
 ## Generating keys
- 
+
 Key generation can be used in multiple ways:
 
 1. Generate a key pair and save in new files `.pub` and `.key`:  
@@ -67,6 +67,11 @@ If you wish to generate an unlocked key, `/dev/null` can be used for stdin to te
     
     An updated `.json` configfile is printed to the terminal (or to a file if using the `-output` CLI option).  No changes are made to the `config.json` file itself.
 
+!!! note 
+    By default the `-keygen` commands generate [NaCl](https://nacl.cr.yp.to/) compatible keys.  
+    
+    As of Tessera v0.10.2, the `--encryptor.type=EC` CLI option can be provided to generate keys of different types.  See [encryptor config](../../../Configuration/Configuration Overview/#encryptor-supporting-alternative-curves-in-tessera) for more details.  
+
 ## Securing private keys
 Generated private keys can be encrypted with a password.  This is prompted for on the console during key generation.  After generating password-protected keys, the password must be added to your configuration to ensure Tessera can read the keys.  The password is not saved anywhere but must be added to the configuration else the key will not be able to be decrypted.  
 
@@ -112,3 +117,8 @@ Password update can be used in multiple ways.  Running any of these commands wil
     tessera --keys.keyData.privateKeyPath <path to keyfile> --keys.keyData.config.data.aopts.algorithm <algorithm> --keys.keyData.config.data.aopts.iterations <iterations> --keys.keyData.config.data.aopts.memory <memory> --keys.keyData.config.data.aopts.parallelism <parallelism>
     ```
     All options have been overriden here but only the options you wish to alter from their defaults need to be provided.
+
+!!! note 
+    By default the `-updatepassword` commands can be used to update the password of [NaCl](https://nacl.cr.yp.to/) compatible keys.  
+    
+    As of Tessera v0.10.2, the `--encryptor.type=EC` CLI option can be provided to update keys of different types.  See [encryptor config](../../../Configuration/Configuration Overview/#encryptor-supporting-alternative-curves-in-tessera) for more details.  
