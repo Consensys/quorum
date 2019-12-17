@@ -56,6 +56,20 @@ If you wish to generate an unlocked key, `/dev/null` can be used for stdin to te
     
     > Environment variables must be set if using a Hashicorp Vault, and a version 2 K/V secret engine must be enabled.  For more information see [Setting up a Hashicorp Vault](../Setting%20up%20a%20Hashicorp%20Vault).
 
+1. Generate a key pair and save to an AWS Secrets Manager, with endpoint `<url>`, as secrets with IDs `Pub` and `Key`:
+
+    ```bash
+    tessera -keygen -keygenvaulttype AWS -keygenvaulturl <url>
+    ```
+    
+    The `-filename` option can be used to specify alternate IDs.  Multiple key pairs can be generated at the same time by providing a comma-separated list of values:
+    
+    ```bash
+    tessera -keygen -keygenvaulttype AWS -keygenvaulturl <url> -filename id1,id2
+    ```
+    
+    >Environment variables must be set if using an AWS Secrets Manager, for more information see [Setting up an AWS Secrets Manager](../Setting%20up%20an%20AWS%20Secrets%20Manager)
+
 1. Generate a key pair, save to files and then start Tessera using a provided config
     ```
     tessera -keygen -configfile /path/to/config.json
