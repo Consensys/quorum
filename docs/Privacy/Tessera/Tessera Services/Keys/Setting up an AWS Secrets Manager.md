@@ -8,6 +8,10 @@ The _AWS Secrets Manager_ documentation provides much of the information needed 
 * [AWS Secrets Manager User Guide](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html) 
 * [AWS SDK for Java Developer Guide](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/welcome.html)
 
+## Creating the AWS Secrets Manager
+
+Once you have set up your AWS profile, you will be able to use AWS Secrets Manager.
+
 ## Enabling Tessera to use the _AWS Secrets Manager_
 ### Environment Variables
 
