@@ -160,7 +160,7 @@ Passwords must be provided so that Tessera can decrypt and use the private keys.
 | CLI    | Tessera will prompt on the CLI for the passwords of any encrypted keys that have not had passwords provided in the config.  This process only needs to be performed once, when starting the node.              |
 
 ### AWS Secrets Manager key pairs
-The keys in the pair are stored as secrets in the _AWS Secrets Manager_.  This requires providing the secret IDs for both keys, while the endpoint is optional as the _AWS SDK_ can choose the right one based on _AWS_REGION_ environment variable value:
+The keys in the pair are stored as secrets in the _AWS Secrets Manager_.  This requires providing the secret IDs for both keys.  The endpoint is optional as the _AWS SDK_ can fallback to its inbuilt property retrieval chain (e.g. using the environment variable `AWS_REGION` or `~/.aws/config` file - see [the AWS docs](https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html) for similar behaviour explained in the context of credentials):
 ```json
 "keys": {
         "awsKeyVaultConfig":{
