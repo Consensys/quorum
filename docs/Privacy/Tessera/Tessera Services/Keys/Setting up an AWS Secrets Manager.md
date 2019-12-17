@@ -11,7 +11,9 @@ The _AWS Secrets Manager_ documentation provides much of the information needed 
 ## Enabling Tessera to use the _AWS Secrets Manager_
 ### Environment Variables
 
-If using an _AWS Secrets Manager_, Tessera requires four environment variables to be set:
+If using an _AWS Secrets Manager_, configuration credentials can be provided in many ways as outlined in the [AWS docs - Supplying and Retrieving AWS Credentials](https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html).  
+
+To use environment variables set the following:
 
 1. `AWS_REGION`: region_to_connect_to (i.e. us-west-2)
 1. `AWS_ACCESS_KEY_ID`: your_access_key_id
