@@ -175,7 +175,7 @@ The keys in the pair are stored as secrets in the _AWS Secrets Manager_.  This r
     }
 ```
 
-This example configuration will retrieve the specified versions of the secrets `secretIdPub` and `secretIdKey` from the _AWS Secrets Manager_ using the endpoint `https://secretsmanager.us-west-2.amazonaws.com`.
+This example configuration will retrieve the secrets `secretIdPub` and `secretIdKey` from the _AWS Secrets Manager_ using the endpoint `https://secretsmanager.us-west-2.amazonaws.com`.
 
 !!! info
     Environment variables must be set if using an _AWS Secrets Manager_, for more information see [Setting up an AWS Secrets Manager](../../Tessera%20Services/Keys/Setting%20up%20an%20AWS%20Secrets%20Manager.md)
