@@ -146,7 +146,9 @@ func TestID_logdistEqual(t *testing.T) {
 	}
 }
 
-//Quorum - test raft port in node detail
+// Quorum
+//
+// test raft port in node detail
 func TestNodeInfoForRaftPort(t *testing.T) {
 	node := NewV4Hostname(
 		hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
@@ -182,5 +184,87 @@ func TestNodeParseUrlWithHostnameForQuorum(t *testing.T) {
 		hasError := strings.Contains(errMsg, "no such host")
 
 		assert.Equal(t, true, hasError, err.Error())
+	}
+}
+
+// Quorum
+//
+// test Incomplete
+func TestIncomplete(t *testing.T) {
+	var testCases = []struct {
+		n            *Node
+		isIncomplete bool
+	}{
+		{
+			n: NewV4(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				net.IP{127, 0, 0, 1},
+				52150,
+				52150,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				net.ParseIP("::"),
+				52150,
+				52150,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				net.ParseIP("2001:db8:3c4d:15::abcd:ef12"),
+				52150,
+				52150,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				nil,
+				52150,
+				52150,
+			),
+			isIncomplete: true,
+		},
+		{
+			n: NewV4Hostname(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				"hostname",
+				52150,
+				52150,
+				50400,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4Hostname(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				"hostname",
+				52150,
+				52150,
+				0,
+			),
+			isIncomplete: true,
+		},
+		{
+			n: NewV4Hostname(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				"",
+				52150,
+				52150,
+				50400,
+			),
+			isIncomplete: true,
+		},
+	}
+
+	for i, test := range testCases {
+		if test.n.Incomplete() != test.isIncomplete {
+			t.Errorf("test %d: Node.Incomplete() mismatch:\ngot:  %v\nwant: %v", i, test.n.Incomplete(), test.isIncomplete)
+		}
 	}
 }
