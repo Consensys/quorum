@@ -18,10 +18,6 @@ package params
 
 import "math/big"
 
-var (
-	TargetGasLimit = GenesisGasLimit // The artificial target
-)
-
 const (
 	// these are original values from upstream Geth, used in ethash consensus
 	OriginalMinGasLimit          uint64 = 5000 // The bound divisor of the gas limit, used in update calculations.
