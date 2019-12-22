@@ -330,6 +330,11 @@ func geth(ctx *cli.Context) error {
 		return errors.New("the PRIVATE_CONFIG environment variable must be specified for Quorum")
 	}
 
+	// raft mode does not support --exitwhensynced
+	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) && ctx.GlobalBool(utils.RaftModeFlag.Name) {
+		return errors.New("raft consensus does not support --exitwhensynced")
+	}
+
 	node := makeFullNode(ctx)
 	defer node.Close()
 	startNode(ctx, node)
