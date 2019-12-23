@@ -1524,19 +1524,24 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 
 // getHashFromTM send the actual private transaction payload to Tessera and returns the tm hash
 func (args *SendTxArgs) getHashFromTM() (data []byte, err error) {
-	if args.Data != nil {
-		data = []byte(*args.Data)
-		if len(data) > 0 {
+	var input []byte
+	if args.Input != nil {
+		input = []byte(*args.Input)
+	} else {
+		input = []byte(*args.Data)
+	}
+	if input != nil {
+		if len(input) > 0 {
 			//Send private transaction to local Constellation node
-			log.Info("sending private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
-			log.Info("sent private tx", "data", fmt.Sprintf("%x", data), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			log.Info("sending private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			data, err = private.P.Send(input, args.PrivateFrom, args.PrivateFor)
+			log.Info("sent private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			if err != nil {
 				return nil, err
 			}
 		}
 	} else {
-		log.Info("args.data is nil")
+		log.Info("nil args.input & args.data")
 	}
 	return data, nil
 }
