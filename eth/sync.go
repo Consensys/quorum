@@ -178,7 +178,7 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 	if pTd.Cmp(td) <= 0 {
 		// Quorum
 		// added for permissions changes to indicate node sync up has started
-		// if peer's TD is smaller than  ours, no sync will happen
+		// if peer's TD is smaller than ours, no sync will happen
 		types.SetSyncStatus()
 		return
 	}
@@ -193,7 +193,7 @@ func (pm *ProtocolManager) synchronise(peer *peer) {
 		if pm.blockchain.GetTdByHash(pm.blockchain.CurrentFastBlock().Hash()).Cmp(pTd) >= 0 {
 			// Quorum
 			// added for permissions changes to indicate node sync up has started
-			// if peer's TD is smaller than  ours, no sync will happen
+			// if peer's TD is smaller than ours, no sync will happen
 			//types.SetSyncStatus()
 			return
 		}

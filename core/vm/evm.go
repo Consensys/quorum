@@ -385,7 +385,6 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, gas, nil
 	}
-
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
@@ -501,14 +500,14 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 	ret, err := run(evm, contract, nil, false)
 
+	// Quorum
+	// check whether the max code size has been exceeded, check maxcode size from chain config
 	var maxCodeSize int
 	if evm.ChainConfig().MaxCodeSize > 0 {
 		maxCodeSize = int(evm.ChainConfig().MaxCodeSize * 1024)
 	} else {
 		maxCodeSize = params.MaxCodeSize
 	}
-
-	// check whether the max code size has been exceeded, check maxcode size from chain config
 	maxCodeSizeExceeded := evm.chainRules.IsEIP158 && len(ret) > maxCodeSize
 	// if the contract creation ran successfully and no errors were returned
 	// calculate the gas required to store the code. If the code could not
@@ -580,6 +579,7 @@ func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *
 // ChainConfig returns the environment's chain configuration
 func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 
+// Quorum functions for dual state
 func getDualState(env *EVM, addr common.Address) StateDB {
 	// priv: (a) -> (b)  (private)
 	// pub:   a  -> [b]  (private -> public)
