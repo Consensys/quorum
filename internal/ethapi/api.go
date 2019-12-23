@@ -1527,8 +1527,10 @@ func (args *SendTxArgs) getHashFromTM() (data []byte, err error) {
 	var input []byte
 	if args.Input != nil {
 		input = []byte(*args.Input)
-	} else {
+	} else if args.Data != nil {
 		input = []byte(*args.Data)
+	} else {
+		log.Info("nil args.input & args.data")
 	}
 	if input != nil {
 		if len(input) > 0 {
@@ -1540,8 +1542,6 @@ func (args *SendTxArgs) getHashFromTM() (data []byte, err error) {
 				return nil, err
 			}
 		}
-	} else {
-		log.Info("nil args.input & args.data")
 	}
 	return data, nil
 }
