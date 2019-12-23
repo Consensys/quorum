@@ -33,6 +33,10 @@ echo "---> building geth done"
 echo "---> cloning quorum-cloud and quorum-acceptance-tests ..."
 git clone https://github.com/jpmorganchase/quorum-acceptance-tests.git ${TRAVIS_HOME}/quorum-acceptance-tests
 git clone https://github.com/jpmorganchase/quorum-cloud.git ${TRAVIS_HOME}/quorum-cloud
+# use quorum-geth-upgrade-1.9.7 branch
+cd ${TRAVIS_HOME}/quorum-cloud
+git checkout quorum-geth-upgrade-1.9.7
+cd -
 echo "---> cloning done"
 
 echo "---> getting tessera jar ..."
