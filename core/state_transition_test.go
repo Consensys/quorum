@@ -28,7 +28,7 @@ func verifyGasPoolCalculation(t *testing.T, pm private.PrivateTransactionManager
 	gasPool := new(GasPool).AddGas(200000)
 	// this payload would give us 25288 intrinsic gas
 	arbitraryEncryptedPayload := "4ab80888354582b92ab442a317828386e4bf21ea4a38d1a9183fbb715f199475269d7686939017f4a6b28310d5003ebd8e012eade530b79e157657ce8dd9692a"
-	expectedGasPool := new(GasPool).AddGas(174712) // only intrinsic gas is deducted
+	expectedGasPool := new(GasPool).AddGas(177988) // only intrinsic gas is deducted
 
 	db := rawdb.NewMemoryDatabase()
 	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
