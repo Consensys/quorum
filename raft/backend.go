@@ -51,7 +51,8 @@ func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftId, raft
 		calcGasLimitFunc: e.CalcGasLimit,
 	}
 
-	service.minter = newMinter(chainConfig, service, blockTime)
+	etherbase, _ := e.Etherbase() //Quorum
+	service.minter = newMinter(chainConfig, service, blockTime, etherbase)
 
 	var err error
 	if service.raftProtocolManager, err = NewProtocolManager(raftId, raftPort, service.blockchain, service.eventMux, startPeers, joinExisting, datadir, service.minter, service.downloader, useDns); err != nil {

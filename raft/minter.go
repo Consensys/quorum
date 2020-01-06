@@ -77,7 +77,7 @@ type extraSeal struct {
 	Signature []byte // Signature of the block minter
 }
 
-func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration) *minter {
+func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Duration, etherbase common.Address) *minter {
 	minter := &minter{
 		config:           config,
 		eth:              eth,
@@ -87,6 +87,7 @@ func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Dura
 		shouldMine:       channels.NewRingChannel(1),
 		blockTime:        blockTime,
 		speculativeChain: newSpeculativeChain(),
+		coinbase:         etherbase, //Quorum
 
 		invalidRaftOrderingChan: make(chan InvalidRaftOrdering, 1),
 		chainHeadChan:           make(chan core.ChainHeadEvent, core.GetChainHeadChannleSize()),
