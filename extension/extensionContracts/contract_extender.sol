@@ -35,7 +35,7 @@ contract ContractExtender {
     event StateShared(address toExtend, string tesserahash, string uuid); //when the state is shared and can be replayed into the database
     event UpdateMembers(address toExtend, string uuid); //to update the original transaction hash for the new party member
 
-    constructor(address contractAddress, address[] memory walletAddresses, string memory recipientHash, string memory uuid) public {
+    constructor(address contractAddress, address[] memory walletAddresses, string memory recipientHash) public {
         creator = msg.sender;
 
         targetRecipientPublicKeyHash = recipientHash;
@@ -63,9 +63,6 @@ contract ContractExtender {
         totalNumberOfVoters = walletAddressesToVote.length;
 
         emit NewContractExtensionContractCreated(contractAddress);
-
-        //set the sender to vote true, else why would they create the contract?
-        doVote(true, uuid);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////

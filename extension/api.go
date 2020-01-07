@@ -3,12 +3,9 @@ package extension
 import (
 	"encoding/base64"
 	"errors"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/private"
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/private"
 )
 
 var (
@@ -19,14 +16,14 @@ var (
 type PrivateExtensionAPI struct {
 	privacyService *PrivacyService
 	accountManager IAccountManager
-	ptm    		   private.PrivateTransactionManager
+	ptm            private.PrivateTransactionManager
 }
 
 func NewPrivateExtensionAPI(privacyService *PrivacyService, accountManager IAccountManager, ptm private.PrivateTransactionManager) *PrivateExtensionAPI {
 	return &PrivateExtensionAPI{
 		privacyService: privacyService,
 		accountManager: accountManager,
-		ptm: ptm,
+		ptm:            ptm,
 	}
 }
 
@@ -116,20 +113,8 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 
 	recipientHashBase64 := common.BytesToEncryptedPayloadHash(recipientHash).ToBase64()
 
-	nonce, err := api.privacyService.extClient.NextNonce(txArgs.From)
-	if err != nil {
-		return common.Hash{}, err
-	}
-	txArgs.Nonce = new(big.Int).SetUint64(nonce)
-	managementAddress := crypto.CreateAddress(txArgs.From, nonce)
-
-	uuid, err := generateUuid(managementAddress, txArgs.PrivateFrom, api.ptm)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
 	//Deploy the contract
-	tx, err := api.privacyService.managementContractFacade.Deploy(txArgs, toExtend, voters, recipientHashBase64, uuid)
+	tx, err := api.privacyService.managementContractFacade.Deploy(txArgs, toExtend, voters, recipientHashBase64)
 	if err != nil {
 		return common.Hash{}, err
 	}
