@@ -19,6 +19,7 @@ package state
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -64,7 +65,12 @@ func (self *StateDB) RawDump() Dump {
 		}
 		storageIt := trie.NewIterator(obj.getTrie(self.db).NodeIterator(nil))
 		for storageIt.Next() {
-			account.Storage[common.Bytes2Hex(self.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(storageIt.Value)
+			_, content, _, err := rlp.Split(storageIt.Value)
+			if err != nil {
+				log.Error("Failed to decode the value returned by iterator", "error", err)
+				continue
+			}
+			account.Storage[common.Bytes2Hex(self.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(content)
 		}
 		dump.Accounts[common.Bytes2Hex(addr)] = account
 	}
@@ -87,7 +93,12 @@ func (self *StateDB) DumpAddress(address common.Address) (DumpAccount, bool) {
 	}
 	storageIt := trie.NewIterator(obj.getTrie(self.db).NodeIterator(nil))
 	for storageIt.Next() {
-		account.Storage[common.Bytes2Hex(self.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(storageIt.Value)
+		_, content, _, err := rlp.Split(storageIt.Value)
+		if err != nil {
+			log.Error("Failed to decode the value returned by iterator", "error", err)
+			continue
+		}
+		account.Storage[common.Bytes2Hex(self.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(content)
 	}
 	return account, true
 }
