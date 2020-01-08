@@ -3,6 +3,7 @@ package extension
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/private"
@@ -39,39 +40,50 @@ func (api *PrivateExtensionAPI) ActiveExtensionContracts() []ExtensionContract {
 	return extracted
 }
 
+// checks of the passed contract address is under extension process
+func (api *PrivateExtensionAPI) checkIfContractUnderExtension(toExtend common.Address) bool {
+	for _, v := range api.ActiveExtensionContracts() {
+		if v.Address == toExtend {
+			return true
+		}
+	}
+	return false
+}
+
 // VoteOnContract submits the vote to the specified extension management contract. The vote indicates whether to extend
 // a given contract to a new participant or not
-func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (common.Hash, error) {
+func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
 	txArgs, err := api.accountManager.GenerateTransactOptions(txa)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	voterList, err := api.privacyService.managementContractFacade.GetAllVoters(addressToVoteOn)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	if isVoter := checkAddressInList(txArgs.From, voterList); !isVoter {
-		return common.Hash{}, errNotVoter
+		return "", errNotVoter
 	}
 
 	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.ptm)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	//Find the extension contract in order to interact with it
 	extender, err := api.privacyService.managementContractFacade.Transactor(addressToVoteOn)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	//Perform the vote transaction.
 	tx, err := extender.DoVote(txArgs, vote, uuid)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
-	return tx.Hash(), nil
+	msg := fmt.Sprintf("voting successful, transaction hash is 0x%x", tx.Hash())
+	return msg, nil
 }
 
 // ExtendContract deploys a new extension management contract to the blockchain to start the process of extending
@@ -82,16 +94,22 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 // - the contract address we want to extend
 // - the new PTM public key
 // - the Ethereum addresses of who can vote to extend the contract
-func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecipientPtmPublicKey string, voters []common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
+func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecipientPtmPublicKey string, voters []common.Address, txa ethapi.SendTxArgs) (string, error) {
+
+	// check if the contract to be extended is already under extension
+	// if yes throw an error
+	if api.checkIfContractUnderExtension(toExtend) {
+		return "", errors.New("contract extension in progress for the given contract address")
+	}
 	// check the new key is valid
 	if _, err := base64.StdEncoding.DecodeString(newRecipientPtmPublicKey); err != nil {
-		return common.Hash{}, errors.New("invalid new recipient key provided")
+		return "", errors.New("invalid new recipient key provided")
 	}
 
 	//generate some valid transaction options for sending in the transaction
 	txArgs, err := api.accountManager.GenerateTransactOptions(txa)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	// check the the intended new recipient will actually receive the extension request
@@ -108,7 +126,7 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 
 	recipientHash, err := api.ptm.Send([]byte(newRecipientPtmPublicKey), txa.PrivateFrom, []string{})
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	recipientHashBase64 := common.BytesToEncryptedPayloadHash(recipientHash).ToBase64()
@@ -116,41 +134,43 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	//Deploy the contract
 	tx, err := api.privacyService.managementContractFacade.Deploy(txArgs, toExtend, voters, recipientHashBase64)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	//Return the transaction hash for later lookup
-	return tx.Hash(), nil
+	msg := fmt.Sprintf("contract extension initiation successful, transaction hash is 0x%x", tx.Hash())
+	return msg, nil
 }
 
 // Cancel allows the creator to cancel the given extension contract, ensuring
 // that no more calls for votes or accepting can be made
-func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa ethapi.SendTxArgs) (common.Hash, error) {
+func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa ethapi.SendTxArgs) (string, error) {
 	txArgs, err := api.accountManager.GenerateTransactOptions(txa)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	caller, err := api.privacyService.managementContractFacade.Caller(extensionContract)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	creatorAddress, err := caller.Creator(nil)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 	if isCreator := checkAddressInList(txArgs.From, []common.Address{creatorAddress}); !isCreator {
-		return common.Hash{}, errNotCreator
+		return "", errNotCreator
 	}
 
 	extender, err := api.privacyService.managementContractFacade.Transactor(extensionContract)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
 
 	tx, err := extender.Finish(txArgs)
 	if err != nil {
-		return common.Hash{}, err
+		return "", err
 	}
-	return tx.Hash(), nil
+	msg := fmt.Sprintf("contract extension cancelled, transaction hash is 0x%x", tx.Hash())
+	return msg, nil
 }

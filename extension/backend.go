@@ -128,7 +128,7 @@ func (service *PrivacyService) watchForNewContracts() {
 				_, err = extensionAPI.VoteOnContract(newContractExtension.ManagementContractAddress, true, txArgs)
 
 				if err != nil {
-					log.Error("Extension","Unable initiator vote on management contract failed" )
+					log.Error("Extension","initiator vote on management contract failed" )
 				}
 
 			}
