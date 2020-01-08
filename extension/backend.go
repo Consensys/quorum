@@ -100,8 +100,38 @@ func (service *PrivacyService) watchForNewContracts() {
 			}
 
 			service.currentContracts[foundLog.Address] = &newContractExtension
-			service.dataHandler.Save(service.currentContracts)
+			err = service.dataHandler.Save(service.currentContracts)
+			if err != nil {
+				log.Error("Error writing extension data to file", err.Error())
+				service.mu.Unlock()
+				continue
+			}
 			service.mu.Unlock()
+
+			// if party is sender then complete self voting
+			data := common.BytesToEncryptedPayloadHash(newContractExtension.CreationData)
+			isSender, _ := service.ptm.IsSender(data)
+
+			if isSender {
+				fetchedParties, err := service.ptm.GetParticipants(data)
+				if err != nil {
+					log.Error("Extension", "Unable to fetch all parties for extension management contract")
+					continue
+				}
+				//Find the extension contract in order to interact with it
+				caller, _ := service.managementContractFacade.Caller(newContractExtension.ManagementContractAddress)
+				contractCreator, _ := caller.Creator(nil)
+
+				txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties}
+
+				extensionAPI := NewPrivateExtensionAPI(service, service.accountManager, service.ptm)
+				_, err = extensionAPI.VoteOnContract(newContractExtension.ManagementContractAddress, true, txArgs)
+
+				if err != nil {
+					log.Error("Extension","Unable initiator vote on management contract failed" )
+				}
+
+			}
 		}
 	}
 }
