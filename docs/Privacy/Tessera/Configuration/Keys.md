@@ -166,7 +166,27 @@ Passwords must be provided so that Tessera can decrypt and use the private keys.
 
 ### Azure Key Vault key pairs
 The keys in the pair are stored as secrets in an Azure Key Vault.  This requires providing the vault url and the secret IDs for both keys:
-```json
+
+```json tab="pre-release"
+"keys": {
+    "keyVaultConfig": {
+        "keyVaultType": "AZURE",
+        "properties": {
+            "url": "https://my-vault.vault.azure.net"
+        } 
+    },
+    "keyData": [
+        {
+            "azureVaultPrivateKeyId": "Key",
+            "azureVaultPublicKeyId": "Pub",
+            "azureVaultPublicKeyVersion": "bvfw05z4cbu11ra2g94e43v9xxewqdq7",
+            "azureVaultPrivateKeyVersion": "0my1ora2dciijx5jq9gv07sauzs5wjo2"
+        }
+    ]
+}
+```
+
+```json tab="v0.10.2 and earlier"
 "keys": {
     "azureKeyVaultConfig": {
         "url": "https://my-vault.vault.azure.net"
@@ -189,7 +209,29 @@ This example configuration will retrieve the specified versions of the secrets `
 
 ### Hashicorp Vault key pairs
 The keys in the pair are stored as a secret in a Hashicorp Vault.  Additional configuration can also be provided if the Vault is configured to use TLS and if the AppRole auth method is being used at a different path to the default (`approle`):
-```json
+
+```json tab="pre-release"
+"keyVaultConfig": {
+    "keyVaultType": "HASHICORP",
+    "properties": {
+        "url": "https://localhost:8200",
+        "tlsKeyStorePath": "/path/to/keystore.jks",
+        "tlsTrustStorePath": "/path/to/truststore.jks",
+        "approlePath": "not-default"
+    }
+},
+"keyData": [
+    {
+        "hashicorpVaultSecretEngineName": "engine",
+        "hashicorpVaultSecretName": "secret",
+        "hashicorpVaultSecretVersion": 1,
+        "hashicorpVaultPrivateKeyId": "privateKey",
+        "hashicorpVaultPublicKeyId": "publicKey",
+    }
+]
+```
+
+```json tab="v0.10.2 and earlier"
 "hashicorpKeyVaultConfig": {
     "url": "https://localhost:8200",
     "tlsKeyStorePath": "/path/to/keystore.jks",
