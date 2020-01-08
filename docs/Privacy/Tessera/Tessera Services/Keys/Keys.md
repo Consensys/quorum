@@ -57,6 +57,9 @@ If you wish to generate an unlocked key, `/dev/null` can be used for stdin to te
     > Environment variables must be set if using a Hashicorp Vault, and a version 2 K/V secret engine must be enabled.  For more information see [Setting up a Hashicorp Vault](../Setting%20up%20a%20Hashicorp%20Vault).
 
 1. Generate a key pair, save to files and then start Tessera using a provided config
+
+    !!! note
+        This is only available in Tessera versions 0.10.2 and earlier.  This feature was removed to ensure clearer distinction of responsibilities between each Tessera command
     ```
     tessera -keygen -configfile /path/to/config.json
     ```
