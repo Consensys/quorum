@@ -82,7 +82,7 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 	if err != nil {
 		return "", err
 	}
-	msg := fmt.Sprintf("voting successful, transaction hash is 0x%x", tx.Hash())
+	msg := fmt.Sprintf("0x%x", tx.Hash())
 	return msg, nil
 }
 
@@ -138,7 +138,7 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	}
 
 	//Return the transaction hash for later lookup
-	msg := fmt.Sprintf("contract extension initiation successful, transaction hash is 0x%x", tx.Hash())
+	msg := fmt.Sprintf("0x%x", tx.Hash())
 	return msg, nil
 }
 
@@ -171,6 +171,6 @@ func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa eth
 	if err != nil {
 		return "", err
 	}
-	msg := fmt.Sprintf("contract extension cancelled, transaction hash is 0x%x", tx.Hash())
+	msg := fmt.Sprintf("0x%x", tx.Hash())
 	return msg, nil
 }
