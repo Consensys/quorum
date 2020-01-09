@@ -192,8 +192,25 @@ func getIsQuorum(file io.Reader) bool {
 // initGenesis will initialise the given JSON format genesis file and writes it as
 // the zero'd block (i.e. genesis) or will fail hard if it can't succeed.
 func initGenesis(ctx *cli.Context) error {
+	genesis := createGenesis(ctx.Args().First())
+	// Open an initialise both full and light databases
+	stack := makeFullNode(ctx)
+	for _, name := range []string{"chaindata", "lightchaindata"} {
+		chaindb, err := stack.OpenDatabase(name, 0, 0)
+		if err != nil {
+			utils.Fatalf("Failed to open database: %v", err)
+		}
+		_, hash, err := core.SetupGenesisBlock(chaindb, genesis)
+		if err != nil {
+			utils.Fatalf("Failed to write genesis block: %v", err)
+		}
+		log.Info("Successfully wrote genesis state", "database", name, "hash", hash)
+	}
+	return nil
+}
+
+func createGenesis(genesisPath string) *core.Genesis {
 	// Make sure we have a valid genesis JSON
-	genesisPath := ctx.Args().First()
 	if len(genesisPath) == 0 {
 		utils.Fatalf("Must supply path to genesis JSON file")
 	}
@@ -211,28 +228,16 @@ func initGenesis(ctx *cli.Context) error {
 	file.Seek(0, 0)
 	genesis.Config.IsQuorum = getIsQuorum(file)
 
-	// Open an initialise both full and light databases
-	stack := makeFullNode(ctx)
-	for _, name := range []string{"chaindata", "lightchaindata"} {
-		chaindb, err := stack.OpenDatabase(name, 0, 0)
-		if err != nil {
-			utils.Fatalf("Failed to open database: %v", err)
-		}
-		_, hash, err := core.SetupGenesisBlock(chaindb, genesis)
-		if err != nil {
-			utils.Fatalf("Failed to write genesis block: %v", err)
-		}
-		log.Info("Successfully wrote genesis state", "database", name, "hash", hash)
-	}
-	return nil
+	return genesis
 }
 
 func importChain(ctx *cli.Context) error {
-	if len(ctx.Args()) < 1 {
-		utils.Fatalf("This command requires an argument.")
+	if len(ctx.Args()) < 2 {
+		utils.Fatalf("This command requires two arguments, 1) import files 2) genesis JSON file.")
 	}
+	genesis := createGenesis(ctx.Args().Get(len(ctx.Args()) - 1))
 	stack := makeFullNode(ctx)
-	chain, chainDb := utils.MakeChain(ctx, stack)
+	chain, chainDb := utils.MakeChain(ctx, stack, genesis)
 	defer chainDb.Close()
 
 	// Start periodically gathering memory profiles
@@ -253,14 +258,16 @@ func importChain(ctx *cli.Context) error {
 	// Import the chain
 	start := time.Now()
 
-	if len(ctx.Args()) == 1 {
+	if len(ctx.Args()) == 2 {
 		if err := utils.ImportChain(chain, ctx.Args().First()); err != nil {
 			log.Error("Import error", "err", err)
 		}
 	} else {
-		for _, arg := range ctx.Args() {
-			if err := utils.ImportChain(chain, arg); err != nil {
-				log.Error("Import error", "file", arg, "err", err)
+		for i, arg := range ctx.Args() {
+			if i != len(ctx.Args())-1 {
+				if err := utils.ImportChain(chain, arg); err != nil {
+					log.Error("Import error", "file", arg, "err", err)
+				}
 			}
 		}
 	}
@@ -322,21 +329,22 @@ func importChain(ctx *cli.Context) error {
 }
 
 func exportChain(ctx *cli.Context) error {
-	if len(ctx.Args()) < 1 {
-		utils.Fatalf("This command requires an argument.")
+	if len(ctx.Args()) < 2 {
+		utils.Fatalf("This command requires two arguments, 1) export file 2) genesis JSON file.")
 	}
+	genesis := createGenesis(ctx.Args().Get(1))
 	stack := makeFullNode(ctx)
-	chain, _ := utils.MakeChain(ctx, stack)
+	chain, _ := utils.MakeChain(ctx, stack, genesis)
 	start := time.Now()
 
 	var err error
 	fp := ctx.Args().First()
-	if len(ctx.Args()) < 3 {
+	if len(ctx.Args()) < 4 {
 		err = utils.ExportChain(chain, fp)
 	} else {
 		// This can be improved to allow for numbers larger than 9223372036854775807
-		first, ferr := strconv.ParseInt(ctx.Args().Get(1), 10, 64)
-		last, lerr := strconv.ParseInt(ctx.Args().Get(2), 10, 64)
+		first, ferr := strconv.ParseInt(ctx.Args().Get(2), 10, 64)
+		last, lerr := strconv.ParseInt(ctx.Args().Get(3), 10, 64)
 		if ferr != nil || lerr != nil {
 			utils.Fatalf("Export error in parsing parameters: block number not an integer\n")
 		}
@@ -392,7 +400,7 @@ func copyDb(ctx *cli.Context) error {
 	}
 	// Initialize a new chain for the running node to sync into
 	stack := makeFullNode(ctx)
-	chain, chainDb := utils.MakeChain(ctx, stack)
+	chain, chainDb := utils.MakeChain(ctx, stack, nil)
 
 	syncmode := *utils.GlobalTextMarshaler(ctx, utils.SyncModeFlag.Name).(*downloader.SyncMode)
 	dl := downloader.New(syncmode, chainDb, new(event.TypeMux), chain, nil, nil)
@@ -464,7 +472,7 @@ func removeDB(ctx *cli.Context) error {
 
 func dump(ctx *cli.Context) error {
 	stack := makeFullNode(ctx)
-	chain, chainDb := utils.MakeChain(ctx, stack)
+	chain, chainDb := utils.MakeChain(ctx, stack, nil)
 	for _, arg := range ctx.Args() {
 		var block *types.Block
 		if hashish(arg) {
