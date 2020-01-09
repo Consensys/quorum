@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/private"
@@ -50,6 +51,13 @@ func (api *PrivateExtensionAPI) checkIfContractUnderExtension(toExtend common.Ad
 	return false
 }
 
+func(api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Address) bool {
+	caller, _ := api.privacyService.managementContractFacade.Caller(addressToVoteOn)
+	opts := bind.CallOpts{Pending: true, From: from}
+	voted, _ := caller.CheckIfVoted(&opts)
+	return voted
+}
+
 // VoteOnContract submits the vote to the specified extension management contract. The vote indicates whether to extend
 // a given contract to a new participant or not
 func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
@@ -66,6 +74,9 @@ func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, v
 		return "", errNotVoter
 	}
 
+	if api.checkAlreadyVoted(addressToVoteOn, txArgs.From){
+		return "", errors.New("already voted")
+	}
 	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.ptm)
 	if err != nil {
 		return "", err

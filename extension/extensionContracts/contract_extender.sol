@@ -85,6 +85,12 @@ contract ContractExtender {
         return walletAddressesToVote.length == numberOfVotesSoFar;
     }
 
+    // returns true if the sender address has already voted on the
+    // extension contracts
+    function checkIfVoted() public view returns (bool) {
+        return hasVotedMapping[msg.sender];
+    }
+
     // single node vote to either extend or not
     // can't have voted before
     function doVote(bool vote, string memory nextuuid) public notFinished() {
