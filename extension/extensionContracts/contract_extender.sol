@@ -91,6 +91,11 @@ contract ContractExtender {
         return hasVotedMapping[msg.sender];
     }
 
+    // returns true if the contract extension is finished
+    function checkIfExtensionFinished() public view returns (bool) {
+        return isFinished;
+    }
+
     // single node vote to either extend or not
     // can't have voted before
     function doVote(bool vote, string memory nextuuid) public notFinished() {
@@ -159,6 +164,7 @@ contract ContractExtender {
     }
 
     function cast(bool vote) internal {
+        require(!isFinished, "extension process completed. cannot vote");
         require(walletAddressesToVoteMap[msg.sender], "not allowed to vote");
         require(!hasVotedMapping[msg.sender], "already voted");
         require(voteOutcome, "voting already declined");

@@ -60,9 +60,24 @@ func(api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Ad
 	return voted
 }
 
+// checks if the voter has already voted on the contract.
+func(api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from common.Address) bool {
+	caller, _ := api.privacyService.managementContractFacade.Caller(addressToVoteOn)
+	opts := bind.CallOpts{Pending: true, From: from}
+
+	status, _ := caller.CheckIfExtensionFinished(&opts)
+	return status
+}
+
 // VoteOnContract submits the vote to the specified extension management contract. The vote indicates whether to extend
 // a given contract to a new participant or not
 func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
+	// check if the extension has been completed. if yes
+	// no voting required
+	if api.checkIfExtensionComplete(addressToVoteOn, txa.From) {
+		return "", errors.New("contract extension process complete. nothing to vote")
+	}
+
 	txArgs, err := api.accountManager.GenerateTransactOptions(txa)
 	if err != nil {
 		return "", err
@@ -158,6 +173,10 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 // Cancel allows the creator to cancel the given extension contract, ensuring
 // that no more calls for votes or accepting can be made
 func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa ethapi.SendTxArgs) (string, error) {
+
+	if api.checkIfExtensionComplete(extensionContract, txa.From) {
+		return "", errors.New("contract extension process complete. nothing to cancel")
+	}
 	txArgs, err := api.accountManager.GenerateTransactOptions(txa)
 	if err != nil {
 		return "", err
