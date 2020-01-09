@@ -31,6 +31,11 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 			if err != nil {
 				continue
 			}
+			// check if state exists for the extension address. If yes then skip
+			// processing
+			if privateState.GetCode(address) != nil {
+				continue
+			}
 			accounts, found := handler.FetchStateData(txLog.Address, hash, uuid)
 			if !found {
 				continue
@@ -55,13 +60,13 @@ func (handler *ExtensionHandler) FetchStateData(address common.Address, hash str
 	stateData, ok := handler.FetchDataFromPTM(hash)
 	if !ok {
 		//there is nothing to do here, the state wasn't shared with us
-		log.Error("Extension", "No state shared with us")
+		log.Error("Extension: No state shared with us")
 		return nil, false
 	}
 
 	var accounts map[string]extension.AccountWithMetadata
 	if err := json.Unmarshal(stateData, &accounts); err != nil {
-		log.Error("Extension", "Could not unmarshal data")
+		log.Error("Extension: Could not unmarshal data")
 		return nil, false
 	}
 	return accounts, true
@@ -87,7 +92,7 @@ func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, bool) {
 func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) bool {
 	if uuid == "" {
 		//we never called accept
-		log.Warn("Extension", "State shared by accept never called")
+		log.Warn("Extension: State shared by accept never called")
 		return false
 	}
 	encryptedTxHash := common.BytesToEncryptedPayloadHash(common.FromHex(uuid))
