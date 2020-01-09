@@ -51,9 +51,11 @@ func (api *PrivateExtensionAPI) checkIfContractUnderExtension(toExtend common.Ad
 	return false
 }
 
+// checks if the voter has already voted on the contract.
 func(api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Address) bool {
 	caller, _ := api.privacyService.managementContractFacade.Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
+
 	voted, _ := caller.CheckIfVoted(&opts)
 	return voted
 }
