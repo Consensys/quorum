@@ -46,7 +46,6 @@ var (
 
 type ExtensionContract struct {
 	Address                   common.Address `json:"address"`
-	HasVoted              	  bool           `json:"hasVoted"`
 	Initiator                 common.Address `json:"initiator"`
 	ManagementContractAddress common.Address `json:"managementcontractaddress"`
 	CreationData              []byte         `json:"creationData"`
