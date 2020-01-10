@@ -15,6 +15,9 @@ var (
 	errNotCreator = errors.New("account is not the creator of this extension request")
 )
 
+const extensionCompleted  = "DONE"
+const extensionInProgress  = "ACTIVE"
+
 type PrivateExtensionAPI struct {
 	privacyService *PrivacyService
 	accountManager IAccountManager
@@ -61,20 +64,28 @@ func(api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Ad
 }
 
 // checks if the voter has already voted on the contract.
-func(api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from common.Address) bool {
+func(api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from common.Address) (bool, error) {
 	caller, _ := api.privacyService.managementContractFacade.Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
-	status, _ := caller.CheckIfExtensionFinished(&opts)
-	return status
+	status, err := caller.CheckIfExtensionFinished(&opts)
+	if err != nil {
+		return true, err
+	}
+	return status, nil
 }
 
-// VoteOnContract submits the vote to the specified extension management contract. The vote indicates whether to extend
+// ApproveContractExtension submits the vote to the specified extension management contract. The vote indicates whether to extend
 // a given contract to a new participant or not
-func (api *PrivateExtensionAPI) VoteOnContract(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
+func (api *PrivateExtensionAPI) ApproveContractExtension(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
 	// check if the extension has been completed. if yes
 	// no voting required
-	if api.checkIfExtensionComplete(addressToVoteOn, txa.From) {
+	status, err := api.checkIfExtensionComplete(addressToVoteOn, txa.From)
+	if err != nil {
+		return "", err
+	}
+
+	if status  {
 		return "", errors.New("contract extension process complete. nothing to vote")
 	}
 
@@ -170,13 +181,17 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	return msg, nil
 }
 
-// Cancel allows the creator to cancel the given extension contract, ensuring
+// CancelExtension allows the creator to cancel the given extension contract, ensuring
 // that no more calls for votes or accepting can be made
-func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa ethapi.SendTxArgs) (string, error) {
-
-	if api.checkIfExtensionComplete(extensionContract, txa.From) {
+func (api *PrivateExtensionAPI) CancelExtension(extensionContract common.Address, txa ethapi.SendTxArgs) (string, error) {
+	status, err := api.checkIfExtensionComplete(extensionContract, txa.From)
+	if err != nil {
+		return "", err
+	}
+	if status {
 		return "", errors.New("contract extension process complete. nothing to cancel")
 	}
+
 	txArgs, err := api.accountManager.GenerateTransactOptions(txa)
 	if err != nil {
 		return "", err
@@ -205,4 +220,19 @@ func (api *PrivateExtensionAPI) Cancel(extensionContract common.Address, txa eth
 	}
 	msg := fmt.Sprintf("0x%x", tx.Hash())
 	return msg, nil
+}
+
+// Returns the extension status from management contract
+func (api *PrivateExtensionAPI) GetExtensionStatus(extensionContract common.Address) (string, error) {
+
+	status, err := api.checkIfExtensionComplete(extensionContract, common.Address{})
+	if err != nil {
+		return "", err
+	}
+
+	if status {
+		return extensionCompleted, nil
+	}
+
+	return extensionInProgress, nil
 }

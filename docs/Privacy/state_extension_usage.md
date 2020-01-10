@@ -32,7 +32,7 @@ of all the votes.
 
 The API is invoked like so:
 ```
-quorumExtension.voteOnContract(
+quorumExtension.approveContractExtension(
     "<extension management contract address>",
     <boolean, which way to vote>,
     <normal tx args, which are used to send the transactions>
@@ -65,7 +65,7 @@ extension proposal.
 
 The API is invoked like so:
 ```
-quorumExtension.cancel(
+quorumExtension.cancelExtension(
     "<extension management contract address>",
     <normal tx args, which are used to send the transactions>
 )

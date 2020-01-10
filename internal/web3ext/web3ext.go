@@ -966,8 +966,8 @@ web3._extend({
 	methods:
 	[
 		new web3._extend.Method({
-			name: 'voteOnContract',
-			call: 'quorumExtension_voteOnContract',
+			name: 'approveContractExtension',
+			call: 'quorumExtension_approveContractExtension',
 			params: 3,
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null, web3._extend.formatters.inputTransactionFormatter]
 		}),
@@ -990,11 +990,18 @@ web3._extend({
 			}, web3._extend.formatters.inputTransactionFormatter]
 		}),
 		new web3._extend.Method({
-			name: 'cancel',
-			call: 'quorumExtension_cancel',
+			name: 'cancelExtension',
+			call: 'quorumExtension_cancelExtension',
 			params: 2,
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
-		})
+		}),
+		new web3._extend.Method({
+			name: 'getExtensionStatus',
+			call: 'quorumExtension_getExtensionStatus',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
+		}),
+
 	],
 	properties:
 	[
