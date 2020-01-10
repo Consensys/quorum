@@ -19,7 +19,12 @@ You can use existing private/public key pairs as well as use Tessera to generate
         "tlsKeyStorePath": "Path",
         "tlsTrustStorePath": "Path" 
     },
-    "awsKeyVaultConfig":{
+    "keyVaultConfig": {
+        "keyVaultConfigType": "AWS",
+        "properties": {
+            "endpoint": "Url"
+        }
+    },
           "endpoint": "Url"
       }
     "keyData": [
