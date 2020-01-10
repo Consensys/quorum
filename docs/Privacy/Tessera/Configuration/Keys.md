@@ -231,7 +231,6 @@ The keys in the pair are stored as secrets in the _AWS Secrets Manager_.  This r
 ```json
 "keys": {
         "awsKeyVaultConfig":{
-        },
         "keyData": [
             {
                 "awsSecretsManagerPublicKeyId": "secretIdPub",
