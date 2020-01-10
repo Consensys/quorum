@@ -25,7 +25,6 @@ You can use existing private/public key pairs as well as use Tessera to generate
             "endpoint": "Url"
         }
     },
-          "endpoint": "Url"
     "keyData": [
         {
             // The data for a private/public key pair
