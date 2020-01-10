@@ -232,7 +232,6 @@ The keys in the pair are stored as secrets in the _AWS Secrets Manager_.  This r
 ```json
 "keys": {
         "awsKeyVaultConfig":{
-            "endpoint": "https://secretsmanager.us-west-2.amazonaws.com"
         },
         "keyData": [
             {
