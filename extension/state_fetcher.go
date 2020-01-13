@@ -5,7 +5,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
@@ -15,6 +14,7 @@ import (
 type BlockRetriever interface {
 	// GetBlockByHash retrieves a block from the local chain.
 	GetBlockByHash(common.Hash) *types.Block
+	StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error)
 }
 
 // StateFetcher manages retrieving state from the database and returning it in
@@ -46,9 +46,9 @@ func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, add
 // privateState returns the private state database for a given block hash.
 func (fetcher *StateFetcher) privateState(blockHash common.Hash) (*state.StateDB, error) {
 	block := fetcher.blockRetriever.GetBlockByHash(blockHash)
-	privateStateRoot := core.GetPrivateStateRoot(fetcher.db, block.Root())
+	_, privateState, err := fetcher.blockRetriever.StateAt(block.Root())
 
-	return state.New(privateStateRoot, state.NewDatabase(fetcher.db))
+	return privateState, err
 }
 
 // addressStateAsJson returns the state of an address, including the balance,
