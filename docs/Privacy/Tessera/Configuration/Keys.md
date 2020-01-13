@@ -1,3 +1,8 @@
+!!! warning "Change from Tessera v0.10.2+"
+    The `keys.keyData.passwords` field is no longer supported as of Tessera v0.10.2.  
+    
+    Instead, use `keys.keyData.passwordFile` or utilise the [CLI password prompt](#providing-key-passwords-at-runtime) when starting the node.
+
 Tessera uses cryptographic keys to provide transaction privacy.  
 
 You can use existing private/public key pairs as well as use Tessera to generate new key pairs for you.  See [Generating & securing keys](../../Tessera%20Services/Keys/Keys) for more info.
@@ -213,6 +218,21 @@ Tessera requires TLS certificates and keys to be stored in `.jks` Java keystore 
 
 !!! info
     If using a Hashicorp Vault additional environment variables must be set and a version 2 K/V secret engine must be enabled.  For more information see [Setting up a Hashicorp Vault](../../Tessera%20Services/Keys/Setting%20up%20a%20Hashicorp%20Vault).
+
+## Providing key passwords at runtime
+Tessera will start a CLI password prompt if it has incomplete password data for its locked keys.  This prompt can be used to provide the required passwords for each key without having to provide them in the configfile itself.  
+
+For example:   
+
+```bash
+tessera -configfile path/to/config.json
+Password for key[0] missing or invalid.
+Attempt 1 of 2. Enter a password for the key
+
+2019-12-09 13:48:16.159 [main] INFO  c.q.t.config.keys.KeyEncryptorImpl - Decrypting private key
+2019-12-09 13:48:19.364 [main] INFO  c.q.t.config.keys.KeyEncryptorImpl - Decrypted private key
+# Tessera startup continues as normal
+``` 
 
 ## Multiple Keys
 If wished, multiple key pairs can be specified for a Tessera node. In this case, any one of the public keys can be used to address a private transaction to that node. Tessera will sequentially try each key to find one that can decrypt the payload. This can be used, for example, to simplify key rotation.

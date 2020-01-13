@@ -75,7 +75,12 @@ nav:
         - Overview: Cakeshop/Overview.md
         - Getting Started: Cakeshop/Getting started.md
         - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
-    - Product Roadmap: roadmap.md         
+    - Remix Plugin:
+        - Overview: RemixPlugin/Overview.md
+        - Getting Started: RemixPlugin/Getting started.md
+    - Quorum Features:
+        - DNS: Features/dns.md
+    - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
 theme:
