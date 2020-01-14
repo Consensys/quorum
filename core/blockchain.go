@@ -927,6 +927,23 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
+	// Quorum
+	// Write private state changes to database
+	// Explicit commit for privateStateTriedb
+	privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
+	if err != nil {
+		return NonStatTy, err
+	}
+	if err := WritePrivateStateRoot(bc.db, block.Root(), privateRoot); err != nil {
+		log.Error("Failed writing private state root", "err", err)
+		return NonStatTy, err
+	}
+	privateTriedb := bc.privateStateCache.TrieDB()
+	if err := privateTriedb.Commit(privateRoot, false); err != nil {
+		return NonStatTy, err
+	}
+	// /Quorum
+
 	// Calculate the total difficulty of the block
 	ptd := bc.GetTd(block.ParentHash(), block.NumberU64()-1)
 	if ptd == nil {
@@ -953,17 +970,6 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	}
 	triedb := bc.stateCache.TrieDB()
 
-	// Explicit commit for privateStateTriedb to handle Raft db issues
-	if privateState != nil {
-		privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
-		if err != nil {
-			return NonStatTy, err
-		}
-		privateTriedb := bc.privateStateCache.TrieDB()
-		if err := privateTriedb.Commit(privateRoot, false); err != nil {
-			return NonStatTy, err
-		}
-	}
 
 	// If we're running an archive node, always flush
 	if bc.cacheConfig.Disabled {
@@ -1269,17 +1275,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			return i, events, coalescedLogs, err
 		}
 
-		// Quorum
-		// Write private state changes to database
-		if privateStateRoot, err = privateState.Commit(bc.Config().IsEIP158(block.Number())); err != nil {
-			return i, events, coalescedLogs, err
-		}
-		if err := WritePrivateStateRoot(bc.db, block.Root(), privateStateRoot); err != nil {
-			return i, events, coalescedLogs, err
-		}
 		allReceipts := mergeReceipts(receipts, privateReceipts)
-		// /Quorum
-
 		proctime := time.Since(bstart)
 
 		// Write the block to the chain and get the status.
