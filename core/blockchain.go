@@ -1275,7 +1275,9 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			return i, events, coalescedLogs, err
 		}
 
+		// Quorum
 		allReceipts := mergeReceipts(receipts, privateReceipts)
+		// /Quorum
 		proctime := time.Since(bstart)
 
 		// Write the block to the chain and get the status.
