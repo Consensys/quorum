@@ -752,7 +752,9 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	if privateReceipt != nil {
 		logs = append(receipt.Logs, privateReceipt.Logs...)
 		w.current.privateReceipts = append(w.current.privateReceipts, privateReceipt)
+		// Quorum
 		privacyExtension.DefaultExtensionHandler.CheckExtensionAndSetPrivateState(logs, w.current.privateState)
+		// /Quorum
 	}
 	return logs, nil
 }
