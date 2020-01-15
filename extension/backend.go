@@ -150,7 +150,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties}
 
 					extensionAPI := NewPrivateExtensionAPI(service, service.accountManager, service.ptm)
-					_, err = extensionAPI.ApproveContractExtension(newContractExtension.ManagementContractAddress, true, txArgs)
+					_, err = extensionAPI.ApproveExtension(newContractExtension.ManagementContractAddress, true, txArgs)
 
 					if err != nil {
 						log.Error("Extension: initiator vote on management contract failed", "error", err)

@@ -32,7 +32,7 @@ of all the votes.
 
 The API is invoked like so:
 ```
-quorumExtension.approveContractExtension(
+quorumExtension.approveExtension(
     "<extension management contract address>",
     <boolean, which way to vote>,
     <normal tx args, which are used to send the transactions>

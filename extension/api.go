@@ -77,7 +77,7 @@ func(api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from co
 
 // ApproveContractExtension submits the vote to the specified extension management contract. The vote indicates whether to extend
 // a given contract to a new participant or not
-func (api *PrivateExtensionAPI) ApproveContractExtension(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
+func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
 	// check if the extension has been completed. if yes
 	// no voting required
 	status, err := api.checkIfExtensionComplete(addressToVoteOn, txa.From)

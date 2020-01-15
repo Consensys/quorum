@@ -966,8 +966,8 @@ web3._extend({
 	methods:
 	[
 		new web3._extend.Method({
-			name: 'approveContractExtension',
-			call: 'quorumExtension_approveContractExtension',
+			name: 'approveExtension',
+			call: 'quorumExtension_approveExtension',
 			params: 3,
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null, web3._extend.formatters.inputTransactionFormatter]
 		}),
