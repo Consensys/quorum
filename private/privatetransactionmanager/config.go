@@ -1,4 +1,4 @@
-package constellation
+package privatetransactionmanager
 
 import (
 	"github.com/BurntSushi/toml"
