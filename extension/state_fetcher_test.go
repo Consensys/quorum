@@ -14,7 +14,7 @@ func TestDumpAddressWhenFound(t *testing.T) {
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
-	stateFetcher := NewStateFetcher(db, nil)
+	stateFetcher := NewStateFetcher(nil)
 
 	// generate a few entries and write them out to the db
 	statedb.SetBalance(address, big.NewInt(22))
@@ -35,7 +35,7 @@ func TestDumpAddressWhenNotFound(t *testing.T) {
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	statedb.Commit(false)
 
-	stateFetcher := NewStateFetcher(db, nil)
+	stateFetcher := NewStateFetcher(nil)
 
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 	out := stateFetcher.addressStateAsJson(statedb, address)

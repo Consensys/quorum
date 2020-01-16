@@ -2,16 +2,15 @@ package extension
 
 import (
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/extension/extensionContracts"
 )
 
-// BlockRetriever provides methods to fetch blocks from the local blockchain
-type BlockRetriever interface {
+// ChainAccessor provides methods to fetch state and blocks from the local blockchain
+type ChainAccessor interface {
 	// GetBlockByHash retrieves a block from the local chain.
 	GetBlockByHash(common.Hash) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error)
@@ -20,15 +19,13 @@ type BlockRetriever interface {
 // StateFetcher manages retrieving state from the database and returning it in
 // a usable form by the extension API.
 type StateFetcher struct {
-	db             ethdb.Database
-	blockRetriever BlockRetriever
+	chainAccessor ChainAccessor
 }
 
 // Creates a new StateFetcher from the ethereum service
-func NewStateFetcher(db ethdb.Database, blockRetriever BlockRetriever) *StateFetcher {
+func NewStateFetcher(chainAccessor ChainAccessor) *StateFetcher {
 	return &StateFetcher{
-		db:             db,
-		blockRetriever: blockRetriever,
+		chainAccessor: chainAccessor,
 	}
 }
 
@@ -45,8 +42,8 @@ func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, add
 
 // privateState returns the private state database for a given block hash.
 func (fetcher *StateFetcher) privateState(blockHash common.Hash) (*state.StateDB, error) {
-	block := fetcher.blockRetriever.GetBlockByHash(blockHash)
-	_, privateState, err := fetcher.blockRetriever.StateAt(block.Root())
+	block := fetcher.chainAccessor.GetBlockByHash(blockHash)
+	_, privateState, err := fetcher.chainAccessor.StateAt(block.Root())
 
 	return privateState, err
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -15,8 +16,8 @@ var (
 	errNotCreator = errors.New("account is not the creator of this extension request")
 )
 
-const extensionCompleted  = "DONE"
-const extensionInProgress  = "ACTIVE"
+const extensionCompleted = "DONE"
+const extensionInProgress = "ACTIVE"
 
 type PrivateExtensionAPI struct {
 	privacyService *PrivacyService
@@ -55,7 +56,7 @@ func (api *PrivateExtensionAPI) checkIfContractUnderExtension(toExtend common.Ad
 }
 
 // checks if the voter has already voted on the contract.
-func(api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Address) bool {
+func (api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Address) bool {
 	caller, _ := api.privacyService.managementContractFacade.Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
@@ -64,7 +65,7 @@ func(api *PrivateExtensionAPI) checkAlreadyVoted(addressToVoteOn, from common.Ad
 }
 
 // checks if the voter has already voted on the contract.
-func(api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from common.Address) (bool, error) {
+func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from common.Address) (bool, error) {
 	caller, _ := api.privacyService.managementContractFacade.Caller(addressToVoteOn)
 	opts := bind.CallOpts{Pending: true, From: from}
 
@@ -85,7 +86,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address,
 		return "", err
 	}
 
-	if status  {
+	if status {
 		return "", errors.New("contract extension process complete. nothing to vote")
 	}
 
@@ -102,7 +103,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address,
 		return "", errNotVoter
 	}
 
-	if api.checkAlreadyVoted(addressToVoteOn, txArgs.From){
+	if api.checkAlreadyVoted(addressToVoteOn, txArgs.From) {
 		return "", errors.New("already voted")
 	}
 	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.ptm)

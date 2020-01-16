@@ -11,7 +11,7 @@ import (
 )
 
 func setState(privateState *state.StateDB, accounts map[string]extension.AccountWithMetadata) bool {
-	log.Debug("[SOS] set private state explicitly from state dump")
+	log.Debug("Extension: set private state explicitly from state dump")
 	for key, value := range accounts {
 		stateDump := value.State
 
@@ -22,12 +22,10 @@ func setState(privateState *state.StateDB, accounts map[string]extension.Account
 			log.Error("could not set address balance", "address", key, "balance", stateDump.Balance)
 			return false
 		}
-		log.Debug("[SOS] update private state", "address", contractAddress.Hex())
 		privateState.SetBalance(contractAddress, newBalance)
 		privateState.SetNonce(contractAddress, stateDump.Nonce)
 		privateState.SetCode(contractAddress, common.Hex2Bytes(stateDump.Code))
 		for keyStore, valueStore := range stateDump.Storage {
-			log.Debug("[SOS] state", "key", common.HexToHash(keyStore).Hex(), "value", common.HexToHash(valueStore).Hex())
 			privateState.SetState(contractAddress, common.HexToHash(keyStore), common.HexToHash(valueStore))
 		}
 	}

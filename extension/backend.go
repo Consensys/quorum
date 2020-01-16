@@ -213,7 +213,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 		for {
 			select {
 			case l := <-incomingLogs:
-				log.Debug("[SOS] Receieved a completion event", "address", l.Address.Hex(), "blockNumber", l.BlockNumber)
+				log.Debug("Extension: Receieved a completion event", "address", l.Address.Hex(), "blockNumber", l.BlockNumber)
 				service.mu.Lock()
 				func() {
 					defer func() {
@@ -222,7 +222,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 					extensionEntry, ok := service.currentContracts[l.Address]
 					if !ok {
 						// we didn't have this management contract, so ignore it
-						log.Debug("[SOS] this node doesn't participate in the contract extender", "address", l.Address.Hex())
+						log.Debug("Extension: this node doesn't participate in the contract extender", "address", l.Address.Hex())
 						return
 					}
 
@@ -237,7 +237,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						log.Error("[contract] caller.Creator", "error", err)
 						return
 					}
-					log.Debug("[SOS] check if this node has the account that created the contract extender", "account", contractCreator)
+					log.Debug("Extension: check if this node has the account that created the contract extender", "account", contractCreator)
 					if !service.accountManager.Exists(contractCreator) {
 						log.Warn("Account used to sign extension contract no longer available", "account", contractCreator.Hex())
 						return
@@ -250,7 +250,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						log.Error("Extension: Unable to fetch all parties for extension management contract", "error", err)
 						return
 					}
-					log.Debug("[SOS] able to fetch all parties", "parties", fetchedParties)
+					log.Debug("Extension: able to fetch all parties", "parties", fetchedParties)
 
 					txArgs, err := service.accountManager.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties})
 					if err != nil {
@@ -273,7 +273,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						log.Error("[ptm] service.ptm.Receive", "decodedInHex", hex.EncodeToString(decoded[:]), "error", err)
 						return
 					}
-					log.Debug("[SOS] able to retrieve the public key of the new party", "publicKey", string(recipient))
+					log.Debug("Extension: able to retrieve the public key of the new party", "publicKey", string(recipient))
 
 					//we found the account, so we can send
 					contractToExtend, err := caller.ContractToExtend(nil)
@@ -281,14 +281,14 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						log.Error("[contract] caller.ContractToExtend", "error", err)
 						return
 					}
-					log.Debug("[SOS] dump current state", "block", l.BlockHash, "contract", contractToExtend.Hex())
+					log.Debug("Extension: dump current state", "block", l.BlockHash, "contract", contractToExtend.Hex())
 					entireStateData, err := service.stateFetcher.GetAddressStateFromBlock(l.BlockHash, contractToExtend)
 					if err != nil {
 						log.Error("[state] service.stateFetcher.GetAddressStateFromBlock", "block", l.BlockHash.Hex(), "contract", contractToExtend.Hex(), "error", err)
 						return
 					}
 
-					log.Debug("[SOS] send the state dump to the new recipient", "recipient", string(recipient))
+					log.Debug("Extension: send the state dump to the new recipient", "recipient", string(recipient))
 					//send to PTM
 					hashOfStateData, err := service.ptm.Send(entireStateData, "", []string{string(recipient)})
 					if err != nil {
@@ -302,11 +302,11 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						log.Error("service.managementContractFacade.Transactor", "address", l.Address.Hex(), "error", err)
 						return
 					}
-					log.Debug("[SOS] store the encrypted payload hash of dump state", "contract", l.Address.Hex())
+					log.Debug("Extension: store the encrypted payload hash of dump state", "contract", l.Address.Hex())
 					if tx, err := transactor.SetSharedStateHash(txArgs, hashofStateDataBase64); err != nil {
 						log.Error("[contract] transactor.SetSharedStateHash", "error", err, "hashOfStateInBase64", hashofStateDataBase64)
 					} else {
-						log.Debug("[SOS] transaction carrying shared state", "txhash", tx.Hash(), "private", tx.IsPrivate())
+						log.Debug("Extension: transaction carrying shared state", "txhash", tx.Hash(), "private", tx.IsPrivate())
 					}
 				}()
 			case <-stopChan:

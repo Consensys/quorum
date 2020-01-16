@@ -10,7 +10,7 @@ func UnpackStateSharedLog(logData []byte) (common.Address, string, string, error
 	return decodedLog.ToExtend, decodedLog.Tesserahash, decodedLog.Uuid, nil
 }
 
-func UnpackNewExtensionCreatedLog(data []byte) (*ContractExtenderNewContractExtensionContractCreated, error){
+func UnpackNewExtensionCreatedLog(data []byte) (*ContractExtenderNewContractExtensionContractCreated, error) {
 	newExtensionEvent := new(ContractExtenderNewContractExtensionContractCreated)
 	err := ContractExtenderParsedABI.Unpack(newExtensionEvent, "NewContractExtensionContractCreated", data)
 
