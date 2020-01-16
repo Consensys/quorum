@@ -80,6 +80,7 @@ nav:
         - Getting Started: RemixPlugin/Getting started.md
     - Quorum Features:
         - DNS: Features/dns.md
+        - Export & Import Chain: Features/Export & Import Chain.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
