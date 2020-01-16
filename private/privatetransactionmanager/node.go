@@ -1,4 +1,4 @@
-package constellation
+package privatetransactionmanager
 
 import (
 	"bytes"
@@ -60,7 +60,7 @@ func RunNode(socketPath string) error {
 	if res.StatusCode == 200 {
 		return nil
 	}
-	return errors.New("Constellation Node API did not respond to upcheck request")
+	return errors.New("private transaction manager did not respond to upcheck request")
 }
 
 type Client struct {

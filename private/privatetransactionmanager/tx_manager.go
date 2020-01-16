@@ -1,4 +1,4 @@
-package constellation
+package privatetransactionmanager
 
 import (
 	"errors"
@@ -9,22 +9,21 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-
 	"github.com/patrickmn/go-cache"
 )
 
-type Constellation struct {
-	node                    *Client
-	c                       *cache.Cache
-	isConstellationNotInUse bool
+type PrivateTransactionManager struct {
+	node                                *Client
+	c                                   *cache.Cache
+	isPrivateTransactionManagerNotInUse bool
 }
 
 var (
 	errPrivateTransactionManagerNotUsed = errors.New("private transaction manager not in use")
 )
 
-func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
-	if g.isConstellationNotInUse {
+func (g *PrivateTransactionManager) Send(data []byte, from string, to []string) (out []byte, err error) {
+	if g.isPrivateTransactionManagerNotInUse {
 		return nil, errPrivateTransactionManagerNotUsed
 	}
 	out, err = g.node.SendPayload(data, from, to)
@@ -35,8 +34,8 @@ func (g *Constellation) Send(data []byte, from string, to []string) (out []byte,
 	return out, nil
 }
 
-func (g *Constellation) SendSignedTx(data []byte, to []string) (out []byte, err error) {
-	if g.isConstellationNotInUse {
+func (g *PrivateTransactionManager) SendSignedTx(data []byte, to []string) (out []byte, err error) {
+	if g.isPrivateTransactionManagerNotInUse {
 		return nil, errPrivateTransactionManagerNotUsed
 	}
 	out, err = g.node.SendSignedPayload(data, to)
@@ -46,8 +45,8 @@ func (g *Constellation) SendSignedTx(data []byte, to []string) (out []byte, err 
 	return out, nil
 }
 
-func (g *Constellation) Receive(data []byte) ([]byte, error) {
-	if g.isConstellationNotInUse {
+func (g *PrivateTransactionManager) Receive(data []byte) ([]byte, error) {
+	if g.isPrivateTransactionManagerNotInUse {
 		return nil, nil
 	}
 	if len(data) == 0 {
@@ -67,21 +66,21 @@ func (g *Constellation) Receive(data []byte) ([]byte, error) {
 	return pl, nil
 }
 
-func (g *Constellation) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
-	if g.isConstellationNotInUse {
+func (g *PrivateTransactionManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
+	if g.isPrivateTransactionManagerNotInUse {
 		return false, errPrivateTransactionManagerNotUsed
 	}
 	return g.node.IsSender(txHash)
 }
 
-func (g *Constellation) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
-	if g.isConstellationNotInUse {
+func (g *PrivateTransactionManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
+	if g.isPrivateTransactionManagerNotInUse {
 		return nil, errPrivateTransactionManagerNotUsed
 	}
 	return g.node.GetParticipants(txHash)
 }
 
-func New(path string) (*Constellation, error) {
+func New(path string) (*PrivateTransactionManager, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return nil, err
@@ -104,24 +103,24 @@ func New(path string) (*Constellation, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Constellation{
-		node:                    n,
-		c:                       cache.New(5*time.Minute, 5*time.Minute),
-		isConstellationNotInUse: false,
+	return &PrivateTransactionManager{
+		node:                                n,
+		c:                                   cache.New(5*time.Minute, 5*time.Minute),
+		isPrivateTransactionManagerNotInUse: false,
 	}, nil
 }
 
-func MustNew(path string) *Constellation {
+func MustNew(path string) *PrivateTransactionManager {
 	if strings.EqualFold(path, "ignore") {
-		return &Constellation{
-			node:                    nil,
-			c:                       nil,
-			isConstellationNotInUse: true,
+		return &PrivateTransactionManager{
+			node:                                nil,
+			c:                                   nil,
+			isPrivateTransactionManagerNotInUse: true,
 		}
 	}
 	g, err := New(path)
 	if err != nil {
-		panic(fmt.Sprintf("MustNew: Failed to connect to Constellation (%s): %v", path, err))
+		panic(fmt.Sprintf("MustNew: Failed to connect to private transaction manager (%s): %v", path, err))
 	}
 	return g
 }
