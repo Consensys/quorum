@@ -51,7 +51,7 @@ type basePlugin struct {
 
 var basePluginPointerType = reflect.TypeOf(&basePlugin{})
 
-func newBasePlugin(pm *PluginManager, pluginInterface PluginInterfaceName, pluginDefinition *PluginDefinition, gateways plugin.PluginSet) (*basePlugin, error) {
+func newBasePlugin(pm *PluginManager, pluginInterface PluginInterfaceName, pluginDefinition PluginDefinition, gateways plugin.PluginSet) (*basePlugin, error) {
 	gateways[initializer.ConnectorName] = &initializer.PluginConnector{}
 
 	// build basePlugin
@@ -59,7 +59,7 @@ func newBasePlugin(pm *PluginManager, pluginInterface PluginInterfaceName, plugi
 		pm:               pm,
 		pluginInterface:  pluginInterface,
 		logger:           log.New("provider", pluginInterface, "plugin", pluginDefinition.Name, "version", pluginDefinition.Version),
-		pluginDefinition: pluginDefinition,
+		pluginDefinition: &pluginDefinition,
 		gateways:         gateways,
 	}, nil
 

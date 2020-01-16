@@ -14,15 +14,15 @@ import (
 
 // this implements geth service
 type PluginManager struct {
-	nodeName      string // geth node name
-	pluginBaseDir string // base directory for all the plugins
-	verifier      Verifier
-	centralClient *CentralClient
-	downloader    *Downloader
-	settings      *Settings
-	mux           sync.Mutex                            // control concurrent access to plugins cache
-	plugins       map[PluginInterfaceName]managedPlugin // lazy load the actual plugin templates
-	basePlugins   map[PluginInterfaceName]managedPlugin // prepopulate during initialization of plugin manager, needed for starting plugins
+	nodeName           string // geth node name
+	pluginBaseDir      string // base directory for all the plugins
+	verifier           Verifier
+	centralClient      *CentralClient
+	downloader         *Downloader
+	settings           *Settings
+	mux                sync.Mutex                            // control concurrent access to plugins cache
+	plugins            map[PluginInterfaceName]managedPlugin // lazy load the actual plugin templates
+	initializedPlugins map[PluginInterfaceName]managedPlugin // prepopulate during initialization of plugin manager, needed for starting/stopping/getting info
 }
 
 func (s *PluginManager) Protocols() []p2p.Protocol { return nil }
@@ -58,9 +58,9 @@ func (s *PluginManager) APIs() []rpc.API {
 }
 
 func (s *PluginManager) Start(_ *p2p.Server) (err error) {
-	log.Info("Starting all plugins", "count", len(s.basePlugins))
-	startedPlugins := make([]managedPlugin, 0, len(s.basePlugins))
-	for _, p := range s.basePlugins {
+	log.Info("Starting all plugins", "count", len(s.initializedPlugins))
+	startedPlugins := make([]managedPlugin, 0, len(s.initializedPlugins))
+	for _, p := range s.initializedPlugins {
 		if err = p.Start(); err != nil {
 			break
 		} else {
@@ -104,7 +104,7 @@ func (s *PluginManager) GetPluginTemplate(name PluginInterfaceName, v managedPlu
 			rv.Elem().Set(cachedValue.Elem())
 		})
 	}
-	base, ok := s.basePlugins[name]
+	base, ok := s.initializedPlugins[name]
 	if !ok {
 		return fmt.Errorf("plugin: [%s] is not found", name)
 	}
@@ -129,9 +129,9 @@ func (s *PluginManager) GetPluginTemplate(name PluginInterfaceName, v managedPlu
 }
 
 func (s *PluginManager) Stop() error {
-	log.Info("Stopping all plugins", "count", len(s.plugins))
+	log.Info("Stopping all plugins", "count", len(s.initializedPlugins))
 	allErrors := make([]error, 0)
-	for _, p := range s.plugins {
+	for _, p := range s.initializedPlugins {
 		if err := p.Stop(); err != nil {
 			allErrors = append(allErrors, err)
 		}
@@ -146,11 +146,11 @@ func (s *PluginManager) Stop() error {
 // Provide details of current plugins being used
 func (s *PluginManager) PluginsInfo() interface{} {
 	info := make(map[PluginInterfaceName]interface{})
-	if len(s.plugins) == 0 {
+	if len(s.initializedPlugins) == 0 {
 		return info
 	}
 	info["baseDir"] = s.pluginBaseDir
-	for _, p := range s.plugins {
+	for _, p := range s.initializedPlugins {
 		k, v := p.Info()
 		info[k] = v
 	}
@@ -159,12 +159,12 @@ func (s *PluginManager) PluginsInfo() interface{} {
 
 func NewPluginManager(nodeName string, settings *Settings, skipVerify bool, localVerify bool, publicKey string) (*PluginManager, error) {
 	pm := &PluginManager{
-		nodeName:      nodeName,
-		pluginBaseDir: settings.BaseDir.String(),
-		centralClient: NewPluginCentralClient(settings.CentralConfig),
-		plugins:       make(map[PluginInterfaceName]managedPlugin),
-		basePlugins:   make(map[PluginInterfaceName]managedPlugin),
-		settings:      settings,
+		nodeName:           nodeName,
+		pluginBaseDir:      settings.BaseDir.String(),
+		centralClient:      NewPluginCentralClient(settings.CentralConfig),
+		plugins:            make(map[PluginInterfaceName]managedPlugin),
+		initializedPlugins: make(map[PluginInterfaceName]managedPlugin),
+		settings:           settings,
 	}
 	pm.downloader = NewDownloader(pm)
 	if skipVerify {
@@ -182,11 +182,11 @@ func NewPluginManager(nodeName string, settings *Settings, skipVerify bool, loca
 		if !ok {
 			return nil, fmt.Errorf("plugin: [%s] is not supported", pluginName)
 		}
-		base, err := newBasePlugin(pm, pluginName, &pluginDefinition, pluginProvider)
+		base, err := newBasePlugin(pm, pluginName, pluginDefinition, pluginProvider)
 		if err != nil {
 			return nil, fmt.Errorf("plugin [%s] %s", pluginName, err.Error())
 		}
-		pm.basePlugins[pluginName] = base
+		pm.initializedPlugins[pluginName] = base
 	}
 	return pm, nil
 }

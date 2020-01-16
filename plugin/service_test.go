@@ -3,6 +3,7 @@ package plugin
 import (
 	"testing"
 
+	"github.com/hashicorp/go-plugin"
 	testifyassert "github.com/stretchr/testify/assert"
 )
 
@@ -19,6 +20,33 @@ func typicalPluginManager(t *testing.T) *PluginManager {
 
 	testifyassert.NoError(t, err)
 	return testObject
+}
+
+func TestPluginManager_ProvidersPopulation(t *testing.T) {
+	arbitraryPluginInterfaceName := PluginInterfaceName("arbitrary")
+	defer func() {
+		delete(pluginProviders, arbitraryPluginInterfaceName)
+	}()
+	pluginProviders[arbitraryPluginInterfaceName] = plugin.PluginSet{}
+
+	testObject, err := NewPluginManager("arbitraryName", &Settings{
+		Providers: map[PluginInterfaceName]PluginDefinition{
+			HelloWorldPluginInterfaceName: {
+				Name:    "arbitrary-helloWorld",
+				Version: "1.0.0",
+				Config:  "arbitrary config",
+			},
+			arbitraryPluginInterfaceName: {
+				Name:    "foo-bar",
+				Version: "2.0.0",
+				Config:  "arbitrary config",
+			},
+		},
+	}, false, false, "")
+
+	testifyassert.NoError(t, err)
+	testifyassert.Equal(t, "arbitrary-helloWorld-1.0.0", testObject.initializedPlugins[HelloWorldPluginInterfaceName].(*basePlugin).pluginDefinition.FullName())
+	testifyassert.Equal(t, "foo-bar-2.0.0", testObject.initializedPlugins[arbitraryPluginInterfaceName].(*basePlugin).pluginDefinition.FullName())
 }
 
 func TestPluginManager_GetPluginTemplate_whenTypical(t *testing.T) {
