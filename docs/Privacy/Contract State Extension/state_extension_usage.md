@@ -1,9 +1,4 @@
-# Contract state extension
-
-The state of the contract as of the time of extension is shared. This means that there is no past history of the 
-contract, and attempting to view this state will not yield any result, as the new recipient was not party at the time.
-This also means that events are not shared either, as the transactions are not shared and no state transitions are 
-calculated.
+# Contract state extension - Usage
 
 ## Setup
 In order to use the contract extension, the node must have access to one of Tessera's `THIRD_PARTY` servers, so that it
