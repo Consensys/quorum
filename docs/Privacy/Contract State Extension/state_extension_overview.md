@@ -38,4 +38,4 @@ In this example private contract which has been deployed between Nodes A and B. 
   ## FAQs
   
   ### Why have voters on the contract?
-  Voting is used as a audit for who agreed to what. Is it possible to not have any voters (except for the proposer and receiver), even if more participants do exist for the contract.
+  Voting is used as a audit for who agreed to what. It is possible to not have any voters (except for the proposer and receiver), even if more participants do exist for the contract.
