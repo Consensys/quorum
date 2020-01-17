@@ -220,3 +220,9 @@ to the new peer.
     
     The new node will now record public keys belonging to the existing peers, and then existing peers will record 
     public keys belonging to the new peer; this allows private transactions to be sent both directions!
+    
+    
+## Examples
+
+For a walkthrough of some examples that put into action the above, check out the 
+[quorum-examples](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/adding_nodes) repository!
