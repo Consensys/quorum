@@ -81,10 +81,6 @@ var (
 	// is specified in the transaction
 	ErrInvalidGasPrice = errors.New("Gas price not 0")
 
-	// ErrMissingGasPrice is returned if gas price is enabled, but a gas price
-	// of zero is given in the transaction
-	ErrMissingGasPrice = errors.New("Gas price cannot be 0")
-
 	// ErrEtherValueUnsupported is returned if a transaction specifies an Ether Value
 	// for a private Quorum transaction.
 	ErrEtherValueUnsupported = errors.New("ether value is not supported for private transactions")
@@ -601,10 +597,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	// Reject transaction if gas price is disabled, but gas price is specified
 	if (!pool.chainconfig.EnableGasPrice) && tx.GasPrice().Cmp(common.Big0) != 0 {
 		return ErrInvalidGasPrice
-	}
-	// Reject transaction if gas price is enabled, but gas price is not specified
-	if pool.chainconfig.EnableGasPrice && tx.GasPrice().Cmp(common.Big0) == 0 {
-		return ErrMissingGasPrice
 	}
 	//End-Quorum
 
