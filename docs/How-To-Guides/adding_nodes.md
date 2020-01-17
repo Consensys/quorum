@@ -224,5 +224,4 @@ to the new peer.
     
 ## Examples
 
-For a walkthrough of some examples that put into action the above, check out the 
-[quorum-examples](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/adding_nodes) repository!
+For a walkthrough of some examples that put into action the above, check out [this guide](/How-To-Guides/add_node_examples)!
