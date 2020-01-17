@@ -80,6 +80,9 @@ nav:
         - Getting Started: RemixPlugin/Getting started.md
     - Quorum Features:
         - DNS: Features/dns.md
+        - Contract Extension:
+          - Overview: Privacy/Contract-Extension/Overview.md
+          - Usage: Privacy/Contract-Extension/Usage.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
