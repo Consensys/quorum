@@ -76,6 +76,16 @@ func (api *PrivateExtensionAPI) checkIfExtensionComplete(addressToVoteOn, from c
 	return status, nil
 }
 
+// checks if the contract being extended is a public contract
+func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) bool {
+	// check if the passed contract is public contract
+	publicStateDb, _, _ := api.privacyService.stateFetcher.chainAccessor.State()
+	if publicStateDb != nil && publicStateDb.Exist(toExtend) {
+		return true
+	}
+	return false
+}
+
 // ApproveContractExtension submits the vote to the specified extension management contract. The vote indicates whether to extend
 // a given contract to a new participant or not
 func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
@@ -141,6 +151,12 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	if api.checkIfContractUnderExtension(toExtend) {
 		return "", errors.New("contract extension in progress for the given contract address")
 	}
+
+	// check if a public contract is being extended
+	if api.checkIfPublicContract(toExtend) {
+		return "", errors.New("extending a public contract!!! not allowed")
+	}
+
 	// check the new key is valid
 	if _, err := base64.StdEncoding.DecodeString(newRecipientPtmPublicKey); err != nil {
 		return "", errors.New("invalid new recipient key provided")

@@ -14,6 +14,7 @@ type ChainAccessor interface {
 	// GetBlockByHash retrieves a block from the local chain.
 	GetBlockByHash(common.Hash) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error)
+	State() (*state.StateDB, *state.StateDB, error)
 }
 
 // StateFetcher manages retrieving state from the database and returning it in
