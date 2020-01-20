@@ -47,26 +47,4 @@ recipient retrieves the state (assuming they accepted the change) and inserts th
 The process is now complete. The new party has the contract state and is able to interact with the
 contract.
 
-## Other APIs
-
-### Viewing outstanding contracts
-
-Current extension requests can be viewed by calling the `quorumExtension.activeExtensionContracts` endpoint which
-will return a list of currently active contracts.
-
-### Cancelling an extension
-
-If the contract no longer wishes to be extended to the new participant, it can be cancelled to remove it
-from the list of outstanding contracts. Be sure to include all the private recipients in this so they
-all get the notification that the extension is cancelled.
-
-Only the initiating account is allowed to cancel the extension. The voters must vote false, which will also end the 
-extension proposal.
-
-The API is invoked like so:
-```
-quorumExtension.cancelExtension(
-    "<extension management contract address>",
-    <normal tx args, which are used to send the transactions>
-)
-```
+Please refer to [contract extension apis](./ContractExtension%20apis.md) for complete list of apis
