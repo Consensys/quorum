@@ -1,4 +1,4 @@
-# Adding nodes
+# Adding nodes to the network
 
 Adding new nodes to an existing network can range from a common occurence to never happening.
 In public blockchains, such as the Ethereum Mainnet, new nodes continuously join and talk to the existing network.
