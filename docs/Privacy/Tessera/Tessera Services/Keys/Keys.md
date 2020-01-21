@@ -61,6 +61,21 @@ tessera -keygen -keygenvaulttype HASHICORP -keygenvaulturl <url> \
 
 !!! note
     Environment variables must be set if using a Hashicorp Vault, and a version 2 K/V secret engine must be enabled.  For more information see [Setting up a Hashicorp Vault](../Setting%20up%20a%20Hashicorp%20Vault)
+    
+### AWS Secrets Manager-stored keys
+Generate a key pair and save to an AWS Secrets Manager, with endpoint `<url>`, as secrets with IDs `Pub` and `Key`:
+
+```bash
+tessera -keygen -keygenvaulttype AWS -keygenvaulturl <url>
+```
+
+The `-filename` option can be used to specify alternate IDs.  Multiple key pairs can be generated at the same time by providing a comma-separated list of values:
+
+```bash
+tessera -keygen -keygenvaulttype AWS -keygenvaulturl <url> -filename id1,id2
+```
+
+> Environment variables must be set if using an AWS Secrets Manager, for more information see [Setting up an AWS Secrets Manager](../Setting%20up%20an%20AWS%20Secrets%20Manager)
 
 ### Updating a configfile with newly generated keys 
 Any newly generated keys must be added to a Tessera `.json` configfile.  Often it is easiest to do this manually.  
