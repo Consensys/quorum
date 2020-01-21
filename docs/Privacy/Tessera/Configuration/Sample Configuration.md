@@ -4,18 +4,18 @@ Tessera configuration varies by version as new features are added or changed. Be
 
 | Version       |
 | ------------- |
-| [master (pre-release)](../Tessera%20v0.10.3%20sample%20settings) |
-| [0.10.2 (latest stable release)](../Tessera%20v0.10.2%20sample%20settings) |
+| [0.10.3](../Tessera%20v0.10.3%20sample%20settings) |
+| [0.10.2](../Tessera%20v0.10.2%20sample%20settings) |
 | [0.10](../Tessera%20v0.10.0%20sample%20settings) |
 | [0.9](../Tessera%20v0.9%20sample%20settings) |
 | [0.8](../Tessera%20v0.8%20sample%20settings)      |
 | [0.7.3](../Tessera%20v0.7.3%20sample%20settings)      |
 
 ## Changelist
-### master
+### 0.10.3
 - The `keys.azureKeyVaultConfig` and `keys.hashicorpKeyVaultConfig` fields are now deprecated.  Instead, the generic `keys.keyVaultConfig` should be used.  See [Keys Config](../Keys) for more info.
 
-### 0.10.2 (latest stable release)
+### 0.10.2
 - The `keys.keyData.passwords` field is no longer supported.  Instead, use `keys.keyData.passwordFile` or utilise the [CLI password prompt](../Keys#providing-key-passwords-at-runtime) when starting the node.
 
 - Added configuration to choose alternative curves/symmetric ciphers. If no encryptor configuration is provided it will default to NaCl (see [Supporting alternative curves in Tessera](../Configuration Overview#supporting-alternative-curves-in-tessera) for more details).

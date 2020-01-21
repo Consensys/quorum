@@ -167,7 +167,7 @@ Passwords must be provided so that Tessera can decrypt and use the private keys.
 ### Azure Key Vault key pairs
 The keys in the pair are stored as secrets in an Azure Key Vault.  This requires providing the vault url and the secret IDs for both keys:
 
-```json tab="pre-release"
+```json tab="v0.10.3 onwards"
 "keys": {
     "keyVaultConfig": {
         "keyVaultType": "AZURE",
@@ -210,7 +210,7 @@ This example configuration will retrieve the specified versions of the secrets `
 ### Hashicorp Vault key pairs
 The keys in the pair are stored as a secret in a Hashicorp Vault.  Additional configuration can also be provided if the Vault is configured to use TLS and if the AppRole auth method is being used at a different path to the default (`approle`):
 
-```json tab="pre-release"
+```json tab="v0.10.3 onwards"
 "keyVaultConfig": {
     "keyVaultType": "HASHICORP",
     "properties": {
