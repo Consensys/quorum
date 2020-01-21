@@ -6,7 +6,45 @@
 Tessera uses cryptographic keys to provide transaction privacy.  
 
 You can use existing private/public key pairs as well as use Tessera to generate new key pairs for you.  See [Generating & securing keys](../../Tessera%20Services/Keys/Keys) for more info.
-```json
+
+```json tab="v0.10.3 onwards"
+"keys": {
+    "passwordFile": "Path",
+    "keyVaultConfig": [
+        {
+            "keyVaultType": "Enumeration: AZURE, HASHICORP, AWS",
+            "properties": "Map[string]string"
+        }
+    ],
+    "keyData": [
+        {
+            // The data for a private/public key pair
+        }
+    ]
+}
+```
+
+```json tab="v0.10.2"
+"keys": {
+    "passwordFile": "Path",
+    "azureKeyVaultConfig": {
+        "url": "Url"
+    },
+    "hashicorpKeyVaultConfig": {
+        "url": "Url",
+        "approlePath": "String",
+        "tlsKeyStorePath": "Path",
+        "tlsTrustStorePath": "Path" 
+    },
+    "keyData": [
+        {
+            // The data for a private/public key pair
+        }
+    ]
+}
+```
+
+```json tab="v0.10.1 and earlier"
 "keys": {
     "passwords": [],
     "passwordFile": "Path",
@@ -74,7 +112,32 @@ The key pair data is provided in plain text in the configfile.  The plain text p
 #### Protected
 The public key is provided in plain text.  The private key must be password-protected using Argon2.  The corresponding encrypted data is provided in the `config` json object.
 
-```json
+```json tab="v0.10.2 onwards"
+"keys": {
+    "passwordFile": "/path/to/pwds.txt",
+    "keyData": [
+        {
+            "config": {
+                "data": {
+                    "aopts": {
+                        "variant": "id",
+                        "memory": 1048576,
+                        "iterations": 10,
+                        "parallelism": 4,
+                    },
+                    "snonce": "x3HUNXH6LQldKtEv3q0h0hR4S12Ur9pC",
+                    "asalt": "7Sem2tc6fjEfW3yYUDN/kSslKEW0e1zqKnBCWbZu2Zw=",
+                    "sbox": "d0CmRus0rP0bdc7P7d/wnOyEW14pwFJmcLbdu2W3HmDNRWVJtoNpHrauA/Sr5Vxc"
+                },
+                "type": "argon2sbox"
+            },
+            "publicKey": "/+UuD63zItL1EbjxkKUljMgG8Z1w0AJ8pNOR4iq2yQc="
+        }
+    ]
+}
+```
+
+```json tab="v0.10.1 and earlier"
 "keys": {
     "passwords": ["password"],
     "passwordFile": "/path/to/pwds.txt",
@@ -110,7 +173,20 @@ Passwords must be provided so that Tessera can decrypt and use the private keys.
 
 ### Filesystem key pairs   
 The keys in the pair are stored in files:
-```json
+
+```json tab="v0.10.2 onwards"
+"keys": {
+    "passwordFile": "/path/to/pwds.txt",
+    "keyData": [
+        {
+            "privateKeyPath": "/path/to/privateKey.key",
+            "publicKeyPath": "/path/to/publicKey.pub"
+        }
+    ]
+}
+```
+
+```json tab="v0.10.1 and earlier"
 "keys": {
     "passwords": ["password"],
     "passwordFile": "/path/to/pwds.txt",
@@ -122,6 +198,7 @@ The keys in the pair are stored in files:
     ]
 }
 ```
+
 The contents of the public key file must contain the public key only, e.g.: 
 ```
 /+UuD63zItL1EbjxkKUljMgG8Z1w0AJ8pNOR4iq2yQc=
@@ -282,10 +359,28 @@ If wished, multiple key pairs can be specified for a Tessera node. In this case,
 Note that multiple key pairs can only be set up within the configuration file, not via separate filesystem key files.
 
 ## Viewing the keys registered for a node
-An ADMIN API endpoint `/config/keypairs` exists to allow you to view the public keys of the key pairs currently in use by your Tessera node.  This requires configuring an ADMIN server in the node's configuration file, as described in [Configuration Overview](../Configuration%20Overview).
+For Tessera v0.10.2 onwards the ThirdParty API `/keys` endpoint can be used to view the public keys of the key pairs currently in use by your Tessera node. 
+
+For Tessera v0.10.1 and earlier, an ADMIN API endpoint `/config/keypairs` exists to allow you to view the public keys of the key pairs currently in use by your Tessera node.  
 
 A sample response for the request `adminhost:port/config/keypairs` is:
-```json
+
+```json tab="v0.10.2 onwards"
+request: thirdpartyhost:port/keys
+{
+   "keys" : [
+      {
+         "key" : "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8="
+      },
+      {
+         "key" : "ABn6zhBth2qpdrJXp98IvjExV212ALl3j4U//nj4FAI="
+      }
+   ]
+}
+```
+
+```json tab="v0.10.1 and earlier"
+request: adminhost:port/config/keypairs
 [
    {
       "publicKey" : "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8="
@@ -295,3 +390,5 @@ A sample response for the request `adminhost:port/config/keypairs` is:
    }
 ]
 ```
+
+The corresponding server must be configured in the node's configuration file, as described in [Configuration Overview](../Configuration%20Overview).

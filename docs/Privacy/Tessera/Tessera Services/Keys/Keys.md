@@ -1,9 +1,7 @@
 ## Generating keys
 
-Key generation can be used in multiple ways:
-
 ### File-stored keys
-Generate a key pair and save in new files `new.pub` and `new.key`:  
+Generate a key pair and save in new files `new.pub` and `new.key` (will start an interactive prompt to provide passwords):   
 ```
 tessera -keygen -filename new
 ```
@@ -11,7 +9,6 @@ Multiple key pairs can be generated at the same time by providing a comma-separa
 ```
 tessera -keygen -filename /path/to/key1,/path/to/key2
 ```
-This command will require interactive input for passwords. 
 
 To generate an unlocked key, the following can be used to tell Tessera to not expect any input:
 
@@ -24,7 +21,7 @@ printf "\n\n" | tessera -keygen
 ```
 
 ### Azure Key Vault-stored keys
-Generate a key pair and save to an Azure Key Vault, with DNS name `<url>`, as secrets with IDs `Pub` and `Key`:
+Generate a key pair as secrets with IDs `Pub` and `Key` and save to an Azure Key Vault with DNS name `<url>`:
 ```
 tessera -keygen -keygenvaulttype AZURE -keygenvaulturl <url>
 ```
@@ -34,9 +31,11 @@ The `-filename` option can be used to specify alternate IDs.  Multiple key pairs
 tessera -keygen -keygenvaulttype AZURE -keygenvaulturl <url> -filename id1,id2
 ```
 
-**Note: If saving new keys with the same ID as keys that already exist in the vault, the existing keys will be replaced by the newer version.**
+!!! warning
+    If saving new keys with the same ID as keys that already exist in the vault, the existing keys will be replaced by the newer version.  When doing this, make sure to [specify the correct secret version in your Tessera configuration](../../../Configuration/Keys/#azure-key-vault-key-pairs) 
 
-> Environment variables must be set if using an Azure Key Vault, for more information see [Setting up an Azure key vault](../Setting%20up%20an%20Azure%20Key%20Vault)
+!!! note
+    Environment variables must be set if using an Azure Key Vault, for more information see [Setting up an Azure key vault](../Setting%20up%20an%20Azure%20Key%20Vault)
 
 ### Hashicorp Vault-stored keys
 Generate a key pair and save to a Hashicorp Vault at the secret path `secretEngine/secretName` with IDs `publicKey` and `privateKey`:
@@ -56,14 +55,17 @@ The `-filename` option can be used to generate and store multiple key pairs at t
 tessera -keygen -keygenvaulttype HASHICORP -keygenvaulturl <url> \
    -keygenvaultsecretengine secretEngine -filename myNode/keypairA,myNode/keypairB 
 ```
-**Saving a new key pair to an existing secret will overwrite the values stored at that secret.  Previous versions of secrets may be retained and be retrievable by Tessera depending on how the K/V secrets engine is configured.  See [Keys](../../../Configuration/Keys) for more information on configuring Tessera for use with Vault.**
 
-> Environment variables must be set if using a Hashicorp Vault, and a version 2 K/V secret engine must be enabled.  For more information see [Setting up a Hashicorp Vault](../Setting%20up%20a%20Hashicorp%20Vault).
+!!! warning 
+    Saving a new key pair to an existing secret will overwrite the values stored at that secret.  Previous versions of secrets may be retained and be retrievable by Tessera depending on how the K/V secrets engine is configured.  When doing this, make sure to [specify the correct secret version in your Tessera configuration](../../../Configuration/Keys/#hashicorp-vault-key-pairs)
+
+!!! note
+    Environment variables must be set if using a Hashicorp Vault, and a version 2 K/V secret engine must be enabled.  For more information see [Setting up a Hashicorp Vault](../Setting%20up%20a%20Hashicorp%20Vault)
 
 ### Updating a configfile with newly generated keys 
 Any newly generated keys must be added to a Tessera `.json` configfile.  Often it is easiest to do this manually.  
 
-However, using the `-configfile` option with `tessera keygen` enables automatically updating a configfile after key generation.  This is particularly useful when scripting.
+However, the `tessera keygen` `-configfile` option can be used to automatically update a configfile after key generation.  This is particularly useful when scripting.
 
 ```
 tessera -keygen -filename key1 -configfile /path/to/config.json --configout /path/to/new.json --pwdout /path/to/new.pwds
