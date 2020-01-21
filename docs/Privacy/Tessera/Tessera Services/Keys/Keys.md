@@ -75,7 +75,8 @@ The `-filename` option can be used to specify alternate IDs.  Multiple key pairs
 tessera -keygen -keygenvaulttype AWS -keygenvaulturl <url> -filename id1,id2
 ```
 
-> Environment variables must be set if using an AWS Secrets Manager, for more information see [Setting up an AWS Secrets Manager](../Setting%20up%20an%20AWS%20Secrets%20Manager)
+!!! note
+    Environment variables must be set if using an AWS Secrets Manager, for more information see [Setting up an AWS Secrets Manager](../Setting%20up%20an%20AWS%20Secrets%20Manager)
 
 ### Updating a configfile with newly generated keys 
 Any newly generated keys must be added to a Tessera `.json` configfile.  Often it is easiest to do this manually.  

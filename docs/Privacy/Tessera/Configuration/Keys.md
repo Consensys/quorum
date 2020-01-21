@@ -346,7 +346,8 @@ Tessera requires TLS certificates and keys to be stored in `.jks` Java keystore 
 
 ### AWS Secrets Manager key pairs
 The keys in the pair are stored as secrets in the _AWS Secrets Manager_.  This requires providing the secret IDs for both keys.  The endpoint is optional as the _AWS SDK_ can fallback to its inbuilt property retrieval chain (e.g. using the environment variable `AWS_REGION` or `~/.aws/config` file - see [the AWS docs](https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html) for similar behaviour explained in the context of credentials):
-```json
+
+```json tab="v0.10.3 onwards"
 "keys": {
         "keyVaultConfig": {
             "keyVaultConfigType": "AWS",
