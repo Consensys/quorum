@@ -63,6 +63,7 @@ func (b *Bloom) Add(d *big.Int) {
 	b.SetBytes(bin.Bytes())
 }
 
+// Quorum
 // OrBloom executes an Or operation on the bloom
 func (b *Bloom) OrBloom(bl []byte) {
 	bin := new(big.Int).SetBytes(b[:])
