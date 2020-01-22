@@ -314,7 +314,7 @@ And that's it. We deployed a working 6 node network, and then added a 7th node a
 ## Adding a Private Transaction Manager
 
 This is a simple example of adding a new Tessera instance to an existing network. For simplicity, 
-the steps to add the Quorum note are omitted, but are those following in the IBFT example.
+the steps to add the Quorum node are omitted, but are those followed in the IBFT example.
 Here, a Tessera node is added without any of the discovery options specified, meaning that the 
 IP Whitelist isn't used, nor is key discovery disabled.
 
