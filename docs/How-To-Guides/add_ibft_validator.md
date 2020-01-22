@@ -91,7 +91,7 @@ repository.
    
    Let's break this down.
    Firstly, we proposed the address `0xb131288f355bc27090e542ae0be213c20350b767` to be added; that is what the `true` 
-   parameter is for. If we has set it to `false`, that means we want to remove an existing validator with that address.
+   parameter is for. If we had set it to `false`, that means we want to remove an existing validator with that address.
    
    Secondly, we fetched the current snapshot, which gives us an insight into the current running state of the voting.
    We can see that the new address has 1 vote under the `tally` section, and that one vote is described under the 
