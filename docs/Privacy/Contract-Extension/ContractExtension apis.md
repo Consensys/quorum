@@ -1,7 +1,7 @@
 # Contract Extension APIs
 ## APIs
 ### `quorumExtension_extendContract` 
-The api for initiating contract extension to a new node.
+The api for initiating contract extension to a new node.  
 #### Parameter
 * `toExtend`: address of the private contract which is being extended to the new node
 * `newRecipientPtmPublicKey`: Tessera public key of the recipient node
@@ -26,8 +26,10 @@ curl -X POST http://127.0.0.1:22001 --data '{"jsonrpc":"2.0","method":"quorumExt
 
 "0x9e0101dd215281b33989b3ae093147e9009353bb63f531490409a628c6e87310"
 ```
-If the contract is already under the process of extension, api call to extend it again will fail.  
-```javascript tab="geth console"
+
+If the contract is already under the process of extension, api call to extend it again will fail. 
+
+```javascript
 > quorumExtension.extendContract("0x708f521772264f07770c12489af729f26024905c", "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8=", ["0xed9d02e382b34818e88b88a309c7fe71e65f419d","0x9186eb3d20cbd1f5f992a950d808c4495153abd5", eth.accounts[0]],{from: eth.accounts[0], privateFor:["BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo=","QfeDAys9MPDs2XHExtc84jKGHxZg/aj52DTh0vtA3Xc=", "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8="]}
 Error: contract extension in progress for the given contract address
     at web3.js:3143:20
@@ -56,20 +58,23 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumExt
 {"jsonrpc":"2.0","id":10,"result":"0x8d34a594b286087f45029daad2d5a8fd42f70abb0ae2492429a256a2ba4cb0dd"}
 ```
 
+
 ```javascript tab="geth console"
 > quorumExtension.approveExtension("0xb1c57951a2f3006910115eadf0f167890e99b9cb", true ,{from: "], privateFor:["BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo=","QfeDAys9MPDs2XHExtc84jKGHxZg/aj52DTh0vtA3Xc=", "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8="]})
 
 "0x9e0101dd215281b33989b3ae093147e9009353bb63f531490409a628c6e87310"
 ```
+
+
 If the contract is already under the process of extension, api call to extend it again will fail.  
-```javascript tab="geth console"
+```javascript
 > quorumExtension.extendContract("0x708f521772264f07770c12489af729f26024905c", "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8=", ["0xed9d02e382b34818e88b88a309c7fe71e65f419d","0x9186eb3d20cbd1f5f992a950d808c4495153abd5", eth.accounts[0]],{from: "0x9186eb3d20cbd1f5f992a950d808c4495153abd5", privateFor:["BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo=","QfeDAys9MPDs2XHExtc84jKGHxZg/aj52DTh0vtA3Xc=", "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8="]}
 
 "0xcc9b462c5bda5f5579738689304d86dde29f9cd3c0e1053ccc73b7a9fa78efbd"
 ```
 
 A voter can vote only once. If the account is not a voter the api call will return an error. 
-```javascript tab="geth console"
+```javascript
 > quorumExtension.approveExtension("0xab6669a499938b6fd7a4d9374e7b9a4aee6243b5", true, {from: "0x9186eb3d20cbd1f5f992a950d808c4495153abd5", privateFor: ["BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo=","QfeDAys9MPDs2XHExtc84jKGHxZg/aj52DTh0vtA3Xc=", "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8="]})
 Error: already voted
     at web3.js:3143:20
@@ -105,13 +110,15 @@ curl -X POST http://127.0.0.1:22001 --data '{"jsonrpc":"2.0","method":"quorumExt
 {"jsonrpc":"2.0","id":10,"result":"0xb43da7dbeae5347df86c6933786b8c536b4622463b577a990d4c87214845d16a"}
 ```
 
+
 ```javascript tab="geth console"
 > quorumExtension.cancelExtension("0xa501afd7d6432718daf4458cfae8590d88de818e",  {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d", privateFor: ["BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo=","QfeDAys9MPDs2XHExtc84jKGHxZg/aj52DTh0vtA3Xc=", "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8="]})
 
 "0x9e0101dd215281b33989b3ae093147e9009353bb63f531490409a628c6e87310"
 ```
+
 If the api is invoked by an ethereum address which is not the creator of the contract extension, an error is thrown.  
-```javascript tab="geth console"
+```javascript
 > quorumExtension.extendContract("0x708f521772264f07770c12489af729f26024905c", "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8=", ["0xed9d02e382b34818e88b88a309c7fe71e65f419d","0x9186eb3d20cbd1f5f992a950d808c4495153abd5", eth.accounts[0]],{from: "0x9186eb3d20cbd1f5f992a950d808c4495153abd5", privateFor:["BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo=","QfeDAys9MPDs2XHExtc84jKGHxZg/aj52DTh0vtA3Xc=", "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8="]}
 
 "0xcc9b462c5bda5f5579738689304d86dde29f9cd3c0e1053ccc73b7a9fa78efbd"
@@ -134,6 +141,7 @@ curl -X POST http://127.0.0.1:22001 --data '{"jsonrpc":"2.0","method":"quorumExt
 // Response
 {"jsonrpc":"2.0","id":10,"result":[{"address":"0x708f521772264f07770c12489af729f26024905c","initiator":"0xca843569e3427144cead5e4d5999a3d0ccf92b8e","managementcontractaddress":"0xb1c57951a2f3006910115eadf0f167890e99b9cb","creationData":"rC+qKetN9EbwQNhkuzgvVF7LujUiBekBuKCooJDtZit/+5x0ymXQlj/41iwcoM7SvjEstPg6BKyy1f+NgsMY5g=="}]}
 ```
+
 
 ```javascript tab="geth console"
 > quorumExtension.activeExtensionContracts

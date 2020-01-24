@@ -83,6 +83,7 @@ nav:
         - Contract Extension:
           - Overview: Privacy/Contract-Extension/Overview.md
           - Usage: Privacy/Contract-Extension/Usage.md
+          - APIs: Privacy/Contract-Extension/ContractExtension apis.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
