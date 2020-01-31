@@ -124,7 +124,7 @@ func (s *PublicRaftAPI) checkIfNodeIsActive(raftId uint16) bool {
 	if raftId == s.raftService.raftProtocolManager.raftId {
 		return true
 	}
-	activeSince := s.raftService.raftProtocolManager.transport.ActiveSince(types.ID(raftId))
+		activeSince := s.raftService.raftProtocolManager.transport.ActiveSince(types.ID(raftId))
 	if activeSince.IsZero() {
 		return false
 	}
