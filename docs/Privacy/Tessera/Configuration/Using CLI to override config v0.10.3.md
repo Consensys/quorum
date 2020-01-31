@@ -23,7 +23,7 @@ For example, given `configfile.json`:
 
 The command:
 ```bash
-tessera -o jdbc.username=username-override --override peer[1]=http://peer-override:9001
+tessera --configfile configfile.json -o jdbc.username=username-override --override peer[1].url=http://peer-override:9001
 ```
 
 will start Tessera with the following effective config:
