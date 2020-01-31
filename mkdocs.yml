@@ -81,6 +81,9 @@ nav:
         - Getting Started: RemixPlugin/Getting started.md
     - Quorum Features:
         - DNS: Features/dns.md
+    - How-To Guides:
+        - Adding new nodes: How-To-Guides/adding_nodes.md
+        - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
