@@ -289,6 +289,7 @@ func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 }
 
 // DumpBlock retrieves the entire state of the database at a given block.
+// Quorum adds an additional parameter to support private state dump
 func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ string) (state.Dump, error) {
 	var publicState, privateState *state.StateDB
 	var err error
