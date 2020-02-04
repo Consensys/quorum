@@ -118,8 +118,8 @@ func (s *PublicRaftAPI) Cluster() ([]ClusterInfo, error) {
 	return clustInfo, nil
 }
 
-// helper function to check of the raft node is active
-// of the raftnode is active ActiveSince returns non-zero time
+// checkIfNodeIsActive checks if the raft node is active
+// if the raft node is active ActiveSince returns non-zero time
 func (s *PublicRaftAPI) checkIfNodeIsActive(raftId uint16) bool {
 	if raftId == s.raftService.raftProtocolManager.raftId {
 		return true
