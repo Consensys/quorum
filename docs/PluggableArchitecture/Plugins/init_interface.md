@@ -47,8 +47,8 @@ Initialization data for the plugin
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| hostIdentity | [string](#string) |  | `geth` node name |
-| rawConfiguration | [bytes](#bytes) |  | raw configuration to be processed by the plugin |
+| hostIdentity | [string](#string) |  | `geth` node identity |
+| rawConfiguration | [bytes](#bytes) |  | Raw configuration to be processed by the plugin |
 
 
 

@@ -147,16 +147,16 @@
 			"revisionTime": "2017-07-10T16:04:46Z"
 		},
 		{
-			"checksumSHA1": "IHIm2BA6DrJDHvALz65pY2G38sM=",
-			"path": "github.com/golang/mock/gomock",
-			"revision": "dd8d2a22370e4c8a334e80ca8477f71356c8e4bb",
-			"revisionTime": "2019-07-13T10:24:42Z"
-		},
-		{
 			"checksumSHA1": "Cv0rCHl2RhcSc4WHATyrWI0GPGg=",
 			"path": "github.com/gogo/protobuf",
 			"revision": "dadb625850898f31a8e40e83492f4a7132e520a2",
 			"revisionTime": "2019-06-11T06:18:53Z"
+		},
+		{
+			"checksumSHA1": "IHIm2BA6DrJDHvALz65pY2G38sM=",
+			"path": "github.com/golang/mock/gomock",
+			"revision": "dd8d2a22370e4c8a334e80ca8477f71356c8e4bb",
+			"revisionTime": "2019-07-13T10:24:42Z"
 		},
 		{
 			"checksumSHA1": "Y2MOwzNZfl4NRNDbLCZa6sgx7O0=",
@@ -363,6 +363,30 @@
 			"path": "github.com/jackpal/go-nat-pmp",
 			"revision": "1fa385a6f45828c83361136b45b1a21a12139493",
 			"revisionTime": "2016-06-03T03:41:37Z"
+		},
+		{
+			"checksumSHA1": "RDt1XtprQsQljTIPRzI9vUfPJaE=",
+			"path": "github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go",
+			"revision": "a522977a23e9da6951ed035142cc09443e94a640",
+			"revisionTime": "2020-02-06T20:51:18Z"
+		},
+		{
+			"checksumSHA1": "KlMP09M5zSB7g+F5cjCQ3fjGHs4=",
+			"path": "github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go/mock_proto",
+			"revision": "a522977a23e9da6951ed035142cc09443e94a640",
+			"revisionTime": "2020-02-06T20:51:18Z"
+		},
+		{
+			"checksumSHA1": "6BqF/KV8uVXEOvMogzzTi6/oKMg=",
+			"path": "github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go/proto",
+			"revision": "a522977a23e9da6951ed035142cc09443e94a640",
+			"revisionTime": "2020-02-06T20:51:18Z"
+		},
+		{
+			"checksumSHA1": "yFdNbIk7d9i5LgBOO2B+4yFn/4Q=",
+			"path": "github.com/jpmorganchase/quorum-plugin-definitions",
+			"revision": "fe65ebad3de3bc9586e236478949e08a83608578",
+			"revisionTime": "2020-02-06T20:27:36Z"
 		},
 		{
 			"checksumSHA1": "gKyBj05YkfuLFruAyPZ4KV9nFp8=",

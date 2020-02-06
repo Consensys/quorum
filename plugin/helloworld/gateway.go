@@ -1,9 +1,9 @@
-package helloWorld
+package helloworld
 
 import (
 	"context"
 
-	"github.com/ethereum/go-ethereum/plugin/proto"
+	"github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go/proto"
 )
 
 type PluginGateway struct {

@@ -1,14 +1,12 @@
-package helloWorld
+package helloworld
 
 import (
 	"context"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/plugin/proto"
-
-	"github.com/ethereum/go-ethereum/plugin/proto/mock_proto"
-
 	"github.com/golang/mock/gomock"
+	"github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go/mock_proto"
+	"github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/assert"
 )
 

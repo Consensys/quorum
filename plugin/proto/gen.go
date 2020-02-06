@@ -10,17 +10,16 @@
 // go to terminal and run `go generate` from this directory
 
 // generate stubs
-//go:generate protoc -I . -I ../../vendor --go_out=plugins=grpc:. init.proto helloworld.proto
+//go:generate protoc -I ../../vendor/github.com/jpmorganchase/quorum-plugin-definitions -I ../../vendor --go_out=plugins=grpc:. init.proto
 
 // generate mocks for unit testing
-//go:generate mockgen -package mock_proto -destination mock_proto/mock_initializer.go -source init.pb.go
-//go:generate mockgen -package mock_proto -destination mock_proto/mock_helloworld.go  -source helloworld.pb.go
+//go:generate mockgen -package mock_proto -destination mock_proto/mock_init.go -source init.pb.go
 
 // fix fmt
 //go:generate goimports -w ./
 
 // generate documentation
-//go:generate protoc -I . -I ../../vendor --doc_out=docs.markdown.tmpl,init_interface.md:../../docs/PluggableArchitecture/Plugins/ init.proto
-//go:generate protoc -I . -I ../../vendor --doc_out=docs.markdown.tmpl,interface.md:../../docs/PluggableArchitecture/Plugins/helloworld/ helloworld.proto
+//go:generate protoc -I ../../vendor/github.com/jpmorganchase/quorum-plugin-definitions -I ../../vendor --doc_out=docs.markdown.tmpl,init_interface.md:../../docs/PluggableArchitecture/Plugins/ init.proto
+//go:generate protoc -I ../../vendor/github.com/jpmorganchase/quorum-plugin-definitions -I ../../vendor --doc_out=docs.markdown.tmpl,interface.md:../../docs/PluggableArchitecture/Plugins/helloworld/ helloworld.proto
 
 package proto

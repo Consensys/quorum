@@ -1,12 +1,11 @@
-package helloWorld
+package helloworld
 
 import (
 	"context"
 
 	iplugin "github.com/ethereum/go-ethereum/internal/plugin"
-	"github.com/ethereum/go-ethereum/plugin/proto"
 	"github.com/hashicorp/go-plugin"
-
+	"github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go/proto"
 	"google.golang.org/grpc"
 )
 

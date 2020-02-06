@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/plugin/helloWorld"
+	"github.com/ethereum/go-ethereum/plugin/helloworld"
 	"github.com/hashicorp/go-plugin"
 
 	"github.com/naoina/toml"
@@ -25,7 +25,7 @@ var (
 	// define additional plugins here
 	pluginProviders = map[PluginInterfaceName]plugin.PluginSet{
 		HelloWorldPluginInterfaceName: {
-			helloWorld.ConnectorName: &helloWorld.PluginConnector{},
+			helloworld.ConnectorName: &helloworld.PluginConnector{},
 		},
 	}
 	quorumPluginCentralConfiguration = &PluginCentralConfiguration{
