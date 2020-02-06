@@ -62,7 +62,7 @@ It expects the genesis file as argument.`,
 		Action:    utils.MigrateFlags(importChain),
 		Name:      "import",
 		Usage:     "Import a blockchain file",
-		ArgsUsage: "<filename> (<filename 2> ... <filename N>) ",
+		ArgsUsage: "<filename> (<filename 2> ... <filename N>) <genesisPath>",
 		Flags: []cli.Flag{
 			utils.DataDirFlag,
 			utils.CacheFlag,
@@ -77,13 +77,15 @@ The import command imports blocks from an RLP-encoded form. The form can be one 
 with several RLP-encoded blocks, or several files can be used.
 
 If only one file is used, import error will result in failure. If several files are used,
-processing will proceed even if an individual RLP-file import failure occurs.`,
+processing will proceed even if an individual RLP-file import failure occurs.
+
+It expects the genesis file as the last argument for Quorum chain`,
 	}
 	exportCommand = cli.Command{
 		Action:    utils.MigrateFlags(exportChain),
 		Name:      "export",
 		Usage:     "Export blockchain into file",
-		ArgsUsage: "<filename> [<blockNumFirst> <blockNumLast>]",
+		ArgsUsage: "<filename> <genesisPath> [<blockNumFirst> <blockNumLast>]",
 		Flags: []cli.Flag{
 			utils.DataDirFlag,
 			utils.CacheFlag,
@@ -91,11 +93,13 @@ processing will proceed even if an individual RLP-file import failure occurs.`,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
-Requires a first argument of the file to write to.
-Optional second and third arguments control the first and
-last block to write. In this mode, the file will be appended
-if already existing. If the file ends with .gz, the output will
-be gzipped.`,
+The export command exports blocks to an RLP-file.
+
+It requires a first argument of the file to write to and a second argument of genesis file.
+Optional third and fourth arguments control the first and last block to write.
+
+In this mode, the file will be appended if already existing. If the file ends with .gz,
+the output will be gzipped.`,
 	}
 	importPreimagesCommand = cli.Command{
 		Action:    utils.MigrateFlags(importPreimages),
@@ -109,7 +113,7 @@ be gzipped.`,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
-	The import-preimages command imports hash preimages from an RLP encoded stream.`,
+The import-preimages command imports hash preimages from an RLP encoded stream.`,
 	}
 	exportPreimagesCommand = cli.Command{
 		Action:    utils.MigrateFlags(exportPreimages),
