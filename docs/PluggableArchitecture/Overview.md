@@ -49,31 +49,53 @@ If the flag `--plugins.skipverify` is provided at runtime the plugin verificatio
 
 ## Example: `HelloWorld` plugin
 
-In this example, `HelloWorld` plugin exposes a JSON RPC endpoint to return a greeting message in the configured language.
-This plugin is [reloadable](../Internals/#plugin-reloading).
+The plugin interface is implemented in Go and Java. In this example, `HelloWorld` plugin exposes a JSON RPC endpoint 
+to return a greeting message in the configured language.
+This plugin is [reloadable](../Internals/#plugin-reloading). It means that the plugin can take changes from its JSON configuration.  
 
-The `HelloWorld` example plugin is included in the [Quorum GitHub repository](https://github.com/jpmorganchase/quorum/) for demo purposes. 
-Usually, the source code for a plugin will be maintained in a separate repository.
+### Build plugin distribution file   
 
-Prequisites to run this example are similar to those for building `geth` with `make`
+1. Clone plugin repository
+   ```bash
+   › git clone --recursive https://github.com/jpmorganchase/quorum-plugin-hello-world.git
+   › cd quorum-plugin-hello-world
+   ```
+1. Here we will use Go implementation of the plugin
+   ```bash
+   quorum-plugin-hello-world› cd go
+   quorum-plugin-hello-world/go› make
+   ```
+   `quorum-plugin-hello-world-1.0.0.zip` is now created in `build` directory. 
+   Noticed that there's a file `hello-world-plugin-config.json` which is the JSON configuration file for the plugin.
 
-1. Clone Quorum repository
+### Start Quorum with plugin support
+
+1. Build Quorum
    ```bash
    › git clone https://github.com/jpmorganchase/quorum.git
    › cd quorum
+   quorum› make geth
    ```
-1. Build `geth` and the plugin
-   ```bash
-   quorum› make geth helloWorldPlugin
+1. Copy `HelloWorld` plugin distribution file and its JSON configuration `hello-world-plugin-config.json` to `build/bin`
+1. Create `geth-plugin-settings.json`
    ```
-   Notice that there are files being created under `build/bin` directory:
-    - `geth-plugin-settings.json` which is the plugin settings file for `geth`
-    - `quorum-plugin-helloWorld-1.0.0.zip` which is the `HelloWorld` plugin distribution zip file
-    - `helloWorld-plugin-config.json` which is the config file for the plugin
+   quorum› cat > build/bin/geth-plugin-settings.json <<EOF
+   {
+     "baseDir": "./build/bin",
+     "providers": {
+       "helloworld": {
+         "name":"quorum-plugin-hello-world",
+         "version":"1.0.0",
+         "config": "file://./build/bin/hello-world-plugin-config.json"
+       }
+     }
+   }
+   EOF
+   ```
 1. Run `geth` with plugin
    ```bash
    quorum› PRIVATE_CONFIG=ignore \
-   build/bin/geth \
+   geth \
         --nodiscover \
         --verbosity 5 \
         --networkid 10 \
@@ -85,7 +107,10 @@ Prequisites to run this example are similar to those for building `geth` with `m
         --plugins file://./build/bin/geth-plugin-settings.json \
         --plugins.skipverify
    ```
-   `ps -ef | grep helloWorld` would reveal the `HelloWorld` plugin process
+   `ps -ef | grep helloworld` would reveal the `HelloWorld` plugin process
+
+### Test the plugin
+
 1. Call the JSON RPC
    ```bash
    quorum› curl -X POST http://localhost:8545 \
@@ -96,7 +121,7 @@ Prequisites to run this example are similar to those for building `geth` with `m
 1. Update plugin config to support `es` language
    ```bash
    # update language to "es"
-   quorum› vi build/bin/helloWorld-plugin-config.json
+   quorum› vi build/bin/hello-world-plugin-config.json
    ```
 1. Reload the plugin
    ```bash

@@ -157,13 +157,6 @@ geth-windows-amd64:
 	@ls -ld $(GOBIN)/geth-windows-* | grep amd64
 
 # QUORUM - BEGIN
-helloWorldPlugin:
-	build/env.sh go run build/ci.go install ./cmd/helloWorldPlugin
-	@cp ./cmd/helloWorldPlugin/helloWorld-plugin-config.json build/bin/
-	@zip -j -FS -q build/bin/quorum-plugin-helloWorld-1.0.0.zip ./cmd/helloWorldPlugin/plugin-meta.json build/bin/helloWorldPlugin
-	@cp ./cmd/helloWorldPlugin/geth-plugin-settings.json build/bin/
-	@echo "Done building."
-
 RELEASE_NOTES_FILE := generated-release-notes.md
 LAST_RELEASE_VERSION := $(shell git describe --tags --abbrev=0 @^)
 REQUIRED_ENV_VARS := QUORUM_RELEASE BINTRAY_USER BINTRAY_API_KEY GITHUB_TOKEN
