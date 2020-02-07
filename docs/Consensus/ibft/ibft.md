@@ -78,12 +78,12 @@ Istanbul BFT is a state machine replication algorithm. Each validator maintains 
 
 Currently we support two policies: **round robin** and **sticky proposer**.
 
-- Round robin: in a round robin setting, proposer will change in every block and round change.
+- Round robin: Round robin is the default proposer selection policy. In this setting proposer will change in every block and round change.
 - Sticky proposer: in a sticky proposer setting, proposer will change only when a round change happens.
 
 #### Validator list voting
 
-Istanbul BFT uses a similar validator voting mechanism as Clique and copies most of the content from Clique [EIP](https://github.com/ethereum/EIPs/issues/225). Every epoch transaction resets the validator voting, meaning if an authorization or de-authorization vote is still in progress, that voting process will be terminated.
+Istanbul BFT uses a similar validator voting mechanism as Clique and copies most of the content from Clique [EIP](https://github.com/ethereum/EIPs/issues/225). Every epoch transaction resets the validator voting, meaning any pending votes for adding/removing a validator are reset.
 
 For all transactions blocks:
 
@@ -101,7 +101,7 @@ In an asynchronous network environment, one may receive future messages which ca
 #### Constants
 Istanbul BFT define the following constants
 
-- `EPOCH_LENGTH`: Number of blocks after which to checkpoint and reset the pending votes.
+- `EPOCH_LENGTH`: Default: 30000 blocks. Number of blocks after which to checkpoint and reset the pending votes.
 - `REQUEST_TIMEOUT`: Timeout for each consensus round before firing a round change in millisecond.
 - `BLOCK_PERIOD`: Minimum timestamp difference in seconds between two consecutive blocks.
 - `PROPOSER_POLICY`: Proposer selection policy, defaults to round robin.
