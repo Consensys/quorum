@@ -20,7 +20,9 @@ nav:
         - Quorum API: Getting Started/api.md
     - Consensus:
         - Consensus: Consensus/Consensus.md
-        - Raft: Consensus/raft.md
+        - Raft BFT:
+            - Consensus/raft/raft.md
+            - Consensus/raft/raft-rpc-api.md
         - Istanbul BFT:
             - Consensus/ibft/istanbul-rpc-api.md
             - Consensus/ibft/ibft-parameters.md
@@ -75,8 +77,14 @@ nav:
         - Overview: Cakeshop/Overview.md
         - Getting Started: Cakeshop/Getting started.md
         - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
+    - Remix Plugin:
+        - Overview: RemixPlugin/Overview.md
+        - Getting Started: RemixPlugin/Getting started.md
     - Quorum Features:
         - DNS: Features/dns.md
+    - How-To Guides:
+        - Adding new nodes: How-To-Guides/adding_nodes.md
+        - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
