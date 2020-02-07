@@ -32,7 +32,7 @@ func isCleanEntryPoint(s string) bool {
 	if s == "" {
 		return false
 	}
-	return regexp.MustCompile(`^[\w-.]+$`).MatchString(s)
+	return regexp.MustCompile(`^[\w-_.]+$`).MatchString(s)
 
 }
 
