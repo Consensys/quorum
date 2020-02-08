@@ -17,9 +17,7 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"runtime"
 	"strconv"
@@ -175,28 +173,10 @@ Use "ethereum dump 0" to dump the genesis block.`,
 	}
 )
 
-// In the regular Genesis / ChainConfig struct, due to the way go deserializes
-// json, IsQuorum defaults to false (when not specified). Here we specify it as
-// a pointer so we can make the distinction and default unspecified to true.
-func getIsQuorum(file io.Reader) bool {
-	altGenesis := new(struct {
-		Config *struct {
-			IsQuorum *bool `json:"isQuorum"`
-		} `json:"config"`
-	})
-
-	if err := json.NewDecoder(file).Decode(altGenesis); err != nil {
-		utils.Fatalf("invalid genesis file: %v", err)
-	}
-
-	// unspecified defaults to true
-	return altGenesis.Config.IsQuorum == nil || *altGenesis.Config.IsQuorum
-}
-
 // initGenesis will initialise the given JSON format genesis file and writes it as
 // the zero'd block (i.e. genesis) or will fail hard if it can't succeed.
 func initGenesis(ctx *cli.Context) error {
-	genesis := createGenesis(ctx.Args().First())
+	genesis := utils.CreateGenesis(ctx.Args().First())
 	// Open an initialise both full and light databases
 	stack := makeFullNode(ctx)
 	for _, name := range []string{"chaindata", "lightchaindata"} {
@@ -213,33 +193,11 @@ func initGenesis(ctx *cli.Context) error {
 	return nil
 }
 
-func createGenesis(genesisPath string) *core.Genesis {
-	// Make sure we have a valid genesis JSON
-	if len(genesisPath) == 0 {
-		utils.Fatalf("Must supply path to genesis JSON file")
-	}
-	file, err := os.Open(genesisPath)
-	if err != nil {
-		utils.Fatalf("Failed to read genesis file: %v", err)
-	}
-	defer file.Close()
-
-	genesis := new(core.Genesis)
-	if err := json.NewDecoder(file).Decode(genesis); err != nil {
-		utils.Fatalf("invalid genesis file: %v", err)
-	}
-
-	file.Seek(0, 0)
-	genesis.Config.IsQuorum = getIsQuorum(file)
-
-	return genesis
-}
-
 func importChain(ctx *cli.Context) error {
 	if len(ctx.Args()) < 2 {
 		utils.Fatalf("This command requires two arguments, 1) import files 2) genesis JSON file.")
 	}
-	genesis := createGenesis(ctx.Args().Get(len(ctx.Args()) - 1))
+	genesis := utils.CreateGenesis(ctx.Args().Get(len(ctx.Args()) - 1))
 	stack := makeFullNode(ctx)
 	chain, chainDb := utils.MakeChain(ctx, stack, genesis)
 	defer chainDb.Close()
@@ -336,7 +294,7 @@ func exportChain(ctx *cli.Context) error {
 	if len(ctx.Args()) < 2 {
 		utils.Fatalf("This command requires two arguments, 1) export file 2) genesis JSON file.")
 	}
-	genesis := createGenesis(ctx.Args().Get(1))
+	genesis := utils.CreateGenesis(ctx.Args().Get(1))
 	stack := makeFullNode(ctx)
 	chain, _ := utils.MakeChain(ctx, stack, genesis)
 	start := time.Now()
