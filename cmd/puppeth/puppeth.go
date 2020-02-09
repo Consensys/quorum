@@ -23,20 +23,20 @@ import (
 	"strings"
 	"time"
 
-      "github.com/ethereum/go-ethereum/log"
-      "gopkg.in/urfave/cli.v1"
+	"github.com/ethereum/go-ethereum/log"
+	"gopkg.in/urfave/cli.v1"
 )
 
 // main is just a boring entry point to set up the CLI app.
 func main() {
-        app := cli.NewApp()
-        app.Name = "puppeth"
-        app.Usage = "assemble and maintain private Ethereum networks"
-        app.Flags = []cli.Flag{
-                cli.StringFlag{
-                        Name:  "network",
-                        Usage: "name of the network to administer (no spaces or hyphens, please)",
-                },
+	app := cli.NewApp()
+	app.Name = "puppeth"
+	app.Usage = "assemble and maintain private Ethereum networks"
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "network",
+			Usage: "name of the network to administer (no spaces or hyphens, please)",
+		},
                 cli.IntFlag{
                         Name:  "loglevel",
                         Value: 3,
