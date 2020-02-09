@@ -18,12 +18,12 @@
 package main
 
 import (
-       "math/rand"
-       "os"
-       "strings"
-       "time"
-       "github.com/ethereum/go-ethereum/log"
-       "gopkg.in/urfave/cli.v1"
+      "math/rand"
+      "os"
+      "strings"
+      "time"
+      "github.com/ethereum/go-ethereum/log"
+      "gopkg.in/urfave/cli.v1"
 )
 
 // main is just a boring entry point to set up the CLI app.
