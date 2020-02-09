@@ -167,7 +167,12 @@ func (w *wizard) manageGenesis() {
 	fmt.Println(" 2. Export genesis configuration")
 	fmt.Println(" 3. Remove genesis configuration")
 
-	choice := w.read()
+	var choice string
+	if w.nonInteract {
+		choice = "2"
+	} else {
+		choice = w.read()
+	}
 	switch {
 	case choice == "1":
 		// Fork rule updating requested, iterate over each fork

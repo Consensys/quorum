@@ -114,6 +114,9 @@ func (w *wizard) readString() string {
 // an empty line is entered, the default value is returned.
 func (w *wizard) readDefaultString(def string) string {
 	fmt.Printf("> ")
+	if w.nonInteract {
+		return def
+	}
 	text, err := w.in.ReadString('\n')
 	if err != nil {
 		log.Crit("Failed to read user input", "err", err)

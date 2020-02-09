@@ -112,6 +112,7 @@ func (w *wizard) run() {
 	// Basics done, loop ad infinitum about what to do
         if w.nonInteract {
 		w.makeGenesis()
+		w.manageGenesis()
 	} else {
 		for {
 			fmt.Println()
