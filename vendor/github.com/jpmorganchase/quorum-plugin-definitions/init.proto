@@ -7,9 +7,9 @@
  */
 syntax = "proto3";
 
-package proto;
+package proto_common;
 
-option go_package = "proto";
+option go_package = "proto_common";
 option java_package = "com.quorum.plugin.proto";
 option java_outer_classname = "Initializer";
 

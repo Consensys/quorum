@@ -5,7 +5,7 @@
 <a name="helloworld.proto"></a>
 
 ## helloworld.proto
-This plugin interface is to demonstrate a hello world plugin example.
+This plugin interface is to demonstrate a hello world plugin example
 
 ### Services
 
@@ -13,7 +13,7 @@ This plugin interface is to demonstrate a hello world plugin example.
 <a name="proto.PluginGreeting"></a>
 
 #### `PluginGreeting`
-Greeting remote service
+Greeting remote service saying Hello in English and Spanish
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
@@ -27,7 +27,7 @@ Greeting remote service
 <a name="proto.PluginHelloWorld"></a>
 
 #### `PluginHelloWorld`
-A wrapper message to logically group other messages
+A wrapper logically groups other messages
 
 
 
@@ -37,7 +37,7 @@ A wrapper message to logically group other messages
 <a name="proto.PluginHelloWorld.Request"></a>
 
 #### `PluginHelloWorld.Request`
-Initialization data for the plugin
+
 
 
 | Field | Type | Label | Description |

@@ -14,7 +14,7 @@ to make sure the plugin is ready to serve
 ### Services
 
 
-<a name="proto.PluginInitializer"></a>
+<a name="proto_common.PluginInitializer"></a>
 
 #### `PluginInitializer`
 `Required`
@@ -22,14 +22,14 @@ RPC service to initialize the plugin after plugin process is started successfull
 
 | Method Name | Request Type | Response Type | Description |
 | ----------- | ------------ | ------------- | ------------|
-| Init | [PluginInitialization.Request](#proto.PluginInitialization.Request) | [PluginInitialization.Response](#proto.PluginInitialization.Response) |  |
+| Init | [PluginInitialization.Request](#proto_common.PluginInitialization.Request) | [PluginInitialization.Response](#proto_common.PluginInitialization.Response) |  |
 
  <!-- end services -->
 
 ### Messsages
 
 
-<a name="proto.PluginInitialization"></a>
+<a name="proto_common.PluginInitialization"></a>
 
 #### `PluginInitialization`
 A wrapper message to logically group other messages
@@ -39,7 +39,7 @@ A wrapper message to logically group other messages
 
 
 
-<a name="proto.PluginInitialization.Request"></a>
+<a name="proto_common.PluginInitialization.Request"></a>
 
 #### `PluginInitialization.Request`
 Initialization data for the plugin
@@ -55,7 +55,7 @@ Initialization data for the plugin
 
 
 
-<a name="proto.PluginInitialization.Response"></a>
+<a name="proto_common.PluginInitialization.Response"></a>
 
 #### `PluginInitialization.Response`
 

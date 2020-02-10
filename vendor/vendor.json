@@ -365,28 +365,28 @@
 			"revisionTime": "2016-06-03T03:41:37Z"
 		},
 		{
-			"checksumSHA1": "RDt1XtprQsQljTIPRzI9vUfPJaE=",
+			"checksumSHA1": "AQZBBjcxd4EA2vqKXpgrLrcubTU=",
 			"path": "github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go",
-			"revision": "a522977a23e9da6951ed035142cc09443e94a640",
-			"revisionTime": "2020-02-06T20:51:18Z"
+			"revision": "57f99f69eeb30b32aa867ef956a1133ab6852f86",
+			"revisionTime": "2020-02-10T21:11:48Z"
 		},
 		{
-			"checksumSHA1": "KlMP09M5zSB7g+F5cjCQ3fjGHs4=",
+			"checksumSHA1": "XnSKAZ7n30dBoIejpYjrUoPrf58=",
 			"path": "github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go/mock_proto",
-			"revision": "a522977a23e9da6951ed035142cc09443e94a640",
-			"revisionTime": "2020-02-06T20:51:18Z"
+			"revision": "57f99f69eeb30b32aa867ef956a1133ab6852f86",
+			"revisionTime": "2020-02-10T21:11:48Z"
 		},
 		{
-			"checksumSHA1": "6BqF/KV8uVXEOvMogzzTi6/oKMg=",
+			"checksumSHA1": "sW32HKnORyS7xhABvf1vKg730OU=",
 			"path": "github.com/jpmorganchase/quorum-hello-world-plugin-sdk-go/proto",
-			"revision": "a522977a23e9da6951ed035142cc09443e94a640",
-			"revisionTime": "2020-02-06T20:51:18Z"
+			"revision": "57f99f69eeb30b32aa867ef956a1133ab6852f86",
+			"revisionTime": "2020-02-10T21:11:48Z"
 		},
 		{
-			"checksumSHA1": "yFdNbIk7d9i5LgBOO2B+4yFn/4Q=",
+			"checksumSHA1": "+F+lORl9uberVIuSDHmc6lrcO6U=",
 			"path": "github.com/jpmorganchase/quorum-plugin-definitions",
-			"revision": "fe65ebad3de3bc9586e236478949e08a83608578",
-			"revisionTime": "2020-02-06T20:27:36Z"
+			"revision": "aca02c8d1aedd9c611f6f3e65e59df24754651c2",
+			"revisionTime": "2020-02-10T21:10:39Z"
 		},
 		{
 			"checksumSHA1": "gKyBj05YkfuLFruAyPZ4KV9nFp8=",

@@ -10,10 +10,10 @@
 // go to terminal and run `go generate` from this directory
 
 // generate stubs
-//go:generate protoc -I ../../vendor/github.com/jpmorganchase/quorum-plugin-definitions -I ../../vendor --go_out=plugins=grpc:. init.proto
+//go:generate protoc -I ../../vendor/github.com/jpmorganchase/quorum-plugin-definitions -I ../../vendor --go_out=plugins=grpc:proto_common init.proto
 
 // generate mocks for unit testing
-//go:generate mockgen -package mock_proto -destination mock_proto/mock_init.go -source init.pb.go
+//go:generate mockgen -package proto_common -destination proto_common/mock_init.go -source proto_common/init.pb.go
 
 // fix fmt
 //go:generate goimports -w ./
@@ -22,4 +22,4 @@
 //go:generate protoc -I ../../vendor/github.com/jpmorganchase/quorum-plugin-definitions -I ../../vendor --doc_out=docs.markdown.tmpl,init_interface.md:../../docs/PluggableArchitecture/Plugins/ init.proto
 //go:generate protoc -I ../../vendor/github.com/jpmorganchase/quorum-plugin-definitions -I ../../vendor --doc_out=docs.markdown.tmpl,interface.md:../../docs/PluggableArchitecture/Plugins/helloworld/ helloworld.proto
 
-package proto
+package gen

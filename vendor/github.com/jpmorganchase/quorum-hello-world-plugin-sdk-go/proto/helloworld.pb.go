@@ -26,7 +26,7 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 //*
-// A wrapper message to logically group other messages
+// A wrapper logically groups other messages
 type PluginHelloWorld struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -58,8 +58,6 @@ func (m *PluginHelloWorld) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_PluginHelloWorld proto.InternalMessageInfo
 
-//
-// Initialization data for the plugin
 type PluginHelloWorld_Request struct {
 	// a message to the plugin
 	Msg                  string   `protobuf:"bytes,1,opt,name=msg,proto3" json:"msg,omitempty"`
