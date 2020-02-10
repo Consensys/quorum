@@ -325,16 +325,19 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 	if pm.isLearnerNode() {
 		return 0, errors.New("learner node can't add peer or learner")
 	}
-	parsedUrl, _ := url.Parse(enodeId)
 	node, err := enode.ParseV4(enodeId)
 	if err != nil {
 		return 0, err
 	}
 
-	//use the hostname instead of the IP, since if DNS is not enabled, the hostname should *be* the IP
-	ip := net.ParseIP(parsedUrl.Hostname())
-	if !pm.useDns && (len(ip.To4()) != 4) {
-		return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
+	if !pm.useDns {
+		// hostname is not allowed if DNS is not enabled
+		if node.Host() != "" {
+			return 0, fmt.Errorf("raft must enable dns to use hostname")
+		}
+		if len(node.IP()) != 4 {
+			return 0, fmt.Errorf("expected IPv4 address (with length 4), but got IP of length %v", len(node.IP()))
+		}
 	}
 
 	if !node.HasRaftPort() {
@@ -357,7 +360,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint1
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    confChangeType,
 		NodeID:  uint64(raftId),
-		Context: address.toBytes(pm.useDns),
+		Context: address.toBytes(),
 	}
 
 	return raftId, nil
@@ -768,11 +771,6 @@ func (pm *ProtocolManager) entriesToApply(allEntries []raftpb.Entry) (entriesToA
 }
 
 func (pm *ProtocolManager) raftUrl(address *Address) string {
-	if !pm.useDns {
-		parsedIp := net.ParseIP(address.Hostname)
-		return fmt.Sprintf("http://%s:%d", parsedIp.To4(), address.RaftPort)
-	}
-
 	if parsedIp := net.ParseIP(address.Hostname); parsedIp != nil {
 		if ipv4 := parsedIp.To4(); ipv4 != nil {
 			//this is an IPv4 address
@@ -1001,7 +999,7 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		address := newAddress(raftId, node.RaftPort(), node, pm.useDns)
 		raftPeers[i] = etcdRaft.Peer{
 			ID:      uint64(raftId),
-			Context: address.toBytes(pm.useDns),
+			Context: address.toBytes(),
 		}
 
 		if raftId == pm.raftId {

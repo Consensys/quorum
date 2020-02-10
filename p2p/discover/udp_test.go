@@ -244,7 +244,7 @@ func TestUDP_findnode(t *testing.T) {
 	nodes := &nodesByDistance{target: testTarget.id()}
 	for i := 0; i < bucketSize; i++ {
 		key := newkey()
-		n := wrapNode(enode.NewV4(&key.PublicKey, net.IP{10, 13, 0, 1}, 0, i, 0))
+		n := wrapNode(enode.NewV4(&key.PublicKey, net.IP{10, 13, 0, 1}, 0, i))
 		nodes.push(n, bucketSize)
 	}
 	test.table.stuff(nodes.entries)
@@ -311,7 +311,7 @@ func TestUDP_findnodeMultiReply(t *testing.T) {
 	rpclist := make([]rpcNode, len(list))
 	for i := range list {
 		rpclist[i] = nodeToRPC(list[i])
-		list[i] = wrapNode(enode.NewV4(list[i].Pubkey(), list[i].IP(), list[i].TCP(), list[i].UDP(), 0))
+		list[i] = wrapNode(enode.NewV4(list[i].Pubkey(), list[i].IP(), list[i].TCP(), list[i].UDP()))
 	}
 	test.packetIn(nil, neighborsPacket, &neighbors{Expiration: futureExp, Nodes: rpclist[:2]})
 	test.packetIn(nil, neighborsPacket, &neighbors{Expiration: futureExp, Nodes: rpclist[2:]})
