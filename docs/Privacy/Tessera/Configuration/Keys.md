@@ -6,7 +6,45 @@
 Tessera uses cryptographic keys to provide transaction privacy.  
 
 You can use existing private/public key pairs as well as use Tessera to generate new key pairs for you.  See [Generating & securing keys](../../Tessera%20Services/Keys/Keys) for more info.
-```json
+
+```json tab="v0.10.3 onwards"
+"keys": {
+    "passwordFile": "Path",
+    "keyVaultConfig": [
+        {
+            "keyVaultType": "Enumeration: AZURE, HASHICORP, AWS",
+            "properties": "Map[string]string"
+        }
+    ],
+    "keyData": [
+        {
+            // The data for a private/public key pair
+        }
+    ]
+}
+```
+
+```json tab="v0.10.2"
+"keys": {
+    "passwordFile": "Path",
+    "azureKeyVaultConfig": {
+        "url": "Url"
+    },
+    "hashicorpKeyVaultConfig": {
+        "url": "Url",
+        "approlePath": "String",
+        "tlsKeyStorePath": "Path",
+        "tlsTrustStorePath": "Path" 
+    },
+    "keyData": [
+        {
+            // The data for a private/public key pair
+        }
+    ]
+}
+```
+
+```json tab="v0.10.1 and earlier"
 "keys": {
     "passwords": [],
     "passwordFile": "Path",
@@ -80,7 +118,32 @@ The key pair data is provided in plain text in the configfile.  The plain text p
 #### Protected
 The public key is provided in plain text.  The private key must be password-protected using Argon2.  The corresponding encrypted data is provided in the `config` json object.
 
-```json
+```json tab="v0.10.2 onwards"
+"keys": {
+    "passwordFile": "/path/to/pwds.txt",
+    "keyData": [
+        {
+            "config": {
+                "data": {
+                    "aopts": {
+                        "variant": "id",
+                        "memory": 1048576,
+                        "iterations": 10,
+                        "parallelism": 4,
+                    },
+                    "snonce": "x3HUNXH6LQldKtEv3q0h0hR4S12Ur9pC",
+                    "asalt": "7Sem2tc6fjEfW3yYUDN/kSslKEW0e1zqKnBCWbZu2Zw=",
+                    "sbox": "d0CmRus0rP0bdc7P7d/wnOyEW14pwFJmcLbdu2W3HmDNRWVJtoNpHrauA/Sr5Vxc"
+                },
+                "type": "argon2sbox"
+            },
+            "publicKey": "/+UuD63zItL1EbjxkKUljMgG8Z1w0AJ8pNOR4iq2yQc="
+        }
+    ]
+}
+```
+
+```json tab="v0.10.1 and earlier"
 "keys": {
     "passwords": ["password"],
     "passwordFile": "/path/to/pwds.txt",
@@ -116,7 +179,20 @@ Passwords must be provided so that Tessera can decrypt and use the private keys.
 
 ### Filesystem key pairs   
 The keys in the pair are stored in files:
-```json
+
+```json tab="v0.10.2 onwards"
+"keys": {
+    "passwordFile": "/path/to/pwds.txt",
+    "keyData": [
+        {
+            "privateKeyPath": "/path/to/privateKey.key",
+            "publicKeyPath": "/path/to/publicKey.pub"
+        }
+    ]
+}
+```
+
+```json tab="v0.10.1 and earlier"
 "keys": {
     "passwords": ["password"],
     "passwordFile": "/path/to/pwds.txt",
@@ -128,6 +204,7 @@ The keys in the pair are stored in files:
     ]
 }
 ```
+
 The contents of the public key file must contain the public key only, e.g.: 
 ```
 /+UuD63zItL1EbjxkKUljMgG8Z1w0AJ8pNOR4iq2yQc=
@@ -172,7 +249,27 @@ Passwords must be provided so that Tessera can decrypt and use the private keys.
 
 ### Azure Key Vault key pairs
 The keys in the pair are stored as secrets in an Azure Key Vault.  This requires providing the vault url and the secret IDs for both keys:
-```json
+
+```json tab="v0.10.3 onwards"
+"keys": {
+    "keyVaultConfig": {
+        "keyVaultType": "AZURE",
+        "properties": {
+            "url": "https://my-vault.vault.azure.net"
+        } 
+    },
+    "keyData": [
+        {
+            "azureVaultPrivateKeyId": "Key",
+            "azureVaultPublicKeyId": "Pub",
+            "azureVaultPublicKeyVersion": "bvfw05z4cbu11ra2g94e43v9xxewqdq7",
+            "azureVaultPrivateKeyVersion": "0my1ora2dciijx5jq9gv07sauzs5wjo2"
+        }
+    ]
+}
+```
+
+```json tab="v0.10.2 and earlier"
 "keys": {
     "azureKeyVaultConfig": {
         "url": "https://my-vault.vault.azure.net"
@@ -195,7 +292,29 @@ This example configuration will retrieve the specified versions of the secrets `
 
 ### Hashicorp Vault key pairs
 The keys in the pair are stored as a secret in a Hashicorp Vault.  Additional configuration can also be provided if the Vault is configured to use TLS and if the AppRole auth method is being used at a different path to the default (`approle`):
-```json
+
+```json tab="v0.10.3 onwards"
+"keyVaultConfig": {
+    "keyVaultType": "HASHICORP",
+    "properties": {
+        "url": "https://localhost:8200",
+        "tlsKeyStorePath": "/path/to/keystore.jks",
+        "tlsTrustStorePath": "/path/to/truststore.jks",
+        "approlePath": "not-default"
+    }
+},
+"keyData": [
+    {
+        "hashicorpVaultSecretEngineName": "engine",
+        "hashicorpVaultSecretName": "secret",
+        "hashicorpVaultSecretVersion": 1,
+        "hashicorpVaultPrivateKeyId": "privateKey",
+        "hashicorpVaultPublicKeyId": "publicKey",
+    }
+]
+```
+
+```json tab="v0.10.2 and earlier"
 "hashicorpKeyVaultConfig": {
     "url": "https://localhost:8200",
     "tlsKeyStorePath": "/path/to/keystore.jks",
@@ -227,7 +346,8 @@ Tessera requires TLS certificates and keys to be stored in `.jks` Java keystore 
 
 ### AWS Secrets Manager key pairs
 The keys in the pair are stored as secrets in the _AWS Secrets Manager_.  This requires providing the secret IDs for both keys.  The endpoint is optional as the _AWS SDK_ can fallback to its inbuilt property retrieval chain (e.g. using the environment variable `AWS_REGION` or `~/.aws/config` file - see [the AWS docs](https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html) for similar behaviour explained in the context of credentials):
-```json
+
+```json tab="v0.10.3 onwards"
 "keys": {
         "keyVaultConfig": {
             "keyVaultConfigType": "AWS",
@@ -273,10 +393,28 @@ If wished, multiple key pairs can be specified for a Tessera node. In this case,
 Note that multiple key pairs can only be set up within the configuration file, not via separate filesystem key files.
 
 ## Viewing the keys registered for a node
-An ADMIN API endpoint `/config/keypairs` exists to allow you to view the public keys of the key pairs currently in use by your Tessera node.  This requires configuring an ADMIN server in the node's configuration file, as described in [Configuration Overview](../Configuration%20Overview).
+For Tessera v0.10.2 onwards the ThirdParty API `/keys` endpoint can be used to view the public keys of the key pairs currently in use by your Tessera node. 
+
+For Tessera v0.10.1 and earlier, an ADMIN API endpoint `/config/keypairs` exists to allow you to view the public keys of the key pairs currently in use by your Tessera node.  
 
 A sample response for the request `adminhost:port/config/keypairs` is:
-```json
+
+```json tab="v0.10.2 onwards"
+request: thirdpartyhost:port/keys
+{
+   "keys" : [
+      {
+         "key" : "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8="
+      },
+      {
+         "key" : "ABn6zhBth2qpdrJXp98IvjExV212ALl3j4U//nj4FAI="
+      }
+   ]
+}
+```
+
+```json tab="v0.10.1 and earlier"
+request: adminhost:port/config/keypairs
 [
    {
       "publicKey" : "oNspPPgszVUFw0qmGFfWwh1uxVUXgvBxleXORHj07g8="
@@ -286,3 +424,5 @@ A sample response for the request `adminhost:port/config/keypairs` is:
    }
 ]
 ```
+
+The corresponding server must be configured in the node's configuration file, as described in [Configuration Overview](../Configuration%20Overview).
