@@ -62,6 +62,7 @@ tessera -keygen -keygenvaulttype HASHICORP -keygenvaulturl <url> \
 !!! note
     Environment variables must be set if using a Hashicorp Vault, and a version 2 K/V secret engine must be enabled.  For more information see [Setting up a Hashicorp Vault](../Setting%20up%20a%20Hashicorp%20Vault)
     
+    
 ### AWS Secrets Manager-stored keys
 Generate a key pair and save to an AWS Secrets Manager, with endpoint `<url>`, as secrets with IDs `Pub` and `Key`:
 
