@@ -927,18 +927,6 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
-	// Quorum
-	// Write private state changes to database
-	privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
-	if err != nil {
-		return NonStatTy, err
-	}
-	if err := WritePrivateStateRoot(bc.db, block.Root(), privateRoot); err != nil {
-		log.Error("Failed writing private state root", "err", err)
-		return NonStatTy, err
-	}
-	// /Quorum
-
 	// Calculate the total difficulty of the block
 	ptd := bc.GetTd(block.ParentHash(), block.NumberU64()-1)
 	if ptd == nil {
@@ -949,6 +937,15 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	defer bc.mu.Unlock()
 
 	// Quorum
+	// Write private state changes to database
+	privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
+	if err != nil {
+		return NonStatTy, err
+	}
+	if err := WritePrivateStateRoot(bc.db, block.Root(), privateRoot); err != nil {
+		log.Error("Failed writing private state root", "err", err)
+		return NonStatTy, err
+	}
 	// Explicit commit for privateStateTriedb
 	privateTriedb := bc.privateStateCache.TrieDB()
 	if err := privateTriedb.Commit(privateRoot, false); err != nil {
