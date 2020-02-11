@@ -33,13 +33,13 @@ type ClusterInfo struct {
 	NodeActive bool   `json:"nodeActive"`
 }
 
-func newAddress(raftId uint16, raftPort int, node *enode.Node, withHostname bool) *Address {
+func newAddress(raftId uint16, raftPort int, node *enode.Node, useDns bool) *Address {
 	// derive 64 byte nodeID from 128 byte enodeID
 	id, err := enode.RaftHexID(node.EnodeID())
 	if err != nil {
 		panic(err)
 	}
-	if withHostname {
+	if useDns && node.Host() != "" {
 		return &Address{
 			RaftId:   raftId,
 			NodeId:   id,
@@ -66,13 +66,14 @@ type Peer struct {
 }
 
 // RLP Address encoding, for transport over raft and storage in LevelDB.
-func (addr *Address) toBytes(withHostname bool) []byte {
+func (addr *Address) toBytes() []byte {
 	var toEncode interface{}
 
-	if withHostname {
+	// need to check if addr.Hostname is hostname/ip
+	if ip := net.ParseIP(addr.Hostname); ip == nil {
 		toEncode = addr
 	} else {
-		toEncode = []interface{}{addr.RaftId, addr.NodeId, net.ParseIP(addr.Hostname), addr.P2pPort, addr.RaftPort}
+		toEncode = []interface{}{addr.RaftId, addr.NodeId, ip, addr.P2pPort, addr.RaftPort}
 	}
 
 	buffer, err := rlp.EncodeToBytes(toEncode)
@@ -83,14 +84,14 @@ func (addr *Address) toBytes(withHostname bool) []byte {
 }
 
 func bytesToAddress(input []byte) *Address {
-	//try the new format first
+	// try the new format first
 	addr := new(Address)
 	streamNew := rlp.NewStream(bytes.NewReader(input), 0)
 	if err := streamNew.Decode(addr); err == nil {
 		return addr
 	}
 
-	//else try the old format
+	// else try the old format
 	var temp struct {
 		RaftId   uint16
 		NodeId   enode.EnodeID

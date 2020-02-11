@@ -64,6 +64,7 @@ nav:
                     - Key Generation: Privacy/Tessera/Tessera Services/Keys/Keys.md
                     - Setting up Hashicorp Vault: Privacy/Tessera/Tessera Services/Keys/Setting up a Hashicorp Vault.md
                     - Setting up Azure Key Vault: Privacy/Tessera/Tessera Services/Keys/Setting up an Azure Key Vault.md
+                    - Setting up AWS Secrets Manager: Privacy/Tessera/Tessera Services/Keys/Setting up an AWS Secrets Manager.md
             - Usage:
                 - Interfaces & API: Privacy/Tessera/Usage/Interface & API.md
                 - Admin Usage: Privacy/Tessera/Usage/Admin Usage.md
