@@ -2,7 +2,7 @@
 With no need for POW/POS in a permissioned network, Quorum instead offers multiple consensus mechanisms that are more appropriate for consortium chains:  
 
 
-* __Raft-based Consensus__: A consensus model for faster blocktimes, transaction finality, and on-demand block creation.  See [Raft-based consensus for Ethereum/Quorum](../raft) for more information 
+* __Raft-based Consensus__: A consensus model for faster blocktimes, transaction finality, and on-demand block creation.  See [Raft-based consensus for Ethereum/Quorum](../raft/raft) for more information
 
 
 * __Istanbul BFT (Byzantine Fault Tolerance) Consensus__: A PBFT-inspired consensus algorithm with immediate transaction finality, by AMIS.  See [Istanbul BFT Consensus documentation](../ibft/ibft), the [RPC API](../ibft/istanbul-rpc-api), and this [technical web article](https://medium.com/getamis/istanbul-bft-ibft-c2758b7fe6ff) for more information
