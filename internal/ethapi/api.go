@@ -1576,6 +1576,12 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (c
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the
 // transaction pool.
 func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args SendTxArgs) (common.Hash, error) {
+	t1 := time.Now()
+	defer func(t1 time.Time){
+		tt := time.Now().Sub(t1)
+
+		log.Info("AJ-SendTransaction completed","time taken(ms)", tt.Milliseconds(), "time taken(ns)", tt.Nanoseconds())
+	}(t1)
 	// Look up the wallet containing the requested signer
 	account := accounts.Account{Address: args.From}
 
