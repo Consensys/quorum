@@ -592,20 +592,11 @@ func (w *worker) resultLoop() {
 				logs = append(logs, receipt.Logs...)
 			}
 
-			// write private transactions
-			privateStateRoot, err := task.privateState.Commit(w.config.IsEIP158(block.Number()))
-			if err != nil {
-				log.Error("Failed committing private state root", "err", err)
-				continue
-			}
-			if err := core.WritePrivateStateRoot(w.eth.ChainDb(), block.Root(), privateStateRoot); err != nil {
-				log.Error("Failed writing private state root", "err", err)
-				continue
-			}
 			allReceipts := mergeReceipts(task.receipts, task.privateReceipts)
 
 			// Commit block and state to database.
-			stat, err := w.chain.WriteBlockWithState(block, allReceipts, task.state, nil)
+			stat, err := w.chain.WriteBlockWithState(block, allReceipts, task.state, task.privateState)
+
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
