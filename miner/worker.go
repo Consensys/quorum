@@ -618,8 +618,8 @@ func (w *worker) resultLoop() {
 				receipt.BlockNumber = block.Number()
 				receipt.TransactionIndex = uint(i + offset)
 
-				prvReceipts[i+offset] = new(types.Receipt)
-				*prvReceipts[i+offset] = *receipt
+				prvReceipts[i] = new(types.Receipt)
+				*prvReceipts[i] = *receipt
 				// Update the block hash in all logs since it is now available and not when the
 				// receipt/log of individual transactions were created.
 				for _, log := range receipt.Logs {
