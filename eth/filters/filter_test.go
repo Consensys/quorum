@@ -124,6 +124,7 @@ func TestFilters(t *testing.T) {
 		hash2 = common.BytesToHash([]byte("topic2"))
 		hash3 = common.BytesToHash([]byte("topic3"))
 		hash4 = common.BytesToHash([]byte("topic4"))
+		hash5 = common.BytesToHash([]byte("privateTopic"))
 	)
 	defer db.Close()
 
@@ -168,6 +169,20 @@ func TestFilters(t *testing.T) {
 			gen.AddUncheckedReceipt(receipt)
 		}
 	})
+
+	// Quorum
+	privateReceipt := types.NewReceipt(nil, false, 0)
+	privateReceipt.Logs = []*types.Log{
+		{
+			Address: addr,
+			Topics:  []common.Hash{hash5},
+		},
+	}
+	if err := core.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}); err != nil {
+		t.Fatal(err)
+	}
+	receipts[998] = append(receipts[998], privateReceipt)
+
 	for i, block := range chain {
 		rawdb.WriteBlock(db, block)
 		rawdb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())
@@ -229,4 +244,26 @@ func TestFilters(t *testing.T) {
 	if len(logs) != 0 {
 		t.Error("expected 0 log, got", len(logs))
 	}
+
+	// Quorum
+
+	// Test individual private log with NewBlockFilter (query filter with block hash)
+	filter = NewBlockFilter(backend, chain[998].Hash(), nil, [][]common.Hash{{hash5}})
+
+	logs, _ = filter.Logs(context.Background())
+	if len(logs) != 1 {
+		t.Error("expected 1 log, got", len(logs))
+	}
+	if len(logs) > 0 && logs[0].Topics[0] != hash5 {
+		t.Errorf("expected log[0].Topics[0] to be %x, got %x", hash5, logs[0].Topics[0])
+	}
+
+	// Test a mix of public and private logs with NewBlockFilter (query filter with block hash)
+	filter = NewBlockFilter(backend, chain[998].Hash(), nil, [][]common.Hash{{hash3, hash5}})
+
+	logs, _ = filter.Logs(context.Background())
+	if len(logs) != 2 {
+		t.Error("expected 2 log, got", len(logs))
+	}
+
 }
