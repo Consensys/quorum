@@ -38,8 +38,9 @@ geth ... \
 ```
 
 ## Plugin Integrity Verification
-In its default settings Quorum uses its own Plugin Central Server to download and verify plugin integrity using [PGP](https://en.wikipedia.org/wiki/Pretty_Good_Privacy). 
-However the architecture enables the same verification process locally via `--plugins.localverify` and `--plugins.publickey` flags or 
+
+Plugin Central Server can be used to download and verify plugin integrity using [PGP](https://en.wikipedia.org/wiki/Pretty_Good_Privacy). 
+The architecture enables the same verification process locally via `--plugins.localverify` and `--plugins.publickey` flags or 
 remotely with custom plugin central - reference the [`Settings`](../Settings/) section for more information on how to support custom plugin central. 
 
 If the flag `--plugins.skipverify` is provided at runtime the plugin verification process will be disabled.
