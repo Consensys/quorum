@@ -314,13 +314,10 @@ func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ string) (state
 		}
 	}
 
-	switch typ {
-	case "public":
-		return publicState.RawDump(), nil
-	case "private":
+	if typ == "private" {
 		return privateState.RawDump(), nil
-	default:
-		return state.Dump{}, fmt.Errorf("unknown type: '%s'", typ)
+	} else {
+		return publicState.RawDump(), nil
 	}
 }
 
