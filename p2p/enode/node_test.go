@@ -19,6 +19,7 @@ package enode
 import (
 	"encoding/hex"
 	"fmt"
+	"net"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/p2p/enr"
@@ -57,6 +58,87 @@ func TestPythonInterop(t *testing.T) {
 		desc := fmt.Sprintf("loading key %q", k.ENRKey())
 		if assert.NoError(t, n.Load(k), desc) {
 			assert.Equal(t, k, v, desc)
+		}
+	}
+}
+
+// Quorum
+// test Incomplete
+func TestIncomplete(t *testing.T) {
+	var testCases = []struct {
+		n            *Node
+		isIncomplete bool
+	}{
+		{
+			n: NewV4(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				net.IP{127, 0, 0, 1},
+				52150,
+				52150,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				net.ParseIP("::"),
+				52150,
+				52150,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				net.ParseIP("2001:db8:3c4d:15::abcd:ef12"),
+				52150,
+				52150,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				nil,
+				52150,
+				52150,
+			),
+			isIncomplete: true,
+		},
+		{
+			n: NewV4Hostname(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				"hostname",
+				52150,
+				52150,
+				50400,
+			),
+			isIncomplete: false,
+		},
+		{
+			n: NewV4Hostname(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				"hostname",
+				52150,
+				52150,
+				0,
+			),
+			isIncomplete: true,
+		},
+		{
+			n: NewV4Hostname(
+				hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
+				"",
+				52150,
+				52150,
+				50400,
+			),
+			isIncomplete: true,
+		},
+	}
+
+	for i, test := range testCases {
+		if test.n.Incomplete() != test.isIncomplete {
+			t.Errorf("test %d: Node.Incomplete() mismatch:\ngot:  %v\nwant: %v", i, test.n.Incomplete(), test.isIncomplete)
 		}
 	}
 }

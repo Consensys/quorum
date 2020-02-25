@@ -1,76 +1,105 @@
 ## Generating keys
 
-Key generation can be used in multiple ways:
+### File-stored keys
+Generate a key pair and save in new files `new.pub` and `new.key` (will start an interactive prompt to provide passwords):   
+```
+tessera -keygen -filename new
+```
+Multiple key pairs can be generated at the same time by providing a comma-separated list of values:
+```
+tessera -keygen -filename /path/to/key1,/path/to/key2
+```
 
-1. Generate a key pair and save in new files `.pub` and `.key`:  
-    ```
-    tessera -keygen
-    ```
-    This command will require interactive input for passwords. 
-If you wish to generate an unlocked key, `/dev/null` can be used for stdin to tell the application not to expect any input (version 0.8 only):
-    ```
-    # Version 0.8+
-    tessera -keygen < /dev/null
+To generate an unlocked key, the following can be used to tell Tessera to not expect any input:
 
-    # Version 0.7.x or before
-    printf "\n\n" | tessera -keygen
-    ```
+```bash tab="v0.8.x onwards"
+tessera -keygen < /dev/null
+```
 
-    The `-filename` option can be used to specify alternate filepaths.  Multiple key pairs can be generated at the same time by providing a comma-separated list of values:
-    ```
-    tessera -keygen -filename /path/to/key1,/path/to/key2
-    ```
+```bash tab="v0.7.x and earlier"
+printf "\n\n" | tessera -keygen
+```
 
-1. Generate a key pair and save to an Azure Key Vault, with DNS name `<url>`, as secrets with IDs `Pub` and `Key`:
-    ```
-    tessera -keygen -keygenvaulttype AZURE -keygenvaulturl <url>
-    ```
-    
-    The `-filename` option can be used to specify alternate IDs.  Multiple key pairs can be generated at the same time by providing a comma-separated list of values:
-    ```
-    tessera -keygen -keygenvaulttype AZURE -keygenvaulturl <url> -filename id1,id2
-    ```
-    
-    **Note: If saving new keys with the same ID as keys that already exist in the vault, the existing keys will be replaced by the newer version.**
-    
-    > Environment variables must be set if using an Azure Key Vault, for more information see [Setting up an Azure key vault](../Setting%20up%20an%20Azure%20Key%20Vault)
-    
-1. Generate a key pair and save to a Hashicorp Vault at the secret path `secretEngine/secretName` with IDs `publicKey` and `privateKey`:
-    ```bash
-    tessera -keygen -keygenvaulttype HASHICORP -keygenvaulturl <url> \
-       -keygenvaultsecretengine secretEngine -filename secretName 
-    ```
-    Options exist for configuring TLS and AppRole authentication (by default the AppRole path is set to `approle`):
-    ```bash
-    tessera -keygen -keygenvaulttype HASHICORP -keygenvaulturl <url> \
-       -keygenvaultsecretengine <secretEngineName> -filename <secretName> \
-       -keygenvaultkeystore <JKS file> -keygenvaulttruststore <JKS file> \
-       -keygenvaultapprole <authpath>
-    ```
-    The `-filename` option can be used to generate and store multiple key pairs at the same time:
-    ```bash
-    tessera -keygen -keygenvaulttype HASHICORP -keygenvaulturl <url> \
-       -keygenvaultsecretengine secretEngine -filename myNode/keypairA,myNode/keypairB 
-    ```
-    **Saving a new key pair to an existing secret will overwrite the values stored at that secret.  Previous versions of secrets may be retained and be retrievable by Tessera depending on how the K/V secrets engine is configured.  See [Keys](../../../Configuration/Keys) for more information on configuring Tessera for use with Vault.**
-    
-    > Environment variables must be set if using a Hashicorp Vault, and a version 2 K/V secret engine must be enabled.  For more information see [Setting up a Hashicorp Vault](../Setting%20up%20a%20Hashicorp%20Vault).
+### Azure Key Vault-stored keys
+Generate a key pair as secrets with IDs `Pub` and `Key` and save to an Azure Key Vault with DNS name `<url>`:
+```
+tessera -keygen -keygenvaulttype AZURE -keygenvaulturl <url>
+```
 
-1. Generate a key pair, save to files and then start Tessera using a provided config
-    ```
-    tessera -keygen -configfile /path/to/config.json
-    ```
-    ```
-    tessera -keygen -filename key1 -configfile /path/to/config.json 
-    ```
-    Tessera loads `config.json` as usual and includes the newly generated key data before starting.  
-    
-    An updated `.json` configfile is printed to the terminal (or to a file if using the `-output` CLI option).  No changes are made to the `config.json` file itself.
+The `-filename` option can be used to specify alternate IDs.  Multiple key pairs can be generated at the same time by providing a comma-separated list of values:
+```
+tessera -keygen -keygenvaulttype AZURE -keygenvaulturl <url> -filename id1,id2
+```
 
-!!! note 
-    By default the `-keygen` commands generate [NaCl](https://nacl.cr.yp.to/) compatible keys.  
+!!! warning
+    If saving new keys with the same ID as keys that already exist in the vault, the existing keys will be replaced by the newer version.  When doing this, make sure to [specify the correct secret version in your Tessera configuration](../../../Configuration/Keys/#azure-key-vault-key-pairs) 
+
+!!! note
+    Environment variables must be set if using an Azure Key Vault, for more information see [Setting up an Azure key vault](../Setting%20up%20an%20Azure%20Key%20Vault)
+
+### Hashicorp Vault-stored keys
+Generate a key pair and save to a Hashicorp Vault at the secret path `secretEngine/secretName` with IDs `publicKey` and `privateKey`:
+```bash
+tessera -keygen -keygenvaulttype HASHICORP -keygenvaulturl <url> \
+   -keygenvaultsecretengine secretEngine -filename secretName 
+```
+Options exist for configuring TLS and AppRole authentication (by default the AppRole path is set to `approle`):
+```bash
+tessera -keygen -keygenvaulttype HASHICORP -keygenvaulturl <url> \
+   -keygenvaultsecretengine <secretEngineName> -filename <secretName> \
+   -keygenvaultkeystore <JKS file> -keygenvaulttruststore <JKS file> \
+   -keygenvaultapprole <authpath>
+```
+The `-filename` option can be used to generate and store multiple key pairs at the same time:
+```bash
+tessera -keygen -keygenvaulttype HASHICORP -keygenvaulturl <url> \
+   -keygenvaultsecretengine secretEngine -filename myNode/keypairA,myNode/keypairB 
+```
+
+!!! warning 
+    Saving a new key pair to an existing secret will overwrite the values stored at that secret.  Previous versions of secrets may be retained and be retrievable by Tessera depending on how the K/V secrets engine is configured.  When doing this, make sure to [specify the correct secret version in your Tessera configuration](../../../Configuration/Keys/#hashicorp-vault-key-pairs)
+
+!!! note
+    Environment variables must be set if using a Hashicorp Vault, and a version 2 K/V secret engine must be enabled.  For more information see [Setting up a Hashicorp Vault](../Setting%20up%20a%20Hashicorp%20Vault)
     
-    As of Tessera v0.10.2, the `--encryptor.type=EC` CLI option can be provided to generate keys of different types.  See [encryptor config](../../../Configuration/Configuration Overview/#encryptor-supporting-alternative-curves-in-tessera) for more details.  
+    
+### AWS Secrets Manager-stored keys
+Generate a key pair and save to an AWS Secrets Manager, with endpoint `<url>`, as secrets with IDs `Pub` and `Key`:
+
+```bash
+tessera -keygen -keygenvaulttype AWS -keygenvaulturl <url>
+```
+
+The `-filename` option can be used to specify alternate IDs.  Multiple key pairs can be generated at the same time by providing a comma-separated list of values:
+
+```bash
+tessera -keygen -keygenvaulttype AWS -keygenvaulturl <url> -filename id1,id2
+```
+
+!!! note
+    Environment variables must be set if using an AWS Secrets Manager, for more information see [Setting up an AWS Secrets Manager](../Setting%20up%20an%20AWS%20Secrets%20Manager)
+
+### Updating a configfile with newly generated keys 
+Any newly generated keys must be added to a Tessera `.json` configfile.  Often it is easiest to do this manually.  
+
+However, the `tessera keygen` `-configfile` option can be used to automatically update a configfile after key generation.  This is particularly useful when scripting.
+
+```
+tessera -keygen -filename key1 -configfile /path/to/config.json --configout /path/to/new.json --pwdout /path/to/new.pwds
+```
+
+The above command will prompt for a password and generate the `key1` pair as usual.  The Tessera configuration from `/path/to/config.json` will be read, updated and saved to `/path/to/new.json`.  New passwords will be appended to the existing password file as defined in `/path/to/config.json` and written to `/path/to/new.pwds`.
+
+If the `--configout` and `--pwdout` options are not provided, the updated `.json` config will be printed to the terminal.
+
+!!! note "Note: Differences between v0.10.3 and earlier versions"
+    Before Tessera version 0.10.3 the node would start after updating the configfile.  
+    
+    In v0.10.3, this behaviour was removed to ensure clearer distinction of responsibilities between each Tessera command.  The same behaviour can be achieved in v0.10.3 onwards by running:
+     ```
+     tessera keygen ... -output /path/to/new.json
+     tessera -configfile /path/to/new.json
+     ```  
 
 ## Securing private keys
 Generated private keys can be encrypted with a password.  This is prompted for on the console during key generation.  After generating password-protected keys, the password must be added to your configuration to ensure Tessera can read the keys.  The password is not saved anywhere but must be added to the configuration else the key will not be able to be decrypted.  
@@ -118,7 +147,7 @@ Password update can be used in multiple ways.  Running any of these commands wil
     ```
     All options have been overriden here but only the options you wish to alter from their defaults need to be provided.
 
-!!! note 
-    By default the `-updatepassword` commands can be used to update the password of [NaCl](https://nacl.cr.yp.to/) compatible keys.  
-    
-    As of Tessera v0.10.2, the `--encryptor.type=EC` CLI option can be provided to update keys of different types.  See [encryptor config](../../../Configuration/Configuration Overview/#encryptor-supporting-alternative-curves-in-tessera) for more details.  
+## Using alternative curve key types
+By default the `-keygen` and `-updatepassword` commands generate and update [NaCl](https://nacl.cr.yp.to/) compatible keys.  
+
+As of Tessera v0.10.2, the `--encryptor.type=EC` CLI option can be provided to generate/update keys of different types.  See [encryptor config](../../../Configuration/Configuration Overview/#encryptor-supporting-alternative-curves-in-tessera) for more details.

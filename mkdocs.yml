@@ -20,8 +20,11 @@ nav:
         - Quorum API: Getting Started/api.md
     - Consensus:
         - Consensus: Consensus/Consensus.md
-        - Raft: Consensus/raft.md
+        - Raft BFT:
+            - Consensus/raft/raft.md
+            - Consensus/raft/raft-rpc-api.md
         - Istanbul BFT:
+            - Overview: Consensus/ibft/ibft.md
             - Consensus/ibft/istanbul-rpc-api.md
             - Consensus/ibft/ibft-parameters.md
     - Transaction Processing: Transaction Processing/Transaction Processing.md
@@ -61,6 +64,7 @@ nav:
                     - Key Generation: Privacy/Tessera/Tessera Services/Keys/Keys.md
                     - Setting up Hashicorp Vault: Privacy/Tessera/Tessera Services/Keys/Setting up a Hashicorp Vault.md
                     - Setting up Azure Key Vault: Privacy/Tessera/Tessera Services/Keys/Setting up an Azure Key Vault.md
+                    - Setting up AWS Secrets Manager: Privacy/Tessera/Tessera Services/Keys/Setting up an AWS Secrets Manager.md
             - Usage:
                 - Interfaces & API: Privacy/Tessera/Usage/Interface & API.md
                 - Admin Usage: Privacy/Tessera/Usage/Admin Usage.md
@@ -80,6 +84,9 @@ nav:
         - Getting Started: RemixPlugin/Getting started.md
     - Quorum Features:
         - DNS: Features/dns.md
+    - How-To Guides:
+        - Adding new nodes: How-To-Guides/adding_nodes.md
+        - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 

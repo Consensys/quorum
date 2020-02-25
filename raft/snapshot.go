@@ -97,7 +97,7 @@ func (pm *ProtocolManager) triggerSnapshot(index uint64) {
 
 	//snapData := pm.blockchain.CurrentBlock().Hash().Bytes()
 	//snap, err := pm.raftStorage.CreateSnapshot(pm.appliedIndex, &pm.confState, snapData)
-	snapData := pm.buildSnapshot().toBytes(pm.useDns)
+	snapData := pm.buildSnapshot().toBytes()
 	snap, err := pm.raftStorage.CreateSnapshot(index, &pm.confState, snapData)
 	if err != nil {
 		panic(err)
@@ -206,32 +206,43 @@ func (pm *ProtocolManager) loadSnapshot() *raftpb.Snapshot {
 	}
 }
 
-func (snapshot *SnapshotWithHostnames) toBytes(useDns bool) []byte {
-	// we have DNS enabled, so only use the new snapshot type
-	if useDns {
-		buffer, err := rlp.EncodeToBytes(snapshot)
-		if err != nil {
-			panic(fmt.Sprintf("error: failed to RLP-encode Snapshot: %s", err.Error()))
-		}
-		return buffer
-	}
+func (snapshot *SnapshotWithHostnames) toBytes() []byte {
+	var (
+		useOldSnapshot bool
+		oldSnapshot    SnapshotWithoutHostnames
+		toEncode       interface{}
+	)
 
-	// DNS is not enabled, use the old snapshot type, converting from hostnames to IP addresses
-	oldSnapshot := new(SnapshotWithoutHostnames)
+	// use old snapshot if all snapshot.Addresses are ips
+	// but use the new snapshot if any of it is a hostname
+	useOldSnapshot = true
 	oldSnapshot.HeadBlockHash, oldSnapshot.RemovedRaftIds = snapshot.HeadBlockHash, snapshot.RemovedRaftIds
 	oldSnapshot.Addresses = make([]AddressWithoutHostname, len(snapshot.Addresses))
 
 	for index, addrWithHost := range snapshot.Addresses {
+		// validate addrWithHost.Hostname is a hostname/ip
+		ip := net.ParseIP(addrWithHost.Hostname)
+		if ip == nil {
+			// this is a hostname
+			useOldSnapshot = false
+			break
+		}
+		// this is an ip
 		oldSnapshot.Addresses[index] = AddressWithoutHostname{
 			addrWithHost.RaftId,
 			addrWithHost.NodeId,
-			net.ParseIP(addrWithHost.Hostname),
+			ip,
 			addrWithHost.P2pPort,
 			addrWithHost.RaftPort,
 		}
 	}
 
-	buffer, err := rlp.EncodeToBytes(oldSnapshot)
+	if useOldSnapshot {
+		toEncode = oldSnapshot
+	} else {
+		toEncode = snapshot
+	}
+	buffer, err := rlp.EncodeToBytes(toEncode)
 	if err != nil {
 		panic(fmt.Sprintf("error: failed to RLP-encode Snapshot: %s", err.Error()))
 	}
@@ -247,6 +258,7 @@ func bytesToSnapshot(input []byte) *SnapshotWithHostnames {
 		return snapshot
 	}
 
+	// Build new snapshot with hostname from legacy Address struct
 	snapshotOld := new(SnapshotWithoutHostnames)
 	streamOldSnapshot := rlp.NewStream(bytes.NewReader(input), 0)
 	if errOld = streamOldSnapshot.Decode(snapshotOld); errOld == nil {

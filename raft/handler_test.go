@@ -45,7 +45,7 @@ func TestProtocolManager_whenAppliedIndexOutOfSync(t *testing.T) {
 	for i := 0; i < count; i++ {
 		ports[i] = nextPort(t)
 		nodeKeys[i] = mustNewNodeKey(t)
-		peers[i] = enode.NewV4(&(nodeKeys[i].PublicKey), net.IPv4(127, 0, 0, 1), 0, 0, int(ports[i]))
+		peers[i] = enode.NewV4Hostname(&(nodeKeys[i].PublicKey), net.IPv4(127, 0, 0, 1).String(), 0, 0, int(ports[i]))
 	}
 	raftNodes := make([]*RaftService, count)
 	for i := 0; i < count; i++ {
