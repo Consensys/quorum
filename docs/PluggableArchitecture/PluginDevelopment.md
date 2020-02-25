@@ -83,7 +83,7 @@ Magic Cookie key and value are injected as an environment variable while executi
 QUORUM_PLUGIN_MAGIC_COOKIE="CB9F51969613126D93468868990F77A8470EB9177503C5A38D437FEFF7786E0941152E05C06A9A3313391059132A7F9CED86C0783FE63A8B38F01623C8257664"
 ```
 
-The plugin and the Quorum client's magic cookies are compared.  If they are equal then the plugin is loaded.   If the they are not equal, the plugin should show human-friendly output.
+The plugin and the Quorum client's magic cookies are compared.  If they are equal then the plugin is loaded.   If they are not equal, the plugin should show human-friendly output.
 
 ### Mutual TLS Authentication
 
