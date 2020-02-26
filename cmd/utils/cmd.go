@@ -19,7 +19,6 @@ package utils
 
 import (
 	"compress/gzip"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -310,47 +309,4 @@ func ExportPreimages(db *ethdb.LDBDatabase, fn string) error {
 	}
 	log.Info("Exported preimages", "file", fn)
 	return nil
-}
-
-// Quorum
-
-// CreateGenesis creates genesis based on genesis json file from path
-func CreateGenesis(genesisPath string) *core.Genesis {
-	// Make sure we have a valid genesis JSON
-	if len(genesisPath) == 0 {
-		Fatalf("Must supply path to genesis JSON file")
-	}
-	file, err := os.Open(genesisPath)
-	if err != nil {
-		Fatalf("Failed to read genesis file: %v", err)
-	}
-	defer file.Close()
-
-	genesis := new(core.Genesis)
-	if err := json.NewDecoder(file).Decode(genesis); err != nil {
-		Fatalf("invalid genesis file: %v", err)
-	}
-
-	file.Seek(0, 0)
-	genesis.Config.IsQuorum = getIsQuorum(file)
-
-	return genesis
-}
-
-// In the regular Genesis / ChainConfig struct, due to the way go deserializes
-// json, IsQuorum defaults to false (when not specified). Here we specify it as
-// a pointer so we can make the distinction and default unspecified to true.
-func getIsQuorum(file io.Reader) bool {
-	altGenesis := new(struct {
-		Config *struct {
-			IsQuorum *bool `json:"isQuorum"`
-		} `json:"config"`
-	})
-
-	if err := json.NewDecoder(file).Decode(altGenesis); err != nil {
-		Fatalf("invalid genesis file: %v", err)
-	}
-
-	// unspecified defaults to true
-	return altGenesis.Config.IsQuorum == nil || *altGenesis.Config.IsQuorum
 }

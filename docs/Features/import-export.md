@@ -9,16 +9,15 @@ as private transactions, permissioning, and supported consensus algorithms.
 
 ### Node Backup (Export)
 
-Backup functionality mimics original `geth export` command but requires a stricter set of arguments. Quorum export accepts 4 arguments:
+Backup functionality mimics original `geth export` command but requires a stricter set of arguments. Quorum export accepts 3 arguments:
 
 1. Export file name **required**
-2. Original `genesis.json` **required**
 3. First block
 4. Last block *are optional but must be provided together when used*
 
 ##### Sample command
 
-`geth export <export file name> <genesis file> --datadir <geth data dir>`
+`geth export <export file name> --datadir <geth data dir>`
 
 ### Node Restore (Import)
 
@@ -31,7 +30,7 @@ Quorum import must run on a new node with a new `--datadir` before `geth init` h
 
 ##### Sample command
 
-`PRIVATE_CONFIG=<PTM ipc endpoint> geth import <import file names...> <genesis file> --datadir <geth data dir>`
+`PRIVATE_CONFIG=<PTM ipc endpoint> geth import <import file names...> --datadir <geth data dir>`
 
 ### Special Consensus Considerations
 

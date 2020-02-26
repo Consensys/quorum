@@ -17,7 +17,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"strconv"
@@ -60,7 +62,7 @@ It expects the genesis file as argument.`,
 		Action:    utils.MigrateFlags(importChain),
 		Name:      "import",
 		Usage:     "Import a blockchain file",
-		ArgsUsage: "<filename> (<filename 2> ... <filename N>) <genesisPath>",
+		ArgsUsage: "<filename> (<filename 2> ... <filename N>) ",
 		Flags: []cli.Flag{
 			utils.DataDirFlag,
 			utils.CacheFlag,
@@ -75,15 +77,13 @@ The import command imports blocks from an RLP-encoded form. The form can be one 
 with several RLP-encoded blocks, or several files can be used.
 
 If only one file is used, import error will result in failure. If several files are used,
-processing will proceed even if an individual RLP-file import failure occurs.
-
-It expects the genesis file as the last argument for Quorum chain`,
+processing will proceed even if an individual RLP-file import failure occurs.`,
 	}
 	exportCommand = cli.Command{
 		Action:    utils.MigrateFlags(exportChain),
 		Name:      "export",
 		Usage:     "Export blockchain into file",
-		ArgsUsage: "<filename> <genesisPath> [<blockNumFirst> <blockNumLast>]",
+		ArgsUsage: "<filename> [<blockNumFirst> <blockNumLast>]",
 		Flags: []cli.Flag{
 			utils.DataDirFlag,
 			utils.CacheFlag,
@@ -91,13 +91,11 @@ It expects the genesis file as the last argument for Quorum chain`,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
-The export command exports blocks to an RLP-file.
-
-It requires a first argument of the file to write to and a second argument of genesis file.
-Optional third and fourth arguments control the first and last block to write.
-
-In this mode, the file will be appended if already existing. If the file ends with .gz,
-the output will be gzipped.`,
+Requires a first argument of the file to write to.
+Optional second and third arguments control the first and
+last block to write. In this mode, the file will be appended
+if already existing. If the file ends with .gz, the output will
+be gzipped.`,
 	}
 	importPreimagesCommand = cli.Command{
 		Action:    utils.MigrateFlags(importPreimages),
@@ -173,10 +171,46 @@ Use "ethereum dump 0" to dump the genesis block.`,
 	}
 )
 
+// In the regular Genesis / ChainConfig struct, due to the way go deserializes
+// json, IsQuorum defaults to false (when not specified). Here we specify it as
+// a pointer so we can make the distinction and default unspecified to true.
+func getIsQuorum(file io.Reader) bool {
+	altGenesis := new(struct {
+		Config *struct {
+			IsQuorum *bool `json:"isQuorum"`
+		} `json:"config"`
+	})
+
+	if err := json.NewDecoder(file).Decode(altGenesis); err != nil {
+		utils.Fatalf("invalid genesis file: %v", err)
+	}
+
+	// unspecified defaults to true
+	return altGenesis.Config.IsQuorum == nil || *altGenesis.Config.IsQuorum
+}
+
 // initGenesis will initialise the given JSON format genesis file and writes it as
 // the zero'd block (i.e. genesis) or will fail hard if it can't succeed.
 func initGenesis(ctx *cli.Context) error {
-	genesis := utils.CreateGenesis(ctx.Args().First())
+	// Make sure we have a valid genesis JSON
+	genesisPath := ctx.Args().First()
+	if len(genesisPath) == 0 {
+		utils.Fatalf("Must supply path to genesis JSON file")
+	}
+	file, err := os.Open(genesisPath)
+	if err != nil {
+		utils.Fatalf("Failed to read genesis file: %v", err)
+	}
+	defer file.Close()
+
+	genesis := new(core.Genesis)
+	if err := json.NewDecoder(file).Decode(genesis); err != nil {
+		utils.Fatalf("invalid genesis file: %v", err)
+	}
+
+	file.Seek(0, 0)
+	genesis.Config.IsQuorum = getIsQuorum(file)
+
 	// Open an initialise both full and light databases
 	stack := makeFullNode(ctx)
 	for _, name := range []string{"chaindata", "lightchaindata"} {
@@ -194,12 +228,11 @@ func initGenesis(ctx *cli.Context) error {
 }
 
 func importChain(ctx *cli.Context) error {
-	if len(ctx.Args()) < 2 {
-		utils.Fatalf("This command requires two arguments, 1) import files 2) genesis JSON file.")
+	if len(ctx.Args()) < 1 {
+		utils.Fatalf("This command requires an argument.")
 	}
-	genesis := utils.CreateGenesis(ctx.Args().Get(len(ctx.Args()) - 1))
 	stack := makeFullNode(ctx)
-	chain, chainDb := utils.MakeChain(ctx, stack, genesis)
+	chain, chainDb := utils.MakeChain(ctx, stack, true)
 	defer chainDb.Close()
 
 	// Start periodically gathering memory profiles
@@ -220,16 +253,14 @@ func importChain(ctx *cli.Context) error {
 	// Import the chain
 	start := time.Now()
 
-	if len(ctx.Args()) == 2 {
+	if len(ctx.Args()) == 1 {
 		if err := utils.ImportChain(chain, ctx.Args().First()); err != nil {
 			log.Error("Import error", "err", err)
 		}
 	} else {
-		for i, arg := range ctx.Args() {
-			if i != len(ctx.Args())-1 {
-				if err := utils.ImportChain(chain, arg); err != nil {
-					log.Error("Import error", "file", arg, "err", err)
-				}
+		for _, arg := range ctx.Args() {
+			if err := utils.ImportChain(chain, arg); err != nil {
+				log.Error("Import error", "file", arg, "err", err)
 			}
 		}
 	}
@@ -291,22 +322,21 @@ func importChain(ctx *cli.Context) error {
 }
 
 func exportChain(ctx *cli.Context) error {
-	if len(ctx.Args()) < 2 {
-		utils.Fatalf("This command requires two arguments, 1) export file 2) genesis JSON file.")
+	if len(ctx.Args()) < 1 {
+		utils.Fatalf("This command requires an argument.")
 	}
-	genesis := utils.CreateGenesis(ctx.Args().Get(1))
 	stack := makeFullNode(ctx)
-	chain, _ := utils.MakeChain(ctx, stack, genesis)
+	chain, _ := utils.MakeChain(ctx, stack, true)
 	start := time.Now()
 
 	var err error
 	fp := ctx.Args().First()
-	if len(ctx.Args()) < 4 {
+	if len(ctx.Args()) < 3 {
 		err = utils.ExportChain(chain, fp)
 	} else {
 		// This can be improved to allow for numbers larger than 9223372036854775807
-		first, ferr := strconv.ParseInt(ctx.Args().Get(2), 10, 64)
-		last, lerr := strconv.ParseInt(ctx.Args().Get(3), 10, 64)
+		first, ferr := strconv.ParseInt(ctx.Args().Get(1), 10, 64)
+		last, lerr := strconv.ParseInt(ctx.Args().Get(2), 10, 64)
 		if ferr != nil || lerr != nil {
 			utils.Fatalf("Export error in parsing parameters: block number not an integer\n")
 		}
@@ -362,7 +392,7 @@ func copyDb(ctx *cli.Context) error {
 	}
 	// Initialize a new chain for the running node to sync into
 	stack := makeFullNode(ctx)
-	chain, chainDb := utils.MakeChain(ctx, stack, nil)
+	chain, chainDb := utils.MakeChain(ctx, stack, false)
 
 	syncmode := *utils.GlobalTextMarshaler(ctx, utils.SyncModeFlag.Name).(*downloader.SyncMode)
 	dl := downloader.New(syncmode, chainDb, new(event.TypeMux), chain, nil, nil)
@@ -434,7 +464,7 @@ func removeDB(ctx *cli.Context) error {
 
 func dump(ctx *cli.Context) error {
 	stack := makeFullNode(ctx)
-	chain, chainDb := utils.MakeChain(ctx, stack, nil)
+	chain, chainDb := utils.MakeChain(ctx, stack, false)
 	for _, arg := range ctx.Args() {
 		var block *types.Block
 		if hashish(arg) {
