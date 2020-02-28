@@ -145,6 +145,10 @@ var (
 		utils.EmitCheckpointsFlag,
 		utils.IstanbulRequestTimeoutFlag,
 		utils.IstanbulBlockPeriodFlag,
+		utils.PluginSettingsFlag,
+		utils.PluginSkipVerifyFlag,
+		utils.PluginLocalVerifyFlag,
+		utils.PluginPublicKeyFlag,
 		// End-Quorum
 	}
 
