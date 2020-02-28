@@ -122,6 +122,7 @@ func (bp *basePlugin) Start() (err error) {
 			bp.logger.Info("Plugin started", "took", time.Since(startTime))
 		} else {
 			bp.logger.Error("Plugin failed to start", "error", err, "took", time.Since(startTime))
+			_ = bp.Stop()
 		}
 	}(startTime)
 	bp.logger.Info("Starting plugin")
@@ -133,11 +134,6 @@ func (bp *basePlugin) Start() (err error) {
 	if err != nil {
 		return
 	}
-	defer func() {
-		if err != nil {
-			_ = bp.Stop()
-		}
-	}()
 	err = bp.init()
 	return
 }
