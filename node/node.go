@@ -27,6 +27,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/plugin"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -67,6 +69,8 @@ type Node struct {
 	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	wsListener net.Listener // Websocket RPC listener socket to server API requests
 	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
+
+	pluginManager *plugin.PluginManager // Manage all plugins for this node. If plugin is not enabled, an EmptyPluginManager is set.
 
 	stop chan struct{} // Channel to wait for termination notifications
 	lock sync.RWMutex
@@ -213,6 +217,12 @@ func (n *Node) Start() error {
 		}
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
+	}
+	// Retrieve PluginManager service if configured
+	if pm, hasPluginManager := services[reflect.TypeOf(&plugin.PluginManager{})]; hasPluginManager {
+		n.pluginManager = pm.(*plugin.PluginManager)
+	} else {
+		n.pluginManager = plugin.NewEmptyPluginManager()
 	}
 	// Lastly start the configured RPC interfaces
 	if err := n.startRPC(services); err != nil {
@@ -635,4 +645,14 @@ func (n *Node) apis() []rpc.API {
 			Public:    true,
 		},
 	}
+}
+
+// Quorum
+//
+// This can be used to inspect plugins used in the current node
+func (n *Node) PluginManager() *plugin.PluginManager {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+
+	return n.pluginManager
 }
