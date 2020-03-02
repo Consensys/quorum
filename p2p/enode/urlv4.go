@@ -112,7 +112,7 @@ func isNewV4(n *Node) bool {
 
 // Quorum
 
-// NewV4 creates a node from discovery v4 node information. The record
+// NewV4Hostname creates a node from discovery v4 node information. The record
 // contained in the node has a zero-length signature. It sets the hostname or ip
 // of the node depends on hostname context
 func NewV4Hostname(pubkey *ecdsa.PublicKey, hostname string, tcp, udp, raftPort int) *Node {
@@ -186,6 +186,9 @@ func parseComplete(rawurl string) (*Node, error) {
 		raftPort, err := strconv.ParseUint(qv.Get("raftport"), 10, 16)
 		if err != nil {
 			return nil, errors.New("invalid raftport in query")
+		}
+		if u.Hostname() == "" {
+			return nil, errors.New("empty hostname in raft url")
 		}
 		return NewV4Hostname(id, u.Hostname(), int(tcpPort), int(udpPort), int(raftPort)), nil
 	}

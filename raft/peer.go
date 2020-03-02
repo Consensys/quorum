@@ -32,13 +32,13 @@ type ClusterInfo struct {
 	Role string `json:"role"`
 }
 
-func newAddress(raftId uint16, raftPort int, node *enode.Node, withHostname bool) *Address {
+func newAddress(raftId uint16, raftPort int, node *enode.Node, useDns bool) *Address {
 	// derive 64 byte nodeID from 128 byte enodeID
 	id, err := enode.RaftHexID(node.EnodeID())
 	if err != nil {
 		panic(err)
 	}
-	if withHostname && node.Host() != "" {
+	if useDns && node.Host() != "" {
 		return &Address{
 			RaftId:   raftId,
 			NodeId:   id,
@@ -65,20 +65,14 @@ type Peer struct {
 }
 
 // RLP Address encoding, for transport over raft and storage in LevelDB.
-func (addr *Address) toBytes(useDns bool) []byte {
+func (addr *Address) toBytes() []byte {
 	var toEncode interface{}
 
-	if useDns {
-		// we have DNS enabled, so only use the new address encoding
+	// need to check if addr.Hostname is hostname/ip
+	if ip := net.ParseIP(addr.Hostname); ip == nil {
 		toEncode = addr
 	} else {
-		// DNS is not enabled, need to check if addr.Hostname is hostname/ip
-		ip := net.ParseIP(addr.Hostname)
-		if ip != nil {
-			toEncode = []interface{}{addr.RaftId, addr.NodeId, ip, addr.P2pPort, addr.RaftPort}
-		} else {
-			toEncode = addr
-		}
+		toEncode = []interface{}{addr.RaftId, addr.NodeId, ip, addr.P2pPort, addr.RaftPort}
 	}
 
 	buffer, err := rlp.EncodeToBytes(toEncode)

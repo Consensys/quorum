@@ -61,6 +61,7 @@ func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
 	return api.Etherbase()
 }
 
+// Quorum
 // StorageRoot returns the storage root of an account on the the given (optional) block height.
 // If block number is not given the latest block is used.
 func (s *PublicEthereumAPI) StorageRoot(addr common.Address, blockNr *rpc.BlockNumber) (common.Hash, error) {

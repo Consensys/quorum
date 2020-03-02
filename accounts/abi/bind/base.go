@@ -243,6 +243,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		rawTx = types.NewTransaction(nonce, c.address, value, gasLimit, gasPrice, input)
 	}
 
+	// Quorum
 	// If this transaction is private, we need to substitute the data payload
 	// with the hash of the transaction from tessera/constellation.
 	if opts.PrivateFor != nil {
@@ -387,6 +388,7 @@ func (c *BoundContract) UnpackLogIntoMap(out map[string]interface{}, event strin
 	return parseTopicsIntoMap(out, indexed, log.Topics[1:])
 }
 
+// Quorum
 // createPrivateTransaction replaces the payload of private transaction to the hash from Tessera/Constellation
 func (c *BoundContract) createPrivateTransaction(tx *types.Transaction, payload []byte) *types.Transaction {
 	var privateTx *types.Transaction

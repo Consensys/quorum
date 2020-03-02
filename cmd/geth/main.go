@@ -330,6 +330,11 @@ func geth(ctx *cli.Context) error {
 		return errors.New("the PRIVATE_CONFIG environment variable must be specified for Quorum")
 	}
 
+	// raft mode does not support --exitwhensynced
+	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) && ctx.GlobalBool(utils.RaftModeFlag.Name) {
+		return errors.New("raft consensus does not support --exitwhensynced")
+	}
+
 	node := makeFullNode(ctx)
 	defer node.Close()
 	startNode(ctx, node)
@@ -479,7 +484,6 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}
 	}
-
 }
 
 // unlockAccounts unlocks any account specifically requested.
@@ -498,8 +502,7 @@ func unlockAccounts(ctx *cli.Context, stack *node.Node) {
 	// If insecure account unlocking is not allowed if node's APIs are exposed to external.
 	// Print warning log to user and skip unlocking.
 	if !stack.Config().InsecureUnlockAllowed && stack.Config().ExtRPCEnabled() {
-		//TODO (Amal): uncomment
-		//utils.Fatalf("Account unlock with HTTP access is forbidden!")
+		utils.Fatalf("Account unlock with HTTP access is forbidden!")
 	}
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
 	passwords := utils.MakePasswordList(ctx)

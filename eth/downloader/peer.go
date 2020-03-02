@@ -525,7 +525,7 @@ func (ps *peerSet) idlePeers(minProtocol, maxProtocol int, idleCheck func(*peerC
 
 	idle, total := make([]*peerConnection, 0, len(ps.peers)), 0
 	for _, p := range ps.peers {
-		if p.version >= minProtocol && p.version <= maxProtocol || p.version == consensus.IstanbulNew {
+		if p.version >= minProtocol && p.version <= maxProtocol || p.version == consensus.Istanbul99 {
 			if idleCheck(p) {
 				idle = append(idle, p)
 			}

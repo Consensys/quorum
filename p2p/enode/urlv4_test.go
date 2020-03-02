@@ -73,10 +73,6 @@ var parseNodeTests = []struct {
 		wantError: `invalid discport in query`,
 	},
 	{
-		input:      "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@localhost:3?discport=0&raftport=50401",
-		wantResult: NewV4Hostname(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"), "localhost", 3, 0, 50401),
-	},
-	{
 		input: "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@127.0.0.1:52150",
 		wantResult: NewV4(
 			hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
@@ -149,6 +145,21 @@ var parseNodeTests = []struct {
 		input:     "://foo",
 		wantError: errMissingPrefix.Error(),
 	},
+	{
+		// Quorum: raft url with invalid hostname (no error, hostname will be saved)
+		input:      "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@hostname:3?raftport=50401",
+		wantResult: NewV4Hostname(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"), "hostname", 3, 3, 50401),
+	},
+	{
+		// Quorum: raft url with valid hostname
+		input:      "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@localhost:3?raftport=50401",
+		wantResult: NewV4Hostname(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"), "localhost", 3, 3, 50401),
+	},
+	{
+		// Quorum: raft url with no hostname
+		input:     "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@:3?raftport=50401",
+		wantError: `empty hostname in raft url`,
+	},
 }
 
 func hexPubkey(h string) *ecdsa.PublicKey {
@@ -160,21 +171,7 @@ func hexPubkey(h string) *ecdsa.PublicKey {
 }
 
 func TestParseNode(t *testing.T) {
-	// Quorum extra tests for NewV4Hostname with raft port
-	extraTests := []struct {
-		input      string
-		wantError  string
-		wantResult *Node
-	}{
-		{
-			input:      "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@invalid:3?discport=0&raftport=50401",
-			wantResult: NewV4Hostname(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"), "invalid", 3, 0, 50401),
-		},
-	}
-
-	testNodes := append(parseNodeTests, extraTests...)
-
-	for _, test := range testNodes {
+	for _, test := range parseNodeTests {
 		n, err := Parse(ValidSchemes, test.input)
 		if test.wantError != "" {
 			if err == nil {

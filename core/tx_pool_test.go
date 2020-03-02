@@ -234,7 +234,7 @@ func TestStateChangeDuringTransactionPoolReset(t *testing.T) {
 	}
 }
 
-//Test for transactions that are invalid on Ethereum
+// Test for transactions that are invalid on Ethereum & Quorum
 func TestInvalidTransactions(t *testing.T) {
 	t.Parallel()
 
@@ -283,21 +283,22 @@ func TestInvalidTransactions(t *testing.T) {
 		t.Error("expected", ErrOversizedData, "; got", err)
 	}
 
+	// Quorum
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
 	blockchain := &testBlockChain{statedb, statedb, 1000000, new(event.Feed)}
-	params.TestChainConfig.TransactionSizeLimit = 128
-	pool2 := NewTxPool(testTxPoolConfig, params.TestChainConfig, blockchain)
+	params.QuorumTestChainConfig.TransactionSizeLimit = 128
+	pool2 := NewTxPool(testTxPoolConfig, params.QuorumTestChainConfig, blockchain)
 
 	pool2.currentState.AddBalance(from, big.NewInt(0xffffffffffffff))
 	data2 := make([]byte, (127 * 1024))
 
-	tx3, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), 100000, big.NewInt(1), data2), types.HomesteadSigner{}, key)
+	tx3, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), 100000, big.NewInt(0), data2), types.HomesteadSigner{}, key)
 	if err := pool2.AddRemote(tx3); err != ErrIntrinsicGas {
 		t.Error("expected", ErrIntrinsicGas, "; got", err)
 	}
 
 	data3 := make([]byte, (128*1024)+1)
-	tx4, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), 100000, big.NewInt(1), data3), types.HomesteadSigner{}, key)
+	tx4, _ := types.SignTx(types.NewTransaction(2, common.Address{}, big.NewInt(100), 100000, big.NewInt(0), data3), types.HomesteadSigner{}, key)
 	if err := pool2.AddRemote(tx4); err != ErrOversizedData {
 		t.Error("expected", ErrOversizedData, "; got", err)
 	}
@@ -306,9 +307,9 @@ func TestInvalidTransactions(t *testing.T) {
 	balance = new(big.Int).Add(tx5.Value(), new(big.Int).Mul(new(big.Int).SetUint64(tx5.Gas()), tx5.GasPrice()))
 
 	from, _ = deriveSender(tx5)
-	pool.currentState.AddBalance(from, balance)
+	pool2.currentState.AddBalance(from, balance)
 	tx5.SetPrivate()
-	if err := pool.AddRemote(tx5); err != ErrEtherValueUnsupported {
+	if err := pool2.AddRemote(tx5); err != ErrEtherValueUnsupported {
 		t.Error("expected", ErrEtherValueUnsupported, "; got", err)
 	}
 }

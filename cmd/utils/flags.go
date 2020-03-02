@@ -153,7 +153,7 @@ var (
 	}
 	NetworkIdFlag = cli.Uint64Flag{
 		Name:  "networkid",
-		Usage: "Network identifier (integer, 1=Frontier, 2=Morden (disused), 3=Ropsten, 4=Rinkeby, 5=Ottoman)",
+		Usage: "Network identifier (integer, 1=Frontier, 2=Morden (disused), 3=Ropsten, 4=Rinkeby)",
 		Value: eth.DefaultConfig.NetworkId,
 	}
 	TestnetFlag = cli.BoolFlag{
@@ -703,54 +703,6 @@ var (
 		Usage: "Restrict connection between two whisper light clients",
 	}
 
-	// Raft flags
-	RaftModeFlag = cli.BoolFlag{
-		Name:  "raft",
-		Usage: "If enabled, uses Raft instead of Quorum Chain for consensus",
-	}
-	RaftBlockTimeFlag = cli.IntFlag{
-		Name:  "raftblocktime",
-		Usage: "Amount of time between raft block creations in milliseconds",
-		Value: 50,
-	}
-	RaftJoinExistingFlag = cli.IntFlag{
-		Name:  "raftjoinexisting",
-		Usage: "The raft ID to assume when joining an pre-existing cluster",
-		Value: 0,
-	}
-
-	EmitCheckpointsFlag = cli.BoolFlag{
-		Name:  "emitcheckpoints",
-		Usage: "If enabled, emit specially formatted logging checkpoints",
-	}
-	RaftPortFlag = cli.IntFlag{
-		Name:  "raftport",
-		Usage: "The port to bind for the raft transport",
-		Value: 50400,
-	}
-	RaftDNSEnabledFlag = cli.BoolFlag{
-		Name:  "raftdnsenable",
-		Usage: "Enable DNS resolution of peers",
-	}
-
-	// Quorum
-	EnableNodePermissionFlag = cli.BoolFlag{
-		Name:  "permissioned",
-		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
-	}
-
-	// Istanbul settings
-	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
-		Name:  "istanbul.requesttimeout",
-		Usage: "Timeout for each Istanbul round in milliseconds",
-		Value: eth.DefaultConfig.Istanbul.RequestTimeout,
-	}
-	IstanbulBlockPeriodFlag = cli.Uint64Flag{
-		Name:  "istanbul.blockperiod",
-		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
-		Value: eth.DefaultConfig.Istanbul.BlockPeriod,
-	}
-
 	// Metrics flags
 	MetricsEnabledFlag = cli.BoolFlag{
 		Name:  "metrics",
@@ -803,6 +755,55 @@ var (
 		Name:  "vm.evm",
 		Usage: "External EVM configuration (default = built-in interpreter)",
 		Value: "",
+	}
+
+	// Quorum
+	// Raft flags
+	RaftModeFlag = cli.BoolFlag{
+		Name:  "raft",
+		Usage: "If enabled, uses Raft instead of Quorum Chain for consensus",
+	}
+	RaftBlockTimeFlag = cli.IntFlag{
+		Name:  "raftblocktime",
+		Usage: "Amount of time between raft block creations in milliseconds",
+		Value: 50,
+	}
+	RaftJoinExistingFlag = cli.IntFlag{
+		Name:  "raftjoinexisting",
+		Usage: "The raft ID to assume when joining an pre-existing cluster",
+		Value: 0,
+	}
+
+	EmitCheckpointsFlag = cli.BoolFlag{
+		Name:  "emitcheckpoints",
+		Usage: "If enabled, emit specially formatted logging checkpoints",
+	}
+	RaftPortFlag = cli.IntFlag{
+		Name:  "raftport",
+		Usage: "The port to bind for the raft transport",
+		Value: 50400,
+	}
+	RaftDNSEnabledFlag = cli.BoolFlag{
+		Name:  "raftdnsenable",
+		Usage: "Enable DNS resolution of peers",
+	}
+
+	// Permission
+	EnableNodePermissionFlag = cli.BoolFlag{
+		Name:  "permissioned",
+		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
+	}
+
+	// Istanbul settings
+	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
+		Name:  "istanbul.requesttimeout",
+		Usage: "Timeout for each Istanbul round in milliseconds",
+		Value: eth.DefaultConfig.Istanbul.RequestTimeout,
+	}
+	IstanbulBlockPeriodFlag = cli.Uint64Flag{
+		Name:  "istanbul.blockperiod",
+		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
+		Value: eth.DefaultConfig.Istanbul.BlockPeriod,
 	}
 )
 
@@ -1234,8 +1235,6 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 		cfg.ExternalSigner = ctx.GlobalString(ExternalSignerFlag.Name)
 	}
 
-	cfg.EnableNodePermission = ctx.GlobalBool(EnableNodePermissionFlag.Name)
-
 	if ctx.GlobalIsSet(KeyStoreDirFlag.Name) {
 		cfg.KeyStoreDir = ctx.GlobalString(KeyStoreDirFlag.Name)
 	}
@@ -1247,6 +1246,11 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	}
 	if ctx.GlobalIsSet(InsecureUnlockAllowedFlag.Name) {
 		cfg.InsecureUnlockAllowed = ctx.GlobalBool(InsecureUnlockAllowedFlag.Name)
+	}
+
+	// Quorum
+	if ctx.GlobalIsSet(EnableNodePermissionFlag.Name) {
+		cfg.EnableNodePermission = ctx.GlobalBool(EnableNodePermissionFlag.Name)
 	}
 }
 
@@ -1600,6 +1604,7 @@ func SetDashboardConfig(ctx *cli.Context, cfg *dashboard.Config) {
 
 // RegisterEthService adds an Ethereum client to the stack.
 func RegisterEthService(stack *node.Node, cfg *eth.Config) <-chan *eth.Ethereum {
+	// Quorum: raft service listens to this channel to get Ethereum backend
 	nodeChan := make(chan *eth.Ethereum, 1)
 	var err error
 	if cfg.SyncMode == downloader.LightSync {

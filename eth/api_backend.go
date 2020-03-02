@@ -143,6 +143,7 @@ func (b *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error) {
 	// Pending state is only known by the miner
 	if number == rpc.PendingBlockNumber {
+		// Quorum
 		if b.eth.protocolManager.raftMode {
 			// Use latest instead.
 			header, err := b.HeaderByNumber(ctx, rpc.LatestBlockNumber)

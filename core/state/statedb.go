@@ -341,6 +341,7 @@ func (self *StateDB) HasSuicided(addr common.Address) bool {
 	return false
 }
 
+// Quorum
 // GetStorageRoot returns the root of the storage associated with the given address.
 func (self *StateDB) GetStorageRoot(addr common.Address) (common.Hash, error) {
 	so := self.getStateObject(addr)

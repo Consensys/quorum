@@ -366,12 +366,14 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 	errc := make(chan error, 2)
 
 	var (
-		status63 statusData63 // safe to read after two values have been received from errc
-		status   statusData   // safe to read after two values have been received from errc
+		status63    statusData63 // safe to read after two values have been received from errc
+		status      statusData   // safe to read after two values have been received from errc
+		istanbulOld = protocolName == "istanbul" && p.version == consensus.Istanbul64
+		istanbulNew = protocolName == "istanbul" && p.version == consensus.Istanbul99
 	)
 	go func() {
 		switch {
-		case p.version == eth63 || (protocolName == "istanbul" && p.version == consensus.IstanbulOld):
+		case p.version == eth63 || istanbulOld:
 			errc <- p2p.Send(p.rw, StatusMsg, &statusData63{
 				ProtocolVersion: uint32(p.version),
 				NetworkId:       network,
@@ -379,7 +381,7 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 				CurrentBlock:    head,
 				GenesisBlock:    genesis,
 			})
-		case p.version == eth64 || (protocolName == "istanbul" && p.version == consensus.IstanbulNew):
+		case p.version == eth64 || istanbulNew:
 			errc <- p2p.Send(p.rw, StatusMsg, &statusData{
 				ProtocolVersion: uint32(p.version),
 				NetworkID:       network,
@@ -394,9 +396,9 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 	}()
 	go func() {
 		switch {
-		case p.version == eth63 || (protocolName == "istanbul" && p.version == consensus.IstanbulOld):
+		case p.version == eth63 || istanbulOld:
 			errc <- p.readStatusLegacy(network, &status63, genesis)
-		case p.version == eth64 || (protocolName == "istanbul" && p.version == consensus.IstanbulNew):
+		case p.version == eth64 || istanbulNew:
 			errc <- p.readStatus(network, &status, genesis, forkFilter)
 		default:
 			panic(fmt.Sprintf("unsupported eth protocol version: %d", p.version))
@@ -415,9 +417,9 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 		}
 	}
 	switch {
-	case p.version == eth63 || (protocolName == "istanbul" && p.version == consensus.IstanbulOld):
+	case p.version == eth63 || istanbulOld:
 		p.td, p.head = status63.TD, status63.CurrentBlock
-	case p.version == eth64 || (protocolName == "istanbul" && p.version == consensus.IstanbulNew):
+	case p.version == eth64 || istanbulNew:
 		p.td, p.head = status.TD, status.Head
 	default:
 		panic(fmt.Sprintf("unsupported eth protocol version: %d", p.version))

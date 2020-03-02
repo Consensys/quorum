@@ -7,18 +7,21 @@ import (
 )
 
 // Constants to match up protocol versions and messages
+// istanbul/99 was added to accommodate new eth/64 handshake status data with fork id
+// this is for backward compatibility which allows a mixed old/new istanbul node network
+// istanbul/64 will continue using old status data as eth/63
 const (
-	eth63       = 63
-	eth64       = 64
-	IstanbulOld = 64
-	IstanbulNew = 99
+	eth63      = 63
+	eth64      = 64
+	Istanbul64 = 64
+	Istanbul99 = 99
 )
 
 var (
 	IstanbulProtocol = Protocol{
 		Name:     "istanbul",
-		Versions: []uint{IstanbulNew, IstanbulOld},
-		Lengths:  map[uint]uint64{IstanbulNew: 18, IstanbulOld: 18},
+		Versions: []uint{Istanbul99, Istanbul64},
+		Lengths:  map[uint]uint64{Istanbul99: 18, Istanbul64: 18},
 	}
 
 	CliqueProtocol = Protocol{

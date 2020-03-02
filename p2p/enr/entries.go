@@ -94,6 +94,7 @@ func (v IP) ENRKey() string {
 	return "ip"
 }
 
+// Quorum
 // RaftPort is the "raftport" key, which holds the raftport of the node
 type RaftPort uint16
 

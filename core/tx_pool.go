@@ -140,9 +140,6 @@ type TxPoolConfig struct {
 	Journal   string           // Journal of local transactions to survive node restarts
 	Rejournal time.Duration    // Time interval to regenerate the local transaction journal
 
-	TransactionSizeLimit uint64 // Maximum size allowed for valid transaction (in KB)
-	MaxCodeSize          uint64 // Maximum size allowed of contract code that can be deployed (in KB)
-
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
 
@@ -152,6 +149,11 @@ type TxPoolConfig struct {
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
+
+	// Quorum
+	TransactionSizeLimit uint64 // Maximum size allowed for valid transaction (in KB)
+	MaxCodeSize          uint64 // Maximum size allowed of contract code that can be deployed (in KB)
+
 }
 
 // DefaultTxPoolConfig contains the default configurations for the transaction
@@ -159,9 +161,6 @@ type TxPoolConfig struct {
 var DefaultTxPoolConfig = TxPoolConfig{
 	Journal:   "transactions.rlp",
 	Rejournal: time.Hour,
-
-	TransactionSizeLimit: 64,
-	MaxCodeSize:          24,
 
 	PriceLimit: 1,
 	PriceBump:  10,
@@ -172,6 +171,10 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	GlobalQueue:  1024,
 
 	Lifetime: 3 * time.Hour,
+
+	// Quorum
+	TransactionSizeLimit: 64,
+	MaxCodeSize:          24,
 }
 
 // sanitize checks the provided user configurations and changes anything that's
@@ -253,8 +256,6 @@ type TxPool struct {
 	reorgDoneCh     chan chan struct{}
 	reorgShutdownCh chan struct{}  // requests shutdown of scheduleReorgLoop
 	wg              sync.WaitGroup // tracks loop, scheduleReorgLoop
-
-	homestead bool
 }
 
 type txpoolResetRequest struct {
@@ -341,10 +342,6 @@ func (pool *TxPool) loop() {
 		// Handle ChainHeadEvent
 		case ev := <-pool.chainHeadCh:
 			if ev.Block != nil {
-				if pool.chainconfig.IsHomestead(ev.Block.Number()) {
-					pool.homestead = true
-				}
-
 				pool.requestReset(head.Header(), ev.Block.Header())
 				head = ev.Block
 			}
@@ -528,19 +525,17 @@ func (pool *TxPool) local() map[common.Address]types.Transactions {
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
-	isQuorum := pool.chainconfig.IsQuorum
+	// Quorum
 	sizeLimit := pool.chainconfig.TransactionSizeLimit
 	if sizeLimit == 0 {
 		sizeLimit = DefaultTxPoolConfig.TransactionSizeLimit
 	}
-
-	if isQuorum && tx.GasPrice().Cmp(common.Big0) != 0 {
-		return ErrInvalidGasPrice
-	}
-	// Reject transactions over 32KB (or manually set limit) to prevent DOS attacks
+	// Reject transactions over 64KB (or manually set limit) to prevent DOS attacks
 	if float64(tx.Size()) > float64(sizeLimit*1024) {
 		return ErrOversizedData
 	}
+	// /Quorum
+
 	// Transactions can't be negative. This may never happen using RLP decoded
 	// transactions but may occur if you create a transaction using the RPC.
 	if tx.Value().Sign() < 0 {
@@ -555,18 +550,30 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if err != nil {
 		return ErrInvalidSender
 	}
-	// Drop non-local transactions under our own minimal accepted gas price
-	local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
-	if !isQuorum && !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
-		return ErrUnderpriced
+	if pool.chainconfig.IsQuorum {
+		// Quorum
+		// Gas price must be zero for Quorum transaction
+		if tx.GasPrice().Cmp(common.Big0) != 0 {
+			return ErrInvalidGasPrice
+		}
+		// Ether value is not currently supported on private transactions
+		if tx.IsPrivate() && (len(tx.Data()) == 0 || tx.Value().Sign() != 0) {
+			return ErrEtherValueUnsupported
+		}
+		// Check if the sender account is authorized to perform the transaction
+		if err := checkAccount(from, tx.To()); err != nil {
+			return err
+		}
+	} else {
+		// Drop non-local transactions under our own minimal accepted gas price
+		local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
+		if !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
+			return ErrUnderpriced
+		}
 	}
 	// Ensure the transaction adheres to nonce ordering
 	if pool.currentState.GetNonce(from) > tx.Nonce() {
 		return ErrNonceTooLow
-	}
-	// Ether value is not currently supported on private transactions
-	if tx.IsPrivate() && (len(tx.Data()) == 0 || tx.Value().Sign() != 0) {
-		return ErrEtherValueUnsupported
 	}
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
@@ -581,14 +588,6 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	if tx.Gas() < intrGas {
 		return ErrIntrinsicGas
 	}
-
-	// Check if the sender account is authorized to perform the transaction
-	if isQuorum {
-		if err := checkAccount(from, tx.To()); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

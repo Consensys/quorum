@@ -356,8 +356,11 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode 
 	if !atomic.CompareAndSwapInt32(&d.synchronising, 0, 1) {
 		return errBusy
 	}
-	// changes for permissions. added set sync status to indicate permisssions that node sync has started
+
+	// Quorum
+	// changes for permissions. added set sync status to indicate permissions that node sync has started
 	types.SetSyncStatus()
+
 	defer atomic.StoreInt32(&d.synchronising, 0)
 
 	// Post a user notification of the sync (only once per session)
@@ -1871,7 +1874,8 @@ func (d *Downloader) syncWithPeerUntil(p *peerConnection, hash common.Hash, td *
 		if err != nil {
 			d.mux.Post(FailedEvent{err})
 		} else {
-			d.mux.Post(DoneEvent{})
+			latest := d.lightchain.CurrentHeader()
+			d.mux.Post(DoneEvent{latest})
 		}
 	}()
 	if p.version < 62 {

@@ -56,7 +56,6 @@ var (
 	// parent block's time and difficulty. The calculation uses the Byzantium rules.
 	// Specification EIP-649: https://eips.ethereum.org/EIPS/eip-649
 	calcDifficultyByzantium = makeDifficultyCalculator(big.NewInt(3000000))
-	nanosecond2017Timestamp = mustParseRfc3339("2017-01-01T00:00:00+00:00").UnixNano()
 )
 
 // Various error messages to mark blocks invalid. These should be private to
@@ -73,14 +72,6 @@ var (
 	errInvalidMixDigest  = errors.New("invalid mix digest")
 	errInvalidPoW        = errors.New("invalid proof-of-work")
 )
-
-func mustParseRfc3339(str string) time.Time {
-	time, err := time.Parse(time.RFC3339, str)
-	if err != nil {
-		panic("unexpected failure to parse rfc3339 timestamp: " + str)
-	}
-	return time
-}
 
 // Author implements consensus.Engine, returning the header's coinbase as the
 // proof-of-work verified author of the block.
@@ -248,6 +239,11 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 // stock Ethereum ethash engine.
 // See YP section 4.3.4. "Block Header Validity"
 func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *types.Header, uncle bool, seal bool) error {
+	// Quorum: ethash consensus is only used in raft for Quorum, skip verifyHeader
+	if chain != nil && chain.Config().IsQuorum {
+		return nil
+	}
+
 	// Ensure that the header's extra-data section is of a reasonable size
 	if uint64(len(header.Extra)) > params.MaximumExtraDataSize {
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), params.MaximumExtraDataSize)
@@ -256,26 +252,6 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 	if !uncle {
 		if header.Time > uint64(time.Now().Add(allowedFutureBlockTime).Unix()) {
 			return consensus.ErrFutureBlock
-		}
-	} else if !chain.Config().IsQuorum {
-		if header.Time > uint64(time.Now().Add(allowedFutureBlockTime).Unix()) {
-			return consensus.ErrFutureBlock
-		}
-	} else {
-		// We disable future checking if we're in --raft mode. This is crucial
-		// because block validation in the raft setting needs to be deterministic.
-		// There is no forking of the chain, and we need each node to only perform
-		// validation as a pure function of block contents with respect to the
-		// previous database state.
-		//
-		// NOTE: whereas we are currently checking whether the timestamp field has
-		// nanosecond semantics to detect --raft mode, we could also use a special
-		// "raft" sentinel in the Extra field, or pass a boolean for raftMode from
-		// all call sites of this function.
-		if raftMode := time.Now().UnixNano() > nanosecond2017Timestamp; !raftMode {
-			if header.Time > uint64(time.Now().Unix()) {
-				return consensus.ErrFutureBlock
-			}
 		}
 	}
 	if header.Time <= parent.Time {
@@ -516,7 +492,10 @@ func (ethash *Ethash) VerifySeal(chain consensus.ChainReader, header *types.Head
 // either using the usual ethash cache for it, or alternatively using a full DAG
 // to make remote mining fast.
 func (ethash *Ethash) verifySeal(chain consensus.ChainReader, header *types.Header, fulldag bool) error {
-	isQuorum := chain != nil && chain.Config().IsQuorum
+	// Quorum: ethash consensus is only used in raft for Quorum, skip verifySeal
+	if chain != nil && chain.Config().IsQuorum {
+		return nil
+	}
 
 	// If we're running a fake PoW, accept any seal as valid
 	if ethash.config.PowMode == ModeFake || ethash.config.PowMode == ModeFullFake {
@@ -570,14 +549,12 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainReader, header *types.Head
 		runtime.KeepAlive(cache)
 	}
 	// Verify the calculated values against the ones provided in the header
-	if !isQuorum && !bytes.Equal(header.MixDigest[:], digest) {
+	if !bytes.Equal(header.MixDigest[:], digest) {
 		return errInvalidMixDigest
 	}
 	target := new(big.Int).Div(two256, header.Difficulty)
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
-		if !isQuorum {
-			return errInvalidPoW
-		}
+		return errInvalidPoW
 	}
 	return nil
 }
@@ -641,10 +618,6 @@ var (
 	big32 = big.NewInt(32)
 )
 
-func AccumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
-	accumulateRewards(config, state, header, uncles)
-}
-
 // AccumulateRewards credits the coinbase of the given block with the mining
 // reward. The total reward consists of the static block reward and rewards for
 // included uncles. The coinbase of each uncle block is also rewarded.
@@ -671,4 +644,9 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 		reward.Add(reward, r)
 	}
 	state.AddBalance(header.Coinbase, reward)
+}
+
+// Quorum: wrapper for accumulateRewards to be called by raft minter
+func AccumulateRewards(config *params.ChainConfig, state *state.StateDB, header *types.Header, uncles []*types.Header) {
+	accumulateRewards(config, state, header, uncles)
 }

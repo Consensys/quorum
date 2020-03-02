@@ -600,11 +600,9 @@ func TestFastVsFullChains(t *testing.T) {
 		genesis = gspec.MustCommit(gendb)
 		signer  = types.NewEIP155Signer(gspec.Config.ChainID)
 	)
-
 	blocks, receipts := GenerateChain(gspec.Config, genesis, ethash.NewFaker(), gendb, 1024, func(i int, block *BlockGen) {
 		block.SetCoinbase(common.Address{0x00})
 
-		fmt.Println("")
 		// If the block number is multiple of 3, send a few bonus transactions to the miner
 		if i%3 == 2 {
 			for j := 0; j < i%4+1; j++ {
