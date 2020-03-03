@@ -139,4 +139,4 @@ The `PluginManager` service is registered as early as possible in the node lifec
 The `PluginManager` exposes an API (`admin_reloadPlugin`) that allows reloading a plugin. This attempts to restart the current plugin process.   
 
 Any changes to the plugin config after initial node start will be applied when reloading the plugin.  
-This is demonstrated in the [HelloWorld plugin example](http://localhost:8000/PluggableArchitecture/Overview/#example-helloworld-plugin).
+This is demonstrated in the [HelloWorld plugin example](../Overview/#example-helloworld-plugin).
