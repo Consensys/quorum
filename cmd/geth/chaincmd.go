@@ -109,7 +109,7 @@ be gzipped.`,
 		},
 		Category: "BLOCKCHAIN COMMANDS",
 		Description: `
-	The import-preimages command imports hash preimages from an RLP encoded stream.`,
+The import-preimages command imports hash preimages from an RLP encoded stream.`,
 	}
 	exportPreimagesCommand = cli.Command{
 		Action:    utils.MigrateFlags(exportPreimages),
@@ -257,7 +257,7 @@ func importChain(ctx *cli.Context) error {
 	stack := makeFullNode(ctx)
 	defer stack.Close()
 
-	chain, db := utils.MakeChain(ctx, stack)
+	chain, db := utils.MakeChain(ctx, stack, true)
 	defer db.Close()
 
 	// Start periodically gathering memory profiles
@@ -347,7 +347,7 @@ func exportChain(ctx *cli.Context) error {
 	stack := makeFullNode(ctx)
 	defer stack.Close()
 
-	chain, _ := utils.MakeChain(ctx, stack)
+	chain, _ := utils.MakeChain(ctx, stack, true)
 	start := time.Now()
 
 	var err error
@@ -422,7 +422,7 @@ func copyDb(ctx *cli.Context) error {
 	stack := makeFullNode(ctx)
 	defer stack.Close()
 
-	chain, chainDb := utils.MakeChain(ctx, stack)
+	chain, chainDb := utils.MakeChain(ctx, stack, false)
 	syncMode := *utils.GlobalTextMarshaler(ctx, utils.SyncModeFlag.Name).(*downloader.SyncMode)
 
 	var syncBloom *trie.SyncBloom
@@ -530,7 +530,7 @@ func dump(ctx *cli.Context) error {
 	stack := makeFullNode(ctx)
 	defer stack.Close()
 
-	chain, chainDb := utils.MakeChain(ctx, stack)
+	chain, chainDb := utils.MakeChain(ctx, stack, false)
 	defer chainDb.Close()
 	for _, arg := range ctx.Args() {
 		var block *types.Block

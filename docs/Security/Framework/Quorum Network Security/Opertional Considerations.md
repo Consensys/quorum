@@ -14,7 +14,7 @@ The following parameters are of interest to be collected and analyzed:
 
 !!! success "Ensure all activities of Quorum hosts are being logged to centralized log system"
 
-!!! success "Centralized log system most be able to provide query capabilites over the following parameters:"
+!!! success "Centralized log system must be able to provide query capabilites over the following parameters:"
     - Ethereum accounts on the network
     - Active ledger, transaction manager nodes in the network
     - Public and Private transaction rates per account in the network.

@@ -104,12 +104,6 @@ func newV4(pubkey *ecdsa.PublicKey, r enr.Record, tcp, udp int) *Node {
 	return n
 }
 
-// isNewV4 returns true for nodes created by NewV4.
-func isNewV4(n *Node) bool {
-	var k s256raw
-	return n.r.IdentityScheme() == "" && n.r.Load(&k) == nil && len(n.r.Signature()) == 0
-}
-
 // Quorum
 
 // NewV4Hostname creates a node from discovery v4 node information. The record
@@ -235,7 +229,7 @@ func (n *Node) EnodeID() string {
 	return nodeid
 }
 
-func (n *Node) URLv4() string {
+func (n *Node) v4URL() string {
 	var (
 		scheme enr.ID
 		nodeid string
@@ -264,9 +258,9 @@ func (n *Node) URLv4() string {
 		if n.UDP() != n.TCP() {
 			u.RawQuery = "discport=" + strconv.Itoa(n.UDP())
 		}
-		// Quorum
-		if n.HasRaftPort() {
-			raftQuery := "raftport=" + strconv.Itoa(n.RaftPort())
+		raftPort := n.RaftPort()
+		if raftPort != 0 {
+			raftQuery := "raftport=" + strconv.Itoa(raftPort)
 			if len(u.RawQuery) > 0 {
 				u.RawQuery = u.RawQuery + "&" + raftQuery
 			} else {

@@ -26,8 +26,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/params"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -38,6 +36,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -193,7 +193,7 @@ type Config struct {
 	staticNodesWarning     bool
 	trustedNodesWarning    bool
 	oldGethResourceWarning bool
-
+	Plugins *plugin.Settings `toml:",omitempty"`
 	// Quorum: EnableNodePermission comes from EnableNodePermissionFlag --permissioned.
 	EnableNodePermission bool `toml:",omitempty"`
 }
@@ -470,6 +470,28 @@ func (c *Config) AccountConfig() (int, int, string, error) {
 
 // Quorum
 //
+// Make sure plugin base dir exists
+func (c *Config) ResolvePluginBaseDir() error {
+	if c.Plugins == nil {
+		return nil
+	}
+	baseDir := c.Plugins.BaseDir.String()
+	if baseDir == "" {
+		baseDir = filepath.Join(c.DataDir, "plugins")
+	}
+	if !common.FileExist(baseDir) {
+		if err := os.MkdirAll(baseDir, 0755); err != nil {
+			return err
+		}
+	}
+	absBaseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		return err
+	}
+	c.Plugins.BaseDir = plugin.EnvironmentAwaredValue(absBaseDir)
+	return nil
+}
+
 // check if smart-contract-based permissioning is enabled by reading `--permissioned` flag and checking permission config file
 func (c *Config) IsPermissionEnabled() bool {
 	if c.EnableNodePermission {

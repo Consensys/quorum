@@ -26,14 +26,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/internal/debug"
-	cli "gopkg.in/urfave/cli.v1"
+	"gopkg.in/urfave/cli.v1"
 )
 
 // AppHelpTemplate is the test template for the default, global app help topic.
 var AppHelpTemplate = `NAME:
    {{.App.Name}} - {{.App.Usage}}
 
-   Copyright 2013-2019 The go-ethereum Authors
+   Copyright 2013-2018 The go-ethereum Authors
 
 USAGE:
    {{.App.HelpName}} [options]{{if .App.Commands}} command [command options]{{end}} {{if .App.ArgsUsage}}{{.App.ArgsUsage}}{{else}}[arguments...]{{end}}
@@ -69,33 +69,19 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			configFileFlag,
 			utils.DataDirFlag,
-			utils.AncientFlag,
 			utils.KeyStoreDirFlag,
 			utils.NoUSBFlag,
-			utils.SmartCardDaemonPathFlag,
 			utils.NetworkIdFlag,
 			utils.TestnetFlag,
 			utils.RinkebyFlag,
-			utils.GoerliFlag,
+			utils.OttomanFlag,
 			utils.SyncModeFlag,
-			utils.ExitWhenSyncedFlag,
 			utils.GCModeFlag,
 			utils.EthStatsURLFlag,
 			utils.IdentityFlag,
+			utils.LightServFlag,
+			utils.LightPeersFlag,
 			utils.LightKDFFlag,
-			utils.WhitelistFlag,
-		},
-	},
-	{
-		Name: "LIGHT CLIENT",
-		Flags: []cli.Flag{
-			utils.LightServeFlag,
-			utils.LightIngressFlag,
-			utils.LightEgressFlag,
-			utils.LightMaxPeersFlag,
-			utils.UltraLightServersFlag,
-			utils.UltraLightFractionFlag,
-			utils.UltraLightOnlyAnnounceFlag,
 		},
 	},
 	{
@@ -147,9 +133,28 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			utils.CacheFlag,
 			utils.CacheDatabaseFlag,
-			utils.CacheTrieFlag,
 			utils.CacheGCFlag,
-			utils.CacheNoPrefetchFlag,
+			utils.TrieCacheGenFlag,
+		},
+	},
+	{
+		Name: "QUORUM",
+		Flags: []cli.Flag{
+			utils.EnableNodePermissionFlag,
+			utils.PluginSettingsFlag,
+			utils.PluginSkipVerifyFlag,
+			utils.PluginLocalVerifyFlag,
+			utils.PluginPublicKeyFlag,
+		},
+	},
+	{
+		Name: "RAFT",
+		Flags: []cli.Flag{
+			utils.RaftModeFlag,
+			utils.RaftBlockTimeFlag,
+			utils.RaftJoinExistingFlag,
+			utils.RaftPortFlag,
+			utils.RaftDNSEnabledFlag,
 		},
 	},
 	{
@@ -157,32 +162,24 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			utils.UnlockedAccountFlag,
 			utils.PasswordFileFlag,
-			utils.ExternalSignerFlag,
-			utils.InsecureUnlockAllowedFlag,
 		},
 	},
 	{
 		Name: "API AND CONSOLE",
 		Flags: []cli.Flag{
-			utils.IPCDisabledFlag,
-			utils.IPCPathFlag,
 			utils.RPCEnabledFlag,
 			utils.RPCListenAddrFlag,
 			utils.RPCPortFlag,
 			utils.RPCApiFlag,
-			utils.RPCGlobalGasCap,
-			utils.RPCCORSDomainFlag,
-			utils.RPCVirtualHostsFlag,
 			utils.WSEnabledFlag,
 			utils.WSListenAddrFlag,
 			utils.WSPortFlag,
 			utils.WSApiFlag,
 			utils.WSAllowedOriginsFlag,
-			utils.GraphQLEnabledFlag,
-			utils.GraphQLListenAddrFlag,
-			utils.GraphQLPortFlag,
-			utils.GraphQLCORSDomainFlag,
-			utils.GraphQLVirtualHostsFlag,
+			utils.IPCDisabledFlag,
+			utils.IPCPathFlag,
+			utils.RPCCORSDomainFlag,
+			utils.RPCVirtualHostsFlag,
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
@@ -243,8 +240,16 @@ var AppHelpFlagGroups = []flagGroup{
 		}, debug.Flags...),
 	},
 	{
-		Name:  "METRICS AND STATS",
-		Flags: metricsFlags,
+		Name: "METRICS AND STATS",
+		Flags: []cli.Flag{
+			utils.MetricsEnabledFlag,
+			utils.MetricsEnableInfluxDBFlag,
+			utils.MetricsInfluxDBEndpointFlag,
+			utils.MetricsInfluxDBDatabaseFlag,
+			utils.MetricsInfluxDBUsernameFlag,
+			utils.MetricsInfluxDBPasswordFlag,
+			utils.MetricsInfluxDBHostTagFlag,
+		},
 	},
 	{
 		Name:  "WHISPER (EXPERIMENTAL)",
@@ -253,39 +258,19 @@ var AppHelpFlagGroups = []flagGroup{
 	{
 		Name: "DEPRECATED",
 		Flags: []cli.Flag{
-			utils.LightLegacyServFlag,
-			utils.LightLegacyPeersFlag,
 			utils.MinerLegacyThreadsFlag,
 			utils.MinerLegacyGasTargetFlag,
 			utils.MinerLegacyGasPriceFlag,
 			utils.MinerLegacyEtherbaseFlag,
 			utils.MinerLegacyExtraDataFlag,
 		},
-	},
-	// QUORUM
-	{
-		Name: "QUORUM",
-		Flags: []cli.Flag{
-			utils.EnableNodePermissionFlag,
-		},
-	},
-	{
-		Name: "RAFT",
-		Flags: []cli.Flag{
-			utils.RaftModeFlag,
-			utils.RaftBlockTimeFlag,
-			utils.RaftJoinExistingFlag,
-			utils.RaftPortFlag,
-		},
-	},
-	{
+	}, {
 		Name: "ISTANBUL",
 		Flags: []cli.Flag{
 			utils.IstanbulRequestTimeoutFlag,
 			utils.IstanbulBlockPeriodFlag,
 		},
 	},
-	// END QUORUM
 	{
 		Name: "MISC",
 	},
@@ -345,7 +330,7 @@ func init() {
 					categorized[flag.String()] = struct{}{}
 				}
 			}
-			var uncategorized []cli.Flag
+			uncategorized := []cli.Flag{}
 			for _, flag := range data.(*cli.App).Flags {
 				if _, ok := categorized[flag.String()]; !ok {
 					if strings.HasPrefix(flag.GetName(), "dashboard") {

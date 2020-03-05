@@ -309,6 +309,7 @@ type ChainConfig struct {
 	//
 	// QIP714Block implements the permissions related changes
 	QIP714Block *big.Int `json:"qip714Block,omitempty"`
+	MaxCodeSizeChangeBlock *big.Int `json:"maxCodeSizeChangeBlock,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -446,6 +447,13 @@ func (c *ChainConfig) IsEWASM(num *big.Int) bool {
 func (c *ChainConfig) IsQIP714(num *big.Int) bool {
 	return isForked(c.QIP714Block, num)
 }
+// Quorum
+//
+// IsMaxCodeSizeChangeBlock returns whether num represents a block number max code size
+// was changed from default 24K to new value
+func (c *ChainConfig) IsMaxCodeSizeChangeBlock(num *big.Int) bool {
+	return isForked(c.MaxCodeSizeChangeBlock, num)
+}
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
 // with a mismatching chain configuration.
@@ -546,6 +554,9 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, head *big.Int, isQuor
 	}
 	if isForkIncompatible(c.QIP714Block, newcfg.QIP714Block, head) {
 		return newCompatError("permissions fork block", c.QIP714Block, newcfg.QIP714Block)
+	}
+	if isForkIncompatible(c.MaxCodeSizeChangeBlock, newcfg.MaxCodeSizeChangeBlock, head) {
+		return newCompatError("max code size change fork block", c.MaxCodeSizeChangeBlock, newcfg.MaxCodeSizeChangeBlock)
 	}
 	return nil
 }
