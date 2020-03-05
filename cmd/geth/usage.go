@@ -153,26 +153,6 @@ var AppHelpFlagGroups = []flagGroup{
 		},
 	},
 	{
-		Name: "QUORUM",
-		Flags: []cli.Flag{
-			utils.EnableNodePermissionFlag,
-			utils.PluginSettingsFlag,
-			utils.PluginSkipVerifyFlag,
-			utils.PluginLocalVerifyFlag,
-			utils.PluginPublicKeyFlag,
-		},
-	},
-	{
-		Name: "RAFT",
-		Flags: []cli.Flag{
-			utils.RaftModeFlag,
-			utils.RaftBlockTimeFlag,
-			utils.RaftJoinExistingFlag,
-			utils.RaftPortFlag,
-			utils.RaftDNSEnabledFlag,
-		},
-	},
-	{
 		Name: "ACCOUNT",
 		Flags: []cli.Flag{
 			utils.UnlockedAccountFlag,
@@ -281,13 +261,35 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.MinerLegacyEtherbaseFlag,
 			utils.MinerLegacyExtraDataFlag,
 		},
-	}, {
+	},
+	// QUORUM
+	{
+		Name: "QUORUM",
+		Flags: []cli.Flag{
+			utils.EnableNodePermissionFlag,
+			utils.PluginSettingsFlag,
+			utils.PluginSkipVerifyFlag,
+			utils.PluginLocalVerifyFlag,
+			utils.PluginPublicKeyFlag,
+		},
+	},
+	{
+		Name: "RAFT",
+		Flags: []cli.Flag{
+			utils.RaftModeFlag,
+			utils.RaftBlockTimeFlag,
+			utils.RaftJoinExistingFlag,
+			utils.RaftPortFlag,
+		},
+	},
+	{
 		Name: "ISTANBUL",
 		Flags: []cli.Flag{
 			utils.IstanbulRequestTimeoutFlag,
 			utils.IstanbulBlockPeriodFlag,
 		},
 	},
+	// END QUORUM
 	{
 		Name: "MISC",
 	},
