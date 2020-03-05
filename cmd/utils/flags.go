@@ -44,6 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulBackend "github.com/ethereum/go-ethereum/consensus/istanbul/backend"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/dashboard"
@@ -65,8 +66,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
-    "github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/permission"
+	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	pcsclite "github.com/gballet/go-libpcsclite"
@@ -1856,11 +1857,21 @@ func MakeGenesis(ctx *cli.Context) *core.Genesis {
 func MakeChain(ctx *cli.Context, stack *node.Node, useExist bool) (chain *core.BlockChain, chainDb ethdb.Database) {
 	var (
 		config *params.ChainConfig
+		err    error
 	)
 	chainDb = MakeChainDatabase(ctx, stack)
-	config, _, err := core.SetupGenesisBlock(chainDb, MakeGenesis(ctx))
-	if err != nil {
-		Fatalf("%v", err)
+
+	if useExist {
+		stored := rawdb.ReadCanonicalHash(chainDb, 0)
+		if (stored == common.Hash{}) {
+			Fatalf("No existing genesis")
+		}
+		config = rawdb.ReadChainConfig(chainDb, stored)
+	} else {
+		config, _, err = core.SetupGenesisBlock(chainDb, MakeGenesis(ctx))
+		if err != nil {
+			Fatalf("%v", err)
+		}
 	}
 
 	var engine consensus.Engine
