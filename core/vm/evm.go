@@ -488,7 +488,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	ret, err := run(evm, contract, nil, false)
 
 	var maxCodeSize int
-	if evm.ChainConfig().MaxCodeSize > 0 {
+	if evm.chainConfig.IsMaxCodeSizeChangeBlock(evm.BlockNumber) && evm.ChainConfig().MaxCodeSize > 0 {
 		maxCodeSize = int(evm.ChainConfig().MaxCodeSize * 1024)
 	} else {
 		maxCodeSize = params.MaxCodeSize

@@ -146,6 +146,11 @@ web3._extend({
 	property: 'admin',
 	methods: [
 		new web3._extend.Method({
+			name: 'reloadPlugin',
+			call: 'admin_reloadPlugin',
+			params: 1
+		}),
+		new web3._extend.Method({
 			name: 'addPeer',
 			call: 'admin_addPeer',
 			params: 1
@@ -501,7 +506,21 @@ web3._extend({
 			call: 'eth_storageRoot',
 			params: 2,
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null]
-		})
+		}),
+		// QUORUM
+		new web3._extend.Method({
+			name: 'sendTransactionAsync',
+			call: 'eth_sendTransactionAsync',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getQuorumPayload',
+			call: 'eth_getQuorumPayload',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		// END-QUORUM
 	],
 	properties: [
 		new web3._extend.Property({
