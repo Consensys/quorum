@@ -182,7 +182,7 @@ func TestFilters(t *testing.T) {
 			Topics:  []common.Hash{hash5},
 		},
 	}
-	if err := core.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}); err != nil {
+	if err := rawdb.WritePrivateBlockBloom(db, 999, []*types.Receipt{privateReceipt}); err != nil {
 		t.Fatal(err)
 	}
 	receipts[998] = append(receipts[998], privateReceipt)
