@@ -196,7 +196,7 @@ type ChainConfig struct {
 	// Quorum
 	//
 	// QIP714Block implements the permissions related changes
-	QIP714Block *big.Int `json:"qip714Block,omitempty"`
+	QIP714Block            *big.Int `json:"qip714Block,omitempty"`
 	MaxCodeSizeChangeBlock *big.Int `json:"maxCodeSizeChangeBlock,omitempty"`
 }
 
@@ -321,6 +321,7 @@ func (c *ChainConfig) IsEWASM(num *big.Int) bool {
 func (c *ChainConfig) IsQIP714(num *big.Int) bool {
 	return isForked(c.QIP714Block, num)
 }
+
 // Quorum
 //
 // IsMaxCodeSizeChangeBlock returns whether num represents a block number max code size
