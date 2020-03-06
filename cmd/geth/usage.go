@@ -267,6 +267,10 @@ var AppHelpFlagGroups = []flagGroup{
 		Name: "QUORUM",
 		Flags: []cli.Flag{
 			utils.EnableNodePermissionFlag,
+			utils.PluginSettingsFlag,
+			utils.PluginSkipVerifyFlag,
+			utils.PluginLocalVerifyFlag,
+			utils.PluginPublicKeyFlag,
 		},
 	},
 	{

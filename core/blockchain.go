@@ -1305,6 +1305,23 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		return NonStatTy, consensus.ErrUnknownAncestor
 	}
 	// Make sure no inconsistent state is leaked during insertion
+	// Quorum
+	// Write private state changes to database
+	privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
+	if err != nil {
+		return NonStatTy, err
+	}
+	if err := rawdb.WritePrivateStateRoot(bc.db, block.Root(), privateRoot); err != nil {
+		log.Error("Failed writing private state root", "err", err)
+		return NonStatTy, err
+	}
+	// Explicit commit for privateStateTriedb
+	privateTriedb := bc.privateStateCache.TrieDB()
+	if err := privateTriedb.Commit(privateRoot, false); err != nil {
+		return NonStatTy, err
+	}
+	// /Quorum
+
 	currentBlock := bc.CurrentBlock()
 	localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
@@ -1322,17 +1339,6 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	}
 	triedb := bc.stateCache.TrieDB()
 
-	// Explicit commit for privateStateTriedb to handle Raft db issues
-	if privateState != nil {
-		privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
-		if err != nil {
-			return NonStatTy, err
-		}
-		privateTriedb := bc.privateStateCache.TrieDB()
-		if err := privateTriedb.Commit(privateRoot, false); err != nil {
-			return NonStatTy, err
-		}
-	}
 
 	// If we're running an archive node, always flush
 	if bc.cacheConfig.TrieDirtyDisabled {
@@ -1734,19 +1740,9 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 			atomic.StoreUint32(&followupInterrupt, 1)
 			return it.index, events, coalescedLogs, err
 		}
-		// Quorum
-		// Write private state changes to database
-		if privateStateRoot, err = privateState.Commit(bc.Config().IsEIP158(block.Number())); err != nil {
-			return it.index, events, coalescedLogs, err
-		}
-		if err := rawdb.WritePrivateStateRoot(bc.db, block.Root(), privateStateRoot); err != nil {
-			return it.index, events, coalescedLogs, err
-		}
+
 		allReceipts := mergeReceipts(receipts, privateReceipts)
-		// /Quorum
-
 		proctime := time.Since(start)
-
 		// Update the metrics touched during block validation
 		accountHashTimer.Update(statedb.AccountHashes) // Account hashes are complete, we can mark them
 		storageHashTimer.Update(statedb.StorageHashes) // Storage hashes are complete, we can mark them

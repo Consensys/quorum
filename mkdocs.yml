@@ -20,8 +20,11 @@ nav:
         - Quorum API: Getting Started/api.md
     - Consensus:
         - Consensus: Consensus/Consensus.md
-        - Raft: Consensus/raft.md
+        - Raft BFT:
+            - Consensus/raft/raft.md
+            - Consensus/raft/raft-rpc-api.md
         - Istanbul BFT:
+            - Overview: Consensus/ibft/ibft.md
             - Consensus/ibft/istanbul-rpc-api.md
             - Consensus/ibft/ibft-parameters.md
     - Transaction Processing: Transaction Processing/Transaction Processing.md
@@ -61,6 +64,7 @@ nav:
                     - Key Generation: Privacy/Tessera/Tessera Services/Keys/Keys.md
                     - Setting up Hashicorp Vault: Privacy/Tessera/Tessera Services/Keys/Setting up a Hashicorp Vault.md
                     - Setting up Azure Key Vault: Privacy/Tessera/Tessera Services/Keys/Setting up an Azure Key Vault.md
+                    - Setting up AWS Secrets Manager: Privacy/Tessera/Tessera Services/Keys/Setting up an AWS Secrets Manager.md
             - Usage:
                 - Interfaces & API: Privacy/Tessera/Usage/Interface & API.md
                 - Admin Usage: Privacy/Tessera/Usage/Admin Usage.md
@@ -71,12 +75,28 @@ nav:
             - How it works: Privacy/Constellation/How constellation works.md
             - Sample Configuration: Privacy/Constellation/Sample Configuration.md
             - Running Constellation: Privacy/Constellation/Installation & Running.md
+    - Pluggable Architecture:
+        - Overview: PluggableArchitecture/Overview.md
+        - Settings: PluggableArchitecture/Settings.md
+        - Internals: PluggableArchitecture/Internals.md
+        - Plugins:
+            - helloworld:
+                - Interface: PluggableArchitecture/Plugins/helloworld/interface.md
+                - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
+        - Plugin Development: PluggableArchitecture/PluginDevelopment.md
     - Cakeshop:
         - Overview: Cakeshop/Overview.md
         - Getting Started: Cakeshop/Getting started.md
         - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
+    - Remix Plugin:
+        - Overview: RemixPlugin/Overview.md
+        - Getting Started: RemixPlugin/Getting started.md
     - Quorum Features:
         - DNS: Features/dns.md
+    - How-To Guides:
+        - Adding new nodes: How-To-Guides/adding_nodes.md
+        - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
+        - Backup & Restore: Features/import-export.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
@@ -115,8 +135,12 @@ markdown_extensions:
     - pymdownx.tasklist:
           custom_checkbox: true
     - pymdownx.tilde
+    - markdown_include.include:
+        base_path: docs
     - meta
     - smarty
+    - plantuml_markdown:
+        server: http://www.plantuml.com/plantuml
 
 plugins:
     - search

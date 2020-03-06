@@ -269,7 +269,7 @@ var enableForceLog bool = true
 // There is no threadsafety or locking on the underlying variable,
 // so call this function just once at startup of your application
 // (Don't later try to change the sanitizer on the fly).
-func SetLogSanitizer(s LogSanitizer) {
+func SetLogSanitizer(s LogSanitizer)(){
 	sanitizer = s
 }
 
@@ -277,6 +277,8 @@ func SetLogSanitizer(s LogSanitizer) {
 // There is no threadsafety or locking on the underlying variable,
 // so call this function just once at startup of your application
 // (Don't later try to change the setting on the fly).
-func SetForceLogEnabled(enable bool) {
+func SetForceLogEnabled(enable bool)() {
 	enableForceLog = enable
 }
+
+

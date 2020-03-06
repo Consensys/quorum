@@ -188,7 +188,6 @@ func TestNodeParseUrlWithHostnameForQuorum(t *testing.T) {
 }
 
 // Quorum
-//
 // test Incomplete
 func TestIncomplete(t *testing.T) {
 	var testCases = []struct {

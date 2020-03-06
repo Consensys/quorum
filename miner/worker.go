@@ -19,7 +19,6 @@ package miner
 import (
 	"bytes"
 	"errors"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -30,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
@@ -502,7 +502,7 @@ func (w *worker) mainLoop() {
 			}
 			atomic.AddInt32(&w.newTxs, int32(len(ev.Txs)))
 
-		// System stopped
+			// System stopped
 		case <-w.exitCh:
 			return
 		case <-w.txsSub.Err():
@@ -589,17 +589,37 @@ func (w *worker) resultLoop() {
 			}
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var (
-				receipts = make([]*types.Receipt, len(task.receipts)+len(task.privateReceipts))
-				logs     []*types.Log
+				pubReceipts = make([]*types.Receipt, len(task.receipts))
+				prvReceipts = make([]*types.Receipt, len(task.privateReceipts))
+				logs        []*types.Log
 			)
-			for i, receipt := range append(task.receipts, task.privateReceipts...) {
+			offset := 0
+			for i, receipt := range task.receipts {
 				// add block location fields
 				receipt.BlockHash = hash
 				receipt.BlockNumber = block.Number()
 				receipt.TransactionIndex = uint(i)
 
-				receipts[i] = new(types.Receipt)
-				*receipts[i] = *receipt
+				pubReceipts[i] = new(types.Receipt)
+				*pubReceipts[i] = *receipt
+				// Update the block hash in all logs since it is now available and not when the
+				// receipt/log of individual transactions were created.
+				for _, log := range receipt.Logs {
+					log.BlockHash = hash
+				}
+				logs = append(logs, receipt.Logs...)
+				offset = i
+			}
+			offset++
+
+			for i, receipt := range task.privateReceipts {
+				// add block location fields
+				receipt.BlockHash = hash
+				receipt.BlockNumber = block.Number()
+				receipt.TransactionIndex = uint(i + offset)
+
+				prvReceipts[i] = new(types.Receipt)
+				*prvReceipts[i] = *receipt
 				// Update the block hash in all logs since it is now available and not when the
 				// receipt/log of individual transactions were created.
 				for _, log := range receipt.Logs {
@@ -608,20 +628,10 @@ func (w *worker) resultLoop() {
 				logs = append(logs, receipt.Logs...)
 			}
 
-			// write private transacions
-			privateStateRoot, err := task.privateState.Commit(w.chainConfig.IsEIP158(block.Number()))
-			if err != nil {
-				log.Error("Failed committing private state root", "err", err)
-				continue
-			}
-			if err := rawdb.WritePrivateStateRoot(w.eth.ChainDb(), block.Root(), privateStateRoot); err != nil {
-				log.Error("Failed writing private state root", "err", err)
-				continue
-			}
-			allReceipts := mergeReceipts(task.receipts, task.privateReceipts)
+			allReceipts := mergeReceipts(pubReceipts, prvReceipts)
 
 			// Commit block and state to database.
-			stat, err := w.chain.WriteBlockWithState(block, allReceipts, task.state, nil)
+			stat, err := w.chain.WriteBlockWithState(block, allReceipts, task.state, task.privateState)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
@@ -637,7 +647,6 @@ func (w *worker) resultLoop() {
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 			var events []interface{}
-			logs = append(task.state.Logs(), task.privateState.Logs()...)
 
 			switch stat {
 			case core.CanonStatTy:

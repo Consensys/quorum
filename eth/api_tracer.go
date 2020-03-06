@@ -707,11 +707,11 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 			return nil, nil, err
 		}
 		if err := statedb.Reset(root); err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
 		privateStateRoot, err := privateStateDb.Commit(api.eth.blockchain.Config().IsEIP158(block.Number()))
 		if err != nil {
-			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
+			return nil, nil, err
 		}
 		if err := privateStateDb.Reset(privateStateRoot); err != nil {
 			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
@@ -785,7 +785,7 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, v
 	}
 
 	// Set the private state to public state if it is not a private message
-	if msg, ok := message.(core.PrivateMessage); !ok || !api.eth.config.Genesis.Config.IsQuorum || !msg.IsPrivate() {
+	if msg, ok := message.(core.PrivateMessage); !ok || !api.eth.blockchain.Config().IsQuorum || !msg.IsPrivate() {
 		privateStateDb = statedb
 	}
 

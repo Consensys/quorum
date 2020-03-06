@@ -2035,12 +2035,12 @@ func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSend
 		buf := new(bytes.Buffer)
 		err := json.NewEncoder(buf).Encode(resultResponse)
 		if err != nil {
-			log.Info("Error encoding callback JSON: %v", err)
+			log.Info("Error encoding callback JSON", "err", err.Error())
 			return
 		}
 		_, err = http.Post(asyncArgs.CallbackUrl, "application/json", buf)
 		if err != nil {
-			log.Info("Error sending callback: %v", err)
+			log.Info("Error sending callback", "err", err.Error())
 			return
 		}
 	}

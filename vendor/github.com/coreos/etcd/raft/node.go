@@ -341,8 +341,9 @@ func (n *node) run(r *raft) {
 			} else {
 				role = NOT_LEADER
 			}
-
+			r.logger.Infof("sending role change raft.node: %x lead: %x term: %d role:%d", r.id, r.lead, r.Term, role)
 			n.rolec.In() <- role
+			r.logger.Infof("sent role change raft.node: %x lead: %x term: %d role:%d", r.id, r.lead, r.Term, role)
 		}
 
 		select {

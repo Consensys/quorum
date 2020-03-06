@@ -49,6 +49,14 @@
 
     **Note:** While every Quorum v2 client will be able to connect to any other v2 client, the usefullness will be severely degraded. <span style="color:red;">Red color</span> signifies that while connectivity is possible, <span style="color:red;">red colored</span> versions will be unable to send public or private txns to the rest of the net due to the EIP155 changes in the signer implemented in newer versions.
 
+### Tessera FAQ
+
+??? question "What does enabling 'disablePeerDiscovery' mean?"
+    It means the node will only communicate with the nodes defined in the configuration file. Upto version 0.10.2, the nodes still accepts transactions from undiscovered nodes. From version 0.10.3 the node blocks all communication with undiscovered nodes.
+
+??? info "Upgrading to Tessera version 0.10.+ from verion 0.9.+ and below"
+    Due to 'database file unable to open' issue with H2 DB upgrade from version 1.4.196 direct to version 1.4.200 as explained  [here](https://github.com/h2database/h2database/issues/2263), our recommended mitigation strategy is to upgrade to version 1.4.199 first before upgrading to version 1.4.200 i.e., first upgrade to Tessera 0.10.0 before upgrading to higher versions. 
+
 ### Raft FAQ
 
 ??? question "Could you have a single- or two-node cluster? More generally, could you have an even number of nodes?"

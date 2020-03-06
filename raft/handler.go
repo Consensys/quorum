@@ -666,6 +666,7 @@ func (pm *ProtocolManager) isVerifier(rid uint16) bool {
 
 func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 	for {
+		log.Info("waiting to get role change event...")
 		select {
 		case role := <-roleC:
 			intRole, ok := role.(int)
@@ -673,7 +674,7 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 			if !ok {
 				panic("Couldn't cast role to int")
 			}
-
+			log.Info("raft role changed", "role", intRole)
 			if intRole == minterRole {
 				log.EmitCheckpoint(log.BecameMinter)
 				pm.minter.start()
