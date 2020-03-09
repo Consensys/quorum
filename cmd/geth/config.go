@@ -238,7 +238,7 @@ func dumpConfig(ctx *cli.Context) error {
 	return nil
 }
 
-func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, ethChan <-chan *eth.Ethereum) {
+func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, ethChan chan *eth.Ethereum) {
 	blockTimeMillis := ctx.GlobalInt(utils.RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(utils.RaftJoinExistingFlag.Name)
@@ -280,7 +280,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, eth
 		}
 
 		ethereum := <-ethChan
-
+		ethChan <- ethereum
 		return raft.New(ctx, ethereum.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, useDns)
 	}); err != nil {
 		utils.Fatalf("Failed to register the Raft service: %v", err)

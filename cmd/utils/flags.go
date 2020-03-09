@@ -1683,7 +1683,7 @@ func SetDashboardConfig(ctx *cli.Context, cfg *dashboard.Config) {
 }
 
 // RegisterEthService adds an Ethereum client to the stack.
-func RegisterEthService(stack *node.Node, cfg *eth.Config) <-chan *eth.Ethereum {
+func RegisterEthService(stack *node.Node, cfg *eth.Config) chan *eth.Ethereum {
 	// Quorum: raft service listens to this channel to get Ethereum backend
 	nodeChan := make(chan *eth.Ethereum, 1)
 	var err error
