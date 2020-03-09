@@ -2,6 +2,7 @@ package extension
 
 import (
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/private"
 )
@@ -33,6 +34,10 @@ func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, 
 		return nil, err
 	}
 	factory.backendService = backendService
+
+	extensionHandler := privacyExtension.NewExtensionHandler(ptm)
+	ethService.BlockChain().PopulateSetPrivateState(extensionHandler.CheckExtensionAndSetPrivateState)
+
 	go backendService.initialise(node, thirdpartyunixfile)
 
 	return factory, nil

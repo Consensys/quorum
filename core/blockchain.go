@@ -177,8 +177,14 @@ type BlockChain struct {
 	badBlocks       *lru.Cache                     // Bad block cache
 	shouldPreserve  func(*types.Block) bool        // Function used to determine whether should preserve the given block.
 	terminateInsert func(common.Hash, uint64) bool // Testing hook used to terminate ancient receipt chain insertion.
+	setPrivateState func([]*types.Log, *state.StateDB) // Function to check extension and set private state
 
 	privateStateCache state.Database // Private state database to reuse between imports (contains state cache)
+}
+
+//
+func (bc *BlockChain)PopulateSetPrivateState(ps func([]*types.Log, *state.StateDB)){
+	bc.setPrivateState = ps
 }
 
 // NewBlockChain returns a fully initialised block chain using information
