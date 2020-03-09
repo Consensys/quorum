@@ -1796,7 +1796,7 @@ func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 	log.Info("permission service registered")
 }
 
-func RegisterExtensionService(stack *node.Node, thirdpartyunixfile string, ethChan chan *eth.Ethereum) {
+func RegisterExtensionService(stack *node.Node, thirdpartyunixfile string, ethChan <-chan *eth.Ethereum) {
 	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
 		factory, err := extension.NewServicesFactory(stack, private.P, thirdpartyunixfile, <-ethChan)
 		if err != nil {

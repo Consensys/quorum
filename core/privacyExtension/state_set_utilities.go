@@ -26,7 +26,7 @@ func setState(privateState *state.StateDB, accounts map[string]extension.Account
 		privateState.SetNonce(contractAddress, stateDump.Nonce)
 		privateState.SetCode(contractAddress, common.Hex2Bytes(stateDump.Code))
 		for keyStore, valueStore := range stateDump.Storage {
-			privateState.SetState(contractAddress, common.HexToHash(keyStore), common.HexToHash(valueStore))
+			privateState.SetState(contractAddress, keyStore, common.HexToHash(valueStore))
 		}
 	}
 	return true
