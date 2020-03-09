@@ -9,10 +9,14 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/tv42/httpunix"
 )
@@ -41,14 +45,14 @@ func unixTransport(socketPath string) *httpunix.Transport {
 	return t
 }
 
-func unixClient(socketPath string) *http.Client {
+func UnixClient(socketPath string) *http.Client {
 	return &http.Client{
 		Transport: unixTransport(socketPath),
 	}
 }
 
 func RunNode(socketPath string) error {
-	c := unixClient(socketPath)
+	c := UnixClient(socketPath)
 	res, err := c.Get("http+unix://c/upcheck")
 	if err != nil {
 		return err
@@ -152,8 +156,67 @@ func (c *Client) ReceivePayload(key []byte) ([]byte, error) {
 	return ioutil.ReadAll(res.Body)
 }
 
+func (c *Client) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
+	req, err := http.NewRequest("GET", "http+unix://c/transaction/"+url.PathEscape(txHash.ToBase64())+"/isSender", nil)
+	if err != nil {
+		return false, err
+	}
+
+	res, err := c.httpClient.Do(req)
+
+	if res != nil {
+		defer res.Body.Close()
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	if res.StatusCode != 200 {
+		return false, fmt.Errorf("non-200 status code: %+v", res)
+	}
+
+	out, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return false, err
+	}
+
+	return strconv.ParseBool(string(out))
+}
+
+func (c *Client) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
+	requestUrl := "http+unix://c/transaction/" + url.PathEscape(txHash.ToBase64()) + "/participants"
+	req, err := http.NewRequest("GET", requestUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := c.httpClient.Do(req)
+
+	if res != nil {
+		defer res.Body.Close()
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Non-200 status code: %+v", res)
+	}
+
+	out, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	split := strings.Split(string(out), ",")
+
+	return split, nil
+}
+
 func NewClient(socketPath string) (*Client, error) {
 	return &Client{
-		httpClient: unixClient(socketPath),
+		httpClient: UnixClient(socketPath),
 	}, nil
 }

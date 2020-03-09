@@ -54,6 +54,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethstats"
 	"github.com/ethereum/go-ethereum/graphql"
+	"github.com/ethereum/go-ethereum/extension"
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -69,6 +70,7 @@ import (
 	"github.com/ethereum/go-ethereum/permission"
 	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/private"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 	pcsclite "github.com/gballet/go-libpcsclite"
 	"gopkg.in/urfave/cli.v1"
@@ -816,6 +818,13 @@ var (
 		Name:  "plugins.skipverify",
 		Usage: "If enabled, plugin integrity is NOT verified",
 	}
+
+	// Contract Extension
+	ContractExtensionServerFlag = cli.StringFlag{
+		Name:  "contractextension.server",
+		Usage: "The Tessera Third Party server to connect to for use with contract extension",
+	}
+
 	// Istanbul settings
 	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
 		Name:  "istanbul.requesttimeout",
@@ -1568,6 +1577,10 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setIstanbul(ctx, cfg)
 	setLes(ctx, cfg)
 
+	if ctx.GlobalIsSet(ContractExtensionServerFlag.Name) {
+		cfg.ContractExtensionServer = ctx.GlobalString(ContractExtensionServerFlag.Name)
+	}
+
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
@@ -1781,6 +1794,19 @@ func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 		Fatalf("Failed to register the permission service: %v", err)
 	}
 	log.Info("permission service registered")
+}
+
+func RegisterExtensionService(stack *node.Node, thirdpartyunixfile string, ethChan chan *eth.Ethereum) {
+	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
+		factory, err := extension.NewServicesFactory(stack, private.P, thirdpartyunixfile, <-ethChan)
+		if err != nil {
+			return nil, err
+		}
+		return factory.BackendService(), nil
+	}
+	if err := stack.Register(registerFunc); err != nil {
+		Fatalf("Failed to register the Privacy service: %v", err)
+	}
 }
 
 func SetupMetrics(ctx *cli.Context) {

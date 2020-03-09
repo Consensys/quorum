@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/patrickmn/go-cache"
 )
 
@@ -63,6 +64,20 @@ func (g *PrivateTransactionManager) Receive(data []byte) ([]byte, error) {
 	pl, _ := g.node.ReceivePayload(data)
 	g.c.Set(dataStr, pl, cache.DefaultExpiration)
 	return pl, nil
+}
+
+func (g *PrivateTransactionManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
+	if g.isPrivateTransactionManagerNotInUse {
+		return false, errPrivateTransactionManagerNotUsed
+	}
+	return g.node.IsSender(txHash)
+}
+
+func (g *PrivateTransactionManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
+	if g.isPrivateTransactionManagerNotInUse {
+		return nil, errPrivateTransactionManagerNotUsed
+	}
+	return g.node.GetParticipants(txHash)
 }
 
 func New(path string) (*PrivateTransactionManager, error) {

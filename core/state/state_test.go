@@ -18,6 +18,7 @@ package state
 
 import (
 	"bytes"
+	"encoding/json"
 	"math/big"
 	"testing"
 
@@ -79,6 +80,56 @@ func (s *StateSuite) TestDump(c *checker.C) {
 }`
 	if got != want {
 		c.Errorf("dump mismatch:\ngot: %s\nwant: %s\n", got, want)
+	}
+}
+
+func (s *StateSuite) TestDumpAddress(c *checker.C) {
+	// generate a few entries
+	obj1 := s.state.GetOrNewStateObject(toAddr([]byte{0x01}))
+	obj1.AddBalance(big.NewInt(22))
+	obj2 := s.state.GetOrNewStateObject(toAddr([]byte{0x01, 0x02}))
+	obj2.SetCode(crypto.Keccak256Hash([]byte{3, 3, 3, 3, 3, 3, 3}), []byte{3, 3, 3, 3, 3, 3, 3})
+	obj3 := s.state.GetOrNewStateObject(toAddr([]byte{0x02}))
+	obj3.SetBalance(big.NewInt(44))
+
+	// write some of them to the trie
+	s.state.updateStateObject(obj1)
+	s.state.updateStateObject(obj2)
+	s.state.Commit(false)
+
+	addressToDump := toAddr([]byte{0x01})
+	// check that dump contains the state objects that are in trie
+	got, _ := s.state.DumpAddress(addressToDump)
+	out, _ := json.Marshal(got)
+
+	want := `{"balance":"22","nonce":0,"root":"56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","code":"","storage":{}}`
+
+	if string(out) != want {
+		c.Errorf("dump mismatch:\ngot: %s\nwant: %s\n", string(out), want)
+	}
+}
+
+func (s *StateSuite) TestDumpAddressNotFound(c *checker.C) {
+	// generate a few entries
+	obj1 := s.state.GetOrNewStateObject(toAddr([]byte{0x01}))
+	obj1.AddBalance(big.NewInt(22))
+	obj2 := s.state.GetOrNewStateObject(toAddr([]byte{0x01, 0x02}))
+	obj2.SetCode(crypto.Keccak256Hash([]byte{3, 3, 3, 3, 3, 3, 3}), []byte{3, 3, 3, 3, 3, 3, 3})
+	obj3 := s.state.GetOrNewStateObject(toAddr([]byte{0x02}))
+	obj3.SetBalance(big.NewInt(44))
+
+	// write some of them to the trie
+	s.state.updateStateObject(obj1)
+	s.state.updateStateObject(obj2)
+	s.state.Commit(false)
+
+	addressToDump := toAddr([]byte{0x09})
+
+	// check that dump contains the state objects that are in trie
+	_, found := s.state.DumpAddress(addressToDump)
+
+	if found {
+		c.Errorf("dump mismatch:\ngot: %s\nwant: %s\n", found, false)
 	}
 }
 

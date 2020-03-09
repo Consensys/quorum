@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/core/privacyExtension"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -85,6 +86,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 		if privateReceipt != nil {
 			privateReceipts = append(privateReceipts, privateReceipt)
 			allLogs = append(allLogs, privateReceipt.Logs...)
+			privacyExtension.DefaultExtensionHandler.CheckExtensionAndSetPrivateState(privateReceipt.Logs, privateState)
 		}
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)

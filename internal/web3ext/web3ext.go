@@ -36,6 +36,7 @@ var Modules = map[string]string{
 	"raft":             Raft_JS,
 	"istanbul":         Istanbul_JS,
 	"quorumPermission": QUORUM_NODE_JS,
+	"quorumExtension":  Extension_JS,
 }
 
 const ChequebookJs = `
@@ -264,7 +265,7 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'dumpBlock',
 			call: 'debug_dumpBlock',
-			params: 1
+			params: 2
 		}),
 		new web3._extend.Method({
 			name: 'chaindbProperty',
@@ -1099,6 +1100,59 @@ web3._extend({
 			name: 'checkpointContractAddress',
 			getter: 'les_getCheckpointContractAddress'
 		}),
+	]
+});
+`
+
+const Extension_JS = `
+web3._extend({
+	property: 'quorumExtension',
+	methods:
+	[
+		new web3._extend.Method({
+			name: 'approveExtension',
+			call: 'quorumExtension_approveExtension',
+			params: 3,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null, web3._extend.formatters.inputTransactionFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'accept',
+			call: 'quorumExtension_accept',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'extendContract',
+			call: 'quorumExtension_extendContract',
+			params: 4,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null, function(input) {
+				var output = [];
+				for(var i=0; i<input.length; i++) {
+					output.push(web3._extend.formatters.inputAddressFormatter(input[i]));
+				}
+                return output;
+			}, web3._extend.formatters.inputTransactionFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'cancelExtension',
+			call: 'quorumExtension_cancelExtension',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getExtensionStatus',
+			call: 'quorumExtension_getExtensionStatus',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter]
+		}),
+
+	],
+	properties:
+	[
+		new web3._extend.Property({
+			name: 'activeExtensionContracts',
+			getter: 'quorumExtension_activeExtensionContracts'
+		})
 	]
 });
 `

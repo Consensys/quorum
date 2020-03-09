@@ -142,6 +142,7 @@ type Config struct {
 
 	RaftMode             bool
 	EnableNodePermission bool
+	ContractExtensionServer string
 	// Istanbul options
 	Istanbul istanbul.Config
 

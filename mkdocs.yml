@@ -93,6 +93,10 @@ nav:
         - Getting Started: RemixPlugin/Getting started.md
     - Quorum Features:
         - DNS: Features/dns.md
+        - Contract Extension:
+          - Overview: Privacy/Contract-Extension/Overview.md
+          - Usage: Privacy/Contract-Extension/Usage.md
+          - APIs: Privacy/Contract-Extension/ContractExtension apis.md
     - How-To Guides:
         - Adding new nodes: How-To-Guides/adding_nodes.md
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
