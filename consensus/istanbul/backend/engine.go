@@ -43,6 +43,8 @@ const (
 	inmemorySnapshots  = 128  // Number of recent vote snapshots to keep in memory
 	inmemoryPeers      = 40
 	inmemoryMessages   = 1024
+	allowedFutureBlockTime    =  time.Hour  // Max time from current time allowed for blocks, before they're considered future blocks
+
 )
 
 var (
@@ -145,7 +147,7 @@ func (sb *backend) verifyHeader(chain consensus.ChainReader, header *types.Heade
 	}
 
 	// Don't waste time checking blocks from the future
-	if header.Time.Cmp(big.NewInt(now().Unix())) > 0 {
+	if header.Time.Cmp(big.NewInt(now().Add(allowedFutureBlockTime).Unix())) >  0 {
 		return consensus.ErrFutureBlock
 	}
 
