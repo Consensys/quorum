@@ -152,6 +152,32 @@ func (self *StateDB) Dump(excludeCode, excludeStorage, excludeMissingPreimages b
 	return json
 }
 
+func (self *StateDB) DumpAddress(address common.Address) (DumpAccount, bool) {
+	if !self.Exist(address) {
+		return DumpAccount{}, false
+	}
+
+	obj := self.getStateObject(address)
+	account := DumpAccount{
+		Balance:  obj.data.Balance.String(),
+		Nonce:    obj.data.Nonce,
+		Root:     common.Bytes2Hex(obj.data.Root[:]),
+		CodeHash: common.Bytes2Hex(obj.data.CodeHash),
+		Code:     common.Bytes2Hex(obj.Code(self.db)),
+		Storage:  make(map[common.Hash]string),
+	}
+	storageIt := trie.NewIterator(obj.getTrie(self.db).NodeIterator(nil))
+	for storageIt.Next() {
+		_, content, _, err := rlp.Split(storageIt.Value)
+		if err != nil {
+			log.Error("Failed to decode the value returned by iterator", "error", err)
+			continue
+		}
+		account.Storage[common.BytesToHash(self.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(content)
+	}
+	return account, true
+}
+
 // IterativeDump dumps out accounts as json-objects, delimited by linebreaks on stdout
 func (self *StateDB) IterativeDump(excludeCode, excludeStorage, excludeMissingPreimages bool, output *json.Encoder) {
 	self.dump(iterativeDump(*output), excludeCode, excludeStorage, excludeMissingPreimages)
