@@ -35,8 +35,7 @@ func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, 
 	}
 	factory.backendService = backendService
 
-	extensionHandler := privacyExtension.NewExtensionHandler(ptm)
-	ethService.BlockChain().PopulateSetPrivateState(extensionHandler.CheckExtensionAndSetPrivateState)
+	ethService.BlockChain().PopulateSetPrivateState(privacyExtension.DefaultExtensionHandler.CheckExtensionAndSetPrivateState)
 
 	go backendService.initialise(node, thirdpartyunixfile)
 

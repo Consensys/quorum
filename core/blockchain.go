@@ -182,9 +182,16 @@ type BlockChain struct {
 	privateStateCache state.Database // Private state database to reuse between imports (contains state cache)
 }
 
-//
-func (bc *BlockChain)PopulateSetPrivateState(ps func([]*types.Log, *state.StateDB)){
+// function pointer for updating private state
+func (bc *BlockChain) PopulateSetPrivateState(ps func([]*types.Log, *state.StateDB)){
 	bc.setPrivateState = ps
+}
+
+// function to update the private state as a part contract state extension
+func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB){
+	if bc.setPrivateState != nil {
+		bc.setPrivateState(txLogs, privateState)
+	}
 }
 
 // NewBlockChain returns a fully initialised block chain using information

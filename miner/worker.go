@@ -24,7 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	mapset "github.com/deckarep/golang-set"
+	"github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
@@ -787,6 +787,7 @@ func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Addres
 	if privateReceipt != nil {
 		logs = append(receipt.Logs, privateReceipt.Logs...)
 		w.current.privateReceipts = append(w.current.privateReceipts, privateReceipt)
+		w.chain.CheckAndSetPrivateState(logs, w.current.privateState)
 	}
 	return logs, nil
 }
