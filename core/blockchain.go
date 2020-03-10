@@ -1293,6 +1293,7 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	return bc.writeBlockWithState(block, receipts, state, privateState)
 }
 
+//Quorum: used by raft's mintNewBlock to commit newly mined blocks
 func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, privateState *state.StateDB) error {
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
