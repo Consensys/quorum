@@ -110,10 +110,6 @@ func (minter *minter) start() {
 }
 
 func (minter *minter) stop() {
-	log.Info("AJ-stop minter call...")
-	defer func() {
-		log.Info("AJ-stop minter call...done")
-	}()
 	minter.mu.Lock()
 	defer minter.mu.Unlock()
 

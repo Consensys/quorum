@@ -654,10 +654,6 @@ func (pm *ProtocolManager) isVerifierNode() bool {
 }
 
 func (pm *ProtocolManager) isVerifier(rid uint16) bool {
-	log.Info("AJ-raft is verifier call...")
-	defer func(){
-		log.Info("AJ-raft is verifier call...done")
-	}()
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	for _, n := range pm.confState.Nodes {
@@ -670,7 +666,6 @@ func (pm *ProtocolManager) isVerifier(rid uint16) bool {
 
 func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 	for {
-		log.Info("waiting to get role change event...")
 		select {
 		case role := <-roleC:
 			intRole, ok := role.(int)
@@ -678,11 +673,9 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 			if !ok {
 				panic("Couldn't cast role to int")
 			}
-			log.Info("AJ-raft role changed1", "role", intRole)
 			if intRole == minterRole {
 				log.EmitCheckpoint(log.BecameMinter)
 				pm.minter.start()
-				log.Info("AJ-start minting")
 			} else { // verifier
 				if pm.isVerifierNode() {
 					log.EmitCheckpoint(log.BecameVerifier)
@@ -690,14 +683,11 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 					log.EmitCheckpoint(log.BecameLearner)
 				}
 				pm.minter.stop()
-				log.Info("AJ-stop minting")
 			}
 
 			pm.mu.Lock()
 			pm.role = intRole
-			log.Info("AJ-raft role changed2", "role", intRole)
 			pm.mu.Unlock()
-			log.Info("AJ-raft role changed3", "role", intRole)
 		case <-pm.quitSync:
 			return
 		}
