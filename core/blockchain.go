@@ -1293,6 +1293,19 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	return bc.writeBlockWithState(block, receipts, state, privateState)
 }
 
+func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, privateState *state.StateDB) error {
+	bc.chainmu.Lock()
+	defer bc.chainmu.Unlock()
+	if _, err := state.Commit(deleteEmptyObjects); err != nil {
+		return fmt.Errorf("error committing public state: %v", err)
+	}
+	if _, err := privateState.Commit(deleteEmptyObjects); err != nil {
+		return fmt.Errorf("error committing private state: %v", err)
+	}
+	return nil
+}
+
+
 // writeBlockWithState writes the block and all associated state to the database,
 // but is expects the chain mutex to be held.
 func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, state, privateState *state.StateDB) (status WriteStatus, err error) {
