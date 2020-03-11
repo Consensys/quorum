@@ -979,7 +979,13 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 	if args.Value.ToInt().Cmp(big.NewInt(0)) == 0 {
 		homestead := b.ChainConfig().IsHomestead(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
 		istanbul := b.ChainConfig().IsIstanbul(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
-		intrinsicGasPublic, _ := core.IntrinsicGas([]byte(*args.Data), args.To == nil, homestead, istanbul)
+		var data []byte
+		if args.Data == nil {
+			data = nil
+		}else {
+			data = []byte(*args.Data)
+		}
+		intrinsicGasPublic, _ := core.IntrinsicGas(data, args.To == nil, homestead, istanbul)
 		intrinsicGasPrivate, _ := core.IntrinsicGas(common.Hex2Bytes(maxPrivateIntrinsicDataHex), args.To == nil, homestead, istanbul)
 
 		if intrinsicGasPrivate > intrinsicGasPublic {
