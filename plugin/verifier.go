@@ -3,6 +3,8 @@ package plugin
 import (
 	"fmt"
 	"path"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // Plugin Integrity Verifier.
@@ -24,6 +26,7 @@ func NewNonVerifier() *NonVerifier {
 }
 
 func NewVerifier(pm *PluginManager, localVerify bool, publicKey string) (Verifier, error) {
+	log.Debug("using verifier", "local", localVerify)
 	pluginBaseDir := pm.pluginBaseDir
 	centralClient := pm.centralClient
 	// resolve public key
