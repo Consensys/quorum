@@ -387,7 +387,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	// Quorum
-	if args.IsPrivate(){
+	if args.IsPrivate() {
 		err := args.setPrivateTransactionHash()
 		if err != nil {
 			return common.Hash{}, err
@@ -1641,8 +1641,8 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 	// Assemble the transaction and obtain rlp
 	// Quorum
 	if args.IsPrivate() {
-		//TODO: Currentlt setPrivateTransactionHash is calling Send which will distribute the private payload
-		//TODO: ideally this should call storeRaw equivalent to ensure that the payload stays local. TO discuss further
+		//TODO: Currently setPrivateTransactionHash is calling /sendraw which will distribute the private payload
+		//TODO: Ideally this should call /storeraw equivalent to ensure that the payload stays local. To be discussed further
 		err := args.setPrivateTransactionHash()
 		if err != nil {
 			return nil, err
