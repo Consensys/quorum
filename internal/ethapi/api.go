@@ -387,15 +387,11 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	// Quorum
-	isPrivate := args.IsPrivate()
-	if isPrivate {
-		// replace args.Data field to tm hash for quorum private tx
-		data, err := args.getHashFromTM()
+	if args.IsPrivate(){
+		err := args.setPrivateTransactionHash()
 		if err != nil {
 			return common.Hash{}, err
 		}
-		d := hexutil.Bytes(data)
-		args.Data = &d
 	}
 	// /Quorum
 
@@ -982,7 +978,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 		var data []byte
 		if args.Data == nil {
 			data = nil
-		}else {
+		} else {
 			data = []byte(*args.Data)
 		}
 		intrinsicGasPublic, _ := core.IntrinsicGas(data, args.To == nil, homestead, istanbul)
@@ -1529,7 +1525,7 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 }
 
 // getHashFromTM send the actual private transaction payload to Tessera and returns the tm hash
-func (args *SendTxArgs) getHashFromTM() (data []byte, err error) {
+func (args *SendTxArgs) setPrivateTransactionHash() error {
 	var input []byte
 	if args.Input != nil {
 		input = []byte(*args.Input)
@@ -1538,18 +1534,21 @@ func (args *SendTxArgs) getHashFromTM() (data []byte, err error) {
 	} else {
 		log.Info("nil args.input & args.data")
 	}
+
 	if input != nil {
 		if len(input) > 0 {
 			//Send private transaction to local Constellation node
 			log.Info("sending private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err = private.P.Send(input, args.PrivateFrom, args.PrivateFor)
+			data, err := private.P.Send(input, args.PrivateFrom, args.PrivateFor)
 			log.Info("sent private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			if err != nil {
-				return nil, err
+				return err
 			}
+			d := hexutil.Bytes(data)
+			args.Data = &d
 		}
 	}
-	return data, nil
+	return nil
 }
 
 // TODO: this submits a signed transaction, if it is a signed private transaction that should already be recorded in the tx.
@@ -1603,23 +1602,19 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	// Quorum
-	isPrivate := args.IsPrivate()
-	var tx *types.Transaction
-	if isPrivate {
-		// replace args.Data field to tm hash for quorum private tx
-		var data []byte
-		data, err = args.getHashFromTM()
+	if args.IsPrivate() {
+		err = args.setPrivateTransactionHash()
 		if err != nil {
 			return common.Hash{}, err
 		}
-		d := hexutil.Bytes(data)
-		args.Data = &d
 	}
+	// /Quorum
 
 	// Assemble the transaction and sign with the wallet
+	var tx *types.Transaction
 	tx = args.toTransaction()
 
-	if isPrivate {
+	if args.IsPrivate() {
 		tx.SetPrivate()
 	}
 
@@ -1644,7 +1639,24 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 		return nil, err
 	}
 	// Assemble the transaction and obtain rlp
+	// Quorum
+	if args.IsPrivate() {
+		//TODO: Currentlt setPrivateTransactionHash is calling Send which will distribute the private payload
+		//TODO: ideally this should call storeRaw equivalent to ensure that the payload stays local. TO discuss further
+		err := args.setPrivateTransactionHash()
+		if err != nil {
+			return nil, err
+		}
+	}
+	// /Quorum
 	tx := args.toTransaction()
+
+	// Quorum
+	if args.IsPrivate() {
+		tx.SetPrivate()
+	}
+	// /Quorum
+
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
 		return nil, err
