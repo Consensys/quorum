@@ -79,25 +79,13 @@ matrix:
           sudo chmod 666 /dev/fuse
           sudo chown root:$USER /etc/fuse.conf
           go run build/ci.go install
-          if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
-            QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/swarm go run build/ci.go test -coverage $TEST_PACKAGES
-          else
-            go run build/ci.go test -coverage $TEST_PACKAGES
-          fi
+          QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/swarm,github.com/ethereum/go-ethereum/cmd/swarm go run build/ci.go test -coverage $TEST_PACKAGES
     - if: tag IS blank
       os: osx
-      osx_image: xcode9.2 # so we don't have to deal with Kernel Extension Consent UI which is never possible in CI
       script:
         - |
-          brew update
-          brew install caskroom/cask/brew-cask
-          brew cask install osxfuse
           go run build/ci.go install
-          if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
-            QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/swarm go run build/ci.go test -coverage $TEST_PACKAGES
-          else
-            go run build/ci.go test -coverage $TEST_PACKAGES
-          fi
+          QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/swarm,github.com/ethereum/go-ethereum/cmd/swarm go run build/ci.go test -coverage $TEST_PACKAGES
 
     - if: tag IS present
       os: linux
@@ -111,7 +99,6 @@ matrix:
 
     - if: tag IS present
       os: osx
-      osx_image: xcode9.2
       env: OUTPUT_FILE=geth_${TRAVIS_TAG}_darwin_amd64.tar.gz
       script:
         - build/env.sh go run build/ci.go install ./cmd/geth

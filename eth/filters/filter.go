@@ -216,28 +216,26 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 	var logs []*types.Log
 
 	for ; f.begin <= int64(end); f.begin++ {
-		blockNumber := rpc.BlockNumber(f.begin)
 		header, err := f.backend.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
 		if header == nil || err != nil {
 			return logs, err
 		}
-
-		bloomMatches := bloomFilter(header.Bloom, f.addresses, f.topics) ||
-			bloomFilter(core.GetPrivateBlockBloom(f.db, uint64(blockNumber)), f.addresses, f.topics)
-		if bloomMatches {
-			found, err := f.checkMatches(ctx, header)
-			if err != nil {
-				return logs, err
-			}
-			logs = append(logs, found...)
+		found, err := f.blockLogs(ctx, header)
+		if err != nil {
+			return logs, err
 		}
+		logs = append(logs, found...)
 	}
 	return logs, nil
 }
 
 // blockLogs returns the logs matching the filter criteria within a single block.
 func (f *Filter) blockLogs(ctx context.Context, header *types.Header) (logs []*types.Log, err error) {
-	if bloomFilter(header.Bloom, f.addresses, f.topics) {
+	// Quorum
+	// Apply bloom filter for both public bloom and private bloom
+	bloomMatches := bloomFilter(header.Bloom, f.addresses, f.topics) ||
+		bloomFilter(core.GetPrivateBlockBloom(f.db, header.Number.Uint64()), f.addresses, f.topics)
+	if bloomMatches {
 		found, err := f.checkMatches(ctx, header)
 		if err != nil {
 			return logs, err

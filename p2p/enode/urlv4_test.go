@@ -38,13 +38,9 @@ var parseNodeTests = []struct {
 	},
 	{
 		rawurl:    "enode://01010101@123.124.125.126:3",
-		wantError: `invalid node ID (wrong length, want 128 hex chars)`,
+		wantError: `invalid public key (wrong length, want 128 hex chars)`,
 	},
 	// Complete nodes with IP address.
-	{
-		rawurl:    "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@hostname:3",
-		wantError: `invalid IP address`,
-	},
 	{
 		rawurl:    "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@127.0.0.1:foo",
 		wantError: `invalid port`,
@@ -57,10 +53,9 @@ var parseNodeTests = []struct {
 		rawurl: "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@127.0.0.1:52150",
 		wantResult: NewV4(
 			hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
-			net.IP{0x7f, 0x0, 0x0, 0x1},
+			net.IP{127, 0, 0, 1},
 			52150,
 			52150,
-			0,
 		),
 	},
 	{
@@ -70,7 +65,6 @@ var parseNodeTests = []struct {
 			net.ParseIP("::"),
 			52150,
 			52150,
-			0,
 		),
 	},
 	{
@@ -80,7 +74,6 @@ var parseNodeTests = []struct {
 			net.ParseIP("2001:db8:3c4d:15::abcd:ef12"),
 			52150,
 			52150,
-			0,
 		),
 	},
 	{
@@ -90,7 +83,6 @@ var parseNodeTests = []struct {
 			net.IP{0x7f, 0x0, 0x0, 0x1},
 			52150,
 			22334,
-			0,
 		),
 	},
 	// Incomplete nodes with no address.
@@ -98,29 +90,44 @@ var parseNodeTests = []struct {
 		rawurl: "1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439",
 		wantResult: NewV4(
 			hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
-			nil, 0, 0, 0,
+			nil, 0, 0,
 		),
 	},
 	{
 		rawurl: "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439",
 		wantResult: NewV4(
 			hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"),
-			nil, 0, 0, 0,
+			nil, 0, 0,
 		),
 	},
 	// Invalid URLs
 	{
 		rawurl:    "01010101",
-		wantError: `invalid node ID (wrong length, want 128 hex chars)`,
+		wantError: `invalid public key (wrong length, want 128 hex chars)`,
 	},
 	{
 		rawurl:    "enode://01010101",
-		wantError: `invalid node ID (wrong length, want 128 hex chars)`,
+		wantError: `invalid public key (wrong length, want 128 hex chars)`,
 	},
 	{
 		// This test checks that errors from url.Parse are handled.
 		rawurl:    "://foo",
 		wantError: `parse ://foo: missing protocol scheme`,
+	},
+	{
+		// Quorum: raft url with invalid hostname (no error, hostname will be saved)
+		rawurl:     "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@hostname:3?raftport=50401",
+		wantResult: NewV4Hostname(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"), "hostname", 3, 3, 50401),
+	},
+	{
+		// Quorum: raft url with valid hostname
+		rawurl:     "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@localhost:3?raftport=50401",
+		wantResult: NewV4Hostname(hexPubkey("1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439"), "localhost", 3, 3, 50401),
+	},
+	{
+		// Quorum: raft url with no hostname
+		rawurl:    "enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@:3?raftport=50401",
+		wantError: `empty hostname in raft url`,
 	},
 }
 
@@ -139,7 +146,7 @@ func TestParseNode(t *testing.T) {
 			if err == nil {
 				t.Errorf("test %q:\n  got nil error, expected %#q", test.rawurl, test.wantError)
 				continue
-			} else if err.Error() != test.wantError {
+			} else if !strings.Contains(err.Error(), test.wantError) {
 				t.Errorf("test %q:\n  got error %#q, expected %#q", test.rawurl, err.Error(), test.wantError)
 				continue
 			}

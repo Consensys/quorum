@@ -3,7 +3,7 @@ package private
 import (
 	"os"
 
-	"github.com/ethereum/go-ethereum/private/constellation"
+	"github.com/ethereum/go-ethereum/private/privatetransactionmanager"
 )
 
 type PrivateTransactionManager interface {
@@ -17,7 +17,7 @@ func FromEnvironmentOrNil(name string) PrivateTransactionManager {
 	if cfgPath == "" {
 		return nil
 	}
-	return constellation.MustNew(cfgPath)
+	return privatetransactionmanager.MustNew(cfgPath)
 }
 
 var P = FromEnvironmentOrNil("PRIVATE_CONFIG")

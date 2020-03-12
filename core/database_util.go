@@ -675,5 +675,3 @@ func GetPrivateBlockBloom(db ethdb.Database, number uint64) (bloom types.Bloom) 
 	}
 	return bloom
 }
-
-

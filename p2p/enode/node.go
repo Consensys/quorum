@@ -58,9 +58,10 @@ func (n *Node) Seq() uint64 {
 	return n.r.Seq()
 }
 
-// Incomplete returns true for nodes with no IP address.
+// Quorum
+// Incomplete returns true for nodes with no IP address and no hostname if with raftport.
 func (n *Node) Incomplete() bool {
-	return n.IP() == nil
+	return n.IP() == nil && (!n.HasRaftPort() || (n.Host() == "" && n.HasRaftPort()))
 }
 
 // Load retrieves an entry from the underlying record.
@@ -69,11 +70,43 @@ func (n *Node) Load(k enr.Entry) error {
 }
 
 // IP returns the IP address of the node.
+//
+// Quorum
+// To support DNS lookup in node ip. The function performs hostname lookup if hostname is defined in enr.Hostname
+// and falls back to enr.IP value in case of failure. It also makes sure the resolved IP is in IPv4 or IPv6 format
 func (n *Node) IP() net.IP {
+	if n.Host() == "" {
+		// no host is set, so use the IP directly
+		return n.loadIP()
+	}
+	// attempt to look up IP addresses if host is a FQDN
+	lookupIPs, err := net.LookupIP(n.Host())
+	if err != nil {
+		return n.loadIP()
+	}
+	// set to first ip by default & as Ethereum upstream
+	ip := lookupIPs[0]
+	// Ensure the IP is 4 bytes long for IPv4 addresses.
+	if ipv4 := ip.To4(); ipv4 != nil {
+		ip = ipv4
+	}
+	return ip
+}
+
+func (n *Node) loadIP() net.IP {
 	var ip net.IP
 	n.Load((*enr.IP)(&ip))
 	return ip
 }
+
+// Quorum
+func (n *Node) Host() string {
+	var hostname string
+	n.Load((*enr.Hostname)(&hostname))
+	return hostname
+}
+
+// End-Quorum
 
 // UDP returns the UDP port of the node.
 func (n *Node) UDP() int {

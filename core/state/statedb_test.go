@@ -119,7 +119,7 @@ func TestIntermediateLeaks(t *testing.T) {
 
 func TestStorageRoot(t *testing.T) {
 	var (
-		mem   = ethdb.NewMemDatabase()
+		mem      = ethdb.NewMemDatabase()
 		db       = NewDatabase(mem)
 		state, _ = New(common.Hash{}, db)
 		addr     = common.Address{1}

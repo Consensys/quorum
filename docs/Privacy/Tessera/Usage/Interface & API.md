@@ -2,7 +2,7 @@
 
 All interfaces can be set to run over HTTP, GRPC or HTTP-over-Unix-Sockets.
 
-### gRPC (for inter-node communication)
+### gRPC for inter-node communication (Deprecated)
 
 We currently have an implementation of gRPC for peer node communication as experiment API. This is not enabled on Quorum yet, but between Tessera nodes they can be enabled by adding in a couple of properties in the configuration file as child elements of `serverConfig`.
 
@@ -11,6 +11,9 @@ We currently have an implementation of gRPC for peer node communication as exper
 - `communicationType` - possible values are `REST`, `GRPC`. Default value is `REST`.
 
 Please note that communication between Quorum and Tessera are still via unix socket. This communication flag provides additional options for Tessera peer-to-peer communication. If gRPC is the option specified, please ensure the peers urls are provided with the appropriate ports.
+
+!!! info
+    gRPC as a protocol for peer-to-peer communication will be removed from Tessera version 0.10.2
 
 ---
 
@@ -28,6 +31,7 @@ The following endpoints are advertised on this interface:
 * `/push`
 * `/resend`
 * `/partyinfo`
+* `/partyinfo/validate`
 
 ### Third Party - Public API 
 
@@ -40,6 +44,8 @@ The following endpoints are advertised on this interface:
 * `/version`
 * `/upcheck`
 * `/storeraw`
+* `/keys`
+* `/partyinfo/keys`
 
 ### Quorum to Tessera - Private API
 
@@ -48,6 +54,7 @@ Quorum uses this API to:
 - Send and receive details of private transactions
 
 The following endpoints are advertised on this interface:
+
 - `/version`
 - `/upcheck`
 - `/sendraw`
@@ -59,12 +66,13 @@ The following endpoints are advertised on this interface:
 ### Admin API
 
 Admins should use this API to:
+
 - Access information about the Tessera node
 - Make changes to the configuration of the Tessera node
 
 The following endpoints are advertised on this API:
+
 - `/peers` - Add to, and retrieve from, the Tessera node's peers list
-- `/keypairs` - Retrieve all public keys or search for a particular public key in use by the Tessera node
 
 ## API Details
 
@@ -88,6 +96,10 @@ The following endpoints are advertised on this API:
 
 - GET: Request public keys/url of all known peer nodes.
 - POST: accepts a stream that contains the caller node's network information, and returns a merged copy with the callee node's network information
+
+**`partyinfo/validate`** - _Validates a node possesses a key_ 
+
+- Will request a node to decrypt a transaction in order to prove that it has access to the private part of its advertised public key.
 
 **`sendraw`** - _Send transaction bytestring_
 

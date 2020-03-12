@@ -155,3 +155,44 @@ geth-windows-amd64:
 	build/env.sh go run build/ci.go xgo -- --go=$(GO) --targets=windows/amd64 -v ./cmd/geth
 	@echo "Windows amd64 cross compilation done:"
 	@ls -ld $(GOBIN)/geth-windows-* | grep amd64
+
+# QUORUM - BEGIN
+RELEASE_NOTES_FILE := generated-release-notes.md
+LAST_RELEASE_VERSION := $(shell git describe --tags --abbrev=0 @^)
+REQUIRED_ENV_VARS := QUORUM_RELEASE BINTRAY_USER BINTRAY_API_KEY GITHUB_TOKEN
+release-prepare: release-tools
+	@[ "${QUORUM_RELEASE}" ] || (echo "Please provide QUORUM_RELEASE env variable" ; exit 1)
+	@rm -f $(RELEASE_NOTES_FILE)
+	@echo "Last release: $(LAST_RELEASE_VERSION)"
+	@echo "This release: ${QUORUM_RELEASE}"
+	@echo "${QUORUM_RELEASE}\n\n" > $(RELEASE_NOTES_FILE)
+	@git log --pretty=format:%s $(LAST_RELEASE_VERSION)..@ >> $(RELEASE_NOTES_FILE)
+	@echo "$(RELEASE_NOTES_FILE) has been created"
+
+release: release-tools check-release-env
+	@jfrog bt version-show quorumengineering/quorum/geth/${QUORUM_RELEASE} --key ${BINTRAY_API_KEY} --user ${BINTRAY_USER}
+	@echo "\n\n| Filename | SHA256 Hash |" >> $(RELEASE_NOTES_FILE)
+	@echo "|:---------|:------------|" >> $(RELEASE_NOTES_FILE)
+	@curl -s -u ${BINTRAY_USER}:${BINTRAY_API_KEY} https://api.bintray.com/packages/quorumengineering/quorum/geth/versions/${QUORUM_RELEASE}/files \
+	| jq '.[] | select(.name | endswith(".asc") | not) | "|[\(.name)](https://bintray.com/quorumengineering/quorum/download_file?file_path=\(.path))|`\(.sha256)`|"' -r \
+	>> $(RELEASE_NOTES_FILE)
+	@hub release create -d -F $(RELEASE_NOTES_FILE) ${QUORUM_RELEASE}
+
+# make sure all API Keys are set
+check-release-env: $(REQUIRED_ENV_VARS)
+	@[ -f "$(RELEASE_NOTES_FILE)" ] || (echo "Please run 'make release-prepare' and edit the release notes"; exit 1)
+
+$(REQUIRED_ENV_VARS):
+	@[ "${$@}" ] || (echo "Please provide $@ env variable" ; exit 1)
+
+release-tools:
+ifeq (, $(shell which hub))
+	@echo "Please install Github CLI from https://hub.github.com"
+endif
+ifeq (, $(shell which jfrog))
+	@echo "Please install JFrog CLI from https://jfrog.com/getcli"
+endif
+ifeq (, $(shell which jq))
+	@echo "Please install jq from https://stedolan.github.io/jq/download"
+endif
+# QUORUM - END

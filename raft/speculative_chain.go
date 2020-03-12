@@ -1,12 +1,12 @@
 package raft
 
 import (
+	mapset "github.com/deckarep/golang-set"
+	"gopkg.in/oleiade/lane.v1"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-
-	"github.com/deckarep/golang-set"
-	"gopkg.in/oleiade/lane.v1"
 )
 
 // The speculative chain represents blocks that we have minted which haven't been accepted into the chain yet, building

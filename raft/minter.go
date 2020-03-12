@@ -89,7 +89,7 @@ func newMinter(config *params.ChainConfig, eth *RaftService, blockTime time.Dura
 		speculativeChain: newSpeculativeChain(),
 
 		invalidRaftOrderingChan: make(chan InvalidRaftOrdering, 1),
-		chainHeadChan:           make(chan core.ChainHeadEvent, 1),
+		chainHeadChan:           make(chan core.ChainHeadEvent, core.GetChainHeadChannleSize()),
 		txPreChan:               make(chan core.NewTxsEvent, 4096),
 	}
 
@@ -213,7 +213,7 @@ func throttle(rate time.Duration, f func()) func() {
 
 		for range ticker.C {
 			<-request.Out()
-			go f()
+			f()
 		}
 	}()
 
@@ -313,7 +313,7 @@ func (minter *minter) mintNewBlock() {
 	work := minter.createWork()
 	transactions := minter.getTransactions()
 
-	committedTxes, publicReceipts, privateReceipts, logs := work.commitTransactions(transactions, minter.chain)
+	committedTxes, publicReceipts, _, logs := work.commitTransactions(transactions, minter.chain)
 	txCount := len(committedTxes)
 
 	if txCount == 0 {
@@ -328,9 +328,6 @@ func (minter *minter) mintNewBlock() {
 	// commit state root after all state transitions.
 	ethash.AccumulateRewards(minter.chain.Config(), work.publicState, header, nil)
 	header.Root = work.publicState.IntermediateRoot(minter.chain.Config().IsEIP158(work.header.Number))
-
-	allReceipts := append(publicReceipts, privateReceipts...)
-	header.Bloom = types.CreateBloom(allReceipts)
 
 	// update block hash since it is now available, but was not when the
 	// receipt/log of individual transactions were created:

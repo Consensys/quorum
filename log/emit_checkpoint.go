@@ -5,6 +5,7 @@ const (
 	TxAccepted         = "TX-ACCEPTED"
 	BecameMinter       = "BECAME-MINTER"
 	BecameVerifier     = "BECAME-VERIFIER"
+	BecameLearner      = "BECAME-LEARNER"
 	BlockCreated       = "BLOCK-CREATED"
 	BlockVotingStarted = "BLOCK-VOTING-STARTED"
 )

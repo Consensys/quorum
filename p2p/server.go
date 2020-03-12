@@ -190,6 +190,9 @@ type Server struct {
 	loopWG        sync.WaitGroup // loop, listenLoop
 	peerFeed      event.Feed
 	log           log.Logger
+
+	// raft peers info
+	checkPeerInRaft func(*enode.Node) bool
 }
 
 type peerOpFunc func(map[enode.ID]*Peer)
@@ -360,7 +363,7 @@ func (srv *Server) Self() *enode.Node {
 	srv.lock.Unlock()
 
 	if ln == nil {
-		return enode.NewV4(&srv.PrivateKey.PublicKey, net.ParseIP("0.0.0.0"), 0, 0, 0)
+		return enode.NewV4(&srv.PrivateKey.PublicKey, net.ParseIP("0.0.0.0"), 0, 0)
 	}
 	return ln.Node()
 }
@@ -927,6 +930,14 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	}
 	clog := srv.log.New("id", c.node.ID(), "addr", c.fd.RemoteAddr(), "conn", c.flags)
 
+	// If raft is running, check if the dialing node is in the raft cluster
+	// Node doesn't belong to raft cluster is not allowed to join the p2p network
+	if srv.checkPeerInRaft != nil && !srv.checkPeerInRaft(c.node) {
+		node := c.node.ID().String()
+		log.Trace("incoming connection peer is not in the raft cluster", "enode.id", node)
+		return newPeerError(errNotInRaftCluster, "id=%s…%s", node[:4], node[len(node)-4:])
+	}
+
 	//START - QUORUM Permissioning
 	currentNode := srv.NodeInfo().ID
 	cnodeName := srv.NodeInfo().Name
@@ -950,7 +961,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 		}
 
 		if !isNodePermissioned(node, currentNode, srv.DataDir, direction) {
-			return nil
+			return newPeerError(errPermissionDenied, "id=%s…%s %s id=%s…%s", currentNode[:4], currentNode[len(currentNode)-4:], direction, node[:4], node[len(node)-4:])
 		}
 	} else {
 		clog.Trace("Node Permissioning is Disabled.")
@@ -996,7 +1007,7 @@ func nodeFromConn(pubkey *ecdsa.PublicKey, conn net.Conn) *enode.Node {
 		ip = tcp.IP
 		port = tcp.Port
 	}
-	return enode.NewV4(pubkey, ip, port, port, 0)
+	return enode.NewV4(pubkey, ip, port, port)
 }
 
 func truncateName(s string) string {
@@ -1115,4 +1126,8 @@ func (srv *Server) PeersInfo() []*PeerInfo {
 		}
 	}
 	return infos
+}
+
+func (srv *Server) SetCheckPeerInRaft(f func(*enode.Node) bool) {
+	srv.checkPeerInRaft = f
 }

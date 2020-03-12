@@ -17,6 +17,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"reflect"
 	"testing"
@@ -77,6 +78,23 @@ func TestNewRequest(t *testing.T) {
 		}
 		if !reflect.DeepEqual(request2.Number(), backend.committedMsgs[1].commitProposal.Number()) {
 			t.Errorf("the number of requests mismatch: have %v, want %v", request2.Number(), backend.committedMsgs[1].commitProposal.Number())
+		}
+	}
+}
+
+func TestQuorumSize(t *testing.T) {
+	N := uint64(4)
+	F := uint64(1)
+
+	sys := NewTestSystemWithBackend(N, F)
+	backend := sys.backends[0]
+	c := backend.engine.(*core)
+
+	valSet := c.valSet
+	for i := 1; i <= 1000; i++ {
+		valSet.AddValidator(common.StringToAddress(string(i)))
+		if 2*c.QuorumSize() <= (valSet.Size()+valSet.F()) || 2*c.QuorumSize() > (valSet.Size()+valSet.F()+2) {
+			t.Errorf("quorumSize constraint failed, expected value (2*QuorumSize > Size+F && 2*QuorumSize <= Size+F+2) to be:%v, got: %v, for size: %v", true, false, valSet.Size())
 		}
 	}
 }

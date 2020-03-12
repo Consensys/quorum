@@ -32,4 +32,7 @@ var (
 	// ErrNonceTooHigh is returned if the nonce of a transaction is higher than the
 	// next one expected based on the local chain.
 	ErrNonceTooHigh = errors.New("nonce too high")
+
+	// ErrAbortBlocksProcessing is returned if bc.insertChain is interrupted under raft mode
+	ErrAbortBlocksProcessing = errors.New("abort during blocks processing")
 )

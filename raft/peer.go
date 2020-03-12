@@ -1,14 +1,14 @@
 package raft
 
 import (
-	"io"
+	"bytes"
+	"fmt"
+	"log"
 	"net"
 
-	"fmt"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/rlp"
-	"log"
 )
 
 // Serializable information about a Peer. Sufficient to build `etcdRaft.Peer`
@@ -17,23 +17,45 @@ import (
 type Address struct {
 	RaftId   uint16        `json:"raftId"`
 	NodeId   enode.EnodeID `json:"nodeId"`
-	Ip       net.IP        `json:"ip"`
+	Ip       net.IP        `json:"-"`
 	P2pPort  enr.TCP       `json:"p2pPort"`
 	RaftPort enr.RaftPort  `json:"raftPort"`
+
+	Hostname string `json:"hostname"`
+
+	// Ignore additional fields (for forward compatibility).
+	Rest []rlp.RawValue `json:"-" rlp:"tail"`
 }
 
-func newAddress(raftId uint16, raftPort int, node *enode.Node) *Address {
+type ClusterInfo struct {
+	Address
+	Role       string `json:"role"`
+	NodeActive bool   `json:"nodeActive"`
+}
+
+func newAddress(raftId uint16, raftPort int, node *enode.Node, useDns bool) *Address {
 	// derive 64 byte nodeID from 128 byte enodeID
 	id, err := enode.RaftHexID(node.EnodeID())
 	if err != nil {
 		panic(err)
 	}
+	if useDns && node.Host() != "" {
+		return &Address{
+			RaftId:   raftId,
+			NodeId:   id,
+			Ip:       nil,
+			P2pPort:  enr.TCP(node.TCP()),
+			RaftPort: enr.RaftPort(raftPort),
+			Hostname: node.Host(),
+		}
+	}
 	return &Address{
 		RaftId:   raftId,
 		NodeId:   id,
-		Ip:       node.IP(),
+		Ip:       nil,
 		P2pPort:  enr.TCP(node.TCP()),
 		RaftPort: enr.RaftPort(raftPort),
+		Hostname: node.IP().String(),
 	}
 }
 
@@ -43,12 +65,33 @@ type Peer struct {
 	p2pNode *enode.Node // For ethereum transport
 }
 
-func (addr *Address) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{addr.RaftId, addr.NodeId, addr.Ip, addr.P2pPort, addr.RaftPort})
+// RLP Address encoding, for transport over raft and storage in LevelDB.
+func (addr *Address) toBytes() []byte {
+	var toEncode interface{}
+
+	// need to check if addr.Hostname is hostname/ip
+	if ip := net.ParseIP(addr.Hostname); ip == nil {
+		toEncode = addr
+	} else {
+		toEncode = []interface{}{addr.RaftId, addr.NodeId, ip, addr.P2pPort, addr.RaftPort}
+	}
+
+	buffer, err := rlp.EncodeToBytes(toEncode)
+	if err != nil {
+		panic(fmt.Sprintf("error: failed to RLP-encode Address: %s", err.Error()))
+	}
+	return buffer
 }
 
-func (addr *Address) DecodeRLP(s *rlp.Stream) error {
-	// These fields need to be public:
+func bytesToAddress(input []byte) *Address {
+	// try the new format first
+	addr := new(Address)
+	streamNew := rlp.NewStream(bytes.NewReader(input), 0)
+	if err := streamNew.Decode(addr); err == nil {
+		return addr
+	}
+
+	// else try the old format
 	var temp struct {
 		RaftId   uint16
 		NodeId   enode.EnodeID
@@ -57,31 +100,17 @@ func (addr *Address) DecodeRLP(s *rlp.Stream) error {
 		RaftPort enr.RaftPort
 	}
 
-	if err := s.Decode(&temp); err != nil {
-		return err
-	} else {
-		addr.RaftId, addr.NodeId, addr.Ip, addr.P2pPort, addr.RaftPort = temp.RaftId, temp.NodeId, temp.Ip, temp.P2pPort, temp.RaftPort
-		return nil
-	}
-}
-
-// RLP Address encoding, for transport over raft and storage in LevelDB.
-
-func (addr *Address) toBytes() []byte {
-	size, r, err := rlp.EncodeToReader(addr)
-	if err != nil {
-		panic(fmt.Sprintf("error: failed to RLP-encode Address: %s", err.Error()))
-	}
-	var buffer = make([]byte, uint32(size))
-	r.Read(buffer)
-
-	return buffer
-}
-
-func bytesToAddress(bytes []byte) *Address {
-	var addr Address
-	if err := rlp.DecodeBytes(bytes, &addr); err != nil {
+	streamOld := rlp.NewStream(bytes.NewReader(input), 0)
+	if err := streamOld.Decode(&temp); err != nil {
 		log.Fatalf("failed to RLP-decode Address: %v", err)
 	}
-	return &addr
+
+	return &Address{
+		RaftId:   temp.RaftId,
+		NodeId:   temp.NodeId,
+		Ip:       nil,
+		P2pPort:  temp.P2pPort,
+		RaftPort: temp.RaftPort,
+		Hostname: temp.Ip.String(),
+	}
 }

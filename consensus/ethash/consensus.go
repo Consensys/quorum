@@ -302,7 +302,7 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 	}
 	limit := parent.GasLimit / params.OriginalGasLimitBoundDivisor
 
-	if uint64(diff) >= limit || header.GasLimit < params.OriginnalMinGasLimit {
+	if uint64(diff) >= limit || header.GasLimit < params.OriginalMinGasLimit {
 		return fmt.Errorf("invalid gas limit: have %d, want %d += %d", header.GasLimit, parent.GasLimit, limit)
 	}
 	// Verify that the block number is parent's +1
