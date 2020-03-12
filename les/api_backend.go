@@ -173,7 +173,11 @@ func (b *LesApiBackend) ProtocolVersion() int {
 }
 
 func (b *LesApiBackend) SuggestPrice(ctx context.Context) (*big.Int, error) {
-	return b.gpo.SuggestPrice(ctx)
+	if b.ChainConfig().EnableGasPrice { //Quorum
+		return b.gpo.SuggestPrice(ctx)
+	} else {
+		return big.NewInt(0), nil
+	}
 }
 
 func (b *LesApiBackend) ChainDb() ethdb.Database {
