@@ -157,6 +157,12 @@ func enableWhisper(ctx *cli.Context) bool {
 func makeFullNode(ctx *cli.Context) *node.Node {
 	stack, cfg := makeConfigNode(ctx)
 
+	// this must be done first to make sure plugin manager is fully up.
+	// any fatal at this point is safe
+	if cfg.Node.Plugins != nil {
+		utils.RegisterPluginService(stack, &cfg.Node, ctx.Bool(utils.PluginSkipVerifyFlag.Name), ctx.Bool(utils.PluginLocalVerifyFlag.Name), ctx.String(utils.PluginPublicKeyFlag.Name))
+	}
+
 	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
 	if cfg.Node.IsPermissionEnabled() {
