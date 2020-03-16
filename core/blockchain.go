@@ -1293,8 +1293,21 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	return bc.writeBlockWithState(block, receipts, state, privateState)
 }
 
-//Quorum: used by raft's mintNewBlock to commit newly mined blocks
+// QUORUM
+// checks if the consensus engine is Rfat
+func(bc *BlockChain) isRaft() bool{
+	return bc.chainConfig.IsQuorum && bc.chainConfig.Istanbul == nil && bc.chainConfig.Clique == nil
+}
+
+// function specifically added for Raft consensus. This is called from mintNewBlock
+// to commit public and private state using bc.chainmu lock
+// added to avoid concurrent map errors in high stress conditions
 func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, privateState *state.StateDB) error {
+	// check if consensus is not Raft
+	if !bc.isRaft() {
+		return errors.New("error function can be called only for Raft consensus")
+	}
+
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
 	if _, err := state.Commit(deleteEmptyObjects); err != nil {
@@ -1305,7 +1318,7 @@ func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, priva
 	}
 	return nil
 }
-
+// END QUORUM
 
 // writeBlockWithState writes the block and all associated state to the database,
 // but is expects the chain mutex to be held.
@@ -1649,7 +1662,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 		if atomic.LoadInt32(&bc.procInterrupt) == 1 {
 			log.Debug("Premature abort during blocks processing")
 			// QUORUM
-			if bc.chainConfig.IsQuorum && bc.chainConfig.Istanbul == nil && bc.chainConfig.Clique == nil {
+			if bc.isRaft() {
 				// Only returns an error for raft mode
 				return it.index, events, coalescedLogs, ErrAbortBlocksProcessing
 			}
