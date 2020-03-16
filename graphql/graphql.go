@@ -357,12 +357,15 @@ func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, err
 	if err != nil || tx == nil {
 		return &hexutil.Bytes{}, err
 	}
-	privateInputData, err := private.P.Receive(tx.Data())
-	if err != nil || tx == nil {
-		return &hexutil.Bytes{}, err
+	if tx.IsPrivate() {
+		privateInputData, err := private.P.Receive(tx.Data())
+		if err != nil || tx == nil {
+			return &hexutil.Bytes{}, err
+		}
+		ret := hexutil.Bytes(privateInputData)
+		return &ret, nil
 	}
-	ret := hexutil.Bytes(privateInputData)
-	return &ret, nil
+	return &hexutil.Bytes{}, nil
 }
 
 // END QUORUM
