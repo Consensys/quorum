@@ -666,7 +666,6 @@ func (pm *ProtocolManager) isVerifier(rid uint16) bool {
 
 func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 	for {
-		log.Info("waiting to get role change event...")
 		select {
 		case role := <-roleC:
 			intRole, ok := role.(int)
@@ -674,7 +673,6 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 			if !ok {
 				panic("Couldn't cast role to int")
 			}
-			log.Info("raft role changed", "role", intRole)
 			if intRole == minterRole {
 				log.EmitCheckpoint(log.BecameMinter)
 				pm.minter.start()
@@ -690,7 +688,6 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 			pm.mu.Lock()
 			pm.role = intRole
 			pm.mu.Unlock()
-
 		case <-pm.quitSync:
 			return
 		}
@@ -1036,9 +1033,7 @@ func (pm *ProtocolManager) applyNewChainHead(block *types.Block) bool {
 			log.EmitCheckpoint(log.TxAccepted, "tx", tx.Hash().Hex())
 		}
 
-		pm.minter.stateMu.Lock()
 		_, err := pm.blockchain.InsertChain([]*types.Block{block})
-		pm.minter.stateMu.Unlock()
 
 		if err != nil {
 			if err == core.ErrAbortBlocksProcessing {

@@ -1874,8 +1874,9 @@ func (d *Downloader) syncWithPeerUntil(p *peerConnection, hash common.Hash, td *
 		if err != nil {
 			d.mux.Post(FailedEvent{err})
 		} else {
-			latest := d.lightchain.CurrentHeader()
-			d.mux.Post(DoneEvent{latest})
+			// Raft syncWithPeerUntil never use the latest field in DoneEvent
+			// therefore post empty DoneEvent only
+			d.mux.Post(DoneEvent{})
 		}
 	}()
 	if p.version < 62 {
