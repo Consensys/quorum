@@ -649,7 +649,7 @@ var (
 	}
 	IstanbulAllowedFutureBlockTimeFlag = cli.Uint64Flag{
 		Name:  "istanbul.allowedfutureblocktime",
-		Usage: "Time threshold allowed when detecting future blocks in seconds",
+		Usage: "Max time (in seconds) from current time allowed for blocks, before they're considered future blocks",
 		Value: eth.DefaultConfig.Istanbul.AllowedFutureBlockTime,
 	}
 
