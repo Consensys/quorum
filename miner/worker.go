@@ -593,7 +593,7 @@ func (w *worker) resultLoop() {
 				prvReceipts = make([]*types.Receipt, len(task.privateReceipts))
 				logs        []*types.Log
 			)
-			offset := 0
+			offset := len(task.receipts)
 			for i, receipt := range task.receipts {
 				// add block location fields
 				receipt.BlockHash = hash
@@ -608,9 +608,7 @@ func (w *worker) resultLoop() {
 					log.BlockHash = hash
 				}
 				logs = append(logs, receipt.Logs...)
-				offset = i
 			}
-			offset++
 
 			for i, receipt := range task.privateReceipts {
 				// add block location fields
