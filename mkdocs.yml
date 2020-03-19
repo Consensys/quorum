@@ -18,6 +18,7 @@ nav:
         - Creating a Network From Scratch: Getting Started/Creating-A-Network-From-Scratch.md
         - Running Quorum: Getting Started/running.md
         - Quorum API: Getting Started/api.md
+        - Quorum GraphQL: Getting Started/graphql.md
     - Consensus:
         - Consensus: Consensus/Consensus.md
         - Raft BFT:
@@ -96,7 +97,8 @@ nav:
     - How-To Guides:
         - Adding new nodes: How-To-Guides/adding_nodes.md
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
-        - Backup & Restore: Features/import-export.md
+        - Backup & Restore: How-To-Guides/import-export.md
+        - External Signer with Clef: How-To-Guides/external-signer.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
