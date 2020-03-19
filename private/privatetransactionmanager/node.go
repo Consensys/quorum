@@ -17,6 +17,15 @@ import (
 	"github.com/tv42/httpunix"
 )
 
+type storeRawReq struct {
+	Payload string `json:"payload"`
+	From    string `json:"from,omitempty"`
+}
+
+type storeRawResp struct {
+	Key string `json:"key"`
+}
+
 func launchNode(cfgPath string) (*exec.Cmd, error) {
 	cmd := exec.Command("constellation-node", cfgPath)
 	stderr, err := cmd.StderrPipe()
@@ -105,6 +114,37 @@ func (c *Client) SendPayload(pl []byte, b64From string, b64To []string) ([]byte,
 	}
 
 	return ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, res.Body))
+}
+
+func (c *Client) StorePayload(pl []byte, b64From string) ([]byte, error) {
+	storeRawReq := &storeRawReq{
+		Payload: base64.StdEncoding.EncodeToString(pl),
+		From:    b64From,
+	}
+	buf := new(bytes.Buffer)
+	if err := json.NewEncoder(buf).Encode(storeRawReq); err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", "http+unix://c/storeraw", buf)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	res, err := c.httpClient.Do(req)
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Non-200 status code: %+v", res)
+	}
+	// parse response
+	var storeRawResp storeRawResp
+	if err := json.NewDecoder(res.Body).Decode(&storeRawResp); err != nil {
+		return nil, err
+	}
+	encryptedPayloadHash, err := base64.StdEncoding.DecodeString(storeRawResp.Key)
+	if err != nil {
+		return nil, err
+	}
+	return encryptedPayloadHash, nil
 }
 
 func (c *Client) SendSignedPayload(signedPayload []byte, b64To []string) ([]byte, error) {
