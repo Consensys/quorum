@@ -1524,7 +1524,7 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	return types.NewTransaction(uint64(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 }
 
-// getHashFromTM send the actual private transaction payload to Tessera and returns the tm hash
+// setPrivateTransactionHash send the actual private transaction payload to Tessera and returns the tm hash
 func (args *SendTxArgs) setPrivateTransactionHash() error {
 	var input []byte
 	if args.Input != nil {
@@ -1535,18 +1535,16 @@ func (args *SendTxArgs) setPrivateTransactionHash() error {
 		log.Info("nil args.input & args.data")
 	}
 
-	if input != nil {
-		if len(input) > 0 {
-			//Send private transaction to local Constellation node
-			log.Info("sending private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err := private.P.Send(input, args.PrivateFrom, args.PrivateFor)
-			log.Info("sent private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			if err != nil {
-				return err
-			}
-			d := hexutil.Bytes(data)
-			args.Data = &d
+	if len(input) > 0 {
+		//Send private transaction to local Constellation node
+		log.Info("sending private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+		data, err := private.P.Send(input, args.PrivateFrom, args.PrivateFor)
+		log.Info("sent private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+		if err != nil {
+			return err
 		}
+		d := hexutil.Bytes(data)
+		args.Data = &d
 	}
 	return nil
 }
