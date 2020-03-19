@@ -8,8 +8,11 @@ You can migrate node by node and have mixed node network running during migratio
 ### Key features to be aware of
 * freezerdb - you can provide separate location for freezerdb via geth commandline arguments.
 
-```  --datadir.ancient value             Data directory for ancient chain segments (default = inside chaindata)```
+```  --datadir.ancient value             Data directory for ancient chain segments (default = inside chaindata) ```
 * enable account unlocking explicitly when an account is unlocked from geth commandline arguments
-```--allow-insecure-unlock             Allow insecure account unlocking when account-related RPCs are exposed by http```
+``` --allow-insecure-unlock             Allow insecure account unlocking when account-related RPCs are exposed by http ```
 
+* include `istanbulForkBlock` in `genesis.json` and update genesis
+
+* `--exitwhensynced` geth commandline argument won't work for Raft
 
