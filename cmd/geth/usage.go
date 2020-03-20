@@ -145,6 +145,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.PluginSkipVerifyFlag,
 			utils.PluginLocalVerifyFlag,
 			utils.PluginPublicKeyFlag,
+			utils.AllowedFutureBlockTimeFlag,
 		},
 	},
 	{
@@ -269,7 +270,6 @@ var AppHelpFlagGroups = []flagGroup{
 		Flags: []cli.Flag{
 			utils.IstanbulRequestTimeoutFlag,
 			utils.IstanbulBlockPeriodFlag,
-			utils.IstanbulAllowedFutureBlockTimeFlag,
 		},
 	},
 	{

@@ -250,6 +250,7 @@ func CreateDB(ctx *node.ServiceContext, config *Config, name string) (ethdb.Data
 func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainConfig, config *Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
 	// If proof-of-authority is requested, set it up
 	if chainConfig.Clique != nil {
+		chainConfig.Clique.AllowedFutureBlockTime = config.AllowedFutureBlockTime //Quorum
 		return clique.New(chainConfig.Clique, db)
 	}
 	// If Istanbul is requested, set it up
@@ -259,6 +260,7 @@ func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainCo
 		}
 		config.Istanbul.ProposerPolicy = istanbul.ProposerPolicy(chainConfig.Istanbul.ProposerPolicy)
 		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
+		config.Istanbul.AllowedFutureBlockTime = config.AllowedFutureBlockTime
 
 		return istanbulBackend.New(&config.Istanbul, ctx.NodeKey(), db)
 	}

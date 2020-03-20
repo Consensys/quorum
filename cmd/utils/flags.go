@@ -619,6 +619,11 @@ var (
 		Name:  "permissioned",
 		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
 	}
+	AllowedFutureBlockTimeFlag = cli.Uint64Flag{
+		Name:  "allowedfutureblocktime",
+		Usage: "Max time (in seconds) from current time allowed for blocks, before they're considered future blocks",
+		Value: 0,
+	}
 	// Plugins settings
 	PluginSettingsFlag = cli.StringFlag{
 		Name:  "plugins",
@@ -646,11 +651,6 @@ var (
 		Name:  "istanbul.blockperiod",
 		Usage: "Default minimum difference between two consecutive block's timestamps in seconds",
 		Value: eth.DefaultConfig.Istanbul.BlockPeriod,
-	}
-	IstanbulAllowedFutureBlockTimeFlag = cli.Uint64Flag{
-		Name:  "istanbul.allowedfutureblocktime",
-		Usage: "Max time (in seconds) from current time allowed for blocks, before they're considered future blocks",
-		Value: eth.DefaultConfig.Istanbul.AllowedFutureBlockTime,
 	}
 
 	// Metrics flags
@@ -1206,9 +1206,6 @@ func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
 	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
 		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
 	}
-	if ctx.GlobalIsSet(IstanbulAllowedFutureBlockTimeFlag.Name) {
-		cfg.Istanbul.AllowedFutureBlockTime = ctx.GlobalUint64(IstanbulAllowedFutureBlockTimeFlag.Name)
-	}
 }
 
 // checkExclusive verifies that only a single instance of the provided flags was
@@ -1277,6 +1274,8 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setTxPool(ctx, &cfg.TxPool)
 	setEthash(ctx, cfg)
 	setIstanbul(ctx, cfg)
+
+	cfg.AllowedFutureBlockTime = ctx.GlobalUint64(AllowedFutureBlockTimeFlag.Name) //Quorum
 
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
