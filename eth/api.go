@@ -289,7 +289,8 @@ func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 }
 
 // DumpBlock retrieves the entire state of the database at a given block.
-func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ string) (state.Dump, error) {
+// Quorum adds an additional parameter to support private state dump
+func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ *string) (state.Dump, error) {
 	var publicState, privateState *state.StateDB
 	var err error
 	if blockNr == rpc.PendingBlockNumber {
@@ -313,13 +314,10 @@ func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ string) (state
 		}
 	}
 
-	switch typ {
-	case "public":
-		return publicState.RawDump(), nil
-	case "private":
+	if typ != nil && *typ == "private" {
 		return privateState.RawDump(), nil
-	default:
-		return state.Dump{}, fmt.Errorf("unknown type: '%s'", typ)
+	} else {
+		return publicState.RawDump(), nil
 	}
 }
 
