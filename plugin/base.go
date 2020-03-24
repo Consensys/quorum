@@ -13,12 +13,10 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-
-	"github.com/hashicorp/go-hclog"
-
 	iplugin "github.com/ethereum/go-ethereum/internal/plugin"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/plugin/initializer"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 )
 

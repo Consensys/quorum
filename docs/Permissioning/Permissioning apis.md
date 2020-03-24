@@ -849,7 +849,6 @@ The table below indicates the numeric value for various account status.
 | Not In List                                           |                 0 |
 | Pending Approval                                      |                 1 |
 | Active                                                |                 2 |
-| Inactive                                              |                 3 |
 | Suspended                                             |                 4 |
 | Blacklisted                                           |                 5 |
 | Revoked                                               |                 6 |

@@ -34,6 +34,9 @@ import (
 	"text/template"
 	"time"
 
+	pcsclite "github.com/gballet/go-libpcsclite"
+	"gopkg.in/urfave/cli.v1"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -69,11 +72,10 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/permission"
 	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/private"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
-	pcsclite "github.com/gballet/go-libpcsclite"
-	"gopkg.in/urfave/cli.v1"
 )
 
 var (
@@ -1438,15 +1440,6 @@ func setEthash(ctx *cli.Context, cfg *eth.Config) {
 	}
 }
 
-func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
-	if ctx.GlobalIsSet(IstanbulRequestTimeoutFlag.Name) {
-		cfg.Istanbul.RequestTimeout = ctx.GlobalUint64(IstanbulRequestTimeoutFlag.Name)
-	}
-	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
-		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
-	}
-}
-
 func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	if ctx.GlobalIsSet(MinerNotifyFlag.Name) {
 		cfg.Notify = strings.Split(ctx.GlobalString(MinerNotifyFlag.Name), ",")
@@ -1501,6 +1494,20 @@ func setWhitelist(ctx *cli.Context, cfg *eth.Config) {
 		}
 		cfg.Whitelist[number] = hash
 	}
+}
+
+// Quorum
+func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
+	if ctx.GlobalIsSet(IstanbulRequestTimeoutFlag.Name) {
+		cfg.Istanbul.RequestTimeout = ctx.GlobalUint64(IstanbulRequestTimeoutFlag.Name)
+	}
+	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
+		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
+	}
+}
+
+func setRaft(ctx *cli.Context, cfg *eth.Config) {
+	cfg.RaftMode = ctx.GlobalBool(RaftModeFlag.Name)
 }
 
 // CheckExclusive verifies that only a single instance of the provided flags was
@@ -1574,12 +1581,15 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setEthash(ctx, cfg)
 	setMiner(ctx, &cfg.Miner)
 	setWhitelist(ctx, cfg)
-	setIstanbul(ctx, cfg)
 	setLes(ctx, cfg)
 
 	if ctx.GlobalIsSet(ContractExtensionServerFlag.Name) {
 		cfg.ContractExtensionServer = ctx.GlobalString(ContractExtensionServerFlag.Name)
 	}
+
+	// Quorum
+	setIstanbul(ctx, cfg)
+	setRaft(ctx, cfg)
 
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
@@ -1778,7 +1788,7 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 }
 
 // Configure smart-contract-based permissioning service
-func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
+func RegisterPermissionService(stack *node.Node) {
 	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
 		permissionConfig, err := permission.ParsePermissionConfig(stack.DataDir())
 		if err != nil {
@@ -1794,6 +1804,54 @@ func RegisterPermissionService(ctx *cli.Context, stack *node.Node) {
 		Fatalf("Failed to register the permission service: %v", err)
 	}
 	log.Info("permission service registered")
+}
+
+func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethChan <-chan *eth.Ethereum) {
+	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
+	datadir := ctx.GlobalString(DataDirFlag.Name)
+	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
+	useDns := ctx.GlobalBool(RaftDNSEnabledFlag.Name)
+	raftPort := uint16(ctx.GlobalInt(RaftPortFlag.Name))
+
+	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+		privkey := nodeCfg.NodeKey()
+		strId := enode.PubkeyToIDV4(&privkey.PublicKey).String()
+		blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
+		peers := nodeCfg.StaticNodes()
+
+		var myId uint16
+		var joinExisting bool
+
+		if joinExistingId > 0 {
+			myId = uint16(joinExistingId)
+			joinExisting = true
+		} else if len(peers) == 0 {
+			Fatalf("Raft-based consensus requires either (1) an initial peers list (in static-nodes.json) including this enode hash (%v), or (2) the flag --raftjoinexisting RAFT_ID, where RAFT_ID has been issued by an existing cluster member calling `raft.addPeer(ENODE_ID)` with an enode ID containing this node's enode hash.", strId)
+		} else {
+			peerIds := make([]string, len(peers))
+
+			for peerIdx, peer := range peers {
+				if !peer.HasRaftPort() {
+					Fatalf("raftport querystring parameter not specified in static-node enode ID: %v. please check your static-nodes.json file.", peer.String())
+				}
+
+				peerId := peer.ID().String()
+				peerIds[peerIdx] = peerId
+				if peerId == strId {
+					myId = uint16(peerIdx) + 1
+				}
+			}
+
+			if myId == 0 {
+				Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
+			}
+		}
+
+		ethereum := <-ethChan
+		return raft.New(ctx, ethereum.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, useDns)
+	}); err != nil {
+		Fatalf("Failed to register the Raft service: %v", err)
+	}
 }
 
 func RegisterExtensionService(stack *node.Node, thirdpartyunixfile string, ethChan <-chan *eth.Ethereum) {

@@ -388,7 +388,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 
 	// Quorum
 	if args.IsPrivate() {
-		err := args.setPrivateTransactionHash()
+		err := args.setPrivateTransactionHash(true)
 		if err != nil {
 			return common.Hash{}, err
 		}
@@ -1524,8 +1524,8 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	return types.NewTransaction(uint64(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 }
 
-// getHashFromTM send the actual private transaction payload to Tessera and returns the tm hash
-func (args *SendTxArgs) setPrivateTransactionHash() error {
+// setPrivateTransactionHash send the actual private transaction payload to Tessera and returns the tm hash
+func (args *SendTxArgs) setPrivateTransactionHash(sendTxn bool) error {
 	var input []byte
 	if args.Input != nil {
 		input = []byte(*args.Input)
@@ -1535,18 +1535,25 @@ func (args *SendTxArgs) setPrivateTransactionHash() error {
 		log.Info("nil args.input & args.data")
 	}
 
-	if input != nil {
-		if len(input) > 0 {
+	if len(input) > 0 {
+		var data []byte
+		var err error
+		if sendTxn {
 			//Send private transaction to local Constellation node
 			log.Info("sending private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			data, err := private.P.Send(input, args.PrivateFrom, args.PrivateFor)
+			data, err = private.P.Send(input, args.PrivateFrom, args.PrivateFor)
 			log.Info("sent private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
-			if err != nil {
-				return err
-			}
-			d := hexutil.Bytes(data)
-			args.Data = &d
+		} else {
+			log.Info("storing private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom)
+			data, err = private.P.StoreRaw(input, args.PrivateFrom)
+			log.Info("stored private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom)
 		}
+
+		if err != nil {
+			return err
+		}
+		d := hexutil.Bytes(data)
+		args.Data = &d
 	}
 	return nil
 }
@@ -1603,7 +1610,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 
 	// Quorum
 	if args.IsPrivate() {
-		err = args.setPrivateTransactionHash()
+		err = args.setPrivateTransactionHash(true)
 		if err != nil {
 			return common.Hash{}, err
 		}
@@ -1641,9 +1648,7 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 	// Assemble the transaction and obtain rlp
 	// Quorum
 	if args.IsPrivate() {
-		//TODO: Currently setPrivateTransactionHash is calling /sendraw which will distribute the private payload
-		//TODO: Ideally this should call /storeraw equivalent to ensure that the payload stays local. To be discussed further
-		err := args.setPrivateTransactionHash()
+		err := args.setPrivateTransactionHash(false)
 		if err != nil {
 			return nil, err
 		}
