@@ -319,14 +319,10 @@ func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ *string) (stat
 		}
 	}
 
-	switch *typ {
-	case "public":
-		return publicState.RawDump(false, false, true), nil
-	case "private":
+	if typ != nil && *typ == "private" {
 		return privateState.RawDump(false, false, true), nil
-	default:
-		return state.Dump{}, fmt.Errorf("unknown type: '%s'", typ)
 	}
+	return publicState.RawDump(false, false, true), nil
 }
 
 // PrivateDebugAPI is the collection of Ethereum full node APIs exposed over
