@@ -41,13 +41,18 @@
     Unfortunately, that is not possible. Quorum nodes configured with raft will only be able to work correctly with other nodes running raft consensus. This applies to all other supported consensus algorithms.
 
 ??? info "Quorum version compatibility table"
-    |                                     | Adding new node v2.0.x | Adding new node v2.1.x | Adding new node v2.2.x |
-    | ----------------------------------- | ---------------------- | ---------------------- | ---------------------- |
-    | Existing chain consisting of v2.0.x | <span style="color:green;">block sync<br /> public txn<br /> private txn</span>  | <span style="color:red;">block sync</span>  | <span style="color:red;">block sync</span> |
-    | Existing chain consisting of v2.1.x | <span style="color:red;">block sync</span>  | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> |
-    | Existing chain consisting of v2.2.x | <span style="color:red;">block sync</span>  | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> |
+    |                                     | Adding new node v2.0.x | Adding new node v2.1.x - v2.5.x |
+    | ----------------------------------- | ---------------------- | ---------------------- |
+    | Existing chain consisting of v2.0.x | <span style="color:green;">block sync<br /> public txn<br /> private txn</span>  | <span style="color:red;">block sync</span>  |
+    | Existing chain consisting of v2.1.x - v2.5.0 | <span style="color:red;">block sync</span>  | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> |
 
     **Note:** While every Quorum v2 client will be able to connect to any other v2 client, the usefullness will be severely degraded. <span style="color:red;">Red color</span> signifies that while connectivity is possible, <span style="color:red;">red colored</span> versions will be unable to send public or private txns to the rest of the net due to the EIP155 changes in the signer implemented in newer versions.
+
+??? info "Quorum to Geth version mapping"
+    | Quorum v2.0.x - v2.1.1 | Quorum v2.2.0 - v2.2.1 | Quorum v2.2.2 - v2.5.0 |
+    | ---------------------- | ---------------------- | ---------------------- |
+    | Geth v1.7.2            | Geth v1.8.12           | Geth v1.8.18           |
+
 
 ### Tessera FAQ
 
