@@ -80,23 +80,6 @@ matrix:
           sudo chown root:$USER /etc/fuse.conf
           go run build/ci.go install
           QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol go run build/ci.go test -coverage $TEST_PACKAGES
-    - if: tag IS blank
-      os: osx
-      script:
-        - |
-          echo "Increase the maximum number of open file descriptors on macOS"
-          NOFILE=20480
-          sudo sysctl -w kern.maxfiles=$NOFILE
-          sudo sysctl -w kern.maxfilesperproc=$NOFILE
-          sudo launchctl limit maxfiles $NOFILE $NOFILE
-          sudo launchctl limit maxfiles
-          ulimit -S -n $NOFILE
-          ulimit -n
-          unset -f cd # workaround for https://github.com/travis-ci/travis-ci/issues/8703
-
-          go run build/ci.go install
-          QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol go run build/ci.go test -coverage $TEST_PACKAGES
-
     - if: tag IS present
       os: linux
       dist: xenial
