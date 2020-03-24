@@ -184,6 +184,32 @@ func UploadSFTP(identityFile, host, dir string, files []string) error {
 	return sftp.Wait()
 }
 
+// ExpandPackagesNoVendor expands a cmd/go import path pattern, skipping
+// vendored packages.
+func ExpandPackagesNoVendor(patterns []string) []string {
+	expand := false
+	for _, pkg := range patterns {
+		if strings.Contains(pkg, "...") {
+			expand = true
+		}
+	}
+	if expand {
+		cmd := GoTool("list", patterns...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Fatalf("package listing failed: %v\n%s", err, string(out))
+		}
+		var packages []string
+		for _, line := range strings.Split(string(out), "\n") {
+			if !strings.Contains(line, "/vendor/") {
+				packages = append(packages, strings.TrimSpace(line))
+			}
+		}
+		return packages
+	}
+	return patterns
+}
+
 // Read QUORUM_IGNORE_TEST_PACKAGES env and remove from packages
 func IgnorePackages(packages []string) []string {
 	ignore := os.Getenv("QUORUM_IGNORE_TEST_PACKAGES")

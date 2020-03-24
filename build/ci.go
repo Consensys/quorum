@@ -322,6 +322,9 @@ func doTest(cmdline []string) {
 	if len(flag.CommandLine.Args()) > 0 {
 		packages = flag.CommandLine.Args()
 	}
+	// Quorum
+	// Ignore not Quorum related packages to accelerate build
+	packages = build.ExpandPackagesNoVendor(packages)
 	packages = build.IgnorePackages(packages)
 
 	// Run the actual tests.
