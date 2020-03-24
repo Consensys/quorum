@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/naoina/toml"
-
 	testifyassert "github.com/stretchr/testify/assert"
 )
 

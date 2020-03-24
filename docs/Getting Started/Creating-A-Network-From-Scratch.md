@@ -55,13 +55,16 @@ Let's go through step by step instructions to setup a Quorum node with Raft cons
      "config": {
        "homesteadBlock": 0,
        "byzantiumBlock": 0,
+       "constantinopleBlock": 0,
        "chainId": 10,
        "eip150Block": 0,
        "eip155Block": 0,
        "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
        "eip158Block": 0,
+       "maxCodeSize": 35,
+       "maxCodeSizeChangeBlock" : 0,
        "isQuorum": true
-      },
+     },
      "difficulty": "0x0",
      "extraData": "0x0000000000000000000000000000000000000000000000000000000000000000",
      "gasLimit": "0xE0000000",
