@@ -99,6 +99,10 @@ func (spm *StubPrivateTransactionManager) Send(data []byte, from string, to []st
 	return nil, fmt.Errorf("to be implemented")
 }
 
+func (spm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) ([]byte, error) {
+	return nil, fmt.Errorf("to be implemented")
+}
+
 func (spm *StubPrivateTransactionManager) SendSignedTx(data []byte, to []string) ([]byte, error) {
 	return nil, fmt.Errorf("to be implemented")
 }

@@ -52,7 +52,7 @@ func TestQuorumSchema(t *testing.T) {
 	// Test private transaction
 	privateTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte("key"))
 	privateTx.SetPrivate()
-	privateTxQuery := &Transaction{tx:privateTx}
+	privateTxQuery := &Transaction{tx: privateTx}
 	isPrivate, err := privateTxQuery.IsPrivate(context.Background())
 	if err != nil {
 		t.Fatalf("Expect no error: %v", err)
@@ -69,7 +69,7 @@ func TestQuorumSchema(t *testing.T) {
 	}
 	// Test public transaction
 	publicTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte("key"))
-	publicTxQuery := &Transaction{tx:publicTx}
+	publicTxQuery := &Transaction{tx: publicTx}
 	isPrivate, err = publicTxQuery.IsPrivate(context.Background())
 	if err != nil {
 		t.Fatalf("Expect no error: %v", err)
@@ -91,6 +91,10 @@ type StubPrivateTransactionManager struct {
 }
 
 func (spm *StubPrivateTransactionManager) Send(data []byte, from string, to []string) ([]byte, error) {
+	return nil, fmt.Errorf("to be implemented")
+}
+
+func (spm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) ([]byte, error) {
 	return nil, fmt.Errorf("to be implemented")
 }
 
