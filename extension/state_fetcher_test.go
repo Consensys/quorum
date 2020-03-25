@@ -1,16 +1,18 @@
 package extension
 
 import (
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/ethdb"
 )
 
 func TestDumpAddressWhenFound(t *testing.T) {
-	db := ethdb.NewMemDatabase()
+	//db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
+
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
@@ -31,7 +33,8 @@ func TestDumpAddressWhenFound(t *testing.T) {
 }
 
 func TestDumpAddressWhenNotFound(t *testing.T) {
-	db := ethdb.NewMemDatabase()
+	//db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	statedb.Commit(false)
 
