@@ -102,7 +102,7 @@ func (s *StateSuite) TestDumpAddress(c *checker.C) {
 	got, _ := s.state.DumpAddress(addressToDump)
 	out, _ := json.Marshal(got)
 
-	want := `{"balance":"22","nonce":0,"root":"56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470","code":"","storage":{}}`
+	want := `{"balance":"22","nonce":0,"root":"56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"}`
 
 	if string(out) != want {
 		c.Errorf("dump mismatch:\ngot: %s\nwant: %s\n", string(out), want)
