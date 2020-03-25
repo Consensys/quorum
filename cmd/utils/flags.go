@@ -1806,7 +1806,7 @@ func RegisterPermissionService(stack *node.Node) {
 	log.Info("permission service registered")
 }
 
-func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethChan <-chan *eth.Ethereum) {
+func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethChan chan *eth.Ethereum) {
 	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(DataDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
@@ -1848,13 +1848,14 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 		}
 
 		ethereum := <-ethChan
+		ethChan <- ethereum
 		return raft.New(ctx, ethereum.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, useDns)
 	}); err != nil {
 		Fatalf("Failed to register the Raft service: %v", err)
 	}
 }
 
-func RegisterExtensionService(stack *node.Node, thirdpartyunixfile string, ethChan <-chan *eth.Ethereum) {
+func RegisterExtensionService(stack *node.Node, thirdpartyunixfile string, ethChan chan *eth.Ethereum) {
 	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
 		factory, err := extension.NewServicesFactory(stack, private.P, thirdpartyunixfile, <-ethChan)
 		if err != nil {
