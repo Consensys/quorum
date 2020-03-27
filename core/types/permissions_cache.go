@@ -110,6 +110,24 @@ type PermissionConfig struct {
 	SubOrgBreadth *big.Int         `json:"subOrgBreadth"`
 }
 
+var syncStarted = false
+
+var DefaultAccess = FullAccess
+var QIP714BlockReached = false
+var networkAdminRole string
+var orgAdminRole string
+
+const defaultOrgMapLimit = 2000
+const defaultRoleMapLimit = 2500
+const defaultNodeMapLimit = 1000
+const defaultAccountMapLimit = 6000
+
+var OrgInfoMap = NewOrgCache()
+var NodeInfoMap = NewNodeCache()
+var RoleInfoMap = NewRoleCache()
+var AcctInfoMap = NewAcctCache()
+
+
 type OrgKey struct {
 	OrgId string
 }
@@ -120,6 +138,7 @@ type OrgCache struct {
 	evicted           bool
 	populateCacheFunc func(orgId string) *OrgInfo
 }
+
 
 func (o *OrgCache) PopulateCacheFunc(cf func(string) *OrgInfo) {
 	o.populateCacheFunc = cf
@@ -211,27 +230,6 @@ func NewAcctCache() *AcctCache {
 	acctCache.c, _ = lru.NewWithEvict(defaultAccountMapLimit, onEvictedFunc)
 	return &acctCache
 }
-
-var syncStarted = false
-
-var DefaultAccess = FullAccess
-var QIP714BlockReached = false
-var networkAdminRole string
-var orgAdminRole string
-
-//const defaultOrgMapLimit = 2000
-//const defaultRoleMapLimit = 2500
-//const defaultNodeMapLimit = 1000
-//const defaultAccountMapLimit = 6000
-const defaultOrgMapLimit = 2
-const defaultRoleMapLimit = 2
-const defaultNodeMapLimit = 2
-const defaultAccountMapLimit = 2
-
-var OrgInfoMap = NewOrgCache()
-var NodeInfoMap = NewNodeCache()
-var RoleInfoMap = NewRoleCache()
-var AcctInfoMap = NewAcctCache()
 
 func (pc *PermissionConfig) IsEmpty() bool {
 	return pc.InterfAddress == common.HexToAddress("0x0")
