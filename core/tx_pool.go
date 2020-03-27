@@ -159,7 +159,7 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	TransactionSizeLimit: 64,
 	MaxCodeSize:          24,
 
-	PriceLimit: 0, //Quorum
+	PriceLimit: 1,
 	PriceBump:  10,
 
 	AccountSlots: 16,
@@ -178,7 +178,7 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 		log.Warn("Sanitizing invalid txpool journal time", "provided", conf.Rejournal, "updated", time.Second)
 		conf.Rejournal = time.Second
 	}
-	if conf.PriceLimit < 1 && DefaultTxPoolConfig.PriceLimit > 0 {
+	if conf.PriceLimit < 1 {
 		log.Warn("Sanitizing invalid txpool price limit", "provided", conf.PriceLimit, "updated", DefaultTxPoolConfig.PriceLimit)
 		conf.PriceLimit = DefaultTxPoolConfig.PriceLimit
 	}
@@ -620,7 +620,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 	// Drop non-local transactions under our own minimal accepted gas price
 	local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
-	if !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
+	if !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 && pool.chainconfig.EnableGasPrice {
 		return ErrUnderpriced
 	}
 	// Ensure the transaction adheres to nonce ordering
