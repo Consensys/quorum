@@ -170,11 +170,13 @@ func (rn *RawNode) ProposeConfChange(cc pb.ConfChange) error {
 func (rn *RawNode) ApplyConfChange(cc pb.ConfChange) *pb.ConfState {
 	if cc.NodeID == None {
 		rn.raft.resetPendingConf()
-		return &pb.ConfState{Nodes: rn.raft.nodes()}
+		return &pb.ConfState{Nodes: rn.raft.voters(), Learners: rn.raft.learners()}
 	}
 	switch cc.Type {
 	case pb.ConfChangeAddNode:
 		rn.raft.addNode(cc.NodeID)
+	case pb.ConfChangeAddLearnerNode:
+		rn.raft.addLearner(cc.NodeID)
 	case pb.ConfChangeRemoveNode:
 		rn.raft.removeNode(cc.NodeID)
 	case pb.ConfChangeUpdateNode:
@@ -182,7 +184,7 @@ func (rn *RawNode) ApplyConfChange(cc pb.ConfChange) *pb.ConfState {
 	default:
 		panic("unexpected conf type")
 	}
-	return &pb.ConfState{Nodes: rn.raft.nodes()}
+	return &pb.ConfState{Nodes: rn.raft.voters(), Learners: rn.raft.learners()}
 }
 
 // Step advances the state machine using the given message.
@@ -191,7 +193,7 @@ func (rn *RawNode) Step(m pb.Message) error {
 	if IsLocalMsg(m.Type) {
 		return ErrStepLocalMsg
 	}
-	if _, ok := rn.raft.prs[m.From]; ok || !IsResponseMsg(m.Type) {
+	if pr := rn.raft.getProgress(m.From); pr != nil || !IsResponseMsg(m.Type) {
 		return rn.raft.Step(m)
 	}
 	return ErrStepPeerNotFound

@@ -544,17 +544,14 @@ func (w *worker) taskLoop() {
 			w.pendingMu.Lock()
 			w.pendingTasks[w.engine.SealHash(task.block.Header())] = task
 			w.pendingMu.Unlock()
-			go w.seal(task.block, stopCh)
+
+			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
+				log.Warn("Block sealing failed", "err", err)
+			}
 		case <-w.exitCh:
 			interrupt()
 			return
 		}
-	}
-}
-
-func (w *worker) seal(b *types.Block, stop <-chan struct{}) {
-	if err := w.engine.Seal(w.chain, b, w.resultCh, stop); err != nil {
-		log.Warn("Block sealing failed", "err", err)
 	}
 }
 
@@ -585,39 +582,29 @@ func (w *worker) resultLoop() {
 			}
 			// Different block could share same sealhash, deep copy here to prevent write-write conflict.
 			var logs []*types.Log
-			work := w.current
 
-			for _, receipt := range append(work.receipts, work.privateReceipts...) {
+			for _, receipt := range append(task.receipts, task.privateReceipts...) {
 				// Update the block hash in all logs since it is now available and not when the
 				// receipt/log of individual transactions were created.
 				for _, log := range receipt.Logs {
 					log.BlockHash = hash
 				}
+				logs = append(logs, receipt.Logs...)
 			}
 
-			for _, log := range append(work.state.Logs(), work.privateState.Logs()...) {
-				log.BlockHash = hash
-			}
-
-			// write private transacions
-			privateStateRoot, _ := work.privateState.Commit(w.config.IsEIP158(block.Number()))
-			core.WritePrivateStateRoot(w.eth.ChainDb(), block.Root(), privateStateRoot)
-			allReceipts := mergeReceipts(work.receipts, work.privateReceipts)
+			allReceipts := mergeReceipts(task.receipts, task.privateReceipts)
 
 			// Commit block and state to database.
-			w.mu.Lock()
-			stat, err := w.chain.WriteBlockWithState(block, allReceipts, work.state, nil)
-			w.mu.Unlock()
+			stat, err := w.chain.WriteBlockWithState(block, allReceipts, task.state, task.privateState)
+
 			if err != nil {
-				log.Error("Failed writWriteBlockAndStating block to chain", "err", err)
+				log.Error("Failed writing block to chain", "err", err)
 				continue
 			}
-
-			if err := core.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), work.privateReceipts); err != nil {
+			if err := core.WritePrivateBlockBloom(w.eth.ChainDb(), block.NumberU64(), task.privateReceipts); err != nil {
 				log.Error("Failed writing private block bloom", "err", err)
 				continue
 			}
-
 			log.Info("Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
 				"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
 
@@ -625,8 +612,6 @@ func (w *worker) resultLoop() {
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 			var events []interface{}
-			logs = append(work.state.Logs(), work.privateState.Logs()...)
-
 			switch stat {
 			case core.CanonStatTy:
 				events = append(events, core.ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
@@ -1023,8 +1008,8 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 
 	privateReceipts := make([]*types.Receipt, len(w.current.privateReceipts))
 	for i, l := range w.current.privateReceipts {
-		receipts[i] = new(types.Receipt)
-		*receipts[i] = *l
+		privateReceipts[i] = new(types.Receipt)
+		*privateReceipts[i] = *l
 	}
 
 	s := w.current.state.Copy()

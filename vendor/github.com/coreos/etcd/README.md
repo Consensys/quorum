@@ -1,9 +1,12 @@
 # etcd
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/coreos/etcd)](https://goreportcard.com/report/github.com/coreos/etcd)
-[![Build Status](https://travis-ci.org/coreos/etcd.svg?branch=master)](https://travis-ci.org/coreos/etcd)
-[![Build Status](https://semaphoreci.com/api/v1/coreos/etcd/branches/master/shields_badge.svg)](https://semaphoreci.com/coreos/etcd)
-[![Docker Repository on Quay.io](https://quay.io/repository/coreos/etcd-git/status "Docker Repository on Quay.io")](https://quay.io/repository/coreos/etcd-git)
+[![Go Report Card](https://goreportcard.com/badge/github.com/coreos/etcd?style=flat-square)](https://goreportcard.com/report/github.com/coreos/etcd)
+[![Coverage](https://codecov.io/gh/coreos/etcd/branch/master/graph/badge.svg)](https://codecov.io/gh/coreos/etcd)
+[![Build Status Travis](https://img.shields.io/travis/coreos/etcdlabs.svg?style=flat-square&&branch=master)](https://travis-ci.org/coreos/etcd)
+[![Build Status Semaphore](https://semaphoreci.com/api/v1/coreos/etcd/branches/master/shields_badge.svg)](https://semaphoreci.com/coreos/etcd)
+[![Godoc](http://img.shields.io/badge/go-documentation-blue.svg?style=flat-square)](https://godoc.org/github.com/coreos/etcd)
+[![Releases](https://img.shields.io/github/release/coreos/etcd/all.svg?style=flat-square)](https://github.com/coreos/etcd/releases)
+[![LICENSE](https://img.shields.io/github/license/coreos/etcd.svg?style=flat-square)](https://github.com/coreos/etcd/blob/master/LICENSE)
 
 **Note**: The `master` branch may be in an *unstable or even broken state* during development. Please use [releases][github-release] instead of the `master` branch in order to get stable binaries.
 
@@ -11,7 +14,7 @@
 
 ![etcd Logo](logos/etcd-horizontal-color.png)
 
-etcd is a distributed, consistent key-value store for shared configuration and service discovery, with a focus on being:
+etcd is a distributed reliable key-value store for the most critical data of a distributed system, with a focus on being:
 
 * *Simple*: well-defined, user-facing API (gRPC)
 * *Secure*: automatic TLS with optional client cert authentication
@@ -33,24 +36,45 @@ See [etcdctl][etcdctl] for a simple command line client.
 [etcdctl]: https://github.com/coreos/etcd/tree/master/etcdctl
 [etcd-tests]: http://dash.etcd.io
 
+## Community meetings
+
+etcd contributors and maintainers have bi-weekly meetings at 11:00 AM (USA Pacific) on Tuesdays. There is an [iCalendar][rfc5545] format for the meetings [here](meeting.ics). Anyone is welcome to join via [Zoom][zoom] or audio-only: +1 669 900 6833. An initial agenda will be posted to the [shared Google docs][shared-meeting-notes] a day before each meeting, and everyone is welcome to suggest additional topics or other agendas.
+
+[rfc5545]: https://tools.ietf.org/html/rfc5545
+[zoom]: https://coreos.zoom.us/j/854793406
+[shared-meeting-notes]: https://docs.google.com/document/d/1DbVXOHvd9scFsSmL2oNg4YGOHJdXqtx583DmeVWrB_M/edit#
+
 ## Getting started
 
 ### Getting etcd
 
-The easiest way to get etcd is to use one of the pre-built release binaries which are available for OSX, Linux, Windows, AppC (ACI), and Docker. Instructions for using these binaries are on the [GitHub releases page][github-release].
+The easiest way to get etcd is to use one of the pre-built release binaries which are available for OSX, Linux, Windows, [rkt][rkt], and Docker. Instructions for using these binaries are on the [GitHub releases page][github-release].
 
-For those wanting to try the very latest version, you can [build the latest version of etcd][dl-build] from the `master` branch.
-You will first need [*Go*](https://golang.org/) installed on your machine (version 1.6+ is required).
-All development occurs on `master`, including new features and bug fixes.
-Bug fixes are first targeted at `master` and subsequently ported to release branches, as described in the [branch management][branch-management] guide.
+For those wanting to try the very latest version, [build the latest version of etcd][dl-build] from the `master` branch. This first needs [*Go*](https://golang.org/) installed (version 1.9+ is required). All development occurs on `master`, including new features and bug fixes. Bug fixes are first targeted at `master` and subsequently ported to release branches, as described in the [branch management][branch-management] guide.
 
+[rkt]: https://github.com/rkt/rkt/releases/
 [github-release]: https://github.com/coreos/etcd/releases/
 [branch-management]: ./Documentation/branch_management.md
 [dl-build]: ./Documentation/dl_build.md#build-the-latest-version
 
 ### Running etcd
 
-First start a single-member cluster of etcd:
+First start a single-member cluster of etcd.
+
+If etcd is installed using the [pre-built release binaries][github-release], run it from the installation location as below:
+
+```sh
+/tmp/etcd-download-test/etcd
+```
+The etcd command can be simply run as such if it is moved to the system path as below:
+
+```sh
+mv /tmp/etcd-download-test/etcd /usr/locale/bin/
+
+etcd
+```
+
+If etcd is [build from the master branch][dl-build], run it as below:
 
 ```sh
 ./bin/etcd
@@ -75,9 +99,9 @@ That's it! etcd is now running and serving client requests. For more
 
 ### etcd TCP ports
 
-The [official etcd ports][iana-ports] are 2379 for client requests, and 2380 for peer communication. 
+The [official etcd ports][iana-ports] are 2379 for client requests, and 2380 for peer communication.
 
-[iana-ports]: https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=etcd
+[iana-ports]: http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.txt
 
 ### Running a local etcd cluster
 
@@ -89,13 +113,13 @@ Our [Procfile script](./Procfile) will set up a local example cluster. Start it 
 goreman start
 ```
 
-This will bring up 3 etcd members `infra1`, `infra2` and `infra3` and etcd proxy `proxy`, which runs locally and composes a cluster.
+This will bring up 3 etcd members `infra1`, `infra2` and `infra3` and etcd `grpc-proxy`, which runs locally and composes a cluster.
 
 Every cluster member and proxy accepts key value reads and key value writes.
 
 ### Running etcd on Kubernetes
 
-If you want to run etcd cluster on Kubernetes, try [etcd operator](https://github.com/coreos/etcd-operator).
+To run an etcd cluster on Kubernetes, try [etcd operator](https://github.com/coreos/etcd-operator).
 
 ### Next steps
 
@@ -105,7 +129,7 @@ Now it's time to dig into the full etcd API and other guides.
 - Explore the full gRPC [API][api].
 - Set up a [multi-machine cluster][clustering].
 - Learn the [config format, env variables and flags][configuration].
-- Find [language bindings and tools][libraries-and-tools].
+- Find [language bindings and tools][integrations].
 - Use TLS to [secure an etcd cluster][security].
 - [Tune etcd][tuning].
 
@@ -113,7 +137,7 @@ Now it's time to dig into the full etcd API and other guides.
 [api]: ./Documentation/dev-guide/api_reference_v3.md
 [clustering]: ./Documentation/op-guide/clustering.md
 [configuration]: ./Documentation/op-guide/configuration.md
-[libraries-and-tools]: ./Documentation/libraries-and-tools.md
+[integrations]: ./Documentation/integrations.md
 [security]: ./Documentation/op-guide/security.md
 [tuning]: ./Documentation/tuning.md
 
@@ -130,10 +154,8 @@ See [CONTRIBUTING](CONTRIBUTING.md) for details on submitting patches and the co
 
 ## Reporting bugs
 
-See [reporting bugs](Documentation/reporting_bugs.md) for details about reporting any issue you may encounter.
+See [reporting bugs](Documentation/reporting_bugs.md) for details about reporting any issues.
 
 ### License
 
 etcd is under the Apache 2.0 license. See the [LICENSE](LICENSE) file for details.
-
-

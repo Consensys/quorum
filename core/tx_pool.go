@@ -1323,3 +1323,8 @@ func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
 	}
 	return nil
 }
+
+// helper function to return chainHeadChannel size
+func GetChainHeadChannleSize() int {
+	return chainHeadChanSize
+}

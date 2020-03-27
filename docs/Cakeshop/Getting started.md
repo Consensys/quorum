@@ -27,19 +27,19 @@
 
 There are a few ways in which you can run Cakeshop (see the sections below for details on each, as well as [configuration](https://github.com/jpmorganchase/cakeshop/blob/master/docs/configuration.md#geth) page):
 
-   1. **Default mode**: _Used when you want Cakeshop to start up an Ethereum node._ 
+1\. **Default mode**: _Used when you want Cakeshop to start up an Ethereum node._
 
-   Running Cakeshop in the Default mode will start up Cakeshop and also start running a regular geth node (on a private/test network).
+  Running Cakeshop in the Default mode will start up Cakeshop and also start running a regular geth node (on a private/test network).
 
-   2. **'Attach/Unmanaged' mode**: _Used when you want to attach Cakeshop to an already running Ethereum-like node._
+2\. **'Attach/Unmanaged' mode**: _Used when you want to attach Cakeshop to an already running Ethereum-like node._
 
-   Running Cakeshop in 'Attach' a.k.a 'unmanaged' mode will initialize Cakeshop but not start it nor start any Ethereum node.  Once Cakeshop initialization is complete you can configure it to use the RPC details of your running node . When you then start Cakeshop it will attach to your node. 
+  Running Cakeshop in 'Attach' a.k.a 'unmanaged' mode will initialize Cakeshop but not start it nor start any Ethereum node.  Once Cakeshop initialization is complete you can configure it to use the RPC details of your running node . When you then start Cakeshop it will attach to your node.
 
-NOTE: if different parties on the network are using Cakeshop to deploy contracts to the network then they need to ensure they are using the same ContractRegistry address.  See details below for setting up the ContractRegistry address in this case.
+  NOTE: if different parties on the network are using Cakeshop to deploy contracts to the network then they need to ensure they are using the same ContractRegistry address.  See details below for setting up the ContractRegistry address in this case.
 
-   3. **Multi-Instance Set Up**: _Used when you want to run Cakeshop on more than one node in your network._ 
+3\. **Multi-Instance Set Up**: _Used when you want to run Cakeshop on more than one node in your network._
 
-   Cakeshop is currently designed such that a given instance of Cakeshop works directly with a single Ethereum-like node, however you can set up multiple instances of Cakeshop on the same machine (each which could either have been started in 'Default' mode or 'Attach' mode) such that each can talk to a different node. 
+  Cakeshop is currently designed such that a given instance of Cakeshop works directly with a single Ethereum-like node, however you can set up multiple instances of Cakeshop on the same machine (each which could either have been started in 'Default' mode or 'Attach' mode) such that each can talk to a different node.
 
 NOTE: you can use the Attach mode and/or Multi-Instance setup configuration to run Cakeshop on [Quorum](https://github.com/jpmorganchase/quorum) nodes.  See below for connecting Cakeshop to the [7nodes](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes) network from the quorum-examples repo.
 
@@ -50,8 +50,8 @@ NOTE: you can use the Attach mode and/or Multi-Instance setup configuration to r
 1. In a terminal window run:
 
     ```
-    $ cd path/to/cakeshop/war  
-    $ java -jar cakeshop.war 
+    $ cd path/to/cakeshop/war
+    $ java -jar cakeshop.war
     ```
 
 2. Open **http://localhost:8080/** in your browser (Firefox/Chrome supported)
@@ -62,19 +62,31 @@ NOTE: you can use the Attach mode and/or Multi-Instance setup configuration to r
     ```
     $ cd path/to/cakeshop/war
     # The 'example' arg below will unpack the war file and set up the cakeshop data folders but will not actually start a node
-    $ java -jar cakeshop.war example 
+    $ java -jar cakeshop.war example
     ```
+
 2. Navigate to path/to/cakeshop/war/data/local
+
 3. Make the following edits to the application.properties file:
-  * set `geth.url` to the `rpcport` of your ethereum node, i.e. if your geth `rpcport` is 22001 then `geth.url=http\://localhost\:22001`
-  * ensure `geth.auto.start` is set to `false`
-  * ensure `geth.auto.stop` is set to `false`
+
+    ```
+    geth.auto.start=false
+    geth.auto.stop=false
+    ```
+
 4. Run:
 
     ```
-    $ java -jar cakeshop.war 
+    $ java -jar cakeshop.war
     ```
+
 5. Open **http://localhost:8080/** in your browser (Firefox/Chrome supported)
+
+6. The dropdown menu on the top right of the page should show "Manage Nodes" if you haven't attached to any yet. Click on that to go to the Manage Nodes page.
+
+7. Click Add Node and input the RPC url of your Quorum node (i.e. http://localhost:22000) and the path to the Tessera P2P Party Info endpoint (i.e. http://localhost:9001/partyinfo).
+
+8. Once added, click on View to attach to the node and return to the main Cakeshop page
 
 ### Multi-Instance Setup
 
@@ -105,8 +117,8 @@ Although Cakeshop currently has a one-to-one mapping with the underlying Ethereu
     cd node1
     CAKESHOP_SHARED_CONFIG=".." java -jar ../cakeshop.war example
     ```
-    
-2. Assuming you want to attach to an existing node, navigate to /myNetwork/node1/ and edit **application.properties** per the instructions for [attach mode](#attach-mode) as described above 
+
+2. Assuming you want to attach to an existing node, navigate to /myNetwork/node1/ and edit **application.properties** per the instructions for [attach mode](#attach-mode) as described above
 
 3. In terminal window 2 run:
 
@@ -114,20 +126,20 @@ Although Cakeshop currently has a one-to-one mapping with the underlying Ethereu
     cd myNetwork/node2
     CAKESHOP_SHARED_CONFIG=".." java -jar ../cakeshop.war example
     ```
-    
-4. Navigate to myNetwork/node2 and edit **application.properties** per the instructions for [attach mode](#attach-mode) as described above 
+
+4. Navigate to myNetwork/node2 and edit **application.properties** per the instructions for [attach mode](#attach-mode) as described above
 5. In terminal window 1 run:
 
     ```
     CAKESHOP_SHARED_CONFIG=".." java -jar ../cakeshop.war
     ```
-    
+
 6. In terminal window 2 run:
 
     ```
     CAKESHOP_SHARED_CONFIG=".." java -Dserver.port=8081 -jar cakeshop.war # Cakeshop will now be available on localhost:8081
     ```
-    
+
 7. In browser window 1 open http://localhost:8080/
 
 8. In browser window 2 open http://localhost:8081/

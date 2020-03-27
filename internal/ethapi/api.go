@@ -367,6 +367,10 @@ func (s *PrivateAccountAPI) signTransaction(ctx context.Context, args *SendTxArg
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
 
+	if args.PrivateFor != nil {
+		tx.SetPrivate()
+	}
+
 	var chainID *big.Int
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) {
 		chainID = config.ChainID
@@ -1518,12 +1522,16 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Sen
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return nil, err
 	}
-	tx, err := s.sign(args.From, args.toTransaction())
+
+	toSign := args.toTransaction()
+
+	if args.PrivateFor != nil {
+		toSign.SetPrivate()
+	}
+
+	tx, err := s.sign(args.From, toSign)
 	if err != nil {
 		return nil, err
-	}
-	if args.PrivateFor != nil {
-		tx.SetPrivate()
 	}
 	data, err := rlp.EncodeToBytes(tx)
 	if err != nil {
@@ -1593,7 +1601,7 @@ func (s *PublicTransactionPoolAPI) Resend(ctx context.Context, sendArgs SendTxAr
 			}
 			newTx := sendArgs.toTransaction()
 			// set v param to 37 to indicate private tx before submitting to the signer.
-			if len(sendArgs.PrivateFor) > 0 {
+			if sendArgs.PrivateFor != nil {
 				newTx.SetPrivate()
 			}
 			signedTx, err := s.sign(sendArgs.From, newTx)
@@ -1776,12 +1784,12 @@ func (s *PublicTransactionPoolAPI) send(ctx context.Context, asyncArgs AsyncSend
 		buf := new(bytes.Buffer)
 		err := json.NewEncoder(buf).Encode(resultResponse)
 		if err != nil {
-			log.Info("Error encoding callback JSON: %v", err)
+			log.Info("Error encoding callback JSON", "err", err.Error())
 			return
 		}
 		_, err = http.Post(asyncArgs.CallbackUrl, "application/json", buf)
 		if err != nil {
-			log.Info("Error sending callback: %v", err)
+			log.Info("Error sending callback", "err", err.Error())
 			return
 		}
 	}

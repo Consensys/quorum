@@ -41,13 +41,26 @@
     Unfortunately, that is not possible. Quorum nodes configured with raft will only be able to work correctly with other nodes running raft consensus. This applies to all other supported consensus algorithms.
 
 ??? info "Quorum version compatibility table"
-    |                                     | Adding new node v2.0.x | Adding new node v2.1.x | Adding new node v2.2.x |
-    | ----------------------------------- | ---------------------- | ---------------------- | ---------------------- |
-    | Existing chain consisting of v2.0.x | <span style="color:green;">block sync<br /> public txn<br /> private txn</span>  | <span style="color:red;">block sync</span>  | <span style="color:red;">block sync</span> |
-    | Existing chain consisting of v2.1.x | <span style="color:red;">block sync</span>  | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> |
-    | Existing chain consisting of v2.2.x | <span style="color:red;">block sync</span>  | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> |
+    |                                     | Adding new node v2.0.x | Adding new node v2.1.x - v2.5.x |
+    | ----------------------------------- | ---------------------- | ---------------------- |
+    | Existing chain consisting of v2.0.x | <span style="color:green;">block sync<br /> public txn<br /> private txn</span>  | <span style="color:red;">block sync</span>  |
+    | Existing chain consisting of v2.1.x - v2.5.0 | <span style="color:red;">block sync</span>  | <span style="color:green;">block sync<br /> public txn<br /> private txn</span> |
 
     **Note:** While every Quorum v2 client will be able to connect to any other v2 client, the usefullness will be severely degraded. <span style="color:red;">Red color</span> signifies that while connectivity is possible, <span style="color:red;">red colored</span> versions will be unable to send public or private txns to the rest of the net due to the EIP155 changes in the signer implemented in newer versions.
+
+??? info "Quorum to Geth version mapping"
+    | Quorum v2.0.x - v2.1.1 | Quorum v2.2.0 - v2.2.1 | Quorum v2.2.2 - v2.5.0 |
+    | ---------------------- | ---------------------- | ---------------------- |
+    | Geth v1.7.2            | Geth v1.8.12           | Geth v1.8.18           |
+
+
+### Tessera FAQ
+
+??? question "What does enabling 'disablePeerDiscovery' mean?"
+    It means the node will only communicate with the nodes defined in the configuration file. Upto version 0.10.2, the nodes still accepts transactions from undiscovered nodes. From version 0.10.3 the node blocks all communication with undiscovered nodes.
+
+??? info "Upgrading to Tessera version 0.10.+ from verion 0.9.+ and below"
+    Due to 'database file unable to open' issue with H2 DB upgrade from version 1.4.196 direct to version 1.4.200 as explained  [here](https://github.com/h2database/h2database/issues/2263), our recommended mitigation strategy is to upgrade to version 1.4.199 first before upgrading to version 1.4.200 i.e., first upgrade to Tessera 0.10.0 before upgrading to higher versions. 
 
 ### Raft FAQ
 
@@ -60,7 +73,7 @@
     * It saves one network call communicating the block to the leader.
     * It provides a simple way to choose a minter. If we didn't use the Raft leader we'd have to build in "minter election" at a higher level.
 
-    Additionally there could even be multiple minters running at the same time, but this would produce contention for which blocks actually extend the chain, reducing the productivity of the cluster (see "races" above).
+    Additionally there could even be multiple minters running at the same time, but this would produce contention for which blocks actually extend the chain, reducing the productivity of the cluster (see [Raft: Chain extension, races, and correctness](../Consensus/raft/#chain-extension-races-and-correctness) above).
 
 ??? question "I thought there were no forks in a Raft-based blockchain. What's the deal with "speculative minting"?"
     "Speculative chains" are not forks in the blockchain. They represent a series ("chain") of blocks that have been sent through Raft, after which each of the blocks may or may not actually end up being included in *the blockchain*.

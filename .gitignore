@@ -46,3 +46,6 @@ profile.cov
 /dashboard/assets/package-lock.json
 
 **/yarn-error.log
+
+# QUORUM
+generated-release-notes.md

@@ -15,10 +15,10 @@
 package raft
 
 import (
+	"context"
 	"errors"
 
 	pb "github.com/coreos/etcd/raft/raftpb"
-	"golang.org/x/net/context"
 
 	"github.com/eapache/channels"
 )
@@ -88,6 +88,10 @@ type Ready struct {
 	// If it contains a MsgSnap message, the application MUST report back to raft
 	// when the snapshot has been received or has failed by calling ReportSnapshot.
 	Messages []pb.Message
+
+	// MustSync indicates whether the HardState and Entries must be synchronously
+	// written to disk or if an asynchronous write is permissible.
+	MustSync bool
 }
 
 func isHardStateEqual(a, b pb.HardState) bool {
@@ -177,10 +181,13 @@ type Peer struct {
 	Context []byte
 }
 
+
+
 // StartNode returns a new Node given configuration and a list of raft peers.
 // It appends a ConfChangeAddNode entry for each given peer to the initial log.
 func StartNode(c *Config, peers []Peer) Node {
-	r := newRaft(c)
+	var r *raft
+	r = newRaft(c)
 	// become the follower at term 1 and apply initial configuration
 	// entries of term 1
 	r.becomeFollower(1, None)
@@ -229,9 +236,14 @@ func RestartNode(c *Config) Node {
 	return &n
 }
 
+type msgWithResult struct {
+	m      pb.Message
+	result chan error
+}
+
 // node is the canonical implementation of the Node interface
 type node struct {
-	propc      chan pb.Message
+	propc      chan msgWithResult
 	recvc      chan pb.Message
 	confc      chan pb.ConfChange
 	confstatec chan pb.ConfState
@@ -251,7 +263,7 @@ type node struct {
 
 func newNode() node {
 	return node{
-		propc:      make(chan pb.Message),
+		propc:      make(chan msgWithResult),
 		recvc:      make(chan pb.Message),
 		confc:      make(chan pb.ConfChange),
 		confstatec: make(chan pb.ConfState),
@@ -285,7 +297,7 @@ func (n *node) RoleChan() *channels.RingChannel {
 }
 
 func (n *node) run(r *raft) {
-	var propc chan pb.Message
+	var propc chan msgWithResult
 	var readyc chan Ready
 	var advancec chan struct{}
 	var prevLastUnstablei, prevLastUnstablet uint64
@@ -337,19 +349,24 @@ func (n *node) run(r *raft) {
 		// TODO: maybe buffer the config propose if there exists one (the way
 		// described in raft dissertation)
 		// Currently it is dropped in Step silently.
-		case m := <-propc:
+		case pm := <-propc:
+			m := pm.m
 			m.From = r.id
-			r.Step(m)
+			err := r.Step(m)
+			if pm.result != nil {
+				pm.result <- err
+				close(pm.result)
+			}
 		case m := <-n.recvc:
 			// filter out response message from unknown From.
-			if _, ok := r.prs[m.From]; ok || !IsResponseMsg(m.Type) {
-				r.Step(m) // raft never returns an error
+			if pr := r.getProgress(m.From); pr != nil || !IsResponseMsg(m.Type) {
+				r.Step(m)
 			}
 		case cc := <-n.confc:
 			if cc.NodeID == None {
 				r.resetPendingConf()
 				select {
-				case n.confstatec <- pb.ConfState{Nodes: r.nodes()}:
+				case n.confstatec <- pb.ConfState{Nodes: r.voters(), Learners: r.learners()}:
 				case <-n.done:
 				}
 				break
@@ -357,6 +374,8 @@ func (n *node) run(r *raft) {
 			switch cc.Type {
 			case pb.ConfChangeAddNode:
 				r.addNode(cc.NodeID)
+			case pb.ConfChangeAddLearnerNode:
+				r.addLearner(cc.NodeID)
 			case pb.ConfChangeRemoveNode:
 				// block incoming proposal when local node is
 				// removed
@@ -370,7 +389,7 @@ func (n *node) run(r *raft) {
 				panic("unexpected conf type")
 			}
 			select {
-			case n.confstatec <- pb.ConfState{Nodes: r.nodes()}:
+			case n.confstatec <- pb.ConfState{Nodes: r.voters(), Learners: r.learners()}:
 			case <-n.done:
 			}
 		case <-n.tickc:
@@ -427,7 +446,7 @@ func (n *node) Tick() {
 func (n *node) Campaign(ctx context.Context) error { return n.step(ctx, pb.Message{Type: pb.MsgHup}) }
 
 func (n *node) Propose(ctx context.Context, data []byte) error {
-	return n.step(ctx, pb.Message{Type: pb.MsgProp, Entries: []pb.Entry{{Data: data}}})
+	return n.stepWait(ctx, pb.Message{Type: pb.MsgProp, Entries: []pb.Entry{{Data: data}}})
 }
 
 func (n *node) Step(ctx context.Context, m pb.Message) error {
@@ -447,22 +466,56 @@ func (n *node) ProposeConfChange(ctx context.Context, cc pb.ConfChange) error {
 	return n.Step(ctx, pb.Message{Type: pb.MsgProp, Entries: []pb.Entry{{Type: pb.EntryConfChange, Data: data}}})
 }
 
+func (n *node) step(ctx context.Context, m pb.Message) error {
+	return n.stepWithWaitOption(ctx, m, false)
+}
+
+func (n *node) stepWait(ctx context.Context, m pb.Message) error {
+	return n.stepWithWaitOption(ctx, m, true)
+}
+
+
 // Step advances the state machine using msgs. The ctx.Err() will be returned,
 // if any.
-func (n *node) step(ctx context.Context, m pb.Message) error {
-	ch := n.recvc
-	if m.Type == pb.MsgProp {
-		ch = n.propc
+// Step advances the state machine using msgs. The ctx.Err() will be returned,
+// if any.
+func (n *node) stepWithWaitOption(ctx context.Context, m pb.Message, wait bool) error {
+	if m.Type != pb.MsgProp {
+		select {
+		case n.recvc <- m:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-n.done:
+			return ErrStopped
+		}
 	}
-
+	ch := n.propc
+	pm := msgWithResult{m: m}
+	if wait {
+		pm.result = make(chan error, 1)
+	}
 	select {
-	case ch <- m:
-		return nil
+	case ch <- pm:
+		if !wait {
+			return nil
+		}
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-n.done:
 		return ErrStopped
 	}
+	select {
+	case rsp := <-pm.result:
+		if rsp != nil {
+			return rsp
+		}
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-n.done:
+		return ErrStopped
+	}
+	return nil
 }
 
 func (n *node) Ready() <-chan Ready { return n.readyc }
@@ -544,5 +597,17 @@ func newReady(r *raft, prevSoftSt *SoftState, prevHardSt pb.HardState) Ready {
 	if len(r.readStates) != 0 {
 		rd.ReadStates = r.readStates
 	}
+	rd.MustSync = MustSync(rd.HardState, prevHardSt, len(rd.Entries))
 	return rd
+}
+
+// MustSync returns true if the hard state and count of Raft entries indicate
+// that a synchronous write to persistent storage is required.
+func MustSync(st, prevst pb.HardState, entsnum int) bool {
+	// Persistent state on all servers:
+	// (Updated on stable storage before responding to RPCs)
+	// currentTerm
+	// votedFor
+	// log entries[]
+	return entsnum != 0 || st.Vote != prevst.Vote || st.Term != prevst.Term
 }

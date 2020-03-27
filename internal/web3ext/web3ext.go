@@ -146,6 +146,11 @@ web3._extend({
 	property: 'admin',
 	methods: [
 		new web3._extend.Method({
+			name: 'reloadPlugin',
+			call: 'admin_reloadPlugin',
+			params: 1
+		}),
+		new web3._extend.Method({
 			name: 'addPeer',
 			call: 'admin_addPeer',
 			params: 1
@@ -246,7 +251,8 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'dumpBlock',
 			call: 'debug_dumpBlock',
-			params: 1
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, ""]
 		}),
 		new web3._extend.Method({
 			name: 'chaindbProperty',
@@ -501,7 +507,21 @@ web3._extend({
 			call: 'eth_storageRoot',
 			params: 2,
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null]
-		})
+		}),
+		// QUORUM
+		new web3._extend.Method({
+			name: 'sendTransactionAsync',
+			call: 'eth_sendTransactionAsync',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getQuorumPayload',
+			call: 'eth_getQuorumPayload',
+			params: 1,
+			inputFormatter: [null]
+		}),
+		// END-QUORUM
 	],
 	properties: [
 		new web3._extend.Property({
@@ -726,6 +746,16 @@ web3._extend({
                        params: 1
                }),
                new web3._extend.Method({
+                       name: 'addLearner',
+                       call: 'raft_addLearner',
+                       params: 1
+               }),
+               new web3._extend.Method({
+                       name: 'promoteToPeer',
+                       call: 'raft_promoteToPeer',
+                       params: 1
+               }),
+               new web3._extend.Method({
                        name: 'removePeer',
                        call: 'raft_removePeer',
                        params: 1
@@ -921,13 +951,29 @@ web3._extend({
 			name: 'discard',
 			call: 'istanbul_discard',
 			params: 1
-		})
+		}),
+
+		new web3._extend.Method({
+			name: 'getSignersFromBlock',
+			call: 'istanbul_getSignersFromBlock',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getSignersFromBlockByHash',
+			call: 'istanbul_getSignersFromBlockByHash',
+			params: 1
+		}),
 	],
 	properties:
 	[
 		new web3._extend.Property({
 			name: 'candidates',
 			getter: 'istanbul_candidates'
+		}),
+		new web3._extend.Property({
+			name: 'nodeAddress',
+			getter: 'istanbul_nodeAddress'
 		}),
 	]
 });

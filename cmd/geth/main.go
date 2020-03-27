@@ -18,6 +18,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -134,14 +135,21 @@ var (
 		utils.EWASMInterpreterFlag,
 		utils.EVMInterpreterFlag,
 		configFileFlag,
+		// Quorum
 		utils.EnableNodePermissionFlag,
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
 		utils.RaftJoinExistingFlag,
 		utils.RaftPortFlag,
+		utils.RaftDNSEnabledFlag,
 		utils.EmitCheckpointsFlag,
 		utils.IstanbulRequestTimeoutFlag,
 		utils.IstanbulBlockPeriodFlag,
+		utils.PluginSettingsFlag,
+		utils.PluginSkipVerifyFlag,
+		utils.PluginLocalVerifyFlag,
+		utils.PluginPublicKeyFlag,
+		// End-Quorum
 	}
 
 	rpcFlags = []cli.Flag{
@@ -271,6 +279,11 @@ func geth(ctx *cli.Context) error {
 	if args := ctx.Args(); len(args) > 0 {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
+
+	if !quorumValidatePrivateTransactionManager() {
+		return errors.New("the PRIVATE_CONFIG environment variable must be specified for Quorum")
+	}
+
 	node := makeFullNode(ctx)
 	startNode(ctx, node)
 
