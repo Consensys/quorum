@@ -509,11 +509,8 @@ func GetAcctAccess(acctId common.Address) AccessType {
 	}
 	return DefaultAccess
 }
-func (n *NodeCache) rebuildCacheAndValidate(hexNodeId, ultimateParent string) bool {
-	// node list has evictions, need to validate with contract data
-	return n.populateAndValidateFunc(hexNodeId, ultimateParent)
-}
 
+// validates if the account can transact from the current node
 func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 	if !QIP714BlockReached || hexnodeId == "" {
 		return true
@@ -540,7 +537,7 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 		}
 	}
 	if NodeInfoMap.evicted {
-		return NodeInfoMap.rebuildCacheAndValidate(hexnodeId, ultimateParent)
+		return NodeInfoMap.populateAndValidateFunc(hexnodeId, ultimateParent)
 	}
 
 	return false
