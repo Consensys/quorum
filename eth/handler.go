@@ -897,11 +897,19 @@ type NodeInfo struct {
 // NodeInfo retrieves some protocol metadata about the running host node.
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	currentBlock := pm.blockchain.CurrentBlock()
+	// //Quorum
+	//
+	// changes done to fetch maxCodeSize dynamically based on the
+	// maxCodeSizeConfig changes
+	// /Quorum
+	chainConfig := pm.blockchain.Config()
+	chainConfig.MaxCodeSize = uint64(chainConfig.GetMaxCodeSize(pm.blockchain.CurrentBlock().Number()) / 1024)
+
 	return &NodeInfo{
 		Network:    pm.networkID,
 		Difficulty: pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64()),
 		Genesis:    pm.blockchain.Genesis().Hash(),
-		Config:     pm.blockchain.Config(),
+		Config:     chainConfig,
 		Head:       currentBlock.Hash(),
 		Consensus:  pm.getConsensusAlgorithm(),
 	}
