@@ -877,7 +877,13 @@ func (p *PermissionCtrl) populateAccountToCache(acctId common.Address) *types.Ac
 			Pending: true,
 		},
 	}
-	account, orgId, roleId, status, isAdmin, _ := permAcctInterface.GetAccountDetails(acctId)
+	account, orgId, roleId, status, isAdmin, err := permAcctInterface.GetAccountDetails(acctId)
+
+	if err != nil {
+		log.Info("failed to retrieve the account info from permissions contract", "err", err)
+		return nil
+	}
+
 	if status.Int64() == 0 {
 		return nil
 	}
@@ -907,9 +913,13 @@ func (p *PermissionCtrl) populateOrgToCache(orgId string) *types.OrgInfo {
 	// range through the sub org indexes and get the org ids to populate the suborg list
 	for _, s := range subOrgIndexes {
 		subOrgId, _, _, _, _, err := permOrgInterface.GetOrgInfo(s)
-		if err == nil {
-			orgInfo.SubOrgList = append(orgInfo.SubOrgList, orgId+"."+subOrgId)
+
+		if err != nil {
+			log.Info("failed to retrieve the sub org info from permissions contract", "err", err)
+			return nil
 		}
+		orgInfo.SubOrgList = append(orgInfo.SubOrgList, orgId+"."+subOrgId)
+
 	}
 	return &orgInfo
 }
@@ -922,12 +932,19 @@ func (p *PermissionCtrl) populateRoleToCache(roleKey *types.RoleKey) *types.Role
 			Pending: true,
 		},
 	}
-	roleDetails, _ := permRoleInterface.GetRoleDetails(roleKey.RoleId, roleKey.OrgId)
+	roleDetails, err := permRoleInterface.GetRoleDetails(roleKey.RoleId, roleKey.OrgId)
+
+	if err != nil {
+		log.Info("failed to retrieve the role info from permissions contract", "err", err)
+		return nil
+	}
+
 	if roleDetails.OrgId == "" {
 		return nil
 	}
-	return  &types.RoleInfo{OrgId: roleDetails.OrgId, RoleId: roleDetails.RoleId, IsVoter: roleDetails.Voter, IsAdmin: roleDetails.Admin, Access: types.AccessType(roleDetails.AccessType.Int64()), Active: roleDetails.Active}
+	return &types.RoleInfo{OrgId: roleDetails.OrgId, RoleId: roleDetails.RoleId, IsVoter: roleDetails.Voter, IsAdmin: roleDetails.Admin, Access: types.AccessType(roleDetails.AccessType.Int64()), Active: roleDetails.Active}
 }
+
 // getter to get a role record from the contract
 func (p *PermissionCtrl) populateNodeCache(url string) *types.NodeInfo {
 	permNodeInterface := &pbind.NodeManagerSession{
@@ -936,11 +953,16 @@ func (p *PermissionCtrl) populateNodeCache(url string) *types.NodeInfo {
 			Pending: true,
 		},
 	}
-	nodeDetails, _ := permNodeInterface.GetNodeDetails(url)
-	if nodeDetails.NodeStatus.Int64() == 0{
+	nodeDetails, err := permNodeInterface.GetNodeDetails(url)
+	if err != nil {
+		log.Info("failed to retrieve the node info from permissions contract", "err", err)
 		return nil
 	}
-	return  &types.NodeInfo{OrgId:nodeDetails.OrgId, Url: nodeDetails.EnodeId, Status:types.NodeStatus(nodeDetails.NodeStatus.Int64()) }
+
+	if nodeDetails.NodeStatus.Int64() == 0 {
+		return nil
+	}
+	return &types.NodeInfo{OrgId: nodeDetails.OrgId, Url: nodeDetails.EnodeId, Status: types.NodeStatus(nodeDetails.NodeStatus.Int64())}
 }
 
 // getter to get a node record from the contract

@@ -122,10 +122,12 @@ const defaultRoleMapLimit = 2500
 const defaultNodeMapLimit = 1000
 const defaultAccountMapLimit = 6000
 
-var OrgInfoMap = NewOrgCache()
-var NodeInfoMap = NewNodeCache()
-var RoleInfoMap = NewRoleCache()
-var AcctInfoMap = NewAcctCache()
+var (
+	OrgInfoMap = NewOrgCache()
+	NodeInfoMap = NewNodeCache()
+	RoleInfoMap = NewRoleCache()
+	AcctInfoMap = NewAcctCache()
+)
 
 
 type OrgKey struct {
