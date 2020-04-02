@@ -117,18 +117,12 @@ var QIP714BlockReached = false
 var networkAdminRole string
 var orgAdminRole string
 
-const defaultOrgMapLimit = 2000
-const defaultRoleMapLimit = 2500
-const defaultNodeMapLimit = 1000
-const defaultAccountMapLimit = 6000
-
 var (
-	OrgInfoMap = NewOrgCache()
-	NodeInfoMap = NewNodeCache()
-	RoleInfoMap = NewRoleCache()
-	AcctInfoMap = NewAcctCache()
+	OrgInfoMap  *OrgCache
+	NodeInfoMap *NodeCache
+	RoleInfoMap *RoleCache
+	AcctInfoMap *AcctCache
 )
-
 
 type OrgKey struct {
 	OrgId string
@@ -141,17 +135,16 @@ type OrgCache struct {
 	populateCacheFunc func(orgId string) *OrgInfo
 }
 
-
 func (o *OrgCache) PopulateCacheFunc(cf func(string) *OrgInfo) {
 	o.populateCacheFunc = cf
 }
 
-func NewOrgCache() *OrgCache {
+func NewOrgCache(cacheSize int) *OrgCache {
 	orgCache := OrgCache{evicted: false}
 	onEvictedFunc := func(k interface{}, v interface{}) {
 		orgCache.evicted = true
 	}
-	orgCache.c, _ = lru.NewWithEvict(defaultOrgMapLimit, onEvictedFunc)
+	orgCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
 	return &orgCache
 }
 
@@ -170,12 +163,12 @@ func (r *RoleCache) PopulateCacheFunc(cf func(*RoleKey) *RoleInfo) {
 	r.populateCacheFunc = cf
 }
 
-func NewRoleCache() *RoleCache {
+func NewRoleCache(cacheSize int) *RoleCache {
 	roleCache := RoleCache{evicted: false}
 	onEvictedFunc := func(k interface{}, v interface{}) {
 		roleCache.evicted = true
 	}
-	roleCache.c, _ = lru.NewWithEvict(defaultRoleMapLimit, onEvictedFunc)
+	roleCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
 	return &roleCache
 }
 
@@ -199,13 +192,13 @@ func (n *NodeCache) PopulateCacheFunc(cf func(string) *NodeInfo) {
 	n.populateCacheFunc = cf
 }
 
-func NewNodeCache() *NodeCache {
+func NewNodeCache(cacheSize int) *NodeCache {
 	nodeCache := NodeCache{evicted: false}
 	onEvictedFunc := func(k interface{}, v interface{}) {
 		nodeCache.evicted = true
 
 	}
-	nodeCache.c, _ = lru.NewWithEvict(defaultNodeMapLimit, onEvictedFunc)
+	nodeCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
 	return &nodeCache
 }
 
@@ -223,13 +216,13 @@ func (a *AcctCache) PopulateCacheFunc(cf func(common.Address) *AccountInfo) {
 	a.populateCacheFunc = cf
 }
 
-func NewAcctCache() *AcctCache {
+func NewAcctCache(cacheSize int) *AcctCache {
 	acctCache := AcctCache{evicted: false}
 	onEvictedFunc := func(k interface{}, v interface{}) {
 		acctCache.evicted = true
 	}
 
-	acctCache.c, _ = lru.NewWithEvict(defaultAccountMapLimit, onEvictedFunc)
+	acctCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
 	return &acctCache
 }
 

@@ -39,6 +39,13 @@ const (
 	NodeDelete
 )
 
+const (
+	defaultOrgMapLimit     = 2000
+	defaultRoleMapLimit    = 2500
+	defaultNodeMapLimit    = 1000
+	defaultAccountMapLimit = 6000
+)
+
 type PermissionCtrl struct {
 	node       *node.Node
 	ethClnt    bind.ContractBackend
@@ -177,7 +184,7 @@ func (p *PermissionCtrl) AfterStart() error {
 	}
 
 	// populate the initial list of permissioned nodes and account accesses
-	if err := p.populateInitPermissions(); err != nil {
+	if err := p.populateInitPermissions(defaultOrgMapLimit, defaultRoleMapLimit, defaultNodeMapLimit, defaultAccountMapLimit); err != nil {
 		return fmt.Errorf("populateInitPermissions failed: %v", err)
 	}
 
@@ -313,9 +320,6 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 // monitors org management related events happening via smart contracts
 // and updates cache accordingly
 func (p *PermissionCtrl) manageOrgPermissions() error {
-	// set the cache function
-	types.OrgInfoMap.PopulateCacheFunc(p.populateOrgToCache)
-
 	chPendingApproval := make(chan *pbind.OrgManagerOrgPendingApproval, 1)
 	chOrgApproved := make(chan *pbind.OrgManagerOrgApproved, 1)
 	chOrgSuspended := make(chan *pbind.OrgManagerOrgSuspended, 1)
@@ -374,10 +378,6 @@ func (p *PermissionCtrl) subscribeStopEvent() (chan stopEvent, event.Subscriptio
 
 // Monitors node management events and updates cache accordingly
 func (p *PermissionCtrl) manageNodePermissions() error {
-	// populate function to populate cache
-	types.NodeInfoMap.PopulateValidateFunc(p.populateNodeCacheAndValidate)
-	types.NodeInfoMap.PopulateCacheFunc(p.populateNodeCache)
-
 	chNodeApproved := make(chan *pbind.NodeManagerNodeApproved, 1)
 	chNodeProposed := make(chan *pbind.NodeManagerNodeProposed, 1)
 	chNodeDeactivated := make(chan *pbind.NodeManagerNodeDeactivated, 1)
@@ -548,9 +548,6 @@ func (p *PermissionCtrl) updateDisallowedNodes(url string, operation NodeOperati
 
 // Monitors account access related events and updates the cache accordingly
 func (p *PermissionCtrl) manageAccountPermissions() error {
-	// set the function for cache population
-	types.AcctInfoMap.PopulateCacheFunc(p.populateAccountToCache)
-
 	chAccessModified := make(chan *pbind.AcctManagerAccountAccessModified)
 	chAccessRevoked := make(chan *pbind.AcctManagerAccountAccessRevoked)
 	chStatusChanged := make(chan *pbind.AcctManagerAccountStatusChanged)
@@ -624,9 +621,25 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 
 }
 
+func (p *PermissionCtrl) instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int){
+	// instantiate the cache objects for permissions
+	types.OrgInfoMap = types.NewOrgCache(orgCacheSize)
+	types.OrgInfoMap.PopulateCacheFunc(p.populateOrgToCache)
+
+	types.RoleInfoMap = types.NewRoleCache(roleCacheSize)
+	types.RoleInfoMap.PopulateCacheFunc(p.populateRoleToCache)
+
+	types.NodeInfoMap = types.NewNodeCache(nodeCacheSize)
+	types.NodeInfoMap.PopulateCacheFunc(p.populateNodeCache)
+	types.NodeInfoMap.PopulateValidateFunc(p.populateNodeCacheAndValidate)
+
+	types.AcctInfoMap = types.NewAcctCache(accountCacheSize)
+	types.AcctInfoMap.PopulateCacheFunc(p.populateAccountToCache)
+}
+
 // Thus function checks if the initial network boot up status and if no
 // populates permissions model with details from permission-config.json
-func (p *PermissionCtrl) populateInitPermissions() error {
+func (p *PermissionCtrl) populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int) error {
 	auth := bind.NewKeyedTransactor(p.key)
 	permInterfSession := &pbind.PermInterfaceSession{
 		Contract: p.permInterf,
@@ -640,6 +653,8 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 			GasPrice: big.NewInt(0),
 		},
 	}
+
+	p.instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
 
 	networkInitialized, err := permInterfSession.GetNetworkBootStatus()
 	if err != nil {
@@ -828,9 +843,6 @@ func (p *PermissionCtrl) updateNetworkStatus(permissionsSession *pbind.PermInter
 
 // monitors role management related events and updated cache
 func (p *PermissionCtrl) manageRolePermissions() error {
-	// populate function for cache population
-	types.RoleInfoMap.PopulateCacheFunc(p.populateRoleToCache)
-
 	chRoleCreated := make(chan *pbind.RoleManagerRoleCreated, 1)
 	chRoleRevoked := make(chan *pbind.RoleManagerRoleRevoked, 1)
 
