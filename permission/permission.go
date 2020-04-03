@@ -4,8 +4,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -14,22 +12,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/ethclient"
-
-	"github.com/ethereum/go-ethereum/event"
-
-	"github.com/ethereum/go-ethereum/raft"
-	"github.com/ethereum/go-ethereum/rpc"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
+	"github.com/ethereum/go-ethereum/raft"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type NodeOperation uint8
@@ -37,13 +34,6 @@ type NodeOperation uint8
 const (
 	NodeAdd NodeOperation = iota
 	NodeDelete
-)
-
-const (
-	defaultOrgMapLimit     = 2000
-	defaultRoleMapLimit    = 2500
-	defaultNodeMapLimit    = 1000
-	defaultAccountMapLimit = 6000
 )
 
 type PermissionCtrl struct {
@@ -184,7 +174,8 @@ func (p *PermissionCtrl) AfterStart() error {
 	}
 
 	// populate the initial list of permissioned nodes and account accesses
-	if err := p.populateInitPermissions(defaultOrgMapLimit, defaultRoleMapLimit, defaultNodeMapLimit, defaultAccountMapLimit); err != nil {
+	if err := p.populateInitPermissions(params.DEFAULT_ORGCACHE_SIZE, params.DEFAULT_ROLECACHE_SIZE,
+		params.DEFAULT_NODECACHE_SIZE, params.DEFAULT_ACCOUNTCACHE_SIZE); err != nil {
 		return fmt.Errorf("populateInitPermissions failed: %v", err)
 	}
 
@@ -621,7 +612,7 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 
 }
 
-func (p *PermissionCtrl) instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int){
+func (p *PermissionCtrl) instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int) {
 	// instantiate the cache objects for permissions
 	types.OrgInfoMap = types.NewOrgCache(orgCacheSize)
 	types.OrgInfoMap.PopulateCacheFunc(p.populateOrgToCache)
@@ -916,7 +907,11 @@ func (p *PermissionCtrl) populateOrgToCache(orgId string) *types.OrgInfo {
 	}
 	orgInfo := types.OrgInfo{OrgId: org, ParentOrgId: parentOrgId, UltimateParent: ultimateParentId, Status: types.OrgStatus(orgStatus.Int64()), Level: orgLevel}
 	// now need to build the list of sub orgs for this org
-	subOrgIndexes, _ := permOrgInterface.GetSubOrgIndexes(orgId)
+	subOrgIndexes, err := permOrgInterface.GetSubOrgIndexes(orgId)
+	if err != nil {
+		log.Info("failed to retrieve the sub org index from permissions contract", "err", err)
+		return nil
+	}
 
 	if len(subOrgIndexes) == 0 {
 		return &orgInfo
@@ -992,7 +987,7 @@ func (p *PermissionCtrl) populateNodeCacheAndValidate(hexNodeId, ultimateParentI
 		for k := uint64(0); k < numNodes; k++ {
 			if nodeStruct, err := permNodeInterface.GetNodeDetailsFromIndex(big.NewInt(int64(k))); err == nil {
 				if types.OrgInfoMap.GetOrg(nodeStruct.OrgId).UltimateParent == ultimateParentId {
-					recEnode, _ := enode.ParseV4(nodeStruct.EnodeId);
+					recEnode, _ := enode.ParseV4(nodeStruct.EnodeId)
 					if recEnode.ID() == passedEnode.ID() {
 						txnAllowed = true
 						types.NodeInfoMap.UpsertNode(nodeStruct.OrgId, nodeStruct.EnodeId, types.NodeStatus(int(nodeStruct.NodeStatus.Int64())))

@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 	testifyassert "github.com/stretchr/testify/assert"
 )
 
@@ -51,6 +52,8 @@ func TestSetDefaults(t *testing.T) {
 func TestOrgCache_UpsertOrg(t *testing.T) {
 	assert := testifyassert.New(t)
 
+	OrgInfoMap = NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
+
 	//add a org and get the org details
 	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
 	orgInfo := OrgInfoMap.GetOrg(NETWORKADMIN)
@@ -83,6 +86,8 @@ func TestOrgCache_UpsertOrg(t *testing.T) {
 func TestNodeCache_UpsertNode(t *testing.T) {
 	assert := testifyassert.New(t)
 
+	NodeInfoMap = NewNodeCache(params.DEFAULT_NODECACHE_SIZE)
+
 	// add a node into the cache and validate
 	NodeInfoMap.UpsertNode(NETWORKADMIN, NODE1, NodeApproved)
 	nodeInfo := NodeInfoMap.GetNodeByUrl(NODE1)
@@ -104,6 +109,8 @@ func TestNodeCache_UpsertNode(t *testing.T) {
 func TestRoleCache_UpsertRole(t *testing.T) {
 	assert := testifyassert.New(t)
 
+	RoleInfoMap = NewRoleCache(params.DEFAULT_ROLECACHE_SIZE)
+
 	// add a role into the cache and validate
 	RoleInfoMap.UpsertRole(NETWORKADMIN, NETWORKADMIN, true, true, FullAccess, true)
 	roleInfo := RoleInfoMap.GetRole(NETWORKADMIN, NETWORKADMIN)
@@ -124,6 +131,8 @@ func TestRoleCache_UpsertRole(t *testing.T) {
 
 func TestAcctCache_UpsertAccount(t *testing.T) {
 	assert := testifyassert.New(t)
+
+	AcctInfoMap = NewAcctCache(params.DEFAULT_ACCOUNTCACHE_SIZE)
 
 	// add an account into the cache and validate
 	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
@@ -234,7 +243,7 @@ func TestValidateNodeForTxn_whenUsingOnlyHexNodeId(t *testing.T) {
 
 // test the cache limit
 func TestLRUCacheLimit(t *testing.T) {
-	for i := 0; i < defaultOrgMapLimit ; i++ {
+	for i := 0; i < params.DEFAULT_ORGCACHE_SIZE; i++ {
 		orgName := "ORG" + strconv.Itoa(i)
 		OrgInfoMap.UpsertOrg(orgName, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
 	}

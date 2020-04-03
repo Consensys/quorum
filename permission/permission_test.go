@@ -13,27 +13,21 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-
-	"github.com/ethereum/go-ethereum/core/types"
-
-	"github.com/ethereum/go-ethereum/params"
-
-	"github.com/ethereum/go-ethereum/p2p"
-
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/eth"
-
-	"github.com/stretchr/testify/assert"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/params"
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -60,9 +54,9 @@ var ErrAcctBlacklisted = errors.New("Blacklisted account. Operation not allowed"
 var ErrNodeBlacklisted = errors.New("Blacklisted node. Operation not allowed")
 
 var (
-	guardianKey     *ecdsa.PrivateKey
-	guardianAccount accounts.Account
-	backend         bind.ContractBackend
+	guardianKey                                                                      *ecdsa.PrivateKey
+	guardianAccount                                                                  accounts.Account
+	backend                                                                          bind.ContractBackend
 	permUpgrAddress, permInterfaceAddress, permImplAddress, voterManagerAddress,
 	nodeManagerAddress, roleManagerAddress, accountManagerAddress, orgManagerAddress common.Address
 	ethereum        *eth.Ethereum
@@ -334,7 +328,7 @@ func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 	// this will result in cache eviction
 	// get org details after this
 	for i := 0; i < orgCacheSize; i++ {
-		subOrgId:= "TESTSUBORG" + strconv.Itoa(i)
+		subOrgId := "TESTSUBORG" + strconv.Itoa(i)
 		_, err = testObject.AddSubOrg(arbitraryNetworkAdminOrg, subOrgId, "", txa)
 		assert.NoError(t, err)
 		types.OrgInfoMap.UpsertOrg(subOrgId, arbitraryNetworkAdminOrg, arbitraryNetworkAdminOrg, big.NewInt(2), types.OrgApproved)
@@ -403,7 +397,7 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 
 	assert.Equal(t, nodeCacheSize, len(types.NodeInfoMap.GetNodeList()))
 	nodeInfo := types.NodeInfoMap.GetNodeByUrl(arbitraryNode4)
-	assert.Equal(t,types.NodeApproved, nodeInfo.Status )
+	assert.Equal(t, types.NodeApproved, nodeInfo.Status)
 }
 
 func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
@@ -493,7 +487,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	// check role cache. the cache size is set to 4
 	// insert 4 records and then retrieve the 1st role
 	for i := 0; i < roleCacheSize; i++ {
-		roleId := "TESTROLE" +  strconv.Itoa(i)
+		roleId := "TESTROLE" + strconv.Itoa(i)
 		_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, roleId, uint8(types.FullAccess), false, false, txa)
 		assert.NoError(t, err)
 		types.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, roleId, false, false, types.FullAccess, true)
