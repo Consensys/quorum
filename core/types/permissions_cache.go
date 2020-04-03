@@ -131,10 +131,10 @@ type OrgCache struct {
 	c                 *lru.Cache
 	mux               sync.Mutex
 	evicted           bool
-	populateCacheFunc func(orgId string) *OrgInfo
+	populateCacheFunc func(orgId string) (*OrgInfo, error)
 }
 
-func (o *OrgCache) PopulateCacheFunc(cf func(string) *OrgInfo) {
+func (o *OrgCache) PopulateCacheFunc(cf func(string) (*OrgInfo, error)) {
 	o.populateCacheFunc = cf
 }
 
@@ -155,10 +155,10 @@ type RoleKey struct {
 type RoleCache struct {
 	c                 *lru.Cache
 	evicted           bool
-	populateCacheFunc func(*RoleKey) *RoleInfo
+	populateCacheFunc func(*RoleKey) (*RoleInfo, error)
 }
 
-func (r *RoleCache) PopulateCacheFunc(cf func(*RoleKey) *RoleInfo) {
+func (r *RoleCache) PopulateCacheFunc(cf func(*RoleKey) (*RoleInfo, error)) {
 	r.populateCacheFunc = cf
 }
 
@@ -179,7 +179,7 @@ type NodeKey struct {
 type NodeCache struct {
 	c                       *lru.Cache
 	evicted                 bool
-	populateCacheFunc       func(string) *NodeInfo
+	populateCacheFunc       func(string) (*NodeInfo, error)
 	populateAndValidateFunc func(string, string) bool
 }
 
@@ -187,7 +187,7 @@ func (n *NodeCache) PopulateValidateFunc(cf func(string, string) bool) {
 	n.populateAndValidateFunc = cf
 }
 
-func (n *NodeCache) PopulateCacheFunc(cf func(string) *NodeInfo) {
+func (n *NodeCache) PopulateCacheFunc(cf func(string) (*NodeInfo, error)) {
 	n.populateCacheFunc = cf
 }
 
@@ -208,10 +208,10 @@ type AccountKey struct {
 type AcctCache struct {
 	c                 *lru.Cache
 	evicted           bool
-	populateCacheFunc func(account common.Address) *AccountInfo
+	populateCacheFunc func(account common.Address) (*AccountInfo, error)
 }
 
-func (a *AcctCache) PopulateCacheFunc(cf func(common.Address) *AccountInfo) {
+func (a *AcctCache) PopulateCacheFunc(cf func(common.Address) (*AccountInfo, error)) {
 	a.populateCacheFunc = cf
 }
 
@@ -296,26 +296,28 @@ func containsKey(s []string, e string) bool {
 	return false
 }
 
-func (o *OrgCache) GetOrg(orgId string) *OrgInfo {
+func (o *OrgCache) GetOrg(orgId string) (*OrgInfo, error) {
 	key := OrgKey{OrgId: orgId}
 	if ent, ok := o.c.Get(key); ok {
-		return ent.(*OrgInfo)
+		return ent.(*OrgInfo), nil
 	}
 	// check if the org cache is evicted. if yes we need
 	// fetch the record from the contract
 	if o.evicted {
 		// call cache population function to populate from contract
-		orgRec := o.populateCacheFunc(orgId)
-
+		orgRec, err := o.populateCacheFunc(orgId)
+		if err != nil {
+			return nil, err
+		}
 		if orgRec == nil {
-			return nil
+			return nil, nil
 		}
 		// insert the received record into cache
 		o.UpsertOrgWithSubOrgList(orgRec)
 		//return the record
-		return orgRec
+		return orgRec, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (o *OrgCache) GetOrgList() []OrgInfo {
@@ -333,12 +335,12 @@ func (n *NodeCache) UpsertNode(orgId string, url string, status NodeStatus) {
 	n.c.Add(key, &NodeInfo{orgId, url, status})
 }
 
-func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
+func (n *NodeCache) GetNodeByUrl(url string) (*NodeInfo, error) {
 	for _, k := range n.c.Keys() {
 		ent := k.(NodeKey)
 		if ent.Url == url {
 			v, _ := n.c.Get(ent)
-			return v.(*NodeInfo)
+			return v.(*NodeInfo), nil
 		}
 	}
 	// check if the node cache is evicted. if yes we need
@@ -346,18 +348,21 @@ func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
 	if n.evicted {
 
 		// call cache population function to populate from contract
-		nodeRec := n.populateCacheFunc(url)
+		nodeRec, err := n.populateCacheFunc(url)
+		if err != nil {
+			return nil, err
+		}
 
 		if nodeRec == nil {
-			return nil
+			return nil, nil
 		}
 
 		// insert the received record into cache
 		n.UpsertNode(nodeRec.OrgId, nodeRec.Url, nodeRec.Status)
 		//return the record
-		return nodeRec
+		return nodeRec, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (n *NodeCache) GetNodeList() []NodeInfo {
@@ -375,25 +380,28 @@ func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address
 	a.c.Add(key, &AccountInfo{orgId, role, acct, orgAdmin, status})
 }
 
-func (a *AcctCache) GetAccount(acct common.Address) *AccountInfo {
+func (a *AcctCache) GetAccount(acct common.Address) (*AccountInfo, error) {
 	if v, ok := a.c.Get(AccountKey{acct}); ok {
-		return v.(*AccountInfo)
+		return v.(*AccountInfo), nil
 	}
 
 	// check if the account cache is evicted. if yes we need
 	// fetch the record from the contract
 	if a.evicted {
 		// call function to populate cache with the record
-		acctRec := a.populateCacheFunc(acct)
+		acctRec, err := a.populateCacheFunc(acct)
 		// insert the received record into cache
+		if err != nil {
+			return nil, err
+		}
 		if acctRec == nil {
-			return nil
+			return nil, nil
 		}
 		a.UpsertAccount(acctRec.OrgId, acctRec.RoleId, acctRec.AcctId, acctRec.IsOrgAdmin, acctRec.Status)
 		//return the record
-		return acctRec
+		return acctRec, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (a *AcctCache) GetAcctList() []AccountInfo {
@@ -424,7 +432,12 @@ func (a *AcctCache) GetAcctListRole(orgId, roleId string) []AccountInfo {
 		v, _ := a.c.Get(k)
 		vp := v.(*AccountInfo)
 
-		if vp.RoleId == roleId && (vp.OrgId == orgId || OrgInfoMap.GetOrg(vp.OrgId).UltimateParent == orgId) {
+		orgRec, err := OrgInfoMap.GetOrg(vp.OrgId)
+		if err != nil {
+			return nil
+		}
+
+		if vp.RoleId == roleId && (vp.OrgId == orgId || (orgRec != nil && orgRec.UltimateParent == orgId)) {
 			alist = append(alist, *vp)
 		}
 	}
@@ -437,26 +450,29 @@ func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, admin bool
 
 }
 
-func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
+func (r *RoleCache) GetRole(orgId string, roleId string) (*RoleInfo, error) {
 	key := RoleKey{OrgId: orgId, RoleId: roleId}
 	if ent, ok := r.c.Get(key); ok {
-		return ent.(*RoleInfo)
+		return ent.(*RoleInfo), nil
 	}
 	// check if the role cache is evicted. if yes we need
 	// fetch the record from the contract
 	if r.evicted {
 		// call cache population function to populate from contract
-		roleRec := r.populateCacheFunc(&RoleKey{RoleId: roleId, OrgId: orgId})
+		roleRec, err := r.populateCacheFunc(&RoleKey{RoleId: roleId, OrgId: orgId})
+		if err != nil {
+			return nil, err
+		}
 		if roleRec == nil {
-			return nil
+			return nil, nil
 		}
 		// insert the received record into cache
 		r.UpsertRole(roleRec.OrgId, roleRec.RoleId, roleRec.IsVoter, roleRec.IsAdmin, roleRec.Access, roleRec.Active)
 
 		//return the record
-		return roleRec
+		return roleRec, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (r *RoleCache) GetRoleList() []RoleInfo {
@@ -479,21 +495,23 @@ func GetAcctAccess(acctId common.Address) AccessType {
 	}
 
 	// check if the org status is fine to do the transaction
-	a := AcctInfoMap.GetAccount(acctId)
+	a, _ := AcctInfoMap.GetAccount(acctId)
 	if a != nil && a.Status == AcctActive {
 		// get the org details and ultimate org details. check org status
 		// if the org is not approved or pending suspension
-		o := OrgInfoMap.GetOrg(a.OrgId)
+		o, _ := OrgInfoMap.GetOrg(a.OrgId)
 		if o != nil && (o.Status == OrgApproved || o.Status == OrgPendingSuspension) {
-			u := OrgInfoMap.GetOrg(o.UltimateParent)
+			u, _ := OrgInfoMap.GetOrg(o.UltimateParent)
 			if u != nil && (u.Status == OrgApproved || u.Status == OrgPendingSuspension) {
 				if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
 					return FullAccess
 				}
-				if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
+				r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId)
+				if r != nil && r.Active {
 					return r.Access
 				}
-				if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
+				r, _ = RoleInfoMap.GetRole(o.UltimateParent, a.RoleId)
+				if r != nil && r.Active {
 					return r.Access
 				}
 			}
@@ -513,15 +531,23 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 		return false
 	}
 
-	ac := AcctInfoMap.GetAccount(from)
+	ac, _ := AcctInfoMap.GetAccount(from)
 	if ac == nil {
 		return true
 	}
 
-	ultimateParent := OrgInfoMap.GetOrg(ac.OrgId).UltimateParent
+	acOrgRec, err := OrgInfoMap.GetOrg(ac.OrgId)
+	if err != nil || acOrgRec == nil {
+		return false
+	}
+
 	// scan through the node list and validate
 	for _, n := range NodeInfoMap.GetNodeList() {
-		if OrgInfoMap.GetOrg(n.OrgId).UltimateParent == ultimateParent {
+		orgRec, err := OrgInfoMap.GetOrg(n.OrgId)
+		if err != nil || orgRec == nil {
+			return false
+		}
+		if orgRec.UltimateParent == acOrgRec.UltimateParent {
 			recEnodeId, _ := enode.ParseV4(n.Url)
 			if recEnodeId.ID() == passedEnodeId.ID() && n.Status == NodeApproved {
 				return true
@@ -529,7 +555,7 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 		}
 	}
 	if NodeInfoMap.evicted {
-		return NodeInfoMap.populateAndValidateFunc(hexnodeId, ultimateParent)
+		return NodeInfoMap.populateAndValidateFunc(hexnodeId, acOrgRec.UltimateParent)
 	}
 
 	return false
