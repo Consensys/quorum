@@ -901,7 +901,11 @@ func (p *PermissionCtrl) populateOrgToCache(orgId string) *types.OrgInfo {
 			Pending: true,
 		},
 	}
-	org, parentOrgId, ultimateParentId, orgLevel, orgStatus, _ := permOrgInterface.GetOrgDetails(orgId)
+	org, parentOrgId, ultimateParentId, orgLevel, orgStatus, err := permOrgInterface.GetOrgDetails(orgId)
+	if err != nil {
+		log.Info("failed to retrieve the org details from permissions contract", "err", err)
+		return nil
+	}
 	if orgStatus.Int64() == 0 {
 		return nil
 	}
