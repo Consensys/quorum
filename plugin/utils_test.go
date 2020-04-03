@@ -70,7 +70,15 @@ func TestResolveFilePath_whenInvalidFileURI(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestVerify_whenTypical(t *testing.T) {
+func TestVerify_whenTypicalWithBintraySigner(t *testing.T) {
+
+	err := verify(validSignatureSignedByBintray, bintrayPublicKey, arbitrarySHA256checksum)
+
+	assert.NoError(t, err)
+}
+
+func TestVerify_whenTypicalWithStandardSigner(t *testing.T) {
+
 	err := verify(validSignature, signerPubKey, arbitraryChecksum)
 
 	assert.NoError(t, err)
@@ -151,7 +159,81 @@ func createArbitraryZip(tmpDir string) (string, error) {
 }
 
 var (
-	arbitraryChecksum = "bf9a942afca462a9fb45f471f8d4db8c79cf332d"
+	arbitraryChecksum       = "bf9a942afca462a9fb45f471f8d4db8c79cf332d"
+	arbitrarySHA256checksum = "697dc791f0df55fbb86a7d985d29f23feff69e41681816a2c17352dcf10e693d"
+	// signature of the signed arbitrarySHA256checksum
+	validSignatureSignedByBintray = []byte(`
+-----BEGIN PGP SIGNATURE-----
+Version: BCPG v1.53
+
+iQIcBAABCAAGBQJeZ7h7AAoJEDec4ZLUAathdxYP/jKPYxFlWiI0520SU5zFTfx4
+F6fQL4d0uGsg/xlxDQbiYP+3aNAMuPzmDAJtu0qn8HnG51uSBJ95YWjgvivE2sw3
+xVK9vsAEjkQRa3yMBgBCrtlfyaYz/URbzEiVU8BGUFusnohx1kh6Ak7SO8S7bsbk
+LIiKtcVs5RqhTwQBOu8SP4pROeRlbLjJ99WLUjKl8l8Vy753ov0J8ohsFIOGgiou
+8UAHAnqxYuUwkZ8hPLUzdL1GxR4zo9XK6ll1XayTDjVrKsM2MFM9lbLgeXnb26pj
+VY9M3WixwaSS5bZOqwNYJYV4YVnIOiS9gplvyPI4joRjgXWVRgm1KAoZ20JCJ5sn
+SILRjaUYuNk/rHxPeVtNTTO5GD9iroroj5DKLh7H9qZMwZ/3/d+3rFlzFicS18cH
+kItSO0raRfMD7PT6+m6q/Ss/Ssx8TBbbKE7IbSPNoab13VYPLx2pN0Z0gARozTe3
+1yrtPmqUyJw/R96UXWjQLIANXHkMi5X56az0RUK68ALMROGchptoXEAdOGLyx/lK
+CbdmcD4bESihwjGJvMtFNqQaLAkAyYH8BJ2xSx0/DDJYnazMevxCLaJTgop9pCaf
+i8wSXeyp0KquNgi7gWUOizVrE/Rzg0w3xCOPvwduwcLHFtdkGnG0rceU7axy8jf6
+CX+P2tVLyv6EMv0ej8Wm
+=+Qxa
+-----END PGP SIGNATURE-----
+`)
+	bintrayPublicKey = []byte(`
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+JESa2SNRfw==
+=EI0Z
+-----END PGP PUBLIC KEY BLOCK-----
+`)
 	// signature of the signed arbitraryChecksum
 	validSignature = []byte(`
 -----BEGIN PGP SIGNATURE-----

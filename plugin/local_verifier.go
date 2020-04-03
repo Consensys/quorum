@@ -7,7 +7,7 @@ import (
 	"path"
 )
 
-const DefaultPublicKeyFile = "Central.pgp.pk.asc"
+const DefaultPublicKeyFile = "Central.pgp.pk"
 
 // Local Implementation of plugin.Verifier
 type LocalVerifier struct {

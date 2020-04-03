@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // Central https centralClient communicating with Plugin Central
@@ -55,6 +57,7 @@ func (cc *CentralClient) getNewSecureDialer() Dialer {
 // Get the public key from central
 func (cc *CentralClient) PublicKey() ([]byte, error) {
 	target := fmt.Sprintf("%s/%s", cc.config.BaseURL, cc.config.PublicKeyURI)
+	log.Debug("downloading public key", "url", target)
 	readCloser, err := cc.get(target)
 	if err != nil {
 		return nil, err
@@ -68,6 +71,7 @@ func (cc *CentralClient) PublicKey() ([]byte, error) {
 // retrieve plugin signature
 func (cc *CentralClient) PluginSignature(definition *PluginDefinition) ([]byte, error) {
 	target := fmt.Sprintf("%s/%s/%s", cc.config.BaseURL, definition.RemotePath(), definition.SignatureFileName())
+	log.Debug("downloading plugin signature file", "url", target)
 	readCloser, err := cc.get(target)
 	if err != nil {
 		return nil, err
@@ -81,6 +85,7 @@ func (cc *CentralClient) PluginSignature(definition *PluginDefinition) ([]byte, 
 // retrieve plugin distribution file
 func (cc *CentralClient) PluginDistribution(definition *PluginDefinition, outFilePath string) error {
 	target := fmt.Sprintf("%s/%s/%s", cc.config.BaseURL, definition.RemotePath(), definition.DistFileName())
+	log.Debug("downloading plugin zip file", "url", target)
 	outFile, err := os.Create(outFilePath)
 	if err != nil {
 		return err

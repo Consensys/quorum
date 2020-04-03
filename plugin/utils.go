@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/pborman/uuid"
 	"golang.org/x/crypto/openpgp"
 )
@@ -152,7 +153,11 @@ func verify(signature, pubkey []byte, checksum string) error {
 	}
 	entity, err := openpgp.CheckArmoredDetachedSignature(keyring, strings.NewReader(checksum), bytes.NewReader(signature))
 	if err != nil {
-		return err
+		log.Debug("unable to verify signature with original checksum. Now add \\n to the end and try", "checksum", checksum, "error", err)
+		entity, err = openpgp.CheckArmoredDetachedSignature(keyring, strings.NewReader(checksum+"\n"), bytes.NewReader(signature))
+		if err != nil {
+			return err
+		}
 	}
 	if entity == nil {
 		return fmt.Errorf("verification failed")
