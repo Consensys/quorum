@@ -397,7 +397,7 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 
 	assert.Equal(t, nodeCacheSize, len(types.NodeInfoMap.GetNodeList()))
 	nodeInfo, err := types.NodeInfoMap.GetNodeByUrl(arbitraryNode4)
-	assert.True(t, err == nil, "node fetch returned error")
+	assert.True(t, err == types.ErrNoError, "node fetch returned error")
 	assert.Equal(t, types.NodeApproved, nodeInfo.Status)
 }
 
@@ -496,7 +496,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 
 	assert.Equal(t, roleCacheSize, len(types.RoleInfoMap.GetRoleList()))
 	roleInfo, err := types.RoleInfoMap.GetRole(arbitraryNetworkAdminOrg, arbitrartNewRole1)
-	assert.True(t, err == nil, "error encountered" )
+	assert.True(t, err == types.ErrNoError, "error encountered")
 
 	assert.Equal(t, roleInfo.RoleId, arbitrartNewRole1)
 
@@ -515,7 +515,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	assert.Equal(t, accountCacheSize, len(types.AcctInfoMap.GetAcctList()))
 
 	acctInfo, err := types.AcctInfoMap.GetAccount(acct)
-	assert.True(t, err == nil, "error encountered")
+	assert.True(t, err == types.ErrNoError, "error encountered")
 	assert.True(t, acctInfo != nil, "account details nil")
 }
 

@@ -57,7 +57,7 @@ func TestOrgCache_UpsertOrg(t *testing.T) {
 	//add a org and get the org details
 	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
 	orgInfo, err := OrgInfoMap.GetOrg(NETWORKADMIN)
-	assert.True(err == nil, "errors encountered")
+	assert.True(err == ErrNoError, "errors encountered")
 
 	assert.False(orgInfo == nil, fmt.Sprintf("Expected org details, got nil"))
 	assert.True(orgInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id %v, got %v", NETWORKADMIN, orgInfo.OrgId))
@@ -65,7 +65,7 @@ func TestOrgCache_UpsertOrg(t *testing.T) {
 	// update org status to suspended
 	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgSuspended)
 	orgInfo, err = OrgInfoMap.GetOrg(NETWORKADMIN)
-	assert.True(err == nil, "errors encountered")
+	assert.True(err == ErrNoError, "errors encountered")
 
 	assert.True(orgInfo.Status == OrgSuspended, fmt.Sprintf("Expected org status %v, got %v", OrgSuspended, orgInfo.Status))
 
@@ -93,7 +93,7 @@ func TestNodeCache_UpsertNode(t *testing.T) {
 	// add a node into the cache and validate
 	NodeInfoMap.UpsertNode(NETWORKADMIN, NODE1, NodeApproved)
 	nodeInfo, err := NodeInfoMap.GetNodeByUrl(NODE1)
-	assert.True(err == nil,fmt.Sprintf("got errors in node fetch"))
+	assert.True(err == ErrNoError, fmt.Sprintf("got errors in node fetch"))
 
 	assert.False(nodeInfo == nil, fmt.Sprintf("Expected node details, got nil"))
 	assert.True(nodeInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id for node %v, got %v", NETWORKADMIN, nodeInfo.OrgId))
@@ -107,7 +107,7 @@ func TestNodeCache_UpsertNode(t *testing.T) {
 	// check node details update by updating node status
 	NodeInfoMap.UpsertNode(ORGADMIN, NODE2, NodeDeactivated)
 	nodeInfo, err = NodeInfoMap.GetNodeByUrl(NODE2)
-	assert.True(err == nil,fmt.Sprintf("got errors in node fetch"))
+	assert.True(err == ErrNoError, fmt.Sprintf("got errors in node fetch"))
 
 	assert.True(nodeInfo.Status == NodeDeactivated, fmt.Sprintf("Expected node status %v, got %v", NodeDeactivated, nodeInfo.Status))
 }
@@ -120,7 +120,7 @@ func TestRoleCache_UpsertRole(t *testing.T) {
 	// add a role into the cache and validate
 	RoleInfoMap.UpsertRole(NETWORKADMIN, NETWORKADMIN, true, true, FullAccess, true)
 	roleInfo, err := RoleInfoMap.GetRole(NETWORKADMIN, NETWORKADMIN)
-	assert.True(err == nil, "errors encountered")
+	assert.True(err == ErrNoError, "errors encountered")
 	assert.False(roleInfo == nil, fmt.Sprintf("Expected role details, got nil"))
 	assert.True(roleInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id for node %v, got %v", NETWORKADMIN, roleInfo.OrgId))
 	assert.True(roleInfo.RoleId == NETWORKADMIN, fmt.Sprintf("Expected node id %v, got %v", NETWORKADMIN, roleInfo.RoleId))
@@ -133,7 +133,7 @@ func TestRoleCache_UpsertRole(t *testing.T) {
 	// update role status and validate
 	RoleInfoMap.UpsertRole(ORGADMIN, ORGADMIN, true, true, FullAccess, false)
 	roleInfo, err = RoleInfoMap.GetRole(ORGADMIN, ORGADMIN)
-	assert.True(err == nil, "errors encountered")
+	assert.True(err == ErrNoError, "errors encountered")
 
 	assert.True(roleInfo.Active == false, fmt.Sprintf("Expected role active status to be %v, got %v", true, roleInfo.Active))
 }
@@ -146,7 +146,7 @@ func TestAcctCache_UpsertAccount(t *testing.T) {
 	// add an account into the cache and validate
 	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
 	acctInfo, err := AcctInfoMap.GetAccount(Acct1)
-	assert.True(err == nil)
+	assert.True(err == ErrNoError)
 
 	assert.False(acctInfo == nil, fmt.Sprintf("Expected account details, got nil"))
 	assert.True(acctInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id for the account to be %v, got %v", NETWORKADMIN, acctInfo.OrgId))
@@ -160,7 +160,7 @@ func TestAcctCache_UpsertAccount(t *testing.T) {
 	// update account status and validate
 	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct2, true, AcctBlacklisted)
 	acctInfo, err = AcctInfoMap.GetAccount(Acct2)
-	assert.True(err == nil)
+	assert.True(err == ErrNoError)
 
 	assert.True(acctInfo.Status == AcctBlacklisted, fmt.Sprintf("Expected account status to be %v, got %v", AcctBlacklisted, acctInfo.Status))
 
@@ -262,6 +262,6 @@ func TestLRUCacheLimit(t *testing.T) {
 	}
 
 	o, err := OrgInfoMap.GetOrg("ORG1")
-	testifyassert.True(t, err == nil)
+	testifyassert.True(t, err == ErrNoError)
 	testifyassert.True(t, o != nil)
 }

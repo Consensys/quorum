@@ -172,7 +172,7 @@ func (q *QuorumControlsAPI) AcctList() []types.AccountInfo {
 
 func (q *QuorumControlsAPI) GetOrgDetails(orgId string) (types.OrgDetailInfo, error) {
 	o, err := types.OrgInfoMap.GetOrg(orgId)
-	if err != nil {
+	if err != types.ErrNoError {
 		return types.OrgDetailInfo{}, err
 	}
 
@@ -198,7 +198,7 @@ func (q *QuorumControlsAPI) GetOrgDetails(orgId string) (types.OrgDetailInfo, er
 		}
 	}
 	orgRec, err := types.OrgInfoMap.GetOrg(orgId)
-	if err != nil {
+	if err != types.ErrNoError {
 		return types.OrgDetailInfo{}, err
 	}
 
@@ -557,7 +557,7 @@ func (q *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
 
 func (q *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) (ExecStatus, error) {
 	org, err := types.OrgInfoMap.GetOrg(orgId)
-	if err != nil {
+	if err != types.ErrNoError {
 		return ErrOrgDoesNotExists, err
 	}
 	if org == nil {
@@ -628,7 +628,7 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 	}
 
 	node, err := types.NodeInfoMap.GetNodeByUrl(url)
-	if err != nil {
+	if err != types.ErrNoError {
 		return ErrInvalidNode, err
 	}
 
@@ -665,12 +665,12 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
 	var r *types.RoleInfo
 	r, err := types.RoleInfoMap.GetRole(orgId, roleId)
-	if err != nil {
+	if err != types.ErrNoError {
 		return false
 	}
 	if r == nil {
 		orgRec, err := types.OrgInfoMap.GetOrg(orgId)
-		if err != nil || orgRec == nil {
+		if err != types.ErrNoError || orgRec == nil {
 			return false
 		}
 		r, err = types.RoleInfoMap.GetRole(orgRec.UltimateParent, roleId)
@@ -685,7 +685,7 @@ func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
 func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.Address, permAction PermAction, op AccountUpdateAction) (ExecStatus, error) {
 	// validates if the enode is linked the passed organization
 	ac, err := types.AcctInfoMap.GetAccount(account)
-	if err != nil {
+	if err != types.ErrNoError {
 		return ErrAccountNotThere, err
 	}
 
@@ -734,7 +734,7 @@ func (q *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account co
 
 func (q *QuorumControlsAPI) valSubOrgBreadthDepth(porgId string) (ExecStatus, error) {
 	org, err := types.OrgInfoMap.GetOrg(porgId)
-	if err != nil || org == nil {
+	if err != types.ErrNoError || org == nil {
 		return ErrOpNotAllowed, err
 	}
 
