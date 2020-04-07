@@ -571,7 +571,7 @@ func (p *PermissionCtrl) manageAccountPermissions() error {
 				types.AcctInfoMap.UpsertAccount(evtAccessRevoked.OrgId, evtAccessRevoked.RoleId, evtAccessRevoked.Account, evtAccessRevoked.OrgAdmin, types.AcctActive)
 
 			case evtStatusChanged := <-chStatusChanged:
-				if ac, err := types.AcctInfoMap.GetAccount(evtStatusChanged.Account); err != types.ErrNoError && ac != nil {
+				if ac, err := types.AcctInfoMap.GetAccount(evtStatusChanged.Account); ac != nil {
 					types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Account, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
 				} else {
 					log.Info("error fetching account information", "err", err)
@@ -889,9 +889,9 @@ func (p *PermissionCtrl) populateAccountToCache(acctId common.Address) (*types.A
 	}
 
 	if status.Int64() == 0 {
-		return nil, types.ErrNoError
+		return nil, types.ErrAccountNotThere
 	}
-	return &types.AccountInfo{AcctId: account, OrgId: orgId, RoleId: roleId, Status: types.AcctStatus(status.Int64()), IsOrgAdmin: isAdmin}, types.ErrNoError
+	return &types.AccountInfo{AcctId: account, OrgId: orgId, RoleId: roleId, Status: types.AcctStatus(status.Int64()), IsOrgAdmin: isAdmin}, nil
 }
 
 // getter to get a org record from the contract
@@ -907,7 +907,7 @@ func (p *PermissionCtrl) populateOrgToCache(orgId string) (*types.OrgInfo, error
 		return nil, err
 	}
 	if orgStatus.Int64() == 0 {
-		return nil, types.ErrNoError
+		return nil, types.ErrOrgDoesNotExists
 	}
 	orgInfo := types.OrgInfo{OrgId: org, ParentOrgId: parentOrgId, UltimateParent: ultimateParentId, Status: types.OrgStatus(orgStatus.Int64()), Level: orgLevel}
 	// now need to build the list of sub orgs for this org
@@ -917,7 +917,7 @@ func (p *PermissionCtrl) populateOrgToCache(orgId string) (*types.OrgInfo, error
 	}
 
 	if len(subOrgIndexes) == 0 {
-		return &orgInfo, types.ErrNoError
+		return &orgInfo, nil
 	}
 
 	// range through the sub org indexes and get the org ids to populate the suborg list
@@ -930,7 +930,7 @@ func (p *PermissionCtrl) populateOrgToCache(orgId string) (*types.OrgInfo, error
 		orgInfo.SubOrgList = append(orgInfo.SubOrgList, orgId+"."+subOrgId)
 
 	}
-	return &orgInfo, types.ErrNoError
+	return &orgInfo, nil
 }
 
 // getter to get a role record from the contract
@@ -948,9 +948,9 @@ func (p *PermissionCtrl) populateRoleToCache(roleKey *types.RoleKey) (*types.Rol
 	}
 
 	if roleDetails.OrgId == "" {
-		return nil, types.ErrNoError
+		return nil, types.ErrInvalidRole
 	}
-	return &types.RoleInfo{OrgId: roleDetails.OrgId, RoleId: roleDetails.RoleId, IsVoter: roleDetails.Voter, IsAdmin: roleDetails.Admin, Access: types.AccessType(roleDetails.AccessType.Int64()), Active: roleDetails.Active}, types.ErrNoError
+	return &types.RoleInfo{OrgId: roleDetails.OrgId, RoleId: roleDetails.RoleId, IsVoter: roleDetails.Voter, IsAdmin: roleDetails.Admin, Access: types.AccessType(roleDetails.AccessType.Int64()), Active: roleDetails.Active}, nil
 }
 
 // getter to get a role record from the contract
@@ -967,9 +967,9 @@ func (p *PermissionCtrl) populateNodeCache(url string) (*types.NodeInfo, error) 
 	}
 
 	if nodeDetails.NodeStatus.Int64() == 0 {
-		return nil, types.ErrNoError
+		return nil, types.ErrNodeDoesNotExists
 	}
-	return &types.NodeInfo{OrgId: nodeDetails.OrgId, Url: nodeDetails.EnodeId, Status: types.NodeStatus(nodeDetails.NodeStatus.Int64())}, types.ErrNoError
+	return &types.NodeInfo{OrgId: nodeDetails.OrgId, Url: nodeDetails.EnodeId, Status: types.NodeStatus(nodeDetails.NodeStatus.Int64())}, nil
 }
 
 // getter to get a node record from the contract
@@ -986,7 +986,7 @@ func (p *PermissionCtrl) populateNodeCacheAndValidate(hexNodeId, ultimateParentI
 		numNodes := numberOfNodes.Uint64()
 		for k := uint64(0); k < numNodes; k++ {
 			if nodeStruct, err := permNodeInterface.GetNodeDetailsFromIndex(big.NewInt(int64(k))); err == nil {
-				if orgRec, err := types.OrgInfoMap.GetOrg(nodeStruct.OrgId); err == types.ErrNoError && orgRec != nil {
+				if orgRec, err := types.OrgInfoMap.GetOrg(nodeStruct.OrgId); err != nil {
 					if orgRec.UltimateParent == ultimateParentId {
 						recEnode, _ := enode.ParseV4(nodeStruct.EnodeId)
 						if recEnode.ID() == passedEnode.ID() {

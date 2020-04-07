@@ -110,7 +110,38 @@ type PermissionConfig struct {
 	SubOrgBreadth *big.Int         `json:"subOrgBreadth"`
 }
 
-var ErrNoError = errors.New("no error")
+var (
+	ErrNotNetworkAdmin    = errors.New("Operation can be performed by network admin only. Account not a network admin.")
+	ErrNotOrgAdmin        = errors.New("Operation can be performed by org admin only. Account not a org admin.")
+	ErrNodePresent        = errors.New("EnodeId already part of network.")
+	ErrInvalidNode        = errors.New("Invalid enode id")
+	ErrInvalidAccount     = errors.New("Invalid account id")
+	ErrOrgExists          = errors.New("Org already exist")
+	ErrPendingApprovals   = errors.New("Pending approvals for the organization. Approve first")
+	ErrNothingToApprove   = errors.New("Nothing to approve")
+	ErrOpNotAllowed       = errors.New("Operation not allowed")
+	ErrNodeOrgMismatch    = errors.New("Enode id passed does not belong to the organization.")
+	ErrBlacklistedNode    = errors.New("Blacklisted node. Operation not allowed")
+	ErrBlacklistedAccount = errors.New("Blacklisted account. Operation not allowed")
+	ErrAccountOrgAdmin    = errors.New("Account already org admin for the org")
+	ErrOrgAdminExists     = errors.New("Org admin exist for the org")
+	ErrAccountInUse       = errors.New("Account already in use in another organization")
+	ErrRoleExists         = errors.New("Role exist for the org")
+	ErrRoleActive         = errors.New("Accounts linked to the role. Cannot be removed")
+	ErrAdminRoles         = errors.New("Admin role cannot be removed")
+	ErrInvalidOrgName     = errors.New("Org id cannot contain special characters")
+	ErrInvalidParentOrg   = errors.New("Invalid parent org id")
+	ErrAccountNotThere    = errors.New("Account does not exist")
+	ErrOrgNotOwner        = errors.New("Account does not belong to this org")
+	ErrMaxDepth           = errors.New("Max depth for sub orgs reached")
+	ErrMaxBreadth         = errors.New("Max breadth for sub orgs reached")
+	ErrNodeDoesNotExists  = errors.New("Node does not exist")
+	ErrOrgDoesNotExists   = errors.New("Org does not exist")
+	ErrInactiveRole       = errors.New("Role is already inactive")
+	ErrInvalidRole        = errors.New("Invalid role")
+	ErrInvalidInput       = errors.New("Invalid input")
+	ErrNotMasterOrg       = errors.New("Org is not a master org")
+)
 
 var syncStarted = false
 
@@ -302,25 +333,22 @@ func containsKey(s []string, e string) bool {
 func (o *OrgCache) GetOrg(orgId string) (*OrgInfo, error) {
 	key := OrgKey{OrgId: orgId}
 	if ent, ok := o.c.Get(key); ok {
-		return ent.(*OrgInfo), ErrNoError
+		return ent.(*OrgInfo), nil
 	}
 	// check if the org cache is evicted. if yes we need
 	// fetch the record from the contract
 	if o.evicted {
 		// call cache population function to populate from contract
 		orgRec, err := o.populateCacheFunc(orgId)
-		if err != ErrNoError {
-			return nil, err
-		}
-		if orgRec == nil {
+		if err != nil {
 			return nil, err
 		}
 		// insert the received record into cache
 		o.UpsertOrgWithSubOrgList(orgRec)
 		//return the record
-		return orgRec, err
+		return orgRec, nil
 	}
-	return nil, ErrNoError
+	return nil, ErrOrgDoesNotExists
 }
 
 func (o *OrgCache) GetOrgList() []OrgInfo {
@@ -343,7 +371,7 @@ func (n *NodeCache) GetNodeByUrl(url string) (*NodeInfo, error) {
 		ent := k.(NodeKey)
 		if ent.Url == url {
 			v, _ := n.c.Get(ent)
-			return v.(*NodeInfo), ErrNoError
+			return v.(*NodeInfo), nil
 		}
 	}
 	// check if the node cache is evicted. if yes we need
@@ -356,16 +384,12 @@ func (n *NodeCache) GetNodeByUrl(url string) (*NodeInfo, error) {
 			return nil, err
 		}
 
-		if nodeRec == nil {
-			return nil, err
-		}
-
 		// insert the received record into cache
 		n.UpsertNode(nodeRec.OrgId, nodeRec.Url, nodeRec.Status)
 		//return the record
 		return nodeRec, err
 	}
-	return nil, ErrNoError
+	return nil, ErrNodeDoesNotExists
 }
 
 func (n *NodeCache) GetNodeList() []NodeInfo {
@@ -385,7 +409,7 @@ func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address
 
 func (a *AcctCache) GetAccount(acct common.Address) (*AccountInfo, error) {
 	if v, ok := a.c.Get(AccountKey{acct}); ok {
-		return v.(*AccountInfo), ErrNoError
+		return v.(*AccountInfo), nil
 	}
 
 	// check if the account cache is evicted. if yes we need
@@ -394,15 +418,12 @@ func (a *AcctCache) GetAccount(acct common.Address) (*AccountInfo, error) {
 		// call function to populate cache with the record
 		acctRec, err := a.populateCacheFunc(acct)
 		// insert the received record into cache
-		if err != ErrNoError {
+		if err != nil {
 			return nil, err
-		}
-		if acctRec == nil {
-			return nil, ErrNoError
 		}
 		a.UpsertAccount(acctRec.OrgId, acctRec.RoleId, acctRec.AcctId, acctRec.IsOrgAdmin, acctRec.Status)
 		//return the record
-		return acctRec, ErrNoError
+		return acctRec, nil
 	}
 	return nil, nil
 }
@@ -436,7 +457,7 @@ func (a *AcctCache) GetAcctListRole(orgId, roleId string) []AccountInfo {
 		vp := v.(*AccountInfo)
 
 		orgRec, err := OrgInfoMap.GetOrg(vp.OrgId)
-		if err != ErrNoError {
+		if err != nil {
 			return nil
 		}
 
@@ -456,26 +477,23 @@ func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, admin bool
 func (r *RoleCache) GetRole(orgId string, roleId string) (*RoleInfo, error) {
 	key := RoleKey{OrgId: orgId, RoleId: roleId}
 	if ent, ok := r.c.Get(key); ok {
-		return ent.(*RoleInfo), ErrNoError
+		return ent.(*RoleInfo), nil
 	}
 	// check if the role cache is evicted. if yes we need
 	// fetch the record from the contract
 	if r.evicted {
 		// call cache population function to populate from contract
 		roleRec, err := r.populateCacheFunc(&RoleKey{RoleId: roleId, OrgId: orgId})
-		if err != ErrNoError {
-			return nil, err
-		}
-		if roleRec == nil {
+		if err != nil {
 			return nil, err
 		}
 		// insert the received record into cache
 		r.UpsertRole(roleRec.OrgId, roleRec.RoleId, roleRec.IsVoter, roleRec.IsAdmin, roleRec.Access, roleRec.Active)
 
 		//return the record
-		return roleRec, err
+		return roleRec, nil
 	}
-	return nil, ErrNoError
+	return nil, ErrInvalidRole
 }
 
 func (r *RoleCache) GetRoleList() []RoleInfo {
@@ -540,14 +558,14 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 	}
 
 	acOrgRec, err := OrgInfoMap.GetOrg(ac.OrgId)
-	if err != ErrNoError || acOrgRec == nil {
+	if err != nil {
 		return false
 	}
 
 	// scan through the node list and validate
 	for _, n := range NodeInfoMap.GetNodeList() {
 		orgRec, err := OrgInfoMap.GetOrg(n.OrgId)
-		if err != ErrNoError || orgRec == nil {
+		if err != nil {
 			return false
 		}
 		if orgRec.UltimateParent == acOrgRec.UltimateParent {
