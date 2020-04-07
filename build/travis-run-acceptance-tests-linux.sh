@@ -8,6 +8,7 @@ cd ${TRAVIS_HOME}/quorum-cloud/travis/4nodes
 ./init.sh ${TF_VAR_consensus_mechanism}
 ./start.sh ${TF_VAR_consensus_mechanism} tessera
 echo "---> network started"
+jdk_switcher use openjdk11
 cd ${TRAVIS_HOME}/quorum-acceptance-tests
 cp config/application-local.4nodes.yml config/application-local.yml
 echo "---> run acceptance tests for consensus ${TF_VAR_consensus_mechanism} ..."

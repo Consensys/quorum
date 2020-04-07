@@ -40,7 +40,7 @@ wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.8/tess
 echo "---> tessera done"
 
 echo "---> getting gauge jar ..."
-wget https://github.com/getgauge/gauge/releases/download/v1.0.7/gauge-1.0.7-linux.x86_64.zip -O gauge.zip -q
+wget https://github.com/getgauge/gauge/releases/download/v1.0.8/gauge-1.0.8-linux.x86_64.zip -O gauge.zip -q
 sudo unzip -o gauge.zip -d /usr/local/bin
 gauge telemetry off
 cd ${TRAVIS_HOME}/quorum-acceptance-tests
