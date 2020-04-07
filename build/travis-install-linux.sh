@@ -6,19 +6,10 @@ echo "---> installing tools ..."
 sudo apt-get update
 # upgrade dpkg to fix issue with trusty: dpkg-deb: error
 sudo apt-get -y install dpkg
-# Travis pre-installs jdk11 by default.
-# However, Tessera 0.8 requires jre8 to run so we use jdk_switcher utility from Travis
-if test -f ${HOME}/.jdk_switcher_rc; then
-    . ${HOME}/.jdk_switcher_rc
-fi
-if test -f /opt/jdk_switcher/jdk_switcher.sh; then
-    . /opt/jdk_switcher/jdk_switcher.sh
-fi
-jdk_switcher use openjdk8
 java -version
 mvn --version
 
-sudo wget https://github.com/ethereum/solidity/releases/download/v0.5.4/solc-static-linux -O /usr/local/bin/solc
+sudo wget https://github.com/ethereum/solidity/releases/download/v0.5.4/solc-static-linux -O /usr/local/bin/solc -q
 sudo chmod +x /usr/local/bin/solc
 solc --version
 echo "---> tools installation done"
@@ -36,11 +27,11 @@ git clone https://github.com/jpmorganchase/quorum-cloud.git ${TRAVIS_HOME}/quoru
 echo "---> cloning done"
 
 echo "---> getting tessera jar ..."
-wget https://github.com/jpmorganchase/tessera/releases/download/tessera-0.8/tessera-app-0.8-app.jar -O $HOME/tessera.jar -q
+wget https://oss.sonatype.org/service/local/repositories/releases/content/com/jpmorgan/quorum/tessera-app/0.10.4/tessera-app-0.10.4-app.jar -O $HOME/tessera.jar -q
 echo "---> tessera done"
 
 echo "---> getting gauge jar ..."
-wget https://github.com/getgauge/gauge/releases/download/v1.0.7/gauge-1.0.7-linux.x86_64.zip -O gauge.zip -q
+wget https://github.com/getgauge/gauge/releases/download/v1.0.8/gauge-1.0.8-linux.x86_64.zip -O gauge.zip -q
 sudo unzip -o gauge.zip -d /usr/local/bin
 gauge telemetry off
 cd ${TRAVIS_HOME}/quorum-acceptance-tests
