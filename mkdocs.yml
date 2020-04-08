@@ -11,6 +11,7 @@ repo_name: quorum
 repo_url: https://github.com/jpmorganchase/quorum
 
 nav:
+    - Home: index.md
     - Getting Started:
         - Overview: Getting Started/Getting Started Overview.md
         - Installing: Getting Started/Installing.md
