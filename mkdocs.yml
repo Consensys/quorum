@@ -28,7 +28,7 @@ nav:
             - Overview: Consensus/ibft/ibft.md
             - Consensus/ibft/istanbul-rpc-api.md
             - Consensus/ibft/ibft-parameters.md
-    - Transaction Privacy:
+    - Transaction & Contract Privacy:
         - Overview: Privacy/Overview.md
         - Tessera:
             - What is Tessera: Privacy/Tessera/Tessera.md
