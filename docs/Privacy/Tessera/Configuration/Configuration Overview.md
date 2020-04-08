@@ -293,9 +293,9 @@ If `type` is set to `EC`, the following `properties` fields can also be configur
 
 Field|Default Value|Description
 -------------|-------------|-----------
-`ellipticCurve`|`secp256r1`|The elliptic curve to use. See [SunEC provider](https://docs.oracle.com/javase/8/docs/technotes/guides/security/SunProviders.html#SunEC) for other options. Depending on the JCE provider you are using there may be additional curves available.
-`symmetricCipher`|`AES/GCM/NoPadding`|The symmetric cipher to use for encrypting data (GCM IS MANDATORY as an initialisation vector is supplied during encryption).
-`nonceLength`|`24`|The nonce length (used as the initialization vector - IV - for symmetric encryption).
-`sharedKeyLength`|`32`|The key length used for symmetric encryption (keep in mind the key derivation operation always produces 32 byte keys - so the encryption algorithm must support it).
+<span style="white-space:nowrap">`ellipticCurve`</span>|<span style="white-space:nowrap">`secp256r1`</span>|The elliptic curve to use. See [SunEC provider](https://docs.oracle.com/javase/8/docs/technotes/guides/security/SunProviders.html#SunEC) for other options. Depending on the JCE provider you are using there may be additional curves available.
+<span style="white-space:nowrap">`symmetricCipher`</span>|<span style="white-space:nowrap">`AES/GCM/NoPadding`</span>|The symmetric cipher to use for encrypting data (GCM IS MANDATORY as an initialisation vector is supplied during encryption).
+<span style="white-space:nowrap">`nonceLength`</span>|`24`|The nonce length (used as the initialization vector - IV - for symmetric encryption).
+<span style="white-space:nowrap">`sharedKeyLength`</span>|`32`|The key length used for symmetric encryption (keep in mind the key derivation operation always produces 32 byte keys - so the encryption algorithm must support it).
 
 ---
