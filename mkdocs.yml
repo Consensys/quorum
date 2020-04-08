@@ -27,7 +27,6 @@ nav:
             - Overview: Consensus/ibft/ibft.md
             - Consensus/ibft/istanbul-rpc-api.md
             - Consensus/ibft/ibft-parameters.md
-    - Transaction Processing: Transaction Processing/Transaction Processing.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
@@ -47,7 +46,8 @@ nav:
         - Setup: Permissioning/setup.md
         - APIs: Permissioning/Permissioning apis.md
         - Usage: Permissioning/Usage.md
-    - Privacy:
+    - Transaction Privacy:
+        - Overview: Privacy/Overview.md
         - Tessera:
             - What is Tessera: Privacy/Tessera/Tessera.md
             - How Tessera works: Privacy/Tessera/How Tessera Works.md
