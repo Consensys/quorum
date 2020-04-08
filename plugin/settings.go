@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/plugin/helloworld"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/hashicorp/go-plugin"
-
 	"github.com/naoina/toml"
 )
 
@@ -22,22 +22,49 @@ const (
 )
 
 var (
-	// define additional plugins here
-	pluginProviders = map[PluginInterfaceName]plugin.PluginSet{
+	// define additional plugins being supported here
+	pluginProviders = map[PluginInterfaceName]pluginProvider{
 		HelloWorldPluginInterfaceName: {
-			helloworld.ConnectorName: &helloworld.PluginConnector{},
+			apiProviderFunc: func(ns string, pm *PluginManager) ([]rpc.API, error) {
+				template := new(HelloWorldPluginTemplate)
+				if err := pm.GetPluginTemplate(HelloWorldPluginInterfaceName, template); err != nil {
+					return nil, err
+				}
+				service, err := template.Get()
+				if err != nil {
+					return nil, err
+				}
+				return []rpc.API{{
+					Namespace: ns,
+					Version:   "1.0.0",
+					Service:   service,
+					Public:    true,
+				}}, nil
+			},
+			pluginSet: plugin.PluginSet{
+				helloworld.ConnectorName: &helloworld.PluginConnector{},
+			},
 		},
 	}
 
 	// this is the place holder for future solution of the plugin central
 	quorumPluginCentralConfiguration = &PluginCentralConfiguration{
 		CertFingerprint:       "",
-		BaseURL:               "",
-		PublicKeyURI:          "/" + DefaultPublicKeyFile,
+		BaseURL:               "https://dl.bintray.com/quorumengineering/quorum-plugins",
+		PublicKeyURI:          "/.pgp/" + DefaultPublicKeyFile,
 		InsecureSkipTLSVerify: false,
 	}
 )
 
+type pluginProvider struct {
+	// this allows exposing plugin interfaces to geth RPC API automatically.
+	// nil value implies that plugin won't expose its methods to geth RPC API
+	apiProviderFunc rpcAPIProviderFunc
+	// contains connectors being registered to the plugin library
+	pluginSet plugin.PluginSet
+}
+
+type rpcAPIProviderFunc func(ns string, pm *PluginManager) ([]rpc.API, error)
 type Version string
 
 // This is to describe a plugin
@@ -108,7 +135,7 @@ func (m *PluginDefinition) DistFileName() string {
 
 // return plugin distribution signature file name
 func (m *PluginDefinition) SignatureFileName() string {
-	return fmt.Sprintf("%s.sig", m.FullName())
+	return fmt.Sprintf("%s.sha256sum.asc", m.DistFileName())
 }
 
 // must be always be lowercase when define constants
