@@ -1,4 +1,4 @@
-# Transaction Privacy
+# Transaction and Contract Privacy
 
 One of the key features of Quorum is that of Transaction Privacy.  To that end, we introduce the notion of 'Public Transactions' and 'Private Transactions'.  Note that this is a notional concept only and Quorum does not introduce new Transaction Types, but rather, the Ethereum Transaction Model has been extended to include an optional `privateFor` parameter (the population of which results in a Transaction being treated as private by Quorum) and the Transaction Type has a new `IsPrivate` method to identify such Transactions.
 
