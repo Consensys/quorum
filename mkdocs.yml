@@ -56,6 +56,12 @@ nav:
             - How it works: Privacy/Constellation/How constellation works.md
             - Sample Configuration: Privacy/Constellation/Sample Configuration.md
             - Running Constellation: Privacy/Constellation/Installation & Running.md
+    - Permissioning:
+        - Overview: Permissioning/Overview.md
+        - Design: Permissioning/Contract Design.md
+        - Setup: Permissioning/setup.md
+        - APIs: Permissioning/Permissioning apis.md
+        - Usage: Permissioning/Usage.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
@@ -69,12 +75,6 @@ nav:
           - Decentralized App:
             - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
             - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
-    - Permissioning:
-        - Overview: Permissioning/Overview.md
-        - Design: Permissioning/Contract Design.md
-        - Setup: Permissioning/setup.md
-        - APIs: Permissioning/Permissioning apis.md
-        - Usage: Permissioning/Usage.md
     - Pluggable Architecture:
         - Overview: PluggableArchitecture/Overview.md
         - Settings: PluggableArchitecture/Settings.md
