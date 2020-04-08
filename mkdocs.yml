@@ -27,25 +27,6 @@ nav:
             - Overview: Consensus/ibft/ibft.md
             - Consensus/ibft/istanbul-rpc-api.md
             - Consensus/ibft/ibft-parameters.md
-    - Security Framework:
-          - Overview: Security/Framework/Overview.md
-          - Quorum Network:
-            - Consortium: Security/Framework/Quorum Network Security/Consortium.md
-            - Quorum Node:
-                - Overview: Security/Framework/Quorum Network Security/Node.md
-                - Permissioning:
-                    - Network Permissioning: Security/Framework/Quorum Network Security/Nodes/Permissioning/Network Permissioning.md
-            - Transaction Manager: Security/Framework/Quorum Network Security/Transaction Manager.md
-            - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
-          - Decentralized App:
-            - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
-            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
-    - Permissioning:
-        - Overview: Permissioning/Overview.md
-        - Design: Permissioning/Contract Design.md
-        - Setup: Permissioning/setup.md
-        - APIs: Permissioning/Permissioning apis.md
-        - Usage: Permissioning/Usage.md
     - Transaction Privacy:
         - Overview: Privacy/Overview.md
         - Tessera:
@@ -75,6 +56,25 @@ nav:
             - How it works: Privacy/Constellation/How constellation works.md
             - Sample Configuration: Privacy/Constellation/Sample Configuration.md
             - Running Constellation: Privacy/Constellation/Installation & Running.md
+    - Security Framework:
+          - Overview: Security/Framework/Overview.md
+          - Quorum Network:
+            - Consortium: Security/Framework/Quorum Network Security/Consortium.md
+            - Quorum Node:
+                - Overview: Security/Framework/Quorum Network Security/Node.md
+                - Permissioning:
+                    - Network Permissioning: Security/Framework/Quorum Network Security/Nodes/Permissioning/Network Permissioning.md
+            - Transaction Manager: Security/Framework/Quorum Network Security/Transaction Manager.md
+            - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
+          - Decentralized App:
+            - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
+            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
+    - Permissioning:
+        - Overview: Permissioning/Overview.md
+        - Design: Permissioning/Contract Design.md
+        - Setup: Permissioning/setup.md
+        - APIs: Permissioning/Permissioning apis.md
+        - Usage: Permissioning/Usage.md
     - Pluggable Architecture:
         - Overview: PluggableArchitecture/Overview.md
         - Settings: PluggableArchitecture/Settings.md
