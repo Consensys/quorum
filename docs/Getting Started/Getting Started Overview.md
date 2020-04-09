@@ -4,12 +4,14 @@ This section details several ways to start using and working with Quorum, rangin
 
 ## Quickstart with Quorum Wizard
 
-The easiest way to get a network up and running is by using [Quorum Wizard](../../Wizard/Overview).  This command-line tool provides the means to create a local Quorum network that can be started and be ready for use in minutes. It provides options for configuring the network and then generates all the resources to run either in containers using docker-compose, or locally through the use of bash scripts. (Requires [NodeJS](https://nodejs.org/), Linux/Mac only)
+The easiest way to get a network up and running is by using [Quorum Wizard](../../Wizard/GettingStarted).  This command-line tool provides the means to create a local Quorum network that can be started and be ready for use in minutes. It provides options for configuring the network and then generates all the resources to run either in containers using docker-compose, or locally through the use of bash scripts. (Requires [NodeJS](https://nodejs.org/), Linux/Mac only)
 
 ```
 npm install -g quorum-wizard
 quorum-wizard
 ```
+
+To explore the features of Quorum and deploy some private contracts, follow the instructions on [Interacting with the Network](../../Wizard/Interacting)
 
 ## Quorum Examples' sample network
 

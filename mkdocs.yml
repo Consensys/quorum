@@ -85,7 +85,8 @@ nav:
                 - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
         - Plugin Development: PluggableArchitecture/PluginDevelopment.md
     - Quorum Wizard:
-        - Overview: Wizard/Overview.md
+        - Getting Started: Wizard/GettingStarted.md
+        - Interacting with the Network: Wizard/Interacting.md
     - Cakeshop:
         - Overview: Cakeshop/Overview.md
         - Getting Started: Cakeshop/Getting started.md
