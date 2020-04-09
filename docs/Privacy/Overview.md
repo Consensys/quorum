@@ -1,5 +1,11 @@
 # Transaction and Contract Privacy
 
+Quorum achieves Transaction Privacy by:
+    
+ 1. Enabling transaction Senders to create a private transaction by marking who is privy to that transaction via the `privateFor` parameter
+ 2. Replacing the payload of a private transaction with a hash of the encrypted payload, such that the original payload is not visible to participants who are not privy to the transaction
+ 3. Storing encrypted private data off-chain in a separate component called the Transaction Manager (provided by [Constellation](https://github.com/jpmorganchase/constellation) or [Tessera](https://github.com/jpmorganchase/tessera)).  The Transaction Manager distributes the encrypted data to other parties that are privy to the transaction and returns the decrypted payload to those parties 
+
 One of the key features of Quorum is that of Transaction Privacy.  To that end, we introduce the notion of 'Public Transactions' and 'Private Transactions'.  Note that this is a notional concept only and Quorum does not introduce new Transaction Types, but rather, the Ethereum Transaction Model has been extended to include an optional `privateFor` parameter (the population of which results in a Transaction being treated as private by Quorum) and the Transaction Type has a new `IsPrivate` method to identify such Transactions.
 
 [Constellation](../../Privacy/Constellation/Constellation) / [Tessera](../../Privacy/Tessera/Tessera) are used by Quorum to transfer private payloads to their intended recipients, performing encryption and related operations in the process.
