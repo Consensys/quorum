@@ -11,7 +11,7 @@ npm install -g quorum-wizard
 quorum-wizard
 ```
 
-To explore the features of Quorum and deploy some private contracts, follow the instructions on [Interacting with the Network](../../Wizard/Interacting)
+To explore the features of Quorum and deploy a private contract, follow the instructions on [Interacting with the Network](../../Wizard/Interacting)
 
 ## Quorum Examples' sample network
 
