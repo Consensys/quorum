@@ -1,4 +1,4 @@
-# Getting Started Overview
+# Quickstart
 
 This section details several ways to start using and working with Quorum, ranging from using our wizard to generate a local network, to configuring and creating a full network from scratch.
 
