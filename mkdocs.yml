@@ -30,7 +30,7 @@ nav:
             - Consensus/ibft/ibft-parameters.md
     - Transaction & Contract Privacy:
         - Overview: Privacy/Overview.md
-        - Privacy/How-is-private-data-secured.md
+        - Privacy/Privacy-Manager.md
         - Tessera:
             - What is Tessera: Privacy/Tessera/Tessera.md
             - How Tessera works: Privacy/Tessera/How Tessera Works.md
