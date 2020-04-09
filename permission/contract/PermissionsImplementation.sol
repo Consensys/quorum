@@ -257,7 +257,7 @@ contract PermissionsImplementation {
         string calldata _enodeId, address _caller) external onlyInterface
     orgExists(_pOrgId) orgAdmin(_caller, _pOrgId) {
         orgManager.addSubOrg(_pOrgId, _orgId);
-        string memory pOrgId = string(abi.encode(_pOrgId, ".", _orgId));
+        string memory pOrgId = string(abi.encodePacked(_pOrgId, ".", _orgId));
         if (bytes(_enodeId).length > 0) {
             nodeManager.addOrgNode(_enodeId, pOrgId);
         }

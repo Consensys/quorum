@@ -7,7 +7,6 @@ import (
 	"unsafe"
 
 	"github.com/ethereum/go-ethereum/log"
-
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -27,26 +26,9 @@ type PluginManager struct {
 
 func (s *PluginManager) Protocols() []p2p.Protocol { return nil }
 
+// this is called after PluginManager service has been successfully started
+// See node/node.go#Start()
 func (s *PluginManager) APIs() []rpc.API {
-	// the below code show how to expose APIs of a plugin via JSON RPC
-	// this is only for demonstration purposes
-	helloWorldAPI := make([]rpc.API, 0)
-	helloWorldPluginTemplate := new(HelloWorldPluginTemplate)
-	if err := s.GetPluginTemplate(HelloWorldPluginInterfaceName, helloWorldPluginTemplate); err != nil {
-		log.Info("plugin: not configured", "name", HelloWorldPluginInterfaceName, "err", err)
-	} else {
-		pluginInstance, err := helloWorldPluginTemplate.Get()
-		if err != nil {
-			log.Info("plugin: instance not ready", "name", HelloWorldPluginInterfaceName, "err", err)
-		} else {
-			helloWorldAPI = append(helloWorldAPI, rpc.API{
-				Namespace: fmt.Sprintf("plugin@%s", HelloWorldPluginInterfaceName),
-				Service:   pluginInstance,
-				Version:   "1.0",
-				Public:    true,
-			})
-		}
-	}
 	return append([]rpc.API{
 		{
 			Namespace: "admin",
@@ -54,7 +36,7 @@ func (s *PluginManager) APIs() []rpc.API {
 			Version:   "1.0",
 			Public:    false,
 		},
-	}, helloWorldAPI...)
+	}, s.delegateAPIs()...)
 }
 
 func (s *PluginManager) Start(_ *p2p.Server) (err error) {
@@ -78,8 +60,17 @@ func (s *PluginManager) Start(_ *p2p.Server) (err error) {
 func (s *PluginManager) getPlugin(name PluginInterfaceName) (managedPlugin, bool) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	p, ok := s.plugins[name]
+	p, ok := s.plugins[name] // check if it's been used before
+	if !ok {
+		p, ok = s.initializedPlugins[name] // check if it's been initialized before
+	}
 	return p, ok
+}
+
+// Check if a plugin is enabled/setup
+func (s *PluginManager) IsEnabled(name PluginInterfaceName) bool {
+	_, ok := s.initializedPlugins[name]
+	return ok
 }
 
 // store the plugin instance to the value of the pointer v and cache it
@@ -157,6 +148,26 @@ func (s *PluginManager) PluginsInfo() interface{} {
 	return info
 }
 
+// this is to configure delegate APIs call to the plugins
+func (s *PluginManager) delegateAPIs() []rpc.API {
+	apis := make([]rpc.API, 0)
+	for _, p := range s.initializedPlugins {
+		interfaceName, _ := p.Info()
+		if pluginProvider, ok := pluginProviders[interfaceName]; ok {
+			if pluginProvider.apiProviderFunc != nil {
+				namespace := fmt.Sprintf("plugin@%s", interfaceName)
+				log.Debug("adding RPC API delegate for plugin", "provider", interfaceName, "namespace", namespace)
+				if delegates, err := pluginProvider.apiProviderFunc(namespace, s); err != nil {
+					log.Error("unable to delegate RPC API calls to plugin", "provider", interfaceName, "error", err)
+				} else {
+					apis = append(apis, delegates...)
+				}
+			}
+		}
+	}
+	return apis
+}
+
 func NewPluginManager(nodeName string, settings *Settings, skipVerify bool, localVerify bool, publicKey string) (*PluginManager, error) {
 	pm := &PluginManager{
 		nodeName:           nodeName,
@@ -182,7 +193,7 @@ func NewPluginManager(nodeName string, settings *Settings, skipVerify bool, loca
 		if !ok {
 			return nil, fmt.Errorf("plugin: [%s] is not supported", pluginName)
 		}
-		base, err := newBasePlugin(pm, pluginName, pluginDefinition, pluginProvider)
+		base, err := newBasePlugin(pm, pluginName, pluginDefinition, pluginProvider.pluginSet)
 		if err != nil {
 			return nil, fmt.Errorf("plugin [%s] %s", pluginName, err.Error())
 		}

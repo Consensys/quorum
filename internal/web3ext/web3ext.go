@@ -251,7 +251,8 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'dumpBlock',
 			call: 'debug_dumpBlock',
-			params: 1
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, ""]
 		}),
 		new web3._extend.Method({
 			name: 'chaindbProperty',
