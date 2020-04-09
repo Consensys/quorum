@@ -10,7 +10,7 @@
     
      1. Enabling transaction Senders to create a private transaction by marking who is privy to that transaction via the `privateFor` parameter
      2. Replacing the payload of a private transaction with a hash of the encrypted payload, such that the original payload is not visible to participants who are not privy to the transaction
-     3. Storing encrypted private data off-chain in a separate component called the Transaction Manager (provided by [Constellation](https://github.com/jpmorganchase/constellation) or [Tessera](https://github.com/jpmorganchase/tessera)).  The Transaction Manager distributes the encrypted data to other parties that are privy to the transaction and returns the decrypted payload to those parties 
+     3. Storing encrypted private data off-chain in a separate component called the Privacy Manager (provided by [Constellation](https://github.com/jpmorganchase/constellation) or [Tessera](https://github.com/jpmorganchase/tessera)).  The Privacy Manager distributes the encrypted data to other parties that are privy to the transaction and returns the decrypted payload to those parties 
     
     Please see the [Transaction and Contract Privacy](../Privacy/Overview) section for more info.
     
