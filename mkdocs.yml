@@ -31,9 +31,9 @@ nav:
     - Transaction & Contract Privacy:
         - Overview: Privacy/Overview.md
         - Privacy/Privacy-Manager.md
+        - Privacy/Lifecycle-of-a-private-transaction.md
         - Tessera:
             - What is Tessera: Privacy/Tessera/Tessera.md
-            - How Tessera works: Privacy/Tessera/How Tessera Works.md
             - Configuration:
                 - Overview: Privacy/Tessera/Configuration/Configuration Overview.md
                 - Keys Config: Privacy/Tessera/Configuration/Keys.md

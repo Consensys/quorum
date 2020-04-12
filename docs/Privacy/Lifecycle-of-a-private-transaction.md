@@ -1,5 +1,3 @@
-### Private Transaction Process Flow
-
 Below is a description of how Private Transactions are processed in Quorum:
 
 ![Quorum Tessera Privacy Flow](https://github.com/jpmorganchase/tessera/raw/master/Tessera%20Privacy%20flow.jpeg)

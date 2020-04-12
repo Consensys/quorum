@@ -19,6 +19,3 @@ The Privacy Manager has two components:
 * [Tessera](../Tessera/Tessera) is a production-ready implementation of Quorum's privacy manager.  It is undergoing active development with new features being added regularly.
 
 * [Constellation](../Constellation/Constellation) is the reference implementation of Quorum's privacy manager.  It is still supported but no longer undergoing active development of new features.  
-
-## Lifecycle of a private transaction
-See [How Tessera Works](../../Privacy/Tessera/How%20Tessera%20Works) for a description of the lifecycle of a private transaction and how the Privacy Manager works with Quorum.
