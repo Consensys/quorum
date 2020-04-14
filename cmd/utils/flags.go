@@ -766,6 +766,12 @@ var (
 	}
 
 	// Quorum
+	// immutability threshold which can be passed as a parameter at geth start
+	QuorumImmutabilityThreshold = cli.IntFlag{
+		Name: "immutabilitythreshold",
+		Usage: "overrides the default immutability threshold for Quorum nodes. Its the threshold beyond which block data will be moved to ancient db",
+		Value: 3162240,
+	}
 	// Raft flags
 	RaftModeFlag = cli.BoolFlag{
 		Name:  "raft",
@@ -1276,6 +1282,7 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	if ctx.GlobalIsSet(EnableNodePermissionFlag.Name) {
 		cfg.EnableNodePermission = ctx.GlobalBool(EnableNodePermissionFlag.Name)
 	}
+
 }
 
 func setSmartCard(ctx *cli.Context, cfg *node.Config) {
@@ -1624,6 +1631,11 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	}
 	if ctx.GlobalIsSet(RPCGlobalGasCap.Name) {
 		cfg.RPCGasCap = new(big.Int).SetUint64(ctx.GlobalUint64(RPCGlobalGasCap.Name))
+	}
+
+	// set immutability threshold in config
+	if ctx.GlobalIsSet(QuorumImmutabilityThreshold.Name) {
+		cfg.QuorumImmutabilityThreshold = ctx.GlobalInt(QuorumImmutabilityThreshold.Name)
 	}
 
 	// Override any default configs for hard coded networks.

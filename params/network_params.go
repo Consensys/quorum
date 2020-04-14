@@ -59,3 +59,23 @@ const (
 	// the freezer as the cutoff treshold and by clique as the snapshot trust limit.
 	ImmutabilityThreshold = 90000
 )
+
+// //Quorum
+var QuorumImmutabilityThreshold int
+var IsQuorum = false
+
+// returns the immutability threshold set for the network
+func GetImmutabilityThreshold() int {
+	if IsQuorum {
+		return QuorumImmutabilityThreshold
+	}
+	return ImmutabilityThreshold
+}
+
+// sets the immutability threshold and isQuorum to passed values
+func SetQuorumImmutabilityThreshold(immutabilityThreshold int, isQuorum bool) {
+	QuorumImmutabilityThreshold = immutabilityThreshold
+	IsQuorum = isQuorum
+}
+
+// /Quorum
