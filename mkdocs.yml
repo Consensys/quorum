@@ -120,6 +120,7 @@ markdown_extensions:
     - toc:
         permalink: true
         toc_depth: 3
+    - attr_list
     - codehilite
     - admonition
     - footnotes

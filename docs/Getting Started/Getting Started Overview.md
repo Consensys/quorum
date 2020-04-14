@@ -17,6 +17,17 @@ To explore the features of Quorum and deploy a private contract, follow the inst
 
 [Quorum Examples](../Quorum-Examples) provides the means to quickly create a pre-configured sample Quorum network that can be run either in a virtual-machine environment using Vagrant, in containers using docker-compose, or locally through the use of bash scripts to automate creation of the network.
 
+## ![k8s-logo](../images/qubernetes/k8s-logo.png){: style="height:20px;width:20px"} Quorum on Kubernetes
+
+Use [qubernetes](https://github.com/jpmorganchase/qubernetes) to run configurable N node Quorum networks on Kubernetes.  
+   
+You can use [kind](https://github.com/jpmorganchase/qubernetes#quickest-start) or [Minikube](https://github.com/jpmorganchase/qubernetes/blob/master/docs/minikube-docs.md) 
+for local development.  For long running networks, use a cloud service (e.g. Google Kubernetes Engine, Azure KS, AWS EKS) or a self-hosted kubernetes cluster.
+
+Supports Raft and Istanbul consensus algorithms, multiple Quorum and Transaction Manager (Tessera and Constellation) versions, 
+and networks with an arbitrary number of nodes.
+Also includes [examples](https://github.com/jpmorganchase/qubernetes/blob/master/docs/7nodes-on-k8s.md) ready to run on Kubernetes. 
+
 ## Creating a network from scratch
 
 [Creating a Network From Scratch](../Creating-A-Network-From-Scratch) provides a step-by-step walkthrough of how to create and configure a Quorum network suitable for either Raft or Istanbul consensus.  It also shows how to enable privacy and add/remove nodes as required.
