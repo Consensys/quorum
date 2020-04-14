@@ -152,7 +152,7 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		}
 
 		// set the immutability threshold value in line with value passed
-		params.SetQuorumImmutabilityThreshold(config.QuorumImmutabilityThreshold, true)
+		params.SetQuorumImmutabilityThreshold(config.QuorumImmutabilityThreshold)
 	}
 
 	if !rawdb.GetIsQuorumEIP155Activated(chainDb) && chainConfig.ChainID != nil {

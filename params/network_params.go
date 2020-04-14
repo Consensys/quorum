@@ -73,9 +73,9 @@ func GetImmutabilityThreshold() int {
 }
 
 // sets the immutability threshold and isQuorum to passed values
-func SetQuorumImmutabilityThreshold(immutabilityThreshold int, isQuorum bool) {
+func SetQuorumImmutabilityThreshold(immutabilityThreshold int) {
 	QuorumImmutabilityThreshold = immutabilityThreshold
-	IsQuorum = isQuorum
+	IsQuorum = true
 }
 
 // /Quorum

@@ -209,9 +209,6 @@ type BlockChain interface {
 
 	// InsertReceiptChain inserts a batch of receipts into the local chain.
 	InsertReceiptChain(types.Blocks, []types.Receipts, uint64) (int, error)
-
-	// Config returns the block chain configuration
-	Config() *params.ChainConfig
 }
 
 // New creates a new downloader to fetch hashes and blocks from remote peers.

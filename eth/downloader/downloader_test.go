@@ -19,6 +19,7 @@ package downloader
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 	"strings"
 	"sync"
@@ -40,6 +41,9 @@ func init() {
 	maxForkAncestry = 10000
 	blockCacheItems = 1024
 	fsHeaderContCheck = 500 * time.Millisecond
+
+	// set immutability threshold to 10000 as well
+	params.SetQuorumImmutabilityThreshold(10000)
 }
 
 // downloadTester is a test simulator for mocking out local block chain.

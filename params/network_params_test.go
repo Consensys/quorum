@@ -11,11 +11,7 @@ func TestQuorumImmutabilityThresholdParams(t *testing.T) {
 	assert.Equal(t, 90000, immutabilityThreshold)
 
 	// call Set to set the values
-	SetQuorumImmutabilityThreshold(20000, false)
-	immutabilityThreshold = GetImmutabilityThreshold()
-	assert.Equal(t, 90000, immutabilityThreshold)
-
-	SetQuorumImmutabilityThreshold(20000, true)
+	SetQuorumImmutabilityThreshold(20000)
 	immutabilityThreshold = GetImmutabilityThreshold()
 	assert.Equal(t, 20000, immutabilityThreshold)
 }
