@@ -41,6 +41,7 @@ The official docker containers can be found under https://hub.docker.com/u/quoru
 * [Quorum](https://github.com/jpmorganchase/quorum): this repository
 * [Quorum Documentation](https://docs.goquorum.com)
 * [quorum-examples](https://github.com/jpmorganchase/quorum-examples): Quorum demonstration examples
+* <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [qubernetes](https://github.com/jpmorganchase/qubernetes): Deploy Quorum on Kubernetes  
 * [Quorum Community Slack Inviter](https://bit.ly/quorum-slack): Quorum Slack community entry point
 * Quorum Transaction Managers
    * [Constellation](https://github.com/jpmorganchase/constellation): Haskell implementation of peer-to-peer encrypted message exchange for transaction privacy

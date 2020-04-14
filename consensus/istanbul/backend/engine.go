@@ -27,8 +27,8 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -144,8 +144,9 @@ func (sb *backend) verifyHeader(chain consensus.ChainReader, header *types.Heade
 		return errUnknownBlock
 	}
 
-	// Don't waste time checking blocks from the future
-	if header.Time.Cmp(big.NewInt(now().Unix())) > 0 {
+	// Don't waste time checking blocks from the future (adjusting for allowed threshold)
+	adjustedTimeNow := now().Add(time.Duration(sb.config.AllowedFutureBlockTime) * time.Second).Unix()
+	if header.Time.Cmp(big.NewInt(adjustedTimeNow)) > 0 {
 		return consensus.ErrFutureBlock
 	}
 
@@ -308,7 +309,7 @@ func (sb *backend) verifyCommittedSeals(chain consensus.ChainReader, header *typ
 		return errInvalidCommittedSeals
 	}
 
-	// The length of validSeal should be larger than number of faulty node + 1  
+	// The length of validSeal should be larger than number of faulty node + 1
 	if validSeal <= snap.ValSet.F() {
 		return errInvalidCommittedSeals
 	}

@@ -149,6 +149,7 @@ var (
 		utils.PluginSkipVerifyFlag,
 		utils.PluginLocalVerifyFlag,
 		utils.PluginPublicKeyFlag,
+		utils.AllowedFutureBlockTimeFlag,
 		// End-Quorum
 	}
 
