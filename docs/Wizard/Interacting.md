@@ -30,13 +30,13 @@ Make note of the `TransactionHash` printed to the terminal.
 
 ### Inspecting the Quorum nodes
 
-We can inspect any of the Quorum nodes by using `geth attach` to open the Geth JavaScript console.  For this demo, we will be inspecting Node 1, Node 2, and Node 3.  
+We can inspect any of the Quorum nodes by using `./attach.sh` to open the Geth JavaScript console.  For this demo, we will be inspecting Node 1, Node 2, and Node 3.  
 
 It is recommended to use separate terminal windows for each node we are inspecting.  In each terminal, ensure you are in your network's directory, then:
 
-- In terminal 1 run `geth attach ipc:qdata/dd1/geth.ipc` to attach to node 1
-- In terminal 2 run `geth attach ipc:qdata/dd2/geth.ipc` to attach to node 2
-- In terminal 3 run `geth attach ipc:qdata/dd3/geth.ipc` to attach to node 3
+- In terminal 1 run `./attach.sh 1` to attach to node 1
+- In terminal 2 run `./attach.sh 2` to attach to node 2
+- In terminal 3 run `./attach.sh 3` to attach to node 3
 
 To look at the private transaction that was just sent, run the following command in one of the terminals:
 ```sh
