@@ -12,7 +12,7 @@ repo_url: https://github.com/jpmorganchase/quorum
 
 nav:
     - Getting Started:
-        - Overview: Getting Started/Getting Started Overview.md
+        - Quickstart: Getting Started/Getting Started Overview.md
         - Installing: Getting Started/Installing.md
         - Examples: Getting Started/Quorum-Examples.md
         - Creating a Network From Scratch: Getting Started/Creating-A-Network-From-Scratch.md
@@ -84,6 +84,9 @@ nav:
                 - Interface: PluggableArchitecture/Plugins/helloworld/interface.md
                 - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
         - Plugin Development: PluggableArchitecture/PluginDevelopment.md
+    - Quorum Wizard:
+        - Getting Started: Wizard/GettingStarted.md
+        - Interacting with the Network: Wizard/Interacting.md
     - Cakeshop:
         - Overview: Cakeshop/Overview.md
         - Getting Started: Cakeshop/Getting started.md

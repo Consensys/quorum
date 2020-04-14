@@ -6,7 +6,7 @@ The Quorum plugin for Ethereum's Remix IDE adds support for creating and interac
 
 ## Getting Started
 
-Just go to the [Remix IDE](https://remix.ethereum.org) and activate the **Quorum Network** plugin on the plugins page. For step-by-step instructions, go to the [Getting Started](../Getting%20started) doc.
+Just go to the [Remix IDE](https://remix.ethereum.org) and activate the **Quorum Network** plugin on the plugins page. For step-by-step instructions, go to the [Getting Started](../GettingStarted) doc.
 
 ## Common Issues
 
