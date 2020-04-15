@@ -1,10 +1,21 @@
-# Getting Started Overview
+# Quickstart
 
-This section details several ways to start using and working with Quorum, ranging from using a pre-configured sample network running in a virtual machine, to creating a full network from scratch.
+This section details several ways to start using and working with Quorum, ranging from using our wizard to generate a local network, to configuring and creating a full network from scratch.
 
-## Quickstart with Quorum Examples' sample network
+## Quickstart with Quorum Wizard
 
-The easiest way to get a network up and running is by working through the [Quorum Examples](../Quorum-Examples).  These examples provide the means to create a pre-configured sample Quorum network that can be started and be ready for use in minutes.  The examples give the option of running the network either in a virtual-machine environment using Vagrant, in containers using docker-compose, or locally through the use of bash scripts to automate creation of the network.
+The easiest way to get a network up and running is by using [Quorum Wizard](../../Wizard/GettingStarted).  This command-line tool provides the means to create a local Quorum network that can be started and be ready for use in minutes. It provides options for configuring the network and then generates all the resources to run either in containers using docker-compose, or locally through the use of bash scripts. (Requires [NodeJS](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), Linux/Mac only)
+
+```
+npm install -g quorum-wizard
+quorum-wizard
+```
+
+To explore the features of Quorum and deploy a private contract, follow the instructions on [Interacting with the Network](../../Wizard/Interacting)
+
+## Quorum Examples' sample network
+
+[Quorum Examples](../Quorum-Examples) provides the means to quickly create a pre-configured sample Quorum network that can be run either in a virtual-machine environment using Vagrant, in containers using docker-compose, or locally through the use of bash scripts to automate creation of the network.
 
 ## ![k8s-logo](../images/qubernetes/k8s-logo.png){: style="height:20px;width:20px"} Quorum on Kubernetes
 
