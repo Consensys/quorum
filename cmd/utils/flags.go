@@ -34,9 +34,6 @@ import (
 	"text/template"
 	"time"
 
-	pcsclite "github.com/gballet/go-libpcsclite"
-	"gopkg.in/urfave/cli.v1"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -74,6 +71,8 @@ import (
 	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
+	pcsclite "github.com/gballet/go-libpcsclite"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (
@@ -768,7 +767,7 @@ var (
 	// Quorum
 	// immutability threshold which can be passed as a parameter at geth start
 	QuorumImmutabilityThreshold = cli.IntFlag{
-		Name: "immutabilitythreshold",
+		Name:  "immutabilitythreshold",
 		Usage: "overrides the default immutability threshold for Quorum nodes. Its the threshold beyond which block data will be moved to ancient db",
 		Value: 3162240,
 	}

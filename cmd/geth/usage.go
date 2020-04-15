@@ -21,7 +21,6 @@ package main
 import (
 	"io"
 	"sort"
-
 	"strings"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
