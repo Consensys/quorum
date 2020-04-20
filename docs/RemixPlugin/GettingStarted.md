@@ -46,4 +46,4 @@
 
     ![deployed_private](./images/deployed_private.png)
 
-13. Please open a github issue or reach out to us on our [Slack](https://bit.ly/quorum-slack) with any feedback or questions!
+13. Please open a github issue or reach out to us on our [Slack](https://www.goquorum.com/slack-inviter) with any feedback or questions!
