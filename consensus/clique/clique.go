@@ -248,8 +248,9 @@ func (c *Clique) verifyHeader(chain consensus.ChainReader, header *types.Header,
 	}
 	number := header.Number.Uint64()
 
-	// Don't waste time checking blocks from the future
-	if header.Time > uint64(time.Now().Unix()) {
+	// Don't waste time checking blocks from the future (adjusting for allowed threshold)
+	adjustedTimeNow := time.Now().Add(time.Duration(c.config.AllowedFutureBlockTime) * time.Second).Unix()
+	if header.Time > uint64(adjustedTimeNow) {
 		return consensus.ErrFutureBlock
 	}
 	// Checkpoint blocks need to enforce zero beneficiary

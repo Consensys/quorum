@@ -1,6 +1,6 @@
 # <img src="https://raw.githubusercontent.com/jpmorganchase/quorum/master/logo.png" width="200" height="200"/>
 
-<a href="https://bit.ly/quorum-slack" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
+<a href="https://www.goquorum.com/slack-inviter" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://93ecjxb0d3.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
 [![Build Status](https://travis-ci.org/jpmorganchase/quorum.svg?branch=master)](https://travis-ci.org/jpmorganchase/quorum)
 [![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/quorumengineering/quorum)](https://hub.docker.com/r/quorumengineering/quorum/builds)
 [![Documentation Status](https://readthedocs.org/projects/goquorum/badge/?version=latest)](http://docs.goquorum.com/en/latest/?badge=latest)
@@ -41,7 +41,8 @@ The official docker containers can be found under https://hub.docker.com/u/quoru
 * [Quorum](https://github.com/jpmorganchase/quorum): this repository
 * [Quorum Documentation](https://docs.goquorum.com)
 * [quorum-examples](https://github.com/jpmorganchase/quorum-examples): Quorum demonstration examples
-* [Quorum Community Slack Inviter](https://bit.ly/quorum-slack): Quorum Slack community entry point
+* <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [qubernetes](https://github.com/jpmorganchase/qubernetes): Deploy Quorum on Kubernetes  
+* [Quorum Community Slack Inviter](https://www.goquorum.com/slack-inviter): Quorum Slack community entry point
 * Quorum Transaction Managers
    * [Constellation](https://github.com/jpmorganchase/constellation): Haskell implementation of peer-to-peer encrypted message exchange for transaction privacy
    * [Tessera](https://github.com/jpmorganchase/tessera): Java implementation of peer-to-peer encrypted message exchange for transaction privacy

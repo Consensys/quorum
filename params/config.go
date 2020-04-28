@@ -308,7 +308,7 @@ type ChainConfig struct {
 	// Quorum
 	//
 	// QIP714Block implements the permissions related changes
-	QIP714Block *big.Int `json:"qip714Block,omitempty"`
+	QIP714Block            *big.Int `json:"qip714Block,omitempty"`
 	MaxCodeSizeChangeBlock *big.Int `json:"maxCodeSizeChangeBlock,omitempty"`
 }
 
@@ -322,8 +322,9 @@ func (c *EthashConfig) String() string {
 
 // CliqueConfig is the consensus engine configs for proof-of-authority based sealing.
 type CliqueConfig struct {
-	Period uint64 `json:"period"` // Number of seconds between blocks to enforce
-	Epoch  uint64 `json:"epoch"`  // Epoch length to reset votes and checkpoint
+	Period                 uint64 `json:"period"`                 // Number of seconds between blocks to enforce
+	Epoch                  uint64 `json:"epoch"`                  // Epoch length to reset votes and checkpoint
+	AllowedFutureBlockTime uint64 `json:"allowedFutureBlockTime"` // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 }
 
 // String implements the stringer interface, returning the consensus engine details.
@@ -333,9 +334,10 @@ func (c *CliqueConfig) String() string {
 
 // IstanbulConfig is the consensus engine configs for Istanbul based sealing.
 type IstanbulConfig struct {
-	Epoch          uint64   `json:"epoch"`                    // Epoch length to reset votes and checkpoint
-	ProposerPolicy uint64   `json:"policy"`                   // The policy for proposer selection
-	Ceil2Nby3Block *big.Int `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
+	Epoch                  uint64   `json:"epoch"`                    // Epoch length to reset votes and checkpoint
+	ProposerPolicy         uint64   `json:"policy"`                   // The policy for proposer selection
+	Ceil2Nby3Block         *big.Int `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
+	AllowedFutureBlockTime uint64   `json:"allowedFutureBlockTime"`   // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
 }
 
 // String implements the stringer interface, returning the consensus engine details.
@@ -447,6 +449,7 @@ func (c *ChainConfig) IsEWASM(num *big.Int) bool {
 func (c *ChainConfig) IsQIP714(num *big.Int) bool {
 	return isForked(c.QIP714Block, num)
 }
+
 // Quorum
 //
 // IsMaxCodeSizeChangeBlock returns whether num represents a block number max code size

@@ -801,6 +801,11 @@ var (
 		Name:  "permissioned",
 		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
 	}
+	AllowedFutureBlockTimeFlag = cli.Uint64Flag{
+		Name:  "allowedfutureblocktime",
+		Usage: "Max time (in seconds) from current time allowed for blocks, before they're considered future blocks",
+		Value: 0,
+	}
 	// Plugins settings
 	PluginSettingsFlag = cli.StringFlag{
 		Name:  "plugins",
@@ -1577,6 +1582,8 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	// Quorum
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
+
+	cfg.AllowedFutureBlockTime = ctx.GlobalUint64(AllowedFutureBlockTimeFlag.Name) //Quorum
 
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)

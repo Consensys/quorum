@@ -1,7 +1,7 @@
 # Running Quorum
 
 ## Developing Smart Contracts
-Quorum uses standard [Solidity](https://solidity.readthedocs.io/en/develop/) for writing Smart Contracts, and generally, these can be designed as you would design Smart Contracts for Ethereum.  Smart Contracts can either be public (i.e. visible and executable by all participants on a given Quorum network) or private to one or more network participants.  Note, however, that Quorum does not introduce new contract Types. Instead, similar to [Transactions](../../Transaction%20Processing/Transaction%20Processing), the concept of public and private contracts is notional only.
+Quorum uses standard [Solidity](https://solidity.readthedocs.io/en/develop/) for writing Smart Contracts, and generally, these can be designed as you would design Smart Contracts for Ethereum.  Smart Contracts can either be public (i.e. visible and executable by all participants on a given Quorum network) or private to one or more network participants.  Note, however, that Quorum does not introduce new contract Types. Instead, similar to [Transactions](../../Privacy/Overview), the concept of public and private contracts is notional only.
 
 ### Creating Public Transactions/Contracts
 

@@ -326,6 +326,18 @@ func TestVerifyHeader(t *testing.T) {
 		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrFutureBlock)
 	}
 
+	// future block which is within AllowedFutureBlockTime
+	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
+	header = block.Header()
+	header.Time = new(big.Int).Add(big.NewInt(now().Unix()), new(big.Int).SetUint64(10))
+	priorValue := engine.config.AllowedFutureBlockTime
+	engine.config.AllowedFutureBlockTime = 10
+	err = engine.VerifyHeader(chain, header, false)
+	engine.config.AllowedFutureBlockTime = priorValue //restore changed value
+	if err == consensus.ErrFutureBlock {
+		t.Errorf("error mismatch: have %v, want nil", err)
+	}
+
 	// invalid nonce
 	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
