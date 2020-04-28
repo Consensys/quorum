@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/params"
 	"reflect"
 	"runtime"
 	"strings"
@@ -29,6 +28,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 var (

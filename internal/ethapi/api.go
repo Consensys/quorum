@@ -1540,13 +1540,13 @@ func (args *SendTxArgs) setPrivateTransactionHash(sendTxn bool) error {
 		var err error
 		if sendTxn {
 			//Send private transaction to local Constellation node
-			log.Info("sending private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			log.Debug("sending private tx", "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 			data, err = private.P.Send(input, args.PrivateFrom, args.PrivateFor)
-			log.Info("sent private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
+			log.Debug("sent private tx", "privatefrom", args.PrivateFrom, "privatefor", args.PrivateFor)
 		} else {
-			log.Info("storing private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom)
+			log.Debug("storing private tx", "privatefrom", args.PrivateFrom)
 			data, err = private.P.StoreRaw(input, args.PrivateFrom)
-			log.Info("stored private tx", "input", fmt.Sprintf("%x", input), "privatefrom", args.PrivateFrom)
+			log.Debug("stored private tx", "privatefrom", args.PrivateFrom)
 		}
 
 		if err != nil {

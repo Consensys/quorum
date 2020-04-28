@@ -28,8 +28,11 @@ import (
 )
 
 // Tests the go-ethereum to Aleth chainspec conversion for the Stureby testnet.
-//Quorum - skip this test as MinGasLimit and GasLimitBoundDivisor has been overriden for quorum
-func testAlethSturebyConverter(t *testing.T) {
+func TestAlethSturebyConverter(t *testing.T) {
+	// //Quorum - skip this test as MinGasLimit and GasLimitBoundDivisor has been overriden for quorum
+	t.Skipf("skipping this test as MinGasLimit and GasLimitBoundDivisor has been overriden for quorum")
+
+	// /Quorum
 	blob, err := ioutil.ReadFile("testdata/stureby_geth.json")
 	if err != nil {
 		t.Fatalf("could not read file: %v", err)
@@ -68,8 +71,11 @@ func testAlethSturebyConverter(t *testing.T) {
 }
 
 // Tests the go-ethereum to Parity chainspec conversion for the Stureby testnet.
-//Quorum - skip this test as MinGasLimit and GasLimitBoundDivisor has been overriden for quorum
-func testParitySturebyConverter(t *testing.T) {
+func TestParitySturebyConverter(t *testing.T) {
+	// //Quorum - skip this test as MinGasLimit and GasLimitBoundDivisor has been overriden for quorum
+	t.Skipf("skipping this test as MinGasLimit and GasLimitBoundDivisor has been overriden for quorum")
+
+	// /Quorum
 	blob, err := ioutil.ReadFile("testdata/stureby_geth.json")
 	if err != nil {
 		t.Fatalf("could not read file: %v", err)
