@@ -11,6 +11,7 @@ repo_name: quorum
 repo_url: https://github.com/jpmorganchase/quorum
 
 nav:
+    - Home: index.md
     - Getting Started:
         - Quickstart: Getting Started/Getting Started Overview.md
         - Installing: Getting Started/Installing.md
@@ -27,30 +28,12 @@ nav:
             - Overview: Consensus/ibft/ibft.md
             - Consensus/ibft/istanbul-rpc-api.md
             - Consensus/ibft/ibft-parameters.md
-    - Transaction Processing: Transaction Processing/Transaction Processing.md
-    - Security Framework:
-          - Overview: Security/Framework/Overview.md
-          - Quorum Network:
-            - Consortium: Security/Framework/Quorum Network Security/Consortium.md
-            - Quorum Node:
-                - Overview: Security/Framework/Quorum Network Security/Node.md
-                - Permissioning:
-                    - Network Permissioning: Security/Framework/Quorum Network Security/Nodes/Permissioning/Network Permissioning.md
-            - Transaction Manager: Security/Framework/Quorum Network Security/Transaction Manager.md
-            - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
-          - Decentralized App:
-            - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
-            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
-    - Permissioning:
-        - Overview: Permissioning/Overview.md
-        - Design: Permissioning/Contract Design.md
-        - Setup: Permissioning/setup.md
-        - APIs: Permissioning/Permissioning apis.md
-        - Usage: Permissioning/Usage.md
-    - Privacy:
+    - Transaction & Contract Privacy:
+        - Overview: Privacy/Overview.md
+        - Privacy/Privacy-Manager.md
+        - Privacy/Lifecycle-of-a-private-transaction.md
         - Tessera:
             - What is Tessera: Privacy/Tessera/Tessera.md
-            - How Tessera works: Privacy/Tessera/How Tessera Works.md
             - Configuration:
                 - Overview: Privacy/Tessera/Configuration/Configuration Overview.md
                 - Keys Config: Privacy/Tessera/Configuration/Keys.md
@@ -75,6 +58,25 @@ nav:
             - How it works: Privacy/Constellation/How constellation works.md
             - Sample Configuration: Privacy/Constellation/Sample Configuration.md
             - Running Constellation: Privacy/Constellation/Installation & Running.md
+    - Permissioning:
+        - Overview: Permissioning/Overview.md
+        - Design: Permissioning/Contract Design.md
+        - Setup: Permissioning/setup.md
+        - APIs: Permissioning/Permissioning apis.md
+        - Usage: Permissioning/Usage.md
+    - Security Framework:
+          - Overview: Security/Framework/Overview.md
+          - Quorum Network:
+            - Consortium: Security/Framework/Quorum Network Security/Consortium.md
+            - Quorum Node:
+                - Overview: Security/Framework/Quorum Network Security/Node.md
+                - Permissioning:
+                    - Network Permissioning: Security/Framework/Quorum Network Security/Nodes/Permissioning/Network Permissioning.md
+            - Transaction Manager: Security/Framework/Quorum Network Security/Transaction Manager.md
+            - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
+          - Decentralized App:
+            - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
+            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
     - Pluggable Architecture:
         - Overview: PluggableArchitecture/Overview.md
         - Settings: PluggableArchitecture/Settings.md
