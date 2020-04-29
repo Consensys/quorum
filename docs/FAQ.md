@@ -91,3 +91,9 @@
 
 ??? info "Known Raft consensus node misconfiguration"
     Please see https://github.com/jpmorganchase/quorum/issues/410
+
+??? question "geth 1.9.7 has the feature of stopping the node once sync is completed using `--exitwhensynced` flag. Will this work with Raft consensus?"
+    `--existwhensycned` is not applicable for Raft consensus
+
+??? question "Can I remove the statedb using `geth removedb` command and recover the statedb by syncing with other nodess in the network when running the node in Raft consensus"
+    `geth removedb` cannot be used with Raft consensus. 
