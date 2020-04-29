@@ -1,4 +1,21 @@
+## Interface Details
 
+All interfaces can be set to run over HTTP, GRPC or HTTP-over-Unix-Sockets.
+
+### gRPC for inter-node communication (Deprecated)
+
+We currently have an implementation of gRPC for peer node communication as experiment API. This is not enabled on Quorum yet, but between Tessera nodes they can be enabled by adding in a couple of properties in the configuration file as child elements of `serverConfig`.
+
+- `grpcPort` - when this value is specified, Tessera node will start a gRPC server listening on this port. The normal `port` value would still be used for starting REST server.
+
+- `communicationType` - possible values are `REST`, `GRPC`. Default value is `REST`.
+
+Please note that communication between Quorum and Tessera are still via unix socket. This communication flag provides additional options for Tessera peer-to-peer communication. If gRPC is the option specified, please ensure the peers urls are provided with the appropriate ports.
+
+!!! info
+    gRPC as a protocol for peer-to-peer communication will be removed from Tessera version 0.10.2
+
+---
 
 ### Tessera to Tessera - Public API
 
