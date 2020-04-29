@@ -1,4 +1,4 @@
-# Upgrade to Quorum 2.6.0
+    # Upgrade to Quorum 2.6.0
 
 Quorum 2.6.0 upgrades the base `geth` version from 1.8.18 to 1.9.7 
 See [ethereum 1.9.0](https://blog.ethereum.org/2019/07/10/geth-v1-9-0/) for the complete list if new features added as a part of `geth` 1.9.7. 
@@ -10,11 +10,13 @@ A node running on Quorum 2.6.0 can coexist on a network where other nodes are ru
 * Execute `geth --datadir path/to/datadir init genesis.json` with the modified `genesis.json`
 * Bring up the node in Quorum 2.6.0
 
-### Some additional points
+### !!! Note
 * freezerdb - `geth` 1.9.7 brings in the feature of freezer db where in block data beyond certain threshold is moved to a different file based storage area. The location for freezerdb can be provided by geth command lines arguments as shown below:
 ```
 --datadir.ancient value             Data directory for ancient chain segments (default = inside chaindata)
 ```
+
+* When a node is migrated to this version, `geth` by default will create the `ancient` data folder and start moving blocks below the immutability threshold (default: 3162240) into the ancient data. If you do not want this movement to happen, use `--immutabilitythreshold` to set the immutability threshold to an appropriate value while bringing up `geth`
 
 * `geth 1.9.7` by default does not allow keystore based accounts to be unlocked in the start up process. `geth` will crash if the unlock is attempted as a part of start up. To enable account unlocking explicitly use `--allow-insecure-unlock`
 ```
