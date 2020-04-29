@@ -90,7 +90,6 @@ The possible server types are:
 - `Q2T` - This server is used for communications between Tessera and its corresponding Quorum node
 - `ENCLAVE` - If using a remote enclave, this defines the connection details for the remote enclave server (see the [Enclave docs](../../Tessera%20Services/Enclave#types-of-enclave) for more info) 
 - `ThirdParty` - This server is used to expose certain Transaction Manager functionality to external services such as Quorum.js
-- `ADMIN` - This server is used for configuration management. It is intended for use by the administrator of the Tessera node and is not recommended to be advertised publicly
 
 The servers to be started are provided as a list:
 ```
