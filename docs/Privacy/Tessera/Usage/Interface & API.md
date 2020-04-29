@@ -1,21 +1,4 @@
-## Interface Details
 
-All interfaces can be set to run over HTTP, GRPC or HTTP-over-Unix-Sockets.
-
-### gRPC for inter-node communication (Deprecated)
-
-We currently have an implementation of gRPC for peer node communication as experiment API. This is not enabled on Quorum yet, but between Tessera nodes they can be enabled by adding in a couple of properties in the configuration file as child elements of `serverConfig`.
-
-- `grpcPort` - when this value is specified, Tessera node will start a gRPC server listening on this port. The normal `port` value would still be used for starting REST server.
-
-- `communicationType` - possible values are `REST`, `GRPC`. Default value is `REST`.
-
-Please note that communication between Quorum and Tessera are still via unix socket. This communication flag provides additional options for Tessera peer-to-peer communication. If gRPC is the option specified, please ensure the peers urls are provided with the appropriate ports.
-
-!!! info
-    gRPC as a protocol for peer-to-peer communication will be removed from Tessera version 0.10.2
-
----
 
 ### Tessera to Tessera - Public API
 
@@ -62,6 +45,8 @@ The following endpoints are advertised on this interface:
 - `/receiveraw`
 - `/receive`
 - `/sendsignedtx`
+- `/transaction/{key}/isSender`
+- `/transaction/{key}/participants`
 
 ### Admin API
 
@@ -128,5 +113,13 @@ The following endpoints are advertised on this API:
 **`delete`** - _Delete a transaction_ 
 
 - Delete hashed encrypted payload stored in Tessera nodes.
+
+**`/transaction/{key}/isSender`** - _Determine if a node is the sender_ 
+
+- Tell if the local enclave is the sender of a particular transaction (by checking if the sender public key is part of the nodes enclave)
+
+**`/transaction/{key}/participants`** - _Retrieve participants_ 
+
+- Retrieve transaction participants directly from the database (a recipient will have no participants)
 
 For more interactions with the API see the [Swagger documentation](https://jpmorganchase.github.io/tessera-swagger/index.html).
