@@ -44,6 +44,7 @@ The following endpoints are advertised on this interface:
 - `/send`
 - `/receiveraw`
 - `/receive`
+- `/storeraw`
 - `/sendsignedtx`
 - `/transaction/{key}/isSender`
 - `/transaction/{key}/participants`
