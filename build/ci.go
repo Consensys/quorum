@@ -58,9 +58,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/internal/build"
 	"github.com/ethereum/go-ethereum/params"
-	sv "github.com/ethereum/go-ethereum/swarm/version"
 )
 
 var (
@@ -80,12 +80,7 @@ var (
 		executablePath("puppeth"),
 		executablePath("rlpdump"),
 		executablePath("wnode"),
-	}
-
-	// Files that end up in the swarm*.zip archive.
-	swarmArchiveFiles = []string{
-		"COPYING",
-		executablePath("swarm"),
+		executablePath("clef"),
 	}
 
 	// A debian package is created for all executables listed here.
@@ -118,16 +113,13 @@ var (
 			BinaryName:  "wnode",
 			Description: "Ethereum Whisper diagnostic tool",
 		},
+		{
+			BinaryName:  "clef",
+			Description: "Ethereum account management tool.",
+		},
 	}
 
 	// A debian package is created for all executables listed here.
-	debSwarmExecutables = []debExecutable{
-		{
-			BinaryName:  "swarm",
-			PackageName: "ethereum-swarm",
-			Description: "Ethereum Swarm daemon and tools",
-		},
-	}
 
 	debEthereum = debPackage{
 		Name:        "ethereum",
@@ -135,28 +127,30 @@ var (
 		Executables: debExecutables,
 	}
 
-	debSwarm = debPackage{
-		Name:        "ethereum-swarm",
-		Version:     sv.Version,
-		Executables: debSwarmExecutables,
-	}
-
 	// Debian meta packages to build and push to Ubuntu PPA
 	debPackages = []debPackage{
-		debSwarm,
 		debEthereum,
 	}
 
-	// Packages to be cross-compiled by the xgo command
-	allCrossCompiledArchiveFiles = append(allToolsArchiveFiles, swarmArchiveFiles...)
-
 	// Distros for which packages are created.
 	// Note: vivid is unsupported because there is no golang-1.6 package for it.
-	// Note: wily is unsupported because it was officially deprecated on lanchpad.
-	// Note: yakkety is unsupported because it was officially deprecated on lanchpad.
-	// Note: zesty is unsupported because it was officially deprecated on lanchpad.
-	// Note: artful is unsupported because it was officially deprecated on lanchpad.
-	debDistros = []string{"trusty", "xenial", "bionic", "cosmic"}
+	// Note: wily is unsupported because it was officially deprecated on Launchpad.
+	// Note: yakkety is unsupported because it was officially deprecated on Launchpad.
+	// Note: zesty is unsupported because it was officially deprecated on Launchpad.
+	// Note: artful is unsupported because it was officially deprecated on Launchpad.
+	// Note: cosmic is unsupported because it was officially deprecated on Launchpad.
+	debDistroGoBoots = map[string]string{
+		"trusty": "golang-1.11",
+		"xenial": "golang-go",
+		"bionic": "golang-go",
+		"disco":  "golang-go",
+		"eoan":   "golang-go",
+	}
+
+	debGoBootPaths = map[string]string{
+		"golang-1.11": "/usr/lib/go-1.11",
+		"golang-go":   "/usr/lib/go",
+	}
 )
 
 var GOBIN, _ = filepath.Abs(filepath.Join("build", "bin"))
@@ -232,7 +226,6 @@ func doInstall(cmdline []string) {
 	if flag.NArg() > 0 {
 		packages = flag.Args()
 	}
-	packages = build.ExpandPackagesNoVendor(packages)
 
 	if *arch == "" || *arch == runtime.GOARCH {
 		goinstall := goTool("install", buildFlags(env)...)
@@ -279,6 +272,7 @@ func buildFlags(env build.Environment) (flags []string) {
 	var ld []string
 	if env.Commit != "" {
 		ld = append(ld, "-X", "main.gitCommit="+env.Commit)
+		ld = append(ld, "-X", "main.gitDate="+env.Date)
 	}
 	if runtime.GOOS == "darwin" {
 		ld = append(ld, "-s")
@@ -328,6 +322,8 @@ func doTest(cmdline []string) {
 	if len(flag.CommandLine.Args()) > 0 {
 		packages = flag.CommandLine.Args()
 	}
+	// Quorum
+	// Ignore not Quorum related packages to accelerate build
 	packages = build.ExpandPackagesNoVendor(packages)
 	packages = build.IgnorePackages(packages)
 
@@ -335,7 +331,7 @@ func doTest(cmdline []string) {
 	// Test a single package at a time. CI builders are slow
 	// and some tests run into timeouts under load.
 	gotest := goTool("test", buildFlags(env)...)
-	gotest.Args = append(gotest.Args, "-p", "1", "-timeout", "5m")
+	gotest.Args = append(gotest.Args, "-p", "1", "-timeout", "5m", "--short")
 	if *coverage {
 		gotest.Args = append(gotest.Args, "-covermode=atomic", "-cover")
 	}
@@ -404,9 +400,6 @@ func doArchive(cmdline []string) {
 		basegeth = archiveBasename(*arch, params.ArchiveVersion(env.Commit))
 		geth     = "geth-" + basegeth + ext
 		alltools = "geth-alltools-" + basegeth + ext
-
-		baseswarm = archiveBasename(*arch, sv.ArchiveVersion(env.Commit))
-		swarm     = "swarm-" + baseswarm + ext
 	)
 	maybeSkipArchive(env)
 	if err := build.WriteArchive(geth, gethArchiveFiles); err != nil {
@@ -415,10 +408,7 @@ func doArchive(cmdline []string) {
 	if err := build.WriteArchive(alltools, allToolsArchiveFiles); err != nil {
 		log.Fatal(err)
 	}
-	if err := build.WriteArchive(swarm, swarmArchiveFiles); err != nil {
-		log.Fatal(err)
-	}
-	for _, archive := range []string{geth, alltools, swarm} {
+	for _, archive := range []string{geth, alltools} {
 		if err := archiveUpload(archive, *upload, *signer); err != nil {
 			log.Fatal(err)
 		}
@@ -442,11 +432,8 @@ func archiveBasename(arch string, archiveVersion string) string {
 func archiveUpload(archive string, blobstore string, signer string) error {
 	// If signing was requested, generate the signature files
 	if signer != "" {
-		pgpkey, err := base64.StdEncoding.DecodeString(os.Getenv(signer))
-		if err != nil {
-			return fmt.Errorf("invalid base64 %s", signer)
-		}
-		if err := build.PGPSignFile(archive, archive+".asc", string(pgpkey)); err != nil {
+		key := getenvBase64(signer)
+		if err := build.PGPSignFile(archive, archive+".asc", string(key)); err != nil {
 			return err
 		}
 	}
@@ -488,10 +475,14 @@ func maybeSkipArchive(env build.Environment) {
 // Debian Packaging
 func doDebianSource(cmdline []string) {
 	var (
-		signer  = flag.String("signer", "", `Signing key name, also used as package author`)
-		upload  = flag.String("upload", "", `Where to upload the source package (usually "ppa:ethereum/ethereum")`)
-		workdir = flag.String("workdir", "", `Output directory for packages (uses temp dir if unset)`)
-		now     = time.Now()
+		goversion = flag.String("goversion", "", `Go version to build with (will be included in the source package)`)
+		gobundle  = flag.String("gobundle", "/tmp/go.tar.gz", `Filesystem path to cache the downloaded Go bundles at`)
+		gohash    = flag.String("gohash", "", `SHA256 checksum of the Go sources requested to build with`)
+		signer    = flag.String("signer", "", `Signing key name, also used as package author`)
+		upload    = flag.String("upload", "", `Where to upload the source package (usually "ethereum/ethereum")`)
+		sshUser   = flag.String("sftp-user", "", `Username for SFTP upload (usually "geth-ci")`)
+		workdir   = flag.String("workdir", "", `Output directory for packages (uses temp dir if unset)`)
+		now       = time.Now()
 	)
 	flag.CommandLine.Parse(cmdline)
 	*workdir = makeWorkdir(*workdir)
@@ -499,35 +490,80 @@ func doDebianSource(cmdline []string) {
 	maybeSkipArchive(env)
 
 	// Import the signing key.
-	if b64key := os.Getenv("PPA_SIGNING_KEY"); b64key != "" {
-		key, err := base64.StdEncoding.DecodeString(b64key)
-		if err != nil {
-			log.Fatal("invalid base64 PPA_SIGNING_KEY")
-		}
+	if key := getenvBase64("PPA_SIGNING_KEY"); len(key) > 0 {
 		gpg := exec.Command("gpg", "--import")
 		gpg.Stdin = bytes.NewReader(key)
 		build.MustRun(gpg)
 	}
-
+	// Download and verify the Go source package
+	if err := build.EnsureGoSources(*goversion, hexutil.MustDecode("0x"+*gohash), *gobundle); err != nil {
+		log.Fatalf("Failed to ensure Go source package: %v", err)
+	}
 	// Create Debian packages and upload them
 	for _, pkg := range debPackages {
-		for _, distro := range debDistros {
-			meta := newDebMetadata(distro, *signer, env, now, pkg.Name, pkg.Version, pkg.Executables)
+		for distro, goboot := range debDistroGoBoots {
+			// Prepare the debian package with the go-ethereum sources
+			meta := newDebMetadata(distro, goboot, *signer, env, now, pkg.Name, pkg.Version, pkg.Executables)
 			pkgdir := stageDebianSource(*workdir, meta)
-			debuild := exec.Command("debuild", "-S", "-sa", "-us", "-uc")
+
+			// Ship the Go sources along so we have a proper thing to build with
+			if err := build.ExtractTarballArchive(*gobundle, pkgdir); err != nil {
+				log.Fatalf("Failed to extract Go sources: %v", err)
+			}
+			if err := os.Rename(filepath.Join(pkgdir, "go"), filepath.Join(pkgdir, ".go")); err != nil {
+				log.Fatalf("Failed to rename Go source folder: %v", err)
+			}
+			// Run the packaging and upload to the PPA
+			debuild := exec.Command("debuild", "-S", "-sa", "-us", "-uc", "-d", "-Zxz")
 			debuild.Dir = pkgdir
 			build.MustRun(debuild)
 
-			changes := fmt.Sprintf("%s_%s_source.changes", meta.Name(), meta.VersionString())
-			changes = filepath.Join(*workdir, changes)
+			var (
+				basename = fmt.Sprintf("%s_%s", meta.Name(), meta.VersionString())
+				source   = filepath.Join(*workdir, basename+".tar.xz")
+				dsc      = filepath.Join(*workdir, basename+".dsc")
+				changes  = filepath.Join(*workdir, basename+"_source.changes")
+			)
 			if *signer != "" {
 				build.MustRunCommand("debsign", changes)
 			}
 			if *upload != "" {
-				build.MustRunCommand("dput", *upload, changes)
+				ppaUpload(*workdir, *upload, *sshUser, []string{source, dsc, changes})
 			}
 		}
 	}
+}
+
+func ppaUpload(workdir, ppa, sshUser string, files []string) {
+	p := strings.Split(ppa, "/")
+	if len(p) != 2 {
+		log.Fatal("-upload PPA name must contain single /")
+	}
+	if sshUser == "" {
+		sshUser = p[0]
+	}
+	incomingDir := fmt.Sprintf("~%s/ubuntu/%s", p[0], p[1])
+	// Create the SSH identity file if it doesn't exist.
+	var idfile string
+	if sshkey := getenvBase64("PPA_SSH_KEY"); len(sshkey) > 0 {
+		idfile = filepath.Join(workdir, "sshkey")
+		if _, err := os.Stat(idfile); os.IsNotExist(err) {
+			ioutil.WriteFile(idfile, sshkey, 0600)
+		}
+	}
+	// Upload
+	dest := sshUser + "@ppa.launchpad.net"
+	if err := build.UploadSFTP(idfile, dest, incomingDir, files); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func getenvBase64(variable string) []byte {
+	dec, err := base64.StdEncoding.DecodeString(os.Getenv(variable))
+	if err != nil {
+		log.Fatal("invalid base64 " + variable)
+	}
+	return []byte(dec)
 }
 
 func makeWorkdir(wdflag string) string {
@@ -551,13 +587,15 @@ func isUnstableBuild(env build.Environment) bool {
 }
 
 type debPackage struct {
-	Name        string          // the name of the Debian package to produce, e.g. "ethereum", or "ethereum-swarm"
-	Version     string          // the clean version of the debPackage, e.g. 1.8.12 or 0.3.0, without any metadata
+	Name        string          // the name of the Debian package to produce, e.g. "ethereum"
+	Version     string          // the clean version of the debPackage, e.g. 1.8.12, without any metadata
 	Executables []debExecutable // executables to be included in the package
 }
 
 type debMetadata struct {
-	Env build.Environment
+	Env           build.Environment
+	GoBootPackage string
+	GoBootPath    string
 
 	PackageName string
 
@@ -586,19 +624,21 @@ func (d debExecutable) Package() string {
 	return d.BinaryName
 }
 
-func newDebMetadata(distro, author string, env build.Environment, t time.Time, name string, version string, exes []debExecutable) debMetadata {
+func newDebMetadata(distro, goboot, author string, env build.Environment, t time.Time, name string, version string, exes []debExecutable) debMetadata {
 	if author == "" {
 		// No signing key, use default author.
 		author = "Ethereum Builds <fjl@ethereum.org>"
 	}
 	return debMetadata{
-		PackageName: name,
-		Env:         env,
-		Author:      author,
-		Distro:      distro,
-		Version:     version,
-		Time:        t.Format(time.RFC1123Z),
-		Executables: exes,
+		GoBootPackage: goboot,
+		GoBootPath:    debGoBootPaths[goboot],
+		PackageName:   name,
+		Env:           env,
+		Author:        author,
+		Distro:        distro,
+		Version:       version,
+		Time:          t.Format(time.RFC1123Z),
+		Executables:   exes,
 	}
 }
 
@@ -663,7 +703,6 @@ func stageDebianSource(tmpdir string, meta debMetadata) (pkgdir string) {
 	if err := os.Mkdir(pkgdir, 0755); err != nil {
 		log.Fatal(err)
 	}
-
 	// Copy the source code.
 	build.MustRunCommand("git", "checkout-index", "-a", "--prefix", pkgdir+string(filepath.Separator))
 
@@ -681,7 +720,6 @@ func stageDebianSource(tmpdir string, meta debMetadata) (pkgdir string) {
 		build.Render("build/deb/"+meta.PackageName+"/deb.install", install, 0644, exe)
 		build.Render("build/deb/"+meta.PackageName+"/deb.docs", docs, 0644, exe)
 	}
-
 	return pkgdir
 }
 
@@ -771,12 +809,8 @@ func doAndroidArchive(cmdline []string) {
 	if os.Getenv("ANDROID_HOME") == "" {
 		log.Fatal("Please ensure ANDROID_HOME points to your Android SDK")
 	}
-	if os.Getenv("ANDROID_NDK") == "" {
-		log.Fatal("Please ensure ANDROID_NDK points to your Android NDK")
-	}
 	// Build the Android archive and Maven resources
 	build.MustRun(goTool("get", "golang.org/x/mobile/cmd/gomobile", "golang.org/x/mobile/cmd/gobind"))
-	build.MustRun(gomobileTool("init", "--ndk", os.Getenv("ANDROID_NDK")))
 	build.MustRun(gomobileTool("bind", "-ldflags", "-s -w", "--target", "android", "--javapkg", "org.ethereum", "-v", "github.com/ethereum/go-ethereum/mobile"))
 
 	if *local {
@@ -801,15 +835,10 @@ func doAndroidArchive(cmdline []string) {
 	os.Rename(archive, meta.Package+".aar")
 	if *signer != "" && *deploy != "" {
 		// Import the signing key into the local GPG instance
-		b64key := os.Getenv(*signer)
-		key, err := base64.StdEncoding.DecodeString(b64key)
-		if err != nil {
-			log.Fatalf("invalid base64 %s", *signer)
-		}
+		key := getenvBase64(*signer)
 		gpg := exec.Command("gpg", "--import")
 		gpg.Stdin = bytes.NewReader(key)
 		build.MustRun(gpg)
-
 		keyID, err := build.PGPKeyID(string(key))
 		if err != nil {
 			log.Fatal(err)
@@ -903,7 +932,7 @@ func doXCodeFramework(cmdline []string) {
 	// Build the iOS XCode framework
 	build.MustRun(goTool("get", "golang.org/x/mobile/cmd/gomobile", "golang.org/x/mobile/cmd/gobind"))
 	build.MustRun(gomobileTool("init"))
-	bind := gomobileTool("bind", "-ldflags", "-s -w", "--target", "ios", "--tags", "ios", "-v", "github.com/ethereum/go-ethereum/mobile")
+	bind := gomobileTool("bind", "-ldflags", "-s -w", "--target", "ios", "-v", "github.com/ethereum/go-ethereum/mobile")
 
 	if *local {
 		// If we're building locally, use the build folder and stop afterwards
@@ -997,7 +1026,7 @@ func doXgo(cmdline []string) {
 
 	if *alltools {
 		args = append(args, []string{"--dest", GOBIN}...)
-		for _, res := range allCrossCompiledArchiveFiles {
+		for _, res := range allToolsArchiveFiles {
 			if strings.HasPrefix(res, GOBIN) {
 				// Binary tool found, cross build it explicitly
 				args = append(args, "./"+filepath.Join("cmd", filepath.Base(res)))
