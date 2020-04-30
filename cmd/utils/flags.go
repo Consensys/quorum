@@ -1640,9 +1640,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	}
 
 	// set immutability threshold in config
-	if ctx.GlobalIsSet(QuorumImmutabilityThreshold.Name) {
-		cfg.QuorumImmutabilityThreshold = ctx.GlobalInt(QuorumImmutabilityThreshold.Name)
-	}
+	params.SetQuorumImmutabilityThreshold(ctx.GlobalInt(QuorumImmutabilityThreshold.Name))
 
 	// Override any default configs for hard coded networks.
 	switch {

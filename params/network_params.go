@@ -62,21 +62,20 @@ const (
 
 // //Quorum
 var quorumImmutabilityThreshold int
-var isQuorum = false
 
 // returns the immutability threshold set for the network
 func GetImmutabilityThreshold() int {
-	if isQuorum {
 
+	if quorumImmutabilityThreshold > 0 {
 		return quorumImmutabilityThreshold
 	}
+
 	return ImmutabilityThreshold
 }
 
 // sets the immutability threshold and isQuorum to passed values
 func SetQuorumImmutabilityThreshold(immutabilityThreshold int) {
 	quorumImmutabilityThreshold = immutabilityThreshold
-	isQuorum = true
 }
 
 // /Quorum
