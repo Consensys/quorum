@@ -33,6 +33,10 @@ var (
 	// next one expected based on the local chain.
 	ErrNonceTooHigh = errors.New("nonce too high")
 
+	// ErrNoGenesis is returned when there is no Genesis Block.
+	ErrNoGenesis = errors.New("genesis not found in chain")
+
+	// Quorum
 	// ErrAbortBlocksProcessing is returned if bc.insertChain is interrupted under raft mode
 	ErrAbortBlocksProcessing = errors.New("abort during blocks processing")
 )

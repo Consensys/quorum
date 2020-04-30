@@ -20,23 +20,20 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io"
+	"math/big"
 	"os"
 	"reflect"
-	"time"
 	"unicode"
 
+	"github.com/naoina/toml"
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/dashboard"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/raft"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
-	"github.com/naoina/toml"
 )
 
 var (
@@ -103,7 +100,7 @@ func loadConfig(file string, cfg *gethConfig) error {
 func defaultNodeConfig() node.Config {
 	cfg := node.DefaultConfig
 	cfg.Name = clientIdentifier
-	cfg.Version = params.VersionWithCommit(gitCommit)
+	cfg.Version = params.VersionWithCommit(gitCommit, gitDate)
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "shh")
 	cfg.WSModules = append(cfg.WSModules, "eth", "shh")
 	cfg.IPCPath = "geth.ipc"
@@ -136,9 +133,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	if ctx.GlobalIsSet(utils.EthStatsURLFlag.Name) {
 		cfg.Ethstats.URL = ctx.GlobalString(utils.EthStatsURLFlag.Name)
 	}
-
 	utils.SetShhConfig(ctx, stack, &cfg.Shh)
-	cfg.Eth.RaftMode = ctx.GlobalBool(utils.RaftModeFlag.Name)
 	utils.SetDashboardConfig(ctx, &cfg.Dashboard)
 
 	return stack, cfg
@@ -156,6 +151,9 @@ func enableWhisper(ctx *cli.Context) bool {
 
 func makeFullNode(ctx *cli.Context) *node.Node {
 	stack, cfg := makeConfigNode(ctx)
+	if ctx.GlobalIsSet(utils.OverrideIstanbulFlag.Name) {
+		cfg.Eth.OverrideIstanbul = new(big.Int).SetUint64(ctx.GlobalUint64(utils.OverrideIstanbulFlag.Name))
+	}
 
 	// this must be done first to make sure plugin manager is fully up.
 	// any fatal at this point is safe
@@ -166,17 +164,16 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
 	if cfg.Node.IsPermissionEnabled() {
-		utils.RegisterPermissionService(ctx, stack)
+		utils.RegisterPermissionService(stack)
 	}
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
-		RegisterRaftService(stack, ctx, cfg, ethChan)
+		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethChan)
 	}
 
 	if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
 		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
 	}
-
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
 	shhEnabled := enableWhisper(ctx)
 	shhAutoEnabled := !ctx.GlobalIsSet(utils.WhisperEnabledFlag.Name) && ctx.GlobalIsSet(utils.DeveloperFlag.Name)
@@ -192,7 +189,10 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		}
 		utils.RegisterShhService(stack, &cfg.Shh)
 	}
-
+	// Configure GraphQL if requested
+	if ctx.GlobalIsSet(utils.GraphQLEnabledFlag.Name) {
+		utils.RegisterGraphQLService(stack, cfg.Node.GraphQLEndpoint(), cfg.Node.GraphQLCors, cfg.Node.GraphQLVirtualHosts, cfg.Node.HTTPTimeouts)
+	}
 	// Add the Ethereum Stats daemon if requested.
 	if cfg.Ethstats.URL != "" {
 		utils.RegisterEthStatsService(stack, cfg.Ethstats.URL)
@@ -214,58 +214,19 @@ func dumpConfig(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	io.WriteString(os.Stdout, comment)
-	os.Stdout.Write(out)
-	return nil
-}
 
-func RegisterRaftService(stack *node.Node, ctx *cli.Context, cfg gethConfig, ethChan <-chan *eth.Ethereum) {
-	blockTimeMillis := ctx.GlobalInt(utils.RaftBlockTimeFlag.Name)
-	datadir := ctx.GlobalString(utils.DataDirFlag.Name)
-	joinExistingId := ctx.GlobalInt(utils.RaftJoinExistingFlag.Name)
-	useDns := ctx.GlobalBool(utils.RaftDNSEnabledFlag.Name)
-	raftPort := uint16(ctx.GlobalInt(utils.RaftPortFlag.Name))
-
-	if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
-		privkey := cfg.Node.NodeKey()
-		strId := enode.PubkeyToIDV4(&privkey.PublicKey).String()
-		blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
-		peers := cfg.Node.StaticNodes()
-
-		var myId uint16
-		var joinExisting bool
-
-		if joinExistingId > 0 {
-			myId = uint16(joinExistingId)
-			joinExisting = true
-		} else if len(peers) == 0 {
-			utils.Fatalf("Raft-based consensus requires either (1) an initial peers list (in static-nodes.json) including this enode hash (%v), or (2) the flag --raftjoinexisting RAFT_ID, where RAFT_ID has been issued by an existing cluster member calling `raft.addPeer(ENODE_ID)` with an enode ID containing this node's enode hash.", strId)
-		} else {
-			peerIds := make([]string, len(peers))
-
-			for peerIdx, peer := range peers {
-				if !peer.HasRaftPort() {
-					utils.Fatalf("raftport querystring parameter not specified in static-node enode ID: %v. please check your static-nodes.json file.", peer.String())
-				}
-
-				peerId := peer.ID().String()
-				peerIds[peerIdx] = peerId
-				if peerId == strId {
-					myId = uint16(peerIdx) + 1
-				}
-			}
-
-			if myId == 0 {
-				utils.Fatalf("failed to find local enode ID (%v) amongst peer IDs: %v", strId, peerIds)
-			}
+	dump := os.Stdout
+	if ctx.NArg() > 0 {
+		dump, err = os.OpenFile(ctx.Args().Get(0), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			return err
 		}
-
-		ethereum := <-ethChan
-		return raft.New(ctx, ethereum.ChainConfig(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, useDns)
-	}); err != nil {
-		utils.Fatalf("Failed to register the Raft service: %v", err)
+		defer dump.Close()
 	}
+	dump.WriteString(comment)
+	dump.Write(out)
 
+	return nil
 }
 
 // quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
@@ -277,7 +238,7 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 		utils.Fatalf("Error retrieving Ethereum service: %v", err)
 	}
 
-	if !isRaft && ethereum.ChainConfig().Istanbul == nil && ethereum.ChainConfig().Clique == nil {
+	if !isRaft && ethereum.BlockChain().Config().Istanbul == nil && ethereum.BlockChain().Config().Clique == nil {
 		utils.Fatalf("Consensus not specified. Exiting!!")
 	}
 }

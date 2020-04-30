@@ -78,7 +78,6 @@ func (c *core) handleEvents() {
 	}()
 
 	c.handlerWg.Add(1)
-
 	for {
 		select {
 		case event, ok := <-c.events.Chan():

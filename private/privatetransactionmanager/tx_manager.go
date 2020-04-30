@@ -23,6 +23,18 @@ func (g *PrivateTransactionManager) Send(data []byte, from string, to []string) 
 	return out, nil
 }
 
+func (g *PrivateTransactionManager) StoreRaw(data []byte, from string) (out []byte, err error) {
+	if g.isPrivateTransactionManagerNotInUse {
+		return nil, errPrivateTransactionManagerNotUsed
+	}
+	out, err = g.node.StorePayload(data, from)
+	if err != nil {
+		return nil, err
+	}
+	g.c.Set(string(out), data, cache.DefaultExpiration)
+	return out, nil
+}
+
 func (g *PrivateTransactionManager) SendSignedTx(data []byte, to []string) (out []byte, err error) {
 	out, err = g.node.SendSignedPayload(data, to)
 	if err != nil {

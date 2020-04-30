@@ -5,16 +5,16 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 )
 
 var dualStateTestHeader = types.Header{
 	Number:     new(big.Int),
-	Time:       new(big.Int).SetUint64(43),
+	Time:       43,
 	Difficulty: new(big.Int).SetUint64(1000488),
 	GasLimit:   4700000,
 }
@@ -36,7 +36,7 @@ var dualStateTestHeader = types.Header{
 func TestDualStatePrivateToPublicCall(t *testing.T) {
 	callAddr := common.Address{1}
 
-	db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
 	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	publicState.SetCode(common.Address{2}, common.Hex2Bytes("600a6000526001601ff300"))
 
@@ -65,7 +65,7 @@ func TestDualStatePrivateToPublicCall(t *testing.T) {
 func TestDualStatePublicToPrivateCall(t *testing.T) {
 	callAddr := common.Address{1}
 
-	db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
 	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	privateState.SetCode(common.Address{2}, common.Hex2Bytes("600a6000526001601ff300"))
 
@@ -94,7 +94,7 @@ func TestDualStatePublicToPrivateCall(t *testing.T) {
 func TestDualStateReadOnly(t *testing.T) {
 	callAddr := common.Address{1}
 
-	db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
 	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	publicState.SetCode(common.Address{2}, common.Hex2Bytes("600a60005500"))
 
@@ -167,7 +167,7 @@ func verifyStaticCall(t *testing.T, privateState *state.StateDB, publicState *st
 }
 
 func TestStaticCall_whenPublicToPublic(t *testing.T) {
-	db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
 
 	publicState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	publicState.SetCode(callerAddress, common.Hex2Bytes(callerContractCode))
@@ -177,7 +177,7 @@ func TestStaticCall_whenPublicToPublic(t *testing.T) {
 }
 
 func TestStaticCall_whenPublicToPrivateInTheParty(t *testing.T) {
-	db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
 
 	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	privateState.SetCode(calleeAddress, common.Hex2Bytes(calleeContractCode))
@@ -190,7 +190,7 @@ func TestStaticCall_whenPublicToPrivateInTheParty(t *testing.T) {
 
 func TestStaticCall_whenPublicToPrivateNotInTheParty(t *testing.T) {
 
-	db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
 
 	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 
@@ -201,7 +201,7 @@ func TestStaticCall_whenPublicToPrivateNotInTheParty(t *testing.T) {
 }
 
 func TestStaticCall_whenPrivateToPublic(t *testing.T) {
-	db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
 
 	privateState, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	privateState.SetCode(callerAddress, common.Hex2Bytes(callerContractCode))

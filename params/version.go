@@ -22,8 +22,8 @@ import (
 
 const (
 	VersionMajor = 1        // Major version component of the current release
-	VersionMinor = 8        // Minor version component of the current release
-	VersionPatch = 18       // Patch version component of the current release
+	VersionMinor = 9        // Minor version component of the current release
+	VersionPatch = 7        // Patch version component of the current release
 	VersionMeta  = "stable" // Version metadata to append to the version string
 
 	QuorumVersionMajor = 2
@@ -64,10 +64,13 @@ func ArchiveVersion(gitCommit string) string {
 	return vsn
 }
 
-func VersionWithCommit(gitCommit string) string {
+func VersionWithCommit(gitCommit, gitDate string) string {
 	vsn := VersionWithMeta
 	if len(gitCommit) >= 8 {
 		vsn += "-" + gitCommit[:8]
+	}
+	if (VersionMeta != "stable") && (gitDate != "") {
+		vsn += "-" + gitDate
 	}
 
 	vsn += "(quorum-v" + QuorumVersion + ")"

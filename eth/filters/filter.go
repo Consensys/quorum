@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -234,7 +235,7 @@ func (f *Filter) blockLogs(ctx context.Context, header *types.Header) (logs []*t
 	// Quorum
 	// Apply bloom filter for both public bloom and private bloom
 	bloomMatches := bloomFilter(header.Bloom, f.addresses, f.topics) ||
-		bloomFilter(core.GetPrivateBlockBloom(f.db, header.Number.Uint64()), f.addresses, f.topics)
+		bloomFilter(rawdb.GetPrivateBlockBloom(f.db, header.Number.Uint64()), f.addresses, f.topics)
 	if bloomMatches {
 		found, err := f.checkMatches(ctx, header)
 		if err != nil {

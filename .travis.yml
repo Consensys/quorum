@@ -79,7 +79,7 @@ matrix:
           sudo chmod 666 /dev/fuse
           sudo chown root:$USER /etc/fuse.conf
           go run build/ci.go install
-          QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/swarm,github.com/ethereum/go-ethereum/cmd/swarm go run build/ci.go test -coverage $TEST_PACKAGES
+          QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol go run build/ci.go test -coverage $TEST_PACKAGES
     - if: tag IS present
       os: linux
       dist: xenial
