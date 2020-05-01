@@ -1,6 +1,5 @@
 # simplified version of the upstream travis configuration with additional features
 # 1. Distribute binaries to bintray from Tag
-# 2. Run quorum-acceptance-tests for Pull Requests
 
 language: go
 go_import_path: github.com/ethereum/go-ethereum
@@ -19,65 +18,6 @@ env:
 
 matrix:
   include:
-    #raft consensus
-    - if: tag IS blank AND type = pull_request
-      name: acceptance-tests-raft
-      os: linux
-      dist: xenial
-      git:
-        submodules: false
-      cache:
-        directories:
-          - $HOME/.m2
-      env:
-        - TF_VAR_consensus_mechanism=raft
-      install:
-        - $TRAVIS_BUILD_DIR/build/travis-install-linux.sh
-      script:
-        - $TRAVIS_BUILD_DIR/build/travis-run-acceptance-tests-linux.sh
-
-    #istanbul consensus
-    - if: tag IS blank AND type = pull_request
-      name: acceptance-tests-istanbul
-      os: linux
-      dist: xenial
-      git:
-        submodules: false
-      cache:
-        directories:
-          - $HOME/.m2
-      env:
-        - TF_VAR_consensus_mechanism=istanbul
-      install:
-        - $TRAVIS_BUILD_DIR/build/travis-install-linux.sh
-      script:
-        - $TRAVIS_BUILD_DIR/build/travis-run-acceptance-tests-linux.sh
-
-    #clique consensus
-    - if: tag IS blank AND type = pull_request
-      name: acceptance-tests-clique
-      os: linux
-      dist: xenial
-      git:
-        submodules: false
-      cache:
-        directories:
-          - $HOME/.m2
-      env:
-        - TF_VAR_consensus_mechanism=clique
-      install:
-        - $TRAVIS_BUILD_DIR/build/travis-install-linux.sh
-      script:
-        - $TRAVIS_BUILD_DIR/build/travis-run-acceptance-tests-linux.sh
-
-    - if: tag IS blank
-      os: linux
-      dist: xenial
-      script:
-        - |
-          go run build/ci.go install
-          QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol go run build/ci.go test -coverage $TEST_PACKAGES
-          
     - if: tag IS present
       os: linux
       dist: xenial
