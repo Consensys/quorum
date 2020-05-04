@@ -18,25 +18,27 @@
 package web3ext
 
 var Modules = map[string]string{
-	"admin":            Admin_JS,
-	"chequebook":       Chequebook_JS,
-	"clique":           Clique_JS,
-	"ethash":           Ethash_JS,
-	"debug":            Debug_JS,
-	"eth":              Eth_JS,
-	"miner":            Miner_JS,
-	"net":              Net_JS,
-	"personal":         Personal_JS,
-	"rpc":              RPC_JS,
-	"shh":              Shh_JS,
-	"swarmfs":          SWARMFS_JS,
-	"txpool":           TxPool_JS,
+	"accounting":       AccountingJs,
+	"admin":            AdminJs,
+	"chequebook":       ChequebookJs,
+	"clique":           CliqueJs,
+	"ethash":           EthashJs,
+	"debug":            DebugJs,
+	"eth":              EthJs,
+	"miner":            MinerJs,
+	"net":              NetJs,
+	"personal":         PersonalJs,
+	"rpc":              RpcJs,
+	"shh":              ShhJs,
+	"swarmfs":          SwarmfsJs,
+	"txpool":           TxpoolJs,
+	"les":              LESJs,
 	"raft":             Raft_JS,
 	"istanbul":         Istanbul_JS,
 	"quorumPermission": QUORUM_NODE_JS,
 }
 
-const Chequebook_JS = `
+const ChequebookJs = `
 web3._extend({
 	property: 'chequebook',
 	methods: [
@@ -67,7 +69,7 @@ web3._extend({
 });
 `
 
-const Clique_JS = `
+const CliqueJs = `
 web3._extend({
 	property: 'clique',
 	methods: [
@@ -113,7 +115,7 @@ web3._extend({
 });
 `
 
-const Ethash_JS = `
+const EthashJs = `
 web3._extend({
 	property: 'ethash',
 	methods: [
@@ -141,7 +143,7 @@ web3._extend({
 });
 `
 
-const Admin_JS = `
+const AdminJs = `
 web3._extend({
 	property: 'admin',
 	methods: [
@@ -224,10 +226,15 @@ web3._extend({
 });
 `
 
-const Debug_JS = `
+const DebugJs = `
 web3._extend({
 	property: 'debug',
 	methods: [
+		new web3._extend.Method({
+			name: 'accountRange',
+			call: 'debug_accountRange',
+			params: 2
+		}),
 		new web3._extend.Method({
 			name: 'printBlock',
 			call: 'debug_printBlock',
@@ -237,6 +244,12 @@ web3._extend({
 			name: 'getBlockRlp',
 			call: 'debug_getBlockRlp',
 			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'testSignCliqueBlock',
+			call: 'debug_testSignCliqueBlock',
+			params: 2,
+			inputFormatters: [web3._extend.formatters.inputAddressFormatter, null],
 		}),
 		new web3._extend.Method({
 			name: 'setHead',
@@ -263,11 +276,6 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'chaindbCompact',
 			call: 'debug_chaindbCompact',
-		}),
-		new web3._extend.Method({
-			name: 'metrics',
-			call: 'debug_metrics',
-			params: 1
 		}),
 		new web3._extend.Method({
 			name: 'verbosity',
@@ -394,6 +402,18 @@ web3._extend({
 			inputFormatter: [null]
 		}),
 		new web3._extend.Method({
+			name: 'standardTraceBadBlockToFile',
+			call: 'debug_standardTraceBadBlockToFile',
+			params: 2,
+			inputFormatter: [null, null]
+		}),
+		new web3._extend.Method({
+			name: 'standardTraceBlockToFile',
+			call: 'debug_standardTraceBlockToFile',
+			params: 2,
+			inputFormatter: [null, null]
+		}),
+		new web3._extend.Method({
 			name: 'traceBlockByNumber',
 			call: 'debug_traceBlockByNumber',
 			params: 2,
@@ -444,7 +464,7 @@ web3._extend({
 });
 `
 
-const Eth_JS = `
+const EthJs = `
 web3._extend({
 	property: 'eth',
 	methods: [
@@ -482,6 +502,32 @@ web3._extend({
 			call: 'eth_submitTransaction',
 			params: 1,
 			inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'fillTransaction',
+			call: 'eth_fillTransaction',
+			params: 1,
+			inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
+		}),
+		new web3._extend.Method({
+			name: 'getHeaderByNumber',
+			call: 'eth_getHeaderByNumber',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'getHeaderByHash',
+			call: 'eth_getHeaderByHash',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'getBlockByNumber',
+			call: 'eth_getBlockByNumber',
+			params: 2
+		}),
+		new web3._extend.Method({
+			name: 'getBlockByHash',
+			call: 'eth_getBlockByHash',
+			params: 2
 		}),
 		new web3._extend.Method({
 			name: 'getRawTransaction',
@@ -540,7 +586,7 @@ web3._extend({
 });
 `
 
-const Miner_JS = `
+const MinerJs = `
 web3._extend({
 	property: 'miner',
 	methods: [
@@ -585,7 +631,7 @@ web3._extend({
 });
 `
 
-const Net_JS = `
+const NetJs = `
 web3._extend({
 	property: 'net',
 	methods: [],
@@ -598,7 +644,7 @@ web3._extend({
 });
 `
 
-const Personal_JS = `
+const PersonalJs = `
 web3._extend({
 	property: 'personal',
 	methods: [
@@ -634,6 +680,16 @@ web3._extend({
 			params: 2,
 			inputFormatter: [web3._extend.formatters.inputTransactionFormatter, null]
 		}),
+		new web3._extend.Method({
+			name: 'unpair',
+			call: 'personal_unpair',
+			params: 2
+		}),
+		new web3._extend.Method({
+			name: 'initializeWallet',
+			call: 'personal_initializeWallet',
+			params: 1
+		})
 	],
 	properties: [
 		new web3._extend.Property({
@@ -644,7 +700,7 @@ web3._extend({
 })
 `
 
-const RPC_JS = `
+const RpcJs = `
 web3._extend({
 	property: 'rpc',
 	methods: [],
@@ -657,7 +713,7 @@ web3._extend({
 });
 `
 
-const Shh_JS = `
+const ShhJs = `
 web3._extend({
 	property: 'shh',
 	methods: [
@@ -677,7 +733,7 @@ web3._extend({
 });
 `
 
-const SWARMFS_JS = `
+const SwarmfsJs = `
 web3._extend({
 	property: 'swarmfs',
 	methods:
@@ -701,7 +757,7 @@ web3._extend({
 });
 `
 
-const TxPool_JS = `
+const TxpoolJs = `
 web3._extend({
 	property: 'txpool',
 	methods: [],
@@ -974,6 +1030,75 @@ web3._extend({
 		new web3._extend.Property({
 			name: 'nodeAddress',
 			getter: 'istanbul_nodeAddress'
+		}),
+	]
+});
+`
+
+const AccountingJs = `
+web3._extend({
+	property: 'accounting',
+	methods: [
+		new web3._extend.Property({
+			name: 'balance',
+			getter: 'account_balance'
+		}),
+		new web3._extend.Property({
+			name: 'balanceCredit',
+			getter: 'account_balanceCredit'
+		}),
+		new web3._extend.Property({
+			name: 'balanceDebit',
+			getter: 'account_balanceDebit'
+		}),
+		new web3._extend.Property({
+			name: 'bytesCredit',
+			getter: 'account_bytesCredit'
+		}),
+		new web3._extend.Property({
+			name: 'bytesDebit',
+			getter: 'account_bytesDebit'
+		}),
+		new web3._extend.Property({
+			name: 'msgCredit',
+			getter: 'account_msgCredit'
+		}),
+		new web3._extend.Property({
+			name: 'msgDebit',
+			getter: 'account_msgDebit'
+		}),
+		new web3._extend.Property({
+			name: 'peerDrops',
+			getter: 'account_peerDrops'
+		}),
+		new web3._extend.Property({
+			name: 'selfDrops',
+			getter: 'account_selfDrops'
+		}),
+	]
+});
+`
+
+const LESJs = `
+web3._extend({
+	property: 'les',
+	methods:
+	[
+		new web3._extend.Method({
+			name: 'getCheckpoint',
+			call: 'les_getCheckpoint',
+			params: 1
+		}),
+	],
+	properties:
+	[
+		new web3._extend.Property({
+			name: 'latestCheckpoint',
+			getter: 'les_latestCheckpoint'
+		}),
+		new web3._extend.Property({
+			name: 'checkpointContractAddress',
+			getter: 'les_getCheckpointContractAddress'
 		}),
 	]
 });

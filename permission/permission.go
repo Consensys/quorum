@@ -282,7 +282,7 @@ func (p *PermissionCtrl) Stop() error {
 func (p *PermissionCtrl) monitorQIP714Block() error {
 	// if QIP714block is not given, set the default access
 	// to readonly
-	if p.eth.ChainConfig().QIP714Block == nil {
+	if p.eth.BlockChain().Config().QIP714Block == nil {
 		types.SetDefaultAccess()
 		return nil
 	}
@@ -295,8 +295,8 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
-			case head := <-chainHeadCh:
-				if p.eth.ChainConfig().IsQIP714(head.Block.Number()) {
+			case  head := <-chainHeadCh:
+				if p.eth.BlockChain().Config().IsQIP714(head.Block.Number()) {
 					types.SetDefaultAccess()
 					return
 				}
@@ -587,7 +587,7 @@ func (p *PermissionCtrl) manageAccountPermissions() error {
 
 // Disconnect the node from the network
 func (p *PermissionCtrl) disconnectNode(enodeId string) {
-	if p.eth.ChainConfig().Istanbul == nil && p.eth.ChainConfig().Clique == nil {
+	if p.eth.BlockChain().Config().Istanbul == nil && p.eth.BlockChain().Config().Clique == nil {
 		var raftService *raft.RaftService
 		if err := p.node.Service(&raftService); err == nil {
 			raftApi := raft.NewPublicRaftAPI(raftService)

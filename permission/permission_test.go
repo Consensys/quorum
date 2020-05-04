@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/miner"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -112,7 +113,7 @@ func setup() {
 	}
 	ethConf := &eth.Config{
 		Genesis:   &core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 10000000000, Alloc: genesisAlloc},
-		Etherbase: guardianAddress,
+		Miner: miner.Config{Etherbase: guardianAddress},
 		Ethash: ethash.Config{
 			PowMode: ethash.ModeTest,
 		},
@@ -272,12 +273,13 @@ func TestQuorumControlsAPI_ListAPIs(t *testing.T) {
 func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
 	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
-	txa := ethapi.SendTxArgs{From: guardianAddress}
+
 
 	// test AddOrg
 	orgAdminKey, _ := crypto.GenerateKey()
 	orgAdminAddress := crypto.PubkeyToAddress(orgAdminKey.PublicKey)
 
+	txa := ethapi.SendTxArgs{From: guardianAddress}
 	_, err := testObject.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
@@ -559,13 +561,13 @@ func tmpKeyStore(encrypted bool) (string, *keystore.KeyStore, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	new := keystore.NewPlaintextKeyStore
+	newKs := keystore.NewPlaintextKeyStore
 	if encrypted {
-		new = func(kd string) *keystore.KeyStore {
+		newKs = func(kd string) *keystore.KeyStore {
 			return keystore.NewKeyStore(kd, keystore.LightScryptN, keystore.LightScryptP)
 		}
 	}
-	return d, new(d), err
+	return d, newKs(d), err
 }
 
 func TestPermissionCtrl_whenUpdateFile(t *testing.T) {

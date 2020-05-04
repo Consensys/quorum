@@ -22,6 +22,7 @@ Sends a transaction to the network.
     - `gas`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The amount of gas to use for the transaction (unused gas is refunded).
     - <strike>`gasPrice`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The price of gas for this transaction in wei, defaults to the mean network gas price.</strike>
     - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code.
+    - `input`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code. `input` cannot coexist with `data` if they are set to different value.
     - `nonce`: `Number`  - (optional) Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce.
     - `privateFrom`: `String`  - (optional) When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, use the default key as configured in the `TransactionManager`.
     - `privateFor`: `List<String>`  - (optional) When sending a private transaction, an array of the recipients' base64-encoded public keys.
@@ -99,7 +100,70 @@ __Important:__ Please note that before calling this API, a `storeraw` api need t
      console.log(hash); // "0x7f9fade1c0d57a7af66ab4ead79fade1c0d57a7af66ab4ead7c2c2eb7b11a91385"
  });
 ```
- 
+#### eth.fillTransaction
+To support offline signing of transaction. This api fills and defaults `RLP` plus `json`. This can be used to fill and sign both public and private transactions
+
+##### Parameters
+1. `Object` - The transaction object to send:
+    - `from`: `String` - The address for the sending account. 
+    - `to`: `String` - (optional) The destination address of the message, 
+    - `value`: `Number|String|BigNumber` - (optional) The value transferred for the transaction in Wei, also the endowment if it's a contract-creation transaction.
+    - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code.
+    - `privateFor`: `List<String>`  - (optional) When sending a private transaction, an array of the recipients' base64-encoded public keys.
+
+##### Returns
+- `raw`: `RLP` encoded bytes for the passed transaction object
+- `tx` : transaction object
+
+##### Example
+An example of signing and sending a private transaction is as shown below. The transaction depicted below deploys a simple storage contract with an initial value of 42
+```javascript
+> a = eth.fillTransaction({from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d", data: "0x6060604052341561000f57600080fd5b604051602080610149833981016040528080519060200190919050505b806000819055505b505b610104806100456000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680632a1afcd914605157806360fe47b11460775780636d4ce63c146097575b600080fd5b3415605b57600080fd5b606160bd565b6040518082815260200191505060405180910390f35b3415608157600080fd5b6095600480803590602001909190505060c3565b005b341560a157600080fd5b60a760ce565b6040518082815260200191505060405180910390f35b60005481565b806000819055505b50565b6000805490505b905600a165627a7a72305820d5851baab720bba574474de3d09dbeaabc674a15f4dd93b974908476542c23f00029000000000000000000000000000000000000000000000000000000000000002a", gas: 0x47b760, privateFor: ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]})
+{
+  raw: "0xf84d02808347b7608080b84075902a24f8f3248a8c6d342506f018b2ef735bca0badecbaf7dc98b5799b3c8db4cc65f1a9294f29f018ce603cf93a212ebdde4a8f2d83d44a98eb97ffa690d6258080",
+  tx: {
+    gas: "0x47b760",
+    gasPrice: "0x0",
+    hash: "0xc0bbb6326ebafb7b0b18cf85d7b93e73ec8ae72b1c8d043d77d7ac5fecd9ccb5",
+    input: "0x75902a24f8f3248a8c6d342506f018b2ef735bca0badecbaf7dc98b5799b3c8db4cc65f1a9294f29f018ce603cf93a212ebdde4a8f2d83d44a98eb97ffa690d6",
+    nonce: "0x2",
+    r: "0x0",
+    s: "0x0",
+    to: null,
+    v: "0x25",
+    value: "0x0"
+  }
+}
+```
+Once the transaction object is returned, explicitly set `tx.from` and sign the transaction.
+```javascript
+> a.tx.from = "0xed9d02e382b34818e88b88a309c7fe71e65f419d"
+"0xed9d02e382b34818e88b88a309c7fe71e65f419d"
+> a.tx.privateFor=["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]
+["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]
+> b = eth.signTransaction(a.tx)
+{
+  raw: "0xf88d02808347b7608080b84075902a24f8f3248a8c6d342506f018b2ef735bca0badecbaf7dc98b5799b3c8db4cc65f1a9294f29f018ce603cf93a212ebdde4a8f2d83d44a98eb97ffa690d637a04ff24fa99cdf3cfbaec698857c006240aa79331432d7ddb86209ec7b0010097da071f42224ee42a35872ca13fa6ffa3f7f6e550f1edecc750cc0a3ea638bf05ed9",
+  tx: {
+    gas: "0x47b760",
+    gasPrice: "0x0",
+    hash: "0x1fa98e808d711ffadfce90c4db088057e3d5efd668883be0755f158349dc274b",
+    input: "0x75902a24f8f3248a8c6d342506f018b2ef735bca0badecbaf7dc98b5799b3c8db4cc65f1a9294f29f018ce603cf93a212ebdde4a8f2d83d44a98eb97ffa690d6",
+    nonce: "0x2",
+    r: "0x4ff24fa99cdf3cfbaec698857c006240aa79331432d7ddb86209ec7b0010097d",
+    s: "0x71f42224ee42a35872ca13fa6ffa3f7f6e550f1edecc750cc0a3ea638bf05ed9",
+    to: null,
+    v: "0x37",
+    value: "0x0"
+  }
+}
+```
+Call `eth.sendRawPrivateTransaction` to send the transaction to intended recipients
+
+```javascript
+> eth.sendRawPrivateTransaction(b.raw, {privateFor:["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]})
+"0xcd8ab3f6dbdb8535a44d47df9c7d8a3862fe9fb4257a2d377bdd8bface016928"
+```
  
 
 ## JSON RPC Privacy API Reference
@@ -218,6 +282,7 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0", "method":"eth_getQ
      - `gas`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The amount of gas to use for the transaction (unused gas is refunded).
      - <strike>`gasPrice`: `Number|String|BigNumber` - (optional, default: To-Be-Determined) The price of gas for this transaction in wei, defaults to the mean network gas price.</strike>
      - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code.
+     - `input`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code. `input` cannot coexist with `data` if they are set to different value.
      - `nonce`: `Number`  - (optional) Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce.
      - `privateFrom`: `String`  - (optional) When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, use the default key as configured in the `TransactionManager`.
      - `privateFor`: `List<String>`  - (optional) When sending a private transaction, an array of the recipients' base64-encoded public keys.

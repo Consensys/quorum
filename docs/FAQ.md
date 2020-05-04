@@ -10,16 +10,16 @@
     
      1. Enabling transaction Senders to create a private transaction by marking who is privy to that transaction via the `privateFor` parameter
      2. Replacing the payload of a private transaction with a hash of the encrypted payload, such that the original payload is not visible to participants who are not privy to the transaction
-     3. Storing encrypted private data off-chain in a separate component called the Transaction Manager (provided by [Constellation](https://github.com/jpmorganchase/constellation) or [Tessera](https://github.com/jpmorganchase/tessera)).  The Transaction Manager distributes the encrypted data to other parties that are privy to the transaction and returns the decrypted payload to those parties 
+     3. Storing encrypted private data off-chain in a separate component called the Privacy Manager (provided by [Constellation](https://github.com/jpmorganchase/constellation) or [Tessera](https://github.com/jpmorganchase/tessera)).  The Privacy Manager distributes the encrypted data to other parties that are privy to the transaction and returns the decrypted payload to those parties 
     
-    Please see the [Transaction Processing](../Transaction%20Processing/Transaction%20Processing) page for more info.
+    Please see the [Transaction and Contract Privacy](../Privacy/Overview) section for more info.
     
 ??? question "How does Quorum achieve consensus on Private Transactions?"
     In standard Ethereum, all nodes process all transactions and so each node has the same state root.  In Quorum, nodes process all 'public' transactions (which might include reference data or market data contracts for example) but only process the private transactions that they are party to.  
     
     Quorum nodes maintain two Patricia Merkle Tries: one for private state and one for public state. As a result, block validation includes a **state** check on the new-to-Quorum `public state root`. Block validation also includes a check of the `global Transaction hash`, which is a hash of **all** Transactions in a block - private and public. This means that each node is able to validate that it has the same set of Transactions as other nodes.  Since the EVM is provably deterministic through the synchronized public state root, and that the Private Transaction inputs are known to be in sync across nodes (global Transaction Hash), private state synchronization across nodes can be implied.  In addition, Quorum provides an API call, `eth_storageRoot`, that returns the private state hash for a given transaction at a given block height, that can optionally be called at the application layer to specifically perform an off-chain state validation with a counterparty.
     
-    Please see the [Quorum Consensus](../Consensus/Consensus) and [Transaction Processing](../Transaction%20Processing/Transaction%20Processing) pages for more info.
+    Please see the [Quorum Consensus](../Consensus/Consensus) and [Transaction and Contract Privacy Overview](../Privacy/Overview) pages for more info.
 
 ??? question "Are there any restrictions on the transaction size for private transactions (since they are encrypted)?"
     The only restriction is the gas limit on the transaction. Constellation/Tessera does not have a size limit (although maybe it should be possible to set one). If anything, performing large transactions as private transactions will improve performance because most of the network only sees hash digests. In terms of performance of transferring large data blobs between geographically distributed nodes, it would be equivalent performance to PGP encrypting the file and transferring it over http/https..so very fast. If you are doing sequential transactions then of course you will have to wait for those transfers, but there is no special overhead by the payload being large if you are doing separate/concurrent transactions, subject to network bandwidth limits. Constellation/Tessera does everything in parallel.
@@ -91,3 +91,9 @@
 
 ??? info "Known Raft consensus node misconfiguration"
     Please see https://github.com/jpmorganchase/quorum/issues/410
+
+??? question "geth 1.9.7 has the feature of stopping the node once sync is completed using `--exitwhensynced` flag. Will this work with Raft consensus?"
+    `--existwhensycned` is not applicable for Raft consensus
+
+??? question "Can I remove the statedb using `geth removedb` command and recover the statedb by syncing with other nodess in the network when running the node in Raft consensus"
+    `geth removedb` cannot be used with Raft consensus. 

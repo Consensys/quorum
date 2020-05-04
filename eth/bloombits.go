@@ -102,7 +102,7 @@ func NewBloomIndexer(db ethdb.Database, size, confirms uint64) *core.ChainIndexe
 		db:   db,
 		size: size,
 	}
-	table := ethdb.NewTable(db, string(rawdb.BloomBitsIndexPrefix))
+	table := rawdb.NewTable(db, string(rawdb.BloomBitsIndexPrefix))
 
 	return core.NewChainIndexer(db, table, backend, size, confirms, bloomThrottling, "bloombits")
 }
@@ -119,7 +119,7 @@ func (b *BloomIndexer) Reset(ctx context.Context, section uint64, lastSectionHea
 // (header.bloom | private bloom) and adds to index
 func (b *BloomIndexer) Process(ctx context.Context, header *types.Header) error {
 	publicBloom := header.Bloom
-	privateBloom := core.GetPrivateBlockBloom(b.db, header.Number.Uint64())
+	privateBloom := rawdb.GetPrivateBlockBloom(b.db, header.Number.Uint64())
 	publicBloom.OrBloom(privateBloom.Bytes())
 
 	b.gen.AddBloom(uint(header.Number.Uint64()-b.section*b.size), publicBloom)

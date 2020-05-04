@@ -43,7 +43,7 @@ func TestSignHeader(t *testing.T) {
 		GasLimit:   uint64(0),
 		GasUsed:    uint64(0),
 		Coinbase:   minter.coinbase,
-		Time:       big.NewInt(time.Now().UnixNano()),
+		Time:       uint64(time.Now().UnixNano()),
 	}
 
 	headerHash := header.Hash()

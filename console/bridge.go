@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/scwallet"
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -58,14 +59,14 @@ func (b *bridge) NewAccount(call otto.FunctionCall) (response otto.Value) {
 	switch {
 	// No password was specified, prompt the user for it
 	case len(call.ArgumentList) == 0:
-		if password, err = b.prompter.PromptPassword("Passphrase: "); err != nil {
+		if password, err = b.prompter.PromptPassword("Password: "); err != nil {
 			throwJSException(err.Error())
 		}
-		if confirm, err = b.prompter.PromptPassword("Repeat passphrase: "); err != nil {
+		if confirm, err = b.prompter.PromptPassword("Repeat password: "); err != nil {
 			throwJSException(err.Error())
 		}
 		if password != confirm {
-			throwJSException("passphrases don't match!")
+			throwJSException("passwords don't match!")
 		}
 
 	// A single string password was specified, use that
@@ -104,10 +105,92 @@ func (b *bridge) OpenWallet(call otto.FunctionCall) (response otto.Value) {
 	if err == nil {
 		return val
 	}
-	// Wallet open failed, report error unless it's a PIN entry
-	if !strings.HasSuffix(err.Error(), usbwallet.ErrTrezorPINNeeded.Error()) {
+
+	// Wallet open failed, report error unless it's a PIN or PUK entry
+	switch {
+	case strings.HasSuffix(err.Error(), usbwallet.ErrTrezorPINNeeded.Error()):
+		val, err = b.readPinAndReopenWallet(call)
+		if err == nil {
+			return val
+		}
+		val, err = b.readPassphraseAndReopenWallet(call)
+		if err != nil {
+			throwJSException(err.Error())
+		}
+
+	case strings.HasSuffix(err.Error(), scwallet.ErrPairingPasswordNeeded.Error()):
+		// PUK input requested, fetch from the user and call open again
+		if input, err := b.prompter.PromptPassword("Please enter the pairing password: "); err != nil {
+			throwJSException(err.Error())
+		} else {
+			passwd, _ = otto.ToValue(input)
+		}
+		if val, err = call.Otto.Call("jeth.openWallet", nil, wallet, passwd); err != nil {
+			if !strings.HasSuffix(err.Error(), scwallet.ErrPINNeeded.Error()) {
+				throwJSException(err.Error())
+			} else {
+				// PIN input requested, fetch from the user and call open again
+				if input, err := b.prompter.PromptPassword("Please enter current PIN: "); err != nil {
+					throwJSException(err.Error())
+				} else {
+					passwd, _ = otto.ToValue(input)
+				}
+				if val, err = call.Otto.Call("jeth.openWallet", nil, wallet, passwd); err != nil {
+					throwJSException(err.Error())
+				}
+			}
+		}
+
+	case strings.HasSuffix(err.Error(), scwallet.ErrPINUnblockNeeded.Error()):
+		// PIN unblock requested, fetch PUK and new PIN from the user
+		var pukpin string
+		if input, err := b.prompter.PromptPassword("Please enter current PUK: "); err != nil {
+			throwJSException(err.Error())
+		} else {
+			pukpin = input
+		}
+		if input, err := b.prompter.PromptPassword("Please enter new PIN: "); err != nil {
+			throwJSException(err.Error())
+		} else {
+			pukpin += input
+		}
+		passwd, _ = otto.ToValue(pukpin)
+		if val, err = call.Otto.Call("jeth.openWallet", nil, wallet, passwd); err != nil {
+			throwJSException(err.Error())
+		}
+
+	case strings.HasSuffix(err.Error(), scwallet.ErrPINNeeded.Error()):
+		// PIN input requested, fetch from the user and call open again
+		if input, err := b.prompter.PromptPassword("Please enter current PIN: "); err != nil {
+			throwJSException(err.Error())
+		} else {
+			passwd, _ = otto.ToValue(input)
+		}
+		if val, err = call.Otto.Call("jeth.openWallet", nil, wallet, passwd); err != nil {
+			throwJSException(err.Error())
+		}
+
+	default:
+		// Unknown error occurred, drop to the user
 		throwJSException(err.Error())
 	}
+	return val
+}
+
+func (b *bridge) readPassphraseAndReopenWallet(call otto.FunctionCall) (otto.Value, error) {
+	var passwd otto.Value
+	wallet := call.Argument(0)
+	if input, err := b.prompter.PromptPassword("Please enter your password: "); err != nil {
+		throwJSException(err.Error())
+	} else {
+		passwd, _ = otto.ToValue(input)
+	}
+	return call.Otto.Call("jeth.openWallet", nil, wallet, passwd)
+}
+
+func (b *bridge) readPinAndReopenWallet(call otto.FunctionCall) (otto.Value, error) {
+	var passwd otto.Value
+	wallet := call.Argument(0)
 	// Trezor PIN matrix input requested, display the matrix to the user and fetch the data
 	fmt.Fprintf(b.printer, "Look at the device for number positions\n\n")
 	fmt.Fprintf(b.printer, "7 | 8 | 9\n")
@@ -121,10 +204,7 @@ func (b *bridge) OpenWallet(call otto.FunctionCall) (response otto.Value) {
 	} else {
 		passwd, _ = otto.ToValue(input)
 	}
-	if val, err = call.Otto.Call("jeth.openWallet", nil, wallet, passwd); err != nil {
-		throwJSException(err.Error())
-	}
-	return val
+	return call.Otto.Call("jeth.openWallet", nil, wallet, passwd)
 }
 
 // UnlockAccount is a wrapper around the personal.unlockAccount RPC method that
@@ -143,7 +223,7 @@ func (b *bridge) UnlockAccount(call otto.FunctionCall) (response otto.Value) {
 
 	if call.Argument(1).IsUndefined() || call.Argument(1).IsNull() {
 		fmt.Fprintf(b.printer, "Unlock account %s\n", account)
-		if input, err := b.prompter.PromptPassword("Passphrase: "); err != nil {
+		if input, err := b.prompter.PromptPassword("Password: "); err != nil {
 			throwJSException(err.Error())
 		} else {
 			passwd, _ = otto.ToValue(input)
@@ -190,7 +270,7 @@ func (b *bridge) Sign(call otto.FunctionCall) (response otto.Value) {
 	// if the password is not given or null ask the user and ensure password is a string
 	if passwd.IsUndefined() || passwd.IsNull() {
 		fmt.Fprintf(b.printer, "Give password for account %s\n", account)
-		if input, err := b.prompter.PromptPassword("Passphrase: "); err != nil {
+		if input, err := b.prompter.PromptPassword("Password: "); err != nil {
 			throwJSException(err.Error())
 		} else {
 			passwd, _ = otto.ToValue(input)
