@@ -4,7 +4,7 @@
 
 language: go
 go_import_path: github.com/ethereum/go-ethereum
-go: 1.11.x
+go: 1.13.x
 sudo: true
 branches:
   only:
@@ -75,11 +75,9 @@ matrix:
       dist: xenial
       script:
         - |
-          sudo modprobe fuse
-          sudo chmod 666 /dev/fuse
-          sudo chown root:$USER /etc/fuse.conf
           go run build/ci.go install
           QUORUM_IGNORE_TEST_PACKAGES=github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol go run build/ci.go test -coverage $TEST_PACKAGES
+          
     - if: tag IS present
       os: linux
       dist: xenial
