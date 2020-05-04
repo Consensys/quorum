@@ -505,7 +505,6 @@ func (api *SignerAPI) SignTransaction(ctx context.Context, args SendTxArgs, meth
 	)
 	if args.IsPrivate {
 		msgs = new(ValidationMessages)
-		msgs.Info(fmt.Sprintf("Quorum private transaction. Key: %s", args.Data))
 	} else {
 		msgs, err = api.validator.ValidateTransaction(methodSelector, &args)
 		if err != nil {

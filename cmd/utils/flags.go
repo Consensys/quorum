@@ -34,9 +34,6 @@ import (
 	"text/template"
 	"time"
 
-	pcsclite "github.com/gballet/go-libpcsclite"
-	"gopkg.in/urfave/cli.v1"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -76,6 +73,8 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/private"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
+	pcsclite "github.com/gballet/go-libpcsclite"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (
@@ -768,6 +767,12 @@ var (
 	}
 
 	// Quorum
+	// immutability threshold which can be passed as a parameter at geth start
+	QuorumImmutabilityThreshold = cli.IntFlag{
+		Name:  "immutabilitythreshold",
+		Usage: "overrides the default immutability threshold for Quorum nodes. Its the threshold beyond which block data will be moved to ancient db",
+		Value: 3162240,
+	}
 	// Raft flags
 	RaftModeFlag = cli.BoolFlag{
 		Name:  "raft",
@@ -802,6 +807,11 @@ var (
 	EnableNodePermissionFlag = cli.BoolFlag{
 		Name:  "permissioned",
 		Usage: "If enabled, the node will allow only a defined list of nodes to connect",
+	}
+	AllowedFutureBlockTimeFlag = cli.Uint64Flag{
+		Name:  "allowedfutureblocktime",
+		Usage: "Max time (in seconds) from current time allowed for blocks, before they're considered future blocks",
+		Value: 0,
 	}
 	// Plugins settings
 	PluginSettingsFlag = cli.StringFlag{
@@ -1285,6 +1295,7 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	if ctx.GlobalIsSet(EnableNodePermissionFlag.Name) {
 		cfg.EnableNodePermission = ctx.GlobalBool(EnableNodePermissionFlag.Name)
 	}
+
 }
 
 func setSmartCard(ctx *cli.Context, cfg *node.Config) {
@@ -1591,6 +1602,8 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
 
+	cfg.AllowedFutureBlockTime = ctx.GlobalUint64(AllowedFutureBlockTimeFlag.Name) //Quorum
+
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
@@ -1638,6 +1651,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	if ctx.GlobalIsSet(RPCGlobalGasCap.Name) {
 		cfg.RPCGasCap = new(big.Int).SetUint64(ctx.GlobalUint64(RPCGlobalGasCap.Name))
 	}
+
+	// set immutability threshold in config
+	params.SetQuorumImmutabilityThreshold(ctx.GlobalInt(QuorumImmutabilityThreshold.Name))
 
 	// Override any default configs for hard coded networks.
 	switch {

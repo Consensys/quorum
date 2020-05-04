@@ -1,3 +1,20 @@
+// Copyright 2014 The go-ethereum Authors
+// This file is part of go-ethereum.
+//
+// go-ethereum is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// go-ethereum is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
+
+// Package utils contains internal helper functions for go-ethereum commands.
 package utils
 
 import (
@@ -6,6 +23,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/node"
@@ -49,6 +67,15 @@ func TestSetPlugins_whenInvalidPluginSettingsURL(t *testing.T) {
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginSettingsFlag.Name, "arbitrary value"))
 
 	verifyErrorMessage(t, arbitraryCLIContext, arbitraryNodeConfig, "plugins: unable to create reader due to unsupported scheme ")
+}
+
+func TestSetImmutabilityThreshold(t *testing.T) {
+	fs := &flag.FlagSet{}
+	fs.Int(QuorumImmutabilityThreshold.Name, 0, "")
+	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(QuorumImmutabilityThreshold.Name, strconv.Itoa(100000)))
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(QuorumImmutabilityThreshold.Name) == true, "immutability threshold flag not set")
+	assert.True(t, arbitraryCLIContext.GlobalInt(QuorumImmutabilityThreshold.Name) == 100000, "immutability threshold value not set")
 }
 
 func TestSetPlugins_whenTypical(t *testing.T) {

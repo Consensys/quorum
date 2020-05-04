@@ -61,7 +61,10 @@ The following endpoints are advertised on this interface:
 - `/send`
 - `/receiveraw`
 - `/receive`
+- `/storeraw`
 - `/sendsignedtx`
+- `/transaction/{key}/isSender`
+- `/transaction/{key}/participants`
 
 ### Admin API
 
@@ -128,5 +131,13 @@ The following endpoints are advertised on this API:
 **`delete`** - _Delete a transaction_ 
 
 - Delete hashed encrypted payload stored in Tessera nodes.
+
+**`/transaction/{key}/isSender`** - _Determine if a node is the sender_ 
+
+- Tell if the local enclave is the sender of a particular transaction (by checking if the sender public key is part of the nodes enclave)
+
+**`/transaction/{key}/participants`** - _Retrieve participants_ 
+
+- Retrieve transaction participants directly from the database (a recipient will have no participants)
 
 For more interactions with the API see the [Swagger documentation](https://jpmorganchase.github.io/tessera-swagger/index.html).

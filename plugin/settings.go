@@ -50,8 +50,8 @@ var (
 	// this is the place holder for future solution of the plugin central
 	quorumPluginCentralConfiguration = &PluginCentralConfiguration{
 		CertFingerprint:       "",
-		BaseURL:               "",
-		PublicKeyURI:          "/" + DefaultPublicKeyFile,
+		BaseURL:               "https://dl.bintray.com/quorumengineering/quorum-plugins",
+		PublicKeyURI:          "/.pgp/" + DefaultPublicKeyFile,
 		InsecureSkipTLSVerify: false,
 	}
 )
@@ -135,7 +135,7 @@ func (m *PluginDefinition) DistFileName() string {
 
 // return plugin distribution signature file name
 func (m *PluginDefinition) SignatureFileName() string {
-	return fmt.Sprintf("%s.sig", m.FullName())
+	return fmt.Sprintf("%s.sha256sum.asc", m.DistFileName())
 }
 
 // must be always be lowercase when define constants

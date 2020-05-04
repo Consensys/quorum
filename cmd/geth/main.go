@@ -152,6 +152,7 @@ var (
 		utils.EVMInterpreterFlag,
 		configFileFlag,
 		// Quorum
+		utils.QuorumImmutabilityThreshold,
 		utils.EnableNodePermissionFlag,
 		utils.ContractExtensionServerFlag,
 		utils.RaftModeFlag,
@@ -166,6 +167,7 @@ var (
 		utils.PluginSkipVerifyFlag,
 		utils.PluginLocalVerifyFlag,
 		utils.PluginPublicKeyFlag,
+		utils.AllowedFutureBlockTimeFlag,
 		// End-Quorum
 	}
 

@@ -136,6 +136,10 @@ func (c *Client) StorePayload(pl []byte, b64From string) ([]byte, error) {
 	req.Header.Set("Content-Type", "application/json")
 	res, err := c.httpClient.Do(req)
 
+	if res.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("Non-200 status code, verify that tessera is running and version is 0.10.5+: %v", res)
+	}
+
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Non-200 status code: %+v", res)
 	}

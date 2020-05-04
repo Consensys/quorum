@@ -12,19 +12,48 @@ The primary features of Quorum, and therefore extensions over public Ethereum, a
 * Network/Peer permissions management
 * Higher performance
 
-Quorum currently includes the following components:
-
-* Quorum Node (modified Geth Client)
-* Privacy Manager (Constellation/Tessera)
-    * Transaction Manager
-    * Enclave
-
 !!! info "Background Reading"
     For more information on the design rationale and background to Quorum, please read the [**Quorum Whitepaper**](https://github.com/jpmorganchase/quorum/blob/master/docs/Quorum%20Whitepaper%20v0.2.pdf), view the [Hyperledger deck](https://drive.google.com/open?id=0B8rVouOzG7cOeHo0M2ZBejZTdGs) or watch the [presentation](https://drive.google.com/open?id=0B8rVouOzG7cOcDg4UkxqdTBacm8) given to the Hyperledger Project Technical Steering Committee meeting on 22-Sept-16. Also see quick overview of sending private transactions [here](https://vimeo.com/user5833792/review/210456729/8f70cfaaa5)
 
-
-## Logical Architecture Diagram
+## Quorum's components
+### Logical architecture diagram
 ![](Quorum%20Design.png)
+
+### Quorum Node
+The Quorum Node is intentionally designed to be a lightweight fork of geth in order that it can continue to take advantage of the R&D that is taking place within the ever growing Ethereum community.  To that end, Quorum will be updated in-line with future geth releases.
+
+The Quorum Node includes the following modifications to geth:
+
+ * Consensus is achieved with the Raft or Istanbul BFT consensus algorithms instead of using Proof-of-Work.
+ * The P2P layer has been modified to only allow connections to/from permissioned nodes.
+ * The block generation logic has been modified to replace the ‘global state root’ check with a new ‘global public state root’.
+ * The block validation logic has been modified to replace the ‘global state root’ in the block header with the ‘global public state root’
+ * The State Patricia trie has been split into two: a public state trie and a private state trie.
+ * Block validation logic has been modified to handle ‘Private Transactions’
+ * Transaction creation has been modified to allow for Transaction data to be replaced by encrypted hashes in order to preserve private data where required
+ * The pricing of Gas has been removed, although Gas itself remains
+
+### Privacy Manager
+[Constellation](Privacy/Constellation/Constellation) and [Tessera](Privacy/Tessera/Tessera) are Haskell and Java implementations of a general-purpose system for submitting information in a secure way. They are comparable to a network of MTA (Message Transfer Agents) where messages are encrypted with PGP. It is not blockchain-specific, and are potentially applicable in many other types of applications where you want individually-sealed message exchange within a network of counterparties. The Constellation and Tessera modules consist of two sub-modules: 
+
+* The Node (which is used for Quorum's default implementation of a `PrivateTransactionManager`) 
+* The Enclave
+
+
+#### Transaction Manager
+Quorum’s Transaction Manager is responsible for Transaction privacy.  It stores and allows access to encrypted transaction data, exchanges encrypted payloads with other participant's Transaction Managers but does not have access to any sensitive private keys. It utilizes the Enclave for cryptographic functionality (although the Enclave can optionally be hosted by the Transaction Manager itself.)
+
+The Transaction Manager is restful/stateless and can be load balanced easily.
+
+For further details on how the Transaction Manager interacts with the Enclave, please refer [here](Privacy/Tessera/Tessera%20Services/Transaction%20Manager)
+
+#### The Enclave
+
+Distributed Ledger protocols typically leverage cryptographic techniques for transaction authenticity, participant authentication, and historical data preservation (i.e. through a chain of cryptographically hashed data.)  In order to achieve a separation of concerns, as well as to provide performance improvements through parallelization of certain crypto-operations, much of the cryptographic work including symmetric key generation and data encryption/decryption is delegated to the Enclave.  
+
+The Enclave works hand in hand with the Transaction Manager to strengthen privacy by managing the encryption/decryption in an isolated way.  It holds private keys and is essentially a “virtual HSM” isolated from other components.
+
+For further details on the Enclave, please refer [here](Privacy/Tessera/Tessera%20Services/Enclave).
 
 ## Design
 ### Public/Private State
@@ -76,40 +105,3 @@ To overcome this issue the RPC method `eth_storageRoot(address[, blockNumber]) -
 It returns the storage root for the given address at an (optional) block number.
 If the optional block number is not given the latest block number is used.
 The storage root hash can be on or off chain compared by the parties involved.
-
-## Component Overview
-### Quorum Node
-The Quorum Node is intentionally designed to be a lightweight fork of geth in order that it can continue to take advantage of the R&D that is taking place within the ever growing Ethereum community.  To that end, Quorum will be updated in-line with future geth releases.
-
-The Quorum Node includes the following modifications to geth:
-
- * Consensus is achieved with the Raft or Istanbul BFT consensus algorithms instead of using Proof-of-Work.
- * The P2P layer has been modified to only allow connections to/from permissioned nodes.
- * The block generation logic has been modified to replace the ‘global state root’ check with a new ‘global public state root’.
- * The block validation logic has been modified to replace the ‘global state root’ in the block header with the ‘global public state root’
- * The State Patricia trie has been split into two: a public state trie and a private state trie.
- * Block validation logic has been modified to handle ‘Private Transactions’
- * Transaction creation has been modified to allow for Transaction data to be replaced by encrypted hashes in order to preserve private data where required
- * The pricing of Gas has been removed, although Gas itself remains
-
-### Constellation & Tessera
-[Constellation](Privacy/Constellation/Constellation) and [Tessera](Privacy/Tessera/Tessera) are Haskell and Java implementations of a general-purpose system for submitting information in a secure way. They are comparable to a network of MTA (Message Transfer Agents) where messages are encrypted with PGP. It is not blockchain-specific, and are potentially applicable in many other types of applications where you want individually-sealed message exchange within a network of counterparties. The Constellation and Tessera modules consist of two sub-modules: 
-
-* The Node (which is used for Quorum's default implementation of a `PrivateTransactionManager`) 
-* The Enclave
-
-
-#### Transaction Manager
-Quorum’s Transaction Manager is responsible for Transaction privacy.  It stores and allows access to encrypted transaction data, exchanges encrypted payloads with other participant's Transaction Managers but does not have access to any sensitive private keys. It utilizes the Enclave for cryptographic functionality (although the Enclave can optionally be hosted by the Transaction Manager itself.)
-
-The Transaction Manager is restful/stateless and can be load balanced easily.
-
-For further details on how the Transaction Manager interacts with the Enclave, please refer [here](Privacy/Tessera/Tessera%20Services/Transaction%20Manager)
-
-#### The Enclave
-
-Distributed Ledger protocols typically leverage cryptographic techniques for transaction authenticity, participant authentication, and historical data preservation (i.e. through a chain of cryptographically hashed data.)  In order to achieve a separation of concerns, as well as to provide performance improvements through parallelization of certain crypto-operations, much of the cryptographic work including symmetric key generation and data encryption/decryption is delegated to the Enclave.  
-
-The Enclave works hand in hand with the Transaction Manager to strengthen privacy by managing the encryption/decryption in an isolated way.  It holds private keys and is essentially a “virtual HSM” isolated from other components.
-
-For further details on the Enclave, please refer [here](Privacy/Tessera/Tessera%20Services/Enclave).

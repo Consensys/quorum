@@ -21,7 +21,6 @@ package main
 import (
 	"io"
 	"sort"
-
 	"strings"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -266,11 +265,13 @@ var AppHelpFlagGroups = []flagGroup{
 	{
 		Name: "QUORUM",
 		Flags: []cli.Flag{
+			utils.QuorumImmutabilityThreshold,
 			utils.EnableNodePermissionFlag,
 			utils.PluginSettingsFlag,
 			utils.PluginSkipVerifyFlag,
 			utils.PluginLocalVerifyFlag,
 			utils.PluginPublicKeyFlag,
+			utils.AllowedFutureBlockTimeFlag,
 		},
 	},
 	{
