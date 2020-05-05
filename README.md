@@ -13,18 +13,19 @@ Quorum is a fork of [go-ethereum](https://github.com/ethereum/go-ethereum) and i
 
 Key enhancements over go-ethereum:
 
-* __Privacy__ - Quorum supports private transactions and private contracts through public/private state separation, and utilises peer-to-peer encrypted message exchanges (see [Constellation](https://github.com/jpmorganchase/constellation) and [Tessera](https://github.com/jpmorganchase/tessera)) for directed transfer of private data to network participants
-* __Alternative Consensus Mechanisms__ - with no need for POW/POS in a permissioned network, Quorum instead offers multiple consensus mechanisms that are more appropriate for consortium chains:
-    * __Raft-based Consensus__ - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
-    * __Istanbul BFT__ - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
-* __Peer Permissioning__ - node/peer permissioning using smart contracts, ensuring only known parties can join the network
+* [__Privacy__](https://github.com/jpmorganchase/quorum/blob/master/docs/Privacy/Overview.md) - Quorum supports private transactions and private contracts through public/private state separation, and utilises peer-to-peer encrypted message exchanges (see [Constellation](https://github.com/jpmorganchase/constellation) and [Tessera](https://github.com/jpmorganchase/tessera)) for directed transfer of private data to network participants
+* [__Alternative Consensus Mechanisms__](https://github.com/jpmorganchase/quorum/blob/master/docs/Consensus/Consensus.md) - with no need for POW/POS in a permissioned network, Quorum instead offers multiple consensus mechanisms that are more appropriate for consortium chains:
+    * [__Raft-based Consensus__](https://github.com/jpmorganchase/quorum/blob/master/docs/Consensus/raft/raft.md) - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
+    * [__Istanbul BFT__](https://github.com/jpmorganchase/quorum/blob/master/docs/Consensus/ibft/ibft.md) - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
+* [__Peer Permissioning__](https://github.com/jpmorganchase/quorum/blob/master/docs/Permissioning/Overview.md) - node/peer permissioning using smart contracts, ensuring only known parties can join the network
+* [__Pluggable architecture__](https://github.com/jpmorganchase/quorum/edit/master/docs/PluggableArchitecture/Overview.md) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and isolation of Quorum features.
 * __Higher Performance__ - Quorum offers significantly higher performance than public geth
 
 ## Architecture
 
-![](https://github.com/jpmorganchase/quorum/blob/master/docs/Quorum%20Design.png)
+![Quorum Tessera Privacy Flow](https://github.com/jpmorganchase/quorum/blob/master/docs/Quorum%20Design.png)
 
-The above diagram is a high-level overview of the privacy architecture used by Quorum. For more in-depth discussion of the components, refer to the [documentation site](https://docs.goquorum.com).
+The above diagram is very high-level overview of component architecture used by Quorum. For more in-depth discussion of the components and how they interact, refer [lifecycle of a private transaction](https://github.com/jpmorganchase/quorum/blob/master/docs/Privacy/Lifecycle-of-a-private-transaction.md).
 
 ## Quickstart
 The quickest way to get started with Quorum is by following instructions in the [Quorum Examples](https://github.com/jpmorganchase/quorum-examples) repository.  This allows you to quickly create a network of Quorum nodes, and includes a step-by-step demonstration of the privacy features of Quorum.
