@@ -29,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/private/privatetransactionmanager"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -70,10 +69,8 @@ func (ec *Client) WithPrivateTransactionManager(rawurl string) (*Client, error) 
 	return ec, nil
 }
 
-func (ec *Client) WithIPCPrivateTransactionManager(unixsocketPath string) (*Client, error) {
-	httpClient := privatetransactionmanager.UnixClient(unixsocketPath)
-
-	ec.pc = newPrivateTransactionManagerClientNoValidation("http+unix://c", httpClient)
+func (ec *Client) WithPTM(ptm privateTransactionManagerClient) (*Client, error) {
+	ec.pc = ptm
 	return ec, nil
 }
 
@@ -550,7 +547,7 @@ func (ec *Client) PreparePrivateTransaction(data []byte, privateFrom string) ([]
 	if ec.pc == nil {
 		return nil, errors.New("missing private transaction manager client configuration")
 	}
-	return ec.pc.storeRaw(data, privateFrom)
+	return ec.pc.StoreRaw(data, privateFrom)
 }
 
 func toCallArg(msg ethereum.CallMsg) interface{} {

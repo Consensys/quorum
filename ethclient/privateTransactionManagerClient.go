@@ -10,7 +10,7 @@ import (
 )
 
 type privateTransactionManagerClient interface {
-	storeRaw(data []byte, privateFrom string) ([]byte, error)
+	StoreRaw(data []byte, privateFrom string) ([]byte, error)
 }
 
 type privateTransactionManagerDefaultClient struct {
@@ -43,7 +43,7 @@ type storeRawResp struct {
 	Key string `json:"key"`
 }
 
-func (pc *privateTransactionManagerDefaultClient) storeRaw(data []byte, privateFrom string) ([]byte, error) {
+func (pc *privateTransactionManagerDefaultClient) StoreRaw(data []byte, privateFrom string) ([]byte, error) {
 	storeRawReq := &storeRawReq{
 		Payload: base64.StdEncoding.EncodeToString(data),
 		From:    privateFrom,

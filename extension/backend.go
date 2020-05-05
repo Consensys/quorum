@@ -62,7 +62,7 @@ func New(ptm private.PrivateTransactionManager, manager IAccountManager, handler
 	return service, nil
 }
 
-func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile string) {
+func (service *PrivacyService) initialise(node *node.Node) {
 	service.mu.Lock()
 	defer service.mu.Unlock()
 
@@ -71,7 +71,7 @@ func (service *PrivacyService) initialise(node *node.Node, thirdpartyunixfile st
 		panic("extension: could not connect to ethereum client rpc")
 	}
 
-	client, _ := ethclient.NewClient(rpcClient).WithIPCPrivateTransactionManager(thirdpartyunixfile)
+	client, _ := ethclient.NewClient(rpcClient).WithPTM(service.ptm)
 	service.managementContractFacade = NewManagementContractFacade(client)
 	service.extClient = NewInProcessClient(client)
 

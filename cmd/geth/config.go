@@ -25,15 +25,14 @@ import (
 	"reflect"
 	"unicode"
 
-	"github.com/naoina/toml"
-	"gopkg.in/urfave/cli.v1"
-
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/dashboard"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
+	"github.com/naoina/toml"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (
@@ -175,8 +174,9 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
 	}
 
-	if cfg.Eth.ContractExtensionServer != "" {
-		utils.RegisterExtensionService(stack, cfg.Eth.ContractExtensionServer, ethChan)
+	ipcPath := quorumGetPrivateTransactionManager()
+	if ipcPath != "" {
+		utils.RegisterExtensionService(stack, ethChan)
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
@@ -252,4 +252,13 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 // environment variable is set
 func quorumValidatePrivateTransactionManager() bool {
 	return os.Getenv("PRIVATE_CONFIG") != ""
+}
+
+//
+func quorumGetPrivateTransactionManager() string {
+	cfgPath := os.Getenv("PRIVATE_CONFIG")
+	if cfgPath != "" && cfgPath != "ignore" {
+		return cfgPath
+	}
+	return ""
 }

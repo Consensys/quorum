@@ -22,7 +22,7 @@ type DefaultServicesFactory struct {
 	stateFetcher   *StateFetcher
 }
 
-func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, thirdpartyunixfile string, ethService *eth.Ethereum) (*DefaultServicesFactory, error) {
+func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, ethService *eth.Ethereum) (*DefaultServicesFactory, error) {
 	factory := &DefaultServicesFactory{}
 
 	factory.accountManager = NewAccountManager(ethService.AccountManager())
@@ -37,7 +37,7 @@ func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, 
 
 	ethService.BlockChain().PopulateSetPrivateState(privacyExtension.DefaultExtensionHandler.CheckExtensionAndSetPrivateState)
 
-	go backendService.initialise(node, thirdpartyunixfile)
+	go backendService.initialise(node)
 
 	return factory, nil
 }
