@@ -22,7 +22,7 @@ Key enhancements over go-ethereum:
 
 ## Architecture
 
-![](Quorum%20Design.png)
+![](https://github.com/jpmorganchase/quorum/blob/master/docs/Quorum%20Design.png)
 
 The above diagram is a high-level overview of the privacy architecture used by Quorum. For more in-depth discussion of the components, refer to the [documentation site](https://docs.goquorum.com).
 
