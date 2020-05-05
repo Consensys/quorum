@@ -12,6 +12,10 @@ func (ptm *PrivateTransactionManager) Send(data []byte, from string, to []string
 	return nil, ErrPrivateTxManagerNotInUse
 }
 
+func (ptm *PrivateTransactionManager) StoreRaw(data []byte, from string) ([]byte, error) {
+	return nil, ErrPrivateTxManagerNotInUse
+}
+
 func (ptm *PrivateTransactionManager) SendSignedTx(data []byte, to []string) ([]byte, error) {
 	return nil, ErrPrivateTxManagerNotInUse
 }

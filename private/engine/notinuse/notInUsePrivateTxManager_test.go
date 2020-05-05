@@ -21,6 +21,14 @@ func TestSendReturnsError(t *testing.T) {
 	assert.Equal(t, err, ErrPrivateTxManagerNotInUse, "got wrong error in 'send'")
 }
 
+func TestStoreRawReturnsError(t *testing.T) {
+	ptm := &PrivateTransactionManager{}
+
+	_, err := ptm.StoreRaw([]byte{}, "")
+
+	assert.Equal(t, err, ErrPrivateTxManagerNotInUse, "got wrong error in 'storeraw'")
+}
+
 func TestReceiveReturnsError(t *testing.T) {
 	ptm := &PrivateTransactionManager{}
 

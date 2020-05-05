@@ -24,9 +24,6 @@ func (g *PrivateTransactionManager) Send(data []byte, from string, to []string) 
 }
 
 func (g *PrivateTransactionManager) StoreRaw(data []byte, from string) (out []byte, err error) {
-	if g.isPrivateTransactionManagerNotInUse {
-		return nil, errPrivateTransactionManagerNotUsed
-	}
 	out, err = g.node.StorePayload(data, from)
 	if err != nil {
 		return nil, err
