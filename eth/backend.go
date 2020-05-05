@@ -150,9 +150,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		if (chainConfig.ChainID != nil && chainConfig.ChainID.Int64() == 1) || config.NetworkId == 1 {
 			return nil, errors.New("Cannot have chain id or network id as 1.")
 		}
-
-		// set the immutability threshold value in line with value passed
-		params.SetQuorumImmutabilityThreshold(config.QuorumImmutabilityThreshold)
 	}
 
 	if !rawdb.GetIsQuorumEIP155Activated(chainDb) && chainConfig.ChainID != nil {

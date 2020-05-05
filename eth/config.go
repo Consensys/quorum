@@ -166,7 +166,4 @@ type Config struct {
 
 	// Istanbul block override (TODO: remove after the fork)
 	OverrideIstanbul *big.Int
-
-	// Freezer db immutability threshold
-	QuorumImmutabilityThreshold int
 }
