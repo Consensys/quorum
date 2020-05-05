@@ -18,8 +18,8 @@ Key enhancements over go-ethereum:
     * [__Raft-based Consensus__](https://github.com/jpmorganchase/quorum/blob/master/docs/Consensus/raft/raft.md) - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
     * [__Istanbul BFT__](https://github.com/jpmorganchase/quorum/blob/master/docs/Consensus/ibft/ibft.md) - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
 * [__Peer Permissioning__](https://github.com/jpmorganchase/quorum/blob/master/docs/Permissioning/Overview.md) - node/peer permissioning using smart contracts, ensuring only known parties can join the network
-* [__Pluggable architecture__](https://github.com/jpmorganchase/quorum/edit/master/docs/PluggableArchitecture/Overview.md) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and isolation of Quorum features.
-* __Higher Performance__ - Quorum offers significantly higher performance than public geth
+* [__Pluggable architecture__](https://github.com/jpmorganchase/quorum/edit/master/docs/PluggableArchitecture/Overview.md) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of Quorum features.
+* __Higher Performance__ - Quorum offers significantly higher performance throughput than public geth
 
 ## Architecture
 
@@ -30,17 +30,8 @@ The above diagram is very high-level overview of component architecture used by 
 ## Quickstart
 The quickest way to get started with Quorum is by following instructions in the [Quorum Examples](https://github.com/jpmorganchase/quorum-examples) repository.  This allows you to quickly create a network of Quorum nodes, and includes a step-by-step demonstration of the privacy features of Quorum.
 
-## Further Reading
-Further documentation can be found in the [docs](docs/) folder and on the [documentation site](https://docs.goquorum.com).
+## Quorum Projects
 
-## Official Docker Containers
-The official docker containers can be found under https://hub.docker.com/u/quorumengineering/ 
-
-
-## See also
-
-* [Quorum](https://github.com/jpmorganchase/quorum): this repository
-* [Quorum Documentation](https://docs.goquorum.com)
 * [quorum-examples](https://github.com/jpmorganchase/quorum-examples): Quorum demonstration examples
 * <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [qubernetes](https://github.com/jpmorganchase/qubernetes): Deploy Quorum on Kubernetes  
 * [Quorum Community Slack Inviter](https://www.goquorum.com/slack-inviter): Quorum Slack community entry point
@@ -56,6 +47,9 @@ The official docker containers can be found under https://hub.docker.com/u/quoru
    * [Anonymous Zether](https://github.com/jpmorganchase/anonymous-zether) implementation
 * [quorum-cloud](https://github.com/jpmorganchase/quorum-cloud): Tools to help deploy Quorum network in a cloud provider of choice
 * [Cakeshop](https://github.com/jpmorganchase/cakeshop): An integrated development environment and SDK for Quorum
+
+## Official Docker Containers
+The official docker containers can be found under https://hub.docker.com/u/quorumengineering/ 
 
 ## Third Party Tools/Libraries
 
