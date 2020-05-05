@@ -13,13 +13,13 @@ Quorum is a fork of [go-ethereum](https://github.com/ethereum/go-ethereum) and i
 
 Key enhancements over go-ethereum:
 
-* [__Privacy__](https://github.com/jpmorganchase/quorum/blob/master/docs/Privacy/Overview.md) - Quorum supports private transactions and private contracts through public/private state separation, and utilises peer-to-peer encrypted message exchanges (see [Constellation](https://github.com/jpmorganchase/constellation) and [Tessera](https://github.com/jpmorganchase/tessera)) for directed transfer of private data to network participants
-* [__Alternative Consensus Mechanisms__](https://github.com/jpmorganchase/quorum/blob/master/docs/Consensus/Consensus.md) - with no need for POW/POS in a permissioned network, Quorum instead offers multiple consensus mechanisms that are more appropriate for consortium chains:
-    * [__Raft-based Consensus__](https://github.com/jpmorganchase/quorum/blob/master/docs/Consensus/raft/raft.md) - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
-    * [__Istanbul BFT__](https://github.com/jpmorganchase/quorum/blob/master/docs/Consensus/ibft/ibft.md) - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
-    * [Clique POA Consensus Documentation](https://github.com/ethereum/EIPs/issues/225) and a [guide to setup clique json](https://modalduality.org/posts/puppeth/) with [puppeth](https://blog.ethereum.org/2017/04/14/geth-1-6-puppeth-master/)
-* [__Peer Permissioning__](https://github.com/jpmorganchase/quorum/blob/master/docs/Permissioning/Overview.md) - node/peer permissioning using smart contracts, ensuring only known parties can join the network
-* [__Pluggable architecture__](https://github.com/jpmorganchase/quorum/edit/master/docs/PluggableArchitecture/Overview.md) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of Quorum features.
+* [__Privacy__](http://docs.goquorum.com/en/latest/Privacy/Overview/) - Quorum supports private transactions and private contracts through public/private state separation, and utilises peer-to-peer encrypted message exchanges (see [Constellation](https://github.com/jpmorganchase/constellation) and [Tessera](https://github.com/jpmorganchase/tessera)) for directed transfer of private data to network participants
+* [__Alternative Consensus Mechanisms__](http://docs.goquorum.com/en/latest/Consensus/Consensus/) - with no need for POW/POS in a permissioned network, Quorum instead offers multiple consensus mechanisms that are more appropriate for consortium chains:
+    * [__Raft-based Consensus__](http://docs.goquorum.com/en/latest/Consensus/raft/raft/) - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
+    * [__Istanbul BFT__](http://docs.goquorum.com/en/latest/Consensus/ibft/ibft/) - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
+    * [__Clique POA Consensus__](https://github.com/ethereum/EIPs/issues/225) - a default POA consensus algorithm bundled with Go Ethereum.
+* [__Peer Permissioning__](http://docs.goquorum.com/en/latest/Permissioning/Overview/) - node/peer permissioning using smart contracts, ensuring only known parties can join the network
+* [__Pluggable architecture__](http://docs.goquorum.com/en/latest/PluggableArchitecture/Overview/) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of Quorum features.
 * __Higher Performance__ - Quorum offers significantly higher performance throughput than public geth
 
 ## Architecture
