@@ -26,22 +26,21 @@ Key enhancements over go-ethereum:
 
 ![Quorum Tessera Privacy Flow](https://github.com/jpmorganchase/quorum/blob/master/docs/Quorum%20Design.png)
 
-The above diagram is very high-level overview of component architecture used by Quorum. For more in-depth discussion of the components and how they interact, refer [lifecycle of a private transaction](https://github.com/jpmorganchase/quorum/blob/master/docs/Privacy/Lifecycle-of-a-private-transaction.md).
+The above diagram is very high-level overview of component architecture used by Quorum. For more in-depth discussion of the components and how they interact, refer [lifecycle of a private transaction](http://docs.goquorum.com/en/latest/Privacy/Lifecycle-of-a-private-transaction/).
 
 ## Quickstart
-The quickest way to get started with Quorum is by using [Quorum Wizard](https://github.com/jpmorganchase/quorum/blob/master/docs/Wizard/GettingStarted.md). Quorum Wizard is a command line tool that allow users to set up a development Quorum network on their local machine in less than *2 minutes*.
+The quickest way to get started with Quorum is by using [Quorum Wizard](http://docs.goquorum.com/en/latest/Wizard/GettingStarted/). Quorum Wizard is a command line tool that allow users to set up a development Quorum network on their local machine in less than *2 minutes*.
 
 ## Quorum Projects
 
-Some of our interesting works include: 
+See also some of our interesting works..
 
+* [quorum wizard](http://docs.goquorum.com/en/latest/Wizard/GettingStarted/): Start a Quorum Network in less than 2 minutes !!
 * [quorum wizard](https://github.com/jpmorganchase/quorum-wizard): Start a Quorum Network in less than 2 minutes !!
 * [quorum-examples](https://github.com/jpmorganchase/quorum-examples): Quorum demonstration examples
 * <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [qubernetes](https://github.com/jpmorganchase/qubernetes): Deploy Quorum on Kubernetes  
 * [Quorum Community Slack Inviter](https://www.goquorum.com/slack-inviter): Quorum Slack community entry point
-* Quorum Transaction Managers
-   * [Constellation](https://github.com/jpmorganchase/constellation): Haskell implementation of peer-to-peer encrypted message exchange for transaction privacy
-   * [Tessera](https://github.com/jpmorganchase/tessera): Java implementation of peer-to-peer encrypted message exchange for transaction privacy
+
    * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) wiki page and [documentation](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
    * [Anonymous Zether](https://github.com/jpmorganchase/anonymous-zether) implementation
 * [quorum-cloud](https://github.com/jpmorganchase/quorum-cloud): Tools to help deploy Quorum network in a cloud provider of choice
