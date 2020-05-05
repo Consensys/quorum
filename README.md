@@ -26,19 +26,19 @@ Key enhancements over go-ethereum:
 
 ![Quorum Tessera Privacy Flow](https://github.com/jpmorganchase/quorum/blob/master/docs/Quorum%20Design.png)
 
-The above diagram is very high-level overview of component architecture used by Quorum. For more in-depth discussion of the components and how they interact, refer [lifecycle of a private transaction](http://docs.goquorum.com/en/latest/Privacy/Lifecycle-of-a-private-transaction/).
+The above diagram is very high-level overview of component architecture used by Quorum. For more in-depth discussion of the components and how they interact, please refer to [lifecycle of a private transaction](http://docs.goquorum.com/en/latest/Privacy/Lifecycle-of-a-private-transaction/).
 
 ## Quickstart
 The quickest way to get started with Quorum is by using [Quorum Wizard](http://docs.goquorum.com/en/latest/Wizard/GettingStarted/). Quorum Wizard is a command line tool that allow users to set up a development Quorum network on their local machine in less than *2 minutes*.
 
 ## Quorum Projects
 
-See also some of our interesting prrojects we are actively working on: 
+Check out some of the interesting projects we are actively working on: 
 
 * [quorum-wizard](http://docs.goquorum.com/en/latest/Wizard/GettingStarted/): Setup a Quorum network in 2 minutes!
 * [quorum-remix-plugin](http://docs.goquorum.com/en/latest/RemixPlugin/Overview/): The Quorum plugin for Ethereum's Remix IDE adds support for creating and interacting with private contracts on a Quorum network.
 * [Cakeshop](http://docs.goquorum.com/en/latest/Cakeshop/Overview/): An integrated development environment and SDK for Quorum
-* [quorum-examples](https://github.com/jpmorganchase/quorum-examples): Quorum demonstration examples
+* [quorum-examples](http://docs.goquorum.com/en/latest/Getting%20Started/Quorum-Examples/): Quorum demonstration examples
 * <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [qubernetes](https://github.com/jpmorganchase/qubernetes): Deploy Quorum on Kubernetes  
 * [quorum-cloud](https://github.com/jpmorganchase/quorum-cloud): Tools to help deploy Quorum network in a cloud provider of choice
 * [Quorum Community Slack Inviter](https://www.goquorum.com/slack-inviter): Quorum Slack community entry point
