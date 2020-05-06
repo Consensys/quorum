@@ -76,7 +76,6 @@ nav:
                     - Implementation: Quorum Features/PluggableArchitecture/Plugins/helloworld/implementation.md
             - Plugin Development: Quorum Features/PluggableArchitecture/PluginDevelopment.md
         - DNS: Quorum Features/dns.md
-        - Quorum Import-Export: Quorum Features/import-export.md
     - Quorum Projects: 
         - Quorum Wizard:
             - Getting Started: Quorum Projects/Wizard/GettingStarted.md
@@ -101,7 +100,7 @@ nav:
     - How-To Guides:
         - Adding new nodes: How-To-Guides/adding_nodes.md
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
-        - Backup & Restore: Features/import-export.md
+        - Backup & Restore: Quorum Features/import-export.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
