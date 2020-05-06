@@ -20,15 +20,6 @@ nav:
         - Running Quorum: Getting Started/running.md
         - Quorum API: Getting Started/api.md
     - Quorum Features: 
-        - Consensus:
-            - Consensus: Consensus/Consensus.md
-            - Raft BFT:
-                - Consensus/raft/raft.md
-                - Consensus/raft/raft-rpc-api.md
-            - Istanbul BFT:
-                - Overview: Consensus/ibft/ibft.md
-                - Consensus/ibft/istanbul-rpc-api.md
-                - Consensus/ibft/ibft-parameters.md
         - Transaction & Contract Privacy:
             - Overview: Privacy/Overview.md
             - Privacy/Privacy-Manager.md
@@ -59,6 +50,15 @@ nav:
                 - How it works: Privacy/Constellation/How constellation works.md
                 - Sample Configuration: Privacy/Constellation/Sample Configuration.md
                 - Running Constellation: Privacy/Constellation/Installation & Running.md
+        - Consensus:
+            - Consensus: Consensus/Consensus.md
+            - Raft BFT:
+                - Consensus/raft/raft.md
+                - Consensus/raft/raft-rpc-api.md
+            - Istanbul BFT:
+                - Overview: Consensus/ibft/ibft.md
+                - Consensus/ibft/istanbul-rpc-api.md
+                - Consensus/ibft/ibft-parameters.md     
         - Permissioning:
             - Overview: Permissioning/Overview.md
             - Design: Permissioning/Contract Design.md
