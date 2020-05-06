@@ -972,7 +972,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 	//This makes the return value a potential over-estimate of gas, rather than the exact cost to run right now
 
 	//if the transaction has a value then it cannot be private, so we can skip this check
-	if args.Value.ToInt().Cmp(big.NewInt(0)) == 0 {
+	if args.Value != nil && args.Value.ToInt().Cmp(big.NewInt(0)) == 0 {
 		homestead := b.ChainConfig().IsHomestead(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
 		istanbul := b.ChainConfig().IsIstanbul(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
 		var data []byte
