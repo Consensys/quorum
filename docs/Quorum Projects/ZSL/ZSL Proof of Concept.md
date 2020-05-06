@@ -32,7 +32,7 @@ Broadly speaking, Quorum ZSL supplies a contract within which virtual funds can 
 ## Equity Trade use case example
 The following example illustrates a specific use case for Quorum with ZSL - a simple equity trade where Alice is buying ACME shares from Bob. The POC includes a demonstration that implements this example; instructions on how to run it can be found [here](https://github.com/jpmorganchase/zsl-q/blob/master/README.md#example-2---private-contract-trade).
 
-![Quorum Equity Trade Use Case diagram](https://github.com/Krish1979/quorum/blob/Doc-update/docs/ZSL-Quorum-POC_Protocol_v0_4.png)
+![Quorum Equity Trade Use Case diagram](https://github.com/Krish1979/quorum/blob/Doc-update/docs/Quorum_Equity_Use_Case.png)
 
 ### Beginning State:
 * Z-contracts have been created for US dollars (the USD z-contract) and ACME shares (the ACME z-contract),
