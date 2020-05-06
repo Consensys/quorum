@@ -21,7 +21,7 @@ nav:
         - Quorum API: Getting Started/api.md
     - Quorum Features: 
         - Transaction & Contract Privacy:
-            - Overview: Privacy/Overview.md
+            - Overview: Quorum Features/Privacy/Overview.md
             - Privacy/Privacy-Manager.md
             - Privacy/Lifecycle-of-a-private-transaction.md
             - Tessera:
