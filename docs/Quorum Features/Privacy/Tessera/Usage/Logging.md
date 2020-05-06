@@ -32,7 +32,7 @@ Configuration exception, cause is {error details} | Invalid data in the configur
 CLI exception, cause is {error details} | Invalid command line.<br>The error details will give further information regarding the action to be taken. 
 
 !!! Note1 
-Log message will be changed to WARN in next release version.
+    Log message will be changed to WARN in next release version.
 
 ## Warnings
 Below is a list of warning messages and possible causes. Braces '{}' indicate where further detail of the root cause is logged as part of the message.
@@ -62,10 +62,10 @@ Failed to connect to node {remote node url}, due to {error details} | A remote n
 Failed to connect to node {remote node url} for partyInfo, due to {error details} | A node failed partyInfo request during resend to peer.<br>Action: check reason message, or logs on peer to see why it failed
 Failed to make resend request to node {remote node url} for key {public key}, due to {error details} | Peer communication failed during '/resend' request.<br>Action: check reason message, or logs on peer to see why it failed
 
-!!! Note 2 
-Log message will be changed to ERROR in next release version.
-!!! Note 3
-Log message will be changed in next release to give key and url.
+!!! Note2 
+    Log message will be changed to ERROR in next release version.
+!!! Note3
+    Log message will be changed in next release to give key and url.
 
 ## To change the default log level
 
