@@ -88,6 +88,8 @@ nav:
         - Remix Plugin:
             - Overview: Quorum Projects/RemixPlugin/Overview.md
             - Getting Started: Quorum Projects/RemixPlugin/GettingStarted.md
+        - ZSL: 
+            - ZSL Proof of Concept: Quorum Projects/ZSL/ZSL Proof of Concept.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
