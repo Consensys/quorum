@@ -23,12 +23,3 @@ Sample file: (node id truncated for clarity)
 !!! Note
     In the current implementation, every node has its own copy of the `permissioned-nodes.json` file. In this case, if different nodes have a different list of remote keys then each node may have a different list of permissioned nodes - which may have an adverse effect. In a future release, the permissioned nodes list will be moved from the `permissioned-nodes.json` file to a Smart Contract, thereby ensuring that all nodes will use one global on-chain list to verify network connections. 
 
-
-## Private Key Storage Algorithm
-The following steps detail the technique used to manage the private keys:
-
- 1. Given a password P
- 2. Generate random Argon2i  nonce
- 3. Generate random NaCl secretbox  nonce
- 4. Stretch P using Argon2i (and the Argon2i nonce) into a 32-byte master key (MK)
- 5. Encrypt Private key in secretbox using secretbox nonce and Argon2i-stretched MK
