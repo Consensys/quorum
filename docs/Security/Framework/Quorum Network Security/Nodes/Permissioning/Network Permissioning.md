@@ -23,14 +23,6 @@ Sample file: (node id truncated for clarity)
 !!! Note
     In the current implementation, every node has its own copy of the `permissioned-nodes.json` file. In this case, if different nodes have a different list of remote keys then each node may have a different list of permissioned nodes - which may have an adverse effect. In a future release, the permissioned nodes list will be moved from the `permissioned-nodes.json` file to a Smart Contract, thereby ensuring that all nodes will use one global on-chain list to verify network connections. 
 
-## Enclave Encryption Technique
-The Enclave encrypts payloads sent to it by the Transaction Manager using xsalsa20poly1305 (payload container) and curve25519xsalsa20poly1305 (recipient box). Each payload encryption produces a payload container,  as well as N recipient boxes, where N is the number of recipients specified in the `privateFor` param of the Transaction. 
-
- * A payload container contains the payload encrypted with a symmetric key and a random nonce
- * A recipient box is the Master Key for the payload container encrypted for the public key of a recipient using a random nonce. (Note that this is basically how PGP works, but using the [NaCl](https://nacl.cr.yp.to/) cryptographic primitives.)
-
-We currently manually define all public key whitelists, and don’t do automatic rotation of keys, however the system was built to support rotation trivially, by allowing counterparties to advertise multiple keys at once. The tooling to make it seamless and automatic is on the our Roadmap.
-We also do not currently have a PKI system, but simply randomly generate keys that are manually added to whitelists (e.g. a registry of authorized counterparties on the blockchain.) The process is currently for operators to generate a keypair and then add the public keys to the whitelists manually.
 
 ## Private Key Storage Algorithm
 The following steps detail the technique used to manage the private keys:
