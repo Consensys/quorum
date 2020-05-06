@@ -88,17 +88,11 @@ nav:
         - Remix Plugin:
             - Overview: Quorum Projects/RemixPlugin/Overview.md
             - Getting Started: Quorum Projects/RemixPlugin/GettingStarted.md
-        - ZSL: 
-            - ZSL Proof of Concept: Quorum Projects/ZSL/ZSL Proof of Concept.md
-            - ZSL on Quorum: Quorum Projects/ZSL/ZSL on Quorum.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
             - Consortium: Security/Framework/Quorum Network Security/Consortium.md
-            - Quorum Node:
-                - Overview: Security/Framework/Quorum Network Security/Node.md
-                - Permissioning:
-                    - Network Permissioning: Security/Framework/Quorum Network Security/Nodes/Permissioning/Network Permissioning.md
+            - Quorum Node: Security/Framework/Quorum Network Security/Node.md
             - Transaction Manager: Security/Framework/Quorum Network Security/Transaction Manager.md
             - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
           - Decentralized App:
