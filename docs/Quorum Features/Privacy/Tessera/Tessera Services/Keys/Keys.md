@@ -101,6 +101,15 @@ If the `--configout` and `--pwdout` options are not provided, the updated `.json
      tessera -configfile /path/to/new.json
      ```  
 
+## Private Key Storage Algorithm
+The following steps detail the technique used to manage the private keys:
+
+ 1. Given a password P
+ 2. Generate random Argon2i  nonce
+ 3. Generate random NaCl secretbox  nonce
+ 4. Stretch P using Argon2i (and the Argon2i nonce) into a 32-byte master key (MK)
+ 5. Encrypt Private key in secretbox using secretbox nonce and Argon2i-stretched MK
+ 
 ## Securing private keys
 Generated private keys can be encrypted with a password.  This is prompted for on the console during key generation.  After generating password-protected keys, the password must be added to your configuration to ensure Tessera can read the keys.  The password is not saved anywhere but must be added to the configuration else the key will not be able to be decrypted.  
 
