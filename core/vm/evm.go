@@ -47,7 +47,7 @@ type (
 	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
 	// TransferFunc is the signature of a transfer function
 	TransferFunc func(StateDB, common.Address, common.Address, *big.Int)
-	// GetHashFunc returns the nth block hash in the blockchain
+	// GetHashFunc returns the n'th block hash in the blockchain
 	// and is used by the BLOCKHASH EVM op code.
 	GetHashFunc func(uint64) common.Hash
 )
@@ -56,8 +56,11 @@ type (
 func run(evm *EVM, contract *Contract, input []byte, readOnly bool) ([]byte, error) {
 	if contract.CodeAddr != nil {
 		precompiles := PrecompiledContractsHomestead
-		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
+		if evm.chainRules.IsByzantium {
 			precompiles = PrecompiledContractsByzantium
+		}
+		if evm.chainRules.IsIstanbul {
+			precompiles = PrecompiledContractsIstanbul
 		}
 		if p := precompiles[*contract.CodeAddr]; p != nil {
 			return RunPrecompiledContract(p, input, contract)
@@ -199,6 +202,11 @@ func (evm *EVM) Cancel() {
 	atomic.StoreInt32(&evm.abort, 1)
 }
 
+// Cancelled returns true if Cancel has been called
+func (evm *EVM) Cancelled() bool {
+	return atomic.LoadInt32(&evm.abort) == 1
+}
+
 // Interpreter returns the current interpreter
 func (evm *EVM) Interpreter() Interpreter {
 	return evm.interpreter
@@ -231,10 +239,13 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	)
 	if !evm.StateDB.Exist(addr) {
 		precompiles := PrecompiledContractsHomestead
-		if evm.ChainConfig().IsByzantium(evm.BlockNumber) {
+		if evm.chainRules.IsByzantium {
 			precompiles = PrecompiledContractsByzantium
 		}
-		if precompiles[addr] == nil && evm.ChainConfig().IsEIP158(evm.BlockNumber) && value.Sign() == 0 {
+		if evm.chainRules.IsIstanbul {
+			precompiles = PrecompiledContractsIstanbul
+		}
+		if precompiles[addr] == nil && evm.chainRules.IsEIP158 && value.Sign() == 0 {
 			// Calling a non existing account, don't do anything, but ping the tracer
 			if evm.vmConfig.Debug && evm.depth == 0 {
 				evm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)
@@ -314,9 +325,8 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 		snapshot = evm.StateDB.Snapshot()
 		to       = AccountRef(caller.Address())
 	)
-	// initialise a new contract and set the code that is to be used by the
-	// EVM. The contract is a scoped environment for this execution context
-	// only.
+	// Initialise a new contract and set the code that is to be used by the EVM.
+	// The contract is a scoped environment for this execution context only.
 	contract := NewContract(caller, to, value, gas)
 	contract.SetCallCode(&addr, evm.StateDB.GetCodeHash(addr), evm.StateDB.GetCode(addr))
 
@@ -375,7 +385,6 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	if evm.vmConfig.NoRecursion && evm.depth > 0 {
 		return nil, gas, nil
 	}
-
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
@@ -386,11 +395,16 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 		stateDb  = getDualState(evm, addr)
 		snapshot = stateDb.Snapshot()
 	)
-	// Initialise a new contract and set the code that is to be used by the
-	// EVM. The contract is a scoped environment for this execution context
-	// only.
+	// Initialise a new contract and set the code that is to be used by the EVM.
+	// The contract is a scoped environment for this execution context only.
 	contract := NewContract(caller, to, new(big.Int), gas)
 	contract.SetCallCode(&addr, stateDb.GetCodeHash(addr), stateDb.GetCode(addr))
+
+	// We do an AddBalance of zero here, just in order to trigger a touch.
+	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
+	// but is the correct thing to do and matters on other networks, in tests, and potential
+	// future scenarios
+	stateDb.AddBalance(addr, bigZero)
 
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
@@ -455,7 +469,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// Create a new account on the state
 	snapshot := evm.StateDB.Snapshot()
 	evm.StateDB.CreateAccount(address)
-	if evm.ChainConfig().IsEIP158(evm.BlockNumber) {
+	if evm.chainRules.IsEIP158 {
 		evm.StateDB.SetNonce(address, 1)
 	}
 	if evm.ChainConfig().IsQuorum {
@@ -470,9 +484,8 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		evm.Transfer(evm.StateDB, caller.Address(), address, value)
 	}
 
-	// initialise a new contract and set the code that is to be used by the
-	// EVM. The contract is a scoped environment for this execution context
-	// only.
+	// Initialise a new contract and set the code that is to be used by the EVM.
+	// The contract is a scoped environment for this execution context only.
 	contract := NewContract(caller, AccountRef(address), value, gas)
 	contract.SetCodeOptionalHash(&address, codeAndHash)
 
@@ -487,16 +500,9 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 	ret, err := run(evm, contract, nil, false)
 
-	var maxCodeSize int
-	if evm.ChainConfig().MaxCodeSize > 0 {
-		maxCodeSize = int(evm.ChainConfig().MaxCodeSize * 1024)
-	} else {
-		maxCodeSize = params.MaxCodeSize
-	}
-
+	maxCodeSize := evm.ChainConfig().GetMaxCodeSize(evm.BlockNumber)
 	// check whether the max code size has been exceeded, check maxcode size from chain config
-	// maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > params.MaxCodeSize
-	maxCodeSizeExceeded := evm.ChainConfig().IsEIP158(evm.BlockNumber) && len(ret) > maxCodeSize
+	maxCodeSizeExceeded := evm.chainRules.IsEIP158 && len(ret) > maxCodeSize
 	// if the contract creation ran successfully and no errors were returned
 	// calculate the gas required to store the code. If the code could not
 	// be stored due to not enough gas set an error and let it be handled
@@ -513,7 +519,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
-	if maxCodeSizeExceeded || (err != nil && (evm.ChainConfig().IsHomestead(evm.BlockNumber) || err != ErrCodeStoreOutOfGas)) {
+	if maxCodeSizeExceeded || (err != nil && (evm.chainRules.IsHomestead || err != ErrCodeStoreOutOfGas)) {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
@@ -567,6 +573,7 @@ func (evm *EVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *
 // ChainConfig returns the environment's chain configuration
 func (evm *EVM) ChainConfig() *params.ChainConfig { return evm.chainConfig }
 
+// Quorum functions for dual state
 func getDualState(env *EVM, addr common.Address) StateDB {
 	// priv: (a) -> (b)  (private)
 	// pub:   a  -> [b]  (private -> public)

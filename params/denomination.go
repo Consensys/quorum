@@ -22,8 +22,7 @@ package params
 //    new(big.Int).Mul(value, big.NewInt(params.GWei))
 //
 const (
-	Wei     = 1
-	GWei    = 1e9
-	Ether   = 1e18
-	Shannon = 1e9
+	Wei   = 1
+	GWei  = 1e9
+	Ether = 1e18
 )

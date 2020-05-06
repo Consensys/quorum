@@ -38,19 +38,19 @@ import (
 	"github.com/ethereum/go-ethereum/common/bitutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/ecies"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/golang/snappy"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
 	maxUint24 = ^uint32(0) >> 8
 
-	sskLen = 16 // ecies.MaxSharedKeyLength(pubKey) / 2
-	sigLen = 65 // elliptic S256
-	pubLen = 64 // 512 bit pubkey in uncompressed representation without format byte
-	shaLen = 32 // hash length (for nonce etc)
+	sskLen = 16                     // ecies.MaxSharedKeyLength(pubKey) / 2
+	sigLen = crypto.SignatureLength // elliptic S256
+	pubLen = 64                     // 512 bit pubkey in uncompressed representation without format byte
+	shaLen = 32                     // hash length (for nonce etc)
 
 	authMsgLen  = sigLen + shaLen + pubLen + shaLen + 1
 	authRespLen = pubLen + shaLen + 1
@@ -128,7 +128,7 @@ func (t *rlpx) doProtoHandshake(our *protoHandshake) (their *protoHandshake, err
 	// as the error so it can be tracked elsewhere.
 	werr := make(chan error, 1)
 	go func() { werr <- Send(t.rw, handshakeMsg, our) }()
-	if their, err = readProtocolHandshake(t.rw, our); err != nil {
+	if their, err = readProtocolHandshake(t.rw); err != nil {
 		<-werr // make sure the write terminates too
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func (t *rlpx) doProtoHandshake(our *protoHandshake) (their *protoHandshake, err
 	return their, nil
 }
 
-func readProtocolHandshake(rw MsgReader, our *protoHandshake) (*protoHandshake, error) {
+func readProtocolHandshake(rw MsgReader) (*protoHandshake, error) {
 	msg, err := rw.ReadMsg()
 	if err != nil {
 		return nil, err
@@ -253,10 +253,10 @@ func (h *encHandshake) secrets(auth, authResp []byte) (secrets, error) {
 	}
 
 	// setup sha3 instances for the MACs
-	mac1 := sha3.NewKeccak256()
+	mac1 := sha3.NewLegacyKeccak256()
 	mac1.Write(xor(s.MAC, h.respNonce))
 	mac1.Write(auth)
-	mac2 := sha3.NewKeccak256()
+	mac2 := sha3.NewLegacyKeccak256()
 	mac2.Write(xor(s.MAC, h.initNonce))
 	mac2.Write(authResp)
 	if h.initiator {
@@ -400,7 +400,7 @@ func (h *encHandshake) handleAuthMsg(msg *authMsgV4, prv *ecdsa.PrivateKey) erro
 		return err
 	}
 	signedMsg := xor(token, h.initNonce)
-	remoteRandomPub, err := secp256k1.RecoverPubkey(signedMsg, msg.Signature[:])
+	remoteRandomPub, err := crypto.Ecrecover(signedMsg, msg.Signature[:])
 	if err != nil {
 		return err
 	}
@@ -603,6 +603,10 @@ func (rw *rlpxFrameRW) WriteMsg(msg Msg) error {
 		msg.Payload = bytes.NewReader(payload)
 		msg.Size = uint32(len(payload))
 	}
+	msg.meterSize = msg.Size
+	if metrics.Enabled && msg.meterCap.Name != "" { // don't meter non-subprotocol messages
+		metrics.GetOrRegisterMeter(fmt.Sprintf("%s/%s/%d/%#02x", MetricsOutboundTraffic, msg.meterCap.Name, msg.meterCap.Version, msg.meterCode), nil).Mark(int64(msg.meterSize))
+	}
 	// write header
 	headbuf := make([]byte, 32)
 	fsize := uint32(len(ptype)) + msg.Size
@@ -687,6 +691,7 @@ func (rw *rlpxFrameRW) ReadMsg() (msg Msg, err error) {
 		return msg, err
 	}
 	msg.Size = uint32(content.Len())
+	msg.meterSize = msg.Size
 	msg.Payload = content
 
 	// if snappy is enabled, verify and decompress message
