@@ -43,7 +43,7 @@ Check out some of the interesting projects we are actively working on:
 * [quorum-cloud](https://github.com/jpmorganchase/quorum-cloud): Tools to help deploy Quorum network in a cloud provider of choice
 * [Quorum Community Slack Inviter](https://www.goquorum.com/slack-inviter): Quorum Slack community entry point
 * Zero Knowledge on Quorum
-   * [ZSL](http://127.0.0.1:8000/Quorum%20Projects/ZSL/ZSL%20Proof%20of%20Concept/) POC and [ZSL on Quorum](http://127.0.0.1:8000/Quorum%20Projects/ZSL/ZSL%20on%20Quorum/)
+   * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) POC and [ZSL on Quorum](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
    * [Anonymous Zether](https://github.com/jpmorganchase/anonymous-zether) implementation
 
 
