@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This proof of concept (POC) is intended to demonstrate how ZSL can complement Quorum, and provide a platform for experimentation and exploration of different use cases. It implements a simplified, stripped-down version of the Zerocash protocol to enable rapid prototyping. There is no formal security proof for the protocol, and it should not be considered “production-ready”. 
+This [proof of concept (POC)](https://github.com/jpmorganchase/zsl-q/blob/master/README.md) is intended to demonstrate how ZSL can complement Quorum, and provide a platform for experimentation and exploration of different use cases. It implements a simplified, stripped-down version of the Zerocash protocol to enable rapid prototyping. There is no formal security proof for the protocol, and it should not be considered “production-ready”. 
 
 ## License
 
