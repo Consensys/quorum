@@ -60,7 +60,7 @@ Failed to connect to node {remote node url} for partyInfo, due to {error details
 Failed to make resend request to node {remote node url} for key {public key}, due to {error details} | Peer communication failed during '/resend' request.<br>Action: check reason message, or logs on peer to see why it failed
 
 !!! Note 
-    Some of the log message will be rearranged to correct levels in our next release.
+    Some messages will be rearranged to correct logging levels in our next release.
 
 
 ## To change the default log level
