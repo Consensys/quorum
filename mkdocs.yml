@@ -22,70 +22,71 @@ nav:
     - Quorum Features: 
         - Transaction & Contract Privacy:
             - Overview: Quorum Features/Privacy/Overview.md
-            - Privacy/Privacy-Manager.md
-            - Privacy/Lifecycle-of-a-private-transaction.md
+            - Quorum Features/Privacy/Privacy-Manager.md
+            - Quorum Features/Privacy/Lifecycle-of-a-private-transaction.md
             - Tessera:
-                - What is Tessera: Privacy/Tessera/Tessera.md
+                - What is Tessera: Quorum Features/Privacy/Tessera/Tessera.md
                 - Configuration:
-                    - Overview: Privacy/Tessera/Configuration/Configuration Overview.md
-                    - Keys Config: Privacy/Tessera/Configuration/Keys.md
-                    - TLS Config: Privacy/Tessera/Configuration/TLS.md
-                    - Using CLI to override config: Privacy/Tessera/Configuration/Using CLI to override config.md
-                    - Sample Configuration: Privacy/Tessera/Configuration/Sample Configuration.md
+                    - Overview: Quorum Features/Privacy/Tessera/Configuration/Configuration Overview.md
+                    - Keys Config: Quorum Features/Privacy/Tessera/Configuration/Keys.md
+                    - TLS Config: Quorum Features/Privacy/Tessera/Configuration/TLS.md
+                    - Using CLI to override config: Quorum Features/Privacy/Tessera/Configuration/Using CLI to override config.md
+                    - Sample Configuration: Quorum Features/Privacy/Tessera/Configuration/Sample Configuration.md
                 - Tessera Services:
-                    - Transaction Manager: Privacy/Tessera/Tessera Services/Transaction Manager.md
-                    - Enclave: Privacy/Tessera/Tessera Services/Enclave.md
+                    - Transaction Manager: Quorum Features/Privacy/Tessera/Tessera Services/Transaction Manager.md
+                    - Enclave: Quorum Features/Privacy/Tessera/Tessera Services/Enclave.md
                     - Keys:
-                        - Key Generation: Privacy/Tessera/Tessera Services/Keys/Keys.md
-                        - Setting up Hashicorp Vault: Privacy/Tessera/Tessera Services/Keys/Setting up a Hashicorp Vault.md
-                        - Setting up Azure Key Vault: Privacy/Tessera/Tessera Services/Keys/Setting up an Azure Key Vault.md
-                        - Setting up AWS Secrets Manager: Privacy/Tessera/Tessera Services/Keys/Setting up an AWS Secrets Manager.md
+                        - Key Generation: Quorum Features/Privacy/Tessera/Tessera Services/Keys/Keys.md
+                        - Setting up Hashicorp Vault: Quorum Features/Privacy/Tessera/Tessera Services/Keys/Setting up a Hashicorp Vault.md
+                        - Setting up Azure Key Vault: Quorum Features/Privacy/Tessera/Tessera Services/Keys/Setting up an Azure Key Vault.md
+                        - Setting up AWS Secrets Manager: Quorum Features/Privacy/Tessera/Tessera Services/Keys/Setting up an AWS Secrets Manager.md
                 - Usage:
-                    - Interfaces & API: Privacy/Tessera/Usage/Interface & API.md
-                    - Admin Usage: Privacy/Tessera/Usage/Admin Usage.md
-                    - Monitoring: Privacy/Tessera/Usage/Monitoring.md
-                - Migration from Constellation: Privacy/Tessera/Migration from Constellation.md
+                    - Interfaces & API: Quorum Features/Privacy/Tessera/Usage/Interface & API.md
+                    - Admin Usage: Quorum Features/Privacy/Tessera/Usage/Admin Usage.md
+                    - Monitoring: Quorum Features/Privacy/Tessera/Usage/Monitoring.md
+                - Migration from Constellation: Quorum Features/Privacy/Tessera/Migration from Constellation.md
             - Constellation:
-                - What is Constellation: Privacy/Constellation/Constellation.md
-                - How it works: Privacy/Constellation/How constellation works.md
-                - Sample Configuration: Privacy/Constellation/Sample Configuration.md
-                - Running Constellation: Privacy/Constellation/Installation & Running.md
+                - What is Constellation: Quorum Features/Privacy/Constellation/Constellation.md
+                - How it works: Quorum Features/Privacy/Constellation/How constellation works.md
+                - Sample Configuration: Quorum Features/Privacy/Constellation/Sample Configuration.md
+                - Running Constellation: Quorum Features/Privacy/Constellation/Installation & Running.md
         - Consensus:
-            - Consensus: Consensus/Consensus.md
+            - Consensus: Quorum Features/Consensus/Consensus.md
             - Raft BFT:
-                - Consensus/raft/raft.md
-                - Consensus/raft/raft-rpc-api.md
+                - Quorum Features/Consensus/raft/raft.md
+                - Quorum Features/Consensus/raft/raft-rpc-api.md
             - Istanbul BFT:
-                - Overview: Consensus/ibft/ibft.md
-                - Consensus/ibft/istanbul-rpc-api.md
-                - Consensus/ibft/ibft-parameters.md     
+                - Overview: Quorum Features/Consensus/ibft/ibft.md
+                - Quorum Features/Consensus/ibft/istanbul-rpc-api.md
+                - Quorum Features/Consensus/ibft/ibft-parameters.md     
         - Permissioning:
-            - Overview: Permissioning/Overview.md
-            - Design: Permissioning/Contract Design.md
-            - Setup: Permissioning/setup.md
-            - APIs: Permissioning/Permissioning apis.md
-            - Usage: Permissioning/Usage.md
+            - Overview: Quorum Features/Permissioning/Overview.md
+            - Design: Quorum Features/Permissioning/Contract Design.md
+            - Setup: Quorum Features/Permissioning/setup.md
+            - APIs: Quorum Features/Permissioning/Permissioning apis.md
+            - Usage: Quorum Features/Permissioning/Usage.md
         - Pluggable Architecture:
-            - Overview: PluggableArchitecture/Overview.md
-            - Settings: PluggableArchitecture/Settings.md
-            - Internals: PluggableArchitecture/Internals.md
+            - Overview: Quorum Features/PluggableArchitecture/Overview.md
+            - Settings: Quorum Features/PluggableArchitecture/Settings.md
+            - Internals: Quorum Features/PluggableArchitecture/Internals.md
             - Plugins:
                 - helloworld:
-                    - Interface: PluggableArchitecture/Plugins/helloworld/interface.md
-                    - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
-            - Plugin Development: PluggableArchitecture/PluginDevelopment.md
-        - DNS: Features/dns.md
+                    - Interface: Quorum Features/PluggableArchitecture/Plugins/helloworld/interface.md
+                    - Implementation: Quorum Features/PluggableArchitecture/Plugins/helloworld/implementation.md
+            - Plugin Development: Quorum Features/PluggableArchitecture/PluginDevelopment.md
+        - DNS: Quorum Features/dns.md
+        - Quorum Import-Export: Quorum Features/import-export.md
     - Quorum Projects: 
         - Quorum Wizard:
-            - Getting Started: Wizard/GettingStarted.md
-            - Interacting with the Network: Wizard/Interacting.md
+            - Getting Started: Quorum Projects/Wizard/GettingStarted.md
+            - Interacting with the Network: Quorum Projects/Wizard/Interacting.md
         - Cakeshop:
-            - Overview: Cakeshop/Overview.md
-            - Getting Started: Cakeshop/Getting started.md
-            - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
+            - Overview: Quorum Projects/Cakeshop/Overview.md
+            - Getting Started: Quorum Projects/Cakeshop/Getting started.md
+            - Cakeshop FAQ: Quorum Projects/Cakeshop/Cakeshop FAQ.md
         - Remix Plugin:
-            - Overview: RemixPlugin/Overview.md
-            - Getting Started: RemixPlugin/GettingStarted.md
+            - Overview: Quorum Projects/RemixPlugin/Overview.md
+            - Getting Started: Quorum Projects/RemixPlugin/GettingStarted.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
