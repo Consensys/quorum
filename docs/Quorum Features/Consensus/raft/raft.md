@@ -190,4 +190,4 @@ Note that like the enode IDs listed in the static peers JSON file, this enode ID
 
 ## FAQ
 
-Answers to frequently asked questions can be found on the main [Quorum FAQ page](../../FAQ.md).
+Answers to frequently asked questions can be found on the main [Quorum FAQ page](../../../FAQ.md).
