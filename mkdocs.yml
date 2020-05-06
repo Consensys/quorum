@@ -74,6 +74,7 @@ nav:
                     - Interface: PluggableArchitecture/Plugins/helloworld/interface.md
                     - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
             - Plugin Development: PluggableArchitecture/PluginDevelopment.md
+        - DNS: Features/dns.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
@@ -97,8 +98,6 @@ nav:
     - Remix Plugin:
         - Overview: RemixPlugin/Overview.md
         - Getting Started: RemixPlugin/GettingStarted.md
-    - Quorum Features:
-        - DNS: Features/dns.md
     - How-To Guides:
         - Adding new nodes: How-To-Guides/adding_nodes.md
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
