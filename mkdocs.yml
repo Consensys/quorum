@@ -75,6 +75,17 @@ nav:
                     - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
             - Plugin Development: PluggableArchitecture/PluginDevelopment.md
         - DNS: Features/dns.md
+    - Quorum Projects: 
+        - Quorum Wizard:
+            - Getting Started: Wizard/GettingStarted.md
+            - Interacting with the Network: Wizard/Interacting.md
+        - Cakeshop:
+            - Overview: Cakeshop/Overview.md
+            - Getting Started: Cakeshop/Getting started.md
+            - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
+        - Remix Plugin:
+            - Overview: RemixPlugin/Overview.md
+            - Getting Started: RemixPlugin/GettingStarted.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
@@ -87,17 +98,7 @@ nav:
             - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
           - Decentralized App:
             - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
-            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
-    - Quorum Wizard:
-        - Getting Started: Wizard/GettingStarted.md
-        - Interacting with the Network: Wizard/Interacting.md
-    - Cakeshop:
-        - Overview: Cakeshop/Overview.md
-        - Getting Started: Cakeshop/Getting started.md
-        - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
-    - Remix Plugin:
-        - Overview: RemixPlugin/Overview.md
-        - Getting Started: RemixPlugin/GettingStarted.md
+            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md 
     - How-To Guides:
         - Adding new nodes: How-To-Guides/adding_nodes.md
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
