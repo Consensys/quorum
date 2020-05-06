@@ -44,6 +44,7 @@ nav:
                     - Interfaces & API: Quorum Features/Privacy/Tessera/Usage/Interface & API.md
                     - Admin Usage: Quorum Features/Privacy/Tessera/Usage/Admin Usage.md
                     - Monitoring: Quorum Features/Privacy/Tessera/Usage/Monitoring.md
+                    - Logging: Quorum Features/Privacy/Tessera/Usage/Logging.md
                 - Migration from Constellation: Quorum Features/Privacy/Tessera/Migration from Constellation.md
             - Constellation:
                 - What is Constellation: Quorum Features/Privacy/Constellation/Constellation.md
