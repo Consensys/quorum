@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-// Package les implements the Light Ethereum Subprotocol.
 package les
 
 import (
@@ -116,8 +115,6 @@ type serverPool struct {
 	db     ethdb.Database
 	dbKey  []byte
 	server *p2p.Server
-	quit   chan struct{}
-	wg     *sync.WaitGroup
 	connWg sync.WaitGroup
 
 	topic discv5.Topic
@@ -126,26 +123,27 @@ type serverPool struct {
 	discNodes     chan *enode.Node
 	discLookups   chan bool
 
+	trustedNodes         map[enode.ID]*enode.Node
 	entries              map[enode.ID]*poolEntry
 	timeout, enableRetry chan *poolEntry
 	adjustStats          chan poolStatAdjust
-
-	connCh     chan *connReq
-	disconnCh  chan *disconnReq
-	registerCh chan *registerReq
 
 	knownQueue, newQueue       poolEntryQueue
 	knownSelect, newSelect     *weightedRandomSelect
 	knownSelected, newSelected int
 	fastDiscover               bool
+	connCh                     chan *connReq
+	disconnCh                  chan *disconnReq
+	registerCh                 chan *registerReq
+
+	closeCh chan struct{}
+	wg      sync.WaitGroup
 }
 
 // newServerPool creates a new serverPool instance
-func newServerPool(db ethdb.Database, quit chan struct{}, wg *sync.WaitGroup) *serverPool {
+func newServerPool(db ethdb.Database, ulcServers []string) *serverPool {
 	pool := &serverPool{
 		db:           db,
-		quit:         quit,
-		wg:           wg,
 		entries:      make(map[enode.ID]*poolEntry),
 		timeout:      make(chan *poolEntry, 1),
 		adjustStats:  make(chan poolStatAdjust, 100),
@@ -153,10 +151,13 @@ func newServerPool(db ethdb.Database, quit chan struct{}, wg *sync.WaitGroup) *s
 		connCh:       make(chan *connReq),
 		disconnCh:    make(chan *disconnReq),
 		registerCh:   make(chan *registerReq),
+		closeCh:      make(chan struct{}),
 		knownSelect:  newWeightedRandomSelect(),
 		newSelect:    newWeightedRandomSelect(),
 		fastDiscover: true,
+		trustedNodes: parseTrustedNodes(ulcServers),
 	}
+
 	pool.knownQueue = newPoolEntryQueue(maxKnownEntries, pool.removeEntry)
 	pool.newQueue = newPoolEntryQueue(maxNewEntries, pool.removeEntry)
 	return pool
@@ -166,8 +167,8 @@ func (pool *serverPool) start(server *p2p.Server, topic discv5.Topic) {
 	pool.server = server
 	pool.topic = topic
 	pool.dbKey = append([]byte("serverPool/"), []byte(topic)...)
-	pool.wg.Add(1)
 	pool.loadNodes()
+	pool.connectToTrustedNodes()
 
 	if pool.server.DiscV5 != nil {
 		pool.discSetPeriod = make(chan time.Duration, 1)
@@ -176,7 +177,13 @@ func (pool *serverPool) start(server *p2p.Server, topic discv5.Topic) {
 		go pool.discoverNodes()
 	}
 	pool.checkDial()
+	pool.wg.Add(1)
 	go pool.eventLoop()
+}
+
+func (pool *serverPool) stop() {
+	close(pool.closeCh)
+	pool.wg.Wait()
 }
 
 // discoverNodes wraps SearchTopic, converting result nodes to enode.Node.
@@ -205,7 +212,7 @@ func (pool *serverPool) connect(p *peer, node *enode.Node) *poolEntry {
 	req := &connReq{p: p, node: node, result: make(chan *poolEntry, 1)}
 	select {
 	case pool.connCh <- req:
-	case <-pool.quit:
+	case <-pool.closeCh:
 		return nil
 	}
 	return <-req.result
@@ -217,7 +224,7 @@ func (pool *serverPool) registered(entry *poolEntry) {
 	req := &registerReq{entry: entry, done: make(chan struct{})}
 	select {
 	case pool.registerCh <- req:
-	case <-pool.quit:
+	case <-pool.closeCh:
 		return
 	}
 	<-req.done
@@ -229,7 +236,7 @@ func (pool *serverPool) registered(entry *poolEntry) {
 func (pool *serverPool) disconnect(entry *poolEntry) {
 	stopped := false
 	select {
-	case <-pool.quit:
+	case <-pool.closeCh:
 		stopped = true
 	default:
 	}
@@ -276,6 +283,7 @@ func (pool *serverPool) adjustResponseTime(entry *poolEntry, time time.Duration,
 
 // eventLoop handles pool events and mutex locking for all internal functions
 func (pool *serverPool) eventLoop() {
+	defer pool.wg.Done()
 	lookupCnt := 0
 	var convTime mclock.AbsTime
 	if pool.discSetPeriod != nil {
@@ -337,8 +345,10 @@ func (pool *serverPool) eventLoop() {
 			}
 
 		case node := <-pool.discNodes:
-			entry := pool.findOrNewNode(node)
-			pool.updateCheckDial(entry)
+			if pool.trustedNodes[node.ID()] == nil {
+				entry := pool.findOrNewNode(node)
+				pool.updateCheckDial(entry)
+			}
 
 		case conv := <-pool.discLookups:
 			if conv {
@@ -355,31 +365,39 @@ func (pool *serverPool) eventLoop() {
 			}
 
 		case req := <-pool.connCh:
-			// Handle peer connection requests.
-			entry := pool.entries[req.p.ID()]
-			if entry == nil {
-				entry = pool.findOrNewNode(req.node)
+			if pool.trustedNodes[req.p.ID()] != nil {
+				// ignore trusted nodes
+				req.result <- &poolEntry{trusted: true}
+			} else {
+				// Handle peer connection requests.
+				entry := pool.entries[req.p.ID()]
+				if entry == nil {
+					entry = pool.findOrNewNode(req.node)
+				}
+				if entry.state == psConnected || entry.state == psRegistered {
+					req.result <- nil
+					continue
+				}
+				pool.connWg.Add(1)
+				entry.peer = req.p
+				entry.state = psConnected
+				addr := &poolEntryAddress{
+					ip:       req.node.IP(),
+					port:     uint16(req.node.TCP()),
+					lastSeen: mclock.Now(),
+				}
+				entry.lastConnected = addr
+				entry.addr = make(map[string]*poolEntryAddress)
+				entry.addr[addr.strKey()] = addr
+				entry.addrSelect = *newWeightedRandomSelect()
+				entry.addrSelect.update(addr)
+				req.result <- entry
 			}
-			if entry.state == psConnected || entry.state == psRegistered {
-				req.result <- nil
-				continue
-			}
-			pool.connWg.Add(1)
-			entry.peer = req.p
-			entry.state = psConnected
-			addr := &poolEntryAddress{
-				ip:       req.node.IP(),
-				port:     uint16(req.node.TCP()),
-				lastSeen: mclock.Now(),
-			}
-			entry.lastConnected = addr
-			entry.addr = make(map[string]*poolEntryAddress)
-			entry.addr[addr.strKey()] = addr
-			entry.addrSelect = *newWeightedRandomSelect()
-			entry.addrSelect.update(addr)
-			req.result <- entry
 
 		case req := <-pool.registerCh:
+			if req.entry.trusted {
+				continue
+			}
 			// Handle peer registration requests.
 			entry := req.entry
 			entry.state = psRegistered
@@ -393,10 +411,13 @@ func (pool *serverPool) eventLoop() {
 			close(req.done)
 
 		case req := <-pool.disconnCh:
+			if req.entry.trusted {
+				continue
+			}
 			// Handle peer disconnection requests.
 			disconnect(req, req.stopped)
 
-		case <-pool.quit:
+		case <-pool.closeCh:
 			if pool.discSetPeriod != nil {
 				close(pool.discSetPeriod)
 			}
@@ -412,7 +433,6 @@ func (pool *serverPool) eventLoop() {
 				disconnect(req, true)
 			}
 			pool.saveNodes()
-			pool.wg.Done()
 			return
 		}
 	}
@@ -470,9 +490,40 @@ func (pool *serverPool) loadNodes() {
 			"response", fmt.Sprintf("%v/%v", time.Duration(e.responseStats.avg), e.responseStats.weight),
 			"timeout", fmt.Sprintf("%v/%v", e.timeoutStats.avg, e.timeoutStats.weight))
 		pool.entries[e.node.ID()] = e
-		pool.knownQueue.setLatest(e)
-		pool.knownSelect.update((*knownEntry)(e))
+		if pool.trustedNodes[e.node.ID()] == nil {
+			pool.knownQueue.setLatest(e)
+			pool.knownSelect.update((*knownEntry)(e))
+		}
 	}
+}
+
+// connectToTrustedNodes adds trusted server nodes as static trusted peers.
+//
+// Note: trusted nodes are not handled by the server pool logic, they are not
+// added to either the known or new selection pools. They are connected/reconnected
+// by p2p.Server whenever possible.
+func (pool *serverPool) connectToTrustedNodes() {
+	//connect to trusted nodes
+	for _, node := range pool.trustedNodes {
+		pool.server.AddTrustedPeer(node)
+		pool.server.AddPeer(node)
+		log.Debug("Added trusted node", "id", node.ID().String())
+	}
+}
+
+// parseTrustedNodes returns valid and parsed enodes
+func parseTrustedNodes(trustedNodes []string) map[enode.ID]*enode.Node {
+	nodes := make(map[enode.ID]*enode.Node)
+
+	for _, node := range trustedNodes {
+		node, err := enode.Parse(enode.ValidSchemes, node)
+		if err != nil {
+			log.Warn("Trusted node URL invalid", "enode", node, "err", err)
+			continue
+		}
+		nodes[node.ID()] = node
+	}
+	return nodes
 }
 
 // saveNodes saves known nodes and their statistics into the database. Nodes are
@@ -509,10 +560,10 @@ func (pool *serverPool) setRetryDial(entry *poolEntry) {
 	entry.delayedRetry = true
 	go func() {
 		select {
-		case <-pool.quit:
+		case <-pool.closeCh:
 		case <-time.After(delay):
 			select {
-			case <-pool.quit:
+			case <-pool.closeCh:
 			case pool.enableRetry <- entry:
 			}
 		}
@@ -578,10 +629,10 @@ func (pool *serverPool) dial(entry *poolEntry, knownSelected bool) {
 	go func() {
 		pool.server.AddPeer(entry.node)
 		select {
-		case <-pool.quit:
+		case <-pool.closeCh:
 		case <-time.After(dialTimeout):
 			select {
-			case <-pool.quit:
+			case <-pool.closeCh:
 			case pool.timeout <- entry:
 			}
 		}
@@ -622,14 +673,14 @@ type poolEntry struct {
 	lastConnected, dialed *poolEntryAddress
 	addrSelect            weightedRandomSelect
 
-	lastDiscovered              mclock.AbsTime
-	known, knownSelected        bool
-	connectStats, delayStats    poolStats
-	responseStats, timeoutStats poolStats
-	state                       int
-	regTime                     mclock.AbsTime
-	queueIdx                    int
-	removed                     bool
+	lastDiscovered                mclock.AbsTime
+	known, knownSelected, trusted bool
+	connectStats, delayStats      poolStats
+	responseStats, timeoutStats   poolStats
+	state                         int
+	regTime                       mclock.AbsTime
+	queueIdx                      int
+	removed                       bool
 
 	delayedRetry bool
 	shortRetry   int
@@ -683,7 +734,7 @@ func (e *poolEntry) DecodeRLP(s *rlp.Stream) error {
 }
 
 func encodePubkey64(pub *ecdsa.PublicKey) []byte {
-	return crypto.FromECDSAPub(pub)[:1]
+	return crypto.FromECDSAPub(pub)[1:]
 }
 
 func decodePubkey64(b []byte) (*ecdsa.PublicKey, error) {

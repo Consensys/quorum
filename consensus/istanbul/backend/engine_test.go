@@ -19,6 +19,7 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"reflect"
 	"testing"
@@ -32,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -42,7 +42,7 @@ import (
 // other fake events to process Istanbul.
 func newBlockChain(n int) (*core.BlockChain, *backend) {
 	genesis, nodeKeys := getGenesisAndKeys(n)
-	memDB := ethdb.NewMemDatabase()
+	memDB := rawdb.NewMemoryDatabase()
 	config := istanbul.DefaultConfig
 	// Use the first key as private key
 	b, _ := New(config, nodeKeys[0], memDB).(*backend)
@@ -123,7 +123,8 @@ func makeHeader(parent *types.Block, config *istanbul.Config) *types.Header {
 		GasLimit:   core.CalcGasLimit(parent, parent.GasLimit(), parent.GasLimit()),
 		GasUsed:    0,
 		Extra:      parent.Extra(),
-		Time:       new(big.Int).Add(parent.Time(), new(big.Int).SetUint64(config.BlockPeriod)),
+		Time:       parent.Time() + config.BlockPeriod,
+
 		Difficulty: defaultDifficulty,
 	}
 	return header
@@ -142,7 +143,7 @@ func makeBlockWithoutSeal(chain *core.BlockChain, engine *backend, parent *types
 	header := makeHeader(parent, engine.config)
 	engine.Prepare(chain, header)
 	state, _, _ := chain.StateAt(parent.Root())
-	block, _ := engine.Finalize(chain, header, state, nil, nil, nil)
+	block, _ := engine.FinalizeAndAssemble(chain, header, state, nil, nil, nil)
 	return block
 }
 
@@ -310,7 +311,7 @@ func TestVerifyHeader(t *testing.T) {
 	// invalid timestamp
 	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
-	header.Time = new(big.Int).Add(chain.Genesis().Time(), new(big.Int).SetUint64(engine.config.BlockPeriod-1))
+	header.Time = chain.Genesis().Time() + (engine.config.BlockPeriod - 1)
 	err = engine.VerifyHeader(chain, header, false)
 	if err != errInvalidTimestamp {
 		t.Errorf("error mismatch: have %v, want %v", err, errInvalidTimestamp)
@@ -319,7 +320,7 @@ func TestVerifyHeader(t *testing.T) {
 	// future block
 	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
-	header.Time = new(big.Int).Add(big.NewInt(now().Unix()), new(big.Int).SetUint64(10))
+	header.Time = uint64(now().Unix() + 10)
 	err = engine.VerifyHeader(chain, header, false)
 	if err != consensus.ErrFutureBlock {
 		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrFutureBlock)
@@ -328,7 +329,7 @@ func TestVerifyHeader(t *testing.T) {
 	// future block which is within AllowedFutureBlockTime
 	block = makeBlockWithoutSeal(chain, engine, chain.Genesis())
 	header = block.Header()
-	header.Time = new(big.Int).Add(big.NewInt(now().Unix()), new(big.Int).SetUint64(10))
+	header.Time = new(big.Int).Add(big.NewInt(now().Unix()), new(big.Int).SetUint64(10)).Uint64()
 	priorValue := engine.config.AllowedFutureBlockTime
 	engine.config.AllowedFutureBlockTime = 10
 	err = engine.VerifyHeader(chain, header, false)
@@ -397,7 +398,7 @@ func TestVerifyHeaders(t *testing.T) {
 		headers = append(headers, blocks[i].Header())
 	}
 	now = func() time.Time {
-		return time.Unix(headers[size-1].Time.Int64(), 0)
+		return time.Unix(int64(headers[size-1].Time), 0)
 	}
 	_, results := engine.VerifyHeaders(chain, headers, nil)
 	const timeoutDura = 2 * time.Second

@@ -99,7 +99,7 @@ func (mw *memoryWrapper) slice(begin, end int64) []byte {
 		log.Warn("Tracer accessed out of bound memory", "available", mw.memory.Len(), "offset", begin, "size", end-begin)
 		return nil
 	}
-	return mw.memory.Get(begin, end-begin)
+	return mw.memory.GetCopy(begin, end-begin)
 }
 
 // getUint returns the 32 bytes at the specified address interpreted as a uint.
@@ -367,8 +367,30 @@ func New(code string) (*Tracer, error) {
 		copy(makeSlice(ctx.PushFixedBuffer(20), 20), contract[:])
 		return 1
 	})
+	tracer.vm.PushGlobalGoFunction("toContract2", func(ctx *duktape.Context) int {
+		var from common.Address
+		if ptr, size := ctx.GetBuffer(-3); ptr != nil {
+			from = common.BytesToAddress(makeSlice(ptr, size))
+		} else {
+			from = common.HexToAddress(ctx.GetString(-3))
+		}
+		// Retrieve salt hex string from js stack
+		salt := common.HexToHash(ctx.GetString(-2))
+		// Retrieve code slice from js stack
+		var code []byte
+		if ptr, size := ctx.GetBuffer(-1); ptr != nil {
+			code = common.CopyBytes(makeSlice(ptr, size))
+		} else {
+			code = common.FromHex(ctx.GetString(-1))
+		}
+		codeHash := crypto.Keccak256(code)
+		ctx.Pop3()
+		contract := crypto.CreateAddress2(from, salt, codeHash)
+		copy(makeSlice(ctx.PushFixedBuffer(20), 20), contract[:])
+		return 1
+	})
 	tracer.vm.PushGlobalGoFunction("isPrecompiled", func(ctx *duktape.Context) int {
-		_, ok := vm.PrecompiledContractsByzantium[common.BytesToAddress(popSlice(ctx))]
+		_, ok := vm.PrecompiledContractsIstanbul[common.BytesToAddress(popSlice(ctx))]
 		ctx.PushBoolean(ok)
 		return 1
 	})

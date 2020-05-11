@@ -73,7 +73,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		privateState.Prepare(tx.Hash(), block.Hash(), i)
 
-		receipt, privateReceipt, _, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, usedGas, cfg)
+		receipt, privateReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
@@ -88,7 +88,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 		}
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)
-	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles(), receipts)
+	p.engine.Finalize(p.bc, header, statedb, block.Transactions(), block.Uncles())
 
 	return receipts, privateReceipts, allLogs, *usedGas, nil
 }
@@ -97,18 +97,18 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, *types.Receipt, uint64, error) {
+func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, *types.Receipt, error) {
 	if !config.IsQuorum || !tx.IsPrivate() {
 		privateState = statedb
 	}
 
 	if config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
-		return nil, nil, 0, ErrInvalidGasPrice
+		return nil, nil, ErrInvalidGasPrice
 	}
 
 	msg, err := tx.AsMessage(types.MakeSigner(config, header.Number))
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, err
 	}
 	// Create a new context to be used in the EVM environment
 	context := NewEVMContext(msg, header, bc, author)
@@ -119,7 +119,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	// Apply the transaction to the current state (included in the env)
 	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, err
 	}
 	// Update the state with pending changes
 	var root []byte
@@ -146,6 +146,9 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
+	receipt.BlockHash = statedb.BlockHash()
+	receipt.BlockNumber = header.Number
+	receipt.TransactionIndex = uint(statedb.TxIndex())
 
 	var privateReceipt *types.Receipt
 	if config.IsQuorum && tx.IsPrivate() {
@@ -166,5 +169,5 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
 	}
 
-	return receipt, privateReceipt, gas, err
+	return receipt, privateReceipt, err
 }

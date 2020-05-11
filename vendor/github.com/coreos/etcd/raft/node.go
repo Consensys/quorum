@@ -341,7 +341,6 @@ func (n *node) run(r *raft) {
 			} else {
 				role = NOT_LEADER
 			}
-
 			n.rolec.In() <- role
 		}
 

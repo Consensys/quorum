@@ -17,7 +17,6 @@
 package tests
 
 import (
-	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/params"
@@ -27,26 +26,44 @@ func TestTransaction(t *testing.T) {
 	t.Parallel()
 
 	txt := new(testMatcher)
-	txt.config(`^Homestead/`, params.ChainConfig{
-		HomesteadBlock: big.NewInt(0),
-	})
-	txt.config(`^EIP155/`, params.ChainConfig{
-		HomesteadBlock: big.NewInt(0),
-		EIP150Block:    big.NewInt(0),
-		EIP155Block:    big.NewInt(0),
-		EIP158Block:    big.NewInt(0),
-		ChainID:        big.NewInt(1),
-	})
-	txt.config(`^Byzantium/`, params.ChainConfig{
-		HomesteadBlock: big.NewInt(0),
-		EIP150Block:    big.NewInt(0),
-		EIP155Block:    big.NewInt(0),
-		EIP158Block:    big.NewInt(0),
-		ByzantiumBlock: big.NewInt(0),
-	})
+	// These can't be parsed, invalid hex in RLP
+	txt.skipLoad("^ttWrongRLP/.*")
+	// We don't allow more than uint64 in gas amount
+	// This is a pseudo-consensus vulnerability, but not in practice
+	// because of the gas limit
+	txt.skipLoad("^ttGasLimit/TransactionWithGasLimitxPriceOverflow.json")
 
+	//Quorum - skip the tests below as they have V=37/38 for transactions being tested and it is causing quorum to use quorum private signer for public transactions
+	txt.skipLoad("^ttGasLimit/TransactionWithHihghGasLimit63m1.json")
+	txt.skipLoad("^ttVValue/V_equals38.json")
+	txt.skipLoad("^ttVValue/V_equals37.json")
+	txt.skipLoad("^ttSignature/Vitalik_9.json")
+	txt.skipLoad("^ttSignature/Vitalik_8.json")
+	txt.skipLoad("^ttSignature/Vitalik_7.json")
+	txt.skipLoad("^ttSignature/Vitalik_6.json")
+	txt.skipLoad("^ttSignature/Vitalik_5.json")
+	txt.skipLoad("^ttSignature/Vitalik_4.json")
+	txt.skipLoad("^ttSignature/Vitalik_3.json")
+	txt.skipLoad("^ttSignature/Vitalik_2.json")
+	txt.skipLoad("^ttSignature/Vitalik_11.json")
+	txt.skipLoad("^ttSignature/Vitalik_10.json")
+	txt.skipLoad("^ttSignature/Vitalik_1.json")
+
+	// We _do_ allow more than uint64 in gas price, as opposed to the tests
+	// This is also not a concern, as long as tx.Cost() uses big.Int for
+	// calculating the final cozt
+	txt.skipLoad(".*TransactionWithGasPriceOverflow.*")
+
+	// The nonce is too large for uint64. Not a concern, it means geth won't
+	// accept transactions at a certain point in the distant future
+	txt.skipLoad("^ttNonce/TransactionWithHighNonce256.json")
+
+	// The value is larger than uint64, which according to the test is invalid.
+	// Geth accepts it, which is not a consensus issue since we use big.Int's
+	// internally to calculate the cost
+	txt.skipLoad("^ttValue/TransactionWithHighValueOverflow.json")
 	txt.walk(t, transactionTestDir, func(t *testing.T, name string, test *TransactionTest) {
-		cfg := txt.findConfig(name)
+		cfg := params.MainnetChainConfig
 		if err := txt.checkFailure(t, name, test.Run(cfg)); err != nil {
 			t.Error(err)
 		}
