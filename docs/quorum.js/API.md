@@ -87,15 +87,22 @@ Calls Tessera's `ThirdParty` `/storeraw`, replaces `data` field in `txnParams` w
     - `privateFrom`: `String`  - When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, the default key as configured in the `TransactionManager` is used
     - `privateFor`: `List<String>`  - When sending a private transaction, an array of the recipients' base64-encoded public keys
     - `isPrivate`: `boolean` - Is the transaction private 
-    
+1. `Function` - (optional) If you pass a callback the HTTP request is made asynchronous.
+
 ##### Returns
 A promise that resolves to the transaction receipt if the transaction was sent successfully, else rejects with an error.
 
 #### sendRawTransactionViaSendAPI
+
 ```js
 txnMngr.sendRawTransactionViaSendAPI(txnParams);
 ```
+
+!!! info
+    `sendRawTransaction` should be used where possible.  `sendRawTransactionViaSendAPI` is necessary when using Constellation but requires providing the `ipcPath` in `enclaveOptions`.
+
 Calls `Q2T` `/send` to encrypt txn data and send to all participant Privacy Manager nodes, replaces `data` field in `txnParams` with response (i.e. encrypted-payload hash), signs the transaction with the `from` account defined in `txnParams`, marks the transaction as private, submits the signed transaction to the blockchain with `eth_sendRawTransaction`.
+
 ##### Parameters
 1. `txnParams` - The transaction to sign and send 
     - `gasPrice`: `Number` - Must always be 0 in Quorum networks
@@ -109,7 +116,8 @@ Calls `Q2T` `/send` to encrypt txn data and send to all participant Privacy Mana
     - `privateFrom`: `String`  - When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, the default key as configured in the `TransactionManager` is used
     - `privateFor`: `List<String>`  - When sending a private transaction, an array of the recipients' base64-encoded public keys
     - `isPrivate`: `boolean` - Is the transaction private 
-    
+1. `Function` - (optional) If you pass a callback the HTTP request is made asynchronous.
+
 ##### Returns
 A promise that resolves to the transaction receipt if the transaction was sent successfully, else rejects with an error.
 
@@ -160,75 +168,6 @@ To send asynchronous requests we need to instantiate `web3` with a `HTTP` addres
       );
       const account = web3.eth.accounts[0];
 ```
-
-## Enclaves
-
-The library supports connection to Quorum private transaction manager and execution of a raw transaction. Example **pseudo** code:
-
-```js
-
-const web3 = new Web3(new Web3.providers.HttpProvider(address));
-const quorumjs = require("quorum-js");
-
-const enclaveOptions = {
-  /* at least one enclave option must be provided     */
-  /* ipcPath is preferred for utilizing older API     */
-  /* Constellation only supports ipcPath              */
-  /* For Tessera: privateUrl is ThirdParty server url */
-  ipcPath: "/quorum-examples/examples/7nodes/qdata/c1/tm.ipc",
-  publicUrl: "http://localhost:8080",
-  privateUrl: "http://localhost:8090"
-};
-
-const rawTransactionManager = quorumjs.RawTransactionManager(web3, enclaveOptions);
-
-const txnParams = {
-  gasPrice: 0,
-  gasLimit: 4300000,
-  to: null,
-  value: 0,
-  data: deploy,
-  from: decryptedAccount,
-  isPrivate: true,
-  privateFrom: TM1_PUBLIC_KEY,
-  privateFor: [TM2_PUBLIC_KEY],
-  nonce
-};
-
-// Older API: txn manager and Quorum version agnostic
-// requires the IPC path to be set in enclaveOptions
-rawTransactionManager.sendRawTransactionViaSendAPI(txnParams);
-
-// Newer API: Quorum v2.2.1+ and Tessera
-// requires the private URL to be set in enclaveOptions
-rawTransactionManager.sendRawTransaction(txnParams);
-```
-
-It sends a private transaction to the network [ this transaction can be either a contract deployment or a contract call ].
-
-
-##### Parameters
-
-1. `Object` - The transaction object to send:
-    - <strike>`gasPrice`: `Number` - The price of gas for this transaction, defaults to the mean 
-    network gas price [ because we work in a private network the gasPrice is 0 ].</strike>
-    - `gasLimit`: `Number` - The amount of gas to use for the transaction.
-    - `to`: `String` - (optional) The destination address of the message, left undefined for a contract-creation 
-    transaction [in case of a contract creation the to field must be `null`].
-    - `value`: `Number` - (optional) The value transferred for the transaction, also the 
-    endowment if it's a contract-creation transaction.
-    - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) 
-    containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code (bytecode).
-    - `decryptedAccount` : `String` - the public key of the sender's account;
-    - `nonce`: `Number`  - (optional) Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce.
-    - `privateFrom`: `String`  - When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, use the default key as configured in the `TransactionManager`.
-    - `privateFor`: `List<String>`  - When sending a private transaction, an array of the recipients' base64-encoded public keys.
-2. `Function` - (optional) If you pass a callback the HTTP request is made asynchronous.
-
-##### Returns
-
-`String` - The 32 Bytes transaction hash as HEX string.
-
 
 ### Send raw transactions using external signer. [Only available in Tessera with Quorum v2.2.0+]
 
