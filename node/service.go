@@ -17,8 +17,8 @@
 package node
 
 import (
-	"path/filepath"
 	"crypto/ecdsa"
+	"path/filepath"
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts"
