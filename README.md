@@ -41,7 +41,7 @@ Check out some of the interesting projects we are actively working on:
 * [quorum-examples](http://docs.goquorum.com/en/latest/Getting%20Started/Quorum-Examples/): Quorum demonstration examples
 * <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [qubernetes](http://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/#quorum-on-kubernetes): Deploy Quorum on Kubernetes  
 * [quorum-cloud](http://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/#creating-a-network-deployed-in-the-cloud): Tools to help deploy Quorum network in a cloud provider of choice
-* [quorum.js](https://github.com/jpmorganchase/quorum.js): Offers a way to add Quorum specific APIs to an intance of web3
+* [quorum.js](https://github.com/jpmorganchase/quorum.js): Extends web3.js to support Quorum-specific APIs
 * Zero Knowledge on Quorum
    * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) POC and [ZSL on Quorum](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
    * [Anonymous Zether](https://github.com/jpmorganchase/anonymous-zether) implementation
