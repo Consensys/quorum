@@ -342,7 +342,7 @@ To [blacklist an account updateAccountStatus](../Permissioning%20apis#quorumperm
 }]
 ```
 
-To [add nodes addNode ](../Permissioning%20apis#quorumpermission_addnode) at organization and sub organization level by the org admin.
+To [add Nodes ](../Permissioning%20apis#quorumpermission_addnode) at organization and sub organization level by the org admin.
 ```javascript
 > quorumPermission.addNode("ORG1.SUB1", "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0", {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 "Action completed successfully"
