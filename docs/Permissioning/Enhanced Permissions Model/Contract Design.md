@@ -1,6 +1,6 @@
 # Smart Contract design for permissions
 The permissions model is completely built on smart contracts. The smart contract design is as below:
-![contract design](images/ContractDesign.png)
+![contract design](./images/ContractDesign.png)
 
 The permissions smart contract design follows the Proxy-Implementation-Storage pattern which allows the implementation logic to change without changing the storage or interface layer. A brief description of the smart contracts is below:
 
