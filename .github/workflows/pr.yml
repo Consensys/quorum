@@ -7,9 +7,25 @@ on:
       - .gitignore
 env:
   GO_VERSION: 1.13
-  GOPATH: ${{ github.workspace }}/go
-  WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
+  lint:
+    name: 'Code linters'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Setup Go ${{ env.GO_VERSION }}'
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: 'Check out project files'
+        uses: actions/checkout@v2
+        with:
+          submodules: false
+      - name: 'Prepare environment'
+        run: |
+          echo "::add-path::$(go env GOPATH)/bin"
+      - name: 'Run code linters'
+        run: |
+          GO111MODULE=off make lint
   unit-tests:
     name: 'Unit tests in ${{ matrix.os }}'
     strategy:
@@ -25,10 +41,9 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: 'Check out project files'
-        uses: actions/checkout@574281d
+        uses: actions/checkout@v2
         with:
           submodules: recursive
-          path: ${{ env.WORKING_DIR }}
       - name: 'Prepare environment'
         run: |
           # https://github.com/actions/virtual-environments/issues/798
@@ -36,7 +51,6 @@ jobs:
 
           echo "::add-path::$(go env GOPATH)/bin"
       - name: 'Run unit tests'
-        working-directory: ${{ env.WORKING_DIR }}
         run: |
           make test
   docker-build:

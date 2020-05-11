@@ -19,7 +19,6 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"reflect"
 	"testing"
@@ -28,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -417,7 +417,7 @@ func TestSaveAndLoad(t *testing.T) {
 			},
 		},
 		Tally: map[common.Address]Tally{
-			common.StringToAddress("1234567893"): Tally{
+			common.StringToAddress("1234567893"): {
 				Authorize: false,
 				Votes:     20,
 			},

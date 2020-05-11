@@ -22,13 +22,12 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 func TestIstanbulMessage(t *testing.T) {
@@ -147,10 +146,8 @@ func postAndWait(backend *backend, block *types.Block, t *testing.T) {
 	defer eventSub.Unsubscribe()
 	stop := make(chan struct{}, 1)
 	eventLoop := func() {
-		select {
-		case <-eventSub.Chan():
-			stop <- struct{}{}
-		}
+		<-eventSub.Chan()
+		stop <- struct{}{}
 	}
 	go eventLoop()
 	if err := backend.EventMux().Post(istanbul.RequestEvent{

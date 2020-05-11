@@ -22,7 +22,6 @@ import (
 )
 
 type InProcServerReadyEvent struct {
-
 }
 
 // DialInProc attaches an in-process connection to the given RPC server.
