@@ -47,20 +47,23 @@ txnMngr.sendRawTransaction(args);
 ## Methods
 
 ### sendRawTransaction
+
+!!! info "If using Constellation"
+    Constellation privacy managers do not support this method.  Use [`sendRawTransactionViaSendAPI`](#sendrawtransactionviasendapi) instead.
+    
 ```js
 txnMngr.sendRawTransaction(txnParams);
 ```
-Calls Tessera's `ThirdParty` `/storeraw`, replaces `data` field in `txnParams` with response (i.e. encrypted-payload hash), signs the transaction with the `from` account defined in `txnParams`, marks the transaction as private, RLP encodes the transaction in hex format, submits the signed transaction to the blockchain with `eth_sendRawPrivateTransaction`.
+Calls Tessera's `ThirdParty` `/storeraw` API, replaces the `data` field in `txnParams` with the response (i.e. encrypted-payload hash), signs the transaction with the `from` account defined in `txnParams`, marks the transaction as private, RLP encodes the transaction in hex format, and submits the signed transaction to the blockchain with `eth_sendRawPrivateTransaction`.
 
 #### Parameters
 1. `txnParams` - The transaction to sign and send 
     - `gasPrice`: `Number` - Must always be 0 in Quorum networks
     - `gasLimit`: `Number` - The amount of gas to use for the transaction
     - `to`: `String` - (optional) The destination address of the message, left undefined for a contract-creation transaction 
-    - `value`: `Number` - (optional) The value transferred for the transaction, also the 
-    endowment if it's a contract-creation transaction
-    - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code (bytecode)
-    - `decryptedAccount` : `String` - The public key of the sender's account
+    - `value`: `Number` - (optional) The value transferred for the transaction
+    - `data`: `String` - (optional) Either a byte string containing the associated data of the message, or the initialisation code (bytecode) in the case of a contract-creation transaction
+    - `from` - `Object`: [Decrypted account object](https://web3js.readthedocs.io/en/v1.2.7/web3-eth-accounts.html#decrypt) 
     - `nonce`: `Number`  - (optional) Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce
     - `privateFrom`: `String`  - When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, the default key as configured in the `TransactionManager` is used
     - `privateFor`: `List<String>`  - When sending a private transaction, an array of the recipients' base64-encoded public keys
@@ -72,24 +75,23 @@ A promise that resolves to the transaction receipt if the transaction was sent s
 
 ### sendRawTransactionViaSendAPI
 
+!!! info "If using Tessera"
+    Tessera privacy managers support [`sendRawTransaction`](#sendrawtransaction) which should be used instead.  `sendRawTransactionViaSendAPI` requires exposing the `Q2T` server to the `js` app.  Ideally only the `ThirdParty` server should be exposed to such applications.
+
 ```js
 txnMngr.sendRawTransactionViaSendAPI(txnParams);
 ```
 
-!!! info
-    `sendRawTransaction` should be used where possible.  `sendRawTransactionViaSendAPI` is necessary when using Constellation but requires providing the `ipcPath` in `enclaveOptions`.
-
-Calls `Q2T` `/send` to encrypt txn data and send to all participant Privacy Manager nodes, replaces `data` field in `txnParams` with response (i.e. encrypted-payload hash), signs the transaction with the `from` account defined in `txnParams`, marks the transaction as private, submits the signed transaction to the blockchain with `eth_sendRawTransaction`.
+Calls Privacy Manager's `/send` API to encrypt txn data and send to all participant Privacy Manager nodes, replaces `data` field in `txnParams` with response (i.e. encrypted-payload hash), signs the transaction with the `from` account defined in `txnParams`, marks the transaction as private, and submits the signed transaction to the blockchain with `eth_sendRawTransaction`.
 
 #### Parameters
 1. `txnParams` - The transaction to sign and send 
     - `gasPrice`: `Number` - Must always be 0 in Quorum networks
     - `gasLimit`: `Number` - The amount of gas to use for the transaction
     - `to`: `String` - (optional) The destination address of the message, left undefined for a contract-creation transaction 
-    - `value`: `Number` - (optional) The value transferred for the transaction, also the 
-    endowment if it's a contract-creation transaction
-    - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code (bytecode)
-    - `decryptedAccount` : `String` - The public key of the sender's account
+    - `value`: `Number` - (optional) The value transferred for the transaction
+    - `data`: `String` - (optional) Either a byte string containing the associated data of the message, or the initialisation code (bytecode) in the case of a contract-creation transaction
+    - `from` - `Object`: [Decrypted account object](https://web3js.readthedocs.io/en/v1.2.7/web3-eth-accounts.html#decrypt) 
     - `nonce`: `Number`  - (optional) Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce
     - `privateFrom`: `String`  - When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, the default key as configured in the `TransactionManager` is used
     - `privateFor`: `List<String>`  - When sending a private transaction, an array of the recipients' base64-encoded public keys
@@ -113,13 +115,14 @@ Updated RLP-encoded hex-format signed transaction
 ```js
 txnMngr.storeRawRequest(data, privateFrom);
 ```
-Calls Tessera's `ThirdParty` `/storeraw`.
+Calls Tessera's `ThirdParty` `/storeraw` API to encrypt the provided `data` and store in preparation for a `eth_sendRawPrivateTransaction`.
+
 #### Parameters
 1. `data`: `String` - Hex encoded private transaction data (i.e. value of `data`/`input` field in the transaction)
 1. `privateFrom`: `String` - Sending party's base64-encoded public key
 
 #### Returns
-A promise that resolves to the hex-encoded hash of the encrypted `data` (`key` field).  
+A promise that resolves to the hex-encoded hash of the encrypted `data` (`key` field) that should be used to replace the `data` field of a transaction if externally signing.  
 
 ### sendRawRequest
 ```js
@@ -133,34 +136,29 @@ Call `eth_sendRawPrivateTransaction`, sending the signed transaction to the reci
 #### Returns
 A promise that resolves to the transaction receipt if the transaction was sent successfully, else rejects with an error.
 
-## Send raw transactions using external signer. [Only available in Tessera with Quorum v2.2.0+]
+## Examples
 
-If you want to use a different transaction signing mechanism, here are the steps to invoke the relevant APIs separately.
+### Externally signing and sending a private tx
 
-Firstly, a `storeRawRequest` function would need to be called by the enclave:
+!!!info
+    This is not supported by Constellation and requires Quorum v2.2.0+
 
-```js
+[Code sample](https://github.com/jpmorganchase/quorum.js/blob/master/7nodes-test/deployContractViaHttp-externalSigningTemplate.js).
 
-const web3 = new Web3(new Web3.providers.HttpProvider(address));
-const quorumjs = require("quorum-js");
-
-const txnManager = quorumjs.RawTransactionManager(web3, {
-  publicUrl: "http://localhost:8080",
-  privateUrl: "http://localhost:8090"
-});
-
-txnManager.storeRawRequest(data, from)
-
-```
-
-A raw transaction will then need to be formed and signed, please note the data field will need to be replaced with the transaction hash which was returned from the privacy manager (the `key` field of the response data from `storeRawRequest` api call).
-
-Secondly, the raw transaction can then be sent to Quorum by `sendRawRequest` function:
-
-```js
-
-var privateFor = ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]
-
-txnManager.sendRawRequest(serializedTransaction, privateFor)
-
-```
+1. `storeRawRequest` to encrypt the transaction `data`
+    ```js
+    txnManager.storeRawRequest(data, from)
+    ```
+1. Replace `data` field of transaction with `key` field from `storeRawRequest` response
+1. Sign the transaction
+1. Mark the signed transaction as private with `setPrivate`
+    ```js
+    txnManager.setPrivate(signedTx)
+    ```
+1. Send the signed transaction to Quorum with `sendRawRequest`
+    ```js
+     txnManager.sendRawRequest(serializedTransaction, privateFor)
+    ```
+ 
+### Other examples
+The [7nodes-test](https://github.com/jpmorganchase/quorum.js/tree/master/7nodes-test) directory in the quorum.js project repo contains examples of quorum.js usage.  These scripts can be tested with a running [7nodes test network](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes).
