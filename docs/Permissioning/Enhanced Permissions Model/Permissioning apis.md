@@ -152,7 +152,7 @@ Returns the list of roles in the network
 #### Parameters
 None
 #### Returns
-* `access`: account access. [refer](#account-access-types) for the complete list of different values of account access.
+* `access`: account access. [refer](#Roles) for the complete list of different values of account access.
 * `active`: indicates if the role is active or not
 * `isAdmin`: indicates if the role is org admin role
 * `isVoter`: indicates if the role is enabled for voting. Applicable only for network admin role
