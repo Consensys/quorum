@@ -87,6 +87,9 @@ nav:
         - Remix Plugin:
             - Overview: RemixPlugin/Overview.md
             - Getting Started: RemixPlugin/GettingStarted.md
+        - quorum.js:
+            - Overview: quorum.js/Overview.md
+            - API: quorum.js/API.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
