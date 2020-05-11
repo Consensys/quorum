@@ -259,7 +259,7 @@ The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for su
 }]
 ```
 
-To add an account to an organization refer to [addAccountToOrg API](../Permissioning%20apis#quorumpermissionadd_accounttoorg).
+To add an account to an organization refer to [addAccountToOrg API](../Permissioning%20apis#quorumpermission_addaccounttoorg).
 ```javascript
 > quorumPermission.addAccountToOrg("0x283f3b8989ec20df621166973c93b56b0f4b5455", "ORG1.SUB1", "SUBADMIN", {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 "Action completed successfully"
