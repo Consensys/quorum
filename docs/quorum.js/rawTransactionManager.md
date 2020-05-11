@@ -1,28 +1,6 @@
-## extend
-quorum.js offers a way to add Quorum specific APIs to an instance of `web3`. Current APIs that can be extended are [Raft](../../Consensus/raft/raft-rpc-api), [Istanbul](../../Consensus/ibft/istanbul-rpc-api/), [Privacy](../../Getting%20Started/api/#privacy-apis), and [Permissioning](../../Permissioning/Permissioning%20apis) APIs. 
-
-### Example
-```js
-const Web3 = require("web3");
-const quorumjs = require("quorum-js");
-
-const web3 = new Web3("http://localhost:22000");
-
-quorumjs.extend(web3);
-
-web3.quorum.eth.sendRawPrivateTransaction(signedTx, args);
-```
-
-### Parameters
-| param | type | required | description |
-| :---: | :---: | :---: | --- |
-| `web3` | `Object` | yes | web3 instance |
-| `apis` | `String` | no | comma-separated list of APIs to extend `web3` with.  Default is to add all APIs, i.e. `quorumjs.extend(web3, 'eth, raft, istanbul, quorumPermission')` | 
-
-## RawTransactionManager
 **TODO - add an overview**
 
-### Example
+## Example
 ```js
 const Web3 = require("web3");
 const quorumjs = require("quorum-js");
@@ -45,20 +23,20 @@ const txnMngr = quorumjs.RawTransactionManager(web3, enclaveOptions);
 txnMngr.sendRawTransaction(args);
 ``` 
 
-### Parameters
+## Parameters
 | param | type | required | description |
 | :---: | :---: | :---: | --- |
 | `web3` | `Object` | yes | web3 instance |
 | `enclaveOptions` | `Object` | yes | Privacy Manager connection configuration - see enclaveOptions below |
 
-#### enclaveOptions
+### enclaveOptions
 | param | type | required | description |
 | :---: | :---: | :---: | --- |
 | `privateUrl` | `String` | yes (unless `ipcPath` is provided) | Tessera `ThirdParty` server url (if using the Constellation Privacy Manager use `ipcPath` instead) |
 | `ipcPath` | `String` | no | path to Privacy Manager `.ipc` socket file, `privateUrl` is preferred |
 | `tlsSettings` | `Object` | no | TLS configuration for HTTPS Privacy Manager connections - see tlsSettings below |
 
-#### tlsSettings
+### tlsSettings
 | param | type | required | description |
 | :---: | :---: | :---: | --- |
 | `key` | `String` | no  | client private key as byte string |
@@ -66,15 +44,15 @@ txnMngr.sendRawTransaction(args);
 | `cacert` | `String` | no | CA certificate as byte string |
 | `allowInsecure` | `boolean` | no | do not verify the Privacy Manager's certificate (can be used to allow self-signed certificates) |
 
-### Methods
+## Methods
 
-#### sendRawTransaction
+### sendRawTransaction
 ```js
 txnMngr.sendRawTransaction(txnParams);
 ```
 Calls Tessera's `ThirdParty` `/storeraw`, replaces `data` field in `txnParams` with response (i.e. encrypted-payload hash), signs the transaction with the `from` account defined in `txnParams`, marks the transaction as private, RLP encodes the transaction in hex format, submits the signed transaction to the blockchain with `eth_sendRawPrivateTransaction`.
 
-##### Parameters
+#### Parameters
 1. `txnParams` - The transaction to sign and send 
     - `gasPrice`: `Number` - Must always be 0 in Quorum networks
     - `gasLimit`: `Number` - The amount of gas to use for the transaction
@@ -89,10 +67,10 @@ Calls Tessera's `ThirdParty` `/storeraw`, replaces `data` field in `txnParams` w
     - `isPrivate`: `boolean` - Is the transaction private 
 1. `Function` - (optional) If you pass a callback the HTTP request is made asynchronous.
 
-##### Returns
+#### Returns
 A promise that resolves to the transaction receipt if the transaction was sent successfully, else rejects with an error.
 
-#### sendRawTransactionViaSendAPI
+### sendRawTransactionViaSendAPI
 
 ```js
 txnMngr.sendRawTransactionViaSendAPI(txnParams);
@@ -103,7 +81,7 @@ txnMngr.sendRawTransactionViaSendAPI(txnParams);
 
 Calls `Q2T` `/send` to encrypt txn data and send to all participant Privacy Manager nodes, replaces `data` field in `txnParams` with response (i.e. encrypted-payload hash), signs the transaction with the `from` account defined in `txnParams`, marks the transaction as private, submits the signed transaction to the blockchain with `eth_sendRawTransaction`.
 
-##### Parameters
+#### Parameters
 1. `txnParams` - The transaction to sign and send 
     - `gasPrice`: `Number` - Must always be 0 in Quorum networks
     - `gasLimit`: `Number` - The amount of gas to use for the transaction
@@ -118,44 +96,44 @@ Calls `Q2T` `/send` to encrypt txn data and send to all participant Privacy Mana
     - `isPrivate`: `boolean` - Is the transaction private 
 1. `Function` - (optional) If you pass a callback the HTTP request is made asynchronous.
 
-##### Returns
+#### Returns
 A promise that resolves to the transaction receipt if the transaction was sent successfully, else rejects with an error.
 
-#### setPrivate
+### setPrivate
 ```js
 txnMngr.setPrivate(rawTransaction);
 ```
 Marks a signed transaction as private by changing the value of `v` to `37` or `38`.
-##### Parameters
+#### Parameters
 1. `rawTransaction`: `String` - RLP-encoded hex-format signed transaction
-##### Returns 
+#### Returns 
 Updated RLP-encoded hex-format signed transaction
 
-#### storeRawRequest
+### storeRawRequest
 ```js
 txnMngr.storeRawRequest(data, privateFrom);
 ```
 Calls Tessera's `ThirdParty` `/storeraw`.
-##### Parameters
+#### Parameters
 1. `data`: `String` - Hex encoded private transaction data (i.e. value of `data`/`input` field in the transaction)
 1. `privateFrom`: `String` - Sending party's base64-encoded public key
 
-##### Returns
+#### Returns
 A promise that resolves to the hex-encoded hash of the encrypted `data` (`key` field).  
 
-#### sendRawRequest
+### sendRawRequest
 ```js
 txnMngr.sendRawRequest(rawTransaction, privateFor);
 ```
 Call `eth_sendRawPrivateTransaction`, sending the signed transaction to the recipients specified in `privateFor`.
-##### Parameters
+#### Parameters
 1. `rawTransaction`: `String` - RLP-encoded hex-format signed transaction
 1. `privateFor`: `List<String>` - List of the recipients' base64-encoded public keys
 
-##### Returns
+#### Returns
 A promise that resolves to the transaction receipt if the transaction was sent successfully, else rejects with an error.
 
-### Send raw transactions using external signer. [Only available in Tessera with Quorum v2.2.0+]
+## Send raw transactions using external signer. [Only available in Tessera with Quorum v2.2.0+]
 
 If you want to use a different transaction signing mechanism, here are the steps to invoke the relevant APIs separately.
 
@@ -186,4 +164,3 @@ var privateFor = ["ROAZBWtSacxXQrOe3FGAqJDyJjFePR5ce4TSIzmJ0Bc="]
 txnManager.sendRawRequest(serializedTransaction, privateFor)
 
 ```
-

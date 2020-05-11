@@ -89,7 +89,8 @@ nav:
             - Getting Started: RemixPlugin/GettingStarted.md
         - quorum.js:
             - Overview: quorum.js/Overview.md
-            - API: quorum.js/API.md
+            - extend Object: quorum.js/extend.md
+            - rawTransactionManager Object: quorum.js/rawTransactionManager.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
