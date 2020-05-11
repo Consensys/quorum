@@ -1,3 +1,64 @@
+## extend
+quorum.js offers a way to add Quorum specific APIs to an instance of `web3`. Current APIs that can be extended are [Raft](../../Consensus/raft/raft-rpc-api), [Istanbul](../../Consensus/ibft/istanbul-rpc-api/), [Privacy](../../Getting%20Started/api/#privacy-apis), and [Permissioning](../../Permissioning/Permissioning%20apis) APIs. 
+
+### Example
+```js
+const Web3 = require("web3");
+const quorumjs = require("quorum-js");
+
+const web3 = new Web3("http://localhost:22000");
+
+quorumjs.extend(web3);
+
+web3.quorum.eth.sendRawPrivateTransaction(signedTx, args);
+```
+
+### Parameters
+| param | type | required | description |
+| :---: | :---: | :---: | --- |
+| `web3` | `Object` | yes | web3 instance |
+| `apis` | `String` | no | comma-separated list of APIs to extend `web3` with.  Default is to add all APIs, i.e. `quorumjs.extend(web3, 'eth, raft, istanbul, quorumPermission')` | 
+
+## RawTransactionManager
+**TODO - add an overview**
+
+### Example
+```js
+const Web3 = require("web3");
+const quorumjs = require("quorum-js");
+
+const web3 = new Web3("http://localhost:22000");
+
+const enclaveOptions = {
+    privateUrl: "http://localhost:9081"
+};
+
+const txnMngr = quorumjs.RawTransactionManager(web3, enclaveOptions);
+
+txnMngr.sendRawTransaction(args);
+``` 
+
+### Parameters
+| param | type | required | description |
+| :---: | :---: | :---: | --- |
+| `web3` | `Object` | yes | web3 instance |
+| `enclaveOptions` | `Object` | yes | Privacy Manager connection configuration - see enclaveOptions below |
+
+#### enclaveOptions
+| param | type | required | description |
+| :---: | :---: | :---: | --- |
+| `privateUrl` | `String` | yes (unless `ipcPath` is provided) | Tessera `ThirdParty` server url (if using the Constellation Privacy Manager use `ipcPath` instead) |
+| `ipcPath` | `String` | no | path to Privacy Manager `.ipc` socket file, `privateUrl` is preferred |
+| `tlsSettings` | `Object` | no | TLS configuration for HTTPS Privacy Manager connections - see tlsSettings below |
+
+#### tlsSettings
+| param | type | required | description |
+| :---: | :---: | :---: | --- |
+| `key` | `String` | no  | path to client key file |
+| `clcert` | `String` | no | path to client cert file |
+| `cacert` | `String` | no | path to ca cert file |
+| `allowInsecure` | `boolean` | no | do not verify the Privacy Manager's certificate |
+
 ## Start sending requests
 
 ## Starting Web3 on HTTP
@@ -124,27 +185,6 @@ txnManager.sendRawRequest(serializedTransaction, privateFor)
 
   - `serializedTransaction`: `String` - Signed transaction data in HEX format.
   - `privateFor`: `List<String>` - When sending a private transaction, an array of the recipients' base64-encoded public keys.
-
-
-## Extending web3 instance with Quorum APIs
-quorum.js offers a way to add Quorum specific APIs to an intance of web3. Current APIs that may be extended are [Raft](http://docs.goquorum.com/en/latest/Consensus/raft/), [Istanbul](http://docs.goquorum.com/en/latest/Consensus/istanbul-rpc-api/), and [Privacy](http://docs.goquorum.com/en/latest/Getting%20Started/api/#privacy-apis) APIs. Extending your web3 instance is as simple as calling `quorumjs.extend` with the list of APIs you need. Please note that web3 will receive a quorum specific namespace after extension `web3.quorum`
-
-**Note:** `web3.eth.subscribe` is extended through `web3.quorum.eth.subscribe` to patch output formatter.
-```js
-
-const web3 = new Web3(new Web3.providers.HttpProvider(address));
-const quorumjs = require("quorum-js");
-
-quorumjs.extend(web3)
-
-```
-
-##### Parameters
-
-  - `web3`: `Object` - web3 instance
-  - `apis`: `String` (Optional) - List of comma separated Quorum APIs to extend web3 instance with. APIs available are raft, istanbul, and eth - default is to add all APIs. Example: `quorumjs.extend(web3, 'raft, eth')`
-
-
 
 ## Examples for using quorum.js with [quorum-examples/7nodes](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes)
 
