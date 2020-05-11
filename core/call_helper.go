@@ -73,10 +73,7 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	vmenv := vm.NewEVM(context, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})
 	sender := vm.AccountRef(msg.From())
 	vmenv.Call(sender, to, msg.Data(), 100000000, new(big.Int))
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // MakeCallHelper returns a new callHelper

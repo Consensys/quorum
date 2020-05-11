@@ -20,12 +20,12 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"fmt"
-	testifyassert "github.com/stretchr/testify/assert"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	testifyassert "github.com/stretchr/testify/assert"
 )
 
 // run all the tests in this file
@@ -115,8 +115,7 @@ func TestSignQuorumEIP155Public(t *testing.T) {
 	k1, _ := createKey(crypto.S256(), k1v)
 
 	// chainId 1 even EIP155Signer should be 37 conflicts with private transaction
-	var chainId int64
-	chainId = 2 // 7 2 10
+	var chainId int64 = 2 // 7 2 10
 
 	v0 := chainId*2 + 35 // sig[64] + 35 .. where sig[64] == 0
 	v1 := chainId*2 + 36 // sig[64] + 35 .. where sig[64] == 1
@@ -139,7 +138,7 @@ func TestSignQuorumEIP155Public(t *testing.T) {
 	assert.True(from == addr, fmt.Sprintf("Expected from and address to be equal. Got %x want %x", from, addr))
 
 	// chainId 1 even  EIP155Signer should be 38 conflicts with private transaction
-	assert.False(signedTx.IsPrivate(), fmt.Sprintf("Public transaction is set to a private transation v == [%v]", signedTx.data.V))
+	assert.False(signedTx.IsPrivate(), fmt.Sprintf("Public transaction is set to a private transition v == [%v]", signedTx.data.V))
 
 	signedTx, addr, _ = signTx(k1, EIPsigner)
 
@@ -166,8 +165,7 @@ func TestSignQuorumEIP155FailPublicChain1(t *testing.T) {
 	k1, _ := createKey(crypto.S256(), k1v)
 
 	// chainId 1 even  EIP155Signer should be 37.38 which conflicts with private transaction
-	var chainId int64
-	chainId = 1
+	var chainId int64 = 1
 
 	v0 := chainId*2 + 35 // sig[64] + 35 .. where sig[64] == 0
 	v1 := chainId*2 + 36 // sig[64] + 35 .. where sig[64] == 1

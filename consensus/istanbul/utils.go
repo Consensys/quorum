@@ -34,7 +34,7 @@ func RLPHash(v interface{}) (h common.Hash) {
 // GetSignatureAddress gets the signer address from the signature
 func GetSignatureAddress(data []byte, sig []byte) (common.Address, error) {
 	// 1. Keccak data
-	hashData := crypto.Keccak256([]byte(data))
+	hashData := crypto.Keccak256(data)
 	// 2. Recover public key
 	pubkey, err := crypto.SigToPub(hashData, sig)
 	if err != nil {

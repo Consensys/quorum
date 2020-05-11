@@ -176,7 +176,7 @@ func TestGethDoesntStartWithoutPrivateTransactionManagerVariableSet(t *testing.T
 
 	expectedText := "the PRIVATE_CONFIG environment variable must be specified for Quorum"
 	result := strings.TrimSpace(geth.StderrText())
-	if strings.Index(result, expectedText) == -1 {
+	if !strings.Contains(result, expectedText) {
 		geth.Fatalf("bad stderr text. want '%s', got '%s'", expectedText, result)
 	}
 }

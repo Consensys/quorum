@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/core"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -13,22 +12,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/ethclient"
-
-	"github.com/ethereum/go-ethereum/event"
-
-	"github.com/ethereum/go-ethereum/raft"
-	"github.com/ethereum/go-ethereum/rpc"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
+	"github.com/ethereum/go-ethereum/raft"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type NodeOperation uint8
@@ -52,7 +49,7 @@ type PermissionCtrl struct {
 	permOrg    *pbind.OrgManager
 	permConfig *types.PermissionConfig
 
-	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependenies are ready before we start the service
+	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
 	stopFeed       event.Feed      // broadcasting stopEvent when service is being stopped
 	errorChan      chan error      // channel to capture error when starting aysnc
 
@@ -296,7 +293,7 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
-			case  head := <-chainHeadCh:
+			case head := <-chainHeadCh:
 				if p.eth.BlockChain().Config().IsQIP714(head.Block.Number()) {
 					types.SetDefaultAccess()
 					return

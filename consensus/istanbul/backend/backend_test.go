@@ -148,11 +148,8 @@ func TestCommit(t *testing.T) {
 	for _, test := range testCases {
 		expBlock := test.expectedBlock()
 		go func() {
-			select {
-			case result := <-backend.commitCh:
-				commitCh <- result
-				return
-			}
+			result := <-backend.commitCh
+			commitCh <- result
 		}()
 
 		backend.proposedBlockHash = expBlock.Hash()

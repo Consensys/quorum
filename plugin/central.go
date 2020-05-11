@@ -44,7 +44,7 @@ func (cc *CentralClient) getNewSecureDialer() Dialer {
 		if cc.config.CertFingerprint != "" {
 			conState := c.ConnectionState()
 			for _, peercert := range conState.PeerCertificates {
-				if bytes.Compare(peercert.Signature[0:], []byte(cc.config.CertFingerprint)) == 0 {
+				if bytes.Equal(peercert.Signature[0:], []byte(cc.config.CertFingerprint)) {
 					return c, nil
 				}
 			}
@@ -100,10 +100,8 @@ func (cc *CentralClient) PluginDistribution(definition *PluginDefinition, outFil
 	defer func() {
 		_ = readCloser.Close()
 	}()
-	if _, err := io.Copy(outFile, readCloser); err != nil {
-		return err
-	}
-	return nil
+	_, err = io.Copy(outFile, readCloser)
+	return err
 }
 
 // perform HTTP GET

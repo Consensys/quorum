@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/miner"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -13,27 +12,22 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-
-	"github.com/ethereum/go-ethereum/core/types"
-
-	"github.com/ethereum/go-ethereum/params"
-
-	"github.com/ethereum/go-ethereum/p2p"
-
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/eth"
-
-	"github.com/stretchr/testify/assert"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/params"
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -111,8 +105,8 @@ func setup() {
 		},
 	}
 	ethConf := &eth.Config{
-		Genesis:   &core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 10000000000, Alloc: genesisAlloc},
-		Miner: miner.Config{Etherbase: guardianAddress},
+		Genesis: &core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 10000000000, Alloc: genesisAlloc},
+		Miner:   miner.Config{Etherbase: guardianAddress},
 		Ethash: ethash.Config{
 			PowMode: ethash.ModeTest,
 		},
@@ -272,7 +266,6 @@ func TestQuorumControlsAPI_ListAPIs(t *testing.T) {
 func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
 	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
-
 
 	// test AddOrg
 	orgAdminKey, _ := crypto.GenerateKey()
