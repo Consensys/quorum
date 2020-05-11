@@ -19,6 +19,8 @@ nav:
         - Creating a Network From Scratch: Getting Started/Creating-A-Network-From-Scratch.md
         - Running Quorum: Getting Started/running.md
         - Quorum API: Getting Started/api.md
+        - Quorum GraphQL: Getting Started/graphql.md
+        - Migration: Getting Started/migration.md 
     - Quorum Features: 
         - Transaction & Contract Privacy:
             - Overview: Privacy/Overview.md
@@ -94,8 +96,6 @@ nav:
             - Overview: quorum.js/Overview.md
             - extend API: quorum.js/extend.md
             - RawTransactionManager API: quorum.js/RawTransactionManager.md
-        - Quorum GraphQL: Getting Started/graphql.md
-        - Migration: Getting Started/migration.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:
@@ -111,7 +111,6 @@ nav:
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
         - Backup & Restore: Quorum Features/import-export.md
         - External Signer with Clef: How-To-Guides/external-signer.md
-
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
