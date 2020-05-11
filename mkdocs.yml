@@ -61,11 +61,14 @@ nav:
                 - Consensus/ibft/istanbul-rpc-api.md
                 - Consensus/ibft/ibft-parameters.md     
         - Permissioning:
-            - Overview: Permissioning/Overview.md
-            - Design: Permissioning/Contract Design.md
-            - Setup: Permissioning/setup.md
-            - APIs: Permissioning/Permissioning apis.md
-            - Usage: Permissioning/Usage.md
+            - Overview: Permissioning/Permissions Overview.md
+            - Basic Network Permissioning: Permissioning/Basic NetworkPermissions.md
+            - Enhanced Pemrissions Model:
+              - Overview: Permissioning/Enhanced Permissions Model/Overview.md
+              - Design: Permissioning/Enhanced Permissions Model/Contract Design.md
+              - Setup: Permissioning/Enhanced Permissions Model/setup.md
+              - APIs: Permissioning/Enhanced Permissions Model/Permissioning apis.md
+              - Usage: Permissioning/Enhanced Permissions Model/Usage.md
         - Pluggable Architecture:
             - Overview: PluggableArchitecture/Overview.md
             - Settings: PluggableArchitecture/Settings.md
