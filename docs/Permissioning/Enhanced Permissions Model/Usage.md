@@ -182,7 +182,7 @@ The new node belonging to the organization can now join the network. In case the
 ### Organization admin managing the organization level permissions
 Once the organization is approved and the node of the organization has joined the network, the organization admin can then create sub organizations, roles, add additional nodes at organization level, add accounts to the organization and change roles of existing organization level accounts. 
 
-To add a sub org at `ORG1` level refer to [addSubOrg API](../Permissioning%20apis#quorumpermissionaddsuborg)
+To add a sub org at `ORG1` level refer to [addSubOrg API](../Permissioning%20apis#quorumpermission_addsuborg)
 ```javascript
 > quorumPermission.addSubOrg("ORG1", "SUB1", "enode://239c1f044a2b03b6c4713109af036b775c5418fe4ca63b04b1ce00124af00ddab7cc088fc46020cdc783b6207efe624551be4c06a994993d8d70f684688fb7cf@127.0.0.1:21006?discport=0", {from: eth.accounts[0]})
 "Action completed successfully"
@@ -199,7 +199,7 @@ To add a sub org at `ORG1` level refer to [addSubOrg API](../Permissioning%20api
 }
 ```
 
-For adding a sub org the enode id is not mandatory. For the newly created sub org if the org admin desires to add an administration account, the org admin account will have to first create a role with `isAdmin` flag as `Y` and then assign this role to the account which belongs to the sub org. Once assigned the account will act as org admin at sub org level. Refer to [addNewRole API](../Permissioning%20apis#quorumpermissionaddnewrole)
+For adding a sub org the enode id is not mandatory. For the newly created sub org if the org admin desires to add an administration account, the org admin account will have to first create a role with `isAdmin` flag as `Y` and then assign this role to the account which belongs to the sub org. Once assigned the account will act as org admin at sub org level. Refer to [addNewRole API](../Permissioning%20apis#quorumpermission_addnewrole)
 ```javascript
 > quorumPermission.addNewRole("ORG1.SUB1", "SUBADMIN", 3, false, true,{from: eth.accounts[0]})
 "Action completed successfully"
@@ -259,7 +259,7 @@ The account `0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0` is now the admin for su
 }]
 ```
 
-To add an account to an organization refer to [addAccountToOrg API](../Permissioning%20apis#quorumpermissionaddaccounttoorg).
+To add an account to an organization refer to [addAccountToOrg API](../Permissioning%20apis#quorumpermissionadd_accounttoorg).
 ```javascript
 > quorumPermission.addAccountToOrg("0x283f3b8989ec20df621166973c93b56b0f4b5455", "ORG1.SUB1", "SUBADMIN", {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 "Action completed successfully"
@@ -280,7 +280,7 @@ To add an account to an organization refer to [addAccountToOrg API](../Permissio
 }]
 ```
 
-To suspend an account [updateAccountStatus](../Permissioning%20apis#quorumpermissionupdateaccountstatus) API can be invoked with action as 1.
+To suspend an account [updateAccountStatus](../Permissioning%20apis#quorumpermission_updateaccountstatus) API can be invoked with action as 1.
 ```javascript
 > quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 1, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 "Action completed successfully"
@@ -300,7 +300,7 @@ To suspend an account [updateAccountStatus](../Permissioning%20apis#quorumpermis
 }]
 ```
 
-To revoke suspension of an account [updateAccountStatus](../Permissioning%20apis#quorumpermissionupdateaccountstatus) API can be invoked with action as 2.
+To revoke suspension of an account [updateAccountStatus](../Permissioning%20apis#quorumpermission_updateaccountstatus) API can be invoked with action as 2.
 ```javascript
 > quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 2, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 "Action completed successfully"
@@ -321,7 +321,7 @@ To revoke suspension of an account [updateAccountStatus](../Permissioning%20apis
 }]
 ```
 
-To [blacklist an account updateAccountStatus](../Permissioning%20apis#quorumpermissionupdateaccountstatus) API can be invoked with action as 3. Once blacklisted no further activity will be possible on the account.
+To [blacklist an account updateAccountStatus](../Permissioning%20apis#quorumpermission_updateaccountstatus) API can be invoked with action as 3. Once blacklisted no further activity will be possible on the account.
 ```javascript
 > quorumPermission.updateAccountStatus("ORG1.SUB1", "0x283f3b8989ec20df621166973c93b56b0f4b5455", 3, {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 "Action completed successfully"
@@ -342,7 +342,7 @@ To [blacklist an account updateAccountStatus](../Permissioning%20apis#quorumperm
 }]
 ```
 
-To [add nodes addNode ](../Permissioning%20apis#quorumpermissionaddnode) at organization and sub organization level by the org admin.
+To [add nodes addNode ](../Permissioning%20apis#quorumpermission_addnode) at organization and sub organization level by the org admin.
 ```javascript
 > quorumPermission.addNode("ORG1.SUB1", "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0", {from: "0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 "Action completed successfully"
@@ -358,7 +358,7 @@ To [add nodes addNode ](../Permissioning%20apis#quorumpermissionaddnode) at orga
 }]
 ```
 
-Org admin can manage the status of the nodes by using [updateNodeStatus](../Permissioning%20apis#quorumpermissionupdatenodestatus) API. To deactivate a node the API can be invoked with action 1.
+Org admin can manage the status of the nodes by using [updateNodeStatus](../Permissioning%20apis#quorumpermission_updatenodestatus) API. To deactivate a node the API can be invoked with action 1.
 ```javascript
 > quorumPermission.getOrgDetails("ORG1.SUB1").nodeList
 [{
@@ -372,7 +372,7 @@ Org admin can manage the status of the nodes by using [updateNodeStatus](../Perm
 }]
 ```
 
-To activate the node back invoke [updateNodeStatus](../Permissioning%20apis#quorumpermissionupdatenodestatus) API with action 2.
+To activate the node back invoke [updateNodeStatus](../Permissioning%20apis#quorumpermission_updatenodestatus) API with action 2.
 ```javascript
 > quorumPermission.updateNodeStatus("ORG1.SUB1", "enode://eacaa74c4b0e7a9e12d2fe5fee6595eda841d6d992c35dbbcc50fcee4aa86dfbbdeff7dc7e72c2305d5a62257f82737a8cffc80474c15c611c037f52db1a3a7b@127.0.0.1:21005?discport=0",2, {from:"0x42ef6abedcb7ecd3e9c4816cd5f5a96df35bb9a0"})
 "Action completed successfully"
@@ -388,7 +388,7 @@ To activate the node back invoke [updateNodeStatus](../Permissioning%20apis#quor
 }]
 ```
 
-To blacklist a node invoke [updateNodeStatus](../Permissioning%20apis#quorumpermissionupdatenodestatus) API with action 3. Once blacklisted the node will never be able join the network again.
+To blacklist a node invoke [updateNodeStatus](../Permissioning%20apis#quorumpermission_updatenodestatus) API with action 3. Once blacklisted the node will never be able join the network again.
 ```javascript
 > quorumPermission.getOrgDetails("ORG1.SUB1").nodeList
 [{
@@ -410,7 +410,7 @@ Further:
 * If a node is deactivated no transaction will be allowed from that node
 
 ### Suspending an organization temporarily
-If there is a need to temporarily suspend all activities of an organization [updateOrgStatus](../Permissioning%20apis#quorumpermissionupdateorgstatus) API can be invoked with action 1. This can be invoked only by the network admin accounts and will reuiqre majority voting.
+If there is a need to temporarily suspend all activities of an organization [updateOrgStatus](../Permissioning%20apis#quorumpermission_updateorgstatus) API can be invoked with action 1. This can be invoked only by the network admin accounts and will reuiqre majority voting.
 ```javascript
 > quorumPermission.updateOrgStatus("ORG1", 1, {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
 "Action completed successfully"
@@ -426,7 +426,7 @@ If there is a need to temporarily suspend all activities of an organization [upd
 }
 ```
 
-To approve the org, suspension majority approval from other network admin accounts is required. The api for the same is [approveOrgStatus](../Permissioning%20apis#quorumpermissionapproveorgstatus). Once approved the org status is marked as suspended.
+To approve the org, suspension majority approval from other network admin accounts is required. The api for the same is [approveOrgStatus](../Permissioning%20apis#quorumpermission_approveorgstatus). Once approved the org status is marked as suspended.
 ```javascript
 > quorumPermission.approveOrgStatus("ORG1", 1, {from: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e"})
 "Action completed successfully"
@@ -446,7 +446,7 @@ When the org is suspended no transaction from any of the account linked to the o
 
 
 ### Revoking suspension of an organization
-To revoke the suspension of an org [updateOrgStatus](../Permissioning%20apis#quorumpermissionupdateorgstatus) can be called with action as 2. This will require majority approval (API [approveOrgStatus](../Permissioning%20apis#quorumpermissionapproveorgstatus) with action 2). 
+To revoke the suspension of an org [updateOrgStatus](../Permissioning%20apis#quorumpermission_updateorgstatus) can be called with action as 2. This will require majority approval (API [approveOrgStatus](../Permissioning%20apis#quorumpermissionapproveorgstatus) with action 2). 
 ```javascript
 > quorumPermission.updateOrgStatus("ORG1", 2, {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
 "Action completed successfully"
@@ -468,7 +468,7 @@ Once the revoke is approved, all accounts in the organization and sub organizati
 
 ### Assigning admin privileges at organization and network level
 There may be a scenario where one of the accounts at the organization level needs to have network admin level permissions and be able to perform network admin activities. Similarly there can be a need to change the admin account at organization level. Both these activities can be performed by existing network admin accounts only, and will require majority approval from the network admin accounts. The API usage details are as below.
-To assign network admin or org admin role to an account invoke [assignAdminRole](../Permissioning%20apis#quorumpermissionassignadminrole).
+To assign network admin or org admin role to an account invoke [assignAdminRole](../Permissioning%20apis#quorumpermission_assignadminrole).
 ```javascript
 > quorumPermission.assignAdminRole("ORG1", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", "ADMIN", {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
 "Action completed successfully"
@@ -482,7 +482,7 @@ To assign network admin or org admin role to an account invoke [assignAdminRole]
 }
 ```
 
-To approve the assignment of network admin role invoke [approveAdminRole](../Permissioning%20apis#quorumpermissionapproveadminrole) API.
+To approve the assignment of network admin role invoke [approveAdminRole](../Permissioning%20apis#quorumpermission_approveadminrole) API.
 ```javascript
 > quorumPermission.approveAdminRole("ORG1", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
 "Action completed successfully"
