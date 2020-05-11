@@ -66,6 +66,87 @@ txnMngr.sendRawTransaction(args);
 | `cacert` | `String` | no | CA certificate as byte string |
 | `allowInsecure` | `boolean` | no | do not verify the Privacy Manager's certificate (can be used to allow self-signed certificates) |
 
+### Methods
+
+#### sendRawTransaction
+```js
+txnMngr.sendRawTransaction(txnParams);
+```
+Calls Tessera's `ThirdParty` `/storeraw`, replaces `data` field in `txnParams` with response (i.e. encrypted-payload hash), signs the transaction with the `from` account defined in `txnParams`, marks the transaction as private, RLP encodes the transaction in hex format, submits the signed transaction to the blockchain with `eth_sendRawPrivateTransaction`.
+
+##### Parameters
+1. `txnParams` - The transaction to sign and send 
+    - `gasPrice`: `Number` - Must always be 0 in Quorum networks
+    - `gasLimit`: `Number` - The amount of gas to use for the transaction
+    - `to`: `String` - (optional) The destination address of the message, left undefined for a contract-creation transaction 
+    - `value`: `Number` - (optional) The value transferred for the transaction, also the 
+    endowment if it's a contract-creation transaction
+    - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code (bytecode)
+    - `decryptedAccount` : `String` - The public key of the sender's account
+    - `nonce`: `Number`  - (optional) Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce
+    - `privateFrom`: `String`  - When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, the default key as configured in the `TransactionManager` is used
+    - `privateFor`: `List<String>`  - When sending a private transaction, an array of the recipients' base64-encoded public keys
+    - `isPrivate`: `boolean` - Is the transaction private 
+    
+##### Returns
+A promise that resolves to the transaction receipt if the transaction was sent successfully, else rejects with an error.
+
+#### sendRawTransactionViaSendAPI
+```js
+txnMngr.sendRawTransactionViaSendAPI(txnParams);
+```
+Calls `Q2T` `/send` to encrypt txn data and send to all participant Privacy Manager nodes, replaces `data` field in `txnParams` with response (i.e. encrypted-payload hash), signs the transaction with the `from` account defined in `txnParams`, marks the transaction as private, submits the signed transaction to the blockchain with `eth_sendRawTransaction`.
+##### Parameters
+1. `txnParams` - The transaction to sign and send 
+    - `gasPrice`: `Number` - Must always be 0 in Quorum networks
+    - `gasLimit`: `Number` - The amount of gas to use for the transaction
+    - `to`: `String` - (optional) The destination address of the message, left undefined for a contract-creation transaction 
+    - `value`: `Number` - (optional) The value transferred for the transaction, also the 
+    endowment if it's a contract-creation transaction
+    - `data`: `String` - (optional) Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code (bytecode)
+    - `decryptedAccount` : `String` - The public key of the sender's account
+    - `nonce`: `Number`  - (optional) Integer of a nonce. This allows to overwrite your own pending transactions that use the same nonce
+    - `privateFrom`: `String`  - When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, the default key as configured in the `TransactionManager` is used
+    - `privateFor`: `List<String>`  - When sending a private transaction, an array of the recipients' base64-encoded public keys
+    - `isPrivate`: `boolean` - Is the transaction private 
+    
+##### Returns
+A promise that resolves to the transaction receipt if the transaction was sent successfully, else rejects with an error.
+
+#### setPrivate
+```js
+txnMngr.setPrivate(rawTransaction);
+```
+Marks a signed transaction as private by changing the value of `v` to `37` or `38`.
+##### Parameters
+1. `rawTransaction`: `String` - RLP-encoded signed transaction
+##### Returns 
+Updated RLP-encoded signed transaction
+
+#### sendRawRequest
+```js
+txnMngr.sendRawRequest(rawTransaction, privateFor);
+```
+Call `eth_sendRawPrivateTransaction`, sending the signed transaction to the recipients specified in `privateFor`.
+##### Parameters
+1. `rawTransaction`: `String` - RLP-encoded signed transaction
+1. `privateFor`: `List<String>` - List of the recipients' base64-encoded public keys
+
+##### Returns
+A promise that resolves to the transaction receipt if the transaction was sent successfully, else rejects with an error.
+
+#### storeRawRequest
+```js
+txnMngr.storeRawRequest(data, privateFrom);
+```
+Calls Tessera's `ThirdParty` `/storeraw`.
+##### Parameters
+1. `data`: `String` - Hex encoded private transaction data (i.e. value of `data` field in the transaction)
+1. `privateFrom`: `String` - When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, the default key as configured in the `TransactionManager` is used
+
+##### Returns
+A promise that resolves to the hex-encoded hash of the encrypted `data`.  
+
 ## Start sending requests
 
 ## Starting Web3 on HTTP
