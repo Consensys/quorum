@@ -90,7 +90,7 @@ nav:
         - quorum.js:
             - Overview: quorum.js/Overview.md
             - extend API: quorum.js/extend.md
-            - rawTransactionManager API: quorum.js/rawTransactionManager.md
+            - RawTransactionManager API: quorum.js/RawTransactionManager.md
     - Security Framework:
           - Overview: Security/Framework/Overview.md
           - Quorum Network:

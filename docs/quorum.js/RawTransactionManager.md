@@ -1,4 +1,4 @@
-**TODO - add an overview**
+The `RawTransactionManager` module of quorum.js provides access to private transaction APIs that require a connection to a [Privacy Manager](../../Privacy/Privacy-Manager).
 
 ## Example
 ```js
@@ -26,23 +26,23 @@ txnMngr.sendRawTransaction(args);
 ## Parameters
 | param | type | required | description |
 | :---: | :---: | :---: | --- |
-| `web3` | `Object` | yes | web3 instance |
-| `enclaveOptions` | `Object` | yes | Privacy Manager connection configuration - see enclaveOptions below |
+| <span style="white-space:nowrap">`web3`</span> | `Object` | yes | web3 instance |
+| <span style="white-space:nowrap">`enclaveOptions`</span> | `Object` | yes | Privacy Manager connection configuration - see [enclaveOptions](#enclaveoptions) |
 
 ### enclaveOptions
 | param | type | required | description |
 | :---: | :---: | :---: | --- |
-| `privateUrl` | `String` | yes (unless `ipcPath` is provided) | Tessera `ThirdParty` server url (if using the Constellation Privacy Manager use `ipcPath` instead) |
-| `ipcPath` | `String` | no | path to Privacy Manager `.ipc` socket file, `privateUrl` is preferred |
-| `tlsSettings` | `Object` | no | TLS configuration for HTTPS Privacy Manager connections - see tlsSettings below |
+| <span style="white-space:nowrap">`privateUrl`</span> | `String` | yes (unless `ipcPath` is provided) | Tessera `ThirdParty` server url (if using the Constellation Privacy Manager use `ipcPath` instead) |
+| <span style="white-space:nowrap">`ipcPath`</span> | `String` | no | path to Privacy Manager `.ipc` socket file, `privateUrl` is preferred |
+| <span style="white-space:nowrap">`tlsSettings`</span> | `Object` | no | TLS configuration for HTTPS Privacy Manager connections - see [tlsSettings](#tlssettings) |
 
 ### tlsSettings
 | param | type | required | description |
 | :---: | :---: | :---: | --- |
-| `key` | `String` | no  | client private key as byte string |
-| `clcert` | `String` | no | client certificate (signed/unsigned) as byte string |
-| `cacert` | `String` | no | CA certificate as byte string |
-| `allowInsecure` | `boolean` | no | do not verify the Privacy Manager's certificate (can be used to allow self-signed certificates) |
+| <span style="white-space:nowrap">`key`</span> | `String` | no  | client private key as byte string |
+| <span style="white-space:nowrap">`clcert`</span> | `String` | no | client certificate (signed/unsigned) as byte string |
+| <span style="white-space:nowrap">`cacert`</span> | `String` | no | CA certificate as byte string |
+| <span style="white-space:nowrap">`allowInsecure`</span> | `boolean` | no | do not verify the Privacy Manager's certificate (can be used to allow self-signed certificates) |
 
 ## Methods
 
