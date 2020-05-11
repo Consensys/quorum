@@ -29,8 +29,15 @@ const quorumjs = require("quorum-js");
 
 const web3 = new Web3("http://localhost:22000");
 
+const tlsOptions = {
+    key: fs.readFileSync("./cert.key"),
+    clcert: fs.readFileSync("./cert.pem"),
+    cacert: fs.readFileSync("./cacert.pem"),
+    allowInsecure: false
+};
 const enclaveOptions = {
-    privateUrl: "http://localhost:9081"
+    privateUrl: "http://localhost:9081",
+    tlsSettings: tlsOptions
 };
 
 const txnMngr = quorumjs.RawTransactionManager(web3, enclaveOptions);
@@ -54,10 +61,10 @@ txnMngr.sendRawTransaction(args);
 #### tlsSettings
 | param | type | required | description |
 | :---: | :---: | :---: | --- |
-| `key` | `String` | no  | path to client key file |
-| `clcert` | `String` | no | path to client cert file |
-| `cacert` | `String` | no | path to ca cert file |
-| `allowInsecure` | `boolean` | no | do not verify the Privacy Manager's certificate |
+| `key` | `String` | no  | client private key as byte string |
+| `clcert` | `String` | no | client certificate (signed/unsigned) as byte string |
+| `cacert` | `String` | no | CA certificate as byte string |
+| `allowInsecure` | `boolean` | no | do not verify the Privacy Manager's certificate (can be used to allow self-signed certificates) |
 
 ## Start sending requests
 
@@ -189,30 +196,3 @@ txnManager.sendRawRequest(serializedTransaction, privateFor)
 ## Examples for using quorum.js with [quorum-examples/7nodes](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes)
 
 Please see using Constellation and Quorum implementation private txn [example](https://github.com/jpmorganchase/quorum.js/blob/master/7nodes-test/deployContractViaIpc.js) and Tessera implementation [example](https://github.com/jpmorganchase/quorum.js/blob/master/7nodes-test/deployContractViaHttp.js). An extension sample is also provided.
-
-## Example for connecting to Tessera node with TLS enabled
-
-To send a request to Tessera node with TLS enabled for raw transactions, add the cert information as specified below. 
-
-```js
-
-let tlsOptions = {
-        key: fs.readFileSync('./cert.key'),
-        clcert: fs.readFileSync('./cert.pem'),
-        ca: fs.readFileSync('./cert.pem')
-        allowInsecure: false
-    }
-
-const rawTransactionManager = quorumjs.RawTransactionManager(web31, {
-        privateUrl:toPrivateURL,
-        tlsSettings: tlsOptions
-    });
-
-```
-
-##### Parameters
-
-  - `key` : `String` - a byte string with private key of the client
-  - `clcert` : `String` - a byte string with client certificate (signed / unsigned)
-  - `ca` : `String` - (Optional) a byte string with CA certificate
-  - `allowInsecure` : `Boolean` - to accept self signed certificates
