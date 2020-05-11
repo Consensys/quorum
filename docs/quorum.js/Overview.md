@@ -1,6 +1,10 @@
-# quorum.js: JavaScript API for Quorum
+# quorum.js
 
-quorum.js is an extension for [web3.js](https://github.com/ethereum/web3.js/) which adds support for APIs specific to [Quorum](https://github.com/jpmorganchase/quorum).
+## Overview, Installation & Quickstart
+See the [project page README](https://github.com/jpmorganchase/quorum.js). 
+
+This documentation provides additional usage and API information not included in the README.
+
 
 ## ToDo
 * Selectable APIs to extend
