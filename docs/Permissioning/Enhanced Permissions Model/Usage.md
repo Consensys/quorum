@@ -446,7 +446,7 @@ When the org is suspended no transaction from any of the account linked to the o
 
 
 ### Revoking suspension of an organization
-To revoke the suspension of an org [updateOrgStatus](../Permissioning%20apis#quorumpermission_updateorgstatus) can be called with action as 2. This will require majority approval (API [approveOrgStatus](../Permissioning%20apis#quorumpermissionapproveorgstatus) with action 2). 
+To revoke the suspension of an org [updateOrgStatus](../Permissioning%20apis#quorumpermission_updateorgstatus) can be called with action as 2. This will require majority approval (API [approveOrgStatus](../Permissioning%20apis#quorumpermission_approveorgstatus) with action 2). 
 ```javascript
 > quorumPermission.updateOrgStatus("ORG1", 2, {from: "0xed9d02e382b34818e88b88a309c7fe71e65f419d"})
 "Action completed successfully"
