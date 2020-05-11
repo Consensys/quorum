@@ -127,21 +127,9 @@ txnMngr.setPrivate(rawTransaction);
 ```
 Marks a signed transaction as private by changing the value of `v` to `37` or `38`.
 ##### Parameters
-1. `rawTransaction`: `String` - RLP-encoded signed transaction
+1. `rawTransaction`: `String` - RLP-encoded hex-format signed transaction
 ##### Returns 
-Updated RLP-encoded signed transaction
-
-#### sendRawRequest
-```js
-txnMngr.sendRawRequest(rawTransaction, privateFor);
-```
-Call `eth_sendRawPrivateTransaction`, sending the signed transaction to the recipients specified in `privateFor`.
-##### Parameters
-1. `rawTransaction`: `String` - RLP-encoded signed transaction
-1. `privateFor`: `List<String>` - List of the recipients' base64-encoded public keys
-
-##### Returns
-A promise that resolves to the transaction receipt if the transaction was sent successfully, else rejects with an error.
+Updated RLP-encoded hex-format signed transaction
 
 #### storeRawRequest
 ```js
@@ -149,25 +137,23 @@ txnMngr.storeRawRequest(data, privateFrom);
 ```
 Calls Tessera's `ThirdParty` `/storeraw`.
 ##### Parameters
-1. `data`: `String` - Hex encoded private transaction data (i.e. value of `data` field in the transaction)
-1. `privateFrom`: `String` - When sending a private transaction, the sending party's base64-encoded public key to use. If not present *and* passing `privateFor`, the default key as configured in the `TransactionManager` is used
+1. `data`: `String` - Hex encoded private transaction data (i.e. value of `data`/`input` field in the transaction)
+1. `privateFrom`: `String` - Sending party's base64-encoded public key
 
 ##### Returns
-A promise that resolves to the hex-encoded hash of the encrypted `data`.  
+A promise that resolves to the hex-encoded hash of the encrypted `data` (`key` field).  
 
-## Start sending requests
-
-## Starting Web3 on HTTP
-
-To send asynchronous requests we need to instantiate `web3` with a `HTTP` address that points to the `Quorum` node.
-
+#### sendRawRequest
 ```js
-      const Web3 = require("web3");
-      const web3 = new Web3(
-        new Web3.providers.HttpProvider("http://localhost:22001")
-      );
-      const account = web3.eth.accounts[0];
+txnMngr.sendRawRequest(rawTransaction, privateFor);
 ```
+Call `eth_sendRawPrivateTransaction`, sending the signed transaction to the recipients specified in `privateFor`.
+##### Parameters
+1. `rawTransaction`: `String` - RLP-encoded hex-format signed transaction
+1. `privateFor`: `List<String>` - List of the recipients' base64-encoded public keys
+
+##### Returns
+A promise that resolves to the transaction receipt if the transaction was sent successfully, else rejects with an error.
 
 ### Send raw transactions using external signer. [Only available in Tessera with Quorum v2.2.0+]
 
@@ -189,14 +175,7 @@ txnManager.storeRawRequest(data, from)
 
 ```
 
-##### Parameters
-
-  - `data`: `String` - Either a [byte string](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI) 
-    containing the associated data of the message, or in the case of a contract-creation transaction, the initialisation code (bytecode).
-  - `from`: `String` (Optional) - Sender public key
-
 A raw transaction will then need to be formed and signed, please note the data field will need to be replaced with the transaction hash which was returned from the privacy manager (the `key` field of the response data from `storeRawRequest` api call).
-
 
 Secondly, the raw transaction can then be sent to Quorum by `sendRawRequest` function:
 
@@ -208,11 +187,3 @@ txnManager.sendRawRequest(serializedTransaction, privateFor)
 
 ```
 
-##### Parameters
-
-  - `serializedTransaction`: `String` - Signed transaction data in HEX format.
-  - `privateFor`: `List<String>` - When sending a private transaction, an array of the recipients' base64-encoded public keys.
-
-## Examples for using quorum.js with [quorum-examples/7nodes](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes)
-
-Please see using Constellation and Quorum implementation private txn [example](https://github.com/jpmorganchase/quorum.js/blob/master/7nodes-test/deployContractViaIpc.js) and Tessera implementation [example](https://github.com/jpmorganchase/quorum.js/blob/master/7nodes-test/deployContractViaHttp.js). An extension sample is also provided.
