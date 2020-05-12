@@ -18,7 +18,7 @@ Key enhancements over go-ethereum:
     * [__Raft-based Consensus__](http://docs.goquorum.com/en/latest/Consensus/raft/raft/) - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
     * [__Istanbul BFT__](http://docs.goquorum.com/en/latest/Consensus/ibft/ibft/) - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
     * [__Clique POA Consensus__](https://github.com/ethereum/EIPs/issues/225) - a default POA consensus algorithm bundled with Go Ethereum.
-* [__Peer Permissioning__](http://docs.goquorum.com/en/latest/Permissioning/Overview/) - node/peer permissioning using smart contracts, ensuring only known parties can join the network
+* [__Peer Permissioning__](http://docs.goquorum.com/en/latest/Permissioning/Permissions%20Overview/) - node/peer permissioning, ensuring only known parties can join the network
 * [__Pluggable architecture__](http://docs.goquorum.com/en/latest/PluggableArchitecture/Overview/) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of Quorum features.
 * __Higher Performance__ - Quorum offers significantly higher performance throughput than public geth
 

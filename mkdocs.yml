@@ -65,7 +65,7 @@ nav:
         - Permissioning:
             - Overview: Permissioning/Permissions Overview.md
             - Basic Network Permissioning: Permissioning/Basic NetworkPermissions.md
-            - Enhanced Pemrissions Model:
+            - Enhanced Permissions Model:
               - Overview: Permissioning/Enhanced Permissions Model/Overview.md
               - Design: Permissioning/Enhanced Permissions Model/Contract Design.md
               - Setup: Permissioning/Enhanced Permissions Model/setup.md
