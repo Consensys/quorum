@@ -1,5 +1,5 @@
 ## Quorum Wizard
-[Quorum Wizard](https://github.com/jpmorganchase/quorum-wizard) is a command line tool that allow users to set up a development Quorum network on their local machine in less than 2 minutes.
+[Quorum Wizard](https://github.com/jpmorganchase/quorum-wizard) is a command line tool that allows users to set up a development Quorum network on their local machine in less than 2 minutes.
 
 ![](docs/quorum-wizard.gif)
 

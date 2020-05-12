@@ -29,7 +29,7 @@ Key enhancements over go-ethereum:
 The above diagram is very high-level overview of component architecture used by Quorum. For more in-depth discussion of the components and how they interact, please refer to [lifecycle of a private transaction](http://docs.goquorum.com/en/latest/Privacy/Lifecycle-of-a-private-transaction/).
 
 ## Quickstart
-The quickest way to get started with Quorum is by using [Quorum Wizard](http://docs.goquorum.com/en/latest/Wizard/GettingStarted/). Quorum Wizard is a command line tool that allow users to set up a development Quorum network on their local machine in less than *2 minutes*.
+There are [several ways](https://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/) to quickly get up and running with Quorum.  One of the easiest is to use [Quorum Wizard](https://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/#quickstart-with-quorum-wizard) - a command line tool that allows users to set up a development Quorum network on their local machine in less than *2 minutes*.
 
 ## Quorum Projects
 
