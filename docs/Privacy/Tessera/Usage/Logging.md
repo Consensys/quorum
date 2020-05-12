@@ -1,16 +1,14 @@
 Messages are written to the logs using these rules for the log level:
 
-* ERROR: system failures or situations that require some action to ensure correct operation of the system.
-* WARN: notifications that don't require immediate action or that are indications that a transaction failed.
-* INFO: information message to allow investigation of issues or to provide reassurance that the system is operating correctly. 
-* DEBUG: very verbose logging to assist with investigation of issues
+* `ERROR`: system failures or situations that require some action to ensure correct operation of the system.
+* `WARN`: notifications that don't require immediate action or that are indications that a transaction failed.
+* `INFO`: information message to allow investigation of issues or to provide reassurance that the system is operating correctly. 
+* `DEBUG`: very verbose logging to assist with investigation of issues
 
 The log level is written out in uppercase as part of the log message, this can be used for alert monitoring.
 
 ## Errors
 Below is a non-exhaustive list of error messages and suggested actions. Braces '{}' indicate where further detail of the root cause is logged as part of the message.
-
-<br><b>Action:</b> <em></em>
 
 <table>
 <tr>
@@ -25,35 +23,35 @@ Below is a non-exhaustive list of error messages and suggested actions. Braces '
     <td>Error occurred: {error details} Root cause: {root cause}</td>
     <td>Generated for a variety of reasons:
         <ul>
-            <li> Invalid content in message, e.g.<br><pre>curl -X POST "http://localhost:9001/push" \ <br>    -H "accept: application/json" \<br>    -H "Content-Type: application/octet-stream" \ <br>    -d "[ \"a garbage string\"]"</pre><br></li>
-            <li> Could not send message to peer, e.g. "Root cause: Unable to push payload to recipient url http://localhost:9001/"</li>
+            <li> Invalid content in message, e.g. <pre>curl -X POST "http://localhost:9001/push" \ <br>    -H "accept: application/json" \<br>    -H "Content-Type: application/octet-stream" \ <br>    -d "[ \"a garbage string\"]"</pre></li>
+            <li> Could not send message to peer, e.g. <pre>"Root cause: Unable to push payload to recipient url<br>http://localhost:9001/"</pre></li>
         </ul>
-        <br><b>Action:</b> <em>depends on the root cause in the log message</em>
+        <b>Action:</b> <em>depends on the root cause in the log message</em>
     </td>
 </tr>
 <tr>
     <td>Enclave unavailable: {error details}</td>
-    <td><br><b>Action:</b> <em>user needs to check why enclave is unavailable (look in log file for enclave)</em></td>
+    <td><b>Action:</b> <em>user needs to check why enclave is unavailable (look in log file for enclave)</em></td>
 </tr>
 <tr>
     <td>Entity not found: {error details}</td>
-    <td>API request received against q2tserver/transaction/{key} where key is not a tx hash in the DB</td>
+    <td>API request received against <code>q2tserver/transaction/{key}</code> where key is not a tx hash in the DB</td>
 </tr>
 <tr>
     <td>Entity not found:{error details}</td>
-    <td>Thrown if endpoint doesn't exist on that API, e.g.<br><pre>curl -s http://localhost:9001/invalidendpoint</pre></td>
+    <td>Thrown if endpoint doesn't exist on that API, e.g.<pre>curl -s http://localhost:9001/invalidendpoint</pre></td>
 </tr>
 <tr>
     <td>Security exception {followed by exception message, like "java.lang.SecurityException: No key found for url 127.1.1.1"}</td>
-    <td>Thrown if 'enableRemoteKeyValidation' is true and partyinfo request received from a URL for which we don't hold a public key (i.e. potentially a malicious party).<br>Note: if key validation enabled then this exception will be thrown during startup whilst the nodes exchange key information.</td>
+    <td>Thrown if <code>enableRemoteKeyValidation: true</code> and partyinfo request received from a URL for which we don't hold a public key (i.e. potentially a malicious party).<br>Note: if key validation enabled then this exception will be thrown during startup whilst the nodes exchange key information.</td>
 </tr>
 <tr>
     <td>ERROR c.q.t.a.e.DefaultExceptionMapper - HTTP 400 Bad Request</td>
-    <td>Logged if received message is corrupt/incorrectly formatted, along with the warning below, e.g.<br>    curl -X POST "http://localhost:9001/resend" -H "accept: text/plain" -H "Content-Type: application/json" -d "{ \"some rubbish\" }"</td>
+    <td>Logged if received message is corrupt/incorrectly formatted, e.g.<pre>curl -X POST "http://localhost:9001/resend" \<br>    -H "accept: text/plain" \<br>    -H "Content-Type: application/json" \<br>    -d "{ \"some rubbish\" }"</pre></td>
 </tr>
 <tr>
     <td>Error while reading secret from file</td>
-    <td>Unable to read the secret key (password) from file specified by TESSERA_CONFIG_SECRET<br>
+    <td>Unable to read the secret key (password) from file specified by <code>TESSERA_CONFIG_SECRET</code><br>
         <b>Action:</b> <em>ensure the secret key file config is correct, and file can be read</em>
     </td>
 </tr>
@@ -153,7 +151,7 @@ Below is a list of warning messages and possible causes. Braces '{}' indicate wh
 </tr>
 <tr>
     <td>Not able to find or read any secret for decrypting sensitive values in config</td>
-    <td>Secret key (password) could not be read from console or password file (see TESSERA_CONFIG_SECRET in docs).<br>
+    <td>Secret key (password) could not be read from console or password file (see <code>TESSERA_CONFIG_SECRET in docs</code>).<br>
         <b>Action:</b> <em>correction needed for the secret key or the file access permission</em>
     </td>
 </tr>
@@ -222,7 +220,15 @@ Below is a list of warning messages and possible causes. Braces '{}' indicate wh
 </tr>
 <tr>
     <td>Failed to connect to node {remote node url}, due to {error details}</td>
-    <td>A remote node refused partyinfo request. Can occur if:<br>- remote node is not running<br>- remote node doesn't recognise this node's public key<br>- remote node doesn't have this node's IP registered against a key<br>- etc<br>Can also be expected to occur when nodes are shutdown/restarted, so not necessarily an error.</td>
+    <td>A remote node refused partyinfo request. Can occur if:
+        <ul>
+            <li>remote node is not running</li>
+            <li>remote node doesn't recognise this node's public key</li>
+            <li>remote node doesn't have this node's IP registered against a key</li>
+            <li>etc</li>
+        </ul>
+        Can also be expected to occur when nodes are shutdown/restarted, so not necessarily an error.
+    </td>
 </tr>
 <tr>
     <td>Failed to connect to node {remote node url} for partyInfo, due to {error details}</td>
