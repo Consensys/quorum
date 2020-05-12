@@ -22,7 +22,7 @@ nav:
         - Quorum GraphQL: Getting Started/graphql.md
         - Migration: Getting Started/migration.md 
     - Quorum Features: 
-        - Transaction & Contract Privacy:
+        - Transaction/Contract Privacy:
             - Overview: Privacy/Overview.md
             - Privacy/Privacy-Manager.md
             - Privacy/Lifecycle-of-a-private-transaction.md
@@ -64,8 +64,8 @@ nav:
                 - Consensus/ibft/ibft-parameters.md     
         - Permissioning:
             - Overview: Permissioning/Permissions Overview.md
-            - Basic Network Permissioning: Permissioning/Basic NetworkPermissions.md
-            - Enhanced Permissions Model:
+            - Basic: Permissioning/Basic NetworkPermissions.md
+            - Enhanced:
               - Overview: Permissioning/Enhanced Permissions Model/Overview.md
               - Design: Permissioning/Enhanced Permissions Model/Contract Design.md
               - Setup: Permissioning/Enhanced Permissions Model/setup.md
