@@ -101,15 +101,6 @@ If the `--configout` and `--pwdout` options are not provided, the updated `.json
      tessera -configfile /path/to/new.json
      ```  
 
-## Private Key Storage Algorithm
-The following steps detail the technique used to manage the private keys:
-
- 1. Given a password P
- 2. Generate random Argon2i  nonce
- 3. Generate random NaCl secretbox  nonce
- 4. Stretch P using Argon2i (and the Argon2i nonce) into a 32-byte master key (MK)
- 5. Encrypt Private key in secretbox using secretbox nonce and Argon2i-stretched MK
- 
 ## Securing private keys
 Generated private keys can be encrypted with a password.  This is prompted for on the console during key generation.  After generating password-protected keys, the password must be added to your configuration to ensure Tessera can read the keys.  The password is not saved anywhere but must be added to the configuration else the key will not be able to be decrypted.  
 
@@ -155,6 +146,15 @@ Password update can be used in multiple ways.  Running any of these commands wil
     tessera --keys.keyData.privateKeyPath <path to keyfile> --keys.keyData.config.data.aopts.algorithm <algorithm> --keys.keyData.config.data.aopts.iterations <iterations> --keys.keyData.config.data.aopts.memory <memory> --keys.keyData.config.data.aopts.parallelism <parallelism>
     ```
     All options have been overriden here but only the options you wish to alter from their defaults need to be provided.
+
+### Password-protection algorithm
+The following steps detail the process of password-protecting a private key:
+
+ 1. Given private key `K` and password `P` 
+ 2. Generate random Argon2i nonce
+ 3. Generate random encryption nonce
+ 4. Stretch `P` using Argon2i (with the Argon2i nonce and custom or default [ArgonOptions](#securing-private-keys)) into a 32-byte master key (`MK`)
+ 5. Symmetrically encrypt `K` with `MK` and the encryption nonce
 
 ## Using alternative curve key types
 By default the `-keygen` and `-updatepassword` commands generate and update [NaCl](https://nacl.cr.yp.to/) compatible keys.  
