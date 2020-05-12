@@ -160,3 +160,6 @@ The following steps detail the process of password-protecting a private key:
 By default the `-keygen` and `-updatepassword` commands generate and update [NaCl](https://nacl.cr.yp.to/) compatible keys.  
 
 As of Tessera v0.10.2, the `--encryptor.type=EC` CLI option can be provided to generate/update keys of different types.  See [encryptor config](../../../Configuration/Configuration Overview/#encryptor-supporting-alternative-curves-in-tessera) for more details.
+
+## Rotation
+Tessera is built to support rotation trivially, by allowing counterparties to advertise multiple keys at once. The tooling to make rotation seamless and automatic is on our Roadmap.

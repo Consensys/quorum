@@ -10,15 +10,6 @@ This enables all sensitive operations to be handled in a single place, without a
 
 The Transaction Manager, which handles peer management and database access, as well as Quorum communication does not perform **any** encryption/decryption, greatly reducing the impact an attack can have.
 
-## Enclave Encryption Technique
-The Enclave encrypts payloads sent to it by the Transaction Manager using xsalsa20poly1305 (payload container) and curve25519xsalsa20poly1305 (recipient box). Each payload encryption produces a payload container,  as well as N recipient boxes, where N is the number of recipients specified in the `privateFor` param of the Transaction. 
-
- * A payload container contains the payload encrypted with a symmetric key and a random nonce
- * A recipient box is the Master Key for the payload container encrypted for the public key of a recipient using a random nonce. (Note that this is basically how PGP works, but using the [NaCl](https://nacl.cr.yp.to/) cryptographic primitives.)
-
-We currently manually define all public key whitelists, and don’t do automatic rotation of keys, however the system was built to support rotation trivially, by allowing counterparties to advertise multiple keys at once. The tooling to make it seamless and automatic is on the our Roadmap.
-We also do not currently have a PKI system, but simply randomly generate keys that are manually added to whitelists (e.g. a registry of authorized counterparties on the blockchain.) The process is currently for operators to generate a keypair and then add the public keys to the whitelists manually.
-
 ## What exactly does the Enclave handle?
 
 The Tessera Enclave **handles** the following data:
@@ -39,15 +30,12 @@ The Enclave **performs** the following actions on request:
 
 ## Where does the Enclave sit in the private transaction flow?
 
-The Enclave is the innermost actor of the sequence of events. The below diagram demonstrates where the Enclave sits:
-
-![Quorum Tessera Privacy Flow](https://github.com/jpmorganchase/tessera/raw/master/Tessera%20Privacy%20flow.jpeg)
-
-As the diagram shows, each Enclave interacts only with it's own transaction manager and no-one else.
-
-Tessera provides different types of Enclaves to suit different needs:
+The Enclave is the innermost actor of the sequence of events.  Each Enclave only interacts with its corresponding Transaction Manager and nothing else.  
+ 
+See the [Lifecycle of a private transaction](../../../Lifecycle-of-a-private-transaction) for a description of the role of the Enclave. 
 
 ## Types of Enclave
+Tessera provides different types of Enclaves to suit different needs:
 
 ### Local Enclave
 The local Enclave is the classical option that was included in versions of Tessera prior to v0.9. This includes the Enclave inside the same process and the transaction manager. This is still an option, and requires all the Enclave configuration to be inside the same configuration file and the Transaction Manager configuration.
