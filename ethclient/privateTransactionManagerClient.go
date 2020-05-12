@@ -24,14 +24,10 @@ func newPrivateTransactionManagerClient(endpoint string) (privateTransactionMana
 	if err != nil {
 		return nil, err
 	}
-	return newPrivateTransactionManagerClientNoValidation(endpoint, &http.Client{}), nil
-}
-
-func newPrivateTransactionManagerClientNoValidation(endpoint string, httpclient *http.Client) privateTransactionManagerClient {
 	return &privateTransactionManagerDefaultClient{
 		rawurl:     endpoint,
-		httpClient: httpclient,
-	}
+		httpClient: &http.Client{},
+	}, nil
 }
 
 type storeRawReq struct {
