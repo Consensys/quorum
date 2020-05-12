@@ -1,6 +1,6 @@
 # Quorum Permissioning Overview
-Quorum supports two permissions model. 
+Quorum supports two network permissioning models. 
 
-* Basic network permissioning feature which controls which nodes can connect to a given node and also to which nodes the given node can dial out to. For further details on this please refer to [this](../Basic%20NetworkPermissions) for further details on basic network permissioning
+* [Basic network permissioning](../Basic%20NetworkPermissions): Controls which nodes can connect to a given node and also to which nodes the given node can dial out to.
 
-* Enhanced permissions model: The basic network permissioning has been enhanced further to cater for enterprise level needs to have a **smart contract based permission model**; this has the flexibility to manage nodes, accounts and account level access controls. Please refer to [this](../Enhanced%20Permissions%20Model/Overview) for further details on enhanced permissions model
+* [Enhanced network permissioning](../Enhanced%20Permissions%20Model/Overview): Caters for enterprise-level needs by having a **smart contract-based permissioning model**.  This allows for significant flexibility to manage nodes, accounts, and account-level access controls.

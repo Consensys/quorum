@@ -1,6 +1,6 @@
-# Network Permissioning
+# Basic Network Permissioning
 
-Network Permissioning is a feature that controls which nodes can connect to a given node and also to which nodes the given node can dial out to. Currently, it is managed at the individual node level by the `--permissioned` command line flag when starting the node.
+Basic Network Permissioning is a feature that controls which nodes can connect to a given node and also to which nodes the given node can dial out to. It is managed at the individual node level by providing the `--permissioned` command line flag when starting the node.
 
 If the `--permissioned` flag is set, the node looks for a file named `<data-dir>/permissioned-nodes.json` . This file contains the whitelist of enodes that this node can connect to and accept connections from. Therefore, with permissioning enabled, only the nodes that are listed in the `permissioned-nodes.json` file become part of the network. If the `--permissioned` flag is specified but no nodes are added to the `permissioned-nodes.json` file then this node can neither connect to any node nor accept any incoming connections.
 
@@ -20,5 +20,5 @@ Sample file: (node id truncated for clarity)
     ]
    ```
 
-!!! Note
-    In the current implementation, every node has its own copy of the `permissioned-nodes.json` file. In this case, if different nodes have a different list of remote keys then each node may have a different list of permissioned nodes - which may have an adverse effect. In a future release, the permissioned nodes list will be moved from the `permissioned-nodes.json` file to a Smart Contract, thereby ensuring that all nodes will use one global on-chain list to verify network connections. 
+!!! warning
+    Every node has its own copy of the `permissioned-nodes.json` file. If different nodes have different lists of remote keys, then each node may have a different list of permissioned nodes which may have an adverse effect on the network.
