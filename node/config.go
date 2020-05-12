@@ -193,7 +193,7 @@ type Config struct {
 	staticNodesWarning     bool
 	trustedNodesWarning    bool
 	oldGethResourceWarning bool
-	Plugins *plugin.Settings `toml:",omitempty"`
+	Plugins                *plugin.Settings `toml:",omitempty"`
 	// Quorum: EnableNodePermission comes from EnableNodePermissionFlag --permissioned.
 	EnableNodePermission bool `toml:",omitempty"`
 }
