@@ -98,7 +98,6 @@ func TestCheckCompatible(t *testing.T) {
 	rec2 := MaxCodeConfigStruct{big.NewInt(10), 40}
 	rec3 := MaxCodeConfigStruct{big.NewInt(8), 40}
 
-
 	storedMaxCodeConfig0 = append(storedMaxCodeConfig0, defaultRec)
 
 	storedMaxCodeConfig1 = append(storedMaxCodeConfig1, defaultRec)
@@ -274,7 +273,7 @@ func TestCheckCompatible(t *testing.T) {
 			wantErr: nil,
 		},
 		{
-			stored:  &ChainConfig{MaxCodeSize: 32, MaxCodeSizeChangeBlock:big.NewInt(10)},
+			stored:  &ChainConfig{MaxCodeSize: 32, MaxCodeSizeChangeBlock: big.NewInt(10)},
 			new:     &ChainConfig{MaxCodeSizeConfig: storedMaxCodeConfig1},
 			head:    15,
 			wantErr: nil,

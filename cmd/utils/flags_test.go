@@ -74,8 +74,8 @@ func TestSetImmutabilityThreshold(t *testing.T) {
 	fs.Int(QuorumImmutabilityThreshold.Name, 0, "")
 	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(QuorumImmutabilityThreshold.Name, strconv.Itoa(100000)))
-	assert.True(t, arbitraryCLIContext.GlobalIsSet(QuorumImmutabilityThreshold.Name) == true, "immutability threshold flag not set")
-	assert.True(t, arbitraryCLIContext.GlobalInt(QuorumImmutabilityThreshold.Name) == 100000, "immutability threshold value not set")
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(QuorumImmutabilityThreshold.Name), "immutability threshold flag not set")
+	assert.Equal(t, 100000, arbitraryCLIContext.GlobalInt(QuorumImmutabilityThreshold.Name), "immutability threshold value not set")
 }
 
 func TestSetPlugins_whenTypical(t *testing.T) {
