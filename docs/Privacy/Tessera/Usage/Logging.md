@@ -141,15 +141,21 @@ Below is a list of warning messages and possible causes. Braces '{}' indicate wh
 </tr>
 <tr>
     <td>Remote host {remote host name} with IP {remote host IP} failed whitelist validation</td>
-    <td>Logged if whitelist validation is enabled and the remote host is not in the whitelist.<br>Action: either this is a malicious connection attempt, or mis-configuration.</td>
+    <td>Logged if whitelist validation is enabled and the remote host is not in the whitelist.<br>
+        <b>Action:</b> <em>either this is a malicious connection attempt, or mis-configuration</em>
+    </td>
 </tr>
 <tr>
     <td>Ignoring unknown/unmatched json element: {element tag name}</td>
-    <td>An unrecognised element has been found in the config file.<br>Action: remove or correct the config file entry</td>
+    <td>An unrecognised element has been found in the config file.<br>
+        <b>Action:</b> <em>remove or correct the config file entry</em>
+    </td>
 </tr>
 <tr>
     <td>Not able to find or read any secret for decrypting sensitive values in config</td>
-    <td>Secret key (password) could not be read from console or password file (see TESSERA_CONFIG_SECRET in docs).<br>Action: correction needed for the secret key or the file access permission</td>
+    <td>Secret key (password) could not be read from console or password file (see TESSERA_CONFIG_SECRET in docs).<br>
+        <b>Action:</b> <em>correction needed for the secret key or the file access permission</em>
+    </td>
 </tr>
 <tr>
     <td>Some sensitive values are being given as unencrypted plain text in config. Please note this is NOT recommended for production environment.</td>
@@ -165,15 +171,21 @@ Below is a list of warning messages and possible causes. Braces '{}' indicate wh
 </tr>
 <tr>
     <td>Could not compute the shared key for pub {public key} and priv REDACTED</td>
-    <td>Possible cause is that a public key does not match the configured cryptography algorithm.<br>Action: ensure provided key is correct.</td>
+    <td>Possible cause is that a public key does not match the configured cryptography algorithm.<br>
+        <b>Action:</b> <em>ensure provided key is correct</em>
+    </td>
 </tr>
 <tr>
     <td>Could not create sealed payload using shared key {shared key}</td>
-    <td>Possible cause is that a public key does not match the configured cryptography algorithm.<br>Action: ensure provided key is correct</td>
+    <td>Possible cause is that a public key does not match the configured cryptography algorithm.<br>
+        <b>Action:</b> <em>ensure provided key is correct</em>
+    </td>
 </tr>
 <tr>
     <td>Could not open sealed payload using shared key {shared key}</td>
-    <td>Possible cause that wrong password was given for key file decryption or making a change to the values in the keyfile so that the password no longer works.<br>Action: ensure that password is correct for the keyfile</td>
+    <td>Possible cause that wrong password was given for key file decryption or making a change to the values in the keyfile so that the password no longer works.<br>
+        <b>Action:</b> <em>ensure that password is correct for the keyfile</em>
+    </td>
 </tr>
 <tr>
     <td>Unable to generate a new keypair!</td>
@@ -189,15 +201,20 @@ Below is a list of warning messages and possible causes. Braces '{}' indicate wh
 </tr>
 <tr>
     <td>Push returned status code for peer {remote peer url} was {status code}</td>
-    <td>The peer rejected a transaction 'push' request.<br>Action: check logs on peer to see why it failed</td>
+    <td>The peer rejected a transaction 'push' request.<br>
+        <b>Action:</b> <em>check logs on peer to see why it failed</em>
+    </td>
 </tr>
 <tr>
     <td>PartyInfo returned status code for peer{remote peer url} was {status code}</td>
-    <td>The peer rejected a partyInfo request.<br>Action: check logs on peer to see why it failed</td>
+    <td>The peer rejected a partyInfo request.<br>
+        <b>Action:</b> <em>check logs on peer to see why it failed</em></td>
 </tr>
 <tr>
     <td>Unable to resend payload to recipient with public key {public key}, due to {error details}</td>
-    <td>The peer rejected a transaction push request during a resend operation.<br>Action: check reason message, or logs on peer to see why it failed</td>
+    <td>The peer rejected a transaction push request during a resend operation.<br>
+        <b>Action:</b> <em>check reason message, or logs on peer to see why it failed</em>
+    </td>
 </tr>
 <tr>
     <td>Attempt is being made to update existing key with new url. Please switch on remote key validation to avoid a security breach.</td>
@@ -209,11 +226,15 @@ Below is a list of warning messages and possible causes. Braces '{}' indicate wh
 </tr>
 <tr>
     <td>Failed to connect to node {remote node url} for partyInfo, due to {error details}</td>
-    <td>A node failed partyInfo request during resend to peer.<br>Action: check reason message, or logs on peer to see why it failed</td>
+    <td>A node failed partyInfo request during resend to peer.<br>
+        <b>Action:</b> <em>check reason message, or logs on peer to see why it failed</em>
+    </td>
 </tr>
 <tr>
     <td>Failed to make resend request to node {remote node url} for key {public key}, due to {error details}</td>
-    <td>Peer communication failed during '/resend' request.<br>Action: check reason message, or logs on peer to see why it failed</td>
+    <td>Peer communication failed during '/resend' request.<br>
+        <b>Action:</b> <em>check reason message, or logs on peer to see why it failed</em> 
+    </td>
 </tr>
 </table>
 
