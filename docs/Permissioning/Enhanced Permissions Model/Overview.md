@@ -1,6 +1,9 @@
 # Enhanced Permissions Model
-The basic network permissioning has been enhanced to cater for enterprise level needs to have a **smart contract based permission model**; this has the flexibility to manage nodes, accounts and account level access controls. The overview of the model is as depicted below:
+The Enhanced Permissions Model caters for enterprise-level needs by having a **smart contract-based permissioning model**.  This allows for significant flexibility to manage nodes, accounts, and account-level access controls.
+
+An overview of the model is as depicted below:
 ![permissions mode](./images/PermissionsModel.png)  
+
 ### Key Definitions
 * Network - A set of interconnected nodes representing an enterprise blockchain which contains organizations
 * Organization - A set of roles, Ethereum accounts and nodes having a variety of permissions to interact with the network
