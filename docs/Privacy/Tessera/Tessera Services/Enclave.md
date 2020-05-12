@@ -32,7 +32,7 @@ The Enclave **performs** the following actions on request:
 
 The Enclave is the innermost actor of the sequence of events.  Each Enclave only interacts with its corresponding Transaction Manager and nothing else.  
  
-See the [Lifecycle of a private transaction](../../../Lifecycle-of-a-private-transaction) for a description of the role of the Enclave. 
+See the [Lifecycle of a private transaction](../../../Lifecycle-of-a-private-transaction) for more information. 
 
 ## Types of Enclave
 Tessera provides different types of Enclaves to suit different needs:
