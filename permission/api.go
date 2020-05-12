@@ -643,8 +643,7 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 }
 
 func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
-	var r *types.RoleInfo
-	r = types.RoleInfoMap.GetRole(orgId, roleId)
+	r := types.RoleInfoMap.GetRole(orgId, roleId)
 	if r == nil {
 		r = types.RoleInfoMap.GetRole(types.OrgInfoMap.GetOrg(orgId).UltimateParent, roleId)
 	}

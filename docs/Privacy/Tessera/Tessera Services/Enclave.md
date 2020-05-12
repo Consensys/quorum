@@ -30,15 +30,12 @@ The Enclave **performs** the following actions on request:
 
 ## Where does the Enclave sit in the private transaction flow?
 
-The Enclave is the innermost actor of the sequence of events. The below diagram demonstrates where the Enclave sits:
-
-![Quorum Tessera Privacy Flow](https://github.com/jpmorganchase/tessera/raw/master/Tessera%20Privacy%20flow.jpeg)
-
-As the diagram shows, each Enclave interacts only with it's own transaction manager and no-one else.
-
-Tessera provides different types of Enclaves to suit different needs:
+The Enclave is the innermost actor of the sequence of events.  Each Enclave only interacts with its corresponding Transaction Manager and nothing else.  
+ 
+See the [Lifecycle of a private transaction](../../../Lifecycle-of-a-private-transaction) for more information. 
 
 ## Types of Enclave
+Tessera provides different types of Enclaves to suit different needs:
 
 ### Local Enclave
 The local Enclave is the classical option that was included in versions of Tessera prior to v0.9. This includes the Enclave inside the same process and the transaction manager. This is still an option, and requires all the Enclave configuration to be inside the same configuration file and the Transaction Manager configuration.
