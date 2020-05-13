@@ -9,4 +9,4 @@ This documentation provides additional usage and API information not included in
 quorum.js exports two modules:
 
 * [`extend`](../extend)
-* [`rawTransactionManager`](../rawTransactionManager)
+* [`rawTransactionManager`](../RawTransactionManager)
