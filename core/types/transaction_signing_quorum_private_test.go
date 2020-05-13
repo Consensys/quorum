@@ -60,4 +60,3 @@ func TestQuorumSignPrivateQuorum(t *testing.T) {
 	}
 
 }
-

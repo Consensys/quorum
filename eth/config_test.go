@@ -1,8 +1,9 @@
 package eth
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestQuorumDefautConfig(t *testing.T) {

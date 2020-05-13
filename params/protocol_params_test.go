@@ -1,8 +1,9 @@
 package params
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 //Quorum - test key constant values modified by Quorum

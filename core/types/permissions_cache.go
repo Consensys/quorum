@@ -195,7 +195,7 @@ func GetSyncStatus() bool {
 }
 
 // sets the default access to Readonly upon QIP714Blokc
-func SetDefaultAccess(){
+func SetDefaultAccess() {
 	DefaultAccess = ReadOnly
 	QIP714BlockReached = true
 }
@@ -393,7 +393,7 @@ func GetAcctAccess(acctId common.Address) AccessType {
 }
 
 func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
-	if !QIP714BlockReached || hexnodeId == ""{
+	if !QIP714BlockReached || hexnodeId == "" {
 		return true
 	}
 
