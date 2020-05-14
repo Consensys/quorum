@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
+	etcdRaft "github.com/coreos/etcd/raft"
 	"io/ioutil"
 	"net"
 	"os"
@@ -59,7 +60,7 @@ func TestProtocolManager_whenAppliedIndexOutOfSync(t *testing.T) {
 		for {
 			time.Sleep(10 * time.Millisecond)
 			for i := 0; i < count; i++ {
-				if raftNodes[i].raftProtocolManager.role == minterRole {
+				if raftNodes[i].raftProtocolManager.role == etcdRaft.StateLeader {
 					return
 				}
 			}

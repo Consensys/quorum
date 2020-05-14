@@ -47,7 +47,7 @@ type ProtocolManager struct {
 
 	// Local peer state (protected by mu vs concurrent access via JS)
 	address       *Address
-	role          int    // Role: minter or verifier
+	role          etcdRaft.StateType    // Role: minter or verifier
 	appliedIndex  uint64 // The index of the last-applied raft entry
 	snapshotIndex uint64 // The index of the latest snapshot.
 
@@ -192,7 +192,7 @@ func (pm *ProtocolManager) NodeInfo() *RaftNodeInfo {
 	defer pm.mu.RUnlock()
 
 	roleDescription := ""
-	if pm.role == minterRole {
+	if pm.role == etcdRaft.StateLeader {
 		roleDescription = "minter"
 	} else if pm.isVerifierNode() {
 		roleDescription = "verifier"
@@ -597,7 +597,6 @@ func (pm *ProtocolManager) startRaft() {
 	go pm.serveRaft()
 	go pm.serveLocalProposals()
 	go pm.eventLoop()
-	go pm.handleRoleChange(pm.rawNode().RoleChan().Out())
 }
 
 func (pm *ProtocolManager) setLocalAddress(addr *Address) {
@@ -664,34 +663,26 @@ func (pm *ProtocolManager) isVerifier(rid uint16) bool {
 	return false
 }
 
-func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
-	for {
-		select {
-		case role := <-roleC:
-			intRole, ok := role.(int)
+func (pm *ProtocolManager) handleRoleChange(raftRole etcdRaft.StateType) {
 
-			if !ok {
-				panic("Couldn't cast role to int")
-			}
-			if intRole == minterRole {
-				log.EmitCheckpoint(log.BecameMinter)
-				pm.minter.start()
-			} else { // verifier
-				if pm.isVerifierNode() {
-					log.EmitCheckpoint(log.BecameVerifier)
-				} else {
-					log.EmitCheckpoint(log.BecameLearner)
-				}
-				pm.minter.stop()
-			}
+	pm.mu.Lock()
+	pm.role = raftRole
+	pm.mu.Unlock()
 
-			pm.mu.Lock()
-			pm.role = intRole
-			pm.mu.Unlock()
-		case <-pm.quitSync:
-			return
+	if pm.role == etcdRaft.StateLeader {
+		log.EmitCheckpoint(log.BecameMinter)
+		pm.minter.start()
+	} else { // verifier
+		if pm.isVerifierNode() {
+			log.EmitCheckpoint(log.BecameVerifier)
+		} else {
+			log.EmitCheckpoint(log.BecameLearner)
 		}
+		pm.minter.stop()
 	}
+
+
+
 }
 
 func (pm *ProtocolManager) minedBroadcastLoop() {
@@ -844,6 +835,8 @@ func (pm *ProtocolManager) eventLoop() {
 			pm.wal.Save(rd.HardState, rd.Entries)
 
 			if rd.SoftState != nil {
+				log.Info("AJ-raft soft state update: ", "softState", *rd.SoftState, "leader", rd.SoftState.Lead, "stateTypeStr", rd.SoftState.RaftState.String(), "stateType", rd.SoftState.RaftState)
+				pm.handleRoleChange(rd.SoftState.RaftState)
 				pm.updateLeader(rd.SoftState.Lead)
 			}
 
@@ -1069,7 +1062,7 @@ func (pm *ProtocolManager) LeaderAddress() (*Address, error) {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
-	if minterRole == pm.role {
+	if etcdRaft.StateLeader == pm.role {
 		return pm.address, nil
 	} else if l, ok := pm.peers[pm.leader]; ok {
 		return l.address, nil
