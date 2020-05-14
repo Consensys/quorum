@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/miner"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -24,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
@@ -112,8 +112,8 @@ func setup() {
 		},
 	}
 	ethConf := &eth.Config{
-		Genesis:   &core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 10000000000, Alloc: genesisAlloc},
-		Miner: miner.Config{Etherbase: guardianAddress},
+		Genesis: &core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 10000000000, Alloc: genesisAlloc},
+		Miner:   miner.Config{Etherbase: guardianAddress},
 		Ethash: ethash.Config{
 			PowMode: ethash.ModeTest,
 		},
@@ -273,7 +273,6 @@ func TestQuorumControlsAPI_ListAPIs(t *testing.T) {
 func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
 	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
-
 
 	// test AddOrg
 	orgAdminKey, _ := crypto.GenerateKey()

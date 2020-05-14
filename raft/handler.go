@@ -870,7 +870,7 @@ func (pm *ProtocolManager) eventLoop() {
 					var block types.Block
 					err := rlp.DecodeBytes(entry.Data, &block)
 					if err != nil {
-						log.Error("error decoding block: ", err)
+						log.Error("error decoding block", "err", err)
 					}
 
 					if pm.blockchain.HasBlock(block.Hash(), block.NumberU64()) {

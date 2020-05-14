@@ -29,7 +29,7 @@ func TestSetSyncStatus(t *testing.T) {
 
 	// check if the value is set properly by calling Get
 	syncStatus := GetSyncStatus()
-	assert.True(syncStatus == true, fmt.Sprintf("Expected syncstatus %v . Got %v ", true, syncStatus))
+	assert.True(syncStatus, fmt.Sprintf("Expected syncstatus %v . Got %v ", true, syncStatus))
 }
 
 func TestSetDefaults(t *testing.T) {
@@ -135,7 +135,7 @@ func TestRoleCache_UpsertRole(t *testing.T) {
 	roleInfo, err = RoleInfoMap.GetRole(ORGADMIN, ORGADMIN)
 	assert.True(err == nil, "errors encountered")
 
-	assert.True(roleInfo.Active == false, fmt.Sprintf("Expected role active status to be %v, got %v", true, roleInfo.Active))
+	assert.True(!roleInfo.Active, fmt.Sprintf("Expected role active status to be %v, got %v", true, roleInfo.Active))
 }
 
 func TestAcctCache_UpsertAccount(t *testing.T) {
@@ -211,32 +211,32 @@ func TestValidateNodeForTxn(t *testing.T) {
 	assert := testifyassert.New(t)
 	// pass the enode as null and the response should be true
 	txnAllowed := ValidateNodeForTxn("", Acct1)
-	assert.True(txnAllowed == true, "Expected access %v, got %v", true, txnAllowed)
+	assert.True(txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 
 	SetDefaultAccess()
 
 	// if a proper enode id is not passed, return should be false
 	txnAllowed = ValidateNodeForTxn("ABCDE", Acct1)
-	assert.True(txnAllowed == false, "Expected access %v, got %v", true, txnAllowed)
+	assert.True(!txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 
 	// if cache is not populated but the enode and account details are proper,
 	// should return true
 	txnAllowed = ValidateNodeForTxn(NODE1, Acct1)
-	assert.True(txnAllowed == true, "Expected access %v, got %v", true, txnAllowed)
+	assert.True(txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 
 	// populate an org, account and node. validate access
 	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
 	NodeInfoMap.UpsertNode(NETWORKADMIN, NODE1, NodeApproved)
 	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
 	txnAllowed = ValidateNodeForTxn(NODE1, Acct1)
-	assert.True(txnAllowed == true, "Expected access %v, got %v", true, txnAllowed)
+	assert.True(txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 
 	// test access from a node not linked to the org. should return false
 	OrgInfoMap.UpsertOrg(ORGADMIN, "", ORGADMIN, big.NewInt(1), OrgApproved)
 	NodeInfoMap.UpsertNode(ORGADMIN, NODE2, NodeApproved)
 	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct2, true, AcctActive)
 	txnAllowed = ValidateNodeForTxn(NODE1, Acct2)
-	assert.True(txnAllowed == false, "Expected access %v, got %v", true, txnAllowed)
+	assert.True(!txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 }
 
 // This is to make sure enode.ParseV4() honors single hexNodeId value eventhough it does follow enode URI scheme

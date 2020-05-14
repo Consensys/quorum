@@ -50,7 +50,7 @@ type PermissionCtrl struct {
 	permOrg    *pbind.OrgManager
 	permConfig *types.PermissionConfig
 
-	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependenies are ready before we start the service
+	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
 	stopFeed       event.Feed      // broadcasting stopEvent when service is being stopped
 	errorChan      chan error      // channel to capture error when starting aysnc
 
@@ -295,7 +295,7 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
-			case  head := <-chainHeadCh:
+			case head := <-chainHeadCh:
 				if p.eth.BlockChain().Config().IsQIP714(head.Block.Number()) {
 					types.SetDefaultAccess()
 					return

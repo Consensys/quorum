@@ -118,10 +118,7 @@ func writeAppliedIndex(workingDir string, node int, index uint64) error {
 	}()
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, index)
-	if err := db.Put(appliedDbKey, buf, noFsync); err != nil {
-		return err
-	}
-	return nil
+	return db.Put(appliedDbKey, buf, noFsync)
 }
 
 func mustNewNodeKey(t *testing.T) *ecdsa.PrivateKey {
