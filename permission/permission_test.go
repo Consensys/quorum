@@ -55,9 +55,9 @@ var ErrAcctBlacklisted = errors.New("Blacklisted account. Operation not allowed"
 var ErrNodeBlacklisted = errors.New("Blacklisted node. Operation not allowed")
 
 var (
-	guardianKey                                                                      *ecdsa.PrivateKey
-	guardianAccount                                                                  accounts.Account
-	backend                                                                          bind.ContractBackend
+	guardianKey     *ecdsa.PrivateKey
+	guardianAccount accounts.Account
+	backend         bind.ContractBackend
 	permUpgrAddress, permInterfaceAddress, permImplAddress, voterManagerAddress,
 	nodeManagerAddress, roleManagerAddress, accountManagerAddress, orgManagerAddress common.Address
 	ethereum        *eth.Ethereum
