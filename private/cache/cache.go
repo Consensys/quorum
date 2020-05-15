@@ -4,6 +4,7 @@ import (
 	"time"
 
 	gocache "github.com/patrickmn/go-cache"
+	"github.com/ethereum/go-ethereum/private/engine"
 )
 
 const (
@@ -13,4 +14,9 @@ const (
 
 func NewDefaultCache() *gocache.Cache {
 	return gocache.New(DefaultExpiration, CleanupInterval)
+}
+
+type PrivateCacheItem struct {
+	Payload []byte
+	Extra   engine.ExtraMetadata
 }

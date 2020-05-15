@@ -217,6 +217,7 @@ func runCmd(ctx *cli.Context) error {
 	execTime := time.Since(tstart)
 
 	if ctx.GlobalBool(DumpFlag.Name) {
+		//TODO - Quorum - what is the point of doing both (commit does IntermediateRoot anyway)?
 		statedb.Commit(true)
 		statedb.IntermediateRoot(true)
 		fmt.Println(string(statedb.Dump(false, false, true)))

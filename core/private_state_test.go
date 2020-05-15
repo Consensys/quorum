@@ -20,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/private"
-	"github.com/ethereum/go-ethereum/private/privatetransactionmanager"
 )
 
 // callmsg is the message type used for call transactions in the private state test
@@ -128,7 +127,7 @@ func runConstellation() (*osExec.Cmd, error) {
 	if constellationErr != nil {
 		return nil, constellationErr
 	}
-	private.P = privatetransactionmanager.MustNew(cfgFile.Name())
+	private.P = private.MustNewPrivateTxManager(cfgFile.Name())
 	return constellationCmd, nil
 }
 

@@ -419,6 +419,21 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 	return s.state.GetNonce(addr)
 }
 
+func (s EthAPIState) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+	if s.privateState.Exist(addr) {
+		return s.privateState.GetStatePrivacyMetadata(addr)
+	}
+	return s.state.GetStatePrivacyMetadata(addr)
+}
+
+func (s EthAPIState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
+	getFunc := s.state.GetRLPEncodedStateObject
+	if s.privateState.Exist(addr) {
+		getFunc = s.privateState.GetRLPEncodedStateObject
+	}
+	return getFunc(addr)
+}
+
 func (s EthAPIState) GetProof(addr common.Address) ([][]byte, error) {
 	if s.privateState.Exist(addr) {
 		return s.privateState.GetProof(addr)

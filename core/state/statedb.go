@@ -240,6 +240,22 @@ func (self *StateDB) GetNonce(addr common.Address) uint64 {
 	return 0
 }
 
+func (self *StateDB) GetStatePrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
+	stateObject := self.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.PrivacyMetadata()
+	}
+	return nil, nil
+}
+
+func (self *StateDB) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
+	stateObject := self.getStateObject(addr)
+	if stateObject == nil {
+		return nil, fmt.Errorf("no state found for %s", addr.Hex())
+	}
+	return rlp.EncodeToBytes(stateObject)
+}
+
 // TxIndex returns the current transaction index set by Prepare.
 func (self *StateDB) TxIndex() int {
 	return self.txIndex
@@ -383,6 +399,14 @@ func (self *StateDB) SetNonce(addr common.Address, nonce uint64) {
 	if stateObject != nil {
 		stateObject.SetNonce(nonce)
 	}
+}
+
+func (self *StateDB) SetStatePrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) error {
+	stateObject := self.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		return stateObject.setStatePrivacyMetadata(metadata)
+	}
+	return nil
 }
 
 func (self *StateDB) SetCode(addr common.Address, code []byte) {

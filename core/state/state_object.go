@@ -18,10 +18,13 @@ package state
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
 	"io"
 	"math/big"
 	"time"
+
+	"github.com/ethereum/go-ethereum/private/engine"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -30,6 +33,7 @@ import (
 )
 
 var emptyCodeHash = crypto.Keccak256(nil)
+var privacyMetadataPrefix = []byte("PRIVACYMETADATA-")
 
 type Code []byte
 
@@ -107,6 +111,12 @@ type Account struct {
 	CodeHash []byte
 }
 
+//attached to every private contract account
+type PrivacyMetadata struct {
+	CreationTxHash common.EncryptedPayloadHash `json:"creationTxHash"`
+	PrivacyFlag    engine.PrivacyFlagType      `json:"privacyFlag"`
+}
+
 // newObject creates a state object.
 func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	if data.Balance == nil {
@@ -126,6 +136,13 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 		originStorage:  make(Storage),
 		pendingStorage: make(Storage),
 		dirtyStorage:   make(Storage),
+	}
+}
+
+func NewStatePrivacyMetadata(creationTxHash common.EncryptedPayloadHash, privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
+	return &PrivacyMetadata{
+		CreationTxHash: creationTxHash,
+		PrivacyFlag:    privacyFlag,
 	}
 }
 
@@ -445,6 +462,18 @@ func (s *stateObject) setNonce(nonce uint64) {
 	s.data.Nonce = nonce
 }
 
+func (s *stateObject) setStatePrivacyMetadata(metadata *PrivacyMetadata) error {
+	key := make([]byte, 0, len(privacyMetadataPrefix)+len(self.address.Bytes()))
+	key = append(privacyMetadataPrefix, self.address.Bytes()...)
+
+	b, err := privacyMetadataToBytes(metadata)
+	if err != nil {
+		return err
+	}
+	err = s.db.ethdb.Put(key, b)
+	return err
+}
+
 func (s *stateObject) CodeHash() []byte {
 	return s.data.CodeHash
 }
@@ -457,9 +486,40 @@ func (s *stateObject) Nonce() uint64 {
 	return s.data.Nonce
 }
 
+func (self *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
+	key := make([]byte, 0, len(privacyMetadataPrefix)+len(self.address.Bytes()))
+	key = append(privacyMetadataPrefix, self.address.Bytes()...)
+
+	val, err := self.db.ethdb.Get(key)
+
+	if err != nil {
+		return nil, err
+	}
+	data, err := bytesToPrivacyMetadata(val)
+	return data, err
+}
+
 // Never called, but must be present to allow stateObject to be used
 // as a vm.Account interface that also satisfies the vm.ContractRef
 // interface. Interfaces are awesome.
 func (s *stateObject) Value() *big.Int {
 	panic("Value on stateObject should never be called")
+}
+
+func privacyMetadataToBytes(pm *PrivacyMetadata) ([]byte, error) {
+	var b bytes.Buffer
+	e := gob.NewEncoder(&b)
+	if err := e.Encode(pm); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+func bytesToPrivacyMetadata(b []byte) (*PrivacyMetadata, error) {
+	var data *PrivacyMetadata
+	d := gob.NewDecoder(bytes.NewBuffer(b))
+	if err := d.Decode(&data); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
