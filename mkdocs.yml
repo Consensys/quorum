@@ -21,6 +21,7 @@ nav:
         - Quorum API: Getting Started/api.md
         - Quorum GraphQL: Getting Started/graphql.md
         - Migration: Getting Started/migration.md
+        - Logging: Getting Started/Logging.md
     - Consensus:
         - Consensus: Consensus/Consensus.md
         - Raft BFT:
