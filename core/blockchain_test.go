@@ -147,12 +147,12 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 		if err != nil {
 			return err
 		}
-		receipts, _, _, usedGas, err := blockchain.processor.Process(block, statedb, statedb, vm.Config{})
+		receipts, _, usedGas, err := blockchain.processor.Process(block, statedb, vm.Config{})
 		if err != nil {
 			blockchain.reportBlock(block, receipts, err)
 			return err
 		}
-		err = blockchain.validator.ValidateState(block, blockchain.GetBlockByHash(block.ParentHash()), statedb, receipts, usedGas)
+		err = blockchain.validator.ValidateState(block, statedb, receipts, usedGas)
 		if err != nil {
 			blockchain.reportBlock(block, receipts, err)
 			return err
@@ -825,7 +825,7 @@ func TestChainTxReorgs(t *testing.T) {
 		db      = rawdb.NewMemoryDatabase()
 		gspec   = &Genesis{
 			Config:   params.TestChainConfig,
-			GasLimit: 700000000,
+			GasLimit: 3141592,
 			Alloc: GenesisAlloc{
 				addr1: {Balance: big.NewInt(1000000)},
 				addr2: {Balance: big.NewInt(1000000)},
@@ -1289,14 +1289,17 @@ func TestCanonicalBlockRetrieval(t *testing.T) {
 					continue // busy wait for canonical hash to be written
 				}
 				if ch != block.Hash() {
-					t.Fatalf("unknown canonical hash, want %s, got %s", block.Hash().Hex(), ch.Hex())
+					t.Errorf("unknown canonical hash, want %s, got %s", block.Hash().Hex(), ch.Hex())
+					return
 				}
 				fb := rawdb.ReadBlock(blockchain.db, ch, block.NumberU64())
 				if fb == nil {
-					t.Fatalf("unable to retrieve block %d for canonical hash: %s", block.NumberU64(), ch.Hex())
+					t.Errorf("unable to retrieve block %d for canonical hash: %s", block.NumberU64(), ch.Hex())
+					return
 				}
 				if fb.Hash() != block.Hash() {
-					t.Fatalf("invalid block hash for block %d, want %s, got %s", block.NumberU64(), block.Hash().Hex(), fb.Hash().Hex())
+					t.Errorf("invalid block hash for block %d, want %s, got %s", block.NumberU64(), block.Hash().Hex(), fb.Hash().Hex())
+					return
 				}
 				return
 			}
@@ -1318,7 +1321,7 @@ func TestEIP155Transition(t *testing.T) {
 		funds      = big.NewInt(1000000000)
 		deleteAddr = common.Address{1}
 		gspec      = &Genesis{
-			Config: &params.ChainConfig{ChainID: big.NewInt(10), EIP150Block: big.NewInt(0), EIP155Block: big.NewInt(2), HomesteadBlock: new(big.Int)},
+			Config: &params.ChainConfig{ChainID: big.NewInt(1), EIP150Block: big.NewInt(0), EIP155Block: big.NewInt(2), HomesteadBlock: new(big.Int)},
 			Alloc:  GenesisAlloc{address: {Balance: funds}, deleteAddr: {Balance: new(big.Int)}},
 		}
 		genesis = gspec.MustCommit(db)
@@ -1422,7 +1425,7 @@ func TestEIP161AccountRemoval(t *testing.T) {
 		theAddr = common.Address{1}
 		gspec   = &Genesis{
 			Config: &params.ChainConfig{
-				ChainID:        big.NewInt(10),
+				ChainID:        big.NewInt(1),
 				HomesteadBlock: new(big.Int),
 				EIP155Block:    new(big.Int),
 				EIP150Block:    new(big.Int),
@@ -1458,7 +1461,7 @@ func TestEIP161AccountRemoval(t *testing.T) {
 	if _, err := blockchain.InsertChain(types.Blocks{blocks[0]}); err != nil {
 		t.Fatal(err)
 	}
-	if st, _, _ := blockchain.State(); !st.Exist(theAddr) {
+	if st, _ := blockchain.State(); !st.Exist(theAddr) {
 		t.Error("expected account to exist")
 	}
 
@@ -1466,7 +1469,7 @@ func TestEIP161AccountRemoval(t *testing.T) {
 	if _, err := blockchain.InsertChain(types.Blocks{blocks[1]}); err != nil {
 		t.Fatal(err)
 	}
-	if st, _, _ := blockchain.State(); st.Exist(theAddr) {
+	if st, _ := blockchain.State(); st.Exist(theAddr) {
 		t.Error("account should not exist")
 	}
 
@@ -1474,7 +1477,7 @@ func TestEIP161AccountRemoval(t *testing.T) {
 	if _, err := blockchain.InsertChain(types.Blocks{blocks[2]}); err != nil {
 		t.Fatal(err)
 	}
-	if st, _, _ := blockchain.State(); st.Exist(theAddr) {
+	if st, _ := blockchain.State(); st.Exist(theAddr) {
 		t.Error("account should not exist")
 	}
 }
@@ -1916,13 +1919,6 @@ func testInsertKnownChainData(t *testing.T, typ string) {
 		inserter func(blocks []*types.Block, receipts []types.Receipts) error
 		asserter func(t *testing.T, block *types.Block)
 	)
-	headers, headers2 := make([]*types.Header, 0, len(blocks)), make([]*types.Header, 0, len(blocks2))
-	for _, block := range blocks {
-		headers = append(headers, block.Header())
-	}
-	for _, block := range blocks2 {
-		headers2 = append(headers2, block.Header())
-	}
 	if typ == "headers" {
 		inserter = func(blocks []*types.Block, receipts []types.Receipts) error {
 			headers := make([]*types.Header, 0, len(blocks))

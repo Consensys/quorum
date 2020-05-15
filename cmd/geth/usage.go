@@ -21,7 +21,6 @@ package main
 import (
 	"io"
 	"sort"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/internal/debug"
@@ -115,16 +114,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.EthashDatasetsOnDiskFlag,
 		},
 	},
-	//{
-	//	Name: "DASHBOARD",
-	//	Flags: []cli.Flag{
-	//		utils.DashboardEnabledFlag,
-	//		utils.DashboardAddrFlag,
-	//		utils.DashboardPortFlag,
-	//		utils.DashboardRefreshFlag,
-	//		utils.DashboardAssetsFlag,
-	//	},
-	//},
 	{
 		Name: "TRANSACTION POOL",
 		Flags: []cli.Flag{
@@ -354,9 +343,6 @@ func init() {
 			var uncategorized []cli.Flag
 			for _, flag := range data.(*cli.App).Flags {
 				if _, ok := categorized[flag.String()]; !ok {
-					if strings.HasPrefix(flag.GetName(), "dashboard") {
-						continue
-					}
 					uncategorized = append(uncategorized, flag)
 				}
 			}

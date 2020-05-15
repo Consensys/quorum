@@ -406,6 +406,12 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// future scenarios
 	stateDb.AddBalance(addr, bigZero)
 
+	// We do an AddBalance of zero here, just in order to trigger a touch.
+	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
+	// but is the correct thing to do and matters on other networks, in tests, and potential
+	// future scenarios
+	evm.StateDB.AddBalance(addr, bigZero)
+
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in Homestead this also counts for code storage gas errors.

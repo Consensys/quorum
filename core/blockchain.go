@@ -23,6 +23,7 @@ import (
 	"io"
 	"math/big"
 	mrand "math/rand"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -883,8 +884,9 @@ func (bc *BlockChain) procFutureBlocks() {
 		}
 	}
 	if len(blocks) > 0 {
-		types.BlockBy(types.Number).Sort(blocks)
-
+		sort.Slice(blocks, func(i, j int) bool {
+			return blocks[i].NumberU64() < blocks[j].NumberU64()
+		})
 		// Insert one by one as chain insertion needs contiguous ancestry between blocks
 		for i := range blocks {
 			bc.InsertChain(blocks[i : i+1])
@@ -1768,7 +1770,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []
 
 		// Validate the state using the default validator
 		substart = time.Now()
-		if err := bc.validator.ValidateState(block, bc.GetBlockByHash(parent.Hash()), statedb, receipts, usedGas); err != nil {
+		if err := bc.validator.ValidateState(block, statedb, receipts, usedGas); err != nil {
 			bc.reportBlock(block, receipts, err)
 			atomic.StoreUint32(&followupInterrupt, 1)
 			return it.index, events, coalescedLogs, err

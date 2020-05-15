@@ -144,26 +144,6 @@ func TestIntermediateLeaks(t *testing.T) {
 			t.Errorf("the value associate key %x is mismatch,: %x in transition database ,%x in final database", key, tvalue, fvalue)
 		}
 	}
-}
-
-func TestStorageRoot(t *testing.T) {
-	var (
-		mem      = rawdb.NewMemoryDatabase()
-		db       = NewDatabase(mem)
-		state, _ = New(common.Hash{}, db)
-		addr     = common.Address{1}
-		key      = common.Hash{1}
-		value    = common.Hash{42}
-
-		empty = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	)
-
-	so := state.GetOrNewStateObject(addr)
-
-	emptyRoot := so.storageRoot(db)
-	if emptyRoot != empty {
-		t.Errorf("Invalid empty storage root, expected %x, got %x", empty, emptyRoot)
-	}
 
 	// add a bit of state
 	so.SetState(db, key, value)
@@ -489,7 +469,8 @@ func (test *snapshotTest) checkEqual(state, checkstate *StateDB) error {
 	return nil
 }
 
-func (s *StateSuite) TestTouchDelete(c *check.C) {
+func TestTouchDelete(t *testing.T) {
+	s := newStateTest()
 	s.state.GetOrNewStateObject(common.Address{})
 	root, _ := s.state.Commit(false)
 	s.state.Reset(root)
@@ -498,11 +479,11 @@ func (s *StateSuite) TestTouchDelete(c *check.C) {
 	s.state.AddBalance(common.Address{}, new(big.Int))
 
 	if len(s.state.journal.dirties) != 1 {
-		c.Fatal("expected one dirty state object")
+		t.Fatal("expected one dirty state object")
 	}
 	s.state.RevertToSnapshot(snapshot)
 	if len(s.state.journal.dirties) != 0 {
-		c.Fatal("expected no dirty state object")
+		t.Fatal("expected no dirty state object")
 	}
 }
 

@@ -215,6 +215,14 @@ func (ld *logDelegate) Trace(msg string, args ...interface{}) {
 	ld.eLogger.Trace(msg, args...)
 }
 
+func (ld *logDelegate) Log(level hclog.Level, msg string, args ...interface{}){
+	//TODO : implement the method
+}
+
+func (ld *logDelegate) Name() string{
+	return ""
+}
+
 func (ld *logDelegate) Debug(msg string, args ...interface{}) {
 	ld.eLogger.Debug(msg, args...)
 }
@@ -271,5 +279,9 @@ func (*logDelegate) StandardLogger(opts *hclog.StandardLoggerOptions) *slog.Logg
 }
 
 func (*logDelegate) StandardWriter(opts *hclog.StandardLoggerOptions) io.Writer {
+	return nil
+}
+// ImpliedArgs returns With key/value pairs
+func (*logDelegate) ImpliedArgs() []interface{}{
 	return nil
 }

@@ -211,7 +211,7 @@ func TestSAR(t *testing.T) {
 // getResult is a convenience function to generate the expected values
 func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcase {
 	var (
-		env         = NewEVM(Context{}, nil, nil, params.TestChainConfig, Config{})
+		env         = NewEVM(Context{}, nil, params.TestChainConfig, Config{})
 		stack       = newstack()
 		pc          = uint64(0)
 		interpreter = env.interpreter.(*EVMInterpreter)
@@ -232,7 +232,9 @@ func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcas
 
 // utility function to fill the json-file with testcases
 // Enable this test to generate the 'testcases_xx.json' files
-func xTestWriteExpectedValues(t *testing.T) {
+func TestWriteExpectedValues(t *testing.T) {
+	t.Skip("Enable this test to create json test cases.")
+
 	for name, method := range twoOpMethods {
 		data, err := json.Marshal(getResult(commonParams, method))
 		if err != nil {
@@ -243,7 +245,6 @@ func xTestWriteExpectedValues(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	t.Fatal("This test should not be activated")
 }
 
 // TestJsonTestcases runs through all the testcases defined as json-files

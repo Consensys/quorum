@@ -60,7 +60,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/params"
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
 )
 
 var (
@@ -298,8 +298,7 @@ func (f *faucet) listenAndServe(port int) error {
 	go f.loop()
 
 	http.HandleFunc("/", f.webHandler)
-	http.Handle("/api", websocket.Handler(f.apiHandler))
-
+	http.HandleFunc("/api", f.apiHandler)
 	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
 }
 
@@ -310,7 +309,13 @@ func (f *faucet) webHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // apiHandler handles requests for Ether grants and transaction statuses.
-func (f *faucet) apiHandler(conn *websocket.Conn) {
+func (f *faucet) apiHandler(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+
 	// Start tracking the connection and drop at the end
 	defer conn.Close()
 
@@ -333,7 +338,6 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 		head    *types.Header
 		balance *big.Int
 		nonce   uint64
-		err     error
 	)
 	for head == nil || balance == nil {
 		// Retrieve the current stats cached by the faucet
@@ -378,7 +382,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 			Tier    uint   `json:"tier"`
 			Captcha string `json:"captcha"`
 		}
-		if err = websocket.JSON.Receive(conn, &msg); err != nil {
+		if err = conn.ReadJSON(&msg); err != nil {
 			return
 		}
 		if !*noauthFlag && !strings.HasPrefix(msg.URL, "https://gist.github.com/") && !strings.HasPrefix(msg.URL, "https://twitter.com/") &&
@@ -659,7 +663,7 @@ func send(conn *websocket.Conn, value interface{}, timeout time.Duration) error 
 		timeout = 60 * time.Second
 	}
 	conn.SetWriteDeadline(time.Now().Add(timeout))
-	return websocket.JSON.Send(conn, value)
+	return conn.WriteJSON(value)
 }
 
 // sendError transmits an error to the remote end of the websocket, also setting
