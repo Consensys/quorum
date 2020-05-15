@@ -300,19 +300,19 @@ func TestProcessBacklog(t *testing.T) {
 	subjectPayload, _ := Encode(subject)
 
 	msgs := []*message{
-		&message{
+		{
 			Code: msgPreprepare,
 			Msg:  prepreparePayload,
 		},
-		&message{
+		{
 			Code: msgPrepare,
 			Msg:  subjectPayload,
 		},
-		&message{
+		{
 			Code: msgCommit,
 			Msg:  subjectPayload,
 		},
-		&message{
+		{
 			Code: msgRoundChange,
 			Msg:  subjectPayload,
 		},

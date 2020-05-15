@@ -110,7 +110,6 @@ func isNewV4(n *Node) bool {
 	return n.r.IdentityScheme() == "" && n.r.Load(&k) == nil && len(n.r.Signature()) == 0
 }
 
-
 // Quorum
 
 // NewV4Hostname creates a node from discovery v4 node information. The record

@@ -30,10 +30,7 @@ func isNodePermissioned(nodename string, currentNode string, datadir string, dir
 		if v == nodename {
 			log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
 			// check if the node is blacklisted
-			if isNodeBlackListed(nodename, datadir) {
-				return false
-			}
-			return true
+			return !isNodeBlackListed(nodename, datadir)
 		}
 	}
 	log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "DENIED-BY", currentNode[:NODE_NAME_LENGTH])
