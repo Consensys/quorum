@@ -1557,6 +1557,12 @@ func mergeReceipts(pub, priv types.Receipts) types.Receipts {
 func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, []interface{}, []*types.Log, error) {
 	// If the chain is terminating, don't even bother starting up
 	if atomic.LoadInt32(&bc.procInterrupt) == 1 {
+		log.Debug("Premature abort during blocks processing")
+		// QUORUM
+		if bc.isRaft() {
+			// Only returns an error for raft mode
+			return 0, nil, nil, ErrAbortBlocksProcessing
+		}
 		return 0, nil, nil, nil
 	}
 	// Start a parallel signature recovery (signer will fluke on fork transition, minimal perf loss)

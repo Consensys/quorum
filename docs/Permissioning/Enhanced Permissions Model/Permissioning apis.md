@@ -315,7 +315,9 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPer
 > quorumPermission.addOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
 "Action completed successfully"
 ```
+
 If there are any pending items for approval, proposal of any new organization will fail. Also the enode id and accounts can be linked to one organization only. 
+
 ```javascript tab="geth console"
 > quorumPermission.addOrg("ABC", "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404", "0x0638e1574728b6d862dd5d3a3e0942c3be47d996", {from: eth.accounts[0]})
 Error: Pending approvals for the organization. Approve first
@@ -336,8 +338,8 @@ Error: Account already in use in another organization
     at web3.js:6347:15
     at web3.js:5081:36
     at <anonymous>:1:1
-
 ```
+
 ### `quorumPermission_approveOrg` 
 This api can be executed by a network admin account (`from:` in transactions args) only for approving a proposed organization into the network.
 #### Parameters
@@ -812,6 +814,7 @@ curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumPer
 ```
 
 ## Roles
+### Account access types
 The table below indicates the numeric value for each account access type.
 
 |   AccessType   | Value |
