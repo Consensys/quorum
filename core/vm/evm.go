@@ -21,13 +21,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/trie"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 // note: Quorum, States, and Value Transfer
@@ -501,11 +501,8 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		// for calls (reading contract state) or finding the affected contracts there is no transaction
 		if evm.currentTx.PrivacyMetadata().PrivacyFlag.IsNotStandardPrivate() {
 			pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivacyFlag)
-			err := evm.StateDB.SetStatePrivacyMetadata(address, pm)
+			evm.StateDB.SetStatePrivacyMetadata(address, pm)
 			log.Trace("Set Privacy Metadata", "key", address, "privacyMetadata", pm)
-			if err != nil {
-				return nil, common.Address{}, 0, err
-			}
 		}
 	}
 	if evm.ChainConfig().IsQuorum {

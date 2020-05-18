@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"os"
 	"strings"
@@ -19,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/ethdb"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -245,11 +245,9 @@ func newConfig() *extendedConfig {
 	cfg := new(Config)
 	setDefaults(cfg)
 	cfg.Debug = true
-	database := ethdb.NewMemDatabase()
+	database := rawdb.NewMemoryDatabase()
 	cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(database))
-	cfg.State.SetPersistentEthdb(database)
 	privateState, _ := state.New(common.Hash{}, state.NewDatabase(database))
-	privateState.SetPersistentEthdb(database)
 
 	cfg.ChainConfig.IsQuorum = true
 	cfg.ChainConfig.ByzantiumBlock = big.NewInt(0)

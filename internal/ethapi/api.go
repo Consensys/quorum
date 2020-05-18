@@ -30,8 +30,6 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
@@ -42,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -49,6 +48,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tyler-smith/go-bip39"
@@ -1551,7 +1551,6 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	return types.NewTransaction(uint64(*args.Nonce), *args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), args.inputOrData())
 }
 
-
 // TODO: this submits a signed transaction, if it is a signed private transaction that should already be recorded in the tx.
 // SubmitTransaction is a helper function that submits tx to txPool and logs a message.
 func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (common.Hash, error) {
@@ -1641,10 +1640,12 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 	// Assemble the transaction and obtain rlp
 	// Quorum
 	if args.IsPrivate() {
-		err := args.setPrivateTransactionHash(false)
+		// TODO PrivacyEnhancements check what happens when input is provided but Data is overriden
+		hash, err := private.P.StoreRaw(args.inputOrData(), args.From.String())
 		if err != nil {
 			return nil, err
 		}
+		args.Data = hash.BytesTypeRef()
 	}
 	// /Quorum
 	tx := args.toTransaction()
@@ -2225,7 +2226,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	defer func() { cancel() }()
 
 	// Get a new instance of the EVM.
-	evm, _, err := b.GetEVM(ctx, msg, state, header, vm.Config{})
+	evm, _, err := b.GetEVM(ctx, msg, state, header)
 	if err != nil {
 		return nil, common.Hash{}, 0, err
 	}

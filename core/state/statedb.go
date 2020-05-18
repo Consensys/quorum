@@ -65,6 +65,9 @@ func (n *proofList) Delete(key []byte) error {
 type StateDB struct {
 	db   Database
 	trie Trie
+	// Quorum - Privacy Enhancements
+	privacyMetaDataTrie Trie
+	// End Quorum - Privacy Enhancements
 
 	// This map holds 'live' objects, which will get modified while processing a state transition.
 	stateObjects        map[common.Address]*stateObject
@@ -111,9 +114,23 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// End Quorum - Privacy Enhancements
+	privacyMetadataRoot := db.PrivacyMetadataLinker().PrivacyMetadataRootForPrivateStateRoot(root)
+	log.Info("Privacy metadata root", "hash", privacyMetadataRoot)
+	privacyMetaDataTrie, err := db.OpenTrie(privacyMetadataRoot)
+	if err != nil {
+		log.Error("Unable to open privacy metadata trie", "err", err)
+		return nil, err
+	}
+	// End Quorum - Privacy Enhancements
+
 	return &StateDB{
-		db:                  db,
-		trie:                tr,
+		db:   db,
+		trie: tr,
+		// Quorum - Privacy Enhancements
+		privacyMetaDataTrie: privacyMetaDataTrie,
+		// End Quorum - Privacy Enhancements
 		stateObjects:        make(map[common.Address]*stateObject),
 		stateObjectsPending: make(map[common.Address]struct{}),
 		stateObjectsDirty:   make(map[common.Address]struct{}),
@@ -244,6 +261,14 @@ func (self *StateDB) GetStatePrivacyMetadata(addr common.Address) (*PrivacyMetad
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.PrivacyMetadata()
+	}
+	return nil, nil
+}
+
+func (self *StateDB) GetCommittedStatePrivacyMetadata(addr common.Address) (*PrivacyMetadata, error) {
+	stateObject := self.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.GetCommittedPrivacyMetadata()
 	}
 	return nil, nil
 }
@@ -401,12 +426,11 @@ func (self *StateDB) SetNonce(addr common.Address, nonce uint64) {
 	}
 }
 
-func (self *StateDB) SetStatePrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) error {
+func (self *StateDB) SetStatePrivacyMetadata(addr common.Address, metadata *PrivacyMetadata) {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		return stateObject.setStatePrivacyMetadata(metadata)
+		stateObject.SetStatePrivacyMetadata(metadata)
 	}
-	return nil
 }
 
 func (self *StateDB) SetCode(addr common.Address, code []byte) {
@@ -470,7 +494,26 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 	if err != nil {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
-	s.setError(s.trie.TryUpdate(addr[:], data))
+	err = s.trie.TryUpdate(addr[:], data)
+	// Quorum - Privacy Enhancements
+	if err != nil {
+		s.setError(err)
+		return
+	}
+
+	if obj.dirtyPrivacyMetadata && obj.privacyMetadata != nil {
+		log.Info("Privacy metadata exists and is dirty")
+		privacyMetadataBytes, err := privacyMetadataToBytes(obj.privacyMetadata)
+		if err != nil {
+			panic(fmt.Errorf("can't encode privacy metadata at %x: %v", addr[:], err))
+		}
+		err = s.privacyMetaDataTrie.TryUpdate(addr[:], privacyMetadataBytes)
+		if err != nil {
+			s.setError(err)
+			return
+		}
+	}
+	// End Quorum - Privacy Enhancements
 }
 
 // deleteStateObject removes the given object from the state trie.
@@ -481,7 +524,14 @@ func (s *StateDB) deleteStateObject(obj *stateObject) {
 	}
 	// Delete the account from the trie
 	addr := obj.Address()
-	s.setError(s.trie.TryDelete(addr[:]))
+	err := s.trie.TryDelete(addr[:])
+	// Quorum - Privacy Enhancements
+	if err != nil {
+		s.setError(err)
+		return
+	}
+	s.setError(s.privacyMetaDataTrie.TryDelete(addr[:]))
+	// End Quorum - Privacy Enhancements
 }
 
 // getStateObject retrieves a state object given by the address, returning nil if
@@ -604,8 +654,11 @@ func (db *StateDB) ForEachStorage(addr common.Address, cb func(key, value common
 func (self *StateDB) Copy() *StateDB {
 	// Copy all the basic fields, initialize the memory ones
 	state := &StateDB{
-		db:                  self.db,
-		trie:                self.db.CopyTrie(self.trie),
+		db:   self.db,
+		trie: self.db.CopyTrie(self.trie),
+		// Quorum - Privacy Enhancements
+		privacyMetaDataTrie: self.db.CopyTrie(self.privacyMetaDataTrie),
+		// End Quorum - Privacy Enhancements
 		stateObjects:        make(map[common.Address]*stateObject, len(self.journal.dirties)),
 		stateObjectsPending: make(map[common.Address]struct{}, len(self.stateObjectsPending)),
 		stateObjectsDirty:   make(map[common.Address]struct{}, len(self.journal.dirties)),
@@ -784,7 +837,8 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.AccountCommits += time.Since(start) }(time.Now())
 	}
-	return s.trie.Commit(func(leaf []byte, parent common.Hash) error {
+
+	root, err := s.trie.Commit(func(leaf []byte, parent common.Hash) error {
 		var account Account
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil
@@ -798,4 +852,26 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 		}
 		return nil
 	})
+
+	// Quorum - Privacy Enhancements
+	if err == nil {
+		// commit the privacy metadata trie
+		privacyMetadataTrieRoot, err := s.privacyMetaDataTrie.Commit(nil)
+		if err != nil {
+			log.Error("Unable to commit the privacy metadata trie", "err", err)
+			return common.Hash{}, err
+		}
+		log.Info("Privacy metadata root after metadata trie commit", "root", privacyMetadataTrieRoot)
+		// link the new state root to the privacy metadata root
+		err = s.db.PrivacyMetadataLinker().LinkPrivacyMetadataRootToPrivateStateRoot(root, privacyMetadataTrieRoot)
+		if err != nil {
+			log.Error("Unable to link the state root to the privacy metadata root", "err", err)
+			return common.Hash{}, err
+		}
+		// add a reference from the privacy metadata root to the state root so that when the state root is written
+		// to the DB the the privacy metadata root is also written
+		s.db.TrieDB().Reference(privacyMetadataTrieRoot, root)
+	}
+	// End Quorum - Privacy Enhancements
+	return root, err
 }

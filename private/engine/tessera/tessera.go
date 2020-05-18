@@ -88,6 +88,33 @@ func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, ex
 	return eph, nil
 }
 
+func (t *tesseraPrivateTxManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
+
+	response := new(sendResponse)
+
+	if _, err := t.submitJSON("POST", "/storeraw", &storerawRequest{
+		Payload: data,
+		From:    from,
+	}, response); err != nil {
+		return common.EncryptedPayloadHash{}, err
+	}
+
+	eph, err := common.Base64ToEncryptedPayloadHash(response.Key)
+	if err != nil {
+		return common.EncryptedPayloadHash{}, err
+	}
+
+	cacheKey := eph.Hex()
+	var extra engine.ExtraMetadata
+	cacheKeyTemp := fmt.Sprintf("%s-incomplete", cacheKey)
+	t.cache.Set(cacheKeyTemp, cache.PrivateCacheItem{
+		Payload: data,
+		Extra:   extra,
+	}, gocache.DefaultExpiration)
+
+	return eph, nil
+}
+
 // also populate cache item with additional extra metadata
 func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
 	response := new(sendSignedTxResponse)
@@ -137,7 +164,7 @@ func (t *tesseraPrivateTxManager) ReceiveRaw(data common.EncryptedPayloadHash) (
 // retrieve raw will not return information about medata
 func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRaw bool) ([]byte, *engine.ExtraMetadata, error) {
 	if common.EmptyEncryptedPayloadHash(data) {
-		return data.Bytes(), nil, nil
+		return nil, nil, nil
 	}
 	cacheKey := data.Hex()
 	if isRaw {

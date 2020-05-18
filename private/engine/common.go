@@ -20,6 +20,10 @@ func (dn *NotInUsePrivateTxManager) Send(data []byte, from string, to []string, 
 	return common.EncryptedPayloadHash{}, ErrPrivateTxManagerNotinUse
 }
 
+func (dn *NotInUsePrivateTxManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
+	return common.EncryptedPayloadHash{}, ErrPrivateTxManagerNotinUse
+}
+
 func (dn *NotInUsePrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *ExtraMetadata) ([]byte, error) {
 	return nil, ErrPrivateTxManagerNotinUse
 }

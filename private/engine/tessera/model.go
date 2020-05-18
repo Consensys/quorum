@@ -20,6 +20,14 @@ type sendRequest struct {
 	PrivacyFlag engine.PrivacyFlagType `json:"privacyFlag"`
 }
 
+// request object for /send API
+type storerawRequest struct {
+	Payload []byte `json:"payload"`
+
+	// base64-encoded
+	From string `json:"from,omitempty"`
+}
+
 // response object for /send API
 type sendResponse struct {
 	// Base64-encoded

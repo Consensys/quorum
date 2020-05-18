@@ -2,6 +2,8 @@ package ethapi
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"os"
 	"testing"
@@ -13,8 +15,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/private/engine"
-
-	"github.com/ethereum/go-ethereum/consensus/ethash"
 
 	"github.com/ethereum/go-ethereum/core/state"
 
@@ -66,18 +66,8 @@ var (
 
 	arbitraryCurrentBlockNumber = big.NewInt(1)
 
-	publicStateDB       *state.StateDB
-	privateStateDB      *state.StateDB
-	arbitraryBlockChain *core.BlockChain
-
-	quorumChainConfig = &params.ChainConfig{
-		ChainID:              big.NewInt(10),
-		HomesteadBlock:       big.NewInt(0),
-		ByzantiumBlock:       big.NewInt(0),
-		Ethash:               new(params.EthashConfig),
-		IsQuorum:             true,
-		TransactionSizeLimit: 64,
-	}
+	publicStateDB  *state.StateDB
+	privateStateDB *state.StateDB
 )
 
 func TestMain(m *testing.M) {
@@ -89,36 +79,27 @@ func TestMain(m *testing.M) {
 
 func setup() {
 	log.Root().SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
-	testdb := ethdb.NewMemDatabase()
-	gspec := &core.Genesis{Config: quorumChainConfig}
-	gspec.MustCommit(testdb)
 	var err error
-	arbitraryBlockChain, err = core.NewBlockChain(testdb, nil, quorumChainConfig, ethash.NewFaker(), vm.Config{}, nil)
+
+	memdb := rawdb.NewMemoryDatabase()
+	db := state.NewDatabase(memdb)
+
+	publicStateDB, err = state.New(common.Hash{}, db)
+	if err != nil {
+		panic(err)
+	}
+	privateStateDB, err = state.New(common.Hash{}, db)
 	if err != nil {
 		panic(err)
 	}
 
-	publicStateDB, err = state.New(common.Hash{}, state.NewDatabase(testdb))
-	if err != nil {
-		panic(err)
-	}
-	publicStateDB.SetPersistentEthdb(testdb)
-
-	privateStateDB, err = state.New(common.Hash{}, state.NewDatabase(testdb))
-	if err != nil {
-		panic(err)
-	}
-	privateStateDB.SetPersistentEthdb(testdb)
-
-	callhelper := core.MakeCallHelper()
-	callhelper.PrivateState, callhelper.PublicState, callhelper.BC = privateStateDB, publicStateDB, arbitraryBlockChain
 	private.P = &StubPrivateTransactionManager{}
 
 	key, _ := crypto.GenerateKey()
-	arbitrarySimpleStorageContractAddress, err = callhelper.MakeCall(true, key, common.Address{}, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	if err != nil {
-		panic(err)
-	}
+	from := crypto.PubkeyToAddress(key.PublicKey)
+
+	arbitrarySimpleStorageContractAddress = crypto.CreateAddress(from, 0)
+
 	simpleStorageContractMessageCallTx = types.NewTransaction(
 		0,
 		arbitrarySimpleStorageContractAddress,
@@ -127,10 +108,7 @@ func setup() {
 		big.NewInt(0),
 		hexutil.MustDecode("0x60fe47b1000000000000000000000000000000000000000000000000000000000000000d"))
 
-	arbitraryStandardPrivateSimpleStorageContractAddress, err = callhelper.MakeCall(true, key, common.Address{}, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000002"))
-	if err != nil {
-		panic(err)
-	}
+	arbitraryStandardPrivateSimpleStorageContractAddress = crypto.CreateAddress(from, 1)
 
 	standardPrivateSimpleStorageContractMessageCallTx = types.NewTransaction(
 		0,
@@ -151,7 +129,6 @@ func setup() {
 }
 
 func teardown() {
-	arbitraryBlockChain.Stop()
 	log.Root().SetHandler(log.DiscardHandler())
 }
 
@@ -214,7 +191,7 @@ func TestSimulateExecution_whenPartyProtectionMessageCall(t *testing.T) {
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	_ = privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    privateTxArgs.PrivacyFlag,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -241,7 +218,7 @@ func TestSimulateExecution_whenStateValidationMessageCall(t *testing.T) {
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStateValidation
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	_ = privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    privateTxArgs.PrivacyFlag,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -284,7 +261,7 @@ func TestSimulateExecution_StandardPrivateFlagCallingPartyProtectionContract_Err
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	_ = privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -302,7 +279,7 @@ func TestSimulateExecution_StandardPrivateFlagCallingStateValidationContract_Err
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	_ = privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagStateValidation,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -322,7 +299,7 @@ func TestSimulateExecution_PartyProtectionFlagCallingStateValidationContract_Err
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	_ = privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagStateValidation,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -342,7 +319,7 @@ func TestSimulateExecution_StateValidationFlagCallingPartyProtectionContract_Err
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStateValidation
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	_ = privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -417,15 +394,15 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 type StubBackend struct {
 }
 
-func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header, vmCfg vm.Config) (*vm.EVM, func() error, error) {
+func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
 	vmCtx := core.NewEVMContext(msg, &types.Header{
 		Coinbase:   arbitraryFrom,
 		Number:     arbitraryCurrentBlockNumber,
-		Time:       big.NewInt(0),
+		Time:       0,
 		Difficulty: big.NewInt(0),
 		GasLimit:   0,
-	}, arbitraryBlockChain, nil)
-	return vm.NewEVM(vmCtx, publicStateDB, privateStateDB, quorumChainConfig, vmCfg), nil, nil
+	}, nil, &arbitraryFrom)
+	return vm.NewEVM(vmCtx, publicStateDB, privateStateDB, params.QuorumTestChainConfig, vm.Config{}), nil, nil
 }
 
 func (sb *StubBackend) CurrentBlock() *types.Block {
@@ -458,6 +435,14 @@ func (sb *StubBackend) AccountManager() *accounts.Manager {
 	panic("implement me")
 }
 
+func (sb *StubBackend) ExtRPCEnabled() bool {
+	panic("implement me")
+}
+
+func (sb *StubBackend) RPCGasCap() *big.Int {
+	panic("implement me")
+}
+
 func (sb *StubBackend) SetHead(number uint64) {
 	panic("implement me")
 }
@@ -466,7 +451,23 @@ func (sb *StubBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumb
 	panic("implement me")
 }
 
+func (sb *StubBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
+	panic("implement me")
+}
+
 func (sb *StubBackend) BlockByNumber(ctx context.Context, blockNr rpc.BlockNumber) (*types.Block, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
 	panic("implement me")
 }
 
@@ -474,8 +475,8 @@ func (sb *StubBackend) StateAndHeaderByNumber(ctx context.Context, blockNr rpc.B
 	return &StubMinimalApiState{}, nil, nil
 }
 
-func (sb *StubBackend) GetBlock(ctx context.Context, blockHash common.Hash) (*types.Block, error) {
-	panic("implement me")
+func (sb *StubBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (vm.MinimalApiState, *types.Header, error) {
+	return &StubMinimalApiState{}, nil, nil
 }
 
 func (sb *StubBackend) GetReceipts(ctx context.Context, blockHash common.Hash) (types.Receipts, error) {
@@ -499,6 +500,10 @@ func (sb *StubBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) ev
 }
 
 func (sb *StubBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
 	panic("implement me")
 }
 
@@ -526,6 +531,26 @@ func (sb *StubBackend) SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subsc
 	panic("implement me")
 }
 
+func (sb *StubBackend) BloomStatus() (uint64, uint64) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	panic("implement me")
+}
+
+func (sb *StubBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
+	panic("implement me")
+}
+
 func (sb *StubBackend) ChainConfig() *params.ChainConfig {
 	panic("implement me")
 }
@@ -534,6 +559,10 @@ type StubMinimalApiState struct {
 }
 
 func (StubMinimalApiState) GetBalance(addr common.Address) *big.Int {
+	panic("implement me")
+}
+
+func (StubMinimalApiState) SetBalance(addr common.Address, balance *big.Int) {
 	panic("implement me")
 }
 
@@ -546,6 +575,14 @@ func (StubMinimalApiState) GetState(a common.Address, b common.Hash) common.Hash
 }
 
 func (StubMinimalApiState) GetNonce(addr common.Address) uint64 {
+	panic("implement me")
+}
+
+func (StubMinimalApiState) SetNonce(addr common.Address, nonce uint64) {
+	panic("implement me")
+}
+
+func (StubMinimalApiState) SetCode(common.Address, []byte) {
 	panic("implement me")
 }
 
@@ -577,6 +614,14 @@ func (StubMinimalApiState) GetCodeHash(common.Address) common.Hash {
 	panic("implement me")
 }
 
+func (StubMinimalApiState) SetState(common.Address, common.Hash, common.Hash) {
+	panic("implement me")
+}
+
+func (StubMinimalApiState) SetStorage(addr common.Address, storage map[common.Hash]common.Hash) {
+	panic("implement me")
+}
+
 type StubPrivateTransactionManager struct {
 	creation bool
 }
@@ -586,6 +631,10 @@ func (sptm *StubPrivateTransactionManager) Name() string {
 }
 
 func (sptm *StubPrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
+	return arbitrarySimpleStorageContractEncryptedPayloadHash, nil
+}
+
+func (sptm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
 	return arbitrarySimpleStorageContractEncryptedPayloadHash, nil
 }
 

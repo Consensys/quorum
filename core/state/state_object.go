@@ -24,16 +24,14 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/private/engine"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
 var emptyCodeHash = crypto.Keccak256(nil)
-var privacyMetadataPrefix = []byte("PRIVACYMETADATA-")
 
 type Code []byte
 
@@ -83,6 +81,9 @@ type stateObject struct {
 	trie Trie // storage trie, which becomes non-nil on first access
 	code Code // contract bytecode, which gets set when code is loaded
 
+	// Quorum - Privacy Enhancements
+	privacyMetadata *PrivacyMetadata
+
 	originStorage  Storage // Storage cache of original entries to dedup rewrites, reset for every transaction
 	pendingStorage Storage // Storage entries that need to be flushed to disk, at the end of an entire block
 	dirtyStorage   Storage // Storage entries that have been modified in the current transaction execution
@@ -95,6 +96,8 @@ type stateObject struct {
 	suicided  bool
 	touched   bool
 	deleted   bool
+	// Quroum - Privacy Enhancements
+	dirtyPrivacyMetadata bool
 }
 
 // empty returns whether the account is considered empty.
@@ -406,6 +409,10 @@ func (s *stateObject) deepCopy(db *StateDB) *stateObject {
 	stateObject.suicided = s.suicided
 	stateObject.dirtyCode = s.dirtyCode
 	stateObject.deleted = s.deleted
+	// Quorum - Privacy Enhancements
+	stateObject.privacyMetadata = s.privacyMetadata
+	stateObject.dirtyPrivacyMetadata = s.dirtyPrivacyMetadata
+	// End Quorum - Privacy Enhancements
 	return stateObject
 }
 
@@ -462,17 +469,22 @@ func (s *stateObject) setNonce(nonce uint64) {
 	s.data.Nonce = nonce
 }
 
-func (s *stateObject) setStatePrivacyMetadata(metadata *PrivacyMetadata) error {
-	key := make([]byte, 0, len(privacyMetadataPrefix)+len(self.address.Bytes()))
-	key = append(privacyMetadataPrefix, self.address.Bytes()...)
-
-	b, err := privacyMetadataToBytes(metadata)
-	if err != nil {
-		return err
-	}
-	err = s.db.ethdb.Put(key, b)
-	return err
+// Quorum - Privacy Enhancements
+func (s *stateObject) SetStatePrivacyMetadata(metadata *PrivacyMetadata) {
+	prevPM, _ := s.PrivacyMetadata()
+	s.db.journal.append(privacyMetadataChange{
+		account: &s.address,
+		prev:    prevPM,
+	})
+	s.setStatePrivacyMetadata(metadata)
 }
+
+func (s *stateObject) setStatePrivacyMetadata(metadata *PrivacyMetadata) {
+	s.privacyMetadata = metadata
+	s.dirtyPrivacyMetadata = true
+}
+
+// End Quorum - Privacy Enhancements
 
 func (s *stateObject) CodeHash() []byte {
 	return s.data.CodeHash
@@ -486,18 +498,31 @@ func (s *stateObject) Nonce() uint64 {
 	return s.data.Nonce
 }
 
-func (self *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
-	key := make([]byte, 0, len(privacyMetadataPrefix)+len(self.address.Bytes()))
-	key = append(privacyMetadataPrefix, self.address.Bytes()...)
+// Quorum - Privacy Enhancements
+func (s *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
+	if s.privacyMetadata != nil {
+		return s.privacyMetadata, nil
+	}
+	val, err := s.GetCommittedPrivacyMetadata()
+	if val != nil {
+		s.privacyMetadata = val
+	}
+	return val, err
+}
 
-	val, err := self.db.ethdb.Get(key)
-
+func (s *stateObject) GetCommittedPrivacyMetadata() (*PrivacyMetadata, error) {
+	val, err := s.db.privacyMetaDataTrie.TryGet(s.address.Bytes())
 	if err != nil {
 		return nil, err
 	}
 	data, err := bytesToPrivacyMetadata(val)
+	if err != nil {
+		return nil, err
+	}
 	return data, err
 }
+
+// End Quorum - Privacy Enhancements
 
 // Never called, but must be present to allow stateObject to be used
 // as a vm.Account interface that also satisfies the vm.ContractRef
@@ -506,6 +531,7 @@ func (s *stateObject) Value() *big.Int {
 	panic("Value on stateObject should never be called")
 }
 
+// Quorum - Privacy Enhancements
 func privacyMetadataToBytes(pm *PrivacyMetadata) ([]byte, error) {
 	var b bytes.Buffer
 	e := gob.NewEncoder(&b)
@@ -523,3 +549,5 @@ func bytesToPrivacyMetadata(b []byte) (*PrivacyMetadata, error) {
 	}
 	return data, nil
 }
+
+// End Quorum - Privacy Enhancements

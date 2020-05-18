@@ -25,11 +25,11 @@ import (
 
 	fmt "fmt"
 
-	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -277,7 +277,7 @@ func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 }
 
 // WithSignature returns a new transaction with the given signature.
-// This signature needs to be formatted as described in the yellow paper (v+27).
+// This signature needs to be in the [R || S || V] format where V is 0 or 1.
 func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, error) {
 	r, s, v, err := signer.SignatureValues(tx, sig)
 	if err != nil {

@@ -18,6 +18,7 @@ import (
 )
 
 var (
+	emptyHash                      = common.EncryptedPayloadHash{}
 	arbitraryHash                  = common.BytesToEncryptedPayloadHash([]byte("arbitrary"))
 	arbitraryHash1                 = common.BytesToEncryptedPayloadHash([]byte("arbitrary1"))
 	arbitraryNotFoundHash          = common.BytesToEncryptedPayloadHash([]byte("not found"))
@@ -134,7 +135,7 @@ func teardown() {
 	testServer.Close()
 }
 
-func verifyRequetHeader(h http.Header, t *testing.T) {
+func verifyRequestHeader(h http.Header, t *testing.T) {
 	if h.Get("Content-type") != "application/json" {
 		t.Errorf("expected Content-type header is application/json")
 	}
@@ -157,7 +158,7 @@ func TestSend_whenTypical(t *testing.T) {
 		t.Fatalf("%s", capturedRequest.err)
 	}
 
-	verifyRequetHeader(capturedRequest.header, t)
+	verifyRequestHeader(capturedRequest.header, t)
 
 	actualRequest := capturedRequest.request.(*sendRequest)
 
@@ -183,7 +184,7 @@ func TestReceive_whenTypical(t *testing.T) {
 		t.Fatalf("%s", capturedRequest.err)
 	}
 
-	verifyRequetHeader(capturedRequest.header, t)
+	verifyRequestHeader(capturedRequest.header, t)
 
 	actualRequest := capturedRequest.request.(string)
 
@@ -206,11 +207,22 @@ func TestReceive_whenPayloadNotFound(t *testing.T) {
 		t.Fatalf("%s", capturedRequest.err)
 	}
 
-	verifyRequetHeader(capturedRequest.header, t)
+	verifyRequestHeader(capturedRequest.header, t)
 
 	actualRequest := capturedRequest.request.(string)
 
 	assert.Equal(arbitraryNotFoundHash.ToBase64(), actualRequest, "requested hash")
+	assert.Nil(data, "returned payload when not found")
+}
+
+func TestReceive_whenEncryptedPayloadHashIsEmpty(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	data, _, err := testObject.Receive(emptyHash)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	assert.Empty(receiveRequestCaptor, "no request is actually sent")
 	assert.Nil(data, "returned payload when not found")
 }
 
@@ -227,7 +239,7 @@ func TestReceive_whenHavingPayloadButNoPrivateExtraMetadata(t *testing.T) {
 		t.Fatalf("%s", capturedRequest.err)
 	}
 
-	verifyRequetHeader(capturedRequest.header, t)
+	verifyRequestHeader(capturedRequest.header, t)
 
 	actualRequest := capturedRequest.request.(string)
 
@@ -249,7 +261,7 @@ func TestSendSignedTx_whenTypical(t *testing.T) {
 		t.Fatalf("%s", capturedRequest.err)
 	}
 
-	verifyRequetHeader(capturedRequest.header, t)
+	verifyRequestHeader(capturedRequest.header, t)
 
 	actualRequest := capturedRequest.request.(*sendSignedTxRequest)
 

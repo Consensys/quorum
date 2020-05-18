@@ -48,10 +48,10 @@ func FromEnvironmentOrNil(name string) PrivateTransactionManager {
 	if strings.EqualFold(cfgPath, "ignore") {
 		return &engine.NotInUsePrivateTxManager{}
 	}
-	return mustNewPrivateTxManager(cfgPath)
+	return MustNewPrivateTxManager(cfgPath)
 }
 
-func mustNewPrivateTxManager(cfgPath string) PrivateTransactionManager {
+func MustNewPrivateTxManager(cfgPath string) PrivateTransactionManager {
 	info, err := os.Lstat(cfgPath)
 	if err != nil {
 		panic(fmt.Sprintf("unable to read %s due to %s", cfgPath, err))

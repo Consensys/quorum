@@ -61,8 +61,7 @@ type StateDB interface {
 	//GetNonce(common.Address) uint64
 	//SetNonce(common.Address, uint64)
 
-	SetStatePrivacyMetadata(common.Address, *state.PrivacyMetadata) error
-
+	SetStatePrivacyMetadata(common.Address, *state.PrivacyMetadata)
 	//GetCodeHash(common.Address) common.Hash
 	//GetCode(common.Address) []byte
 	//SetCode(common.Address, []byte)
