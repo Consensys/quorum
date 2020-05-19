@@ -972,7 +972,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 	//This makes the return value a potential over-estimate of gas, rather than the exact cost to run right now
 
 	//if the transaction has a value then it cannot be private, so we can skip this check
-	if args.Value.ToInt().Cmp(big.NewInt(0)) == 0 {
+	if args.Value != nil && args.Value.ToInt().Cmp(big.NewInt(0)) == 0 {
 		homestead := b.ChainConfig().IsHomestead(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
 		istanbul := b.ChainConfig().IsIstanbul(new(big.Int).SetInt64(int64(rpc.PendingBlockNumber)))
 		var data []byte
@@ -1618,8 +1618,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	// /Quorum
 
 	// Assemble the transaction and sign with the wallet
-	var tx *types.Transaction
-	tx = args.toTransaction()
+	tx := args.toTransaction()
 
 	if args.IsPrivate() {
 		tx.SetPrivate()
@@ -1688,7 +1687,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		return common.Hash{}, err
 	}
 
-	txHash := []byte(tx.Data())
+	txHash := tx.Data()
 	isPrivate := (args.PrivateFor != nil) && tx.IsPrivate()
 
 	if isPrivate {
@@ -1756,7 +1755,7 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Sen
 	// set gas to constant if nil
 	if args.IsPrivate() && args.Gas == nil {
 		gas := (hexutil.Uint64)(90000)
-		args.Gas = (*hexutil.Uint64)(&gas)
+		args.Gas = &gas
 	}
 	// /Quorum
 	if err := args.setDefaults(ctx, s.b); err != nil {
@@ -1817,7 +1816,7 @@ func (s *PublicTransactionPoolAPI) Resend(ctx context.Context, sendArgs SendTxAr
 	// set gas to constant if nil
 	if sendArgs.IsPrivate() && sendArgs.Gas == nil {
 		gas := (hexutil.Uint64)(90000)
-		sendArgs.Gas = (*hexutil.Uint64)(&gas)
+		sendArgs.Gas = &gas
 	}
 	if err := sendArgs.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err

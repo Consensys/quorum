@@ -19,7 +19,6 @@ package backend
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"reflect"
 	"testing"
@@ -30,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -167,14 +167,12 @@ func TestSealStopChannel(t *testing.T) {
 	stop := make(chan struct{}, 1)
 	eventSub := engine.EventMux().Subscribe(istanbul.RequestEvent{})
 	eventLoop := func() {
-		select {
-		case ev := <-eventSub.Chan():
-			_, ok := ev.Data.(istanbul.RequestEvent)
-			if !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-			}
-			stop <- struct{}{}
+		ev := <-eventSub.Chan()
+		_, ok := ev.Data.(istanbul.RequestEvent)
+		if !ok {
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 		}
+		stop <- struct{}{}
 		eventSub.Unsubscribe()
 	}
 	go eventLoop()
@@ -203,14 +201,12 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	stopChannel := make(chan struct{})
 
 	go func() {
-		select {
-		case ev := <-eventSub.Chan():
-			if _, ok := ev.Data.(istanbul.RequestEvent); !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-			}
-			if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}); err != nil {
-				t.Error(err.Error())
-			}
+		ev := <-eventSub.Chan()
+		if _, ok := ev.Data.(istanbul.RequestEvent); !ok {
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
+		}
+		if err := engine.Commit(otherBlock, [][]byte{expectedCommittedSeal}); err != nil {
+			t.Error(err.Error())
 		}
 		eventSub.Unsubscribe()
 	}()
@@ -229,11 +225,9 @@ func TestSealCommittedOtherHash(t *testing.T) {
 		close(stopChannel)
 	}
 
-	select {
-	case output := <-blockOutputChannel:
-		if output != nil {
-			t.Error("Block not nil!")
-		}
+	output := <-blockOutputChannel
+	if output != nil {
+		t.Error("Block not nil!")
 	}
 }
 

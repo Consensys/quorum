@@ -2,6 +2,9 @@ package private
 
 import (
 	"os"
+	"strings"
+
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/private/privatetransactionmanager"
@@ -21,6 +24,9 @@ func FromEnvironmentOrNil(name string) PrivateTransactionManager {
 	cfgPath := os.Getenv(name)
 	if cfgPath == "" {
 		return nil
+	}
+	if strings.EqualFold(cfgPath, "ignore") {
+		return &notinuse.PrivateTransactionManager{}
 	}
 	return privatetransactionmanager.MustNew(cfgPath)
 }

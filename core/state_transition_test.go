@@ -2,17 +2,15 @@ package core
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/private"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
-
+	"github.com/ethereum/go-ethereum/private"
 	testifyassert "github.com/stretchr/testify/assert"
 )
 
