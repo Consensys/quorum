@@ -29,8 +29,6 @@ import (
 	"testing"
 	"testing/quick"
 
-	"gopkg.in/check.v1"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -143,6 +141,26 @@ func TestIntermediateLeaks(t *testing.T) {
 		if !bytes.Equal(fvalue, tvalue) {
 			t.Errorf("the value associate key %x is mismatch,: %x in transition database ,%x in final database", key, tvalue, fvalue)
 		}
+	}
+}
+
+func TestStorageRoot(t *testing.T) {
+	var (
+		mem      = rawdb.NewMemoryDatabase()
+		db       = NewDatabase(mem)
+		state, _ = New(common.Hash{}, db)
+		addr     = common.Address{1}
+		key      = common.Hash{1}
+		value    = common.Hash{42}
+
+		empty = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	)
+
+	so := state.GetOrNewStateObject(addr)
+
+	emptyRoot := so.storageRoot(db)
+	if emptyRoot != empty {
+		t.Errorf("Invalid empty storage root, expected %x, got %x", empty, emptyRoot)
 	}
 
 	// add a bit of state
