@@ -107,27 +107,14 @@ func (n *Node) Load(k enr.Entry) error {
 // To support DNS lookup in node ip. The function performs hostname lookup if hostname is defined in enr.Hostname
 // and falls back to enr.IP value in case of failure. It also makes sure the resolved IP is in IPv4 or IPv6 format
 func (n *Node) IP() net.IP {
-	var (
-		ip4 enr.IPv4
-		ip6 enr.IPv6
-	)
 	if n.Host() == "" {
-		if n.Load(&ip4) == nil {
-			return net.IP(ip4)
-		}
-		if n.Load(&ip6) == nil {
-			return net.IP(ip6)
-		}
+		// no host is set, so use the IP directly
+		return n.loadIP()
 	}
 	// attempt to look up IP addresses if host is a FQDN
 	lookupIPs, err := net.LookupIP(n.Host())
 	if err != nil {
-		if n.Load(&ip4) == nil {
-			return net.IP(ip4)
-		}
-		if n.Load(&ip6) == nil {
-			return net.IP(ip6)
-		}
+		return n.loadIP()
 	}
 	// set to first ip by default & as Ethereum upstream
 	ip := lookupIPs[0]
