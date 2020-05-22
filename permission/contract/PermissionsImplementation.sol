@@ -168,12 +168,13 @@ contract PermissionsImplementation {
     /** @notice as a part of network initialization add all nodes which
         are part of static-nodes.json as nodes belonging to
         network admin org
-      * @param _enodeId - full enode id
+      * @param _url - full enode id
+      * @param _enodeId - enode id
       */
-    function addAdminNode(string calldata _enodeId) external
+    function addAdminNode(string calldata _url, string calldata _enodeId) external
     onlyInterface
     networkBootStatus(false) {
-        nodeManager.addAdminNode(_enodeId, adminOrg);
+        nodeManager.addAdminNode(_url, _enodeId, adminOrg);
     }
 
     /** @notice as a part of network initialization add all accounts which are
@@ -209,17 +210,18 @@ contract PermissionsImplementation {
         account manager contracts. creates voting record for approval
         by other network admin accounts
       * @param _orgId unique organization id
-      * @param _enodeId full enode id linked to the organization
+      * @param _url full enode id linked to the organization
+      * @param _enodeId enode id linked to the organization
       * @param _account account id. this will have the org admin privileges
       */
-    function addOrg(string calldata _orgId, string calldata _enodeId,
+    function addOrg(string calldata _orgId, string calldata _url, string calldata _enodeId,
         address _account, address _caller) external
     onlyInterface
     networkBootStatus(true)
     networkAdmin(_caller) {
         voterManager.addVotingItem(adminOrg, _orgId, _enodeId, _account, 1);
         orgManager.addOrg(_orgId);
-        nodeManager.addNode(_enodeId, _orgId);
+        nodeManager.addNode(_url, _enodeId, _orgId);
         require(validateAccount(_account, _orgId) == true,
             "Operation cannot be performed");
         accountManager.assignAdminRole(_account, _orgId, orgAdminRole, 1);
@@ -246,7 +248,8 @@ contract PermissionsImplementation {
     /** @notice function to create a sub org under a given parent org.
       * @param _pOrgId parent org id under which the sub org is being added
       * @param _orgId unique id for the sub organization
-      * @param _enodeId full enode id linked to the sjb organization
+      * @param _url full enode id linked to the sjb organization
+      * @param _enodeId enode id linked to the sjb organization
       * @dev _enodeId is optional. parent org id should contain the complete
         org hierarchy from master org id to the immediate parent. The org
         hierarchy is separated by. For example, if master org ABC has a
@@ -254,12 +257,12 @@ contract PermissionsImplementation {
         SUB1 level, the parent org should be given as ABC.SUB1
       */
     function addSubOrg(string calldata _pOrgId, string calldata _orgId,
-        string calldata _enodeId, address _caller) external onlyInterface
+        string calldata _url, string calldata _enodeId, address _caller) external onlyInterface
     orgExists(_pOrgId) orgAdmin(_caller, _pOrgId) {
         orgManager.addSubOrg(_pOrgId, _orgId);
         string memory pOrgId = string(abi.encodePacked(_pOrgId, ".", _orgId));
         if (bytes(_enodeId).length > 0) {
-            nodeManager.addOrgNode(_enodeId, pOrgId);
+            nodeManager.addOrgNode(_url, _enodeId, pOrgId);
         }
     }
 
@@ -394,12 +397,13 @@ contract PermissionsImplementation {
     /** @notice function to add a new node to the organization. can be invoked
         org admin account only
       * @param _orgId unique id of the organization to which the account belongs
-      * @param _enodeId full enode id being dded to the org
+      * @param _url full enode id being dded to the org
+      * @param _enodeId enode id being dded to the org
       */
-    function addNode(string calldata _orgId, string calldata _enodeId, address _caller)
+    function addNode(string calldata _orgId, string calldata _url, string calldata _enodeId, address _caller)
     external onlyInterface orgApproved(_orgId) orgAdmin(_caller, _orgId) {
         // check that the node is not part of another org
-        nodeManager.addOrgNode(_enodeId, _orgId);
+        nodeManager.addOrgNode(_url, _enodeId, _orgId);
     }
 
     /** @notice function to update node status. can be invoked by org admin

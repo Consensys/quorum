@@ -48,10 +48,11 @@ contract PermissionsInterface {
     }
 
     /** @notice interface to add new node to an admin organization
-      * @param _enodeId full enode id of the node to be added
+      * @param _url full enode id of the node to be added
+      * @param _enodeId enode id of the node to be added
       */
-    function addAdminNode(string calldata _enodeId) external {
-        permImplementation.addAdminNode(_enodeId);
+    function addAdminNode(string calldata _url, string calldata _enodeId) external {
+        permImplementation.addAdminNode(_url, _enodeId);
     }
 
     /** @notice interface to add accounts to an admin organization
@@ -79,12 +80,13 @@ contract PermissionsInterface {
 
     /** @notice interface to add a new organization to the network
       * @param _orgId unique organization id
-      * @param _enodeId full enode id linked to the organization
+      * @param _url full enode id linked to the organization
+      * @param _enodeId enode id linked to the organization
       * @param _account account id. this will have the org admin privileges
       */
-    function addOrg(string calldata _orgId, string calldata _enodeId,
+    function addOrg(string calldata _orgId, string calldata _url, string calldata _enodeId,
         address _account) external {
-        permImplementation.addOrg(_orgId, _enodeId, _account, msg.sender);
+        permImplementation.addOrg(_orgId, _url, _enodeId, _account, msg.sender);
     }
 
     /** @notice interface to approve a newly added organization
@@ -103,8 +105,8 @@ contract PermissionsInterface {
       * @param _enodeId full enode id linked to the sjb organization
       */
     function addSubOrg(string calldata _pOrgId, string calldata _orgId,
-        string calldata _enodeId) external {
-        permImplementation.addSubOrg(_pOrgId, _orgId, _enodeId, msg.sender);
+string calldata _url, string calldata _enodeId) external {
+        permImplementation.addSubOrg(_pOrgId, _orgId, _url, _enodeId, msg.sender);
     }
 
     /** @notice interface to update the org status
@@ -182,10 +184,11 @@ contract PermissionsInterface {
 
     /** @notice interface to add a new node to the organization
       * @param _orgId unique id of the organization to which the account belongs
-      * @param _enodeId full enode id being dded to the org
+      * @param _url full enode id being dded to the org
+      * @param _enodeId enode id being dded to the org
       */
-    function addNode(string calldata _orgId, string calldata _enodeId) external {
-        permImplementation.addNode(_orgId, _enodeId, msg.sender);
+    function addNode(string calldata _orgId, string calldata _url, string calldata _enodeId) external {
+        permImplementation.addNode(_orgId, _url, _enodeId, msg.sender);
 
     }
 

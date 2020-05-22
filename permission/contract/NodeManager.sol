@@ -28,8 +28,10 @@ contract NodeManager {
     // use an array to store node details
     // if we want to list all node one day, mapping is not capable
     NodeDetails[] private nodeList;
-    // mapping of enodeid to array index to track node
+    // mapping of enode url to array index to track node
     mapping(bytes32 => uint256) private nodeIdToIndex;
+    // mapping of enodeId to array index to track node
+    mapping(bytes32 => uint256) private enodeIdToIndex;
     // tracking total number of nodes in network
     uint256 private numberOfNodes;
 
@@ -66,8 +68,8 @@ contract NodeManager {
     /** @notice  checks if the node exists in the network
       * @param _enodeId full enode id
       */
-    modifier enodeExists(string memory _enodeId) {
-        require(nodeIdToIndex[keccak256(abi.encode(_enodeId))] != 0,
+    modifier enodeExists(string memory _url) {
+        require(nodeIdToIndex[keccak256(abi.encode(_url))] != 0,
             "passed enode id does not exist");
         _;
     }
@@ -75,8 +77,8 @@ contract NodeManager {
     /** @notice  checks if the node does not exist in the network
       * @param _enodeId full enode id
       */
-    modifier enodeDoesNotExists(string memory _enodeId) {
-        require(nodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0,
+    modifier enodeDoesNotExists(string memory _url) {
+        require(nodeIdToIndex[keccak256(abi.encode(_url))] == 0,
             "passed enode id exists");
         _;
     }
@@ -121,42 +123,48 @@ contract NodeManager {
 
     /** @notice called at the time of network initialization for adding
         admin nodes
+      * @param _url full enode id
       * @param _enodeId enode id
       * @param _orgId org id to which the enode belongs
       */
-    function addAdminNode(string calldata _enodeId, string calldata _orgId) external
+    function addAdminNode(string calldata _url, string calldata _enodeId, string calldata _orgId) external
     onlyImplementation
-    enodeDoesNotExists(_enodeId) {
+    enodeDoesNotExists(_url) {
         numberOfNodes++;
-        nodeIdToIndex[keccak256(abi.encode(_enodeId))] = numberOfNodes;
-        nodeList.push(NodeDetails(_enodeId, _orgId, 2));
-        emit NodeApproved(_enodeId, _orgId);
+        enodeIdToIndex[keccak256(abi.encode(_enodeId))] = numberOfNodes;
+        nodeIdToIndex[keccak256(abi.encode(_url))] = numberOfNodes;
+        nodeList.push(NodeDetails(_url, _orgId, 2));
+        emit NodeApproved(_url, _orgId);
     }
 
     /** @notice called at the time of new org creation to add node to org
+      * @param _url full enode id
       * @param _enodeId enode id
       * @param _orgId org id to which the enode belongs
       */
-    function addNode(string calldata _enodeId, string calldata _orgId) external
+    function addNode(string calldata _url, string calldata _enodeId, string calldata _orgId) external
     onlyImplementation
-    enodeDoesNotExists(_enodeId) {
+    enodeDoesNotExists(_url) {
         numberOfNodes++;
-        nodeIdToIndex[keccak256(abi.encode(_enodeId))] = numberOfNodes;
-        nodeList.push(NodeDetails(_enodeId, _orgId, 1));
-        emit NodeProposed(_enodeId, _orgId);
+        enodeIdToIndex[keccak256(abi.encode(_enodeId))] = numberOfNodes;
+        nodeIdToIndex[keccak256(abi.encode(_url))] = numberOfNodes;
+        nodeList.push(NodeDetails(_url, _orgId, 1));
+        emit NodeProposed(_url, _orgId);
     }
 
     /** @notice called org admins to add new enodes to the org or sub orgs
+      * @param _url full enode id
       * @param _enodeId enode id
       * @param _orgId org or sub org id to which the enode belongs
       */
-    function addOrgNode(string calldata _enodeId, string calldata _orgId) external
+    function addOrgNode(string calldata _url, string calldata _enodeId, string calldata _orgId) external
     onlyImplementation
-    enodeDoesNotExists(_enodeId) {
+    enodeDoesNotExists(_url) {
         numberOfNodes++;
-        nodeIdToIndex[keccak256(abi.encode(_enodeId))] = numberOfNodes;
-        nodeList.push(NodeDetails(_enodeId, _orgId, 2));
-        emit NodeApproved(_enodeId, _orgId);
+        nodeIdToIndex[keccak256(abi.encode(_url))] = numberOfNodes;
+        enodeIdToIndex[keccak256(abi.encode(_enodeId))] = numberOfNodes;
+        nodeList.push(NodeDetails(_url, _orgId, 2));
+        emit NodeApproved(_url, _orgId);
     }
 
     /** @notice function to approve the node addition. only called at the time
