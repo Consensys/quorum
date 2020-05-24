@@ -235,6 +235,15 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 		hasPrivatePayload = data != nil
 		if receivedPrivacyMetadata != nil {
+			// if privacy enhancements is disabled we should treat all transactions as StandardPrivate
+			if !st.evm.ChainConfig().IsPrivacyEnhancementsEnabled(st.evm.BlockNumber) && receivedPrivacyMetadata.PrivacyFlag.IsNotStandardPrivate() {
+				log.Warn("Non StandardPrivate transaction received but PrivacyEnhancements are disabled. Enhanced privacy metadata will be ignored.")
+				receivedPrivacyMetadata = &engine.ExtraMetadata{
+					ACHashes:     make(common.EncryptedPayloadHashes),
+					ACMerkleRoot: common.Hash{},
+					PrivacyFlag:  engine.PrivacyFlagStandardPrivate}
+			}
+
 			if !contractCreation && receivedPrivacyMetadata.PrivacyFlag == engine.PrivacyFlagStateValidation && common.EmptyHash(receivedPrivacyMetadata.ACMerkleRoot) {
 				log.Error("Privacy metadata has empty MR for stateValidation flag")
 				return nil, 0, true, nil
@@ -304,8 +313,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	//This validation is to prevent cases where the list of affected contract will have changed by the time the evm actually executes transaction
 	// failed = true will make sure receipt is marked as "failure"
 	// return error will crash the node and only use when that's the case
-	if isPrivate && hasPrivatePayload {
-		// convinient function to return error. It has the same signature as the main function
+	if isPrivate && hasPrivatePayload && st.evm.ChainConfig().IsPrivacyEnhancementsEnabled(st.evm.BlockNumber) {
+		// convenient function to return error. It has the same signature as the main function
 		returnErrorFunc := func(anError error, logMsg string, ctx ...interface{}) (ret []byte, usedGas uint64, failed bool, err error) {
 			if logMsg != "" {
 				log.Error(logMsg, ctx...)

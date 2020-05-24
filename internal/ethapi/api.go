@@ -2129,6 +2129,11 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 		if err = privateTxArgs.PrivacyFlag.Validate(); err != nil {
 			return
 		}
+
+		if !b.ChainConfig().IsPrivacyEnhancementsEnabled(b.CurrentBlock().Number()) && privateTxArgs.PrivacyFlag.IsNotStandardPrivate() {
+			err = fmt.Errorf("PrivacyEnhancements are disabled. Can only accept transactions with PrivacyFlag=0(StandardPrivate).")
+			return
+		}
 		data := tx.Data()
 		if len(data) > 0 { // only support non-value-transfer transaction
 			var affectedCATxHashes common.EncryptedPayloadHashes // of affected contract accounts
@@ -2199,6 +2204,12 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())
+
+	// skip simulation if privacy enhancements are disabled
+	if !b.ChainConfig().IsPrivacyEnhancementsEnabled(b.CurrentBlock().Number()) {
+		return nil, common.Hash{}, engine.PrivacyFlagStandardPrivate, nil
+	}
+
 	var contractAddr common.Address
 	blockNumber := b.CurrentBlock().Number().Uint64()
 	state, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))

@@ -127,6 +127,40 @@ func TestApplyMessage_Private_whenCreatePartyProtectionC1_Success(t *testing.T) 
 	assert.False(fail, "Transaction receipt status")
 	mockPM.Verify(assert)
 }
+
+func TestApplyMessage_Private_whenCreatePartyProtectionC1WithPrivacyEnhancementsDisabledIsHandledLikeStandardPrivate_Success(t *testing.T) {
+	originalP := private.P
+	defer func() { private.P = originalP }()
+	mockPM := newMockPrivateTransactionManager()
+	private.P = mockPM
+	assert := testifyassert.New(t)
+
+	// calling C1.Create party protection
+	cfg := newConfig().
+		setPrivacyFlag(engine.PrivacyFlagPartyProtection).
+		setData([]byte("arbitrary encrypted payload hash"))
+
+	gp := new(GasPool).AddGas(math.MaxUint64)
+	privateMsg := newTypicalPrivateMessage(cfg)
+
+	//since party protection create only get back privacyFlag
+	mockPM.When("Receive").Return(c1.create(big.NewInt(42)), &engine.ExtraMetadata{
+		PrivacyFlag: engine.PrivacyFlagPartyProtection,
+	}, nil)
+
+	evm := newEVM(cfg)
+	evm.ChainConfig().PrivacyEnhancementsBlock = nil
+	_, _, fail, err := ApplyMessage(evm, privateMsg, gp)
+
+	assert.NoError(err, "EVM execution")
+	assert.False(fail, "Transaction receipt status")
+	// check that there is no privacy metadata for the newly created contract
+	contractAddr := evm.CreatedContracts()[0]
+	_, errGetPrivMetadata := cfg.privateState.GetStatePrivacyMetadata(contractAddr)
+	assert.Error(errGetPrivMetadata, "not found")
+	mockPM.Verify(assert)
+}
+
 func TestApplyMessage_Private_whenInteractWithPartyProtectionC1_Success(t *testing.T) {
 	originalP := private.P
 	defer func() { private.P = originalP }()
@@ -886,15 +920,16 @@ func newEVM(cfg *config) *vm.EVM {
 		GasPrice:    big.NewInt(0),
 	}
 	evm := vm.NewEVM(context, cfg.publicState, cfg.privateState, &params.ChainConfig{
-		ChainID:        big.NewInt(1),
-		ByzantiumBlock: new(big.Int),
-		HomesteadBlock: new(big.Int),
-		DAOForkBlock:   new(big.Int),
-		DAOForkSupport: false,
-		EIP150Block:    new(big.Int),
-		EIP155Block:    new(big.Int),
-		EIP158Block:    new(big.Int),
-		IsQuorum:       true,
+		ChainID:                  big.NewInt(1),
+		ByzantiumBlock:           new(big.Int),
+		HomesteadBlock:           new(big.Int),
+		DAOForkBlock:             new(big.Int),
+		DAOForkSupport:           false,
+		EIP150Block:              new(big.Int),
+		EIP155Block:              new(big.Int),
+		EIP158Block:              new(big.Int),
+		IsQuorum:                 true,
+		PrivacyEnhancementsBlock: new(big.Int),
 	}, vm.Config{})
 	evm.SetCurrentTX(cfg.currentTx)
 	return evm

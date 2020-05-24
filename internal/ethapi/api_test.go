@@ -213,6 +213,24 @@ func TestSimulateExecution_whenPartyProtectionMessageCall(t *testing.T) {
 	//assert.True(!affectedCACreationTxHashes.NotExist(expectedCACreationTxHashes), "%s is an affected contract account", arbitrarySimpleStorageContractAddress.Hex())
 }
 
+func TestSimulateExecution_whenPartyProtectionMessageCallAndPrivacyEnhancementsDisabled(t *testing.T) {
+	assert := assert.New(t)
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
+
+	params.QuorumTestChainConfig.PrivacyEnhancementsBlock = nil
+	defer func() { params.QuorumTestChainConfig.PrivacyEnhancementsBlock = big.NewInt(0) }()
+
+	stbBackend := &StubBackend{}
+	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, stbBackend, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+
+	// the simulation returns early without executing the transaction
+	assert.False(stbBackend.getEVMCalled, "simulation is ended early - before getEVM is called")
+	assert.NoError(err, "simulate execution")
+	assert.Empty(affectedCACreationTxHashes, "affected contract accounts' creation transacton hashes")
+	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
+	assert.Equal(engine.PrivacyFlagStandardPrivate, privacyFlag, "StandardPrivate flag")
+}
+
 func TestSimulateExecution_whenStateValidationMessageCall(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStateValidation
@@ -345,6 +363,18 @@ func TestHandlePrivateTransaction_whenInvalidFlag(t *testing.T) {
 
 	assert.Error(err, "invalid privacyFlag")
 }
+
+func TestHandlePrivateTransaction_withPartyProtectionTxAndPrivacyEnhancementsIsDisabled(t *testing.T) {
+	assert := assert.New(t)
+	privateTxArgs.PrivacyFlag = 1
+	params.QuorumTestChainConfig.PrivacyEnhancementsBlock = nil
+	defer func() { params.QuorumTestChainConfig.PrivacyEnhancementsBlock = big.NewInt(0) }()
+
+	_, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, false)
+
+	assert.Error(err, "PrivacyEnhancements are disabled. Can only accept transactions with PrivacyFlag=0(StandardPrivate).")
+}
+
 func TestHandlePrivateTransaction_whenStandardPrivateCreation(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
@@ -392,9 +422,11 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 }
 
 type StubBackend struct {
+	getEVMCalled bool
 }
 
 func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
+	sb.getEVMCalled = true
 	vmCtx := core.NewEVMContext(msg, &types.Header{
 		Coinbase:   arbitraryFrom,
 		Number:     arbitraryCurrentBlockNumber,
@@ -552,7 +584,7 @@ func (sb *StubBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent
 }
 
 func (sb *StubBackend) ChainConfig() *params.ChainConfig {
-	panic("implement me")
+	return params.QuorumTestChainConfig
 }
 
 type StubMinimalApiState struct {
