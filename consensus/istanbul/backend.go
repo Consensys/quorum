@@ -72,4 +72,10 @@ type Backend interface {
 	HasBadProposal(hash common.Hash) bool
 
 	Close() error
+
+	// IsQIBFTConsensus checks qibftBlock fork block and returns if it should be enabled
+	IsQIBFTConsensus() bool
+
+	// StartQBFTConsensus stops existing legacy ibft consensus and starts the new qibft consensus
+	StartQIBFTConsensus() error
 }

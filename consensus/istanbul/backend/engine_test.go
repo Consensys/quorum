@@ -46,6 +46,8 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 	config := istanbul.DefaultConfig
 	// Use the first key as private key
 	b, _ := New(config, nodeKeys[0], memDB).(*backend)
+	// set the qibft consensus enabled to true
+	b.qibftConsensusEnabled = true
 	genesis.MustCommit(memDB)
 	blockchain, err := core.NewBlockChain(memDB, nil, genesis.Config, b, vm.Config{}, nil)
 	if err != nil {

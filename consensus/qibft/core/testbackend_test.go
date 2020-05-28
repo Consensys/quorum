@@ -18,13 +18,13 @@ package core
 
 import (
 	"crypto/ecdsa"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -219,10 +219,10 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 
 		core := New(backend, config).(*core)
 		core.state = StateAcceptRequest
-		core.current = newRoundState(&istanbul.View{
+		core.current = newRoundState(&View{
 			Round:    big.NewInt(0),
 			Sequence: big.NewInt(1),
-		}, vset, common.Hash{}, nil, nil, func(hash common.Hash) bool {
+		}, vset, nil, nil, func(hash common.Hash) bool {
 			return false
 		})
 		core.valSet = vset

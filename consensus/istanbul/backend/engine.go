@@ -535,6 +535,12 @@ func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types
 	}
 
 	sb.coreStarted = true
+
+	if sb.IsQIBFTConsensus() {
+		sb.logger.Trace("Started qibft consensus")
+		sb.qibftConsensusEnabled = true
+	}
+
 	return nil
 }
 
@@ -549,6 +555,11 @@ func (sb *backend) Stop() error {
 		return err
 	}
 	sb.coreStarted = false
+
+	if sb.IsQIBFTConsensus() {
+		sb.qibftConsensusEnabled = false
+	}
+
 	return nil
 }
 

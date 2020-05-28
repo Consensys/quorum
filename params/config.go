@@ -346,6 +346,7 @@ type IstanbulConfig struct {
 	ProposerPolicy         uint64   `json:"policy"`                   // The policy for proposer selection
 	Ceil2Nby3Block         *big.Int `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
 	AllowedFutureBlockTime uint64   `json:"allowedFutureBlockTime"`   // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
+	QibftBlock             *big.Int `json:"qibftBlock,omitempty"`     // Fork block at which block confirmations are done using qibft consensus instead of ibft
 }
 
 // String implements the stringer interface, returning the consensus engine details.
@@ -676,6 +677,9 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, head *big.Int, isQuor
 	}
 	if c.Istanbul != nil && newcfg.Istanbul != nil && isForkIncompatible(c.Istanbul.Ceil2Nby3Block, newcfg.Istanbul.Ceil2Nby3Block, head) {
 		return newCompatError("Ceil 2N/3 fork block", c.Istanbul.Ceil2Nby3Block, newcfg.Istanbul.Ceil2Nby3Block)
+	}
+	if c.Istanbul != nil && newcfg.Istanbul != nil && isForkIncompatible(c.Istanbul.QibftBlock, newcfg.Istanbul.QibftBlock, head) {
+		return newCompatError("Qibft fork block", c.Istanbul.QibftBlock, newcfg.Istanbul.QibftBlock)
 	}
 	if isForkIncompatible(c.QIP714Block, newcfg.QIP714Block, head) {
 		return newCompatError("permissions fork block", c.QIP714Block, newcfg.QIP714Block)

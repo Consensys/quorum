@@ -52,9 +52,18 @@ func New(backend istanbul.Backend, config *istanbul.Config) Engine {
 		consensusTimer:     metrics.NewTimer(),
 	}
 
-	r.Register("consensus/istanbul/core/round", c.roundMeter)
-	r.Register("consensus/istanbul/core/sequence", c.sequenceMeter)
-	r.Register("consensus/istanbul/core/consensus", c.consensusTimer)
+	// During upgrades we do not want to re-register round, sequence and consensus metrics
+	// Do not have to register them, if they are already registered
+	if roundMeter := r.Get("consensus/istanbul/core/round"); roundMeter == nil {
+		r.Register("consensus/istanbul/core/round", c.roundMeter)
+	}
+	if sequenceMeter := r.Get("consensus/istanbul/core/sequence"); sequenceMeter == nil {
+		r.Register("consensus/istanbul/core/sequence", c.sequenceMeter)
+	}
+
+	if consensusTimer := r.Get("consensus/istanbul/core/consensus"); consensusTimer == nil {
+		r.Register("consensus/istanbul/core/consensus", c.consensusTimer)
+	}
 
 	c.validateFn = c.checkValidatorSignature
 	return c
@@ -74,9 +83,8 @@ type core struct {
 	timeoutSub            *event.TypeMuxSubscription
 	futurePreprepareTimer *time.Timer
 
-	valSet                istanbul.ValidatorSet
-	waitingForRoundChange bool
-	validateFn            func([]byte, []byte) (common.Address, error)
+	valSet     istanbul.ValidatorSet
+	validateFn func([]byte, []byte) (common.Address, error)
 
 	backlogs   map[common.Address]*prque.Prque
 	backlogsMu *sync.Mutex
@@ -86,6 +94,8 @@ type core struct {
 
 	roundChangeSet   *roundChangeSet
 	roundChangeTimer *time.Timer
+
+	PreparedRoundPrepares *messageSet
 
 	pendingRequests   *prque.Prque
 	pendingRequestsMu *sync.Mutex
@@ -150,8 +160,8 @@ func (c *core) broadcast(msg *message) {
 	}
 }
 
-func (c *core) currentView() *istanbul.View {
-	return &istanbul.View{
+func (c *core) currentView() *View {
+	return &View{
 		Sequence: new(big.Int).Set(c.current.Sequence()),
 		Round:    new(big.Int).Set(c.current.Round()),
 	}
@@ -181,7 +191,6 @@ func (c *core) commit() {
 		}
 
 		if err := c.backend.Commit(proposal, committedSeals); err != nil {
-			c.current.UnlockHash() //Unlock block when insertion fails
 			c.sendNextRoundChange()
 			return
 		}
@@ -196,17 +205,7 @@ func (c *core) startNewRound(round *big.Int) {
 	} else {
 		logger = c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence())
 	}
-
-	logger.Trace("Start new ibft round")
-
-	// If new round is 0, then check if qibftConsensus needs to be enabled
-	if round.Uint64() == 0 && c.backend.IsQIBFTConsensus() {
-		logger.Trace("Starting qibft consensus as qibftBlock has passed")
-		if err := c.backend.StartQIBFTConsensus(); err != nil {
-			// TODO Do we panic or continue and try to start qibft when processing the next sequence
-			logger.Error("Unable to start QIBFT Consensus, retrying for the next block", "error", err)
-		}
-	}
+	logger.Trace("Start new qibft round")
 
 	roundChange := false
 	// Try to get last proposal
@@ -236,14 +235,14 @@ func (c *core) startNewRound(round *big.Int) {
 		return
 	}
 
-	var newView *istanbul.View
+	var newView *View
 	if roundChange {
-		newView = &istanbul.View{
+		newView = &View{
 			Sequence: new(big.Int).Set(c.current.Sequence()),
 			Round:    new(big.Int).Set(round),
 		}
 	} else {
-		newView = &istanbul.View{
+		newView = &View{
 			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
 			Round:    new(big.Int),
 		}
@@ -252,58 +251,38 @@ func (c *core) startNewRound(round *big.Int) {
 
 	// Update logger
 	logger = logger.New("old_proposer", c.valSet.GetProposer())
-	// Clear invalid ROUND CHANGE messages
-	c.roundChangeSet = newRoundChangeSet(c.valSet)
+
 	// New snapshot for new round
 	c.updateRoundState(newView, c.valSet, roundChange)
 	// Calculate new proposer
 	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
-	c.waitingForRoundChange = false
 	c.setState(StateAcceptRequest)
-	if roundChange && c.IsProposer() && c.current != nil {
-		// If it is locked, propose the old proposal
-		// If we have pending request, propose pending request
-		if c.current.IsHashLocked() {
-			r := &istanbul.Request{
-				Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
-			}
-			c.sendPreprepare(r)
-		} else if c.current.pendingRequest != nil {
-			c.sendPreprepare(c.current.pendingRequest)
-		}
+
+	if round.Cmp(c.current.Round()) > 0 {
+		c.roundMeter.Mark(new(big.Int).Sub(round, c.current.Round()).Int64())
 	}
+
+	// Update RoundChangeSet by deleting older round messages
+	if round.Uint64() == 0 {
+		c.PreparedRoundPrepares = nil
+		c.roundChangeSet = newRoundChangeSet(c.valSet)
+	} else {
+		// Clear earlier round messages
+		c.roundChangeSet.ClearLowerThan(round)
+	}
+
 	c.newRoundChangeTimer()
 
 	logger.Debug("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size(), "IsProposer", c.IsProposer())
 }
 
-func (c *core) catchUpRound(view *istanbul.View) {
-	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.valSet.GetProposer())
-
-	if view.Round.Cmp(c.current.Round()) > 0 {
-		c.roundMeter.Mark(new(big.Int).Sub(view.Round, c.current.Round()).Int64())
-	}
-	c.waitingForRoundChange = true
-
-	// Need to keep block locked for round catching up
-	c.updateRoundState(view, c.valSet, true)
-	c.roundChangeSet.Clear(view.Round)
-	c.newRoundChangeTimer()
-
-	logger.Trace("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.valSet)
-}
-
 // updateRoundState updates round state by checking if locking block is necessary
-func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
-	// Lock only if both roundChange is true and it is locked
+func (c *core) updateRoundState(view *View, validatorSet istanbul.ValidatorSet, roundChange bool) {
 	if roundChange && c.current != nil {
-		if c.current.IsHashLocked() {
-			c.current = newRoundState(view, validatorSet, c.current.GetLockedHash(), c.current.Preprepare, c.current.pendingRequest, c.backend.HasBadProposal)
-		} else {
-			c.current = newRoundState(view, validatorSet, common.Hash{}, nil, c.current.pendingRequest, c.backend.HasBadProposal)
-		}
+		c.current = newRoundState(view, validatorSet, c.current.Preprepare, c.current.pendingRequest, c.backend.HasBadProposal)
+
 	} else {
-		c.current = newRoundState(view, validatorSet, common.Hash{}, nil, nil, c.backend.HasBadProposal)
+		c.current = newRoundState(view, validatorSet, nil, nil, c.backend.HasBadProposal)
 	}
 }
 
@@ -367,4 +346,24 @@ func PrepareCommittedSeal(hash common.Hash) []byte {
 	buf.Write(hash.Bytes())
 	buf.Write([]byte{byte(msgCommit)})
 	return buf.Bytes()
+}
+
+// validateMsgSignature verifies if the message has a valid signature
+func validateMsgSignature(messages map[common.Address]*message, validateFn func([]byte, []byte) (common.Address, error)) error {
+	for _, msg := range messages {
+		var payload []byte
+		payload, err := msg.PayloadNoSig()
+		if err != nil {
+			return err
+		}
+
+		signerAdd, err := validateFn(payload, msg.Signature)
+		if err != nil {
+			return err
+		}
+		if bytes.Compare(signerAdd.Bytes(), msg.Address.Bytes()) != 0 {
+			return errInvalidSigner
+		}
+	}
+	return nil
 }
