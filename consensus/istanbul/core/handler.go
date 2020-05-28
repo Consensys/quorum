@@ -39,8 +39,9 @@ func (c *core) Stop() error {
 	c.stopTimer()
 	c.unsubscribeEvents()
 
-	// Make sure the handler goroutine exits
-	c.handlerWg.Wait()
+	// Not waiting for handlerWg to stop, as it was blocking legacy IBFT consensus to stop
+	// and new events will be handled by qibft consensus
+	// c.handlerWg.Wait()
 	return nil
 }
 

@@ -283,11 +283,7 @@ func CreateConsensusEngine(ctx *node.ServiceContext, chainConfig *params.ChainCo
 		config.Istanbul.ProposerPolicy = istanbul.ProposerPolicy(chainConfig.Istanbul.ProposerPolicy)
 		config.Istanbul.Ceil2Nby3Block = chainConfig.Istanbul.Ceil2Nby3Block
 		config.Istanbul.AllowedFutureBlockTime = config.AllowedFutureBlockTime
-
 		config.Istanbul.QibftBlock = chainConfig.Istanbul.QibftBlock
-		if chainConfig.Istanbul.QibftBlock == nil {
-			config.Istanbul.QibftBlock = big.NewInt(0)
-		}
 
 		return istanbulBackend.New(&config.Istanbul, ctx.NodeKey(), db)
 	}

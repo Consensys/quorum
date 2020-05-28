@@ -327,13 +327,15 @@ func (sb *backend) Close() error {
 
 // IsQIBFTConsensus returns whether qbft consensus should be used
 func (sb *backend) IsQIBFTConsensus() bool {
-	if sb.qibftConsensusEnabled {
+	// If qibftBlock is not defined in genesis, then use legacy ibft
+	if sb.config.QibftBlock == nil {
+		return false
+	}
+
+	if sb.qibftConsensusEnabled || sb.config.QibftBlock.Uint64() == 0{
 		return true
 	}
-	// If it is a new network then by default use qibft consensus
-	if sb.config.QibftBlock == nil || sb.config.QibftBlock.Uint64() == 0 {
-		return true
-	}
+
 	if sb.chain != nil && sb.chain.CurrentHeader().Number.Cmp(sb.config.QibftBlock) >= 0 {
 		return true
 	}
