@@ -17,6 +17,7 @@
 package rawdb
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"testing"
 )
 
@@ -30,10 +31,92 @@ func TestIsQuorumEIP155Active(t *testing.T) {
 	}
 
 	dbSet := NewMemoryDatabase()
-	WriteQuorumEIP155Activation(dbSet)
+	err := WriteQuorumEIP155Activation(dbSet)
+
+	if err != nil {
+		t.Fatal("unable to write quorum EIP155 activation")
+	}
 
 	isQuorumEIP155ActiveAfterSetting := GetIsQuorumEIP155Activated(dbSet)
 	if !isQuorumEIP155ActiveAfterSetting {
 		t.Fatal("Quorum EIP155 active read to be unset, but was set beforehand")
+	}
+}
+
+func TestPrivacyMedatadaLinkEmptyRoot(t *testing.T) {
+	db := NewMemoryDatabase()
+	psr := common.Hash{1}
+
+	pml := NewPrivacyMetadataLinker(db)
+
+	err := pml.LinkPrivacyMetadataRootToPrivateStateRoot(psr, emptyRoot)
+
+	if err != nil {
+		t.Fatal("unable to store the link")
+	}
+
+	value, _ := db.Get(append(privateRootToPrivacyMetadataRootPrefix, psr[:]...))
+
+	if value != nil {
+		t.Fatal("the mapping should not have been stored")
+	}
+}
+
+func TestPrivacyMedatadaLinkRoot(t *testing.T) {
+	db := NewMemoryDatabase()
+	psr := common.Hash{1}
+	pmr := common.Hash{2}
+
+	pml := NewPrivacyMetadataLinker(db)
+
+	err := pml.LinkPrivacyMetadataRootToPrivateStateRoot(psr, pmr)
+
+	if err != nil {
+		t.Fatal("unable to store the link")
+	}
+
+	value, _ := db.Get(append(privateRootToPrivacyMetadataRootPrefix, psr[:]...))
+
+	if value == nil {
+		t.Fatal("the mapping should have been stored")
+	}
+
+	valueHash := common.BytesToHash(value)
+
+	if pmr != valueHash {
+		t.Fatal("the privacy metadata root does not have the expected value")
+	}
+}
+
+func TestPrivacyMedatadaRetrievePrivacyMetadataRoot(t *testing.T) {
+	db := NewMemoryDatabase()
+	psr := common.Hash{1}
+	pmr := common.Hash{2}
+
+	err := db.Put(append(privateRootToPrivacyMetadataRootPrefix, psr[:]...), pmr[:])
+
+	if err != nil {
+		t.Fatal("unable to write to db")
+	}
+
+	pml := NewPrivacyMetadataLinker(db)
+
+	pmrRetrieved := pml.PrivacyMetadataRootForPrivateStateRoot(psr)
+
+	if pmrRetrieved != pmr {
+		t.Fatal("the mapping should have been retrieved")
+	}
+}
+
+func TestPrivacyMedatadaRetrieveEmptyPrivacyMetadataRoot(t *testing.T) {
+	db := NewMemoryDatabase()
+	psr := common.Hash{1}
+
+	pml := NewPrivacyMetadataLinker(db)
+
+	pmrRetrieved := pml.PrivacyMetadataRootForPrivateStateRoot(psr)
+
+	if !common.EmptyHash(pmrRetrieved) {
+		t.Fatal("the retrieved privacy metadata root should be thg empty hash")
 	}
 }
