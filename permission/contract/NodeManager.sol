@@ -21,7 +21,10 @@ import "./PermissionsUpgradable.sol";
 contract NodeManager {
     PermissionsUpgradable private permUpgradable;
     struct NodeDetails {
-        string enodeId; //e.g. 127.0.0.1:20005
+        string enodeId;
+        bytes32 ip;
+        uint16  port;
+        uint16  raftPort;
         string orgId;
         uint256 status;
     }
@@ -37,25 +40,25 @@ contract NodeManager {
 
 
     // node permission events for new node propose
-    event NodeProposed(string _enodeId, string _orgId);
-    event NodeApproved(string _enodeId, string _orgId);
+    event NodeProposed(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeApproved(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     // node permission events for node deactivation
-    event NodeDeactivated(string _enodeId, string _orgId);
+    event NodeDeactivated(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     // node permission events for node activation
-    event NodeActivated(string _enodeId, string _orgId);
+    event NodeActivated(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     // node permission events for node blacklist
-    event NodeBlacklisted(string _enodeId, string _orgId);
+    event NodeBlacklisted(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     // node permission events for initiating the recovery of blacklisted
     // node
-    event NodeRecoveryInitiated(string _enodeId, string _orgId);
+    event NodeRecoveryInitiated(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     // node permission events for completing the recovery of blacklisted
     // node
-    event NodeRecoveryCompleted(string _enodeId, string _orgId);
+    event NodeRecoveryCompleted(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     /** @notice confirms that the caller is the address of implementation
         contract
@@ -68,8 +71,8 @@ contract NodeManager {
     /** @notice  checks if the node exists in the network
       * @param _enodeId full enode id
       */
-    modifier enodeExists(string memory _url) {
-        require(nodeIdToIndex[keccak256(abi.encode(_url))] != 0,
+    modifier enodeExists(string memory _enodeId) {
+        require(enodeIdToIndex[keccak256(abi.encode(_enodeId))] != 0,
             "passed enode id does not exist");
         _;
     }
@@ -77,8 +80,8 @@ contract NodeManager {
     /** @notice  checks if the node does not exist in the network
       * @param _enodeId full enode id
       */
-    modifier enodeDoesNotExists(string memory _url) {
-        require(nodeIdToIndex[keccak256(abi.encode(_url))] == 0,
+    modifier enodeDoesNotExists(string memory _enodeId) {
+        require(enodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0,
             "passed enode id exists");
         _;
     }
@@ -123,69 +126,81 @@ contract NodeManager {
 
     /** @notice called at the time of network initialization for adding
         admin nodes
-      * @param _url full enode id
       * @param _enodeId enode id
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       * @param _orgId org id to which the enode belongs
       */
-    function addAdminNode(string calldata _url, string calldata _enodeId, string calldata _orgId) external
+    function addAdminNode(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string calldata _orgId) external
     onlyImplementation
-    enodeDoesNotExists(_url) {
+    enodeDoesNotExists(_enodeId) {
         numberOfNodes++;
         enodeIdToIndex[keccak256(abi.encode(_enodeId))] = numberOfNodes;
-        nodeIdToIndex[keccak256(abi.encode(_url))] = numberOfNodes;
-        nodeList.push(NodeDetails(_url, _orgId, 2));
-        emit NodeApproved(_url, _orgId);
+        nodeList.push(NodeDetails(_enodeId, _ip, _port, _raftport, _orgId, 2));
+        emit NodeApproved(_enodeId, _ip, _port, _raftport, _orgId);
     }
 
     /** @notice called at the time of new org creation to add node to org
-      * @param _url full enode id
       * @param _enodeId enode id
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       * @param _orgId org id to which the enode belongs
       */
-    function addNode(string calldata _url, string calldata _enodeId, string calldata _orgId) external
+    function addNode(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string calldata _orgId) external
     onlyImplementation
-    enodeDoesNotExists(_url) {
+    enodeDoesNotExists(_enodeId) {
         numberOfNodes++;
         enodeIdToIndex[keccak256(abi.encode(_enodeId))] = numberOfNodes;
-        nodeIdToIndex[keccak256(abi.encode(_url))] = numberOfNodes;
-        nodeList.push(NodeDetails(_url, _orgId, 1));
-        emit NodeProposed(_url, _orgId);
+        nodeList.push(NodeDetails(_enodeId, _ip, _port, _raftport, _orgId, 1));
+        emit NodeProposed(_enodeId, _ip, _port, _raftport, _orgId);
     }
 
     /** @notice called org admins to add new enodes to the org or sub orgs
-      * @param _url full enode id
       * @param _enodeId enode id
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       * @param _orgId org or sub org id to which the enode belongs
       */
-    function addOrgNode(string calldata _url, string calldata _enodeId, string calldata _orgId) external
+    function addOrgNode(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string calldata _orgId) external
     onlyImplementation
-    enodeDoesNotExists(_url) {
+    enodeDoesNotExists(_enodeId) {
         numberOfNodes++;
-        nodeIdToIndex[keccak256(abi.encode(_url))] = numberOfNodes;
         enodeIdToIndex[keccak256(abi.encode(_enodeId))] = numberOfNodes;
-        nodeList.push(NodeDetails(_url, _orgId, 2));
-        emit NodeApproved(_url, _orgId);
+        nodeList.push(NodeDetails(_enodeId, _ip, _port, _raftport, _orgId, 2));
+        emit NodeApproved(_enodeId, _ip, _port, _raftport, _orgId);
     }
 
     /** @notice function to approve the node addition. only called at the time
         master org creation by network admin
       * @param _enodeId enode id
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       * @param _orgId org or sub org id to which the enode belongs
       */
-    function approveNode(string calldata _enodeId, string calldata _orgId) external
+    function approveNode(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string calldata _orgId) external
     onlyImplementation
     enodeExists(_enodeId) {
         // node should belong to the passed org
         require(_checkOrg(_enodeId, _orgId), "enode id does not belong to the passed org id");
         require(_getNodeStatus(_enodeId) == 1, "nothing pending for approval");
         uint256 nodeIndex = _getNodeIndex(_enodeId);
+        if(keccak256(abi.encode(nodeList[nodeIndex].ip)) != keccak256(abi.encode(_ip)) || nodeList[nodeIndex].port != _port || nodeList[nodeIndex].raftPort != _raftport){
+            return;
+        }
         nodeList[nodeIndex].status = 2;
-        emit NodeApproved(nodeList[nodeIndex].enodeId, nodeList[nodeIndex].orgId);
+        emit NodeApproved(nodeList[nodeIndex].enodeId, _ip, _port, _raftport, nodeList[nodeIndex].orgId);
     }
 
     /** @notice updates the node status. can be called for deactivating/
         blacklisting  and reactivating a deactivated node
       * @param _enodeId enode id
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       * @param _orgId org or sub org id to which the enode belong
       * @param _action action being performed
       * @dev action can have any of the following values
@@ -195,7 +210,7 @@ contract NodeManager {
             4 - initiate the recovery of a blacklisted node
             5 - blacklisted node recovery fully approved. mark to active
       */
-    function updateNodeStatus(string calldata _enodeId, string calldata _orgId, uint256 _action) external
+    function updateNodeStatus(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string calldata _orgId, uint256 _action) external
     onlyImplementation
     enodeExists(_enodeId) {
         // node should belong to the org
@@ -203,29 +218,34 @@ contract NodeManager {
         require((_action == 1 || _action == 2 || _action == 3 || _action == 4 || _action == 5),
             "invalid operation. wrong action passed");
 
+        uint256 nodeIndex = _getNodeIndex(_enodeId);
+        if(keccak256(abi.encode(nodeList[nodeIndex].ip)) != keccak256(abi.encode(_ip)) || nodeList[nodeIndex].port != _port || nodeList[nodeIndex].raftPort != _raftport){
+            return;
+        }
+
         if (_action == 1) {
             require(_getNodeStatus(_enodeId) == 2, "operation cannot be performed");
-            nodeList[_getNodeIndex(_enodeId)].status = 3;
-            emit NodeDeactivated(_enodeId, _orgId);
+            nodeList[nodeIndex].status = 3;
+            emit NodeDeactivated(_enodeId, _ip, _port, _raftport, _orgId);
         }
         else if (_action == 2) {
             require(_getNodeStatus(_enodeId) == 3, "operation cannot be performed");
-            nodeList[_getNodeIndex(_enodeId)].status = 2;
-            emit NodeActivated(_enodeId, _orgId);
+            nodeList[nodeIndex].status = 2;
+            emit NodeActivated(_enodeId, _ip, _port, _raftport, _orgId);
         }
         else if (_action == 3) {
-            nodeList[_getNodeIndex(_enodeId)].status = 4;
-            emit NodeBlacklisted(_enodeId, _orgId);
+            nodeList[nodeIndex].status = 4;
+            emit NodeBlacklisted(_enodeId, _ip, _port, _raftport, _orgId);
         } else if (_action == 4) {
             // node should be in blacklisted state
             require(_getNodeStatus(_enodeId) == 4, "operation cannot be performed");
-            nodeList[_getNodeIndex(_enodeId)].status = 5;
-            emit NodeRecoveryInitiated(_enodeId, _orgId);
+            nodeList[nodeIndex].status = 5;
+            emit NodeRecoveryInitiated(_enodeId, _ip, _port, _raftport, _orgId);
         } else {
             // node should be in initiated recovery state
             require(_getNodeStatus(_enodeId) == 5, "operation cannot be performed");
-            nodeList[_getNodeIndex(_enodeId)].status = 2;
-            emit NodeRecoveryCompleted(_enodeId, _orgId);
+            nodeList[nodeIndex].status = 2;
+            emit NodeRecoveryCompleted(_enodeId, _ip, _port, _raftport, _orgId);
         }
     }
 
@@ -236,7 +256,7 @@ contract NodeManager {
       */
     function _getNodeIndex(string memory _enodeId) internal view
     returns (uint256) {
-        return nodeIdToIndex[keccak256(abi.encode(_enodeId))] - 1;
+        return enodeIdToIndex[keccak256(abi.encode(_enodeId))] - 1;
     }
 
     /** @notice checks if enode id is linked to the org id passed
@@ -254,9 +274,30 @@ contract NodeManager {
       * @return node status
       */
     function _getNodeStatus(string memory _enodeId) internal view returns (uint256) {
-        if (nodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0) {
+        if (enodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0) {
             return 0;
         }
         return nodeList[_getNodeIndex(_enodeId)].status;
+    }
+
+    /** @notice checks if the node is allowed or not
+    * @param _enodeId enode id
+    * @param _ip IP of node
+    * @param _port tcp port of node
+    * @param _raftport raft port of node
+    */
+    function connectionAllowed(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external view onlyImplementation
+    returns (bool){
+        if (enodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0) {
+            return false;
+        }
+
+        uint256 nodeIndex = _getNodeIndex(_enodeId);
+        if(nodeList[nodeIndex].status != 2 || keccak256(abi.encode(nodeList[nodeIndex].ip)) != keccak256(abi.encode(_ip)) || nodeList[nodeIndex].port != _port || nodeList[nodeIndex].raftPort != _raftport){
+            return false;
+        }
+
+        // do we need to compare the other parts
+        return true;
     }
 }

@@ -80,6 +80,18 @@ func Parse(validSchemes enr.IdentityScheme, input string) (*Node, error) {
 	return New(validSchemes, &r)
 }
 
+func (n *Node) NodeDetails() (string, [32]byte, uint16, uint16) {
+	var ip [32]byte
+	enodeId := n.EnodeID()
+	ipArr := []byte(n.IP().String())
+	for i, k := range ipArr {
+		ip[i] = k
+	}
+	port := uint16(n.TCP())
+	raftPort := uint16(n.RaftPort())
+	return enodeId, ip, port, raftPort
+}
+
 // ID returns the node identifier.
 func (n *Node) ID() ID {
 	return n.id

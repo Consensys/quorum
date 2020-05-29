@@ -224,7 +224,8 @@ func (q *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address
 	if execStatus := q.valAddOrg(args, pinterf); execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
-	tx, err := pinterf.AddOrg(args.orgId, args.url, args.acctId)
+	enodeId, ip, port, raftPort, _ := q.getNodeDetails(args.url)
+	tx, err := pinterf.AddOrg(args.orgId, enodeId, ip, port, raftPort, args.acctId)
 	if err != nil {
 		return reportExecError(AddOrg, err)
 	}
@@ -242,7 +243,8 @@ func (q *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, txa etha
 	if execStatus := q.valAddSubOrg(args, pinterf); execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
-	tx, err := pinterf.AddSubOrg(args.porgId, args.orgId, args.url)
+	enodeId, ip, port, raftPort, _ := q.getNodeDetails(args.url)
+	tx, err := pinterf.AddSubOrg(args.porgId, args.orgId, enodeId, ip, port, raftPort)
 	if err != nil {
 		return reportExecError(AddSubOrg, err)
 	}
@@ -259,7 +261,8 @@ func (q *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Add
 	if execStatus := q.valApproveOrg(args, pinterf); execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
-	tx, err := pinterf.ApproveOrg(args.orgId, args.url, args.acctId)
+	enodeId, ip, port, raftPort, _ := q.getNodeDetails(args.url)
+	tx, err := pinterf.ApproveOrg(args.orgId, enodeId, ip, port, raftPort, args.acctId)
 	if err != nil {
 		return reportExecError(ApproveOrg, err)
 	}
@@ -295,7 +298,8 @@ func (q *QuorumControlsAPI) AddNode(orgId string, url string, txa ethapi.SendTxA
 		return execStatus.OpStatus()
 	}
 	// check if node is already there
-	tx, err := pinterf.AddNode(args.orgId, args.url)
+	enodeId, ip, port, raftPort, _ := q.getNodeDetails(args.url)
+	tx, err := pinterf.AddNode(args.orgId, enodeId, ip, port, raftPort)
 	if err != nil {
 		return reportExecError(AddNode, err)
 	}
@@ -313,7 +317,8 @@ func (q *QuorumControlsAPI) UpdateNodeStatus(orgId string, url string, action ui
 		return execStatus.OpStatus()
 	}
 	// check node status for operation
-	tx, err := pinterf.UpdateNodeStatus(args.orgId, args.url, big.NewInt(int64(args.action)))
+	enodeId, ip, port, raftPort, _ := q.getNodeDetails(args.url)
+	tx, err := pinterf.UpdateNodeStatus(args.orgId, enodeId, ip, port, raftPort, big.NewInt(int64(args.action)))
 	if err != nil {
 		return reportExecError(UpdateNodeStatus, err)
 	}
@@ -474,7 +479,8 @@ func (q *QuorumControlsAPI) RecoverBlackListedNode(orgId string, enodeId string,
 	if execStatus := q.valRecoverNode(args, pinterf, InitiateNodeRecovery); execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
-	tx, err := pinterf.StartBlacklistedNodeRecovery(args.orgId, args.url)
+	enodeId, ip, port, raftPort, _ := q.getNodeDetails(args.url)
+	tx, err := pinterf.StartBlacklistedNodeRecovery(args.orgId, enodeId, ip, port, raftPort)
 	if err != nil {
 		return reportExecError(InitiateNodeRecovery, err)
 	}
@@ -492,7 +498,8 @@ func (q *QuorumControlsAPI) ApproveBlackListedNodeRecovery(orgId string, enodeId
 	if execStatus := q.valRecoverNode(args, pinterf, ApproveNodeRecovery); execStatus != ExecSuccess {
 		return execStatus.OpStatus()
 	}
-	tx, err := pinterf.ApproveBlacklistedNodeRecovery(args.orgId, args.url)
+	enodeId, ip, port, raftPort, _ := q.getNodeDetails(args.url)
+	tx, err := pinterf.ApproveBlacklistedNodeRecovery(args.orgId, enodeId, ip, port, raftPort)
 	if err != nil {
 		return reportExecError(ApproveNodeRecovery, err)
 	}
@@ -746,6 +753,20 @@ func (q *QuorumControlsAPI) valNodeDetails(url string) (ExecStatus, error) {
 	return ExecSuccess, nil
 }
 
+func (q *QuorumControlsAPI) getNodeDetails(url string) (string, [32]byte, uint16, uint16, error) {
+	// validate node id and
+	var ip [32]byte
+	if len(url) == 0 {
+		return "", ip, 0, 0, errors.New("invalid node id")
+	}
+	enodeDet, err := enode.ParseV4(url)
+	if err != nil {
+		return "", ip, 0, 0, errors.New("invalid node id")
+	}
+	enodeId, ip, port, raftport := enodeDet.NodeDetails()
+	return enodeId, ip, port, raftport, err
+}
+
 // all validations for add org operation
 func (q *QuorumControlsAPI) valAddOrg(args txArgs, pinterf *pbind.PermInterfaceSession) ExecStatus {
 	// check if the org id contains "."
@@ -787,8 +808,9 @@ func (q *QuorumControlsAPI) valApproveOrg(args txArgs, pinterf *pbind.PermInterf
 	if !q.isNetworkAdmin(args.txa.From) {
 		return ErrNotNetworkAdmin
 	}
+	enodeId, _, _, _, _ := q.getNodeDetails(args.url)
 	// check if anything pending approval
-	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, args.url, args.acctId, 1, pinterf) {
+	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, enodeId, args.acctId, 1, pinterf) {
 		return ErrNothingToApprove
 	}
 	return ExecSuccess
@@ -1038,9 +1060,9 @@ func (q *QuorumControlsAPI) valRecoverNode(args txArgs, pinterf *pbind.PermInter
 		if execStatus, _ := q.valNodeStatusChange(args.orgId, args.url, 5, ApproveNodeRecovery); execStatus != ExecSuccess {
 			return execStatus
 		}
-
+		enodeId, _, _, _, _ := q.getNodeDetails(args.url)
 		// check that there is a pending approval item for node recovery
-		if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, args.url, common.Address{}, 5, pinterf) {
+		if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, enodeId, common.Address{}, 5, pinterf) {
 			return ErrNothingToApprove
 		}
 	}

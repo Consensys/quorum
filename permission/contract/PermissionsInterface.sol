@@ -48,11 +48,13 @@ contract PermissionsInterface {
     }
 
     /** @notice interface to add new node to an admin organization
-      * @param _url full enode id of the node to be added
       * @param _enodeId enode id of the node to be added
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       */
-    function addAdminNode(string calldata _url, string calldata _enodeId) external {
-        permImplementation.addAdminNode(_url, _enodeId);
+    function addAdminNode(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external {
+        permImplementation.addAdminNode(_enodeId, _ip, _port, _raftport);
     }
 
     /** @notice interface to add accounts to an admin organization
@@ -80,33 +82,41 @@ contract PermissionsInterface {
 
     /** @notice interface to add a new organization to the network
       * @param _orgId unique organization id
-      * @param _url full enode id linked to the organization
       * @param _enodeId enode id linked to the organization
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       * @param _account account id. this will have the org admin privileges
       */
-    function addOrg(string calldata _orgId, string calldata _url, string calldata _enodeId,
+    function addOrg(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport,
         address _account) external {
-        permImplementation.addOrg(_orgId, _url, _enodeId, _account, msg.sender);
+        permImplementation.addOrg(_orgId, _enodeId, _ip, _port, _raftport, _account, msg.sender);
     }
 
     /** @notice interface to approve a newly added organization
       * @param _orgId unique organization id
-      * @param _enodeId full enode id linked to the organization
+      * @param _enodeId enode id linked to the organization
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       * @param _account account id this will have the org admin privileges
       */
-    function approveOrg(string calldata _orgId, string calldata _enodeId,
+    function approveOrg(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport,
         address _account) external {
-        permImplementation.approveOrg(_orgId, _enodeId, _account, msg.sender);
+        permImplementation.approveOrg(_orgId, _enodeId, _ip, _port, _raftport, _account, msg.sender);
     }
 
     /** @notice interface to add sub org under an org
       * @param _pOrgId parent org id under which the sub org is being added
       * @param _orgId unique id for the sub organization
-      * @param _enodeId full enode id linked to the sjb organization
+      * @param _enodeId enode id linked to the sjb organization
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       */
     function addSubOrg(string calldata _pOrgId, string calldata _orgId,
-string calldata _url, string calldata _enodeId) external {
-        permImplementation.addSubOrg(_pOrgId, _orgId, _url, _enodeId, msg.sender);
+string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external {
+        permImplementation.addSubOrg(_pOrgId, _orgId, _enodeId, _ip, _port, _raftport, msg.sender);
     }
 
     /** @notice interface to update the org status
@@ -184,40 +194,51 @@ string calldata _url, string calldata _enodeId) external {
 
     /** @notice interface to add a new node to the organization
       * @param _orgId unique id of the organization to which the account belongs
-      * @param _url full enode id being dded to the org
       * @param _enodeId enode id being dded to the org
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       */
-    function addNode(string calldata _orgId, string calldata _url, string calldata _enodeId) external {
-        permImplementation.addNode(_orgId, _url, _enodeId, msg.sender);
+    function addNode(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external {
+        permImplementation.addNode(_orgId, _enodeId, _ip, _port, _raftport, msg.sender);
 
     }
 
     /** @notice interface to update node status
       * @param _orgId unique id of the organization to which the account belongs
-      * @param _enodeId full enode id being dded to the org
+      * @param _enodeId enode id being dded to the org
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       * @param _action 1-deactivate, 2-activate back, 3-blacklist the node
       */
-    function updateNodeStatus(string calldata _orgId, string calldata _enodeId,
+    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport,
         uint256 _action) external {
-        permImplementation.updateNodeStatus(_orgId, _enodeId, _action, msg.sender);
+        permImplementation.updateNodeStatus(_orgId, _enodeId, _ip, _port, _raftport, _action, msg.sender);
     }
 
     /** @notice interface to initiate blacklisted node recovery
       * @param _orgId unique id of the organization to which the account belongs
-      * @param _enodeId full enode id being recovered
+      * @param _enodeId enode id being recovered
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       */
-    function startBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId)
+    function startBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport)
     external {
-        permImplementation.startBlacklistedNodeRecovery(_orgId, _enodeId, msg.sender);
+        permImplementation.startBlacklistedNodeRecovery(_orgId, _enodeId, _ip, _port, _raftport, msg.sender);
     }
 
     /** @notice interface to approve blacklisted node recoevry
       * @param _orgId unique id of the organization to which the account belongs
-      * @param _enodeId full enode id being recovered
+      * @param _enodeId enode id being recovered
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      * @param _raftport raft port of node
       */
-    function approveBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId)
+    function approveBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport)
     external {
-        permImplementation.approveBlacklistedNodeRecovery(_orgId, _enodeId, msg.sender);
+        permImplementation.approveBlacklistedNodeRecovery(_orgId, _enodeId, _ip, _port, _raftport, msg.sender);
     }
 
     /** @notice interface to initiate blacklisted account recovery
@@ -300,6 +321,35 @@ string calldata _url, string calldata _enodeId) external {
     function validateAccount(address _account, string calldata _orgId)
     external view returns (bool) {
         return permImplementation.validateAccount(_account, _orgId);
+    }
+
+    /** @notice checks if the node is allowed or not
+     * @param _enodeId enode id
+     * @param _ip IP of node
+     * @param _port tcp port of node
+     * @param _raftport raft port of node
+     */
+    function connectionAllowedImpl(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external view returns (bool) {
+        return permImplementation.connectionAllowed(_enodeId, _ip, _port, _raftport);
+    }
+
+    /** @notice checks if the node is allowed or not
+      * @param _enodeId enode id
+      * @param _ip IP of node
+      * @param _port tcp port of node
+      */
+    function connectionAllowed(string calldata _enodeId, bytes32 _ip, uint16  _port) external view returns (bool) {
+        return this.connectionAllowedImpl(_enodeId, _ip, _port, 0);
+    }
+
+
+    /** @notice checks if the transaction is allowed or not
+      * @param _srcaccount source account
+      * @param _tgtaccount target account
+      */
+    function transactionAllowed(address _srcaccount, address _tgtaccount)
+    external view returns (bool) {
+        return permImplementation.transactionAllowed(_srcaccount, _tgtaccount);
     }
 
 }

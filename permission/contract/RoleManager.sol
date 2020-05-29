@@ -185,6 +185,20 @@ contract RoleManager {
         return false;
     }
 
+    function roleAccess(string memory _roleId, string memory _orgId,
+        string memory _ultParent) public view returns (uint256) {
+        uint256 id;
+        if (roleIndex[keccak256(abi.encode(_roleId, _orgId))] != 0) {
+            id = _getRoleIndex(_roleId, _orgId);
+            return roleList[id].baseAccess;
+        }
+        else if (roleIndex[keccak256(abi.encode(_roleId, _ultParent))] != 0) {
+            id = _getRoleIndex(_roleId, _ultParent);
+            return roleList[id].baseAccess;
+        }
+        return 0;
+    }
+
     /** @notice returns the role index based on role id and org id
       * @param _roleId - role id
       * @param _orgId - org id

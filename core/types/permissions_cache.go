@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"math/big"
 	"sync"
 
@@ -209,6 +210,10 @@ func SetDefaults(nwRoleId, oaRoleId string) {
 
 func GetDefaults() (string, string, AccessType) {
 	return networkAdminRole, orgAdminRole, DefaultAccess
+}
+
+func GetNodeUrl(enodeId string, ip [32]byte, port uint16, raftport uint16) string {
+	return fmt.Sprintf("enode://%s@%s:%d?raftport=%d&discport=0", enodeId, string(ip[:]), port, raftport)
 }
 
 func (o *OrgCache) UpsertOrg(orgId, parentOrg, ultimateParent string, level *big.Int, status OrgStatus) {
