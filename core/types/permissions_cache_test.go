@@ -242,3 +242,102 @@ func TestLRUCacheLimit(t *testing.T) {
 	o := OrgInfoMap.GetOrg("ORG1")
 	testifyassert.True(t, o != nil)
 }
+
+func TestCheckIfAdminAccount(t *testing.T) {
+	SetDefaults(NETWORKADMIN, ORGADMIN)
+	SetDefaultAccess()
+
+	var Acct3 = common.BytesToAddress([]byte("permission-test1"))
+	var Acct4 = common.BytesToAddress([]byte("permission-test2"))
+	var Acct5 = common.BytesToAddress([]byte("permission-test3"))
+	var Acct6 = common.BytesToAddress([]byte("permission-test4"))
+	var Acct7 = common.BytesToAddress([]byte("permission-test5"))
+	var Acct8 = common.BytesToAddress([]byte("permission-test6"))
+	var Acct9 = common.BytesToAddress([]byte("unassigned-account"))
+
+	// Create two orgs, Networkadmin and OADMIN
+	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
+	OrgInfoMap.UpsertOrg(ORGADMIN, "", ORGADMIN, big.NewInt(1), OrgApproved)
+
+	// Insert roles for both orgs one being admin role and the other a normal role
+	RoleInfoMap.UpsertRole(NETWORKADMIN, NETWORKADMIN, true, true, FullAccess, true)
+	RoleInfoMap.UpsertRole(NETWORKADMIN, "ROLE1", true, false, Transact, true)
+	RoleInfoMap.UpsertRole(NETWORKADMIN, "ROLE2", true, true, Transact, false)
+
+	RoleInfoMap.UpsertRole(ORGADMIN, ORGADMIN, true, true, FullAccess, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE1", true, false, Transact, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE2", true, true, Transact, false)
+
+	// Assign accounts to orgs
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, "ROLE1", Acct2, false, AcctActive)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, "ROLE2", Acct3, true, AcctActive)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct4, true, AcctBlacklisted)
+
+	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct5, true, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE1", Acct6, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE2", Acct7, true, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct8, true, AcctBlacklisted)
+
+	type args struct {
+		acctId common.Address
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "Network admin account",
+			args: args{Acct1},
+			want: true,
+		},
+		{
+			name: "Normal account in Network admin org",
+			args: args{Acct2},
+			want: false,
+		},
+		{
+			name: "Account linked to an inactive org admin role - network admin org",
+			args: args{Acct2},
+			want: false,
+		},
+		{
+			name: "Network admin account which is blacklisted",
+			args: args{Acct4},
+			want: false,
+		},
+		{
+			name: "Org admin account",
+			args: args{Acct5},
+			want: true,
+		},
+		{
+			name: "Normal account in in org",
+			args: args{Acct6},
+			want: false,
+		},
+		{
+			name: "Account linked to an inactive org admin role in org",
+			args: args{Acct7},
+			want: false,
+		},
+		{
+			name: "org admin account which is blacklisted",
+			args: args{Acct8},
+			want: false,
+		},
+		{
+			name: "Unassigned account",
+			args: args{Acct9},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CheckIfAdminAccount(tt.args.acctId); got != tt.want {
+				t.Errorf("CheckIfAdminAccount() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -4,7 +4,7 @@ contract ContractExtender {
 
     //target details - what, who and when to extend
     address public creator;
-    string public targetRecipientPublicKeyHash;
+    string public TargetRecipientPTMKey;
     address public contractToExtend;
 
     //list of wallet addresses that can cast votes
@@ -27,7 +27,7 @@ contract ContractExtender {
     bool public isFinished;
 
     // General housekeeping
-    event NewContractExtensionContractCreated(address toExtend); //to tell nodes a new extension is happening
+    event NewContractExtensionContractCreated(address toExtend, string recipientPTMKey, address recipientAddress); //to tell nodes a new extension is happening
     event AllNodesHaveVoted(bool outcome); //when all nodes have voted
     event CanPerformStateShare(); //when all nodes have voted & the recipient has accepted
     event ExtensionFinished(); //if the extension is cancelled or completed
@@ -35,34 +35,25 @@ contract ContractExtender {
     event StateShared(address toExtend, string tesserahash, string uuid); //when the state is shared and can be replayed into the database
     event UpdateMembers(address toExtend, string uuid); //to update the original transaction hash for the new party member
 
-    constructor(address contractAddress, address[] memory walletAddresses, string memory recipientHash) public {
+    constructor(address contractAddress, address recipientAddress, string memory recipientPTMKey) public {
         creator = msg.sender;
 
-        targetRecipientPublicKeyHash = recipientHash;
+        TargetRecipientPTMKey = recipientPTMKey;
 
         contractToExtend = contractAddress;
-        walletAddressesToVote = walletAddresses;
+        walletAddressesToVote.push(msg.sender);
+        walletAddressesToVote.push(recipientAddress);
+
         sharedDataHash = "";
 
         voteOutcome = true;
         numberOfVotesSoFar = 0;
 
-        // check if we exist in the list of voters
-        bool found = false;
-        for (uint256 i = 0; i < walletAddresses.length; i++) {
-            walletAddressesToVoteMap[walletAddresses[i]] = true;
-            if (walletAddresses[i] == msg.sender) {
-                found = true;
-            }
-        }
-        // if not, then add ourselves, then immediately vote
-        if (!found) {
-            walletAddressesToVote.push(msg.sender);
-            walletAddressesToVoteMap[msg.sender] = true;
+        for (uint256 i = 0; i < walletAddressesToVote.length; i++) {
+            walletAddressesToVoteMap[walletAddressesToVote[i]] = true;
         }
         totalNumberOfVoters = walletAddressesToVote.length;
-
-        emit NewContractExtensionContractCreated(contractAddress);
+        emit NewContractExtensionContractCreated(contractAddress, recipientPTMKey, recipientAddress);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////

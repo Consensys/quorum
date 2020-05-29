@@ -4,9 +4,8 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/p2p/enode"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -373,23 +372,56 @@ func GetAcctAccess(acctId common.Address) AccessType {
 	if a != nil && a.Status == AcctActive {
 		// get the org details and ultimate org details. check org status
 		// if the org is not approved or pending suspension
-		o := OrgInfoMap.GetOrg(a.OrgId)
-		if o != nil && (o.Status == OrgApproved || o.Status == OrgPendingSuspension) {
-			u := OrgInfoMap.GetOrg(o.UltimateParent)
-			if u != nil && (u.Status == OrgApproved || u.Status == OrgPendingSuspension) {
-				if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
-					return FullAccess
-				}
-				if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
-					return r.Access
-				}
-				if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
-					return r.Access
-				}
+		if checkIfOrgActive(a.OrgId) {
+			if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+				return FullAccess
+			}
+			if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
+				return r.Access
+			}
+			o := OrgInfoMap.GetOrg(a.OrgId)
+			if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
+				return r.Access
 			}
 		}
 	}
 	return DefaultAccess
+}
+
+//checks if the given org is active in the network
+func checkIfOrgActive(orgId string) bool {
+	o := OrgInfoMap.GetOrg(orgId)
+	if o != nil && (o.Status == OrgApproved || o.Status == OrgPendingSuspension) {
+		u := OrgInfoMap.GetOrg(o.UltimateParent)
+		if u != nil && (u.Status == OrgApproved || u.Status == OrgPendingSuspension) {
+			return true
+		}
+	}
+	return false
+}
+
+// checks if the passed account is linked to a org admin or
+// network admin role
+func CheckIfAdminAccount(acctId common.Address) bool {
+	if !QIP714BlockReached {
+		return true
+	}
+	a := AcctInfoMap.GetAccount(acctId)
+	if a != nil && a.Status == AcctActive {
+		if checkIfOrgActive(a.OrgId) {
+			if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+				return true
+			}
+			if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active && r.IsAdmin {
+				return true
+			}
+			o := OrgInfoMap.GetOrg(a.OrgId)
+			if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active && r.IsAdmin {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {

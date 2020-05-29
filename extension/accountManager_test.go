@@ -45,7 +45,7 @@ func (wallet *MockWallet) Derive(path accounts.DerivationPath, pin bool) (accoun
 	panic("not implemented")
 }
 
-func (wallet *MockWallet) SelfDerive(bases []accounts.DerivationPath, chain ethereum.ChainStateReader){
+func (wallet *MockWallet) SelfDerive(bases []accounts.DerivationPath, chain ethereum.ChainStateReader) {
 	panic("not implemented")
 }
 
@@ -61,7 +61,7 @@ func (wallet *MockWallet) SignText(account accounts.Account, text []byte) ([]byt
 	panic("not implemented")
 }
 
-func (wallet *MockWallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error){
+func (wallet *MockWallet) SignTx(account accounts.Account, tx *types.Transaction, chainID *big.Int) (*types.Transaction, error) {
 	panic("not implemented")
 }
 
@@ -79,7 +79,7 @@ func TestGenerateTransactionOptionsErrorsWhenNoPrivateParticipants(t *testing.T)
 	}
 
 	mockBackend := MockBackend{}
-	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed:true}, &mockBackend))
+	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend))
 
 	_, err := manager.GenerateTransactOptions(sendTxArgs)
 	if err == nil {
@@ -100,7 +100,7 @@ func TestGenerateTransactionOptionsErrorsWhenAccountNotFound(t *testing.T) {
 	}
 
 	mockBackend := MockBackend{}
-	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed:true},&mockBackend))
+	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend))
 
 	_, err := manager.GenerateTransactOptions(sendTxArgs)
 	if err == nil {
@@ -125,7 +125,7 @@ func TestGenerateTransactionOptionsGivesDefaults(t *testing.T) {
 
 	mockWallet := &MockWallet{isContained: true}
 	mockBackend := MockBackend{wallets: []accounts.Wallet{mockWallet}}
-	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed:true}, &mockBackend))
+	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend))
 
 	generatedOptions, err := manager.GenerateTransactOptions(sendTxArgs)
 	if err != nil {
@@ -173,7 +173,7 @@ func TestGenerateTransactionOptionsGivesNonDefaultsWhenSpecified(t *testing.T) {
 
 	mockWallet := &MockWallet{isContained: true}
 	mockBackend := MockBackend{wallets: []accounts.Wallet{mockWallet}}
-	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed:true},&mockBackend))
+	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend))
 
 	generatedOptions, err := manager.GenerateTransactOptions(sendTxArgs)
 	if err != nil {

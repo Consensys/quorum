@@ -118,8 +118,10 @@ func (service *PrivacyService) watchForNewContracts() error {
 				}
 
 				newContractExtension := ExtensionContract{
-					Address:                   newExtensionEvent.ToExtend,
+					ContractExtended:          newExtensionEvent.ToExtend,
 					Initiator:                 from,
+					Recipient:                 newExtensionEvent.RecipientAddress,
+					RecipientPtmKey:           newExtensionEvent.RecipientPTMKey,
 					ManagementContractAddress: foundLog.Address,
 					CreationData:              tx.Data(),
 				}
@@ -258,22 +260,12 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						return
 					}
 
-					recipientHash, err := caller.TargetRecipientPublicKeyHash(&bind.CallOpts{Pending: false})
+					recipientPTMKey, err := caller.TargetRecipientPTMKey(&bind.CallOpts{Pending: false})
 					if err != nil {
-						log.Error("[contract] caller.TargetRecipientPublicKeyHash", "error", err)
+						log.Error("[contract] caller.TargetRecipientPTMKey", "error", err)
 						return
 					}
-					decoded, err := base64.StdEncoding.DecodeString(recipientHash)
-					if err != nil {
-						log.Error("base64.StdEncoding.DecodeString", "recipientHash", recipientHash, "error", err)
-						return
-					}
-					recipient, err := service.ptm.Receive(decoded)
-					if err != nil {
-						log.Error("[ptm] service.ptm.Receive", "decodedInHex", hex.EncodeToString(decoded[:]), "error", err)
-						return
-					}
-					log.Debug("Extension: able to retrieve the public key of the new party", "publicKey", string(recipient))
+					log.Debug("Extension: able to retrieve the public key of the new party", "publicKey", recipientPTMKey)
 
 					//we found the account, so we can send
 					contractToExtend, err := caller.ContractToExtend(nil)
@@ -288,11 +280,11 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						return
 					}
 
-					log.Debug("Extension: send the state dump to the new recipient", "recipient", string(recipient))
+					log.Debug("Extension: send the state dump to the new recipient", "recipient", recipientPTMKey)
 					//send to PTM
-					hashOfStateData, err := service.ptm.Send(entireStateData, "", []string{string(recipient)})
+					hashOfStateData, err := service.ptm.Send(entireStateData, "", []string{recipientPTMKey})
 					if err != nil {
-						log.Error("[ptm] service.ptm.Send", "stateDataInHex", hex.EncodeToString(entireStateData[:]), "recipient", string(recipient), "error", err)
+						log.Error("[ptm] service.ptm.Send", "stateDataInHex", hex.EncodeToString(entireStateData[:]), "recipient", recipientPTMKey, "error", err)
 						return
 					}
 					hashofStateDataBase64 := base64.StdEncoding.EncodeToString(hashOfStateData)

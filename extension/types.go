@@ -22,20 +22,6 @@ var (
 		Addresses: []common.Address{},
 	}
 
-	voteCompletedQuery = ethereum.FilterQuery{
-		FromBlock: nil,
-		ToBlock:   nil,
-		Topics:    [][]common.Hash{{common.HexToHash(extensionContracts.AllNodesHaveVotedTopicHash)}},
-		Addresses: []common.Address{},
-	}
-
-	newVoteQuery = ethereum.FilterQuery{
-		FromBlock: nil,
-		ToBlock:   nil,
-		Topics:    [][]common.Hash{{common.HexToHash(extensionContracts.NewVoteTopicHash)}},
-		Addresses: []common.Address{},
-	}
-
 	canPerformStateShareQuery = ethereum.FilterQuery{
 		FromBlock: nil,
 		ToBlock:   nil,
@@ -45,8 +31,10 @@ var (
 )
 
 type ExtensionContract struct {
-	Address                   common.Address `json:"address"`
+	ContractExtended          common.Address `json:"contractExtended"`
 	Initiator                 common.Address `json:"initiator"`
-	ManagementContractAddress common.Address `json:"managementcontractaddress"`
+	Recipient                 common.Address `json:"recipient"`
+	ManagementContractAddress common.Address `json:"managementContractAddress"`
+	RecipientPtmKey           string         `json: recipientPtmKey`
 	CreationData              []byte         `json:"creationData"`
 }

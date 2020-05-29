@@ -12,8 +12,10 @@ import (
 func TestWriteContentsToFileWritesOkay(t *testing.T) {
 	extensionContracts := make(map[common.Address]*ExtensionContract)
 	extensionContracts[common.HexToAddress("0x2222222222222222222222222222222222222222")] = &ExtensionContract{
-		Address:                   common.HexToAddress("0x1111111111111111111111111111111111111111"),
+		ContractExtended:          common.HexToAddress("0x1111111111111111111111111111111111111111"),
 		Initiator:                 common.HexToAddress("0x3333333333333333333333333333333333333333"),
+		Recipient:                 common.HexToAddress("0x4444444444444444444444444444444444444444"),
+		RecipientPtmKey:           "1234567891234567891234567891234567891234567=",
 		ManagementContractAddress: common.HexToAddress("0x2222222222222222222222222222222222222222"),
 		CreationData:              []byte("Sample Transaction Data"),
 	}

@@ -1117,22 +1117,10 @@ web3._extend({
 			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null, web3._extend.formatters.inputTransactionFormatter]
 		}),
 		new web3._extend.Method({
-			name: 'accept',
-			call: 'quorumExtension_accept',
-			params: 2,
-			inputFormatter: [web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
-		}),
-		new web3._extend.Method({
 			name: 'extendContract',
 			call: 'quorumExtension_extendContract',
 			params: 4,
-			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null, function(input) {
-				var output = [];
-				for(var i=0; i<input.length; i++) {
-					output.push(web3._extend.formatters.inputAddressFormatter(input[i]));
-				}
-                return output;
-			}, web3._extend.formatters.inputTransactionFormatter]
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null, web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'cancelExtension',
