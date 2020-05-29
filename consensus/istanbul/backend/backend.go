@@ -62,11 +62,7 @@ func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Databas
 		recentMessages:   recentMessages,
 		knownMessages:    knownMessages,
 	}
-	if backend.IsQIBFTConsensus() {
-		backend.core = qibftCore.New(backend, backend.config)
-	} else {
-		backend.core = istanbulCore.New(backend, backend.config)
-	}
+
 	return backend
 }
 
@@ -332,7 +328,7 @@ func (sb *backend) IsQIBFTConsensus() bool {
 		return false
 	}
 
-	if sb.qibftConsensusEnabled || sb.config.QibftBlock.Uint64() == 0{
+	if sb.qibftConsensusEnabled || sb.config.QibftBlock.Uint64() == 0 {
 		return true
 	}
 

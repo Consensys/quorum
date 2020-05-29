@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
+	qibftCore "github.com/ethereum/go-ethereum/consensus/qibft/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
@@ -529,6 +530,13 @@ func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types
 	sb.chain = chain
 	sb.currentBlock = currentBlock
 	sb.hasBadBlock = hasBadBlock
+
+	// Check if qibft Consensus needs to be used after chain is set
+	if sb.IsQIBFTConsensus() {
+		sb.core = qibftCore.New(sb, sb.config)
+	} else {
+		sb.core = istanbulCore.New(sb, sb.config)
+	}
 
 	if err := sb.core.Start(); err != nil {
 		return err
