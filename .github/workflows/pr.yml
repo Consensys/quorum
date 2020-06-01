@@ -110,7 +110,7 @@ jobs:
       - name: 'Get Tessera Docker image'
         id: setupTessera
         run: |
-          docker pull docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements
+          docker pull docker.pkg.github.com/quorumengineering/tessera/tessera:dev-tessera-privacyenhancements
       - name: 'Run acceptance tests'
         run: |
           docker run --rm \
@@ -118,8 +118,8 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
             -e TF_VAR_quorum_docker_image='{ name = "quorumengineering/quorum:pr", local = true }' \
-            -e TF_VAR_tessera_docker_image='{ name = "quorumengineering/tessera:pr", local = true }' \
-            quorumengineering/acctests:pr test \
+            -e TF_VAR_tessera_docker_image='{ name = "docker.pkg.github.com/quorumengineering/tessera/tessera:dev-tessera-privacyenhancements", local = true }' \
+            docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements test \
               -Pauto \
               -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
               -Dtags="${{ matrix.tag }}"
