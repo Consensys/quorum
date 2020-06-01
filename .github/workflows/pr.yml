@@ -81,7 +81,6 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: jpmorganchase/tessera
-          path: tessera
       - name: 'Build tessera docker image'
         id: build
         run: |
