@@ -80,7 +80,7 @@ jobs:
       - name: 'Check out tessera project files'
         uses: actions/checkout@v2
         with:
-          repository: QuorumEngineering/tessera.git
+          repository: QuorumEngineering/tessera
           ref: new-psv
       - name: 'Build tessera docker image'
         id: build
