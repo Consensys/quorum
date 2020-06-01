@@ -104,6 +104,7 @@ jobs:
         with:
           repository: QuorumEngineering/quorum-acceptance-tests
           ref: feature/quorum-1.9.7-withPE
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Build tessera docker image'
         id: build
         run: |
