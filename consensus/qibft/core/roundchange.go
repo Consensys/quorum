@@ -17,13 +17,13 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 	"sort"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // sendNextRoundChange sends the ROUND CHANGE message with current round + 1
@@ -110,7 +110,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 			pb = nil
 			pr = nil
 		}
-		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb)
+		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb, rc.PreparedMessages)
 		if err != nil {
 			logger.Warn("Failed to add round change message", "from", src, "msg", msg, "err", err)
 			return err
@@ -127,7 +127,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		c.sendRoundChange(newRound)
 
 	} else if currentRoundMessages == c.QuorumSize() && c.IsProposer() && c.justifyRoundChange(cv.Round) {
-		_, proposal := c.highestPrepared(cv.Round)
+		preparedRound, proposal := c.highestPrepared(cv.Round)
 		if proposal == nil {
 			proposal = c.current.pendingRequest.Proposal
 		}
@@ -135,7 +135,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		r := &Request{
 			Proposal:        proposal,
 			RCMessages:      c.roundChangeSet.roundChanges[cv.Round.Uint64()],
-			PrepareMessages: c.PreparedRoundPrepares,
+			PrepareMessages: c.roundChangeSet.preparedMessages[preparedRound.Uint64()],
 		}
 
 		c.sendPreprepare(r)
@@ -153,7 +153,7 @@ func (c *core) justifyRoundChange(round *big.Int) bool {
 	// Check if the block in each prepared message is the one that is being proposed
 	// To handle the case where a byzantine node can send an empty prepared block, check atleast Quorum of prepared blocks match the condition and not all
 	i := 0
-	for addr, msg := range c.PreparedRoundPrepares.messages {
+	for addr, msg := range c.PreparedRoundPrepares.messages { // look at prepare messages from round change messages of highest round
 		var prepare *Subject
 		if err := msg.Decode(&prepare); err != nil {
 			c.logger.Error("Failed to decode Prepared Message", "err", err)
@@ -185,22 +185,24 @@ func (c *core) highestPrepared(round *big.Int) (*big.Int, istanbul.Proposal) {
 
 func newRoundChangeSet(valSet istanbul.ValidatorSet) *roundChangeSet {
 	return &roundChangeSet{
-		validatorSet: valSet,
-		roundChanges: make(map[uint64]*messageSet),
-		mu:           new(sync.Mutex),
+		validatorSet:     valSet,
+		roundChanges:     make(map[uint64]*messageSet),
+		preparedMessages: make(map[uint64]*messageSet),
+		mu:               new(sync.Mutex),
 	}
 }
 
 type roundChangeSet struct {
-	validatorSet   istanbul.ValidatorSet
-	roundChanges   map[uint64]*messageSet
-	preparedRounds map[uint64]*big.Int
-	preparedBlocks map[uint64]istanbul.Proposal
-	mu             *sync.Mutex
+	validatorSet     istanbul.ValidatorSet
+	roundChanges     map[uint64]*messageSet
+	preparedMessages map[uint64]*messageSet
+	preparedRounds   map[uint64]*big.Int
+	preparedBlocks   map[uint64]istanbul.Proposal
+	mu               *sync.Mutex
 }
 
 // Add adds the round and message into round change set
-func (rcs *roundChangeSet) Add(r *big.Int, msg *message, preparedRound *big.Int, preparedBlock istanbul.Proposal) error {
+func (rcs *roundChangeSet) Add(r *big.Int, msg *message, preparedRound *big.Int, preparedBlock istanbul.Proposal, preparedMessages *messageSet) error {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
 
@@ -208,8 +210,14 @@ func (rcs *roundChangeSet) Add(r *big.Int, msg *message, preparedRound *big.Int,
 	if rcs.roundChanges[round] == nil {
 		rcs.roundChanges[round] = newMessageSet(rcs.validatorSet)
 	}
-	err := rcs.roundChanges[round].Add(msg)
-	if err != nil {
+	if err := rcs.roundChanges[round].Add(msg); err != nil {
+		return err
+	}
+
+	if rcs.preparedMessages[round] == nil {
+		rcs.preparedMessages[round] = newMessageSet(rcs.validatorSet)
+	}
+	if err := rcs.preparedMessages[round].Add(msg); err != nil {
 		return err
 	}
 
@@ -283,6 +291,7 @@ func (rcs *roundChangeSet) ClearLowerThan(round *big.Int) {
 			delete(rcs.roundChanges, k)
 			delete(rcs.preparedRounds, k)
 			delete(rcs.preparedBlocks, k)
+			delete(rcs.preparedMessages, k)
 		}
 	}
 }
