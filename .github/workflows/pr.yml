@@ -73,58 +73,10 @@ jobs:
         with:
           name: docker-image
           path: ${{ steps.build.outputs.output_dir }}
-  tessera-docker-build:
-    name: 'Build Tessera Docker image'
-    runs-on: ubuntu-latest
-    steps:
-      - name: 'Check out tessera project files'
-        uses: actions/checkout@v2
-        with:
-          repository: jpmorganchase/tessera
-      - name: 'Build tessera docker image'
-        id: build
-        run: |
-          output_dir=${{ runner.temp }}/docker
-          mkdir -p $output_dir
-          docker build -t quorumengineering/tessera:pr .
-          docker save quorumengineering/tessera:pr > tessera-pr.tar
-          tar cfvz $output_dir/tessera-pr.tar.gz tessera-pr.tar
-          echo "::set-output name=output_dir::$output_dir"
-      - name: 'Upload workflow artifact - Tessera Docker image'
-        uses: actions/upload-artifact@v1
-        with:
-          name: tessera-docker-image
-          path: ${{ steps.build.outputs.output_dir }}
-  qat-docker-build:
-    name: 'Build QAT Docker image'
-    runs-on: ubuntu-latest
-    steps:
-      - name: 'Check out QAT project files'
-        uses: actions/checkout@v2
-        with:
-          repository: QuorumEngineering/quorum-acceptance-tests
-          ref: feature/quorum-1.9.7-withPE
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: 'Build tessera docker image'
-        id: build
-        run: |
-          output_dir=${{ runner.temp }}/docker
-          mkdir -p $output_dir
-          docker build -t quorumengineering/acctests:pr .
-          docker save quorumengineering/acctests:pr > acctests-pr.tar
-          tar cfvz $output_dir/acctests-pr.tar.gz acctests-pr.tar
-          echo "::set-output name=output_dir::$output_dir"
-      - name: 'Upload workflow artifact - Tessera Docker image'
-        uses: actions/upload-artifact@v1
-        with:
-          name: qat-docker-image
-          path: ${{ steps.build.outputs.output_dir }}
   acceptance-tests:
     name: Acceptance tests (${{ matrix.tag }})
     needs:
       - docker-build
-      - tessera-docker-build
-      - qat-docker-build
     if: success()
     strategy:
       fail-fast: false
@@ -147,18 +99,18 @@ jobs:
           tar xfvz docker-image/quorum-pr.tar.gz
           docker load --input quorum-pr.tar
           echo "::set-output name=outputDir::${{ runner.temp }}"
-      - name: 'Load Tessera Docker image'
-        id: setupTessera
+      - name: 'Login to github docker repo'
+        id: setupDockerLogin
         run: |
-          tar xfvz docker-image/tessera-pr.tar.gz
-          docker load --input tessera-pr.tar
-          echo "::set-output name=outputDir::${{ runner.temp }}"
+          docker login docker.pkg.github.com -u quorumbot -p ${{ secrets.QUORUMBOT_PAT}}
       - name: 'Load QAT Docker image'
         id: setupQAT
         run: |
-          tar xfvz docker-image/acctests-pr.tar.gz
-          docker load --input acctests-pr.tar
-          echo "::set-output name=outputDir::${{ runner.temp }}"
+          docker pull docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements
+      - name: 'Get Tessera Docker image'
+        id: setupTessera
+        run: |
+          docker pull docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements
       - name: 'Run acceptance tests'
         run: |
           docker run --rm \
