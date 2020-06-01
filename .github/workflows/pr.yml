@@ -81,6 +81,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: QuorumEngineering/tessera
+          path: tessera
       - name: 'Build tessera docker image'
         id: build
         run: |
