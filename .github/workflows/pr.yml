@@ -103,8 +103,8 @@ jobs:
       - name: 'Check out QAT project files'
         uses: actions/checkout@v2
         with:
-          repository: 'https://github.com/QuorumEngineering/quorum-acceptance-tests.git'
-          ref: 'feature/quorum-1.9.7-withPE'
+          repository: QuorumEngineering/quorum-acceptance-tests
+          ref: feature/quorum-1.9.7-withPE
       - name: 'Build tessera docker image'
         id: build
         run: |
