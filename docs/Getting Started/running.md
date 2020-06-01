@@ -199,7 +199,7 @@ J.P. Morgan and the Zcash team partnered to create a proof of concept (POC) impl
 
 This combination of Constellation/Tessera’s private contracts with ZSL’s z-contracts, allows obligations that arise from a private contract, to be settled using shielded transfers of z-tokens, while maintaining full privacy and confidentiality.
 
-For more information, see the [ZSL](../../ZSL) page of this wiki.
+For more information, see the [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) page of this wiki.
 
 ## Anonymous Zether
 
