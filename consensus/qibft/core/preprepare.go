@@ -115,6 +115,7 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 
 	// Here is about to accept the PRE-PREPARE
 	if c.state == StateAcceptRequest {
+		c.newRoundChangeTimer()
 		c.acceptPreprepare(preprepare)
 		c.setState(StatePreprepared)
 		c.sendPrepare()
@@ -131,7 +132,6 @@ func (c *core) acceptPreprepare(preprepare *Preprepare) {
 // validatePrepreparedMessage validates Preprepared message received
 func (c *core) validatePrepreparedMessage(preprepare *Preprepare, src istanbul.Validator) bool {
 	logger := c.logger.New("from", src, "state", c.state)
-	c.newRoundChangeTimer()
 	highestPreparedRound, validRC := c.checkRoundChangeMessages(preprepare, src)
 	if !validRC {
 		logger.Error("Unable to verify Round Change messages in Preprepare")
