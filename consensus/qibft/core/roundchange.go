@@ -153,7 +153,7 @@ func (c *core) justifyRoundChange(round *big.Int) bool {
 	// Check if the block in each prepared message is the one that is being proposed
 	// To handle the case where a byzantine node can send an empty prepared block, check atleast Quorum of prepared blocks match the condition and not all
 	i := 0
-	for addr, msg := range c.PreparedRoundPrepares.messages { // look at prepare messages from round change messages of highest round
+	for addr, msg := range c.roundChangeSet.preparedMessages[pr.Uint64()].messages {
 		var prepare *Subject
 		if err := msg.Decode(&prepare); err != nil {
 			c.logger.Error("Failed to decode Prepared Message", "err", err)
