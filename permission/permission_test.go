@@ -331,9 +331,17 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	_, err := testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
+	connAllowed, err := testObject.ConnectionAllowed(arbitraryNode2, txa)
+	assert.NoError(t, err)
+	assert.Equal(t, connAllowed, false)
+
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
+
+	connAllowed, err = testObject.ConnectionAllowed(arbitraryNode2, txa)
+	assert.NoError(t, err)
+	assert.Equal(t, connAllowed, true)
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(SuspendNode), invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -342,9 +350,17 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeDeactivated)
 
+	connAllowed, err = testObject.ConnectionAllowed(arbitraryNode2, txa)
+	assert.NoError(t, err)
+	assert.Equal(t, connAllowed, false)
+
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(ActivateSuspendedNode), txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
+
+	connAllowed, err = testObject.ConnectionAllowed(arbitraryNode2, txa)
+	assert.NoError(t, err)
+	assert.Equal(t, connAllowed, true)
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(BlacklistNode), txa)
 	assert.NoError(t, err)
@@ -383,12 +399,20 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
+	actAllowed, err := testObject.TransactionAllowed(acct, acct, txa)
+	assert.Equal(t, actAllowed, false)
+	assert.NoError(t, err)
+
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, types.AcctActive)
+
+	actAllowed, err = testObject.TransactionAllowed(acct, acct, txa)
+	assert.NoError(t, err)
+	assert.Equal(t, actAllowed, true)
 
 	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(types.FullAccess), false, false, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -431,6 +455,10 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctSuspended)
 
+	actAllowed, err = testObject.TransactionAllowed(acct, acct, txa)
+	assert.Equal(t, actAllowed, false)
+	assert.NoError(t, err)
+
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctActive)
@@ -438,6 +466,10 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(BlacklistAccount), txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctBlacklisted)
+
+	actAllowed, err = testObject.TransactionAllowed(acct, acct, txa)
+	assert.Equal(t, actAllowed, false)
+	assert.NoError(t, err)
 
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
 	assert.Equal(t, err, ErrAcctBlacklisted)

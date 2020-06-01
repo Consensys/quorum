@@ -716,61 +716,45 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
       */
     function transactionAllowed(address _srcaccount, address _tgtaccount)
     external view returns (bool) {
-        return true;
-/*        address  addr;
+        address  addr;
         string memory act_org;
         string memory act_role;
         uint act_status;
         bool act_orgAdmin;
-        (addr, act_org, act_role, act_status, act_orgAdmin) = accountManager.getAccountDetails(_srcaccount);
-        if(keccak256(abi.encodePacked(act_org)) == keccak256(abi.encodePacked("NONE"))) {
+        bool act_valid;
+        (addr, act_org, act_role, act_status, act_orgAdmin, act_valid) = accountManager.getAccountDetailsIfActive(_srcaccount);
+        if(!act_valid) {
             return false;
         }
-        if( act_status == 2 ) {
-            uint orgIndex = orgManager._getOrgIndex(act_org);
-            if(orgIndex == 0){
+        string memory orgId;
+        string memory parentOrgId;
+        string memory ultParent;
+        uint256 level;
+        uint256 status;
+        bool org_valid;
+        (orgId, parentOrgId, ultParent, level, status, org_valid) = orgManager.getOrgInfoIfActive(act_org);
+        if(!org_valid){
+            return false;
+        }
+        if(keccak256(abi.encode(act_role)) == keccak256(abi.encode(adminRole)) || keccak256(abi.encode(act_role)) == keccak256(abi.encode(orgAdminRole))){
+            return true;
+        }
+        if(roleManager.roleExists(act_role, orgId, ultParent)){
+            uint256 roleAccess = roleManager.roleAccess(act_role, orgId, ultParent);
+            //readOnly
+            if(roleAccess == 0){
                 return false;
             }
-            string memory orgId;
-            string memory parentOrgId;
-            string memory ultParent;
-            uint256 level;
-            uint256 status;
-            (orgId, parentOrgId, ultParent, level, status) = orgManager.getOrgInfo(orgIndex);
-            if(status == 2 || status == 3) {
-                uint u_orgIndex = orgManager._getOrgIndex(ultParent);
-                if(u_orgIndex == 0){
-                    return false;
-                }
-                string memory u_orgId;
-                string memory u_parentOrgId;
-                string memory u_ultParent;
-                uint256 u_level;
-                uint256 u_status;
-                (u_orgId, u_parentOrgId, u_ultParent, u_level, u_status) = orgManager.getOrgInfo(u_orgIndex);
-                if(u_status == 2 || u_status == 3) {
-                    if(keccak256(abi.encode(act_role)) == keccak256(abi.encode(adminRole)) || keccak256(abi.encode(act_role)) == keccak256(abi.encode(orgAdminRole))){
-                        return true;
-                    }
-                    if(roleManager.roleExists(act_role, orgId, ultParent)){
-                        uint256 roleAccess = roleManager.roleAccess(act_role, orgId, ultParent);
-                        //readOnly
-                        if(roleAccess == 0){
-                            return false;
-                        }
-                        //transact, not contract deployment
-                        if(roleAccess == 1 && _tgtaccount == address(0)){
-                            return true;
-                        }
-                        //fullaccess / admin role
-                        if(roleAccess == 3 || roleAccess == 2){
-                            return true;
-                        }
-                    }
-                }
+            //transact, not contract deployment
+            if(roleAccess == 1 && _tgtaccount == address(0)){
+                return true;
+            }
+            //fullaccess / admin role
+            if(roleAccess == 3 || roleAccess == 2){
+                return true;
             }
         }
-        return false;*/
+        return false;
     }
 
 }

@@ -195,6 +195,34 @@ contract OrgManager {
         orgList[_orgIndex].ultParent, orgList[_orgIndex].level, orgList[_orgIndex].status);
     }
 
+    /** @notice returns org info if org id/ultimate parent id is active/valid
+      * @param _orgId org id
+      * @return org id
+      * @return parent org id
+      * @return ultimate parent id
+      * @return level in the org tree
+      * @return status
+       * @return bool indicating if the org id/ultimate org id is valid/active or not
+      */
+    function getOrgInfoIfActive(string calldata _orgId) external view returns (string memory,
+        string memory, string memory, uint256, uint256, bool) {
+        if(!checkOrgExists(_orgId)){
+            return ("", "", "", 0, 0, false);
+        }
+        uint _orgIndex =_getOrgIndex(_orgId);
+        if( orgList[_orgIndex].status == 2 || orgList[_orgIndex].status == 3){
+            if(!checkOrgExists(orgList[_orgIndex].ultParent)){
+                return ("", "", "", 0, 0, false);
+            }
+            uint _uorgIndex = _getOrgIndex(orgList[_orgIndex].ultParent);
+            if(orgList[_uorgIndex].status == 2 || orgList[_uorgIndex].status == 3){
+                return (orgList[_orgIndex].orgId, orgList[_orgIndex].parentId,
+                orgList[_orgIndex].ultParent, orgList[_orgIndex].level, orgList[_orgIndex].status, true);
+            }
+        }
+        return ("", "", "", 0, 0, false);
+    }
+
     /** @notice returns the master org id for the given org or sub org
       * @param _orgId org id
       * @return master org id

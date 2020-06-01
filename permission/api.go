@@ -416,6 +416,29 @@ func (q *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.S
 	return ExecSuccess.OpStatus()
 }
 
+func (q *QuorumControlsAPI) TransactionAllowed(srcacct common.Address, tgtacct common.Address, txa ethapi.SendTxArgs) (bool, error) {
+	pinterf, execStatus := q.initOp(txa)
+	_, err := execStatus.OpStatus()
+	if err != nil {
+		return false, err
+	}
+	return pinterf.TransactionAllowed(srcacct, tgtacct)
+}
+
+func (q *QuorumControlsAPI) ConnectionAllowed(url string, txa ethapi.SendTxArgs) (bool, error) {
+	pinterf, execStatus := q.initOp(txa)
+	_, err := execStatus.OpStatus()
+	if err != nil {
+		return false, err
+	}
+	var enodeId string
+	var port uint16
+	var raftport uint16
+	var ip [32]byte
+	enodeId, ip, port, raftport, err = q.getNodeDetails(url)
+	return pinterf.ConnectionAllowedImpl(enodeId, ip, port, raftport)
+}
+
 func (q *QuorumControlsAPI) AddAccountToOrg(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) (string, error) {
 	pinterf, execStatus := q.initOp(txa)
 	if execStatus != ExecSuccess {

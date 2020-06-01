@@ -91,6 +91,32 @@ contract AccountManager {
         accountAccessList[aIndex].orgAdmin);
     }
 
+    /** @notice returns the account details for a given account if account is valid/active
+      * @param _account account id
+      * @return account id
+      * @return org id of the account
+      * @return role linked to the account
+      * @return status of the account
+      * @return bool indicating if the account is an org admin
+      * @return bool indicating if the account is valid/active or not
+      */
+    function getAccountDetailsIfActive(address _account) external view returns (address,
+        string memory, string memory, uint, bool, bool){
+
+        if (accountIndex[_account] == 0) {
+            return (_account, "NONE", "", 0, false, false);
+        }
+
+        uint aIndex = _getAccountIndex(_account);
+        if (accountAccessList[aIndex].status != 2) {
+            return (_account, "NONE", "", 0, false, false);
+        }
+
+        return (accountAccessList[aIndex].account, accountAccessList[aIndex].orgId,
+        accountAccessList[aIndex].role, accountAccessList[aIndex].status,
+        accountAccessList[aIndex].orgAdmin, true);
+    }
+
     /** @notice returns the account details a given account index
       * @param  _aIndex account index
       * @return account id
