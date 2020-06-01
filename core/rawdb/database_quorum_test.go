@@ -17,8 +17,9 @@
 package rawdb
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // Tests that setting the flag for Quorum EIP155 activation read values correctly

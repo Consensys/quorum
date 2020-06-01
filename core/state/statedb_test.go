@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/ethereum/go-ethereum/private/engine"
 	"math"
 	"math/big"
 	"math/rand"
@@ -29,6 +28,8 @@ import (
 	"sync"
 	"testing"
 	"testing/quick"
+
+	"github.com/ethereum/go-ethereum/private/engine"
 
 	"gopkg.in/check.v1"
 

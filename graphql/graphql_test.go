@@ -19,9 +19,10 @@ package graphql
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/private/engine"
 	"math/big"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/private/engine"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

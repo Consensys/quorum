@@ -2,11 +2,12 @@ package ethapi
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/core/bloombits"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"os"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 
 	"github.com/ethereum/go-ethereum/private"
 
@@ -38,10 +39,8 @@ var (
 		PrivateFor: []string{"arbitrary party 1", "arbitrary party 2"},
 	}
 	arbitraryFrom = common.BytesToAddress([]byte("arbitrary address"))
-	arbitraryTo   = common.BytesToAddress([]byte("aribitrary to"))
 
 	arbitrarySimpleStorageContractEncryptedPayloadHash = common.BytesToEncryptedPayloadHash([]byte("arbitrary payload hash"))
-	arbitraryChildContractEncryptedPayloadHash         = common.BytesToEncryptedPayloadHash([]byte("arbitrary payload hash 1"))
 
 	simpleStorageContractCreationTx = types.NewContractCreation(
 		0,

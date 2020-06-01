@@ -3,8 +3,8 @@ package cache
 import (
 	"time"
 
-	gocache "github.com/patrickmn/go-cache"
 	"github.com/ethereum/go-ethereum/private/engine"
+	gocache "github.com/patrickmn/go-cache"
 )
 
 const (

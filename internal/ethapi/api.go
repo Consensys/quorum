@@ -1640,7 +1640,7 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 	// Assemble the transaction and obtain rlp
 	// Quorum
 	if args.IsPrivate() {
-		// TODO PrivacyEnhancements check what happens when input is provided but Data is overriden
+		// TODO PrivacyEnhancements check what happens when input is provided but Data is overridden
 		hash, err := private.P.StoreRaw(args.inputOrData(), args.From.String())
 		if err != nil {
 			return nil, err

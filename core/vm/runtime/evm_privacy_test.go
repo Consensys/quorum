@@ -2,11 +2,12 @@ package runtime
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"math/big"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/core/rawdb"
 
 	"github.com/ethereum/go-ethereum/private/engine"
 
