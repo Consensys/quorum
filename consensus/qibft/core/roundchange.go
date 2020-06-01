@@ -214,12 +214,7 @@ func (rcs *roundChangeSet) Add(r *big.Int, msg *message, preparedRound *big.Int,
 		return err
 	}
 
-	if rcs.preparedMessages[round] == nil {
-		rcs.preparedMessages[round] = newMessageSet(rcs.validatorSet)
-	}
-	if err := rcs.preparedMessages[round].Add(msg); err != nil {
-		return err
-	}
+	rcs.preparedMessages[round] = preparedMessages
 
 	if rcs.preparedRounds == nil {
 		rcs.preparedRounds = make(map[uint64]*big.Int)
