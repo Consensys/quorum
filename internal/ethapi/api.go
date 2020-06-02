@@ -397,7 +397,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	if err != nil {
 		return common.Hash{}, err
 	}
-	if isPrivate {
+	if isPrivate && !common.EmptyEncryptedPayloadHash(data) {
 		// replace the original payload with encrypted payload hash
 		args.Data = data.BytesTypeRef()
 	}
@@ -1605,7 +1605,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err != nil {
 		return common.Hash{}, err
 	}
-	if isPrivate {
+	if isPrivate && !common.EmptyEncryptedPayloadHash(data) {
 		// replace the original payload with encrypted payload hash
 		args.Data = data.BytesTypeRef()
 	}
@@ -2196,7 +2196,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 	return
 }
 
-// Simulate excution of a private transaction
+// Simulate execution of a private transaction
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts
 // and the merkle root combining all affected contract accounts after the simulation
 //
