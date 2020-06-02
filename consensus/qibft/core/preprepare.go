@@ -29,10 +29,7 @@ func (c *core) sendPreprepare(request *Request) {
 	if rcMessages == nil {
 		rcMessages = newMessageSet(c.valSet)
 	}
-	preparedMessages := request.PrepareMessages
-	if preparedMessages == nil {
-		preparedMessages = newMessageSet(c.valSet)
-	}
+
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
 		curView := c.currentView()
@@ -40,7 +37,7 @@ func (c *core) sendPreprepare(request *Request) {
 			View:             curView,
 			Proposal:         request.Proposal,
 			RCMessages:       rcMessages,
-			PreparedMessages: preparedMessages,
+			PreparedMessages: request.PrepareMessages,
 		})
 		if err != nil {
 			logger.Error("Failed to encode", "view", curView)
@@ -50,6 +47,8 @@ func (c *core) sendPreprepare(request *Request) {
 			Code: msgPreprepare,
 			Msg:  preprepare,
 		})
+		// Set the preprepareSent to the current round
+		c.current.preprepareSent = curView.Round
 	}
 }
 

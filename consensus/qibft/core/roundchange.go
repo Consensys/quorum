@@ -126,16 +126,23 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		c.newRoundChangeTimer()
 		c.sendRoundChange(newRound)
 
-	} else if currentRoundMessages == c.QuorumSize() && c.IsProposer() && c.justifyRoundChange(cv.Round) {
+	} else if currentRoundMessages >= c.QuorumSize() && c.IsProposer() && c.justifyRoundChange(cv.Round) && c.current.preprepareSent.Cmp(cv.Round) < 0 {
 		preparedRound, proposal := c.highestPrepared(cv.Round)
 		if proposal == nil {
 			proposal = c.current.pendingRequest.Proposal
 		}
 
+		var preparedMessages *messageSet
+		if preparedRound == nil {
+			preparedMessages = newMessageSet(c.valSet)
+		} else {
+			preparedMessages = c.roundChangeSet.preparedMessages[preparedRound.Uint64()]
+		}
+
 		r := &Request{
 			Proposal:        proposal,
 			RCMessages:      c.roundChangeSet.roundChanges[cv.Round.Uint64()],
-			PrepareMessages: c.roundChangeSet.preparedMessages[preparedRound.Uint64()],
+			PrepareMessages: preparedMessages,
 		}
 
 		c.sendPreprepare(r)
@@ -153,19 +160,19 @@ func (c *core) justifyRoundChange(round *big.Int) bool {
 	// Check if the block in each prepared message is the one that is being proposed
 	// To handle the case where a byzantine node can send an empty prepared block, check atleast Quorum of prepared blocks match the condition and not all
 	i := 0
-	for addr, msg := range c.roundChangeSet.preparedMessages[pr.Uint64()].messages {
+	for addr, msg := range c.roundChangeSet.preparedMessages[round.Uint64()].messages {
 		var prepare *Subject
 		if err := msg.Decode(&prepare); err != nil {
 			c.logger.Error("Failed to decode Prepared Message", "err", err)
-			return false
+			continue
 		}
 		if prepare.Digest.Hash() != pv.Hash() {
 			c.logger.Error("Highest Prepared Block does not match the Proposal", "Address", addr)
-			return false
+			continue
 		}
 		if prepare.View.Round.Uint64() != pr.Uint64() {
 			c.logger.Error("Round in Prepared Block does not match the Highest Prepared Round", "Address", addr)
-			return false
+			continue
 		}
 		i++
 		if i == c.QuorumSize() {
@@ -214,8 +221,6 @@ func (rcs *roundChangeSet) Add(r *big.Int, msg *message, preparedRound *big.Int,
 		return err
 	}
 
-	rcs.preparedMessages[round] = preparedMessages
-
 	if rcs.preparedRounds == nil {
 		rcs.preparedRounds = make(map[uint64]*big.Int)
 	}
@@ -223,12 +228,10 @@ func (rcs *roundChangeSet) Add(r *big.Int, msg *message, preparedRound *big.Int,
 		rcs.preparedBlocks = make(map[uint64]istanbul.Proposal)
 	}
 
-	if rcs.preparedRounds[round] == nil {
+	if rcs.preparedRounds[round] == nil || preparedRound.Cmp(rcs.preparedRounds[round]) > 0 {
 		rcs.preparedRounds[round] = preparedRound
 		rcs.preparedBlocks[round] = preparedBlock
-	} else if preparedRound.Cmp(rcs.preparedRounds[round]) > 0 {
-		rcs.preparedRounds[round] = preparedRound
-		rcs.preparedBlocks[round] = preparedBlock
+		rcs.preparedMessages[round] = preparedMessages
 	}
 
 	return nil

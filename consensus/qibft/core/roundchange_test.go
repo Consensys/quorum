@@ -47,7 +47,7 @@ func TestRoundChangeSet(t *testing.T) {
 			Msg:     m,
 			Address: v.Address(),
 		}
-		rc.Add(view.Round, msg, r.PreparedRound, r.PreparedBlock)
+		rc.Add(view.Round, msg, r.PreparedRound, r.PreparedBlock, newMessageSet(vset))
 		if rc.roundChanges[view.Round.Uint64()].Size() != i+1 {
 			t.Errorf("the size of round change messages mismatch: have %v, want %v", rc.roundChanges[view.Round.Uint64()].Size(), i+1)
 		}
@@ -60,7 +60,7 @@ func TestRoundChangeSet(t *testing.T) {
 			Msg:     m,
 			Address: v.Address(),
 		}
-		rc.Add(view.Round, msg, r.PreparedRound, r.PreparedBlock)
+		rc.Add(view.Round, msg, r.PreparedRound, r.PreparedBlock, newMessageSet(vset))
 		if rc.roundChanges[view.Round.Uint64()].Size() != vset.Size() {
 			t.Errorf("the size of round change messages mismatch: have %v, want %v", rc.roundChanges[view.Round.Uint64()].Size(), vset.Size())
 		}
