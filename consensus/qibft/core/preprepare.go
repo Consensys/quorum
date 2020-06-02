@@ -210,6 +210,7 @@ func (c *core) checkPreparedMessages(preprepare *Preprepare, highestPreparedRoun
 				return false
 			}
 		}
+		return true
 	}
 	return false
 }
