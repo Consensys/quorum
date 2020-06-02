@@ -109,11 +109,15 @@ contract NodeManager {
       * @param _nodeIndex node index
       * @return org id
       * @return enode id
+      * @return ip of the node
+      * @return port of the node
+      * @return raftport of the node
       * @return status of the node
       */
     function getNodeDetailsFromIndex(uint256 _nodeIndex) external view
-    returns (string memory _orgId, string memory _enodeId, uint256 _nodeStatus) {
-        return (nodeList[_nodeIndex].orgId, nodeList[_nodeIndex].enodeId,
+    returns (string memory _orgId, string memory _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, uint256 _nodeStatus) {
+        return (nodeList[_nodeIndex].orgId, nodeList[_nodeIndex].enodeId, nodeList[_nodeIndex].ip,
+        nodeList[_nodeIndex].port, nodeList[_nodeIndex].raftPort,
         nodeList[_nodeIndex].status);
     }
 
