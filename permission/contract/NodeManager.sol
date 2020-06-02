@@ -31,7 +31,7 @@ contract NodeManager {
     // use an array to store node details
     // if we want to list all node one day, mapping is not capable
     NodeDetails[] private nodeList;
-    // mapping of enode url to array index to track node
+    // mapping of enode id to array index to track node
     mapping(bytes32 => uint256) private nodeIdToIndex;
     // mapping of enodeId to array index to track node
     mapping(bytes32 => uint256) private enodeIdToIndex;
@@ -280,11 +280,12 @@ contract NodeManager {
         return nodeList[_getNodeIndex(_enodeId)].status;
     }
 
-    /** @notice checks if the node is allowed or not
+    /** @notice checks if the node is allowed to connect or not
     * @param _enodeId enode id
     * @param _ip IP of node
     * @param _port tcp port of node
     * @param _raftport raft port of node
+    * @return bool indicating if the node is allowed to connect or not
     */
     function connectionAllowed(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external view onlyImplementation
     returns (bool){

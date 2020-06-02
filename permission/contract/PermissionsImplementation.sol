@@ -700,19 +700,21 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
         return orgManager.getUltimateParent(_orgId);
     }
 
-    /** @notice checks if the node is allowed or not
+    /** @notice checks if the node is allowed to connect or not
       * @param _enodeId enode id
       * @param _ip IP of node
       * @param _port tcp port of node
       * @param _raftport raft port of node
+      * @return bool indicating if the node is allowed to connect or not
       */
     function connectionAllowed(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external view returns (bool) {
         return nodeManager.connectionAllowed(_enodeId, _ip, _port, _raftport);
     }
 
-    /** @notice checks if the transaction is allowed or not
+    /** @notice checks if the account is allowed to transact or not
       * @param _srcaccount source account
       * @param _tgtaccount target account
+      * @return bool indicating if the account is allowed to transact or not
       */
     function transactionAllowed(address _srcaccount, address _tgtaccount)
     external view returns (bool) {

@@ -202,7 +202,7 @@ contract OrgManager {
       * @return ultimate parent id
       * @return level in the org tree
       * @return status
-       * @return bool indicating if the org id/ultimate org id is valid/active or not
+      * @return bool indicating if the org id/ultimate org id is valid/active or not
       */
     function getOrgInfoIfActive(string calldata _orgId) external view returns (string memory,
         string memory, string memory, uint256, uint256, bool) {
