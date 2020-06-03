@@ -122,7 +122,6 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		newRound := c.roundChangeSet.getMinRoundChange(cv.Round)
 		logger.Trace("Starting new Round", "round", newRound)
 		c.startNewRound(newRound)
-		c.newRoundChangeTimer()
 		c.sendRoundChange(newRound)
 
 	} else if currentRoundMessages >= c.QuorumSize() && c.IsProposer() && c.justifyRoundChange(cv.Round) && c.current.preprepareSent.Cmp(cv.Round) < 0 {

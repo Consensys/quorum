@@ -187,9 +187,6 @@ func (c *core) handleTimeoutMsg() {
 	nextRound := new(big.Int).Add(round, common.Big1)
 	c.startNewRound(nextRound)
 
-	// Start the timer
-	c.newRoundChangeTimer()
-
 	// Send Round Change
 	c.sendRoundChange(nextRound)
 }
