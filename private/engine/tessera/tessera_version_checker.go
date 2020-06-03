@@ -44,7 +44,7 @@ func tesseraVersionSupportsPrivacyEnhancements(version []byte) bool {
 }
 
 func getMajorMidFromVersion(version []byte) (major int64, mid int64, err error) {
-	versionRegExp, _ := regexp.Compile("([0-9]+)\\.([0-9]+)([^0-9].*)")
+	versionRegExp, _ := regexp.Compile(`([0-9]+)\.([0-9]+)([^0-9].*)`)
 
 	submatch := versionRegExp.FindSubmatch(version)
 	if len(submatch) < 4 {
