@@ -348,6 +348,8 @@ func geth(ctx *cli.Context) error {
 	// Check if a valid consensus is used
 	quorumValidateConsensus(node, ctx.GlobalBool(utils.RaftModeFlag.Name))
 
+	quorumValidatePrivacyEnhancements(node)
+
 	node.Wait()
 	return nil
 }

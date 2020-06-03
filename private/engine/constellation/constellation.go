@@ -12,8 +12,9 @@ import (
 )
 
 type constellation struct {
-	node *Client
-	c    *gocache.Cache
+	features engine.PTMFeatures
+	node     *Client
+	c        *gocache.Cache
 }
 
 func Is(ptm interface{}) bool {
@@ -23,6 +24,7 @@ func Is(ptm interface{}) bool {
 
 func New(client *engine.Client) *constellation {
 	return &constellation{
+		features: engine.NewPTMFeatures(),
 		node: &Client{
 			httpClient: client.HttpClient,
 		},
@@ -31,6 +33,9 @@ func New(client *engine.Client) *constellation {
 }
 
 func (g *constellation) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
+	if extra.PrivacyFlag.IsNotStandardPrivate() {
+		return common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnehancements
+	}
 	out, err := g.node.SendPayload(data, from, to, extra.ACHashes, extra.ACMerkleRoot)
 	if err != nil {
 		return common.EncryptedPayloadHash{}, err
@@ -57,7 +62,7 @@ func (g *constellation) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *e
 
 func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
 	if common.EmptyEncryptedPayloadHash(data) {
-		return data.Bytes(), nil, nil
+		return nil, nil, nil
 	}
 	// Ignore this error since not being a recipient of
 	// a payload isn't an error.
@@ -89,4 +94,8 @@ func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engi
 
 func (g *constellation) Name() string {
 	return "Constellation"
+}
+
+func (g *constellation) Features() engine.PTMFeatures {
+	return g.features
 }

@@ -31,6 +31,8 @@ var (
 type PrivateTransactionManager interface {
 	Name() string
 
+	Features() engine.PTMFeatures
+
 	Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error)
 	StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error)
 	SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error)
@@ -118,7 +120,7 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 		// Constellation doesn't have /version endpoint
 		privateTxManager = constellation.New(client)
 	} else {
-		privateTxManager = tessera.New(client)
+		privateTxManager = tessera.New(client, version)
 	}
 	return privateTxManager, nil
 }

@@ -21,8 +21,9 @@ import (
 )
 
 type tesseraPrivateTxManager struct {
-	client *engine.Client
-	cache  *gocache.Cache
+	features engine.PTMFeatures
+	client   *engine.Client
+	cache    *gocache.Cache
 }
 
 func Is(ptm interface{}) bool {
@@ -30,10 +31,11 @@ func Is(ptm interface{}) bool {
 	return ok
 }
 
-func New(client *engine.Client) *tesseraPrivateTxManager {
+func New(client *engine.Client, version []byte) *tesseraPrivateTxManager {
 	return &tesseraPrivateTxManager{
-		client: client,
-		cache:  gocache.New(cache.DefaultExpiration, cache.CleanupInterval),
+		features: engine.NewPTMFeatures(tesseraVersionFeatures(version)...),
+		client:   client,
+		cache:    gocache.New(cache.DefaultExpiration, cache.CleanupInterval),
 	}
 }
 
@@ -58,6 +60,9 @@ func (t *tesseraPrivateTxManager) submitJSON(method, path string, request interf
 }
 
 func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
+	if extra.PrivacyFlag.IsNotStandardPrivate() && !t.features.HasFeature(engine.PrivacyEnhancements) {
+		return common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnehancements
+	}
 	response := new(sendResponse)
 	acMerkleRoot := ""
 	if !common.EmptyHash(extra.ACMerkleRoot) {
@@ -214,6 +219,10 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 
 func (t *tesseraPrivateTxManager) Name() string {
 	return "Tessera"
+}
+
+func (t *tesseraPrivateTxManager) Features() engine.PTMFeatures {
+	return t.features
 }
 
 // don't serialize body if nil

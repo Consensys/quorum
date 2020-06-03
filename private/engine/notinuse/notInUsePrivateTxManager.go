@@ -1,6 +1,10 @@
 package notinuse
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/ethereum/go-ethereum/private/engine"
+)
 
 var ErrPrivateTxManagerNotInUse = errors.New("private transaction manager is not in use")
 
@@ -27,4 +31,8 @@ func (ptm *PrivateTransactionManager) Receive(data []byte) ([]byte, error) {
 
 func (ptm *PrivateTransactionManager) Name() string {
 	return "NotInUse"
+}
+
+func (ptm *PrivateTransactionManager) Features() engine.PTMFeatures {
+	return engine.NewPTMFeatures()
 }
