@@ -195,6 +195,33 @@ contract OrgManager {
         orgList[_orgIndex].ultParent, orgList[_orgIndex].level, orgList[_orgIndex].status);
     }
 
+    /** @notice returns org info for a given org id
+      * @param _orgId org id
+      * @return org id
+      * @return parent org id
+      * @return ultimate parent id
+      * @return level in the org tree
+      * @return status
+      */
+    function getOrgDetails(string calldata _orgId) external view returns (string memory,
+        string memory, string memory, uint256, uint256) {
+        if (!checkOrgExists(_orgId)){
+            return (_orgId, "", "", 0,0);
+        }
+        uint256 _orgIndex = _getOrgIndex(_orgId);
+        return (orgList[_orgIndex].orgId, orgList[_orgIndex].parentId,
+        orgList[_orgIndex].ultParent, orgList[_orgIndex].level, orgList[_orgIndex].status);
+    }
+
+    /** @notice returns the array of sub org indexes for the given org
+      * @param _orgId org id
+      * @return array of sub org indexes
+      */
+    function getSubOrgIndexes(string calldata _orgId) external view returns (uint[] memory) {
+        require(checkOrgExists(_orgId) == true, "org does not exist");
+        uint256 _orgIndex = _getOrgIndex(_orgId);
+        return (orgList[_orgIndex].subOrgIndexList);
+    }
     /** @notice returns the master org id for the given org or sub org
       * @param _orgId org id
       * @return master org id
@@ -219,6 +246,9 @@ contract OrgManager {
       */
     function checkOrgStatus(string memory _orgId, uint256 _orgStatus)
     public view returns (bool){
+        if (OrgIndex[keccak256(abi.encodePacked(_orgId))] == 0) {
+            return false;
+        }
         uint256 id = _getOrgIndex(_orgId);
         return ((OrgIndex[keccak256(abi.encodePacked(_orgId))] != 0)
         && orgList[id].status == _orgStatus);
@@ -334,7 +364,7 @@ contract OrgManager {
     /** @notice returns the org index from the org list for the given org
       * @return org index
       */
-    function _getOrgIndex(string memory _orgId) public view returns (uint){
+    function _getOrgIndex(string memory _orgId) private view returns (uint){
         return OrgIndex[keccak256(abi.encodePacked(_orgId))] - 1;
     }
 
