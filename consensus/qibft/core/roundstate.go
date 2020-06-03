@@ -37,7 +37,6 @@ func newRoundState(view *View, validatorSet istanbul.ValidatorSet, preprepare *P
 		mu:               new(sync.RWMutex),
 		pendingRequest:   pendingRequest,
 		hasBadProposal:   hasBadProposal,
-		rcMsgSentInRound: big.NewInt(0),
 		preprepareSent:   big.NewInt(0),
 	}
 }
@@ -52,7 +51,6 @@ type roundState struct {
 	pendingRequest   *Request
 	preparedRound    *big.Int
 	preparedBlock    istanbul.Proposal
-	rcMsgSentInRound *big.Int
 
 	mu             *sync.RWMutex
 	hasBadProposal func(hash common.Hash) bool

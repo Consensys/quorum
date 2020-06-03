@@ -71,7 +71,6 @@ func (c *core) sendRoundChange(round *big.Int) {
 		Msg:  payload,
 	})
 
-	c.current.rcMsgSentInRound = round
 }
 
 func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
