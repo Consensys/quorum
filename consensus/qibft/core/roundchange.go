@@ -118,7 +118,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 
 	num := c.roundChangeSet.higherRoundMessages(cv.Round)
 	currentRoundMessages := c.roundChangeSet.getRCMessagesForGivenRound(cv.Round)
-	if num == int(c.valSet.F()+1) {
+	if num == c.valSet.F()+1 {
 		newRound := c.roundChangeSet.getMinRoundChange(cv.Round)
 		logger.Trace("Starting new Round", "round", newRound)
 		c.startNewRound(newRound)

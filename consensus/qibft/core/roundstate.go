@@ -29,28 +29,28 @@ import (
 // newRoundState creates a new roundState instance with the given view and validatorSet
 func newRoundState(view *View, validatorSet istanbul.ValidatorSet, preprepare *Preprepare, pendingRequest *Request, hasBadProposal func(hash common.Hash) bool) *roundState {
 	return &roundState{
-		round:            view.Round,
-		sequence:         view.Sequence,
-		Preprepare:       preprepare,
-		Prepares:         newMessageSet(validatorSet),
-		Commits:          newMessageSet(validatorSet),
-		mu:               new(sync.RWMutex),
-		pendingRequest:   pendingRequest,
-		hasBadProposal:   hasBadProposal,
-		preprepareSent:   big.NewInt(0),
+		round:          view.Round,
+		sequence:       view.Sequence,
+		Preprepare:     preprepare,
+		Prepares:       newMessageSet(validatorSet),
+		Commits:        newMessageSet(validatorSet),
+		mu:             new(sync.RWMutex),
+		pendingRequest: pendingRequest,
+		hasBadProposal: hasBadProposal,
+		preprepareSent: big.NewInt(0),
 	}
 }
 
 // roundState stores the consensus state
 type roundState struct {
-	round            *big.Int
-	sequence         *big.Int
-	Preprepare       *Preprepare
-	Prepares         *messageSet
-	Commits          *messageSet
-	pendingRequest   *Request
-	preparedRound    *big.Int
-	preparedBlock    istanbul.Proposal
+	round          *big.Int
+	sequence       *big.Int
+	Preprepare     *Preprepare
+	Prepares       *messageSet
+	Commits        *messageSet
+	pendingRequest *Request
+	preparedRound  *big.Int
+	preparedBlock  istanbul.Proposal
 
 	mu             *sync.RWMutex
 	hasBadProposal func(hash common.Hash) bool

@@ -17,7 +17,6 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"math/big"
 	"reflect"
 	"sync"
@@ -25,6 +24,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
@@ -327,19 +327,19 @@ func TestProcessBacklog(t *testing.T) {
 	roundChangePayload, _ := Encode(roundChange)
 
 	msgs := []*message{
-		&message{
+		{
 			Code: msgPreprepare,
 			Msg:  prepreparePayload,
 		},
-		&message{
+		{
 			Code: msgPrepare,
 			Msg:  subjectPayload,
 		},
-		&message{
+		{
 			Code: msgCommit,
 			Msg:  subjectPayload,
 		},
-		&message{
+		{
 			Code: msgRoundChange,
 			Msg:  roundChangePayload,
 		},

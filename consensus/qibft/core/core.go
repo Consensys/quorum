@@ -361,7 +361,7 @@ func validateMsgSignature(messages map[common.Address]*message, validateFn func(
 		if err != nil {
 			return err
 		}
-		if bytes.Compare(signerAdd.Bytes(), msg.Address.Bytes()) != 0 {
+		if !bytes.Equal(signerAdd.Bytes(), msg.Address.Bytes()) {
 			return errInvalidSigner
 		}
 	}

@@ -204,7 +204,7 @@ OUTER:
 		committedSeals := v0.committedMsgs[0].committedSeals
 		for _, validator := range r0.valSet.List() {
 			for _, seal := range committedSeals {
-				if bytes.Compare(validator.Address().Bytes(), seal[:common.AddressLength]) == 0 {
+				if bytes.Equal(validator.Address().Bytes(), seal[:common.AddressLength]) {
 					signedCount++
 					break
 				}
