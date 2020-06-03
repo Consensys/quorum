@@ -2,11 +2,11 @@ package tessera
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/private/engine"
 	"regexp"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private/engine"
 )
 
 // TODO Qurum - Privacy Enhancements - must update these once tessera with privacy enhancements is released (and the version is known)
