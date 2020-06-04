@@ -2,55 +2,65 @@ package tessera
 
 import (
 	"testing"
+
+	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/stretchr/testify/assert"
 )
 
-func checkMajorMidSucceeds(t *testing.T, version []byte, major int64, middle int64) {
-	maj, mid, err := getMajorMidFromVersion(version)
+func checkParseSucceeds(t *testing.T, version []byte, expectedVersion VERSION) {
+	parsedVersion, err := parseVersion(version)
 	if err != nil {
 		t.Errorf("unexpected error")
 	}
-	if maj != major || mid != middle {
+	if compareVersions(parsedVersion, expectedVersion) != 0 {
 		t.Errorf("unexpected major or middle version missmatch")
 	}
 }
 
-func TestGetMajorMidFromVersion(t *testing.T) {
-	checkMajorMidSucceeds(t, []byte("0.11.12+12234"), 0, 11)
-	checkMajorMidSucceeds(t, []byte("0.11-SNAPSHOT"), 0, 11)
-	// leading zeros in major and mid components
-	checkMajorMidSucceeds(t, []byte("000.0011-SNAPSHOT"), 0, 11)
+func TestParseVersion(t *testing.T) {
+	checkParseSucceeds(t, []byte("0.11.12+12234"), VERSION{0, 11, 12})
+	checkParseSucceeds(t, []byte("0.11-SNAPSHOT"), VERSION{0, 11, 0})
+	// leading zeros in version components
+	checkParseSucceeds(t, []byte("000.0011-SNAPSHOT"), VERSION{0, 11, 0})
 
-	checkMajorMidSucceeds(t, []byte("01.12 SNAPSHOT"), 1, 12)
+	checkParseSucceeds(t, []byte("01.012 SNAPSHOT"), VERSION{1, 12, 0})
 
-	_, _, err := getMajorMidFromVersion([]byte("garbage"))
+	_, err := parseVersion([]byte("garbage"))
+	if err == nil {
+		t.Errorf("expecting error to be returned when garbage version is supplied")
+	}
+
+	_, err = parseVersion([]byte("1.garbage"))
 	if err == nil {
 		t.Errorf("expecting error to be returned when garbage version is supplied")
 	}
 }
 
-func TestTesseraVersionSupportsPrivacyEnhancements(t *testing.T) {
-	res := tesseraVersionSupportsPrivacyEnhancements([]byte("0.11.12+12234"))
-	if !res {
-		t.Errorf("supplied version should support privacy enhancements")
-	}
+func TestVersionsComparison(t *testing.T) {
+	v1 := VERSION{1, 1, 1}
+	v2 := VERSION{1, 1, 1}
+	v3 := VERSION{2, 1, 1}
+	v4 := VERSION{1, 2, 1}
+	v5 := VERSION{1, 1, 2}
+	assert.Equal(t, 0, compareVersions(v1, v2), "versions should be equal")
+	assert.Equal(t, -1, compareVersions(v1, v3), "v1 shold be smaller than v3")
+	assert.Equal(t, 1, compareVersions(v3, v1), "v3 should be bigger than v1")
+	assert.Equal(t, -1, compareVersions(v1, v4), "v1 shold be smaller than v4")
+	assert.Equal(t, 1, compareVersions(v4, v1), "v4 should be bigger than v1")
+	assert.Equal(t, -1, compareVersions(v1, v5), "v1 shold be smaller than v5")
+	assert.Equal(t, 1, compareVersions(v5, v1), "v5 should be bigger than v1")
+}
 
-	res = tesseraVersionSupportsPrivacyEnhancements([]byte("0.12-SNAPSHOT"))
-	if !res {
-		t.Errorf("supplied version should support privacy enhancements")
-	}
-
-	res = tesseraVersionSupportsPrivacyEnhancements([]byte("1.6.12"))
-	if !res {
-		t.Errorf("supplied version should support privacy enhancements")
-	}
-
-	res = tesseraVersionSupportsPrivacyEnhancements([]byte("0.10.5"))
-	if res {
-		t.Errorf("supplied version should not support privacy enhancements")
-	}
-
-	res = tesseraVersionSupportsPrivacyEnhancements([]byte("garbage"))
-	if res {
-		t.Errorf("supplied version should not support privacy enhancements")
-	}
+func TestTesseraVersionFeatures(t *testing.T) {
+	res := tesseraVersionFeatures(VERSION{1, 11, 12})
+	assert.Contains(t, res, engine.PrivacyEnhancements)
+	res = tesseraVersionFeatures(VERSION{0, 12, 0})
+	assert.Contains(t, res, engine.PrivacyEnhancements)
+	res = tesseraVersionFeatures(VERSION{0, 10, 6})
+	assert.Contains(t, res, engine.PrivacyEnhancements)
+	res = tesseraVersionFeatures(VERSION{0, 10, 5})
+	assert.NotContains(t, res, engine.PrivacyEnhancements)
+	res = tesseraVersionFeatures(ZERO)
+	assert.NotContains(t, res, engine.PrivacyEnhancements)
+	assert.Empty(t, res)
 }

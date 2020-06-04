@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/ethereum/go-ethereum/log"
+
 	"github.com/ethereum/go-ethereum/private/engine"
 
 	"github.com/ethereum/go-ethereum/private/cache"
@@ -32,8 +34,12 @@ func Is(ptm interface{}) bool {
 }
 
 func New(client *engine.Client, version []byte) *tesseraPrivateTxManager {
+	ptmVersion, err := parseVersion(version)
+	if err != nil {
+		log.Error("Error parsing version components from the tessera version: %s. Unable to extract transaction manager features.", version)
+	}
 	return &tesseraPrivateTxManager{
-		features: engine.NewPTMFeatures(tesseraVersionFeatures(version)...),
+		features: engine.NewPTMFeatures(tesseraVersionFeatures(ptmVersion)...),
 		client:   client,
 		cache:    gocache.New(cache.DefaultExpiration, cache.CleanupInterval),
 	}
