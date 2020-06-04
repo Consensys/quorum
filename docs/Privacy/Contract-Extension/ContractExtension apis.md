@@ -78,7 +78,7 @@ Error: contract extension in progress for the given contract address
 
 The recipient can accept the extension only once. Executing `quorumExtension.acceptExtension` once extension process is completed will result in the below error
 ```javascript
-> quorumExtension.acceptExtension("0x1349f3e1b8d71effb47b840594ff27da7e603d17", true ,{from: "0x0fbdc686b912d7722dc86510934589e0aaf3b55a", privateFor:["BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo="]})
+> quorumExtension.approveExtension("0x1349f3e1b8d71effb47b840594ff27da7e603d17", true ,{from: "0x0fbdc686b912d7722dc86510934589e0aaf3b55a", privateFor:["BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo="]})
 Error: contract extension process complete. nothing to accept
     at web3.js:3143:20
     at web3.js:6347:15
@@ -88,7 +88,7 @@ Error: contract extension process complete. nothing to accept
 
 Executing `quorumExtension.acceptExtension` from an account which is other than `recipientAddress` will result in the below error:
 ```javascript
-> quorumExtension.acceptExtension("0x4d3bfd7821e237ffe84209d8e638f9f309865b87", true, {from: "0x0bb8aaa95b514d8bff1287c1fb58510479478b4a", privateFor:["BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo="]})
+> quorumExtension.approveExtension("0x4d3bfd7821e237ffe84209d8e638f9f309865b87", true, {from: "0x0bb8aaa95b514d8bff1287c1fb58510479478b4a", privateFor:["BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo="]})
 Error: account is not acceptor of this extension request
     at web3.js:3143:20
     at web3.js:6347:15
@@ -138,26 +138,31 @@ Returns the list of all active contract extensions initiated from the node
 None
 
 #### Returns
-* `address`: address of the private contract getting extended
+* `contractExtended`: address of the private contract getting extended
 * `creationData`: hash of extension creation data
 * `initiator`: ethereum address which initiated the contract extension
-* `managementcontractaddress`: contract address which manages the extension process
+* `recipient`: ethereum addresses which needs to approve the extension in the recipient node
+* `managementContractAddress`: contract address which manages the extension process
+* `RecipientPtmKey`: Tessera public key of the recipient node
 #### Examples
 ```jshelllanguage tab="JSON RPC"
 // Request
-curl -X POST http://127.0.0.1:22001 --data '{"jsonrpc":"2.0","method":"quorumExtension_activeExtensionContracts", "id":10}' --header "Content-Type: application/json"
+curl -X POST http://127.0.0.1:22000 --data '{"jsonrpc":"2.0","method":"quorumExtension_activeExtensionContracts", "id":10}' --header "Content-Type: application/json"
 
 // Response
-{"jsonrpc":"2.0","id":10,"result":[{"address":"0x708f521772264f07770c12489af729f26024905c","initiator":"0xca843569e3427144cead5e4d5999a3d0ccf92b8e","managementcontractaddress":"0xb1c57951a2f3006910115eadf0f167890e99b9cb","creationData":"rC+qKetN9EbwQNhkuzgvVF7LujUiBekBuKCooJDtZit/+5x0ymXQlj/41iwcoM7SvjEstPg6BKyy1f+NgsMY5g=="}]}
+"jsonrpc":"2.0","id":10,"result":[{"contractExtended":"0x027692c7ebdc81c590250e615ab571a0d14eff2d","initiator":"0xed9d02e382b34818e88b88a309c7fe71e65f419d","recipient":"0x0fbdc686b912d7722dc86510934589e0aaf3b55a","managementContractAddress":"0xc4e9de0bd5e0a5fd55ef5d6f2b46eba930a694a3","RecipientPtmKey":"1iTZde/ndBHvzhcl7V68x44Vx7pl8nwx9LqnM/AfJUg=","creationData":"Zvo1Rnrfq4phIJbzKObyCBWSXTbEJGPOq5+jDCWccnPpA7K6OvIssCMLJ54f32uuEeczeVNC46QMk52lCOWbtg=="}]}
 ```
 
 
 ```javascript tab="geth console"
 > quorumExtension.activeExtensionContracts
+> quorumExtension.activeExtensionContracts
 [{
-    address: "0x708f521772264f07770c12489af729f26024905c",
-    creationData: "rC+qKetN9EbwQNhkuzgvVF7LujUiBekBuKCooJDtZit/+5x0ymXQlj/41iwcoM7SvjEstPg6BKyy1f+NgsMY5g==",
-    initiator: "0xca843569e3427144cead5e4d5999a3d0ccf92b8e",
-    managementcontractaddress: "0xb1c57951a2f3006910115eadf0f167890e99b9cb"
+    RecipientPtmKey: "1iTZde/ndBHvzhcl7V68x44Vx7pl8nwx9LqnM/AfJUg=",
+    contractExtended: "0x027692c7ebdc81c590250e615ab571a0d14eff2d",
+    creationData: "Zvo1Rnrfq4phIJbzKObyCBWSXTbEJGPOq5+jDCWccnPpA7K6OvIssCMLJ54f32uuEeczeVNC46QMk52lCOWbtg==",
+    initiator: "0xed9d02e382b34818e88b88a309c7fe71e65f419d",
+    managementContractAddress: "0xc4e9de0bd5e0a5fd55ef5d6f2b46eba930a694a3",
+    recipient: "0x0fbdc686b912d7722dc86510934589e0aaf3b55a"
 }]
 ```
