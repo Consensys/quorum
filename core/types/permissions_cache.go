@@ -527,9 +527,10 @@ func GetAcctAccess(acctId common.Address) AccessType {
 			if r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
 				return r.Access
 			}
-			o, _ := OrgInfoMap.GetOrg(a.OrgId)
-			if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
-				return r.Access
+			if o, _ := OrgInfoMap.GetOrg(a.OrgId); o != nil {
+				if r, _ := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
+					return r.Access
+				}
 			}
 		}
 	}
@@ -563,9 +564,10 @@ func CheckIfAdminAccount(acctId common.Address) bool {
 			if r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active && r.IsAdmin {
 				return true
 			}
-			o, _ := OrgInfoMap.GetOrg(a.OrgId)
-			if r, _ := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active && r.IsAdmin {
-				return true
+			if o, _ := OrgInfoMap.GetOrg(a.OrgId); o != nil {
+				if r, _ := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active && r.IsAdmin {
+					return true
+				}
 			}
 		}
 	}
