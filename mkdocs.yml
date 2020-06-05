@@ -21,7 +21,7 @@ nav:
         - Quorum API: Getting Started/api.md
         - Quorum GraphQL: Getting Started/graphql.md
         - Migration: Getting Started/migration.md 
-        - Logging: Getting Started/Logging.md
+        - Logging and Errors: Getting Started/Logging and Errors.md
     - Quorum Features:
         - Transaction/Contract Privacy:
             - Overview: Privacy/Overview.md
@@ -47,7 +47,7 @@ nav:
                     - Interfaces & API: Privacy/Tessera/Usage/Interface & API.md
                     - Admin Usage: Privacy/Tessera/Usage/Admin Usage.md
                     - Monitoring: Privacy/Tessera/Usage/Monitoring.md
-                    - Logging and Errors: Privacy/Tessera/Usage/Logging.md
+                    - Logging: Privacy/Tessera/Usage/Logging.md
                 - Migration from Constellation: Privacy/Tessera/Migration from Constellation.md
             - Constellation:
                 - What is Constellation: Privacy/Constellation/Constellation.md
