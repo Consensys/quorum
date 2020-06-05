@@ -385,8 +385,7 @@ func (q *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.S
 }
 
 func (q *QuorumControlsAPI) TransactionAllowed(srcacct common.Address, tgtacct common.Address, txa ethapi.SendTxArgs) (bool, error) {
-	pinterf, execStatus := q.initOp(txa)
-	_, err := execStatus.OpStatus()
+	pinterf, err := q.initOp(txa)
 	if err != nil {
 		return false, err
 	}
@@ -394,8 +393,7 @@ func (q *QuorumControlsAPI) TransactionAllowed(srcacct common.Address, tgtacct c
 }
 
 func (q *QuorumControlsAPI) ConnectionAllowed(url string, txa ethapi.SendTxArgs) (bool, error) {
-	pinterf, execStatus := q.initOp(txa)
-	_, err := execStatus.OpStatus()
+	pinterf, err := q.initOp(txa)
 	if err != nil {
 		return false, err
 	}
@@ -815,7 +813,7 @@ func (q *QuorumControlsAPI) valApproveOrg(args txArgs, pinterf *pbind.PermInterf
 	enodeId, _, _, _, _ := q.getNodeDetails(args.url)
 	// check if anything pending approval
 	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, enodeId, args.acctId, 1, pinterf) {
-		return ErrNothingToApprove
+		return types.ErrNothingToApprove
 	}
 	return nil
 }
@@ -1067,7 +1065,7 @@ func (q *QuorumControlsAPI) valRecoverNode(args txArgs, pinterf *pbind.PermInter
 		enodeId, _, _, _, _ := q.getNodeDetails(args.url)
 		// check that there is a pending approval item for node recovery
 		if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, enodeId, common.Address{}, 5, pinterf) {
-			return ErrNothingToApprove
+			return types.ErrNothingToApprove
 		}
 	}
 

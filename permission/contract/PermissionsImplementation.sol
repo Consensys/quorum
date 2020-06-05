@@ -173,7 +173,7 @@ contract PermissionsImplementation {
       * @param _port tcp port of node
       * @param _raftport raft port of node
       */
-    function addAdminNode(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external
+    function addAdminNode(string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport) external
     onlyInterface
     networkBootStatus(false) {
         nodeManager.addAdminNode(_enodeId, _ip, _port, _raftport, adminOrg);
@@ -219,12 +219,9 @@ contract PermissionsImplementation {
       * @param _account account id. this will have the org admin privileges
       */
     function addOrg(string calldata _orgId, string calldata _enodeId,
-bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller) external
-    //onlyInterface
-    //networkBootStatus(true)
-    //networkAdmin(_caller)
+        bytes32 _ip, uint16 _port, uint16 _raftport, address _account, address _caller) external
+    onlyInterface
     {
-        require(msg.sender == permUpgradable.getPermInterface(), "can be called by interface contract only");
         require(networkBoot == true, "Incorrect network boot status");
         require(isNetworkAdmin(_caller) == true, "account is not a network admin account");
         voterManager.addVotingItem(adminOrg, _orgId, _enodeId, _account, 1);
@@ -245,10 +242,10 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
       * @param _raftport raft port of node
       * @param _account account id this will have the org admin privileges
       */
-    function approveOrg(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport,
-        address _account, address _caller) external //onlyInterface networkAdmin(_caller)
+    function approveOrg(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport,
+        address _account, address _caller) external
+    onlyInterface
     {
-        require(msg.sender == permUpgradable.getPermInterface(), "can be called by interface contract only");
         require(isNetworkAdmin(_caller) == true, "account is not a network admin account");
         require(_checkOrgStatus(_orgId, 1) == true, "Nothing to approve");
         if ((processVote(adminOrg, _caller, 1))) {
@@ -273,7 +270,7 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
         SUB1 level, the parent org should be given as ABC.SUB1
       */
     function addSubOrg(string calldata _pOrgId, string calldata _orgId,
-        string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, address _caller) external onlyInterface
+        string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport, address _caller) external onlyInterface
     orgExists(_pOrgId) orgAdmin(_caller, _pOrgId) {
         orgManager.addSubOrg(_pOrgId, _orgId);
         string memory pOrgId = string(abi.encodePacked(_pOrgId, ".", _orgId));
@@ -419,12 +416,12 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
       * @param _raftport raft port of node
 
       */
-    function addNode(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, address _caller)
-    external //onlyInterface orgApproved(_orgId) orgAdmin(_caller, _orgId)
+    function addNode(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport, address _caller)
+    external
+    onlyInterface
+    orgApproved(_orgId)
     {
         // check that the node is not part of another org
-        require(msg.sender == permUpgradable.getPermInterface(), "can be called by interface contract only");
-        require(checkOrgApproved(_orgId) == true, "org not in approved status");
         require(isOrgAdmin(_caller, _orgId) == true, "account is not a org admin account");
         nodeManager.addOrgNode(_enodeId, _ip, _port, _raftport, _orgId);
     }
@@ -438,10 +435,10 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
       * @param _raftport raft port of node
       * @param _action 1-deactivate, 2-activate back, 3-blacklist the node
       */
-    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport,
-        uint256 _action, address _caller) external //onlyInterface orgAdmin(_caller, _orgId)
+    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport,
+        uint256 _action, address _caller) external
+    onlyInterface
     {
-        require(msg.sender == permUpgradable.getPermInterface(), "can be called by interface contract only");
         require(isOrgAdmin(_caller, _orgId) == true, "account is not a org admin account");
         // ensure that the action passed to this call is proper and is not
         // called with action 4 and 5 which are actions for blacklisted node
@@ -461,8 +458,11 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
       * @dev this function creates a voting record for other network admins to
         approve the operation. The recovery is complete only after majority voting
       */
-    function startBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport,
-        address _caller) external onlyInterface networkAdmin(_caller) {
+    function startBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport,
+        address _caller) external
+    onlyInterface
+    networkAdmin(_caller)
+    {
         // update the node status as recovery initiated. action for this is 4
         nodeManager.updateNodeStatus(_enodeId, _ip, _port, _raftport, _orgId, 4);
 
@@ -481,11 +481,11 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
       * @dev this function creates a voting record for other network admins to
         approve the operation. The recovery is complete only after majority voting
       */
-    function approveBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport,
-        address _caller) external //onlyInterface networkAdmin(_caller)
+    function approveBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport,
+        address _caller) external
+    onlyInterface
+    networkAdmin(_caller)
     {
-        require(msg.sender == permUpgradable.getPermInterface(), "can be called by interface contract only");
-        require(isNetworkAdmin(_caller) == true, "account is not a network admin account");
         // check if majority votes are received. pending op type is passed as 5
         // which stands for black listed node recovery
         if ((processVote(adminOrg, _caller, 5))) {
@@ -502,7 +502,10 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
         approve the operation. The recovery is complete only after majority voting
       */
     function startBlacklistedAccountRecovery(string calldata _orgId, address _account,
-        address _caller) external onlyInterface networkAdmin(_caller) {
+        address _caller) external
+    onlyInterface
+    networkAdmin(_caller)
+    {
         // update the account status as recovery initiated. action for this is 4
         accountManager.updateAccountStatus(_orgId, _account, 4);
         // add a voting record with pending op of 5 which corresponds to blacklisted node
@@ -518,7 +521,9 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
         approve the operation. The recovery is complete only after majority voting
       */
     function approveBlacklistedAccountRecovery(string calldata _orgId, address _account,
-        address _caller) external onlyInterface networkAdmin(_caller) {
+        address _caller) external
+    onlyInterface
+    networkAdmin(_caller) {
         // check if majority votes are received. pending op type is passed as 6
         // which stands for black listed account recovery
         if ((processVote(adminOrg, _caller, 6))) {
@@ -707,7 +712,7 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
       * @param _raftport raft port of node
       * @return bool indicating if the node is allowed to connect or not
       */
-    function connectionAllowed(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external view returns (bool) {
+    function connectionAllowed(string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport) external view returns (bool) {
         return nodeManager.connectionAllowed(_enodeId, _ip, _port, _raftport);
     }
 
@@ -718,45 +723,29 @@ bytes32 _ip, uint16  _port, uint16  _raftport, address _account, address _caller
       */
     function transactionAllowed(address _srcaccount, address _tgtaccount)
     external view returns (bool) {
-        address  addr;
-        string memory act_org;
-        string memory act_role;
-        uint act_status;
-        bool act_orgAdmin;
-        bool act_valid;
-        (addr, act_org, act_role, act_status, act_orgAdmin, act_valid) = accountManager.getAccountDetailsIfActive(_srcaccount);
-        if(!act_valid) {
-            return false;
-        }
-        string memory orgId;
-        string memory parentOrgId;
-        string memory ultParent;
-        uint256 level;
-        uint256 status;
-        bool org_valid;
-        (orgId, parentOrgId, ultParent, level, status, org_valid) = orgManager.getOrgInfoIfActive(act_org);
-        if(!org_valid){
-            return false;
-        }
-        if(keccak256(abi.encode(act_role)) == keccak256(abi.encode(adminRole)) || keccak256(abi.encode(act_role)) == keccak256(abi.encode(orgAdminRole))){
-            return true;
-        }
-        if(roleManager.roleExists(act_role, orgId, ultParent)){
-            uint256 roleAccess = roleManager.roleAccess(act_role, orgId, ultParent);
-            //readOnly
-            if(roleAccess == 0){
-                return false;
-            }
-            //transact, not contract deployment
-            if(roleAccess == 1 && _tgtaccount == address(0)){
-                return true;
-            }
-            //fullaccess / admin role
-            if(roleAccess == 3 || roleAccess == 2){
-                return true;
+
+        if (accountManager.getAccountStatus(_srcaccount) == 2 ) {
+            (string memory act_org, string memory act_role) = accountManager.getAccountOrgRole(_srcaccount);
+            string memory act_uOrg = _getUltimateParent(act_org);
+            if (orgManager.checkOrgActive(act_org)) {
+                if (isNetworkAdmin(_srcaccount) || isOrgAdmin(_srcaccount, act_org)) {
+                    return true;
+                }
+                uint256 roleAccess = roleManager.roleAccess(act_role, act_org, act_uOrg);
+                //readOnly
+                if (roleAccess == 0) {
+                    return false;
+                }
+                //transact, not contract deployment
+                if (roleAccess == 1 && _tgtaccount == address(0)) {
+                    return true;
+                }
+                //fullaccess / admin role
+                if (roleAccess == 3 || roleAccess == 2) {
+                    return true;
+                }
             }
         }
         return false;
     }
-
 }

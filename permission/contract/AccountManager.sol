@@ -93,28 +93,16 @@ contract AccountManager {
 
     /** @notice returns the account details for a given account if account is valid/active
       * @param _account account id
-      * @return account id
       * @return org id of the account
       * @return role linked to the account
-      * @return status of the account
-      * @return bool indicating if the account is an org admin
-      * @return bool indicating if the account is valid/active or not
       */
-    function getAccountDetailsIfActive(address _account) external view returns (address,
-        string memory, string memory, uint, bool, bool){
-
+    function getAccountOrgRole(address _account) external view
+    returns (string memory, string memory){
         if (accountIndex[_account] == 0) {
-            return (_account, "NONE", "", 0, false, false);
+            return ("NONE", "");
         }
-
         uint aIndex = _getAccountIndex(_account);
-        if (accountAccessList[aIndex].status != 2) {
-            return (_account, "NONE", "", 0, false, false);
-        }
-
-        return (accountAccessList[aIndex].account, accountAccessList[aIndex].orgId,
-        accountAccessList[aIndex].role, accountAccessList[aIndex].status,
-        accountAccessList[aIndex].orgAdmin, true);
+        return (accountAccessList[aIndex].orgId, accountAccessList[aIndex].role);
     }
 
     /** @notice returns the account details a given account index
@@ -215,7 +203,7 @@ contract AccountManager {
         // check of the account role is org admin role and status is pending
         // approval. if yes update the status to approved
         string memory role = getAccountRole(_account);
-        uint status = _getAccountStatus(_account);
+        uint status = getAccountStatus(_account);
         uint id = _getAccountIndex(_account);
         if ((keccak256(abi.encode(role)) == keccak256(abi.encode(orgAdminRole))) &&
             (status == 1)) {
@@ -301,7 +289,7 @@ contract AccountManager {
     function orgAdminExists(string memory _orgId) public view returns (bool) {
         if (orgAdminIndex[keccak256(abi.encode(_orgId))] != address(0)) {
             address adminAcct = orgAdminIndex[keccak256(abi.encode(_orgId))];
-            return _getAccountStatus(adminAcct) == 2;
+            return getAccountStatus(adminAcct) == 2;
         }
         return false;
 
@@ -323,6 +311,19 @@ contract AccountManager {
             return "NONE";
         }
     }
+
+    /** @notice returns the account status for a given account
+      * @param _account account id
+      * @return account status
+      */
+    function getAccountStatus(address _account) public view returns (uint256) {
+        if (accountIndex[_account] == 0) {
+            return 0;
+        }
+        uint256 aIndex = _getAccountIndex(_account);
+        return (accountAccessList[aIndex].status);
+    }
+
 
     /** @notice checks if the account is a org admin for the passed org or
         for the ultimate parent organization
@@ -348,18 +349,6 @@ contract AccountManager {
       */
     function _getAccountIndex(address _account) internal view returns (uint256) {
         return accountIndex[_account] - 1;
-    }
-
-    /** @notice returns the account status for a given account
-      * @param _account account id
-      * @return account status
-      */
-    function _getAccountStatus(address _account) internal view returns (uint256) {
-        if (accountIndex[_account] == 0) {
-            return 0;
-        }
-        uint256 aIndex = _getAccountIndex(_account);
-        return (accountAccessList[aIndex].status);
     }
 
     /** @notice sets the account role to the passed role id and sets the status
