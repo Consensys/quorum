@@ -103,14 +103,14 @@ jobs:
         id: setupDockerLogin
         run: |
           docker login docker.pkg.github.com -u quorumbot -p ${{ secrets.QUORUMBOT_PAT}}
-      - name: 'Load QAT Docker image'
-        id: setupQAT
-        run: |
-          docker pull docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements
       - name: 'Get Tessera Docker image'
         id: setupTessera
         run: |
           docker pull docker.pkg.github.com/quorumengineering/tessera/tessera:dev-tessera-privacyenhancements
+      - name: 'Get QAT Docker image'
+        id: setupQAT
+        run: |
+          docker pull docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements
       - name: 'Run acceptance tests'
         run: |
           docker run --rm \
