@@ -236,17 +236,20 @@ func (rcs *roundChangeSet) Add(r *big.Int, msg *message, preparedRound *big.Int,
 }
 
 // higherRoundMessages returns the number of Round Change messages received for the round greater than the given round
+// and from different validators
 func (rcs *roundChangeSet) higherRoundMessages(round *big.Int) int {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
 
-	num := 0
+	addresses := make(map[common.Address]struct{})
 	for k, rms := range rcs.roundChanges {
 		if k > round.Uint64() {
-			num = num + len(rms.messages)
+			for addr := range rms.messages {
+				addresses[addr] = struct{}{}
+			}
 		}
 	}
-	return num
+	return len(addresses)
 }
 
 func (rcs *roundChangeSet) getRCMessagesForGivenRound(round *big.Int) int {
