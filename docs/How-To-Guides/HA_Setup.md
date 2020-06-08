@@ -1,7 +1,6 @@
-# Adding and removing IBFT validators
+# Quorum HA Setup
 
-Over the lifetime of an IBFT network, validators will need to be added and removed as authorities change. 
-Here we will showcase adding a new validator to an IBFT network, as well as removing an existing one.
+_WARNING_: The security of this cryptographic protocol has not yet been formally proven. This should not be considered suitable for production use.
 
 ## Adding a node to the validator set
 
