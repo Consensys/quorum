@@ -35,6 +35,6 @@ type ExtensionContract struct {
 	Initiator                 common.Address `json:"initiator"`
 	Recipient                 common.Address `json:"recipient"`
 	ManagementContractAddress common.Address `json:"managementContractAddress"`
-	RecipientPtmKey           string         `json: recipientPtmKey`
+	RecipientPtmKey           string         `json:"recipientPtmKey"`
 	CreationData              []byte         `json:"creationData"`
 }
