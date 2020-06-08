@@ -1,4 +1,4 @@
-
+### test
 Quorum architecture allows for true HA setup end to end for heightened availability for various input output operations. Although this increase the footprint of each node, the cost offset is compensate by low to zero downtime & horizontal scalability. In this section we will go through the configuration and setup in detail:
 
 Quorum HA Setup:
