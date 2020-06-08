@@ -1,12 +1,23 @@
 # Quorum HA Setup
 
-_WARNING_: The security of this cryptographic protocol has not yet been formally proven. This should not be considered suitable for production use.
+**WARNING**: The HA setup hasn't been extensively testing and more for test net as such should not be considered suitable for production use (yet).
 
-## Adding a node to the validator set
+Quorum architecture allows for true HA setup end to end for heightened availability for various input output operations. Although this increase the footprint of each node, the cost offset is compensate by low to zero downtime & horizontal scalability. In this section we will go through the configuration and setup in detail:
 
-Adding a node to the IBFT validator set is relatively easy once a node is part of the network.
-It does not matter whether the node is already online or not, as the process to add the new node as a validator only 
-needs the *existing* validators.
+## Quorum Node Configuration in HA mode
+
+    1. Two or more Quorum Nodes serve as one client node.
+    1. These nodes will need to share same key for transaction signing and should have shared access to key store directory.
+    1. These nodes need to share the same private state i.e., they connect to same Tessera node(s). This is done by proxy running on each Quorum node listening on local ipc file and directing request to Tessera Q2T http.
+
+The inbound RPC requests from clients will be load balanced to either of those Quorum nodes (primary/backup mode.)
+
+
+
+
+
+
+
 
 !!! warning
     If you are adding multiple validators before they are brought online, make sure you don't go over the BFT limit and cause the chain to stop progressing.
