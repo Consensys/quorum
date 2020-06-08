@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
@@ -173,7 +174,8 @@ func (p *PermissionCtrl) AfterStart() error {
 	}
 
 	// populate the initial list of permissioned nodes and account accesses
-	if err := p.populateInitPermissions(); err != nil {
+	if err := p.populateInitPermissions(params.DEFAULT_ORGCACHE_SIZE, params.DEFAULT_ROLECACHE_SIZE,
+		params.DEFAULT_NODECACHE_SIZE, params.DEFAULT_ACCOUNTCACHE_SIZE); err != nil {
 		return fmt.Errorf("populateInitPermissions failed: %v", err)
 	}
 
@@ -569,8 +571,11 @@ func (p *PermissionCtrl) manageAccountPermissions() error {
 				types.AcctInfoMap.UpsertAccount(evtAccessRevoked.OrgId, evtAccessRevoked.RoleId, evtAccessRevoked.Account, evtAccessRevoked.OrgAdmin, types.AcctActive)
 
 			case evtStatusChanged := <-chStatusChanged:
-				ac := types.AcctInfoMap.GetAccount(evtStatusChanged.Account)
-				types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Account, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
+				if ac, err := types.AcctInfoMap.GetAccount(evtStatusChanged.Account); ac != nil {
+					types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Account, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
+				} else {
+					log.Info("error fetching account information", "err", err)
+				}
 			case <-stopChan:
 				log.Info("quit account contract watch")
 				return
@@ -610,9 +615,25 @@ func (p *PermissionCtrl) disconnectNode(enodeId string) {
 
 }
 
+func (p *PermissionCtrl) instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int) {
+	// instantiate the cache objects for permissions
+	types.OrgInfoMap = types.NewOrgCache(orgCacheSize)
+	types.OrgInfoMap.PopulateCacheFunc(p.populateOrgToCache)
+
+	types.RoleInfoMap = types.NewRoleCache(roleCacheSize)
+	types.RoleInfoMap.PopulateCacheFunc(p.populateRoleToCache)
+
+	types.NodeInfoMap = types.NewNodeCache(nodeCacheSize)
+	types.NodeInfoMap.PopulateCacheFunc(p.populateNodeCache)
+	types.NodeInfoMap.PopulateValidateFunc(p.populateNodeCacheAndValidate)
+
+	types.AcctInfoMap = types.NewAcctCache(accountCacheSize)
+	types.AcctInfoMap.PopulateCacheFunc(p.populateAccountToCache)
+}
+
 // Thus function checks if the initial network boot up status and if no
 // populates permissions model with details from permission-config.json
-func (p *PermissionCtrl) populateInitPermissions() error {
+func (p *PermissionCtrl) populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int) error {
 	auth := bind.NewKeyedTransactor(p.key)
 	permInterfSession := &pbind.PermInterfaceSession{
 		Contract: p.permInterf,
@@ -626,6 +647,8 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 			GasPrice: big.NewInt(0),
 		},
 	}
+
+	p.instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
 
 	networkInitialized, err := permInterfSession.GetNetworkBootStatus()
 	if err != nil {
@@ -651,7 +674,6 @@ func (p *PermissionCtrl) populateInitPermissions() error {
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -839,7 +861,7 @@ func (p *PermissionCtrl) manageRolePermissions() error {
 				types.RoleInfoMap.UpsertRole(evtRoleCreated.OrgId, evtRoleCreated.RoleId, evtRoleCreated.IsVoter, evtRoleCreated.IsAdmin, types.AccessType(int(evtRoleCreated.BaseAccess.Uint64())), true)
 
 			case evtRoleRevoked := <-chRoleRevoked:
-				if r := types.RoleInfoMap.GetRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId); r != nil {
+				if r, _ := types.RoleInfoMap.GetRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId); r != nil {
 					types.RoleInfoMap.UpsertRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId, r.IsVoter, r.IsAdmin, r.Access, false)
 				} else {
 					log.Error("Revoke role - cache is missing role", "org", evtRoleRevoked.OrgId, "role", evtRoleRevoked.RoleId)
@@ -851,4 +873,130 @@ func (p *PermissionCtrl) manageRolePermissions() error {
 		}
 	}()
 	return nil
+}
+
+// getter to get an account record from the contract
+func (p *PermissionCtrl) populateAccountToCache(acctId common.Address) (*types.AccountInfo, error) {
+	permAcctInterface := &pbind.AcctManagerSession{
+		Contract: p.permAcct,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+	}
+	account, orgId, roleId, status, isAdmin, err := permAcctInterface.GetAccountDetails(acctId)
+	if err != nil {
+		return nil, err
+	}
+
+	if status.Int64() == 0 {
+		return nil, types.ErrAccountNotThere
+	}
+	return &types.AccountInfo{AcctId: account, OrgId: orgId, RoleId: roleId, Status: types.AcctStatus(status.Int64()), IsOrgAdmin: isAdmin}, nil
+}
+
+// getter to get a org record from the contract
+func (p *PermissionCtrl) populateOrgToCache(orgId string) (*types.OrgInfo, error) {
+	permOrgInterface := &pbind.OrgManagerSession{
+		Contract: p.permOrg,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+	}
+	org, parentOrgId, ultimateParentId, orgLevel, orgStatus, err := permOrgInterface.GetOrgDetails(orgId)
+	if err != nil {
+		return nil, err
+	}
+	if orgStatus.Int64() == 0 {
+		return nil, types.ErrOrgDoesNotExists
+	}
+	orgInfo := types.OrgInfo{OrgId: org, ParentOrgId: parentOrgId, UltimateParent: ultimateParentId, Status: types.OrgStatus(orgStatus.Int64()), Level: orgLevel}
+	// now need to build the list of sub orgs for this org
+	subOrgIndexes, err := permOrgInterface.GetSubOrgIndexes(orgId)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(subOrgIndexes) == 0 {
+		return &orgInfo, nil
+	}
+
+	// range through the sub org indexes and get the org ids to populate the suborg list
+	for _, s := range subOrgIndexes {
+		subOrgId, _, _, _, _, err := permOrgInterface.GetOrgInfo(s)
+
+		if err != nil {
+			return nil, err
+		}
+		orgInfo.SubOrgList = append(orgInfo.SubOrgList, orgId+"."+subOrgId)
+
+	}
+	return &orgInfo, nil
+}
+
+// getter to get a role record from the contract
+func (p *PermissionCtrl) populateRoleToCache(roleKey *types.RoleKey) (*types.RoleInfo, error) {
+	permRoleInterface := &pbind.RoleManagerSession{
+		Contract: p.permRole,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+	}
+	roleDetails, err := permRoleInterface.GetRoleDetails(roleKey.RoleId, roleKey.OrgId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if roleDetails.OrgId == "" {
+		return nil, types.ErrInvalidRole
+	}
+	return &types.RoleInfo{OrgId: roleDetails.OrgId, RoleId: roleDetails.RoleId, IsVoter: roleDetails.Voter, IsAdmin: roleDetails.Admin, Access: types.AccessType(roleDetails.AccessType.Int64()), Active: roleDetails.Active}, nil
+}
+
+// getter to get a role record from the contract
+func (p *PermissionCtrl) populateNodeCache(url string) (*types.NodeInfo, error) {
+	permNodeInterface := &pbind.NodeManagerSession{
+		Contract: p.permNode,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+	}
+	nodeDetails, err := permNodeInterface.GetNodeDetails(url)
+	if err != nil {
+		return nil, err
+	}
+
+	if nodeDetails.NodeStatus.Int64() == 0 {
+		return nil, types.ErrNodeDoesNotExists
+	}
+	return &types.NodeInfo{OrgId: nodeDetails.OrgId, Url: nodeDetails.EnodeId, Status: types.NodeStatus(nodeDetails.NodeStatus.Int64())}, nil
+}
+
+// getter to get a node record from the contract
+func (p *PermissionCtrl) populateNodeCacheAndValidate(hexNodeId, ultimateParentId string) bool {
+	permNodeInterface := &pbind.NodeManagerSession{
+		Contract: p.permNode,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+	}
+	txnAllowed := false
+	passedEnode, _ := enode.ParseV4(hexNodeId)
+	if numberOfNodes, err := permNodeInterface.GetNumberOfNodes(); err == nil {
+		numNodes := numberOfNodes.Uint64()
+		for k := uint64(0); k < numNodes; k++ {
+			if nodeStruct, err := permNodeInterface.GetNodeDetailsFromIndex(big.NewInt(int64(k))); err == nil {
+				if orgRec, err := types.OrgInfoMap.GetOrg(nodeStruct.OrgId); err != nil {
+					if orgRec.UltimateParent == ultimateParentId {
+						recEnode, _ := enode.ParseV4(nodeStruct.EnodeId)
+						if recEnode.ID() == passedEnode.ID() {
+							txnAllowed = true
+							types.NodeInfoMap.UpsertNode(nodeStruct.OrgId, nodeStruct.EnodeId, types.NodeStatus(int(nodeStruct.NodeStatus.Int64())))
+						}
+					}
+				}
+			}
+		}
+	}
+	return txnAllowed
 }
