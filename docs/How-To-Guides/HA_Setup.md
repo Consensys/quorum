@@ -20,8 +20,8 @@ Quorum architecture allows for true HA setup end to end for heightened availabil
 - Add DB replication or mirroring for Tessera private data store and the JDBC connection string to include both Primary DB and DR DB connections to facilitate auto switchover on failure.
 
 
-??? Quorum HA Setup
-![Quorum Tessera Privacy Flow](https://github.com/jpmorganchase/tessera/raw/master/Tessera%20Privacy%20flow.jpeg)
+??? info Quorum HA Setup
+    ![Quorum Tessera Privacy Flow](https://github.com/jpmorganchase/tessera/raw/master/Tessera%20Privacy%20flow.jpeg)
 
 
 ## Example Setup using nginx Proxy setup
