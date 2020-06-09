@@ -33,7 +33,7 @@ Quorum architecture allows for HA setup end to end for heightened availability f
 ## Example Setup using nginx Proxy setup
 
 ### Proxy Setup on both Quorum nodes
-    ```C
+    ```c
     load_module /usr/lib/nginx/modules/ngx_stream_module.so;
     error_log /home/ubuntu/nginx-error.log;
     events { }
