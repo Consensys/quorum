@@ -20,7 +20,7 @@ Quorum architecture allows for HA setup end to end for heightened availability f
 - Add DB replication or mirroring for Tessera private data store and the JDBC connection string to include both Primary DB and DR DB connections to facilitate auto switchover on failure.
 
 
-??? info "Quorum HA Setup 1"
+"Quorum HA Setup 1"
     ![Quorum Tessera HA Mode](QT_HA_1.png)
 
 ??? info "Quorum Full HA Setup "
