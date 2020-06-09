@@ -29,10 +29,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/dashboard"
 	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
@@ -233,8 +231,8 @@ func dumpConfig(ctx *cli.Context) error {
 	return nil
 }
 
-// quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
-func quorumValidateConsensus(stack *node.Node, isRaft bool) {
+// quorumValidateEthService checks quorum features that depend on the ethereum service
+func quorumValidateEthService(stack *node.Node, isRaft bool) {
 	var ethereum *eth.Ethereum
 
 	err := stack.Service(&ethereum)
@@ -242,6 +240,13 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 		utils.Fatalf("Error retrieving Ethereum service: %v", err)
 	}
 
+	quorumValidateConsensus(ethereum, isRaft)
+
+	quorumValidatePrivacyEnhancements(ethereum)
+}
+
+// quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
+func quorumValidateConsensus(ethereum *eth.Ethereum, isRaft bool) {
 	if !isRaft && ethereum.BlockChain().Config().Istanbul == nil && ethereum.BlockChain().Config().Clique == nil {
 		utils.Fatalf("Consensus not specified. Exiting!!")
 	}
@@ -253,44 +258,11 @@ func quorumValidatePrivateTransactionManager() bool {
 	return os.Getenv("PRIVATE_CONFIG") != ""
 }
 
-func quorumValidatePrivacyEnhancements(stack *node.Node) {
-	var ethereum *eth.Ethereum
-
-	err := stack.Service(&ethereum)
-	if err != nil {
-		utils.Fatalf("Error retrieving Ethereum service: %v", err)
-	}
-
-	currentBlockNumber := ethereum.BlockChain().CurrentBlock().Header().Number
+// quorumValidatePrivacyEnhancements checks if privacy enhancements are configured the transaction manager supports
+// supports the PrivacyEnhancements feature
+func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
 	privacyEnhancementsBlock := ethereum.BlockChain().Config().PrivacyEnhancementsBlock
-	if !private.P.Features().HasFeature(engine.PrivacyEnhancements) {
-		if ethereum.BlockChain().Config().IsPrivacyEnhancementsEnabled(currentBlockNumber) {
-			utils.Fatalf("Cannot start with privacy enhancements when the transaction manager doesnt support it")
-		} else if privacyEnhancementsBlock != nil {
-			// privacy enhancements block is configured but the block height hasn't been reached
-			log.Warn("Privacy enhancements are configured to be enabled but the transaction manager does not support it.",
-				"peBlockHeight", ethereum.BlockChain().Config().PrivacyEnhancementsBlock,
-				"currentBlockHeight", currentBlockNumber)
-			// subscribe to chain head events and stop quorum when the privacy enhancements block is reached
-			events := make(chan core.ChainHeadEvent, 1)
-			sub := ethereum.BlockChain().SubscribeChainHeadEvent(events)
-
-			go func() {
-				defer sub.Unsubscribe()
-				for {
-					select {
-					case ev := <-events:
-						if ev.Block != nil {
-							if ev.Block.Number().Cmp(privacyEnhancementsBlock) >= 0 {
-								utils.Fatalf("Privacy enhancements block reached while transaction manager does not support it.")
-							}
-						}
-					case <-sub.Err():
-						return
-					}
-				}
-			}()
-
-		}
+	if !private.P.Features().HasFeature(engine.PrivacyEnhancements) && privacyEnhancementsBlock != nil {
+		utils.Fatalf("Cannot start quorum with privacy enhancements enabled while the transaction manager does not support it")
 	}
 }
