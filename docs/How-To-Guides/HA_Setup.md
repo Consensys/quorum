@@ -21,15 +21,15 @@ Quorum architecture allows for HA end to end for heightened availability on vari
 
 
 ??? info "Quorum HA Setup 1"
-    Quorum Tessera pair share one machine/container in this setup
+    **Quorum Tessera pair share same machine/container in this setup**
     ![Quorum Tessera HA Mode](QT_HA_1.png)
 
 ??? info "Quorum Full HA Setup "
-    The only change here each Quorum and Tessera run in separate machines/container.
+    **The change here is each Quorum and Tessera node run in separate machine/container**
     ![Quorum Tessera Full HA Mode](QT_HA_2.png)
 
 ??? info "Tessera HA Setup "
-    If HA is required only for Privacy manager 'Tessera', below setup could be adopted
+    **If HA is required only for Tessera, below setup could be adopted**
     ![Tessera HA Mode](Tessera_HA.png)
   
 
@@ -58,7 +58,7 @@ Quorum architecture allows for HA end to end for heightened availability on vari
 ```
  
 
-### Proxy server setup
+### Standalone Proxy server setup
 ```c
 
     load_module /usr/lib/nginx/modules/ngx_stream_module.so;
