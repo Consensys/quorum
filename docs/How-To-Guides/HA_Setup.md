@@ -25,7 +25,7 @@ Quorum architecture allows for true HA setup end to end for heightened availabil
 
 proxy_next_upstream in proxy for q2t endpoints to avoid rejections for valid requests
 
-    ```
+ 
     load_module /usr/lib/nginx/modules/ngx_stream_module.so;
     error_log /home/ubuntu/nginx-error.log;
     events { }
@@ -45,11 +45,12 @@ proxy_next_upstream in proxy for q2t endpoints to avoid rejections for valid req
                 }
         }
     }
-    ```
+    
+ 
 
 ### Proxy server setup
 
-    ```
+ 
     load_module /usr/lib/nginx/modules/ngx_stream_module.so;
 
     error_log /home/ubuntu/nginx-error.log;
@@ -111,7 +112,7 @@ proxy_next_upstream in proxy for q2t endpoints to avoid rejections for valid req
                 location /upcheck {
                         proxy_pass http://p2p/upcheck;
       }}}
-      ```
+
 
 
 
