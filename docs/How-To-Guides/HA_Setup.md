@@ -1,8 +1,8 @@
 # Quorum HA Setup
 
-Quorum architecture allows for HA setup end to end for heightened availability for various input output operations. Although this increases the footprint of each node, the cost offset is compensated by low to zero downtime & horizontal scalability. In this section we will go through the configuration and setup in detail:
+Quorum architecture allows for HA end to end for heightened availability on various i/o operations. Although this increases the footprint of each node, the cost offset is compensated by low to zero downtime & horizontal scalability. In this section we will go through example configuration and setup in detail:
 
-**WARNING**: Below HA setup hasn't been extensively tested and more for testnet as such should not be considered suitable for production use (yet).
+**WARNING**: Below HA setup is an example of how to achieve end to end HA using proxy server but it should be noted that this hasn't been tested in a productive setup. 
 
 ## Quorum Node Configuration Requirements:
 
@@ -20,13 +20,16 @@ Quorum architecture allows for HA setup end to end for heightened availability f
 - Add DB replication or mirroring for Tessera private data store and the JDBC connection string to include both Primary DB and DR DB connections to facilitate auto switchover on failure.
 
 
-"Quorum HA Setup 1"
+??? info "Quorum HA Setup 1"
+    Quorum Tessera pair share one machine/container in this setup
     ![Quorum Tessera HA Mode](QT_HA_1.png)
 
 ??? info "Quorum Full HA Setup "
+    The only change here each Quorum and Tessera run in separate machines/container.
     ![Quorum Tessera Full HA Mode](QT_HA_2.png)
 
 ??? info "Tessera HA Setup "
+    If HA is required only for Privacy manager 'Tessera', below setup could be adopted
     ![Tessera HA Mode](Tessera_HA.png)
   
 
