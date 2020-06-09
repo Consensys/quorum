@@ -33,33 +33,31 @@ Quorum architecture allows for HA setup end to end for heightened availability f
 ## Example Setup using nginx Proxy setup
 
 ### Proxy Setup on both Quorum nodes
-    ```c
-    load_module /usr/lib/nginx/modules/ngx_stream_module.so;
-    error_log /home/ubuntu/nginx-error.log;
-    events { }
-    http {
-
-        # Quorum-to-Tessera http
-        upstream q2t {
-                server url1:port1;
-                server url2:port2;
-            }
-
-        server {
-                listen unix:/home/ubuntu/tm.ipc;
-                location / {
-                        # Below is added to avoid transaction failure if partyinfo gets out of sync.
-                        proxy_next_upstream error timeout http_404 non_idempotent; 
-                        proxy_pass http://q2t;
-                }
-        }
-    }
-    ```
+```c
+       load_module /usr/lib/nginx/modules/ngx_stream_module.so;
+       error_log /home/ubuntu/nginx-error.log;
+       events { }
+       http {
+           # Quorum-to-Tessera http
+           upstream q2t {
+                   server url1:port1;
+                   server url2:port2;
+               }
+           server {
+                   listen unix:/home/ubuntu/tm.ipc;
+                   location / {
+                           # Below is added to avoid transaction failure if partyinfo gets out of sync.
+                           proxy_next_upstream error timeout http_404 non_idempotent; 
+                           proxy_pass http://q2t;
+                   }
+           }
+       }
+```
  
 
 ### Proxy server setup
+```c
 
- 
     load_module /usr/lib/nginx/modules/ngx_stream_module.so;
 
     error_log /home/ubuntu/nginx-error.log;
@@ -121,7 +119,7 @@ Quorum architecture allows for HA setup end to end for heightened availability f
                 location /upcheck {
                         proxy_pass http://p2p/upcheck;
       }}}
-
+```
 
 
 
