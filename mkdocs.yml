@@ -111,7 +111,7 @@ nav:
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
         - Backup & Restore: How-To-Guides/import-export.md
         - External Signer with Clef: How-To-Guides/external-signer.md
-        - Quorum/Tessera HA Setup: How-to-Guides/HA_Setup.md
+        - Quorum/Tessera HA Setup: How-To-Guides/HA_Setup.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
