@@ -2,7 +2,7 @@
 
 Quorum architecture allows for HA end to end for heightened availability on various i/o operations. Although this increases the footprint of each node, the cost offset is compensated by low to zero downtime & horizontal scalability. In this section we will go through example configuration and setup in detail:
 
-**WARNING**: Below HA setup is an example of how to achieve end to end HA using proxy server but it should be noted that this hasn't been tested in a productive setup. 
+**WARNING**: Below HA setup is an example of how to achieve end to end HA using proxy server but it should be noted that this hasn't been tested in a production environment setup. 
 
 ## Quorum Node Configuration Requirements:
 
