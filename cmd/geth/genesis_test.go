@@ -17,12 +17,13 @@
 package main
 
 import (
-	"github.com/cespare/cp"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/cespare/cp"
 )
 
 var customGenesisTests = []struct {
