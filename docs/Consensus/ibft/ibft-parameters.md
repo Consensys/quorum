@@ -67,3 +67,9 @@ it is incompatible with the existing formula. For new networks, it is recommende
 updated formula immediately.
 
 To update this value, the same process can be followed as other hard-forks.
+
+### qibftBlock
+
+The `qibftBlock` sets the block number from which to use `qibft` consensus. This was introduced to enable existing ibft networks the ability to start using qibft consensus at a point in the future. For new networks, it is recommended to set this value to `0` to use the updated formula immediately.
+
+To update this value, the same process can be followed as other hard-forks.

@@ -90,3 +90,67 @@ func TestRoundChangeSet(t *testing.T) {
 		t.Errorf("the change messages mismatch: have %v, want nil", rc.roundChanges[view.Round.Uint64()])
 	}
 }
+
+func TestGetMinRoundChange(t *testing.T) {
+	rcs := getRoundChangeSetForPositveTests()
+	minRC := rcs.getMinRoundChange(big.NewInt(1))
+	if minRC.Uint64() != 2 {
+		t.Errorf("min Round Change mismatch: have %v, want 2", minRC.Uint64())
+	}
+}
+
+func TestClearLowerThan(t *testing.T) {
+	rcs := getRoundChangeSetForPositveTests()
+	rcs.ClearLowerThan(big.NewInt(3))
+	if len(rcs.roundChanges) > 0 {
+		t.Errorf("Number of Round Change messages mismatch: have %v, want 0", len(rcs.roundChanges))
+	}
+
+	rcs = getRoundChangeSetForPositveTests()
+	rcs.ClearLowerThan(big.NewInt(2))
+	rcMsgs := rcs.roundChanges[2]
+	if len(rcMsgs.messages) != 3 {
+		t.Errorf("Number of Round Change messages mismatch: have %v, want 3", len(rcs.roundChanges))
+	}
+}
+
+func getRoundChangeSetForPositveTests() *roundChangeSet {
+	vset := validator.NewSet(generateValidators(4), istanbul.RoundRobin)
+
+	view := &View{
+		Sequence: big.NewInt(1),
+		Round:    big.NewInt(2),
+	}
+	proposal := makeBlock(1)
+
+	rcs := newRoundChangeSet(vset)
+
+	encodedRCMsg1, _ := Encode(&RoundChangeMessage{
+		View:             view,
+		PreparedRound:    big.NewInt(1),
+		PreparedBlock:    proposal,
+		PreparedMessages: nil,
+	})
+
+	msg1 := &message{
+		Code:    msgRoundChange,
+		Msg:     encodedRCMsg1,
+		Address: vset.GetByIndex(0).Address(),
+	}
+	msg2 := &message{
+		Code:    msgRoundChange,
+		Msg:     encodedRCMsg1,
+		Address: vset.GetByIndex(1).Address(),
+	}
+	msg3 := &message{
+		Code:    msgRoundChange,
+		Msg:     encodedRCMsg1,
+		Address: vset.GetByIndex(2).Address(),
+	}
+
+	rcs.Add(view.Round, msg1, big.NewInt(1), proposal, nil)
+	rcs.Add(view.Round, msg2, big.NewInt(1), proposal, nil)
+	rcs.Add(view.Round, msg3, big.NewInt(1), proposal, nil)
+
+	return rcs
+}

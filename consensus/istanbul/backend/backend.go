@@ -338,6 +338,7 @@ func (sb *backend) IsQIBFTConsensus() bool {
 	return false
 }
 
+// StartQBFTConsensus stops existing legacy ibft consensus and starts the new qibft consensus
 func (sb *backend) StartQIBFTConsensus() error {
 	sb.logger.Trace("Starting QIBFT Consensus")
 	if err := sb.Stop(); err != nil {

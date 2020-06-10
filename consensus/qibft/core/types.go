@@ -181,6 +181,7 @@ func Encode(val interface{}) ([]byte, error) {
 	return rlp.EncodeToBytes(val)
 }
 
+// Request is used to construct a Preprepare message
 type Request struct {
 	Proposal        istanbul.Proposal
 	RCMessages      *messageSet
@@ -235,6 +236,7 @@ func (v *View) Cmp(y *View) int {
 	return 0
 }
 
+// Preprepare represents the message sent, when msgPreprepare is broadcasted
 type Preprepare struct {
 	View             *View
 	Proposal         istanbul.Proposal
@@ -264,6 +266,7 @@ func (b *Preprepare) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
+// Subject represents the message sent when msgPrepare and msgCommit is broadcasted
 type Subject struct {
 	View   *View
 	Digest istanbul.Proposal
@@ -292,6 +295,7 @@ func (b *Subject) String() string {
 	return fmt.Sprintf("{View: %v, Proposal: %v}", b.View, b.Digest.String())
 }
 
+// RoundChangeMessage represents the message sent when msgRoundChange is broadcasted
 type RoundChangeMessage struct {
 	View             *View
 	PreparedRound    *big.Int
