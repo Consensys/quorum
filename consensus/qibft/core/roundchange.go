@@ -109,7 +109,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 			pb = nil
 			pr = nil
 		}
-		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb, rc.PreparedMessages)
+		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb, rc.PreparedMessages, c.QuorumSize())
 		if err != nil {
 			logger.Warn("Failed to add round change message", "from", src, "msg", msg, "err", err)
 			return err
@@ -123,24 +123,23 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		logger.Trace("Starting new Round", "round", newRound)
 		c.startNewRound(newRound)
 		c.sendRoundChange(newRound)
-
-	} else if currentRoundMessages >= c.QuorumSize() && c.IsProposer() && c.justifyRoundChange(cv.Round) && c.current.preprepareSent.Cmp(cv.Round) < 0 {
-		preparedRound, proposal := c.highestPrepared(cv.Round)
+	} else if currentRoundMessages >= c.QuorumSize() && c.IsProposer() && c.current.preprepareSent.Cmp(cv.Round) < 0 {
+		_, proposal := c.highestPrepared(cv.Round)
 		if proposal == nil {
 			proposal = c.current.pendingRequest.Proposal
 		}
 
-		var preparedMessages *messageSet
-		if preparedRound == nil {
-			preparedMessages = newMessageSet(c.valSet)
-		} else {
-			preparedMessages = c.roundChangeSet.preparedMessages[preparedRound.Uint64()]
+		roundChangeMessages := c.roundChangeSet.roundChanges[cv.Round.Uint64()]
+		prepareMessages := c.roundChangeSet.prepareMessages[cv.Round.Uint64()]
+
+		if !justify(proposal, roundChangeMessages, prepareMessages, c.QuorumSize()) {
+			return nil
 		}
 
 		r := &Request{
 			Proposal:        proposal,
-			RCMessages:      c.roundChangeSet.roundChanges[cv.Round.Uint64()],
-			PrepareMessages: preparedMessages,
+			RCMessages:      roundChangeMessages,
+			PrepareMessages: prepareMessages,
 		}
 
 		c.sendPreprepare(r)
@@ -148,88 +147,61 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 	return nil
 }
 
-// justifyRoundChange validates if the round change is valid or not
-func (c *core) justifyRoundChange(round *big.Int) bool {
-	if pr := c.roundChangeSet.preparedRounds[round.Uint64()]; pr == nil {
-		return true
-	}
-
-	pr, pv := c.highestPrepared(round)
-	// Check if the block in each prepared message is the one that is being proposed
-	// To handle the case where a byzantine node can send an empty prepared block, check atleast Quorum of prepared blocks match the condition and not all
-	i := 0
-	for addr, msg := range c.roundChangeSet.preparedMessages[round.Uint64()].messages {
-		var prepare *Subject
-		if err := msg.Decode(&prepare); err != nil {
-			c.logger.Error("Failed to decode Prepared Message", "err", err)
-			continue
-		}
-		if prepare.Digest.Hash() != pv.Hash() {
-			c.logger.Error("Highest Prepared Block does not match the Proposal", "Address", addr)
-			continue
-		}
-		if prepare.View.Round.Uint64() != pr.Uint64() {
-			c.logger.Error("Round in Prepared Block does not match the Highest Prepared Round", "Address", addr)
-			continue
-		}
-		i++
-		if i == c.QuorumSize() {
-			// validated Quorum of prepared messages
-			return true
-		}
-	}
-	return false
-}
-
 // highestPrepared returns the highest Prepared Round and the corresponding Prepared Block
 func (c *core) highestPrepared(round *big.Int) (*big.Int, istanbul.Proposal) {
-	return c.roundChangeSet.preparedRounds[round.Uint64()], c.roundChangeSet.preparedBlocks[round.Uint64()]
+	return c.roundChangeSet.highestPreparedRound[round.Uint64()], c.roundChangeSet.highestPreparedBlock[round.Uint64()]
 }
 
 // ----------------------------------------------------------------------------
 
 func newRoundChangeSet(valSet istanbul.ValidatorSet) *roundChangeSet {
 	return &roundChangeSet{
-		validatorSet:     valSet,
-		roundChanges:     make(map[uint64]*messageSet),
-		preparedMessages: make(map[uint64]*messageSet),
-		mu:               new(sync.Mutex),
+		validatorSet:         valSet,
+		roundChanges:         make(map[uint64]*messageSet),
+		prepareMessages:      make(map[uint64]*messageSet),
+		highestPreparedRound: make(map[uint64]*big.Int),
+		highestPreparedBlock: make(map[uint64]istanbul.Proposal),
+		mu:                   new(sync.Mutex),
 	}
 }
 
 type roundChangeSet struct {
-	validatorSet     istanbul.ValidatorSet
-	roundChanges     map[uint64]*messageSet
-	preparedMessages map[uint64]*messageSet
-	preparedRounds   map[uint64]*big.Int
-	preparedBlocks   map[uint64]istanbul.Proposal
-	mu               *sync.Mutex
+	validatorSet         istanbul.ValidatorSet
+	roundChanges         map[uint64]*messageSet
+	prepareMessages      map[uint64]*messageSet
+	highestPreparedRound map[uint64]*big.Int
+	highestPreparedBlock map[uint64]istanbul.Proposal
+	mu                   *sync.Mutex
+}
+
+func (rcs *roundChangeSet) NewRound(r *big.Int) {
+	rcs.mu.Lock()
+	defer rcs.mu.Unlock()
+	round := r.Uint64()
+	rcs.roundChanges[round] = newMessageSet(rcs.validatorSet)
+	rcs.prepareMessages[round] = newMessageSet(rcs.validatorSet)
 }
 
 // Add adds the round and message into round change set
-func (rcs *roundChangeSet) Add(r *big.Int, msg *message, preparedRound *big.Int, preparedBlock istanbul.Proposal, preparedMessages *messageSet) error {
+func (rcs *roundChangeSet) Add(r *big.Int, msg *message, preparedRound *big.Int, preparedBlock istanbul.Proposal, prepareMessages *messageSet, quorumSize int) error {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
 
 	round := r.Uint64()
-	if rcs.roundChanges[round] == nil {
-		rcs.roundChanges[round] = newMessageSet(rcs.validatorSet)
-	}
 	if err := rcs.roundChanges[round].Add(msg); err != nil {
 		return err
 	}
 
-	if rcs.preparedRounds == nil {
-		rcs.preparedRounds = make(map[uint64]*big.Int)
-	}
-	if rcs.preparedBlocks == nil {
-		rcs.preparedBlocks = make(map[uint64]istanbul.Proposal)
-	}
-
-	if rcs.preparedRounds[round] == nil || preparedRound.Cmp(rcs.preparedRounds[round]) > 0 {
-		rcs.preparedRounds[round] = preparedRound
-		rcs.preparedBlocks[round] = preparedBlock
-		rcs.preparedMessages[round] = preparedMessages
+	if preparedRound != nil && (rcs.highestPreparedRound[round] == nil || preparedRound.Cmp(rcs.highestPreparedRound[round]) > 0) {
+		var roundChangeMessage *RoundChangeMessage
+		if err := msg.Decode(&roundChangeMessage); err != nil {
+			return err
+		}
+		if hasMatchingRoundChangeAndPrepares(roundChangeMessage, prepareMessages, quorumSize) {
+			rcs.highestPreparedRound[round] = preparedRound
+			rcs.highestPreparedBlock[round] = preparedBlock
+			rcs.prepareMessages[round] = prepareMessages
+		}
 	}
 
 	return nil
@@ -288,9 +260,9 @@ func (rcs *roundChangeSet) ClearLowerThan(round *big.Int) {
 	for k, rms := range rcs.roundChanges {
 		if len(rms.Values()) == 0 || k < round.Uint64() {
 			delete(rcs.roundChanges, k)
-			delete(rcs.preparedRounds, k)
-			delete(rcs.preparedBlocks, k)
-			delete(rcs.preparedMessages, k)
+			delete(rcs.highestPreparedRound, k)
+			delete(rcs.highestPreparedBlock, k)
+			delete(rcs.prepareMessages, k)
 		}
 	}
 }

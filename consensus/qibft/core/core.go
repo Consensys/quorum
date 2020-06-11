@@ -270,6 +270,7 @@ func (c *core) startNewRound(round *big.Int) {
 		// Clear earlier round messages
 		c.roundChangeSet.ClearLowerThan(round)
 	}
+	c.roundChangeSet.NewRound(round)
 
 	c.newRoundChangeTimer()
 
