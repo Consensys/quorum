@@ -248,6 +248,12 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 		return newcfg, stored, compatErr
 	}
 	rawdb.WriteChainConfig(db, stored, newcfg)
+	if storedcfg.PrivacyEnhancementsBlock == nil && newcfg.PrivacyEnhancementsBlock != nil {
+		// TODO - Quorum - Privacy Enhancements - update the tessera version in the warning message
+		log.Warn("Privacy enhancements have been enabled from block height " + newcfg.PrivacyEnhancementsBlock.String() +
+			". Please ensure your privacy manager is upgraded and supports privacy enhancements (tessera vXXX) " +
+			"otherwise your quorum node will fail to start.")
+	}
 	return newcfg, stored, nil
 }
 

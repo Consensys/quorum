@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/ethereum/go-ethereum/log"
+
 	"github.com/ethereum/go-ethereum/private/engine"
 
 	"github.com/ethereum/go-ethereum/private/cache"
@@ -21,8 +23,9 @@ import (
 )
 
 type tesseraPrivateTxManager struct {
-	client *engine.Client
-	cache  *gocache.Cache
+	features *engine.FeatureSet
+	client   *engine.Client
+	cache    *gocache.Cache
 }
 
 func Is(ptm interface{}) bool {
@@ -30,10 +33,15 @@ func Is(ptm interface{}) bool {
 	return ok
 }
 
-func New(client *engine.Client) *tesseraPrivateTxManager {
+func New(client *engine.Client, version []byte) *tesseraPrivateTxManager {
+	ptmVersion, err := parseVersion(version)
+	if err != nil {
+		log.Error("Error parsing version components from the tessera version: %s. Unable to extract transaction manager features.", version)
+	}
 	return &tesseraPrivateTxManager{
-		client: client,
-		cache:  gocache.New(cache.DefaultExpiration, cache.CleanupInterval),
+		features: engine.NewFeatureSet(tesseraVersionFeatures(ptmVersion)...),
+		client:   client,
+		cache:    gocache.New(cache.DefaultExpiration, cache.CleanupInterval),
 	}
 }
 
@@ -58,6 +66,9 @@ func (t *tesseraPrivateTxManager) submitJSON(method, path string, request interf
 }
 
 func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
+	if extra.PrivacyFlag.IsNotStandardPrivate() && !t.features.HasFeature(engine.PrivacyEnhancements) {
+		return common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements
+	}
 	response := new(sendResponse)
 	acMerkleRoot := ""
 	if !common.EmptyHash(extra.ACMerkleRoot) {
@@ -214,6 +225,10 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 
 func (t *tesseraPrivateTxManager) Name() string {
 	return "Tessera"
+}
+
+func (t *tesseraPrivateTxManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
+	return t.features.HasFeature(f)
 }
 
 // don't serialize body if nil

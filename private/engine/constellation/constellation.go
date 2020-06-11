@@ -31,6 +31,9 @@ func New(client *engine.Client) *constellation {
 }
 
 func (g *constellation) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
+	if extra.PrivacyFlag.IsNotStandardPrivate() {
+		return common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements
+	}
 	out, err := g.node.SendPayload(data, from, to, extra.ACHashes, extra.ACMerkleRoot)
 	if err != nil {
 		return common.EncryptedPayloadHash{}, err
@@ -57,7 +60,7 @@ func (g *constellation) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *e
 
 func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
 	if common.EmptyEncryptedPayloadHash(data) {
-		return data.Bytes(), nil, nil
+		return nil, nil, nil
 	}
 	// Ignore this error since not being a recipient of
 	// a payload isn't an error.
@@ -89,4 +92,8 @@ func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engi
 
 func (g *constellation) Name() string {
 	return "Constellation"
+}
+
+func (g *constellation) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
+	return false
 }

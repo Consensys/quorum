@@ -72,7 +72,7 @@ func setup() {
 	testObject = New(&engine.Client{
 		HttpClient: &http.Client{},
 		BaseURL:    testServer.URL,
-	})
+	}, []byte("0.11-SNAPSHOT"))
 }
 
 func MockSendAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
@@ -169,6 +169,23 @@ func TestSend_whenTypical(t *testing.T) {
 	assert.Equal(arbitraryExtra.ACHashes.ToBase64s(), actualRequest.AffectedContractTransactions, "request.affectedContractTransactions")
 	assert.Equal(arbitraryExtra.ACMerkleRoot.ToBase64(), actualRequest.ExecHash, "request.execHash")
 	assert.Equal(arbitraryHash, actualHash, "returned hash")
+}
+
+func TestSend_whenTesseraVersionDoesNotSupportPrivacyEnhancements(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	testObjectNoPE := New(&engine.Client{
+		HttpClient: &http.Client{},
+		BaseURL:    testServer.URL,
+	}, []byte("0.10-SNAPSHOT"))
+
+	assert.False(testObjectNoPE.HasFeature(engine.PrivacyEnhancements), "the supplied version does not support privacy enhancements")
+
+	// trying to send a party protection transaction
+	_, err := testObjectNoPE.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
+	if err != engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements {
+		t.Fatal("Expecting send to raise ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements")
+	}
 }
 
 func TestReceive_whenTypical(t *testing.T) {

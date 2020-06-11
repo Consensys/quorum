@@ -9,9 +9,10 @@ import (
 )
 
 var (
-	ErrPrivateTxManagerNotinUse     = errors.New("private transaction manager is not in use")
-	ErrPrivateTxManagerNotReady     = errors.New("private transaction manager is not ready")
-	ErrPrivateTxManagerNotSupported = errors.New("private transaction manager does not suppor this operation")
+	ErrPrivateTxManagerNotinUse                          = errors.New("private transaction manager is not in use")
+	ErrPrivateTxManagerNotReady                          = errors.New("private transaction manager is not ready")
+	ErrPrivateTxManagerNotSupported                      = errors.New("private transaction manager does not suppor this operation")
+	ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements = errors.New("private transaction manager does not support privacy enhancements")
 )
 
 type NotInUsePrivateTxManager struct{}
@@ -38,6 +39,10 @@ func (dn *NotInUsePrivateTxManager) ReceiveRaw(data common.EncryptedPayloadHash)
 
 func (dn *NotInUsePrivateTxManager) Name() string {
 	return "NotInUse"
+}
+
+func (ptm *NotInUsePrivateTxManager) HasFeature(f PrivateTransactionManagerFeature) bool {
+	return false
 }
 
 // Additional information for the private transaction that Private Transaction Manager carries
@@ -96,4 +101,27 @@ func (f PrivacyFlagType) Validate() error {
 		return nil
 	}
 	return fmt.Errorf("invalid privacy flag")
+}
+
+type PrivateTransactionManagerFeature uint64
+
+const (
+	None                PrivateTransactionManagerFeature = iota                                          // 0
+	PrivacyEnhancements PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 1
+)
+
+type FeatureSet struct {
+	features uint64
+}
+
+func NewFeatureSet(features ...PrivateTransactionManagerFeature) *FeatureSet {
+	var all uint64 = 0
+	for _, feature := range features {
+		all = all | uint64(feature)
+	}
+	return &FeatureSet{features: all}
+}
+
+func (p *FeatureSet) HasFeature(feature PrivateTransactionManagerFeature) bool {
+	return uint64(feature)&p.features != 0
 }

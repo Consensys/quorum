@@ -33,6 +33,8 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
 )
 
@@ -229,8 +231,8 @@ func dumpConfig(ctx *cli.Context) error {
 	return nil
 }
 
-// quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
-func quorumValidateConsensus(stack *node.Node, isRaft bool) {
+// quorumValidateEthService checks quorum features that depend on the ethereum service
+func quorumValidateEthService(stack *node.Node, isRaft bool) {
 	var ethereum *eth.Ethereum
 
 	err := stack.Service(&ethereum)
@@ -238,6 +240,13 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 		utils.Fatalf("Error retrieving Ethereum service: %v", err)
 	}
 
+	quorumValidateConsensus(ethereum, isRaft)
+
+	quorumValidatePrivacyEnhancements(ethereum)
+}
+
+// quorumValidateConsensus checks if a consensus was used. The node is killed if consensus was not used
+func quorumValidateConsensus(ethereum *eth.Ethereum, isRaft bool) {
 	if !isRaft && ethereum.BlockChain().Config().Istanbul == nil && ethereum.BlockChain().Config().Clique == nil {
 		utils.Fatalf("Consensus not specified. Exiting!!")
 	}
@@ -247,4 +256,13 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 // environment variable is set
 func quorumValidatePrivateTransactionManager() bool {
 	return os.Getenv("PRIVATE_CONFIG") != ""
+}
+
+// quorumValidatePrivacyEnhancements checks if privacy enhancements are configured the transaction manager supports
+// supports the PrivacyEnhancements feature
+func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
+	privacyEnhancementsBlock := ethereum.BlockChain().Config().PrivacyEnhancementsBlock
+	if !private.P.HasFeature(engine.PrivacyEnhancements) && privacyEnhancementsBlock != nil {
+		utils.Fatalf("Cannot start quorum with privacy enhancements enabled while the transaction manager does not support it")
+	}
 }

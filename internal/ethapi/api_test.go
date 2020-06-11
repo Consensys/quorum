@@ -684,3 +684,7 @@ func (sptm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPaylo
 		return hexutil.MustDecode("0x60fe47b1000000000000000000000000000000000000000000000000000000000000000e"), nil, nil
 	}
 }
+
+func (sptm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
+	return true
+}

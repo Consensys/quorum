@@ -97,6 +97,10 @@ func (spm *StubPrivateTransactionManager) Name() string {
 	return "to be implemented"
 }
 
+func (spm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
+	return true
+}
+
 func (spm *StubPrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
 	return common.EncryptedPayloadHash{}, fmt.Errorf("to be implemented")
 }

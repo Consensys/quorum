@@ -972,6 +972,10 @@ func (mpm *mockPrivateTransactionManager) Name() string {
 	return "MockPrivateTransactionManager"
 }
 
+func (mpm *mockPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
+	return true
+}
+
 func (mpm *mockPrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
 	panic("implement me")
 }
@@ -1265,4 +1269,8 @@ func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHa
 
 func (spm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
 	return spm.Receive(data)
+}
+
+func (spm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
+	return true
 }
