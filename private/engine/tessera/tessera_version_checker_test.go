@@ -60,7 +60,7 @@ func TestTesseraVersionFeatures(t *testing.T) {
 	assert.Contains(t, res, engine.PrivacyEnhancements)
 	res = tesseraVersionFeatures(Version{0, 10, 5})
 	assert.NotContains(t, res, engine.PrivacyEnhancements)
-	res = tesseraVersionFeatures(ZERO)
+	res = tesseraVersionFeatures(zero)
 	assert.NotContains(t, res, engine.PrivacyEnhancements)
 	assert.Empty(t, res)
 }

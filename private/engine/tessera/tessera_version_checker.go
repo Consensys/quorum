@@ -8,23 +8,23 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 )
 
-const VERSION_LENGTH = 3
+const versionLength = 3
 
-type Version [VERSION_LENGTH]uint64
+type Version [versionLength]uint64
 
 var (
-	ZERO = Version{0, 0, 0}
+	zero = Version{0, 0, 0}
 	// TODO Qurum - Privacy Enhancements - must update this once tessera with privacy enhancements is released (and the version is known)
-	PRIVACY_ENHANCEMENTS_VERSION = Version{0, 10, 6}
+	privacyEnhancementsVersion = Version{0, 10, 6}
 
-	FEATURE_VERSIONS = map[engine.PrivateTransactionManagerFeature]Version{
-		engine.PrivacyEnhancements: PRIVACY_ENHANCEMENTS_VERSION,
+	featureVersions = map[engine.PrivateTransactionManagerFeature]Version{
+		engine.PrivacyEnhancements: privacyEnhancementsVersion,
 	}
 )
 
 func tesseraVersionFeatures(version Version) []engine.PrivateTransactionManagerFeature {
 	result := make([]engine.PrivateTransactionManagerFeature, 0)
-	for feature, featureVersion := range FEATURE_VERSIONS {
+	for feature, featureVersion := range featureVersions {
 		if compareVersions(version, featureVersion) >= 0 {
 			result = append(result, feature)
 		}
@@ -37,7 +37,7 @@ func tesseraVersionFeatures(version Version) []engine.PrivateTransactionManagerF
 // if v1 < v2 - returns -1
 // if v1 = v2 - returns 0
 func compareVersions(v1, v2 Version) int {
-	for i := 0; i < VERSION_LENGTH; i++ {
+	for i := 0; i < versionLength; i++ {
 		if v1[i] > v2[i] {
 			return 1
 		} else if v1[i] < v2[i] {
@@ -60,14 +60,14 @@ func parseVersion(version []byte) (res Version, err error) {
 	} else if versionMajMidRegExp.Match(version) {
 		submatch = versionMajMidRegExp.FindSubmatch(version)[1:3]
 	} else {
-		return ZERO, fmt.Errorf("input does not match the expected version pattern")
+		return zero, fmt.Errorf("input does not match the expected version pattern")
 	}
 
 	// res should be initialized with {0,0,0} - thus it is ok for submatch to have a variable length of 2 or 3
 	for idx, val := range submatch {
 		intVal, err := strconv.ParseUint(string(val), 10, 64)
 		if err != nil {
-			return ZERO, err
+			return zero, err
 		}
 		res[idx] = intVal
 	}
