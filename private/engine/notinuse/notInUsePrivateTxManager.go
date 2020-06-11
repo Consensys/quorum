@@ -33,6 +33,6 @@ func (ptm *PrivateTransactionManager) Name() string {
 	return "NotInUse"
 }
 
-func (ptm *PrivateTransactionManager) Features() engine.PTMFeatures {
-	return engine.NewPTMFeatures()
+func (ptm *PrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
+	return false
 }

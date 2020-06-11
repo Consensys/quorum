@@ -179,12 +179,12 @@ func TestSend_whenTesseraVersionDoesNotSupportPrivacyEnhancements(t *testing.T) 
 		BaseURL:    testServer.URL,
 	}, []byte("0.10-SNAPSHOT"))
 
-	assert.False(testObjectNoPE.features.HasFeature(engine.PrivacyEnhancements), "the supplied version does not support privacy enhancements")
+	assert.False(testObjectNoPE.HasFeature(engine.PrivacyEnhancements), "the supplied version does not support privacy enhancements")
 
 	// trying to send a party protection transaction
 	_, err := testObjectNoPE.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
-	if err != engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnehancements {
-		t.Fatal("Expecting send to raise ErrPrivateTxManagerDoesNotSupportPrivacyEnehancements")
+	if err != engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements {
+		t.Fatal("Expecting send to raise ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements")
 	}
 }
 

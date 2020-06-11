@@ -685,6 +685,6 @@ func (sptm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPaylo
 	}
 }
 
-func (sptm *StubPrivateTransactionManager) Features() engine.PTMFeatures {
-	return engine.NewPTMFeatures(engine.PrivacyEnhancements)
+func (sptm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
+	return true
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func checkParseSucceeds(t *testing.T, version []byte, expectedVersion VERSION) {
+func checkParseSucceeds(t *testing.T, version []byte, expectedVersion Version) {
 	parsedVersion, err := parseVersion(version)
 	if err != nil {
 		t.Errorf("unexpected error")
@@ -18,12 +18,12 @@ func checkParseSucceeds(t *testing.T, version []byte, expectedVersion VERSION) {
 }
 
 func TestParseVersion(t *testing.T) {
-	checkParseSucceeds(t, []byte("0.11.12+12234"), VERSION{0, 11, 12})
-	checkParseSucceeds(t, []byte("0.11-SNAPSHOT"), VERSION{0, 11, 0})
+	checkParseSucceeds(t, []byte("0.11.12+12234"), Version{0, 11, 12})
+	checkParseSucceeds(t, []byte("0.11-SNAPSHOT"), Version{0, 11, 0})
 	// leading zeros in version components
-	checkParseSucceeds(t, []byte("000.0011-SNAPSHOT"), VERSION{0, 11, 0})
+	checkParseSucceeds(t, []byte("000.0011-SNAPSHOT"), Version{0, 11, 0})
 
-	checkParseSucceeds(t, []byte("01.012 SNAPSHOT"), VERSION{1, 12, 0})
+	checkParseSucceeds(t, []byte("01.012 SNAPSHOT"), Version{1, 12, 0})
 
 	_, err := parseVersion([]byte("garbage"))
 	if err == nil {
@@ -37,11 +37,11 @@ func TestParseVersion(t *testing.T) {
 }
 
 func TestVersionsComparison(t *testing.T) {
-	v1 := VERSION{1, 1, 1}
-	v2 := VERSION{1, 1, 1}
-	v3 := VERSION{2, 1, 1}
-	v4 := VERSION{1, 2, 1}
-	v5 := VERSION{1, 1, 2}
+	v1 := Version{1, 1, 1}
+	v2 := Version{1, 1, 1}
+	v3 := Version{2, 1, 1}
+	v4 := Version{1, 2, 1}
+	v5 := Version{1, 1, 2}
 	assert.Equal(t, 0, compareVersions(v1, v2), "versions should be equal")
 	assert.Equal(t, -1, compareVersions(v1, v3), "v1 shold be smaller than v3")
 	assert.Equal(t, 1, compareVersions(v3, v1), "v3 should be bigger than v1")
@@ -52,13 +52,13 @@ func TestVersionsComparison(t *testing.T) {
 }
 
 func TestTesseraVersionFeatures(t *testing.T) {
-	res := tesseraVersionFeatures(VERSION{1, 11, 12})
+	res := tesseraVersionFeatures(Version{1, 11, 12})
 	assert.Contains(t, res, engine.PrivacyEnhancements)
-	res = tesseraVersionFeatures(VERSION{0, 12, 0})
+	res = tesseraVersionFeatures(Version{0, 12, 0})
 	assert.Contains(t, res, engine.PrivacyEnhancements)
-	res = tesseraVersionFeatures(VERSION{0, 10, 6})
+	res = tesseraVersionFeatures(Version{0, 10, 6})
 	assert.Contains(t, res, engine.PrivacyEnhancements)
-	res = tesseraVersionFeatures(VERSION{0, 10, 5})
+	res = tesseraVersionFeatures(Version{0, 10, 5})
 	assert.NotContains(t, res, engine.PrivacyEnhancements)
 	res = tesseraVersionFeatures(ZERO)
 	assert.NotContains(t, res, engine.PrivacyEnhancements)

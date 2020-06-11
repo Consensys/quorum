@@ -262,7 +262,7 @@ func quorumValidatePrivateTransactionManager() bool {
 // supports the PrivacyEnhancements feature
 func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
 	privacyEnhancementsBlock := ethereum.BlockChain().Config().PrivacyEnhancementsBlock
-	if !private.P.Features().HasFeature(engine.PrivacyEnhancements) && privacyEnhancementsBlock != nil {
+	if !private.P.HasFeature(engine.PrivacyEnhancements) && privacyEnhancementsBlock != nil {
 		utils.Fatalf("Cannot start quorum with privacy enhancements enabled while the transaction manager does not support it")
 	}
 }

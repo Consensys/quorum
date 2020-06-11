@@ -12,9 +12,8 @@ import (
 )
 
 type constellation struct {
-	features engine.PTMFeatures
-	node     *Client
-	c        *gocache.Cache
+	node *Client
+	c    *gocache.Cache
 }
 
 func Is(ptm interface{}) bool {
@@ -24,7 +23,6 @@ func Is(ptm interface{}) bool {
 
 func New(client *engine.Client) *constellation {
 	return &constellation{
-		features: engine.NewPTMFeatures(),
 		node: &Client{
 			httpClient: client.HttpClient,
 		},
@@ -34,7 +32,7 @@ func New(client *engine.Client) *constellation {
 
 func (g *constellation) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
 	if extra.PrivacyFlag.IsNotStandardPrivate() {
-		return common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnehancements
+		return common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements
 	}
 	out, err := g.node.SendPayload(data, from, to, extra.ACHashes, extra.ACMerkleRoot)
 	if err != nil {
@@ -96,6 +94,6 @@ func (g *constellation) Name() string {
 	return "Constellation"
 }
 
-func (g *constellation) Features() engine.PTMFeatures {
-	return g.features
+func (g *constellation) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
+	return false
 }

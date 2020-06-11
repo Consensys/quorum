@@ -10,19 +10,19 @@ import (
 
 const VERSION_LENGTH = 3
 
-type VERSION [VERSION_LENGTH]int64
+type Version [VERSION_LENGTH]uint64
 
 var (
-	ZERO = VERSION{0, 0, 0}
+	ZERO = Version{0, 0, 0}
 	// TODO Qurum - Privacy Enhancements - must update this once tessera with privacy enhancements is released (and the version is known)
-	PRIVACY_ENHANCEMENTS_VERSION = VERSION{0, 10, 6}
+	PRIVACY_ENHANCEMENTS_VERSION = Version{0, 10, 6}
 
-	FEATURE_VERSIONS = map[engine.PrivateTransactionManagerFeature]VERSION{
+	FEATURE_VERSIONS = map[engine.PrivateTransactionManagerFeature]Version{
 		engine.PrivacyEnhancements: PRIVACY_ENHANCEMENTS_VERSION,
 	}
 )
 
-func tesseraVersionFeatures(version VERSION) []engine.PrivateTransactionManagerFeature {
+func tesseraVersionFeatures(version Version) []engine.PrivateTransactionManagerFeature {
 	result := make([]engine.PrivateTransactionManagerFeature, 0)
 	for feature, featureVersion := range FEATURE_VERSIONS {
 		if compareVersions(version, featureVersion) >= 0 {
@@ -36,7 +36,7 @@ func tesseraVersionFeatures(version VERSION) []engine.PrivateTransactionManagerF
 // if v1 > v2 - returns 1
 // if v1 < v2 - returns -1
 // if v1 = v2 - returns 0
-func compareVersions(v1, v2 VERSION) int {
+func compareVersions(v1, v2 Version) int {
 	for i := 0; i < VERSION_LENGTH; i++ {
 		if v1[i] > v2[i] {
 			return 1
@@ -50,7 +50,7 @@ func compareVersions(v1, v2 VERSION) int {
 // The tessera release versions have 3 components: major.mid.minor.
 // Snapshot tessera builds may have versions made of 2 components: major.mid-SNAPSHOT.
 // parseVersion will assume the minor version to be 0 for versions with only 2 components.
-func parseVersion(version []byte) (res VERSION, err error) {
+func parseVersion(version []byte) (res Version, err error) {
 	versionMajMidRegExp, _ := regexp.Compile(`([0-9]+)\.([0-9]+)([^0-9].*)`)
 	versionMajMidMinRegExp, _ := regexp.Compile(`([0-9]+)\.([0-9]+)\.([0-9]+)([^0-9].*)`)
 
@@ -65,7 +65,7 @@ func parseVersion(version []byte) (res VERSION, err error) {
 
 	// res should be initialized with {0,0,0} - thus it is ok for submatch to have a variable length of 2 or 3
 	for idx, val := range submatch {
-		intVal, err := strconv.ParseInt(string(val), 10, 64)
+		intVal, err := strconv.ParseUint(string(val), 10, 64)
 		if err != nil {
 			return ZERO, err
 		}

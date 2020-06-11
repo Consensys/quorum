@@ -9,10 +9,10 @@ import (
 )
 
 var (
-	ErrPrivateTxManagerNotinUse                           = errors.New("private transaction manager is not in use")
-	ErrPrivateTxManagerNotReady                           = errors.New("private transaction manager is not ready")
-	ErrPrivateTxManagerNotSupported                       = errors.New("private transaction manager does not suppor this operation")
-	ErrPrivateTxManagerDoesNotSupportPrivacyEnehancements = errors.New("private transaction manager does not support privacy enhancements")
+	ErrPrivateTxManagerNotinUse                          = errors.New("private transaction manager is not in use")
+	ErrPrivateTxManagerNotReady                          = errors.New("private transaction manager is not ready")
+	ErrPrivateTxManagerNotSupported                      = errors.New("private transaction manager does not suppor this operation")
+	ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements = errors.New("private transaction manager does not support privacy enhancements")
 )
 
 type NotInUsePrivateTxManager struct{}
@@ -41,8 +41,8 @@ func (dn *NotInUsePrivateTxManager) Name() string {
 	return "NotInUse"
 }
 
-func (ptm *NotInUsePrivateTxManager) Features() PTMFeatures {
-	return NewPTMFeatures()
+func (ptm *NotInUsePrivateTxManager) HasFeature(f PrivateTransactionManagerFeature) bool {
+	return false
 }
 
 // Additional information for the private transaction that Private Transaction Manager carries
@@ -110,22 +110,18 @@ const (
 	PrivacyEnhancements PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 1
 )
 
-type PTMFeatures interface {
-	HasFeature(feature PrivateTransactionManagerFeature) bool
-}
-
-type PTMFeaturesImpl struct {
+type FeatureSet struct {
 	features uint64
 }
 
-func NewPTMFeatures(features ...PrivateTransactionManagerFeature) PTMFeatures {
+func NewFeatureSet(features ...PrivateTransactionManagerFeature) *FeatureSet {
 	var all uint64 = 0
 	for _, feature := range features {
 		all = all | uint64(feature)
 	}
-	return &PTMFeaturesImpl{features: all}
+	return &FeatureSet{features: all}
 }
 
-func (p *PTMFeaturesImpl) HasFeature(feature PrivateTransactionManagerFeature) bool {
+func (p *FeatureSet) HasFeature(feature PrivateTransactionManagerFeature) bool {
 	return uint64(feature)&p.features != 0
 }
