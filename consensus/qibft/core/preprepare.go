@@ -88,9 +88,9 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 		return errNotFromProposer
 	}
 
-	if preprepare.View.Round.Uint64() > 0 && !c.validatePrepreparedMessage(preprepare, src) {
-		logger.Error("Unable to verify prepared block in Round Change messages")
-		return errInvalidPreparedBlock
+	if preprepare.View.Round.Uint64() > 0 && !justify(preprepare.Proposal, preprepare.RCMessages, preprepare.PreparedMessages, c.QuorumSize()) {
+		logger.Error("Unable to justify PRE-PREPARE message")
+		return errInvalidMessage
 	}
 
 	// Verify the proposal we received
@@ -123,91 +123,4 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 func (c *core) acceptPreprepare(preprepare *Preprepare) {
 	c.consensusTimestamp = time.Now()
 	c.current.SetPreprepare(preprepare)
-}
-
-// validatePrepreparedMessage validates Preprepared message received
-func (c *core) validatePrepreparedMessage(preprepare *Preprepare, src istanbul.Validator) bool {
-	logger := c.logger.New("from", src, "state", c.state)
-	highestPreparedRound, validRC := c.checkRoundChangeMessages(preprepare, src)
-	if !validRC {
-		logger.Error("Unable to verify Round Change messages in Preprepare")
-		return false
-	}
-	if highestPreparedRound != 0 && !c.checkPreparedMessages(preprepare, highestPreparedRound, src) {
-		logger.Error("Unable to verify Prepared messages in Preprepare")
-		return false
-	}
-	return true
-}
-
-// checkRoundChangeMessages verifies if the Round Change message is signed by a valid validator and
-// Also, check if the proposal was the preparedBlock corresponding to the highest preparedRound
-func (c *core) checkRoundChangeMessages(preprepare *Preprepare, src istanbul.Validator) (uint64, bool) {
-	logger := c.logger.New("from", src, "state", c.state)
-
-	if preprepare.RCMessages != nil && preprepare.RCMessages.messages != nil {
-		if c.validateFn != nil {
-			if err := validateMsgSignature(preprepare.RCMessages.messages, c.validateFn); err != nil {
-				logger.Error("Unable to validate round change message signature", "err", err)
-				return 0, false
-			}
-		}
-		var preparedRound uint64 = 0
-		var preparedBlock istanbul.Proposal
-		for _, msg := range preprepare.RCMessages.messages {
-			var rc *RoundChangeMessage
-			if err := msg.Decode(&rc); err != nil {
-				logger.Error("Failed to decode ROUND CHANGE", "err", err)
-				return 0, false
-			}
-			if rc.PreparedRound.Uint64() > preparedRound {
-				preparedRound = rc.PreparedRound.Uint64()
-				preparedBlock = rc.PreparedBlock
-			}
-		}
-		if preparedRound == 0 {
-			return preparedRound, true
-		}
-		if preparedRound > 0 {
-			return preparedRound, preparedBlock == preprepare.Proposal
-		}
-	}
-	return 0, false
-}
-
-// checkPreparedMessages verifies if a Quorum of Prepared messages were received and
-// the block in each prepared message is the same as the proposal and is prepared in the same round
-func (c *core) checkPreparedMessages(preprepare *Preprepare, highestPreparedRound uint64, src istanbul.Validator) bool {
-	logger := c.logger.New("from", src, "state", c.state)
-	if preprepare.PreparedMessages != nil && preprepare.PreparedMessages.messages != nil {
-		if c.validateFn != nil {
-			if err := validateMsgSignature(preprepare.PreparedMessages.messages, c.validateFn); err != nil {
-				logger.Error("Unable to validate round change message signature", "err", err)
-				return false
-			}
-		}
-		// Number of prepared messages should not be less than Quorum of messages
-		if len(preprepare.PreparedMessages.messages) < c.QuorumSize() {
-			logger.Error("Quorum of Prepared messages not found in Preprepare messages")
-			return false
-		}
-		// Check if the block in each prepared message is the one that is being proposed
-		for addr, msg := range preprepare.PreparedMessages.messages {
-			var prepare *Subject
-			if err := msg.Decode(&prepare); err != nil {
-				logger.Error("Failed to decode Prepared Message", "err", err)
-				return false
-			}
-			if prepare.Digest.Hash() != preprepare.Proposal.Hash() {
-				logger.Error("Prepared block does not match the Proposal", "Address", addr)
-				return false
-			}
-			if prepare.View.Round.Uint64() != highestPreparedRound {
-				logger.Error("Round in Prepared Block does not match the Highest Prepared Round", "Address", addr)
-				return false
-			}
-		}
-		return true
-	}
-	return false
 }
