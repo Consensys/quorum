@@ -2,9 +2,9 @@
 Although there is sufficient logging in Quorum (geth), the error messages are not always straightforward to decipher.
 This is our take on cataloguing of error messages along with possible cause and remediation actions, to serve as first point of reference before reaching out to the support team.
 
-!!! note
-  The log level “ERROR” is written out in uppercase as part of the log message and can be used for alert monitoring.
- 
+!!! note 
+    The log level “ERROR” is written out in uppercase as part of the log message and can be used for alert monitoring.
+
 <table>
 <tr>
     <th>Message</th>
