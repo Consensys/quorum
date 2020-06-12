@@ -182,3 +182,56 @@ jobs:
         run: |
           docker images
           docker ps -a
+  acceptance-tests-network-upgrade:
+    name: Acceptance tests - Network upgrade (${{ matrix.tag }})
+    needs:
+      - docker-build
+    if: success()
+    strategy:
+      fail-fast: false
+      matrix:
+        # list of tag expression being executed in parallel
+        # for PR, only selective tests are run.
+        # More comprehensive suites are scheduled to run in master
+        tag:
+          - 'privacy-enhancements-upgrade || networks/template::raft-4nodes-pe'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Download workflow artifact - Docker image'
+        uses: actions/download-artifact@v1
+        with:
+          name: docker-image
+      - name: 'Load Docker image'
+        id: setup
+        run: |
+          tar xfvz docker-image/quorum-pr.tar.gz
+          docker load --input quorum-pr.tar
+          echo "::set-output name=outputDir::${{ runner.temp }}"
+          docker tag quorumengineering/quorum:pr quorumengineering/quorum:pe
+      - name: 'Login to github docker repo'
+        id: setupDockerLogin
+        run: |
+          docker login docker.pkg.github.com -u quorumbot -p ${{ secrets.QUORUMBOT_PAT}}
+      - name: 'Load QAT Docker image'
+        id: setupQAT
+        run: |
+          docker pull docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements
+      - name: 'Get Tessera Docker image'
+        id: setupTessera
+        run: |
+          docker pull docker.pkg.github.com/quorumengineering/tessera/tessera:dev-tessera-privacyenhancements
+          docker tag docker.pkg.github.com/quorumengineering/tessera/tessera:dev-tessera-privacyenhancements quorumengineering/tessera:pe
+      - name: 'Run acceptance tests'
+        run: |
+          docker run --rm \
+            --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
+            docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements test \
+              -Pauto \
+              -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
+              -Dtags="${{ matrix.tag }}"
+      - name: 'Debug'
+        run: |
+          docker images
+          docker ps -a
