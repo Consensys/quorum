@@ -1,8 +1,9 @@
 package core
 
 import (
-	istanbul "github.com/ethereum/go-ethereum/consensus/qibft"
 	"math/big"
+
+	istanbul "github.com/ethereum/go-ethereum/consensus/qibft"
 )
 
 // Returns true if the `proposal` is justified by the set `roundChangeMessages` of ROUND-CHANGE messages
@@ -30,14 +31,13 @@ func justify(proposal istanbul.Proposal, roundChangeMessages *messageSet, prepar
 		if err := msg.Decode(&prepareMessage); err != nil {
 			return false
 		}
-		if preparedRound != nil {  // Get the round of the first message
+		if preparedRound != nil { // Get the round of the first message
 			preparedRound = prepareMessage.View.Round
 		}
 		if preparedRound != prepareMessage.View.Round || proposal.Hash() != prepareMessage.Digest.Hash() {
 			return false
 		}
 	}
-
 
 	if preparedRound == nil {
 		return hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages, quorumSize)

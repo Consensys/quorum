@@ -47,7 +47,7 @@ func TestRoundChangeSet(t *testing.T) {
 			Msg:     m,
 			Address: v.Address(),
 		}
-		rc.Add(view.Round, msg, r.PreparedRound, r.PreparedBlock, newMessageSet(vset))
+		rc.Add(view.Round, msg, r.PreparedRound, r.PreparedBlock, newMessageSet(vset), vset.Size())
 		if rc.roundChanges[view.Round.Uint64()].Size() != i+1 {
 			t.Errorf("the size of round change messages mismatch: have %v, want %v", rc.roundChanges[view.Round.Uint64()].Size(), i+1)
 		}
@@ -60,7 +60,7 @@ func TestRoundChangeSet(t *testing.T) {
 			Msg:     m,
 			Address: v.Address(),
 		}
-		rc.Add(view.Round, msg, r.PreparedRound, r.PreparedBlock, newMessageSet(vset))
+		rc.Add(view.Round, msg, r.PreparedRound, r.PreparedBlock, newMessageSet(vset), vset.Size())
 		if rc.roundChanges[view.Round.Uint64()].Size() != vset.Size() {
 			t.Errorf("the size of round change messages mismatch: have %v, want %v", rc.roundChanges[view.Round.Uint64()].Size(), vset.Size())
 		}
@@ -148,9 +148,9 @@ func getRoundChangeSetForPositveTests() *roundChangeSet {
 		Address: vset.GetByIndex(2).Address(),
 	}
 
-	rcs.Add(view.Round, msg1, big.NewInt(1), proposal, nil)
-	rcs.Add(view.Round, msg2, big.NewInt(1), proposal, nil)
-	rcs.Add(view.Round, msg3, big.NewInt(1), proposal, nil)
+	rcs.Add(view.Round, msg1, big.NewInt(1), proposal, nil, vset.Size())
+	rcs.Add(view.Round, msg2, big.NewInt(1), proposal, nil, vset.Size())
+	rcs.Add(view.Round, msg3, big.NewInt(1), proposal, nil, vset.Size())
 
 	return rcs
 }
