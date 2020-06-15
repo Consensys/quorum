@@ -27,6 +27,7 @@ import (
 func TestRoundChangeSet(t *testing.T) {
 	vset := validator.NewSet(generateValidators(4), istanbul.RoundRobin)
 	rc := newRoundChangeSet(vset)
+	rc.NewRound(big.NewInt(1))
 
 	view := &View{
 		Sequence: big.NewInt(1),
@@ -124,6 +125,7 @@ func getRoundChangeSetForPositveTests() *roundChangeSet {
 	proposal := makeBlock(1)
 
 	rcs := newRoundChangeSet(vset)
+	rcs.NewRound(big.NewInt(2))
 
 	encodedRCMsg1, _ := Encode(&RoundChangeMessage{
 		View:             view,
@@ -148,9 +150,9 @@ func getRoundChangeSetForPositveTests() *roundChangeSet {
 		Address: vset.GetByIndex(2).Address(),
 	}
 
-	rcs.Add(view.Round, msg1, big.NewInt(1), proposal, nil, vset.Size())
-	rcs.Add(view.Round, msg2, big.NewInt(1), proposal, nil, vset.Size())
-	rcs.Add(view.Round, msg3, big.NewInt(1), proposal, nil, vset.Size())
+	rcs.Add(view.Round, msg1, big.NewInt(1), proposal, newMessageSet(rcs.validatorSet), vset.Size())
+	rcs.Add(view.Round, msg2, big.NewInt(1), proposal, newMessageSet(rcs.validatorSet), vset.Size())
+	rcs.Add(view.Round, msg3, big.NewInt(1), proposal, newMessageSet(rcs.validatorSet), vset.Size())
 
 	return rcs
 }

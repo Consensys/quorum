@@ -41,6 +41,4 @@ var (
 	errFailedDecodeCommit = errors.New("failed to decode COMMIT")
 	// errInvalidSigner is returned when the message is signed by a validator different than message sender
 	errInvalidSigner = errors.New("message not signed by the sender")
-	// errInvalidPreparedBlock is returned when prepared block is not validated in round change messages
-	errInvalidPreparedBlock = errors.New("invalid prepared block in round change messages")
 )
