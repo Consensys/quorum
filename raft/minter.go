@@ -407,6 +407,7 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 
 	var author *common.Address
 	var vmConf vm.Config
+	txnStart := time.Now()
 	publicReceipt, privateReceipt, err := core.ApplyTransaction(env.config, bc, author, gp, env.publicState, env.privateState, env.header, tx, &env.header.GasUsed, vmConf)
 	if err != nil {
 		env.publicState.RevertToSnapshot(publicSnapshot)
@@ -414,6 +415,7 @@ func (env *work) commitTransaction(tx *types.Transaction, bc *core.BlockChain, g
 
 		return nil, nil, err
 	}
+	log.EmitCheckpoint(log.TxCompleted, "tx", tx.Hash().Hex(), "time", time.Since(txnStart))
 
 	return publicReceipt, privateReceipt, nil
 }
