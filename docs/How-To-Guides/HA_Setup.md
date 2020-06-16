@@ -22,6 +22,7 @@ Quorum architecture allows for end to end high availability on various i/o opera
 
 ??? info "Quorum HA Setup 1"
     **Quorum Tessera pair share same machine/container in this setup**
+    
     ![Quorum Tessera HA Mode](QT_HA_1.png)
 
 ??? info "Quorum Full HA Setup "
