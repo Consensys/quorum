@@ -9,7 +9,7 @@ Quorum architecture allows for end to end high availability on various i/o opera
 - Two or more Quorum Nodes serve as one client node.
 - The inbound RPC requests from clients will be load balanced to one of these Quorum nodes.
 - These nodes will need to share same key for transaction signing and should have shared access to key store directory or key vaults.
-- These nodes need to share the same private state i.e., they connect to same Tessera node(s). They could either to connect to local Tessera node or in 'full' HA setup using [proxy](#proxy-setup-on-both-quorum-nodes) running on each Quorum node listening on local ipc file and directing request to Tessera Q2T http.
+- These nodes need to share the same private state. They could either connect to local Tessera node or in 'full' HA setup using [proxy](#proxy-setup-on-both-quorum-nodes) running on each Quorum node listening on local ipc file and directing request to Tessera Q2T http but in both cases the Tessera node(s) share the same database.
 
 ## Tessera Node Configuration Requirements:
 
