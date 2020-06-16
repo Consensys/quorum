@@ -23,11 +23,12 @@ Quorum architecture allows for end to end high availability on various i/o opera
 ??? info "Quorum HA Setup 1"
     **Quorum Tessera pair share same machine/container in this setup**
     
-    ![Quorum Tessera HA Mode](QT_HA_1.png)
+   ![Quorum Tessera HA Mode](QT_HA_1.png)
 
 ??? info "Quorum Full HA Setup "
-    **The change here is each Quorum and Tessera node run in separate machine/container**
-    ![Quorum Tessera Full HA Mode](QT_HA_2.png)
+    **1.The change here is each Quorum and Tessera node run in separate machine/container**
+    **2.Proxy running on each Quorum node to listen on local ipc file and load balance request to both Tessera nodes** 
+   ![Quorum Tessera Full HA Mode](QT_HA_2.png)
 
 ??? info "Tessera HA Setup "
     **If HA is required only for Tessera, below setup could be adopted**
