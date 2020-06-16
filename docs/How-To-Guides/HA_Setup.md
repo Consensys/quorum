@@ -18,7 +18,7 @@ Quorum architecture allows for end to end high availability on various i/o opera
 - These nodes share same public/private key pair (stored in password protected files or external vaults) and share same database.
 - In the server config, the bindingAddress should be the local addresses (their real addresses), but 'advertisedAddress' (serverAddress) needs to be configured to be the proxy
 - Add DB replication or mirroring for Tessera private data store and the JDBC connection string to include both Primary DB and DR DB connections to facilitate auto switchover on failure.
-
+ 
 
 ??? info "Quorum HA Setup 1"
     **Quorum Tessera pair share same machine/container in this setup**
