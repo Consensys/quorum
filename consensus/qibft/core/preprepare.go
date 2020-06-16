@@ -146,12 +146,6 @@ func (c *core) checkRoundChangeMessages(preprepare *Preprepare, src istanbul.Val
 	logger := c.logger.New("from", src, "state", c.state)
 
 	if preprepare.RCMessages != nil && preprepare.RCMessages.messages != nil {
-		if c.validateFn != nil {
-			if err := validateMsgSignature(preprepare.RCMessages.messages, c.validateFn); err != nil {
-				logger.Error("Unable to validate round change message signature", "err", err)
-				return 0, false
-			}
-		}
 		var preparedRound uint64 = 0
 		var preparedBlock istanbul.Proposal
 		for _, msg := range preprepare.RCMessages.messages {
@@ -180,12 +174,6 @@ func (c *core) checkRoundChangeMessages(preprepare *Preprepare, src istanbul.Val
 func (c *core) checkPreparedMessages(preprepare *Preprepare, highestPreparedRound uint64, src istanbul.Validator) bool {
 	logger := c.logger.New("from", src, "state", c.state)
 	if preprepare.PreparedMessages != nil && preprepare.PreparedMessages.messages != nil {
-		if c.validateFn != nil {
-			if err := validateMsgSignature(preprepare.PreparedMessages.messages, c.validateFn); err != nil {
-				logger.Error("Unable to validate round change message signature", "err", err)
-				return false
-			}
-		}
 		// Number of prepared messages should not be less than Quorum of messages
 		if len(preprepare.PreparedMessages.messages) < c.QuorumSize() {
 			logger.Error("Quorum of Prepared messages not found in Preprepare messages")

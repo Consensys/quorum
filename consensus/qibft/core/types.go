@@ -134,18 +134,87 @@ func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.
 
 	// Validate message (on a message without Signature)
 	if validateFn != nil {
-		var payload []byte
-		payload, err = m.PayloadNoSig()
-		if err != nil {
+		// Verify messages signature
+		if err = verifySignature(m, validateFn); err != nil {
 			return err
 		}
+		// Verify signature of piggyback messages
+		if m.Code == msgPreprepare {
+			if err = decodeAndVerifyPrepreparePiggyBackMsgs(m, validateFn); err != nil {
+				return err
+			}
+		}
+		if m.Code == msgRoundChange {
+			if err = decodeAndVerifyRoundChangePiggyBackMsgs(m, validateFn); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
 
-		signerAdd, err := validateFn(payload, m.Signature)
-		if err != nil {
+// decodeAndVerifyPrepreparePiggyBackMsgs decodes the given PRE-PREPARE message and verifies the signature of the piggybacked
+// ROUNDCHANGE and PREPARE messages
+func decodeAndVerifyPrepreparePiggyBackMsgs(m *message, validateFn func([]byte, []byte) (common.Address, error)) error {
+	// First decode preprepare message
+	var preprepare *Preprepare
+	err := m.Decode(&preprepare)
+	if err != nil {
+		return errFailedDecodePreprepare
+	}
+	if preprepare.RCMessages != nil && preprepare.RCMessages.messages != nil {
+		if err = verifyPiggyBackMsgSignatures(preprepare.RCMessages.messages, validateFn); err != nil {
 			return err
 		}
-		if !bytes.Equal(signerAdd.Bytes(), m.Address.Bytes()) {
-			return errInvalidSigner
+	}
+	if preprepare.PreparedMessages != nil && preprepare.PreparedMessages.messages != nil {
+		if err = verifyPiggyBackMsgSignatures(preprepare.PreparedMessages.messages, validateFn); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// decodeAndVerifyRoundChangePiggyBackMsgs decodes the given ROUNDCHANGE message and verfies the signature of the piggybacked
+// PREPARE messages
+func decodeAndVerifyRoundChangePiggyBackMsgs(m *message, validateFn func([]byte, []byte) (common.Address, error)) error {
+	// First decode Round change message
+	var rc *RoundChangeMessage
+	err := m.Decode(&rc)
+	if err != nil {
+		return errFailedDecodeRoundChange
+	}
+	if rc.PreparedMessages != nil && rc.PreparedMessages.messages != nil {
+		if err = verifyPiggyBackMsgSignatures(rc.PreparedMessages.messages, validateFn); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// verifySignature verifies the signature of the given message
+func verifySignature(m *message, validateFn func([]byte, []byte) (common.Address, error)) error {
+	var payload []byte
+	payload, err := m.PayloadNoSig()
+	if err != nil {
+		return err
+	}
+
+	signerAdd, err := validateFn(payload, m.Signature)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(signerAdd.Bytes(), m.Address.Bytes()) {
+		return errInvalidSigner
+	}
+	return nil
+}
+
+// verifyPiggyBackMsgSignatures verifies signatures of piggyback messages which are sent as part of PRE-PREPARE or ROUNDCHANGE messages
+func verifyPiggyBackMsgSignatures(messages map[common.Address]*message, validateFn func([]byte, []byte) (common.Address, error)) error {
+	for _, msg := range messages {
+		if err := verifySignature(msg, validateFn); err != nil {
+			return err
 		}
 	}
 	return nil

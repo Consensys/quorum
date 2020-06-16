@@ -35,6 +35,8 @@ var (
 	errInvalidMessage = errors.New("invalid message")
 	// errFailedDecodePreprepare is returned when the PRE-PREPARE message is malformed.
 	errFailedDecodePreprepare = errors.New("failed to decode PRE-PREPARE")
+	// errFailedDecodeRoundChange is returned when the ROUNDCHANGE message is malformed.
+	errFailedDecodeRoundChange = errors.New("failed to decode ROUNDCHANGE")
 	// errFailedDecodePrepare is returned when the PREPARE message is malformed.
 	errFailedDecodePrepare = errors.New("failed to decode PREPARE")
 	// errFailedDecodeCommit is returned when the COMMIT message is malformed.

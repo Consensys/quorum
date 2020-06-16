@@ -80,20 +80,11 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 	var rc *RoundChangeMessage
 	if err := msg.Decode(&rc); err != nil {
 		logger.Error("Failed to decode ROUND CHANGE", "err", err)
-		return errInvalidMessage
+		return errFailedDecodeRoundChange
 	}
 
 	if err := c.checkMessage(msgRoundChange, rc.View); err != nil {
 		return err
-	}
-
-	if rc.PreparedMessages != nil && rc.PreparedMessages.messages != nil {
-		if c.validateFn != nil {
-			if err := validateMsgSignature(rc.PreparedMessages.messages, c.validateFn); err != nil {
-				logger.Error("Unable to validate round change message signature", "err", err)
-				return err
-			}
-		}
 	}
 
 	cv := c.currentView()
