@@ -79,9 +79,13 @@ func TestGenerateTransactionOptionsErrorsWhenNoPrivateParticipants(t *testing.T)
 	}
 
 	mockBackend := MockBackend{}
-	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend))
+	accountManager := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend)
 
-	_, err := manager.GenerateTransactOptions(sendTxArgs)
+	service := &PrivacyService{
+		accountManager: accountManager,
+	}
+
+	_, err := service.GenerateTransactOptions(sendTxArgs)
 	if err == nil {
 		t.Errorf("expected err to not be nil")
 		return
@@ -100,9 +104,13 @@ func TestGenerateTransactionOptionsErrorsWhenAccountNotFound(t *testing.T) {
 	}
 
 	mockBackend := MockBackend{}
-	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend))
+	accountManager := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend)
 
-	_, err := manager.GenerateTransactOptions(sendTxArgs)
+	service := &PrivacyService{
+		accountManager: accountManager,
+	}
+
+	_, err := service.GenerateTransactOptions(sendTxArgs)
 	if err == nil {
 		t.Errorf("expected err to not be nil")
 		return
@@ -125,9 +133,12 @@ func TestGenerateTransactionOptionsGivesDefaults(t *testing.T) {
 
 	mockWallet := &MockWallet{isContained: true}
 	mockBackend := MockBackend{wallets: []accounts.Wallet{mockWallet}}
-	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend))
+	accountManager := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend)
+	service := &PrivacyService{
+		accountManager: accountManager,
+	}
 
-	generatedOptions, err := manager.GenerateTransactOptions(sendTxArgs)
+	generatedOptions, err := service.GenerateTransactOptions(sendTxArgs)
 	if err != nil {
 		t.Errorf("expected err to be '%s', but was '%s'", "nil", err.Error())
 		return
@@ -173,9 +184,12 @@ func TestGenerateTransactionOptionsGivesNonDefaultsWhenSpecified(t *testing.T) {
 
 	mockWallet := &MockWallet{isContained: true}
 	mockBackend := MockBackend{wallets: []accounts.Wallet{mockWallet}}
-	manager := NewAccountManager(accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend))
+	accountManager := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true}, &mockBackend)
+	service := &PrivacyService{
+		accountManager: accountManager,
+	}
 
-	generatedOptions, err := manager.GenerateTransactOptions(sendTxArgs)
+	generatedOptions, err := service.GenerateTransactOptions(sendTxArgs)
 	if err != nil {
 		t.Errorf("expected err to be '%s', but was '%s'", "nil", err.Error())
 		return

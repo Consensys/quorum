@@ -103,7 +103,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address,
 		return "", errors.New("account cannot accept extension")
 	}
 
-	txArgs, err := api.privacyService.accountManager.GenerateTransactOptions(txa)
+	txArgs, err := api.privacyService.GenerateTransactOptions(txa)
 	if err != nil {
 		return "", err
 	}
@@ -185,7 +185,7 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	}
 
 	//generate some valid transaction options for sending in the transaction
-	txArgs, err := api.privacyService.accountManager.GenerateTransactOptions(txa)
+	txArgs, err := api.privacyService.GenerateTransactOptions(txa)
 	if err != nil {
 		return "", err
 	}
@@ -224,7 +224,7 @@ func (api *PrivateExtensionAPI) CancelExtension(extensionContract common.Address
 		return "", errors.New("contract extension process complete. nothing to cancel")
 	}
 
-	txArgs, err := api.privacyService.accountManager.GenerateTransactOptions(txa)
+	txArgs, err := api.privacyService.GenerateTransactOptions(txa)
 	if err != nil {
 		return "", err
 	}

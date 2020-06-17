@@ -4,8 +4,11 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"math/big"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -21,10 +24,9 @@ import (
 )
 
 type PrivacyService struct {
-	ptm private.PrivateTransactionManager
-
+	ptm                      private.PrivateTransactionManager
 	stateFetcher             *StateFetcher
-	accountManager           IAccountManager
+	accountManager           *accounts.Manager
 	dataHandler              DataHandler
 	managementContractFacade ManagementContractFacade
 	extClient                Client
@@ -33,6 +35,16 @@ type PrivacyService struct {
 	mu               sync.Mutex
 	currentContracts map[common.Address]*ExtensionContract
 }
+
+var (
+	//default gas limit to use if not passed in sendTxArgs
+	defaultGasLimit = uint64(4712384)
+	//default gas price to use if not passed in sendTxArgs
+	defaultGasPrice = big.NewInt(0)
+
+	//Private participants must be specified for contract extension related transactions
+	errNotPrivate = errors.New("must specify private participants")
+)
 
 // to signal all watches when service is stopped
 type stopEvent struct {
@@ -44,7 +56,7 @@ func (service *PrivacyService) subscribeStopEvent() (chan stopEvent, event.Subsc
 	return c, s
 }
 
-func New(ptm private.PrivateTransactionManager, manager IAccountManager, handler DataHandler, fetcher *StateFetcher) (*PrivacyService, error) {
+func New(ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher) (*PrivacyService, error) {
 	service := &PrivacyService{
 		currentContracts: make(map[common.Address]*ExtensionContract),
 		ptm:              ptm,
@@ -240,7 +252,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						return
 					}
 					log.Debug("Extension: check if this node has the account that created the contract extender", "account", contractCreator)
-					if !service.accountManager.Exists(contractCreator) {
+					if _, err := service.accountManager.Find(accounts.Account{Address: contractCreator}); err != nil {
 						log.Warn("Account used to sign extension contract no longer available", "account", contractCreator.Hex())
 						return
 					}
@@ -254,7 +266,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 					}
 					log.Debug("Extension: able to fetch all parties", "parties", fetchedParties)
 
-					txArgs, err := service.accountManager.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties})
+					txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties})
 					if err != nil {
 						log.Error("service.accountManager.GenerateTransactOptions", "error", err, "contractCreator", contractCreator.Hex(), "privateFor", fetchedParties)
 						return
@@ -336,4 +348,32 @@ func (service *PrivacyService) Stop() error {
 	service.stopFeed.Send(stopEvent{})
 	log.Info("extension service: stopped")
 	return nil
+}
+
+func (service *PrivacyService) GenerateTransactOptions(txa ethapi.SendTxArgs) (*bind.TransactOpts, error) {
+	if txa.PrivateFor == nil {
+		return nil, errNotPrivate
+	}
+	from := accounts.Account{Address: txa.From}
+	wallet, err := service.accountManager.Find(from)
+
+	if err != nil {
+		return nil, fmt.Errorf("no wallet found for account %s", txa.From.String())
+	}
+
+	//Find the account we plan to send the transaction from
+
+	txArgs := bind.NewWalletTransactor(wallet, from)
+	txArgs.PrivateFrom = txa.PrivateFrom
+	txArgs.PrivateFor = txa.PrivateFor
+	txArgs.GasLimit = defaultGasLimit
+	txArgs.GasPrice = defaultGasPrice
+
+	if txa.GasPrice != nil {
+		txArgs.GasPrice = txa.GasPrice.ToInt()
+	}
+	if txa.Gas != nil {
+		txArgs.GasLimit = uint64(*txa.Gas)
+	}
+	return txArgs, nil
 }

@@ -1,6 +1,7 @@
 package extension
 
 import (
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/extension/privacyExtension"
 	"github.com/ethereum/go-ethereum/node"
@@ -10,14 +11,14 @@ import (
 type ServicesFactory interface {
 	BackendService() *PrivacyService
 
-	AccountManager() IAccountManager
+	AccountManager() *accounts.Manager
 	DataHandler() DataHandler
 	StateFetcher() *StateFetcher
 }
 
 type DefaultServicesFactory struct {
 	backendService *PrivacyService
-	accountManager *AccountManager
+	accountManager *accounts.Manager
 	dataHandler    *JsonFileDataHandler
 	stateFetcher   *StateFetcher
 }
@@ -25,7 +26,7 @@ type DefaultServicesFactory struct {
 func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, ethService *eth.Ethereum) (*DefaultServicesFactory, error) {
 	factory := &DefaultServicesFactory{}
 
-	factory.accountManager = NewAccountManager(ethService.AccountManager())
+	factory.accountManager = ethService.AccountManager()
 	factory.dataHandler = NewJsonFileDataHandler(node.InstanceDir())
 	factory.stateFetcher = NewStateFetcher(ethService.BlockChain())
 
@@ -46,7 +47,7 @@ func (factory *DefaultServicesFactory) BackendService() *PrivacyService {
 	return factory.backendService
 }
 
-func (factory *DefaultServicesFactory) AccountManager() IAccountManager {
+func (factory *DefaultServicesFactory) AccountManager() *accounts.Manager {
 	return factory.accountManager
 }
 

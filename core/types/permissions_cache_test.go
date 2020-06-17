@@ -375,7 +375,6 @@ func Test_checkIfOrgActive(t *testing.T) {
 	OrgInfoMap.UpsertOrg("ORG6", "ORG5", "ORG5", big.NewInt(2), OrgApproved)
 	OrgInfoMap.UpsertOrg("ORG7", "ORG5", "ORG5", big.NewInt(2), OrgSuspended)
 
-
 	type args struct {
 		orgId string
 	}
@@ -420,7 +419,6 @@ func Test_checkIfOrgActive(t *testing.T) {
 			args: args{orgId: "ORG5.ORG7"},
 			want: false,
 		},
-
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
