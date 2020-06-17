@@ -540,9 +540,12 @@ func GetAcctAccess(acctId common.Address) AccessType {
 //checks if the given org is active in the network
 func checkIfOrgActive(orgId string) bool {
 	o, _ := OrgInfoMap.GetOrg(orgId)
-	if o != nil && (o.Status == OrgApproved || o.Status == OrgPendingSuspension) {
+	if o != nil && o.Status != OrgSuspended {
 		u, _ := OrgInfoMap.GetOrg(o.UltimateParent)
-		if u != nil && (u.Status == OrgApproved || u.Status == OrgPendingSuspension) {
+		if u == nil {
+			return true
+		}
+		if u != nil && u.Status != OrgSuspended {
 			return true
 		}
 	}

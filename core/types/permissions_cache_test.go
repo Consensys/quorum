@@ -364,3 +364,69 @@ func TestCheckIfAdminAccount(t *testing.T) {
 		})
 	}
 }
+
+func Test_checkIfOrgActive(t *testing.T) {
+	OrgInfoMap = NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
+	OrgInfoMap.UpsertOrg("ORG1", "", "ORG1", big.NewInt(1), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG2", "", "ORG2", big.NewInt(1), OrgPendingSuspension)
+	OrgInfoMap.UpsertOrg("ORG3", "ORG1", "ORG1", big.NewInt(2), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG4", "ORG2", "ORG2", big.NewInt(2), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG5", "", "ORG5", big.NewInt(1), OrgSuspended)
+	OrgInfoMap.UpsertOrg("ORG6", "ORG5", "ORG5", big.NewInt(2), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG7", "ORG5", "ORG5", big.NewInt(2), OrgSuspended)
+
+
+	type args struct {
+		orgId string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "Org is approved",
+			args: args{orgId: "ORG1"},
+			want: true,
+		},
+		{
+			name: "Org under suspension",
+			args: args{orgId: "ORG2"},
+			want: true,
+		},
+		{
+			name: "Sub org approved",
+			args: args{orgId: "ORG1.ORG3"},
+			want: true,
+		},
+		{
+			name: "Sub org approved under a pending suspension org",
+			args: args{orgId: "ORG2.ORG4"},
+			want: true,
+		},
+		{
+			name: "Org suspended",
+			args: args{orgId: "ORG5"},
+			want: false,
+		},
+		{
+			name: "Approved sub org under a suspended org",
+			args: args{orgId: "ORG5.ORG6"},
+			want: false,
+		},
+		{
+			name: "Suspended sub org under a suspended org",
+			args: args{orgId: "ORG5.ORG7"},
+			want: false,
+		},
+
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := checkIfOrgActive(tt.args.orgId); got != tt.want {
+				t.Errorf("checkIfOrgActive() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
