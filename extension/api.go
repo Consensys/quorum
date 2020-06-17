@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/private"
 )
 
 var (
@@ -22,13 +21,11 @@ const extensionInProgress = "ACTIVE"
 
 type PrivateExtensionAPI struct {
 	privacyService *PrivacyService
-	ptm            private.PrivateTransactionManager
 }
 
-func NewPrivateExtensionAPI(privacyService *PrivacyService, ptm private.PrivateTransactionManager) *PrivateExtensionAPI {
+func NewPrivateExtensionAPI(privacyService *PrivacyService) *PrivateExtensionAPI {
 	return &PrivateExtensionAPI{
 		privacyService: privacyService,
-		ptm:            ptm,
 	}
 }
 
@@ -119,7 +116,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address,
 	if api.checkAlreadyVoted(addressToVoteOn, txArgs.From) {
 		return "", errors.New("already voted")
 	}
-	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.ptm)
+	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.privacyService.ptm)
 	if err != nil {
 		return "", err
 	}

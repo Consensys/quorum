@@ -83,7 +83,7 @@ func (service *PrivacyService) initialise(node *node.Node) {
 		panic("extension: could not connect to ethereum client rpc")
 	}
 
-	client, _ := ethclient.NewClient(rpcClient).WithPTM(service.ptm)
+	client := ethclient.NewClientWithPTM(rpcClient, service.ptm)
 	service.managementContractFacade = NewManagementContractFacade(client)
 	service.extClient = NewInProcessClient(client)
 
@@ -163,7 +163,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 
 					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties}
 
-					extensionAPI := NewPrivateExtensionAPI(service, service.ptm)
+					extensionAPI := NewPrivateExtensionAPI(service)
 					_, err = extensionAPI.ApproveExtension(newContractExtension.ManagementContractAddress, true, txArgs)
 
 					if err != nil {
@@ -332,7 +332,7 @@ func (service *PrivacyService) APIs() []rpc.API {
 		{
 			Namespace: "quorumExtension",
 			Version:   "1.0",
-			Service:   NewPrivateExtensionAPI(service, service.ptm),
+			Service:   NewPrivateExtensionAPI(service),
 			Public:    true,
 		},
 	}
