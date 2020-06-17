@@ -3,6 +3,7 @@ package log
 const (
 	TxCreated          = "TX-CREATED"
 	TxAccepted         = "TX-ACCEPTED"
+	TxCompleted        = "TX-COMPLETED"
 	BecameMinter       = "BECAME-MINTER"
 	BecameVerifier     = "BECAME-VERIFIER"
 	BecameLearner      = "BECAME-LEARNER"

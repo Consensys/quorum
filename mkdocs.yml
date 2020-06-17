@@ -71,6 +71,9 @@ nav:
               - Setup: Permissioning/Enhanced Permissions Model/setup.md
               - APIs: Permissioning/Enhanced Permissions Model/Permissioning apis.md
               - Usage: Permissioning/Enhanced Permissions Model/Usage.md
+        - Safeguarding Private Keys:
+            - Overview: Safeguarding-Private-Keys/Overview.md
+            - Clef for Quorum: Safeguarding-Private-Keys/Clef-for-Quorum.md
         - Pluggable Architecture:
             - Overview: PluggableArchitecture/Overview.md
             - Settings: PluggableArchitecture/Settings.md
@@ -110,7 +113,6 @@ nav:
         - Adding new nodes: How-To-Guides/adding_nodes.md
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
         - Backup & Restore: How-To-Guides/import-export.md
-        - External Signer with Clef: How-To-Guides/external-signer.md
         - Quorum/Tessera HA Setup: How-To-Guides/HA_Setup.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
