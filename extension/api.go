@@ -22,14 +22,12 @@ const extensionInProgress = "ACTIVE"
 
 type PrivateExtensionAPI struct {
 	privacyService *PrivacyService
-	accountManager IAccountManager
 	ptm            private.PrivateTransactionManager
 }
 
-func NewPrivateExtensionAPI(privacyService *PrivacyService, accountManager IAccountManager, ptm private.PrivateTransactionManager) *PrivateExtensionAPI {
+func NewPrivateExtensionAPI(privacyService *PrivacyService, ptm private.PrivateTransactionManager) *PrivateExtensionAPI {
 	return &PrivateExtensionAPI{
 		privacyService: privacyService,
-		accountManager: accountManager,
 		ptm:            ptm,
 	}
 }
@@ -105,7 +103,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address,
 		return "", errors.New("account cannot accept extension")
 	}
 
-	txArgs, err := api.accountManager.GenerateTransactOptions(txa)
+	txArgs, err := api.privacyService.accountManager.GenerateTransactOptions(txa)
 	if err != nil {
 		return "", err
 	}
@@ -187,7 +185,7 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	}
 
 	//generate some valid transaction options for sending in the transaction
-	txArgs, err := api.accountManager.GenerateTransactOptions(txa)
+	txArgs, err := api.privacyService.accountManager.GenerateTransactOptions(txa)
 	if err != nil {
 		return "", err
 	}
@@ -226,7 +224,7 @@ func (api *PrivateExtensionAPI) CancelExtension(extensionContract common.Address
 		return "", errors.New("contract extension process complete. nothing to cancel")
 	}
 
-	txArgs, err := api.accountManager.GenerateTransactOptions(txa)
+	txArgs, err := api.privacyService.accountManager.GenerateTransactOptions(txa)
 	if err != nil {
 		return "", err
 	}

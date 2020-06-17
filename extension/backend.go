@@ -151,7 +151,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 
 					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties}
 
-					extensionAPI := NewPrivateExtensionAPI(service, service.accountManager, service.ptm)
+					extensionAPI := NewPrivateExtensionAPI(service, service.ptm)
 					_, err = extensionAPI.ApproveExtension(newContractExtension.ManagementContractAddress, true, txArgs)
 
 					if err != nil {
@@ -320,7 +320,7 @@ func (service *PrivacyService) APIs() []rpc.API {
 		{
 			Namespace: "quorumExtension",
 			Version:   "1.0",
-			Service:   NewPrivateExtensionAPI(service, service.accountManager, service.ptm),
+			Service:   NewPrivateExtensionAPI(service, service.ptm),
 			Public:    true,
 		},
 	}
