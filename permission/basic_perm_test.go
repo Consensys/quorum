@@ -52,7 +52,7 @@ const (
 var ErrAccountsLinked = errors.New("Accounts linked to the role. Cannot be removed")
 var ErrPendingApproval = errors.New("Pending approvals for the organization. Approve first")
 var ErrAcctBlacklisted = errors.New("Blacklisted account. Operation not allowed")
-var ErrNodeBlacklisted = errors.New("Blacklisted node. Operation not allowed")
+var ErrNodeBlacklisted = errors.New("Blacklisted Node. Operation not allowed")
 
 var (
 	guardianKey     *ecdsa.PrivateKey
@@ -122,7 +122,7 @@ func setup() {
 	if err = stack.Register(func(ctx *node.ServiceContext) (node.Service, error) { return eth.New(ctx, ethConf) }); err != nil {
 		t.Fatalf("failed to register Ethereum protocol: %v", err)
 	}
-	// Start the node and assemble the JavaScript console around it
+	// Start the Node and assemble the JavaScript console around it
 	if err = stack.Start(); err != nil {
 		t.Fatalf("failed to start test stack: %v", err)
 	}
@@ -185,14 +185,14 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 	err := testObject.AfterStart()
 
 	assert.NoError(t, err)
-	assert.NotNil(t, testObject.permOrg)
-	assert.NotNil(t, testObject.permRole)
-	assert.NotNil(t, testObject.permNode)
-	assert.NotNil(t, testObject.permAcct)
-	assert.NotNil(t, testObject.permInterf)
-	assert.NotNil(t, testObject.permUpgr)
+	assert.NotNil(t, testObject.PermOrg)
+	assert.NotNil(t, testObject.PermRole)
+	assert.NotNil(t, testObject.PermNode)
+	assert.NotNil(t, testObject.PermAcct)
+	assert.NotNil(t, testObject.PermInterf)
+	assert.NotNil(t, testObject.PermUpgr)
 
-	isNetworkInitialized, err := testObject.permInterf.GetNetworkBootStatus(&bind.CallOpts{
+	isNetworkInitialized, err := testObject.PermInterf.GetNetworkBootStatus(&bind.CallOpts{
 		Pending: true,
 	})
 	assert.NoError(t, err)
@@ -350,17 +350,9 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	_, err := testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	connAllowed, err := testObject.ConnectionAllowed(arbitraryNode2, txa)
-	assert.NoError(t, err)
-	assert.Equal(t, connAllowed, false)
-
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
-
-	connAllowed, err = testObject.ConnectionAllowed(arbitraryNode2, txa)
-	assert.NoError(t, err)
-	assert.Equal(t, connAllowed, true)
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(SuspendNode), invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -369,17 +361,9 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeDeactivated)
 
-	connAllowed, err = testObject.ConnectionAllowed(arbitraryNode2, txa)
-	assert.NoError(t, err)
-	assert.Equal(t, connAllowed, false)
-
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(ActivateSuspendedNode), txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
-
-	connAllowed, err = testObject.ConnectionAllowed(arbitraryNode2, txa)
-	assert.NoError(t, err)
-	assert.Equal(t, connAllowed, true)
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(BlacklistNode), txa)
 	assert.NoError(t, err)
@@ -402,8 +386,8 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
 
-	// caching tests - cache size for node is 3. add 2 nodes which will
-	// result in node eviction from cache. get evicted node details using api
+	// caching tests - cache size for Node is 3. add 2 nodes which will
+	// result in Node eviction from cache. get evicted Node details using api
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode3, txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode3, types.NodeApproved)
@@ -414,7 +398,7 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 
 	assert.Equal(t, nodeCacheSize, len(types.NodeInfoMap.GetNodeList()))
 	nodeInfo, err := types.NodeInfoMap.GetNodeByUrl(arbitraryNode4)
-	assert.True(t, err == nil, "node fetch returned error")
+	assert.True(t, err == nil, "Node fetch returned error")
 	assert.Equal(t, types.NodeApproved, nodeInfo.Status)
 }
 
@@ -433,20 +417,12 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	actAllowed, err := testObject.TransactionAllowed(acct, acct, txa)
-	assert.Equal(t, actAllowed, false)
-	assert.NoError(t, err)
-
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, types.AcctActive)
-
-	actAllowed, err = testObject.TransactionAllowed(acct, acct, txa)
-	assert.NoError(t, err)
-	assert.Equal(t, actAllowed, true)
 
 	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(types.FullAccess), false, false, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -489,10 +465,6 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctSuspended)
 
-	actAllowed, err = testObject.TransactionAllowed(acct, acct, txa)
-	assert.Equal(t, actAllowed, false)
-	assert.NoError(t, err)
-
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctActive)
@@ -500,10 +472,6 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(BlacklistAccount), txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctBlacklisted)
-
-	actAllowed, err = testObject.TransactionAllowed(acct, acct, txa)
-	assert.Equal(t, actAllowed, false)
-	assert.NoError(t, err)
 
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
 	assert.Equal(t, err, ErrAcctBlacklisted)
@@ -557,7 +525,7 @@ func getArbitraryAccount() common.Address {
 	return crypto.PubkeyToAddress(acctKey.PublicKey)
 }
 
-func typicalPermissionCtrl(t *testing.T) *PermissionCtrl {
+func typicalPermissionCtrl(t *testing.T) *BasicPermissionCtrl {
 	testObject, err := NewQuorumPermissionCtrl(stack, &types.PermissionConfig{
 		UpgrdAddress:   permUpgrAddress,
 		InterfAddress:  permInterfaceAddress,
@@ -588,7 +556,7 @@ func typicalPermissionCtrl(t *testing.T) *PermissionCtrl {
 }
 
 func tmpKeyStore(encrypted bool) (string, *keystore.KeyStore, error) {
-	d, err := ioutil.TempDir("", "eth-keystore-test")
+	d, err := ioutil.TempDir("", "Eth-keystore-test")
 	if err != nil {
 		return "", nil, err
 	}
@@ -611,18 +579,18 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	d, _ := ioutil.TempDir("", "qdata")
 	defer os.RemoveAll(d)
 
-	testObject.dataDir = d
+	testObject.DataDir = d
 	testObject.updatePermissionedNodes(arbitraryNode1, NodeAdd)
 
 	permFile, _ := os.Create(d + "/" + "permissioned-nodes.json")
 
-	testObject.updateFile("testFile", arbitraryNode2, NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
+	testObject.UpdateFile("testFile", arbitraryNode2, NodeAdd, false)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode2, NodeAdd, false)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode1, NodeAdd, false)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
 
 	blob, err := ioutil.ReadFile(permFile.Name())
 	var nodeList []string
@@ -681,7 +649,7 @@ func TestParsePermissionConfig(t *testing.T) {
 
 	blob, err := json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
-		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)
+		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
 	_, err = ParsePermissionConfig(d)
 	assert.True(t, err != nil, "expected sub org depth not set error")
@@ -691,7 +659,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	tmpPermCofig.SubOrgDepth.Set(big.NewInt(4))
 	blob, _ = json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
-		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)
+		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
 	_, err = ParsePermissionConfig(d)
 	assert.True(t, err != nil, "expected account not given  error")
@@ -700,7 +668,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	tmpPermCofig.Accounts = append(tmpPermCofig.Accounts, common.StringToAddress("0xed9d02e382b34818e88b88a309c7fe71e65f419d"))
 	blob, err = json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
-		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)
+		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
 	_, err = ParsePermissionConfig(d)
 	assert.True(t, err != nil, "expected contract address error")
@@ -709,7 +677,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	tmpPermCofig.InterfAddress = common.StringToAddress("0xed9d02e382b34818e88b88a309c7fe71e65f419d")
 	blob, err = json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
-		t.Fatal("Error writing new node info to file", "fileName", fileName, "err", err)
+		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
 	permConfig, err := ParsePermissionConfig(d)
 	assert.False(t, permConfig.IsEmpty(), "expected non empty object")

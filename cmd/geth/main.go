@@ -20,6 +20,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/permission"
 	"math"
 	"os"
 	"runtime"
@@ -43,7 +44,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/permission"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -456,13 +456,28 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	//
 	// checking if permissions is enabled and staring the permissions service
 	if stack.IsPermissionEnabled() {
-		var permissionService *permission.PermissionCtrl
-		if err := stack.Service(&permissionService); err != nil {
-			utils.Fatalf("Permission service not runnning: %v", err)
+		eeaFlag := ctx.GlobalBool(utils.PermEeaModeFlag.Name)
+		// TODO (Amal) removie
+		eeaFlag = true
+		if(eeaFlag){
+			var permissionService *permission.EeaPermissionCtrl
+			if err := stack.Service(&permissionService); err != nil {
+				utils.Fatalf("Permission service not runnning: %v", err)
+			}
+			if err := permissionService.AfterStart(); err != nil {
+				utils.Fatalf("Permission service post construct failure: %v", err)
+			}
+		} else {
+			// TODO (Amal) update with basic permission
+			/*var permissionService *permission.BasicPermissionCtrl
+			if err := stack.Service(&permissionService); err != nil {
+				utils.Fatalf("Permission service not runnning: %v", err)
+			}
+			if err := permissionService.AfterStart(); err != nil {
+				utils.Fatalf("Permission service post construct failure: %v", err)
+			}*/
 		}
-		if err := permissionService.AfterStart(); err != nil {
-			utils.Fatalf("Permission service post construct failure: %v", err)
-		}
+
 	}
 
 	// Start auxiliary services if enabled

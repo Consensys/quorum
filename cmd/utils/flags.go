@@ -771,6 +771,11 @@ var (
 		Usage: "overrides the default immutability threshold for Quorum nodes. Its the threshold beyond which block data will be moved to ancient db",
 		Value: 3162240,
 	}
+	// Permission EEA flags
+	PermEeaModeFlag = cli.BoolFlag{
+		Name:  "permeea",
+		Usage: "If enabled, uses EEA version of permission contract",
+	}
 	// Raft flags
 	RaftModeFlag = cli.BoolFlag{
 		Name:  "raft",
@@ -1791,18 +1796,34 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 }
 
 // Configure smart-contract-based permissioning service
-func RegisterPermissionService(stack *node.Node) {
+func RegisterPermissionService(stack *node.Node, ctx *cli.Context) {
 	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
+		eeaFlag := ctx.GlobalBool(PermEeaModeFlag.Name)
+		// TODO (Amal) remove it
+		eeaFlag = true
 		permissionConfig, err := permission.ParsePermissionConfig(stack.DataDir())
 		if err != nil {
 			return nil, fmt.Errorf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}
 		// start the permissions management service
-		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig)
+		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig, eeaFlag)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}
-		return pc, nil
+		if eeaFlag {
+			if srvc, ok := pc.(*permission.EeaPermissionCtrl); ok {
+				return srvc, nil
+			}
+			Fatalf("Failed to register the eea permission service: %v", err)
+		} else {
+			// TODO (Amal) add basic permission service
+			/*if srvc, ok := pc.(*permission.EeaPermissionCtrl); ok {
+				return srvc, nil
+			}
+			Fatalf("Failed to register the basic permission service: %v", err)*/
+		}
+
+		return nil, fmt.Errorf("Failed to register the permission service")
 	}); err != nil {
 		Fatalf("Failed to register the permission service: %v", err)
 	}
