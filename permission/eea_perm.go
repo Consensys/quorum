@@ -182,7 +182,7 @@ func (p *EeaPermissionCtrl) APIs() []rpc.API {
 		{
 			Namespace: "quorumPermission",
 			Version:   "1.0",
-			Service:   NewQuorumControlsAPI(p),
+			//Service:   NewQuorumControlsAPI(p),
 			Public:    true,
 		},
 	}

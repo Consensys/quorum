@@ -50,123 +50,6 @@ type BasicPermissionCtrl struct {
 	mux sync.Mutex
 }
 
-/*func (p *BasicPermissionCtrl) MonitorQIP714Block() error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) ManageOrgPermissions() error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) SubscribeStopEvent() (chan types.StopEvent, event.Subscription) {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) ManageNodePermissions() error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) UpdateFile(fileName, enodeId string, operation types.types.NodeOperation, createFile bool) {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) UpdatePermissionedNodes(enodeId string, operation types.types.NodeOperation) {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) UpdateDisallowedNodes(url string, operation types.types.NodeOperation) {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) ManageAccountPermissions() error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) DisconnectNode(enodeId string) {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) InstantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int) {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int) error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) BootupNetwork(permInterfSession *pbind.EeaPermInterfaceSession) error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateAccountsFromContract(auth *bind.TransactOpts) error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateRolesFromContract(auth *bind.TransactOpts) error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateNodesFromContract(auth *bind.TransactOpts) error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateOrgsFromContract(auth *bind.TransactOpts) error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateStaticNodesToContract(permissionsSession *pbind.EeaPermInterfaceSession) error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateInitAccountAccess(permissionsSession *pbind.EeaPermInterfaceSession) error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) UpdateNetworkStatus(permissionsSession *pbind.EeaPermInterfaceSession) error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) ManageRolePermissions() error {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateAccountToCache(acctId common.Address) (*types.AccountInfo, error) {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateOrgToCache(orgId string) (*types.OrgInfo, error) {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateRoleToCache(roleKey *types.RoleKey) (*types.RoleInfo, error) {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateNodeCache(url string) (*types.NodeInfo, error) {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PopulateNodeCacheAndValidate(hexNodeId, ultimateParentId string) bool {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) BlockChain() *core.BlockChain {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PermissionConfig() *types.PermissionConfig {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) Ethereum() *eth.Ethereum {
-	panic("implement me")
-}
-
-func (p *BasicPermissionCtrl) PermissionInterface() interface{} {
-	panic("implement me")
-}
-*/
-
 func (p *BasicPermissionCtrl) PermissionInterface() interface{} {
 	return p.PermInterf
 }
@@ -299,7 +182,7 @@ func (p *BasicPermissionCtrl) APIs() []rpc.API {
 		{
 			Namespace: "quorumPermission",
 			Version:   "1.0",
-			Service:   NewQuorumControlsAPI(p),
+			//Service:   NewQuorumControlsAPI(p),
 			Public:    true,
 		},
 	}
@@ -489,7 +372,7 @@ func (p *BasicPermissionCtrl) ManageNodePermissions() error {
 }
 
 // adds or deletes and entry from a given file
-func (p *BasicPermissionCtrl) UpdateFile(fileName, enodeId string, operation types.types.NodeOperation, createFile bool) {
+func (p *BasicPermissionCtrl) UpdateFile(fileName, enodeId string, operation types.NodeOperation, createFile bool) {
 	// Load the nodes from the config file
 	var nodeList []string
 	index := 0

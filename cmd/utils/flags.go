@@ -1810,20 +1810,7 @@ func RegisterPermissionService(stack *node.Node, ctx *cli.Context) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}
-		if eeaFlag {
-			if srvc, ok := pc.(*permission.EeaPermissionCtrl); ok {
-				return srvc, nil
-			}
-			Fatalf("Failed to register the eea permission service: %v", err)
-		} else {
-			// TODO (Amal) add basic permission service
-			/*if srvc, ok := pc.(*permission.EeaPermissionCtrl); ok {
-				return srvc, nil
-			}
-			Fatalf("Failed to register the basic permission service: %v", err)*/
-		}
-
-		return nil, fmt.Errorf("Failed to register the permission service")
+		return pc, nil
 	}); err != nil {
 		Fatalf("Failed to register the permission service: %v", err)
 	}
