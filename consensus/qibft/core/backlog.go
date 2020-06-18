@@ -91,16 +91,16 @@ func (c *core) storeBacklog(msg *message, src istanbul.Validator) {
 	}
 	switch msg.Code {
 	case msgPreprepare:
-		var p *Preprepare
+		var p *PreprepareWithPiggybackMsgs
 		err := msg.Decode(&p)
 		if err == nil {
-			backlog.Push(msg, toPriority(msg.Code, p.View))
+			backlog.Push(msg, toPriority(msg.Code, p.Preprepare.View))
 		}
 	case msgRoundChange:
-		var p *RoundChangeMessage
+		var p *RoundChangePiggybackMsgs
 		err := msg.Decode(&p)
 		if err == nil {
-			backlog.Push(msg, toPriority(msg.Code, p.View))
+			backlog.Push(msg, toPriority(msg.Code, p.RoundChangeMessage.View))
 		}
 		// for msgPrepare and msgCommit cases
 	default:
@@ -139,16 +139,16 @@ func (c *core) processBacklog() {
 			var view *View
 			switch msg.Code {
 			case msgPreprepare:
-				var m *Preprepare
+				var m *PreprepareWithPiggybackMsgs
 				err := msg.Decode(&m)
 				if err == nil {
-					view = m.View
+					view = m.Preprepare.View
 				}
 			case msgRoundChange:
-				var rc *RoundChangeMessage
+				var rc *RoundChangePiggybackMsgs
 				err := msg.Decode(&rc)
 				if err == nil {
-					view = rc.View
+					view = rc.RoundChangeMessage.View
 				}
 				// for msgPrepare and msgCommit cases
 			default:

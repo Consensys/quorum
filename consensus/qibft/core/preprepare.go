@@ -33,11 +33,15 @@ func (c *core) sendPreprepare(request *Request) {
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
 		curView := c.currentView()
-		preprepare, err := Encode(&Preprepare{
-			View:             curView,
-			Proposal:         request.Proposal,
-			RCMessages:       rcMessages,
-			PreparedMessages: request.PrepareMessages,
+		preprepare, err := Encode(&PreprepareWithPiggybackMsgs{
+			Preprepare: &Preprepare{
+				View:     curView,
+				Proposal: request.Proposal,
+			},
+			PiggybackMessages: &PiggybackMessages{
+				RCMessages:       rcMessages,
+				PreparedMessages: request.PrepareMessages,
+			},
 		})
 		if err != nil {
 			logger.Error("Failed to encode", "view", curView)
@@ -56,8 +60,8 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
 	// Decode PRE-PREPARE
-	var preprepare *Preprepare
-	err := msg.Decode(&preprepare)
+	var preprepareWithPB *PreprepareWithPiggybackMsgs
+	err := msg.Decode(&preprepareWithPB)
 	if err != nil {
 		logger.Debug("Failed to decode preprepare message", "err", err)
 		return errFailedDecodePreprepare
@@ -65,17 +69,17 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 
 	// Ensure we have the same view with the PRE-PREPARE message
 	// If it is old message, see if we need to broadcast COMMIT
-	if err := c.checkMessage(msgPreprepare, preprepare.View); err != nil {
+	if err := c.checkMessage(msgPreprepare, preprepareWithPB.Preprepare.View); err != nil {
 		if err == errOldMessage {
 			// Get validator set for the given proposal
-			valSet := c.backend.ParentValidators(preprepare.Proposal).Copy()
-			previousProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
-			valSet.CalcProposer(previousProposer, preprepare.View.Round.Uint64())
+			valSet := c.backend.ParentValidators(preprepareWithPB.Preprepare.Proposal).Copy()
+			previousProposer := c.backend.GetProposer(preprepareWithPB.Preprepare.Proposal.Number().Uint64() - 1)
+			valSet.CalcProposer(previousProposer, preprepareWithPB.Preprepare.View.Round.Uint64())
 			// Broadcast COMMIT if it is an existing block
 			// 1. The proposer needs to be a proposer matches the given (Sequence + Round)
 			// 2. The given block must exist
-			if valSet.IsProposer(src.Address()) && c.backend.HasPropsal(preprepare.Proposal.Hash(), preprepare.Proposal.Number()) {
-				c.sendCommitForOldBlock(preprepare.View, preprepare.Proposal)
+			if valSet.IsProposer(src.Address()) && c.backend.HasPropsal(preprepareWithPB.Preprepare.Proposal.Hash(), preprepareWithPB.Preprepare.Proposal.Number()) {
+				c.sendCommitForOldBlock(preprepareWithPB.Preprepare.View, preprepareWithPB.Preprepare.Proposal)
 				return nil
 			}
 		}
@@ -88,13 +92,13 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 		return errNotFromProposer
 	}
 
-	if preprepare.View.Round.Uint64() > 0 && !c.validatePrepreparedMessage(preprepare, src) {
+	if preprepareWithPB.Preprepare.View.Round.Uint64() > 0 && !c.validatePrepreparedMessage(preprepareWithPB, src) {
 		logger.Error("Unable to verify prepared block in Round Change messages")
 		return errInvalidPreparedBlock
 	}
 
 	// Verify the proposal we received
-	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
+	if duration, err := c.backend.Verify(preprepareWithPB.Preprepare.Proposal); err != nil {
 		// if it's a future block, we will handle it again after the duration
 		if err == consensus.ErrFutureBlock {
 			logger.Info("Proposed block will be handled in the future", "err", err, "duration", duration)
@@ -112,7 +116,7 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	// Here is about to accept the PRE-PREPARE
 	if c.state == StateAcceptRequest {
 		c.newRoundChangeTimer()
-		c.acceptPreprepare(preprepare)
+		c.acceptPreprepare(preprepareWithPB.Preprepare)
 		c.setState(StatePreprepared)
 		c.sendPrepare()
 	}
@@ -126,14 +130,14 @@ func (c *core) acceptPreprepare(preprepare *Preprepare) {
 }
 
 // validatePrepreparedMessage validates Preprepared message received
-func (c *core) validatePrepreparedMessage(preprepare *Preprepare, src istanbul.Validator) bool {
+func (c *core) validatePrepreparedMessage(preprepareWithPB *PreprepareWithPiggybackMsgs, src istanbul.Validator) bool {
 	logger := c.logger.New("from", src, "state", c.state)
-	highestPreparedRound, validRC := c.checkRoundChangeMessages(preprepare, src)
+	highestPreparedRound, validRC := c.checkRoundChangeMessages(preprepareWithPB, src)
 	if !validRC {
 		logger.Error("Unable to verify Round Change messages in Preprepare")
 		return false
 	}
-	if highestPreparedRound != 0 && !c.checkPreparedMessages(preprepare, highestPreparedRound, src) {
+	if highestPreparedRound != 0 && !c.checkPreparedMessages(preprepareWithPB, highestPreparedRound, src) {
 		logger.Error("Unable to verify Prepared messages in Preprepare")
 		return false
 	}
@@ -142,28 +146,28 @@ func (c *core) validatePrepreparedMessage(preprepare *Preprepare, src istanbul.V
 
 // checkRoundChangeMessages verifies if the Round Change message is signed by a valid validator and
 // Also, check if the proposal was the preparedBlock corresponding to the highest preparedRound
-func (c *core) checkRoundChangeMessages(preprepare *Preprepare, src istanbul.Validator) (uint64, bool) {
+func (c *core) checkRoundChangeMessages(preprepareWithPB *PreprepareWithPiggybackMsgs, src istanbul.Validator) (uint64, bool) {
 	logger := c.logger.New("from", src, "state", c.state)
 
-	if preprepare.RCMessages != nil && preprepare.RCMessages.messages != nil {
+	if preprepareWithPB.PiggybackMessages.RCMessages != nil && preprepareWithPB.PiggybackMessages.RCMessages.messages != nil {
 		var preparedRound uint64 = 0
 		var preparedBlock istanbul.Proposal
-		for _, msg := range preprepare.RCMessages.messages {
-			var rc *RoundChangeMessage
+		for _, msg := range preprepareWithPB.PiggybackMessages.RCMessages.messages {
+			var rc *RoundChangePiggybackMsgs
 			if err := msg.Decode(&rc); err != nil {
 				logger.Error("Failed to decode ROUND CHANGE", "err", err)
 				return 0, false
 			}
-			if rc.PreparedRound.Uint64() > preparedRound {
-				preparedRound = rc.PreparedRound.Uint64()
-				preparedBlock = rc.PreparedBlock
+			if rc.RoundChangeMessage.PreparedRound.Uint64() > preparedRound {
+				preparedRound = rc.RoundChangeMessage.PreparedRound.Uint64()
+				preparedBlock = rc.RoundChangeMessage.PreparedBlock
 			}
 		}
 		if preparedRound == 0 {
 			return preparedRound, true
 		}
 		if preparedRound > 0 {
-			return preparedRound, preparedBlock == preprepare.Proposal
+			return preparedRound, preparedBlock == preprepareWithPB.Preprepare.Proposal
 		}
 	}
 	return 0, false
@@ -171,22 +175,22 @@ func (c *core) checkRoundChangeMessages(preprepare *Preprepare, src istanbul.Val
 
 // checkPreparedMessages verifies if a Quorum of Prepared messages were received and
 // the block in each prepared message is the same as the proposal and is prepared in the same round
-func (c *core) checkPreparedMessages(preprepare *Preprepare, highestPreparedRound uint64, src istanbul.Validator) bool {
+func (c *core) checkPreparedMessages(preprepareWithPB *PreprepareWithPiggybackMsgs, highestPreparedRound uint64, src istanbul.Validator) bool {
 	logger := c.logger.New("from", src, "state", c.state)
-	if preprepare.PreparedMessages != nil && preprepare.PreparedMessages.messages != nil {
+	if preprepareWithPB.PiggybackMessages.PreparedMessages != nil && preprepareWithPB.PiggybackMessages.PreparedMessages.messages != nil {
 		// Number of prepared messages should not be less than Quorum of messages
-		if len(preprepare.PreparedMessages.messages) < c.QuorumSize() {
+		if len(preprepareWithPB.PiggybackMessages.PreparedMessages.messages) < c.QuorumSize() {
 			logger.Error("Quorum of Prepared messages not found in Preprepare messages")
 			return false
 		}
 		// Check if the block in each prepared message is the one that is being proposed
-		for addr, msg := range preprepare.PreparedMessages.messages {
+		for addr, msg := range preprepareWithPB.PiggybackMessages.PreparedMessages.messages {
 			var prepare *Subject
 			if err := msg.Decode(&prepare); err != nil {
 				logger.Error("Failed to decode Prepared Message", "err", err)
 				return false
 			}
-			if prepare.Digest.Hash() != preprepare.Proposal.Hash() {
+			if prepare.Digest.Hash() != preprepareWithPB.Preprepare.Proposal.Hash() {
 				logger.Error("Prepared block does not match the Proposal", "Address", addr)
 				return false
 			}

@@ -180,13 +180,17 @@ func TestStoreBacklog(t *testing.T) {
 	p := c.valSet.GetByIndex(0)
 	// push preprepare msg
 	proposal := makeBlock(1)
-	preprepare := &Preprepare{
-		View:             v,
-		Proposal:         proposal,
-		PreparedMessages: newMessageSet(c.valSet),
-		RCMessages:       newMessageSet(c.valSet),
+	preprepareWithPB := &PreprepareWithPiggybackMsgs{
+		Preprepare: &Preprepare{
+			View:     v,
+			Proposal: proposal,
+		},
+		PiggybackMessages: &PiggybackMessages{
+			PreparedMessages: newMessageSet(c.valSet),
+			RCMessages:       newMessageSet(c.valSet),
+		},
 	}
-	prepreparePayload, _ := Encode(preprepare)
+	prepreparePayload, _ := Encode(preprepareWithPB)
 	m := &message{
 		Code: msgPreprepare,
 		Msg:  prepreparePayload,
@@ -206,10 +210,12 @@ func TestStoreBacklog(t *testing.T) {
 	subjectPayload, _ := Encode(subject)
 
 	// round change message
-	rcMessage := &RoundChangeMessage{
-		View:          v,
-		PreparedRound: v.Round,
-		PreparedBlock: preparedBlock,
+	rcMessage := &RoundChangePiggybackMsgs{
+		RoundChangeMessage: &RoundChangeMessage{
+			View:          v,
+			PreparedRound: v.Round,
+			PreparedBlock: preparedBlock,
+		},
 	}
 
 	rcPayload, _ := Encode(rcMessage)
@@ -304,13 +310,17 @@ func TestProcessBacklog(t *testing.T) {
 		Sequence: big.NewInt(1),
 	}
 	proposal := makeBlock(1)
-	preprepare := &Preprepare{
-		View:             v,
-		Proposal:         proposal,
-		PreparedMessages: newMessageSet(vset),
-		RCMessages:       newMessageSet(vset),
+	preprepareWithPB := &PreprepareWithPiggybackMsgs{
+		Preprepare: &Preprepare{
+			View:     v,
+			Proposal: proposal,
+		},
+		PiggybackMessages: &PiggybackMessages{
+			PreparedMessages: newMessageSet(vset),
+			RCMessages:       newMessageSet(vset),
+		},
 	}
-	prepreparePayload, _ := Encode(preprepare)
+	prepreparePayload, _ := Encode(preprepareWithPB)
 
 	subject := &Subject{
 		View:   v,
@@ -318,13 +328,15 @@ func TestProcessBacklog(t *testing.T) {
 	}
 	subjectPayload, _ := Encode(subject)
 
-	roundChange := &RoundChangeMessage{
-		View:          v,
-		PreparedRound: v.Round,
-		PreparedBlock: makeBlock(5),
+	roundChangeWithPB := &RoundChangePiggybackMsgs{
+		RoundChangeMessage: &RoundChangeMessage{
+			View:          v,
+			PreparedRound: v.Round,
+			PreparedBlock: makeBlock(5),
+		},
 	}
 
-	roundChangePayload, _ := Encode(roundChange)
+	roundChangePayload, _ := Encode(roundChangeWithPB)
 
 	msgs := []*message{
 		{

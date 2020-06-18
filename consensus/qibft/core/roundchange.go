@@ -53,11 +53,13 @@ func (c *core) sendRoundChange(round *big.Int) {
 		preparedBlock = NilBlock()
 	}
 	cv = c.currentView()
-	rc := &RoundChangeMessage{
-		View:             cv,
-		PreparedRound:    c.current.preparedRound,
-		PreparedBlock:    preparedBlock,
-		PreparedMessages: prepares,
+	rc := &RoundChangePiggybackMsgs{
+		RoundChangeMessage: &RoundChangeMessage{
+			View:          cv,
+			PreparedRound: c.current.preparedRound,
+			PreparedBlock: preparedBlock,
+		},
+		PiggybackMessages: &PiggybackMessages{PreparedMessages: prepares, RCMessages: newMessageSet(c.valSet)},
 	}
 
 	payload, err := Encode(rc)
@@ -77,30 +79,30 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 	logger := c.logger.New("state", c.state, "from", src.Address().Hex())
 
 	// Decode ROUND CHANGE message
-	var rc *RoundChangeMessage
+	var rc *RoundChangePiggybackMsgs
 	if err := msg.Decode(&rc); err != nil {
 		logger.Error("Failed to decode ROUND CHANGE", "err", err)
 		return errFailedDecodeRoundChange
 	}
 
-	if err := c.checkMessage(msgRoundChange, rc.View); err != nil {
+	if err := c.checkMessage(msgRoundChange, rc.RoundChangeMessage.View); err != nil {
 		return err
 	}
 
 	cv := c.currentView()
-	roundView := rc.View
+	roundView := rc.RoundChangeMessage.View
 
 	// Add the ROUND CHANGE message to its message set and return how many
 	// messages we've got with the same round number and sequence number.
 	if roundView.Round.Cmp(cv.Round) >= 0 {
-		pb := rc.PreparedBlock
-		pr := rc.PreparedRound
+		pb := rc.RoundChangeMessage.PreparedBlock
+		pr := rc.RoundChangeMessage.PreparedRound
 		// Checking if NilBlock was sent as prepared block
 		if NilBlock().Hash() == pb.Hash() {
 			pb = nil
 			pr = nil
 		}
-		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb, rc.PreparedMessages)
+		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb, rc.PiggybackMessages.PreparedMessages)
 		if err != nil {
 			logger.Warn("Failed to add round change message", "from", src, "msg", msg, "err", err)
 			return err

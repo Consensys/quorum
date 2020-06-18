@@ -156,19 +156,19 @@ func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.
 // decodeAndVerifyPrepreparePiggyBackMsgs decodes the given PRE-PREPARE message and verifies the signature of the piggybacked
 // ROUNDCHANGE and PREPARE messages
 func decodeAndVerifyPrepreparePiggyBackMsgs(m *message, validateFn func([]byte, []byte) (common.Address, error)) error {
-	// First decode preprepare message
-	var preprepare *Preprepare
-	err := m.Decode(&preprepare)
+	// First decode preprepare message with PiggyBack Messages
+	var preprepareWithPB *PreprepareWithPiggybackMsgs
+	err := m.Decode(&preprepareWithPB)
 	if err != nil {
 		return errFailedDecodePreprepare
 	}
-	if preprepare.RCMessages != nil && preprepare.RCMessages.messages != nil {
-		if err = verifyPiggyBackMsgSignatures(preprepare.RCMessages.messages, validateFn); err != nil {
+	if preprepareWithPB.PiggybackMessages.RCMessages != nil && preprepareWithPB.PiggybackMessages.RCMessages.messages != nil {
+		if err = verifyPiggyBackMsgSignatures(preprepareWithPB.PiggybackMessages.RCMessages.messages, validateFn); err != nil {
 			return err
 		}
 	}
-	if preprepare.PreparedMessages != nil && preprepare.PreparedMessages.messages != nil {
-		if err = verifyPiggyBackMsgSignatures(preprepare.PreparedMessages.messages, validateFn); err != nil {
+	if preprepareWithPB.PiggybackMessages.PreparedMessages != nil && preprepareWithPB.PiggybackMessages.PreparedMessages.messages != nil {
+		if err = verifyPiggyBackMsgSignatures(preprepareWithPB.PiggybackMessages.PreparedMessages.messages, validateFn); err != nil {
 			return err
 		}
 	}
@@ -179,13 +179,13 @@ func decodeAndVerifyPrepreparePiggyBackMsgs(m *message, validateFn func([]byte, 
 // PREPARE messages
 func decodeAndVerifyRoundChangePiggyBackMsgs(m *message, validateFn func([]byte, []byte) (common.Address, error)) error {
 	// First decode Round change message
-	var rc *RoundChangeMessage
+	var rc *RoundChangePiggybackMsgs
 	err := m.Decode(&rc)
 	if err != nil {
 		return errFailedDecodeRoundChange
 	}
-	if rc.PreparedMessages != nil && rc.PreparedMessages.messages != nil {
-		if err = verifyPiggyBackMsgSignatures(rc.PreparedMessages.messages, validateFn); err != nil {
+	if rc.PiggybackMessages.PreparedMessages != nil && rc.PiggybackMessages.PreparedMessages.messages != nil {
+		if err = verifyPiggyBackMsgSignatures(rc.PiggybackMessages.PreparedMessages.messages, validateFn); err != nil {
 			return err
 		}
 	}
@@ -305,32 +305,74 @@ func (v *View) Cmp(y *View) int {
 	return 0
 }
 
-// Preprepare represents the message sent, when msgPreprepare is broadcasted
-type Preprepare struct {
-	View             *View
-	Proposal         istanbul.Proposal
+type PiggybackMessages struct {
 	RCMessages       *messageSet
 	PreparedMessages *messageSet
 }
 
+func (p *PiggybackMessages) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, []interface{}{p.RCMessages, p.PreparedMessages})
+}
+
+func (p *PiggybackMessages) DecodeRLP(s *rlp.Stream) error {
+	var piggybackMsgs struct {
+		RCMessages       *messageSet
+		PreparedMessages *messageSet
+	}
+
+	if err := s.Decode(&piggybackMsgs); err != nil {
+		return err
+	}
+	p.RCMessages, p.PreparedMessages = piggybackMsgs.RCMessages, piggybackMsgs.PreparedMessages
+
+	return nil
+}
+
+// Preprepare represents the message sent, when msgPreprepare is broadcasted
+type Preprepare struct {
+	View     *View
+	Proposal istanbul.Proposal
+}
+
 // EncodeRLP serializes b into the Ethereum RLP format.
 func (b *Preprepare) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{b.View, b.Proposal, b.RCMessages, b.PreparedMessages})
+	return rlp.Encode(w, []interface{}{b.View, b.Proposal})
 }
 
 // DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
 func (b *Preprepare) DecodeRLP(s *rlp.Stream) error {
 	var preprepare struct {
-		View             *View
-		Proposal         *types.Block
-		RCMessages       *messageSet
-		PreparedMessages *messageSet
+		View     *View
+		Proposal *types.Block
 	}
 
 	if err := s.Decode(&preprepare); err != nil {
 		return err
 	}
-	b.View, b.Proposal, b.RCMessages, b.PreparedMessages = preprepare.View, preprepare.Proposal, preprepare.RCMessages, preprepare.PreparedMessages
+	b.View, b.Proposal = preprepare.View, preprepare.Proposal
+
+	return nil
+}
+
+type PreprepareWithPiggybackMsgs struct {
+	Preprepare        *Preprepare
+	PiggybackMessages *PiggybackMessages
+}
+
+func (p *PreprepareWithPiggybackMsgs) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, []interface{}{p.Preprepare, p.PiggybackMessages})
+}
+
+func (p *PreprepareWithPiggybackMsgs) DecodeRLP(s *rlp.Stream) error {
+	var preprepareWithPB struct {
+		Preprepare        *Preprepare
+		PiggybackMessages *PiggybackMessages
+	}
+
+	if err := s.Decode(&preprepareWithPB); err != nil {
+		return err
+	}
+	p.Preprepare, p.PiggybackMessages = preprepareWithPB.Preprepare, preprepareWithPB.PiggybackMessages
 
 	return nil
 }
@@ -366,27 +408,47 @@ func (b *Subject) String() string {
 
 // RoundChangeMessage represents the message sent when msgRoundChange is broadcasted
 type RoundChangeMessage struct {
-	View             *View
-	PreparedRound    *big.Int
-	PreparedBlock    istanbul.Proposal
-	PreparedMessages *messageSet
+	View          *View
+	PreparedRound *big.Int
+	PreparedBlock istanbul.Proposal
 }
 
 func (r *RoundChangeMessage) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{r.View, r.PreparedRound, r.PreparedBlock, r.PreparedMessages})
+	return rlp.Encode(w, []interface{}{r.View, r.PreparedRound, r.PreparedBlock})
 }
 
 func (r *RoundChangeMessage) DecodeRLP(s *rlp.Stream) error {
 	var rcMessage struct {
-		View             *View
-		PreparedRound    *big.Int
-		PreparedBlock    *types.Block
-		PreparedMessages *messageSet
+		View          *View
+		PreparedRound *big.Int
+		PreparedBlock *types.Block
 	}
 
 	if err := s.Decode(&rcMessage); err != nil {
 		return err
 	}
-	r.View, r.PreparedRound, r.PreparedBlock, r.PreparedMessages = rcMessage.View, rcMessage.PreparedRound, rcMessage.PreparedBlock, rcMessage.PreparedMessages
+	r.View, r.PreparedRound, r.PreparedBlock = rcMessage.View, rcMessage.PreparedRound, rcMessage.PreparedBlock
+	return nil
+}
+
+type RoundChangePiggybackMsgs struct {
+	RoundChangeMessage *RoundChangeMessage
+	PiggybackMessages  *PiggybackMessages
+}
+
+func (r *RoundChangePiggybackMsgs) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, []interface{}{r.RoundChangeMessage, r.PiggybackMessages})
+}
+
+func (r *RoundChangePiggybackMsgs) DecodeRLP(s *rlp.Stream) error {
+	var rcMessage struct {
+		RoundChangeMessage *RoundChangeMessage
+		PiggybackMessages  *PiggybackMessages
+	}
+
+	if err := s.Decode(&rcMessage); err != nil {
+		return err
+	}
+	r.RoundChangeMessage, r.PiggybackMessages = rcMessage.RoundChangeMessage, rcMessage.PiggybackMessages
 	return nil
 }

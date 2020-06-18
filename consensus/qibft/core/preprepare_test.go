@@ -141,11 +141,15 @@ OUTER:
 
 		curView := r0.currentView()
 
-		preprepare := &Preprepare{
-			View:             curView,
-			Proposal:         test.expectedRequest,
-			RCMessages:       newMessageSet(r0.valSet),
-			PreparedMessages: newMessageSet(r0.valSet),
+		preprepareWithPB := &PreprepareWithPiggybackMsgs{
+			Preprepare: &Preprepare{
+				View:     curView,
+				Proposal: test.expectedRequest,
+			},
+			PiggybackMessages: &PiggybackMessages{
+				RCMessages:       newMessageSet(r0.valSet),
+				PreparedMessages: newMessageSet(r0.valSet),
+			},
 		}
 
 		for i, v := range test.system.backends {
@@ -156,7 +160,7 @@ OUTER:
 
 			c := v.engine.(*core)
 
-			m, _ := Encode(preprepare)
+			m, _ := Encode(preprepareWithPB)
 			_, val := r0.valSet.GetByAddress(v0.Address())
 			// run each backends and verify handlePreprepare function.
 			if err := c.handlePreprepare(&message{
