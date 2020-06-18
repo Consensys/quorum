@@ -144,7 +144,7 @@ func Base64ToHash(b64 string) (Hash, error) {
 	}
 	bytes, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
-		return Hash{}, err
+		return Hash{}, fmt.Errorf("unable to convert base64 string %s to Hash. Cause: %v", b64, err)
 	}
 	return BytesToHash(bytes), nil
 }
@@ -212,7 +212,7 @@ func BytesToEncryptedPayloadHash(b []byte) EncryptedPayloadHash {
 func Base64ToEncryptedPayloadHash(b64 string) (EncryptedPayloadHash, error) {
 	bytes, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
-		return EncryptedPayloadHash{}, err
+		return EncryptedPayloadHash{}, fmt.Errorf("unable to convert base64 string %s to EncryptedPayloadHash. Cause: %v", b64, err)
 	}
 	return BytesToEncryptedPayloadHash(bytes), nil
 }

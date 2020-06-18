@@ -3,60 +3,25 @@ package constellation
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 )
-
-func launchNode(cfgPath string) (*exec.Cmd, error) {
-	cmd := exec.Command("constellation-node", cfgPath)
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-	go io.Copy(os.Stderr, stderr)
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-	time.Sleep(100 * time.Millisecond)
-	return cmd, nil
-}
 
 type Client struct {
 	httpClient *http.Client
 }
 
-func (c *Client) doJson(path string, apiReq interface{}) (*http.Response, error) {
-	buf := new(bytes.Buffer)
-	err := json.NewEncoder(buf).Encode(apiReq)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequest("POST", "http+unix://c/"+path, buf)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	res, err := c.httpClient.Do(req)
-	if err == nil && res.StatusCode != 200 {
-		return nil, fmt.Errorf("Non-200 status code: %+v", res)
-	}
-	return res, err
-}
-
 func (c *Client) SendPayload(pl []byte, b64From string, b64To []string, acHashes common.EncryptedPayloadHashes, acMerkleRoot common.Hash) (common.EncryptedPayloadHash, error) {
+	method := "POST"
+	url := "http+unix://c/sendraw"
 	buf := bytes.NewBuffer(pl)
-	req, err := http.NewRequest("POST", "http+unix://c/sendraw", buf)
+	req, err := http.NewRequest(method, url, buf)
 	if err != nil {
-		return common.EncryptedPayloadHash{}, err
+		return common.EncryptedPayloadHash{}, fmt.Errorf("unable to build request for (method:%s,path:%s). Cause: %v", method, url, err)
 	}
 	if b64From != "" {
 		req.Header.Set("c11n-from", b64From)
@@ -69,7 +34,7 @@ func (c *Client) SendPayload(pl []byte, b64From string, b64To []string, acHashes
 		defer res.Body.Close()
 	}
 	if err != nil {
-		return common.EncryptedPayloadHash{}, err
+		return common.EncryptedPayloadHash{}, fmt.Errorf("unable to submit request (method:%s,path:%s). Cause: %v", method, url, err)
 	}
 	if res.StatusCode != 200 {
 		return common.EncryptedPayloadHash{}, fmt.Errorf("Non-200 status code: %+v", res)
@@ -77,20 +42,22 @@ func (c *Client) SendPayload(pl []byte, b64From string, b64To []string, acHashes
 
 	hashBytes, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, res.Body))
 	if err != nil {
-		return common.EncryptedPayloadHash{}, err
+		return common.EncryptedPayloadHash{}, fmt.Errorf("unable to decode response body for (method:%s,path:%s). Cause: %v", method, url, err)
 	}
 	return common.BytesToEncryptedPayloadHash(hashBytes), nil
 }
 
 func (c *Client) ReceivePayload(key common.EncryptedPayloadHash) ([]byte, common.EncryptedPayloadHashes, common.Hash, error) {
-	req, err := http.NewRequest("GET", "http+unix://c/receiveraw", nil)
+	method := "GET"
+	url := "http+unix://c/receiveraw"
+	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
-		return nil, nil, common.Hash{}, err
+		return nil, nil, common.Hash{}, fmt.Errorf("unable to build request for (method:%s,url:%s). Cause: %v", method, url, err)
 	}
 	req.Header.Set("c11n-key", key.ToBase64())
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, nil, common.Hash{}, err
+		return nil, nil, common.Hash{}, fmt.Errorf("unable to submit request (method:%s,url:%s). Cause: %v", method, url, err)
 	}
 	defer res.Body.Close()
 
@@ -103,7 +70,7 @@ func (c *Client) ReceivePayload(key common.EncryptedPayloadHash) ([]byte, common
 
 	payload, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, nil, common.Hash{}, err
+		return nil, nil, common.Hash{}, fmt.Errorf("unable to read response body for (method:%s,path:%s). Cause: %v", method, url, err)
 	}
 
 	return payload, nil, common.Hash{}, nil

@@ -17,9 +17,12 @@
 package rawdb
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 )
 
 // Tests that setting the flag for Quorum EIP155 activation read values correctly
@@ -86,6 +89,39 @@ func TestPrivacyMedatadaLinkRoot(t *testing.T) {
 
 	if pmr != valueHash {
 		t.Fatal("the privacy metadata root does not have the expected value")
+	}
+}
+
+var errReadOnly = errors.New("unable to write")
+
+type ReadOnlyDB struct {
+	memorydb.Database
+}
+
+func (t *ReadOnlyDB) Put(key []byte, value []byte) error {
+	return errReadOnly
+}
+
+func TestPrivacyMedatadaLinkRootErrorWrapping(t *testing.T) {
+	db := NewDatabase(&ReadOnlyDB{})
+	psr := common.Hash{1}
+	pmr := common.Hash{2}
+
+	pml := NewPrivacyMetadataLinker(db)
+
+	err := pml.LinkPrivacyMetadataRootToPrivateStateRoot(psr, pmr)
+
+	if err == nil {
+		t.Fatal("expecting a read only error to be returned")
+	}
+
+	if !strings.Contains(err.Error(), "unable to persist mapping between private state root to privacy metadata root") {
+		t.Fatal("expecting 'unable to persist mapping' error message")
+	}
+
+	// TODO once we are able to adopt go 1.13 features adopt error wrapping - errors.Is(err,errReadOnly)
+	if !strings.Contains(err.Error(), errReadOnly.Error()) {
+		t.Fatal("expecting errReadOnly text to be included")
 	}
 }
 

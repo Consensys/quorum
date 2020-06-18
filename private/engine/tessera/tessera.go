@@ -48,11 +48,11 @@ func New(client *engine.Client, version []byte) *tesseraPrivateTxManager {
 func (t *tesseraPrivateTxManager) submitJSON(method, path string, request interface{}, response interface{}) (int, error) {
 	req, err := newOptionalJSONRequest(method, t.client.FullPath(path), request)
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("unable to build json request for (method:%s,path:%s). Cause: %v", method, path, err)
 	}
 	res, err := t.client.HttpClient.Do(req)
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("unable to submit request (method:%s,path:%s). Cause: %v", method, path, err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
@@ -60,7 +60,7 @@ func (t *tesseraPrivateTxManager) submitJSON(method, path string, request interf
 		return res.StatusCode, fmt.Errorf("%d status: %s", res.StatusCode, string(body))
 	}
 	if err := json.NewDecoder(res.Body).Decode(response); err != nil {
-		return res.StatusCode, err
+		return res.StatusCode, fmt.Errorf("unable to decode response body for (method:%s,path:%s). Cause: %v", method, path, err)
 	}
 	return res.StatusCode, nil
 }
@@ -87,7 +87,7 @@ func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, ex
 
 	eph, err := common.Base64ToEncryptedPayloadHash(response.Key)
 	if err != nil {
-		return common.EncryptedPayloadHash{}, err
+		return common.EncryptedPayloadHash{}, fmt.Errorf("unable to decode encrypted payload hash: %s. Cause: %v", response.Key, err)
 	}
 
 	cacheKey := eph.Hex()
@@ -112,7 +112,7 @@ func (t *tesseraPrivateTxManager) StoreRaw(data []byte, from string) (common.Enc
 
 	eph, err := common.Base64ToEncryptedPayloadHash(response.Key)
 	if err != nil {
-		return common.EncryptedPayloadHash{}, err
+		return common.EncryptedPayloadHash{}, fmt.Errorf("unable to decode encrypted payload hash: %s. Cause: %v", response.Key, err)
 	}
 
 	cacheKey := eph.Hex()
@@ -202,11 +202,11 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 	if !isRaw {
 		acHashes, err := common.Base64sToEncryptedPayloadHashes(response.AffectedContractTransactions)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("unable to decode ACOTHs %v. Cause: %v", response.AffectedContractTransactions, err)
 		}
 		acMerkleRoot, err := common.Base64ToHash(response.ExecHash)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("unable to decode execution hash %s. Cause: %v", response.ExecHash, err)
 		}
 		extra = engine.ExtraMetadata{
 			ACHashes:     acHashes,

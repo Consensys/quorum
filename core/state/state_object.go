@@ -513,7 +513,7 @@ func (s *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
 func (s *stateObject) GetCommittedPrivacyMetadata() (*PrivacyMetadata, error) {
 	val, err := s.db.privacyMetaDataTrie.TryGet(s.address.Bytes())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to retrieve metadata from the privacyMetadataTrie. Cause: %v", err)
 	}
 	data, err := bytesToPrivacyMetadata(val)
 	if err != nil {
@@ -545,7 +545,7 @@ func bytesToPrivacyMetadata(b []byte) (*PrivacyMetadata, error) {
 	var data *PrivacyMetadata
 	d := gob.NewDecoder(bytes.NewBuffer(b))
 	if err := d.Decode(&data); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to decode privacy metadata. Cause: %v", err)
 	}
 	return data, nil
 }

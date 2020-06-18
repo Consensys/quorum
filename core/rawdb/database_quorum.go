@@ -21,6 +21,7 @@
 package rawdb
 
 import (
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -61,7 +62,11 @@ func WritePrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error
 }
 
 func WritePrivacyMetadataStateRootForPrivateStateRoot(db ethdb.Database, privateStateRoot, privacyMetadataRoot common.Hash) error {
-	return db.Put(append(privateRootToPrivacyMetadataRootPrefix, privateStateRoot[:]...), privacyMetadataRoot[:])
+	err := db.Put(append(privateRootToPrivacyMetadataRootPrefix, privateStateRoot[:]...), privacyMetadataRoot[:])
+	if err != nil {
+		return fmt.Errorf("unable to persist mapping between private state root to privacy metadata root. Cause: %v", err)
+	}
+	return nil
 }
 
 // WritePrivateBlockBloom creates a bloom filter for the given receipts and saves it to the database

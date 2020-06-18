@@ -11,7 +11,7 @@ import (
 var (
 	ErrPrivateTxManagerNotinUse                          = errors.New("private transaction manager is not in use")
 	ErrPrivateTxManagerNotReady                          = errors.New("private transaction manager is not ready")
-	ErrPrivateTxManagerNotSupported                      = errors.New("private transaction manager does not suppor this operation")
+	ErrPrivateTxManagerNotSupported                      = errors.New("private transaction manager does not support this operation")
 	ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements = errors.New("private transaction manager does not support privacy enhancements")
 )
 
