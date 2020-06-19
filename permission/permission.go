@@ -297,7 +297,7 @@ func (p *PermissionCtrl) ManageOrgPermissions() error {
 	if p.eeaFlag{
 		return p.ManageOrgPermissionsE()
 	}
-	return p.ManageOrgPermissions()
+	return p.ManageOrgPermissionsBasic()
 }
 
 func (p *PermissionCtrl) ManageOrgPermissionsE() error {

@@ -414,8 +414,8 @@ func (p *PermissionContractService) InitSession() {
 
 func (p *PermissionContractService) eeaSession() {
 	auth := bind.NewKeyedTransactor(p.Key)
-	p.PermInterfSession = &pbind.PermInterfaceSession{
-		Contract: p.PermInterf,
+	p.PermInterfSessionE = &pbind.EeaPermInterfaceSession{
+		Contract: p.PermInterfE,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
@@ -427,31 +427,31 @@ func (p *PermissionContractService) eeaSession() {
 		},
 	}
 
-	p.PermOrgSession = &pbind.OrgManagerSession{
-		Contract: p.PermOrg,
+	p.PermOrgSessionE = &pbind.EeaOrgManagerSession{
+		Contract: p.PermOrgE,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 	}
 
-	p.PermNodeSession = &pbind.NodeManagerSession{
-		Contract: p.PermNode,
+	p.PermNodeSessionE = &pbind.EeaNodeManagerSession{
+		Contract: p.PermNodeE,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 	}
 
 	//populate roles
-	p.PermRoleSession = &pbind.RoleManagerSession{
-		Contract: p.PermRole,
+	p.PermRoleSessionE = &pbind.EeaRoleManagerSession{
+		Contract: p.PermRoleE,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 	}
 
 	//populate accounts
-	p.PermAcctSession = &pbind.AcctManagerSession{
-		Contract: p.PermAcct,
+	p.PermAcctSessionE = &pbind.EeaAcctManagerSession{
+		Contract: p.PermAcctE,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},

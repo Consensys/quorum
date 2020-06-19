@@ -52,7 +52,7 @@ const (
 var ErrAccountsLinked = errors.New("Accounts linked to the role. Cannot be removed")
 var ErrPendingApproval = errors.New("Pending approvals for the organization. Approve first")
 var ErrAcctBlacklisted = errors.New("Blacklisted account. Operation not allowed")
-var ErrNodeBlacklisted = errors.New("Blacklisted Node. Operation not allowed")
+var ErrNodeBlacklisted = errors.New("Blacklisted node. Operation not allowed")
 
 var (
 	guardianKey     *ecdsa.PrivateKey
@@ -180,17 +180,26 @@ func teardown() {
 }
 
 func TestPermissionCtrl_AfterStart(t *testing.T) {
-	testObject := typicalEeaPermissionCtrl(t)
+	testObject := typicalBasicPermissionCtrl(t)
 
 	err := testObject.AfterStart()
 
 	assert.NoError(t, err)
-	assert.NotNil(t, testObject.contract.PermOrg)
-	assert.NotNil(t, testObject.contract.PermRole)
-	assert.NotNil(t, testObject.contract.PermNode)
-	assert.NotNil(t, testObject.contract.PermAcct)
-	assert.NotNil(t, testObject.contract.PermInterf)
-	assert.NotNil(t, testObject.contract.PermUpgr)
+	if testObject.eeaFlag{
+		assert.NotNil(t, testObject.contract.PermOrgE)
+		assert.NotNil(t, testObject.contract.PermRoleE)
+		assert.NotNil(t, testObject.contract.PermNodeE)
+		assert.NotNil(t, testObject.contract.PermAcctE)
+		assert.NotNil(t, testObject.contract.PermInterfE)
+		assert.NotNil(t, testObject.contract.PermUpgrE)
+	} else {
+		assert.NotNil(t, testObject.contract.PermOrg)
+		assert.NotNil(t, testObject.contract.PermRole)
+		assert.NotNil(t, testObject.contract.PermNode)
+		assert.NotNil(t, testObject.contract.PermAcct)
+		assert.NotNil(t, testObject.contract.PermInterf)
+		assert.NotNil(t, testObject.contract.PermUpgr)
+	}
 
 	isNetworkInitialized, err := testObject.contract.GetNetworkBootStatus()
 	assert.NoError(t, err)
@@ -198,7 +207,7 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 }
 
 func TestPermissionCtrl_PopulateInitPermissions_AfterNetworkIsInitialized(t *testing.T) {
-	testObject := typicalEeaPermissionCtrl(t)
+	testObject := typicalBasicPermissionCtrl(t)
 	assert.NoError(t, testObject.AfterStart())
 
 	err := testObject.PopulateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
@@ -237,7 +246,7 @@ func TestPermissionCtrl_PopulateInitPermissions_AfterNetworkIsInitialized(t *tes
 }
 
 func typicalQuorumControlsAPI(t *testing.T) *QuorumControlsAPI {
-	pc := typicalEeaPermissionCtrl(t)
+	pc := typicalBasicPermissionCtrl(t)
 	if !assert.NoError(t, pc.AfterStart()) {
 		t.Fail()
 	}
@@ -348,17 +357,21 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	_, err := testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	connAllowed, err := testObject.ConnectionAllowed(arbitraryNode2, txa)
-	assert.NoError(t, err)
-	assert.Equal(t, connAllowed, false)
+	if testObject.permCtrl.eeaFlag{
+		connAllowed, err := testObject.ConnectionAllowed(arbitraryNode2, txa)
+		assert.NoError(t, err)
+		assert.Equal(t, connAllowed, false)
+	}
 
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
 
-	connAllowed, err = testObject.ConnectionAllowed(arbitraryNode2, txa)
-	assert.NoError(t, err)
-	assert.Equal(t, connAllowed, true)
+	if testObject.permCtrl.eeaFlag {
+		connAllowed, err := testObject.ConnectionAllowed(arbitraryNode2, txa)
+		assert.NoError(t, err)
+		assert.Equal(t, connAllowed, true)
+	}
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(SuspendNode), invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -366,18 +379,21 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(SuspendNode), txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeDeactivated)
-
-	connAllowed, err = testObject.ConnectionAllowed(arbitraryNode2, txa)
-	assert.NoError(t, err)
-	assert.Equal(t, connAllowed, false)
+	if testObject.permCtrl.eeaFlag {
+		connAllowed, err := testObject.ConnectionAllowed(arbitraryNode2, txa)
+		assert.NoError(t, err)
+		assert.Equal(t, connAllowed, false)
+	}
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(ActivateSuspendedNode), txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
 
-	connAllowed, err = testObject.ConnectionAllowed(arbitraryNode2, txa)
-	assert.NoError(t, err)
-	assert.Equal(t, connAllowed, true)
+	if testObject.permCtrl.eeaFlag {
+		connAllowed, err := testObject.ConnectionAllowed(arbitraryNode2, txa)
+		assert.NoError(t, err)
+		assert.Equal(t, connAllowed, true)
+	}
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(BlacklistNode), txa)
 	assert.NoError(t, err)
@@ -431,9 +447,11 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	actAllowed, err := testObject.TransactionAllowed(acct, acct, txa)
-	assert.Equal(t, actAllowed, false)
-	assert.NoError(t, err)
+	if testObject.permCtrl.eeaFlag {
+		actAllowed, err := testObject.TransactionAllowed(acct, acct, txa)
+		assert.Equal(t, actAllowed, false)
+		assert.NoError(t, err)
+	}
 
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -442,10 +460,11 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, types.AcctActive)
 
-	actAllowed, err = testObject.TransactionAllowed(acct, acct, txa)
-	assert.NoError(t, err)
-	assert.Equal(t, actAllowed, true)
-
+	if testObject.permCtrl.eeaFlag {
+		actAllowed, err := testObject.TransactionAllowed(acct, acct, txa)
+		assert.NoError(t, err)
+		assert.Equal(t, actAllowed, true)
+	}
 	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(types.FullAccess), false, false, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
@@ -486,10 +505,11 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(SuspendAccount), txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctSuspended)
-
-	actAllowed, err = testObject.TransactionAllowed(acct, acct, txa)
-	assert.Equal(t, actAllowed, false)
-	assert.NoError(t, err)
+	if testObject.permCtrl.eeaFlag {
+		actAllowed, err := testObject.TransactionAllowed(acct, acct, txa)
+		assert.Equal(t, actAllowed, false)
+		assert.NoError(t, err)
+	}
 
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
 	assert.NoError(t, err)
@@ -499,9 +519,11 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctBlacklisted)
 
-	actAllowed, err = testObject.TransactionAllowed(acct, acct, txa)
-	assert.Equal(t, actAllowed, false)
-	assert.NoError(t, err)
+	if testObject.permCtrl.eeaFlag {
+		actAllowed, err := testObject.TransactionAllowed(acct, acct, txa)
+		assert.Equal(t, actAllowed, false)
+		assert.NoError(t, err)
+	}
 
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
 	assert.Equal(t, err, ErrAcctBlacklisted)
@@ -555,7 +577,7 @@ func getArbitraryAccount() common.Address {
 	return crypto.PubkeyToAddress(acctKey.PublicKey)
 }
 
-func typicalEeaPermissionCtrl(t *testing.T) *PermissionCtrl {
+func typicalBasicPermissionCtrl(t *testing.T) *PermissionCtrl {
 	pconfig := &types.PermissionConfig{
 		UpgrdAddress:   permUpgrAddress,
 		InterfAddress:  permInterfaceAddress,
@@ -581,7 +603,7 @@ func typicalEeaPermissionCtrl(t *testing.T) *PermissionCtrl {
 	
 	testObject.EthClnt = backend
 	testObject.Eth = ethereum
-	//testObject.contract = &PermissionContractService{EthClnt: testObject.EthClnt, EeaFlag: testObject.eeaFlag, Key: testObject.Key, PermConfig: testObject.PermConfig}
+	testObject.contract = &PermissionContractService{EthClnt: testObject.EthClnt, EeaFlag: testObject.eeaFlag, Key: testObject.Key, PermConfig: testObject.PermConfig}
 	go func() {
 		testObject.ErrorChan <- nil
 	}()
@@ -603,7 +625,7 @@ func tmpKeyStore(encrypted bool) (string, *keystore.KeyStore, error) {
 }
 
 func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
-	testObject := typicalEeaPermissionCtrl(t)
+	testObject := typicalBasicPermissionCtrl(t)
 	assert.NoError(t, testObject.AfterStart())
 
 	err := testObject.PopulateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
