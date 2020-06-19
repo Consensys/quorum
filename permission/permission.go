@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/permission/bind"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -25,12 +24,13 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	pbind "github.com/ethereum/go-ethereum/permission/bind"
 	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // to signal all watches when service is stopped
-type StopEvent struct {
+type stopEvent struct {
 }
 
 type NodeOperation uint8
@@ -47,14 +47,11 @@ type PermissionCtrl struct {
 	key        *ecdsa.PrivateKey
 	dataDir    string
 	permConfig *types.PermissionConfig
-
 	contract *PermissionContractService
-
 	eeaFlag        bool
 	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
 	stopFeed       event.Feed      // broadcasting stopEvent when service is being stopped
 	errorChan      chan error      // channel to capture error when starting aysnc
-
 	mux sync.Mutex
 }
 
@@ -253,7 +250,7 @@ func (p *PermissionCtrl) Protocols() []p2p.Protocol {
 
 func (p *PermissionCtrl) Stop() error {
 	log.Info("permission service: stopping")
-	p.stopFeed.Send(StopEvent{})
+	p.stopFeed.Send(stopEvent{})
 	log.Info("permission service: stopped")
 	return nil
 }
@@ -298,10 +295,10 @@ func (p *PermissionCtrl) manageOrgPermissions() error {
 }
 
 func (p *PermissionCtrl) manageOrgPermissionsE() error {
-	chPendingApproval := make(chan *permission.EeaOrgManagerOrgPendingApproval, 1)
-	chOrgApproved := make(chan *permission.EeaOrgManagerOrgApproved, 1)
-	chOrgSuspended := make(chan *permission.EeaOrgManagerOrgSuspended, 1)
-	chOrgReactivated := make(chan *permission.EeaOrgManagerOrgSuspensionRevoked, 1)
+	chPendingApproval := make(chan *pbind.EeaOrgManagerOrgPendingApproval, 1)
+	chOrgApproved := make(chan *pbind.EeaOrgManagerOrgApproved, 1)
+	chOrgSuspended := make(chan *pbind.EeaOrgManagerOrgSuspended, 1)
+	chOrgReactivated := make(chan *pbind.EeaOrgManagerOrgSuspensionRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -349,10 +346,10 @@ func (p *PermissionCtrl) manageOrgPermissionsE() error {
 }
 
 func (p *PermissionCtrl) manageOrgPermissionsBasic() error {
-	chPendingApproval := make(chan *permission.OrgManagerOrgPendingApproval, 1)
-	chOrgApproved := make(chan *permission.OrgManagerOrgApproved, 1)
-	chOrgSuspended := make(chan *permission.OrgManagerOrgSuspended, 1)
-	chOrgReactivated := make(chan *permission.OrgManagerOrgSuspensionRevoked, 1)
+	chPendingApproval := make(chan *pbind.OrgManagerOrgPendingApproval, 1)
+	chOrgApproved := make(chan *pbind.OrgManagerOrgApproved, 1)
+	chOrgSuspended := make(chan *pbind.OrgManagerOrgSuspended, 1)
+	chOrgReactivated := make(chan *pbind.OrgManagerOrgSuspensionRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -399,8 +396,8 @@ func (p *PermissionCtrl) manageOrgPermissionsBasic() error {
 	return nil
 }
 
-func (p *PermissionCtrl) subscribeStopEvent() (chan StopEvent, event.Subscription) {
-	c := make(chan StopEvent)
+func (p *PermissionCtrl) subscribeStopEvent() (chan stopEvent, event.Subscription) {
+	c := make(chan stopEvent)
 	s := p.stopFeed.Subscribe(c)
 	return c, s
 }
@@ -414,13 +411,13 @@ func (p *PermissionCtrl) manageNodePermissions() error {
 }
 
 func (p *PermissionCtrl) manageNodePermissionsBasic() error {
-	chNodeApproved := make(chan *permission.NodeManagerNodeApproved, 1)
-	chNodeProposed := make(chan *permission.NodeManagerNodeProposed, 1)
-	chNodeDeactivated := make(chan *permission.NodeManagerNodeDeactivated, 1)
-	chNodeActivated := make(chan *permission.NodeManagerNodeActivated, 1)
-	chNodeBlacklisted := make(chan *permission.NodeManagerNodeBlacklisted)
-	chNodeRecoveryInit := make(chan *permission.NodeManagerNodeRecoveryInitiated, 1)
-	chNodeRecoveryDone := make(chan *permission.NodeManagerNodeRecoveryCompleted, 1)
+	chNodeApproved := make(chan *pbind.NodeManagerNodeApproved, 1)
+	chNodeProposed := make(chan *pbind.NodeManagerNodeProposed, 1)
+	chNodeDeactivated := make(chan *pbind.NodeManagerNodeDeactivated, 1)
+	chNodeActivated := make(chan *pbind.NodeManagerNodeActivated, 1)
+	chNodeBlacklisted := make(chan *pbind.NodeManagerNodeBlacklisted)
+	chNodeRecoveryInit := make(chan *pbind.NodeManagerNodeRecoveryInitiated, 1)
+	chNodeRecoveryDone := make(chan *pbind.NodeManagerNodeRecoveryCompleted, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -496,13 +493,13 @@ func (p *PermissionCtrl) manageNodePermissionsBasic() error {
 }
 
 func (p *PermissionCtrl) manageNodePermissionsE() error {
-	chNodeApproved := make(chan *permission.EeaNodeManagerNodeApproved, 1)
-	chNodeProposed := make(chan *permission.EeaNodeManagerNodeProposed, 1)
-	chNodeDeactivated := make(chan *permission.EeaNodeManagerNodeDeactivated, 1)
-	chNodeActivated := make(chan *permission.EeaNodeManagerNodeActivated, 1)
-	chNodeBlacklisted := make(chan *permission.EeaNodeManagerNodeBlacklisted)
-	chNodeRecoveryInit := make(chan *permission.EeaNodeManagerNodeRecoveryInitiated, 1)
-	chNodeRecoveryDone := make(chan *permission.EeaNodeManagerNodeRecoveryCompleted, 1)
+	chNodeApproved := make(chan *pbind.EeaNodeManagerNodeApproved, 1)
+	chNodeProposed := make(chan *pbind.EeaNodeManagerNodeProposed, 1)
+	chNodeDeactivated := make(chan *pbind.EeaNodeManagerNodeDeactivated, 1)
+	chNodeActivated := make(chan *pbind.EeaNodeManagerNodeActivated, 1)
+	chNodeBlacklisted := make(chan *pbind.EeaNodeManagerNodeBlacklisted)
+	chNodeRecoveryInit := make(chan *pbind.EeaNodeManagerNodeRecoveryInitiated, 1)
+	chNodeRecoveryDone := make(chan *pbind.EeaNodeManagerNodeRecoveryCompleted, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -673,9 +670,9 @@ func (p *PermissionCtrl) manageAccountPermissions() error {
 }
 
 func (p *PermissionCtrl) manageAccountPermissionsE() error {
-	chAccessModified := make(chan *permission.EeaAcctManagerAccountAccessModified)
-	chAccessRevoked := make(chan *permission.EeaAcctManagerAccountAccessRevoked)
-	chStatusChanged := make(chan *permission.EeaAcctManagerAccountStatusChanged)
+	chAccessModified := make(chan *pbind.EeaAcctManagerAccountAccessModified)
+	chAccessRevoked := make(chan *pbind.EeaAcctManagerAccountAccessRevoked)
+	chStatusChanged := make(chan *pbind.EeaAcctManagerAccountStatusChanged)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -720,9 +717,9 @@ func (p *PermissionCtrl) manageAccountPermissionsE() error {
 }
 
 func (p *PermissionCtrl) manageAccountPermissionsBasic() error {
-	chAccessModified := make(chan *permission.AcctManagerAccountAccessModified)
-	chAccessRevoked := make(chan *permission.AcctManagerAccountAccessRevoked)
-	chStatusChanged := make(chan *permission.AcctManagerAccountStatusChanged)
+	chAccessModified := make(chan *pbind.AcctManagerAccountAccessModified)
+	chAccessRevoked := make(chan *pbind.AcctManagerAccountAccessRevoked)
+	chStatusChanged := make(chan *pbind.AcctManagerAccountStatusChanged)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -983,8 +980,8 @@ func (p *PermissionCtrl) manageRolePermissions() error {
 }
 
 func (p *PermissionCtrl) manageRolePermissionsE() error {
-	chRoleCreated := make(chan *permission.EeaRoleManagerRoleCreated, 1)
-	chRoleRevoked := make(chan *permission.EeaRoleManagerRoleRevoked, 1)
+	chRoleCreated := make(chan *pbind.EeaRoleManagerRoleCreated, 1)
+	chRoleRevoked := make(chan *pbind.EeaRoleManagerRoleRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -1022,8 +1019,8 @@ func (p *PermissionCtrl) manageRolePermissionsE() error {
 }
 
 func (p *PermissionCtrl) manageRolePermissionsBasic() error {
-	chRoleCreated := make(chan *permission.RoleManagerRoleCreated, 1)
-	chRoleRevoked := make(chan *permission.RoleManagerRoleRevoked, 1)
+	chRoleCreated := make(chan *pbind.RoleManagerRoleCreated, 1)
+	chRoleRevoked := make(chan *pbind.RoleManagerRoleRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -1155,4 +1152,3 @@ func (p *PermissionCtrl) populateNodeCacheAndValidate(hexNodeId, ultimateParentI
 	}
 	return txnAllowed
 }
-

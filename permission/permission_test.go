@@ -596,7 +596,7 @@ func typicalBasicPermissionCtrl(t *testing.T) *PermissionCtrl {
 		SubOrgDepth:   big.NewInt(10),
 		SubOrgBreadth: big.NewInt(10),
 	}
-	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, false)
+	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, true)
 	if err != nil {
 		t.Fatal(err)
 	}

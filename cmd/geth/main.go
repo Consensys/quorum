@@ -20,7 +20,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/permission"
 	"math"
 	"os"
 	"runtime"
@@ -44,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/permission"
 	"gopkg.in/urfave/cli.v1"
 )
 
