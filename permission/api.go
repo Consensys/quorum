@@ -811,15 +811,13 @@ func (q *QuorumControlsAPI) valApproveOrg(args txArgs, pinterf *PermissionContra
 		return types.ErrNotNetworkAdmin
 	}
 	enodeId, _, _, _, _ := q.getNodeDetails(args.url)
-	// check if anything pending approval
+	url := args.url
 	if q.permCtrl.eeaFlag {
-		if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, enodeId, args.acctId, 1, pinterf) {
-			return types.ErrNothingToApprove
-		}
-	} else {
-		if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, args.url, args.acctId, 1, pinterf) {
-			return types.ErrNothingToApprove
-		}
+		url = enodeId
+	}
+	// check if anything pending approval
+	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.orgId, url, args.acctId, 1, pinterf) {
+		return types.ErrNothingToApprove
 	}
 	return nil
 }
