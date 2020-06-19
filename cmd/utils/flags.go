@@ -1799,8 +1799,6 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 func RegisterPermissionService(stack *node.Node, ctx *cli.Context) {
 	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
 		eeaFlag := ctx.GlobalBool(PermEeaModeFlag.Name)
-		// TODO (Amal) remove it
-		eeaFlag = true
 		permissionConfig, err := permission.ParsePermissionConfig(stack.DataDir())
 		if err != nil {
 			return nil, fmt.Errorf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)

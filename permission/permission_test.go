@@ -186,19 +186,19 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 
 	assert.NoError(t, err)
 	if testObject.eeaFlag{
-		assert.NotNil(t, testObject.contract.PermOrgE)
-		assert.NotNil(t, testObject.contract.PermRoleE)
-		assert.NotNil(t, testObject.contract.PermNodeE)
-		assert.NotNil(t, testObject.contract.PermAcctE)
-		assert.NotNil(t, testObject.contract.PermInterfE)
-		assert.NotNil(t, testObject.contract.PermUpgrE)
+		assert.NotNil(t, testObject.contract.permOrgE)
+		assert.NotNil(t, testObject.contract.permRoleE)
+		assert.NotNil(t, testObject.contract.permNodeE)
+		assert.NotNil(t, testObject.contract.permAcctE)
+		assert.NotNil(t, testObject.contract.permInterfE)
+		assert.NotNil(t, testObject.contract.permUpgrE)
 	} else {
-		assert.NotNil(t, testObject.contract.PermOrg)
-		assert.NotNil(t, testObject.contract.PermRole)
-		assert.NotNil(t, testObject.contract.PermNode)
-		assert.NotNil(t, testObject.contract.PermAcct)
-		assert.NotNil(t, testObject.contract.PermInterf)
-		assert.NotNil(t, testObject.contract.PermUpgr)
+		assert.NotNil(t, testObject.contract.permOrg)
+		assert.NotNil(t, testObject.contract.permRole)
+		assert.NotNil(t, testObject.contract.permNode)
+		assert.NotNil(t, testObject.contract.permAcct)
+		assert.NotNil(t, testObject.contract.permInterf)
+		assert.NotNil(t, testObject.contract.permUpgr)
 	}
 
 	isNetworkInitialized, err := testObject.contract.GetNetworkBootStatus()
@@ -210,7 +210,7 @@ func TestPermissionCtrl_PopulateInitPermissions_AfterNetworkIsInitialized(t *tes
 	testObject := typicalBasicPermissionCtrl(t)
 	assert.NoError(t, testObject.AfterStart())
 
-	err := testObject.PopulateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
+	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
 
 	assert.NoError(t, err)
 
@@ -250,7 +250,7 @@ func typicalQuorumControlsAPI(t *testing.T) *QuorumControlsAPI {
 	if !assert.NoError(t, pc.AfterStart()) {
 		t.Fail()
 	}
-	if !assert.NoError(t, pc.PopulateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)) {
+	if !assert.NoError(t, pc.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)) {
 		t.Fail()
 	}
 	return NewQuorumControlsAPI(pc)
@@ -596,16 +596,16 @@ func typicalBasicPermissionCtrl(t *testing.T) *PermissionCtrl {
 		SubOrgDepth:   big.NewInt(10),
 		SubOrgBreadth: big.NewInt(10),
 	}
-	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, true)
+	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	
-	testObject.EthClnt = backend
-	testObject.Eth = ethereum
-	testObject.contract = &PermissionContractService{EthClnt: testObject.EthClnt, EeaFlag: testObject.eeaFlag, Key: testObject.Key, PermConfig: testObject.PermConfig}
+	testObject.ethClnt = backend
+	testObject.eth = ethereum
+	testObject.contract = &PermissionContractService{ethClnt: testObject.ethClnt, eeaFlag: testObject.eeaFlag, key: testObject.key, permConfig: testObject.permConfig}
 	go func() {
-		testObject.ErrorChan <- nil
+		testObject.errorChan <- nil
 	}()
 	return testObject
 }
@@ -628,24 +628,24 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	testObject := typicalBasicPermissionCtrl(t)
 	assert.NoError(t, testObject.AfterStart())
 
-	err := testObject.PopulateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
+	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
 	assert.NoError(t, err)
 
 	d, _ := ioutil.TempDir("", "qdata")
 	defer os.RemoveAll(d)
 
-	testObject.DataDir = d
-	testObject.UpdatePermissionedNodes(arbitraryNode1, NodeAdd)
+	testObject.dataDir = d
+	testObject.updatePermissionedNodes(arbitraryNode1, NodeAdd)
 
 	permFile, _ := os.Create(d + "/" + "permissioned-nodes.json")
 
-	testObject.UpdateFile("testFile", arbitraryNode2, NodeAdd, false)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode2, NodeAdd, false)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode1, NodeAdd, false)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
+	testObject.updateFile("testFile", arbitraryNode2, NodeAdd, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode2, NodeAdd, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
+	testObject.updateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
+	testObject.updateFile(permFile.Name(), arbitraryNode1, NodeAdd, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
 
 	blob, err := ioutil.ReadFile(permFile.Name())
 	var nodeList []string
@@ -654,8 +654,8 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 		return
 	}
 	assert.Equal(t, len(nodeList), 1)
-	testObject.UpdatePermissionedNodes(arbitraryNode1, NodeAdd)
-	testObject.UpdatePermissionedNodes(arbitraryNode1, NodeDelete)
+	testObject.updatePermissionedNodes(arbitraryNode1, NodeAdd)
+	testObject.updatePermissionedNodes(arbitraryNode1, NodeDelete)
 
 	blob, err = ioutil.ReadFile(permFile.Name())
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
@@ -664,8 +664,8 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	}
 	assert.Equal(t, len(nodeList), 1)
 
-	testObject.UpdateDisallowedNodes(arbitraryNode2, NodeAdd)
-	testObject.UpdateDisallowedNodes(arbitraryNode2, NodeDelete)
+	testObject.updateDisallowedNodes(arbitraryNode2, NodeAdd)
+	testObject.updateDisallowedNodes(arbitraryNode2, NodeDelete)
 	blob, err = ioutil.ReadFile(d + "/" + "disallowed-nodes.json")
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
 		t.Fatal("Failed to load nodes list from file", "fileName", permFile, "err", err)
