@@ -185,16 +185,14 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 	err := testObject.AfterStart()
 
 	assert.NoError(t, err)
-	assert.NotNil(t, testObject.PermOrg)
-	assert.NotNil(t, testObject.PermRole)
-	assert.NotNil(t, testObject.PermNode)
-	assert.NotNil(t, testObject.PermAcct)
-	assert.NotNil(t, testObject.PermInterf)
-	assert.NotNil(t, testObject.PermUpgr)
+	assert.NotNil(t, testObject.contract.PermOrg)
+	assert.NotNil(t, testObject.contract.PermRole)
+	assert.NotNil(t, testObject.contract.PermNode)
+	assert.NotNil(t, testObject.contract.PermAcct)
+	assert.NotNil(t, testObject.contract.PermInterf)
+	assert.NotNil(t, testObject.contract.PermUpgr)
 
-	isNetworkInitialized, err := testObject.PermInterf.GetNetworkBootStatus(&bind.CallOpts{
-		Pending: true,
-	})
+	isNetworkInitialized, err := testObject.contract.GetNetworkBootStatus()
 	assert.NoError(t, err)
 	assert.True(t, isNetworkInitialized)
 }
@@ -557,8 +555,8 @@ func getArbitraryAccount() common.Address {
 	return crypto.PubkeyToAddress(acctKey.PublicKey)
 }
 
-func typicalEeaPermissionCtrl(t *testing.T) *EeaPermissionCtrl {
-	testObject, err := NewQuorumPermissionCtrl(stack, &types.PermissionConfig{
+func typicalEeaPermissionCtrl(t *testing.T) *PermissionCtrl {
+	pconfig := &types.PermissionConfig{
 		UpgrdAddress:   permUpgrAddress,
 		InterfAddress:  permInterfaceAddress,
 		ImplAddress:    permImplAddress,
@@ -575,17 +573,19 @@ func typicalEeaPermissionCtrl(t *testing.T) *EeaPermissionCtrl {
 		},
 		SubOrgDepth:   big.NewInt(10),
 		SubOrgBreadth: big.NewInt(10),
-	}, true)
+	}
+	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pc, _ := testObject.(*EeaPermissionCtrl)
-	pc.EthClnt = backend
-	pc.Eth = ethereum
+	
+	testObject.EthClnt = backend
+	testObject.Eth = ethereum
+	//testObject.contract = &PermissionContractService{EthClnt: testObject.EthClnt, EeaFlag: testObject.eeaFlag, Key: testObject.Key, PermConfig: testObject.PermConfig}
 	go func() {
-		pc.ErrorChan <- nil
+		testObject.ErrorChan <- nil
 	}()
-	return pc
+	return testObject
 }
 
 func tmpKeyStore(encrypted bool) (string, *keystore.KeyStore, error) {
@@ -613,17 +613,17 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	defer os.RemoveAll(d)
 
 	testObject.DataDir = d
-	testObject.UpdatePermissionedNodes(arbitraryNode1, types.NodeAdd)
+	testObject.UpdatePermissionedNodes(arbitraryNode1, NodeAdd)
 
 	permFile, _ := os.Create(d + "/" + "permissioned-nodes.json")
 
-	testObject.UpdateFile("testFile", arbitraryNode2, types.NodeAdd, false)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode2, types.NodeAdd, false)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode2, types.NodeAdd, true)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode2, types.NodeAdd, true)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode1, types.NodeAdd, false)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode1, types.NodeDelete, false)
-	testObject.UpdateFile(permFile.Name(), arbitraryNode1, types.NodeDelete, false)
+	testObject.UpdateFile("testFile", arbitraryNode2, NodeAdd, false)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode2, NodeAdd, false)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode1, NodeAdd, false)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
+	testObject.UpdateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
 
 	blob, err := ioutil.ReadFile(permFile.Name())
 	var nodeList []string
@@ -632,8 +632,8 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 		return
 	}
 	assert.Equal(t, len(nodeList), 1)
-	testObject.UpdatePermissionedNodes(arbitraryNode1, types.NodeAdd)
-	testObject.UpdatePermissionedNodes(arbitraryNode1, types.NodeDelete)
+	testObject.UpdatePermissionedNodes(arbitraryNode1, NodeAdd)
+	testObject.UpdatePermissionedNodes(arbitraryNode1, NodeDelete)
 
 	blob, err = ioutil.ReadFile(permFile.Name())
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
@@ -642,8 +642,8 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	}
 	assert.Equal(t, len(nodeList), 1)
 
-	testObject.UpdateDisallowedNodes(arbitraryNode2, types.NodeAdd)
-	testObject.UpdateDisallowedNodes(arbitraryNode2, types.NodeDelete)
+	testObject.UpdateDisallowedNodes(arbitraryNode2, NodeAdd)
+	testObject.UpdateDisallowedNodes(arbitraryNode2, NodeDelete)
 	blob, err = ioutil.ReadFile(d + "/" + "disallowed-nodes.json")
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
 		t.Fatal("Failed to load nodes list from file", "fileName", permFile, "err", err)

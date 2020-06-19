@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"reflect"
 	"strings"
 	"sync"
 
@@ -15,16 +14,7 @@ import (
 
 type AccessType uint8
 
-// to signal all watches when service is stopped
-type StopEvent struct {
-}
 
-type NodeOperation uint8
-
-const (
-	NodeAdd NodeOperation = iota
-	NodeDelete
-)
 
 const (
 	ReadOnly AccessType = iota
@@ -180,16 +170,6 @@ type OrgCache struct {
 	mux               sync.Mutex
 	evicted           bool
 	populateCacheFunc func(orgId string) (*OrgInfo, error)
-}
-
-func BindContract(contractInstance interface{}, bindFunc func() (interface{}, error)) error {
-	element := reflect.ValueOf(contractInstance).Elem()
-	instance, err := bindFunc()
-	if err != nil {
-		return err
-	}
-	element.Set(reflect.ValueOf(instance))
-	return nil
 }
 
 func (o *OrgCache) PopulateCacheFunc(cf func(string) (*OrgInfo, error)) {

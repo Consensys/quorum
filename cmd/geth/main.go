@@ -456,28 +456,13 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	//
 	// checking if permissions is enabled and staring the permissions service
 	if stack.IsPermissionEnabled() {
-		eeaFlag := ctx.GlobalBool(utils.PermEeaModeFlag.Name)
-		// TODO (Amal) removie
-		eeaFlag = true
-		if(eeaFlag){
-			var permissionService *permission.EeaPermissionCtrl
-			if err := stack.Service(&permissionService); err != nil {
-				utils.Fatalf("Permission service not runnning: %v", err)
-			}
-			if err := permissionService.AfterStart(); err != nil {
-				utils.Fatalf("Permission service post construct failure: %v", err)
-			}
-		} else {
-			// TODO (Amal) update with basic permission
-			/*var permissionService *permission.BasicPermissionCtrl
-			if err := stack.Service(&permissionService); err != nil {
-				utils.Fatalf("Permission service not runnning: %v", err)
-			}
-			if err := permissionService.AfterStart(); err != nil {
-				utils.Fatalf("Permission service post construct failure: %v", err)
-			}*/
+		var permissionService *permission.PermissionCtrl
+		if err := stack.Service(&permissionService); err != nil {
+			utils.Fatalf("Permission service not runnning: %v", err)
 		}
-
+		if err := permissionService.AfterStart(); err != nil {
+			utils.Fatalf("Permission service post construct failure: %v", err)
+		}
 	}
 
 	// Start auxiliary services if enabled

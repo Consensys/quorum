@@ -89,7 +89,7 @@ func (p *PermissionContractService) ApproveBlacklistedNodeRecovery(_orgId string
 	return p.PermInterfSession.ApproveBlacklistedNodeRecovery(_orgId, _url)
 }
 func (p *PermissionContractService) StartBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
-	if p.EeaFlag{
+	if p.EeaFlag {
 		return p.PermInterfSessionE.StartBlacklistedNodeRecovery(_orgId, _enodeId, _ip, _port, _raftport)
 	}
 	return p.PermInterfSession.StartBlacklistedNodeRecovery(_orgId, _url)
@@ -113,23 +113,22 @@ func (p *PermissionContractService) GetPendingOp(_orgId string) (string, string,
 	return p.PermInterfSession.GetPendingOp(_orgId)
 }
 
-
 func (p *PermissionContractService) ApproveAdminRole(_orgId string, _account common.Address) (*types.Transaction, error) {
-	if p.EeaFlag{
+	if p.EeaFlag {
 		return p.PermInterfSessionE.ApproveAdminRole(_orgId, _account)
 	}
 	return p.PermInterfSession.ApproveAdminRole(_orgId, _account)
 }
 
 func (p *PermissionContractService) AssignAdminRole(_orgId string, _account common.Address, _roleId string) (*types.Transaction, error) {
-	if p.EeaFlag{
+	if p.EeaFlag {
 		return p.PermInterfSessionE.AssignAdminRole(_orgId, _account, _roleId)
 	}
 	return p.PermInterfSession.AssignAdminRole(_orgId, _account, _roleId)
 }
 
 func (p *PermissionContractService) AddNode(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
-	if p.EeaFlag{
+	if p.EeaFlag {
 		return p.PermInterfSessionE.AddNode(_orgId, _enodeId, _ip, _port, _raftport)
 	}
 	return p.PermInterfSession.AddNode(_orgId, _url)
@@ -144,21 +143,21 @@ func (p *PermissionContractService) UpdateNodeStatus(_orgId string, _enodeId str
 }
 
 func (p *PermissionContractService) ApproveOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
-	if p.EeaFlag{
+	if p.EeaFlag {
 		return p.PermInterfSessionE.ApproveOrgStatus(_orgId, _action)
 	}
 	return p.PermInterfSession.ApproveOrgStatus(_orgId, _action)
 }
 
 func (p *PermissionContractService) UpdateOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
-	if p.EeaFlag{
+	if p.EeaFlag {
 		return p.PermInterfSessionE.UpdateOrgStatus(_orgId, _action)
 	}
 	return p.PermInterfSession.UpdateOrgStatus(_orgId, _action)
 }
 
 func (p *PermissionContractService) ApproveOrg(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
-	if p.EeaFlag{
+	if p.EeaFlag {
 		return p.PermInterfSessionE.ApproveOrg(_orgId, _enodeId, _ip, _port, _raftport, _account)
 	}
 	return p.PermInterfSession.ApproveOrg(_orgId, _url, _account)
@@ -171,11 +170,11 @@ func (p *PermissionContractService) AddSubOrg(_pOrgId string, _orgId string, _en
 	return p.PermInterfSession.AddSubOrg(_pOrgId, _orgId, _url)
 }
 
-func (p *PermissionContractService) AddOrg(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
+func (p *PermissionContractService) AddOrg(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
 	if p.EeaFlag {
 		return p.PermInterfSessionE.AddOrg(_orgId, _enodeId, _ip, _port, _raftport, _account)
 	}
-	return p.PermInterfSession.AddOrg(_orgId, _enodeId, _account)
+	return p.PermInterfSession.AddOrg(_orgId, _url, _account)
 }
 
 func (p *PermissionContractService) GetAccountDetailsFromIndex(_aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
@@ -239,7 +238,7 @@ func (p *PermissionContractService) AddAdminNode(_enodeId string, _ip [32]byte, 
 		return p.PermInterfSessionE.AddAdminNode(_enodeId, _ip, _port, _raftport)
 	}
 	// TODO Amal
-	return p.PermInterfSession.AddAdminNode(_enodeId)
+	return p.PermInterfSession.AddAdminNode(types.GetNodeUrl(_enodeId, string(_ip[:]), _port, _raftport))
 }
 
 func (p *PermissionContractService) SetPolicy(_nwAdminOrg string, _nwAdminRole string, _oAdminRole string) (*types.Transaction, error) {
@@ -264,32 +263,17 @@ func (p *PermissionContractService) GetAccountDetails(_account common.Address) (
 }
 
 // TODO : Amal
-func (p *PermissionContractService) GetNodeDetailsFromIndex(_nodeIndex *big.Int) (struct {
-	OrgId      string
-	EnodeId    string
-	Ip         [32]byte
-	Port       uint16
-	Raftport   uint16
-	NodeStatus *big.Int
-}, error) {
+func (p *PermissionContractService) GetNodeDetailsFromIndex(_nodeIndex *big.Int) (string, string, *big.Int, error) {
+
 	if p.EeaFlag {
-		return p.PermNodeSessionE.GetNodeDetailsFromIndex(_nodeIndex)
+		r, err := p.PermNodeSessionE.GetNodeDetailsFromIndex(_nodeIndex)
+		if err != nil {
+			return "", "", big.NewInt(0), err
+		}
+		return r.OrgId, types.GetNodeUrl(r.EnodeId, string(r.Ip[:]), r.Port, r.Raftport), r.NodeStatus, err
 	}
-	ret := new(struct {
-		OrgId      string
-		EnodeId    string
-		Ip         [32]byte
-		Port       uint16
-		Raftport   uint16
-		NodeStatus *big.Int
-	})
 	r, err := p.PermNodeSession.GetNodeDetailsFromIndex(_nodeIndex)
-	if err == nil {
-		ret.EnodeId = r.EnodeId
-		ret.OrgId = r.OrgId
-		ret.NodeStatus = r.NodeStatus
-	}
-	return *ret, err
+	return r.OrgId, r.EnodeId, r.NodeStatus, err
 }
 
 func (p *PermissionContractService) GetNumberOfNodes() (*big.Int, error) {
@@ -300,16 +284,16 @@ func (p *PermissionContractService) GetNumberOfNodes() (*big.Int, error) {
 }
 
 // TODO Amal
-func (p *PermissionContractService) GetNodeDetails(enodeId string) (struct {
-	OrgId      string
-	EnodeId    string
-	NodeStatus *big.Int
-}, error) {
+func (p *PermissionContractService) GetNodeDetails(enodeId string) (string, string, *big.Int, error) {
 	if p.EeaFlag {
-		return p.PermNodeSessionE.GetNodeDetails(enodeId)
-	} else {
-		return p.PermNodeSession.GetNodeDetails(enodeId)
+		r, err := p.PermNodeSessionE.GetNodeDetails(enodeId)
+		if err != nil {
+			return "", "", big.NewInt(0), err
+		}
+		return r.OrgId, types.GetNodeUrl(r.EnodeId, string(r.Ip[:]), r.Port, r.Raftport), r.NodeStatus, err
 	}
+	r, err := p.PermNodeSession.GetNodeDetails(enodeId)
+	return r.OrgId, r.EnodeId, r.NodeStatus, err
 }
 
 func (p *PermissionContractService) GetRoleDetails(_roleId string, _orgId string) (struct {
@@ -375,44 +359,44 @@ func (p *PermissionContractService) AfterStart() error {
 }
 
 func (p *PermissionContractService) basicBindContract() error {
-	if err := types.BindContract(&p.PermUpgr, func() (interface{}, error) { return pbind.NewPermUpgr(p.PermConfig.UpgrdAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermUpgr, func() (interface{}, error) { return pbind.NewPermUpgr(p.PermConfig.UpgrdAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermInterf, func() (interface{}, error) { return pbind.NewPermInterface(p.PermConfig.InterfAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermInterf, func() (interface{}, error) { return pbind.NewPermInterface(p.PermConfig.InterfAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermAcct, func() (interface{}, error) { return pbind.NewAcctManager(p.PermConfig.AccountAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermAcct, func() (interface{}, error) { return pbind.NewAcctManager(p.PermConfig.AccountAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermNode, func() (interface{}, error) { return pbind.NewNodeManager(p.PermConfig.NodeAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermNode, func() (interface{}, error) { return pbind.NewNodeManager(p.PermConfig.NodeAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermRole, func() (interface{}, error) { return pbind.NewRoleManager(p.PermConfig.RoleAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermRole, func() (interface{}, error) { return pbind.NewRoleManager(p.PermConfig.RoleAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermOrg, func() (interface{}, error) { return pbind.NewOrgManager(p.PermConfig.OrgAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermOrg, func() (interface{}, error) { return pbind.NewOrgManager(p.PermConfig.OrgAddress, p.EthClnt) }); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (p *PermissionContractService) eeaBindContract() error {
-	if err := types.BindContract(&p.PermUpgrE, func() (interface{}, error) { return pbind.NewEeaPermUpgr(p.PermConfig.UpgrdAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermUpgrE, func() (interface{}, error) { return pbind.NewEeaPermUpgr(p.PermConfig.UpgrdAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermInterfE, func() (interface{}, error) { return pbind.NewEeaPermInterface(p.PermConfig.InterfAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermInterfE, func() (interface{}, error) { return pbind.NewEeaPermInterface(p.PermConfig.InterfAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermAcctE, func() (interface{}, error) { return pbind.NewEeaAcctManager(p.PermConfig.AccountAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermAcctE, func() (interface{}, error) { return pbind.NewEeaAcctManager(p.PermConfig.AccountAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermNodeE, func() (interface{}, error) { return pbind.NewEeaNodeManager(p.PermConfig.NodeAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermNodeE, func() (interface{}, error) { return pbind.NewEeaNodeManager(p.PermConfig.NodeAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermRoleE, func() (interface{}, error) { return pbind.NewEeaRoleManager(p.PermConfig.RoleAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermRoleE, func() (interface{}, error) { return pbind.NewEeaRoleManager(p.PermConfig.RoleAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermOrgE, func() (interface{}, error) { return pbind.NewEeaOrgManager(p.PermConfig.OrgAddress, p.EthClnt) }); err != nil {
+	if err := BindContract(&p.PermOrgE, func() (interface{}, error) { return pbind.NewEeaOrgManager(p.PermConfig.OrgAddress, p.EthClnt) }); err != nil {
 		return err
 	}
 	return nil
@@ -518,5 +502,3 @@ func (p *PermissionContractService) basicSession() {
 		},
 	}
 }
-
-

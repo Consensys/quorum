@@ -99,12 +99,13 @@ contract NodeManager {
       * @return status of the node
       */
     function getNodeDetails(string calldata enodeId) external view
-    returns (string memory _orgId, string memory _enodeId, uint256 _nodeStatus) {
+    returns (string memory _orgId, string memory _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, uint256 _nodeStatus) {
         if (nodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0) {
-            return ("", enodeId, 0);
+            return ("", "", "", 0, 0, 0);
         }
         uint256 nodeIndex = _getNodeIndex(enodeId);
-        return (nodeList[nodeIndex].orgId, nodeList[nodeIndex].enodeId,
+        return (nodeList[nodeIndex].orgId, nodeList[nodeIndex].enodeId, nodeList[nodeIndex].ip,
+        nodeList[nodeIndex].port, nodeList[nodeIndex].raftPort,
         nodeList[nodeIndex].status);
     }
 

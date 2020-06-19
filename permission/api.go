@@ -193,7 +193,7 @@ func (q *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address
 		return "", err
 	}
 	enodeId, ip, port, raftPort, _ := q.getNodeDetails(args.url)
-	tx, err := pinterf.AddOrg(args.orgId, enodeId, ip, port, raftPort, args.acctId)
+	tx, err := pinterf.AddOrg(args.orgId, enodeId, ip, port, raftPort, args.acctId, args.url)
 	if err != nil {
 		return reportExecError(AddOrg, err)
 	}
@@ -208,7 +208,7 @@ func (q *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, txa etha
 	}
 	args := txArgs{porgId: porgId, orgId: orgId, url: url, txa: txa}
 
-	if err := q.valAddSubOrg(args, pinterf); err != nil {
+	if err := q.valAddSubOrg(args); err != nil {
 		return "", err
 	}
 	enodeId, ip, port, raftPort, _ := q.getNodeDetails(args.url)
@@ -244,7 +244,7 @@ func (q *QuorumControlsAPI) UpdateOrgStatus(orgId string, status uint8, txa etha
 		return "", err
 	}
 	args := txArgs{orgId: orgId, action: status, txa: txa}
-	if err := q.valUpdateOrgStatus(args, pinterf); err != nil {
+	if err := q.valUpdateOrgStatus(args); err != nil {
 		return "", err
 	}
 	// and in suspended state for suspension revoke
@@ -262,7 +262,7 @@ func (q *QuorumControlsAPI) AddNode(orgId string, url string, txa ethapi.SendTxA
 		return "", err
 	}
 	args := txArgs{orgId: orgId, url: url, txa: txa}
-	if err := q.valAddNode(args, pinterf); err != nil {
+	if err := q.valAddNode(args); err != nil {
 		return "", err
 	}
 	// check if Node is already there
@@ -281,7 +281,7 @@ func (q *QuorumControlsAPI) UpdateNodeStatus(orgId string, url string, action ui
 		return "", err
 	}
 	args := txArgs{orgId: orgId, url: url, action: action, txa: txa}
-	if err := q.valUpdateNodeStatus(args, UpdateNodeStatus, pinterf); err != nil {
+	if err := q.valUpdateNodeStatus(args, UpdateNodeStatus); err != nil {
 		return "", err
 	}
 	// check Node status for operation
@@ -318,7 +318,7 @@ func (q *QuorumControlsAPI) AssignAdminRole(orgId string, acct common.Address, r
 		return "", err
 	}
 	args := txArgs{orgId: orgId, acctId: acct, roleId: roleId, txa: txa}
-	if err := q.valAssignAdminRole(args, pinterf); err != nil {
+	if err := q.valAssignAdminRole(args); err != nil {
 		return "", err
 	}
 	// check if account is already in use in another org
@@ -354,7 +354,7 @@ func (q *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8
 		return "", err
 	}
 	args := txArgs{orgId: orgId, roleId: roleId, accessType: access, isVoter: isVoter, isAdmin: isAdmin, txa: txa}
-	if err := q.valAddNewRole(args, pinterf); err != nil {
+	if err := q.valAddNewRole(args); err != nil {
 		return "", err
 	}
 	// check if role is already there in the org
@@ -373,7 +373,7 @@ func (q *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.S
 	}
 	args := txArgs{orgId: orgId, roleId: roleId, txa: txa}
 
-	if err := q.valRemoveRole(args, pinterf); err != nil {
+	if err := q.valRemoveRole(args); err != nil {
 		return "", err
 	}
 	tx, err := pinterf.RemoveRole(args.roleId, args.orgId)
@@ -412,7 +412,7 @@ func (q *QuorumControlsAPI) AddAccountToOrg(acct common.Address, orgId string, r
 	}
 	args := txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa}
 
-	if err := q.valAssignRole(args, pinterf); err != nil {
+	if err := q.valAssignRole(args); err != nil {
 		return "", err
 	}
 	tx, err := pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
@@ -429,7 +429,7 @@ func (q *QuorumControlsAPI) ChangeAccountRole(acct common.Address, orgId string,
 	}
 	args := txArgs{orgId: orgId, roleId: roleId, acctId: acct, txa: txa}
 
-	if err := q.valAssignRole(args, pinterf); err != nil {
+	if err := q.valAssignRole(args); err != nil {
 		return "", err
 	}
 	tx, err := pinterf.AssignAccountRole(args.acctId, args.orgId, args.roleId)
@@ -447,7 +447,7 @@ func (q *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Addres
 	}
 	args := txArgs{orgId: orgId, acctId: acct, action: status, txa: txa}
 
-	if err := q.valUpdateAccountStatus(args, UpdateAccountStatus, pinterf); err != nil {
+	if err := q.valUpdateAccountStatus(args, UpdateAccountStatus); err != nil {
 		return "", err
 	}
 	tx, err := pinterf.UpdateAccountStatus(args.orgId, args.acctId, big.NewInt(int64(args.action)))
@@ -812,13 +812,19 @@ func (q *QuorumControlsAPI) valApproveOrg(args txArgs, pinterf *PermissionContra
 	}
 	enodeId, _, _, _, _ := q.getNodeDetails(args.url)
 	// check if anything pending approval
-	if !q.validatePendingOp(q.permCtrl.PermissionConfig().NwAdminOrg, args.orgId, enodeId, args.acctId, 1, pinterf) {
-		return types.ErrNothingToApprove
+	if q.permCtrl.eeaFlag {
+		if !q.validatePendingOp(q.permCtrl.PermissionConfig().NwAdminOrg, args.orgId, enodeId, args.acctId, 1, pinterf) {
+			return types.ErrNothingToApprove
+		}
+	} else {
+		if !q.validatePendingOp(q.permCtrl.PermissionConfig().NwAdminOrg, args.orgId, args.url, args.acctId, 1, pinterf) {
+			return types.ErrNothingToApprove
+		}
 	}
 	return nil
 }
 
-func (q *QuorumControlsAPI) valAddSubOrg(args txArgs, pinterf *PermissionContractService) error {
+func (q *QuorumControlsAPI) valAddSubOrg(args txArgs) error {
 	// check if the org id contains "."
 	if args.orgId == "" {
 		return types.ErrInvalidInput
@@ -847,7 +853,7 @@ func (q *QuorumControlsAPI) valAddSubOrg(args txArgs, pinterf *PermissionContrac
 	return nil
 }
 
-func (q *QuorumControlsAPI) valUpdateOrgStatus(args txArgs, pinterf *PermissionContractService) error {
+func (q *QuorumControlsAPI) valUpdateOrgStatus(args txArgs) error {
 	// check if called is network admin
 	if !q.isNetworkAdmin(args.txa.From) {
 		return types.ErrNotNetworkAdmin
@@ -888,7 +894,7 @@ func (q *QuorumControlsAPI) valApproveOrgStatus(args txArgs, pinterf *Permission
 	return nil
 }
 
-func (q *QuorumControlsAPI) valAddNode(args txArgs, pinterf *PermissionContractService) error {
+func (q *QuorumControlsAPI) valAddNode(args txArgs) error {
 	if args.url == "" {
 		return types.ErrInvalidInput
 	}
@@ -903,7 +909,7 @@ func (q *QuorumControlsAPI) valAddNode(args txArgs, pinterf *PermissionContractS
 	return nil
 }
 
-func (q *QuorumControlsAPI) valUpdateNodeStatus(args txArgs, permAction PermAction, pinterf *PermissionContractService) error {
+func (q *QuorumControlsAPI) valUpdateNodeStatus(args txArgs, permAction PermAction) error {
 	// check if org admin
 	// check if caller is network admin
 	if er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
@@ -917,7 +923,7 @@ func (q *QuorumControlsAPI) valUpdateNodeStatus(args txArgs, permAction PermActi
 	return nil
 }
 
-func (q *QuorumControlsAPI) valAssignAdminRole(args txArgs, pinterf *PermissionContractService) error {
+func (q *QuorumControlsAPI) valAssignAdminRole(args txArgs) error {
 	if args.acctId == (common.Address{0}) {
 		return types.ErrInvalidInput
 	}
@@ -960,7 +966,7 @@ func (q *QuorumControlsAPI) valApproveAdminRole(args txArgs, pinterf *Permission
 	return nil
 }
 
-func (q *QuorumControlsAPI) valAddNewRole(args txArgs, pinterf *PermissionContractService) error {
+func (q *QuorumControlsAPI) valAddNewRole(args txArgs) error {
 	if args.roleId == "" {
 		return types.ErrInvalidInput
 	}
@@ -975,7 +981,7 @@ func (q *QuorumControlsAPI) valAddNewRole(args txArgs, pinterf *PermissionContra
 	return nil
 }
 
-func (q *QuorumControlsAPI) valRemoveRole(args txArgs, pinterf *PermissionContractService) error {
+func (q *QuorumControlsAPI) valRemoveRole(args txArgs) error {
 	// check if caller is network admin
 	if er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
 		return er
@@ -1001,7 +1007,7 @@ func (q *QuorumControlsAPI) valRemoveRole(args txArgs, pinterf *PermissionContra
 	return nil
 }
 
-func (q *QuorumControlsAPI) valAssignRole(args txArgs, pinterf *PermissionContractService) error {
+func (q *QuorumControlsAPI) valAssignRole(args txArgs) error {
 	if args.acctId == (common.Address{0}) {
 		return types.ErrInvalidInput
 	}
@@ -1027,7 +1033,7 @@ func (q *QuorumControlsAPI) valAssignRole(args txArgs, pinterf *PermissionContra
 	return nil
 }
 
-func (q *QuorumControlsAPI) valUpdateAccountStatus(args txArgs, permAction PermAction, pinterf *PermissionContractService) error {
+func (q *QuorumControlsAPI) valUpdateAccountStatus(args txArgs, permAction PermAction) error {
 	// check if the caller is org admin
 	if er := q.isOrgAdmin(args.txa.From, args.orgId); er != nil {
 		return er
@@ -1064,8 +1070,14 @@ func (q *QuorumControlsAPI) valRecoverNode(args txArgs, pinterf *PermissionContr
 		}
 		enodeId, _, _, _, _ := q.getNodeDetails(args.url)
 		// check that there is a pending approval item for Node recovery
-		if !q.validatePendingOp(q.permCtrl.PermissionConfig().NwAdminOrg, args.orgId, enodeId, common.Address{}, 5, pinterf) {
-			return types.ErrNothingToApprove
+		if q.permCtrl.eeaFlag {
+			if !q.validatePendingOp(q.permCtrl.PermissionConfig().NwAdminOrg, args.orgId, enodeId, common.Address{}, 5, pinterf) {
+				return types.ErrNothingToApprove
+			}
+		} else {
+			if !q.validatePendingOp(q.permCtrl.PermissionConfig().NwAdminOrg, args.orgId, args.url, common.Address{}, 5, pinterf) {
+				return types.ErrNothingToApprove
+			}
 		}
 	}
 
@@ -1115,7 +1127,7 @@ func (q *QuorumControlsAPI) newPermInterfaceSession(w accounts.Wallet, txa ethap
 	frmAcct, transactOpts, gasLimit, gasPrice := q.getTxParams(txa, w)
 	if q.permCtrl.eeaFlag {
 		ps := &pbind.EeaPermInterfaceSession{
-			Contract: q.permCtrl.permSrvc.PermInterfE,
+			Contract: q.permCtrl.contract.PermInterfE,
 			CallOpts: bind.CallOpts{
 				Pending: true,
 			},
@@ -1130,7 +1142,7 @@ func (q *QuorumControlsAPI) newPermInterfaceSession(w accounts.Wallet, txa ethap
 	}
 
 	ps := &pbind.PermInterfaceSession{
-		Contract: q.permCtrl.permSrvc.PermInterf,
+		Contract: q.permCtrl.contract.PermInterf,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
