@@ -65,7 +65,11 @@ func (c *Client) FullPath(path string) string {
 }
 
 func (c *Client) Get(path string) (*http.Response, error) {
-	return c.HttpClient.Get(c.FullPath(path))
+	response, err := c.HttpClient.Get(c.FullPath(path))
+	if err != nil {
+		return response, fmt.Errorf("unable to submit request (method:%s,path:%s). Cause: %v", "GET", path, err)
+	}
+	return response, err
 }
 
 type PrivacyFlagType uint64
