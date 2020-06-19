@@ -125,13 +125,10 @@ func getRoundChangeSetForPositveTests() *roundChangeSet {
 
 	rcs := newRoundChangeSet(vset)
 
-	encodedRCMsg1, _ := Encode(&RoundChangePiggybackMsgs{
-		RoundChangeMessage: &RoundChangeMessage{
-			View:          view,
-			PreparedRound: big.NewInt(1),
-			PreparedBlock: proposal,
-		},
-		PiggybackMessages: &PiggybackMessages{PreparedMessages: nil},
+	encodedRCMsg1, _ := Encode(&RoundChangeMessage{
+		View:          view,
+		PreparedRound: big.NewInt(1),
+		PreparedBlock: proposal,
 	})
 
 	msg1 := &message{

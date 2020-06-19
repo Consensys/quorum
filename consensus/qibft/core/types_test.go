@@ -27,18 +27,12 @@ import (
 )
 
 func testPreprepare(t *testing.T) {
-	valSet := newTestValidatorSet(4)
-	pp := &PreprepareWithPiggybackMsgs{
-		Preprepare: &Preprepare{
-			View: &View{
-				Round:    big.NewInt(1),
-				Sequence: big.NewInt(2),
-			},
-			Proposal: makeBlock(1),
+	pp := &Preprepare{
+		View: &View{
+			Round:    big.NewInt(1),
+			Sequence: big.NewInt(2),
 		},
-		PiggybackMessages: &PiggybackMessages{
-			RCMessages: newMessageSet(valSet),
-		},
+		Proposal: makeBlock(1),
 	}
 	prepreparePayload, _ := Encode(pp)
 
@@ -59,7 +53,7 @@ func testPreprepare(t *testing.T) {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
-	var decodedPP *PreprepareWithPiggybackMsgs
+	var decodedPP *Preprepare
 	err = decodedMsg.Decode(&decodedPP)
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want nil", err)
@@ -67,16 +61,16 @@ func testPreprepare(t *testing.T) {
 
 	// if block is encoded/decoded by rlp, we cannot to compare interface data type using reflect.DeepEqual. (like istanbul.Proposal)
 	// so individual comparison here.
-	if !reflect.DeepEqual(pp.Preprepare.Proposal.Hash(), decodedPP.Preprepare.Proposal.Hash()) {
-		t.Errorf("proposal hash mismatch: have %v, want %v", decodedPP.Preprepare.Proposal.Hash(), pp.Preprepare.Proposal.Hash())
+	if !reflect.DeepEqual(pp.Proposal.Hash(), decodedPP.Proposal.Hash()) {
+		t.Errorf("proposal hash mismatch: have %v, want %v", decodedPP.Proposal.Hash(), pp.Proposal.Hash())
 	}
 
-	if !reflect.DeepEqual(pp.Preprepare.View, decodedPP.Preprepare.View) {
-		t.Errorf("view mismatch: have %v, want %v", decodedPP.Preprepare.View, pp.Preprepare.View)
+	if !reflect.DeepEqual(pp.View, decodedPP.View) {
+		t.Errorf("view mismatch: have %v, want %v", decodedPP.View, pp.View)
 	}
 
-	if !reflect.DeepEqual(pp.Preprepare.Proposal.Number(), decodedPP.Preprepare.Proposal.Number()) {
-		t.Errorf("proposal number mismatch: have %v, want %v", decodedPP.Preprepare.Proposal.Number(), pp.Preprepare.Proposal.Number())
+	if !reflect.DeepEqual(pp.Proposal.Number(), decodedPP.Proposal.Number()) {
+		t.Errorf("proposal number mismatch: have %v, want %v", decodedPP.Proposal.Number(), pp.Proposal.Number())
 	}
 }
 
@@ -236,24 +230,18 @@ func TestViewCompare(t *testing.T) {
 }
 
 func TestPreprepareEncodeDecode(t *testing.T) {
-	valSet := newTestValidatorSet(4)
 	view := &View{
 		Round:    big.NewInt(1),
 		Sequence: big.NewInt(5),
 	}
 
 	proposal := makeBlock(5)
-	preprepareWithPB := &PreprepareWithPiggybackMsgs{
-		Preprepare: &Preprepare{
-			View:     view,
-			Proposal: proposal,
-		},
-		PiggybackMessages: &PiggybackMessages{
-			RCMessages: newMessageSet(valSet),
-		},
+	preprepare := &Preprepare{
+		View:     view,
+		Proposal: proposal,
 	}
 
-	rawPreprepare, err := rlp.EncodeToBytes(preprepareWithPB)
+	rawPreprepare, err := rlp.EncodeToBytes(preprepare)
 	if err != nil {
 		t.Errorf("error mismatch: have %v, want nil", err)
 	}
@@ -264,14 +252,14 @@ func TestPreprepareEncodeDecode(t *testing.T) {
 		Msg:     rawPreprepare,
 		Address: common.Address{},
 	}
-	var decPreprepare *PreprepareWithPiggybackMsgs
+	var decPreprepare *Preprepare
 	err = msg.Decode(&decPreprepare)
 	if err != nil {
 		t.Errorf("error decoding preprepare message: %v", err)
 	}
 
-	if decPreprepare.Preprepare.Proposal.Hash() != proposal.Hash() {
-		t.Errorf("error mismatch proposal hash: have %v, want %v", decPreprepare.Preprepare.Proposal.Hash(), proposal.Hash())
+	if decPreprepare.Proposal.Hash() != proposal.Hash() {
+		t.Errorf("error mismatch proposal hash: have %v, want %v", decPreprepare.Proposal.Hash(), proposal.Hash())
 	}
 
 }
@@ -281,12 +269,10 @@ func TestRCEncodeDeocdeRLP(t *testing.T) {
 		Round:    big.NewInt(1),
 		Sequence: big.NewInt(5),
 	}
-	rc := &RoundChangePiggybackMsgs{
-		RoundChangeMessage: &RoundChangeMessage{
-			View:          view,
-			PreparedRound: big.NewInt(0),
-			PreparedBlock: makeBlock(5),
-		},
+	rc := &RoundChangeMessage{
+		View:          view,
+		PreparedRound: big.NewInt(0),
+		PreparedBlock: makeBlock(5),
 	}
 	rawRC, err := rlp.EncodeToBytes(rc)
 	if err != nil {
@@ -299,12 +285,12 @@ func TestRCEncodeDeocdeRLP(t *testing.T) {
 		Msg:     rawRC,
 		Address: common.Address{},
 	}
-	var decRC *RoundChangePiggybackMsgs
+	var decRC *RoundChangeMessage
 	err = msg.Decode(&decRC)
 	if err != nil {
 		t.Errorf("error decoding roundchange message: %v", err)
 	}
-	if decRC.RoundChangeMessage.View.Round.Uint64() != view.Round.Uint64() {
-		t.Errorf("error mismatch view: have %v, want %v", decRC.RoundChangeMessage.View.Round.Uint64(), view.Round.Uint64())
+	if decRC.View.Round.Uint64() != view.Round.Uint64() {
+		t.Errorf("error mismatch view: have %v, want %v", decRC.View.Round.Uint64(), view.Round.Uint64())
 	}
 }

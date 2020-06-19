@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // sendNextRoundChange sends the ROUND CHANGE message with current round + 1
@@ -53,13 +54,10 @@ func (c *core) sendRoundChange(round *big.Int) {
 		preparedBlock = NilBlock()
 	}
 	cv = c.currentView()
-	rc := &RoundChangePiggybackMsgs{
-		RoundChangeMessage: &RoundChangeMessage{
-			View:          cv,
-			PreparedRound: c.current.preparedRound,
-			PreparedBlock: preparedBlock,
-		},
-		PiggybackMessages: &PiggybackMessages{PreparedMessages: prepares, RCMessages: newMessageSet(c.valSet)},
+	rc := &RoundChangeMessage{
+		View:          cv,
+		PreparedRound: c.current.preparedRound,
+		PreparedBlock: preparedBlock,
 	}
 
 	payload, err := Encode(rc)
@@ -68,9 +66,23 @@ func (c *core) sendRoundChange(round *big.Int) {
 		return
 	}
 
+	prepareMsgs := c.PreparedRoundPrepares
+	if prepareMsgs == nil {
+		prepareMsgs = newMessageSet(c.valSet)
+	}
+
+	var piggybackMsgPayload []byte
+	piggybackMsg := &PiggybackMessages{PreparedMessages: prepareMsgs, RCMessages: newMessageSet(c.valSet)}
+	piggybackMsgPayload, err = Encode(piggybackMsg)
+	if err != nil {
+		logger.Error("Failed to encode Piggyback messages accompanying ROUND CHANGE", "err", err)
+		return
+	}
+
 	c.broadcast(&message{
-		Code: msgRoundChange,
-		Msg:  payload,
+		Code:          msgRoundChange,
+		Msg:           payload,
+		PiggybackMsgs: piggybackMsgPayload,
 	})
 
 }
@@ -79,30 +91,40 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 	logger := c.logger.New("state", c.state, "from", src.Address().Hex())
 
 	// Decode ROUND CHANGE message
-	var rc *RoundChangePiggybackMsgs
+	var rc *RoundChangeMessage
 	if err := msg.Decode(&rc); err != nil {
 		logger.Error("Failed to decode ROUND CHANGE", "err", err)
 		return errFailedDecodeRoundChange
 	}
 
-	if err := c.checkMessage(msgRoundChange, rc.RoundChangeMessage.View); err != nil {
+	// Decode Prepare messages that piggyback Round Change message
+	var piggybackMsgs *PiggybackMessages
+	if msg.PiggybackMsgs != nil && len(msg.PiggybackMsgs) > 0 {
+		if err := rlp.DecodeBytes(msg.PiggybackMsgs, &piggybackMsgs); err != nil {
+			logger.Error("Failed to decode ROUND CHANGE Piggyback messages", "err", err)
+			return errFailedDecodeRoundChange
+		}
+
+	}
+
+	if err := c.checkMessage(msgRoundChange, rc.View); err != nil {
 		return err
 	}
 
 	cv := c.currentView()
-	roundView := rc.RoundChangeMessage.View
+	roundView := rc.View
 
 	// Add the ROUND CHANGE message to its message set and return how many
 	// messages we've got with the same round number and sequence number.
 	if roundView.Round.Cmp(cv.Round) >= 0 {
-		pb := rc.RoundChangeMessage.PreparedBlock
-		pr := rc.RoundChangeMessage.PreparedRound
+		pb := rc.PreparedBlock
+		pr := rc.PreparedRound
 		// Checking if NilBlock was sent as prepared block
 		if NilBlock().Hash() == pb.Hash() {
 			pb = nil
 			pr = nil
 		}
-		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb, rc.PiggybackMessages.PreparedMessages)
+		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb, piggybackMsgs.PreparedMessages)
 		if err != nil {
 			logger.Warn("Failed to add round change message", "from", src, "msg", msg, "err", err)
 			return err

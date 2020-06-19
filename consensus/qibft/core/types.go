@@ -93,6 +93,7 @@ type message struct {
 	Address       common.Address
 	Signature     []byte
 	CommittedSeal []byte
+	PiggybackMsgs []byte
 }
 
 // ==============================================
@@ -101,7 +102,7 @@ type message struct {
 
 // EncodeRLP serializes m into the Ethereum RLP format.
 func (m *message) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal})
+	return rlp.Encode(w, []interface{}{m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal, m.PiggybackMsgs})
 }
 
 // DecodeRLP implements rlp.Decoder, and load the consensus fields from a RLP stream.
@@ -112,12 +113,13 @@ func (m *message) DecodeRLP(s *rlp.Stream) error {
 		Address       common.Address
 		Signature     []byte
 		CommittedSeal []byte
+		PiggybackMsgs []byte
 	}
 
 	if err := s.Decode(&msg); err != nil {
 		return err
 	}
-	m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal = msg.Code, msg.Msg, msg.Address, msg.Signature, msg.CommittedSeal
+	m.Code, m.Msg, m.Address, m.Signature, m.CommittedSeal, m.PiggybackMsgs = msg.Code, msg.Msg, msg.Address, msg.Signature, msg.CommittedSeal, msg.PiggybackMsgs
 	return nil
 }
 
@@ -132,6 +134,10 @@ func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.
 		return err
 	}
 
+	if len(m.PiggybackMsgs) == 0 {
+		m.PiggybackMsgs = nil
+	}
+
 	// Validate message (on a message without Signature)
 	if validateFn != nil {
 		// Verify messages signature
@@ -140,12 +146,12 @@ func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.
 		}
 		// Verify signature of piggyback messages
 		if m.Code == msgPreprepare {
-			if err = decodeAndVerifyPrepreparePiggyBackMsgs(m, validateFn); err != nil {
+			if err = decodeAndVerifyPrepreparePiggyBackMsgs(m.PiggybackMsgs, validateFn); err != nil {
 				return err
 			}
 		}
 		if m.Code == msgRoundChange {
-			if err = decodeAndVerifyRoundChangePiggyBackMsgs(m, validateFn); err != nil {
+			if err = decodeAndVerifyRoundChangePiggyBackMsgs(m.PiggybackMsgs, validateFn); err != nil {
 				return err
 			}
 		}
@@ -153,40 +159,43 @@ func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.
 	return nil
 }
 
-// decodeAndVerifyPrepreparePiggyBackMsgs decodes the given PRE-PREPARE message and verifies the signature of the piggybacked
-// ROUNDCHANGE and PREPARE messages
-func decodeAndVerifyPrepreparePiggyBackMsgs(m *message, validateFn func([]byte, []byte) (common.Address, error)) error {
-	// First decode preprepare message with PiggyBack Messages
-	var preprepareWithPB *PreprepareWithPiggybackMsgs
-	err := m.Decode(&preprepareWithPB)
-	if err != nil {
-		return errFailedDecodePreprepare
-	}
-	if preprepareWithPB.PiggybackMessages.RCMessages != nil && preprepareWithPB.PiggybackMessages.RCMessages.messages != nil {
-		if err = verifyPiggyBackMsgSignatures(preprepareWithPB.PiggybackMessages.RCMessages.messages, validateFn); err != nil {
-			return err
+// decodeAndVerifyPrepreparePiggyBackMsgs decodes the given piggyback messages and verifies the signature of individual Prepare and Round Change messages
+func decodeAndVerifyPrepreparePiggyBackMsgs(piggybackMsgsPayload []byte, validateFn func([]byte, []byte) (common.Address, error)) error {
+	// First decode piggyback messages and then verify individual Prepare and Round Change messages
+	if piggybackMsgsPayload != nil && len(piggybackMsgsPayload) > 0 {
+		var pbMsgs *PiggybackMessages
+		err := rlp.DecodeBytes(piggybackMsgsPayload, &pbMsgs)
+		if err != nil {
+			return errFailedDecodePreprepare
+		}
+		if pbMsgs.PreparedMessages != nil && pbMsgs.PreparedMessages.messages != nil {
+			if err = verifyPiggyBackMsgSignatures(pbMsgs.PreparedMessages.messages, validateFn); err != nil {
+				return err
+			}
+		}
+		if pbMsgs.RCMessages != nil && pbMsgs.RCMessages.messages != nil {
+			if err = verifyPiggyBackMsgSignatures(pbMsgs.RCMessages.messages, validateFn); err != nil {
+				return err
+			}
 		}
 	}
-	if preprepareWithPB.PiggybackMessages.PreparedMessages != nil && preprepareWithPB.PiggybackMessages.PreparedMessages.messages != nil {
-		if err = verifyPiggyBackMsgSignatures(preprepareWithPB.PiggybackMessages.PreparedMessages.messages, validateFn); err != nil {
-			return err
-		}
-	}
+
 	return nil
 }
 
-// decodeAndVerifyRoundChangePiggyBackMsgs decodes the given ROUNDCHANGE message and verfies the signature of the piggybacked
-// PREPARE messages
-func decodeAndVerifyRoundChangePiggyBackMsgs(m *message, validateFn func([]byte, []byte) (common.Address, error)) error {
-	// First decode Round change message
-	var rc *RoundChangePiggybackMsgs
-	err := m.Decode(&rc)
-	if err != nil {
-		return errFailedDecodeRoundChange
-	}
-	if rc.PiggybackMessages.PreparedMessages != nil && rc.PiggybackMessages.PreparedMessages.messages != nil {
-		if err = verifyPiggyBackMsgSignatures(rc.PiggybackMessages.PreparedMessages.messages, validateFn); err != nil {
-			return err
+// decodeAndVerifyRoundChangePiggyBackMsgs decodes the given piggyback messages and verifies the signature of individual Prepare messages
+func decodeAndVerifyRoundChangePiggyBackMsgs(piggybackMsgsPayload []byte, validateFn func([]byte, []byte) (common.Address, error)) error {
+	// First decode piggyback messages and then verify individual Prepare messages
+	if piggybackMsgsPayload != nil && len(piggybackMsgsPayload) > 0 {
+		var pbMsgs *PiggybackMessages
+		err := rlp.DecodeBytes(piggybackMsgsPayload, &pbMsgs)
+		if err != nil {
+			return errFailedDecodeRoundChange
+		}
+		if pbMsgs.PreparedMessages != nil && pbMsgs.PreparedMessages.messages != nil {
+			if err = verifyPiggyBackMsgSignatures(pbMsgs.PreparedMessages.messages, validateFn); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -305,29 +314,6 @@ func (v *View) Cmp(y *View) int {
 	return 0
 }
 
-type PiggybackMessages struct {
-	RCMessages       *messageSet
-	PreparedMessages *messageSet
-}
-
-func (p *PiggybackMessages) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{p.RCMessages, p.PreparedMessages})
-}
-
-func (p *PiggybackMessages) DecodeRLP(s *rlp.Stream) error {
-	var piggybackMsgs struct {
-		RCMessages       *messageSet
-		PreparedMessages *messageSet
-	}
-
-	if err := s.Decode(&piggybackMsgs); err != nil {
-		return err
-	}
-	p.RCMessages, p.PreparedMessages = piggybackMsgs.RCMessages, piggybackMsgs.PreparedMessages
-
-	return nil
-}
-
 // Preprepare represents the message sent, when msgPreprepare is broadcasted
 type Preprepare struct {
 	View     *View
@@ -350,29 +336,6 @@ func (b *Preprepare) DecodeRLP(s *rlp.Stream) error {
 		return err
 	}
 	b.View, b.Proposal = preprepare.View, preprepare.Proposal
-
-	return nil
-}
-
-type PreprepareWithPiggybackMsgs struct {
-	Preprepare        *Preprepare
-	PiggybackMessages *PiggybackMessages
-}
-
-func (p *PreprepareWithPiggybackMsgs) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{p.Preprepare, p.PiggybackMessages})
-}
-
-func (p *PreprepareWithPiggybackMsgs) DecodeRLP(s *rlp.Stream) error {
-	var preprepareWithPB struct {
-		Preprepare        *Preprepare
-		PiggybackMessages *PiggybackMessages
-	}
-
-	if err := s.Decode(&preprepareWithPB); err != nil {
-		return err
-	}
-	p.Preprepare, p.PiggybackMessages = preprepareWithPB.Preprepare, preprepareWithPB.PiggybackMessages
 
 	return nil
 }
@@ -431,24 +394,25 @@ func (r *RoundChangeMessage) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
-type RoundChangePiggybackMsgs struct {
-	RoundChangeMessage *RoundChangeMessage
-	PiggybackMessages  *PiggybackMessages
+type PiggybackMessages struct {
+	RCMessages       *messageSet
+	PreparedMessages *messageSet
 }
 
-func (r *RoundChangePiggybackMsgs) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, []interface{}{r.RoundChangeMessage, r.PiggybackMessages})
+func (p *PiggybackMessages) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, []interface{}{p.RCMessages, p.PreparedMessages})
 }
 
-func (r *RoundChangePiggybackMsgs) DecodeRLP(s *rlp.Stream) error {
-	var rcMessage struct {
-		RoundChangeMessage *RoundChangeMessage
-		PiggybackMessages  *PiggybackMessages
+func (p *PiggybackMessages) DecodeRLP(s *rlp.Stream) error {
+	var piggybackMsgs struct {
+		RCMessages       *messageSet
+		PreparedMessages *messageSet
 	}
 
-	if err := s.Decode(&rcMessage); err != nil {
+	if err := s.Decode(&piggybackMsgs); err != nil {
 		return err
 	}
-	r.RoundChangeMessage, r.PiggybackMessages = rcMessage.RoundChangeMessage, rcMessage.PiggybackMessages
+	p.RCMessages, p.PreparedMessages = piggybackMsgs.RCMessages, piggybackMsgs.PreparedMessages
+
 	return nil
 }
