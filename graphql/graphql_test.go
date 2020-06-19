@@ -18,11 +18,11 @@ package graphql
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -90,27 +90,12 @@ func TestQuorumSchema(t *testing.T) {
 }
 
 type StubPrivateTransactionManager struct {
+	notinuse.PrivateTransactionManager
 	responses map[string][]interface{}
-}
-
-func (spm *StubPrivateTransactionManager) Name() string {
-	return "to be implemented"
 }
 
 func (spm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
 	return true
-}
-
-func (spm *StubPrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
-	return common.EncryptedPayloadHash{}, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
-	return common.EncryptedPayloadHash{}, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
 }
 
 func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
@@ -963,29 +964,14 @@ func (ss *stubSigner) Equal(types.Signer) bool {
 }
 
 type mockPrivateTransactionManager struct {
+	notinuse.PrivateTransactionManager
 	returns       map[string][]interface{}
 	currentMethod string
 	count         map[string]int
 }
 
-func (mpm *mockPrivateTransactionManager) Name() string {
-	return "MockPrivateTransactionManager"
-}
-
 func (mpm *mockPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
 	return true
-}
-
-func (mpm *mockPrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
-	panic("implement me")
-}
-
-func (mpm *mockPrivateTransactionManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
-	panic("implement me")
-}
-
-func (mpm *mockPrivateTransactionManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
-	panic("implement me")
 }
 
 func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
@@ -1006,10 +992,6 @@ func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHa
 		r3 = values[2].(error)
 	}
 	return r1, r2, r3
-}
-
-func (mpm *mockPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
-	panic("implement me")
 }
 
 func (mpm *mockPrivateTransactionManager) When(name string) *mockPrivateTransactionManager {
@@ -1235,23 +1217,8 @@ type privateCallMsg struct {
 func (pm privateCallMsg) IsPrivate() bool { return true }
 
 type StubPrivateTransactionManager struct {
+	notinuse.PrivateTransactionManager
 	responses map[string][]interface{}
-}
-
-func (spm *StubPrivateTransactionManager) Name() string {
-	return "not implemented"
-}
-
-func (spm *StubPrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
-	return common.EncryptedPayloadHash{}, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
-	return common.EncryptedPayloadHash{}, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
 }
 
 func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {

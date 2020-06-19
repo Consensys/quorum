@@ -13,6 +13,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/private/engine/constellation"
 
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
+
 	"github.com/ethereum/go-ethereum/private/engine"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -51,7 +53,7 @@ func FromEnvironmentOrNil(name string) PrivateTransactionManager {
 		return nil
 	}
 	if strings.EqualFold(cfgPath, "ignore") {
-		return &engine.NotInUsePrivateTxManager{}
+		return &notinuse.PrivateTransactionManager{}
 	}
 	return MustNewPrivateTxManager(cfgPath)
 }

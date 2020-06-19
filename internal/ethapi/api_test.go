@@ -16,6 +16,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 
 	"github.com/ethereum/go-ethereum/core/state"
 
@@ -654,11 +655,8 @@ func (StubMinimalApiState) SetStorage(addr common.Address, storage map[common.Ha
 }
 
 type StubPrivateTransactionManager struct {
+	notinuse.PrivateTransactionManager
 	creation bool
-}
-
-func (sptm *StubPrivateTransactionManager) Name() string {
-	return "StubPrivateTransactionManager"
 }
 
 func (sptm *StubPrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
@@ -671,10 +669,6 @@ func (sptm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) (c
 
 func (sptm *StubPrivateTransactionManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
 	return arbitrarySimpleStorageContractEncryptedPayloadHash.Bytes(), nil
-}
-
-func (sptm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
-	panic("implement me")
 }
 
 func (sptm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
