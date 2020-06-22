@@ -24,7 +24,8 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	pbind "github.com/ethereum/go-ethereum/permission/bind"
+	"github.com/ethereum/go-ethereum/permission/bind/basic"
+	"github.com/ethereum/go-ethereum/permission/bind/eea"
 	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -41,18 +42,18 @@ const (
 )
 
 type PermissionCtrl struct {
-	node       *node.Node
-	ethClnt    bind.ContractBackend
-	eth        *eth.Ethereum
-	key        *ecdsa.PrivateKey
-	dataDir    string
-	permConfig *types.PermissionConfig
-	contract *PermissionContractService
+	node           *node.Node
+	ethClnt        bind.ContractBackend
+	eth            *eth.Ethereum
+	key            *ecdsa.PrivateKey
+	dataDir        string
+	permConfig     *types.PermissionConfig
+	contract       PermissionContractService
 	eeaFlag        bool
 	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
 	stopFeed       event.Feed      // broadcasting stopEvent when service is being stopped
 	errorChan      chan error      // channel to capture error when starting aysnc
-	mux sync.Mutex
+	mux            sync.Mutex
 }
 
 func bindContract(contractInstance interface{}, bindFunc func() (interface{}, error)) error {
@@ -221,7 +222,7 @@ func (p *PermissionCtrl) asyncStart() {
 	}
 	p.ethClnt = ethclient.NewClient(client)
 	p.eth = ethereum
-	p.contract = &PermissionContractService{ethClnt: p.ethClnt, eeaFlag: p.eeaFlag, key: p.key, permConfig: p.permConfig}
+	p.contract = NewPermissionContractService(p.ethClnt, p.eeaFlag, p.key, p.permConfig)
 }
 
 func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
@@ -288,35 +289,39 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 // monitors org management related events happening via smart contracts
 // and updates cache accordingly
 func (p *PermissionCtrl) manageOrgPermissions() error {
-	if p.eeaFlag{
+	if p.eeaFlag {
 		return p.manageOrgPermissionsE()
 	}
 	return p.manageOrgPermissionsBasic()
 }
 
 func (p *PermissionCtrl) manageOrgPermissionsE() error {
-	chPendingApproval := make(chan *pbind.EeaOrgManagerOrgPendingApproval, 1)
-	chOrgApproved := make(chan *pbind.EeaOrgManagerOrgApproved, 1)
-	chOrgSuspended := make(chan *pbind.EeaOrgManagerOrgSuspended, 1)
-	chOrgReactivated := make(chan *pbind.EeaOrgManagerOrgSuspensionRevoked, 1)
+	chPendingApproval := make(chan *eea.EeaOrgManagerOrgPendingApproval, 1)
+	chOrgApproved := make(chan *eea.EeaOrgManagerOrgApproved, 1)
+	chOrgSuspended := make(chan *eea.EeaOrgManagerOrgSuspended, 1)
+	chOrgReactivated := make(chan *eea.EeaOrgManagerOrgSuspensionRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-
-	if _, err := p.contract.permOrgE.EeaOrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
+	var contract *PermissionContractEea
+	var ok bool
+	if contract, ok = p.contract.(*PermissionContractEea); !ok {
+		return fmt.Errorf("error casting permission contract service to basic contract")
+	}
+	if _, err := contract.permOrg.EeaOrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
-	if _, err := p.contract.permOrgE.EeaOrgManagerFilterer.WatchOrgApproved(opts, chOrgApproved); err != nil {
+	if _, err := contract.permOrg.EeaOrgManagerFilterer.WatchOrgApproved(opts, chOrgApproved); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
-	if _, err := p.contract.permOrgE.EeaOrgManagerFilterer.WatchOrgSuspended(opts, chOrgSuspended); err != nil {
+	if _, err := contract.permOrg.EeaOrgManagerFilterer.WatchOrgSuspended(opts, chOrgSuspended); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
-	if _, err := p.contract.permOrgE.EeaOrgManagerFilterer.WatchOrgSuspensionRevoked(opts, chOrgReactivated); err != nil {
+	if _, err := contract.permOrg.EeaOrgManagerFilterer.WatchOrgSuspensionRevoked(opts, chOrgReactivated); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
@@ -346,28 +351,32 @@ func (p *PermissionCtrl) manageOrgPermissionsE() error {
 }
 
 func (p *PermissionCtrl) manageOrgPermissionsBasic() error {
-	chPendingApproval := make(chan *pbind.OrgManagerOrgPendingApproval, 1)
-	chOrgApproved := make(chan *pbind.OrgManagerOrgApproved, 1)
-	chOrgSuspended := make(chan *pbind.OrgManagerOrgSuspended, 1)
-	chOrgReactivated := make(chan *pbind.OrgManagerOrgSuspensionRevoked, 1)
+	chPendingApproval := make(chan *basic.OrgManagerOrgPendingApproval, 1)
+	chOrgApproved := make(chan *basic.OrgManagerOrgApproved, 1)
+	chOrgSuspended := make(chan *basic.OrgManagerOrgSuspended, 1)
+	chOrgReactivated := make(chan *basic.OrgManagerOrgSuspensionRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-
-	if _, err := p.contract.permOrg.OrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
+	var contract *PermissionContractBasic
+	var ok bool
+	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
+		return fmt.Errorf("error casting permission contract service to basic contract")
+	}
+	if _, err := contract.permOrg.OrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
-	if _, err := p.contract.permOrg.OrgManagerFilterer.WatchOrgApproved(opts, chOrgApproved); err != nil {
+	if _, err := contract.permOrg.OrgManagerFilterer.WatchOrgApproved(opts, chOrgApproved); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
-	if _, err := p.contract.permOrg.OrgManagerFilterer.WatchOrgSuspended(opts, chOrgSuspended); err != nil {
+	if _, err := contract.permOrg.OrgManagerFilterer.WatchOrgSuspended(opts, chOrgSuspended); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
-	if _, err := p.contract.permOrg.OrgManagerFilterer.WatchOrgSuspensionRevoked(opts, chOrgReactivated); err != nil {
+	if _, err := contract.permOrg.OrgManagerFilterer.WatchOrgSuspensionRevoked(opts, chOrgReactivated); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
@@ -404,49 +413,54 @@ func (p *PermissionCtrl) subscribeStopEvent() (chan stopEvent, event.Subscriptio
 
 // Monitors Node management events and updates cache accordingly
 func (p *PermissionCtrl) manageNodePermissions() error {
-	if p.eeaFlag{
+	if p.eeaFlag {
 		return p.manageNodePermissionsE()
 	}
 	return p.manageNodePermissionsBasic()
 }
 
 func (p *PermissionCtrl) manageNodePermissionsBasic() error {
-	chNodeApproved := make(chan *pbind.NodeManagerNodeApproved, 1)
-	chNodeProposed := make(chan *pbind.NodeManagerNodeProposed, 1)
-	chNodeDeactivated := make(chan *pbind.NodeManagerNodeDeactivated, 1)
-	chNodeActivated := make(chan *pbind.NodeManagerNodeActivated, 1)
-	chNodeBlacklisted := make(chan *pbind.NodeManagerNodeBlacklisted)
-	chNodeRecoveryInit := make(chan *pbind.NodeManagerNodeRecoveryInitiated, 1)
-	chNodeRecoveryDone := make(chan *pbind.NodeManagerNodeRecoveryCompleted, 1)
+	chNodeApproved := make(chan *basic.NodeManagerNodeApproved, 1)
+	chNodeProposed := make(chan *basic.NodeManagerNodeProposed, 1)
+	chNodeDeactivated := make(chan *basic.NodeManagerNodeDeactivated, 1)
+	chNodeActivated := make(chan *basic.NodeManagerNodeActivated, 1)
+	chNodeBlacklisted := make(chan *basic.NodeManagerNodeBlacklisted)
+	chNodeRecoveryInit := make(chan *basic.NodeManagerNodeRecoveryInitiated, 1)
+	chNodeRecoveryDone := make(chan *basic.NodeManagerNodeRecoveryCompleted, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
+	var contract *PermissionContractBasic
+	var ok bool
+	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
+		return fmt.Errorf("error casting permission contract service to basic contract")
+	}
 
-	if _, err := p.contract.permNode.NodeManagerFilterer.WatchNodeApproved(opts, chNodeApproved); err != nil {
+	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeApproved(opts, chNodeApproved); err != nil {
 		return fmt.Errorf("failed WatchNodeApproved: %v", err)
 	}
 
-	if _, err := p.contract.permNode.NodeManagerFilterer.WatchNodeProposed(opts, chNodeProposed); err != nil {
+	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeProposed(opts, chNodeProposed); err != nil {
 		return fmt.Errorf("failed WatchNodeProposed: %v", err)
 	}
 
-	if _, err := p.contract.permNode.NodeManagerFilterer.WatchNodeDeactivated(opts, chNodeDeactivated); err != nil {
+	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeDeactivated(opts, chNodeDeactivated); err != nil {
 		return fmt.Errorf("failed NodeDeactivated: %v", err)
 	}
-	if _, err := p.contract.permNode.NodeManagerFilterer.WatchNodeActivated(opts, chNodeActivated); err != nil {
+	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeActivated(opts, chNodeActivated); err != nil {
 		return fmt.Errorf("failed WatchNodeActivated: %v", err)
 	}
 
-	if _, err := p.contract.permNode.NodeManagerFilterer.WatchNodeBlacklisted(opts, chNodeBlacklisted); err != nil {
+	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeBlacklisted(opts, chNodeBlacklisted); err != nil {
 		return fmt.Errorf("failed NodeBlacklisting: %v", err)
 	}
 
-	if _, err := p.contract.permNode.NodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecoveryInit); err != nil {
+	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecoveryInit); err != nil {
 		return fmt.Errorf("failed NodeRecoveryInitiated: %v", err)
 	}
 
-	if _, err := p.contract.permNode.NodeManagerFilterer.WatchNodeRecoveryCompleted(opts, chNodeRecoveryDone); err != nil {
+	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeRecoveryCompleted(opts, chNodeRecoveryDone); err != nil {
 		return fmt.Errorf("failed NodeRecoveryCompleted: %v", err)
 	}
 
@@ -493,42 +507,47 @@ func (p *PermissionCtrl) manageNodePermissionsBasic() error {
 }
 
 func (p *PermissionCtrl) manageNodePermissionsE() error {
-	chNodeApproved := make(chan *pbind.EeaNodeManagerNodeApproved, 1)
-	chNodeProposed := make(chan *pbind.EeaNodeManagerNodeProposed, 1)
-	chNodeDeactivated := make(chan *pbind.EeaNodeManagerNodeDeactivated, 1)
-	chNodeActivated := make(chan *pbind.EeaNodeManagerNodeActivated, 1)
-	chNodeBlacklisted := make(chan *pbind.EeaNodeManagerNodeBlacklisted)
-	chNodeRecoveryInit := make(chan *pbind.EeaNodeManagerNodeRecoveryInitiated, 1)
-	chNodeRecoveryDone := make(chan *pbind.EeaNodeManagerNodeRecoveryCompleted, 1)
+	chNodeApproved := make(chan *eea.EeaNodeManagerNodeApproved, 1)
+	chNodeProposed := make(chan *eea.EeaNodeManagerNodeProposed, 1)
+	chNodeDeactivated := make(chan *eea.EeaNodeManagerNodeDeactivated, 1)
+	chNodeActivated := make(chan *eea.EeaNodeManagerNodeActivated, 1)
+	chNodeBlacklisted := make(chan *eea.EeaNodeManagerNodeBlacklisted)
+	chNodeRecoveryInit := make(chan *eea.EeaNodeManagerNodeRecoveryInitiated, 1)
+	chNodeRecoveryDone := make(chan *eea.EeaNodeManagerNodeRecoveryCompleted, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
+	var contract *PermissionContractEea
+	var ok bool
+	if contract, ok = p.contract.(*PermissionContractEea); !ok {
+		return fmt.Errorf("error casting permission contract service to basic contract")
+	}
 
-	if _, err := p.contract.permNodeE.EeaNodeManagerFilterer.WatchNodeApproved(opts, chNodeApproved); err != nil {
+	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeApproved(opts, chNodeApproved); err != nil {
 		return fmt.Errorf("failed WatchNodeApproved: %v", err)
 	}
 
-	if _, err := p.contract.permNodeE.EeaNodeManagerFilterer.WatchNodeProposed(opts, chNodeProposed); err != nil {
+	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeProposed(opts, chNodeProposed); err != nil {
 		return fmt.Errorf("failed WatchNodeProposed: %v", err)
 	}
 
-	if _, err := p.contract.permNodeE.EeaNodeManagerFilterer.WatchNodeDeactivated(opts, chNodeDeactivated); err != nil {
+	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeDeactivated(opts, chNodeDeactivated); err != nil {
 		return fmt.Errorf("failed NodeDeactivated: %v", err)
 	}
-	if _, err := p.contract.permNodeE.EeaNodeManagerFilterer.WatchNodeActivated(opts, chNodeActivated); err != nil {
+	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeActivated(opts, chNodeActivated); err != nil {
 		return fmt.Errorf("failed WatchNodeActivated: %v", err)
 	}
 
-	if _, err := p.contract.permNodeE.EeaNodeManagerFilterer.WatchNodeBlacklisted(opts, chNodeBlacklisted); err != nil {
+	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeBlacklisted(opts, chNodeBlacklisted); err != nil {
 		return fmt.Errorf("failed NodeBlacklisting: %v", err)
 	}
 
-	if _, err := p.contract.permNodeE.EeaNodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecoveryInit); err != nil {
+	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecoveryInit); err != nil {
 		return fmt.Errorf("failed NodeRecoveryInitiated: %v", err)
 	}
 
-	if _, err := p.contract.permNodeE.EeaNodeManagerFilterer.WatchNodeRecoveryCompleted(opts, chNodeRecoveryDone); err != nil {
+	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeRecoveryCompleted(opts, chNodeRecoveryDone); err != nil {
 		return fmt.Errorf("failed NodeRecoveryCompleted: %v", err)
 	}
 
@@ -663,30 +682,34 @@ func (p *PermissionCtrl) updateDisallowedNodes(url string, operation NodeOperati
 
 // Monitors account access related events and updates the cache accordingly
 func (p *PermissionCtrl) manageAccountPermissions() error {
-	if p.eeaFlag{
+	if p.eeaFlag {
 		return p.manageAccountPermissionsE()
 	}
 	return p.manageAccountPermissionsBasic()
 }
 
 func (p *PermissionCtrl) manageAccountPermissionsE() error {
-	chAccessModified := make(chan *pbind.EeaAcctManagerAccountAccessModified)
-	chAccessRevoked := make(chan *pbind.EeaAcctManagerAccountAccessRevoked)
-	chStatusChanged := make(chan *pbind.EeaAcctManagerAccountStatusChanged)
+	chAccessModified := make(chan *eea.EeaAcctManagerAccountAccessModified)
+	chAccessRevoked := make(chan *eea.EeaAcctManagerAccountAccessRevoked)
+	chStatusChanged := make(chan *eea.EeaAcctManagerAccountStatusChanged)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-
-	if _, err := p.contract.permAcctE.EeaAcctManagerFilterer.WatchAccountAccessModified(opts, chAccessModified); err != nil {
+	var contract *PermissionContractEea
+	var ok bool
+	if contract, ok = p.contract.(*PermissionContractEea); !ok {
+		return fmt.Errorf("error casting permission contract service to basic contract")
+	}
+	if _, err := contract.permAcct.EeaAcctManagerFilterer.WatchAccountAccessModified(opts, chAccessModified); err != nil {
 		return fmt.Errorf("failed AccountAccessModified: %v", err)
 	}
 
-	if _, err := p.contract.permAcctE.EeaAcctManagerFilterer.WatchAccountAccessRevoked(opts, chAccessRevoked); err != nil {
+	if _, err := contract.permAcct.EeaAcctManagerFilterer.WatchAccountAccessRevoked(opts, chAccessRevoked); err != nil {
 		return fmt.Errorf("failed AccountAccessRevoked: %v", err)
 	}
 
-	if _, err := p.contract.permAcctE.EeaAcctManagerFilterer.WatchAccountStatusChanged(opts, chStatusChanged); err != nil {
+	if _, err := contract.permAcct.EeaAcctManagerFilterer.WatchAccountStatusChanged(opts, chStatusChanged); err != nil {
 		return fmt.Errorf("failed AccountStatusChanged: %v", err)
 	}
 
@@ -717,23 +740,28 @@ func (p *PermissionCtrl) manageAccountPermissionsE() error {
 }
 
 func (p *PermissionCtrl) manageAccountPermissionsBasic() error {
-	chAccessModified := make(chan *pbind.AcctManagerAccountAccessModified)
-	chAccessRevoked := make(chan *pbind.AcctManagerAccountAccessRevoked)
-	chStatusChanged := make(chan *pbind.AcctManagerAccountStatusChanged)
+	chAccessModified := make(chan *basic.AcctManagerAccountAccessModified)
+	chAccessRevoked := make(chan *basic.AcctManagerAccountAccessRevoked)
+	chStatusChanged := make(chan *basic.AcctManagerAccountStatusChanged)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
+	var contract *PermissionContractBasic
+	var ok bool
+	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
+		return fmt.Errorf("error casting permission contract service to basic contract")
+	}
 
-	if _, err := p.contract.permAcct.AcctManagerFilterer.WatchAccountAccessModified(opts, chAccessModified); err != nil {
+	if _, err := contract.permAcct.AcctManagerFilterer.WatchAccountAccessModified(opts, chAccessModified); err != nil {
 		return fmt.Errorf("failed AccountAccessModified: %v", err)
 	}
 
-	if _, err := p.contract.permAcct.AcctManagerFilterer.WatchAccountAccessRevoked(opts, chAccessRevoked); err != nil {
+	if _, err := contract.permAcct.AcctManagerFilterer.WatchAccountAccessRevoked(opts, chAccessRevoked); err != nil {
 		return fmt.Errorf("failed AccountAccessRevoked: %v", err)
 	}
 
-	if _, err := p.contract.permAcct.AcctManagerFilterer.WatchAccountStatusChanged(opts, chStatusChanged); err != nil {
+	if _, err := contract.permAcct.AcctManagerFilterer.WatchAccountStatusChanged(opts, chStatusChanged); err != nil {
 		return fmt.Errorf("failed AccountStatusChanged: %v", err)
 	}
 
@@ -980,18 +1008,23 @@ func (p *PermissionCtrl) manageRolePermissions() error {
 }
 
 func (p *PermissionCtrl) manageRolePermissionsE() error {
-	chRoleCreated := make(chan *pbind.EeaRoleManagerRoleCreated, 1)
-	chRoleRevoked := make(chan *pbind.EeaRoleManagerRoleRevoked, 1)
+	chRoleCreated := make(chan *eea.EeaRoleManagerRoleCreated, 1)
+	chRoleRevoked := make(chan *eea.EeaRoleManagerRoleRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
+	var contract *PermissionContractEea
+	var ok bool
+	if contract, ok = p.contract.(*PermissionContractEea); !ok {
+		return fmt.Errorf("error casting permission contract service to basic contract")
+	}
 
-	if _, err := p.contract.permRoleE.EeaRoleManagerFilterer.WatchRoleCreated(opts, chRoleCreated); err != nil {
+	if _, err := contract.permRole.EeaRoleManagerFilterer.WatchRoleCreated(opts, chRoleCreated); err != nil {
 		return fmt.Errorf("failed WatchRoleCreated: %v", err)
 	}
 
-	if _, err := p.contract.permRoleE.EeaRoleManagerFilterer.WatchRoleRevoked(opts, chRoleRevoked); err != nil {
+	if _, err := contract.permRole.EeaRoleManagerFilterer.WatchRoleRevoked(opts, chRoleRevoked); err != nil {
 		return fmt.Errorf("failed WatchRoleRemoved: %v", err)
 	}
 
@@ -1019,18 +1052,22 @@ func (p *PermissionCtrl) manageRolePermissionsE() error {
 }
 
 func (p *PermissionCtrl) manageRolePermissionsBasic() error {
-	chRoleCreated := make(chan *pbind.RoleManagerRoleCreated, 1)
-	chRoleRevoked := make(chan *pbind.RoleManagerRoleRevoked, 1)
+	chRoleCreated := make(chan *basic.RoleManagerRoleCreated, 1)
+	chRoleRevoked := make(chan *basic.RoleManagerRoleRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-
-	if _, err := p.contract.permRole.RoleManagerFilterer.WatchRoleCreated(opts, chRoleCreated); err != nil {
+	var contract *PermissionContractBasic
+	var ok bool
+	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
+		return fmt.Errorf("error casting permission contract service to basic contract")
+	}
+	if _, err := contract.permRole.RoleManagerFilterer.WatchRoleCreated(opts, chRoleCreated); err != nil {
 		return fmt.Errorf("failed WatchRoleCreated: %v", err)
 	}
 
-	if _, err := p.contract.permRole.RoleManagerFilterer.WatchRoleRevoked(opts, chRoleRevoked); err != nil {
+	if _, err := contract.permRole.RoleManagerFilterer.WatchRoleRevoked(opts, chRoleRevoked); err != nil {
 		return fmt.Errorf("failed WatchRoleRemoved: %v", err)
 	}
 
