@@ -348,23 +348,3 @@ func PrepareCommittedSeal(hash common.Hash) []byte {
 	buf.Write([]byte{byte(msgCommit)})
 	return buf.Bytes()
 }
-
-// validateMsgSignature verifies if the message has a valid signature
-func validateMsgSignature(messages map[common.Address]*message, validateFn func([]byte, []byte) (common.Address, error)) error {
-	for _, msg := range messages {
-		var payload []byte
-		payload, err := msg.PayloadNoSig()
-		if err != nil {
-			return err
-		}
-
-		signerAdd, err := validateFn(payload, msg.Signature)
-		if err != nil {
-			return err
-		}
-		if !bytes.Equal(signerAdd.Bytes(), msg.Address.Bytes()) {
-			return errInvalidSigner
-		}
-	}
-	return nil
-}

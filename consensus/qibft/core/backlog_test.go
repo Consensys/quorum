@@ -181,10 +181,8 @@ func TestStoreBacklog(t *testing.T) {
 	// push preprepare msg
 	proposal := makeBlock(1)
 	preprepare := &Preprepare{
-		View:             v,
-		Proposal:         proposal,
-		PreparedMessages: newMessageSet(c.valSet),
-		RCMessages:       newMessageSet(c.valSet),
+		View:     v,
+		Proposal: proposal,
 	}
 	prepreparePayload, _ := Encode(preprepare)
 	m := &message{
@@ -305,10 +303,8 @@ func TestProcessBacklog(t *testing.T) {
 	}
 	proposal := makeBlock(1)
 	preprepare := &Preprepare{
-		View:             v,
-		Proposal:         proposal,
-		PreparedMessages: newMessageSet(vset),
-		RCMessages:       newMessageSet(vset),
+		View:     v,
+		Proposal: proposal,
 	}
 	prepreparePayload, _ := Encode(preprepare)
 

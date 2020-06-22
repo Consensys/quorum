@@ -27,14 +27,12 @@ import (
 )
 
 func testPreprepare(t *testing.T) {
-	valSet := newTestValidatorSet(4)
 	pp := &Preprepare{
 		View: &View{
 			Round:    big.NewInt(1),
 			Sequence: big.NewInt(2),
 		},
-		Proposal:   makeBlock(1),
-		RCMessages: newMessageSet(valSet),
+		Proposal: makeBlock(1),
 	}
 	prepreparePayload, _ := Encode(pp)
 
@@ -129,7 +127,7 @@ func testSubjectWithSignature(t *testing.T) {
 	// 1. Encode test
 	address := common.HexToAddress("0x1234567890")
 	m := &message{
-		Code:          msgPreprepare,
+		Code:          msgPrepare,
 		Msg:           subjectPayload,
 		Address:       address,
 		Signature:     expectedSig,
@@ -232,7 +230,6 @@ func TestViewCompare(t *testing.T) {
 }
 
 func TestPreprepareEncodeDecode(t *testing.T) {
-	valSet := newTestValidatorSet(4)
 	view := &View{
 		Round:    big.NewInt(1),
 		Sequence: big.NewInt(5),
@@ -240,9 +237,8 @@ func TestPreprepareEncodeDecode(t *testing.T) {
 
 	proposal := makeBlock(5)
 	preprepare := &Preprepare{
-		View:       view,
-		Proposal:   proposal,
-		RCMessages: newMessageSet(valSet),
+		View:     view,
+		Proposal: proposal,
 	}
 
 	rawPreprepare, err := rlp.EncodeToBytes(preprepare)

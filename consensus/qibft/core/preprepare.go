@@ -21,31 +21,44 @@ import (
 
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 func (c *core) sendPreprepare(request *Request) {
 	logger := c.logger.New("state", c.state)
-	rcMessages := request.RCMessages
-	if rcMessages == nil {
-		rcMessages = newMessageSet(c.valSet)
-	}
 
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
 		curView := c.currentView()
 		preprepare, err := Encode(&Preprepare{
-			View:             curView,
-			Proposal:         request.Proposal,
-			RCMessages:       rcMessages,
-			PreparedMessages: request.PrepareMessages,
+			View:     curView,
+			Proposal: request.Proposal,
 		})
 		if err != nil {
 			logger.Error("Failed to encode", "view", curView)
 			return
 		}
+		// Encode RoundChange messages that piggyback Preprepare message
+
+		var piggybackMsgPayload []byte
+		rcMsgs := request.RCMessages
+		prepareMsgs := request.PrepareMessages
+		if rcMsgs == nil {
+			rcMsgs = newMessageSet(c.valSet)
+		}
+		if prepareMsgs == nil {
+			prepareMsgs = newMessageSet(c.valSet)
+		}
+		piggybackMsgPayload, err = Encode(&PiggybackMessages{RCMessages: rcMsgs, PreparedMessages: prepareMsgs})
+		if err != nil {
+			logger.Error("Failed to encode Piggyback messages accompanying Preprepare", "err", err)
+			return
+		}
+
 		c.broadcast(&message{
-			Code: msgPreprepare,
-			Msg:  preprepare,
+			Code:          msgPreprepare,
+			Msg:           preprepare,
+			PiggybackMsgs: piggybackMsgPayload,
 		})
 		// Set the preprepareSent to the current round
 		c.current.preprepareSent = curView.Round
@@ -61,6 +74,15 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	if err != nil {
 		logger.Debug("Failed to decode preprepare message", "err", err)
 		return errFailedDecodePreprepare
+	}
+
+	// Decode messages that piggyback Preprepare message
+	var piggyBackMsgs *PiggybackMessages
+	if msg.PiggybackMsgs != nil && len(msg.PiggybackMsgs) > 0 {
+		if err := rlp.DecodeBytes(msg.PiggybackMsgs, &piggyBackMsgs); err != nil {
+			logger.Error("Failed to decode messages that piggyback Preprepare messages", "err", err)
+			return errFailedDecodePreprepare
+		}
 	}
 
 	// Ensure we have the same view with the PRE-PREPARE message
@@ -88,9 +110,9 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 		return errNotFromProposer
 	}
 
-	if preprepare.View.Round.Uint64() > 0 && !justify(preprepare.Proposal, preprepare.RCMessages, preprepare.PreparedMessages, c.QuorumSize()) {
+	if preprepare.View.Round.Uint64() > 0 && !justify(preprepare.Proposal, piggyBackMsgs.RCMessages, piggyBackMsgs.PreparedMessages, c.QuorumSize()) {
 		logger.Error("Unable to justify PRE-PREPARE message")
-		return errInvalidMessage
+		return errInvalidPreparedBlock
 	}
 
 	// Verify the proposal we received
