@@ -15,13 +15,13 @@
 //go:generate solc --abi --bin -o . --overwrite ../RoleManager.sol
 //go:generate solc --abi --bin -o . --overwrite ../VoterManager.sol
 
-//go:generate abigen -pkg permission -abi  ./AccountManager.abi            -bin  ./AccountManager.bin            -type EeaAcctManager   -out ../../../bind/eea_accounts.go
-//go:generate abigen -pkg permission -abi  ./NodeManager.abi               -bin  ./NodeManager.bin               -type EeaNodeManager   -out ../../../bind/eea_nodes.go
-//go:generate abigen -pkg permission -abi  ./OrgManager.abi                -bin  ./OrgManager.bin                -type EeaOrgManager    -out ../../../bind/eea_org.go
-//go:generate abigen -pkg permission -abi  ./PermissionsImplementation.abi -bin  ./PermissionsImplementation.bin -type EeaPermImpl      -out ../../../bind/eea_permission_impl.go
-//go:generate abigen -pkg permission -abi  ./PermissionsInterface.abi      -bin  ./PermissionsInterface.bin      -type EeaPermInterface -out ../../../bind/eea_permission_interface.go
-//go:generate abigen -pkg permission -abi  ./PermissionsUpgradable.abi     -bin  ./PermissionsUpgradable.bin     -type EeaPermUpgr      -out ../../../bind/eea_permission_upgr.go
-//go:generate abigen -pkg permission -abi  ./RoleManager.abi               -bin  ./RoleManager.bin               -type EeaRoleManager   -out ../../../bind/eea_roles.go
-//go:generate abigen -pkg permission -abi  ./VoterManager.abi              -bin  ./VoterManager.bin              -type EeaVoterManager  -out ../../../bind/eea_voter.go
+//go:generate abigen -pkg eea -abi  ./AccountManager.abi            -bin  ./AccountManager.bin            -type EeaAcctManager   -out ../../../bind/eea/accounts.go
+//go:generate abigen -pkg eea -abi  ./NodeManager.abi               -bin  ./NodeManager.bin               -type EeaNodeManager   -out ../../../bind/eea/nodes.go
+//go:generate abigen -pkg eea -abi  ./OrgManager.abi                -bin  ./OrgManager.bin                -type EeaOrgManager    -out ../../../bind/eea/org.go
+//go:generate abigen -pkg eea -abi  ./PermissionsImplementation.abi -bin  ./PermissionsImplementation.bin -type EeaPermImpl      -out ../../../bind/eea/permission_impl.go
+//go:generate abigen -pkg eea -abi  ./PermissionsInterface.abi      -bin  ./PermissionsInterface.bin      -type EeaPermInterface -out ../../../bind/eea/permission_interface.go
+//go:generate abigen -pkg eea -abi  ./PermissionsUpgradable.abi     -bin  ./PermissionsUpgradable.bin     -type EeaPermUpgr      -out ../../../bind/eea/permission_upgr.go
+//go:generate abigen -pkg eea -abi  ./RoleManager.abi               -bin  ./RoleManager.bin               -type EeaRoleManager   -out ../../../bind/eea/roles.go
+//go:generate abigen -pkg eea -abi  ./VoterManager.abi              -bin  ./VoterManager.bin              -type EeaVoterManager  -out ../../../bind/eea/voter.go
 
 package eea

@@ -8,7 +8,7 @@ import "./PermissionsInterface.sol";
     guardian account can change the implementation contract address as
     business needs.
   */
-contract PermissionsUpgradable {
+contract EeaPermissionsUpgradable {
 
     address private guardian;
     address private permImpl;
@@ -54,7 +54,7 @@ contract PermissionsUpgradable {
         // The policy details needs to be carried forward from existing
         // implementation to new. So first these are read from existing
         // implementation and then updated in new implementation
-        (string memory adminOrg, string memory adminRole, string memory orgAdminRole, bool bootStatus) = PermissionsImplementation(permImpl).getPolicyDetails();
+        (string memory adminOrg, string memory adminRole, string memory orgAdminRole, bool bootStatus) = EeaPermissionsImplementation(permImpl).getPolicyDetails();
         _setPolicy(_proposedImpl, adminOrg, adminRole, orgAdminRole, bootStatus);
         permImpl = _proposedImpl;
         _setImpl(permImpl);
@@ -89,7 +89,7 @@ contract PermissionsUpgradable {
       * @param _bootStatus network boot status
       */
     function _setPolicy(address _permImpl, string memory _adminOrg, string memory _adminRole, string memory _orgAdminRole, bool _bootStatus) private {
-        PermissionsImplementation(_permImpl).setMigrationPolicy(_adminOrg, _adminRole, _orgAdminRole, _bootStatus);
+        EeaPermissionsImplementation(_permImpl).setMigrationPolicy(_adminOrg, _adminRole, _orgAdminRole, _bootStatus);
     }
 
     /** @notice function to set the permissions implementation contract address
@@ -97,7 +97,7 @@ contract PermissionsUpgradable {
       * @param _permImpl permissions implementation contract address
       */
     function _setImpl(address _permImpl) private {
-        PermissionsInterface(permInterface).setPermImplementation(_permImpl);
+        EeaPermissionsInterface(permInterface).setPermImplementation(_permImpl);
     }
 
 }

@@ -8,8 +8,8 @@ import "./PermissionsUpgradable.sol";
     can be called directly. these are invoked by quorum for populating
     permissions data in cache
   */
-contract RoleManager {
-    PermissionsUpgradable private permUpgradable;
+contract EeaRoleManager {
+    EeaPermissionsUpgradable private permUpgradable;
 
     struct RoleDetails {
         string roleId;
@@ -39,7 +39,7 @@ contract RoleManager {
     /** @notice constructor. sets the permissions upgradable address
       */
     constructor (address _permUpgradable) public {
-        permUpgradable = PermissionsUpgradable(_permUpgradable);
+        permUpgradable = EeaPermissionsUpgradable(_permUpgradable);
     }
 
     /** @notice function to add a new role definition to an organization

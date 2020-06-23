@@ -12,13 +12,13 @@ import "./PermissionsUpgradable.sol";
     related functionality. This can be called only by the interface
     contract.
   */
-contract PermissionsImplementation {
-    AccountManager private accountManager;
-    RoleManager private roleManager;
-    VoterManager private voterManager;
-    NodeManager private nodeManager;
-    OrgManager private orgManager;
-    PermissionsUpgradable private permUpgradable;
+contract EeaPermissionsImplementation {
+    EeaAccountManager private accountManager;
+    EeaRoleManager private roleManager;
+    EeaVoterManager private voterManager;
+    EeaNodeManager private nodeManager;
+    EeaOrgManager private orgManager;
+    EeaPermissionsUpgradable private permUpgradable;
 
     string private adminOrg;
     string private adminRole;
@@ -109,12 +109,12 @@ contract PermissionsImplementation {
       */
     constructor (address _permUpgradable, address _orgManager, address _rolesManager,
         address _accountManager, address _voterManager, address _nodeManager) public {
-        permUpgradable = PermissionsUpgradable(_permUpgradable);
-        orgManager = OrgManager(_orgManager);
-        roleManager = RoleManager(_rolesManager);
-        accountManager = AccountManager(_accountManager);
-        voterManager = VoterManager(_voterManager);
-        nodeManager = NodeManager(_nodeManager);
+        permUpgradable = EeaPermissionsUpgradable(_permUpgradable);
+        orgManager = EeaOrgManager(_orgManager);
+        roleManager = EeaRoleManager(_rolesManager);
+        accountManager = EeaAccountManager(_accountManager);
+        voterManager = EeaVoterManager(_voterManager);
+        nodeManager = EeaNodeManager(_nodeManager);
     }
 
     // initial set up related functions

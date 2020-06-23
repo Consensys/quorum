@@ -19,8 +19,8 @@ import "./PermissionsUpgradable.sol";
         5 - Blacklisted node recovery
         6 - Blacklisted account recovery
   */
-contract VoterManager {
-    PermissionsUpgradable private permUpgradable;
+contract EeaVoterManager {
+    EeaPermissionsUpgradable private permUpgradable;
     struct PendingOpDetails {
         string orgId;
         string enodeId;
@@ -76,7 +76,7 @@ contract VoterManager {
     /** @notice constructor. sets the permissions upgradable address
       */
     constructor (address _permUpgradable) public {
-        permUpgradable = PermissionsUpgradable(_permUpgradable);
+        permUpgradable = EeaPermissionsUpgradable(_permUpgradable);
     }
 
     /** @notice function to add a new voter account to the organization

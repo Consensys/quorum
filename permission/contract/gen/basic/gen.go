@@ -15,13 +15,13 @@
 //go:generate solc --abi --bin -o . --overwrite ../RoleManager.sol
 //go:generate solc --abi --bin -o . --overwrite ../VoterManager.sol
 
-//go:generate abigen -pkg permission -abi  ./AccountManager.abi            -bin  ./AccountManager.bin            -type AcctManager   -out ../../../bind/basic_accounts.go
-//go:generate abigen -pkg permission -abi  ./NodeManager.abi               -bin  ./NodeManager.bin               -type NodeManager   -out ../../../bind/basic_nodes.go
-//go:generate abigen -pkg permission -abi  ./OrgManager.abi                -bin  ./OrgManager.bin                -type OrgManager    -out ../../../bind/basic_org.go
-//go:generate abigen -pkg permission -abi  ./PermissionsImplementation.abi -bin  ./PermissionsImplementation.bin -type PermImpl      -out ../../../bind/basic_permission_impl.go
-//go:generate abigen -pkg permission -abi  ./PermissionsInterface.abi      -bin  ./PermissionsInterface.bin      -type PermInterface -out ../../../bind/basic_permission_interface.go
-//go:generate abigen -pkg permission -abi  ./PermissionsUpgradable.abi     -bin  ./PermissionsUpgradable.bin     -type PermUpgr      -out ../../../bind/basic_permission_upgr.go
-//go:generate abigen -pkg permission -abi  ./RoleManager.abi               -bin  ./RoleManager.bin               -type RoleManager   -out ../../../bind/basic_roles.go
-//go:generate abigen -pkg permission -abi  ./VoterManager.abi              -bin  ./VoterManager.bin              -type VoterManager  -out ../../../bind/basic_voter.go
+//go:generate abigen -pkg permission -abi  ./AccountManager.abi            -bin  ./AccountManager.bin            -type AcctManager   -out ../../../bind/basic/accounts.go
+//go:generate abigen -pkg permission -abi  ./NodeManager.abi               -bin  ./NodeManager.bin               -type NodeManager   -out ../../../bind/basic/nodes.go
+//go:generate abigen -pkg permission -abi  ./OrgManager.abi                -bin  ./OrgManager.bin                -type OrgManager    -out ../../../bind/basic/org.go
+//go:generate abigen -pkg permission -abi  ./PermissionsImplementation.abi -bin  ./PermissionsImplementation.bin -type PermImpl      -out ../../../bind/basic/permission_impl.go
+//go:generate abigen -pkg permission -abi  ./PermissionsInterface.abi      -bin  ./PermissionsInterface.bin      -type PermInterface -out ../../../bind/basic/permission_interface.go
+//go:generate abigen -pkg permission -abi  ./PermissionsUpgradable.abi     -bin  ./PermissionsUpgradable.bin     -type PermUpgr      -out ../../../bind/basic/permission_upgr.go
+//go:generate abigen -pkg permission -abi  ./RoleManager.abi               -bin  ./RoleManager.bin               -type RoleManager   -out ../../../bind/basic/roles.go
+//go:generate abigen -pkg permission -abi  ./VoterManager.abi              -bin  ./VoterManager.bin              -type VoterManager  -out ../../../bind/basic/voter.go
 
 package gen

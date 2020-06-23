@@ -24,8 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/permission/bind/basic"
-	"github.com/ethereum/go-ethereum/permission/bind/eea"
 	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -49,6 +47,7 @@ type PermissionCtrl struct {
 	dataDir        string
 	permConfig     *types.PermissionConfig
 	contract       PermissionContractService
+	backend        backend
 	eeaFlag        bool
 	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
 	stopFeed       event.Feed      // broadcasting stopEvent when service is being stopped
@@ -121,7 +120,7 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, 
 		errorChan:      make(chan error),
 		eeaFlag:        eeaFlag,
 	}
-
+	p.backend = newBackend(p)
 	stopChan, stopSubscription := p.subscribeStopEvent()
 	inProcRPCServerSub := stack.EventMux().Subscribe(rpc.InProcServerReadyEvent{})
 	log.Debug("permission service: waiting for InProcRPC Server")
@@ -163,10 +162,10 @@ func (p *PermissionCtrl) AfterStart() error {
 
 	for _, f := range []func() error{
 		p.monitorQIP714Block,       // monitor block number to activate new permissions controls
-		p.manageOrgPermissions,     // monitor org management related events
-		p.manageNodePermissions,    // monitor org  level Node management events
-		p.manageRolePermissions,    // monitor org level role management events
-		p.manageAccountPermissions, // monitor org level account management events
+		p.backend.manageOrgPermissions,     // monitor org management related events
+		p.backend.manageNodePermissions,    // monitor org  level Node management events
+		p.backend.manageRolePermissions,    // monitor org level role management events
+		p.backend.manageAccountPermissions, // monitor org level account management events
 	} {
 		if err := f(); err != nil {
 			return err
@@ -286,311 +285,10 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 	return nil
 }
 
-// monitors org management related events happening via smart contracts
-// and updates cache accordingly
-func (p *PermissionCtrl) manageOrgPermissions() error {
-	if p.eeaFlag {
-		return p.manageOrgPermissionsE()
-	}
-	return p.manageOrgPermissionsBasic()
-}
-
-func (p *PermissionCtrl) manageOrgPermissionsE() error {
-	chPendingApproval := make(chan *eea.EeaOrgManagerOrgPendingApproval, 1)
-	chOrgApproved := make(chan *eea.EeaOrgManagerOrgApproved, 1)
-	chOrgSuspended := make(chan *eea.EeaOrgManagerOrgSuspended, 1)
-	chOrgReactivated := make(chan *eea.EeaOrgManagerOrgSuspensionRevoked, 1)
-
-	opts := &bind.WatchOpts{}
-	var blockNumber uint64 = 1
-	opts.Start = &blockNumber
-	var contract *PermissionContractEea
-	var ok bool
-	if contract, ok = p.contract.(*PermissionContractEea); !ok {
-		return fmt.Errorf("error casting permission contract service to basic contract")
-	}
-	if _, err := contract.permOrg.EeaOrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
-	}
-
-	if _, err := contract.permOrg.EeaOrgManagerFilterer.WatchOrgApproved(opts, chOrgApproved); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
-	}
-
-	if _, err := contract.permOrg.EeaOrgManagerFilterer.WatchOrgSuspended(opts, chOrgSuspended); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
-	}
-
-	if _, err := contract.permOrg.EeaOrgManagerFilterer.WatchOrgSuspensionRevoked(opts, chOrgReactivated); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
-	}
-
-	go func() {
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case evtPendingApproval := <-chPendingApproval:
-				types.OrgInfoMap.UpsertOrg(evtPendingApproval.OrgId, evtPendingApproval.PorgId, evtPendingApproval.UltParent, evtPendingApproval.Level, types.OrgStatus(evtPendingApproval.Status.Uint64()))
-
-			case evtOrgApproved := <-chOrgApproved:
-				types.OrgInfoMap.UpsertOrg(evtOrgApproved.OrgId, evtOrgApproved.PorgId, evtOrgApproved.UltParent, evtOrgApproved.Level, types.OrgApproved)
-
-			case evtOrgSuspended := <-chOrgSuspended:
-				types.OrgInfoMap.UpsertOrg(evtOrgSuspended.OrgId, evtOrgSuspended.PorgId, evtOrgSuspended.UltParent, evtOrgSuspended.Level, types.OrgSuspended)
-
-			case evtOrgReactivated := <-chOrgReactivated:
-				types.OrgInfoMap.UpsertOrg(evtOrgReactivated.OrgId, evtOrgReactivated.PorgId, evtOrgReactivated.UltParent, evtOrgReactivated.Level, types.OrgApproved)
-			case <-stopChan:
-				log.Info("quit org contract watch")
-				return
-			}
-		}
-	}()
-	return nil
-}
-
-func (p *PermissionCtrl) manageOrgPermissionsBasic() error {
-	chPendingApproval := make(chan *basic.OrgManagerOrgPendingApproval, 1)
-	chOrgApproved := make(chan *basic.OrgManagerOrgApproved, 1)
-	chOrgSuspended := make(chan *basic.OrgManagerOrgSuspended, 1)
-	chOrgReactivated := make(chan *basic.OrgManagerOrgSuspensionRevoked, 1)
-
-	opts := &bind.WatchOpts{}
-	var blockNumber uint64 = 1
-	opts.Start = &blockNumber
-	var contract *PermissionContractBasic
-	var ok bool
-	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
-		return fmt.Errorf("error casting permission contract service to basic contract")
-	}
-	if _, err := contract.permOrg.OrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
-	}
-
-	if _, err := contract.permOrg.OrgManagerFilterer.WatchOrgApproved(opts, chOrgApproved); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
-	}
-
-	if _, err := contract.permOrg.OrgManagerFilterer.WatchOrgSuspended(opts, chOrgSuspended); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
-	}
-
-	if _, err := contract.permOrg.OrgManagerFilterer.WatchOrgSuspensionRevoked(opts, chOrgReactivated); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
-	}
-
-	go func() {
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case evtPendingApproval := <-chPendingApproval:
-				types.OrgInfoMap.UpsertOrg(evtPendingApproval.OrgId, evtPendingApproval.PorgId, evtPendingApproval.UltParent, evtPendingApproval.Level, types.OrgStatus(evtPendingApproval.Status.Uint64()))
-
-			case evtOrgApproved := <-chOrgApproved:
-				types.OrgInfoMap.UpsertOrg(evtOrgApproved.OrgId, evtOrgApproved.PorgId, evtOrgApproved.UltParent, evtOrgApproved.Level, types.OrgApproved)
-
-			case evtOrgSuspended := <-chOrgSuspended:
-				types.OrgInfoMap.UpsertOrg(evtOrgSuspended.OrgId, evtOrgSuspended.PorgId, evtOrgSuspended.UltParent, evtOrgSuspended.Level, types.OrgSuspended)
-
-			case evtOrgReactivated := <-chOrgReactivated:
-				types.OrgInfoMap.UpsertOrg(evtOrgReactivated.OrgId, evtOrgReactivated.PorgId, evtOrgReactivated.UltParent, evtOrgReactivated.Level, types.OrgApproved)
-			case <-stopChan:
-				log.Info("quit org contract watch")
-				return
-			}
-		}
-	}()
-	return nil
-}
-
 func (p *PermissionCtrl) subscribeStopEvent() (chan stopEvent, event.Subscription) {
 	c := make(chan stopEvent)
 	s := p.stopFeed.Subscribe(c)
 	return c, s
-}
-
-// Monitors Node management events and updates cache accordingly
-func (p *PermissionCtrl) manageNodePermissions() error {
-	if p.eeaFlag {
-		return p.manageNodePermissionsE()
-	}
-	return p.manageNodePermissionsBasic()
-}
-
-func (p *PermissionCtrl) manageNodePermissionsBasic() error {
-	chNodeApproved := make(chan *basic.NodeManagerNodeApproved, 1)
-	chNodeProposed := make(chan *basic.NodeManagerNodeProposed, 1)
-	chNodeDeactivated := make(chan *basic.NodeManagerNodeDeactivated, 1)
-	chNodeActivated := make(chan *basic.NodeManagerNodeActivated, 1)
-	chNodeBlacklisted := make(chan *basic.NodeManagerNodeBlacklisted)
-	chNodeRecoveryInit := make(chan *basic.NodeManagerNodeRecoveryInitiated, 1)
-	chNodeRecoveryDone := make(chan *basic.NodeManagerNodeRecoveryCompleted, 1)
-
-	opts := &bind.WatchOpts{}
-	var blockNumber uint64 = 1
-	opts.Start = &blockNumber
-	var contract *PermissionContractBasic
-	var ok bool
-	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
-		return fmt.Errorf("error casting permission contract service to basic contract")
-	}
-
-	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeApproved(opts, chNodeApproved); err != nil {
-		return fmt.Errorf("failed WatchNodeApproved: %v", err)
-	}
-
-	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeProposed(opts, chNodeProposed); err != nil {
-		return fmt.Errorf("failed WatchNodeProposed: %v", err)
-	}
-
-	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeDeactivated(opts, chNodeDeactivated); err != nil {
-		return fmt.Errorf("failed NodeDeactivated: %v", err)
-	}
-	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeActivated(opts, chNodeActivated); err != nil {
-		return fmt.Errorf("failed WatchNodeActivated: %v", err)
-	}
-
-	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeBlacklisted(opts, chNodeBlacklisted); err != nil {
-		return fmt.Errorf("failed NodeBlacklisting: %v", err)
-	}
-
-	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecoveryInit); err != nil {
-		return fmt.Errorf("failed NodeRecoveryInitiated: %v", err)
-	}
-
-	if _, err := contract.permNode.NodeManagerFilterer.WatchNodeRecoveryCompleted(opts, chNodeRecoveryDone); err != nil {
-		return fmt.Errorf("failed NodeRecoveryCompleted: %v", err)
-	}
-
-	go func() {
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case evtNodeApproved := <-chNodeApproved:
-				p.updatePermissionedNodes(evtNodeApproved.EnodeId, NodeAdd)
-				types.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, evtNodeApproved.EnodeId, types.NodeApproved)
-
-			case evtNodeProposed := <-chNodeProposed:
-				types.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, evtNodeProposed.EnodeId, types.NodePendingApproval)
-
-			case evtNodeDeactivated := <-chNodeDeactivated:
-				p.updatePermissionedNodes(evtNodeDeactivated.EnodeId, NodeDelete)
-				types.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, evtNodeDeactivated.EnodeId, types.NodeDeactivated)
-
-			case evtNodeActivated := <-chNodeActivated:
-				p.updatePermissionedNodes(evtNodeActivated.EnodeId, NodeAdd)
-				types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, evtNodeActivated.EnodeId, types.NodeApproved)
-
-			case evtNodeBlacklisted := <-chNodeBlacklisted:
-				types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, types.NodeBlackListed)
-				p.updateDisallowedNodes(evtNodeBlacklisted.EnodeId, NodeAdd)
-				p.updatePermissionedNodes(evtNodeBlacklisted.EnodeId, NodeDelete)
-
-			case evtNodeRecoveryInit := <-chNodeRecoveryInit:
-				types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, evtNodeRecoveryInit.EnodeId, types.NodeRecoveryInitiated)
-
-			case evtNodeRecoveryDone := <-chNodeRecoveryDone:
-				types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, evtNodeRecoveryDone.EnodeId, types.NodeApproved)
-				p.updateDisallowedNodes(evtNodeRecoveryDone.EnodeId, NodeDelete)
-				p.updatePermissionedNodes(evtNodeRecoveryDone.EnodeId, NodeAdd)
-
-			case <-stopChan:
-				log.Info("quit Node contract watch")
-				return
-			}
-		}
-	}()
-	return nil
-}
-
-func (p *PermissionCtrl) manageNodePermissionsE() error {
-	chNodeApproved := make(chan *eea.EeaNodeManagerNodeApproved, 1)
-	chNodeProposed := make(chan *eea.EeaNodeManagerNodeProposed, 1)
-	chNodeDeactivated := make(chan *eea.EeaNodeManagerNodeDeactivated, 1)
-	chNodeActivated := make(chan *eea.EeaNodeManagerNodeActivated, 1)
-	chNodeBlacklisted := make(chan *eea.EeaNodeManagerNodeBlacklisted)
-	chNodeRecoveryInit := make(chan *eea.EeaNodeManagerNodeRecoveryInitiated, 1)
-	chNodeRecoveryDone := make(chan *eea.EeaNodeManagerNodeRecoveryCompleted, 1)
-
-	opts := &bind.WatchOpts{}
-	var blockNumber uint64 = 1
-	opts.Start = &blockNumber
-	var contract *PermissionContractEea
-	var ok bool
-	if contract, ok = p.contract.(*PermissionContractEea); !ok {
-		return fmt.Errorf("error casting permission contract service to basic contract")
-	}
-
-	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeApproved(opts, chNodeApproved); err != nil {
-		return fmt.Errorf("failed WatchNodeApproved: %v", err)
-	}
-
-	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeProposed(opts, chNodeProposed); err != nil {
-		return fmt.Errorf("failed WatchNodeProposed: %v", err)
-	}
-
-	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeDeactivated(opts, chNodeDeactivated); err != nil {
-		return fmt.Errorf("failed NodeDeactivated: %v", err)
-	}
-	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeActivated(opts, chNodeActivated); err != nil {
-		return fmt.Errorf("failed WatchNodeActivated: %v", err)
-	}
-
-	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeBlacklisted(opts, chNodeBlacklisted); err != nil {
-		return fmt.Errorf("failed NodeBlacklisting: %v", err)
-	}
-
-	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecoveryInit); err != nil {
-		return fmt.Errorf("failed NodeRecoveryInitiated: %v", err)
-	}
-
-	if _, err := contract.permNode.EeaNodeManagerFilterer.WatchNodeRecoveryCompleted(opts, chNodeRecoveryDone); err != nil {
-		return fmt.Errorf("failed NodeRecoveryCompleted: %v", err)
-	}
-
-	go func() {
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case evtNodeApproved := <-chNodeApproved:
-				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeApproved.EnodeId, string(evtNodeApproved.Ip[:]), evtNodeApproved.Port, evtNodeApproved.Raftport), NodeAdd)
-				types.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, types.GetNodeUrl(evtNodeApproved.EnodeId, string(evtNodeApproved.Ip[:]), evtNodeApproved.Port, evtNodeApproved.Raftport), types.NodeApproved)
-
-			case evtNodeProposed := <-chNodeProposed:
-				types.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, types.GetNodeUrl(evtNodeProposed.EnodeId, string(evtNodeProposed.Ip[:]), evtNodeProposed.Port, evtNodeProposed.Raftport), types.NodePendingApproval)
-
-			case evtNodeDeactivated := <-chNodeDeactivated:
-				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeDeactivated.EnodeId, string(evtNodeDeactivated.Ip[:]), evtNodeDeactivated.Port, evtNodeDeactivated.Raftport), NodeDelete)
-				types.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, types.GetNodeUrl(evtNodeDeactivated.EnodeId, string(evtNodeDeactivated.Ip[:]), evtNodeDeactivated.Port, evtNodeDeactivated.Raftport), types.NodeDeactivated)
-
-			case evtNodeActivated := <-chNodeActivated:
-				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeActivated.EnodeId, string(evtNodeActivated.Ip[:]), evtNodeActivated.Port, evtNodeActivated.Raftport), NodeAdd)
-				types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, types.GetNodeUrl(evtNodeActivated.EnodeId, string(evtNodeActivated.Ip[:]), evtNodeActivated.Port, evtNodeActivated.Raftport), types.NodeApproved)
-
-			case evtNodeBlacklisted := <-chNodeBlacklisted:
-				types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, types.GetNodeUrl(evtNodeBlacklisted.EnodeId, string(evtNodeBlacklisted.Ip[:]), evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), types.NodeBlackListed)
-				p.updateDisallowedNodes(types.GetNodeUrl(evtNodeBlacklisted.EnodeId, string(evtNodeBlacklisted.Ip[:]), evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), NodeAdd)
-				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeBlacklisted.EnodeId, string(evtNodeBlacklisted.Ip[:]), evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), NodeDelete)
-
-			case evtNodeRecoveryInit := <-chNodeRecoveryInit:
-				types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, types.GetNodeUrl(evtNodeRecoveryInit.EnodeId, string(evtNodeRecoveryInit.Ip[:]), evtNodeRecoveryInit.Port, evtNodeRecoveryInit.Raftport), types.NodeRecoveryInitiated)
-
-			case evtNodeRecoveryDone := <-chNodeRecoveryDone:
-				types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, string(evtNodeRecoveryDone.Ip[:]), evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), types.NodeApproved)
-				p.updateDisallowedNodes(types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, string(evtNodeRecoveryDone.Ip[:]), evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), NodeDelete)
-				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, string(evtNodeRecoveryDone.Ip[:]), evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), NodeAdd)
-
-			case <-stopChan:
-				log.Info("quit Node contract watch")
-				return
-			}
-		}
-	}()
-	return nil
 }
 
 // adds or deletes and entry from a given file
@@ -680,116 +378,6 @@ func (p *PermissionCtrl) updateDisallowedNodes(url string, operation NodeOperati
 	}
 }
 
-// Monitors account access related events and updates the cache accordingly
-func (p *PermissionCtrl) manageAccountPermissions() error {
-	if p.eeaFlag {
-		return p.manageAccountPermissionsE()
-	}
-	return p.manageAccountPermissionsBasic()
-}
-
-func (p *PermissionCtrl) manageAccountPermissionsE() error {
-	chAccessModified := make(chan *eea.EeaAcctManagerAccountAccessModified)
-	chAccessRevoked := make(chan *eea.EeaAcctManagerAccountAccessRevoked)
-	chStatusChanged := make(chan *eea.EeaAcctManagerAccountStatusChanged)
-
-	opts := &bind.WatchOpts{}
-	var blockNumber uint64 = 1
-	opts.Start = &blockNumber
-	var contract *PermissionContractEea
-	var ok bool
-	if contract, ok = p.contract.(*PermissionContractEea); !ok {
-		return fmt.Errorf("error casting permission contract service to basic contract")
-	}
-	if _, err := contract.permAcct.EeaAcctManagerFilterer.WatchAccountAccessModified(opts, chAccessModified); err != nil {
-		return fmt.Errorf("failed AccountAccessModified: %v", err)
-	}
-
-	if _, err := contract.permAcct.EeaAcctManagerFilterer.WatchAccountAccessRevoked(opts, chAccessRevoked); err != nil {
-		return fmt.Errorf("failed AccountAccessRevoked: %v", err)
-	}
-
-	if _, err := contract.permAcct.EeaAcctManagerFilterer.WatchAccountStatusChanged(opts, chStatusChanged); err != nil {
-		return fmt.Errorf("failed AccountStatusChanged: %v", err)
-	}
-
-	go func() {
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case evtAccessModified := <-chAccessModified:
-				types.AcctInfoMap.UpsertAccount(evtAccessModified.OrgId, evtAccessModified.RoleId, evtAccessModified.Account, evtAccessModified.OrgAdmin, types.AcctStatus(int(evtAccessModified.Status.Uint64())))
-
-			case evtAccessRevoked := <-chAccessRevoked:
-				types.AcctInfoMap.UpsertAccount(evtAccessRevoked.OrgId, evtAccessRevoked.RoleId, evtAccessRevoked.Account, evtAccessRevoked.OrgAdmin, types.AcctActive)
-
-			case evtStatusChanged := <-chStatusChanged:
-				if ac, err := types.AcctInfoMap.GetAccount(evtStatusChanged.Account); ac != nil {
-					types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Account, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
-				} else {
-					log.Info("error fetching account information", "err", err)
-				}
-			case <-stopChan:
-				log.Info("quit account contract watch")
-				return
-			}
-		}
-	}()
-	return nil
-}
-
-func (p *PermissionCtrl) manageAccountPermissionsBasic() error {
-	chAccessModified := make(chan *basic.AcctManagerAccountAccessModified)
-	chAccessRevoked := make(chan *basic.AcctManagerAccountAccessRevoked)
-	chStatusChanged := make(chan *basic.AcctManagerAccountStatusChanged)
-
-	opts := &bind.WatchOpts{}
-	var blockNumber uint64 = 1
-	opts.Start = &blockNumber
-	var contract *PermissionContractBasic
-	var ok bool
-	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
-		return fmt.Errorf("error casting permission contract service to basic contract")
-	}
-
-	if _, err := contract.permAcct.AcctManagerFilterer.WatchAccountAccessModified(opts, chAccessModified); err != nil {
-		return fmt.Errorf("failed AccountAccessModified: %v", err)
-	}
-
-	if _, err := contract.permAcct.AcctManagerFilterer.WatchAccountAccessRevoked(opts, chAccessRevoked); err != nil {
-		return fmt.Errorf("failed AccountAccessRevoked: %v", err)
-	}
-
-	if _, err := contract.permAcct.AcctManagerFilterer.WatchAccountStatusChanged(opts, chStatusChanged); err != nil {
-		return fmt.Errorf("failed AccountStatusChanged: %v", err)
-	}
-
-	go func() {
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case evtAccessModified := <-chAccessModified:
-				types.AcctInfoMap.UpsertAccount(evtAccessModified.OrgId, evtAccessModified.RoleId, evtAccessModified.Account, evtAccessModified.OrgAdmin, types.AcctStatus(int(evtAccessModified.Status.Uint64())))
-
-			case evtAccessRevoked := <-chAccessRevoked:
-				types.AcctInfoMap.UpsertAccount(evtAccessRevoked.OrgId, evtAccessRevoked.RoleId, evtAccessRevoked.Account, evtAccessRevoked.OrgAdmin, types.AcctActive)
-
-			case evtStatusChanged := <-chStatusChanged:
-				if ac, err := types.AcctInfoMap.GetAccount(evtStatusChanged.Account); ac != nil {
-					types.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Account, ac.IsOrgAdmin, types.AcctStatus(int(evtStatusChanged.Status.Uint64())))
-				} else {
-					log.Info("error fetching account information", "err", err)
-				}
-			case <-stopChan:
-				log.Info("quit account contract watch")
-				return
-			}
-		}
-	}()
-	return nil
-}
 
 // Disconnect the Node from the network
 func (p *PermissionCtrl) disconnectNode(enodeId string) {
@@ -996,101 +584,6 @@ func (p *PermissionCtrl) updateNetworkStatus() error {
 		log.Warn("Failed to udpate network boot status ", "err", err)
 		return err
 	}
-	return nil
-}
-
-// monitors role management related events and updated cache
-func (p *PermissionCtrl) manageRolePermissions() error {
-	if p.eeaFlag {
-		return p.manageRolePermissionsE()
-	}
-	return p.manageRolePermissionsBasic()
-}
-
-func (p *PermissionCtrl) manageRolePermissionsE() error {
-	chRoleCreated := make(chan *eea.EeaRoleManagerRoleCreated, 1)
-	chRoleRevoked := make(chan *eea.EeaRoleManagerRoleRevoked, 1)
-
-	opts := &bind.WatchOpts{}
-	var blockNumber uint64 = 1
-	opts.Start = &blockNumber
-	var contract *PermissionContractEea
-	var ok bool
-	if contract, ok = p.contract.(*PermissionContractEea); !ok {
-		return fmt.Errorf("error casting permission contract service to basic contract")
-	}
-
-	if _, err := contract.permRole.EeaRoleManagerFilterer.WatchRoleCreated(opts, chRoleCreated); err != nil {
-		return fmt.Errorf("failed WatchRoleCreated: %v", err)
-	}
-
-	if _, err := contract.permRole.EeaRoleManagerFilterer.WatchRoleRevoked(opts, chRoleRevoked); err != nil {
-		return fmt.Errorf("failed WatchRoleRemoved: %v", err)
-	}
-
-	go func() {
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case evtRoleCreated := <-chRoleCreated:
-				types.RoleInfoMap.UpsertRole(evtRoleCreated.OrgId, evtRoleCreated.RoleId, evtRoleCreated.IsVoter, evtRoleCreated.IsAdmin, types.AccessType(int(evtRoleCreated.BaseAccess.Uint64())), true)
-
-			case evtRoleRevoked := <-chRoleRevoked:
-				if r, _ := types.RoleInfoMap.GetRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId); r != nil {
-					types.RoleInfoMap.UpsertRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId, r.IsVoter, r.IsAdmin, r.Access, false)
-				} else {
-					log.Error("Revoke role - cache is missing role", "org", evtRoleRevoked.OrgId, "role", evtRoleRevoked.RoleId)
-				}
-			case <-stopChan:
-				log.Info("quit role contract watch")
-				return
-			}
-		}
-	}()
-	return nil
-}
-
-func (p *PermissionCtrl) manageRolePermissionsBasic() error {
-	chRoleCreated := make(chan *basic.RoleManagerRoleCreated, 1)
-	chRoleRevoked := make(chan *basic.RoleManagerRoleRevoked, 1)
-
-	opts := &bind.WatchOpts{}
-	var blockNumber uint64 = 1
-	opts.Start = &blockNumber
-	var contract *PermissionContractBasic
-	var ok bool
-	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
-		return fmt.Errorf("error casting permission contract service to basic contract")
-	}
-	if _, err := contract.permRole.RoleManagerFilterer.WatchRoleCreated(opts, chRoleCreated); err != nil {
-		return fmt.Errorf("failed WatchRoleCreated: %v", err)
-	}
-
-	if _, err := contract.permRole.RoleManagerFilterer.WatchRoleRevoked(opts, chRoleRevoked); err != nil {
-		return fmt.Errorf("failed WatchRoleRemoved: %v", err)
-	}
-
-	go func() {
-		stopChan, stopSubscription := p.subscribeStopEvent()
-		defer stopSubscription.Unsubscribe()
-		for {
-			select {
-			case evtRoleCreated := <-chRoleCreated:
-				types.RoleInfoMap.UpsertRole(evtRoleCreated.OrgId, evtRoleCreated.RoleId, evtRoleCreated.IsVoter, evtRoleCreated.IsAdmin, types.AccessType(int(evtRoleCreated.BaseAccess.Uint64())), true)
-
-			case evtRoleRevoked := <-chRoleRevoked:
-				if r, _ := types.RoleInfoMap.GetRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId); r != nil {
-					types.RoleInfoMap.UpsertRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId, r.IsVoter, r.IsAdmin, r.Access, false)
-				} else {
-					log.Error("Revoke role - cache is missing role", "org", evtRoleRevoked.OrgId, "role", evtRoleRevoked.RoleId)
-				}
-			case <-stopChan:
-				log.Info("quit role contract watch")
-				return
-			}
-		}
-	}()
 	return nil
 }
 

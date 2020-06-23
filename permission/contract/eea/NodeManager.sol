@@ -18,8 +18,8 @@ import "./PermissionsUpgradable.sol";
      Once the node is blacklisted no further activity on the node is
      possible.
   */
-contract NodeManager {
-    PermissionsUpgradable private permUpgradable;
+contract EeaNodeManager {
+    EeaPermissionsUpgradable private permUpgradable;
     struct NodeDetails {
         string enodeId;
         bytes32 ip;
@@ -89,7 +89,7 @@ contract NodeManager {
     /** @notice constructor. sets the permissions upgradable address
       */
     constructor (address _permUpgradable) public {
-        permUpgradable = PermissionsUpgradable(_permUpgradable);
+        permUpgradable = EeaPermissionsUpgradable(_permUpgradable);
     }
 
     /** @notice fetches the node details given an enode id

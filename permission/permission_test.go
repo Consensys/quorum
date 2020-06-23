@@ -59,7 +59,7 @@ var ErrNodeBlacklisted = errors.New("Blacklisted node. Operation not allowed")
 var (
 	guardianKey     *ecdsa.PrivateKey
 	guardianAccount accounts.Account
-	backend         bind.ContractBackend
+	contrBackend    bind.ContractBackend
 	permUpgrAddress, permInterfaceAddress, permImplAddress, voterManagerAddress,
 	nodeManagerAddress, roleManagerAddress, accountManagerAddress, orgManagerAddress common.Address
 	ethereum        *eth.Ethereum
@@ -140,7 +140,7 @@ func setup() {
 	if err := stack.Service(&ethereum); err != nil {
 		t.Fatal(err)
 	}
-	backend = backends.NewSimulatedBackendFrom(ethereum)
+	contrBackend = backends.NewSimulatedBackendFrom(ethereum)
 
 	var permUpgrInstance *basic.PermUpgr
 	var permUpgrInstanceE *eea.EeaPermUpgr
@@ -148,35 +148,35 @@ func setup() {
 	guardianTransactor := bind.NewKeyedTransactor(guardianKey)
 
 	if eeaFlag {
-		permUpgrAddress, _, permUpgrInstanceE, err = eea.DeployEeaPermUpgr(guardianTransactor, backend, guardianAddress)
+		permUpgrAddress, _, permUpgrInstanceE, err = eea.DeployEeaPermUpgr(guardianTransactor, contrBackend, guardianAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permInterfaceAddress, _, _, err = eea.DeployEeaPermInterface(guardianTransactor, backend, permUpgrAddress)
+		permInterfaceAddress, _, _, err = eea.DeployEeaPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nodeManagerAddress, _, _, err = eea.DeployEeaNodeManager(guardianTransactor, backend, permUpgrAddress)
+		nodeManagerAddress, _, _, err = eea.DeployEeaNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		roleManagerAddress, _, _, err = eea.DeployEeaRoleManager(guardianTransactor, backend, permUpgrAddress)
+		roleManagerAddress, _, _, err = eea.DeployEeaRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		accountManagerAddress, _, _, err = eea.DeployEeaAcctManager(guardianTransactor, backend, permUpgrAddress)
+		accountManagerAddress, _, _, err = eea.DeployEeaAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		orgManagerAddress, _, _, err = eea.DeployEeaOrgManager(guardianTransactor, backend, permUpgrAddress)
+		orgManagerAddress, _, _, err = eea.DeployEeaOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		voterManagerAddress, _, _, err = eea.DeployEeaVoterManager(guardianTransactor, backend, permUpgrAddress)
+		voterManagerAddress, _, _, err = eea.DeployEeaVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permImplAddress, _, _, err = eea.DeployEeaPermImpl(guardianTransactor, backend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+		permImplAddress, _, _, err = eea.DeployEeaPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -185,35 +185,35 @@ func setup() {
 			t.Fatal(err)
 		}
 	} else {
-		permUpgrAddress, _, permUpgrInstance, err = basic.DeployPermUpgr(guardianTransactor, backend, guardianAddress)
+		permUpgrAddress, _, permUpgrInstance, err = basic.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permInterfaceAddress, _, _, err = basic.DeployPermInterface(guardianTransactor, backend, permUpgrAddress)
+		permInterfaceAddress, _, _, err = basic.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nodeManagerAddress, _, _, err = basic.DeployNodeManager(guardianTransactor, backend, permUpgrAddress)
+		nodeManagerAddress, _, _, err = basic.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		roleManagerAddress, _, _, err = basic.DeployRoleManager(guardianTransactor, backend, permUpgrAddress)
+		roleManagerAddress, _, _, err = basic.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		accountManagerAddress, _, _, err = basic.DeployAcctManager(guardianTransactor, backend, permUpgrAddress)
+		accountManagerAddress, _, _, err = basic.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		orgManagerAddress, _, _, err = basic.DeployOrgManager(guardianTransactor, backend, permUpgrAddress)
+		orgManagerAddress, _, _, err = basic.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		voterManagerAddress, _, _, err = basic.DeployVoterManager(guardianTransactor, backend, permUpgrAddress)
+		voterManagerAddress, _, _, err = basic.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permImplAddress, _, _, err = basic.DeployPermImpl(guardianTransactor, backend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+		permImplAddress, _, _, err = basic.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -655,7 +655,7 @@ func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
 		t.Fatal(err)
 	}
 
-	testObject.ethClnt = backend
+	testObject.ethClnt = contrBackend
 	testObject.eth = ethereum
 	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.eeaFlag, testObject.key, testObject.permConfig)
 	go func() {

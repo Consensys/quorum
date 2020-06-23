@@ -8,9 +8,9 @@ import "./PermissionsUpgradable.sol";
     contract. for any call, it forwards the call to the implementation
     contract
   */
-contract PermissionsInterface {
-    PermissionsImplementation private permImplementation;
-    PermissionsUpgradable private permUpgradable;
+contract EeaPermissionsInterface {
+    EeaPermissionsImplementation private permImplementation;
+    EeaPermissionsUpgradable private permUpgradable;
     address private permImplUpgradeable;
 
     /** @notice constructor
@@ -274,7 +274,7 @@ string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) externa
       */
     function setPermImplementation(address _permImplementation) external
     onlyUpgradeable {
-        permImplementation = PermissionsImplementation(_permImplementation);
+        permImplementation = EeaPermissionsImplementation(_permImplementation);
     }
 
     /** @notice returns the address of permissions implementation contract
