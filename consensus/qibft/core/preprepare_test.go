@@ -142,10 +142,8 @@ OUTER:
 		curView := r0.currentView()
 
 		preprepare := &Preprepare{
-			View:             curView,
-			Proposal:         test.expectedRequest,
-			RCMessages:       newMessageSet(r0.valSet),
-			PreparedMessages: newMessageSet(r0.valSet),
+			View:     curView,
+			Proposal: test.expectedRequest,
 		}
 
 		for i, v := range test.system.backends {

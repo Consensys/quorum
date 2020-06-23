@@ -21,31 +21,44 @@ import (
 
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 func (c *core) sendPreprepare(request *Request) {
 	logger := c.logger.New("state", c.state)
-	rcMessages := request.RCMessages
-	if rcMessages == nil {
-		rcMessages = newMessageSet(c.valSet)
-	}
 
 	// If I'm the proposer and I have the same sequence with the proposal
 	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.IsProposer() {
 		curView := c.currentView()
 		preprepare, err := Encode(&Preprepare{
-			View:             curView,
-			Proposal:         request.Proposal,
-			RCMessages:       rcMessages,
-			PreparedMessages: request.PrepareMessages,
+			View:     curView,
+			Proposal: request.Proposal,
 		})
 		if err != nil {
 			logger.Error("Failed to encode", "view", curView)
 			return
 		}
+		// Encode RoundChange messages that piggyback Preprepare message
+
+		var piggybackMsgPayload []byte
+		rcMsgs := request.RCMessages
+		prepareMsgs := request.PrepareMessages
+		if rcMsgs == nil {
+			rcMsgs = newMessageSet(c.valSet)
+		}
+		if prepareMsgs == nil {
+			prepareMsgs = newMessageSet(c.valSet)
+		}
+		piggybackMsgPayload, err = Encode(&PiggybackMessages{RCMessages: rcMsgs, PreparedMessages: prepareMsgs})
+		if err != nil {
+			logger.Error("Failed to encode Piggyback messages accompanying Preprepare", "err", err)
+			return
+		}
+
 		c.broadcast(&message{
-			Code: msgPreprepare,
-			Msg:  preprepare,
+			Code:          msgPreprepare,
+			Msg:           preprepare,
+			PiggybackMsgs: piggybackMsgPayload,
 		})
 		// Set the preprepareSent to the current round
 		c.current.preprepareSent = curView.Round
@@ -61,6 +74,16 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	if err != nil {
 		logger.Debug("Failed to decode preprepare message", "err", err)
 		return errFailedDecodePreprepare
+	}
+
+	// Decode messages that piggyback Preprepare message
+	var piggyBackMsgs *PiggybackMessages
+	if msg.PiggybackMsgs != nil && len(msg.PiggybackMsgs) > 0 {
+		if err := rlp.DecodeBytes(msg.PiggybackMsgs, &piggyBackMsgs); err != nil {
+			logger.Error("Failed to decode messages that piggyback Preprepare messages", "err", err)
+			return errFailedDecodePiggybackMsgs
+		}
+
 	}
 
 	// Ensure we have the same view with the PRE-PREPARE message
@@ -88,7 +111,7 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 		return errNotFromProposer
 	}
 
-	if preprepare.View.Round.Uint64() > 0 && !c.validatePrepreparedMessage(preprepare, src) {
+	if preprepare.View.Round.Uint64() > 0 && !c.validatePrepreparedMessage(preprepare, piggyBackMsgs, src) {
 		logger.Error("Unable to verify prepared block in Round Change messages")
 		return errInvalidPreparedBlock
 	}
@@ -126,14 +149,14 @@ func (c *core) acceptPreprepare(preprepare *Preprepare) {
 }
 
 // validatePrepreparedMessage validates Preprepared message received
-func (c *core) validatePrepreparedMessage(preprepare *Preprepare, src istanbul.Validator) bool {
+func (c *core) validatePrepreparedMessage(preprepare *Preprepare, piggybackMsgs *PiggybackMessages, src istanbul.Validator) bool {
 	logger := c.logger.New("from", src, "state", c.state)
-	highestPreparedRound, validRC := c.checkRoundChangeMessages(preprepare, src)
+	highestPreparedRound, validRC := c.checkRoundChangeMessages(preprepare, piggybackMsgs.RCMessages, src)
 	if !validRC {
 		logger.Error("Unable to verify Round Change messages in Preprepare")
 		return false
 	}
-	if highestPreparedRound != 0 && !c.checkPreparedMessages(preprepare, highestPreparedRound, src) {
+	if highestPreparedRound != 0 && !c.checkPreparedMessages(preprepare, piggybackMsgs.PreparedMessages, highestPreparedRound, src) {
 		logger.Error("Unable to verify Prepared messages in Preprepare")
 		return false
 	}
@@ -142,13 +165,13 @@ func (c *core) validatePrepreparedMessage(preprepare *Preprepare, src istanbul.V
 
 // checkRoundChangeMessages verifies if the Round Change message is signed by a valid validator and
 // Also, check if the proposal was the preparedBlock corresponding to the highest preparedRound
-func (c *core) checkRoundChangeMessages(preprepare *Preprepare, src istanbul.Validator) (uint64, bool) {
+func (c *core) checkRoundChangeMessages(preprepare *Preprepare, rcMessages *messageSet, src istanbul.Validator) (uint64, bool) {
 	logger := c.logger.New("from", src, "state", c.state)
 
-	if preprepare.RCMessages != nil && preprepare.RCMessages.messages != nil {
+	if rcMessages != nil && rcMessages.messages != nil {
 		var preparedRound uint64 = 0
 		var preparedBlock istanbul.Proposal
-		for _, msg := range preprepare.RCMessages.messages {
+		for _, msg := range rcMessages.messages {
 			var rc *RoundChangeMessage
 			if err := msg.Decode(&rc); err != nil {
 				logger.Error("Failed to decode ROUND CHANGE", "err", err)
@@ -171,16 +194,16 @@ func (c *core) checkRoundChangeMessages(preprepare *Preprepare, src istanbul.Val
 
 // checkPreparedMessages verifies if a Quorum of Prepared messages were received and
 // the block in each prepared message is the same as the proposal and is prepared in the same round
-func (c *core) checkPreparedMessages(preprepare *Preprepare, highestPreparedRound uint64, src istanbul.Validator) bool {
+func (c *core) checkPreparedMessages(preprepare *Preprepare, prepareMessages *messageSet, highestPreparedRound uint64, src istanbul.Validator) bool {
 	logger := c.logger.New("from", src, "state", c.state)
-	if preprepare.PreparedMessages != nil && preprepare.PreparedMessages.messages != nil {
+	if prepareMessages != nil && prepareMessages.messages != nil {
 		// Number of prepared messages should not be less than Quorum of messages
-		if len(preprepare.PreparedMessages.messages) < c.QuorumSize() {
+		if len(prepareMessages.messages) < c.QuorumSize() {
 			logger.Error("Quorum of Prepared messages not found in Preprepare messages")
 			return false
 		}
 		// Check if the block in each prepared message is the one that is being proposed
-		for addr, msg := range preprepare.PreparedMessages.messages {
+		for addr, msg := range prepareMessages.messages {
 			var prepare *Subject
 			if err := msg.Decode(&prepare); err != nil {
 				logger.Error("Failed to decode Prepared Message", "err", err)
