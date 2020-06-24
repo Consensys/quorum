@@ -66,13 +66,8 @@ func (c *core) sendRoundChange(round *big.Int) {
 		return
 	}
 
-	prepareMsgs := c.PreparedRoundPrepares
-	if prepareMsgs == nil {
-		prepareMsgs = newMessageSet(c.valSet)
-	}
-
 	var piggybackMsgPayload []byte
-	piggybackMsg := &PiggybackMessages{PreparedMessages: prepareMsgs, RCMessages: newMessageSet(c.valSet)}
+	piggybackMsg := &PiggybackMessages{PreparedMessages: prepares, RCMessages: newMessageSet(c.valSet)}
 	piggybackMsgPayload, err = Encode(piggybackMsg)
 	if err != nil {
 		logger.Error("Failed to encode Piggyback messages accompanying ROUND CHANGE", "err", err)
@@ -102,7 +97,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 	if msg.PiggybackMsgs != nil && len(msg.PiggybackMsgs) > 0 {
 		if err := rlp.DecodeBytes(msg.PiggybackMsgs, &piggybackMsgs); err != nil {
 			logger.Error("Failed to decode ROUND CHANGE Piggyback messages", "err", err)
-			return errFailedDecodeRoundChange
+			return errFailedDecodePiggybackMsgs
 		}
 	}
 
@@ -123,7 +118,6 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 			pb = nil
 			pr = nil
 		}
-
 		err := c.roundChangeSet.Add(roundView.Round, msg, pr, pb, piggybackMsgs.PreparedMessages, c.QuorumSize())
 		if err != nil {
 			logger.Warn("Failed to add round change message", "from", src, "msg", msg, "err", err)

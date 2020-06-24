@@ -81,7 +81,7 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	if msg.PiggybackMsgs != nil && len(msg.PiggybackMsgs) > 0 {
 		if err := rlp.DecodeBytes(msg.PiggybackMsgs, &piggyBackMsgs); err != nil {
 			logger.Error("Failed to decode messages that piggyback Preprepare messages", "err", err)
-			return errFailedDecodePreprepare
+			return errFailedDecodePiggybackMsgs
 		}
 	}
 

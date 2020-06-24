@@ -144,29 +144,23 @@ func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.
 		if err = verifySignature(m, validateFn); err != nil {
 			return err
 		}
-		// Verify signature of piggyback messages
-		if m.Code == msgPreprepare {
-			if err = decodeAndVerifyPrepreparePiggyBackMsgs(m.PiggybackMsgs, validateFn); err != nil {
-				return err
-			}
+		// Verify Signature of piggyback messages
+		if err = decodeAndVerifyPiggybackMsgs(m.PiggybackMsgs, validateFn); err != nil {
+			return err
 		}
-		if m.Code == msgRoundChange {
-			if err = decodeAndVerifyRoundChangePiggyBackMsgs(m.PiggybackMsgs, validateFn); err != nil {
-				return err
-			}
-		}
+
 	}
 	return nil
 }
 
-// decodeAndVerifyPrepreparePiggyBackMsgs decodes the given piggyback messages and verifies the signature of individual Prepare and Round Change messages
-func decodeAndVerifyPrepreparePiggyBackMsgs(piggybackMsgsPayload []byte, validateFn func([]byte, []byte) (common.Address, error)) error {
+// decodeAndVerifyPiggybackMsgs decodes the given piggyback messages and verifies the signature of individual Prepare and Round Change messages
+func decodeAndVerifyPiggybackMsgs(piggybackMsgsPayload []byte, validateFn func([]byte, []byte) (common.Address, error)) error {
 	// First decode piggyback messages and then verify individual Prepare and Round Change messages
-	if piggybackMsgsPayload != nil && len(piggybackMsgsPayload) > 0 {
+	if len(piggybackMsgsPayload) > 0 {
 		var pbMsgs *PiggybackMessages
 		err := rlp.DecodeBytes(piggybackMsgsPayload, &pbMsgs)
 		if err != nil {
-			return errFailedDecodePreprepare
+			return errFailedDecodePiggybackMsgs
 		}
 		if pbMsgs.PreparedMessages != nil && pbMsgs.PreparedMessages.messages != nil {
 			if err = verifyPiggyBackMsgSignatures(pbMsgs.PreparedMessages.messages, validateFn); err != nil {
@@ -180,24 +174,6 @@ func decodeAndVerifyPrepreparePiggyBackMsgs(piggybackMsgsPayload []byte, validat
 		}
 	}
 
-	return nil
-}
-
-// decodeAndVerifyRoundChangePiggyBackMsgs decodes the given piggyback messages and verifies the signature of individual Prepare messages
-func decodeAndVerifyRoundChangePiggyBackMsgs(piggybackMsgsPayload []byte, validateFn func([]byte, []byte) (common.Address, error)) error {
-	// First decode piggyback messages and then verify individual Prepare messages
-	if piggybackMsgsPayload != nil && len(piggybackMsgsPayload) > 0 {
-		var pbMsgs *PiggybackMessages
-		err := rlp.DecodeBytes(piggybackMsgsPayload, &pbMsgs)
-		if err != nil {
-			return errFailedDecodeRoundChange
-		}
-		if pbMsgs.PreparedMessages != nil && pbMsgs.PreparedMessages.messages != nil {
-			if err = verifyPiggyBackMsgSignatures(pbMsgs.PreparedMessages.messages, validateFn); err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
 

@@ -41,6 +41,8 @@ var (
 	errFailedDecodePrepare = errors.New("failed to decode PREPARE")
 	// errFailedDecodeCommit is returned when the COMMIT message is malformed.
 	errFailedDecodeCommit = errors.New("failed to decode COMMIT")
+	// errFailedDecodePiggybackMsgs is returned when the Piggyback messages are malformed
+	errFailedDecodePiggybackMsgs = errors.New("failed to decode Piggyback Messages")
 	// errInvalidSigner is returned when the message is signed by a validator different than message sender
 	errInvalidSigner = errors.New("message not signed by the sender")
 	// errInvalidPreparedBlock is returned when prepared block is not validated in round change messages
