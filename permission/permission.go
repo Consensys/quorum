@@ -161,7 +161,7 @@ func (p *PermissionCtrl) AfterStart() error {
 	types.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole)
 
 	for _, f := range []func() error{
-		p.monitorQIP714Block,       // monitor block number to activate new permissions controls
+		p.monitorQIP714Block,               // monitor block number to activate new permissions controls
 		p.backend.manageOrgPermissions,     // monitor org management related events
 		p.backend.manageNodePermissions,    // monitor org  level Node management events
 		p.backend.manageRolePermissions,    // monitor org level role management events
@@ -377,7 +377,6 @@ func (p *PermissionCtrl) updateDisallowedNodes(url string, operation NodeOperati
 		p.updateFile(path, url, operation, true)
 	}
 }
-
 
 // Disconnect the Node from the network
 func (p *PermissionCtrl) disconnectNode(enodeId string) {

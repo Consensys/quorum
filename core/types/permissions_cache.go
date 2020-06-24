@@ -14,8 +14,6 @@ import (
 
 type AccessType uint8
 
-
-
 const (
 	ReadOnly AccessType = iota
 	Transact

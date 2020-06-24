@@ -2,14 +2,17 @@ package permission
 
 import (
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/permission/bind/basic"
 )
+
 type backendBasic struct {
 	pc *PermissionCtrl
 }
+
 func (b *backendBasic) manageAccountPermissions() error {
 	p := b.pc
 	chAccessModified := make(chan *basic.AcctManagerAccountAccessModified)
