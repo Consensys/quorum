@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 
 	istanbul "github.com/ethereum/go-ethereum/consensus/qibft"
@@ -26,17 +27,19 @@ func justify(proposal istanbul.Proposal, roundChangeMessages *messageSet, prepar
 
 	// If there are PREPARE messages, they all need to have the same round and match `proposal`
 	var preparedRound *big.Int
+	iteration := 0
 	for _, msg := range prepareMessages.messages {
 		var prepareMessage *Subject
 		if err := msg.Decode(&prepareMessage); err != nil {
 			return false
 		}
-		if preparedRound != nil { // Get the round of the first message
+		if iteration == 0 { // Get the round of the first message
 			preparedRound = prepareMessage.View.Round
 		}
-		if preparedRound != prepareMessage.View.Round || proposal.Hash() != prepareMessage.Digest.Hash() {
+		if preparedRound.Cmp(prepareMessage.View.Round) != 0 || proposal.Hash() != prepareMessage.Digest.Hash() {
 			return false
 		}
+		iteration++
 	}
 
 	if preparedRound == nil {
@@ -55,13 +58,14 @@ func hasQuorumOfRoundChangeMessagesForNil(roundChangeMessages *messageSet, quoru
 		if err := msg.Decode(&roundChangeMessage); err != nil {
 			continue
 		}
-		if roundChangeMessage.PreparedRound == nil && roundChangeMessage.PreparedBlock == NilBlock() {
+		if roundChangeMessage.PreparedRound.Cmp(common.Big0) == 0 && roundChangeMessage.PreparedBlock.Hash() == NilBlock().Hash() {
 			nilCount++
 			if nilCount == quorumSize {
 				return true
 			}
 		}
 	}
+
 	return false
 }
 
@@ -86,6 +90,7 @@ func hasQuorumOfRoundChangeMessagesForPreparedRoundAndBlock(roundChangeMessages 
 			}
 		}
 	}
+
 	return false
 }
 
@@ -104,7 +109,7 @@ func hasMatchingRoundChangeAndPrepares(roundChangeMessage *RoundChangeMessage, p
 		if prepare.Digest.Hash() != roundChangeMessage.PreparedBlock.Hash() {
 			return false
 		}
-		if prepare.View.Round.Uint64() != roundChangeMessage.PreparedRound.Uint64() {
+		if prepare.View.Round.Cmp(roundChangeMessage.PreparedRound) != 0 {
 			return false
 		}
 	}
