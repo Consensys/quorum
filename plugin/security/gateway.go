@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	// harden the cipher strength by only using ciphers >=256bits
 	defaultCipherSuites = []uint16{
 		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -33,13 +34,17 @@ func (c *TLSConfigurationSourcePluginGateway) Get(ctx context.Context) (*tls.Con
 	return transform(resp.GetData())
 }
 
+// transform raw configuration received from the plugin to `tls.Config` object being used
+// to configure TLS for JSON RPC servers
+// The customized tls.Config follows: https://blog.bracebin.com/achieving-perfect-ssl-labs-score-with-go
 func transform(tlsData *proto.TLSConfiguration_Data) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
-		// Ensure Key or DH parameter strength >= 4096 bits
+		// prioritize curve preferences from crypto/tls/common.go#defaultCurvePreferences
 		CurvePreferences: []tls.CurveID{
 			tls.CurveP521,
 			tls.CurveP384,
 			tls.CurveP256,
+			tls.X25519,
 		},
 		// Support only TLS1.2 & Above
 		MinVersion: tls.VersionTLS12,

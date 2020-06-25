@@ -263,8 +263,7 @@ func NewHTTPServer(cors []string, vhosts []string, timeouts HTTPTimeouts, srv ht
 		IdleTimeout:  timeouts.IdleTimeout,
 
 		// Ensure to Disable HTTP/2
-		// HTTP2 mandates the support of the cipher suite TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-		// Which is a 128bit cipher, and we are enforcing ciphers >= 4096 bits only
+		// this configuration and customized tls.Config is to follow: https://blog.bracebin.com/achieving-perfect-ssl-labs-score-with-go
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 	}
 }
