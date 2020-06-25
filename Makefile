@@ -2,13 +2,13 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: geth android ios geth-cross swarm evm all test clean
+.PHONY: geth android ios geth-cross evm all test clean
 .PHONY: geth-linux geth-linux-386 geth-linux-amd64 geth-linux-mips64 geth-linux-mips64le
 .PHONY: geth-linux-arm geth-linux-arm-5 geth-linux-arm-6 geth-linux-arm-7 geth-linux-arm64
 .PHONY: geth-darwin geth-darwin-386 geth-darwin-amd64
 .PHONY: geth-windows geth-windows-386 geth-windows-amd64
 
-GOBIN = $(shell pwd)/build/bin
+GOBIN = ./build/bin
 GO ?= latest
 
 geth:
@@ -19,11 +19,6 @@ geth:
 bootnode:
 	build/env.sh go run build/ci.go install ./cmd/bootnode
 	@echo "Done building bootnode."
-
-swarm:
-	build/env.sh go run build/ci.go install ./cmd/swarm
-	@echo "Done building."
-	@echo "Run \"$(GOBIN)/swarm\" to launch swarm."
 
 all:
 	build/env.sh go run build/ci.go install
@@ -60,9 +55,6 @@ devtools:
 	@type "npm" 2> /dev/null || echo 'Please install node.js and npm'
 	@type "solc" 2> /dev/null || echo 'Please install solc'
 	@type "protoc" 2> /dev/null || echo 'Please install protoc'
-
-swarm-devtools:
-	env GOBIN= go install ./cmd/swarm/mimegen
 
 # Cross Compilation Targets (xgo)
 
@@ -155,44 +147,3 @@ geth-windows-amd64:
 	build/env.sh go run build/ci.go xgo -- --go=$(GO) --targets=windows/amd64 -v ./cmd/geth
 	@echo "Windows amd64 cross compilation done:"
 	@ls -ld $(GOBIN)/geth-windows-* | grep amd64
-
-# QUORUM - BEGIN
-RELEASE_NOTES_FILE := generated-release-notes.md
-LAST_RELEASE_VERSION := $(shell git describe --tags --abbrev=0 @^)
-REQUIRED_ENV_VARS := QUORUM_RELEASE BINTRAY_USER BINTRAY_API_KEY GITHUB_TOKEN
-release-prepare: release-tools
-	@[ "${QUORUM_RELEASE}" ] || (echo "Please provide QUORUM_RELEASE env variable" ; exit 1)
-	@rm -f $(RELEASE_NOTES_FILE)
-	@echo "Last release: $(LAST_RELEASE_VERSION)"
-	@echo "This release: ${QUORUM_RELEASE}"
-	@echo "${QUORUM_RELEASE}\n\n" > $(RELEASE_NOTES_FILE)
-	@git log --pretty=format:%s $(LAST_RELEASE_VERSION)..@ >> $(RELEASE_NOTES_FILE)
-	@echo "$(RELEASE_NOTES_FILE) has been created"
-
-release: release-tools check-release-env
-	@jfrog bt version-show quorumengineering/quorum/geth/${QUORUM_RELEASE} --key ${BINTRAY_API_KEY} --user ${BINTRAY_USER}
-	@echo "\n\n| Filename | SHA256 Hash |" >> $(RELEASE_NOTES_FILE)
-	@echo "|:---------|:------------|" >> $(RELEASE_NOTES_FILE)
-	@curl -s -u ${BINTRAY_USER}:${BINTRAY_API_KEY} https://api.bintray.com/packages/quorumengineering/quorum/geth/versions/${QUORUM_RELEASE}/files \
-	| jq '.[] | select(.name | endswith(".asc") | not) | "|[\(.name)](https://bintray.com/quorumengineering/quorum/download_file?file_path=\(.path))|`\(.sha256)`|"' -r \
-	>> $(RELEASE_NOTES_FILE)
-	@hub release create -d -F $(RELEASE_NOTES_FILE) ${QUORUM_RELEASE}
-
-# make sure all API Keys are set
-check-release-env: $(REQUIRED_ENV_VARS)
-	@[ -f "$(RELEASE_NOTES_FILE)" ] || (echo "Please run 'make release-prepare' and edit the release notes"; exit 1)
-
-$(REQUIRED_ENV_VARS):
-	@[ "${$@}" ] || (echo "Please provide $@ env variable" ; exit 1)
-
-release-tools:
-ifeq (, $(shell which hub))
-	@echo "Please install Github CLI from https://hub.github.com"
-endif
-ifeq (, $(shell which jfrog))
-	@echo "Please install JFrog CLI from https://jfrog.com/getcli"
-endif
-ifeq (, $(shell which jq))
-	@echo "Please install jq from https://stedolan.github.io/jq/download"
-endif
-# QUORUM - END

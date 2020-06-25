@@ -138,7 +138,6 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 			targets[val.Address()] = true
 		}
 	}
-
 	if sb.broadcaster != nil && len(targets) > 0 {
 		ps := sb.broadcaster.FindPeers(targets)
 		for addr, p := range ps {
@@ -156,7 +155,6 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 
 			m.Add(hash, true)
 			sb.recentMessages.Add(addr, m)
-
 			go p.Send(istanbulMsg, payload)
 		}
 	}
@@ -237,14 +235,14 @@ func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 	if err == nil || err == errEmptyCommittedSeals {
 		return 0, nil
 	} else if err == consensus.ErrFutureBlock {
-		return time.Unix(block.Header().Time.Int64(), 0).Sub(now()), consensus.ErrFutureBlock
+		return time.Unix(int64(block.Header().Time), 0).Sub(now()), consensus.ErrFutureBlock
 	}
 	return 0, err
 }
 
 // Sign implements istanbul.Backend.Sign
 func (sb *backend) Sign(data []byte) ([]byte, error) {
-	hashData := crypto.Keccak256([]byte(data))
+	hashData := crypto.Keccak256(data)
 	return crypto.Sign(hashData, sb.privateKey)
 }
 

@@ -27,10 +27,10 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethdb"
 )
 
 type testerVote struct {
@@ -339,7 +339,7 @@ func TestVoting(t *testing.T) {
 		extra, _ := prepareExtra(b.Header(), validators)
 		genesis.ExtraData = extra
 		// Create a pristine blockchain with the genesis injected
-		db := ethdb.NewMemDatabase()
+		db := rawdb.NewMemoryDatabase()
 		genesis.Commit(db)
 
 		config := istanbul.DefaultConfig
@@ -354,7 +354,7 @@ func TestVoting(t *testing.T) {
 		for j, vote := range tt.votes {
 			headers[j] = &types.Header{
 				Number:     big.NewInt(int64(j) + 1),
-				Time:       big.NewInt(int64(j) * int64(config.BlockPeriod)),
+				Time:       uint64(int64(j) * int64(config.BlockPeriod)),
 				Coinbase:   accounts.address(vote.voted),
 				Difficulty: defaultDifficulty,
 				MixDigest:  types.IstanbulDigest,
@@ -417,7 +417,7 @@ func TestSaveAndLoad(t *testing.T) {
 			},
 		},
 		Tally: map[common.Address]Tally{
-			common.StringToAddress("1234567893"): Tally{
+			common.StringToAddress("1234567893"): {
 				Authorize: false,
 				Votes:     20,
 			},
@@ -427,7 +427,7 @@ func TestSaveAndLoad(t *testing.T) {
 			common.StringToAddress("1234567895"),
 		}, istanbul.RoundRobin),
 	}
-	db := ethdb.NewMemDatabase()
+	db := rawdb.NewMemoryDatabase()
 	err := snap.store(db)
 	if err != nil {
 		t.Errorf("store snapshot failed: %v", err)

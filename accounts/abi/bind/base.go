@@ -43,10 +43,10 @@ type PrivateTxArgs struct {
 
 // CallOpts is the collection of options to fine tune a contract call request.
 type CallOpts struct {
-	Pending bool           // Whether to operate on the pending state or the last known one
-	From    common.Address // Optional the sender address, otherwise the first account is used
-
-	Context context.Context // Network context to support cancellation and timeouts (nil = no timeout)
+	Pending     bool            // Whether to operate on the pending state or the last known one
+	From        common.Address  // Optional the sender address, otherwise the first account is used
+	BlockNumber *big.Int        // Optional the block number on which the call should be performed
+	Context     context.Context // Network context to support cancellation and timeouts (nil = no timeout)
 }
 
 // TransactOpts is the collection of authorization data required to create a
@@ -159,10 +159,10 @@ func (c *BoundContract) Call(opts *CallOpts, result interface{}, method string, 
 			}
 		}
 	} else {
-		output, err = c.caller.CallContract(ctx, msg, nil)
+		output, err = c.caller.CallContract(ctx, msg, opts.BlockNumber)
 		if err == nil && len(output) == 0 {
 			// Make sure we have a contract to operate on, and bail out otherwise.
-			if code, err = c.caller.CodeAt(ctx, c.address, nil); err != nil {
+			if code, err = c.caller.CodeAt(ctx, c.address, opts.BlockNumber); err != nil {
 				return err
 			} else if len(code) == 0 {
 				return ErrNoCode
@@ -229,7 +229,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 			}
 		}
 		// If the contract surely has code (or code is not needed), estimate the transaction
-		msg := ethereum.CallMsg{From: opts.From, To: contract, Value: value, Data: input}
+		msg := ethereum.CallMsg{From: opts.From, To: contract, GasPrice: gasPrice, Value: value, Data: input}
 		gasLimit, err = c.transactor.EstimateGas(ensureContext(opts.Context), msg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to estimate gas needed: %v", err)
@@ -243,6 +243,7 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		rawTx = types.NewTransaction(nonce, c.address, value, gasLimit, gasPrice, input)
 	}
 
+	// Quorum
 	// If this transaction is private, we need to substitute the data payload
 	// with the hash of the transaction from tessera/constellation.
 	if opts.PrivateFor != nil {
@@ -283,7 +284,7 @@ func (c *BoundContract) FilterLogs(opts *FilterOpts, name string, query ...[]int
 		opts = new(FilterOpts)
 	}
 	// Append the event selector to the query parameters and construct the topic set
-	query = append([][]interface{}{{c.abi.Events[name].Id()}}, query...)
+	query = append([][]interface{}{{c.abi.Events[name].ID()}}, query...)
 
 	topics, err := makeTopics(query...)
 	if err != nil {
@@ -332,7 +333,7 @@ func (c *BoundContract) WatchLogs(opts *WatchOpts, name string, query ...[]inter
 		opts = new(WatchOpts)
 	}
 	// Append the event selector to the query parameters and construct the topic set
-	query = append([][]interface{}{{c.abi.Events[name].Id()}}, query...)
+	query = append([][]interface{}{{c.abi.Events[name].ID()}}, query...)
 
 	topics, err := makeTopics(query...)
 	if err != nil {
@@ -371,6 +372,23 @@ func (c *BoundContract) UnpackLog(out interface{}, event string, log types.Log) 
 	return parseTopics(out, indexed, log.Topics[1:])
 }
 
+// UnpackLogIntoMap unpacks a retrieved log into the provided map.
+func (c *BoundContract) UnpackLogIntoMap(out map[string]interface{}, event string, log types.Log) error {
+	if len(log.Data) > 0 {
+		if err := c.abi.UnpackIntoMap(out, event, log.Data); err != nil {
+			return err
+		}
+	}
+	var indexed abi.Arguments
+	for _, arg := range c.abi.Events[event].Inputs {
+		if arg.Indexed {
+			indexed = append(indexed, arg)
+		}
+	}
+	return parseTopicsIntoMap(out, indexed, log.Topics[1:])
+}
+
+// Quorum
 // createPrivateTransaction replaces the payload of private transaction to the hash from Tessera/Constellation
 func (c *BoundContract) createPrivateTransaction(tx *types.Transaction, payload []byte) *types.Transaction {
 	var privateTx *types.Transaction

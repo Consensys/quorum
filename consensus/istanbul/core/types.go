@@ -82,7 +82,7 @@ const (
 	msgPrepare
 	msgCommit
 	msgRoundChange
-	msgAll
+	// msgAll
 )
 
 type message struct {
@@ -142,7 +142,7 @@ func (m *message) FromPayload(b []byte, validateFn func([]byte, []byte) (common.
 		if err != nil {
 			return err
 		}
-		if bytes.Compare(signerAdd.Bytes(), m.Address.Bytes()) != 0 {
+		if !bytes.Equal(signerAdd.Bytes(), m.Address.Bytes()) {
 			return errInvalidSigner
 		}
 	}

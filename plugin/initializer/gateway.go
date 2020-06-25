@@ -15,8 +15,5 @@ func (g *PluginGateway) Init(ctx context.Context, nodeIdentity string, rawConfig
 		HostIdentity:     nodeIdentity,
 		RawConfiguration: rawConfiguration,
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }

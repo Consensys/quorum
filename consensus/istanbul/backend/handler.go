@@ -23,14 +23,13 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/core/types"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -45,11 +44,7 @@ var (
 
 // Protocol implements consensus.Engine.Protocol
 func (sb *backend) Protocol() consensus.Protocol {
-	return consensus.Protocol{
-		Name:     "istanbul",
-		Versions: []uint{64},
-		Lengths:  []uint64{18},
-	}
+	return consensus.IstanbulProtocol
 }
 
 func (sb *backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
@@ -65,7 +60,6 @@ func (sb *backend) decode(msg p2p.Msg) ([]byte, common.Hash, error) {
 func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
-
 	if msg.Code == istanbulMsg {
 		if !sb.coreStarted {
 			return true, istanbul.ErrStoppedEngine
@@ -75,7 +69,6 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		if err != nil {
 			return true, errDecodeFailed
 		}
-
 		// Mark peer's message
 		ms, ok := sb.recentMessages.Get(addr)
 		var m *lru.ARCCache
@@ -96,7 +89,6 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		go sb.istanbulEventMux.Post(istanbul.MessageEvent{
 			Payload: data,
 		})
-
 		return true, nil
 	}
 	if msg.Code == NewBlockMsg && sb.core.IsProposer() { // eth.NewBlockMsg: import cycle

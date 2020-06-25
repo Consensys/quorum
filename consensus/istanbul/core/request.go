@@ -16,11 +16,12 @@
 
 package core
 
-import "github.com/ethereum/go-ethereum/consensus/istanbul"
+import (
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
+)
 
 func (c *core) handleRequest(request *istanbul.Request) error {
 	logger := c.logger.New("state", c.state, "seq", c.current.sequence)
-
 	if err := c.checkRequestMsg(request); err != nil {
 		if err == errInvalidMessage {
 			logger.Warn("invalid request")
@@ -29,7 +30,6 @@ func (c *core) handleRequest(request *istanbul.Request) error {
 		logger.Warn("unexpected request", "err", err, "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 		return err
 	}
-
 	logger.Trace("handleRequest", "number", request.Proposal.Number(), "hash", request.Proposal.Hash())
 
 	c.current.pendingRequest = request

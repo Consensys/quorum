@@ -673,7 +673,6 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 			if !ok {
 				panic("Couldn't cast role to int")
 			}
-
 			if intRole == minterRole {
 				log.EmitCheckpoint(log.BecameMinter)
 				pm.minter.start()
@@ -689,7 +688,6 @@ func (pm *ProtocolManager) handleRoleChange(roleC <-chan interface{}) {
 			pm.mu.Lock()
 			pm.role = intRole
 			pm.mu.Unlock()
-
 		case <-pm.quitSync:
 			return
 		}
@@ -872,7 +870,7 @@ func (pm *ProtocolManager) eventLoop() {
 					var block types.Block
 					err := rlp.DecodeBytes(entry.Data, &block)
 					if err != nil {
-						log.Error("error decoding block: ", err)
+						log.Error("error decoding block", "err", err)
 					}
 
 					if pm.blockchain.HasBlock(block.Hash(), block.NumberU64()) {

@@ -93,7 +93,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 	// Once we received f+1 ROUND CHANGE messages, those messages form a weak certificate.
 	// If our round number is smaller than the certificate's round number, we would
 	// try to catch up the round number.
-	if c.waitingForRoundChange && num == int(c.valSet.F()+1) {
+	if c.waitingForRoundChange && num == c.valSet.F()+1 {
 		if cv.Round.Cmp(roundView.Round) < 0 {
 			c.sendRoundChange(roundView.Round)
 		}

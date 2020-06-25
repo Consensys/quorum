@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -269,7 +270,7 @@ func (t *testSystem) stop(core bool) {
 
 func (t *testSystem) NewBackend(id uint64) *testSystemBackend {
 	// assume always success
-	ethDB := ethdb.NewMemDatabase()
+	ethDB := rawdb.NewMemoryDatabase()
 	backend := &testSystemBackend{
 		id:     id,
 		sys:    t,

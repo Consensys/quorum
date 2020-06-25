@@ -1,7 +1,7 @@
 # <img src="https://raw.githubusercontent.com/jpmorganchase/quorum/master/logo.png" width="200" height="200"/>
 
-<a href="https://bit.ly/quorum-slack" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://clh7rniov2.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
-[![Build Status](https://travis-ci.org/jpmorganchase/quorum.svg?branch=master)](https://travis-ci.org/jpmorganchase/quorum)
+<a href="https://www.goquorum.com/slack-inviter" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://93ecjxb0d3.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
+![Build Check](https://github.com/jpmorganchase/quorum/workflows/Build%20Check/badge.svg?branch=master)
 [![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/quorumengineering/quorum)](https://hub.docker.com/r/quorumengineering/quorum/builds)
 [![Documentation Status](https://readthedocs.org/projects/goquorum/badge/?version=latest)](http://docs.goquorum.com/en/latest/?badge=latest)
 [![Download](https://api.bintray.com/packages/quorumengineering/quorum/geth/images/download.svg)](https://bintray.com/quorumengineering/quorum/geth/_latestVersion)
@@ -13,47 +13,43 @@ Quorum is a fork of [go-ethereum](https://github.com/ethereum/go-ethereum) and i
 
 Key enhancements over go-ethereum:
 
-* __Privacy__ - Quorum supports private transactions and private contracts through public/private state separation, and utilises peer-to-peer encrypted message exchanges (see [Constellation](https://github.com/jpmorganchase/constellation) and [Tessera](https://github.com/jpmorganchase/tessera)) for directed transfer of private data to network participants
-* __Alternative Consensus Mechanisms__ - with no need for POW/POS in a permissioned network, Quorum instead offers multiple consensus mechanisms that are more appropriate for consortium chains:
-    * __Raft-based Consensus__ - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
-    * __Istanbul BFT__ - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
-* __Peer Permissioning__ - node/peer permissioning using smart contracts, ensuring only known parties can join the network
-* __Higher Performance__ - Quorum offers significantly higher performance than public geth
+* [__Privacy__](http://docs.goquorum.com/en/latest/Privacy/Overview/) - Quorum supports private transactions and private contracts through public/private state separation, and utilises peer-to-peer encrypted message exchanges (see [Constellation](https://github.com/jpmorganchase/constellation) and [Tessera](https://github.com/jpmorganchase/tessera)) for directed transfer of private data to network participants
+* [__Alternative Consensus Mechanisms__](http://docs.goquorum.com/en/latest/Consensus/Consensus/) - with no need for POW/POS in a permissioned network, Quorum instead offers multiple consensus mechanisms that are more appropriate for consortium chains:
+    * [__Raft-based Consensus__](http://docs.goquorum.com/en/latest/Consensus/raft/raft/) - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
+    * [__Istanbul BFT__](http://docs.goquorum.com/en/latest/Consensus/ibft/ibft/) - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
+    * [__Clique POA Consensus__](https://github.com/ethereum/EIPs/issues/225) - a default POA consensus algorithm bundled with Go Ethereum.
+* [__Peer Permissioning__](http://docs.goquorum.com/en/latest/Permissioning/Permissions%20Overview/) - node/peer permissioning, ensuring only known parties can join the network
+* [__Pluggable architecture__](http://docs.goquorum.com/en/latest/PluggableArchitecture/Overview/) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of Quorum features.
+* __Higher Performance__ - Quorum offers significantly higher performance throughput than public geth
 
 ## Architecture
 
-![Quorum Tessera Privacy Flow](https://raw.githubusercontent.com/jpmorganchase/quorum-docs/master/images/QuorumTransactionProcessing.JPG)
+![Quorum Tessera Privacy Flow](https://github.com/jpmorganchase/quorum/blob/master/docs/Quorum%20Design.png)
 
-The above diagram is a high-level overview of the privacy architecture used by Quorum. For more in-depth discussion of the components, refer to the [documentation site](https://docs.goquorum.com).
+The above diagram is very high-level overview of component architecture used by Quorum. For more in-depth discussion of the components and how they interact, please refer to [lifecycle of a private transaction](http://docs.goquorum.com/en/latest/Privacy/Lifecycle-of-a-private-transaction/).
 
 ## Quickstart
-The quickest way to get started with Quorum is by following instructions in the [Quorum Examples](https://github.com/jpmorganchase/quorum-examples) repository.  This allows you to quickly create a network of Quorum nodes, and includes a step-by-step demonstration of the privacy features of Quorum.
+There are [several ways](https://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/) to quickly get up and running with Quorum.  One of the easiest is to use [Quorum Wizard](https://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/#quickstart-with-quorum-wizard) - a command line tool that allows users to set up a development Quorum network on their local machine in less than *2 minutes*.
 
-## Further Reading
-Further documentation can be found in the [docs](docs/) folder and on the [documentation site](https://docs.goquorum.com).
+## Quorum Projects
+
+Check out some of the interesting projects we are actively working on: 
+
+* [quorum-wizard](http://docs.goquorum.com/en/latest/Wizard/GettingStarted/): Setup a Quorum network in 2 minutes!
+* [quorum-remix-plugin](http://docs.goquorum.com/en/latest/RemixPlugin/Overview/): The Quorum plugin for Ethereum's Remix IDE adds support for creating and interacting with private contracts on a Quorum network.
+* [Cakeshop](http://docs.goquorum.com/en/latest/Cakeshop/Overview/): An integrated development environment and SDK for Quorum
+* [quorum-examples](http://docs.goquorum.com/en/latest/Getting%20Started/Quorum-Examples/): Quorum demonstration examples
+* <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [qubernetes](http://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/#quorum-on-kubernetes): Deploy Quorum on Kubernetes  
+* [quorum-cloud](http://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/#creating-a-network-deployed-in-the-cloud): Tools to help deploy Quorum network in a cloud provider of choice
+* [quorum.js](http://docs.goquorum.com/en/latest/quorum.js/Overview/): Extends web3.js to support Quorum-specific APIs
+* Zero Knowledge on Quorum
+   * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) POC and [ZSL on Quorum](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
+   * [Anonymous Zether](https://github.com/jpmorganchase/anonymous-zether) implementation
+
+
 
 ## Official Docker Containers
 The official docker containers can be found under https://hub.docker.com/u/quorumengineering/ 
-
-
-## See also
-
-* [Quorum](https://github.com/jpmorganchase/quorum): this repository
-* [Quorum Documentation](https://docs.goquorum.com)
-* [quorum-examples](https://github.com/jpmorganchase/quorum-examples): Quorum demonstration examples
-* [Quorum Community Slack Inviter](https://bit.ly/quorum-slack): Quorum Slack community entry point
-* Quorum Transaction Managers
-   * [Constellation](https://github.com/jpmorganchase/constellation): Haskell implementation of peer-to-peer encrypted message exchange for transaction privacy
-   * [Tessera](https://github.com/jpmorganchase/tessera): Java implementation of peer-to-peer encrypted message exchange for transaction privacy
-* Quorum supported consensuses
-   * [Raft Consensus Documentation](https://docs.goquorum.com/en/latest/Consensus/raft/)
-   * [Istanbul BFT Consensus Documentation](https://github.com/ethereum/EIPs/issues/650): [RPC API](https://docs.goquorum.com/en/latest/Consensus/ibft/istanbul-rpc-api.md) and [technical article](https://medium.com/getamis/istanbul-bft-ibft-c2758b7fe6ff). __Please note__ that updated istanbul-tools is now hosted in [this](https://github.com/jpmorganchase/istanbul-tools/) repository
-   * [Clique POA Consensus Documentation](https://github.com/ethereum/EIPs/issues/225) and a [guide to setup clique json](https://modalduality.org/posts/puppeth/) with [puppeth](https://blog.ethereum.org/2017/04/14/geth-1-6-puppeth-master/)
-* Zero Knowledge on Quorum
-   * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) wiki page and [documentation](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
-   * [Anonymous Zether](https://github.com/jpmorganchase/anonymous-zether) implementation
-* [quorum-cloud](https://github.com/jpmorganchase/quorum-cloud): Tools to help deploy Quorum network in a cloud provider of choice
-* [Cakeshop](https://github.com/jpmorganchase/cakeshop): An integrated development environment and SDK for Quorum
 
 ## Third Party Tools/Libraries
 

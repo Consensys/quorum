@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/pborman/uuid"
 	"golang.org/x/crypto/openpgp"
 )
@@ -55,10 +56,8 @@ func unzipFile(output string, input *zip.File) error {
 	defer func() {
 		_ = outputFile.Close()
 	}()
-	if _, err = io.Copy(outputFile, inputFile); err != nil {
-		return err
-	}
-	return nil
+	_, err = io.Copy(outputFile, inputFile)
+	return err
 }
 
 // Unzip src path to dest. Creates dest if the file doesnt exists.
@@ -108,7 +107,7 @@ func getSha256Checksum(filePath string) (string, error) {
 func unpackPlugin(pluginPath string) (string, *MetaData, error) {
 	// Unpack pluginMeta
 	// Reduce TOC/TOU risk
-	unpackDir := path.Join(os.TempDir(), string(uuid.New()), string(uuid.New()))
+	unpackDir := path.Join(os.TempDir(), uuid.New(), uuid.New())
 
 	err := os.MkdirAll(unpackDir, os.ModePerm)
 	if err != nil {
@@ -138,7 +137,7 @@ func unpackPlugin(pluginPath string) (string, *MetaData, error) {
 		return unpackDir, nil, fmt.Errorf("plugin-meta.json entry point not set")
 	}
 
-	if isCleanEntryPoint(pluginMeta.EntryPoint) == false {
+	if !isCleanEntryPoint(pluginMeta.EntryPoint) {
 		return unpackDir, nil, fmt.Errorf("entrypoint must be only alphanumeric value")
 	}
 	return unpackDir, &pluginMeta, nil
@@ -152,7 +151,11 @@ func verify(signature, pubkey []byte, checksum string) error {
 	}
 	entity, err := openpgp.CheckArmoredDetachedSignature(keyring, strings.NewReader(checksum), bytes.NewReader(signature))
 	if err != nil {
-		return err
+		log.Debug("unable to verify signature with original checksum. Now add \\n to the end and try", "checksum", checksum, "error", err)
+		entity, err = openpgp.CheckArmoredDetachedSignature(keyring, strings.NewReader(checksum+"\n"), bytes.NewReader(signature))
+		if err != nil {
+			return err
+		}
 	}
 	if entity == nil {
 		return fmt.Errorf("verification failed")

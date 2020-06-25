@@ -9,30 +9,26 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-
-	"github.com/ethereum/go-ethereum/core/types"
-
-	"github.com/ethereum/go-ethereum/params"
-
-	"github.com/ethereum/go-ethereum/p2p"
-
-	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/eth"
-
-	"github.com/stretchr/testify/assert"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/params"
 	pbind "github.com/ethereum/go-ethereum/permission/bind"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -41,10 +37,16 @@ const (
 	arbitraryOrgAdminRole     = "ORG_ADMIN_ROLE"
 	arbitraryNode1            = "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@127.0.0.1:21000?discport=0&raftport=50401"
 	arbitraryNode2            = "enode://0ba6b9f606a43a95edc6247cdb1c1e105145817be7bcafd6b2c0ba15d58145f0dc1a194f70ba73cd6f4cdd6864edc7687f311254c7555cc32e4d45aeb1b80416@127.0.0.1:21001?discport=0&raftport=50402"
+	arbitraryNode3            = "enode://579f786d4e2830bbcc02815a27e8a9bacccc9605df4dc6f20bcc1a6eb391e7225fff7cb83e5b4ecd1f3a94d8b733803f2f66b7e871961e7b029e22c155c3a778@127.0.0.1:21002?discport=0&raftport=50403"
+	arbitraryNode4            = "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404"
 	arbitraryOrgToAdd         = "ORG1"
 	arbitrarySubOrg           = "SUB1"
 	arbitrartNewRole1         = "NEW_ROLE_1"
 	arbitrartNewRole2         = "NEW_ROLE_2"
+	orgCacheSize              = 4
+	roleCacheSize             = 4
+	nodeCacheSize             = 2
+	accountCacheSize          = 4
 )
 
 var ErrAccountsLinked = errors.New("Accounts linked to the role. Cannot be removed")
@@ -110,8 +112,8 @@ func setup() {
 		},
 	}
 	ethConf := &eth.Config{
-		Genesis:   &core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 10000000000, Alloc: genesisAlloc},
-		Etherbase: guardianAddress,
+		Genesis: &core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: 10000000000, Alloc: genesisAlloc},
+		Miner:   miner.Config{Etherbase: guardianAddress},
 		Ethash: ethash.Config{
 			PowMode: ethash.ModeTest,
 		},
@@ -201,7 +203,7 @@ func TestPermissionCtrl_PopulateInitPermissions_AfterNetworkIsInitialized(t *tes
 	testObject := typicalPermissionCtrl(t)
 	assert.NoError(t, testObject.AfterStart())
 
-	err := testObject.populateInitPermissions()
+	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
 
 	assert.NoError(t, err)
 
@@ -241,7 +243,7 @@ func typicalQuorumControlsAPI(t *testing.T) *QuorumControlsAPI {
 	if !assert.NoError(t, pc.AfterStart()) {
 		t.Fail()
 	}
-	if !assert.NoError(t, pc.populateInitPermissions()) {
+	if !assert.NoError(t, pc.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)) {
 		t.Fail()
 	}
 	return NewQuorumControlsAPI(pc)
@@ -256,7 +258,7 @@ func TestQuorumControlsAPI_ListAPIs(t *testing.T) {
 	assert.Equal(t, orgDetails.RoleList[0].RoleId, arbitraryNetworkAdminRole)
 
 	orgDetails, err = testObject.GetOrgDetails("XYZ")
-	assert.Equal(t, err, errors.New("org does not exist"))
+	assert.Equal(t, err, errors.New("Org does not exist"))
 
 	// test NodeList
 	assert.Equal(t, len(testObject.NodeList()), 0)
@@ -271,12 +273,12 @@ func TestQuorumControlsAPI_ListAPIs(t *testing.T) {
 func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
 	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
-	txa := ethapi.SendTxArgs{From: guardianAddress}
 
 	// test AddOrg
 	orgAdminKey, _ := crypto.GenerateKey()
 	orgAdminAddress := crypto.PubkeyToAddress(orgAdminKey.PublicKey)
 
+	txa := ethapi.SendTxArgs{From: guardianAddress}
 	_, err := testObject.AddOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
@@ -323,9 +325,21 @@ func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 	_, err = testObject.AddSubOrg(arbitraryNetworkAdminOrg, "", "", txa)
 	assert.Equal(t, err, errors.New("Invalid input"))
 
-	_, err = testObject.GetOrgDetails(arbitraryOrgToAdd)
-	assert.NoError(t, err)
+	// caching tests - cache size for org is 4. add 4 sub orgs
+	// this will result in cache eviction
+	// get org details after this
+	for i := 0; i < orgCacheSize; i++ {
+		subOrgId := "TESTSUBORG" + strconv.Itoa(i)
+		_, err = testObject.AddSubOrg(arbitraryNetworkAdminOrg, subOrgId, "", txa)
+		assert.NoError(t, err)
+		types.OrgInfoMap.UpsertOrg(subOrgId, arbitraryNetworkAdminOrg, arbitraryNetworkAdminOrg, big.NewInt(2), types.OrgApproved)
+	}
 
+	assert.Equal(t, orgCacheSize, len(types.OrgInfoMap.GetOrgList()))
+
+	orgDetails, err := testObject.GetOrgDetails(arbitraryNetworkAdminOrg)
+	assert.Equal(t, orgDetails.AcctList[0].AcctId, guardianAddress)
+	assert.Equal(t, orgDetails.RoleList[0].RoleId, arbitraryNetworkAdminRole)
 }
 
 func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
@@ -371,6 +385,21 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	_, err = testObject.ApproveBlackListedNodeRecovery(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
+
+	// caching tests - cache size for node is 3. add 2 nodes which will
+	// result in node eviction from cache. get evicted node details using api
+	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode3, txa)
+	assert.NoError(t, err)
+	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode3, types.NodeApproved)
+
+	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode4, txa)
+	assert.NoError(t, err)
+	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode4, types.NodeApproved)
+
+	assert.Equal(t, nodeCacheSize, len(types.NodeInfoMap.GetNodeList()))
+	nodeInfo, err := types.NodeInfoMap.GetNodeByUrl(arbitraryNode4)
+	assert.True(t, err == nil, "node fetch returned error")
+	assert.Equal(t, types.NodeApproved, nodeInfo.Status)
 }
 
 func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
@@ -457,6 +486,38 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctActive)
 
+	// check role cache. the cache size is set to 4
+	// insert 4 records and then retrieve the 1st role
+	for i := 0; i < roleCacheSize; i++ {
+		roleId := "TESTROLE" + strconv.Itoa(i)
+		_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, roleId, uint8(types.FullAccess), false, false, txa)
+		assert.NoError(t, err)
+		types.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, roleId, false, false, types.FullAccess, true)
+	}
+
+	assert.Equal(t, roleCacheSize, len(types.RoleInfoMap.GetRoleList()))
+	roleInfo, err := types.RoleInfoMap.GetRole(arbitraryNetworkAdminOrg, arbitrartNewRole1)
+	assert.True(t, err == nil, "error encountered")
+
+	assert.Equal(t, roleInfo.RoleId, arbitrartNewRole1)
+
+	// check account cache
+	var AccountArray [4]common.Address
+	AccountArray[0] = common.StringToAddress("0fbdc686b912d7722dc86510934589e0aaf3b55a")
+	AccountArray[1] = common.StringToAddress("9186eb3d20cbd1f5f992a950d808c4495153abd5")
+	AccountArray[2] = common.StringToAddress("0638e1574728b6d862dd5d3a3e0942c3be47d996")
+	AccountArray[3] = common.StringToAddress("ae9bc6cd5145e67fbd1887a5145271fd182f0ee7")
+
+	for i := 0; i < accountCacheSize; i++ {
+		_, err = testObject.AddAccountToOrg(AccountArray[i], arbitraryNetworkAdminOrg, arbitrartNewRole1, txa)
+		assert.NoError(t, err)
+		types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole1, AccountArray[i], false, types.AcctActive)
+	}
+	assert.Equal(t, accountCacheSize, len(types.AcctInfoMap.GetAcctList()))
+
+	acctInfo, err := types.AcctInfoMap.GetAccount(acct)
+	assert.True(t, err == nil, "error encountered")
+	assert.True(t, acctInfo != nil, "account details nil")
 }
 
 func getArbitraryAccount() common.Address {
@@ -480,8 +541,8 @@ func typicalPermissionCtrl(t *testing.T) *PermissionCtrl {
 		Accounts: []common.Address{
 			guardianAddress,
 		},
-		SubOrgDepth:   big.NewInt(3),
-		SubOrgBreadth: big.NewInt(3),
+		SubOrgDepth:   big.NewInt(10),
+		SubOrgBreadth: big.NewInt(10),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -499,20 +560,20 @@ func tmpKeyStore(encrypted bool) (string, *keystore.KeyStore, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	new := keystore.NewPlaintextKeyStore
+	newKs := keystore.NewPlaintextKeyStore
 	if encrypted {
-		new = func(kd string) *keystore.KeyStore {
+		newKs = func(kd string) *keystore.KeyStore {
 			return keystore.NewKeyStore(kd, keystore.LightScryptN, keystore.LightScryptP)
 		}
 	}
-	return d, new(d), err
+	return d, newKs(d), err
 }
 
 func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	testObject := typicalPermissionCtrl(t)
 	assert.NoError(t, testObject.AfterStart())
 
-	err := testObject.populateInitPermissions()
+	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
 	assert.NoError(t, err)
 
 	d, _ := ioutil.TempDir("", "qdata")

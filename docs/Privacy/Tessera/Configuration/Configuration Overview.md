@@ -90,7 +90,6 @@ The possible server types are:
 - `Q2T` - This server is used for communications between Tessera and its corresponding Quorum node
 - `ENCLAVE` - If using a remote enclave, this defines the connection details for the remote enclave server (see the [Enclave docs](../../Tessera%20Services/Enclave#types-of-enclave) for more info) 
 - `ThirdParty` - This server is used to expose certain Transaction Manager functionality to external services such as Quorum.js
-- `ADMIN` - This server is used for configuration management. It is intended for use by the administrator of the Tessera node and is not recommended to be advertised publicly
 
 The servers to be started are provided as a list:
 ```
@@ -265,13 +264,23 @@ Default configuration for this is `false` as this is BREAKABLE change to lower v
 
 ---
 
-### Encryptor - Supporting alternative curves in Tessera
+### Alternative cryptographic elliptic curves
 
-By default Tessera uses the [NaCl(salt)](https://nacl.cr.yp.to/) library in order to encrypt private payloads (which uses a particular combination of Curve25519, Salsa20, and Poly1305 under the hood). 
+By default Tessera's Enclave uses the [jnacl](https://github.com/neilalexander/jnacl) implementation of the [NaCl](https://nacl.cr.yp.to/) library to encrypt/decrypt private payloads.  
 
-Alternative curves/symmetric ciphers can be used by configuring the EC Encryptor (which relies on JCA to perform a similar logic to NaCl).
+NaCl provides public-key authenticated encryption by using `curve25519xsalsa20poly1305`, a combination of the:
+     
+ 1. **Curve25519 Diffie-Hellman key-exchange function**: based on fast arithmetic on a strong elliptic curve
+ 2. **Salsa20 stream cipher**: encrypts a message using the shared secret
+ 3. **Poly1305 message-authentication code**: authenticates the encrypted message using a shared secret
 
-This is a feature introduced in Tessera v0.10.2.  Providing no `encryptor` configuration results in the standard pre-v0.10.2 Tessera behaviour.
+The NaCl primitives provide good security and speed and should be sufficient in most circumstances.  
+
+However, the Enclave also supports the JCA (Java Cryptography Architecture) framework.  Supplying a compatible JCA provider (e.g. [SunEC provider](https://docs.oracle.com/javase/8/docs/technotes/guides/security/SunProviders.html#SunEC)) and the necessary Tessera config allows the NaCl primitives to be replaced with alternative curves and symmetric ciphers.
+
+The same Enclave encryption process as described in [Lifecycle of a private transaction](../../../Lifecycle-of-a-private-transaction) is used regardless of whether the NaCl or JCA Encryptor are configured.
+
+This is a feature introduced in Tessera v0.10.2.  Providing no `encryptor` configuration means the default NaCl encryptor is used.
 
 ```
 "encryptor": {
@@ -293,9 +302,9 @@ If `type` is set to `EC`, the following `properties` fields can also be configur
 
 Field|Default Value|Description
 -------------|-------------|-----------
-`ellipticCurve`|`secp256r1`|The elliptic curve to use. See [SunEC provider](https://docs.oracle.com/javase/8/docs/technotes/guides/security/SunProviders.html#SunEC) for other options. Depending on the JCE provider you are using there may be additional curves available.
-`symmetricCipher`|`AES/GCM/NoPadding`|The symmetric cipher to use for encrypting data (GCM IS MANDATORY as an initialisation vector is supplied during encryption).
-`nonceLength`|`24`|The nonce length (used as the initialization vector - IV - for symmetric encryption).
-`sharedKeyLength`|`32`|The key length used for symmetric encryption (keep in mind the key derivation operation always produces 32 byte keys - so the encryption algorithm must support it).
+<span style="white-space:nowrap">`ellipticCurve`</span>|<span style="white-space:nowrap">`secp256r1`</span>|The elliptic curve to use. See [SunEC provider](https://docs.oracle.com/javase/8/docs/technotes/guides/security/SunProviders.html#SunEC) for other options. Depending on the JCE provider you are using there may be additional curves available.
+<span style="white-space:nowrap">`symmetricCipher`</span>|<span style="white-space:nowrap">`AES/GCM/NoPadding`</span>|The symmetric cipher to use for encrypting data (GCM IS MANDATORY as an initialisation vector is supplied during encryption).
+<span style="white-space:nowrap">`nonceLength`</span>|`24`|The nonce length (used as the initialization vector - IV - for symmetric encryption).
+<span style="white-space:nowrap">`sharedKeyLength`</span>|`32`|The key length used for symmetric encryption (keep in mind the key derivation operation always produces 32 byte keys - so the encryption algorithm must support it).
 
 ---

@@ -17,12 +17,12 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core/types"
 	elog "github.com/ethereum/go-ethereum/log"
@@ -34,7 +34,7 @@ func makeBlock(number int64) *types.Block {
 		Number:     big.NewInt(number),
 		GasLimit:   0,
 		GasUsed:    0,
-		Time:       big.NewInt(0),
+		Time:       0,
 	}
 	block := &types.Block{}
 	return block.WithSeal(header)
@@ -58,16 +58,12 @@ func TestNewRequest(t *testing.T) {
 	request1 := makeBlock(1)
 	sys.backends[0].NewRequest(request1)
 
-	select {
-	case <-time.After(1 * time.Second):
-	}
+	<-time.After(1 * time.Second)
 
 	request2 := makeBlock(2)
 	sys.backends[0].NewRequest(request2)
 
-	select {
-	case <-time.After(1 * time.Second):
-	}
+	<-time.After(1 * time.Second)
 
 	for _, backend := range sys.backends {
 		if len(backend.committedMsgs) != 2 {

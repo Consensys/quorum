@@ -27,7 +27,9 @@ func TestPluginManager_ProvidersPopulation(t *testing.T) {
 	defer func() {
 		delete(pluginProviders, arbitraryPluginInterfaceName)
 	}()
-	pluginProviders[arbitraryPluginInterfaceName] = plugin.PluginSet{}
+	pluginProviders[arbitraryPluginInterfaceName] = pluginProvider{
+		pluginSet: plugin.PluginSet{},
+	}
 
 	testObject, err := NewPluginManager("arbitraryName", &Settings{
 		Providers: map[PluginInterfaceName]PluginDefinition{
@@ -72,6 +74,16 @@ func TestPluginManager_GetPlugin_whenReadFromCache(t *testing.T) {
 
 	assert.True(ok)
 	assert.Equal(p, actual)
+}
+
+func TestPluginManager_GetPlugin_whenReadFromInitializedPluginsCache(t *testing.T) {
+	assert := testifyassert.New(t)
+	testObject := typicalPluginManager(t)
+
+	actual, ok := testObject.getPlugin(HelloWorldPluginInterfaceName)
+
+	assert.True(ok)
+	assert.IsType(new(basePlugin), actual)
 }
 
 func TestPluginManager_GetPluginTemplate_whenReadFromCache(t *testing.T) {

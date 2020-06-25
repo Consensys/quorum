@@ -1,7 +1,7 @@
 # Running Quorum
 
 ## Developing Smart Contracts
-Quorum uses standard [Solidity](https://solidity.readthedocs.io/en/develop/) for writing Smart Contracts, and generally, these can be designed as you would design Smart Contracts for Ethereum.  Smart Contracts can either be public (i.e. visible and executable by all participants on a given Quorum network) or private to one or more network participants.  Note, however, that Quorum does not introduce new contract Types. Instead, similar to [Transactions](../../Transaction%20Processing/Transaction%20Processing), the concept of public and private contracts is notional only.
+Quorum uses standard [Solidity](https://solidity.readthedocs.io/en/develop/) for writing Smart Contracts, and generally, these can be designed as you would design Smart Contracts for Ethereum.  Smart Contracts can either be public (i.e. visible and executable by all participants on a given Quorum network) or private to one or more network participants.  Note, however, that Quorum does not introduce new contract Types. Instead, similar to [Transactions](../../Privacy/Overview), the concept of public and private contracts is notional only.
 
 ### Creating Public Transactions/Contracts
 
@@ -199,7 +199,7 @@ J.P. Morgan and the Zcash team partnered to create a proof of concept (POC) impl
 
 This combination of Constellation/Tessera’s private contracts with ZSL’s z-contracts, allows obligations that arise from a private contract, to be settled using shielded transfers of z-tokens, while maintaining full privacy and confidentiality.
 
-For more information, see the [ZSL](../../ZSL) page of this wiki.
+For more information, see the [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) page of this wiki.
 
 ## Anonymous Zether
 

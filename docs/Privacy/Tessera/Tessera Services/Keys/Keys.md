@@ -147,7 +147,19 @@ Password update can be used in multiple ways.  Running any of these commands wil
     ```
     All options have been overriden here but only the options you wish to alter from their defaults need to be provided.
 
+### Password-protection algorithm
+The following steps detail the process of password-protecting a private key:
+
+ 1. Given private key `K` and password `P` 
+ 2. Generate random Argon2i nonce
+ 3. Generate random encryption nonce
+ 4. Stretch `P` using Argon2i (with the Argon2i nonce and custom or default [ArgonOptions](#securing-private-keys)) into a 32-byte master key (`MK`)
+ 5. Symmetrically encrypt `K` with `MK` and the encryption nonce
+
 ## Using alternative curve key types
 By default the `-keygen` and `-updatepassword` commands generate and update [NaCl](https://nacl.cr.yp.to/) compatible keys.  
 
 As of Tessera v0.10.2, the `--encryptor.type=EC` CLI option can be provided to generate/update keys of different types.  See [encryptor config](../../../Configuration/Configuration Overview/#encryptor-supporting-alternative-curves-in-tessera) for more details.
+
+## Rotation
+Tessera is built to support rotation trivially, by allowing counterparties to advertise multiple keys at once. The tooling to make rotation seamless and automatic is on our Roadmap.

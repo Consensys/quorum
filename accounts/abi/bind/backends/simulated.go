@@ -24,8 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/eth"
-
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -37,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/filters"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -47,8 +46,10 @@ import (
 // This nil assignment ensures compile time that SimulatedBackend implements bind.ContractBackend.
 var _ bind.ContractBackend = (*SimulatedBackend)(nil)
 
-var errBlockNumberUnsupported = errors.New("SimulatedBackend cannot access blocks other than the latest block")
-var errGasEstimationFailed = errors.New("gas required exceeds allowance or always failing transaction")
+var (
+	errBlockNumberUnsupported = errors.New("simulatedBackend cannot access blocks other than the latest block")
+	errGasEstimationFailed    = errors.New("gas required exceeds allowance or always failing transaction")
+)
 
 // SimulatedBackend implements bind.ContractBackend, simulating a blockchain in
 // the background. Its main purpose is to allow easily testing contract bindings.
@@ -65,10 +66,9 @@ type SimulatedBackend struct {
 	config *params.ChainConfig
 }
 
-// NewSimulatedBackend creates a new binding backend using a simulated blockchain
-// for testing purposes.
-func NewSimulatedBackend(alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
-	database := ethdb.NewMemDatabase()
+// NewSimulatedBackendWithDatabase creates a new binding backend based on the given database
+// and uses a simulated blockchain for testing purposes.
+func NewSimulatedBackendWithDatabase(database ethdb.Database, alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
 	genesis := core.Genesis{Config: params.AllEthashProtocolChanges, GasLimit: gasLimit, Alloc: alloc}
 	genesis.MustCommit(database)
 	blockchain, _ := core.NewBlockChain(database, nil, genesis.Config, ethash.NewFaker(), vm.Config{}, nil)
@@ -90,11 +90,23 @@ func NewSimulatedBackendFrom(ethereum *eth.Ethereum) *SimulatedBackend {
 	backend := &SimulatedBackend{
 		database:   ethereum.ChainDb(),
 		blockchain: ethereum.BlockChain(),
-		config:     ethereum.ChainConfig(),
+		config:     ethereum.BlockChain().Config(),
 		events:     filters.NewEventSystem(new(event.TypeMux), &filterBackend{ethereum.ChainDb(), ethereum.BlockChain()}, false),
 	}
 	backend.rollback()
 	return backend
+}
+
+// NewSimulatedBackend creates a new binding backend using a simulated blockchain
+// for testing purposes.
+func NewSimulatedBackend(alloc core.GenesisAlloc, gasLimit uint64) *SimulatedBackend {
+	return NewSimulatedBackendWithDatabase(rawdb.NewMemoryDatabase(), alloc, gasLimit)
+}
+
+// Close terminates the underlying blockchain's update loop.
+func (b *SimulatedBackend) Close() error {
+	b.blockchain.Stop()
+	return nil
 }
 
 // Commit imports all the pending transactions as a single block and starts a
@@ -176,8 +188,27 @@ func (b *SimulatedBackend) StorageAt(ctx context.Context, contract common.Addres
 
 // TransactionReceipt returns the receipt of a transaction.
 func (b *SimulatedBackend) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
-	receipt, _, _, _ := rawdb.ReadReceipt(b.database, txHash)
+	receipt, _, _, _ := rawdb.ReadReceipt(b.database, txHash, b.config)
 	return receipt, nil
+}
+
+// TransactionByHash checks the pool of pending transactions in addition to the
+// blockchain. The isPending return value indicates whether the transaction has been
+// mined yet. Note that the transaction may not be part of the canonical chain even if
+// it's not pending.
+func (b *SimulatedBackend) TransactionByHash(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	tx := b.pendingBlock.Transaction(txHash)
+	if tx != nil {
+		return tx, true, nil
+	}
+	tx, _, _, _ = rawdb.ReadTransaction(b.database, txHash)
+	if tx != nil {
+		return tx, false, nil
+	}
+	return nil, false, ethereum.NotFound
 }
 
 // PendingCodeAt returns the code associated with an account in the pending state.
@@ -313,7 +344,7 @@ func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transa
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	sender, err := types.Sender(types.HomesteadSigner{}, tx)
+	sender, err := types.Sender(types.NewEIP155Signer(b.config.ChainID), tx)
 	if err != nil {
 		panic(fmt.Errorf("invalid transaction: %v", err))
 	}
@@ -426,6 +457,11 @@ func (b *SimulatedBackend) AdjustTime(adjustment time.Duration) error {
 	return nil
 }
 
+// Blockchain returns the underlying blockchain.
+func (b *SimulatedBackend) Blockchain() *core.BlockChain {
+	return b.blockchain
+}
+
 // callmsg implements core.Message to allow passing it as a transaction simulator.
 type callmsg struct {
 	ethereum.CallMsg
@@ -466,7 +502,7 @@ func (fb *filterBackend) GetReceipts(ctx context.Context, hash common.Hash) (typ
 	if number == nil {
 		return nil, nil
 	}
-	return rawdb.ReadReceipts(fb.db, hash, *number), nil
+	return rawdb.ReadReceipts(fb.db, hash, *number, fb.bc.Config()), nil
 }
 
 func (fb *filterBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
@@ -474,7 +510,7 @@ func (fb *filterBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*ty
 	if number == nil {
 		return nil, nil
 	}
-	receipts := rawdb.ReadReceipts(fb.db, hash, *number)
+	receipts := rawdb.ReadReceipts(fb.db, hash, *number, fb.bc.Config())
 	if receipts == nil {
 		return nil, nil
 	}

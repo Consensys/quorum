@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -42,7 +43,7 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 
 	// TODO(joel): these are just stubbed to the same values as in dual_state_test.go
 	cg.header.Number = new(big.Int)
-	cg.header.Time = new(big.Int).SetUint64(43)
+	cg.header.Time = uint64(43)
 	cg.header.Difficulty = new(big.Int).SetUint64(1000488)
 	cg.header.GasLimit = 4700000
 
@@ -72,15 +73,12 @@ func (cg *callHelper) MakeCall(private bool, key *ecdsa.PrivateKey, to common.Ad
 	vmenv := vm.NewEVM(context, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})
 	sender := vm.AccountRef(msg.From())
 	vmenv.Call(sender, to, msg.Data(), 100000000, new(big.Int))
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // MakeCallHelper returns a new callHelper
 func MakeCallHelper() *callHelper {
-	memdb := ethdb.NewMemDatabase()
+	memdb := rawdb.NewMemoryDatabase()
 	db := state.NewDatabase(memdb)
 
 	publicState, err := state.New(common.Hash{}, db)
