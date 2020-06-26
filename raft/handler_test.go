@@ -20,6 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
@@ -171,8 +172,8 @@ func startRaftNode(id, port uint16, tmpWorkingDir string, key *ecdsa.PrivateKey,
 
 	const testAddress = "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182"
 	e, err := eth.New(ctx, &eth.Config{
-		Genesis:   &core.Genesis{Config: params.QuorumTestChainConfig},
-		Etherbase: common.HexToAddress(testAddress),
+		Genesis: &core.Genesis{Config: params.QuorumTestChainConfig},
+		Miner:   miner.Config{Etherbase: common.HexToAddress(testAddress)},
 	})
 	if err != nil {
 		return nil, err
