@@ -1,8 +1,9 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	istanbul "github.com/ethereum/go-ethereum/consensus/qibft"
 )
