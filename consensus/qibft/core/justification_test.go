@@ -1,13 +1,14 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"math/big"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 )
 
 // Tests combinations of justifications that evaluate to true.
@@ -68,7 +69,7 @@ func testParameterizedCase(
 	quorumSize int,
 	rcForNil int,
 	rcEqualToTargetRound int,
-	rcLowerThanTargetRound int ,
+	rcLowerThanTargetRound int,
 	rcHigherThanTargetRound int,
 	preparesForTargetRound int,
 	preparesNotForTargetRound int,
@@ -81,12 +82,12 @@ func testParameterizedCase(
 
 	rng := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
-	if rcForNil + rcEqualToTargetRound + rcLowerThanTargetRound + rcHigherThanTargetRound > quorumSize {
+	if rcForNil+rcEqualToTargetRound+rcLowerThanTargetRound+rcHigherThanTargetRound > quorumSize {
 		t.Errorf("rcForNil (%v) + rcEqualToTargetRound (%v) + rcLowerThanTargetRound (%v) + rcHigherThanTargetRound (%v) > quorumSize (%v)",
 			rcForNil, rcEqualToTargetRound, rcLowerThanTargetRound, rcHigherThanTargetRound, quorumSize)
 	}
 
-	if preparesForTargetRound + preparesNotForTargetRound > quorumSize {
+	if preparesForTargetRound+preparesNotForTargetRound > quorumSize {
 		t.Errorf("preparesForTargetRound (%v) + preparesNotForTargetRound (%v) > quorumSize (%v)", preparesForTargetRound, preparesNotForTargetRound, quorumSize)
 	}
 
@@ -96,12 +97,12 @@ func testParameterizedCase(
 		var m *message
 		if index < rcForNil {
 			m = createRoundChangeMessage(validator.Address(), round, 0, NilBlock())
-		} else if index >= rcForNil && index < rcForNil + rcEqualToTargetRound {
+		} else if index >= rcForNil && index < rcForNil+rcEqualToTargetRound {
 			m = createRoundChangeMessage(validator.Address(), round, targetPreparedRound, block)
-		} else if index >= rcForNil + rcEqualToTargetRound && index < rcForNil + rcEqualToTargetRound + rcLowerThanTargetRound {
-			m = createRoundChangeMessage(validator.Address(), round, int64(rng.Intn(int(targetPreparedRound) - 1) + 1), block)
-		} else if index >= rcForNil + rcEqualToTargetRound + rcLowerThanTargetRound && index < rcForNil + rcEqualToTargetRound + rcLowerThanTargetRound + rcHigherThanTargetRound {
-			m = createRoundChangeMessage(validator.Address(), round, int64(rng.Intn(int(targetPreparedRound)) + int(targetPreparedRound) + 1), block)
+		} else if index >= rcForNil+rcEqualToTargetRound && index < rcForNil+rcEqualToTargetRound+rcLowerThanTargetRound {
+			m = createRoundChangeMessage(validator.Address(), round, int64(rng.Intn(int(targetPreparedRound)-1)+1), block)
+		} else if index >= rcForNil+rcEqualToTargetRound+rcLowerThanTargetRound && index < rcForNil+rcEqualToTargetRound+rcLowerThanTargetRound+rcHigherThanTargetRound {
+			m = createRoundChangeMessage(validator.Address(), round, int64(rng.Intn(int(targetPreparedRound))+int(targetPreparedRound)+1), block)
 		} else {
 			break
 		}
@@ -114,7 +115,7 @@ func testParameterizedCase(
 		var m *message
 		if index < preparesForTargetRound {
 			m = createPrepareMessage(validator.Address(), targetPreparedRound, block)
-		} else if index >= preparesForTargetRound && index < preparesForTargetRound + preparesNotForTargetRound {
+		} else if index >= preparesForTargetRound && index < preparesForTargetRound+preparesNotForTargetRound {
 			notTargetPreparedRound := targetPreparedRound
 			for notTargetPreparedRound == targetPreparedRound {
 				notTargetPreparedRound = rng.Int63()
@@ -135,27 +136,27 @@ func testParameterizedCase(
 
 func createRoundChangeMessage(from common.Address, round int64, preparedRound int64, preparedBlock istanbul.Proposal) *message {
 	m, _ := Encode(&RoundChangeMessage{
-		View: &View{big.NewInt(round), big.NewInt(1)},
+		View:          &View{big.NewInt(round), big.NewInt(1)},
 		PreparedRound: big.NewInt(preparedRound),
 		PreparedBlock: preparedBlock,
 	})
 
 	return &message{
-		Code: msgRoundChange,
-		Msg: m,
+		Code:    msgRoundChange,
+		Msg:     m,
 		Address: from,
 	}
 }
 
 func createPrepareMessage(from common.Address, round int64, preparedBlock istanbul.Proposal) *message {
 	m, _ := Encode(&Subject{
-		View: &View{big.NewInt(round), big.NewInt(1)},
+		View:   &View{big.NewInt(round), big.NewInt(1)},
 		Digest: preparedBlock,
 	})
 
 	return &message{
-		Code: msgPrepare,
-		Msg: m,
+		Code:    msgPrepare,
+		Msg:     m,
 		Address: from,
 	}
 }
