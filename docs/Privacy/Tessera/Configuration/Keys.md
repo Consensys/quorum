@@ -10,7 +10,7 @@ You can use existing private/public key pairs as well as use Tessera to generate
 ```json tab="v0.10.3 onwards"
 "keys": {
     "passwordFile": "Path",
-    "keyVaultConfig": [
+    "keyVaultConfigs": [
         {
             "keyVaultType": "Enumeration: AZURE, HASHICORP, AWS",
             "properties": "Map[string]string"
@@ -56,12 +56,6 @@ You can use existing private/public key pairs as well as use Tessera to generate
         "approlePath": "String",
         "tlsKeyStorePath": "Path",
         "tlsTrustStorePath": "Path" 
-    },
-    "keyVaultConfig": {
-        "keyVaultConfigType": "AWS",
-        "properties": {
-            "endpoint": "Url"
-        }
     },
     "keyData": [
         {
@@ -252,12 +246,14 @@ The keys in the pair are stored as secrets in an Azure Key Vault.  This requires
 
 ```json tab="v0.10.3 onwards"
 "keys": {
-    "keyVaultConfig": {
-        "keyVaultType": "AZURE",
-        "properties": {
-            "url": "https://my-vault.vault.azure.net"
-        } 
-    },
+    "keyVaultConfigs": [
+        {
+            "keyVaultType": "AZURE",
+            "properties": {
+                "url": "https://my-vault.vault.azure.net"
+            } 
+        }
+    ],
     "keyData": [
         {
             "azureVaultPrivateKeyId": "Key",
@@ -294,42 +290,48 @@ This example configuration will retrieve the specified versions of the secrets `
 The keys in the pair are stored as a secret in a Hashicorp Vault.  Additional configuration can also be provided if the Vault is configured to use TLS and if the AppRole auth method is being used at a different path to the default (`approle`):
 
 ```json tab="v0.10.3 onwards"
-"keyVaultConfig": {
-    "keyVaultType": "HASHICORP",
-    "properties": {
-        "url": "https://localhost:8200",
-        "tlsKeyStorePath": "/path/to/keystore.jks",
-        "tlsTrustStorePath": "/path/to/truststore.jks",
-        "approlePath": "not-default"
-    }
-},
-"keyData": [
-    {
-        "hashicorpVaultSecretEngineName": "engine",
-        "hashicorpVaultSecretName": "secret",
-        "hashicorpVaultSecretVersion": 1,
-        "hashicorpVaultPrivateKeyId": "privateKey",
-        "hashicorpVaultPublicKeyId": "publicKey",
-    }
-]
+"keys": {
+    "keyVaultConfigs": [
+        {
+            "keyVaultType": "HASHICORP",
+            "properties": {
+                "url": "https://localhost:8200",
+                "tlsKeyStorePath": "/path/to/keystore.jks",
+                "tlsTrustStorePath": "/path/to/truststore.jks",
+                "approlePath": "not-default"
+            }
+        }
+    ],
+    "keyData": [
+        {
+            "hashicorpVaultSecretEngineName": "engine",
+            "hashicorpVaultSecretName": "secret",
+            "hashicorpVaultSecretVersion": 1,
+            "hashicorpVaultPrivateKeyId": "privateKey",
+            "hashicorpVaultPublicKeyId": "publicKey",
+        }
+    ]
+}
 ```
 
 ```json tab="v0.10.2 and earlier"
-"hashicorpKeyVaultConfig": {
-    "url": "https://localhost:8200",
-    "tlsKeyStorePath": "/path/to/keystore.jks",
-    "tlsTrustStorePath": "/path/to/truststore.jks",
-    "approlePath": "not-default",
-},
-"keyData": [
-    {
-        "hashicorpVaultSecretEngineName": "engine",
-        "hashicorpVaultSecretName": "secret",
-        "hashicorpVaultSecretVersion": 1,
-        "hashicorpVaultPrivateKeyId": "privateKey",
-        "hashicorpVaultPublicKeyId": "publicKey",
-    }
-]
+"keys": {
+    "hashicorpKeyVaultConfig": {
+        "url": "https://localhost:8200",
+        "tlsKeyStorePath": "/path/to/keystore.jks",
+        "tlsTrustStorePath": "/path/to/truststore.jks",
+        "approlePath": "not-default",
+    },
+    "keyData": [
+        {
+            "hashicorpVaultSecretEngineName": "engine",
+            "hashicorpVaultSecretName": "secret",
+            "hashicorpVaultSecretVersion": 1,
+            "hashicorpVaultPrivateKeyId": "privateKey",
+            "hashicorpVaultPublicKeyId": "publicKey",
+        }
+    ]
+}
 ```
 
 This example configuration will retrieve version 1 of the secret `engine/secret` from Vault and its corresponding values for `privateKey` and `publicKey`.  
@@ -349,19 +351,21 @@ The keys in the pair are stored as secrets in the _AWS Secrets Manager_.  This r
 
 ```json tab="v0.10.3 onwards"
 "keys": {
-        "keyVaultConfig": {
+    "keyVaultConfigs": [
+        {
             "keyVaultConfigType": "AWS",
             "properties": {
                 "endpoint": "https://secretsmanager.us-west-2.amazonaws.com"
             }
-        },
-        "keyData": [
-            {
-                "awsSecretsManagerPublicKeyId": "secretIdPub",
-                "awsSecretsManagerPrivateKeyId": "secretIdKey"
-            }
-        ]
-    }
+        }
+    ],
+    "keyData": [
+        {
+            "awsSecretsManagerPublicKeyId": "secretIdPub",
+            "awsSecretsManagerPrivateKeyId": "secretIdKey"
+        }
+    ]
+}
 ```
 
 This example configuration will retrieve the secrets `secretIdPub` and `secretIdKey` from the _AWS Secrets Manager_ using the endpoint `https://secretsmanager.us-west-2.amazonaws.com`.
