@@ -2,6 +2,7 @@ package extension
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 
@@ -43,7 +44,11 @@ func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, add
 	if err != nil {
 		return nil, err
 	}
-	return fetcher.addressStateAsJson(privateState, addressToFetch), nil
+	stateData, err := fetcher.addressStateAsJson(privateState, addressToFetch)
+	if err != nil {
+		return nil, err
+	}
+	return stateData, nil
 }
 
 // privateState returns the private state database for a given block hash.
@@ -55,18 +60,19 @@ func (fetcher *StateFetcher) privateState(blockHash common.Hash) (*state.StateDB
 
 // addressStateAsJson returns the state of an address, including the balance,
 // nonce, code and state data as a JSON map.
-func (fetcher *StateFetcher) addressStateAsJson(privateState *state.StateDB, addressToShare common.Address) []byte {
+func (fetcher *StateFetcher) addressStateAsJson(privateState *state.StateDB, addressToShare common.Address) ([]byte, error) {
 	keepAddresses := make(map[string]extensionContracts.AccountWithMetadata)
 
 	if account, found := privateState.DumpAddress(addressToShare); found {
 		keepAddresses[addressToShare.Hex()] = extensionContracts.AccountWithMetadata{
 			State: account,
 		}
+	} else {
+		return nil, fmt.Errorf("error in contract state fetch")
 	}
-
 	//types can be marshalled, so errors can't occur
 	out, _ := json.Marshal(&keepAddresses)
-	return out
+	return out, nil
 }
 
 // fethches the transaction object from transaction hash given
