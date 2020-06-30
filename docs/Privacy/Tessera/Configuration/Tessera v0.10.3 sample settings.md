@@ -1,6 +1,6 @@
 **Changes:**
 
-- The `keys.azureKeyVaultConfig` and `keys.hashicorpKeyVaultConfig` fields are now deprecated.  Instead, the generic `keys.keyVaultConfig` should be used.  See [Keys Config](../Keys) for more info.
+- The `keys.azureKeyVaultConfig` and `keys.hashicorpKeyVaultConfig` fields are now deprecated.  Instead, the generic `keys.keyVaultConfigs` should be used.  See [Keys Config](../Keys) for more info.
 
 **Sample:**
 
@@ -75,10 +75,12 @@
   ],
   "keys": {
     "passwordFile": "Path",
-    "keyVaultConfig": {
-      "keyVaultType": "Enumeration: AZURE, HASHICORP, AWS",
-      "properties": "Map[string]string" 
-    },
+    "keyVaultConfigs": [
+      {
+        "keyVaultType": "Enumeration: AZURE, HASHICORP, AWS",
+        "properties": "Map[string]string" 
+      }
+    ],
     "keyData": [
       {
         "config": {
