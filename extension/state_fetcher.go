@@ -2,6 +2,8 @@ package extension
 
 import (
 	"encoding/json"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/ethdb"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -15,18 +17,21 @@ type ChainAccessor interface {
 	GetBlockByHash(common.Hash) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error)
 	State() (*state.StateDB, *state.StateDB, error)
+	GetReceiptsByHash(hash common.Hash) types.Receipts
 }
 
 // StateFetcher manages retrieving state from the database and returning it in
 // a usable form by the extension API.
 type StateFetcher struct {
 	chainAccessor ChainAccessor
+	ethDb         ethdb.Database
 }
 
 // Creates a new StateFetcher from the ethereum service
-func NewStateFetcher(chainAccessor ChainAccessor) *StateFetcher {
+func NewStateFetcher(chainAccessor ChainAccessor, chainDb ethdb.Database) *StateFetcher {
 	return &StateFetcher{
 		chainAccessor: chainAccessor,
+		ethDb:         chainDb,
 	}
 }
 
@@ -45,7 +50,6 @@ func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, add
 func (fetcher *StateFetcher) privateState(blockHash common.Hash) (*state.StateDB, error) {
 	block := fetcher.chainAccessor.GetBlockByHash(blockHash)
 	_, privateState, err := fetcher.chainAccessor.StateAt(block.Root())
-
 	return privateState, err
 }
 
@@ -63,4 +67,21 @@ func (fetcher *StateFetcher) addressStateAsJson(privateState *state.StateDB, add
 	//types can be marshalled, so errors can't occur
 	out, _ := json.Marshal(&keepAddresses)
 	return out
+}
+
+// fethches the transaction object from transaction hash given
+func (fetcher *StateFetcher) GetTransaction(txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
+	tx, blockHash, blockNumber, index := rawdb.ReadTransaction(fetcher.ethDb, txHash)
+	return tx, blockHash, blockNumber, index
+}
+
+// fetches the transaction receipts object for the given blockhash and transaction index
+func (fetcher *StateFetcher) GetTransactionReceipt(blockHash common.Hash, index uint64) *types.Receipt {
+	receipts := fetcher.chainAccessor.GetReceiptsByHash(blockHash)
+
+	if len(receipts) <= int(index) {
+		return nil
+	}
+	receipt := receipts[index]
+	return receipt
 }

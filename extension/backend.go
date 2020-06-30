@@ -161,6 +161,15 @@ func (service *PrivacyService) watchForNewContracts() error {
 					caller, _ := service.managementContractFacade.Caller(newContractExtension.ManagementContractAddress)
 					contractCreator, _ := caller.Creator(nil)
 
+					// this check is a safety-net to ensure that the contractCreator is the original
+					// creator of the private contract being extended. Ideally if called via APIs
+					// this should never fail
+					creationTxHash, _ := caller.CreationTxHash(nil)
+
+					if err := service.validateCreator(newExtensionEvent.ToExtend, contractCreator, common.HexToHash(creationTxHash)); err != nil {
+						log.Error("Extension: creator validation failed", "error", err)
+					}
+
 					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties}
 
 					extensionAPI := NewPrivateExtensionAPI(service)
@@ -176,6 +185,31 @@ func (service *PrivacyService) watchForNewContracts() error {
 			}
 		}
 	}()
+
+	return nil
+}
+
+// Based on the creation transaction hash of the contract being extended validates that
+//     a. transaction hash given is that of a private contract creation and contract
+//        created is same as the contract being extended
+//     b. party initiating extension is the original contract creator
+func (service *PrivacyService) validateCreator(toExtend, creator common.Address, txHash common.Hash) error {
+	// check that the transaction hash given and initiator details
+	tx, blockHash, _, index := service.stateFetcher.GetTransaction(txHash)
+	// check if transaction is private
+	if !tx.IsPrivate(){
+		return errors.New("creation transaction is not a private transaction")
+	}
+
+	txr := service.stateFetcher.GetTransactionReceipt(blockHash, index)
+	if txr.ContractAddress != toExtend {
+		return errors.New("transaction hash does not correspond to the transaction that created the contract to be extended")
+	}
+
+	if tx.From() != creator {
+		return errors.New("from account given is not the original contract creator")
+	}
+
 
 	return nil
 }

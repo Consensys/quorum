@@ -4,6 +4,7 @@ contract ContractExtender {
 
     //target details - what, who and when to extend
     address public creator;
+    string public creationTxHash;
     string public TargetRecipientPTMKey;
     address public contractToExtend;
 
@@ -35,8 +36,9 @@ contract ContractExtender {
     event StateShared(address toExtend, string tesserahash, string uuid); //when the state is shared and can be replayed into the database
     event UpdateMembers(address toExtend, string uuid); //to update the original transaction hash for the new party member
 
-    constructor(address contractAddress, address recipientAddress, string memory recipientPTMKey) public {
+    constructor(address contractAddress, address recipientAddress, string memory recipientPTMKey, string memory creTxHash) public {
         creator = msg.sender;
+        creationTxHash = creTxHash;
 
         TargetRecipientPTMKey = recipientPTMKey;
 
