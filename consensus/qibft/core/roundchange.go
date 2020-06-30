@@ -197,6 +197,9 @@ func (rcs *roundChangeSet) Add(r *big.Int, msg *message, preparedRound *big.Int,
 	defer rcs.mu.Unlock()
 
 	round := r.Uint64()
+	if rcs.roundChanges[round] == nil {
+		rcs.roundChanges[round] = newMessageSet(rcs.validatorSet)
+	}
 	if err := rcs.roundChanges[round].Add(msg); err != nil {
 		return err
 	}
