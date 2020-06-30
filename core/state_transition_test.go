@@ -764,6 +764,54 @@ func TestApplyMessage_Private_whenPartyProtectionC2InteractsWithPublicC1_Fail(t 
 	mockPM.Verify(assert)
 }
 
+func TestApplyMessage_Private_whenTxManagerReturnsError_Success(t *testing.T) {
+	originalP := private.P
+	defer func() { private.P = originalP }()
+	mockPM := newMockPrivateTransactionManager()
+	private.P = mockPM
+	assert := testifyassert.New(t)
+
+	// calling C1.Create standard private
+	cfg := newConfig().
+		setPrivacyFlag(engine.PrivacyFlagStandardPrivate).
+		setData([]byte("arbitrary encrypted payload hash"))
+	gp := new(GasPool).AddGas(math.MaxUint64)
+	privateMsg := newTypicalPrivateMessage(cfg)
+
+	//since standard private create only get back PrivacyFlag
+	mockPM.When("Receive").Return(nil, nil, fmt.Errorf("Error during receive"))
+
+	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
+
+	assert.NoError(err, "EVM execution")
+	assert.False(fail, "Transaction receipt status")
+	mockPM.Verify(assert)
+}
+
+func TestApplyMessage_Private_whenTxManagerReturnsEmptyResult_Success(t *testing.T) {
+	originalP := private.P
+	defer func() { private.P = originalP }()
+	mockPM := newMockPrivateTransactionManager()
+	private.P = mockPM
+	assert := testifyassert.New(t)
+
+	// calling C1.Create standard private
+	cfg := newConfig().
+		setPrivacyFlag(engine.PrivacyFlagStandardPrivate).
+		setData([]byte("arbitrary encrypted payload hash"))
+	gp := new(GasPool).AddGas(math.MaxUint64)
+	privateMsg := newTypicalPrivateMessage(cfg)
+
+	//since standard private create only get back PrivacyFlag
+	mockPM.When("Receive").Return(nil, nil, nil)
+
+	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, gp)
+
+	assert.NoError(err, "EVM execution")
+	assert.False(fail, "Transaction receipt status")
+	mockPM.Verify(assert)
+}
+
 func createContract(cfg *config, mockPM *mockPrivateTransactionManager, assert *testifyassert.Assertions, c *contract, args ...interface{}) common.Address {
 	defer mockPM.reset()
 
