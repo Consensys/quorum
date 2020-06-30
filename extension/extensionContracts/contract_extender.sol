@@ -5,7 +5,7 @@ contract ContractExtender {
     //target details - what, who and when to extend
     address public creator;
     string public creationTxHash;
-    string public TargetRecipientPTMKey;
+    string public targetRecipientPTMKey;
     address public contractToExtend;
 
     //list of wallet addresses that can cast votes
@@ -40,7 +40,7 @@ contract ContractExtender {
         creator = msg.sender;
         creationTxHash = creTxHash;
 
-        TargetRecipientPTMKey = recipientPTMKey;
+        targetRecipientPTMKey = recipientPTMKey;
 
         contractToExtend = contractAddress;
         walletAddressesToVote.push(msg.sender);
