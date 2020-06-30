@@ -13,21 +13,21 @@ In this example private contract is being extended from Nodes A to Node B.
 1. User in node A proposes the extension of the contract, citing B's Private Transaction Manager(PTM) public keys as private participants of this extension, node B's public Ethereum key as a receiving address of this extension, and node B's PTM public key as the target receiver. 
     - **1a** - Node A creates the extension contract with user given inputs and Node B's PTM public key
     - **1b** - the private transaction payload is shared with Tessera of node B.
-    - **1c** - The public state is replicated across both nodes. Nodes A and B  see an emitted log, and start watching the contract address that emitted the event for subsequent events that may happen
+    - **1c** - The public state is propagated across all nodes. Nodes A and B  see an emitted log, and start watching the contract address that emitted the event for subsequent events that may happen
 
 1.  Node A automatically approves the contract extension by virtue of creating the extension contract. In the approval process:
     - **2a** - Node A submits the approval to extension contract 
-    - **2c & 2d** - Private transaction payload is shared with Tessera node B. Public state is replicated across all nodes
+    - **2c & 2d** - Private transaction payload is shared with Tessera node B. Public state is propagated across all nodes
 
 1. Since the state sharing does not execute the transactions that generate the state 
    (in order to keep past history private), there is no proof that can be provided by the proposer that the state is correct. In order to remedy this, the receiver must accept the proposal for the contract as the proof. In this step, the user owning the ethereum public key of node B which was marked as receiving address, approves the contract extension using Quorum apis
     - **3a** - Node B submits the acceptance vote to extension contract
-    - **3c & 3d** - Private transaction payload is shared with Tessera nodes A. Public state is replicated across all nodes
+    - **3c & 3d** - Private transaction payload is shared with Tessera nodes A. Public state is propagated across all nodes
 
 1. Node A monitors for acceptance of contract extension by Node B. Once accepted
     - **4a & 4b** - Node A fetches the state of the contract and sends it as a "private transaction" to Node B. It then submits the PTM hash of that state to the contract, including the recipient's PTM public key.
     - **4c** - Node A submits a transactions to mark completion of state share. This transaction emits a log which will get picked up by the receiver when processing the transaction
-    - **4d & 4e** - Private transaction payload is shared with Tessera nodes B. Public state is replicated across all nodes
+    - **4d & 4e** - Private transaction payload is shared with Tessera nodes B. Public state is propagated across all nodes
 
 1. Node B monitors for state share event
     - **5a** - Upon noticing the state share event as a part of block processing, node B fetches the contract private state data from Tessera of node B
