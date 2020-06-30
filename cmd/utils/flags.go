@@ -1870,7 +1870,7 @@ func RegisterExtensionService(stack *node.Node, ethChan chan *eth.Ethereum) {
 		return factory.BackendService(), nil
 	}
 	if err := stack.Register(registerFunc); err != nil {
-		Fatalf("Failed to register the Privacy service: %v", err)
+		Fatalf("Failed to register the Extension service: %v", err)
 	}
 }
 
