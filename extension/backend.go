@@ -153,7 +153,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 
 				if isSender {
 					fetchedParties, err := service.ptm.GetParticipants(data)
-					if err != nil {
+					if err != nil || len(fetchedParties) == 0 {
 						log.Error("Extension: unable to fetch all parties for extension management contract", "error", err)
 						continue
 					}
@@ -260,7 +260,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 					//fetch all the participants and send
 					payload := common.BytesToEncryptedPayloadHash(extensionEntry.CreationData)
 					fetchedParties, err := service.ptm.GetParticipants(payload)
-					if err != nil {
+					if err != nil || len(fetchedParties) == 0 {
 						log.Error("Extension: Unable to fetch all parties for extension management contract", "error", err)
 						return
 					}
