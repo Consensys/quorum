@@ -28,7 +28,7 @@ contract ContractExtender {
 
     // General housekeeping
     event NewContractExtensionContractCreated(address toExtend, string recipientPTMKey, address recipientAddress); //to tell nodes a new extension is happening
-    event AllNodesHaveVoted(bool outcome); //when all nodes have voted
+    event AllNodesHaveAccepted(bool outcome); //when all nodes have voted
     event CanPerformStateShare(); //when all nodes have voted & the recipient has accepted
     event ExtensionFinished(); //if the extension is cancelled or completed
     event NewVote(bool vote, address voter); // when someone voted (either true or false)
@@ -143,13 +143,13 @@ contract ContractExtender {
     // either all voted true and target accepted, or someone voted false
     function checkVotes() internal {
         if (!voteOutcome) {
-            emit AllNodesHaveVoted(false);
+            emit AllNodesHaveAccepted(false);
             setFinished();
             return;
         }
 
         if (haveAllNodesVoted()) {
-            emit AllNodesHaveVoted(true);
+            emit AllNodesHaveAccepted(true);
             emit CanPerformStateShare();
         }
     }

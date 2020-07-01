@@ -27,7 +27,7 @@ func TestLogContainsExtensionTopicWithWrongLengthReturnsFalse(t *testing.T) {
 
 func TestLogContainsExtensionTopicWithWrongHashReturnsFalse(t *testing.T) {
 	testLog := &types.Log{
-		Topics: []common.Hash{common.HexToHash("0xc05e76a85299aba9028bd0e0c3ab6fd798db442ed25ce08eb9d2098acc5a2904")},
+		Topics: []common.Hash{common.HexToHash("0xf20540914db019dd7c8d05ed165316a58d1583642772ac46f3d0c29b8644bd36")},
 	}
 
 	contained := logContainsExtensionTopic(testLog)
