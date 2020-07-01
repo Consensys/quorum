@@ -23,7 +23,7 @@ func TestDumpAddressWhenFound(t *testing.T) {
 	statedb.SetCode(address, []byte{3, 3, 3, 3, 3, 3, 3})
 	statedb.Commit(false)
 
-	out := stateFetcher.addressStateAsJson(statedb, address)
+	out, _ := stateFetcher.addressStateAsJson(statedb, address)
 
 	want := `{"0x2222222222222222222222222222222222222222":{"state":{"balance":"22","nonce":0,"root":"56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3","code":"03030303030303"}}}`
 
@@ -41,7 +41,7 @@ func TestDumpAddressWhenNotFound(t *testing.T) {
 	stateFetcher := NewStateFetcher(nil)
 
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
-	out := stateFetcher.addressStateAsJson(statedb, address)
+	out, _ := stateFetcher.addressStateAsJson(statedb, address)
 
 	want := `{}`
 

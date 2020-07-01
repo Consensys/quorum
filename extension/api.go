@@ -82,6 +82,18 @@ func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) b
 	return false
 }
 
+// checks if the contract being extended is available on the node
+func (api *PrivateExtensionAPI) checkIfPrivateStateExists(toExtend common.Address) bool {
+	// check if the private contract exists on the node extending the contract
+	_, privateStateDb, _ := api.privacyService.stateFetcher.chainAccessor.State()
+	if privateStateDb != nil {
+		if privateStateDb.GetCode(toExtend) != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // ApproveContractExtension submits the vote to the specified extension management contract. The vote indicates whether to extend
 // a given contract to a new participant or not
 func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address, vote bool, txa ethapi.SendTxArgs) (string, error) {
@@ -157,10 +169,14 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 		return "", errors.New("extending a public contract!!! not allowed")
 	}
 
+	// check if a public contract is being extended
+	if !api.checkIfPrivateStateExists(toExtend) {
+		return "", errors.New("extending a non-existent private contract!!! not allowed")
+	}
+
 	// check if recipient address is 0x0
 	if recipientAddr == (common.Address{0}) {
 		return "", errors.New("invalid recipient address")
-
 	}
 
 	// if running in permissioned mode with new permissions model
