@@ -137,39 +137,6 @@ func (s *roundState) Sequence() *big.Int {
 	return s.sequence
 }
 
-/*func (s *roundState) LockHash() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.Preprepare != nil {
-		s.lockedHash = s.Preprepare.Proposal.Hash()
-	}
-}*/
-
-/*func (s *roundState) UnlockHash() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.lockedHash = common.Hash{}
-}*/
-
-/*func (s *roundState) IsHashLocked() bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if common.EmptyHash(s.lockedHash) {
-		return false
-	}
-	return !s.hasBadProposal(s.GetLockedHash())
-}*/
-
-/*func (s *roundState) GetLockedHash() common.Hash {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.lockedHash
-}*/
-
 // The DecodeRLP method should read one value from the given
 // Stream. It is not forbidden to read less or more, but it might
 // be confusing.

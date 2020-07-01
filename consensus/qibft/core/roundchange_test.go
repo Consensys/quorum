@@ -115,6 +115,34 @@ func TestClearLowerThan(t *testing.T) {
 	}
 }
 
+func TestGetRCMessagesForGivenRound(t *testing.T) {
+	rcs := getRoundChangeSetForPositveTests()
+	numOfRCMessages := rcs.getRCMessagesForGivenRound(big.NewInt(2))
+	if numOfRCMessages != 3 {
+		t.Errorf("Number of RoundChange messages for the given round do not match : have %v, want 3", numOfRCMessages)
+	}
+
+	// Check for messages for round 1, should return 0
+	numOfRCMessages = rcs.getRCMessagesForGivenRound(big.NewInt(0))
+	if numOfRCMessages != 0 {
+		t.Errorf("Number of RoundChange messages for the given round do not match : have %v, want 0", numOfRCMessages)
+	}
+}
+
+func TestHigherRoundMessages(t *testing.T) {
+	rcs := getRoundChangeSetForPositveTests()
+	// The above rcs messages are for round 2, so messages higher than that should be 0
+	higherRCMsgs := rcs.higherRoundMessages(big.NewInt(2))
+	if higherRCMsgs != 0 {
+		t.Errorf("Number of RoundChange messages for the given round do not match : have %v, want 0", higherRCMsgs)
+	}
+	// The rcs messages are for round 2, so messages higher than round 1 should be 3
+	higherRCMsgs = rcs.higherRoundMessages(big.NewInt(1))
+	if higherRCMsgs != 3 {
+		t.Errorf("Number of RoundChange messages for the given round do not match : have %v, want 3", higherRCMsgs)
+	}
+}
+
 func getRoundChangeSetForPositveTests() *roundChangeSet {
 	vset := validator.NewSet(generateValidators(4), istanbul.RoundRobin)
 
