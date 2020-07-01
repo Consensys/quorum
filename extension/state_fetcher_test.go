@@ -43,9 +43,7 @@ func TestDumpAddressWhenNotFound(t *testing.T) {
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 	out, _ := stateFetcher.addressStateAsJson(statedb, address)
 
-	want := `{}`
-
-	if string(out) != want {
-		t.Errorf("dump mismatch:\ngot: %s\nwant: %s\n", string(out), want)
+	if out != nil {
+		t.Errorf("dump mismatch:\ngot: %s\nwant: nil\n", string(out))
 	}
 }

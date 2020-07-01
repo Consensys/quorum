@@ -167,20 +167,19 @@ func (self *StateDB) DumpAddress(address common.Address) (DumpAccount, bool) {
 		Storage:  make(map[common.Hash]string),
 	}
 
-	stateAvailable := false
+	noDataIssue := true
 	storageIt := trie.NewIterator(obj.getTrie(self.db).NodeIterator(nil))
 	for storageIt.Next() {
-		stateAvailable = true
 		_, content, _, err := rlp.Split(storageIt.Value)
 		if err != nil {
-			stateAvailable = false
+			noDataIssue = false
 			log.Error("Failed to decode the value returned by iterator", "error", err)
 			break
 		}
 		account.Storage[common.BytesToHash(self.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(content)
 	}
 
-	return account, stateAvailable
+	return account, noDataIssue
 }
 
 // IterativeDump dumps out accounts as json-objects, delimited by linebreaks on stdout
