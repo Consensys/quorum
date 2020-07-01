@@ -136,54 +136,6 @@ func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address,
 	return msg, nil
 }
 
-// This function validates if the contract can be extended. does the following checks:
-// 1. Contract is not already under extension
-// 2. Is not a public contract
-// 3. validates that the account initiating extension is the creator of the contract being extended
-func (api *PrivateExtensionAPI) validateExtendContract(toExtend common.Address, creationTxHash common.Hash, newRecipientPtmPublicKey string, recipientAddr common.Address, txa ethapi.SendTxArgs) error {
-	// check if the contract to be extended is already under extension
-	// if yes throw an error
-	if api.checkIfContractUnderExtension(toExtend) {
-		return errors.New("contract extension in progress for the given contract address")
-	}
-
-	// check if a public contract is being extended
-	if api.checkIfPublicContract(toExtend) {
-		return errors.New("extending a public contract!!! not allowed")
-	}
-
-	// check if recipient address is 0x0
-	if recipientAddr == (common.Address{0}) {
-		return errors.New("invalid recipient address")
-
-	}
-	// if running in permissioned mode with new permissions model
-	// ensure that the account extending the contract is an admin
-	// account and recipient account is an admin account as well
-	if txa.From == recipientAddr {
-		return errors.New("account accepting the extension cannot be the account initiating extension")
-	}
-
-	// if permissions is implemented check if the account extending can transact or not
-	access := types.GetAcctAccess(txa.From)
-	if access == types.ReadOnly {
-		return errors.New("read only account, cannot initiate extension")
-	}
-
-	if !types.CheckIfAdminAccount(recipientAddr) {
-		return errors.New("recipient account address is not an org admin account. cannot accept extension")
-	}
-	// check the new key is valid
-	if _, err := base64.StdEncoding.DecodeString(newRecipientPtmPublicKey); err != nil {
-		return errors.New("invalid new recipient transaction manager key provided")
-	}
-
-	if err := api.privacyService.validateCreator(toExtend, txa.From, creationTxHash); err != nil {
-		return err
-	}
-	return nil
-}
-
 // ExtendContract deploys a new extension management contract to the blockchain to start the process of extending
 // a contract to a new participant
 //Create a new extension contract that signifies that we want to add a new participant to an existing contract
@@ -192,10 +144,41 @@ func (api *PrivateExtensionAPI) validateExtendContract(toExtend common.Address, 
 // - the contract address we want to extend
 // - the new PTM public key
 // - the Ethereum addresses of who can vote to extend the contract
-func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, creationTxHash common.Hash, newRecipientPtmPublicKey string, recipientAddr common.Address, txa ethapi.SendTxArgs) (string, error) {
-	// validate contract to be extend and the creationTxHash
-	if err := api.validateExtendContract(toExtend, creationTxHash, newRecipientPtmPublicKey, recipientAddr, txa); err != nil {
-		return "", err
+func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecipientPtmPublicKey string, recipientAddr common.Address, txa ethapi.SendTxArgs) (string, error) {
+
+	// check if the contract to be extended is already under extension
+	// if yes throw an error
+	if api.checkIfContractUnderExtension(toExtend) {
+		return "", errors.New("contract extension in progress for the given contract address")
+	}
+
+	// check if a public contract is being extended
+	if api.checkIfPublicContract(toExtend) {
+		return "", errors.New("extending a public contract!!! not allowed")
+	}
+
+	// check if recipient address is 0x0
+	if recipientAddr == (common.Address{0}) {
+		return "", errors.New("invalid recipient address")
+
+	}
+
+	// if running in permissioned mode with new permissions model
+	// ensure that the account extending the contract is an admin
+	// account and recipient account is an admin account as well
+	if txa.From == recipientAddr {
+		return "", errors.New("account accepting the extension cannot be the account initiating extension")
+	}
+	if !types.CheckIfAdminAccount(txa.From) {
+		return "", errors.New("account not an org admin account, cannot initiate extension")
+	}
+	if !types.CheckIfAdminAccount(recipientAddr) {
+		return "", errors.New("recipient account address is not an org admin account. cannot accept extension")
+	}
+
+	// check the new key is valid
+	if _, err := base64.StdEncoding.DecodeString(newRecipientPtmPublicKey); err != nil {
+		return "", errors.New("invalid new recipient transaction manager key provided")
 	}
 
 	//generate some valid transaction options for sending in the transaction
@@ -217,7 +200,7 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, creation
 	}
 
 	//Deploy the contract
-	tx, err := api.privacyService.managementContractFacade.Deploy(txArgs, toExtend, recipientAddr, newRecipientPtmPublicKey, creationTxHash.String())
+	tx, err := api.privacyService.managementContractFacade.Deploy(txArgs, toExtend, recipientAddr, newRecipientPtmPublicKey)
 	if err != nil {
 		return "", err
 	}

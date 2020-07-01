@@ -13,7 +13,7 @@ import (
 type ManagementContractFacade interface {
 	Transactor(managementAddress common.Address) (*extensionContracts.ContractExtenderTransactor, error)
 	Caller(managementAddress common.Address) (*extensionContracts.ContractExtenderCaller, error)
-	Deploy(args *bind.TransactOpts, toExtend common.Address, recipientAddress common.Address, recipientHash string, creTxHash string) (*types.Transaction, error)
+	Deploy(args *bind.TransactOpts, toExtend common.Address, recipientAddress common.Address, recipientHash string) (*types.Transaction, error)
 
 	GetAllVoters(addressToVoteOn common.Address) ([]common.Address, error)
 }
@@ -34,8 +34,8 @@ func (facade EthclientManagementContractFacade) Caller(managementAddress common.
 	return extensionContracts.NewContractExtenderCaller(managementAddress, facade.client)
 }
 
-func (facade EthclientManagementContractFacade) Deploy(args *bind.TransactOpts, toExtend common.Address, recipientAddress common.Address, recipientHash string, creTxHash string) (*types.Transaction, error) {
-	_, tx, _, err := extensionContracts.DeployContractExtender(args, facade.client, toExtend, recipientAddress, recipientHash, creTxHash)
+func (facade EthclientManagementContractFacade) Deploy(args *bind.TransactOpts, toExtend common.Address, recipientAddress common.Address, recipientHash string) (*types.Transaction, error) {
+	_, tx, _, err := extensionContracts.DeployContractExtender(args, facade.client, toExtend, recipientAddress, recipientHash)
 	return tx, err
 }
 

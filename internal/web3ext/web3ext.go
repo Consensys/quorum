@@ -1119,8 +1119,8 @@ web3._extend({
 		new web3._extend.Method({
 			name: 'extendContract',
 			call: 'quorumExtension_extendContract',
-			params: 5,
-			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null, null, web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
+			params: 4,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, null, web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputTransactionFormatter]
 		}),
 		new web3._extend.Method({
 			name: 'cancelExtension',
