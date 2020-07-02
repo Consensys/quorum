@@ -58,6 +58,7 @@ func TestTransform_whenTypical(t *testing.T) {
 		tls.CurveP521,
 		tls.CurveP384,
 		tls.CurveP256,
+		tls.X25519,
 	}, cfg.CurvePreferences)
 }
 
