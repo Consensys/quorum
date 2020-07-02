@@ -227,7 +227,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 		for {
 			select {
 			case l := <-incomingLogs:
-				log.Debug("Extension: Receieved a completion event", "address", l.Address.Hex(), "blockNumber", l.BlockNumber)
+				log.Debug("Extension: Received a completion event", "address", l.Address.Hex(), "blockNumber", l.BlockNumber)
 				service.mu.Lock()
 				func() {
 					defer func() {

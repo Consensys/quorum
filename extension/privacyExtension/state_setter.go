@@ -99,7 +99,7 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) 
 
 	isSender, err := handler.ptm.IsSender(encryptedTxHash)
 	if err != nil {
-		log.Error("Extension: could not determine if we are sender", "err", err.Error())
+		log.Debug("Extension: could not determine if we are sender", "err", err.Error())
 		return false
 	}
 	data, _ := handler.ptm.Receive(encryptedTxHash.Bytes())
