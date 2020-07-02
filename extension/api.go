@@ -197,22 +197,22 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 		return "", errors.New("invalid new recipient transaction manager key provided")
 	}
 
+	// check the the intended new recipient will actually receive the extension request
+	switch len(txa.PrivateFor) {
+	case 0:
+		txa.PrivateFor = append(txa.PrivateFor, newRecipientPtmPublicKey)
+	case 1:
+		if txa.PrivateFor[0] != newRecipientPtmPublicKey {
+			return "", errors.New("mismatch between recipient transaction manager key and privateFor argument")
+		}
+	default:
+		return "", errors.New("invalid transaction manager keys given in privateFor argument")
+	}
+
 	//generate some valid transaction options for sending in the transaction
 	txArgs, err := api.privacyService.GenerateTransactOptions(txa)
 	if err != nil {
 		return "", err
-	}
-
-	// check the the intended new recipient will actually receive the extension request
-	found := false
-	for _, recipient := range txArgs.PrivateFor {
-		if recipient == newRecipientPtmPublicKey {
-			found = true
-			break
-		}
-	}
-	if !found {
-		txArgs.PrivateFor = append(txArgs.PrivateFor, newRecipientPtmPublicKey)
 	}
 
 	//Deploy the contract
