@@ -117,6 +117,7 @@ nav:
         - Adding new nodes: How-To-Guides/adding_nodes.md
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
         - Backup & Restore: How-To-Guides/import-export.md
+        - Quorum/Tessera HA Setup: How-To-Guides/HA_Setup.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 
