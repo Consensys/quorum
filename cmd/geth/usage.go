@@ -185,6 +185,11 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
+			utils.RPCClientToken,
+			utils.RPCClientTLSInsecureSkipVerify,
+			utils.RPCClientTLSCert,
+			utils.RPCClientTLSCaCert,
+			utils.RPCClientTLSCipherSuites,
 		},
 	},
 	{
