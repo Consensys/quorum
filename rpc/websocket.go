@@ -18,6 +18,7 @@ package rpc
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -63,6 +64,7 @@ func (s *Server) WebsocketHandler(allowedOrigins []string) http.Handler {
 			return
 		}
 		codec := newWebsocketCodec(conn)
+		s.authenticateHttpRequest(r, codec)
 		s.ServeCodec(codec, OptionMethodInvocation|OptionSubscriptions)
 	})
 }
@@ -85,8 +87,10 @@ func wsHandshakeValidator(allowedOrigins []string) func(*http.Request) bool {
 	// allow localhost if no allowedOrigins are specified.
 	if len(origins.ToSlice()) == 0 {
 		origins.Add("http://localhost")
+		origins.Add("https://localhost")
 		if hostname, err := os.Hostname(); err == nil {
 			origins.Add("http://" + strings.ToLower(hostname))
+			origins.Add("https://" + strings.ToLower(hostname))
 		}
 	}
 	log.Debug(fmt.Sprintf("Allowed origin(s) for WS RPC interface %v", origins.ToSlice()))
@@ -130,6 +134,18 @@ func (e wsHandshakeError) Error() string {
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
 func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error) {
+	return DialWebsocketWithCustomTLS(ctx, endpoint, origin, nil)
+}
+
+// Quorum
+//
+// DialWebsocketWithCustomTLS creates a new RPC client that communicates with a JSON-RPC server
+// that is listening on the given endpoint.
+// At the same time, allowing to customize TLSClientConfig of the dialer
+//
+// The context is used for the initial connection establishment. It does not
+// affect subsequent interactions with the client.
+func DialWebsocketWithCustomTLS(ctx context.Context, endpoint, origin string, tlsConfig *tls.Config) (*Client, error) {
 	endpoint, header, err := wsClientHeaders(endpoint, origin)
 	if err != nil {
 		return nil, err
@@ -139,7 +155,19 @@ func DialWebsocket(ctx context.Context, endpoint, origin string) (*Client, error
 		WriteBufferSize: wsWriteBuffer,
 		WriteBufferPool: wsBufferPool,
 	}
+	if tlsConfig != nil {
+		dialer.TLSClientConfig = tlsConfig
+	}
+	credProviderFunc, hasCredProviderFunc := ctx.Value(CtxCredentialsProvider).(HttpCredentialsProviderFunc)
 	return newClient(ctx, func(ctx context.Context) (ServerCodec, error) {
+		if hasCredProviderFunc {
+			token, err := credProviderFunc(ctx)
+			if err != nil {
+				log.Warn("unable to obtain credentials from provider", "err", err)
+			} else {
+				header.Set(HttpAuthorizationHeader, token)
+			}
+		}
 		conn, resp, err := dialer.DialContext(ctx, endpoint, header)
 		if err != nil {
 			hErr := wsHandshakeError{err: err}
@@ -163,7 +191,7 @@ func wsClientHeaders(endpoint, origin string) (string, http.Header, error) {
 	}
 	if endpointURL.User != nil {
 		b64auth := base64.StdEncoding.EncodeToString([]byte(endpointURL.User.String()))
-		header.Add("authorization", "Basic "+b64auth)
+		header.Add(HttpAuthorizationHeader, "Basic "+b64auth)
 		endpointURL.User = nil
 	}
 	return endpointURL.String(), header, nil

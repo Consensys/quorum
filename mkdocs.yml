@@ -20,8 +20,8 @@ nav:
         - Running Quorum: Getting Started/running.md
         - Quorum API: Getting Started/api.md
         - Quorum GraphQL: Getting Started/graphql.md
-        - Migration: Getting Started/migration.md 
-    - Quorum Features: 
+        - Migration: Getting Started/migration.md
+    - Quorum Features:
         - Transaction/Contract Privacy:
             - Overview: Privacy/Overview.md
             - Privacy/Privacy-Manager.md
@@ -61,7 +61,7 @@ nav:
             - Istanbul BFT:
                 - Overview: Consensus/ibft/ibft.md
                 - Consensus/ibft/istanbul-rpc-api.md
-                - Consensus/ibft/ibft-parameters.md     
+                - Consensus/ibft/ibft-parameters.md
         - Permissioning:
             - Overview: Permissioning/Permissions Overview.md
             - Basic: Permissioning/Basic NetworkPermissions.md
@@ -82,9 +82,13 @@ nav:
                 - helloworld:
                     - Interface: PluggableArchitecture/Plugins/helloworld/interface.md
                     - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
+                - security:
+                    - Interface: PluggableArchitecture/Plugins/security/interface.md
+                    - Implementation: PluggableArchitecture/Plugins/security/implementation.md
             - Plugin Development: PluggableArchitecture/PluginDevelopment.md
         - DNS: Quorum Features/dns.md
-    - Quorum Projects: 
+        - Securing JSON RPC: Quorum Features/rpc-security.md
+    - Quorum Projects:
         - Quorum Wizard:
             - Getting Started: Wizard/GettingStarted.md
             - Interacting with the Network: Wizard/Interacting.md
@@ -108,7 +112,7 @@ nav:
             - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
           - Decentralized App:
             - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
-            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md 
+            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
     - How-To Guides:
         - Adding new nodes: How-To-Guides/adding_nodes.md
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
