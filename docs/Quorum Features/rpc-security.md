@@ -2,7 +2,7 @@
 
 ## Overview
 
-JSON RPC servers are secured via a [security plugin interface](/PluggableArchitecture/Plugins/security/interface).
+JSON RPC servers are secured via a [security plugin interface](../../PluggableArchitecture/Plugins/security/interface).
 The official implementation is [Quorum Security Plugin](https://github.com/jpmorganchase/quorum-security-plugin-enterprise) which
 enables Quorum Client to protect JSON RPC APIs with the following features:
 
@@ -27,7 +27,7 @@ and Quorum Clients access control in an efficient approach.
 
 ## Configuration
 
-Please refer to [plugin implementation](/PluggableArchitecture/Plugins/security/implementation) for more details.
+Please refer to [plugin implementation](../../PluggableArchitecture/Plugins/security/implementation) for more details.
 
 There are also [examples](https://github.com/jpmorganchase/quorum-security-plugin-enterprise/tree/master/examples) on 
 how to configure the plugin to work with different OAuth2 Authorization servers.
