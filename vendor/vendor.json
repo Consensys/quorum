@@ -425,6 +425,18 @@
 			"revisionTime": "2020-02-10T21:10:39Z"
 		},
 		{
+			"checksumSHA1": "e3gKg/UZYXepa8UcV5G0UDqV6hk=",
+			"path": "github.com/jpmorganchase/quorum-security-plugin-sdk-go/mock_proto",
+			"revision": "3a37bbb9bae024600275c1e659b500f911d68ee7",
+			"revisionTime": "2020-03-04T16:37:21Z"
+		},
+		{
+			"checksumSHA1": "lRouVCRDgw/IbE1DxXOcveq/+PY=",
+			"path": "github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto",
+			"revision": "3a37bbb9bae024600275c1e659b500f911d68ee7",
+			"revisionTime": "2020-03-04T16:37:21Z"
+		},
+		{
 			"checksumSHA1": "gKyBj05YkfuLFruAyPZ4KV9nFp8=",
 			"path": "github.com/julienschmidt/httprouter",
 			"revision": "975b5c4c7c21c0e3d2764200bf2aa8e34657ae6e",

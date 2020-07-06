@@ -85,8 +85,12 @@ nav:
                 - helloworld:
                     - Interface: PluggableArchitecture/Plugins/helloworld/interface.md
                     - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
+                - security:
+                    - Interface: PluggableArchitecture/Plugins/security/interface.md
+                    - Implementation: PluggableArchitecture/Plugins/security/implementation.md
             - Plugin Development: PluggableArchitecture/PluginDevelopment.md
         - DNS: Quorum Features/dns.md
+        - Securing JSON RPC: Quorum Features/rpc-security.md
     - Quorum Projects:
         - Quorum Wizard:
             - Getting Started: Wizard/GettingStarted.md
@@ -116,6 +120,7 @@ nav:
         - Adding new nodes: How-To-Guides/adding_nodes.md
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md
         - Backup & Restore: How-To-Guides/import-export.md
+        - Quorum/Tessera HA Setup: How-To-Guides/HA_Setup.md
     - Product Roadmap: roadmap.md
     - FAQ: FAQ.md
 

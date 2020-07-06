@@ -52,6 +52,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -89,6 +90,8 @@ type Ethereum struct {
 	bloomIndexer  *core.ChainIndexer             // Bloom indexer operating during block imports
 
 	APIBackend *EthAPIBackend
+
+	securityPlugin *plugin.SecurityPluginTemplate
 
 	miner     *miner.Miner
 	gasPrice  *big.Int
@@ -247,6 +250,15 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		gpoParams.Default = config.Miner.GasPrice
 	}
 	eth.APIBackend.gpo = gasprice.NewOracle(eth.APIBackend, gpoParams)
+
+	// Set Security plugin in eth
+	var pluginManager *plugin.PluginManager
+	if err := ctx.Service(&pluginManager); err == nil {
+		sp := new(plugin.SecurityPluginTemplate)
+		if err := pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err == nil {
+			eth.securityPlugin = sp
+		}
+	}
 
 	return eth, nil
 }
