@@ -42,7 +42,7 @@ func (pmc *privateMessageContext) mustVerify() bool {
 // checks and adjusts privacy metadata in the state transition context
 // returns false if TransitionDb needs to exit early
 // true otherwise
-func (pmc *privateMessageContext) prepare(contractCreation bool) bool {
+func (pmc *privateMessageContext) prepare() bool {
 	if pmc.receivedPrivacyMetadata != nil {
 		// if privacy enhancements are disabled we should treat all transactions as StandardPrivate
 		if !pmc.stAPI.IsPrivacyEnhancementsEnabled() && pmc.receivedPrivacyMetadata.PrivacyFlag.IsNotStandardPrivate() {
@@ -53,7 +53,7 @@ func (pmc *privateMessageContext) prepare(contractCreation bool) bool {
 				PrivacyFlag:  engine.PrivacyFlagStandardPrivate}
 		}
 
-		if !contractCreation && pmc.receivedPrivacyMetadata.PrivacyFlag == engine.PrivacyFlagStateValidation && common.EmptyHash(pmc.receivedPrivacyMetadata.ACMerkleRoot) {
+		if pmc.receivedPrivacyMetadata.PrivacyFlag == engine.PrivacyFlagStateValidation && common.EmptyHash(pmc.receivedPrivacyMetadata.ACMerkleRoot) {
 			log.Error("Privacy metadata has empty MR for stateValidation flag")
 			pmc.failed = true
 			return false

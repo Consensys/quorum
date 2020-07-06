@@ -278,6 +278,13 @@ func (self *StateDB) GetRLPEncodedStateObject(addr common.Address) ([]byte, erro
 	if stateObject == nil {
 		return nil, fmt.Errorf("no state found for %s", addr.Hex())
 	}
+	// When calculating the execution hash or simulating the transaction the stateOject state is not committed/updated
+	// In order to reflect the updated state invoke stateObject.updateRoot on a copy of the state object.
+	if len(stateObject.pendingStorage) > 0 || len(stateObject.dirtyStorage) > 0 || stateObject.dirtyCode {
+		cpy := stateObject.deepCopy(self)
+		cpy.updateRoot(self.db)
+		return rlp.EncodeToBytes(cpy)
+	}
 	return rlp.EncodeToBytes(stateObject)
 }
 

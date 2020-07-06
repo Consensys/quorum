@@ -231,7 +231,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 
 		pmc.hasPrivatePayload = data != nil
-		if !pmc.prepare(contractCreation) {
+		if !pmc.prepare() {
 			return nil, 0, pmc.failed, nil
 		}
 	} else {

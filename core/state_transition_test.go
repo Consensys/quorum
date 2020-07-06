@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+
 	"math/big"
 	"os"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 
 	"github.com/ethereum/go-ethereum/private"
@@ -40,6 +42,35 @@ var (
 		abi:      mustParse(c2AbiDefinition),
 		bytecode: common.Hex2Bytes("608060405234801561001057600080fd5b506040516020806102f58339810180604052602081101561003057600080fd5b8101908080519060200190929190505050806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050610264806100916000396000f3fe608060405234801561001057600080fd5b5060043610610053576000357c01000000000000000000000000000000000000000000000000000000009004806360fe47b1146100585780636d4ce63c14610086575b600080fd5b6100846004803603602081101561006e57600080fd5b81019080803590602001909291905050506100a4565b005b61008e610173565b6040518082815260200191505060405180910390f35b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff166360fe47b1826040518263ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180828152602001915050602060405180830381600087803b15801561013457600080fd5b505af1158015610148573d6000803e3d6000fd5b505050506040513d602081101561015e57600080fd5b81019080805190602001909291905050505050565b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16636d4ce63c6040518163ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040160206040518083038186803b1580156101f857600080fd5b505afa15801561020c573d6000803e3d6000fd5b505050506040513d602081101561022257600080fd5b810190808051906020019092919050505090509056fea165627a7a72305820dd8a5dcf693e1969289c444a282d0684a9760bac26f1e4e0139d46821ec1979b0029"),
 	}
+
+	// exec hash helper vars (accounts/tries)
+	signingAddress = common.StringToAddress("contract")
+
+	c1AccAddress = crypto.CreateAddress(signingAddress, 0)
+	c2AccAddress = crypto.CreateAddress(signingAddress, 1)
+
+	// this is used as the field key in account storage (which is the index/sequence of the field in the contract)
+	// both contracts have only one field (c1 - has the value while c2 has c1's address)
+	// For more info please see: https://solidity.readthedocs.io/en/v0.6.8/internals/layout_in_storage.html
+	firstFieldKey = common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000000")
+
+	val42        = common.Hex2Bytes("000000000000000000000000000000000000000000000000000000000000002A")
+	val53        = common.Hex2Bytes("0000000000000000000000000000000000000000000000000000000000000035")
+	valC1Address = append(common.Hex2Bytes("000000000000000000000000"), c1AccAddress.Bytes()...)
+
+	// this is the contract storage trie after storing value 42
+	c1StorageTrieWithValue42   = secureTrieWithStoredValue(firstFieldKey, val42)
+	c1StorageTrieWithValue53   = secureTrieWithStoredValue(firstFieldKey, val53)
+	c2StorageTrieWithC1Address = secureTrieWithStoredValue(firstFieldKey, valC1Address)
+
+	// The contract bytecode above includes the constructor bytecode (which is removed by the EVM before storing the
+	// contract bytecode) thus it can't be used to calculate the code hash for the contract.
+	// Below we deploy both of them as public contracts and extract the resulting codeHashes from the public state.
+	c1CodeHash, c2CodeHash = contractCodeHashes()
+
+	c1AccountWithValue42Stored   = &state.Account{Nonce: 1, Balance: big.NewInt(0), Root: c1StorageTrieWithValue42.Hash(), CodeHash: c1CodeHash.Bytes()}
+	c1AccountWithValue53Stored   = &state.Account{Nonce: 1, Balance: big.NewInt(0), Root: c1StorageTrieWithValue53.Hash(), CodeHash: c1CodeHash.Bytes()}
+	c2AccountWithC1AddressStored = &state.Account{Nonce: 1, Balance: big.NewInt(0), Root: c2StorageTrieWithC1Address.Hash(), CodeHash: c2CodeHash.Bytes()}
 )
 
 type contract struct {
@@ -75,6 +106,31 @@ func (c *contract) get() []byte {
 func init() {
 	log.PrintOrigins(true)
 	log.Root().SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
+}
+
+func secureTrieWithStoredValue(key []byte, value []byte) *trie.SecureTrie {
+	res, _ := trie.NewSecure(common.Hash{}, trie.NewDatabase(rawdb.NewMemoryDatabase()))
+	v, _ := rlp.EncodeToBytes(common.TrimLeftZeroes(value[:]))
+	res.Update(key, v)
+	return res
+}
+
+func contractCodeHashes() (c1CodeHash common.Hash, c2CodeHash common.Hash) {
+	assert := testifyassert.New(nil)
+	cfg := newConfig()
+
+	// create public c1
+	cfg.setData(c1.create(big.NewInt(42)))
+	c1Address := createPublicContract(cfg, assert, c1)
+	c1CodeHash = cfg.publicState.GetCodeHash(c1Address)
+
+	// create public c2
+	cfg.setNonce(1)
+	cfg.setData(c2.create(c1Address))
+	c2Address := createPublicContract(cfg, assert, c2)
+	c2CodeHash = cfg.publicState.GetCodeHash(c2Address)
+
+	return
 }
 
 func TestApplyMessage_Private_whenTypicalCreate_Success(t *testing.T) {
@@ -196,6 +252,7 @@ func TestApplyMessage_Private_whenInteractWithPartyProtectionC1_Success(t *testi
 	assert.False(fail, "Transaction receipt status")
 	mockPM.Verify(assert)
 }
+
 func TestApplyMessage_Private_whenInteractWithStateValidationC1_Success(t *testing.T) {
 	originalP := private.P
 	defer func() { private.P = originalP }()
@@ -208,6 +265,7 @@ func TestApplyMessage_Private_whenInteractWithStateValidationC1_Success(t *testi
 	c1EncPayloadHash := []byte("c1")
 	cfg.setPrivacyFlag(engine.PrivacyFlagStateValidation).
 		setData(c1EncPayloadHash)
+	cfg.acMerkleRoot, _ = calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue42Stored})
 	c1Address := createContract(cfg, mockPM, assert, c1, big.NewInt(42))
 
 	// calling C1.Set() state validation
@@ -216,7 +274,7 @@ func TestApplyMessage_Private_whenInteractWithStateValidationC1_Success(t *testi
 		setNonce(1).
 		setTo(c1Address)
 	privateMsg := newTypicalPrivateMessage(cfg)
-	mr, err := calcMR(cfg, c1Address)
+	mr, err := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored})
 	//since state validation need ACHashes, MerkleRoot and PrivacyFlag
 	mockPM.When("Receive").Return(c1.set(53), &engine.ExtraMetadata{
 		ACHashes: common.EncryptedPayloadHashes{
@@ -245,6 +303,7 @@ func TestApplyMessage_Private_whenInteractWithStateValidationC1WithEmptyMRFromTe
 	c1EncPayloadHash := []byte("c1")
 	cfg.setPrivacyFlag(engine.PrivacyFlagStateValidation).
 		setData(c1EncPayloadHash)
+	cfg.acMerkleRoot, _ = calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue42Stored})
 	c1Address := createContract(cfg, mockPM, assert, c1, big.NewInt(42))
 
 	// calling C1.Set() state validation
@@ -281,6 +340,7 @@ func TestApplyMessage_Private_whenInteractWithStateValidationC1WithWrongMRFromTe
 	c1EncPayloadHash := []byte("c1")
 	cfg.setPrivacyFlag(engine.PrivacyFlagStateValidation).
 		setData(c1EncPayloadHash)
+	cfg.acMerkleRoot, _ = calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue42Stored})
 	c1Address := createContract(cfg, mockPM, assert, c1, big.NewInt(42))
 
 	// calling C1.Set() state validation
@@ -594,6 +654,7 @@ func TestApplyMessage_Private_whenPartyProtectionC2AndC1AndC0ButMissingC0InState
 	assert.True(fail, "Transaction receipt status")
 	mockPM.Verify(assert)
 }
+
 func TestApplyMessage_Private_whenStateValidationC2InteractsWithStateValidationC1_Succeed(t *testing.T) {
 	originalP := private.P
 	defer func() { private.P = originalP }()
@@ -606,6 +667,7 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithStateValidationC
 	c1EncPayloadHash := []byte("c1")
 	cfg.setPrivacyFlag(engine.PrivacyFlagStateValidation).
 		setData(c1EncPayloadHash)
+	cfg.acMerkleRoot, _ = calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue42Stored})
 	c1Address := createContract(cfg, mockPM, assert, c1, big.NewInt(42))
 
 	// create state validation c2
@@ -613,6 +675,7 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithStateValidationC
 	cfg.setPrivacyFlag(engine.PrivacyFlagStateValidation).
 		setData(c2EncPayloadHash).
 		setNonce(1)
+	cfg.acMerkleRoot, _ = calcAccMR(accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
 	c2Address := createContract(cfg, mockPM, assert, c2, c1Address)
 
 	// calling C2.Set() state validation
@@ -625,7 +688,7 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithStateValidationC
 	log.Trace("stuff", "c2code", stuff[:])
 
 	privateMsg := newTypicalPrivateMessage(cfg)
-	mr, err := calcMR(cfg, c1Address, c2Address)
+	mr, err := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored}, accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
 	//since state validation need ACHashes, PrivacyFlag & MerkleRoot
 	mockPM.When("Receive").Return(c2.set(53), &engine.ExtraMetadata{
 		ACHashes: common.EncryptedPayloadHashes{
@@ -662,6 +725,7 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithPartyProtectionC
 	cfg.setPrivacyFlag(engine.PrivacyFlagStateValidation).
 		setData(c2EncPayloadHash).
 		setNonce(1)
+	cfg.acMerkleRoot, _ = calcAccMR(accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
 	c2Address := createContract(cfg, mockPM, assert, c2, c1Address)
 
 	// calling C2.Set() state validation
@@ -670,6 +734,8 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithPartyProtectionC
 		setNonce(2).
 		setTo(c2Address)
 	privateMsg := newTypicalPrivateMessage(cfg)
+	// use the correctly calculated MR so that it can't be a source of false positives
+	mr, err := calcAccMR(accEntry{address: c1AccAddress, account: c1AccountWithValue53Stored}, accEntry{address: c2AccAddress, account: c2AccountWithC1AddressStored})
 	//since state validation need ACHashes, PrivacyFlag & MerkleRoot
 	mockPM.When("Receive").Return(c2.set(53), &engine.ExtraMetadata{
 		ACHashes: common.EncryptedPayloadHashes{
@@ -677,7 +743,7 @@ func TestApplyMessage_Private_whenStateValidationC2InteractsWithPartyProtectionC
 			common.BytesToEncryptedPayloadHash(c1EncPayloadHash): struct{}{},
 		},
 		PrivacyFlag:  engine.PrivacyFlagStateValidation,
-		ACMerkleRoot: common.Hash{123},
+		ACMerkleRoot: mr,
 	}, nil)
 
 	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
@@ -819,6 +885,9 @@ func createContract(cfg *config, mockPM *mockPrivateTransactionManager, assert *
 	metadata := &engine.ExtraMetadata{}
 	if cfg.privacyFlag < math.MaxUint64 {
 		metadata.PrivacyFlag = cfg.privacyFlag
+		if metadata.PrivacyFlag == engine.PrivacyFlagStateValidation {
+			metadata.ACMerkleRoot = cfg.acMerkleRoot
+		}
 	}
 	mockPM.When("Receive").Return(c.create(args...), metadata, nil)
 
@@ -891,14 +960,19 @@ func newTypicalPublicMessage(cfg *config) Message {
 	return msg
 }
 
-func calcMR(cfg *config, addresses ...common.Address) (common.Hash, error) {
+type accEntry struct {
+	address common.Address
+	account *state.Account
+}
+
+func calcAccMR(entries ...accEntry) (common.Hash, error) {
 	combined := new(trie.Trie)
-	for _, addr := range addresses {
-		data, err := cfg.privateState.GetRLPEncodedStateObject(addr)
+	for _, entry := range entries {
+		data, err := rlp.EncodeToBytes(entry.account)
 		if err != nil {
 			return common.Hash{}, err
 		}
-		if err = combined.TryUpdate(addr.Bytes(), data); err != nil {
+		if err = combined.TryUpdate(entry.address.Bytes(), data); err != nil {
 			return common.Hash{}, err
 		}
 	}
@@ -911,7 +985,8 @@ type config struct {
 	data  []byte
 	nonce uint64
 
-	privacyFlag engine.PrivacyFlagType
+	privacyFlag  engine.PrivacyFlagType
+	acMerkleRoot common.Hash
 
 	currentTx *types.Transaction
 
@@ -996,7 +1071,7 @@ type stubSigner struct {
 }
 
 func (ss *stubSigner) Sender(tx *types.Transaction) (common.Address, error) {
-	return common.StringToAddress("contract"), nil
+	return signingAddress, nil
 }
 
 func (ss *stubSigner) SignatureValues(tx *types.Transaction, sig []byte) (r, s, v *big.Int, err error) {
