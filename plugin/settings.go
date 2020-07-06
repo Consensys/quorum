@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/plugin/helloworld"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/hashicorp/go-plugin"
 	"github.com/naoina/toml"
@@ -19,6 +20,7 @@ import (
 
 const (
 	HelloWorldPluginInterfaceName = PluginInterfaceName("helloworld") // lower-case always
+	SecurityPluginInterfaceName   = PluginInterfaceName("security")
 )
 
 var (
@@ -43,6 +45,12 @@ var (
 			},
 			pluginSet: plugin.PluginSet{
 				helloworld.ConnectorName: &helloworld.PluginConnector{},
+			},
+		},
+		SecurityPluginInterfaceName: {
+			pluginSet: plugin.PluginSet{
+				security.TLSConfigurationConnectorName: &security.TLSConfigurationSourcePluginConnector{},
+				security.AuthenticationConnectorName:   &security.AuthenticationManagerPluginConnector{},
 			},
 		},
 	}

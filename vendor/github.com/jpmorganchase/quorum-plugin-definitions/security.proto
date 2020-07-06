@@ -1,0 +1,88 @@
+/*
+ * This plugin interface provides services to secure `geth` RPC servers, which includes:
+ *
+ * - TLS configuration to enable HTTPS/WSS servers
+ * - Authentication
+ */
+syntax = "proto3";
+
+package proto;
+
+import "github.com/golang/protobuf/ptypes/timestamp/timestamp.proto";
+
+option go_package = "proto";
+option java_package = "com.quorum.plugin.proto";
+option java_outer_classname = "Security";
+
+/**
+ * A wrapper message to logically group other messages
+ */
+message TLSConfiguration {
+    // It's an empty Request received by RPC service
+    message Request {
+
+    }
+    // Response from RPC service
+    message Response {
+        TLSConfiguration.Data data = 1;
+    }
+    // TLS configuration data for `geth`
+    message Data {
+        // Private key in PEM format
+        bytes keyPem = 1;
+        // Certificate in PEM format
+        bytes certPem = 2;
+        // List of cipher suites constants being supported by the server
+        repeated uint32 cipherSuites = 3;
+    }
+
+}
+
+/*
+ * `Optional`
+ * RPC service to provide TLS configuration to enable HTTPS/WSS in `geth` RPC Servers
+ */
+service TLSConfigurationSource {
+    rpc Get(TLSConfiguration.Request) returns (TLSConfiguration.Response);
+}
+
+/*
+ * Representing a permission being extracted from access token by the plugin implementation.
+ * This permission is then stored in security context of a request and
+ * used internally to decide if the access is granted/denied
+ */
+message GrantedAuthority {
+    // `geth` RPC API namespace. E.g.: rpc, eth, admin, debug, ...
+    string service = 1;
+    // `geth` RPC API function. E.g.: nodeInfo, blockNumber, ...
+    string method = 2;
+    // raw string of the the granted authority value. This gives plugin implementation freedom to interpret the value
+    string raw = 3;
+}
+
+/*
+ * Representing the access token for an authentication request
+ */
+message AuthenticationToken {
+    bytes rawToken = 1;
+}
+
+/*
+ * Representing an authenticated principal after `AuthenticationToken` has been processed
+ */
+message PreAuthenticatedAuthenticationToken {
+    bytes rawToken = 1;
+    google.protobuf.Timestamp expiredAt = 2;
+    repeated GrantedAuthority authorities = 3;
+}
+
+/*
+ * `Required`
+ * RPC service authenticate the preauthenticated token. Response is the token containing expiry date and granted authorities
+ */
+service AuthenticationManager {
+    /*
+     * Perform authentication of the token. Return a token that contains expiry date and granted authorities
+     */
+    rpc Authenticate(AuthenticationToken) returns (PreAuthenticatedAuthenticationToken);
+}
