@@ -18,7 +18,7 @@ resolved.
 
 ## Compatibility
 For Raft, the whole network must be on version 2.4.0 of Quorum for DNS to function properly.  DNS must 
-be explicitly enabled using the `--raftdnsenable` flag for each node once the node has migrated to version 2.4.0 of Quorum
+be explicitly enabled using the `--raftdnsenable` flag for each node once the node has migrated to version 2.4.0 of Quorum.
 The network runs fine when some nodes are in 2.4.0 version and some in older version as long as this feature is not enabled. For safe migration the recommended approach is as below:
 * migrate the nodes to `geth` 2.4.0 version without using `--raftdnsenable` flag
 * once the network is fully migrated, restart the nodes with `--raftdnsenable` to enable the feature
