@@ -223,8 +223,9 @@ Response
      - `gas` [number]: maximum amount of gas to burn
      - `gasPrice` [number]: gas price
      - `value` [number:optional]: amount of Wei to send with the transaction
-     - `data` [data:optional]:  input data
+     - `data` [data:optional]:  input data (transaction manager hash if transaction is private)
      - `nonce` [number]: account nonce
+     - `isPrivate` [boolean:optional]: whether the transaction is a Quorum private transaction 
   1. method signature [string:optional]
      - The method signature, if present, is to aid decoding the calldata. Should consist of `methodname(paramtype,...)`, e.g. `transfer(uint256,address)`. The signer may use this data to parse the supplied calldata, and show the user. The data, however, is considered totally untrusted, and reliability is not expected.
 
