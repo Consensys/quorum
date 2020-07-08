@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"github.com/ethereum/go-ethereum/plugin/account"
 	"github.com/ethereum/go-ethereum/plugin/helloworld"
 	"github.com/ethereum/go-ethereum/plugin/security"
 )
@@ -42,4 +43,22 @@ func (sp *SecurityPluginTemplate) AuthenticationManager() (security.Authenticati
 		}
 		return raw.(security.AuthenticationManager), nil
 	}), nil
+}
+
+type ReloadableAccountServiceFactory struct {
+	*basePlugin
+}
+
+func (f *ReloadableAccountServiceFactory) Create() (account.Service, error) {
+	am := &account.ReloadableService{
+		DispenseFunc: func() (account.Service, error) {
+			raw, err := f.dispense(account.ConnectorName)
+			if err != nil {
+				return nil, err
+			}
+			return raw.(account.Service), nil
+		},
+	}
+
+	return am, nil
 }

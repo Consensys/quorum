@@ -36,6 +36,7 @@ var Modules = map[string]string{
 	"raft":             Raft_JS,
 	"istanbul":         Istanbul_JS,
 	"quorumPermission": QUORUM_NODE_JS,
+	"plugin_account":   Account_Plugin_Js,
 }
 
 const ChequebookJs = `
@@ -1100,6 +1101,25 @@ web3._extend({
 			name: 'checkpointContractAddress',
 			getter: 'les_getCheckpointContractAddress'
 		}),
+	]
+});
+`
+
+const Account_Plugin_Js = `
+web3._extend({
+	property: 'plugin_account',
+	methods:
+	[
+		new web3._extend.Method({
+			name: 'newAccount',
+			call: 'plugin@account_newAccount',
+			params: 1
+		}),
+		new web3._extend.Method({
+			name: 'importRawKey',
+			call: 'plugin@account_importRawKey',
+			params: 2
+		})
 	]
 });
 `

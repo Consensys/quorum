@@ -22,5 +22,6 @@
 //go:generate protoc -I ../../vendor/github.com/jpmorganchase/quorum-plugin-definitions -I ../../vendor --doc_out=docs.markdown.tmpl,init_interface.md:../../docs/PluggableArchitecture/Plugins/ init.proto
 //go:generate protoc -I ../../vendor/github.com/jpmorganchase/quorum-plugin-definitions -I ../../vendor --doc_out=docs.markdown.tmpl,interface.md:../../docs/PluggableArchitecture/Plugins/helloworld/ helloworld.proto
 //go:generate protoc -I ../../vendor/github.com/jpmorganchase/quorum-plugin-definitions -I ../../vendor --doc_out=docs.markdown.tmpl,interface.md:../../docs/PluggableArchitecture/Plugins/security/ security.proto
+//go:generate protoc -I ../../vendor/github.com/jpmorganchase/quorum-plugin-definitions -I ../../vendor --doc_out=docs.markdown.tmpl,interface.md:../../docs/PluggableArchitecture/Plugins/account/ account.proto
 
 package gen
