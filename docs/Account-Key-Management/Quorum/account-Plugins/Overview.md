@@ -45,12 +45,29 @@ Create a new plugin-managed account:
 | `config` | Plugin-specific json configuration for creating a new account.  See the plugin's documentation for more info on the json config required 
 
 ##### Example
-```shell
+```shell tab="quorum"
 curl -X POST \
      -H "Content-Type:application/json" \
-     -d '{"jsonrpc":"2.0","method":"plugin@account_newAccount","params":[{<config>}], "id":1}' \
+     -d '
+        {
+            "jsonrpc":"2.0",
+            "method":"plugin@account_newAccount",
+            "params":[{<config>}], 
+            "id":1
+        }' \
      http://localhost:22000
 ``` 
+
+```shell tab="clef"
+echo '
+    {
+        "jsonrpc":"2.0",
+        "method":"plugin@account_newAccount",
+        "params":[{<config>}], 
+        "id":1
+    }
+' | nc -U /path/to/clef.ipc
+```
 
 #### plugin@account_importRawKey
 Create a new plugin-managed account from an existing private key:  
@@ -64,11 +81,21 @@ Create a new plugin-managed account from an existing private key:
 | `config` | Plugin-specific json configuration for creating a new account.  See the plugin's documentation for more info on the json config required
 
 ##### Example
-```shell
+```shell tab="quorum"
 curl -X POST \
      -H "Content-Type:application/json" \
-     -d '{"jsonrpc":"2.0","method":"plugin@account_importRawKey","params":["<rawkey>", {<config>}], "id":1}' \
+     -d '
+         {
+             "jsonrpc":"2.0",
+             "method":"plugin@account_importRawKey",
+             "params":["<rawkey>", {<config>}], 
+             "id":1
+         }' \
      http://localhost:22000
+```
+
+```text tab="clef"
+not supported - use CLI instead
 ```
 
 
