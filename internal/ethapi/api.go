@@ -365,8 +365,9 @@ func (s *PrivateAccountAPI) unlockAccount(addr common.Address, password string, 
 		return b.TimedUnlock(acct, password, duration)
 	case *keystore.KeyStore:
 		return b.TimedUnlock(acct, password, duration)
+	default:
+		return errors.New("unlock only supported for keystore or plugin wallets")
 	}
-	return nil
 }
 
 // LockAccount will lock the account associated with the given address when it's unlocked.
@@ -392,8 +393,9 @@ func (s *PrivateAccountAPI) lockAccount(addr common.Address) error {
 		return b.Lock(acct)
 	case *keystore.KeyStore:
 		return b.Lock(addr)
+	default:
+		return errors.New("lock only supported for keystore or plugin wallets")
 	}
-	return nil
 }
 
 // signTransaction sets defaults and signs the given transaction
