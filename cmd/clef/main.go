@@ -524,7 +524,7 @@ func signer(c *cli.Context) error {
 	log.Info("Starting signer", "chainid", chainId, "keystore", ksLoc,
 		"light-kdf", lightKdf, "advanced", advanced)
 
-	// <Quorum>
+	// <Quorum> start the plugin manager
 	var (
 		pm         *plugin.PluginManager
 		pluginConf *plugin.Settings
@@ -555,11 +555,10 @@ func signer(c *cli.Context) error {
 		}()
 	}
 	// </Quorum>
+
 	am := core.StartClefAccountManager(ksLoc, nousb, lightKdf, pluginConf, scpath)
 
-	apiImpl := core.NewSignerAPI(am, chainId, nousb, ui, db, advanced, pwStorage)
-
-	// <Quorum>
+	// <Quorum> setup the pluggable accounts backend with the plugin
 	if pm != nil && pm.IsEnabled(plugin.AccountPluginInterfaceName) {
 		b := am.Backends(pluggable.BackendType)[0].(*pluggable.Backend)
 		if err := pm.AddAccountPluginToBackend(b); err != nil {
@@ -567,6 +566,8 @@ func signer(c *cli.Context) error {
 		}
 	}
 	// </Quorum>
+
+	apiImpl := core.NewSignerAPI(am, chainId, nousb, ui, db, advanced, pwStorage)
 
 	// Establish the bidirectional communication, by creating a new UI backend and registering
 	// it with the UI.
