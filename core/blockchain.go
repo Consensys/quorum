@@ -174,11 +174,24 @@ type BlockChain struct {
 	processor  Processor  // Block transaction processor interface
 	vmConfig   vm.Config
 
-	badBlocks       *lru.Cache                     // Bad block cache
-	shouldPreserve  func(*types.Block) bool        // Function used to determine whether should preserve the given block.
-	terminateInsert func(common.Hash, uint64) bool // Testing hook used to terminate ancient receipt chain insertion.
+	badBlocks       *lru.Cache                         // Bad block cache
+	shouldPreserve  func(*types.Block) bool            // Function used to determine whether should preserve the given block.
+	terminateInsert func(common.Hash, uint64) bool     // Testing hook used to terminate ancient receipt chain insertion.
+	setPrivateState func([]*types.Log, *state.StateDB) // Function to check extension and set private state
 
 	privateStateCache state.Database // Private state database to reuse between imports (contains state cache)
+}
+
+// function pointer for updating private state
+func (bc *BlockChain) PopulateSetPrivateState(ps func([]*types.Log, *state.StateDB)) {
+	bc.setPrivateState = ps
+}
+
+// function to update the private state as a part contract state extension
+func (bc *BlockChain) CheckAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB) {
+	if bc.setPrivateState != nil {
+		bc.setPrivateState(txLogs, privateState)
+	}
 }
 
 // NewBlockChain returns a fully initialised block chain using information

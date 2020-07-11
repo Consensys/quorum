@@ -265,3 +265,166 @@ func TestLRUCacheLimit(t *testing.T) {
 	testifyassert.True(t, err == nil)
 	testifyassert.True(t, o != nil)
 }
+
+func TestCheckIfAdminAccount(t *testing.T) {
+	SetDefaults(NETWORKADMIN, ORGADMIN)
+	SetDefaultAccess()
+
+	var Acct3 = common.BytesToAddress([]byte("permission-test1"))
+	var Acct4 = common.BytesToAddress([]byte("permission-test2"))
+	var Acct5 = common.BytesToAddress([]byte("permission-test3"))
+	var Acct6 = common.BytesToAddress([]byte("permission-test4"))
+	var Acct7 = common.BytesToAddress([]byte("permission-test5"))
+	var Acct8 = common.BytesToAddress([]byte("permission-test6"))
+	var Acct9 = common.BytesToAddress([]byte("unassigned-account"))
+
+	// Create two orgs, Networkadmin and OADMIN
+	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
+	OrgInfoMap.UpsertOrg(ORGADMIN, "", ORGADMIN, big.NewInt(1), OrgApproved)
+
+	// Insert roles for both orgs one being admin role and the other a normal role
+	RoleInfoMap.UpsertRole(NETWORKADMIN, NETWORKADMIN, true, true, FullAccess, true)
+	RoleInfoMap.UpsertRole(NETWORKADMIN, "ROLE1", true, false, Transact, true)
+	RoleInfoMap.UpsertRole(NETWORKADMIN, "ROLE2", true, true, Transact, false)
+
+	RoleInfoMap.UpsertRole(ORGADMIN, ORGADMIN, true, true, FullAccess, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE1", true, false, Transact, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE2", true, true, Transact, false)
+
+	// Assign accounts to orgs
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, "ROLE1", Acct2, false, AcctActive)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, "ROLE2", Acct3, true, AcctActive)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct4, true, AcctBlacklisted)
+
+	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct5, true, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE1", Acct6, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE2", Acct7, true, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct8, true, AcctBlacklisted)
+
+	type args struct {
+		acctId common.Address
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "Network admin account",
+			args: args{Acct1},
+			want: true,
+		},
+		{
+			name: "Normal account in Network admin org",
+			args: args{Acct2},
+			want: false,
+		},
+		{
+			name: "Account linked to an inactive org admin role - network admin org",
+			args: args{Acct2},
+			want: false,
+		},
+		{
+			name: "Network admin account which is blacklisted",
+			args: args{Acct4},
+			want: false,
+		},
+		{
+			name: "Org admin account",
+			args: args{Acct5},
+			want: true,
+		},
+		{
+			name: "Normal account in in org",
+			args: args{Acct6},
+			want: false,
+		},
+		{
+			name: "Account linked to an inactive org admin role in org",
+			args: args{Acct7},
+			want: false,
+		},
+		{
+			name: "org admin account which is blacklisted",
+			args: args{Acct8},
+			want: false,
+		},
+		{
+			name: "Unassigned account",
+			args: args{Acct9},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CheckIfAdminAccount(tt.args.acctId); got != tt.want {
+				t.Errorf("CheckIfAdminAccount() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_checkIfOrgActive(t *testing.T) {
+	OrgInfoMap = NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
+	OrgInfoMap.UpsertOrg("ORG1", "", "ORG1", big.NewInt(1), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG2", "", "ORG2", big.NewInt(1), OrgPendingSuspension)
+	OrgInfoMap.UpsertOrg("ORG3", "ORG1", "ORG1", big.NewInt(2), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG4", "ORG2", "ORG2", big.NewInt(2), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG5", "", "ORG5", big.NewInt(1), OrgSuspended)
+	OrgInfoMap.UpsertOrg("ORG6", "ORG5", "ORG5", big.NewInt(2), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG7", "ORG5", "ORG5", big.NewInt(2), OrgSuspended)
+
+	type args struct {
+		orgId string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "Org is approved",
+			args: args{orgId: "ORG1"},
+			want: true,
+		},
+		{
+			name: "Org under suspension",
+			args: args{orgId: "ORG2"},
+			want: true,
+		},
+		{
+			name: "Sub org approved",
+			args: args{orgId: "ORG1.ORG3"},
+			want: true,
+		},
+		{
+			name: "Sub org approved under a pending suspension org",
+			args: args{orgId: "ORG2.ORG4"},
+			want: true,
+		},
+		{
+			name: "Org suspended",
+			args: args{orgId: "ORG5"},
+			want: false,
+		},
+		{
+			name: "Approved sub org under a suspended org",
+			args: args{orgId: "ORG5.ORG6"},
+			want: false,
+		},
+		{
+			name: "Suspended sub org under a suspended org",
+			args: args{orgId: "ORG5.ORG7"},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := checkIfOrgActive(tt.args.orgId); got != tt.want {
+				t.Errorf("checkIfOrgActive() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

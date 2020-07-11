@@ -173,6 +173,12 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
 		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
 	}
+
+	ipcPath := quorumGetPrivateTransactionManager()
+	if ipcPath != "" {
+		utils.RegisterExtensionService(stack, ethChan)
+	}
+
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
 	shhEnabled := enableWhisper(ctx)
 	shhAutoEnabled := !ctx.GlobalIsSet(utils.WhisperEnabledFlag.Name) && ctx.GlobalIsSet(utils.DeveloperFlag.Name)
@@ -246,4 +252,13 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 // environment variable is set
 func quorumValidatePrivateTransactionManager() bool {
 	return os.Getenv("PRIVATE_CONFIG") != ""
+}
+
+//
+func quorumGetPrivateTransactionManager() string {
+	cfgPath := os.Getenv("PRIVATE_CONFIG")
+	if cfgPath != "" && cfgPath != "ignore" {
+		return cfgPath
+	}
+	return ""
 }

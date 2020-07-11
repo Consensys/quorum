@@ -24,9 +24,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -60,6 +59,11 @@ func NewClient(c *rpc.Client) *Client {
 
 // Quorum
 //
+// NewClientWithPTM creates a client that uses the given RPC client and the privateTransactionManager client
+func NewClientWithPTM(c *rpc.Client, ptm privateTransactionManagerClient) *Client {
+	return &Client{c, ptm}
+}
+
 // provides support for private transactions
 func (ec *Client) WithPrivateTransactionManager(rawurl string) (*Client, error) {
 	var err error
@@ -69,6 +73,8 @@ func (ec *Client) WithPrivateTransactionManager(rawurl string) (*Client, error) 
 	}
 	return ec, nil
 }
+
+// /Quorum
 
 func (ec *Client) Close() {
 	ec.c.Close()
@@ -543,7 +549,7 @@ func (ec *Client) PreparePrivateTransaction(data []byte, privateFrom string) ([]
 	if ec.pc == nil {
 		return nil, errors.New("missing private transaction manager client configuration")
 	}
-	return ec.pc.storeRaw(data, privateFrom)
+	return ec.pc.StoreRaw(data, privateFrom)
 }
 
 func toCallArg(msg ethereum.CallMsg) interface{} {
