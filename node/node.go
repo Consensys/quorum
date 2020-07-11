@@ -200,6 +200,7 @@ func (n *Node) Start() error {
 
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
+	var kinds []reflect.Type
 	for _, constructor := range n.serviceFuncs {
 		// Create a new context for the particular service
 		ctx := &ServiceContext{
@@ -221,6 +222,8 @@ func (n *Node) Start() error {
 			return &DuplicateServiceError{Kind: kind}
 		}
 		services[kind] = service
+		// to keep track of order in which services are constructed
+		kinds = append(kinds, kind)
 	}
 	// Gather the protocols and start the freshly assembled P2P server
 	for _, service := range services {
@@ -231,7 +234,9 @@ func (n *Node) Start() error {
 	}
 	// Start each of the services
 	var started []reflect.Type
-	for kind, service := range services {
+	// start services in the same order that they are constructed
+	for _, kind := range kinds {
+		service := services[kind]
 		// Start the next service, stopping all previous upon failure
 		if err := service.Start(running); err != nil {
 			for _, kind := range started {

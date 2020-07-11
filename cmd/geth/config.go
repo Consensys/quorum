@@ -154,13 +154,13 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		cfg.Eth.OverrideIstanbul = new(big.Int).SetUint64(ctx.GlobalUint64(utils.OverrideIstanbulFlag.Name))
 	}
 
-	// this must be done first to make sure plugin manager is fully up.
-	// any fatal at this point is safe
+	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
+
+	// plugin service must be after eth service so that eth service will be stopped gradually if any of the plugin
+	// fails to start
 	if cfg.Node.Plugins != nil {
 		utils.RegisterPluginService(stack, &cfg.Node, ctx.Bool(utils.PluginSkipVerifyFlag.Name), ctx.Bool(utils.PluginLocalVerifyFlag.Name), ctx.String(utils.PluginPublicKeyFlag.Name))
 	}
-
-	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
 	if cfg.Node.IsPermissionEnabled() {
 		utils.RegisterPermissionService(stack)
