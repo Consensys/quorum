@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/common"
@@ -562,6 +563,12 @@ func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
 				log.Warn(fmt.Sprintf("Failed to start smart card hub, disabling: %v", err))
 			} else {
 				backends = append(backends, schub)
+			}
+		}
+		if conf.Plugins != nil {
+			if _, ok := conf.Plugins.Providers[plugin.AccountPluginInterfaceName]; ok {
+				pluginBackend := pluggable.NewBackend()
+				backends = append(backends, pluginBackend)
 			}
 		}
 	}

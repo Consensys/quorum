@@ -851,7 +851,11 @@ var (
 		Name:  "plugins.skipverify",
 		Usage: "If enabled, plugin integrity is NOT verified",
 	}
-
+	// account plugin flags
+	AccountPluginNewAccountConfigFlag = cli.StringFlag{
+		Name:  "plugins.account.config",
+		Usage: "Value will be passed to an account plugin if being used.  See the account plugin implementation's documentation for further details",
+	}
 	// Istanbul settings
 	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
 		Name:  "istanbul.requesttimeout",
@@ -1346,7 +1350,7 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	case ctx.GlobalBool(GoerliFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "goerli")
 	}
-	if err := setPlugins(ctx, cfg); err != nil {
+	if err := SetPlugins(ctx, cfg); err != nil {
 		Fatalf(err.Error())
 	}
 }
@@ -1354,7 +1358,7 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 // Quorum
 //
 // Read plugin settings from --plugins flag. Overwrite settings defined in --config if any
-func setPlugins(ctx *cli.Context, cfg *node.Config) error {
+func SetPlugins(ctx *cli.Context, cfg *node.Config) error {
 	if ctx.GlobalIsSet(PluginSettingsFlag.Name) {
 		// validate flag combination
 		if ctx.GlobalBool(PluginSkipVerifyFlag.Name) && ctx.GlobalBool(PluginLocalVerifyFlag.Name) {

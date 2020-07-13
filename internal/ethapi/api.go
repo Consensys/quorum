@@ -32,6 +32,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -344,23 +345,57 @@ func (s *PrivateAccountAPI) UnlockAccount(ctx context.Context, addr common.Addre
 	} else {
 		d = time.Duration(*duration) * time.Second
 	}
-	ks, err := fetchKeystore(s.am)
-	if err != nil {
-		return false, err
-	}
-	err = ks.TimedUnlock(accounts.Account{Address: addr}, password, d)
+	err := s.unlockAccount(addr, password, d)
 	if err != nil {
 		log.Warn("Failed account unlock attempt", "address", addr, "err", err)
 	}
 	return err == nil, err
 }
 
+func (s *PrivateAccountAPI) unlockAccount(addr common.Address, password string, duration time.Duration) error {
+	acct := accounts.Account{Address: addr}
+
+	backend, err := s.am.Backend(acct)
+	if err != nil {
+		return err
+	}
+
+	switch b := backend.(type) {
+	case *pluggable.Backend:
+		return b.TimedUnlock(acct, password, duration)
+	case *keystore.KeyStore:
+		return b.TimedUnlock(acct, password, duration)
+	default:
+		return errors.New("unlock only supported for keystore or plugin wallets")
+	}
+}
+
 // LockAccount will lock the account associated with the given address when it's unlocked.
 func (s *PrivateAccountAPI) LockAccount(addr common.Address) bool {
-	if ks, err := fetchKeystore(s.am); err == nil {
-		return ks.Lock(addr) == nil
+	if err := s.lockAccount(addr); err != nil {
+		log.Warn("Failed account lock attempt", "address", addr, "err", err)
+		return false
 	}
-	return false
+
+	return true
+}
+
+func (s *PrivateAccountAPI) lockAccount(addr common.Address) error {
+	acct := accounts.Account{Address: addr}
+
+	backend, err := s.am.Backend(acct)
+	if err != nil {
+		return err
+	}
+
+	switch b := backend.(type) {
+	case *pluggable.Backend:
+		return b.Lock(acct)
+	case *keystore.KeyStore:
+		return b.Lock(addr)
+	default:
+		return errors.New("lock only supported for keystore or plugin wallets")
+	}
 }
 
 // signTransaction sets defaults and signs the given transaction

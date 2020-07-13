@@ -35,7 +35,7 @@ func TestSetPlugins_whenPluginsNotEnabled(t *testing.T) {
 	arbitraryNodeConfig := &node.Config{}
 	arbitraryCLIContext := cli.NewContext(nil, &flag.FlagSet{}, nil)
 
-	assert.NoError(t, setPlugins(arbitraryCLIContext, arbitraryNodeConfig))
+	assert.NoError(t, SetPlugins(arbitraryCLIContext, arbitraryNodeConfig))
 
 	assert.Nil(t, arbitraryNodeConfig.Plugins)
 }
@@ -96,13 +96,13 @@ func TestSetPlugins_whenTypical(t *testing.T) {
 	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
 	assert.NoError(t, arbitraryCLIContext.GlobalSet(PluginSettingsFlag.Name, "file://"+arbitraryJSONFile))
 
-	assert.NoError(t, setPlugins(arbitraryCLIContext, arbitraryNodeConfig))
+	assert.NoError(t, SetPlugins(arbitraryCLIContext, arbitraryNodeConfig))
 
 	assert.NotNil(t, arbitraryNodeConfig.Plugins)
 }
 
 func verifyErrorMessage(t *testing.T, ctx *cli.Context, cfg *node.Config, expectedMsg string) {
-	err := setPlugins(ctx, cfg)
+	err := SetPlugins(ctx, cfg)
 	assert.EqualError(t, err, expectedMsg)
 }
 
