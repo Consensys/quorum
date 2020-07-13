@@ -58,6 +58,10 @@ curl -X POST \
      http://localhost:22000
 ``` 
 
+```js tab="js console"
+plugin_account.newAccount({<config>})
+``` 
+
 ```shell tab="clef"
 echo '
     {
@@ -93,6 +97,10 @@ curl -X POST \
          }' \
      http://localhost:22000
 ```
+
+```js tab="js console"
+plugin_account.importRawKey(<rawkey>, {<config>})
+``` 
 
 ```text tab="clef"
 not supported - use CLI instead
