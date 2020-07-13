@@ -360,6 +360,6 @@ type privateTransactionManagerStubClient struct {
 	expectedData []byte
 }
 
-func (s *privateTransactionManagerStubClient) storeRaw(data []byte, privateFrom string) ([]byte, error) {
+func (s *privateTransactionManagerStubClient) StoreRaw(data []byte, privateFrom string) ([]byte, error) {
 	return s.expectedData, nil
 }

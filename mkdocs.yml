@@ -53,6 +53,9 @@ nav:
                 - How it works: Privacy/Constellation/How constellation works.md
                 - Sample Configuration: Privacy/Constellation/Sample Configuration.md
                 - Running Constellation: Privacy/Constellation/Installation & Running.md
+            - Contract Extension:
+                - Overview: Privacy/Contract-Extension/Overview.md
+                - APIs: Privacy/Contract-Extension/ContractExtension apis.md
         - Consensus:
             - Consensus: Consensus/Consensus.md
             - Raft BFT:
