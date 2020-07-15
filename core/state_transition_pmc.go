@@ -26,27 +26,31 @@ func newPMC(st pmcStateTransitionAPI) *privateMessageContext {
 type privateMessageContext struct {
 	stAPI pmcStateTransitionAPI
 
-	isPrivate         bool
 	hasPrivatePayload bool
 
 	snapshot                int
 	receivedPrivacyMetadata *engine.ExtraMetadata
-
-	// tx status
-	failed bool
 }
 
 func (pmc *privateMessageContext) mustVerify() bool {
-	return pmc.isPrivate && pmc.hasPrivatePayload && pmc.receivedPrivacyMetadata != nil && pmc.stAPI.IsPrivacyEnhancementsEnabled()
+	return pmc.hasPrivatePayload && pmc.receivedPrivacyMetadata != nil && pmc.stAPI.IsPrivacyEnhancementsEnabled()
 }
 
-// checks and adjusts privacy metadata in the state transition context
+// checks the privacy metadata in the state transition context
 // returns false if TransitionDb needs to exit early
 // true otherwise
-func (pmc *privateMessageContext) prepare() bool {
+func (pmc *privateMessageContext) prepare() (bool, error) {
 	if pmc.receivedPrivacyMetadata != nil {
 		// if privacy enhancements are disabled we should treat all transactions as StandardPrivate
 		if !pmc.stAPI.IsPrivacyEnhancementsEnabled() && pmc.receivedPrivacyMetadata.PrivacyFlag.IsNotStandardPrivate() {
+			// TODO - after discussions with Sai I'm inclined to agree with his approach to deal with this scenario.
+			// This situation is only possible if the current node has been upgraded (both quorum and tessera) yet the
+			// node did not apply the privacyEnhancementsBlock configuration (with a network agreed block height).
+			// Since this would be considered node misconfiguration the behavior should be changed to return an error
+			// which would then cause the node not to apply the block (and potentially get stuck and not be able to
+			// continue to apply new blocks). The resolution should then be to revert to an appropriate block height and
+			// run geth init with the network agreed privacyEnhancementsBlock.
+			// The prepare method signature has been changed to allow returning the relevant error.
 			log.Warn("Non StandardPrivate transaction received but PrivacyEnhancements are disabled. Enhanced privacy metadata will be ignored.")
 			pmc.receivedPrivacyMetadata = &engine.ExtraMetadata{
 				ACHashes:     make(common.EncryptedPayloadHashes),
@@ -56,13 +60,12 @@ func (pmc *privateMessageContext) prepare() bool {
 
 		if pmc.receivedPrivacyMetadata.PrivacyFlag == engine.PrivacyFlagStateValidation && common.EmptyHash(pmc.receivedPrivacyMetadata.ACMerkleRoot) {
 			log.Error("Privacy metadata has empty MR for stateValidation flag")
-			pmc.failed = true
-			return false
+			return false, nil
 		}
 		privMetadata := types.NewTxPrivacyMetadata(pmc.receivedPrivacyMetadata.PrivacyFlag)
 		pmc.stAPI.SetTxPrivacyMetadata(privMetadata)
 	}
-	return true
+	return true, nil
 }
 
 //If the list of affected CA Transactions by the time evm executes is different from the list of affected contract transactions returned from Tessera
@@ -74,11 +77,10 @@ func (pmc *privateMessageContext) verify(vmerr error) (bool, error) {
 	// convenient function to return error. It has the same signature as the main function
 	returnErrorFunc := func(anError error, logMsg string, ctx ...interface{}) (exitEarly bool, err error) {
 		if logMsg != "" {
-			log.Error(logMsg, ctx...)
+			log.Debug(logMsg, ctx...)
 		}
 		pmc.stAPI.RevertToSnapshot(pmc.snapshot)
 		exitEarly = true
-		pmc.failed = true
 		if anError != nil {
 			err = fmt.Errorf("vmerr=%s, err=%s", vmerr, anError)
 		}

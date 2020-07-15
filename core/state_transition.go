@@ -213,11 +213,12 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	isQuorum := st.evm.ChainConfig().IsQuorum
 
 	var data []byte
-	pmc := newPMC(st)
+	isPrivate := false
 	publicState := st.state
+	pmc := newPMC(st)
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
+		isPrivate = true
 		pmc.snapshot = st.evm.StateDB.Snapshot()
-		pmc.isPrivate = true
 		data, pmc.receivedPrivacyMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
@@ -231,8 +232,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 
 		pmc.hasPrivatePayload = data != nil
-		if !pmc.prepare() {
-			return nil, 0, pmc.failed, nil
+
+		if ok, err := pmc.prepare(); !ok {
+			return nil, 0, true, err
 		}
 	} else {
 		data = st.data
@@ -263,7 +265,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		// Increment the account nonce only if the transaction isn't private.
 		// If the transaction is private it has already been incremented on
 		// the public state.
-		if !pmc.isPrivate {
+		if !isPrivate {
 			publicState.SetNonce(msg.From(), publicState.GetNonce(sender.Address())+1)
 		}
 		var to common.Address
@@ -273,7 +275,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			to = st.to()
 		}
 		//if input is empty for the smart contract call, return
-		if len(data) == 0 && pmc.isPrivate {
+		if len(data) == 0 && isPrivate {
 			st.refundGas()
 			st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 			return nil, 0, false, nil
@@ -291,26 +293,29 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		}
 	}
 
+	// Quorum - Privacy Enhancements
+	// perform privacy enhancements checks
 	if pmc.mustVerify() {
 		var exitEarly = false
 		exitEarly, err = pmc.verify(vmerr)
 		if exitEarly {
-			return nil, 0, pmc.failed, err
+			return nil, 0, true, err
 		}
 	}
+	// End Quorum - Privacy Enhancements
 
 	// Pay gas used during contract creation or execution (stAPI.gas tracks remaining gas)
 	// However, if private contract then we don't want to do this else we can get
 	// a mismatch between a (non-participant) minter and (participant) validator,
 	// which can cause a 'BAD BLOCK' crash.
-	if !pmc.isPrivate {
+	if !isPrivate {
 		st.gas = leftoverGas
 	}
 
 	st.refundGas()
 	st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 
-	if pmc.isPrivate {
+	if isPrivate {
 		return ret, 0, vmerr != nil, err
 	}
 	return ret, st.gasUsed(), vmerr != nil, err
@@ -338,6 +343,7 @@ func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
 }
 
+// Quorum - Privacy Enhancements
 func (st *StateTransition) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
 	st.evm.SetTxPrivacyMetadata(pm)
 }
@@ -356,3 +362,5 @@ func (st *StateTransition) CalculateMerkleRoot() (common.Hash, error) {
 func (st *StateTransition) AffectedContracts() []common.Address {
 	return st.evm.AffectedContracts()
 }
+
+// End Quorum - Privacy Enhancements
