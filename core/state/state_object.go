@@ -515,11 +515,10 @@ func (s *stateObject) GetCommittedPrivacyMetadata() (*PrivacyMetadata, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve metadata from the privacyMetadataTrie. Cause: %v", err)
 	}
-	data, err := bytesToPrivacyMetadata(val)
-	if err != nil {
-		return nil, err
+	if len(val) == 0 {
+		return nil, fmt.Errorf("The provided contract does not have privacy metadata: %x", s.address)
 	}
-	return data, err
+	return bytesToPrivacyMetadata(val)
 }
 
 // End Quorum - Privacy Enhancements

@@ -91,6 +91,11 @@ func (pmc *privateMessageContext) verify(vmerr error) (bool, error) {
 	privacyFlag := pmc.receivedPrivacyMetadata.PrivacyFlag
 	actualACHashesLength := 0
 	for _, addr := range actualACAddresses {
+		// GetStatePrivacyMetadata is invoked on the privateState (as the tx is private) and it returns:
+		// 1. public contacts: privacyMetadata = nil, err = nil
+		// 2. private contracts of type:
+		// 2.1. StandardPrivate:     privacyMetadata = nil, err = "The provided contract does not have privacy metadata"
+		// 2.2. PartyProtection/PSV: privacyMetadata = <data>, err = nil
 		actualPrivacyMetadata, err := pmc.stAPI.GetStatePrivacyMetadata(addr)
 		//when privacyMetadata should have been recovered but wasnt (includes non-party)
 		//non party will only be caught here if sender provides privacyFlag

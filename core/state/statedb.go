@@ -117,11 +117,10 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 
 	// End Quorum - Privacy Enhancements
 	privacyMetadataRoot := db.PrivacyMetadataLinker().PrivacyMetadataRootForPrivateStateRoot(root)
-	log.Info("Privacy metadata root", "hash", privacyMetadataRoot)
+	log.Debug("Privacy metadata root", "hash", privacyMetadataRoot)
 	privacyMetaDataTrie, err := db.OpenTrie(privacyMetadataRoot)
 	if err != nil {
-		log.Error("Unable to open privacy metadata trie", "err", err)
-		return nil, err
+		return nil, fmt.Errorf("Unable to open privacy metadata trie: %v", err)
 	}
 	// End Quorum - Privacy Enhancements
 
@@ -509,7 +508,6 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 	}
 
 	if obj.dirtyPrivacyMetadata && obj.privacyMetadata != nil {
-		log.Info("Privacy metadata exists and is dirty")
 		privacyMetadataBytes, err := privacyMetadataToBytes(obj.privacyMetadata)
 		if err != nil {
 			panic(fmt.Errorf("can't encode privacy metadata at %x: %v", addr[:], err))
@@ -865,15 +863,13 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 		// commit the privacy metadata trie
 		privacyMetadataTrieRoot, err := s.privacyMetaDataTrie.Commit(nil)
 		if err != nil {
-			log.Error("Unable to commit the privacy metadata trie", "err", err)
-			return common.Hash{}, err
+			return common.Hash{}, fmt.Errorf("Unable to commit the privacy metadata trie: %v", err)
 		}
-		log.Info("Privacy metadata root after metadata trie commit", "root", privacyMetadataTrieRoot)
+		log.Debug("Privacy metadata root after metadata trie commit", "root", privacyMetadataTrieRoot)
 		// link the new state root to the privacy metadata root
 		err = s.db.PrivacyMetadataLinker().LinkPrivacyMetadataRootToPrivateStateRoot(root, privacyMetadataTrieRoot)
 		if err != nil {
-			log.Error("Unable to link the state root to the privacy metadata root", "err", err)
-			return common.Hash{}, err
+			return common.Hash{}, fmt.Errorf("Unable to link the state root to the privacy metadata root: %v", err)
 		}
 		// add a reference from the privacy metadata root to the state root so that when the state root is written
 		// to the DB the the privacy metadata root is also written

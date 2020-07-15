@@ -1321,11 +1321,7 @@ func (s *PublicTransactionPoolAPI) GetContractPrivacyMetadata(ctx context.Contex
 	if state == nil || err != nil {
 		return nil, err
 	}
-	pm, err := state.GetStatePrivacyMetadata(address)
-	if err != nil {
-		return nil, err
-	}
-	return pm, nil
+	return state.GetStatePrivacyMetadata(address)
 }
 
 // GetTransactionByHash returns the transaction for the given hash
@@ -2116,7 +2112,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 // If transaction is raw, the tx payload is indeed the hash of the encrypted payload
 //
 // For private transaction, run a simulated execution in order to
-// 1. Find all affected private contract accounts then retrieve encrypted payload hases of their creation txs
+// 1. Find all affected private contract accounts then retrieve encrypted payload hashes of their creation txs
 // 2. Calculate Merkle Root as the result of the simulated execution
 // The above information along with private originating payload are sent to Transaction Manager
 // to obtain hash of the encrypted private payload
@@ -2139,7 +2135,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 			var affectedCATxHashes common.EncryptedPayloadHashes // of affected contract accounts
 			var merkleRoot common.Hash
 			var privacyFlag engine.PrivacyFlagType
-			log.Info("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag)
+			log.Debug("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag)
 			if isRaw {
 				hash = common.BytesToEncryptedPayloadHash(data)
 				privatePayload, _, revErr := private.P.ReceiveRaw(hash)
@@ -2275,6 +2271,11 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	privacyFlag := privateTxArgs.PrivacyFlag
 	log.Trace("after simulation run", "numberOfAffectedContracts", len(addresses), "privacyFlag", privacyFlag)
 	for _, addr := range addresses {
+		// GetStatePrivacyMetadata is invoked directly on the privateState (as the tx is private) and it returns:
+		// 1. public contacts: privacyMetadata = nil, err = nil
+		// 2. private contracts of type:
+		// 2.1. StandardPrivate:     privacyMetadata = nil, err = "The provided contract does not have privacy metadata"
+		// 2.2. PartyProtection/PSV: privacyMetadata = <data>, err = nil
 		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
 		//privacyMetadata not found=non-party, or another db error

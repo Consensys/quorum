@@ -19,6 +19,7 @@ package eth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -423,7 +424,7 @@ func (s EthAPIState) GetStatePrivacyMetadata(addr common.Address) (*state.Privac
 	if s.privateState.Exist(addr) {
 		return s.privateState.GetStatePrivacyMetadata(addr)
 	}
-	return s.state.GetStatePrivacyMetadata(addr)
+	return nil, fmt.Errorf("The provided address is not a private contract: %x", addr)
 }
 
 func (s EthAPIState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
