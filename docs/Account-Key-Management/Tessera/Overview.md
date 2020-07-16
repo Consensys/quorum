@@ -1,1 +1,1 @@
-See [Tessera Key Configuration](../../../../Privacy/Tessera/Configuration/Keys).
+See [Tessera Key Configuration](../../../Privacy/Tessera/Configuration/Keys).
