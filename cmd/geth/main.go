@@ -32,6 +32,7 @@ import (
 	"github.com/elastic/gosigar"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/console"
@@ -44,6 +45,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/permission"
+	"github.com/ethereum/go-ethereum/plugin"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -361,6 +363,14 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 
 	// Start up the node itself
 	utils.StartNode(stack)
+
+	// Now that the plugin manager has been started we register the account plugin with the corresponding account backend.  All other account management is disabled when using External Signer
+	if !ctx.IsSet(utils.ExternalSignerFlag.Name) && stack.PluginManager().IsEnabled(plugin.AccountPluginInterfaceName) {
+		b := stack.AccountManager().Backends(pluggable.BackendType)[0].(*pluggable.Backend)
+		if err := stack.PluginManager().AddAccountPluginToBackend(b); err != nil {
+			log.Error("failed to setup account plugin", "err", err)
+		}
+	}
 
 	// Unlock any account specifically requested
 	unlockAccounts(ctx, stack)

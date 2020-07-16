@@ -1,12 +1,24 @@
 package notinuse
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/ethereum/go-ethereum/common"
+)
 
 var ErrPrivateTxManagerNotInUse = errors.New("private transaction manager is not in use")
 
 // NotInUsePrivateTxManager returns an error for all communication functions,
 // stating that no private transaction manager is being used by the node
 type PrivateTransactionManager struct{}
+
+func (ptm *PrivateTransactionManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
+	panic("implement me")
+}
+
+func (ptm *PrivateTransactionManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
+	panic("implement me")
+}
 
 func (ptm *PrivateTransactionManager) Send(data []byte, from string, to []string) ([]byte, error) {
 	return nil, ErrPrivateTxManagerNotInUse

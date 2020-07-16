@@ -25,7 +25,7 @@ var (
 	}
 
 	CliqueProtocol = Protocol{
-		Name:     "clique",
+		Name:     "eth",
 		Versions: []uint{eth64, eth63},
 		Lengths:  map[uint]uint64{eth64: 17, eth63: 17},
 	}

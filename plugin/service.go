@@ -6,6 +6,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/ethereum/go-ethereum/accounts/pluggable"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -146,6 +147,34 @@ func (s *PluginManager) PluginsInfo() interface{} {
 		info[k] = v
 	}
 	return info
+}
+
+// AddAccountPluginToBackend adds the account plugin to the provided account backend
+func (s *PluginManager) AddAccountPluginToBackend(b *pluggable.Backend) error {
+	v := new(ReloadableAccountServiceFactory)
+	if err := s.GetPluginTemplate(AccountPluginInterfaceName, v); err != nil {
+		return err
+	}
+	service, err := v.Create()
+	if err != nil {
+		return err
+	}
+	if err := b.SetPluginService(service); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *PluginManager) Reload(name PluginInterfaceName) (bool, error) {
+	p, ok := s.getPlugin(name)
+	if !ok {
+		return false, fmt.Errorf("no such plugin provider: %s", name)
+	}
+	_ = p.Stop()
+	if err := p.Start(); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // this is to configure delegate APIs call to the plugins

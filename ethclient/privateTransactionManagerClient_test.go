@@ -21,7 +21,7 @@ func TestPrivateTransactionManagerClient_storeRaw(t *testing.T) {
 	testObject, err := newPrivateTransactionManagerClient(arbitraryServer.URL)
 	assert.NoError(t, err)
 
-	key, err := testObject.storeRaw([]byte("arbitrary payload"), "arbitrary private from")
+	key, err := testObject.StoreRaw([]byte("arbitrary payload"), "arbitrary private from")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "arbitrary data", string(key))

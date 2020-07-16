@@ -11,7 +11,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/plugin/account"
 	"github.com/ethereum/go-ethereum/plugin/helloworld"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/hashicorp/go-plugin"
 	"github.com/naoina/toml"
@@ -19,6 +21,8 @@ import (
 
 const (
 	HelloWorldPluginInterfaceName = PluginInterfaceName("helloworld") // lower-case always
+	SecurityPluginInterfaceName   = PluginInterfaceName("security")
+	AccountPluginInterfaceName    = PluginInterfaceName("account")
 )
 
 var (
@@ -43,6 +47,33 @@ var (
 			},
 			pluginSet: plugin.PluginSet{
 				helloworld.ConnectorName: &helloworld.PluginConnector{},
+			},
+		},
+		SecurityPluginInterfaceName: {
+			pluginSet: plugin.PluginSet{
+				security.TLSConfigurationConnectorName: &security.TLSConfigurationSourcePluginConnector{},
+				security.AuthenticationConnectorName:   &security.AuthenticationManagerPluginConnector{},
+			},
+		},
+		AccountPluginInterfaceName: {
+			apiProviderFunc: func(ns string, pm *PluginManager) ([]rpc.API, error) {
+				f := new(ReloadableAccountServiceFactory)
+				if err := pm.GetPluginTemplate(AccountPluginInterfaceName, f); err != nil {
+					return nil, err
+				}
+				service, err := f.Create()
+				if err != nil {
+					return nil, err
+				}
+				return []rpc.API{{
+					Namespace: ns,
+					Version:   "1.0.0",
+					Service:   account.NewCreator(service),
+					Public:    true,
+				}}, nil
+			},
+			pluginSet: plugin.PluginSet{
+				account.ConnectorName: &account.PluginConnector{},
 			},
 		},
 	}
@@ -79,15 +110,15 @@ type PluginDefinition struct {
 	Config interface{} `json:"config,omitempty" toml:",omitempty"`
 }
 
-func (m *PluginDefinition) ReadConfig() ([]byte, error) {
-	if m.Config == nil {
+func ReadMultiFormatConfig(config interface{}) ([]byte, error) {
+	if config == nil {
 		return []byte{}, nil
 	}
-	switch k := reflect.TypeOf(m.Config).Kind(); k {
+	switch k := reflect.TypeOf(config).Kind(); k {
 	case reflect.Map, reflect.Slice:
-		return json.Marshal(m.Config)
+		return json.Marshal(config)
 	case reflect.String:
-		configStr := m.Config.(string)
+		configStr := config.(string)
 		u, err := url.Parse(configStr)
 		if err != nil { // just return as is
 			return []byte(configStr), nil
@@ -100,7 +131,6 @@ func (m *PluginDefinition) ReadConfig() ([]byte, error) {
 			isFile := u.Query().Get("type") == "file"
 			if v, ok := os.LookupEnv(varName); ok {
 				if isFile {
-					m.Config = v
 					return ioutil.ReadFile(v)
 				} else {
 					return []byte(v), nil
@@ -186,6 +216,29 @@ func (s *Settings) SetDefaults() {
 	if s.CentralConfig == nil {
 		s.CentralConfig = quorumPluginCentralConfiguration
 	}
+}
+
+// CheckSettingsAreSupported validates Settings by ensuring that only supportedPlugins are defined.
+// It is not required for all supportedPlugins to be defined.
+// An error containing plugin details is returned if one or more unsupported plugins are defined.
+func (s *Settings) CheckSettingsAreSupported(supportedPlugins []PluginInterfaceName) error {
+	errList := []PluginInterfaceName{}
+	for name := range s.Providers {
+		isValid := false
+		for _, supportedPlugin := range supportedPlugins {
+			if supportedPlugin == name {
+				isValid = true
+				break
+			}
+		}
+		if !isValid {
+			errList = append(errList, name)
+		}
+	}
+	if len(errList) != 0 {
+		return fmt.Errorf("unsupported plugins configured: %v", errList)
+	}
+	return nil
 }
 
 type PluginCentralConfiguration struct {
