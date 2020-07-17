@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"os"
 	"reflect"
@@ -262,7 +263,10 @@ func quorumValidatePrivateTransactionManager() bool {
 // the PrivacyEnhancements feature
 func quorumValidatePrivacyEnhancements(ethereum *eth.Ethereum) {
 	privacyEnhancementsBlock := ethereum.BlockChain().Config().PrivacyEnhancementsBlock
-	if privacyEnhancementsBlock != nil && !private.P.HasFeature(engine.PrivacyEnhancements) {
-		utils.Fatalf("Cannot start quorum with privacy enhancements enabled while the transaction manager does not support it")
+	if privacyEnhancementsBlock != nil {
+		log.Info("Privacy enhancements is configured to be enabled from block ", "height", privacyEnhancementsBlock)
+		if !private.P.HasFeature(engine.PrivacyEnhancements) {
+			utils.Fatalf("Cannot start quorum with privacy enhancements enabled while the transaction manager does not support it")
+		}
 	}
 }
