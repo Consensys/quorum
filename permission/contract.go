@@ -79,8 +79,7 @@ func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, ke
 
 func NewPermissionContractServiceForApi(p *PermissionCtrl, frmAcct accounts.Account, transactOpts *bind.TransactOpts, gasLimit uint64, gasPrice *big.Int) PermissionContractService {
 	if p.eeaFlag {
-		var pc *PermissionContractEea
-		pc, _ = p.contract.(*PermissionContractEea)
+		pc := p.contract.(*PermissionContractEea)
 		ps := &eea.EeaPermInterfaceSession{
 			Contract: pc.permInterf,
 			CallOpts: bind.CallOpts{
@@ -95,8 +94,7 @@ func NewPermissionContractServiceForApi(p *PermissionCtrl, frmAcct accounts.Acco
 		}
 		return &PermissionContractEea{permInterfSession: ps, eeaFlag: p.eeaFlag, permConfig: p.permConfig}
 	}
-	var pc *PermissionContractBasic
-	pc, _ = p.contract.(*PermissionContractBasic)
+	pc := p.contract.(*PermissionContractBasic)
 	ps := &basic.PermInterfaceSession{
 		Contract: pc.permInterf,
 		CallOpts: bind.CallOpts{

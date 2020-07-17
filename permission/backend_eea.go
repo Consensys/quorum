@@ -25,7 +25,7 @@ func (b *backendEea) manageAccountPermissions() error {
 	var contract *PermissionContractEea
 	var ok bool
 	if contract, ok = p.contract.(*PermissionContractEea); !ok {
-		return fmt.Errorf("error casting permission contract service to basic contract")
+		return fmt.Errorf("error casting permission contract service to EEA contract")
 	}
 	if _, err := contract.permAcct.EeaAcctManagerFilterer.WatchAccountAccessModified(opts, chAccessModified); err != nil {
 		return fmt.Errorf("failed AccountAccessModified: %v", err)
