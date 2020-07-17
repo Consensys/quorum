@@ -15,7 +15,6 @@ type PermissionContractEea struct {
 	ethClnt    bind.ContractBackend
 	key        *ecdsa.PrivateKey
 	permConfig *types.PermissionConfig
-	eeaFlag    bool
 
 	//eea contracts
 	permUpgr   *eea.EeaPermUpgr

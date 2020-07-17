@@ -72,9 +72,9 @@ type PermissionContractService interface {
 func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, key *ecdsa.PrivateKey,
 	permConfig *types.PermissionConfig) PermissionContractService {
 	if eeaFlag {
-		return &PermissionContractEea{ethClnt: ethClnt, eeaFlag: eeaFlag, key: key, permConfig: permConfig}
+		return &PermissionContractEea{ethClnt: ethClnt, key: key, permConfig: permConfig}
 	}
-	return &PermissionContractBasic{ethClnt: ethClnt, eeaFlag: eeaFlag, key: key, permConfig: permConfig}
+	return &PermissionContractBasic{ethClnt: ethClnt, key: key, permConfig: permConfig}
 }
 
 func NewPermissionContractServiceForApi(p *PermissionCtrl, frmAcct accounts.Account, transactOpts *bind.TransactOpts, gasLimit uint64, gasPrice *big.Int) PermissionContractService {
@@ -92,7 +92,7 @@ func NewPermissionContractServiceForApi(p *PermissionCtrl, frmAcct accounts.Acco
 				Signer:   transactOpts.Signer,
 			},
 		}
-		return &PermissionContractEea{permInterfSession: ps, eeaFlag: p.eeaFlag, permConfig: p.permConfig}
+		return &PermissionContractEea{permInterfSession: ps, permConfig: p.permConfig}
 	}
 	pc := p.contract.(*PermissionContractBasic)
 	ps := &basic.PermInterfaceSession{
@@ -107,6 +107,6 @@ func NewPermissionContractServiceForApi(p *PermissionCtrl, frmAcct accounts.Acco
 			Signer:   transactOpts.Signer,
 		},
 	}
-	return &PermissionContractBasic{permInterfSession: ps, eeaFlag: p.eeaFlag, permConfig: p.permConfig}
+	return &PermissionContractBasic{permInterfSession: ps, permConfig: p.permConfig}
 
 }
