@@ -22,7 +22,7 @@ contract EeaNodeManager {
     EeaPermissionsUpgradable private permUpgradable;
     struct NodeDetails {
         string enodeId;
-        bytes32 ip;
+        string ip;
         uint16  port;
         uint16  raftPort;
         string orgId;
@@ -40,25 +40,25 @@ contract EeaNodeManager {
 
 
     // node permission events for new node propose
-    event NodeProposed(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
-    event NodeApproved(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeProposed(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeApproved(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     // node permission events for node deactivation
-    event NodeDeactivated(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeDeactivated(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     // node permission events for node activation
-    event NodeActivated(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeActivated(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     // node permission events for node blacklist
-    event NodeBlacklisted(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeBlacklisted(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     // node permission events for initiating the recovery of blacklisted
     // node
-    event NodeRecoveryInitiated(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeRecoveryInitiated(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     // node permission events for completing the recovery of blacklisted
     // node
-    event NodeRecoveryCompleted(string _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeRecoveryCompleted(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
 
     /** @notice confirms that the caller is the address of implementation
         contract
@@ -99,7 +99,7 @@ contract EeaNodeManager {
       * @return status of the node
       */
     function getNodeDetails(string calldata enodeId) external view
-    returns (string memory _orgId, string memory _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, uint256 _nodeStatus) {
+    returns (string memory _orgId, string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, uint256 _nodeStatus) {
         if (nodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0) {
             return ("", "", "", 0, 0, 0);
         }
@@ -119,7 +119,7 @@ contract EeaNodeManager {
       * @return status of the node
       */
     function getNodeDetailsFromIndex(uint256 _nodeIndex) external view
-    returns (string memory _orgId, string memory _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, uint256 _nodeStatus) {
+    returns (string memory _orgId, string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, uint256 _nodeStatus) {
         return (nodeList[_nodeIndex].orgId, nodeList[_nodeIndex].enodeId, nodeList[_nodeIndex].ip,
         nodeList[_nodeIndex].port, nodeList[_nodeIndex].raftPort,
         nodeList[_nodeIndex].status);
@@ -140,7 +140,7 @@ contract EeaNodeManager {
       * @param _raftport raft port of node
       * @param _orgId org id to which the enode belongs
       */
-    function addAdminNode(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string calldata _orgId) external
+    function addAdminNode(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, string memory _orgId) public
     onlyImplementation
     enodeDoesNotExists(_enodeId) {
         numberOfNodes++;
@@ -156,7 +156,7 @@ contract EeaNodeManager {
       * @param _raftport raft port of node
       * @param _orgId org id to which the enode belongs
       */
-    function addNode(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string calldata _orgId) external
+    function addNode(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, string memory _orgId) public
     onlyImplementation
     enodeDoesNotExists(_enodeId) {
         numberOfNodes++;
@@ -172,7 +172,7 @@ contract EeaNodeManager {
       * @param _raftport raft port of node
       * @param _orgId org or sub org id to which the enode belongs
       */
-    function addOrgNode(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string calldata _orgId) external
+    function addOrgNode(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, string memory _orgId) public
     onlyImplementation
     enodeDoesNotExists(_enodeId) {
         numberOfNodes++;
@@ -189,7 +189,7 @@ contract EeaNodeManager {
       * @param _raftport raft port of node
       * @param _orgId org or sub org id to which the enode belongs
       */
-    function approveNode(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string calldata _orgId) external
+    function approveNode(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, string memory _orgId) public
     onlyImplementation
     enodeExists(_enodeId) {
         // node should belong to the passed org
@@ -218,7 +218,7 @@ contract EeaNodeManager {
             4 - initiate the recovery of a blacklisted node
             5 - blacklisted node recovery fully approved. mark to active
       */
-    function updateNodeStatus(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport, string calldata _orgId, uint256 _action) external
+    function updateNodeStatus(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, string memory _orgId, uint256 _action) public
     onlyImplementation
     enodeExists(_enodeId) {
         // node should belong to the org
@@ -295,7 +295,7 @@ contract EeaNodeManager {
     * @param _raftport raft port of node
     * @return bool indicating if the node is allowed to connect or not
     */
-    function connectionAllowed(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external view onlyImplementation
+    function connectionAllowed(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport) public view onlyImplementation
     returns (bool){
         if (enodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0) {
             return false;

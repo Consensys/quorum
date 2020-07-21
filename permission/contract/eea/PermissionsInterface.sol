@@ -53,7 +53,7 @@ contract EeaPermissionsInterface {
       * @param _port tcp port of node
       * @param _raftport raft port of node
       */
-    function addAdminNode(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external {
+    function addAdminNode(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport) public {
         permImplementation.addAdminNode(_enodeId, _ip, _port, _raftport);
     }
 
@@ -88,8 +88,8 @@ contract EeaPermissionsInterface {
       * @param _raftport raft port of node
       * @param _account account id. this will have the org admin privileges
       */
-    function addOrg(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport,
-        address _account) external {
+    function addOrg(string memory _orgId, string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport,
+        address _account) public {
         permImplementation.addOrg(_orgId, _enodeId, _ip, _port, _raftport, _account, msg.sender);
     }
 
@@ -101,8 +101,8 @@ contract EeaPermissionsInterface {
       * @param _raftport raft port of node
       * @param _account account id this will have the org admin privileges
       */
-    function approveOrg(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport,
-        address _account) external {
+    function approveOrg(string memory _orgId, string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport,
+        address _account) public {
         permImplementation.approveOrg(_orgId, _enodeId, _ip, _port, _raftport, _account, msg.sender);
     }
 
@@ -114,8 +114,8 @@ contract EeaPermissionsInterface {
       * @param _port tcp port of node
       * @param _raftport raft port of node
       */
-    function addSubOrg(string calldata _pOrgId, string calldata _orgId,
-string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external {
+    function addSubOrg(string memory _pOrgId, string memory _orgId,
+string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport) public {
         permImplementation.addSubOrg(_pOrgId, _orgId, _enodeId, _ip, _port, _raftport, msg.sender);
     }
 
@@ -199,7 +199,7 @@ string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) externa
       * @param _port tcp port of node
       * @param _raftport raft port of node
       */
-    function addNode(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external {
+    function addNode(string memory _orgId, string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport) public {
         permImplementation.addNode(_orgId, _enodeId, _ip, _port, _raftport, msg.sender);
 
     }
@@ -212,8 +212,8 @@ string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) externa
       * @param _raftport raft port of node
       * @param _action 1-deactivate, 2-activate back, 3-blacklist the node
       */
-    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport,
-        uint256 _action) external {
+    function updateNodeStatus(string memory _orgId, string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport,
+        uint256 _action) public {
         permImplementation.updateNodeStatus(_orgId, _enodeId, _ip, _port, _raftport, _action, msg.sender);
     }
 
@@ -224,8 +224,8 @@ string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) externa
       * @param _port tcp port of node
       * @param _raftport raft port of node
       */
-    function startBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport)
-    external {
+    function startBlacklistedNodeRecovery(string memory _orgId, string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport)
+    public {
         permImplementation.startBlacklistedNodeRecovery(_orgId, _enodeId, _ip, _port, _raftport, msg.sender);
     }
 
@@ -236,8 +236,8 @@ string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) externa
       * @param _port tcp port of node
       * @param _raftport raft port of node
       */
-    function approveBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport)
-    external {
+    function approveBlacklistedNodeRecovery(string memory _orgId, string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport)
+    public {
         permImplementation.approveBlacklistedNodeRecovery(_orgId, _enodeId, _ip, _port, _raftport, msg.sender);
     }
 
@@ -330,7 +330,7 @@ string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) externa
      * @param _raftport raft port of node
      * @return bool indicating if the node is allowed to connect or not
      */
-    function connectionAllowedImpl(string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) external view returns (bool) {
+    function connectionAllowedImpl(string calldata _enodeId, string calldata _ip, uint16  _port, uint16  _raftport) external view returns (bool) {
         return permImplementation.connectionAllowed(_enodeId, _ip, _port, _raftport);
     }
 
@@ -340,7 +340,7 @@ string calldata _enodeId, bytes32 _ip, uint16  _port, uint16  _raftport) externa
       * @param _port tcp port of node
       * @return bool indicating if the node is allowed to connect or not
       */
-    function connectionAllowed(string calldata _enodeId, bytes32 _ip, uint16  _port) external view returns (bool) {
+    function connectionAllowed(string calldata _enodeId, string calldata _ip, uint16  _port) external view returns (bool) {
         return this.connectionAllowedImpl(_enodeId, _ip, _port, 0);
     }
 

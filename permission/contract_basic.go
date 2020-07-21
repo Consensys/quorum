@@ -38,7 +38,7 @@ func (p *PermissionContractBasic) RemoveRole(_roleId string, _orgId string) (*ty
 func (p *PermissionContractBasic) AddNewRole(_roleId string, _orgId string, _access *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
 	return p.permInterfSession.AddNewRole(_roleId, _orgId, _access, _voter, _admin)
 }
-func (p *PermissionContractBasic) ConnectionAllowedImpl(_enodeId string, _ip [32]byte, _port uint16, _raftport uint16) (bool, error) {
+func (p *PermissionContractBasic) ConnectionAllowedImpl(_enodeId string, _ip string, _port uint16, _raftport uint16) (bool, error) {
 	return false, fmt.Errorf("not implemented for basic contract")
 }
 func (p *PermissionContractBasic) TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error) {
@@ -50,10 +50,10 @@ func (p *PermissionContractBasic) AssignAccountRole(_account common.Address, _or
 func (p *PermissionContractBasic) UpdateAccountStatus(_orgId string, _account common.Address, _action *big.Int) (*types.Transaction, error) {
 	return p.permInterfSession.UpdateAccountStatus(_orgId, _account, _action)
 }
-func (p *PermissionContractBasic) ApproveBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
+func (p *PermissionContractBasic) ApproveBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
 	return p.permInterfSession.ApproveBlacklistedNodeRecovery(_orgId, _url)
 }
-func (p *PermissionContractBasic) StartBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
+func (p *PermissionContractBasic) StartBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
 	return p.permInterfSession.StartBlacklistedNodeRecovery(_orgId, _url)
 }
 func (p *PermissionContractBasic) StartBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
@@ -74,11 +74,11 @@ func (p *PermissionContractBasic) AssignAdminRole(_orgId string, _account common
 	return p.permInterfSession.AssignAdminRole(_orgId, _account, _roleId)
 }
 
-func (p *PermissionContractBasic) AddNode(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
+func (p *PermissionContractBasic) AddNode(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
 	return p.permInterfSession.AddNode(_orgId, _url)
 }
 
-func (p *PermissionContractBasic) UpdateNodeStatus(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string, _action *big.Int) (*types.Transaction, error) {
+func (p *PermissionContractBasic) UpdateNodeStatus(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string, _action *big.Int) (*types.Transaction, error) {
 	return p.permInterfSession.UpdateNodeStatus(_orgId, _url, _action)
 
 }
@@ -91,15 +91,15 @@ func (p *PermissionContractBasic) UpdateOrgStatus(_orgId string, _action *big.In
 	return p.permInterfSession.UpdateOrgStatus(_orgId, _action)
 }
 
-func (p *PermissionContractBasic) ApproveOrg(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
+func (p *PermissionContractBasic) ApproveOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
 	return p.permInterfSession.ApproveOrg(_orgId, _url, _account)
 }
 
-func (p *PermissionContractBasic) AddSubOrg(_pOrgId string, _orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
+func (p *PermissionContractBasic) AddSubOrg(_pOrgId string, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
 	return p.permInterfSession.AddSubOrg(_pOrgId, _orgId, _url)
 }
 
-func (p *PermissionContractBasic) AddOrg(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
+func (p *PermissionContractBasic) AddOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
 	return p.permInterfSession.AddOrg(_orgId, _url, _account)
 }
 
@@ -138,7 +138,7 @@ func (p *PermissionContractBasic) AddAdminAccount(_acct common.Address) (*types.
 	return p.permInterfSession.AddAdminAccount(_acct)
 }
 
-func (p *PermissionContractBasic) AddAdminNode(_enodeId string, _ip [32]byte, _port uint16, _raftport uint16) (*types.Transaction, error) {
+func (p *PermissionContractBasic) AddAdminNode(_enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
 	return p.permInterfSession.AddAdminNode(types.GetNodeUrl(_enodeId, string(_ip[:]), _port, _raftport))
 }
 

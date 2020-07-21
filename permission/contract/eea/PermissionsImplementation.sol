@@ -173,7 +173,7 @@ contract EeaPermissionsImplementation {
       * @param _port tcp port of node
       * @param _raftport raft port of node
       */
-    function addAdminNode(string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport) external
+    function addAdminNode(string calldata _enodeId, string calldata _ip, uint16 _port, uint16 _raftport) external
     onlyInterface
     networkBootStatus(false) {
         nodeManager.addAdminNode(_enodeId, _ip, _port, _raftport, adminOrg);
@@ -218,8 +218,8 @@ contract EeaPermissionsImplementation {
       * @param _raftport raft port of node
       * @param _account account id. this will have the org admin privileges
       */
-    function addOrg(string calldata _orgId, string calldata _enodeId,
-        bytes32 _ip, uint16 _port, uint16 _raftport, address _account, address _caller) external
+    function addOrg(string memory _orgId, string memory _enodeId,
+        string memory _ip, uint16 _port, uint16 _raftport, address _account, address _caller) public
     onlyInterface
     {
         require(networkBoot == true, "Incorrect network boot status");
@@ -242,8 +242,8 @@ contract EeaPermissionsImplementation {
       * @param _raftport raft port of node
       * @param _account account id this will have the org admin privileges
       */
-    function approveOrg(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport,
-        address _account, address _caller) external
+    function approveOrg(string memory _orgId, string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport,
+        address _account, address _caller) public
     onlyInterface
     {
         require(isNetworkAdmin(_caller) == true, "account is not a network admin account");
@@ -270,7 +270,7 @@ contract EeaPermissionsImplementation {
         SUB1 level, the parent org should be given as ABC.SUB1
       */
     function addSubOrg(string calldata _pOrgId, string calldata _orgId,
-        string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport, address _caller) external onlyInterface
+        string calldata _enodeId, string calldata _ip, uint16 _port, uint16 _raftport, address _caller) external onlyInterface
     orgExists(_pOrgId) orgAdmin(_caller, _pOrgId) {
         orgManager.addSubOrg(_pOrgId, _orgId);
         string memory pOrgId = string(abi.encodePacked(_pOrgId, ".", _orgId));
@@ -416,8 +416,8 @@ contract EeaPermissionsImplementation {
       * @param _raftport raft port of node
 
       */
-    function addNode(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport, address _caller)
-    external
+    function addNode(string memory _orgId, string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport, address _caller)
+    public
     onlyInterface
     orgApproved(_orgId)
     {
@@ -435,8 +435,8 @@ contract EeaPermissionsImplementation {
       * @param _raftport raft port of node
       * @param _action 1-deactivate, 2-activate back, 3-blacklist the node
       */
-    function updateNodeStatus(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport,
-        uint256 _action, address _caller) external
+    function updateNodeStatus(string memory _orgId, string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport,
+        uint256 _action, address _caller) public
     onlyInterface
     {
         require(isOrgAdmin(_caller, _orgId) == true, "account is not a org admin account");
@@ -458,8 +458,8 @@ contract EeaPermissionsImplementation {
       * @dev this function creates a voting record for other network admins to
         approve the operation. The recovery is complete only after majority voting
       */
-    function startBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport,
-        address _caller) external
+    function startBlacklistedNodeRecovery(string memory _orgId, string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport,
+        address _caller) public
     onlyInterface
     networkAdmin(_caller)
     {
@@ -481,8 +481,8 @@ contract EeaPermissionsImplementation {
       * @dev this function creates a voting record for other network admins to
         approve the operation. The recovery is complete only after majority voting
       */
-    function approveBlacklistedNodeRecovery(string calldata _orgId, string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport,
-        address _caller) external
+    function approveBlacklistedNodeRecovery(string memory _orgId, string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport,
+        address _caller) public
     onlyInterface
     networkAdmin(_caller)
     {
@@ -712,7 +712,7 @@ contract EeaPermissionsImplementation {
       * @param _raftport raft port of node
       * @return bool indicating if the node is allowed to connect or not
       */
-    function connectionAllowed(string calldata _enodeId, bytes32 _ip, uint16 _port, uint16 _raftport) external view returns (bool) {
+    function connectionAllowed(string calldata _enodeId, string calldata _ip, uint16 _port, uint16 _raftport) external view returns (bool) {
         return nodeManager.connectionAllowed(_enodeId, _ip, _port, _raftport);
     }
 

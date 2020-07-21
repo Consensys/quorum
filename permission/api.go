@@ -399,7 +399,7 @@ func (q *QuorumControlsAPI) ConnectionAllowed(url string, txa ethapi.SendTxArgs)
 	var enodeId string
 	var port uint16
 	var raftport uint16
-	var ip [32]byte
+	var ip string
 	enodeId, ip, port, raftport, err = q.getNodeDetails(url)
 	return pinterf.ConnectionAllowedImpl(enodeId, ip, port, raftport)
 }
@@ -754,9 +754,9 @@ func (q *QuorumControlsAPI) valNodeDetails(url string) error {
 	return nil
 }
 
-func (q *QuorumControlsAPI) getNodeDetails(url string) (string, [32]byte, uint16, uint16, error) {
+func (q *QuorumControlsAPI) getNodeDetails(url string) (string, string, uint16, uint16, error) {
 	// validate Node id and
-	var ip [32]byte
+	var ip string
 	if len(url) == 0 {
 		return "", ip, 0, 0, errors.New("invalid Node id")
 	}

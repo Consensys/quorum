@@ -41,7 +41,7 @@ func (p *PermissionContractEea) AddNewRole(_roleId string, _orgId string, _acces
 	return p.permInterfSession.AddNewRole(_roleId, _orgId, _access, _voter, _admin)
 }
 
-func (p *PermissionContractEea) ConnectionAllowedImpl(_enodeId string, _ip [32]byte, _port uint16, _raftport uint16) (bool, error) {
+func (p *PermissionContractEea) ConnectionAllowedImpl(_enodeId string, _ip string, _port uint16, _raftport uint16) (bool, error) {
 
 	return p.permInterfSession.ConnectionAllowedImpl(_enodeId, _ip, _port, _raftport)
 }
@@ -61,12 +61,12 @@ func (p *PermissionContractEea) UpdateAccountStatus(_orgId string, _account comm
 	return p.permInterfSession.UpdateAccountStatus(_orgId, _account, _action)
 }
 
-func (p *PermissionContractEea) ApproveBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
+func (p *PermissionContractEea) ApproveBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
 
 	return p.permInterfSession.ApproveBlacklistedNodeRecovery(_orgId, _enodeId, _ip, _port, _raftport)
 }
 
-func (p *PermissionContractEea) StartBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
+func (p *PermissionContractEea) StartBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
 
 	return p.permInterfSession.StartBlacklistedNodeRecovery(_orgId, _enodeId, _ip, _port, _raftport)
 }
@@ -92,12 +92,12 @@ func (p *PermissionContractEea) AssignAdminRole(_orgId string, _account common.A
 	return p.permInterfSession.AssignAdminRole(_orgId, _account, _roleId)
 }
 
-func (p *PermissionContractEea) AddNode(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
+func (p *PermissionContractEea) AddNode(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
 
 	return p.permInterfSession.AddNode(_orgId, _enodeId, _ip, _port, _raftport)
 }
 
-func (p *PermissionContractEea) UpdateNodeStatus(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string, _action *big.Int) (*types.Transaction, error) {
+func (p *PermissionContractEea) UpdateNodeStatus(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string, _action *big.Int) (*types.Transaction, error) {
 
 	return p.permInterfSession.UpdateNodeStatus(_orgId, _enodeId, _ip, _port, _raftport, _action)
 
@@ -111,15 +111,15 @@ func (p *PermissionContractEea) UpdateOrgStatus(_orgId string, _action *big.Int)
 	return p.permInterfSession.UpdateOrgStatus(_orgId, _action)
 }
 
-func (p *PermissionContractEea) ApproveOrg(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
+func (p *PermissionContractEea) ApproveOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
 	return p.permInterfSession.ApproveOrg(_orgId, _enodeId, _ip, _port, _raftport, _account)
 }
 
-func (p *PermissionContractEea) AddSubOrg(_pOrgId string, _orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
+func (p *PermissionContractEea) AddSubOrg(_pOrgId string, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
 	return p.permInterfSession.AddSubOrg(_pOrgId, _orgId, _enodeId, _ip, _port, _raftport)
 }
 
-func (p *PermissionContractEea) AddOrg(_orgId string, _enodeId string, _ip [32]byte, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
+func (p *PermissionContractEea) AddOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
 
 	return p.permInterfSession.AddOrg(_orgId, _enodeId, _ip, _port, _raftport, _account)
 }
@@ -161,7 +161,7 @@ func (p *PermissionContractEea) AddAdminAccount(_acct common.Address) (*types.Tr
 	return p.permInterfSession.AddAdminAccount(_acct)
 }
 
-func (p *PermissionContractEea) AddAdminNode(_enodeId string, _ip [32]byte, _port uint16, _raftport uint16) (*types.Transaction, error) {
+func (p *PermissionContractEea) AddAdminNode(_enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
 	return p.permInterfSession.AddAdminNode(_enodeId, _ip, _port, _raftport)
 }
 
