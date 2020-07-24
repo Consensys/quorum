@@ -1471,7 +1471,11 @@ func (s *PublicTransactionPoolAPI) sign(addr common.Address, tx *types.Transacti
 }
 
 // SendTxArgs represents the arguments to sumbit a new transaction into the transaction pool.
+// Quorum: introducing additional arguments encapsulated in PrivateTxArgs struct
+//		   to support private transactions processing.
 type SendTxArgs struct {
+	PrivateTxArgs // Quorum
+
 	From     common.Address  `json:"from"`
 	To       *common.Address `json:"to"`
 	Gas      *hexutil.Uint64 `json:"gas"`
@@ -1482,12 +1486,6 @@ type SendTxArgs struct {
 	// newer name and should be preferred by clients.
 	Data  *hexutil.Bytes `json:"data"`
 	Input *hexutil.Bytes `json:"input"`
-
-	//Quorum
-	PrivateFrom   string   `json:"privateFrom"`
-	PrivateFor    []string `json:"privateFor"`
-	PrivateTxType string   `json:"restriction"`
-	//End-Quorum
 }
 
 func (s SendTxArgs) IsPrivate() bool {
@@ -1497,6 +1495,19 @@ func (s SendTxArgs) IsPrivate() bool {
 // SendRawTxArgs represents the arguments to submit a new signed private transaction into the transaction pool.
 type SendRawTxArgs struct {
 	PrivateFor []string `json:"privateFor"`
+}
+
+// Additional arguments used in private transactions
+type PrivateTxArgs struct {
+	// PrivateFrom is the public key of the sending party.
+	// The public key must be available in the Private Transaction Manager (i.e.: Tessera) which is paired with this geth node.
+	// Empty value means the Private Transaction Manager will use the first public key
+	// in its list of available keys which it maintains.
+	PrivateFrom string `json:"privateFrom"`
+	// PrivateFor is the list of public keys which are available in the Private Transaction Managers in the network.
+	// The transaction payload is only visible to those party to the transaction.
+	PrivateFor    []string `json:"privateFor"`
+	PrivateTxType string   `json:"restriction"`
 }
 
 // setDefaults is a helper function that fills in default values for unspecified tx fields.
