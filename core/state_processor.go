@@ -85,6 +85,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 		if privateReceipt != nil {
 			privateReceipts = append(privateReceipts, privateReceipt)
 			allLogs = append(allLogs, privateReceipt.Logs...)
+			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateState)
 		}
 	}
 	// Finalize the block, applying any consensus engine specific extras (e.g. block rewards)

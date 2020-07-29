@@ -146,8 +146,7 @@ type Config struct {
 	Istanbul istanbul.Config
 
 	// Miscellaneous options
-	DocRoot                string `toml:"-"`
-	AllowedFutureBlockTime uint64 //Quorum
+	DocRoot string `toml:"-"`
 
 	// Type of the EWASM interpreter ("" for default)
 	EWASMInterpreter string

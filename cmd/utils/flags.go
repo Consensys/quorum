@@ -53,6 +53,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethstats"
+	"github.com/ethereum/go-ethereum/extension"
 	"github.com/ethereum/go-ethereum/graphql"
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/log"
@@ -68,6 +69,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/permission"
 	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
@@ -849,6 +851,11 @@ var (
 		Name:  "plugins.skipverify",
 		Usage: "If enabled, plugin integrity is NOT verified",
 	}
+	// account plugin flags
+	AccountPluginNewAccountConfigFlag = cli.StringFlag{
+		Name:  "plugins.account.config",
+		Usage: "Value will be passed to an account plugin if being used.  See the account plugin implementation's documentation for further details",
+	}
 	// Istanbul settings
 	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
 		Name:  "istanbul.requesttimeout",
@@ -1343,7 +1350,7 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 	case ctx.GlobalBool(GoerliFlag.Name) && cfg.DataDir == node.DefaultDataDir():
 		cfg.DataDir = filepath.Join(node.DefaultDataDir(), "goerli")
 	}
-	if err := setPlugins(ctx, cfg); err != nil {
+	if err := SetPlugins(ctx, cfg); err != nil {
 		Fatalf(err.Error())
 	}
 }
@@ -1351,7 +1358,7 @@ func setDataDir(ctx *cli.Context, cfg *node.Config) {
 // Quorum
 //
 // Read plugin settings from --plugins flag. Overwrite settings defined in --config if any
-func setPlugins(ctx *cli.Context, cfg *node.Config) error {
+func SetPlugins(ctx *cli.Context, cfg *node.Config) error {
 	if ctx.GlobalIsSet(PluginSettingsFlag.Name) {
 		// validate flag combination
 		if ctx.GlobalBool(PluginSkipVerifyFlag.Name) && ctx.GlobalBool(PluginLocalVerifyFlag.Name) {
@@ -1494,6 +1501,9 @@ func setMiner(ctx *cli.Context, cfg *miner.Config) {
 	if ctx.GlobalIsSet(MinerNoVerfiyFlag.Name) {
 		cfg.Noverify = ctx.Bool(MinerNoVerfiyFlag.Name)
 	}
+	if ctx.GlobalIsSet(AllowedFutureBlockTimeFlag.Name) {
+		cfg.AllowedFutureBlockTime = ctx.GlobalUint64(AllowedFutureBlockTimeFlag.Name) //Quorum
+	}
 }
 
 func setWhitelist(ctx *cli.Context, cfg *eth.Config) {
@@ -1610,8 +1620,6 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)
 
-	cfg.AllowedFutureBlockTime = ctx.GlobalUint64(AllowedFutureBlockTimeFlag.Name) //Quorum
-
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
@@ -1717,7 +1725,7 @@ func SetDashboardConfig(ctx *cli.Context, cfg *dashboard.Config) {
 }
 
 // RegisterEthService adds an Ethereum client to the stack.
-func RegisterEthService(stack *node.Node, cfg *eth.Config) <-chan *eth.Ethereum {
+func RegisterEthService(stack *node.Node, cfg *eth.Config) chan *eth.Ethereum {
 	// Quorum: raft service listens to this channel to get Ethereum backend
 	nodeChan := make(chan *eth.Ethereum, 1)
 	var err error
@@ -1830,7 +1838,7 @@ func RegisterPermissionService(stack *node.Node) {
 	log.Info("permission service registered")
 }
 
-func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethChan <-chan *eth.Ethereum) {
+func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethChan chan *eth.Ethereum) {
 	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(DataDirFlag.Name)
 	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
@@ -1872,9 +1880,23 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 		}
 
 		ethereum := <-ethChan
+		ethChan <- ethereum
 		return raft.New(ctx, ethereum.BlockChain().Config(), myId, raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, useDns)
 	}); err != nil {
 		Fatalf("Failed to register the Raft service: %v", err)
+	}
+}
+
+func RegisterExtensionService(stack *node.Node, ethChan chan *eth.Ethereum) {
+	registerFunc := func(ctx *node.ServiceContext) (node.Service, error) {
+		factory, err := extension.NewServicesFactory(stack, private.P, <-ethChan)
+		if err != nil {
+			return nil, err
+		}
+		return factory.BackendService(), nil
+	}
+	if err := stack.Register(registerFunc); err != nil {
+		Fatalf("Failed to register the Extension service: %v", err)
 	}
 }
 

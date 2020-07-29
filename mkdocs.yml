@@ -53,6 +53,9 @@ nav:
                 - How it works: Privacy/Constellation/How constellation works.md
                 - Sample Configuration: Privacy/Constellation/Sample Configuration.md
                 - Running Constellation: Privacy/Constellation/Installation & Running.md
+            - Contract Extension:
+                - Overview: Privacy/Contract-Extension/Overview.md
+                - APIs: Privacy/Contract-Extension/ContractExtension apis.md
         - Consensus:
             - Consensus: Consensus/Consensus.md
             - Raft BFT:
@@ -71,9 +74,19 @@ nav:
               - Setup: Permissioning/Enhanced Permissions Model/setup.md
               - APIs: Permissioning/Enhanced Permissions Model/Permissioning apis.md
               - Usage: Permissioning/Enhanced Permissions Model/Usage.md
-        - Safeguarding Private Keys:
-            - Overview: Safeguarding-Private-Keys/Overview.md
-            - Clef for Quorum: Safeguarding-Private-Keys/Clef-for-Quorum.md
+        - Account/Key Management:
+            - Overview: Account-Key-Management/Overview.md
+            - Quorum:
+                - Overview: Account-Key-Management/Quorum/Overview.md
+                - Keystore Files: Account-Key-Management/Quorum/Keystore-Files.md
+                - Clef: Account-Key-Management/Quorum/Clef.md
+                - account Plugins:
+                  - Overview: Account-Key-Management/Quorum/account-Plugins/Overview.md
+                  - Hashicorp Vault:
+                    - Overview: Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Overview.md
+                    - Quickstart: Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Quickstart.md
+            - Tessera: Account-Key-Management/Tessera/Overview.md
+            - Constellation: Account-Key-Management/Constellation/Overview.md
         - Pluggable Architecture:
             - Overview: PluggableArchitecture/Overview.md
             - Settings: PluggableArchitecture/Settings.md
@@ -85,6 +98,10 @@ nav:
                 - security:
                     - Interface: PluggableArchitecture/Plugins/security/interface.md
                     - Implementation: PluggableArchitecture/Plugins/security/implementation.md
+                - account:
+                    - For Users: PluggableArchitecture/Plugins/account/For-Users.md
+                    - For Developers: PluggableArchitecture/Plugins/account/For-Developers.md
+                    - API: PluggableArchitecture/Plugins/account/interface.md
             - Plugin Development: PluggableArchitecture/PluginDevelopment.md
         - DNS: Quorum Features/dns.md
         - Securing JSON RPC: Quorum Features/rpc-security.md
