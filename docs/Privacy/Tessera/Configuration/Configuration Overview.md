@@ -307,6 +307,6 @@ Field|Default Value|Description
 <span style="white-space:nowrap">`nonceLength`</span>|`24`|The nonce length (used as the initialization vector - IV - for symmetric encryption).
 <span style="white-space:nowrap">`sharedKeyLength`</span>|`32`|The key length used for symmetric encryption (keep in mind the key derivation operation always produces 32 byte keys - so the encryption algorithm must support it).
 
-If `type` is set to `CUSTOM`, it provides support for external encryptor implementation to integrate with Tessera. Once such third party integration is **Unbound Tech's "Unbound Key Control" (UKC)** implementation. For more information refer to [UKC site](https://github.com/unbound-tech/tessera/blob/master/encryption/encryption-ub/README.md)
+If `type` is set to `CUSTOM`, it provides support for external encryptor implementation to integrate with Tessera. Our pilot third party integration is with **Unbound Tech's "Unbound Key Control" (UKC)** implementation. For more information refer to [UKC site](https://github.com/unbound-tech/tessera/blob/master/encryption/encryption-ub/README.md)
 
 ---
