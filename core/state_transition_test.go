@@ -93,19 +93,19 @@ type StubPrivateTransactionManager struct {
 	responses map[string][]interface{}
 }
 
-func (spm *StubPrivateTransactionManager) Send(data []byte, from string, to []string) ([]byte, error) {
+func (spm *StubPrivateTransactionManager) Send(data []byte, from string, to []string) (common.EncryptedPayloadHash, error) {
+	return common.EncryptedPayloadHash{}, fmt.Errorf("to be implemented")
+}
+
+func (spm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
+	return common.EncryptedPayloadHash{}, fmt.Errorf("to be implemented")
+}
+
+func (spm *StubPrivateTransactionManager) SendSignedTx(txHash common.EncryptedPayloadHash, to []string) ([]byte, error) {
 	return nil, fmt.Errorf("to be implemented")
 }
 
-func (spm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) SendSignedTx(data []byte, to []string) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) Receive(data []byte) ([]byte, error) {
+func (spm *StubPrivateTransactionManager) Receive(txHash common.EncryptedPayloadHash) ([]byte, error) {
 	res := spm.responses["Receive"]
 	if err, ok := res[1].(error); ok {
 		return nil, err

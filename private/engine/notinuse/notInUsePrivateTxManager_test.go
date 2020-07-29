@@ -3,6 +3,7 @@ package notinuse
 import (
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +33,7 @@ func TestStoreRawReturnsError(t *testing.T) {
 func TestReceiveReturnsError(t *testing.T) {
 	ptm := &PrivateTransactionManager{}
 
-	_, err := ptm.Receive([]byte{})
+	_, err := ptm.Receive(common.EncryptedPayloadHash{})
 
 	assert.Nil(t, err, "got unexpected error in 'receive'")
 }
@@ -40,7 +41,7 @@ func TestReceiveReturnsError(t *testing.T) {
 func TestSendSignedTxReturnsError(t *testing.T) {
 	ptm := &PrivateTransactionManager{}
 
-	_, err := ptm.SendSignedTx([]byte{}, []string{})
+	_, err := ptm.SendSignedTx(common.EncryptedPayloadHash{}, []string{})
 
 	assert.Equal(t, err, ErrPrivateTxManagerNotInUse, "got wrong error in 'SendSignedTx'")
 }

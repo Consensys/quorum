@@ -1581,15 +1581,15 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 func (args *SendTxArgs) setPrivateTransactionHash(sendTxn bool) error {
 	var input []byte
 	if args.Input != nil {
-		input = []byte(*args.Input)
+		input = *args.Input
 	} else if args.Data != nil {
-		input = []byte(*args.Data)
+		input = *args.Data
 	} else {
 		log.Info("nil args.input & args.data")
 	}
 
 	if len(input) > 0 {
-		var data []byte
+		var data common.EncryptedPayloadHash
 		var err error
 		if sendTxn {
 			//Send private transaction to local Constellation node
@@ -1605,7 +1605,7 @@ func (args *SendTxArgs) setPrivateTransactionHash(sendTxn bool) error {
 		if err != nil {
 			return err
 		}
-		d := hexutil.Bytes(data)
+		d := hexutil.Bytes(data.Bytes())
 		args.Data = &d
 	}
 	return nil
@@ -1747,7 +1747,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 		if len(txHash) > 0 {
 			//Send private transaction to privacy manager
 			log.Info("sending private tx", "data", fmt.Sprintf("%x", txHash), "privatefor", args.PrivateFor)
-			result, err := private.P.SendSignedTx(txHash, args.PrivateFor)
+			result, err := private.P.SendSignedTx(common.BytesToEncryptedPayloadHash(txHash), args.PrivateFor)
 			log.Info("sent private tx", "result", fmt.Sprintf("%x", result), "privatefor", args.PrivateFor)
 			if err != nil {
 				return common.Hash{}, err
@@ -2174,7 +2174,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != 64 {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	data, err := private.P.Receive(b)
+	data, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
 	if err != nil {
 		return "", err
 	}

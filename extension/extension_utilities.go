@@ -14,7 +14,7 @@ func generateUuid(contractAddress common.Address, privateFrom string, ptm privat
 	if err != nil {
 		return "", err
 	}
-	return common.BytesToEncryptedPayloadHash(hash).String(), nil
+	return hash.String(), nil
 }
 
 func checkAddressInList(addressToFind common.Address, addressList []common.Address) bool {
