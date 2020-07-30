@@ -4,6 +4,7 @@ Tessera configuration varies by version as new features are added or changed. Be
 
 | Version       |
 | ------------- |
+| [0.10.6](../Tessera%20v0.10.6%20sample%20settings) |
 | [0.10.3](../Tessera%20v0.10.3%20sample%20settings) |
 | [0.10.2](../Tessera%20v0.10.2%20sample%20settings) |
 | [0.10](../Tessera%20v0.10.0%20sample%20settings) |
