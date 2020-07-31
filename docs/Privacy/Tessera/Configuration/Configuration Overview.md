@@ -296,7 +296,7 @@ This is a feature introduced in Tessera v0.10.2.  Providing no `encryptor` confi
 
 Field|Default Value|Description
 -------------|-------------|-----------
-`type`|`NACL`|The encryptor type. Possible values are `EC` or `NACL`.
+`type`|`NACL`|The encryptor type. Possible values are `EC`,  `NACL` & `CUSTOM`.
 
 If `type` is set to `EC`, the following `properties` fields can also be configured:
 
@@ -306,5 +306,7 @@ Field|Default Value|Description
 <span style="white-space:nowrap">`symmetricCipher`</span>|<span style="white-space:nowrap">`AES/GCM/NoPadding`</span>|The symmetric cipher to use for encrypting data (GCM IS MANDATORY as an initialisation vector is supplied during encryption).
 <span style="white-space:nowrap">`nonceLength`</span>|`24`|The nonce length (used as the initialization vector - IV - for symmetric encryption).
 <span style="white-space:nowrap">`sharedKeyLength`</span>|`32`|The key length used for symmetric encryption (keep in mind the key derivation operation always produces 32 byte keys - so the encryption algorithm must support it).
+
+If `type` is set to `CUSTOM`, it provides support for external encryptor implementation to integrate with Tessera. Our pilot third party integration is with **Unbound Tech's "Unbound Key Control" (UKC)** implementation. For more information refer to [UKC site](https://github.com/unbound-tech/encryption-ub)
 
 ---
