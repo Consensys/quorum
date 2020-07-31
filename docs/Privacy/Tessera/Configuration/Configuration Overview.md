@@ -16,6 +16,12 @@ If set to true, the `peers` list will be used as the whitelisted urls for the Te
 "useWhiteList": true,
 ```
 
+### Bootstrap Node
+If set to true, then the Tessera instance functions as a bootstrap for other nodes (and no Q2T entry should exist in the serverConfigs):
+```
+"bootstrapNode": true,
+```
+
 ---
 
 ### Database
