@@ -82,6 +82,9 @@ nav:
                 - Clef: Account-Key-Management/Quorum/Clef.md
                 - account Plugins:
                   - Overview: Account-Key-Management/Quorum/account-Plugins/Overview.md
+                  - Hashicorp Vault:
+                    - Overview: Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Overview.md
+                    - Quickstart: Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Quickstart.md
             - Tessera: Account-Key-Management/Tessera/Overview.md
             - Constellation: Account-Key-Management/Constellation/Overview.md
         - Pluggable Architecture:

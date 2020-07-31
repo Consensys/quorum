@@ -1,5 +1,8 @@
 # account Plugins
 
+!!! info
+    `account` plugins are currently in beta
+
 `account` plugins can be used with Quorum or `clef` to provide additional account management.  
 
 It is recommended to first read the [Pluggable Architecture overview](../../../../PluggableArchitecture/Overview) to learn how to use plugins.
@@ -166,7 +169,9 @@ geth account plugin list \
 ```
 
 ## Available plugins 
-*(available soon)*
+| Name | Version |  | Description |
+| --- | --- | --- | --- |
+| <span style="white-space:nowrap">`hashicorp-vault`</span> | `0.0.1` | <span style="white-space:nowrap">[Docs](../Hashicorp-Vault/Overview) / [Source](https://www.github.com/jpmorganchase/quorum-account-plugin-hashicorp-vault)</span> | Enables storage of Quorum account keys in a Hashicorp Vault kv v2 engine.  Written in Go. 
 
 ## Developers
 See [For Developers](../../../../PluggableArchitecture/Plugins/account/For-Developers). 
