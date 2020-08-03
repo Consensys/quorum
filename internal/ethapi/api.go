@@ -60,6 +60,13 @@ const (
 	maxPrivateIntrinsicDataHex = "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
 )
 
+type PrivateTransactionType uint8
+const (
+	FillTransaction PrivateTransactionType = iota + 1
+	RawTransaction
+	NormalTransaction
+)
+
 // PublicEthereumAPI provides an API to access Ethereum related information.
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicEthereumAPI struct {
@@ -393,7 +400,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		return common.Hash{}, err
 	}
 
-	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, false)
+	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), nil, &args.PrivateTxArgs, args.From, NormalTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -1596,7 +1603,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
-	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, false)
+	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), nil, &args.PrivateTxArgs, args.From, NormalTransaction)
 
 	if err != nil {
 		return common.Hash{}, err
@@ -1635,19 +1642,19 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 	}
 	// Assemble the transaction and obtain rlp
 	// Quorum
-	if args.IsPrivate() {
-		// TODO PrivacyEnhancements check what happens when input is provided but Data is overridden
-		hash, err := private.P.StoreRaw(args.inputOrData(), args.From.String())
-		if err != nil {
-			return nil, err
-		}
+	isPrivate, hash, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), args.inputOrData(), &args.PrivateTxArgs, args.From, FillTransaction)
+	if err != nil {
+		return nil, err
+	}
+	if isPrivate && !common.EmptyEncryptedPayloadHash(hash) {
+		// replace the original payload with encrypted payload hash
 		args.Data = hash.BytesTypeRef()
 	}
-	// /Quorum
+
 	tx := args.toTransaction()
 
 	// Quorum
-	if args.IsPrivate() {
+	if isPrivate {
 		tx.SetPrivate()
 	}
 	// /Quorum
@@ -1677,7 +1684,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
-	isPrivate, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, true)
+	isPrivate, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, nil, &args.PrivateTxArgs, common.Address{}, RawTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -2109,7 +2116,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	return fmt.Sprintf("0x%x", data), nil
 }
 
-func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, isRaw bool) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
+func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, inputData []byte, privateTxArgs *PrivateTxArgs, from common.Address, txnType PrivateTransactionType) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
 	if isPrivate {
 		if err = privateTxArgs.PrivacyFlag.Validate(); err != nil {
@@ -2136,7 +2143,7 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 			}
 		}
 
-		hash, err = handlePrivateTransaction(ctx, b, tx, privateTxArgs, from, isRaw)
+		hash, err = handlePrivateTransaction(ctx, b, tx, inputData, privateTxArgs, from, txnType)
 
 		return
 	}
@@ -2151,7 +2158,7 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 // 2. Calculate Merkle Root as the result of the simulated execution
 // The above information along with private originating payload are sent to Transaction Manager
 // to obtain hash of the encrypted private payload
-func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, isRaw bool) (hash common.EncryptedPayloadHash, err error) {
+func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, inputData []byte, privateTxArgs *PrivateTxArgs, from common.Address, txnType PrivateTransactionType) (hash common.EncryptedPayloadHash, err error) {
 	defer func(start time.Time) {
 		log.Debug("Handle Private Transaction finished", "took", time.Since(start))
 	}(time.Now())
@@ -2160,8 +2167,13 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 
 	var affectedCATxHashes common.EncryptedPayloadHashes // of affected contract accounts
 	var merkleRoot common.Hash
-	log.Debug("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag)
-	if isRaw {
+	log.Debug("sending private tx", "txnType", txnType, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag)
+
+	switch txnType {
+	case FillTransaction:
+		hash, err = private.P.StoreRaw(inputData, privateTxArgs.PrivateFrom)
+		return
+	case RawTransaction:
 		hash = common.BytesToEncryptedPayloadHash(data)
 		privatePayload, _, revErr := private.P.ReceiveRaw(hash)
 		if revErr != nil {
@@ -2188,7 +2200,8 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 		if err != nil {
 			return
 		}
-	} else {
+
+	case NormalTransaction:
 		affectedCATxHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
 		log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privateTxArgs.PrivacyFlag, "error", err)
 		if err != nil {
@@ -2204,6 +2217,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 			return
 		}
 	}
+
 	log.Info("sent private signed tx",
 		"data", common.FormatTerminalString(data),
 		"hash", hash,
