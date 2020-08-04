@@ -60,9 +60,10 @@ const (
 	maxPrivateIntrinsicDataHex = "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
 )
 
-type PrivateTransactionType uint8
+type TransactionType uint8
+
 const (
-	FillTransaction PrivateTransactionType = iota + 1
+	FillTransaction TransactionType = iota + 1
 	RawTransaction
 	NormalTransaction
 )
@@ -2116,12 +2117,14 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	return fmt.Sprintf("0x%x", data), nil
 }
 
-func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, inputData []byte, privateTxArgs *PrivateTxArgs, from common.Address, txnType PrivateTransactionType) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
+func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, inputData []byte, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
-	if isPrivate {
-		if err = privateTxArgs.PrivacyFlag.Validate(); err != nil {
-			return
-		}
+	if !isPrivate {
+		return
+	}
+
+	if err = privateTxArgs.PrivacyFlag.Validate(); err != nil {
+		return
 	}
 
 	if !b.ChainConfig().IsPrivacyEnhancementsEnabled(b.CurrentBlock().Number()) && privateTxArgs.PrivacyFlag.IsNotStandardPrivate() {
@@ -2158,7 +2161,7 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 // 2. Calculate Merkle Root as the result of the simulated execution
 // The above information along with private originating payload are sent to Transaction Manager
 // to obtain hash of the encrypted private payload
-func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, inputData []byte, privateTxArgs *PrivateTxArgs, from common.Address, txnType PrivateTransactionType) (hash common.EncryptedPayloadHash, err error) {
+func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, inputData []byte, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (hash common.EncryptedPayloadHash, err error) {
 	defer func(start time.Time) {
 		log.Debug("Handle Private Transaction finished", "took", time.Since(start))
 	}(time.Now())
