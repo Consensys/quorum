@@ -115,3 +115,11 @@ func (spm *StubPrivateTransactionManager) Receive(data []byte) ([]byte, error) {
 	}
 	return nil, nil
 }
+
+func (spm *StubPrivateTransactionManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
+	return false, fmt.Errorf("to be implemented")
+}
+
+func (spm *StubPrivateTransactionManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
+	return nil, fmt.Errorf("to be implemented")
+}

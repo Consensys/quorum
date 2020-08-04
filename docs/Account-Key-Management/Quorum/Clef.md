@@ -10,7 +10,6 @@ Using `clef` instead of `geth` for account management has several benefits:
 * Users and DApps no longer have a dependency on access to a synchronised local node loaded with accounts.  Transactions and DApp data can instead be signed using `clef`
 * Future account-related features will likely only be available in `clef` and not found in `geth` (e.g. [EIP-191 and EIP-712 have been implemented in `clef`, but there is no intention of implementing them in `geth`](https://github.com/ethereum/go-ethereum/pull/17789/)) 
 * `clef` provides several user-experience improvements to ease use and improve security
-* More info can be found in the additional documentation `.md` files in the [cmd/clef directory](https://github.com/jpmorganchase/quorum/tree/master/cmd/clef)
 
 ## What is Clef for Quorum?
 `clef` was introduced in Quorum `v2.6.0`.
@@ -18,9 +17,10 @@ Using `clef` instead of `geth` for account management has several benefits:
 Clef for Quorum is the standard `go-ethereum` `clef` tool, with additional support for Quorum-specific features, including:
 
 * Support for private transactions
+* Ability to extend functionality with [`account` plugins](../account-Plugins/Overview) 
 
 ## Installation
-`geth` and all included tools (i.e. `clef`, `bootnode`, ...) can be installed to `PATH` by [building Quorum from source with `make all`](../../Getting%20Started/Installing#quorum).
+`geth` and all included tools (i.e. `clef`, `bootnode`, ...) can be installed to `PATH` by [building Quorum from source with `make all`](../../../Getting%20Started/Installing#quorum).
 
 Verify the installation with:
 ```shell
@@ -76,3 +76,13 @@ An example workflow would be:
 1. Start `clef` and make your accounts available to it
 1. Start `geth` and do not make your accounts available to it
 1. Use `eth_sendTransaction` to sign and submit a transaction for validation, propagation, and minting 
+
+### Extending with account plugins
+By default, `clef` manages file-stored `keystore` accounts.  Alternative account management options can be enabled through the use of [`account` plugins](../account-Plugins/Overview).  See the [Pluggable Architecture Overview](../../../PluggableArchitecture/Overview) for more info on using plugins with `clef`.
+
+```shell
+clef --plugins file:///path/to/plugin-config.json
+```
+
+## More info
+More info can be found in the `.md` files in the [cmd/clef directory](https://github.com/jpmorganchase/quorum/tree/master/cmd/clef).
