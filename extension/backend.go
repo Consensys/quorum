@@ -161,7 +161,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 					caller, _ := service.managementContractFacade.Caller(newContractExtension.ManagementContractAddress)
 					contractCreator, _ := caller.Creator(nil)
 
-					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties}
+					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties}}
 
 					extensionAPI := NewPrivateExtensionAPI(service)
 					_, err = extensionAPI.ApproveExtension(newContractExtension.ManagementContractAddress, true, txArgs)
@@ -266,7 +266,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 					}
 					log.Debug("Extension: able to fetch all parties", "parties", fetchedParties)
 
-					txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties})
+					txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties}})
 					if err != nil {
 						log.Error("service.accountManager.GenerateTransactOptions", "error", err, "contractCreator", contractCreator.Hex(), "privateFor", fetchedParties)
 						return
