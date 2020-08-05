@@ -21,15 +21,19 @@
 package rawdb
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 )
 
 var (
-	privateRootPrefix           = []byte("P")
-	privateBloomPrefix          = []byte("Pb")
-	quorumEIP155ActivatedPrefix = []byte("quorum155active")
+	privateRootPrefix                      = []byte("P")
+	privateBloomPrefix                     = []byte("Pb")
+	quorumEIP155ActivatedPrefix            = []byte("quorum155active")
+	privateRootToPrivacyMetadataRootPrefix = []byte("PSR2PMDR")
+	emptyRoot                              = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 )
 
 //returns whether we have a chain configuration that can't be updated
@@ -49,8 +53,21 @@ func GetPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
 	return common.BytesToHash(root)
 }
 
+func GetPrivacyMetadataStateRootForPrivateStateRoot(db ethdb.KeyValueReader, privateStateRoot common.Hash) common.Hash {
+	root, _ := db.Get(append(privateRootToPrivacyMetadataRootPrefix, privateStateRoot[:]...))
+	return common.BytesToHash(root)
+}
+
 func WritePrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error {
 	return db.Put(append(privateRootPrefix, blockRoot[:]...), root[:])
+}
+
+func WritePrivacyMetadataStateRootForPrivateStateRoot(db ethdb.Database, privateStateRoot, privacyMetadataRoot common.Hash) error {
+	err := db.Put(append(privateRootToPrivacyMetadataRootPrefix, privateStateRoot[:]...), privacyMetadataRoot[:])
+	if err != nil {
+		return fmt.Errorf("unable to persist mapping between private state root to privacy metadata root. Cause: %v", err)
+	}
+	return nil
 }
 
 // WritePrivateBlockBloom creates a bloom filter for the given receipts and saves it to the database
@@ -67,4 +84,30 @@ func GetPrivateBlockBloom(db ethdb.Database, number uint64) (bloom types.Bloom) 
 		bloom = types.BytesToBloom(data)
 	}
 	return bloom
+}
+
+type PrivacyMedatadaLinker interface {
+	PrivacyMetadataRootForPrivateStateRoot(privateStateRoot common.Hash) common.Hash
+	LinkPrivacyMetadataRootToPrivateStateRoot(privateStateRoot, privacyMetadataRoot common.Hash) error
+}
+
+type ethDBPrivacyMetadataLinker struct {
+	db ethdb.Database
+}
+
+func NewPrivacyMetadataLinker(db ethdb.Database) PrivacyMedatadaLinker {
+	return &ethDBPrivacyMetadataLinker{
+		db: db,
+	}
+}
+
+func (pml *ethDBPrivacyMetadataLinker) PrivacyMetadataRootForPrivateStateRoot(privateStateRoot common.Hash) common.Hash {
+	return GetPrivacyMetadataStateRootForPrivateStateRoot(pml.db, privateStateRoot)
+}
+
+func (pml *ethDBPrivacyMetadataLinker) LinkPrivacyMetadataRootToPrivateStateRoot(privateStateRoot, privacyMetadataRoot common.Hash) error {
+	if privacyMetadataRoot != emptyRoot {
+		return WritePrivacyMetadataStateRootForPrivateStateRoot(pml.db, privateStateRoot, privacyMetadataRoot)
+	}
+	return nil
 }

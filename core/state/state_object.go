@@ -18,6 +18,7 @@ package state
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
 	"io"
 	"math/big"
@@ -26,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -79,6 +81,9 @@ type stateObject struct {
 	trie Trie // storage trie, which becomes non-nil on first access
 	code Code // contract bytecode, which gets set when code is loaded
 
+	// Quorum - Privacy Enhancements
+	privacyMetadata *PrivacyMetadata
+
 	originStorage  Storage // Storage cache of original entries to dedup rewrites, reset for every transaction
 	pendingStorage Storage // Storage entries that need to be flushed to disk, at the end of an entire block
 	dirtyStorage   Storage // Storage entries that have been modified in the current transaction execution
@@ -91,6 +96,8 @@ type stateObject struct {
 	suicided  bool
 	touched   bool
 	deleted   bool
+	// Quroum - Privacy Enhancements
+	dirtyPrivacyMetadata bool
 }
 
 // empty returns whether the account is considered empty.
@@ -105,6 +112,12 @@ type Account struct {
 	Balance  *big.Int
 	Root     common.Hash // merkle root of the storage trie
 	CodeHash []byte
+}
+
+//attached to every private contract account
+type PrivacyMetadata struct {
+	CreationTxHash common.EncryptedPayloadHash `json:"creationTxHash"`
+	PrivacyFlag    engine.PrivacyFlagType      `json:"privacyFlag"`
 }
 
 // newObject creates a state object.
@@ -126,6 +139,13 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 		originStorage:  make(Storage),
 		pendingStorage: make(Storage),
 		dirtyStorage:   make(Storage),
+	}
+}
+
+func NewStatePrivacyMetadata(creationTxHash common.EncryptedPayloadHash, privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
+	return &PrivacyMetadata{
+		CreationTxHash: creationTxHash,
+		PrivacyFlag:    privacyFlag,
 	}
 }
 
@@ -389,6 +409,10 @@ func (s *stateObject) deepCopy(db *StateDB) *stateObject {
 	stateObject.suicided = s.suicided
 	stateObject.dirtyCode = s.dirtyCode
 	stateObject.deleted = s.deleted
+	// Quorum - Privacy Enhancements
+	stateObject.privacyMetadata = s.privacyMetadata
+	stateObject.dirtyPrivacyMetadata = s.dirtyPrivacyMetadata
+	// End Quorum - Privacy Enhancements
 	return stateObject
 }
 
@@ -445,6 +469,23 @@ func (s *stateObject) setNonce(nonce uint64) {
 	s.data.Nonce = nonce
 }
 
+// Quorum - Privacy Enhancements
+func (s *stateObject) SetStatePrivacyMetadata(metadata *PrivacyMetadata) {
+	prevPM, _ := s.PrivacyMetadata()
+	s.db.journal.append(privacyMetadataChange{
+		account: &s.address,
+		prev:    prevPM,
+	})
+	s.setStatePrivacyMetadata(metadata)
+}
+
+func (s *stateObject) setStatePrivacyMetadata(metadata *PrivacyMetadata) {
+	s.privacyMetadata = metadata
+	s.dirtyPrivacyMetadata = true
+}
+
+// End Quorum - Privacy Enhancements
+
 func (s *stateObject) CodeHash() []byte {
 	return s.data.CodeHash
 }
@@ -457,9 +498,55 @@ func (s *stateObject) Nonce() uint64 {
 	return s.data.Nonce
 }
 
+// Quorum - Privacy Enhancements
+func (s *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
+	if s.privacyMetadata != nil {
+		return s.privacyMetadata, nil
+	}
+	val, err := s.GetCommittedPrivacyMetadata()
+	if val != nil {
+		s.privacyMetadata = val
+	}
+	return val, err
+}
+
+func (s *stateObject) GetCommittedPrivacyMetadata() (*PrivacyMetadata, error) {
+	val, err := s.db.privacyMetaDataTrie.TryGet(s.address.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve metadata from the privacyMetadataTrie. Cause: %v", err)
+	}
+	if len(val) == 0 {
+		return nil, fmt.Errorf("The provided contract does not have privacy metadata: %x", s.address)
+	}
+	return bytesToPrivacyMetadata(val)
+}
+
+// End Quorum - Privacy Enhancements
+
 // Never called, but must be present to allow stateObject to be used
 // as a vm.Account interface that also satisfies the vm.ContractRef
 // interface. Interfaces are awesome.
 func (s *stateObject) Value() *big.Int {
 	panic("Value on stateObject should never be called")
 }
+
+// Quorum - Privacy Enhancements
+func privacyMetadataToBytes(pm *PrivacyMetadata) ([]byte, error) {
+	var b bytes.Buffer
+	e := gob.NewEncoder(&b)
+	if err := e.Encode(pm); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+func bytesToPrivacyMetadata(b []byte) (*PrivacyMetadata, error) {
+	var data *PrivacyMetadata
+	d := gob.NewDecoder(bytes.NewBuffer(b))
+	if err := d.Decode(&data); err != nil {
+		return nil, fmt.Errorf("unable to decode privacy metadata. Cause: %v", err)
+	}
+	return data, nil
+}
+
+// End Quorum - Privacy Enhancements

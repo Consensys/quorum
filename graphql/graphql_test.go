@@ -18,9 +18,11 @@ package graphql
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -41,16 +43,17 @@ func TestQuorumSchema(t *testing.T) {
 	defer func() {
 		private.P = saved
 	}()
+	key := common.BytesToEncryptedPayloadHash([]byte("key"))
 	private.P = &StubPrivateTransactionManager{
 		responses: map[string][]interface{}{
-			"key": {
+			key.String(): {
 				[]byte("private payload"), // equals to 0x70726976617465207061796c6f6164 after converting to bytes
 				nil,
 			},
 		},
 	}
 	// Test private transaction
-	privateTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte("key"))
+	privateTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), key.Bytes())
 	privateTx.SetPrivate()
 	privateTxQuery := &Transaction{tx: privateTx}
 	isPrivate, err := privateTxQuery.IsPrivate(context.Background())
@@ -87,30 +90,29 @@ func TestQuorumSchema(t *testing.T) {
 }
 
 type StubPrivateTransactionManager struct {
+	notinuse.PrivateTransactionManager
 	responses map[string][]interface{}
 }
 
-func (spm *StubPrivateTransactionManager) Send(data []byte, from string, to []string) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
+func (spm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
+	return true
 }
 
-func (spm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) SendSignedTx(data []byte, to []string) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) Receive(data []byte) ([]byte, error) {
-	res := spm.responses[string(data)]
+func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
+	res := spm.responses[data.String()]
 	if err, ok := res[1].(error); ok {
-		return nil, err
+		return nil, nil, err
 	}
 	if ret, ok := res[0].([]byte); ok {
-		return ret, nil
+		return ret, &engine.ExtraMetadata{
+			PrivacyFlag: engine.PrivacyFlagStandardPrivate,
+		}, nil
 	}
-	return nil, nil
+	return nil, nil, nil
+}
+
+func (spm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
+	return spm.Receive(data)
 }
 
 func (spm *StubPrivateTransactionManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {

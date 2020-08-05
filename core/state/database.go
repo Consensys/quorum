@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
@@ -49,6 +50,9 @@ type Database interface {
 
 	// TrieDB retrieves the low level trie database used for data storage.
 	TrieDB() *trie.Database
+
+	// Privacy metadata linker
+	PrivacyMetadataLinker() rawdb.PrivacyMedatadaLinker
 }
 
 // Trie is a Ethereum Merkle Patricia trie.
@@ -109,15 +113,28 @@ func NewDatabase(db ethdb.Database) Database {
 func NewDatabaseWithCache(db ethdb.Database, cache int) Database {
 	csc, _ := lru.New(codeSizeCacheSize)
 	return &cachingDB{
-		db:            trie.NewDatabaseWithCache(db, cache),
+		db: trie.NewDatabaseWithCache(db, cache),
+		// Quorum - Privacy Enhancements
+		privacyMetadataLinker: rawdb.NewPrivacyMetadataLinker(db),
+		// End Quorum - Privacy Enhancements
 		codeSizeCache: csc,
 	}
 }
 
 type cachingDB struct {
-	db            *trie.Database
+	db *trie.Database
+	// Quorum - Privacy Enhancements
+	privacyMetadataLinker rawdb.PrivacyMedatadaLinker
+	// End Quorum - Privacy Enhancements
 	codeSizeCache *lru.Cache
 }
+
+// Quorum - Privacy Enhancements
+func (db *cachingDB) PrivacyMetadataLinker() rawdb.PrivacyMedatadaLinker {
+	return db.privacyMetadataLinker
+}
+
+// End Quorum - Privacy Enhancements
 
 // OpenTrie opens the main account trie at a specific root hash.
 func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
