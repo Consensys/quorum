@@ -18,7 +18,6 @@ package state
 
 import (
 	"bytes"
-	"encoding/gob"
 	"fmt"
 	"io"
 	"math/big"
@@ -532,18 +531,12 @@ func (s *stateObject) Value() *big.Int {
 
 // Quorum - Privacy Enhancements
 func privacyMetadataToBytes(pm *PrivacyMetadata) ([]byte, error) {
-	var b bytes.Buffer
-	e := gob.NewEncoder(&b)
-	if err := e.Encode(pm); err != nil {
-		return nil, err
-	}
-	return b.Bytes(), nil
+	return rlp.EncodeToBytes(pm)
 }
 
 func bytesToPrivacyMetadata(b []byte) (*PrivacyMetadata, error) {
 	var data *PrivacyMetadata
-	d := gob.NewDecoder(bytes.NewBuffer(b))
-	if err := d.Decode(&data); err != nil {
+	if err := rlp.DecodeBytes(b, &data); err != nil {
 		return nil, fmt.Errorf("unable to decode privacy metadata. Cause: %v", err)
 	}
 	return data, nil

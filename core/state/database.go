@@ -52,7 +52,7 @@ type Database interface {
 	TrieDB() *trie.Database
 
 	// Privacy metadata linker
-	PrivacyMetadataLinker() rawdb.PrivacyMedatadaLinker
+	PrivacyMetadataLinker() rawdb.PrivacyMetadataLinker
 }
 
 // Trie is a Ethereum Merkle Patricia trie.
@@ -124,13 +124,13 @@ func NewDatabaseWithCache(db ethdb.Database, cache int) Database {
 type cachingDB struct {
 	db *trie.Database
 	// Quorum - Privacy Enhancements
-	privacyMetadataLinker rawdb.PrivacyMedatadaLinker
+	privacyMetadataLinker rawdb.PrivacyMetadataLinker
 	// End Quorum - Privacy Enhancements
 	codeSizeCache *lru.Cache
 }
 
 // Quorum - Privacy Enhancements
-func (db *cachingDB) PrivacyMetadataLinker() rawdb.PrivacyMedatadaLinker {
+func (db *cachingDB) PrivacyMetadataLinker() rawdb.PrivacyMetadataLinker {
 	return db.privacyMetadataLinker
 }
 
