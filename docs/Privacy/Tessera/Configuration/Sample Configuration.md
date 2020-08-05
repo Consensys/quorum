@@ -4,6 +4,7 @@ Tessera configuration varies by version as new features are added or changed. Be
 
 | Version       |
 | ------------- |
+| [0.10.6](../Tessera%20v0.10.6%20sample%20settings) |
 | [0.10.3](../Tessera%20v0.10.3%20sample%20settings) |
 | [0.10.2](../Tessera%20v0.10.2%20sample%20settings) |
 | [0.10](../Tessera%20v0.10.0%20sample%20settings) |
@@ -12,6 +13,11 @@ Tessera configuration varies by version as new features are added or changed. Be
 | [0.7.3](../Tessera%20v0.7.3%20sample%20settings)      |
 
 ## Changelist
+### 0.10.6
+- `bootstrapNode` is added to start Tessera as bootstrap node ONLY with no Quorum connection.
+
+- `CUSTOM` encryptor type added to integrate third party encryptor implementation.
+
 ### 0.10.3
 - The `keys.azureKeyVaultConfig` and `keys.hashicorpKeyVaultConfig` fields are now deprecated.  Instead, the generic `keys.keyVaultConfigs` should be used.  See [Keys Config](../Keys) for more info.
 
