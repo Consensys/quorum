@@ -125,7 +125,7 @@ As Tessera expects 2-way TLS, a `.jks` file for the `clientKeyStore` must also b
 The [Prometheus documentation](https://prometheus.io/docs/introduction/overview/) provides all the information needed to get Prometheus setup and ready to integrate with Tessera.  The [Prometheus First Steps](https://prometheus.io/docs/introduction/first_steps/) is a good starting point.  A summary of the steps to store Tessera metrics in a Prometheus DB are as follows:
 
 1. Install Prometheus
-1. Create a `prometheus.yml` configuration file to provide Prometheus with the necessary information to pull metrics from Tessera.  A simple Prometheus config for use with the [7nodes example network](../../../../Getting Started/7Nodes) is:
+1. Create a `prometheus.yml` configuration file to provide Prometheus with the necessary information to pull metrics from Tessera.  A simple Prometheus config for use with the [7nodes example network](../../../../Getting Started/Quorum-Examples) is:
     ```yaml
     global:
       scrape_interval:     15s
@@ -156,7 +156,7 @@ Grafana can be used to create dashboards from data stored in InfluxDB or Prometh
 #### Example dashboard
 [![example-grafana-dashboard.png](../../../../images/tessera/monitoring/example-grafana-dashboard.png)](../../../../images/tessera/monitoring/example-grafana-dashboard.png)
 
-To create this dashboard, a [7nodes example network](../../../../Getting Started/7Nodes) was started, with each Tessera node configured to store its `P2P` and `Q2T` metrics to the same InfluxDB.  Several runs of the Quorum Acceptance Tests were run against this network to simulate network activity.  
+To create this dashboard, a [7nodes example network](../../../../Getting Started/Quorum-Examples) was started, with each Tessera node configured to store its `P2P` and `Q2T` metrics to the same InfluxDB.  Several runs of the Quorum Acceptance Tests were run against this network to simulate network activity.  
 
 As can be seen in the top-right corner, the dashboard was set to only show data collected in the past 15 mins.  
 
