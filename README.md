@@ -19,6 +19,7 @@ Key enhancements over go-ethereum:
     * [__Istanbul BFT__](http://docs.goquorum.com/en/latest/Consensus/ibft/ibft/) - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
     * [__Clique POA Consensus__](https://github.com/ethereum/EIPs/issues/225) - a default POA consensus algorithm bundled with Go Ethereum.
 * [__Peer Permissioning__](http://docs.goquorum.com/en/latest/Permissioning/Permissions%20Overview/) - node/peer permissioning, ensuring only known parties can join the network
+* [__Account management__](http://docs.goquorum.com/en/latest/Account-Key-Management/Overview/) - Quorum introduced account plugins, which allows Quorum or clef to be extended with alternative methods of managing accounts including external vaults.
 * [__Pluggable architecture__](http://docs.goquorum.com/en/latest/PluggableArchitecture/Overview/) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of Quorum features.
 * __Higher Performance__ - Quorum offers significantly higher performance throughput than public geth
 
@@ -38,6 +39,7 @@ Check out some of the interesting projects we are actively working on:
 * [quorum-wizard](http://docs.goquorum.com/en/latest/Wizard/GettingStarted/): Setup a Quorum network in 2 minutes!
 * [quorum-remix-plugin](http://docs.goquorum.com/en/latest/RemixPlugin/Overview/): The Quorum plugin for Ethereum's Remix IDE adds support for creating and interacting with private contracts on a Quorum network.
 * [Cakeshop](http://docs.goquorum.com/en/latest/Cakeshop/Overview/): An integrated development environment and SDK for Quorum
+* [Quorum-Profiling](): Toolset for stress testing & benchmarking Quorum networks. 
 * [quorum-examples](http://docs.goquorum.com/en/latest/Getting%20Started/Quorum-Examples/): Quorum demonstration examples
 * <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [qubernetes](http://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/#quorum-on-kubernetes): Deploy Quorum on Kubernetes  
 * [quorum-cloud](http://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/#creating-a-network-deployed-in-the-cloud): Tools to help deploy Quorum network in a cloud provider of choice
