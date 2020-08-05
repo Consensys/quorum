@@ -19,8 +19,8 @@ Key enhancements over go-ethereum:
     * [__Istanbul BFT__](http://docs.goquorum.com/en/latest/Consensus/ibft/ibft/) - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
     * [__Clique POA Consensus__](https://github.com/ethereum/EIPs/issues/225) - a default POA consensus algorithm bundled with Go Ethereum.
 * [__Peer Permissioning__](http://docs.goquorum.com/en/latest/Permissioning/Permissions%20Overview/) - node/peer permissioning, ensuring only known parties can join the network
-* [__Account management__](http://docs.goquorum.com/en/latest/Account-Key-Management/Overview/) - Quorum introduced account plugins, which allows Quorum or clef to be extended with alternative methods of managing accounts including external vaults.
-* [__Pluggable architecture__](http://docs.goquorum.com/en/latest/PluggableArchitecture/Overview/) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of Quorum features.
+* [__Account Management__](http://docs.goquorum.com/en/latest/Account-Key-Management/Overview/) - Quorum introduced account plugins, which allows Quorum or clef to be extended with alternative methods of managing accounts including external vaults.
+* [__Pluggable Architecture__](http://docs.goquorum.com/en/latest/PluggableArchitecture/Overview/) -  allows adding additional features as plugins to the core `geth`, providing extensibility, flexibility, and distinct isolation of Quorum features.
 * __Higher Performance__ - Quorum offers significantly higher performance throughput than public geth
 
 ## Architecture
