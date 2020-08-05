@@ -1,6 +1,6 @@
 # Quorum Profiling
 
-[Quorum Profiling](https://github.com/QuorumEngineering/quorum-test) is a custom toolset which could be used to benchmark transaction throughput and network statistics on any existing network using the Jmeter & TPS monitoring tool profiles or could be used to spin up a entire quorum network from scratch in AWS and benchmark the network for TPS, CPU/Memory usage. The various scenarios of usage is explained [here](https://github.com/QuorumEngineering/quorum-test)
+[Quorum Profiling](https://github.com/QuorumEngineering/quorum-test) is a custom toolset which could be used to benchmark transaction throughput and network statistics on any existing Quorum network using the Jmeter & TPS monitoring tool profiles. Alternatively it could also be used to spin up an entire quorum network from scratch in AWS and benchmark the network for TPS, CPU/Memory usage. The various scenarios of usage is explained [here](https://github.com/QuorumEngineering/quorum-test)
 
 ## Metrics Visualisation
 
