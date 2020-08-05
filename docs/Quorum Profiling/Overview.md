@@ -15,8 +15,8 @@ The tool executes the stress test profile selected and then collects the followi
  
 ### Sample Network Dashboard 
 
-![Quorum Network Dashboard](images/quorumDashboard.jpeg) 
+![Quorum Network Dashboard](quorumDashboard.jpeg) 
  
 ### Sample JMeter Dashboard
 
-![JMeter Dashboard](images/quorumDashboard.jpeg) 
+![JMeter Dashboard](jmeterDashboard.jpeg) 
