@@ -18,15 +18,15 @@ package graphql
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/private/engine"
-	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 )
 
 func TestBuildSchema(t *testing.T) {

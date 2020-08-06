@@ -2,7 +2,6 @@ package privacyExtension
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -75,8 +74,9 @@ func (handler *ExtensionHandler) FetchStateData(address common.Address, hash str
 // Checks
 
 func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, bool) {
-	ptmHash, _ := base64.StdEncoding.DecodeString(hash)
-	stateData, err := handler.ptm.Receive(ptmHash)
+	ptmHash, _ := common.Base64ToEncryptedPayloadHash(hash)
+	//TODO: extraMetadat is passed need to handle
+	stateData, _, err := handler.ptm.Receive(ptmHash)
 
 	if stateData == nil {
 		log.Error("No state data found in PTM", "ptm hash", hash)
@@ -102,7 +102,8 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) 
 		log.Debug("Extension: could not determine if we are sender", "err", err.Error())
 		return false
 	}
-	data, _ := handler.ptm.Receive(encryptedTxHash.Bytes())
+	//TODO: handle extra meta data
+	data, _, _ := handler.ptm.Receive(encryptedTxHash)
 	retrievedAddress := common.BytesToAddress(data)
 	if !bytes.Equal(retrievedAddress.Bytes(), address.Bytes()) {
 		log.Error("Extension: wrong address in retrieved UUID")

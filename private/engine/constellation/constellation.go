@@ -58,6 +58,14 @@ func (g *constellation) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *e
 	return nil, nil, engine.ErrPrivateTxManagerNotSupported
 }
 
+func (g *constellation) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
+	return false, engine.ErrPrivateTxManagerNotSupported
+}
+
+func (g *constellation) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
+	return nil, engine.ErrPrivateTxManagerNotSupported
+}
+
 func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
 	if common.EmptyEncryptedPayloadHash(data) {
 		return nil, nil, nil

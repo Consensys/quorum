@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/private/engine"
 )
+
 var ErrPrivateTxManagerNotInUse = errors.New("private transaction manager is not in use")
 
 // NotInUsePrivateTxManager returns an error for all communication functions,

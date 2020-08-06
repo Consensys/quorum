@@ -1,7 +1,6 @@
 package extension
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -20,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -161,7 +161,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 					caller, _ := service.managementContractFacade.Caller(newContractExtension.ManagementContractAddress)
 					contractCreator, _ := caller.Creator(nil)
 
-					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties}
+					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties}}
 
 					extensionAPI := NewPrivateExtensionAPI(service)
 					_, err = extensionAPI.ApproveExtension(newContractExtension.ManagementContractAddress, true, txArgs)
@@ -266,7 +266,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 					}
 					log.Debug("Extension: able to fetch all parties", "parties", fetchedParties)
 
-					txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateFor: fetchedParties})
+					txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties}})
 					if err != nil {
 						log.Error("service.accountManager.GenerateTransactOptions", "error", err, "contractCreator", contractCreator.Hex(), "privateFor", fetchedParties)
 						return
@@ -294,12 +294,13 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 
 					log.Debug("Extension: send the state dump to the new recipient", "recipient", recipientPTMKey)
 					//send to PTM
-					hashOfStateData, err := service.ptm.Send(entireStateData, "", []string{recipientPTMKey})
+					//TODO pass proper extra data
+					hashOfStateData, err := service.ptm.Send(entireStateData, "", []string{recipientPTMKey}, &engine.ExtraMetadata{})
 					if err != nil {
 						log.Error("[ptm] service.ptm.Send", "stateDataInHex", hex.EncodeToString(entireStateData[:]), "recipient", recipientPTMKey, "error", err)
 						return
 					}
-					hashofStateDataBase64 := base64.StdEncoding.EncodeToString(hashOfStateData)
+					hashofStateDataBase64 := hashOfStateData.ToBase64()
 
 					transactor, err := service.managementContractFacade.Transactor(l.Address)
 					if err != nil {

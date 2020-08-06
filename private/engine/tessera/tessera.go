@@ -8,18 +8,15 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-
-	"github.com/ethereum/go-ethereum/log"
-
-	"github.com/ethereum/go-ethereum/private/engine"
-
-	"github.com/ethereum/go-ethereum/private/cache"
-
-	"github.com/ethereum/go-ethereum/params"
-
-	gocache "github.com/patrickmn/go-cache"
+	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private/cache"
+	"github.com/ethereum/go-ethereum/private/engine"
+	gocache "github.com/patrickmn/go-cache"
 )
 
 type tesseraPrivateTxManager struct {
@@ -221,6 +218,67 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 	}, gocache.DefaultExpiration)
 
 	return response.Payload, &extra, nil
+}
+
+// TODO change to submitJson as in other calls
+func (t *tesseraPrivateTxManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
+	req, err := http.NewRequest("GET", "http+unix://c/transaction/"+url.PathEscape(txHash.ToBase64())+"/isSender", nil)
+	if err != nil {
+		return false, err
+	}
+
+	res, err := t.client.HttpClient.Do(req)
+
+	if res != nil {
+		defer res.Body.Close()
+	}
+
+	if err != nil {
+		return false, err
+	}
+
+	if res.StatusCode != 200 {
+		return false, fmt.Errorf("non-200 status code: %+v", res)
+	}
+
+	out, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return false, err
+	}
+
+	return strconv.ParseBool(string(out))
+}
+
+// TODO change to submitJson as in other calls
+func (t *tesseraPrivateTxManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
+	requestUrl := "http+unix://c/transaction/" + url.PathEscape(txHash.ToBase64()) + "/participants"
+	req, err := http.NewRequest("GET", requestUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := t.client.HttpClient.Do(req)
+
+	if res != nil {
+		defer res.Body.Close()
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Non-200 status code: %+v", res)
+	}
+
+	out, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	split := strings.Split(string(out), ",")
+
+	return split, nil
 }
 
 func (t *tesseraPrivateTxManager) Name() string {
