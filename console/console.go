@@ -38,7 +38,8 @@ import (
 )
 
 var (
-	passwordRegexp = regexp.MustCompile(`personal.[nus]`)
+	// u: unlock, s: signXX, sendXX, n: newAccount, i: importXX
+	passwordRegexp = regexp.MustCompile(`personal.[nusi]`)
 	onlyWhitespace = regexp.MustCompile(`^\s*$`)
 	exit           = regexp.MustCompile(`^\s*exit\s*;*\s*$`)
 )
@@ -143,6 +144,11 @@ func (c *Console) init(preload []string) error {
 		if api == "web3" {
 			continue // manually mapped or ignore
 		}
+		//quorum
+		// the @ symbol results in errors that prevent the extension from being added to the web3 object
+		api = strings.Replace(api, "plugin@", "plugin_", 1)
+		//!quorum
+
 		if file, ok := web3ext.Modules[api]; ok {
 			// Load our extension for the module.
 			if err = c.jsre.Compile(fmt.Sprintf("%s.js", api), file); err != nil {

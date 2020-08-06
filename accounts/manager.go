@@ -136,6 +136,22 @@ func (am *Manager) Backends(kind reflect.Type) []Backend {
 	return am.backends[kind]
 }
 
+// Quorum
+func (am *Manager) Backend(account Account) (Backend, error) {
+	for _, b := range am.backends {
+		for _, bb := range b {
+			for _, w := range bb.Wallets() {
+				if w.Contains(account) {
+					return bb, nil
+				}
+			}
+		}
+	}
+	return nil, ErrUnknownWallet
+}
+
+// end Quorum
+
 // Wallets returns all signer accounts registered under this account manager.
 func (am *Manager) Wallets() []Wallet {
 	am.lock.RLock()

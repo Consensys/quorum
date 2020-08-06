@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/plugin"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/tsdb/fileutil"
 )
@@ -61,11 +62,13 @@ type Node struct {
 	ipcListener net.Listener // IPC RPC listener socket to serve API requests
 	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
 
+	isHttps       bool
 	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
 	httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
 	httpListener  net.Listener // HTTP RPC listener socket to server API requests
 	httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
 
+	isWss      bool
 	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
 	wsListener net.Listener // Websocket RPC listener socket to server API requests
 	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
@@ -197,6 +200,7 @@ func (n *Node) Start() error {
 
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
+	var kinds []reflect.Type
 	for _, constructor := range n.serviceFuncs {
 		// Create a new context for the particular service
 		ctx := &ServiceContext{
@@ -218,6 +222,8 @@ func (n *Node) Start() error {
 			return &DuplicateServiceError{Kind: kind}
 		}
 		services[kind] = service
+		// to keep track of order in which services are constructed
+		kinds = append(kinds, kind)
 	}
 	// Gather the protocols and start the freshly assembled P2P server
 	for _, service := range services {
@@ -228,7 +234,9 @@ func (n *Node) Start() error {
 	}
 	// Start each of the services
 	var started []reflect.Type
-	for kind, service := range services {
+	// start services in the same order that they are constructed
+	for _, kind := range kinds {
+		service := services[kind]
 		// Start the next service, stopping all previous upon failure
 		if err := service.Start(running); err != nil {
 			for _, kind := range started {
@@ -370,17 +378,54 @@ func (n *Node) stopIPC() {
 	}
 }
 
+func (n *Node) httpScheme() string {
+	if n.isHttps {
+		return "https"
+	}
+	return "http"
+}
+
+func (n *Node) wsScheme() string {
+	if n.isWss {
+		return "wss"
+	}
+	return "ws"
+}
+
+func (n *Node) getSecuritySupports() (tlsConfigSource security.TLSConfigurationSource, authManager security.AuthenticationManager, err error) {
+	if n.pluginManager.IsEnabled(plugin.SecurityPluginInterfaceName) {
+		sp := new(plugin.SecurityPluginTemplate)
+		if err = n.pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err != nil {
+			return
+		}
+		if tlsConfigSource, err = sp.TLSConfigurationSource(); err != nil {
+			return
+		}
+		if authManager, err = sp.AuthenticationManager(); err != nil {
+			return
+		}
+	} else {
+		log.Info("Security Plugin is not enabled")
+	}
+	return
+}
+
 // startHTTP initializes and starts the HTTP RPC endpoint.
 func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string, timeouts rpc.HTTPTimeouts) error {
 	// Short circuit if the HTTP endpoint isn't being exposed
 	if endpoint == "" {
 		return nil
 	}
-	listener, handler, err := rpc.StartHTTPEndpoint(endpoint, apis, modules, cors, vhosts, timeouts)
+	tlsConfigSource, authManager, err := n.getSecuritySupports()
 	if err != nil {
 		return err
 	}
-	n.log.Info("HTTP endpoint opened", "url", fmt.Sprintf("http://%s", endpoint), "cors", strings.Join(cors, ","), "vhosts", strings.Join(vhosts, ","))
+	listener, handler, isTlsEnabled, err := rpc.StartHTTPEndpoint(endpoint, apis, modules, cors, vhosts, timeouts, tlsConfigSource, authManager)
+	if err != nil {
+		return err
+	}
+	n.isHttps = isTlsEnabled
+	n.log.Info(fmt.Sprintf("%s endpoint opened", n.httpScheme()), "url", fmt.Sprintf("%s://%s", n.httpScheme(), endpoint), "cors", strings.Join(cors, ","), "vhosts", strings.Join(vhosts, ","))
 	// All listeners booted successfully
 	n.httpEndpoint = endpoint
 	n.httpListener = listener
@@ -395,7 +440,7 @@ func (n *Node) stopHTTP() {
 		n.httpListener.Close()
 		n.httpListener = nil
 
-		n.log.Info("HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.httpEndpoint))
+		n.log.Info(fmt.Sprintf("%s endpoint closed", n.httpScheme()), "url", fmt.Sprintf("%s://%s", n.httpScheme(), n.httpEndpoint))
 	}
 	if n.httpHandler != nil {
 		n.httpHandler.Stop()
@@ -409,11 +454,16 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	if endpoint == "" {
 		return nil
 	}
-	listener, handler, err := rpc.StartWSEndpoint(endpoint, apis, modules, wsOrigins, exposeAll)
+	tlsConfigSource, authManager, err := n.getSecuritySupports()
 	if err != nil {
 		return err
 	}
-	n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%s", listener.Addr()))
+	listener, handler, isTlsEnabled, err := rpc.StartWSEndpoint(endpoint, apis, modules, wsOrigins, exposeAll, tlsConfigSource, authManager)
+	if err != nil {
+		return err
+	}
+	n.isWss = isTlsEnabled
+	n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("%s://%s", n.wsScheme(), listener.Addr()))
 	// All listeners booted successfully
 	n.wsEndpoint = endpoint
 	n.wsListener = listener
@@ -428,7 +478,7 @@ func (n *Node) stopWS() {
 		n.wsListener.Close()
 		n.wsListener = nil
 
-		n.log.Info("WebSocket endpoint closed", "url", fmt.Sprintf("ws://%s", n.wsEndpoint))
+		n.log.Info("WebSocket endpoint closed", "url", fmt.Sprintf("%s://%s", n.wsScheme(), n.wsEndpoint))
 	}
 	if n.wsHandler != nil {
 		n.wsHandler.Stop()

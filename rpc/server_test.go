@@ -19,13 +19,20 @@ package rpc
 import (
 	"bufio"
 	"bytes"
+	"context"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/golang/protobuf/ptypes"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestServerRegisterName(t *testing.T) {
@@ -149,4 +156,86 @@ func TestServerShortLivedConn(t *testing.T) {
 			t.Fatalf("wrong response: %s", buf[:n])
 		}
 	}
+}
+
+func TestAuthenticateHttpRequest_whenAuthenticationManagerFails(t *testing.T) {
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{false, errors.New("arbitrary error")})
+	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
+	captor := &securityContextConfigurerCaptor{}
+
+	protectedServer.authenticateHttpRequest(arbitraryRequest, captor)
+
+	actualErr, hasError := captor.context.Value(ctxAuthenticationError).(error)
+	assert.True(t, hasError, "must have error")
+	assert.EqualError(t, actualErr, "internal error")
+	_, hasAuthToken := captor.context.Value(ctxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	assert.False(t, hasAuthToken, "must not be preauthenticated")
+}
+
+func TestAuthenticateHttpRequest_whenTypical(t *testing.T) {
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil})
+	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
+	arbitraryRequest.Header.Set(HttpAuthorizationHeader, "arbitrary value")
+	captor := &securityContextConfigurerCaptor{}
+
+	protectedServer.authenticateHttpRequest(arbitraryRequest, captor)
+
+	_, hasError := captor.context.Value(ctxAuthenticationError).(error)
+	assert.False(t, hasError, "must not have error")
+	_, hasAuthToken := captor.context.Value(ctxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	assert.True(t, hasAuthToken, "must be preauthenticated")
+}
+
+func TestAuthenticateHttpRequest_whenAuthenticationManagerIsDisabled(t *testing.T) {
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{false, nil})
+	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
+	captor := &securityContextConfigurerCaptor{}
+
+	protectedServer.authenticateHttpRequest(arbitraryRequest, captor)
+
+	_, hasError := captor.context.Value(ctxAuthenticationError).(error)
+	assert.False(t, hasError, "must not have error")
+	_, hasAuthToken := captor.context.Value(ctxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	assert.False(t, hasAuthToken, "must not be preauthenticated")
+}
+
+func TestAuthenticateHttpRequest_whenMissingAccessToken(t *testing.T) {
+	protectedServer := NewProtectedServer(&stubAuthenticationManager{true, nil})
+	arbitraryRequest, _ := http.NewRequest("POST", "https://arbitraryUrl", nil)
+	captor := &securityContextConfigurerCaptor{}
+
+	protectedServer.authenticateHttpRequest(arbitraryRequest, captor)
+
+	actualErr, hasError := captor.context.Value(ctxAuthenticationError).(error)
+	assert.True(t, hasError, "must have error")
+	assert.EqualError(t, actualErr, "missing access token")
+	_, hasAuthToken := captor.context.Value(ctxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	assert.False(t, hasAuthToken, "must not be preauthenticated")
+}
+
+type securityContextConfigurerCaptor struct {
+	context securityContext
+}
+
+func (sc *securityContextConfigurerCaptor) Configure(secCtx securityContext) {
+	sc.context = secCtx
+}
+
+type stubAuthenticationManager struct {
+	isEnabled bool
+	stubErr   error
+}
+
+func (s *stubAuthenticationManager) Authenticate(_ context.Context, _ string) (*proto.PreAuthenticatedAuthenticationToken, error) {
+	expiredAt, err := ptypes.TimestampProto(time.Now().Add(1 * time.Hour))
+	if err != nil {
+		return nil, err
+	}
+	return &proto.PreAuthenticatedAuthenticationToken{
+		ExpiredAt: expiredAt,
+	}, nil
+}
+
+func (s *stubAuthenticationManager) IsEnabled(_ context.Context) (bool, error) {
+	return s.isEnabled, s.stubErr
 }

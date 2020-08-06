@@ -60,6 +60,8 @@ type flagGroup struct {
 	Flags []cli.Flag
 }
 
+var quorumAccountFlagGroup = "QUORUM ACCOUNT"
+
 // AppHelpFlagGroups is the application flags, grouped by functionality.
 var AppHelpFlagGroups = []flagGroup{
 	{
@@ -174,6 +176,11 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.JSpathFlag,
 			utils.ExecFlag,
 			utils.PreloadJSFlag,
+			utils.RPCClientToken,
+			utils.RPCClientTLSInsecureSkipVerify,
+			utils.RPCClientTLSCert,
+			utils.RPCClientTLSCaCert,
+			utils.RPCClientTLSCipherSuites,
 		},
 	},
 	{
@@ -261,6 +268,12 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.PluginLocalVerifyFlag,
 			utils.PluginPublicKeyFlag,
 			utils.AllowedFutureBlockTimeFlag,
+		},
+	},
+	{
+		Name: quorumAccountFlagGroup,
+		Flags: []cli.Flag{
+			utils.AccountPluginNewAccountConfigFlag,
 		},
 	},
 	{
@@ -356,6 +369,14 @@ func init() {
 					AppHelpFlagGroups[len(AppHelpFlagGroups)-1].Flags = AppHelpFlagGroups[len(AppHelpFlagGroups)-1].Flags[:miscs]
 				}()
 			}
+
+			// remove the Quorum account options from the main app usage as these should only be used by the geth account sub commands
+			for i, group := range AppHelpFlagGroups {
+				if group.Name == quorumAccountFlagGroup {
+					AppHelpFlagGroups = append(AppHelpFlagGroups[:i], AppHelpFlagGroups[i+1:]...)
+				}
+			}
+
 			// Render out custom usage screen
 			originalHelpPrinter(w, tmpl, helpData{data, AppHelpFlagGroups})
 		} else if tmpl == utils.CommandHelpTemplate {

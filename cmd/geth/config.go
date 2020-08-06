@@ -25,14 +25,13 @@ import (
 	"reflect"
 	"unicode"
 
-	"github.com/naoina/toml"
-	"gopkg.in/urfave/cli.v1"
-
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv6"
+	"github.com/naoina/toml"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (
@@ -151,13 +150,13 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		cfg.Eth.OverrideIstanbul = new(big.Int).SetUint64(ctx.GlobalUint64(utils.OverrideIstanbulFlag.Name))
 	}
 
-	// this must be done first to make sure plugin manager is fully up.
-	// any fatal at this point is safe
+	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
+
+	// plugin service must be after eth service so that eth service will be stopped gradually if any of the plugin
+	// fails to start
 	if cfg.Node.Plugins != nil {
 		utils.RegisterPluginService(stack, &cfg.Node, ctx.Bool(utils.PluginSkipVerifyFlag.Name), ctx.Bool(utils.PluginLocalVerifyFlag.Name), ctx.String(utils.PluginPublicKeyFlag.Name))
 	}
-
-	ethChan := utils.RegisterEthService(stack, &cfg.Eth)
 
 	if cfg.Node.IsPermissionEnabled() {
 		utils.RegisterPermissionService(stack)
@@ -165,6 +164,15 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
 		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethChan)
+	}
+
+	if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
+		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
+	}
+
+	ipcPath := quorumGetPrivateTransactionManager()
+	if ipcPath != "" {
+		utils.RegisterExtensionService(stack, ethChan)
 	}
 
 	// Whisper must be explicitly enabled by specifying at least 1 whisper flag or in dev mode
@@ -240,4 +248,13 @@ func quorumValidateConsensus(stack *node.Node, isRaft bool) {
 // environment variable is set
 func quorumValidatePrivateTransactionManager() bool {
 	return os.Getenv("PRIVATE_CONFIG") != ""
+}
+
+//
+func quorumGetPrivateTransactionManager() string {
+	cfgPath := os.Getenv("PRIVATE_CONFIG")
+	if cfgPath != "" && cfgPath != "ignore" {
+		return cfgPath
+	}
+	return ""
 }

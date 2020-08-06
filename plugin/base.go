@@ -77,7 +77,7 @@ func (bp *basePlugin) load() error {
 	}
 	bp.logger.Info("verifying plugin integrity", "checksum", pluginChecksum)
 	if err := bp.pm.verifier.VerifySignature(bp.pluginDefinition, pluginChecksum); err != nil {
-		return err
+		return fmt.Errorf("unable to verify plugin signature: %v", err)
 	}
 	bp.logger.Info("unpacking plugin", "checksum", pluginChecksum)
 	// Unpack plugin
@@ -124,14 +124,17 @@ func (bp *basePlugin) Start() (err error) {
 		}
 	}(startTime)
 	bp.logger.Info("Starting plugin")
+	bp.logger.Debug("Starting plugin: Loading")
 	err = bp.load()
 	if err != nil {
 		return
 	}
+	bp.logger.Debug("Starting plugin: Creating client")
 	_, err = bp.client.Client()
 	if err != nil {
 		return
 	}
+	bp.logger.Debug("Starting plugin: Initializing")
 	err = bp.init()
 	return
 }
@@ -175,7 +178,7 @@ func (bp *basePlugin) init() error {
 	if !ok {
 		return fmt.Errorf("missing plugin initializer. Make sure it is in the plugin set")
 	}
-	rawConfig, err := bp.pluginDefinition.ReadConfig()
+	rawConfig, err := ReadMultiFormatConfig(bp.pluginDefinition.Config)
 	if err != nil {
 		return err
 	}

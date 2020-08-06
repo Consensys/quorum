@@ -1,12 +1,12 @@
 package types
 
 import (
+	"errors"
 	"math/big"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/p2p/enode"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -110,60 +110,38 @@ type PermissionConfig struct {
 	SubOrgBreadth *big.Int         `json:"subOrgBreadth"`
 }
 
-type OrgKey struct {
-	OrgId string
-}
-
-type NodeKey struct {
-	OrgId string
-	Url   string
-}
-
-type RoleKey struct {
-	OrgId  string
-	RoleId string
-}
-
-type AccountKey struct {
-	AcctId common.Address
-}
-
-type OrgCache struct {
-	c   *lru.Cache
-	mux sync.Mutex
-}
-
-type NodeCache struct {
-	c *lru.Cache
-}
-
-type RoleCache struct {
-	c *lru.Cache
-}
-
-type AcctCache struct {
-	c *lru.Cache
-}
-
-func NewOrgCache() *OrgCache {
-	c, _ := lru.New(defaultOrgMapLimit)
-	return &OrgCache{c, sync.Mutex{}}
-}
-
-func NewNodeCache() *NodeCache {
-	c, _ := lru.New(defaultNodeMapLimit)
-	return &NodeCache{c}
-}
-
-func NewRoleCache() *RoleCache {
-	c, _ := lru.New(defaultRoleMapLimit)
-	return &RoleCache{c}
-}
-
-func NewAcctCache() *AcctCache {
-	c, _ := lru.New(defaultAccountMapLimit)
-	return &AcctCache{c}
-}
+var (
+	ErrNotNetworkAdmin    = errors.New("Operation can be performed by network admin only. Account not a network admin.")
+	ErrNotOrgAdmin        = errors.New("Operation can be performed by org admin only. Account not a org admin.")
+	ErrNodePresent        = errors.New("EnodeId already part of network.")
+	ErrInvalidNode        = errors.New("Invalid enode id")
+	ErrInvalidAccount     = errors.New("Invalid account id")
+	ErrOrgExists          = errors.New("Org already exist")
+	ErrPendingApprovals   = errors.New("Pending approvals for the organization. Approve first")
+	ErrNothingToApprove   = errors.New("Nothing to approve")
+	ErrOpNotAllowed       = errors.New("Operation not allowed")
+	ErrNodeOrgMismatch    = errors.New("Enode id passed does not belong to the organization.")
+	ErrBlacklistedNode    = errors.New("Blacklisted node. Operation not allowed")
+	ErrBlacklistedAccount = errors.New("Blacklisted account. Operation not allowed")
+	ErrAccountOrgAdmin    = errors.New("Account already org admin for the org")
+	ErrOrgAdminExists     = errors.New("Org admin exist for the org")
+	ErrAccountInUse       = errors.New("Account already in use in another organization")
+	ErrRoleExists         = errors.New("Role exist for the org")
+	ErrRoleActive         = errors.New("Accounts linked to the role. Cannot be removed")
+	ErrAdminRoles         = errors.New("Admin role cannot be removed")
+	ErrInvalidOrgName     = errors.New("Org id cannot contain special characters")
+	ErrInvalidParentOrg   = errors.New("Invalid parent org id")
+	ErrAccountNotThere    = errors.New("Account does not exist")
+	ErrOrgNotOwner        = errors.New("Account does not belong to this org")
+	ErrMaxDepth           = errors.New("Max depth for sub orgs reached")
+	ErrMaxBreadth         = errors.New("Max breadth for sub orgs reached")
+	ErrNodeDoesNotExists  = errors.New("Node does not exist")
+	ErrOrgDoesNotExists   = errors.New("Org does not exist")
+	ErrInactiveRole       = errors.New("Role is already inactive")
+	ErrInvalidRole        = errors.New("Invalid role")
+	ErrInvalidInput       = errors.New("Invalid input")
+	ErrNotMasterOrg       = errors.New("Org is not a master org")
+)
 
 var syncStarted = false
 
@@ -172,15 +150,114 @@ var QIP714BlockReached = false
 var networkAdminRole string
 var orgAdminRole string
 
-const defaultOrgMapLimit = 2000
-const defaultRoleMapLimit = 2500
-const defaultNodeMapLimit = 1000
-const defaultAccountMapLimit = 6000
+var (
+	OrgInfoMap  *OrgCache
+	NodeInfoMap *NodeCache
+	RoleInfoMap *RoleCache
+	AcctInfoMap *AcctCache
+)
 
-var OrgInfoMap = NewOrgCache()
-var NodeInfoMap = NewNodeCache()
-var RoleInfoMap = NewRoleCache()
-var AcctInfoMap = NewAcctCache()
+type OrgKey struct {
+	OrgId string
+}
+
+type OrgCache struct {
+	c                 *lru.Cache
+	mux               sync.Mutex
+	evicted           bool
+	populateCacheFunc func(orgId string) (*OrgInfo, error)
+}
+
+func (o *OrgCache) PopulateCacheFunc(cf func(string) (*OrgInfo, error)) {
+	o.populateCacheFunc = cf
+}
+
+func NewOrgCache(cacheSize int) *OrgCache {
+	orgCache := OrgCache{evicted: false}
+	onEvictedFunc := func(k interface{}, v interface{}) {
+		orgCache.evicted = true
+	}
+	orgCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
+	return &orgCache
+}
+
+type RoleKey struct {
+	OrgId  string
+	RoleId string
+}
+
+type RoleCache struct {
+	c                 *lru.Cache
+	evicted           bool
+	populateCacheFunc func(*RoleKey) (*RoleInfo, error)
+}
+
+func (r *RoleCache) PopulateCacheFunc(cf func(*RoleKey) (*RoleInfo, error)) {
+	r.populateCacheFunc = cf
+}
+
+func NewRoleCache(cacheSize int) *RoleCache {
+	roleCache := RoleCache{evicted: false}
+	onEvictedFunc := func(k interface{}, v interface{}) {
+		roleCache.evicted = true
+	}
+	roleCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
+	return &roleCache
+}
+
+type NodeKey struct {
+	OrgId string
+	Url   string
+}
+
+type NodeCache struct {
+	c                       *lru.Cache
+	evicted                 bool
+	populateCacheFunc       func(string) (*NodeInfo, error)
+	populateAndValidateFunc func(string, string) bool
+}
+
+func (n *NodeCache) PopulateValidateFunc(cf func(string, string) bool) {
+	n.populateAndValidateFunc = cf
+}
+
+func (n *NodeCache) PopulateCacheFunc(cf func(string) (*NodeInfo, error)) {
+	n.populateCacheFunc = cf
+}
+
+func NewNodeCache(cacheSize int) *NodeCache {
+	nodeCache := NodeCache{evicted: false}
+	onEvictedFunc := func(k interface{}, v interface{}) {
+		nodeCache.evicted = true
+
+	}
+	nodeCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
+	return &nodeCache
+}
+
+type AccountKey struct {
+	AcctId common.Address
+}
+
+type AcctCache struct {
+	c                 *lru.Cache
+	evicted           bool
+	populateCacheFunc func(account common.Address) (*AccountInfo, error)
+}
+
+func (a *AcctCache) PopulateCacheFunc(cf func(common.Address) (*AccountInfo, error)) {
+	a.populateCacheFunc = cf
+}
+
+func NewAcctCache(cacheSize int) *AcctCache {
+	acctCache := AcctCache{evicted: false}
+	onEvictedFunc := func(k interface{}, v interface{}) {
+		acctCache.evicted = true
+	}
+
+	acctCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
+	return &acctCache
+}
 
 func (pc *PermissionConfig) IsEmpty() bool {
 	return pc.InterfAddress == common.HexToAddress("0x0")
@@ -233,6 +310,17 @@ func (o *OrgCache) UpsertOrg(orgId, parentOrg, ultimateParent string, level *big
 	o.c.Add(key, norg)
 }
 
+func (o *OrgCache) UpsertOrgWithSubOrgList(orgRec *OrgInfo) {
+	var key OrgKey
+	if orgRec.ParentOrgId == "" {
+		key = OrgKey{OrgId: orgRec.OrgId}
+	} else {
+		key = OrgKey{OrgId: orgRec.ParentOrgId + "." + orgRec.OrgId}
+	}
+	orgRec.FullOrgId = key.OrgId
+	o.c.Add(key, orgRec)
+}
+
 func containsKey(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
@@ -242,14 +330,25 @@ func containsKey(s []string, e string) bool {
 	return false
 }
 
-func (o *OrgCache) GetOrg(orgId string) *OrgInfo {
-	defer o.mux.Unlock()
-	o.mux.Lock()
+func (o *OrgCache) GetOrg(orgId string) (*OrgInfo, error) {
 	key := OrgKey{OrgId: orgId}
 	if ent, ok := o.c.Get(key); ok {
-		return ent.(*OrgInfo)
+		return ent.(*OrgInfo), nil
 	}
-	return nil
+	// check if the org cache is evicted. if yes we need
+	// fetch the record from the contract
+	if o.evicted {
+		// call cache population function to populate from contract
+		orgRec, err := o.populateCacheFunc(orgId)
+		if err != nil {
+			return nil, err
+		}
+		// insert the received record into cache
+		o.UpsertOrgWithSubOrgList(orgRec)
+		//return the record
+		return orgRec, nil
+	}
+	return nil, ErrOrgDoesNotExists
 }
 
 func (o *OrgCache) GetOrgList() []OrgInfo {
@@ -267,15 +366,30 @@ func (n *NodeCache) UpsertNode(orgId string, url string, status NodeStatus) {
 	n.c.Add(key, &NodeInfo{orgId, url, status})
 }
 
-func (n *NodeCache) GetNodeByUrl(url string) *NodeInfo {
+func (n *NodeCache) GetNodeByUrl(url string) (*NodeInfo, error) {
 	for _, k := range n.c.Keys() {
 		ent := k.(NodeKey)
 		if ent.Url == url {
 			v, _ := n.c.Get(ent)
-			return v.(*NodeInfo)
+			return v.(*NodeInfo), nil
 		}
 	}
-	return nil
+	// check if the node cache is evicted. if yes we need
+	// fetch the record from the contract
+	if n.evicted {
+
+		// call cache population function to populate from contract
+		nodeRec, err := n.populateCacheFunc(url)
+		if err != nil {
+			return nil, err
+		}
+
+		// insert the received record into cache
+		n.UpsertNode(nodeRec.OrgId, nodeRec.Url, nodeRec.Status)
+		//return the record
+		return nodeRec, err
+	}
+	return nil, ErrNodeDoesNotExists
 }
 
 func (n *NodeCache) GetNodeList() []NodeInfo {
@@ -293,11 +407,25 @@ func (a *AcctCache) UpsertAccount(orgId string, role string, acct common.Address
 	a.c.Add(key, &AccountInfo{orgId, role, acct, orgAdmin, status})
 }
 
-func (a *AcctCache) GetAccount(acct common.Address) *AccountInfo {
+func (a *AcctCache) GetAccount(acct common.Address) (*AccountInfo, error) {
 	if v, ok := a.c.Get(AccountKey{acct}); ok {
-		return v.(*AccountInfo)
+		return v.(*AccountInfo), nil
 	}
-	return nil
+
+	// check if the account cache is evicted. if yes we need
+	// fetch the record from the contract
+	if a.evicted {
+		// call function to populate cache with the record
+		acctRec, err := a.populateCacheFunc(acct)
+		// insert the received record into cache
+		if err != nil {
+			return nil, err
+		}
+		a.UpsertAccount(acctRec.OrgId, acctRec.RoleId, acctRec.AcctId, acctRec.IsOrgAdmin, acctRec.Status)
+		//return the record
+		return acctRec, nil
+	}
+	return nil, nil
 }
 
 func (a *AcctCache) GetAcctList() []AccountInfo {
@@ -328,7 +456,12 @@ func (a *AcctCache) GetAcctListRole(orgId, roleId string) []AccountInfo {
 		v, _ := a.c.Get(k)
 		vp := v.(*AccountInfo)
 
-		if vp.RoleId == roleId && (vp.OrgId == orgId || OrgInfoMap.GetOrg(vp.OrgId).UltimateParent == orgId) {
+		orgRec, err := OrgInfoMap.GetOrg(vp.OrgId)
+		if err != nil {
+			return nil
+		}
+
+		if vp.RoleId == roleId && (vp.OrgId == orgId || (orgRec != nil && orgRec.UltimateParent == orgId)) {
 			alist = append(alist, *vp)
 		}
 	}
@@ -341,12 +474,26 @@ func (r *RoleCache) UpsertRole(orgId string, role string, voter bool, admin bool
 
 }
 
-func (r *RoleCache) GetRole(orgId string, roleId string) *RoleInfo {
+func (r *RoleCache) GetRole(orgId string, roleId string) (*RoleInfo, error) {
 	key := RoleKey{OrgId: orgId, RoleId: roleId}
 	if ent, ok := r.c.Get(key); ok {
-		return ent.(*RoleInfo)
+		return ent.(*RoleInfo), nil
 	}
-	return nil
+	// check if the role cache is evicted. if yes we need
+	// fetch the record from the contract
+	if r.evicted {
+		// call cache population function to populate from contract
+		roleRec, err := r.populateCacheFunc(&RoleKey{RoleId: roleId, OrgId: orgId})
+		if err != nil {
+			return nil, err
+		}
+		// insert the received record into cache
+		r.UpsertRole(roleRec.OrgId, roleRec.RoleId, roleRec.IsVoter, roleRec.IsAdmin, roleRec.Access, roleRec.Active)
+
+		//return the record
+		return roleRec, nil
+	}
+	return nil, ErrInvalidRole
 }
 
 func (r *RoleCache) GetRoleList() []RoleInfo {
@@ -369,21 +516,19 @@ func GetAcctAccess(acctId common.Address) AccessType {
 	}
 
 	// check if the org status is fine to do the transaction
-	a := AcctInfoMap.GetAccount(acctId)
+	a, _ := AcctInfoMap.GetAccount(acctId)
 	if a != nil && a.Status == AcctActive {
 		// get the org details and ultimate org details. check org status
 		// if the org is not approved or pending suspension
-		o := OrgInfoMap.GetOrg(a.OrgId)
-		if o != nil && (o.Status == OrgApproved || o.Status == OrgPendingSuspension) {
-			u := OrgInfoMap.GetOrg(o.UltimateParent)
-			if u != nil && (u.Status == OrgApproved || u.Status == OrgPendingSuspension) {
-				if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
-					return FullAccess
-				}
-				if r := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
-					return r.Access
-				}
-				if r := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
+		if checkIfOrgActive(a.OrgId) {
+			if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+				return FullAccess
+			}
+			if r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
+				return r.Access
+			}
+			if o, _ := OrgInfoMap.GetOrg(a.OrgId); o != nil {
+				if r, _ := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
 					return r.Access
 				}
 			}
@@ -392,6 +537,47 @@ func GetAcctAccess(acctId common.Address) AccessType {
 	return DefaultAccess
 }
 
+//checks if the given org is active in the network
+func checkIfOrgActive(orgId string) bool {
+	o, _ := OrgInfoMap.GetOrg(orgId)
+	if o != nil && o.Status != OrgSuspended {
+		u, _ := OrgInfoMap.GetOrg(o.UltimateParent)
+		if u == nil {
+			return true
+		}
+		if u != nil && u.Status != OrgSuspended {
+			return true
+		}
+	}
+	return false
+}
+
+// checks if the passed account is linked to a org admin or
+// network admin role
+func CheckIfAdminAccount(acctId common.Address) bool {
+	if !QIP714BlockReached {
+		return true
+	}
+	a, _ := AcctInfoMap.GetAccount(acctId)
+	if a != nil && a.Status == AcctActive {
+		if checkIfOrgActive(a.OrgId) {
+			if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+				return true
+			}
+			if r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active && r.IsAdmin {
+				return true
+			}
+			if o, _ := OrgInfoMap.GetOrg(a.OrgId); o != nil {
+				if r, _ := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active && r.IsAdmin {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// validates if the account can transact from the current node
 func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 	if !QIP714BlockReached || hexnodeId == "" {
 		return true
@@ -402,20 +588,32 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 		return false
 	}
 
-	ac := AcctInfoMap.GetAccount(from)
+	ac, _ := AcctInfoMap.GetAccount(from)
 	if ac == nil {
 		return true
 	}
 
-	ultimateParent := OrgInfoMap.GetOrg(ac.OrgId).UltimateParent
+	acOrgRec, err := OrgInfoMap.GetOrg(ac.OrgId)
+	if err != nil {
+		return false
+	}
+
 	// scan through the node list and validate
 	for _, n := range NodeInfoMap.GetNodeList() {
-		if OrgInfoMap.GetOrg(n.OrgId).UltimateParent == ultimateParent {
+		orgRec, err := OrgInfoMap.GetOrg(n.OrgId)
+		if err != nil {
+			return false
+		}
+		if orgRec.UltimateParent == acOrgRec.UltimateParent {
 			recEnodeId, _ := enode.ParseV4(n.Url)
-			if recEnodeId.ID() == passedEnodeId.ID() {
+			if recEnodeId.ID() == passedEnodeId.ID() && n.Status == NodeApproved {
 				return true
 			}
 		}
 	}
+	if NodeInfoMap.evicted {
+		return NodeInfoMap.populateAndValidateFunc(hexnodeId, acOrgRec.UltimateParent)
+	}
+
 	return false
 }

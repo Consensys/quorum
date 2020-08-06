@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package proto;
+
+// Note: The Account type is used only in Response types.
+// All Request types which require an account to be specified use only the address to identify the account.
+// At the Quorum-level there is no knowledge of account URLs so the url field has been excluded from Requests to simplify the protocol.
+message Account {
+    bytes address = 1; // 20-byte ethereum address of the account
+    string url = 2; // URL for the stored account; format and structure will depend on the storage backend and is left to the developer's discretion
+}
+
+message StatusRequest {}
+message StatusResponse {
+    string status = 1; // message describing the status of the plugin; message content is left to the developer's discretion
+}
+
+message OpenRequest {
+    string passphrase = 1; // passphrase required to open; may not be required by all storage backends, so its use is left to the developer's discretion
+}
+message OpenResponse {}
+
+message CloseRequest {}
+message CloseResponse {}
+
+message AccountsRequest {}
+message AccountsResponse {
+    repeated Account accounts = 1; // list of accounts managed by the plugin
+}
+
+message ContainsRequest {
+    bytes address = 1; // 20-byte ethereum address of the account to search for
+}
+message ContainsResponse {
+    bool isContained = 1; // whether the account was found
+}
+
+message SignRequest {
+    bytes address = 1; // 20-byte ethereum address of the account to use
+    bytes toSign = 2; // data to sign
+}
+message UnlockAndSignRequest {
+    bytes address = 1; // 20-byte ethereum address of the account to use
+    bytes toSign = 2; // data to sign
+    string passphrase = 3; // passphrase required to unlock the account; may not be required by all storage backends, so its use is left to the developer's discretion
+}
+message SignResponse {
+    bytes sig = 1; // secp256k1 ECDSA signature in the 65-byte [R || S || V] format where V is 0 or 1
+}
+
+message TimedUnlockRequest {
+    bytes address = 1; // 20-byte ethereum address of the account to unlock
+    string password = 2; // passphrase required to unlock the account; may not be required by all storage backends, so its use is left to the developer's discretion
+    int64 duration = 3; // number of nanoseconds the account should be unlocked for
+}
+message TimedUnlockResponse {}
+
+message LockRequest {
+    bytes address = 1; // 20-byte ethereum address of the account to lock
+}
+message LockResponse {}
+
+message NewAccountRequest {
+    bytes newAccountConfig = 1; // json-encoded byte array providing the config necessary to create a new account; the config will be dependent on the storage backend and so its definition is left to the developer's discretion
+}
+message NewAccountResponse {
+    Account account = 1; // the created account
+}
+
+message ImportRawKeyRequest {
+    string rawKey = 1; // hex-encoded private key to import and store in the storage backend
+    bytes newAccountConfig = 2; // json-encoded byte array providing the config necessary to create a new account; the config will be dependent on the storage backend and so its definition is left to the developer's discretion
+}
+message ImportRawKeyResponse {
+    Account account = 1; // the imported account
+}
+
+service AccountService {
+    // Status provides a string message describing the current state of the plugin.
+    // The content of the returned state is left to the developer's discretion.
+    // Examples include information on the business-level state (e.g. currently unlocked accounts) and process-level state (e.g. is plugin healthy)
+    rpc Status(StatusRequest) returns (StatusResponse);
+
+    // The specific behaviour of Open will depend on the backend being implemented.
+    // It may be that Open is not required in which case it should be implemented as a no-op.
+    // It should not unlock or decrypt account keys.
+    // Open may be used to initialize resources or create a connection to the storage backend.
+    // It should be expected that any allocated resources or connections can be released by calling Close.
+    rpc Open(OpenRequest) returns (OpenResponse);
+
+    // The specific behaviour of Close will depend on the backend being implemented.
+    // It may be that Close is not required, in which case it should be implemented as a no-op.
+    // Close releases any resources or connections allocated by Open.
+    rpc Close(CloseRequest) returns (CloseResponse);
+
+    // Accounts returns the currently available accounts managed by the plugin.
+    rpc Accounts(AccountsRequest) returns (AccountsResponse);
+
+    // Contains returns whether the provided account is managed by the plugin.
+    rpc Contains(ContainsRequest) returns (ContainsResponse);
+
+    // Sign signs the provided data with the specified account
+    rpc Sign(SignRequest) returns (SignResponse);
+
+    // UnlockAndSign unlocks the specified account with the provided passphrase and uses it to sign the provided data.
+    // The account will be locked once the signing is complete.
+    // It may be that the storage backend being implemented does not rely on passphrase-encryption, in which case the
+    // passphrase parameter should be ignored when unlocking.
+    rpc UnlockAndSign(UnlockAndSignRequest) returns (SignResponse);
+
+    // TimedUnlock unlocks the specified account with the provided passphrase for the duration provided.
+    // The duration is provided in nanoseconds.
+    // It may be that the storage backend being implemented does not rely on passphrase-encryption, in which case the
+    // passphrase parameter should be ignored when unlocking.
+    rpc TimedUnlock(TimedUnlockRequest) returns (TimedUnlockResponse);
+
+    // Lock immediately locks the specified account, overriding any existing timed unlocks.
+    rpc Lock(LockRequest) returns (LockResponse);
+
+    // NewAccount creates a new account and stores it in the backend.
+    // The newAccountConfig is provided as a generic json-encoded byte array to allow for the structure of the config
+    // to be left to the developer's discretion.
+    rpc NewAccount(NewAccountRequest) returns (NewAccountResponse);
+
+    // ImportRawKey creates a new account from the provided hex-encoded private key and stores it in the backend.
+    // Validation of the hex string private key is not required as this handled by Quorum.
+    // The newAccountConfig is provided as a generic json-encoded byte array to allow for the structure of the config
+    // to be left to the developer's discretion.
+    rpc ImportRawKey(ImportRawKeyRequest) returns (ImportRawKeyResponse);
+}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 	testifyassert "github.com/stretchr/testify/assert"
 )
 
@@ -51,16 +52,20 @@ func TestSetDefaults(t *testing.T) {
 func TestOrgCache_UpsertOrg(t *testing.T) {
 	assert := testifyassert.New(t)
 
+	OrgInfoMap = NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
+
 	//add a org and get the org details
 	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
-	orgInfo := OrgInfoMap.GetOrg(NETWORKADMIN)
+	orgInfo, err := OrgInfoMap.GetOrg(NETWORKADMIN)
+	assert.True(err == nil, "errors encountered")
 
 	assert.False(orgInfo == nil, fmt.Sprintf("Expected org details, got nil"))
 	assert.True(orgInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id %v, got %v", NETWORKADMIN, orgInfo.OrgId))
 
 	// update org status to suspended
 	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgSuspended)
-	orgInfo = OrgInfoMap.GetOrg(NETWORKADMIN)
+	orgInfo, err = OrgInfoMap.GetOrg(NETWORKADMIN)
+	assert.True(err == nil, "errors encountered")
 
 	assert.True(orgInfo.Status == OrgSuspended, fmt.Sprintf("Expected org status %v, got %v", OrgSuspended, orgInfo.Status))
 
@@ -83,9 +88,13 @@ func TestOrgCache_UpsertOrg(t *testing.T) {
 func TestNodeCache_UpsertNode(t *testing.T) {
 	assert := testifyassert.New(t)
 
+	NodeInfoMap = NewNodeCache(params.DEFAULT_NODECACHE_SIZE)
+
 	// add a node into the cache and validate
 	NodeInfoMap.UpsertNode(NETWORKADMIN, NODE1, NodeApproved)
-	nodeInfo := NodeInfoMap.GetNodeByUrl(NODE1)
+	nodeInfo, err := NodeInfoMap.GetNodeByUrl(NODE1)
+	assert.True(err == nil, fmt.Sprintf("got errors in node fetch"))
+
 	assert.False(nodeInfo == nil, fmt.Sprintf("Expected node details, got nil"))
 	assert.True(nodeInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id for node %v, got %v", NETWORKADMIN, nodeInfo.OrgId))
 	assert.True(nodeInfo.Url == NODE1, fmt.Sprintf("Expected node id %v, got %v", NODE1, nodeInfo.Url))
@@ -97,16 +106,21 @@ func TestNodeCache_UpsertNode(t *testing.T) {
 
 	// check node details update by updating node status
 	NodeInfoMap.UpsertNode(ORGADMIN, NODE2, NodeDeactivated)
-	nodeInfo = NodeInfoMap.GetNodeByUrl(NODE2)
+	nodeInfo, err = NodeInfoMap.GetNodeByUrl(NODE2)
+	assert.True(err == nil, fmt.Sprintf("got errors in node fetch"))
+
 	assert.True(nodeInfo.Status == NodeDeactivated, fmt.Sprintf("Expected node status %v, got %v", NodeDeactivated, nodeInfo.Status))
 }
 
 func TestRoleCache_UpsertRole(t *testing.T) {
 	assert := testifyassert.New(t)
 
+	RoleInfoMap = NewRoleCache(params.DEFAULT_ROLECACHE_SIZE)
+
 	// add a role into the cache and validate
 	RoleInfoMap.UpsertRole(NETWORKADMIN, NETWORKADMIN, true, true, FullAccess, true)
-	roleInfo := RoleInfoMap.GetRole(NETWORKADMIN, NETWORKADMIN)
+	roleInfo, err := RoleInfoMap.GetRole(NETWORKADMIN, NETWORKADMIN)
+	assert.True(err == nil, "errors encountered")
 	assert.False(roleInfo == nil, fmt.Sprintf("Expected role details, got nil"))
 	assert.True(roleInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id for node %v, got %v", NETWORKADMIN, roleInfo.OrgId))
 	assert.True(roleInfo.RoleId == NETWORKADMIN, fmt.Sprintf("Expected node id %v, got %v", NETWORKADMIN, roleInfo.RoleId))
@@ -118,16 +132,22 @@ func TestRoleCache_UpsertRole(t *testing.T) {
 
 	// update role status and validate
 	RoleInfoMap.UpsertRole(ORGADMIN, ORGADMIN, true, true, FullAccess, false)
-	roleInfo = RoleInfoMap.GetRole(ORGADMIN, ORGADMIN)
+	roleInfo, err = RoleInfoMap.GetRole(ORGADMIN, ORGADMIN)
+	assert.True(err == nil, "errors encountered")
+
 	assert.True(!roleInfo.Active, fmt.Sprintf("Expected role active status to be %v, got %v", true, roleInfo.Active))
 }
 
 func TestAcctCache_UpsertAccount(t *testing.T) {
 	assert := testifyassert.New(t)
 
+	AcctInfoMap = NewAcctCache(params.DEFAULT_ACCOUNTCACHE_SIZE)
+
 	// add an account into the cache and validate
 	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
-	acctInfo := AcctInfoMap.GetAccount(Acct1)
+	acctInfo, err := AcctInfoMap.GetAccount(Acct1)
+	assert.True(err == nil)
+
 	assert.False(acctInfo == nil, fmt.Sprintf("Expected account details, got nil"))
 	assert.True(acctInfo.OrgId == NETWORKADMIN, fmt.Sprintf("Expected org id for the account to be %v, got %v", NETWORKADMIN, acctInfo.OrgId))
 	assert.True(acctInfo.AcctId == Acct1, fmt.Sprintf("Expected account id %x, got %x", Acct1, acctInfo.AcctId))
@@ -139,7 +159,9 @@ func TestAcctCache_UpsertAccount(t *testing.T) {
 
 	// update account status and validate
 	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct2, true, AcctBlacklisted)
-	acctInfo = AcctInfoMap.GetAccount(Acct2)
+	acctInfo, err = AcctInfoMap.GetAccount(Acct2)
+	assert.True(err == nil)
+
 	assert.True(acctInfo.Status == AcctBlacklisted, fmt.Sprintf("Expected account status to be %v, got %v", AcctBlacklisted, acctInfo.Status))
 
 	// validate the list for org and role functions
@@ -234,11 +256,175 @@ func TestValidateNodeForTxn_whenUsingOnlyHexNodeId(t *testing.T) {
 
 // test the cache limit
 func TestLRUCacheLimit(t *testing.T) {
-	for i := 0; i < defaultOrgMapLimit; i++ {
+	for i := 0; i < params.DEFAULT_ORGCACHE_SIZE; i++ {
 		orgName := "ORG" + strconv.Itoa(i)
 		OrgInfoMap.UpsertOrg(orgName, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
 	}
 
-	o := OrgInfoMap.GetOrg("ORG1")
+	o, err := OrgInfoMap.GetOrg("ORG1")
+	testifyassert.True(t, err == nil)
 	testifyassert.True(t, o != nil)
+}
+
+func TestCheckIfAdminAccount(t *testing.T) {
+	SetDefaults(NETWORKADMIN, ORGADMIN)
+	SetDefaultAccess()
+
+	var Acct3 = common.BytesToAddress([]byte("permission-test1"))
+	var Acct4 = common.BytesToAddress([]byte("permission-test2"))
+	var Acct5 = common.BytesToAddress([]byte("permission-test3"))
+	var Acct6 = common.BytesToAddress([]byte("permission-test4"))
+	var Acct7 = common.BytesToAddress([]byte("permission-test5"))
+	var Acct8 = common.BytesToAddress([]byte("permission-test6"))
+	var Acct9 = common.BytesToAddress([]byte("unassigned-account"))
+
+	// Create two orgs, Networkadmin and OADMIN
+	OrgInfoMap.UpsertOrg(NETWORKADMIN, "", NETWORKADMIN, big.NewInt(1), OrgApproved)
+	OrgInfoMap.UpsertOrg(ORGADMIN, "", ORGADMIN, big.NewInt(1), OrgApproved)
+
+	// Insert roles for both orgs one being admin role and the other a normal role
+	RoleInfoMap.UpsertRole(NETWORKADMIN, NETWORKADMIN, true, true, FullAccess, true)
+	RoleInfoMap.UpsertRole(NETWORKADMIN, "ROLE1", true, false, Transact, true)
+	RoleInfoMap.UpsertRole(NETWORKADMIN, "ROLE2", true, true, Transact, false)
+
+	RoleInfoMap.UpsertRole(ORGADMIN, ORGADMIN, true, true, FullAccess, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE1", true, false, Transact, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE2", true, true, Transact, false)
+
+	// Assign accounts to orgs
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct1, true, AcctActive)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, "ROLE1", Acct2, false, AcctActive)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, "ROLE2", Acct3, true, AcctActive)
+	AcctInfoMap.UpsertAccount(NETWORKADMIN, NETWORKADMIN, Acct4, true, AcctBlacklisted)
+
+	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct5, true, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE1", Acct6, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE2", Acct7, true, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, ORGADMIN, Acct8, true, AcctBlacklisted)
+
+	type args struct {
+		acctId common.Address
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "Network admin account",
+			args: args{Acct1},
+			want: true,
+		},
+		{
+			name: "Normal account in Network admin org",
+			args: args{Acct2},
+			want: false,
+		},
+		{
+			name: "Account linked to an inactive org admin role - network admin org",
+			args: args{Acct2},
+			want: false,
+		},
+		{
+			name: "Network admin account which is blacklisted",
+			args: args{Acct4},
+			want: false,
+		},
+		{
+			name: "Org admin account",
+			args: args{Acct5},
+			want: true,
+		},
+		{
+			name: "Normal account in in org",
+			args: args{Acct6},
+			want: false,
+		},
+		{
+			name: "Account linked to an inactive org admin role in org",
+			args: args{Acct7},
+			want: false,
+		},
+		{
+			name: "org admin account which is blacklisted",
+			args: args{Acct8},
+			want: false,
+		},
+		{
+			name: "Unassigned account",
+			args: args{Acct9},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CheckIfAdminAccount(tt.args.acctId); got != tt.want {
+				t.Errorf("CheckIfAdminAccount() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_checkIfOrgActive(t *testing.T) {
+	OrgInfoMap = NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
+	OrgInfoMap.UpsertOrg("ORG1", "", "ORG1", big.NewInt(1), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG2", "", "ORG2", big.NewInt(1), OrgPendingSuspension)
+	OrgInfoMap.UpsertOrg("ORG3", "ORG1", "ORG1", big.NewInt(2), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG4", "ORG2", "ORG2", big.NewInt(2), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG5", "", "ORG5", big.NewInt(1), OrgSuspended)
+	OrgInfoMap.UpsertOrg("ORG6", "ORG5", "ORG5", big.NewInt(2), OrgApproved)
+	OrgInfoMap.UpsertOrg("ORG7", "ORG5", "ORG5", big.NewInt(2), OrgSuspended)
+
+	type args struct {
+		orgId string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "Org is approved",
+			args: args{orgId: "ORG1"},
+			want: true,
+		},
+		{
+			name: "Org under suspension",
+			args: args{orgId: "ORG2"},
+			want: true,
+		},
+		{
+			name: "Sub org approved",
+			args: args{orgId: "ORG1.ORG3"},
+			want: true,
+		},
+		{
+			name: "Sub org approved under a pending suspension org",
+			args: args{orgId: "ORG2.ORG4"},
+			want: true,
+		},
+		{
+			name: "Org suspended",
+			args: args{orgId: "ORG5"},
+			want: false,
+		},
+		{
+			name: "Approved sub org under a suspended org",
+			args: args{orgId: "ORG5.ORG6"},
+			want: false,
+		},
+		{
+			name: "Suspended sub org under a suspended org",
+			args: args{orgId: "ORG5.ORG7"},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := checkIfOrgActive(tt.args.orgId); got != tt.want {
+				t.Errorf("checkIfOrgActive() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
