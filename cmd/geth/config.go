@@ -166,10 +166,6 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 		utils.RegisterRaftService(stack, ctx, &cfg.Node, ethChan)
 	}
 
-	if ctx.GlobalBool(utils.DashboardEnabledFlag.Name) {
-		utils.RegisterDashboardService(stack, &cfg.Dashboard, gitCommit)
-	}
-
 	ipcPath := quorumGetPrivateTransactionManager()
 	if ipcPath != "" {
 		utils.RegisterExtensionService(stack, ethChan)
