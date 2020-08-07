@@ -42,7 +42,7 @@ func TestPrivateMessageContextVerify_WithMerkleRootCreationError(t *testing.T) {
 	assert := testifyassert.New(t)
 	stateTransitionAPI := &stubPmcStateTransition{}
 
-	pmc := newPMC(stateTransitionAPI)
+	pmc := newPMH(stateTransitionAPI)
 	pmc.receivedPrivacyMetadata = &engine.ExtraMetadata{ACMerkleRoot: common.Hash{1}, PrivacyFlag: engine.PrivacyFlagStateValidation}
 	pmc.snapshot = 10
 	exitEarly, err := pmc.verify(nil)

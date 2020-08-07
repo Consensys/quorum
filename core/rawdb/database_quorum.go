@@ -62,7 +62,7 @@ func WritePrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error
 	return db.Put(append(privateRootPrefix, blockRoot[:]...), root[:])
 }
 
-func WritePrivacyMetadataStateRootForPrivateStateRoot(db ethdb.Database, privateStateRoot, privacyMetadataRoot common.Hash) error {
+func WritePrivacyMetadataStateRootForPrivateStateRoot(db ethdb.KeyValueWriter, privateStateRoot, privacyMetadataRoot common.Hash) error {
 	err := db.Put(append(privateRootToPrivacyMetadataRootPrefix, privateStateRoot[:]...), privacyMetadataRoot[:])
 	if err != nil {
 		return fmt.Errorf("unable to persist mapping between private state root to privacy metadata root. Cause: %v", err)
@@ -86,7 +86,7 @@ func GetPrivateBlockBloom(db ethdb.Database, number uint64) (bloom types.Bloom) 
 	return bloom
 }
 
-type PrivacyMedatadaLinker interface {
+type PrivacyMetadataLinker interface {
 	PrivacyMetadataRootForPrivateStateRoot(privateStateRoot common.Hash) common.Hash
 	LinkPrivacyMetadataRootToPrivateStateRoot(privateStateRoot, privacyMetadataRoot common.Hash) error
 }
@@ -95,7 +95,7 @@ type ethDBPrivacyMetadataLinker struct {
 	db ethdb.Database
 }
 
-func NewPrivacyMetadataLinker(db ethdb.Database) PrivacyMedatadaLinker {
+func NewPrivacyMetadataLinker(db ethdb.Database) PrivacyMetadataLinker {
 	return &ethDBPrivacyMetadataLinker{
 		db: db,
 	}

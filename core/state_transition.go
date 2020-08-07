@@ -215,11 +215,11 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	var data []byte
 	isPrivate := false
 	publicState := st.state
-	pmc := newPMC(st)
+	pmh := newPMH(st)
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
-		pmc.snapshot = st.evm.StateDB.Snapshot()
-		data, pmc.receivedPrivacyMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
+		pmh.snapshot = st.evm.StateDB.Snapshot()
+		data, pmh.receivedPrivacyMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -231,9 +231,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 			return nil, 0, false, nil
 		}
 
-		pmc.hasPrivatePayload = data != nil
+		pmh.hasPrivatePayload = data != nil
 
-		if ok, err := pmc.prepare(); !ok {
+		if ok, err := pmh.prepare(); !ok {
 			return nil, 0, true, err
 		}
 	} else {
@@ -295,9 +295,9 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 
 	// Quorum - Privacy Enhancements
 	// perform privacy enhancements checks
-	if pmc.mustVerify() {
+	if pmh.mustVerify() {
 		var exitEarly = false
-		exitEarly, err = pmc.verify(vmerr)
+		exitEarly, err = pmh.verify(vmerr)
 		if exitEarly {
 			return nil, 0, true, err
 		}

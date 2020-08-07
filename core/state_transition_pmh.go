@@ -19,11 +19,11 @@ type pmcStateTransitionAPI interface {
 	AffectedContracts() []common.Address
 }
 
-func newPMC(st pmcStateTransitionAPI) *privateMessageContext {
-	return &privateMessageContext{stAPI: st}
+func newPMH(st pmcStateTransitionAPI) *privateMessageHandler {
+	return &privateMessageHandler{stAPI: st}
 }
 
-type privateMessageContext struct {
+type privateMessageHandler struct {
 	stAPI pmcStateTransitionAPI
 
 	hasPrivatePayload bool
@@ -32,14 +32,14 @@ type privateMessageContext struct {
 	receivedPrivacyMetadata *engine.ExtraMetadata
 }
 
-func (pmc *privateMessageContext) mustVerify() bool {
+func (pmc *privateMessageHandler) mustVerify() bool {
 	return pmc.hasPrivatePayload && pmc.receivedPrivacyMetadata != nil && pmc.stAPI.IsPrivacyEnhancementsEnabled()
 }
 
 // checks the privacy metadata in the state transition context
 // returns false if TransitionDb needs to exit early
 // true otherwise
-func (pmc *privateMessageContext) prepare() (bool, error) {
+func (pmc *privateMessageHandler) prepare() (bool, error) {
 	if pmc.receivedPrivacyMetadata != nil {
 		// if privacy enhancements are disabled we should treat all transactions as StandardPrivate
 		if !pmc.stAPI.IsPrivacyEnhancementsEnabled() && pmc.receivedPrivacyMetadata.PrivacyFlag.IsNotStandardPrivate() {
@@ -73,7 +73,7 @@ func (pmc *privateMessageContext) prepare() (bool, error) {
 //This validation is to prevent cases where the list of affected contract will have changed by the time the evm actually executes transaction
 // failed = true will make sure receipt is marked as "failure"
 // return error will crash the node and only use when that's the case
-func (pmc *privateMessageContext) verify(vmerr error) (bool, error) {
+func (pmc *privateMessageHandler) verify(vmerr error) (bool, error) {
 	// convenient function to return error. It has the same signature as the main function
 	returnErrorFunc := func(anError error, logMsg string, ctx ...interface{}) (exitEarly bool, err error) {
 		if logMsg != "" {

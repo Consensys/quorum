@@ -95,7 +95,7 @@ func (db *odrDatabase) TrieDB() *trie.Database {
 type stubPrivacyMetadataLinker struct {
 }
 
-func newPrivacyMetadataLinkerStub() rawdb.PrivacyMedatadaLinker {
+func newPrivacyMetadataLinkerStub() rawdb.PrivacyMetadataLinker {
 	return &stubPrivacyMetadataLinker{}
 }
 
@@ -107,7 +107,7 @@ func (pml *stubPrivacyMetadataLinker) LinkPrivacyMetadataRootToPrivateStateRoot(
 	return nil
 }
 
-func (db *odrDatabase) PrivacyMetadataLinker() rawdb.PrivacyMedatadaLinker {
+func (db *odrDatabase) PrivacyMetadataLinker() rawdb.PrivacyMetadataLinker {
 	return newPrivacyMetadataLinkerStub()
 }
 
