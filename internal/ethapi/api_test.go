@@ -6,32 +6,26 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/core/bloombits"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-
-	"github.com/ethereum/go-ethereum/private"
-
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/private/engine"
-	"github.com/ethereum/go-ethereum/private/engine/notinuse"
-
-	"github.com/ethereum/go-ethereum/core/state"
-
-	"github.com/stretchr/testify/assert"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -136,36 +130,33 @@ func TestSimulateExecution_whenStandardPrivateCreation(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
-	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
 
 	assert.NoError(err, "simulate execution")
 	assert.Empty(affectedCACreationTxHashes, "creation tx should not have any affected contract creation tx hashes")
 	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
-	assert.Equal(engine.PrivacyFlagStandardPrivate, privacyFlag, "no privacy flag - standard private contract")
 }
 
 func TestSimulateExecution_whenPartyProtectionCreation(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
-	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
 
 	assert.NoError(err, "simulation execution")
 	assert.Empty(affectedCACreationTxHashes, "creation tx should not have any affected contract creation tx hashes")
 	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
-	assert.Equal(engine.PrivacyFlagPartyProtection, privacyFlag, "contract set with non-party privacy flag")
 }
 
 func TestSimulateExecution_whenCreationWithStateValidation(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStateValidation
 
-	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
 
 	assert.NoError(err, "simulate execution")
 	assert.Empty(affectedCACreationTxHashes, "creation tx should not have any affected contract creation tx hashes")
 	assert.NotEqual(common.Hash{}, merkleRoot, "private state validation")
-	assert.Equal(engine.PrivacyFlagStateValidation, privacyFlag, "contract set with private state validation")
 }
 
 func TestSimulateExecution_whenStandardPrivateMessageCall(t *testing.T) {
@@ -176,14 +167,13 @@ func TestSimulateExecution_whenStandardPrivateMessageCall(t *testing.T) {
 	privateStateDB.SetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}))
 
 	assert.NoError(err, "simulate execution")
 	assert.Empty(affectedCACreationTxHashes, "standard private contract should not have any affected contract creation tx hashes")
 	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
-	assert.Equal(engine.PrivacyFlagStandardPrivate, privacyFlag, "no privacy flag - standard private contract")
 }
 
 func TestSimulateExecution_whenPartyProtectionMessageCall(t *testing.T) {
@@ -199,7 +189,7 @@ func TestSimulateExecution_whenPartyProtectionMessageCall(t *testing.T) {
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	expectedCACreationTxHashes := []common.EncryptedPayloadHash{arbitrarySimpleStorageContractEncryptedPayloadHash}
 
@@ -208,9 +198,7 @@ func TestSimulateExecution_whenPartyProtectionMessageCall(t *testing.T) {
 	assert.NoError(err, "simulate execution")
 	assert.NotEmpty(affectedCACreationTxHashes, "affected contract accounts' creation transacton hashes")
 	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
-	assert.Equal(engine.PrivacyFlagPartyProtection, privacyFlag, "party protection flag")
 	assert.True(len(affectedCACreationTxHashes) == len(expectedCACreationTxHashes))
-	//assert.True(!affectedCACreationTxHashes.NotExist(expectedCACreationTxHashes), "%s is an affected contract account", arbitrarySimpleStorageContractAddress.Hex())
 }
 
 func TestSimulateExecution_whenPartyProtectionMessageCallAndPrivacyEnhancementsDisabled(t *testing.T) {
@@ -221,14 +209,13 @@ func TestSimulateExecution_whenPartyProtectionMessageCallAndPrivacyEnhancementsD
 	defer func() { params.QuorumTestChainConfig.PrivacyEnhancementsBlock = big.NewInt(0) }()
 
 	stbBackend := &StubBackend{}
-	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, stbBackend, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, stbBackend, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	// the simulation returns early without executing the transaction
 	assert.False(stbBackend.getEVMCalled, "simulation is ended early - before getEVM is called")
 	assert.NoError(err, "simulate execution")
 	assert.Empty(affectedCACreationTxHashes, "affected contract accounts' creation transacton hashes")
 	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
-	assert.Equal(engine.PrivacyFlagStandardPrivate, privacyFlag, "StandardPrivate flag")
 }
 
 func TestSimulateExecution_whenStateValidationMessageCall(t *testing.T) {
@@ -244,7 +231,7 @@ func TestSimulateExecution_whenStateValidationMessageCall(t *testing.T) {
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	affectedCACreationTxHashes, merkleRoot, privacyFlag, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	expectedCACreationTxHashes := []common.EncryptedPayloadHash{arbitrarySimpleStorageContractEncryptedPayloadHash}
 
@@ -253,9 +240,7 @@ func TestSimulateExecution_whenStateValidationMessageCall(t *testing.T) {
 	assert.NoError(err, "simulate execution")
 	assert.NotEmpty(affectedCACreationTxHashes, "affected contract accounts' creation transacton hashes")
 	assert.NotEqual(common.Hash{}, merkleRoot, "private state validation")
-	assert.Equal(engine.PrivacyFlagStateValidation, privacyFlag, "state validation flag")
 	assert.True(len(affectedCACreationTxHashes) == len(expectedCACreationTxHashes))
-	//assert.True(!affectedCACreationTxHashes.NotExist(expectedCACreationTxHashes), "%s is an affected contract account", arbitrarySimpleStorageContractAddress.Hex())
 }
 
 //mix and match flags
@@ -267,7 +252,7 @@ func TestSimulateExecution_PrivacyFlagPartyProtectionCallingStandardPrivateContr
 	privateStateDB.SetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	_, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}))
 
@@ -287,7 +272,7 @@ func TestSimulateExecution_StandardPrivateFlagCallingPartyProtectionContract_Err
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	_, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	assert.Error(err, "simulate execution")
 }
@@ -305,7 +290,7 @@ func TestSimulateExecution_StandardPrivateFlagCallingStateValidationContract_Err
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	_, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitrarySimpleStorageContractAddress, common.Hash{0}))
 
@@ -325,7 +310,7 @@ func TestSimulateExecution_PartyProtectionFlagCallingStateValidationContract_Err
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	_, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitrarySimpleStorageContractAddress, common.Hash{0}))
 
@@ -345,21 +330,20 @@ func TestSimulateExecution_StateValidationFlagCallingPartyProtectionContract_Err
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	_, _, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	//expectedCACreationTxHashes := []common.EncryptedPayloadHash{arbitrarySimpleStorageContractEncryptedPayloadHash}
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitrarySimpleStorageContractAddress, common.Hash{0}))
 
 	assert.Error(err, "simulate execution")
-	//assert.True(!affectedCACreationTxHashes.NotExist(expectedCACreationTxHashes), "%s is an affected contract account", arbitrarySimpleStorageContractAddress.Hex())
 }
 
 func TestHandlePrivateTransaction_whenInvalidFlag(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = 4
 
-	_, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, false)
+	_, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, nil, privateTxArgs, arbitraryFrom, NormalTransaction)
 
 	assert.Error(err, "invalid privacyFlag")
 }
@@ -370,7 +354,7 @@ func TestHandlePrivateTransaction_withPartyProtectionTxAndPrivacyEnhancementsIsD
 	params.QuorumTestChainConfig.PrivacyEnhancementsBlock = nil
 	defer func() { params.QuorumTestChainConfig.PrivacyEnhancementsBlock = big.NewInt(0) }()
 
-	_, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, false)
+	_, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, nil, privateTxArgs, arbitraryFrom, NormalTransaction)
 
 	assert.Error(err, "PrivacyEnhancements are disabled. Can only accept transactions with PrivacyFlag=0(StandardPrivate).")
 }
@@ -379,7 +363,7 @@ func TestHandlePrivateTransaction_whenStandardPrivateCreation(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
-	isPrivate, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, false)
+	isPrivate, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, simpleStorageContractCreationTx, nil, privateTxArgs, arbitraryFrom, NormalTransaction)
 
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -392,7 +376,7 @@ func TestHandlePrivateTransaction_whenPartyProtectionCallingStandardPrivate(t *t
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
-	isPrivate, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, false)
+	isPrivate, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, standardPrivateSimpleStorageContractMessageCallTx, nil, privateTxArgs, arbitraryFrom, NormalTransaction)
 
 	assert.Error(err, "handle invalid message call")
 
@@ -404,7 +388,7 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateCreation(t *testing.T) {
 	private.P = &StubPrivateTransactionManager{creation: true}
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
-	isPrivate, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, rawSimpleStorageContractCreationTx, privateTxArgs, arbitraryFrom, true)
+	isPrivate, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, rawSimpleStorageContractCreationTx, nil, privateTxArgs, arbitraryFrom, RawTransaction)
 
 	assert.NoError(err, "raw standard private creation succeeded")
 	assert.True(isPrivate, "must be a private transaction")
@@ -415,10 +399,10 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 	private.P = &StubPrivateTransactionManager{creation: false}
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
-	isPrivate, _, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, rawStandardPrivateSimpleStorageContractMessageCallTx, privateTxArgs, arbitraryFrom, true)
+	_, err := handlePrivateTransaction(arbitraryCtx, &StubBackend{}, rawStandardPrivateSimpleStorageContractMessageCallTx, nil, privateTxArgs, arbitraryFrom, RawTransaction)
 
 	assert.NoError(err, "raw standard private msg call succeeded")
-	assert.True(isPrivate, "must be a private transaction")
+
 }
 
 type StubBackend struct {
@@ -599,7 +583,7 @@ func (StubMinimalApiState) SetBalance(addr common.Address, balance *big.Int) {
 }
 
 func (StubMinimalApiState) GetCode(addr common.Address) []byte {
-	panic("implement me")
+	return nil
 }
 
 func (StubMinimalApiState) GetState(a common.Address, b common.Hash) common.Hash {

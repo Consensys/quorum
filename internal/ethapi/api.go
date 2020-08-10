@@ -61,6 +61,14 @@ const (
 	maxPrivateIntrinsicDataHex = "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
 )
 
+type TransactionType uint8
+
+const (
+	FillTransaction TransactionType = iota + 1
+	RawTransaction
+	NormalTransaction
+)
+
 // PublicEthereumAPI provides an API to access Ethereum related information.
 // It offers only methods that operate on public data that is freely available to anyone.
 type PublicEthereumAPI struct {
@@ -446,7 +454,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		return common.Hash{}, err
 	}
 
-	isPrivate, data, err := handlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, false)
+	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), nil, &args.PrivateTxArgs, args.From, NormalTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -1649,7 +1657,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
-	isPrivate, data, err := handlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, false)
+	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), nil, &args.PrivateTxArgs, args.From, NormalTransaction)
 
 	if err != nil {
 		return common.Hash{}, err
@@ -1688,19 +1696,19 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 	}
 	// Assemble the transaction and obtain rlp
 	// Quorum
-	if args.IsPrivate() {
-		// TODO PrivacyEnhancements check what happens when input is provided but Data is overridden
-		hash, err := private.P.StoreRaw(args.inputOrData(), args.From.String())
-		if err != nil {
-			return nil, err
-		}
+	isPrivate, hash, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), args.inputOrData(), &args.PrivateTxArgs, args.From, FillTransaction)
+	if err != nil {
+		return nil, err
+	}
+	if isPrivate && !common.EmptyEncryptedPayloadHash(hash) {
+		// replace the original payload with encrypted payload hash
 		args.Data = hash.BytesTypeRef()
 	}
-	// /Quorum
+
 	tx := args.toTransaction()
 
 	// Quorum
-	if args.IsPrivate() {
+	if isPrivate {
 		tx.SetPrivate()
 	}
 	// /Quorum
@@ -1730,7 +1738,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
-	isPrivate, _, err := handlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, true)
+	isPrivate, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, nil, &args.PrivateTxArgs, common.Address{}, RawTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -2162,6 +2170,43 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	return fmt.Sprintf("0x%x", data), nil
 }
 
+func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, inputData []byte, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
+	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
+	if !isPrivate {
+		return
+	}
+
+	if err = privateTxArgs.PrivacyFlag.Validate(); err != nil {
+		return
+	}
+
+	if !b.ChainConfig().IsPrivacyEnhancementsEnabled(b.CurrentBlock().Number()) && privateTxArgs.PrivacyFlag.IsNotStandardPrivate() {
+		err = fmt.Errorf("PrivacyEnhancements are disabled. Can only accept transactions with PrivacyFlag=0(StandardPrivate).")
+		return
+	}
+
+	if len(tx.Data()) > 0 {
+		// check private contract exists on the node initiating the transaction
+		if tx.To() != nil {
+			state, _, lerr := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(b.CurrentBlock().Number().Uint64()))
+			if lerr != nil && state == nil {
+				err = fmt.Errorf("state not found")
+				return
+			}
+			if state.GetCode(*tx.To()) == nil {
+				err = fmt.Errorf("contract not found. cannot transact")
+				return
+			}
+		}
+
+		hash, err = handlePrivateTransaction(ctx, b, tx, inputData, privateTxArgs, from, txnType)
+
+		return
+	}
+
+	return
+}
+
 // If transaction is raw, the tx payload is indeed the hash of the encrypted payload
 //
 // For private transaction, run a simulated execution in order to
@@ -2169,79 +2214,75 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 // 2. Calculate Merkle Root as the result of the simulated execution
 // The above information along with private originating payload are sent to Transaction Manager
 // to obtain hash of the encrypted private payload
-func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, isRaw bool) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
+func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, inputData []byte, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (hash common.EncryptedPayloadHash, err error) {
 	defer func(start time.Time) {
 		log.Debug("Handle Private Transaction finished", "took", time.Since(start))
 	}(time.Now())
-	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
-	if isPrivate {
-		if err = privateTxArgs.PrivacyFlag.Validate(); err != nil {
+
+	data := tx.Data()
+
+	var affectedCATxHashes common.EncryptedPayloadHashes // of affected contract accounts
+	var merkleRoot common.Hash
+	log.Debug("sending private tx", "txnType", txnType, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag)
+
+	switch txnType {
+	case FillTransaction:
+		hash, err = private.P.StoreRaw(inputData, privateTxArgs.PrivateFrom)
+		return
+	case RawTransaction:
+		hash = common.BytesToEncryptedPayloadHash(data)
+		privatePayload, _, revErr := private.P.ReceiveRaw(hash)
+		if revErr != nil {
+			return common.EncryptedPayloadHash{}, revErr
+		}
+		log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload))
+		var privateTx *types.Transaction
+		if tx.To() == nil {
+			privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
+		} else {
+			privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
+		}
+		affectedCATxHashes, merkleRoot, err = simulateExecution(ctx, b, from, privateTx, privateTxArgs)
+		log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privateTxArgs.PrivacyFlag, "error", err)
+		if err != nil {
 			return
 		}
 
-		if !b.ChainConfig().IsPrivacyEnhancementsEnabled(b.CurrentBlock().Number()) && privateTxArgs.PrivacyFlag.IsNotStandardPrivate() {
-			err = fmt.Errorf("PrivacyEnhancements are disabled. Can only accept transactions with PrivacyFlag=0(StandardPrivate).")
+		data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
+			ACHashes:     affectedCATxHashes,
+			ACMerkleRoot: merkleRoot,
+			PrivacyFlag:  privateTxArgs.PrivacyFlag,
+		})
+		if err != nil {
 			return
 		}
-		data := tx.Data()
-		if len(data) > 0 { // only support non-value-transfer transaction
-			var affectedCATxHashes common.EncryptedPayloadHashes // of affected contract accounts
-			var merkleRoot common.Hash
-			var privacyFlag engine.PrivacyFlagType
-			log.Debug("sending private tx", "isRaw", isRaw, "data", common.FormatTerminalString(data), "privatefrom", privateTxArgs.PrivateFrom, "privatefor", privateTxArgs.PrivateFor, "privacyFlag", privateTxArgs.PrivacyFlag)
-			if isRaw {
-				hash = common.BytesToEncryptedPayloadHash(data)
-				privatePayload, _, revErr := private.P.ReceiveRaw(hash)
-				if revErr != nil {
-					return isPrivate, common.EncryptedPayloadHash{}, revErr
-				}
-				log.Trace("received raw payload", "hash", hash, "privatepayload", common.FormatTerminalString(privatePayload))
-				var privateTx *types.Transaction
-				if tx.To() == nil {
-					privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
-				} else {
-					privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
-				}
-				affectedCATxHashes, merkleRoot, privacyFlag, err = simulateExecution(ctx, b, from, privateTx, privateTxArgs)
-				log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privacyFlag, "error", err)
-				if err != nil {
-					return
-				}
 
-				data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-					ACHashes:     affectedCATxHashes,
-					ACMerkleRoot: merkleRoot,
-					PrivacyFlag:  privacyFlag,
-				})
-				if err != nil {
-					return
-				}
-			} else {
-				affectedCATxHashes, merkleRoot, privacyFlag, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
-				log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privacyFlag, "error", err)
-				if err != nil {
-					return
-				}
+	case NormalTransaction:
+		affectedCATxHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
+		log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privateTxArgs.PrivacyFlag, "error", err)
+		if err != nil {
+			return
+		}
 
-				hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
-					ACHashes:     affectedCATxHashes,
-					ACMerkleRoot: merkleRoot,
-					PrivacyFlag:  privacyFlag,
-				})
-				if err != nil {
-					return
-				}
-			}
-			log.Info("sent private signed tx",
-				"data", common.FormatTerminalString(data),
-				"hash", hash,
-				"privatefrom", privateTxArgs.PrivateFrom,
-				"privatefor", privateTxArgs.PrivateFor,
-				"affectedCATxHashes", affectedCATxHashes,
-				"merkleroot", merkleRoot,
-				"privacyflag", privacyFlag)
+		hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
+			ACHashes:     affectedCATxHashes,
+			ACMerkleRoot: merkleRoot,
+			PrivacyFlag:  privateTxArgs.PrivacyFlag,
+		})
+		if err != nil {
+			return
 		}
 	}
+
+	log.Info("sent private signed tx",
+		"data", common.FormatTerminalString(data),
+		"hash", hash,
+		"privatefrom", privateTxArgs.PrivateFrom,
+		"privatefor", privateTxArgs.PrivateFor,
+		"affectedCATxHashes", affectedCATxHashes,
+		"merkleroot", merkleRoot,
+		"privacyflag", privateTxArgs.PrivacyFlag)
+
 	return
 }
 
@@ -2249,21 +2290,21 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts
 // and the merkle root combining all affected contract accounts after the simulation
 //
-func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (common.EncryptedPayloadHashes, common.Hash, engine.PrivacyFlagType, error) {
+func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (common.EncryptedPayloadHashes, common.Hash, error) {
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())
 
 	// skip simulation if privacy enhancements are disabled
 	if !b.ChainConfig().IsPrivacyEnhancementsEnabled(b.CurrentBlock().Number()) {
-		return nil, common.Hash{}, engine.PrivacyFlagStandardPrivate, nil
+		return nil, common.Hash{}, nil
 	}
 
 	var contractAddr common.Address
 	blockNumber := b.CurrentBlock().Number().Uint64()
 	state, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
 	if state == nil || err != nil {
-		return nil, common.Hash{}, 0, err
+		return nil, common.Hash{}, err
 	}
 	// Set sender address or use a default if none specified
 	addr := from
@@ -2288,7 +2329,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	// Get a new instance of the EVM.
 	evm, _, err := b.GetEVM(ctx, msg, state, header)
 	if err != nil {
-		return nil, common.Hash{}, 0, err
+		return nil, common.Hash{}, err
 	}
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
@@ -2316,7 +2357,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 
 	if err != nil {
 		log.Error("Simulated execution", "error", err)
-		return nil, common.Hash{}, 0, err
+		return nil, common.Hash{}, err
 	}
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	var merkleRoot common.Hash
@@ -2333,7 +2374,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
 		//privacyMetadata not found=non-party, or another db error
 		if err != nil && privacyFlag.IsNotStandardPrivate() {
-			return nil, common.Hash{}, privacyFlag, errors.New("PrivacyMetadata unable to be found: " + err.Error())
+			return nil, common.Hash{}, errors.New("PrivacyMetadata unable to be found: " + err.Error())
 		}
 		// when we run simulation, it's possible that affected contracts may contain public ones
 		// public contract will not have any privacyMetadata attached
@@ -2343,7 +2384,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		}
 		//if affecteds are not all the same return an error
 		if privacyFlag != privacyMetadata.PrivacyFlag {
-			return nil, common.Hash{}, privacyFlag, errors.New("sent privacy flag doesn't match all affected contract flags")
+			return nil, common.Hash{}, errors.New("sent privacy flag doesn't match all affected contract flags")
 		}
 
 		affectedContractsHashes.Add(privacyMetadata.CreationTxHash)
@@ -2352,11 +2393,11 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	if privacyFlag.Has(engine.PrivacyFlagStateValidation) {
 		merkleRoot, err = evm.CalculateMerkleRoot()
 		if err != nil {
-			return nil, common.Hash{}, privacyFlag, err
+			return nil, common.Hash{}, err
 		}
 	}
 	log.Trace("post-execution run", "merkleRoot", merkleRoot, "affectedhashes", affectedContractsHashes)
-	return affectedContractsHashes, merkleRoot, privacyFlag, nil
+	return affectedContractsHashes, merkleRoot, nil
 }
 
 //End-Quorum
