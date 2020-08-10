@@ -176,6 +176,19 @@ func TestSimulateExecution_whenStandardPrivateMessageCall(t *testing.T) {
 	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
 }
 
+func TestSimulateExecution_StandardPrivateMessageCallSucceedsWheContractNotAvailableLocally(t *testing.T) {
+	assert := assert.New(t)
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
+
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
+
+	log.Debug("state", "state", privateStateDB.GetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}))
+
+	assert.NoError(err, "simulate execution")
+	assert.Empty(affectedCACreationTxHashes, "standard private contract should not have any affected contract creation tx hashes")
+	assert.Equal(common.Hash{}, merkleRoot, "no private state validation")
+}
+
 func TestSimulateExecution_whenPartyProtectionMessageCall(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
@@ -368,6 +381,28 @@ func TestHandlePrivateTransaction_whenStandardPrivateCreation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
+
+	assert.True(isPrivate, "must be a private transaction")
+}
+
+func TestHandlePrivateTransaction_whenStandardPrivateCallingContractThatIsNotAvailableLocally(t *testing.T) {
+	assert := assert.New(t)
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
+
+	isPrivate, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, standardPrivateSimpleStorageContractMessageCallTx, nil, privateTxArgs, arbitraryFrom, NormalTransaction)
+
+	assert.NoError(err, "no error expected")
+
+	assert.True(isPrivate, "must be a private transaction")
+}
+
+func TestHandlePrivateTransaction_whenPartyProtectionCallingContractThatIsNotAvailableLocally(t *testing.T) {
+	assert := assert.New(t)
+	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
+
+	isPrivate, _, err := checkAndHandlePrivateTransaction(arbitraryCtx, &StubBackend{}, standardPrivateSimpleStorageContractMessageCallTx, nil, privateTxArgs, arbitraryFrom, NormalTransaction)
+
+	assert.Error(err, "handle invalid message call")
 
 	assert.True(isPrivate, "must be a private transaction")
 }

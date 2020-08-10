@@ -2187,7 +2187,7 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 
 	if len(tx.Data()) > 0 {
 		// check private contract exists on the node initiating the transaction
-		if tx.To() != nil {
+		if tx.To() != nil && privateTxArgs.PrivacyFlag.IsNotStandardPrivate() {
 			state, _, lerr := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(b.CurrentBlock().Number().Uint64()))
 			if lerr != nil && state == nil {
 				err = fmt.Errorf("state not found")
@@ -2340,11 +2340,8 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 
 	// even the creation of a contract (init code) can invoke other contracts
 	if privateTx.To() != nil {
-		if !evm.StateDB.Exist(*privateTx.To()) {
-			err = fmt.Errorf("no access to contract account %s", privateTx.To().Hex())
-		} else {
-			_, _, err = evm.Call(vm.AccountRef(addr), *privateTx.To(), privateTx.Data(), privateTx.Gas(), privateTx.Value())
-		}
+		// removed contract availability checks as they are performed in checkAndHandlePrivateTransaction
+		_, _, err = evm.Call(vm.AccountRef(addr), *privateTx.To(), privateTx.Data(), privateTx.Gas(), privateTx.Value())
 	} else {
 		_, contractAddr, _, err = evm.Create(vm.AccountRef(addr), privateTx.Data(), privateTx.Gas(), privateTx.Value())
 		//make sure that nonce is same in simulation as in actual block processing
@@ -2356,8 +2353,13 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	}
 
 	if err != nil {
-		log.Error("Simulated execution", "error", err)
-		return nil, common.Hash{}, err
+		if privateTxArgs.PrivacyFlag.IsStandardPrivate() {
+			log.Debug("An error occurred during StandardPrivate transaction simulation. "+
+				"Continuing to simulation checks.", "error", err)
+		} else {
+			log.Error("Simulated execution", "error", err)
+			return nil, common.Hash{}, err
+		}
 	}
 	affectedContractsHashes := make(common.EncryptedPayloadHashes)
 	var merkleRoot common.Hash
