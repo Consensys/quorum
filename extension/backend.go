@@ -299,7 +299,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 						log.Error("[ptm] service.ptm.Send", "stateDataInHex", hex.EncodeToString(entireStateData[:]), "recipient", recipientPTMKey, "error", err)
 						return
 					}
-					hashofStateDataBase64 := base64.StdEncoding.EncodeToString(hashOfStateData)
+					hashofStateDataBase64 := base64.StdEncoding.EncodeToString(hashOfStateData.Bytes())
 
 					transactor, err := service.managementContractFacade.Transactor(l.Address)
 					if err != nil {

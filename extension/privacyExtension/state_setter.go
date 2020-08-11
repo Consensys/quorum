@@ -76,7 +76,7 @@ func (handler *ExtensionHandler) FetchStateData(address common.Address, hash str
 
 func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, bool) {
 	ptmHash, _ := base64.StdEncoding.DecodeString(hash)
-	stateData, err := handler.ptm.Receive(ptmHash)
+	stateData, err := handler.ptm.Receive(common.BytesToEncryptedPayloadHash(ptmHash))
 
 	if stateData == nil {
 		log.Error("No state data found in PTM", "ptm hash", hash)
@@ -102,7 +102,7 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) 
 		log.Debug("Extension: could not determine if we are sender", "err", err.Error())
 		return false
 	}
-	data, _ := handler.ptm.Receive(encryptedTxHash.Bytes())
+	data, _ := handler.ptm.Receive(encryptedTxHash)
 	retrievedAddress := common.BytesToAddress(data)
 	if !bytes.Equal(retrievedAddress.Bytes(), address.Bytes()) {
 		log.Error("Extension: wrong address in retrieved UUID")

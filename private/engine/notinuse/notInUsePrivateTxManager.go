@@ -20,19 +20,19 @@ func (ptm *PrivateTransactionManager) GetParticipants(txHash common.EncryptedPay
 	panic("implement me")
 }
 
-func (ptm *PrivateTransactionManager) Send(data []byte, from string, to []string) ([]byte, error) {
+func (ptm *PrivateTransactionManager) Send(data []byte, from string, to []string) (common.EncryptedPayloadHash, error) {
+	return common.EncryptedPayloadHash{}, ErrPrivateTxManagerNotInUse
+}
+
+func (ptm *PrivateTransactionManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
+	return common.EncryptedPayloadHash{}, ErrPrivateTxManagerNotInUse
+}
+
+func (ptm *PrivateTransactionManager) SendSignedTx(txHash common.EncryptedPayloadHash, to []string) ([]byte, error) {
 	return nil, ErrPrivateTxManagerNotInUse
 }
 
-func (ptm *PrivateTransactionManager) StoreRaw(data []byte, from string) ([]byte, error) {
-	return nil, ErrPrivateTxManagerNotInUse
-}
-
-func (ptm *PrivateTransactionManager) SendSignedTx(data []byte, to []string) ([]byte, error) {
-	return nil, ErrPrivateTxManagerNotInUse
-}
-
-func (ptm *PrivateTransactionManager) Receive(data []byte) ([]byte, error) {
+func (ptm *PrivateTransactionManager) Receive(txHash common.EncryptedPayloadHash) ([]byte, error) {
 	//error not thrown here, acts as though no private data to fetch
 	return nil, nil
 }

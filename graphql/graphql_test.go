@@ -41,16 +41,17 @@ func TestQuorumSchema(t *testing.T) {
 	defer func() {
 		private.P = saved
 	}()
+	arbitraryPayloadHash := common.BytesToEncryptedPayloadHash([]byte("arbitrary key"))
 	private.P = &StubPrivateTransactionManager{
-		responses: map[string][]interface{}{
-			"key": {
+		responses: map[common.EncryptedPayloadHash][]interface{}{
+			arbitraryPayloadHash: {
 				[]byte("private payload"), // equals to 0x70726976617465207061796c6f6164 after converting to bytes
 				nil,
 			},
 		},
 	}
 	// Test private transaction
-	privateTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), []byte("key"))
+	privateTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), arbitraryPayloadHash.Bytes())
 	privateTx.SetPrivate()
 	privateTxQuery := &Transaction{tx: privateTx}
 	isPrivate, err := privateTxQuery.IsPrivate(context.Background())
@@ -87,23 +88,23 @@ func TestQuorumSchema(t *testing.T) {
 }
 
 type StubPrivateTransactionManager struct {
-	responses map[string][]interface{}
+	responses map[common.EncryptedPayloadHash][]interface{}
 }
 
-func (spm *StubPrivateTransactionManager) Send(data []byte, from string, to []string) ([]byte, error) {
+func (spm *StubPrivateTransactionManager) Send(data []byte, from string, to []string) (common.EncryptedPayloadHash, error) {
+	return common.EncryptedPayloadHash{}, fmt.Errorf("to be implemented")
+}
+
+func (spm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
+	return common.EncryptedPayloadHash{}, fmt.Errorf("to be implemented")
+}
+
+func (spm *StubPrivateTransactionManager) SendSignedTx(txHash common.EncryptedPayloadHash, to []string) ([]byte, error) {
 	return nil, fmt.Errorf("to be implemented")
 }
 
-func (spm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) SendSignedTx(data []byte, to []string) ([]byte, error) {
-	return nil, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) Receive(data []byte) ([]byte, error) {
-	res := spm.responses[string(data)]
+func (spm *StubPrivateTransactionManager) Receive(txHash common.EncryptedPayloadHash) ([]byte, error) {
+	res := spm.responses[txHash]
 	if err, ok := res[1].(error); ok {
 		return nil, err
 	}

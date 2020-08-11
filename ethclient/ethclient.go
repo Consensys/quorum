@@ -549,7 +549,11 @@ func (ec *Client) PreparePrivateTransaction(data []byte, privateFrom string) ([]
 	if ec.pc == nil {
 		return nil, errors.New("missing private transaction manager client configuration")
 	}
-	return ec.pc.StoreRaw(data, privateFrom)
+	encryptedPayloadHash, err := ec.pc.StoreRaw(data, privateFrom)
+	if err != nil {
+		return nil, err
+	}
+	return encryptedPayloadHash.Bytes(), err
 }
 
 func toCallArg(msg ethereum.CallMsg) interface{} {
