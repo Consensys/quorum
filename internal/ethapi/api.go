@@ -454,6 +454,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 		return common.Hash{}, err
 	}
 
+	// Quorum
 	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), nil, &args.PrivateTxArgs, args.From, NormalTransaction)
 	if err != nil {
 		return common.Hash{}, err
@@ -1657,6 +1658,8 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	if err := args.setDefaults(ctx, s.b); err != nil {
 		return common.Hash{}, err
 	}
+
+	// Quorum
 	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), nil, &args.PrivateTxArgs, args.From, NormalTransaction)
 
 	if err != nil {
@@ -1666,13 +1669,16 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 		// replace the original payload with encrypted payload hash
 		args.Data = data.BytesTypeRef()
 	}
+	// /Quorum
 
 	// Assemble the transaction and sign with the wallet
 	tx := args.toTransaction()
 
+	// Quorum
 	if args.IsPrivate() {
 		tx.SetPrivate()
 	}
+	// /Quorum
 
 	var chainID *big.Int
 	if config := s.b.ChainConfig(); config.IsEIP155(s.b.CurrentBlock().Number()) && !tx.IsPrivate() {
@@ -1704,6 +1710,7 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 		// replace the original payload with encrypted payload hash
 		args.Data = hash.BytesTypeRef()
 	}
+	// /Quorum
 
 	tx := args.toTransaction()
 
@@ -1738,13 +1745,17 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}, err
 	}
+
+	// Quorum
 	isPrivate, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, nil, &args.PrivateTxArgs, common.Address{}, RawTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
+
 	if !isPrivate {
 		return common.Hash{}, fmt.Errorf("transaction is not private")
 	}
+	// /Quorum
 	return SubmitTransaction(ctx, s.b, tx)
 }
 
@@ -2300,12 +2311,6 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		return nil, common.Hash{}, nil
 	}
 
-	var contractAddr common.Address
-	blockNumber := b.CurrentBlock().Number().Uint64()
-	state, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
-	if state == nil || err != nil {
-		return nil, common.Hash{}, err
-	}
 	// Set sender address or use a default if none specified
 	addr := from
 	if addr == (common.Address{}) {
@@ -2327,10 +2332,16 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 	defer func() { cancel() }()
 
 	// Get a new instance of the EVM.
+	blockNumber := b.CurrentBlock().Number().Uint64()
+	state, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
+	if state == nil || err != nil {
+		return nil, common.Hash{}, err
+	}
 	evm, _, err := b.GetEVM(ctx, msg, state, header)
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
+
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
 	go func() {
@@ -2338,6 +2349,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		evm.Cancel()
 	}()
 
+	var contractAddr common.Address
 	// even the creation of a contract (init code) can invoke other contracts
 	if privateTx.To() != nil {
 		// removed contract availability checks as they are performed in checkAndHandlePrivateTransaction
@@ -2357,7 +2369,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 			log.Debug("An error occurred during StandardPrivate transaction simulation. "+
 				"Continuing to simulation checks.", "error", err)
 		} else {
-			log.Error("Simulated execution", "error", err)
+			log.Trace("Simulated execution", "error", err)
 			return nil, common.Hash{}, err
 		}
 	}
@@ -2376,7 +2388,7 @@ func simulateExecution(ctx context.Context, b Backend, from common.Address, priv
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
 		//privacyMetadata not found=non-party, or another db error
 		if err != nil && privacyFlag.IsNotStandardPrivate() {
-			return nil, common.Hash{}, errors.New("PrivacyMetadata unable to be found: " + err.Error())
+			return nil, common.Hash{}, errors.New("PrivacyMetadata not found: " + err.Error())
 		}
 		// when we run simulation, it's possible that affected contracts may contain public ones
 		// public contract will not have any privacyMetadata attached
