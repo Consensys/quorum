@@ -4,10 +4,10 @@
 
 ## Metrics Visualisation
 
-Key Components
+Key Components:
 
 - [Telegraf](https://hub.docker.com/_/telegraf) - plugin-driven server agent for collecting and reporting metrics. Refer to Quorum Profilings config [here](https://github.com/jpmorganchase/quorum-profiling/blob/master/scripts/telegraf/telegraf.conf).
-- [JMeter](https://jmeter.apache.org) - Load testing tool. 
+- [JMeter](https://jmeter.apache.org) - Load testing tool. The detail of various profiles and test execution, please refer [here](https://github.com/jpmorganchase/quorum-profiling/tree/master/jmeter-test)
 - [TPS Monitor](https://github.com/jpmorganchase/quorum-profiling/tree/master/tps-monitor) - Custom "go" project to monitor transactions per second, total transactions and total blocks in Quorum network. 
 - [InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/) - Open source time series database for monitoring metrics and events, providing real-time visibility.
 - [Prometheus](https://prometheus.io) - similar to influx prometheus records real-time metrics in a time series database built using a HTTP "pull" model, with flexible queries and real-time alerting
