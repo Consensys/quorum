@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +25,7 @@ func TestPrivateTransactionManagerClient_storeRaw(t *testing.T) {
 	key, err := testObject.StoreRaw([]byte("arbitrary payload"), "arbitrary private from")
 
 	assert.NoError(t, err)
-	assert.Equal(t, "arbitrary data", string(key))
+	assert.Equal(t, common.BytesToEncryptedPayloadHash([]byte("arbitrary data")), key)
 }
 
 func newStoreRawServer() *httptest.Server {

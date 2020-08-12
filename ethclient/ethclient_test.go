@@ -346,20 +346,20 @@ func TestClient_PreparePrivateTransaction_whenTypical(t *testing.T) {
 }
 
 func TestClient_PreparePrivateTransaction_whenClientIsConfigured(t *testing.T) {
-	expectedData := []byte("arbitrary data")
+	expectedData := common.BytesToEncryptedPayloadHash([]byte("arbitrary data"))
 	testObject := NewClient(nil)
 	testObject.pc = &privateTransactionManagerStubClient{expectedData}
 
 	actualData, err := testObject.PreparePrivateTransaction([]byte("arbitrary payload"), "arbitrary private from")
 
 	assert.NoError(t, err)
-	assert.Equal(t, expectedData, actualData)
+	assert.Equal(t, expectedData.Bytes(), actualData)
 }
 
 type privateTransactionManagerStubClient struct {
-	expectedData []byte
+	expectedData common.EncryptedPayloadHash
 }
 
-func (s *privateTransactionManagerStubClient) StoreRaw(data []byte, privateFrom string) ([]byte, error) {
+func (s *privateTransactionManagerStubClient) StoreRaw(_ []byte, _ string) (common.EncryptedPayloadHash, error) {
 	return s.expectedData, nil
 }
