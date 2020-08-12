@@ -58,7 +58,7 @@ func TestStateSetWithListedAccounts(t *testing.T) {
 		t.Errorf("error when unmarshalling static data: %s", err.Error())
 	}
 
-	success := setState(statedb, accounts)
+	success := setState(statedb, accounts, &state.PrivacyMetadata{})
 	if !success {
 		t.Errorf("unexpected error when setting state")
 	}
@@ -101,7 +101,7 @@ func TestStateSetWithListedAccountsFailsOnInvalidBalance(t *testing.T) {
 		t.Errorf("error when unmarshalling static data: %s", err.Error())
 	}
 
-	success := setState(statedb, accounts)
+	success := setState(statedb, accounts, &state.PrivacyMetadata{})
 	if success {
 		t.Errorf("error expected when setting state")
 	}

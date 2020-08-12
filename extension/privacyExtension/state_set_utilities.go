@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-func setState(privateState *state.StateDB, accounts map[string]extension.AccountWithMetadata) bool {
+func setState(privateState *state.StateDB, accounts map[string]extension.AccountWithMetadata, privacyMetaData *state.PrivacyMetadata) bool {
 	log.Debug("Extension: set private state explicitly from state dump")
 	for key, value := range accounts {
 		stateDump := value.State
@@ -28,8 +28,21 @@ func setState(privateState *state.StateDB, accounts map[string]extension.Account
 		for keyStore, valueStore := range stateDump.Storage {
 			privateState.SetState(contractAddress, keyStore, common.HexToHash(valueStore))
 		}
+		privateState.SetStatePrivacyMetadata(contractAddress, privacyMetaData)
 	}
 	return true
+}
+
+// updates the privacy metadata
+func setPrivacyMetadata(privateState *state.StateDB, address common.Address, hash string) {
+	privacyMetaData, err := privateState.GetStatePrivacyMetadata(address)
+	if err != nil || privacyMetaData.PrivacyFlag.IsStandardPrivate() {
+		return
+	}
+
+	ptmHash, _ := common.Base64ToEncryptedPayloadHash(hash)
+	pm := state.NewStatePrivacyMetadata(ptmHash, privacyMetaData.PrivacyFlag)
+	privateState.SetStatePrivacyMetadata(address, pm)
 }
 
 func logContainsExtensionTopic(receivedLog *types.Log) bool {
