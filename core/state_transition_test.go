@@ -185,7 +185,7 @@ func TestApplyMessage_Private_whenCreatePartyProtectionC1_Success(t *testing.T) 
 	mockPM.Verify(assert)
 }
 
-func TestApplyMessage_Private_whenCreatePartyProtectionC1WithPrivacyEnhancementsDisabledIsHandledLikeStandardPrivate_Success(t *testing.T) {
+func TestApplyMessage_Private_whenCreatePartyProtectionC1WithPrivacyEnhancementsDisabledReturnsError(t *testing.T) {
 	originalP := private.P
 	defer func() { private.P = originalP }()
 	mockPM := newMockPrivateTransactionManager()
@@ -209,12 +209,10 @@ func TestApplyMessage_Private_whenCreatePartyProtectionC1WithPrivacyEnhancements
 	evm.ChainConfig().PrivacyEnhancementsBlock = nil
 	_, _, fail, err := ApplyMessage(evm, privateMsg, gp)
 
-	assert.NoError(err, "EVM execution")
-	assert.False(fail, "Transaction receipt status")
+	assert.Error(err, "EVM execution")
+	assert.True(fail, "Transaction receipt status")
 	// check that there is no privacy metadata for the newly created contract
-	contractAddr := evm.CreatedContracts()[0]
-	_, errGetPrivMetadata := cfg.privateState.GetStatePrivacyMetadata(contractAddr)
-	assert.Error(errGetPrivMetadata, "not found")
+	assert.Len(evm.CreatedContracts(), 0, "no contracts createad")
 	mockPM.Verify(assert)
 }
 
