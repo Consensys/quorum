@@ -4,7 +4,7 @@ The following is an incomplete list of official and unofficial projects and samp
 
 Current examples include:
 
-* [7nodes](https://github.com/jpmorganchase/quorum-examples.git): Starts up a fully-functioning Quorum environment consisting of 7 independent nodes. This example demonstrates consensus, privacy, and all the expected functionality of an Ethereum platform.
+* [7nodes](https://github.com/jpmorganchase/quorum-examples/tree/master/examples/7nodes): Starts up a fully-functioning Quorum environment consisting of 7 independent nodes. This example demonstrates consensus, privacy, and all the expected functionality of an Ethereum platform.
 * [5nodesRTGS](https://github.com/bacen/quorum-examples/tree/master/examples/5nodesRTGS): Starts up a set of 5 nodes that simulates a Real-time Gross Settlement environment with 3 banks, one regulator (typically a central bank) and an observer that cannot access the private data.
 * [consistency-checker](https://github.com/miguelmartinezinf/consistency-checker): Consistency-checker enhances trust between parties involved in private smart contracts. This tool acts as an oracle, listening to modifications of a specific private contract on every participant node and publishing the unique state of the contract at every block height on a public contract.
 * [web3j token sample](https://github.com/blk-io/quorum-sample): This project demonstrates the creation and management of a private token on a Quorum network. Quorum privacy is used, only certain members of the network are privy to the token that has been created. It is written in Java using web3j which is maintained by Web3 Labs.
