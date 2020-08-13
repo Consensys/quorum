@@ -25,7 +25,7 @@ jobs:
           echo "::add-path::$(go env GOPATH)/bin"
       - name: 'Run code linters'
         run: |
-          GO111MODULE=off make lint
+          GO111MODULE=on make lint
   unit-tests:
     name: 'Unit tests in ${{ matrix.os }}'
     strategy:
