@@ -26,6 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
+
+	checker "gopkg.in/check.v1"
 )
 
 var toAddr = common.BytesToAddress
@@ -88,7 +90,7 @@ func TestDump(t *testing.T) {
 	}
 }
 
-func (s *StateSuite) TestDumpAddress(c *checker.C) {
+func (s *stateTest) TestDumpAddress(c *checker.C) {
 	// generate a few entries
 	obj1 := s.state.GetOrNewStateObject(toAddr([]byte{0x01}))
 	obj1.AddBalance(big.NewInt(22))
@@ -114,7 +116,7 @@ func (s *StateSuite) TestDumpAddress(c *checker.C) {
 	}
 }
 
-func (s *StateSuite) TestDumpAddressNotFound(c *checker.C) {
+func (s *stateTest) TestDumpAddressNotFound(c *checker.C) {
 	// generate a few entries
 	obj1 := s.state.GetOrNewStateObject(toAddr([]byte{0x01}))
 	obj1.AddBalance(big.NewInt(22))
@@ -138,7 +140,7 @@ func (s *StateSuite) TestDumpAddressNotFound(c *checker.C) {
 	}
 }
 
-func (s *StateSuite) SetUpTest(c *checker.C) {
+func (s *stateTest) SetUpTest(c *checker.C) {
 	s.db = rawdb.NewMemoryDatabase()
 	s.state, _ = New(common.Hash{}, NewDatabase(s.db))
 }
