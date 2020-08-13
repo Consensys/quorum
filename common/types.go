@@ -101,6 +101,10 @@ func (eph EncryptedPayloadHash) BytesTypeRef() *hexutil.Bytes {
 	return &b
 }
 
+func EmptyEncryptedPayloadHash(eph EncryptedPayloadHash) bool {
+	return eph == EncryptedPayloadHash{}
+}
+
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
 type Hash [HashLength]byte
 

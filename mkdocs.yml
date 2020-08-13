@@ -114,6 +114,8 @@ nav:
             - Overview: Cakeshop/Overview.md
             - Getting Started: Cakeshop/Getting started.md
             - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
+        - Quorum Profiling: 
+            - Overview: Quorum Profiling/Overview.md
         - Remix Plugin:
             - Overview: RemixPlugin/Overview.md
             - Getting Started: RemixPlugin/GettingStarted.md

@@ -10,11 +10,12 @@ import (
 	"github.com/ethereum/go-ethereum/private/privatetransactionmanager"
 )
 
+// Interacting with Private Transaction Manager APIs
 type PrivateTransactionManager interface {
-	Send(data []byte, from string, to []string) ([]byte, error)
-	StoreRaw(data []byte, from string) ([]byte, error)
-	SendSignedTx(data []byte, to []string) ([]byte, error)
-	Receive(data []byte) ([]byte, error)
+	Send(data []byte, from string, to []string) (common.EncryptedPayloadHash, error)
+	StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error)
+	SendSignedTx(txHash common.EncryptedPayloadHash, to []string) ([]byte, error)
+	Receive(txHash common.EncryptedPayloadHash) ([]byte, error)
 
 	IsSender(txHash common.EncryptedPayloadHash) (bool, error)
 	GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error)

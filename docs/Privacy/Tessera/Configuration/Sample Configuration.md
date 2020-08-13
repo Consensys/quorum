@@ -21,6 +21,8 @@ Tessera configuration varies by version as new features are added or changed. Be
 ### 0.10.3
 - The `keys.azureKeyVaultConfig` and `keys.hashicorpKeyVaultConfig` fields are now deprecated.  Instead, the generic `keys.keyVaultConfigs` should be used.  See [Keys Config](../Keys) for more info.
 
+- P2P servers can be provided with additional configuration by defining a `server.properties` map
+
 ### 0.10.2
 - The `keys.keyData.passwords` field is no longer supported.  Instead, use `keys.keyData.passwordFile` or utilise the [CLI password prompt](../Keys#providing-key-passwords-at-runtime) when starting the node.
 

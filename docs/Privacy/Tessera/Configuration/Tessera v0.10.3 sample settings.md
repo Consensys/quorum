@@ -2,6 +2,8 @@
 
 - The `keys.azureKeyVaultConfig` and `keys.hashicorpKeyVaultConfig` fields are now deprecated.  Instead, the generic `keys.keyVaultConfigs` should be used.  See [Keys Config](../Keys) for more info.
 
+- P2P servers can be provided with additional configuration by defining a `server.properties` map
+
 **Sample:**
 
 ```json
@@ -65,7 +67,13 @@
         "knownClientsFile": "Path",
         "knownServersFile": "Path"
       },
-      "communicationType": "REST"
+      "communicationType": "REST",
+      "properties": {
+        "partyInfoInterval": "Long",
+        "enclaveKeySyncInterval": "Long",
+        "syncInterval": "Long",
+        "resendWaitTime": "Long"
+      }
     }
   ],
   "peer": [
