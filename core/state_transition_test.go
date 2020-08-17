@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-
 	"math/big"
 	"os"
 	"strings"
@@ -1281,7 +1280,7 @@ func verifyGasPoolCalculation(t *testing.T, pm private.PrivateTransactionManager
 	}
 	ctx := NewEVMContext(msg, &dualStateTestHeader, nil, &common.Address{})
 	evm := vm.NewEVM(ctx, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})
-	// TODO - must get a TX here from the msg object
+
 	tx := types.NewTransaction(
 		0,
 		common.Address{},

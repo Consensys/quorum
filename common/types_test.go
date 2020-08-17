@@ -198,40 +198,26 @@ func TestMixedcaseAccount_Address(t *testing.T) {
 
 }
 
-func TestEmptyEncryptedPayloadHash(t *testing.T) {
-	assert := assert.New(t)
-
-	emptyHash := EncryptedPayloadHash{}
-
-	assert.True(EmptyEncryptedPayloadHash(emptyHash))
-}
-
 func TestBytesToEncryptedPayloadHash_whenTypical(t *testing.T) {
-	assert := assert.New(t)
-
 	arbitraryBytes := []byte{10}
 	var expected EncryptedPayloadHash
 	expected[EncryptedPayloadHashLength-1] = 10
 
 	actual := BytesToEncryptedPayloadHash(arbitraryBytes)
 
-	assert.Equal(expected, actual)
+	assert.Equal(t, expected, actual)
 }
 
 func TestEncryptedPayloadHash_Bytes(t *testing.T) {
-	assert := assert.New(t)
-
 	arbitraryBytes := []byte{10}
 	h := BytesToEncryptedPayloadHash(arbitraryBytes)
 
 	actual := h.Bytes()
 
-	assert.Equal(arbitraryBytes[0], actual[EncryptedPayloadHashLength-1])
+	assert.Equal(t, arbitraryBytes[0], actual[EncryptedPayloadHashLength-1])
 }
 
 func TestEncryptedPayloadHash_BytesTypeRef(t *testing.T) {
-	assert := assert.New(t)
-
 	arbitraryBytes := []byte{10}
 	h := BytesToEncryptedPayloadHash(arbitraryBytes)
 	expected := h.Hex()
@@ -239,24 +225,27 @@ func TestEncryptedPayloadHash_BytesTypeRef(t *testing.T) {
 	bt := h.BytesTypeRef()
 	actual := bt.String()
 
-	assert.Equal(expected, actual)
+	assert.Equal(t, expected, actual)
 }
 
 func TestEncryptedPayloadHash_ToBase64(t *testing.T) {
-	assert := assert.New(t)
-
 	arbitraryBytes := []byte{10}
 	h := BytesToEncryptedPayloadHash(arbitraryBytes)
 	expected := base64.StdEncoding.EncodeToString(h.Bytes())
 
 	actual := h.ToBase64()
 
-	assert.Equal(expected, actual)
+	assert.Equal(t, expected, actual)
+}
+
+func TestEmptyEncryptedPayloadHash(t *testing.T) {
+
+	emptyHash := EncryptedPayloadHash{}
+
+	assert.True(t, EmptyEncryptedPayloadHash(emptyHash))
 }
 
 func TestEncryptedPayloadHashes_whenTypical(t *testing.T) {
-	assert := assert.New(t)
-
 	arbitraryBytes1 := []byte{10}
 	arbitraryBytes2 := []byte{5}
 	h, err := Base64sToEncryptedPayloadHashes([]string{base64.StdEncoding.EncodeToString(arbitraryBytes1), base64.StdEncoding.EncodeToString(arbitraryBytes2)})
@@ -268,7 +257,7 @@ func TestEncryptedPayloadHashes_whenTypical(t *testing.T) {
 	newItem := BytesToEncryptedPayloadHash(arbitraryBytes3)
 	h.Add(newItem)
 
-	assert.False(h.NotExist(newItem))
+	assert.False(t, h.NotExist(newItem))
 }
 
 func TestHash_Scan(t *testing.T) {
