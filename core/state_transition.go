@@ -219,7 +219,8 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
 		pmh.snapshot = st.evm.StateDB.Snapshot()
-		data, pmh.receivedPrivacyMetadata, err = private.P.Receive(common.BytesToEncryptedPayloadHash(st.data))
+		pmh.eph = common.BytesToEncryptedPayloadHash(st.data)
+		data, pmh.receivedPrivacyMetadata, err = private.P.Receive(pmh.eph)
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call

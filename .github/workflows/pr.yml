@@ -195,6 +195,7 @@ jobs:
         # More comprehensive suites are scheduled to run in master
         tag:
           - 'privacy-enhancements-upgrade || networks/template::raft-4nodes-pe'
+          - 'privacy-enhancements-upgrade || networks/template::istanbul-4nodes-pe'
     runs-on: ubuntu-latest
     steps:
       - name: 'Download workflow artifact - Docker image'

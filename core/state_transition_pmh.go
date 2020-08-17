@@ -30,6 +30,7 @@ type privateMessageHandler struct {
 
 	snapshot                int
 	receivedPrivacyMetadata *engine.ExtraMetadata
+	eph                     common.EncryptedPayloadHash
 }
 
 func (pmh *privateMessageHandler) mustVerify() bool {
@@ -51,11 +52,8 @@ func (pmh *privateMessageHandler) prepare() (bool, error) {
 			// continue to apply new blocks). The resolution should then be to revert to an appropriate block height and
 			// run geth init with the network agreed privacyEnhancementsBlock.
 			// The prepare method signature has been changed to allow returning the relevant error.
-			log.Warn("Non StandardPrivate transaction received but PrivacyEnhancements are disabled. Enhanced privacy metadata will be ignored.")
-			pmh.receivedPrivacyMetadata = &engine.ExtraMetadata{
-				ACHashes:     make(common.EncryptedPayloadHashes),
-				ACMerkleRoot: common.Hash{},
-				PrivacyFlag:  engine.PrivacyFlagStandardPrivate}
+			return false, fmt.Errorf("Privacy enhanced transaction received while privacy enhancements are disabled."+
+				" Please check your node configuration. EPH=%s", pmh.eph.ToBase64())
 		}
 
 		if pmh.receivedPrivacyMetadata.PrivacyFlag == engine.PrivacyFlagStateValidation && common.EmptyHash(pmh.receivedPrivacyMetadata.ACMerkleRoot) {
