@@ -1531,8 +1531,8 @@ type PrivateTxArgs struct {
 	PrivateFrom string `json:"privateFrom"`
 	// PrivateFor is the list of public keys which are available in the Private Transaction Managers in the network.
 	// The transaction payload is only visible to those party to the transaction.
-	PrivateFor    []string `json:"privateFor"`
-	PrivateTxType string   `json:"restriction"`
+	PrivateFor    []string               `json:"privateFor"`
+	PrivateTxType string                 `json:"restriction"`
 	PrivacyFlag   engine.PrivacyFlagType `json:"privacyFlag"`
 }
 
