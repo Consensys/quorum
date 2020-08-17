@@ -19,6 +19,7 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -48,6 +49,10 @@ type httpConn struct {
 	req       *http.Request
 	closeOnce sync.Once
 	closed    chan interface{}
+
+	// Quorum
+	// To return value being populated in Authorization request header
+	credentialsProvider HttpCredentialsProviderFunc
 }
 
 // httpConn is treated specially by Client.
@@ -70,6 +75,15 @@ func (hc *httpConn) Close() {
 
 func (hc *httpConn) Closed() <-chan interface{} {
 	return hc.closed
+}
+
+func (hc *httpConn) Configure(_ securityContext) {
+	// Client doesn't need to implement this
+}
+
+func (hc *httpConn) Resolve() securityContext {
+	// Client doesn't need to implement this
+	return context.Background()
 }
 
 // HTTPTimeouts represents the configuration params for the HTTP RPC server.
@@ -166,6 +180,10 @@ func (c *Client) sendBatchHTTP(ctx context.Context, op *requestOp, msgs []*jsonr
 	return nil
 }
 
+// Quorum
+//
+// Populate Authorization request header with value from credentials provider
+// Ignore if provider is unable to return the value
 func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadCloser, error) {
 	body, err := json.Marshal(msg)
 	if err != nil {
@@ -174,7 +192,13 @@ func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadClos
 	req := hc.req.WithContext(ctx)
 	req.Body = ioutil.NopCloser(bytes.NewReader(body))
 	req.ContentLength = int64(len(body))
-
+	if hc.credentialsProvider != nil {
+		if token, err := hc.credentialsProvider(ctx); err != nil {
+			log.Warn("unable to obtain http credentials from provider", "err", err)
+		} else {
+			req.Header.Set(HttpAuthorizationHeader, token)
+		}
+	}
 	resp, err := hc.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -237,6 +261,10 @@ func NewHTTPServer(cors []string, vhosts []string, timeouts HTTPTimeouts, srv ht
 		ReadTimeout:  timeouts.ReadTimeout,
 		WriteTimeout: timeouts.WriteTimeout,
 		IdleTimeout:  timeouts.IdleTimeout,
+
+		// Ensure to Disable HTTP/2
+		// this configuration and customized tls.Config is to follow: https://blog.bracebin.com/achieving-perfect-ssl-labs-score-with-go
+		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 	}
 }
 
@@ -263,10 +291,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if origin := r.Header.Get("Origin"); origin != "" {
 		ctx = context.WithValue(ctx, "Origin", origin)
 	}
-
 	w.Header().Set("content-type", contentType)
 	codec := newHTTPServerConn(r, w)
 	defer codec.Close()
+	s.authenticateHttpRequest(r, codec)
 	s.serveSingleRequest(ctx, codec)
 }
 

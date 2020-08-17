@@ -20,8 +20,8 @@ nav:
         - Running Quorum: Getting Started/running.md
         - Quorum API: Getting Started/api.md
         - Quorum GraphQL: Getting Started/graphql.md
-        - Migration: Getting Started/migration.md 
-    - Quorum Features: 
+        - Migration: Getting Started/migration.md
+    - Quorum Features:
         - Transaction/Contract Privacy:
             - Overview: Privacy/Overview.md
             - Privacy/Privacy-Manager.md
@@ -53,6 +53,9 @@ nav:
                 - How it works: Privacy/Constellation/How constellation works.md
                 - Sample Configuration: Privacy/Constellation/Sample Configuration.md
                 - Running Constellation: Privacy/Constellation/Installation & Running.md
+            - Contract Extension:
+                - Overview: Privacy/Contract-Extension/Overview.md
+                - APIs: Privacy/Contract-Extension/ContractExtension apis.md
         - Consensus:
             - Consensus: Consensus/Consensus.md
             - Raft BFT:
@@ -61,7 +64,7 @@ nav:
             - Istanbul BFT:
                 - Overview: Consensus/ibft/ibft.md
                 - Consensus/ibft/istanbul-rpc-api.md
-                - Consensus/ibft/ibft-parameters.md     
+                - Consensus/ibft/ibft-parameters.md
         - Permissioning:
             - Overview: Permissioning/Permissions Overview.md
             - Basic: Permissioning/Basic NetworkPermissions.md
@@ -71,9 +74,19 @@ nav:
               - Setup: Permissioning/Enhanced Permissions Model/setup.md
               - APIs: Permissioning/Enhanced Permissions Model/Permissioning apis.md
               - Usage: Permissioning/Enhanced Permissions Model/Usage.md
-        - Safeguarding Private Keys:
-            - Overview: Safeguarding-Private-Keys/Overview.md
-            - Clef for Quorum: Safeguarding-Private-Keys/Clef-for-Quorum.md
+        - Account/Key Management:
+            - Overview: Account-Key-Management/Overview.md
+            - Quorum:
+                - Overview: Account-Key-Management/Quorum/Overview.md
+                - Keystore Files: Account-Key-Management/Quorum/Keystore-Files.md
+                - Clef: Account-Key-Management/Quorum/Clef.md
+                - account Plugins:
+                  - Overview: Account-Key-Management/Quorum/account-Plugins/Overview.md
+                  - Hashicorp Vault:
+                    - Overview: Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Overview.md
+                    - Quickstart: Account-Key-Management/Quorum/account-Plugins/Hashicorp-Vault/Quickstart.md
+            - Tessera: Account-Key-Management/Tessera/Overview.md
+            - Constellation: Account-Key-Management/Constellation/Overview.md
         - Pluggable Architecture:
             - Overview: PluggableArchitecture/Overview.md
             - Settings: PluggableArchitecture/Settings.md
@@ -82,9 +95,17 @@ nav:
                 - helloworld:
                     - Interface: PluggableArchitecture/Plugins/helloworld/interface.md
                     - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
+                - security:
+                    - Interface: PluggableArchitecture/Plugins/security/interface.md
+                    - Implementation: PluggableArchitecture/Plugins/security/implementation.md
+                - account:
+                    - For Users: PluggableArchitecture/Plugins/account/For-Users.md
+                    - For Developers: PluggableArchitecture/Plugins/account/For-Developers.md
+                    - API: PluggableArchitecture/Plugins/account/interface.md
             - Plugin Development: PluggableArchitecture/PluginDevelopment.md
         - DNS: Quorum Features/dns.md
-    - Quorum Projects: 
+        - Securing JSON RPC: Quorum Features/rpc-security.md
+    - Quorum Projects:
         - Quorum Wizard:
             - Getting Started: Wizard/GettingStarted.md
             - Interacting with the Network: Wizard/Interacting.md
@@ -92,6 +113,8 @@ nav:
             - Overview: Cakeshop/Overview.md
             - Getting Started: Cakeshop/Getting started.md
             - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
+        - Quorum Profiling: 
+            - Overview: Quorum Profiling/Overview.md
         - Remix Plugin:
             - Overview: RemixPlugin/Overview.md
             - Getting Started: RemixPlugin/GettingStarted.md
@@ -108,7 +131,7 @@ nav:
             - Operational Considerations: Security/Framework/Quorum Network Security/Opertional Considerations.md
           - Decentralized App:
             - Frontend: Security/Framework/Decentralized Application/Frontend Components.md
-            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md 
+            - Smart Contracts:  Security/Framework/Decentralized Application/Smart Contracts Security.md
     - How-To Guides:
         - Adding new nodes: How-To-Guides/adding_nodes.md
         - Adding IBFT validators: How-To-Guides/add_ibft_validator.md

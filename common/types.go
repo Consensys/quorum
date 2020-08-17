@@ -18,6 +18,7 @@ package common
 
 import (
 	"database/sql/driver"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -36,12 +37,73 @@ const (
 	HashLength = 32
 	// AddressLength is the expected length of the address
 	AddressLength = 20
+	// length of the hash returned by Private Transaction Manager
+	EncryptedPayloadHashLength = 64
 )
 
 var (
 	hashT    = reflect.TypeOf(Hash{})
 	addressT = reflect.TypeOf(Address{})
 )
+
+// Hash, returned by Private Transaction Manager, represents the 64-byte hash of encrypted payload
+type EncryptedPayloadHash [EncryptedPayloadHashLength]byte
+
+// Using map to enable fast lookup
+type EncryptedPayloadHashes map[EncryptedPayloadHash]struct{}
+
+// BytesToEncryptedPayloadHash sets b to EncryptedPayloadHash.
+// If b is larger than len(h), b will be cropped from the left.
+func BytesToEncryptedPayloadHash(b []byte) EncryptedPayloadHash {
+	var h EncryptedPayloadHash
+	h.SetBytes(b)
+	return h
+}
+
+func Base64ToEncryptedPayloadHash(b64 string) (EncryptedPayloadHash, error) {
+	bytes, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		return EncryptedPayloadHash{}, err
+	}
+	return BytesToEncryptedPayloadHash(bytes), nil
+}
+
+func (eph *EncryptedPayloadHash) SetBytes(b []byte) {
+	if len(b) > len(eph) {
+		b = b[len(b)-EncryptedPayloadHashLength:]
+	}
+
+	copy(eph[EncryptedPayloadHashLength-len(b):], b)
+}
+
+func (eph EncryptedPayloadHash) Hex() string {
+	return hexutil.Encode(eph[:])
+}
+
+func (eph EncryptedPayloadHash) Bytes() []byte {
+	return eph[:]
+}
+
+func (eph EncryptedPayloadHash) String() string {
+	return eph.Hex()
+}
+
+func (eph EncryptedPayloadHash) ToBase64() string {
+	return base64.StdEncoding.EncodeToString(eph[:])
+}
+
+func (eph EncryptedPayloadHash) TerminalString() string {
+	return fmt.Sprintf("%x…%x", eph[:3], eph[EncryptedPayloadHashLength-3:])
+}
+
+func (eph EncryptedPayloadHash) BytesTypeRef() *hexutil.Bytes {
+	b := hexutil.Bytes(eph.Bytes())
+	return &b
+}
+
+func EmptyEncryptedPayloadHash(eph EncryptedPayloadHash) bool {
+	return eph == EncryptedPayloadHash{}
+}
 
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
 type Hash [HashLength]byte

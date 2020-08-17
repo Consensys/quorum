@@ -343,10 +343,9 @@ func (c *CliqueConfig) String() string {
 
 // IstanbulConfig is the consensus engine configs for Istanbul based sealing.
 type IstanbulConfig struct {
-	Epoch                  uint64   `json:"epoch"`                    // Epoch length to reset votes and checkpoint
-	ProposerPolicy         uint64   `json:"policy"`                   // The policy for proposer selection
-	Ceil2Nby3Block         *big.Int `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
-	AllowedFutureBlockTime uint64   `json:"allowedFutureBlockTime"`   // Max time (in seconds) from current time allowed for blocks, before they're considered future blocks
+	Epoch          uint64   `json:"epoch"`                    // Epoch length to reset votes and checkpoint
+	ProposerPolicy uint64   `json:"policy"`                   // The policy for proposer selection
+	Ceil2Nby3Block *big.Int `json:"ceil2Nby3Block,omitempty"` // Number of confirmations required to move from one state to next [2F + 1 to Ceil(2N/3)]
 }
 
 // String implements the stringer interface, returning the consensus engine details.
