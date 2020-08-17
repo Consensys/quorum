@@ -111,8 +111,8 @@ nav:
             - Interacting with the Network: Wizard/Interacting.md
         - Cakeshop:
             - Overview: Cakeshop/Overview.md
-            - Getting Started: Cakeshop/Getting started.md
-            - Cakeshop FAQ: Cakeshop/Cakeshop FAQ.md
+            - Getting Started: Cakeshop/Getting Started.md
+            - Configuration: Cakeshop/Configuration.md
         - Quorum Profiling: 
             - Overview: Quorum Profiling/Overview.md
         - Remix Plugin:
