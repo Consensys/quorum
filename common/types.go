@@ -101,6 +101,10 @@ func (eph EncryptedPayloadHash) BytesTypeRef() *hexutil.Bytes {
 	return &b
 }
 
+func EmptyEncryptedPayloadHash(eph EncryptedPayloadHash) bool {
+	return eph == EncryptedPayloadHash{}
+}
+
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
 type Hash [HashLength]byte
 
@@ -248,10 +252,6 @@ func (h *UnprefixedHash) UnmarshalText(input []byte) error {
 // MarshalText encodes the hash as hex.
 func (h UnprefixedHash) MarshalText() ([]byte, error) {
 	return []byte(hex.EncodeToString(h[:])), nil
-}
-
-func EmptyEncryptedPayloadHash(eph EncryptedPayloadHash) bool {
-	return eph == EncryptedPayloadHash{}
 }
 
 func (ephs EncryptedPayloadHashes) ToBase64s() []string {

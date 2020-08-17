@@ -19,7 +19,7 @@ func TestPrivateTransactionManagerClient_storeRaw(t *testing.T) {
 	// mock tessera client
 	//TODO: Check the test logic
 	expectedData := []byte("arbitrary data")
-	expectedDataString := common.BytesToEncryptedPayloadHash(expectedData)
+	expectedDataEPH := common.BytesToEncryptedPayloadHash(expectedData)
 	arbitraryServer := newStoreRawServer()
 	defer arbitraryServer.Close()
 	testObject, err := newPrivateTransactionManagerClient(arbitraryServer.URL)
@@ -28,7 +28,7 @@ func TestPrivateTransactionManagerClient_storeRaw(t *testing.T) {
 	key, err := testObject.StoreRaw([]byte("arbitrary payload"), "arbitrary private from")
 
 	assert.NoError(t, err)
-	assert.Equal(t, expectedDataString, key)
+	assert.Equal(t, expectedDataEPH, key)
 }
 
 func newStoreRawServer() *httptest.Server {

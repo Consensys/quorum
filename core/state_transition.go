@@ -18,7 +18,6 @@ package core
 
 import (
 	"errors"
-
 	"math"
 	"math/big"
 
@@ -305,7 +304,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 	// End Quorum - Privacy Enhancements
 
-	// Pay gas used during contract creation or execution (stAPI.gas tracks remaining gas)
+	// Pay gas used during contract creation or execution (st.gas tracks remaining gas)
 	// However, if private contract then we don't want to do this else we can get
 	// a mismatch between a (non-participant) minter and (participant) validator,
 	// which can cause a 'BAD BLOCK' crash.

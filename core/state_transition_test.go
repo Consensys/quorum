@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-
 	"math/big"
 	"os"
 	"strings"
@@ -1281,7 +1280,7 @@ func verifyGasPoolCalculation(t *testing.T, pm private.PrivateTransactionManager
 	}
 	ctx := NewEVMContext(msg, &dualStateTestHeader, nil, &common.Address{})
 	evm := vm.NewEVM(ctx, publicState, privateState, params.QuorumTestChainConfig, vm.Config{})
-	// TODO - must get a TX here from the msg object
+
 	tx := types.NewTransaction(
 		0,
 		common.Address{},
@@ -1361,12 +1360,4 @@ func (spm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloa
 
 func (spm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
 	return true
-}
-
-func (spm *StubPrivateTransactionManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
-	return false, fmt.Errorf("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
-	return nil, fmt.Errorf("to be implemented")
 }

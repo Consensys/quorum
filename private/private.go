@@ -35,6 +35,7 @@ type Identifiable interface {
 	HasFeature(f engine.PrivateTransactionManagerFeature) bool
 }
 
+// Interacting with Private Transaction Manager APIs
 type PrivateTransactionManager interface {
 	Identifiable
 

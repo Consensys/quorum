@@ -18,7 +18,6 @@ package graphql
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -43,17 +42,17 @@ func TestQuorumSchema(t *testing.T) {
 	defer func() {
 		private.P = saved
 	}()
-	key := common.BytesToEncryptedPayloadHash([]byte("key"))
+	arbitraryPayloadHash := common.BytesToEncryptedPayloadHash([]byte("arbitrary key"))
 	private.P = &StubPrivateTransactionManager{
-		responses: map[string][]interface{}{
-			key.String(): {
+		responses: map[common.EncryptedPayloadHash][]interface{}{
+			arbitraryPayloadHash: {
 				[]byte("private payload"), // equals to 0x70726976617465207061796c6f6164 after converting to bytes
 				nil,
 			},
 		},
 	}
 	// Test private transaction
-	privateTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), key.Bytes())
+	privateTx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 0, big.NewInt(0), arbitraryPayloadHash.Bytes())
 	privateTx.SetPrivate()
 	privateTxQuery := &Transaction{tx: privateTx}
 	isPrivate, err := privateTxQuery.IsPrivate(context.Background())
@@ -91,15 +90,15 @@ func TestQuorumSchema(t *testing.T) {
 
 type StubPrivateTransactionManager struct {
 	notinuse.PrivateTransactionManager
-	responses map[string][]interface{}
+	responses map[common.EncryptedPayloadHash][]interface{}
 }
 
 func (spm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {
 	return true
 }
 
-func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
-	res := spm.responses[data.String()]
+func (spm *StubPrivateTransactionManager) Receive(txHash common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
+	res := spm.responses[txHash]
 	if err, ok := res[1].(error); ok {
 		return nil, nil, err
 	}
@@ -113,12 +112,4 @@ func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHa
 
 func (spm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
 	return spm.Receive(data)
-}
-
-func (spm *StubPrivateTransactionManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
-	panic("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
-	return nil, fmt.Errorf("to be implemented")
 }

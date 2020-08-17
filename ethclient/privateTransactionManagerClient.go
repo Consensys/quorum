@@ -12,8 +12,7 @@ import (
 )
 
 type privateTransactionManagerClient interface {
-	//StoreRaw(data []byte, privateFrom string) ([]byte, error)
-	StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error)
+	StoreRaw(data []byte, privateFrom string) (common.EncryptedPayloadHash, error)
 }
 
 type privateTransactionManagerDefaultClient struct {
@@ -66,9 +65,7 @@ func (pc *privateTransactionManagerDefaultClient) StoreRaw(data []byte, privateF
 	if err := json.NewDecoder(resp.Body).Decode(&storeRawResp); err != nil {
 		return common.EncryptedPayloadHash{}, err
 	}
-	//encryptedPayloadHash, err := base64.StdEncoding.DecodeString(storeRawResp.Key)
 	encryptedPayloadHash, err := common.Base64ToEncryptedPayloadHash(storeRawResp.Key)
-
 	if err != nil {
 		return common.EncryptedPayloadHash{}, err
 	}
