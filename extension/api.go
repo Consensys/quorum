@@ -277,6 +277,7 @@ func (api *PrivateExtensionAPI) CancelExtension(extensionContract common.Address
 	if err == nil {
 		txa.PrivateFor = append(txa.PrivateFor, participants...)
 	}
+
 	txArgs, err := api.privacyService.GenerateTransactOptions(txa)
 	if err != nil {
 		return "", err

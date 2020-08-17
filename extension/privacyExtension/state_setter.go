@@ -40,6 +40,7 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 				}
 				// check the privacy flag of the contract. if its other than
 				// 0 then need to update the privacy metadata for the contract
+				//TODO: validate the old and new parties to ensure that all old parties are there
 				setPrivacyMetadata(privateState, address, hash)
 				privacyMetaDataUpdated = true
 			} else {
@@ -115,7 +116,7 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) 
 		log.Debug("Extension: could not determine if we are sender", "err", err.Error())
 		return false
 	}
-	//TODO: handle extra meta data
+
 	data, _, _ := handler.ptm.Receive(encryptedTxHash)
 	retrievedAddress := common.BytesToAddress(data)
 	if !bytes.Equal(retrievedAddress.Bytes(), address.Bytes()) {

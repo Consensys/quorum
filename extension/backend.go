@@ -412,7 +412,6 @@ func (service *PrivacyService) CheckIfContractCreator(blockHash common.Hash, add
 	}
 
 	isCreator, err := service.ptm.IsSender(privacyMetaData.CreationTxHash)
-	log.Info("SMK-CheckIfContractCreator", "isCreato", isCreator, "err", err)
 	if err != nil {
 		return false
 	}
