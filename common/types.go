@@ -254,10 +254,6 @@ func (h UnprefixedHash) MarshalText() ([]byte, error) {
 	return []byte(hex.EncodeToString(h[:])), nil
 }
 
-func EmptyEncryptedPayloadHash(eph EncryptedPayloadHash) bool {
-	return eph == EncryptedPayloadHash{}
-}
-
 func (ephs EncryptedPayloadHashes) ToBase64s() []string {
 	a := make([]string, 0, len(ephs))
 	for eph := range ephs {

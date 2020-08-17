@@ -18,7 +18,6 @@ package graphql
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -98,7 +97,7 @@ func (spm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransaction
 	return true
 }
 
-func (spm *StubPrivateTransactionManager) Receive(data []byte) ([]byte, *engine.ExtraMetadata, error) {
+func (spm *StubPrivateTransactionManager) Receive(txHash common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
 	res := spm.responses[txHash]
 	if err, ok := res[1].(error); ok {
 		return nil, nil, err
@@ -113,12 +112,4 @@ func (spm *StubPrivateTransactionManager) Receive(data []byte) ([]byte, *engine.
 
 func (spm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
 	return spm.Receive(data)
-}
-
-func (spm *StubPrivateTransactionManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
-	panic("to be implemented")
-}
-
-func (spm *StubPrivateTransactionManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
-	return nil, fmt.Errorf("to be implemented")
 }

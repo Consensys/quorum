@@ -69,5 +69,5 @@ func (pc *privateTransactionManagerDefaultClient) StoreRaw(data []byte, privateF
 	if err != nil {
 		return common.EncryptedPayloadHash{}, err
 	}
-	return common.BytesToEncryptedPayloadHash(b), nil
+	return encryptedPayloadHash, nil
 }
