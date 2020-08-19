@@ -436,3 +436,15 @@ func TestAddress_Value(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatTerminalString_Value(t *testing.T) {
+	assert.Equal(t, "", FormatTerminalString(nil))
+	assert.Equal(t, "", FormatTerminalString([]byte{}))
+	b := []byte{
+		0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd,
+	}
+	str := FormatTerminalString(b)
+	assert.Equal(t, "123456…90abcd", str)
+	str = FormatTerminalString(b[1:])
+	assert.Equal(t, "34567890abcd", str)
+}
