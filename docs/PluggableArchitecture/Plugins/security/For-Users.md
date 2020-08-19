@@ -1,17 +1,14 @@
-title: security - Plugin Implementation - Quorum
+# security Plugins: For users
 
-# `security` Enterprise Plugin
-
-| Version | Language |
-|:--------|:---------|
-| 1.0.0   | Go       |
-
-This plugin implementation provides the following enterprise features to `geth` JSON RPC server:
+Quorum offers an [official plugin implementation](https://github.com/jpmorganchase/quorum-security-plugin-enterprise)
+providing the following enterprise features to `geth` JSON RPC server:
 
 - Providing TLS configuration to HTTP and WS transports
 - Enabling `geth` JSON RPC (HTTP/WS) server to be an OAuth2-compliant resource server
 
 ## Configuration
+
+One of the below blocks must be configured
 
 <pre>
 {
@@ -22,8 +19,8 @@ This plugin implementation provides the following enterprise features to `geth` 
 
 | Fields                    | Description                                                                                                                                                                           |
 |:--------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `tls`                     | **(Optional)** If provided, serve the TLS configuration. See [TLSConfiguration](#tlsconfiguration) for more details                                                                   |
-| `tokenValidation`         | **(Required)** Configuration to verify access token and extract granted authorities from the token. See [TokenValidationConfiguration](#tokenvalidationconfiguration) for more details |
+| `tls`                     | **(Optional)** Serve the TLS configuration. See [TLSConfiguration](#tlsconfiguration) for more details                                                                   |
+| `tokenValidation`         | **(Optional)** Configuration to verify access token and extract granted authorities from the token. See [TokenValidationConfiguration](#tokenvalidationconfiguration) for more details |
 
 ### `TLSConfiguration`
 
@@ -235,9 +232,3 @@ The scope syntax is as follow:
 | `rpc://web3.clientVersion`     | Allow access to `web3_clientVersion` API                                                    |
 | `rpc://eth_*` <br/>or `rpc://eth_`   | Allow access to all APIs under `eth` namespace                                              |
 | `rpc://*_version` <br/>or `rpc://_version` | Allow access to `version` method of all namespaces. <br/>E.g.: `net_version`, `ssh_version` |
-
-## Change Log
-
-### v1.0.0
-
-Initial release
