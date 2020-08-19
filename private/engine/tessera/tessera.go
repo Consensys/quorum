@@ -220,7 +220,6 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 	return response.Payload, &extra, nil
 }
 
-// TODO change to submitJson as in other calls
 func (t *tesseraPrivateTxManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
 	req, err := http.NewRequest("GET", "http+unix://c/transaction/"+url.PathEscape(txHash.ToBase64())+"/isSender", nil)
 	if err != nil {
@@ -249,7 +248,6 @@ func (t *tesseraPrivateTxManager) IsSender(txHash common.EncryptedPayloadHash) (
 	return strconv.ParseBool(string(out))
 }
 
-// TODO change to submitJson as in other calls
 func (t *tesseraPrivateTxManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
 	requestUrl := "http+unix://c/transaction/" + url.PathEscape(txHash.ToBase64()) + "/participants"
 	req, err := http.NewRequest("GET", requestUrl, nil)

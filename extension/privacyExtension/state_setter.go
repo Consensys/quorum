@@ -23,6 +23,7 @@ func NewExtensionHandler(transactionManager private.PrivateTransactionManager) *
 }
 
 func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*types.Log, privateState *state.StateDB) {
+	privacyMetaDataUpdated := false
 	for _, txLog := range txLogs {
 		if logContainsExtensionTopic(txLog) {
 			//this is a direct state share
@@ -30,63 +31,76 @@ func (handler *ExtensionHandler) CheckExtensionAndSetPrivateState(txLogs []*type
 			if err != nil {
 				continue
 			}
+
 			// check if state exists for the extension address. If yes then skip
 			// processing
 			if privateState.GetCode(address) != nil {
-				continue
+				if privacyMetaDataUpdated {
+					continue
+				}
+				// check the privacy flag of the contract. if its other than
+				// 0 then need to update the privacy metadata for the contract
+				//TODO: validate the old and new parties to ensure that all old parties are there
+				setPrivacyMetadata(privateState, address, hash)
+				privacyMetaDataUpdated = true
+			} else {
+				accounts, privacyMetaData, found := handler.FetchStateData(txLog.Address, hash, uuid)
+				if !found {
+					continue
+				}
+				if !validateAccountsExist([]common.Address{address}, accounts) {
+					log.Error("Account mismatch", "expected", address, "found", accounts)
+					continue
+				}
+				snapshotId := privateState.Snapshot()
+
+				if success := setState(privateState, accounts, privacyMetaData); !success {
+					privateState.RevertToSnapshot(snapshotId)
+				}
 			}
-			accounts, found := handler.FetchStateData(txLog.Address, hash, uuid)
-			if !found {
-				continue
-			}
-			if !validateAccountsExist([]common.Address{address}, accounts) {
-				log.Error("Account mismatch", "expected", address, "found", accounts)
-				continue
-			}
-			snapshotId := privateState.Snapshot()
-			if success := setState(privateState, accounts); !success {
-				privateState.RevertToSnapshot(snapshotId)
-			}
+
 		}
 	}
 }
 
-func (handler *ExtensionHandler) FetchStateData(address common.Address, hash string, uuid string) (map[string]extension.AccountWithMetadata, bool) {
+func (handler *ExtensionHandler) FetchStateData(address common.Address, hash string, uuid string) (map[string]extension.AccountWithMetadata, *state.PrivacyMetadata, bool) {
 	if uuidIsSentByUs := handler.UuidIsOwn(address, uuid); !uuidIsSentByUs {
-		return nil, false
+		return nil, nil, false
 	}
 
-	stateData, ok := handler.FetchDataFromPTM(hash)
+	stateData, privacyMetaData, ok := handler.FetchDataFromPTM(hash)
 	if !ok {
 		//there is nothing to do here, the state wasn't shared with us
 		log.Error("Extension: No state shared with us")
-		return nil, false
+		return nil, nil, false
 	}
 
 	var accounts map[string]extension.AccountWithMetadata
 	if err := json.Unmarshal(stateData, &accounts); err != nil {
 		log.Error("Extension: Could not unmarshal data")
-		return nil, false
+		return nil, nil, false
 	}
-	return accounts, true
+
+	return accounts, privacyMetaData, true
 }
 
 // Checks
 
-func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, bool) {
+func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, *state.PrivacyMetadata, bool) {
 	ptmHash, _ := common.Base64ToEncryptedPayloadHash(hash)
-	//TODO: extraMetadat is passed need to handle
-	stateData, _, err := handler.ptm.Receive(ptmHash)
+	stateData, extraMetaData, err := handler.ptm.Receive(ptmHash)
 
 	if stateData == nil {
 		log.Error("No state data found in PTM", "ptm hash", hash)
-		return nil, false
+		return nil, nil, false
 	}
 	if err != nil {
 		log.Error("Error receiving state data from PTM", "ptm hash", hash, "err", err.Error())
-		return nil, false
+		return nil, nil, false
 	}
-	return stateData, true
+
+	privacyMetaData := state.NewStatePrivacyMetadata(ptmHash, extraMetaData.PrivacyFlag)
+	return stateData, privacyMetaData, true
 }
 
 func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) bool {
@@ -102,7 +116,7 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) 
 		log.Debug("Extension: could not determine if we are sender", "err", err.Error())
 		return false
 	}
-	//TODO: handle extra meta data
+
 	data, _, _ := handler.ptm.Receive(encryptedTxHash)
 	retrievedAddress := common.BytesToAddress(data)
 	if !bytes.Equal(retrievedAddress.Bytes(), address.Bytes()) {
