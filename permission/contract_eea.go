@@ -182,7 +182,7 @@ func (p *PermissionContractEea) GetNodeDetailsFromIndex(_nodeIndex *big.Int) (st
 	if err != nil {
 		return "", "", big.NewInt(0), err
 	}
-	return r.OrgId, types.GetNodeUrl(r.EnodeId, string(r.Ip[:]), r.Port, r.Raftport), r.NodeStatus, err
+	return r.OrgId, types.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport), r.NodeStatus, err
 }
 
 func (p *PermissionContractEea) GetNumberOfNodes() (*big.Int, error) {
@@ -194,7 +194,7 @@ func (p *PermissionContractEea) GetNodeDetails(enodeId string) (string, string, 
 	if err != nil {
 		return "", "", big.NewInt(0), err
 	}
-	return r.OrgId, types.GetNodeUrl(r.EnodeId, string(r.Ip[:]), r.Port, r.Raftport), r.NodeStatus, err
+	return r.OrgId, types.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport), r.NodeStatus, err
 }
 
 func (p *PermissionContractEea) GetRoleDetails(_roleId string, _orgId string) (struct {

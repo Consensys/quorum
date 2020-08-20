@@ -557,7 +557,7 @@ func (p *PermissionCtrl) populateStaticNodesToContract() error {
 			log.Warn("Failed to propose Node", "err", err, "enode", node.EnodeID())
 			return err
 		}
-		types.NodeInfoMap.UpsertNode(p.permConfig.NwAdminOrg, types.GetNodeUrl(enodeId, string(ip[:]), port, raftPort), 2)
+		types.NodeInfoMap.UpsertNode(p.permConfig.NwAdminOrg, types.GetNodeUrl(enodeId, ip[:], port, raftPort), 2)
 	}
 	return nil
 }

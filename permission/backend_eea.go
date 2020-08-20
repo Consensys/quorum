@@ -218,32 +218,32 @@ func (b *backendEea) manageNodePermissions() error {
 		for {
 			select {
 			case evtNodeApproved := <-chNodeApproved:
-				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeApproved.EnodeId, string(evtNodeApproved.Ip[:]), evtNodeApproved.Port, evtNodeApproved.Raftport), NodeAdd)
-				types.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, types.GetNodeUrl(evtNodeApproved.EnodeId, string(evtNodeApproved.Ip[:]), evtNodeApproved.Port, evtNodeApproved.Raftport), types.NodeApproved)
+				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeApproved.EnodeId, evtNodeApproved.Ip[:], evtNodeApproved.Port, evtNodeApproved.Raftport), NodeAdd)
+				types.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, types.GetNodeUrl(evtNodeApproved.EnodeId, evtNodeApproved.Ip[:], evtNodeApproved.Port, evtNodeApproved.Raftport), types.NodeApproved)
 
 			case evtNodeProposed := <-chNodeProposed:
-				types.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, types.GetNodeUrl(evtNodeProposed.EnodeId, string(evtNodeProposed.Ip[:]), evtNodeProposed.Port, evtNodeProposed.Raftport), types.NodePendingApproval)
+				types.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, types.GetNodeUrl(evtNodeProposed.EnodeId, evtNodeProposed.Ip[:], evtNodeProposed.Port, evtNodeProposed.Raftport), types.NodePendingApproval)
 
 			case evtNodeDeactivated := <-chNodeDeactivated:
-				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeDeactivated.EnodeId, string(evtNodeDeactivated.Ip[:]), evtNodeDeactivated.Port, evtNodeDeactivated.Raftport), NodeDelete)
-				types.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, types.GetNodeUrl(evtNodeDeactivated.EnodeId, string(evtNodeDeactivated.Ip[:]), evtNodeDeactivated.Port, evtNodeDeactivated.Raftport), types.NodeDeactivated)
+				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeDeactivated.EnodeId, evtNodeDeactivated.Ip[:], evtNodeDeactivated.Port, evtNodeDeactivated.Raftport), NodeDelete)
+				types.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, types.GetNodeUrl(evtNodeDeactivated.EnodeId, evtNodeDeactivated.Ip[:], evtNodeDeactivated.Port, evtNodeDeactivated.Raftport), types.NodeDeactivated)
 
 			case evtNodeActivated := <-chNodeActivated:
-				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeActivated.EnodeId, string(evtNodeActivated.Ip[:]), evtNodeActivated.Port, evtNodeActivated.Raftport), NodeAdd)
-				types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, types.GetNodeUrl(evtNodeActivated.EnodeId, string(evtNodeActivated.Ip[:]), evtNodeActivated.Port, evtNodeActivated.Raftport), types.NodeApproved)
+				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeActivated.EnodeId, evtNodeActivated.Ip[:], evtNodeActivated.Port, evtNodeActivated.Raftport), NodeAdd)
+				types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, types.GetNodeUrl(evtNodeActivated.EnodeId, evtNodeActivated.Ip[:], evtNodeActivated.Port, evtNodeActivated.Raftport), types.NodeApproved)
 
 			case evtNodeBlacklisted := <-chNodeBlacklisted:
-				types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, types.GetNodeUrl(evtNodeBlacklisted.EnodeId, string(evtNodeBlacklisted.Ip[:]), evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), types.NodeBlackListed)
-				p.updateDisallowedNodes(types.GetNodeUrl(evtNodeBlacklisted.EnodeId, string(evtNodeBlacklisted.Ip[:]), evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), NodeAdd)
-				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeBlacklisted.EnodeId, string(evtNodeBlacklisted.Ip[:]), evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), NodeDelete)
+				types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, types.GetNodeUrl(evtNodeBlacklisted.EnodeId, evtNodeBlacklisted.Ip[:], evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), types.NodeBlackListed)
+				p.updateDisallowedNodes(types.GetNodeUrl(evtNodeBlacklisted.EnodeId, evtNodeBlacklisted.Ip[:], evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), NodeAdd)
+				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeBlacklisted.EnodeId, evtNodeBlacklisted.Ip[:], evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), NodeDelete)
 
 			case evtNodeRecoveryInit := <-chNodeRecoveryInit:
-				types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, types.GetNodeUrl(evtNodeRecoveryInit.EnodeId, string(evtNodeRecoveryInit.Ip[:]), evtNodeRecoveryInit.Port, evtNodeRecoveryInit.Raftport), types.NodeRecoveryInitiated)
+				types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, types.GetNodeUrl(evtNodeRecoveryInit.EnodeId, evtNodeRecoveryInit.Ip[:], evtNodeRecoveryInit.Port, evtNodeRecoveryInit.Raftport), types.NodeRecoveryInitiated)
 
 			case evtNodeRecoveryDone := <-chNodeRecoveryDone:
-				types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, string(evtNodeRecoveryDone.Ip[:]), evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), types.NodeApproved)
-				p.updateDisallowedNodes(types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, string(evtNodeRecoveryDone.Ip[:]), evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), NodeDelete)
-				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, string(evtNodeRecoveryDone.Ip[:]), evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), NodeAdd)
+				types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, evtNodeRecoveryDone.Ip[:], evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), types.NodeApproved)
+				p.updateDisallowedNodes(types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, evtNodeRecoveryDone.Ip[:], evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), NodeDelete)
+				p.updatePermissionedNodes(types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, evtNodeRecoveryDone.Ip[:], evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), NodeAdd)
 
 			case <-stopChan:
 				log.Info("quit Node contract watch")

@@ -139,7 +139,7 @@ func (p *PermissionContractBasic) AddAdminAccount(_acct common.Address) (*types.
 }
 
 func (p *PermissionContractBasic) AddAdminNode(_enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return p.permInterfSession.AddAdminNode(types.GetNodeUrl(_enodeId, string(_ip[:]), _port, _raftport))
+	return p.permInterfSession.AddAdminNode(types.GetNodeUrl(_enodeId, _ip[:], _port, _raftport))
 }
 
 func (p *PermissionContractBasic) SetPolicy(_nwAdminOrg string, _nwAdminRole string, _oAdminRole string) (*types.Transaction, error) {
