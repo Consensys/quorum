@@ -526,25 +526,61 @@ func GetAcctAccess(acctId common.Address) AccessType {
 	if a != nil && a.Status == AcctActive {
 		// get the org details and ultimate org details. check org status
 		// if the org is not approved or pending suspension
-		o, _ := OrgInfoMap.GetOrg(a.OrgId)
-		if o != nil && (o.Status == OrgApproved || o.Status == OrgPendingSuspension) {
-			u, _ := OrgInfoMap.GetOrg(o.UltimateParent)
-			if u != nil && (u.Status == OrgApproved || u.Status == OrgPendingSuspension) {
-				if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
-					return FullAccess
-				}
-				r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId)
-				if r != nil && r.Active {
-					return r.Access
-				}
-				r, _ = RoleInfoMap.GetRole(o.UltimateParent, a.RoleId)
-				if r != nil && r.Active {
+		if checkIfOrgActive(a.OrgId) {
+			if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+				return FullAccess
+			}
+			if r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
+				return r.Access
+			}
+			if o, _ := OrgInfoMap.GetOrg(a.OrgId); o != nil {
+				if r, _ := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
 					return r.Access
 				}
 			}
 		}
 	}
 	return DefaultAccess
+}
+
+//checks if the given org is active in the network
+func checkIfOrgActive(orgId string) bool {
+	o, _ := OrgInfoMap.GetOrg(orgId)
+	if o != nil && o.Status != OrgSuspended {
+		u, _ := OrgInfoMap.GetOrg(o.UltimateParent)
+		if u == nil {
+			return true
+		}
+		if u != nil && u.Status != OrgSuspended {
+			return true
+		}
+	}
+	return false
+}
+
+// checks if the passed account is linked to a org admin or
+// network admin role
+func CheckIfAdminAccount(acctId common.Address) bool {
+	if !QIP714BlockReached {
+		return true
+	}
+	a, _ := AcctInfoMap.GetAccount(acctId)
+	if a != nil && a.Status == AcctActive {
+		if checkIfOrgActive(a.OrgId) {
+			if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+				return true
+			}
+			if r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active && r.IsAdmin {
+				return true
+			}
+			if o, _ := OrgInfoMap.GetOrg(a.OrgId); o != nil {
+				if r, _ := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active && r.IsAdmin {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // validates if the account can transact from the current node

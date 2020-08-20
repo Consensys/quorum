@@ -4,6 +4,7 @@ Tessera configuration varies by version as new features are added or changed. Be
 
 | Version       |
 | ------------- |
+| [0.10.6](../Tessera%20v0.10.6%20sample%20settings) |
 | [0.10.3](../Tessera%20v0.10.3%20sample%20settings) |
 | [0.10.2](../Tessera%20v0.10.2%20sample%20settings) |
 | [0.10](../Tessera%20v0.10.0%20sample%20settings) |
@@ -12,8 +13,15 @@ Tessera configuration varies by version as new features are added or changed. Be
 | [0.7.3](../Tessera%20v0.7.3%20sample%20settings)      |
 
 ## Changelist
+### 0.10.6
+- `bootstrapNode` is added to start Tessera as bootstrap node ONLY with no Quorum connection.
+
+- `CUSTOM` encryptor type added to integrate third party encryptor implementation.
+
 ### 0.10.3
-- The `keys.azureKeyVaultConfig` and `keys.hashicorpKeyVaultConfig` fields are now deprecated.  Instead, the generic `keys.keyVaultConfig` should be used.  See [Keys Config](../Keys) for more info.
+- The `keys.azureKeyVaultConfig` and `keys.hashicorpKeyVaultConfig` fields are now deprecated.  Instead, the generic `keys.keyVaultConfigs` should be used.  See [Keys Config](../Keys) for more info.
+
+- P2P servers can be provided with additional configuration by defining a `server.properties` map
 
 ### 0.10.2
 - The `keys.keyData.passwords` field is no longer supported.  Instead, use `keys.keyData.passwordFile` or utilise the [CLI password prompt](../Keys#providing-key-passwords-at-runtime) when starting the node.

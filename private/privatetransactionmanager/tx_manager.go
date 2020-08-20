@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/private/cache"
 	gocache "github.com/patrickmn/go-cache"
 )
@@ -14,48 +15,61 @@ type PrivateTransactionManager struct {
 	c    *gocache.Cache
 }
 
-func (g *PrivateTransactionManager) Send(data []byte, from string, to []string) (out []byte, err error) {
-	out, err = g.node.SendPayload(data, from, to)
+func (g *PrivateTransactionManager) Send(data []byte, from string, to []string) (out common.EncryptedPayloadHash, err error) {
+	var b []byte
+	b, err = g.node.SendPayload(data, from, to)
 	if err != nil {
-		return nil, err
+		return common.EncryptedPayloadHash{}, err
 	}
-	g.c.Set(string(out), data, cache.DefaultExpiration)
+	g.c.Set(string(b), data, cache.DefaultExpiration)
+	out = common.BytesToEncryptedPayloadHash(b)
+	return
+}
+
+func (g *PrivateTransactionManager) StoreRaw(data []byte, from string) (out common.EncryptedPayloadHash, err error) {
+	var b []byte
+	b, err = g.node.StorePayload(data, from)
+	if err != nil {
+		return common.EncryptedPayloadHash{}, err
+	}
+	g.c.Set(string(b), data, cache.DefaultExpiration)
+	out = common.BytesToEncryptedPayloadHash(b)
 	return out, nil
 }
 
-func (g *PrivateTransactionManager) StoreRaw(data []byte, from string) (out []byte, err error) {
-	out, err = g.node.StorePayload(data, from)
-	if err != nil {
-		return nil, err
-	}
-	g.c.Set(string(out), data, cache.DefaultExpiration)
-	return out, nil
-}
-
-func (g *PrivateTransactionManager) SendSignedTx(data []byte, to []string) (out []byte, err error) {
-	out, err = g.node.SendSignedPayload(data, to)
+func (g *PrivateTransactionManager) SendSignedTx(txHash common.EncryptedPayloadHash, to []string) (out []byte, err error) {
+	out, err = g.node.SendSignedPayload(txHash.Bytes(), to)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (g *PrivateTransactionManager) Receive(data []byte) ([]byte, error) {
-	if len(data) == 0 {
-		return data, nil
+func (g *PrivateTransactionManager) Receive(txHash common.EncryptedPayloadHash) ([]byte, error) {
+	if common.EmptyEncryptedPayloadHash(txHash) {
+		return []byte{}, nil
 	}
 	// Ignore this error since not being a recipient of
 	// a payload isn't an error.
 	// TODO: Return an error if it's anything OTHER than
 	// 'you are not a recipient.'
-	dataStr := string(data)
+	dataStr := string(txHash.Bytes())
 	x, found := g.c.Get(dataStr)
 	if found {
 		return x.([]byte), nil
 	}
-	pl, _ := g.node.ReceivePayload(data)
+	pl, _ := g.node.ReceivePayload(txHash.Bytes())
 	g.c.Set(dataStr, pl, cache.DefaultExpiration)
 	return pl, nil
+}
+
+func (g *PrivateTransactionManager) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
+	return g.node.IsSender(txHash)
+}
+
+func (g *PrivateTransactionManager) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error) {
+
+	return g.node.GetParticipants(txHash)
 }
 
 func New(path string) (*PrivateTransactionManager, error) {
