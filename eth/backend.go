@@ -468,12 +468,13 @@ func (s *Ethereum) shouldPreserve(block *types.Block) bool {
 }
 
 // SetEtherbase sets the mining reward address.
-func (s *Ethereum) SetEtherbase(etherbase common.Address) {
+// Quorum: method now has a return value
+func (s *Ethereum) SetEtherbase(etherbase common.Address) bool {
 	//Quorum
 	consensusAlgo := s.protocolManager.getConsensusAlgorithm()
 	if consensusAlgo == "istanbul" || consensusAlgo == "clique" || consensusAlgo == "raft" {
 		log.Error("Cannot set etherbase with selected consensus mechanism")
-		return
+		return false
 	}
 	//End-Quorum
 
@@ -482,6 +483,7 @@ func (s *Ethereum) SetEtherbase(etherbase common.Address) {
 	s.lock.Unlock()
 
 	s.miner.SetEtherbase(etherbase)
+	return true
 }
 
 // StartMining starts the miner with the given number of CPU threads. If mining
