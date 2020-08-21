@@ -28,7 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/permission/bind/basic"
+	"github.com/ethereum/go-ethereum/permission/basic/bind/basic"
 	"github.com/ethereum/go-ethereum/permission/eea/bind/eea"
 	"github.com/stretchr/testify/assert"
 )
