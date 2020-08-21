@@ -8,9 +8,12 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts"
+	basicbind "github.com/ethereum/go-ethereum/permission/basic/bind"
+	eeabind "github.com/ethereum/go-ethereum/permission/eea/bind"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -24,19 +27,10 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/permission/basic"
+	"github.com/ethereum/go-ethereum/permission/eea"
 	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
-)
-
-// to signal all watches when service is stopped
-type stopEvent struct {
-}
-
-type NodeOperation uint8
-
-const (
-	NodeAdd NodeOperation = iota
-	NodeDelete
 )
 
 type PermissionCtrl struct {
@@ -46,23 +40,13 @@ type PermissionCtrl struct {
 	key            *ecdsa.PrivateKey
 	dataDir        string
 	permConfig     *types.PermissionConfig
-	contract       PermissionContractService
-	backend        backend
+	contract       types.PermissionContractService
+	backend        types.Backend
 	eeaFlag        bool
 	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
 	stopFeed       event.Feed      // broadcasting stopEvent when service is being stopped
 	errorChan      chan error      // channel to capture error when starting aysnc
 	mux            sync.Mutex
-}
-
-func bindContract(contractInstance interface{}, bindFunc func() (interface{}, error)) error {
-	element := reflect.ValueOf(contractInstance).Elem()
-	instance, err := bindFunc()
-	if err != nil {
-		return err
-	}
-	element.Set(reflect.ValueOf(instance))
-	return nil
 }
 
 // function reads the permissions config file passed and populates the
@@ -120,7 +104,12 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, 
 		errorChan:      make(chan error),
 		eeaFlag:        eeaFlag,
 	}
-	p.backend = newBackend(p)
+	if eeaFlag {
+		p.backend = &eea.Backend{SubscribeStopEvent: p.subscribeStopEvent, UpdatePermissionedNodes: p.UpdatePermissionedNodes, UpdateDisallowedNodes: p.UpdateDisallowedNodes}
+	} else {
+		p.backend = &basic.Backend{SubscribeStopEvent: p.subscribeStopEvent, UpdatePermissionedNodes: p.UpdatePermissionedNodes, UpdateDisallowedNodes: p.UpdateDisallowedNodes}
+	}
+
 	stopChan, stopSubscription := p.subscribeStopEvent()
 	inProcRPCServerSub := stack.EventMux().Subscribe(rpc.InProcServerReadyEvent{})
 	log.Debug("permission service: waiting for InProcRPC Server")
@@ -159,13 +148,12 @@ func (p *PermissionCtrl) AfterStart() error {
 
 	// set the default access to ReadOnly
 	types.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole)
-
 	for _, f := range []func() error{
 		p.monitorQIP714Block,               // monitor block number to activate new permissions controls
-		p.backend.manageOrgPermissions,     // monitor org management related events
-		p.backend.manageNodePermissions,    // monitor org  level Node management events
-		p.backend.manageRolePermissions,    // monitor org level role management events
-		p.backend.manageAccountPermissions, // monitor org level account management events
+		p.backend.ManageOrgPermissions,     // monitor org management related events
+		p.backend.ManageNodePermissions,    // monitor org  level Node management events
+		p.backend.ManageRolePermissions,    // monitor org level role management events
+		p.backend.ManageAccountPermissions, // monitor org level account management events
 	} {
 		if err := f(); err != nil {
 			return err
@@ -222,6 +210,13 @@ func (p *PermissionCtrl) asyncStart() {
 	p.ethClnt = ethclient.NewClient(client)
 	p.eth = ethereum
 	p.contract = NewPermissionContractService(p.ethClnt, p.eeaFlag, p.key, p.permConfig)
+	if p.eeaFlag {
+		b := p.backend.(*eea.Backend)
+		b.Contr = p.contract.(*eea.Contract)
+	} else {
+		b := p.backend.(*basic.Backend)
+		b.Contr = p.contract.(*basic.Contract)
+	}
 }
 
 func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
@@ -250,7 +245,7 @@ func (p *PermissionCtrl) Protocols() []p2p.Protocol {
 
 func (p *PermissionCtrl) Stop() error {
 	log.Info("permission service: stopping")
-	p.stopFeed.Send(stopEvent{})
+	p.stopFeed.Send(types.StopEvent{})
 	log.Info("permission service: stopped")
 	return nil
 }
@@ -285,14 +280,14 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 	return nil
 }
 
-func (p *PermissionCtrl) subscribeStopEvent() (chan stopEvent, event.Subscription) {
-	c := make(chan stopEvent)
+func (p *PermissionCtrl) subscribeStopEvent() (chan types.StopEvent, event.Subscription) {
+	c := make(chan types.StopEvent)
 	s := p.stopFeed.Subscribe(c)
 	return c, s
 }
 
 // adds or deletes and entry from a given file
-func (p *PermissionCtrl) updateFile(fileName, enodeId string, operation NodeOperation, createFile bool) {
+func (p *PermissionCtrl) updateFile(fileName, enodeId string, operation types.NodeOperation, createFile bool) {
 	// Load the nodes from the config file
 	var nodeList []string
 	index := 0
@@ -319,11 +314,11 @@ func (p *PermissionCtrl) updateFile(fileName, enodeId string, operation NodeOper
 				break
 			}
 		}
-		if (operation == NodeAdd && recExists) || (operation == NodeDelete && !recExists) {
+		if (operation == types.NodeAdd && recExists) || (operation == types.NodeDelete && !recExists) {
 			return
 		}
 	}
-	if operation == NodeAdd {
+	if operation == types.NodeAdd {
 		nodeList = append(nodeList, enodeId)
 	} else {
 		nodeList = append(nodeList[:index], nodeList[index+1:]...)
@@ -340,8 +335,8 @@ func (p *PermissionCtrl) updateFile(fileName, enodeId string, operation NodeOper
 
 // updates Node information in the permissioned-nodes.json file based on Node
 // management activities in smart contract
-func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeOperation) {
-	log.Debug("updatePermissionedNodes", "DataDir", p.dataDir, "file", params.PERMISSIONED_CONFIG)
+func (p *PermissionCtrl) UpdatePermissionedNodes(enodeId string, operation types.NodeOperation) {
+	log.Debug("UpdatePermissionedNodes", "DataDir", p.dataDir, "file", params.PERMISSIONED_CONFIG)
 
 	path := filepath.Join(p.dataDir, params.PERMISSIONED_CONFIG)
 	if _, err := os.Stat(path); err != nil {
@@ -350,14 +345,14 @@ func (p *PermissionCtrl) updatePermissionedNodes(enodeId string, operation NodeO
 	}
 
 	p.updateFile(path, enodeId, operation, false)
-	if operation == NodeDelete {
+	if operation == types.NodeDelete {
 		p.disconnectNode(enodeId)
 	}
 }
 
 //this function populates the black listed Node information into the disallowed-nodes.json file
-func (p *PermissionCtrl) updateDisallowedNodes(url string, operation NodeOperation) {
-	log.Debug("updateDisallowedNodes", "DataDir", p.dataDir, "file", params.BLACKLIST_CONFIG)
+func (p *PermissionCtrl) UpdateDisallowedNodes(url string, operation types.NodeOperation) {
+	log.Debug("UpdateDisallowedNodes", "DataDir", p.dataDir, "file", params.BLACKLIST_CONFIG)
 
 	fileExists := true
 	path := filepath.Join(p.dataDir, params.BLACKLIST_CONFIG)
@@ -680,4 +675,46 @@ func (p *PermissionCtrl) populateNodeCacheAndValidate(hexNodeId, ultimateParentI
 		}
 	}
 	return txnAllowed
+}
+
+func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, key *ecdsa.PrivateKey,
+	permConfig *types.PermissionConfig) types.PermissionContractService {
+	if eeaFlag {
+		return &eea.Contract{EthClnt: ethClnt, Key: key, PermConfig: permConfig}
+	}
+	return &basic.Contract{EthClnt: ethClnt, Key: key, PermConfig: permConfig}
+}
+
+func NewPermissionContractServiceForApi(p *PermissionCtrl, frmAcct accounts.Account, transactOpts *bind.TransactOpts, gasLimit uint64, gasPrice *big.Int) types.PermissionContractService {
+	if p.eeaFlag {
+		pc := p.contract.(*eea.Contract)
+		ps := &eeabind.EeaPermInterfaceSession{
+			Contract: pc.PermInterf,
+			CallOpts: bind.CallOpts{
+				Pending: true,
+			},
+			TransactOpts: bind.TransactOpts{
+				From:     frmAcct.Address,
+				GasLimit: gasLimit,
+				GasPrice: gasPrice,
+				Signer:   transactOpts.Signer,
+			},
+		}
+		return &eea.Contract{PermInterfSession: ps, PermConfig: p.permConfig}
+	}
+	pc := p.contract.(*basic.Contract)
+	ps := &basicbind.PermInterfaceSession{
+		Contract: pc.PermInterf,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     frmAcct.Address,
+			GasLimit: gasLimit,
+			GasPrice: gasPrice,
+			Signer:   transactOpts.Signer,
+		},
+	}
+	return &basic.Contract{PermInterfSession: ps, PermConfig: p.permConfig}
+
 }
