@@ -28,8 +28,10 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/permission/basic/bind/basic"
-	"github.com/ethereum/go-ethereum/permission/eea/bind/eea"
+	"github.com/ethereum/go-ethereum/permission/basic"
+	basicbind "github.com/ethereum/go-ethereum/permission/basic/bind"
+	"github.com/ethereum/go-ethereum/permission/eea"
+	eeabind "github.com/ethereum/go-ethereum/permission/eea/bind"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -142,41 +144,41 @@ func setup() {
 	}
 	contrBackend = backends.NewSimulatedBackendFrom(ethereum)
 
-	var permUpgrInstance *basic.PermUpgr
-	var permUpgrInstanceE *eea.EeaPermUpgr
+	var permUpgrInstance *basicbind.PermUpgr
+	var permUpgrInstanceE *eeabind.EeaPermUpgr
 
 	guardianTransactor := bind.NewKeyedTransactor(guardianKey)
 
 	if eeaFlag {
-		permUpgrAddress, _, permUpgrInstanceE, err = eea.DeployEeaPermUpgr(guardianTransactor, contrBackend, guardianAddress)
+		permUpgrAddress, _, permUpgrInstanceE, err = eeabind.DeployEeaPermUpgr(guardianTransactor, contrBackend, guardianAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permInterfaceAddress, _, _, err = eea.DeployEeaPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
+		permInterfaceAddress, _, _, err = eeabind.DeployEeaPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nodeManagerAddress, _, _, err = eea.DeployEeaNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
+		nodeManagerAddress, _, _, err = eeabind.DeployEeaNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		roleManagerAddress, _, _, err = eea.DeployEeaRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
+		roleManagerAddress, _, _, err = eeabind.DeployEeaRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		accountManagerAddress, _, _, err = eea.DeployEeaAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
+		accountManagerAddress, _, _, err = eeabind.DeployEeaAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		orgManagerAddress, _, _, err = eea.DeployEeaOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
+		orgManagerAddress, _, _, err = eeabind.DeployEeaOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		voterManagerAddress, _, _, err = eea.DeployEeaVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
+		voterManagerAddress, _, _, err = eeabind.DeployEeaVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permImplAddress, _, _, err = eea.DeployEeaPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+		permImplAddress, _, _, err = eeabind.DeployEeaPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -185,35 +187,35 @@ func setup() {
 			t.Fatal(err)
 		}
 	} else {
-		permUpgrAddress, _, permUpgrInstance, err = basic.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
+		permUpgrAddress, _, permUpgrInstance, err = basicbind.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permInterfaceAddress, _, _, err = basic.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
+		permInterfaceAddress, _, _, err = basicbind.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nodeManagerAddress, _, _, err = basic.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
+		nodeManagerAddress, _, _, err = basicbind.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		roleManagerAddress, _, _, err = basic.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
+		roleManagerAddress, _, _, err = basicbind.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		accountManagerAddress, _, _, err = basic.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
+		accountManagerAddress, _, _, err = basicbind.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		orgManagerAddress, _, _, err = basic.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
+		orgManagerAddress, _, _, err = basicbind.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		voterManagerAddress, _, _, err = basic.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
+		voterManagerAddress, _, _, err = basicbind.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permImplAddress, _, _, err = basic.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+		permImplAddress, _, _, err = basicbind.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -236,23 +238,23 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 
 	assert.NoError(t, err)
 	if testObject.eeaFlag {
-		var contract *EeaContract
-		contract, _ = testObject.contract.(*EeaContract)
-		assert.NotNil(t, contract.permOrg)
-		assert.NotNil(t, contract.permRole)
-		assert.NotNil(t, contract.permNode)
-		assert.NotNil(t, contract.permAcct)
-		assert.NotNil(t, contract.permInterf)
-		assert.NotNil(t, contract.permUpgr)
+		var contract *eea.Contract
+		contract, _ = testObject.contract.(*eea.Contract)
+		assert.NotNil(t, contract.PermOrg)
+		assert.NotNil(t, contract.PermRole)
+		assert.NotNil(t, contract.PermNode)
+		assert.NotNil(t, contract.PermAcct)
+		assert.NotNil(t, contract.PermInterf)
+		assert.NotNil(t, contract.PermUpgr)
 	} else {
-		var contract *BasicContract
-		contract, _ = testObject.contract.(*BasicContract)
-		assert.NotNil(t, contract.permOrg)
-		assert.NotNil(t, contract.permRole)
-		assert.NotNil(t, contract.permNode)
-		assert.NotNil(t, contract.permAcct)
-		assert.NotNil(t, contract.permInterf)
-		assert.NotNil(t, contract.permUpgr)
+		var contract *basic.Contract
+		contract, _ = testObject.contract.(*basic.Contract)
+		assert.NotNil(t, contract.PermOrg)
+		assert.NotNil(t, contract.PermRole)
+		assert.NotNil(t, contract.PermNode)
+		assert.NotNil(t, contract.PermAcct)
+		assert.NotNil(t, contract.PermInterf)
+		assert.NotNil(t, contract.PermUpgr)
 	}
 
 	isNetworkInitialized, err := testObject.contract.GetNetworkBootStatus()
@@ -657,7 +659,16 @@ func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
 
 	testObject.ethClnt = contrBackend
 	testObject.eth = ethereum
+	// set contract and backend's contract as asyncStart won't get called
 	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.eeaFlag, testObject.key, testObject.permConfig)
+	if eeaFlag {
+		b := testObject.backend.(*eea.Backend)
+		b.Contr = testObject.contract.(*eea.Contract)
+	} else {
+		b := testObject.backend.(*basic.Backend)
+		b.Contr = testObject.contract.(*basic.Contract)
+	}
+
 	go func() {
 		testObject.errorChan <- nil
 	}()
@@ -689,17 +700,17 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	defer os.RemoveAll(d)
 
 	testObject.dataDir = d
-	testObject.updatePermissionedNodes(arbitraryNode1, NodeAdd)
+	testObject.UpdatePermissionedNodes(arbitraryNode1, types.NodeAdd)
 
 	permFile, _ := os.Create(d + "/" + "permissioned-nodes.json")
 
-	testObject.updateFile("testFile", arbitraryNode2, NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, NodeAdd, true)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, NodeDelete, false)
+	testObject.updateFile("testFile", arbitraryNode2, types.NodeAdd, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode2, types.NodeAdd, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode2, types.NodeAdd, true)
+	testObject.updateFile(permFile.Name(), arbitraryNode2, types.NodeAdd, true)
+	testObject.updateFile(permFile.Name(), arbitraryNode1, types.NodeAdd, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode1, types.NodeDelete, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode1, types.NodeDelete, false)
 
 	blob, err := ioutil.ReadFile(permFile.Name())
 	var nodeList []string
@@ -708,8 +719,8 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 		return
 	}
 	assert.Equal(t, len(nodeList), 1)
-	testObject.updatePermissionedNodes(arbitraryNode1, NodeAdd)
-	testObject.updatePermissionedNodes(arbitraryNode1, NodeDelete)
+	testObject.UpdatePermissionedNodes(arbitraryNode1, types.NodeAdd)
+	testObject.UpdatePermissionedNodes(arbitraryNode1, types.NodeDelete)
 
 	blob, err = ioutil.ReadFile(permFile.Name())
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
@@ -718,8 +729,8 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	}
 	assert.Equal(t, len(nodeList), 1)
 
-	testObject.updateDisallowedNodes(arbitraryNode2, NodeAdd)
-	testObject.updateDisallowedNodes(arbitraryNode2, NodeDelete)
+	testObject.UpdateDisallowedNodes(arbitraryNode2, types.NodeAdd)
+	testObject.UpdateDisallowedNodes(arbitraryNode2, types.NodeDelete)
 	blob, err = ioutil.ReadFile(d + "/" + "disallowed-nodes.json")
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
 		t.Fatal("Failed to load nodes list from file", "fileName", permFile, "err", err)

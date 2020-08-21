@@ -20,7 +20,7 @@
 //go:generate abigen -pkg permission -abi  ./OrgManager.abi                -bin  ./OrgManager.bin                -type OrgManager    -out ../../../bind/basic/org.go
 //go:generate abigen -pkg permission -abi  ./PermissionsImplementation.abi -bin  ./PermissionsImplementation.bin -type PermImpl      -out ../../../bind/basic/permission_impl.go
 //go:generate abigen -pkg permission -abi  ./PermissionsInterface.abi      -bin  ./PermissionsInterface.bin      -type PermInterface -out ../../../bind/basic/permission_interface.go
-//go:generate abigen -pkg permission -abi  ./PermissionsUpgradable.abi     -bin  ./PermissionsUpgradable.bin     -type PermUpgr      -out ../../../bind/basic/permission_upgr.go
+//go:generate abigen -pkg permission -abi  ./PermissionsUpgradable.abi     -bin  ./PermissionsUpgradable.bin     -type permUpgr      -out ../../../bind/basic/permission_upgr.go
 //go:generate abigen -pkg permission -abi  ./RoleManager.abi               -bin  ./RoleManager.bin               -type RoleManager   -out ../../../bind/basic/roles.go
 //go:generate abigen -pkg permission -abi  ./VoterManager.abi              -bin  ./VoterManager.bin              -type VoterManager  -out ../../../bind/basic/voter.go
 
