@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 
+	ptype "github.com/ethereum/go-ethereum/permission/types"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -240,22 +242,22 @@ func (p *Contract) AfterStart() error {
 }
 
 func (p *Contract) eeaBindContract() error {
-	if err := types.BindContract(&p.PermUpgr, func() (interface{}, error) { return binding.NewEeaPermUpgr(p.PermConfig.UpgrdAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermUpgr, func() (interface{}, error) { return binding.NewEeaPermUpgr(p.PermConfig.UpgrdAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermInterf, func() (interface{}, error) { return binding.NewEeaPermInterface(p.PermConfig.InterfAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermInterf, func() (interface{}, error) { return binding.NewEeaPermInterface(p.PermConfig.InterfAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermAcct, func() (interface{}, error) { return binding.NewEeaAcctManager(p.PermConfig.AccountAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermAcct, func() (interface{}, error) { return binding.NewEeaAcctManager(p.PermConfig.AccountAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermNode, func() (interface{}, error) { return binding.NewEeaNodeManager(p.PermConfig.NodeAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermNode, func() (interface{}, error) { return binding.NewEeaNodeManager(p.PermConfig.NodeAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermRole, func() (interface{}, error) { return binding.NewEeaRoleManager(p.PermConfig.RoleAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermRole, func() (interface{}, error) { return binding.NewEeaRoleManager(p.PermConfig.RoleAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := types.BindContract(&p.PermOrg, func() (interface{}, error) { return binding.NewEeaOrgManager(p.PermConfig.OrgAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermOrg, func() (interface{}, error) { return binding.NewEeaOrgManager(p.PermConfig.OrgAddress, p.EthClnt) }); err != nil {
 		return err
 	}
 	return nil

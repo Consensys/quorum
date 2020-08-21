@@ -3,6 +3,8 @@ package basic
 import (
 	"fmt"
 
+	ptype "github.com/ethereum/go-ethereum/permission/types"
+
 	"github.com/ethereum/go-ethereum/event"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -13,9 +15,9 @@ import (
 
 type Backend struct {
 	Contr                   *Contract
-	SubscribeStopEvent      func() (chan types.StopEvent, event.Subscription)
-	UpdatePermissionedNodes func(string, types.NodeOperation)
-	UpdateDisallowedNodes   func(string, types.NodeOperation)
+	SubscribeStopEvent      func() (chan ptype.StopEvent, event.Subscription)
+	UpdatePermissionedNodes func(string, ptype.NodeOperation)
+	UpdateDisallowedNodes   func(string, ptype.NodeOperation)
 }
 
 func (b *Backend) ManageAccountPermissions() error {
@@ -204,32 +206,32 @@ func (b *Backend) ManageNodePermissions() error {
 		for {
 			select {
 			case evtNodeApproved := <-chNodeApproved:
-				b.UpdatePermissionedNodes(evtNodeApproved.EnodeId, types.NodeAdd)
+				b.UpdatePermissionedNodes(evtNodeApproved.EnodeId, ptype.NodeAdd)
 				types.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, evtNodeApproved.EnodeId, types.NodeApproved)
 
 			case evtNodeProposed := <-chNodeProposed:
 				types.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, evtNodeProposed.EnodeId, types.NodePendingApproval)
 
 			case evtNodeDeactivated := <-chNodeDeactivated:
-				b.UpdatePermissionedNodes(evtNodeDeactivated.EnodeId, types.NodeDelete)
+				b.UpdatePermissionedNodes(evtNodeDeactivated.EnodeId, ptype.NodeDelete)
 				types.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, evtNodeDeactivated.EnodeId, types.NodeDeactivated)
 
 			case evtNodeActivated := <-chNodeActivated:
-				b.UpdatePermissionedNodes(evtNodeActivated.EnodeId, types.NodeAdd)
+				b.UpdatePermissionedNodes(evtNodeActivated.EnodeId, ptype.NodeAdd)
 				types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, evtNodeActivated.EnodeId, types.NodeApproved)
 
 			case evtNodeBlacklisted := <-chNodeBlacklisted:
 				types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, types.NodeBlackListed)
-				b.UpdateDisallowedNodes(evtNodeBlacklisted.EnodeId, types.NodeAdd)
-				b.UpdatePermissionedNodes(evtNodeBlacklisted.EnodeId, types.NodeDelete)
+				b.UpdateDisallowedNodes(evtNodeBlacklisted.EnodeId, ptype.NodeAdd)
+				b.UpdatePermissionedNodes(evtNodeBlacklisted.EnodeId, ptype.NodeDelete)
 
 			case evtNodeRecoveryInit := <-chNodeRecoveryInit:
 				types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, evtNodeRecoveryInit.EnodeId, types.NodeRecoveryInitiated)
 
 			case evtNodeRecoveryDone := <-chNodeRecoveryDone:
 				types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, evtNodeRecoveryDone.EnodeId, types.NodeApproved)
-				b.UpdateDisallowedNodes(evtNodeRecoveryDone.EnodeId, types.NodeDelete)
-				b.UpdatePermissionedNodes(evtNodeRecoveryDone.EnodeId, types.NodeAdd)
+				b.UpdateDisallowedNodes(evtNodeRecoveryDone.EnodeId, ptype.NodeDelete)
+				b.UpdatePermissionedNodes(evtNodeRecoveryDone.EnodeId, ptype.NodeAdd)
 
 			case <-stopChan:
 				log.Info("quit Node Contr watch")

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	ptype "github.com/ethereum/go-ethereum/permission/types"
+
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -700,17 +702,17 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	defer os.RemoveAll(d)
 
 	testObject.dataDir = d
-	testObject.UpdatePermissionedNodes(arbitraryNode1, types.NodeAdd)
+	testObject.UpdatePermissionedNodes(arbitraryNode1, ptype.NodeAdd)
 
 	permFile, _ := os.Create(d + "/" + "permissioned-nodes.json")
 
-	testObject.updateFile("testFile", arbitraryNode2, types.NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, types.NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, types.NodeAdd, true)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, types.NodeAdd, true)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, types.NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, types.NodeDelete, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, types.NodeDelete, false)
+	testObject.updateFile("testFile", arbitraryNode2, ptype.NodeAdd, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode2, ptype.NodeAdd, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode2, ptype.NodeAdd, true)
+	testObject.updateFile(permFile.Name(), arbitraryNode2, ptype.NodeAdd, true)
+	testObject.updateFile(permFile.Name(), arbitraryNode1, ptype.NodeAdd, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode1, ptype.NodeDelete, false)
+	testObject.updateFile(permFile.Name(), arbitraryNode1, ptype.NodeDelete, false)
 
 	blob, err := ioutil.ReadFile(permFile.Name())
 	var nodeList []string
@@ -719,8 +721,8 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 		return
 	}
 	assert.Equal(t, len(nodeList), 1)
-	testObject.UpdatePermissionedNodes(arbitraryNode1, types.NodeAdd)
-	testObject.UpdatePermissionedNodes(arbitraryNode1, types.NodeDelete)
+	testObject.UpdatePermissionedNodes(arbitraryNode1, ptype.NodeAdd)
+	testObject.UpdatePermissionedNodes(arbitraryNode1, ptype.NodeDelete)
 
 	blob, err = ioutil.ReadFile(permFile.Name())
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
@@ -729,8 +731,8 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	}
 	assert.Equal(t, len(nodeList), 1)
 
-	testObject.UpdateDisallowedNodes(arbitraryNode2, types.NodeAdd)
-	testObject.UpdateDisallowedNodes(arbitraryNode2, types.NodeDelete)
+	testObject.UpdateDisallowedNodes(arbitraryNode2, ptype.NodeAdd)
+	testObject.UpdateDisallowedNodes(arbitraryNode2, ptype.NodeDelete)
 	blob, err = ioutil.ReadFile(d + "/" + "disallowed-nodes.json")
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
 		t.Fatal("Failed to load nodes list from file", "fileName", permFile, "err", err)

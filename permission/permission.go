@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/permission/basic"
 	"github.com/ethereum/go-ethereum/permission/eea"
+	ptype "github.com/ethereum/go-ethereum/permission/types"
 	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -40,8 +41,8 @@ type PermissionCtrl struct {
 	key            *ecdsa.PrivateKey
 	dataDir        string
 	permConfig     *types.PermissionConfig
-	contract       types.PermissionContractService
-	backend        types.Backend
+	contract       ptype.ContractService
+	backend        ptype.Backend
 	eeaFlag        bool
 	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
 	stopFeed       event.Feed      // broadcasting stopEvent when service is being stopped
@@ -245,7 +246,7 @@ func (p *PermissionCtrl) Protocols() []p2p.Protocol {
 
 func (p *PermissionCtrl) Stop() error {
 	log.Info("permission service: stopping")
-	p.stopFeed.Send(types.StopEvent{})
+	p.stopFeed.Send(ptype.StopEvent{})
 	log.Info("permission service: stopped")
 	return nil
 }
@@ -280,14 +281,14 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 	return nil
 }
 
-func (p *PermissionCtrl) subscribeStopEvent() (chan types.StopEvent, event.Subscription) {
-	c := make(chan types.StopEvent)
+func (p *PermissionCtrl) subscribeStopEvent() (chan ptype.StopEvent, event.Subscription) {
+	c := make(chan ptype.StopEvent)
 	s := p.stopFeed.Subscribe(c)
 	return c, s
 }
 
 // adds or deletes and entry from a given file
-func (p *PermissionCtrl) updateFile(fileName, enodeId string, operation types.NodeOperation, createFile bool) {
+func (p *PermissionCtrl) updateFile(fileName, enodeId string, operation ptype.NodeOperation, createFile bool) {
 	// Load the nodes from the config file
 	var nodeList []string
 	index := 0
@@ -314,11 +315,11 @@ func (p *PermissionCtrl) updateFile(fileName, enodeId string, operation types.No
 				break
 			}
 		}
-		if (operation == types.NodeAdd && recExists) || (operation == types.NodeDelete && !recExists) {
+		if (operation == ptype.NodeAdd && recExists) || (operation == ptype.NodeDelete && !recExists) {
 			return
 		}
 	}
-	if operation == types.NodeAdd {
+	if operation == ptype.NodeAdd {
 		nodeList = append(nodeList, enodeId)
 	} else {
 		nodeList = append(nodeList[:index], nodeList[index+1:]...)
@@ -335,7 +336,7 @@ func (p *PermissionCtrl) updateFile(fileName, enodeId string, operation types.No
 
 // updates Node information in the permissioned-nodes.json file based on Node
 // management activities in smart contract
-func (p *PermissionCtrl) UpdatePermissionedNodes(enodeId string, operation types.NodeOperation) {
+func (p *PermissionCtrl) UpdatePermissionedNodes(enodeId string, operation ptype.NodeOperation) {
 	log.Debug("UpdatePermissionedNodes", "DataDir", p.dataDir, "file", params.PERMISSIONED_CONFIG)
 
 	path := filepath.Join(p.dataDir, params.PERMISSIONED_CONFIG)
@@ -345,13 +346,13 @@ func (p *PermissionCtrl) UpdatePermissionedNodes(enodeId string, operation types
 	}
 
 	p.updateFile(path, enodeId, operation, false)
-	if operation == types.NodeDelete {
+	if operation == ptype.NodeDelete {
 		p.disconnectNode(enodeId)
 	}
 }
 
 //this function populates the black listed Node information into the disallowed-nodes.json file
-func (p *PermissionCtrl) UpdateDisallowedNodes(url string, operation types.NodeOperation) {
+func (p *PermissionCtrl) UpdateDisallowedNodes(url string, operation ptype.NodeOperation) {
 	log.Debug("UpdateDisallowedNodes", "DataDir", p.dataDir, "file", params.BLACKLIST_CONFIG)
 
 	fileExists := true
@@ -678,14 +679,14 @@ func (p *PermissionCtrl) populateNodeCacheAndValidate(hexNodeId, ultimateParentI
 }
 
 func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, key *ecdsa.PrivateKey,
-	permConfig *types.PermissionConfig) types.PermissionContractService {
+	permConfig *types.PermissionConfig) ptype.ContractService {
 	if eeaFlag {
 		return &eea.Contract{EthClnt: ethClnt, Key: key, PermConfig: permConfig}
 	}
 	return &basic.Contract{EthClnt: ethClnt, Key: key, PermConfig: permConfig}
 }
 
-func NewPermissionContractServiceForApi(p *PermissionCtrl, frmAcct accounts.Account, transactOpts *bind.TransactOpts, gasLimit uint64, gasPrice *big.Int) types.PermissionContractService {
+func NewPermissionContractServiceForApi(p *PermissionCtrl, frmAcct accounts.Account, transactOpts *bind.TransactOpts, gasLimit uint64, gasPrice *big.Int) ptype.ContractService {
 	if p.eeaFlag {
 		pc := p.contract.(*eea.Contract)
 		ps := &eeabind.EeaPermInterfaceSession{
