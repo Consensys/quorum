@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/permission/bind/basic"
-	"github.com/ethereum/go-ethereum/permission/bind/eea"
+	eea "github.com/ethereum/go-ethereum/permission/eea/bind"
 )
 
 type PermissionContractService interface {

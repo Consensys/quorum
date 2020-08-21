@@ -24,4 +24,4 @@
 //go:generate abigen -pkg eea -abi  ./RoleManager.abi               -bin  ./RoleManager.bin               -type EeaRoleManager   -out ../../../bind/eea/roles.go
 //go:generate abigen -pkg eea -abi  ./VoterManager.abi              -bin  ./VoterManager.bin              -type EeaVoterManager  -out ../../../bind/eea/voter.go
 
-package eea
+package gen
