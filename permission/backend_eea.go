@@ -22,9 +22,9 @@ func (b *backendEea) manageAccountPermissions() error {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var contract *PermissionContractEea
+	var contract *EeaContract
 	var ok bool
-	if contract, ok = p.contract.(*PermissionContractEea); !ok {
+	if contract, ok = p.contract.(*EeaContract); !ok {
 		return fmt.Errorf("error casting permission contract service to EEA contract")
 	}
 	if _, err := contract.permAcct.EeaAcctManagerFilterer.WatchAccountAccessModified(opts, chAccessModified); err != nil {
@@ -73,9 +73,9 @@ func (b *backendEea) manageRolePermissions() error {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var contract *PermissionContractEea
+	var contract *EeaContract
 	var ok bool
-	if contract, ok = p.contract.(*PermissionContractEea); !ok {
+	if contract, ok = p.contract.(*EeaContract); !ok {
 		return fmt.Errorf("error casting permission contract service to basic contract")
 	}
 
@@ -120,9 +120,9 @@ func (b *backendEea) manageOrgPermissions() error {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var contract *PermissionContractEea
+	var contract *EeaContract
 	var ok bool
-	if contract, ok = p.contract.(*PermissionContractEea); !ok {
+	if contract, ok = p.contract.(*EeaContract); !ok {
 		return fmt.Errorf("error casting permission contract service to basic contract")
 	}
 	if _, err := contract.permOrg.EeaOrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
@@ -179,9 +179,9 @@ func (b *backendEea) manageNodePermissions() error {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var contract *PermissionContractEea
+	var contract *EeaContract
 	var ok bool
-	if contract, ok = p.contract.(*PermissionContractEea); !ok {
+	if contract, ok = p.contract.(*EeaContract); !ok {
 		return fmt.Errorf("error casting permission contract service to basic contract")
 	}
 

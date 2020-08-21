@@ -22,9 +22,9 @@ func (b *backendBasic) manageAccountPermissions() error {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var contract *PermissionContractBasic
+	var contract *BasicContract
 	var ok bool
-	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
+	if contract, ok = p.contract.(*BasicContract); !ok {
 		return fmt.Errorf("error casting permission contract service to basic contract")
 	}
 
@@ -74,9 +74,9 @@ func (b *backendBasic) manageRolePermissions() error {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var contract *PermissionContractBasic
+	var contract *BasicContract
 	var ok bool
-	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
+	if contract, ok = p.contract.(*BasicContract); !ok {
 		return fmt.Errorf("error casting permission contract service to basic contract")
 	}
 	if _, err := contract.permRole.RoleManagerFilterer.WatchRoleCreated(opts, chRoleCreated); err != nil {
@@ -120,9 +120,9 @@ func (b *backendBasic) manageOrgPermissions() error {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var contract *PermissionContractBasic
+	var contract *BasicContract
 	var ok bool
-	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
+	if contract, ok = p.contract.(*BasicContract); !ok {
 		return fmt.Errorf("error casting permission contract service to basic contract")
 	}
 	if _, err := contract.permOrg.OrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
@@ -179,9 +179,9 @@ func (b *backendBasic) manageNodePermissions() error {
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
-	var contract *PermissionContractBasic
+	var contract *BasicContract
 	var ok bool
-	if contract, ok = p.contract.(*PermissionContractBasic); !ok {
+	if contract, ok = p.contract.(*BasicContract); !ok {
 		return fmt.Errorf("error casting permission contract service to basic contract")
 	}
 
