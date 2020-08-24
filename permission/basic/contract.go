@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"math/big"
 
-	ptype "github.com/ethereum/go-ethereum/permission/types"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	binding "github.com/ethereum/go-ethereum/permission/basic/bind"
+	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
 
 type Contract struct {

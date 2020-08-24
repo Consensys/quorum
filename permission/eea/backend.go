@@ -3,46 +3,44 @@ package eea
 import (
 	"fmt"
 
-	ptype "github.com/ethereum/go-ethereum/permission/types"
-
-	"github.com/ethereum/go-ethereum/event"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/node"
 	binding "github.com/ethereum/go-ethereum/permission/eea/bind"
+	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
 
 type Backend struct {
-	Contr                   *Contract
-	SubscribeStopEvent      func() (chan ptype.StopEvent, event.Subscription)
-	UpdatePermissionedNodes func(string, ptype.NodeOperation)
-	UpdateDisallowedNodes   func(string, ptype.NodeOperation)
+	Node    *node.Node
+	IsRaft  bool
+	DataDir string
+	Contr   *Contract
 }
 
 func (b *Backend) ManageAccountPermissions() error {
-	chAccessModified := make(chan *binding.EeaAcctManagerAccountAccessModified)
-	chAccessRevoked := make(chan *binding.EeaAcctManagerAccountAccessRevoked)
-	chStatusChanged := make(chan *binding.EeaAcctManagerAccountStatusChanged)
+	chAccessModified := make(chan *binding.AcctManagerAccountAccessModified)
+	chAccessRevoked := make(chan *binding.AcctManagerAccountAccessRevoked)
+	chStatusChanged := make(chan *binding.AcctManagerAccountStatusChanged)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
 
-	if _, err := b.Contr.PermAcct.EeaAcctManagerFilterer.WatchAccountAccessModified(opts, chAccessModified); err != nil {
+	if _, err := b.Contr.PermAcct.AcctManagerFilterer.WatchAccountAccessModified(opts, chAccessModified); err != nil {
 		return fmt.Errorf("failed AccountAccessModified: %v", err)
 	}
 
-	if _, err := b.Contr.PermAcct.EeaAcctManagerFilterer.WatchAccountAccessRevoked(opts, chAccessRevoked); err != nil {
+	if _, err := b.Contr.PermAcct.AcctManagerFilterer.WatchAccountAccessRevoked(opts, chAccessRevoked); err != nil {
 		return fmt.Errorf("failed AccountAccessRevoked: %v", err)
 	}
 
-	if _, err := b.Contr.PermAcct.EeaAcctManagerFilterer.WatchAccountStatusChanged(opts, chStatusChanged); err != nil {
+	if _, err := b.Contr.PermAcct.AcctManagerFilterer.WatchAccountStatusChanged(opts, chStatusChanged); err != nil {
 		return fmt.Errorf("failed AccountStatusChanged: %v", err)
 	}
 
 	go func() {
-		stopChan, stopSubscription := b.SubscribeStopEvent()
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
@@ -68,23 +66,23 @@ func (b *Backend) ManageAccountPermissions() error {
 }
 
 func (b *Backend) ManageRolePermissions() error {
-	chRoleCreated := make(chan *binding.EeaRoleManagerRoleCreated, 1)
-	chRoleRevoked := make(chan *binding.EeaRoleManagerRoleRevoked, 1)
+	chRoleCreated := make(chan *binding.RoleManagerRoleCreated, 1)
+	chRoleRevoked := make(chan *binding.RoleManagerRoleRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
 
-	if _, err := b.Contr.PermRole.EeaRoleManagerFilterer.WatchRoleCreated(opts, chRoleCreated); err != nil {
+	if _, err := b.Contr.PermRole.RoleManagerFilterer.WatchRoleCreated(opts, chRoleCreated); err != nil {
 		return fmt.Errorf("failed WatchRoleCreated: %v", err)
 	}
 
-	if _, err := b.Contr.PermRole.EeaRoleManagerFilterer.WatchRoleRevoked(opts, chRoleRevoked); err != nil {
+	if _, err := b.Contr.PermRole.RoleManagerFilterer.WatchRoleRevoked(opts, chRoleRevoked); err != nil {
 		return fmt.Errorf("failed WatchRoleRemoved: %v", err)
 	}
 
 	go func() {
-		stopChan, stopSubscription := b.SubscribeStopEvent()
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
@@ -107,33 +105,33 @@ func (b *Backend) ManageRolePermissions() error {
 }
 
 func (b *Backend) ManageOrgPermissions() error {
-	chPendingApproval := make(chan *binding.EeaOrgManagerOrgPendingApproval, 1)
-	chOrgApproved := make(chan *binding.EeaOrgManagerOrgApproved, 1)
-	chOrgSuspended := make(chan *binding.EeaOrgManagerOrgSuspended, 1)
-	chOrgReactivated := make(chan *binding.EeaOrgManagerOrgSuspensionRevoked, 1)
+	chPendingApproval := make(chan *binding.OrgManagerOrgPendingApproval, 1)
+	chOrgApproved := make(chan *binding.OrgManagerOrgApproved, 1)
+	chOrgSuspended := make(chan *binding.OrgManagerOrgSuspended, 1)
+	chOrgReactivated := make(chan *binding.OrgManagerOrgSuspensionRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
 
-	if _, err := b.Contr.PermOrg.EeaOrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
+	if _, err := b.Contr.PermOrg.OrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
-	if _, err := b.Contr.PermOrg.EeaOrgManagerFilterer.WatchOrgApproved(opts, chOrgApproved); err != nil {
+	if _, err := b.Contr.PermOrg.OrgManagerFilterer.WatchOrgApproved(opts, chOrgApproved); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
-	if _, err := b.Contr.PermOrg.EeaOrgManagerFilterer.WatchOrgSuspended(opts, chOrgSuspended); err != nil {
+	if _, err := b.Contr.PermOrg.OrgManagerFilterer.WatchOrgSuspended(opts, chOrgSuspended); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
-	if _, err := b.Contr.PermOrg.EeaOrgManagerFilterer.WatchOrgSuspensionRevoked(opts, chOrgReactivated); err != nil {
+	if _, err := b.Contr.PermOrg.OrgManagerFilterer.WatchOrgSuspensionRevoked(opts, chOrgReactivated); err != nil {
 		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
 	}
 
 	go func() {
-		stopChan, stopSubscription := b.SubscribeStopEvent()
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
@@ -158,77 +156,101 @@ func (b *Backend) ManageOrgPermissions() error {
 }
 
 func (b *Backend) ManageNodePermissions() error {
-	chNodeApproved := make(chan *binding.EeaNodeManagerNodeApproved, 1)
-	chNodeProposed := make(chan *binding.EeaNodeManagerNodeProposed, 1)
-	chNodeDeactivated := make(chan *binding.EeaNodeManagerNodeDeactivated, 1)
-	chNodeActivated := make(chan *binding.EeaNodeManagerNodeActivated, 1)
-	chNodeBlacklisted := make(chan *binding.EeaNodeManagerNodeBlacklisted)
-	chNodeRecoveryInit := make(chan *binding.EeaNodeManagerNodeRecoveryInitiated, 1)
-	chNodeRecoveryDone := make(chan *binding.EeaNodeManagerNodeRecoveryCompleted, 1)
+	chNodeApproved := make(chan *binding.NodeManagerNodeApproved, 1)
+	chNodeProposed := make(chan *binding.NodeManagerNodeProposed, 1)
+	chNodeDeactivated := make(chan *binding.NodeManagerNodeDeactivated, 1)
+	chNodeActivated := make(chan *binding.NodeManagerNodeActivated, 1)
+	chNodeBlacklisted := make(chan *binding.NodeManagerNodeBlacklisted)
+	chNodeRecoveryInit := make(chan *binding.NodeManagerNodeRecoveryInitiated, 1)
+	chNodeRecoveryDone := make(chan *binding.NodeManagerNodeRecoveryCompleted, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
 	opts.Start = &blockNumber
 
-	if _, err := b.Contr.PermNode.EeaNodeManagerFilterer.WatchNodeApproved(opts, chNodeApproved); err != nil {
+	if _, err := b.Contr.PermNode.NodeManagerFilterer.WatchNodeApproved(opts, chNodeApproved); err != nil {
 		return fmt.Errorf("failed WatchNodeApproved: %v", err)
 	}
 
-	if _, err := b.Contr.PermNode.EeaNodeManagerFilterer.WatchNodeProposed(opts, chNodeProposed); err != nil {
+	if _, err := b.Contr.PermNode.NodeManagerFilterer.WatchNodeProposed(opts, chNodeProposed); err != nil {
 		return fmt.Errorf("failed WatchNodeProposed: %v", err)
 	}
 
-	if _, err := b.Contr.PermNode.EeaNodeManagerFilterer.WatchNodeDeactivated(opts, chNodeDeactivated); err != nil {
+	if _, err := b.Contr.PermNode.NodeManagerFilterer.WatchNodeDeactivated(opts, chNodeDeactivated); err != nil {
 		return fmt.Errorf("failed NodeDeactivated: %v", err)
 	}
-	if _, err := b.Contr.PermNode.EeaNodeManagerFilterer.WatchNodeActivated(opts, chNodeActivated); err != nil {
+	if _, err := b.Contr.PermNode.NodeManagerFilterer.WatchNodeActivated(opts, chNodeActivated); err != nil {
 		return fmt.Errorf("failed WatchNodeActivated: %v", err)
 	}
 
-	if _, err := b.Contr.PermNode.EeaNodeManagerFilterer.WatchNodeBlacklisted(opts, chNodeBlacklisted); err != nil {
+	if _, err := b.Contr.PermNode.NodeManagerFilterer.WatchNodeBlacklisted(opts, chNodeBlacklisted); err != nil {
 		return fmt.Errorf("failed NodeBlacklisting: %v", err)
 	}
 
-	if _, err := b.Contr.PermNode.EeaNodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecoveryInit); err != nil {
+	if _, err := b.Contr.PermNode.NodeManagerFilterer.WatchNodeRecoveryInitiated(opts, chNodeRecoveryInit); err != nil {
 		return fmt.Errorf("failed NodeRecoveryInitiated: %v", err)
 	}
 
-	if _, err := b.Contr.PermNode.EeaNodeManagerFilterer.WatchNodeRecoveryCompleted(opts, chNodeRecoveryDone); err != nil {
+	if _, err := b.Contr.PermNode.NodeManagerFilterer.WatchNodeRecoveryCompleted(opts, chNodeRecoveryDone); err != nil {
 		return fmt.Errorf("failed NodeRecoveryCompleted: %v", err)
 	}
 
 	go func() {
-		stopChan, stopSubscription := b.SubscribeStopEvent()
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
 			case evtNodeApproved := <-chNodeApproved:
-				b.UpdatePermissionedNodes(types.GetNodeUrl(evtNodeApproved.EnodeId, evtNodeApproved.Ip[:], evtNodeApproved.Port, evtNodeApproved.Raftport), ptype.NodeAdd)
-				types.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, types.GetNodeUrl(evtNodeApproved.EnodeId, evtNodeApproved.Ip[:], evtNodeApproved.Port, evtNodeApproved.Raftport), types.NodeApproved)
+				enodeId := types.GetNodeUrl(evtNodeApproved.EnodeId, evtNodeApproved.Ip[:], evtNodeApproved.Port, evtNodeApproved.Raftport)
+				err := ptype.UpdatePermissionedNodes(b.Node, b.DataDir, enodeId, ptype.NodeAdd, b.IsRaft)
+				if err != nil {
+					log.Error("error updating permissioned-nodes.json", "err", err)
+				}
+				types.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, enodeId, types.NodeApproved)
 
 			case evtNodeProposed := <-chNodeProposed:
-				types.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, types.GetNodeUrl(evtNodeProposed.EnodeId, evtNodeProposed.Ip[:], evtNodeProposed.Port, evtNodeProposed.Raftport), types.NodePendingApproval)
+				enodeId := types.GetNodeUrl(evtNodeProposed.EnodeId, evtNodeProposed.Ip[:], evtNodeProposed.Port, evtNodeProposed.Raftport)
+				types.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, enodeId, types.NodePendingApproval)
 
 			case evtNodeDeactivated := <-chNodeDeactivated:
-				b.UpdatePermissionedNodes(types.GetNodeUrl(evtNodeDeactivated.EnodeId, evtNodeDeactivated.Ip[:], evtNodeDeactivated.Port, evtNodeDeactivated.Raftport), ptype.NodeDelete)
-				types.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, types.GetNodeUrl(evtNodeDeactivated.EnodeId, evtNodeDeactivated.Ip[:], evtNodeDeactivated.Port, evtNodeDeactivated.Raftport), types.NodeDeactivated)
+				enodeId := types.GetNodeUrl(evtNodeDeactivated.EnodeId, evtNodeDeactivated.Ip[:], evtNodeDeactivated.Port, evtNodeDeactivated.Raftport)
+				err := ptype.UpdatePermissionedNodes(b.Node, b.DataDir, enodeId, ptype.NodeDelete, b.IsRaft)
+				if err != nil {
+					log.Error("error updating permissioned-nodes.json", "err", err)
+				}
+				types.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, enodeId, types.NodeDeactivated)
 
 			case evtNodeActivated := <-chNodeActivated:
-				b.UpdatePermissionedNodes(types.GetNodeUrl(evtNodeActivated.EnodeId, evtNodeActivated.Ip[:], evtNodeActivated.Port, evtNodeActivated.Raftport), ptype.NodeAdd)
-				types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, types.GetNodeUrl(evtNodeActivated.EnodeId, evtNodeActivated.Ip[:], evtNodeActivated.Port, evtNodeActivated.Raftport), types.NodeApproved)
+				enodeId := types.GetNodeUrl(evtNodeActivated.EnodeId, evtNodeActivated.Ip[:], evtNodeActivated.Port, evtNodeActivated.Raftport)
+				err := ptype.UpdatePermissionedNodes(b.Node, b.DataDir, enodeId, ptype.NodeAdd, b.IsRaft)
+				if err != nil {
+					log.Error("error updating permissioned-nodes.json", "err", err)
+				}
+				types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, enodeId, types.NodeApproved)
 
 			case evtNodeBlacklisted := <-chNodeBlacklisted:
-				types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, types.GetNodeUrl(evtNodeBlacklisted.EnodeId, evtNodeBlacklisted.Ip[:], evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), types.NodeBlackListed)
-				b.UpdateDisallowedNodes(types.GetNodeUrl(evtNodeBlacklisted.EnodeId, evtNodeBlacklisted.Ip[:], evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), ptype.NodeAdd)
-				b.UpdatePermissionedNodes(types.GetNodeUrl(evtNodeBlacklisted.EnodeId, evtNodeBlacklisted.Ip[:], evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport), ptype.NodeDelete)
+				enodeId := types.GetNodeUrl(evtNodeBlacklisted.EnodeId, evtNodeBlacklisted.Ip[:], evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport)
+				types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, enodeId, types.NodeBlackListed)
+				err := ptype.UpdateDisallowedNodes(b.DataDir, enodeId, ptype.NodeAdd)
+				log.Error("error updating disallowed-nodes.json", "err", err)
+				err = ptype.UpdatePermissionedNodes(b.Node, b.DataDir, enodeId, ptype.NodeDelete, b.IsRaft)
+				if err != nil {
+					log.Error("error updating permissioned-nodes.json", "err", err)
+				}
 
 			case evtNodeRecoveryInit := <-chNodeRecoveryInit:
-				types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, types.GetNodeUrl(evtNodeRecoveryInit.EnodeId, evtNodeRecoveryInit.Ip[:], evtNodeRecoveryInit.Port, evtNodeRecoveryInit.Raftport), types.NodeRecoveryInitiated)
+				enodeId := types.GetNodeUrl(evtNodeRecoveryInit.EnodeId, evtNodeRecoveryInit.Ip[:], evtNodeRecoveryInit.Port, evtNodeRecoveryInit.Raftport)
+				types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, enodeId, types.NodeRecoveryInitiated)
 
 			case evtNodeRecoveryDone := <-chNodeRecoveryDone:
-				types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, evtNodeRecoveryDone.Ip[:], evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), types.NodeApproved)
-				b.UpdateDisallowedNodes(types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, evtNodeRecoveryDone.Ip[:], evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), ptype.NodeDelete)
-				b.UpdatePermissionedNodes(types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, evtNodeRecoveryDone.Ip[:], evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport), ptype.NodeAdd)
+				enodeId := types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, evtNodeRecoveryDone.Ip[:], evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport)
+				types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, enodeId, types.NodeApproved)
+				err := ptype.UpdateDisallowedNodes(b.DataDir, enodeId, ptype.NodeDelete)
+				log.Error("error updating disallowed-nodes.json", "err", err)
+				err = ptype.UpdatePermissionedNodes(b.Node, b.DataDir, enodeId, ptype.NodeAdd, b.IsRaft)
+				if err != nil {
+					log.Error("error updating permissioned-nodes.json", "err", err)
+				}
 
 			case <-stopChan:
 				log.Info("quit Node contract watch")

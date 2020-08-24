@@ -3,21 +3,19 @@ package basic
 import (
 	"fmt"
 
-	ptype "github.com/ethereum/go-ethereum/permission/types"
-
-	"github.com/ethereum/go-ethereum/event"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/node"
 	binding "github.com/ethereum/go-ethereum/permission/basic/bind"
+	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
 
 type Backend struct {
-	Contr                   *Contract
-	SubscribeStopEvent      func() (chan ptype.StopEvent, event.Subscription)
-	UpdatePermissionedNodes func(string, ptype.NodeOperation)
-	UpdateDisallowedNodes   func(string, ptype.NodeOperation)
+	Node    *node.Node
+	IsRaft  bool
+	DataDir string
+	Contr   *Contract
 }
 
 func (b *Backend) ManageAccountPermissions() error {
@@ -42,7 +40,7 @@ func (b *Backend) ManageAccountPermissions() error {
 	}
 
 	go func() {
-		stopChan, stopSubscription := b.SubscribeStopEvent()
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
@@ -85,7 +83,7 @@ func (b *Backend) ManageRolePermissions() error {
 	}
 
 	go func() {
-		stopChan, stopSubscription := b.SubscribeStopEvent()
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
@@ -135,7 +133,7 @@ func (b *Backend) ManageOrgPermissions() error {
 	}
 
 	go func() {
-		stopChan, stopSubscription := b.SubscribeStopEvent()
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
@@ -201,37 +199,54 @@ func (b *Backend) ManageNodePermissions() error {
 	}
 
 	go func() {
-		stopChan, stopSubscription := b.SubscribeStopEvent()
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
 			case evtNodeApproved := <-chNodeApproved:
-				b.UpdatePermissionedNodes(evtNodeApproved.EnodeId, ptype.NodeAdd)
+				err := ptype.UpdatePermissionedNodes(b.Node, b.DataDir, evtNodeApproved.EnodeId, ptype.NodeAdd, b.IsRaft)
+				if err != nil {
+					log.Error("error updating permissioned-nodes.json", "err", err)
+				}
 				types.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, evtNodeApproved.EnodeId, types.NodeApproved)
 
 			case evtNodeProposed := <-chNodeProposed:
 				types.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, evtNodeProposed.EnodeId, types.NodePendingApproval)
 
 			case evtNodeDeactivated := <-chNodeDeactivated:
-				b.UpdatePermissionedNodes(evtNodeDeactivated.EnodeId, ptype.NodeDelete)
+				err := ptype.UpdatePermissionedNodes(b.Node, b.DataDir, evtNodeDeactivated.EnodeId, ptype.NodeDelete, b.IsRaft)
+				if err != nil {
+					log.Error("error updating permissioned-nodes.json", "err", err)
+				}
 				types.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, evtNodeDeactivated.EnodeId, types.NodeDeactivated)
 
 			case evtNodeActivated := <-chNodeActivated:
-				b.UpdatePermissionedNodes(evtNodeActivated.EnodeId, ptype.NodeAdd)
+				err := ptype.UpdatePermissionedNodes(b.Node, b.DataDir, evtNodeActivated.EnodeId, ptype.NodeAdd, b.IsRaft)
+				if err != nil {
+					log.Error("error updating permissioned-nodes.json", "err", err)
+				}
 				types.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, evtNodeActivated.EnodeId, types.NodeApproved)
 
 			case evtNodeBlacklisted := <-chNodeBlacklisted:
 				types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, types.NodeBlackListed)
-				b.UpdateDisallowedNodes(evtNodeBlacklisted.EnodeId, ptype.NodeAdd)
-				b.UpdatePermissionedNodes(evtNodeBlacklisted.EnodeId, ptype.NodeDelete)
+				err := ptype.UpdateDisallowedNodes(b.DataDir, evtNodeBlacklisted.EnodeId, ptype.NodeAdd)
+				log.Error("error updating disallowed-nodes.json", "err", err)
+				err = ptype.UpdatePermissionedNodes(b.Node, b.DataDir, evtNodeBlacklisted.EnodeId, ptype.NodeDelete, b.IsRaft)
+				if err != nil {
+					log.Error("error updating permissioned-nodes.json", "err", err)
+				}
 
 			case evtNodeRecoveryInit := <-chNodeRecoveryInit:
 				types.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, evtNodeRecoveryInit.EnodeId, types.NodeRecoveryInitiated)
 
 			case evtNodeRecoveryDone := <-chNodeRecoveryDone:
 				types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, evtNodeRecoveryDone.EnodeId, types.NodeApproved)
-				b.UpdateDisallowedNodes(evtNodeRecoveryDone.EnodeId, ptype.NodeDelete)
-				b.UpdatePermissionedNodes(evtNodeRecoveryDone.EnodeId, ptype.NodeAdd)
+				err := ptype.UpdateDisallowedNodes(b.DataDir, evtNodeRecoveryDone.EnodeId, ptype.NodeDelete)
+				log.Error("error updating disallowed-nodes.json", "err", err)
+				err = ptype.UpdatePermissionedNodes(b.Node, b.DataDir, evtNodeRecoveryDone.EnodeId, ptype.NodeAdd, b.IsRaft)
+				if err != nil {
+					log.Error("error updating permissioned-nodes.json", "err", err)
+				}
 
 			case <-stopChan:
 				log.Info("quit Node Contr watch")

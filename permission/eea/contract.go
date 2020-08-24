@@ -4,13 +4,12 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 
-	ptype "github.com/ethereum/go-ethereum/permission/types"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	binding "github.com/ethereum/go-ethereum/permission/eea/bind"
+	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
 
 type Contract struct {
@@ -19,18 +18,18 @@ type Contract struct {
 	PermConfig *types.PermissionConfig
 
 	//binding contracts
-	PermUpgr   *binding.EeaPermUpgr
-	PermInterf *binding.EeaPermInterface
-	PermNode   *binding.EeaNodeManager
-	PermAcct   *binding.EeaAcctManager
-	PermRole   *binding.EeaRoleManager
-	PermOrg    *binding.EeaOrgManager
+	PermUpgr   *binding.PermUpgr
+	PermInterf *binding.PermInterface
+	PermNode   *binding.NodeManager
+	PermAcct   *binding.AcctManager
+	PermRole   *binding.RoleManager
+	PermOrg    *binding.OrgManager
 	//sessions
-	PermInterfSession *binding.EeaPermInterfaceSession
-	permOrgSession    *binding.EeaOrgManagerSession
-	permNodeSession   *binding.EeaNodeManagerSession
-	permRoleSession   *binding.EeaRoleManagerSession
-	permAcctSession   *binding.EeaAcctManagerSession
+	PermInterfSession *binding.PermInterfaceSession
+	permOrgSession    *binding.OrgManagerSession
+	permNodeSession   *binding.NodeManagerSession
+	permRoleSession   *binding.RoleManagerSession
+	permAcctSession   *binding.AcctManagerSession
 }
 
 func (p *Contract) RemoveRole(_roleId string, _orgId string) (*types.Transaction, error) {
@@ -242,22 +241,22 @@ func (p *Contract) AfterStart() error {
 }
 
 func (p *Contract) eeaBindContract() error {
-	if err := ptype.BindContract(&p.PermUpgr, func() (interface{}, error) { return binding.NewEeaPermUpgr(p.PermConfig.UpgrdAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermUpgr, func() (interface{}, error) { return binding.NewPermUpgr(p.PermConfig.UpgrdAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := ptype.BindContract(&p.PermInterf, func() (interface{}, error) { return binding.NewEeaPermInterface(p.PermConfig.InterfAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermInterf, func() (interface{}, error) { return binding.NewPermInterface(p.PermConfig.InterfAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := ptype.BindContract(&p.PermAcct, func() (interface{}, error) { return binding.NewEeaAcctManager(p.PermConfig.AccountAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermAcct, func() (interface{}, error) { return binding.NewAcctManager(p.PermConfig.AccountAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := ptype.BindContract(&p.PermNode, func() (interface{}, error) { return binding.NewEeaNodeManager(p.PermConfig.NodeAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermNode, func() (interface{}, error) { return binding.NewNodeManager(p.PermConfig.NodeAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := ptype.BindContract(&p.PermRole, func() (interface{}, error) { return binding.NewEeaRoleManager(p.PermConfig.RoleAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermRole, func() (interface{}, error) { return binding.NewRoleManager(p.PermConfig.RoleAddress, p.EthClnt) }); err != nil {
 		return err
 	}
-	if err := ptype.BindContract(&p.PermOrg, func() (interface{}, error) { return binding.NewEeaOrgManager(p.PermConfig.OrgAddress, p.EthClnt) }); err != nil {
+	if err := ptype.BindContract(&p.PermOrg, func() (interface{}, error) { return binding.NewOrgManager(p.PermConfig.OrgAddress, p.EthClnt) }); err != nil {
 		return err
 	}
 	return nil
@@ -265,7 +264,7 @@ func (p *Contract) eeaBindContract() error {
 
 func (p *Contract) initSession() {
 	auth := bind.NewKeyedTransactor(p.Key)
-	p.PermInterfSession = &binding.EeaPermInterfaceSession{
+	p.PermInterfSession = &binding.PermInterfaceSession{
 		Contract: p.PermInterf,
 		CallOpts: bind.CallOpts{
 			Pending: true,
@@ -278,14 +277,14 @@ func (p *Contract) initSession() {
 		},
 	}
 
-	p.permOrgSession = &binding.EeaOrgManagerSession{
+	p.permOrgSession = &binding.OrgManagerSession{
 		Contract: p.PermOrg,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 	}
 
-	p.permNodeSession = &binding.EeaNodeManagerSession{
+	p.permNodeSession = &binding.NodeManagerSession{
 		Contract: p.PermNode,
 		CallOpts: bind.CallOpts{
 			Pending: true,
@@ -293,7 +292,7 @@ func (p *Contract) initSession() {
 	}
 
 	//populate roles
-	p.permRoleSession = &binding.EeaRoleManagerSession{
+	p.permRoleSession = &binding.RoleManagerSession{
 		Contract: p.PermRole,
 		CallOpts: bind.CallOpts{
 			Pending: true,
@@ -301,7 +300,7 @@ func (p *Contract) initSession() {
 	}
 
 	//populate accounts
-	p.permAcctSession = &binding.EeaAcctManagerSession{
+	p.permAcctSession = &binding.AcctManagerSession{
 		Contract: p.PermAcct,
 		CallOpts: bind.CallOpts{
 			Pending: true,

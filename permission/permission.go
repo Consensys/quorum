@@ -11,26 +11,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	basicbind "github.com/ethereum/go-ethereum/permission/basic/bind"
-	eeabind "github.com/ethereum/go-ethereum/permission/eea/bind"
-
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/permission/basic"
-	"github.com/ethereum/go-ethereum/permission/eea"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
-	"github.com/ethereum/go-ethereum/raft"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -45,7 +37,6 @@ type PermissionCtrl struct {
 	backend        ptype.Backend
 	eeaFlag        bool
 	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
-	stopFeed       event.Feed      // broadcasting stopEvent when service is being stopped
 	errorChan      chan error      // channel to capture error when starting aysnc
 	mux            sync.Mutex
 }
@@ -105,13 +96,9 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, 
 		errorChan:      make(chan error),
 		eeaFlag:        eeaFlag,
 	}
-	if eeaFlag {
-		p.backend = &eea.Backend{SubscribeStopEvent: p.subscribeStopEvent, UpdatePermissionedNodes: p.UpdatePermissionedNodes, UpdateDisallowedNodes: p.UpdateDisallowedNodes}
-	} else {
-		p.backend = &basic.Backend{SubscribeStopEvent: p.subscribeStopEvent, UpdatePermissionedNodes: p.UpdatePermissionedNodes, UpdateDisallowedNodes: p.UpdateDisallowedNodes}
-	}
 
-	stopChan, stopSubscription := p.subscribeStopEvent()
+	p.populateBackEnd()
+	stopChan, stopSubscription := ptype.SubscribeStopEvent()
 	inProcRPCServerSub := stack.EventMux().Subscribe(rpc.InProcServerReadyEvent{})
 	log.Debug("permission service: waiting for InProcRPC Server")
 
@@ -181,7 +168,7 @@ func (p *PermissionCtrl) asyncStart() {
 	p.startWaitGroup.Add(1)
 	go func(_wg *sync.WaitGroup) {
 		log.Debug("permission service: waiting for downloader")
-		stopChan, stopSubscription := p.subscribeStopEvent()
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		pollingTicker := time.NewTicker(10 * time.Millisecond)
 		defer func(start time.Time) {
 			log.Debug("permission service: downloader completed", "took", time.Since(start))
@@ -210,14 +197,7 @@ func (p *PermissionCtrl) asyncStart() {
 	}
 	p.ethClnt = ethclient.NewClient(client)
 	p.eth = ethereum
-	p.contract = NewPermissionContractService(p.ethClnt, p.eeaFlag, p.key, p.permConfig)
-	if p.eeaFlag {
-		b := p.backend.(*eea.Backend)
-		b.Contr = p.contract.(*eea.Contract)
-	} else {
-		b := p.backend.(*basic.Backend)
-		b.Contr = p.contract.(*basic.Contract)
-	}
+	p.populateContractInterface()
 }
 
 func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
@@ -246,7 +226,7 @@ func (p *PermissionCtrl) Protocols() []p2p.Protocol {
 
 func (p *PermissionCtrl) Stop() error {
 	log.Info("permission service: stopping")
-	p.stopFeed.Send(ptype.StopEvent{})
+	ptype.StopFeed.Send(ptype.StopEvent{})
 	log.Info("permission service: stopped")
 	return nil
 }
@@ -264,7 +244,7 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 		chainHeadCh := make(chan core.ChainHeadEvent, 1)
 		headSub := p.eth.BlockChain().SubscribeChainHeadEvent(chainHeadCh)
 		defer headSub.Unsubscribe()
-		stopChan, stopSubscription := p.subscribeStopEvent()
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		defer stopSubscription.Unsubscribe()
 		for {
 			select {
@@ -279,129 +259,6 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 		}
 	}()
 	return nil
-}
-
-func (p *PermissionCtrl) subscribeStopEvent() (chan ptype.StopEvent, event.Subscription) {
-	c := make(chan ptype.StopEvent)
-	s := p.stopFeed.Subscribe(c)
-	return c, s
-}
-
-// adds or deletes and entry from a given file
-func (p *PermissionCtrl) updateFile(fileName, enodeId string, operation ptype.NodeOperation, createFile bool) {
-	// Load the nodes from the config file
-	var nodeList []string
-	index := 0
-	// if createFile is false means the file is already existing. read the file
-	if !createFile {
-		blob, err := ioutil.ReadFile(fileName)
-		if err != nil && !createFile {
-			log.Error("Failed to access the file", "fileName", fileName, "err", err)
-			return
-		}
-
-		if err := json.Unmarshal(blob, &nodeList); err != nil {
-			log.Error("Failed to load nodes list from file", "fileName", fileName, "err", err)
-			return
-		}
-
-		// logic to update the permissioned-nodes.json file based on action
-
-		recExists := false
-		for i, eid := range nodeList {
-			if eid == enodeId {
-				index = i
-				recExists = true
-				break
-			}
-		}
-		if (operation == ptype.NodeAdd && recExists) || (operation == ptype.NodeDelete && !recExists) {
-			return
-		}
-	}
-	if operation == ptype.NodeAdd {
-		nodeList = append(nodeList, enodeId)
-	} else {
-		nodeList = append(nodeList[:index], nodeList[index+1:]...)
-	}
-	blob, _ := json.Marshal(nodeList)
-
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
-	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
-		log.Error("Error writing new Node info to file", "fileName", fileName, "err", err)
-	}
-}
-
-// updates Node information in the permissioned-nodes.json file based on Node
-// management activities in smart contract
-func (p *PermissionCtrl) UpdatePermissionedNodes(enodeId string, operation ptype.NodeOperation) {
-	log.Debug("UpdatePermissionedNodes", "DataDir", p.dataDir, "file", params.PERMISSIONED_CONFIG)
-
-	path := filepath.Join(p.dataDir, params.PERMISSIONED_CONFIG)
-	if _, err := os.Stat(path); err != nil {
-		log.Error("Read Error for permissioned-nodes.json file. This is because 'permissioned' flag is specified but no permissioned-nodes.json file is present", "err", err)
-		return
-	}
-
-	p.updateFile(path, enodeId, operation, false)
-	if operation == ptype.NodeDelete {
-		p.disconnectNode(enodeId)
-	}
-}
-
-//this function populates the black listed Node information into the disallowed-nodes.json file
-func (p *PermissionCtrl) UpdateDisallowedNodes(url string, operation ptype.NodeOperation) {
-	log.Debug("UpdateDisallowedNodes", "DataDir", p.dataDir, "file", params.BLACKLIST_CONFIG)
-
-	fileExists := true
-	path := filepath.Join(p.dataDir, params.BLACKLIST_CONFIG)
-	// Check if the file is existing. If the file is not existing create the file
-	if _, err := os.Stat(path); err != nil {
-		log.Error("Read Error for disallowed-nodes.json file", "err", err)
-		if _, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0644); err != nil {
-			log.Error("Failed to create disallowed-nodes.json file", "err", err)
-			return
-		}
-		fileExists = false
-	}
-
-	if fileExists {
-		p.updateFile(path, url, operation, false)
-	} else {
-		p.updateFile(path, url, operation, true)
-	}
-}
-
-// Disconnect the Node from the network
-func (p *PermissionCtrl) disconnectNode(enodeId string) {
-	if p.eth.BlockChain().Config().Istanbul == nil && p.eth.BlockChain().Config().Clique == nil {
-		var raftService *raft.RaftService
-		if err := p.node.Service(&raftService); err == nil {
-			raftApi := raft.NewPublicRaftAPI(raftService)
-
-			//get the raftId for the given enodeId
-			raftId, err := raftApi.GetRaftId(enodeId)
-			if err == nil {
-				raftApi.RemovePeer(raftId)
-			} else {
-				log.Error("failed to get raft id", "err", err, "enodeId", enodeId)
-			}
-		}
-	} else {
-		// Istanbul  or clique - disconnect the peer
-		server := p.node.Server()
-		if server != nil {
-			node, err := enode.ParseV4(enodeId)
-			if err == nil {
-				server.RemovePeer(node)
-			} else {
-				log.Error("failed parse Node id", "err", err, "enodeId", enodeId)
-			}
-		}
-	}
-
 }
 
 func (p *PermissionCtrl) instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int) {
@@ -676,46 +533,4 @@ func (p *PermissionCtrl) populateNodeCacheAndValidate(hexNodeId, ultimateParentI
 		}
 	}
 	return txnAllowed
-}
-
-func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, key *ecdsa.PrivateKey,
-	permConfig *types.PermissionConfig) ptype.ContractService {
-	if eeaFlag {
-		return &eea.Contract{EthClnt: ethClnt, Key: key, PermConfig: permConfig}
-	}
-	return &basic.Contract{EthClnt: ethClnt, Key: key, PermConfig: permConfig}
-}
-
-func NewPermissionContractServiceForApi(p *PermissionCtrl, frmAcct accounts.Account, transactOpts *bind.TransactOpts, gasLimit uint64, gasPrice *big.Int) ptype.ContractService {
-	if p.eeaFlag {
-		pc := p.contract.(*eea.Contract)
-		ps := &eeabind.EeaPermInterfaceSession{
-			Contract: pc.PermInterf,
-			CallOpts: bind.CallOpts{
-				Pending: true,
-			},
-			TransactOpts: bind.TransactOpts{
-				From:     frmAcct.Address,
-				GasLimit: gasLimit,
-				GasPrice: gasPrice,
-				Signer:   transactOpts.Signer,
-			},
-		}
-		return &eea.Contract{PermInterfSession: ps, PermConfig: p.permConfig}
-	}
-	pc := p.contract.(*basic.Contract)
-	ps := &basicbind.PermInterfaceSession{
-		Contract: pc.PermInterf,
-		CallOpts: bind.CallOpts{
-			Pending: true,
-		},
-		TransactOpts: bind.TransactOpts{
-			From:     frmAcct.Address,
-			GasLimit: gasLimit,
-			GasPrice: gasPrice,
-			Signer:   transactOpts.Signer,
-		},
-	}
-	return &basic.Contract{PermInterfSession: ps, PermConfig: p.permConfig}
-
 }

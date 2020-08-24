@@ -1,7 +1,7 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package bind
+package permission
 
 import (
 	"math/big"
@@ -27,124 +27,126 @@ var (
 	_ = event.NewSubscription
 )
 
-// EeaPermInterfaceABI is the input ABI used to generate the binding from.
-const EeaPermInterfaceABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"getPermissionsImpl\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"approveAdminRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_nwAdminOrg\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setPolicy\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_pOrgId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_enodeId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_ip\",\"type\":\"string\"},{\"internalType\":\"uint16\",\"name\":\"_port\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"addSubOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_roleId\",\"type\":\"string\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"approveBlacklistedAccountRecovery\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_enodeId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_ip\",\"type\":\"string\"},{\"internalType\":\"uint16\",\"name\":\"_port\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"_raftport\",\"type\":\"uint16\"},{\"internalType\":\"uint256\",\"name\":\"_action\",\"type\":\"uint256\"}],\"name\":\"updateNodeStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"_roleId\",\"type\":\"string\"}],\"name\":\"assignAdminRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"updateNetworkBootStatus\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_enodeId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_ip\",\"type\":\"string\"},{\"internalType\":\"uint16\",\"name\":\"_port\",\"type\":\"uint16\"}],\"name\":\"connectionAllowed\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNetworkBootStatus\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"addAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_permImplementation\",\"type\":\"address\"}],\"name\":\"setPermImplementation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_enodeId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_ip\",\"type\":\"string\"},{\"internalType\":\"uint16\",\"name\":\"_port\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"_raftport\",\"type\":\"uint16\"},{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"addOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_roleId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"_access\",\"type\":\"uint256\"},{\"internalType\":\"bool\",\"name\":\"_voter\",\"type\":\"bool\"},{\"internalType\":\"bool\",\"name\":\"_admin\",\"type\":\"bool\"}],\"name\":\"addNewRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_enodeId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_ip\",\"type\":\"string\"},{\"internalType\":\"uint16\",\"name\":\"_port\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"approveBlacklistedNodeRecovery\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"_action\",\"type\":\"uint256\"}],\"name\":\"approveOrgStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"validateAccount\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_action\",\"type\":\"uint256\"}],\"name\":\"updateAccountStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_enodeId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_ip\",\"type\":\"string\"},{\"internalType\":\"uint16\",\"name\":\"_port\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"addAdminNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_enodeId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_ip\",\"type\":\"string\"},{\"internalType\":\"uint16\",\"name\":\"_port\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"startBlacklistedNodeRecovery\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"},{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"isOrgAdmin\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_breadth\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_depth\",\"type\":\"uint256\"}],\"name\":\"init\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_roleId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"removeRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"startBlacklistedAccountRecovery\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"uint256\",\"name\":\"_action\",\"type\":\"uint256\"}],\"name\":\"updateOrgStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"isNetworkAdmin\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"address\",\"name\":\"_srcaccount\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_tgtaccount\",\"type\":\"address\"}],\"name\":\"transactionAllowed\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_enodeId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_ip\",\"type\":\"string\"},{\"internalType\":\"uint16\",\"name\":\"_port\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"addNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_enodeId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_ip\",\"type\":\"string\"},{\"internalType\":\"uint16\",\"name\":\"_port\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"connectionAllowedImpl\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getPendingOp\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"internalType\":\"string\",\"name\":\"_orgId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_enodeId\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"_ip\",\"type\":\"string\"},{\"internalType\":\"uint16\",\"name\":\"_port\",\"type\":\"uint16\"},{\"internalType\":\"uint16\",\"name\":\"_raftport\",\"type\":\"uint16\"},{\"internalType\":\"address\",\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"approveOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_permImplUpgradeable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"}]"
+// PermInterfaceABI is the input ABI used to generate the binding from.
+const PermInterfaceABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"getPermissionsImpl\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"approveAdminRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_nwAdminOrg\",\"type\":\"string\"},{\"name\":\"_nwAdminRole\",\"type\":\"string\"},{\"name\":\"_oAdminRole\",\"type\":\"string\"}],\"name\":\"setPolicy\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_pOrgId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ip\",\"type\":\"string\"},{\"name\":\"_port\",\"type\":\"uint16\"},{\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"addSubOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_roleId\",\"type\":\"string\"}],\"name\":\"assignAccountRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"approveBlacklistedAccountRecovery\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ip\",\"type\":\"string\"},{\"name\":\"_port\",\"type\":\"uint16\"},{\"name\":\"_raftport\",\"type\":\"uint16\"},{\"name\":\"_action\",\"type\":\"uint256\"}],\"name\":\"updateNodeStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_roleId\",\"type\":\"string\"}],\"name\":\"assignAdminRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"updateNetworkBootStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ip\",\"type\":\"string\"},{\"name\":\"_port\",\"type\":\"uint16\"}],\"name\":\"connectionAllowed\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getNetworkBootStatus\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_acct\",\"type\":\"address\"}],\"name\":\"addAdminAccount\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_permImplementation\",\"type\":\"address\"}],\"name\":\"setPermImplementation\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ip\",\"type\":\"string\"},{\"name\":\"_port\",\"type\":\"uint16\"},{\"name\":\"_raftport\",\"type\":\"uint16\"},{\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"addOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_access\",\"type\":\"uint256\"},{\"name\":\"_voter\",\"type\":\"bool\"},{\"name\":\"_admin\",\"type\":\"bool\"}],\"name\":\"addNewRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ip\",\"type\":\"string\"},{\"name\":\"_port\",\"type\":\"uint16\"},{\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"approveBlacklistedNodeRecovery\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_action\",\"type\":\"uint256\"}],\"name\":\"approveOrgStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"validateAccount\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_action\",\"type\":\"uint256\"}],\"name\":\"updateAccountStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ip\",\"type\":\"string\"},{\"name\":\"_port\",\"type\":\"uint16\"},{\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"addAdminNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ip\",\"type\":\"string\"},{\"name\":\"_port\",\"type\":\"uint16\"},{\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"startBlacklistedNodeRecovery\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"isOrgAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_breadth\",\"type\":\"uint256\"},{\"name\":\"_depth\",\"type\":\"uint256\"}],\"name\":\"init\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_roleId\",\"type\":\"string\"},{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"removeRole\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"startBlacklistedAccountRecovery\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_action\",\"type\":\"uint256\"}],\"name\":\"updateOrgStatus\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"isNetworkAdmin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_srcaccount\",\"type\":\"address\"},{\"name\":\"_tgtaccount\",\"type\":\"address\"}],\"name\":\"transactionAllowed\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ip\",\"type\":\"string\"},{\"name\":\"_port\",\"type\":\"uint16\"},{\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"addNode\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ip\",\"type\":\"string\"},{\"name\":\"_port\",\"type\":\"uint16\"},{\"name\":\"_raftport\",\"type\":\"uint16\"}],\"name\":\"connectionAllowedImpl\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"}],\"name\":\"getPendingOp\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"string\"},{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_orgId\",\"type\":\"string\"},{\"name\":\"_enodeId\",\"type\":\"string\"},{\"name\":\"_ip\",\"type\":\"string\"},{\"name\":\"_port\",\"type\":\"uint16\"},{\"name\":\"_raftport\",\"type\":\"uint16\"},{\"name\":\"_account\",\"type\":\"address\"}],\"name\":\"approveOrg\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_permImplUpgradeable\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"}]"
 
-// EeaPermInterfaceBin is the compiled bytecode used for deploying new contracts.
-var EeaPermInterfaceBin = "0x608060405234801561001057600080fd5b506040516135c33803806135c38339818101604052602081101561003357600080fd5b5051600280546001600160a01b0319166001600160a01b03909216919091179055613560806100636000396000f3fe608060405234801561001057600080fd5b50600436106101f05760003560e01c80635be9672c1161010f578063a97914bf116100a2578063ef5f719611610071578063ef5f719614611638578063f0d19786146117f7578063f346a3a7146118c1578063fa279d6114611a2d576101f0565b8063a97914bf146114ff578063bb3b6e8014611576578063d1aa0c20146115e4578063e5055a031461160a576101f0565b806391ba3f96116100de57806391ba3f96146111e15780639bd38101146113a0578063a5843f081461141e578063a634301214611441576101f0565b80635be9672c14610f3e5780636b568d7614610fac57806384b7a84a1461102a5780638683c7fe146110a7576101f0565b806344478e7911610187578063511bbd9f11610156578063511bbd9f14610ac1578063513a327714610ae757806351f604c314610cb157806358dcff7114610d7f576101f0565b806344478e79146109b557806345a59e5b146109d15780634cbfa82e14610a935780634fe57e7a14610a9b576101f0565b80632f7f0a12116101c35780632f7f0a12146105e45780633e239b23146106b25780633f9be4971461072957806343de646c146108ea576101f0565b806303ed6933146101f557806316724c44146102195780631b610220146102925780632e125a6c146103a0575b600080fd5b6101fd611bf7565b604080516001600160a01b039092168252519081900360200190f35b6102906004803603604081101561022f57600080fd5b810190602081018135600160201b81111561024957600080fd5b82018360208201111561025b57600080fd5b803590602001918460018302840111600160201b8311171561027c57600080fd5b9193509150356001600160a01b0316611c06565b005b610290600480360360608110156102a857600080fd5b810190602081018135600160201b8111156102c257600080fd5b8201836020820111156102d457600080fd5b803590602001918460018302840111600160201b831117156102f557600080fd5b919390929091602081019035600160201b81111561031257600080fd5b82018360208201111561032457600080fd5b803590602001918460018302840111600160201b8311171561034557600080fd5b919390929091602081019035600160201b81111561036257600080fd5b82018360208201111561037457600080fd5b803590602001918460018302840111600160201b8311171561039557600080fd5b509092509050611cb2565b610290600480360360c08110156103b657600080fd5b810190602081018135600160201b8111156103d057600080fd5b8201836020820111156103e257600080fd5b803590602001918460018302840111600160201b8311171561040357600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561045557600080fd5b82018360208201111561046757600080fd5b803590602001918460018302840111600160201b8311171561048857600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b8111156104da57600080fd5b8201836020820111156104ec57600080fd5b803590602001918460018302840111600160201b8311171561050d57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561055f57600080fd5b82018360208201111561057157600080fd5b803590602001918460018302840111600160201b8311171561059257600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff8335811694506020909301359092169150611da69050565b610290600480360360608110156105fa57600080fd5b6001600160a01b038235169190810190604081016020820135600160201b81111561062457600080fd5b82018360208201111561063657600080fd5b803590602001918460018302840111600160201b8311171561065757600080fd5b919390929091602081019035600160201b81111561067457600080fd5b82018360208201111561068657600080fd5b803590602001918460018302840111600160201b831117156106a757600080fd5b509092509050611fb2565b610290600480360360408110156106c857600080fd5b810190602081018135600160201b8111156106e257600080fd5b8201836020820111156106f457600080fd5b803590602001918460018302840111600160201b8311171561071557600080fd5b9193509150356001600160a01b0316612090565b610290600480360360c081101561073f57600080fd5b810190602081018135600160201b81111561075957600080fd5b82018360208201111561076b57600080fd5b803590602001918460018302840111600160201b8311171561078c57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b8111156107de57600080fd5b8201836020820111156107f057600080fd5b803590602001918460018302840111600160201b8311171561081157600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561086357600080fd5b82018360208201111561087557600080fd5b803590602001918460018302840111600160201b8311171561089657600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff8335811694506020840135169260400135915061211f9050565b6102906004803603606081101561090057600080fd5b810190602081018135600160201b81111561091a57600080fd5b82018360208201111561092c57600080fd5b803590602001918460018302840111600160201b8311171561094d57600080fd5b919390926001600160a01b0383351692604081019060200135600160201b81111561097757600080fd5b82018360208201111561098957600080fd5b803590602001918460018302840111600160201b831117156109aa57600080fd5b5090925090506122cb565b6109bd612387565b604080519115158252519081900360200190f35b6109bd600480360360608110156109e757600080fd5b810190602081018135600160201b811115610a0157600080fd5b820183602082011115610a1357600080fd5b803590602001918460018302840111600160201b83111715610a3457600080fd5b919390929091602081019035600160201b811115610a5157600080fd5b820183602082011115610a6357600080fd5b803590602001918460018302840111600160201b83111715610a8457600080fd5b91935091503561ffff16612409565b6109bd6124fa565b61029060048036036020811015610ab157600080fd5b50356001600160a01b031661255d565b61029060048036036020811015610ad757600080fd5b50356001600160a01b03166125c3565b610290600480360360c0811015610afd57600080fd5b810190602081018135600160201b811115610b1757600080fd5b820183602082011115610b2957600080fd5b803590602001918460018302840111600160201b83111715610b4a57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115610b9c57600080fd5b820183602082011115610bae57600080fd5b803590602001918460018302840111600160201b83111715610bcf57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115610c2157600080fd5b820183602082011115610c3357600080fd5b803590602001918460018302840111600160201b83111715610c5457600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505050813561ffff908116935060208301351691604001356001600160a01b03169050612635565b610290600480360360a0811015610cc757600080fd5b810190602081018135600160201b811115610ce157600080fd5b820183602082011115610cf357600080fd5b803590602001918460018302840111600160201b83111715610d1457600080fd5b919390929091602081019035600160201b811115610d3157600080fd5b820183602082011115610d4357600080fd5b803590602001918460018302840111600160201b83111715610d6457600080fd5b919350915080359060208101351515906040013515156126d0565b610290600480360360a0811015610d9557600080fd5b810190602081018135600160201b811115610daf57600080fd5b820183602082011115610dc157600080fd5b803590602001918460018302840111600160201b83111715610de257600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115610e3457600080fd5b820183602082011115610e4657600080fd5b803590602001918460018302840111600160201b83111715610e6757600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115610eb957600080fd5b820183602082011115610ecb57600080fd5b803590602001918460018302840111600160201b83111715610eec57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff83358116945060209093013590921691506127c29050565b61029060048036036040811015610f5457600080fd5b810190602081018135600160201b811115610f6e57600080fd5b820183602082011115610f8057600080fd5b803590602001918460018302840111600160201b83111715610fa157600080fd5b919350915035612968565b6109bd60048036036040811015610fc257600080fd5b6001600160a01b038235169190810190604081016020820135600160201b811115610fec57600080fd5b820183602082011115610ffe57600080fd5b803590602001918460018302840111600160201b8311171561101f57600080fd5b5090925090506129f2565b6102906004803603606081101561104057600080fd5b810190602081018135600160201b81111561105a57600080fd5b82018360208201111561106c57600080fd5b803590602001918460018302840111600160201b8311171561108d57600080fd5b91935091506001600160a01b038135169060200135612aa7565b610290600480360360808110156110bd57600080fd5b810190602081018135600160201b8111156110d757600080fd5b8201836020820111156110e957600080fd5b803590602001918460018302840111600160201b8311171561110a57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561115c57600080fd5b82018360208201111561116e57600080fd5b803590602001918460018302840111600160201b8311171561118f57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff8335811694506020909301359092169150612b5c9050565b610290600480360360a08110156111f757600080fd5b810190602081018135600160201b81111561121157600080fd5b82018360208201111561122357600080fd5b803590602001918460018302840111600160201b8311171561124457600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561129657600080fd5b8201836020820111156112a857600080fd5b803590602001918460018302840111600160201b831117156112c957600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561131b57600080fd5b82018360208201111561132d57600080fd5b803590602001918460018302840111600160201b8311171561134e57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff8335811694506020909301359092169150612c8f9050565b6109bd600480360360408110156113b657600080fd5b6001600160a01b038235169190810190604081016020820135600160201b8111156113e057600080fd5b8201836020820111156113f257600080fd5b803590602001918460018302840111600160201b8311171561141357600080fd5b509092509050612d1f565b6102906004803603604081101561143457600080fd5b5080359060200135612da0565b6102906004803603604081101561145757600080fd5b810190602081018135600160201b81111561147157600080fd5b82018360208201111561148357600080fd5b803590602001918460018302840111600160201b831117156114a457600080fd5b919390929091602081019035600160201b8111156114c157600080fd5b8201836020820111156114d357600080fd5b803590602001918460018302840111600160201b831117156114f457600080fd5b509092509050612e0b565b6102906004803603604081101561151557600080fd5b810190602081018135600160201b81111561152f57600080fd5b82018360208201111561154157600080fd5b803590602001918460018302840111600160201b8311171561156257600080fd5b9193509150356001600160a01b0316612ebc565b6102906004803603604081101561158c57600080fd5b810190602081018135600160201b8111156115a657600080fd5b8201836020820111156115b857600080fd5b803590602001918460018302840111600160201b831117156115d957600080fd5b919350915035612f4b565b6109bd600480360360208110156115fa57600080fd5b50356001600160a01b0316612fd5565b6109bd6004803603604081101561162057600080fd5b506001600160a01b0381358116916020013516613055565b610290600480360360a081101561164e57600080fd5b810190602081018135600160201b81111561166857600080fd5b82018360208201111561167a57600080fd5b803590602001918460018302840111600160201b8311171561169b57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b8111156116ed57600080fd5b8201836020820111156116ff57600080fd5b803590602001918460018302840111600160201b8311171561172057600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561177257600080fd5b82018360208201111561178457600080fd5b803590602001918460018302840111600160201b831117156117a557600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff83358116945060209093013590921691506130de9050565b6109bd6004803603608081101561180d57600080fd5b810190602081018135600160201b81111561182757600080fd5b82018360208201111561183957600080fd5b803590602001918460018302840111600160201b8311171561185a57600080fd5b919390929091602081019035600160201b81111561187757600080fd5b82018360208201111561188957600080fd5b803590602001918460018302840111600160201b831117156118aa57600080fd5b919350915061ffff8135811691602001351661316e565b61192f600480360360208110156118d757600080fd5b810190602081018135600160201b8111156118f157600080fd5b82018360208201111561190357600080fd5b803590602001918460018302840111600160201b8311171561192457600080fd5b509092509050613262565b604051808060200180602001856001600160a01b03166001600160a01b03168152602001848152602001838103835287818151815260200191508051906020019080838360005b8381101561198e578181015183820152602001611976565b50505050905090810190601f1680156119bb5780820380516001836020036101000a031916815260200191505b50838103825286518152865160209182019188019080838360005b838110156119ee5781810151838201526020016119d6565b50505050905090810190601f168015611a1b5780820380516001836020036101000a031916815260200191505b50965050505050505060405180910390f35b610290600480360360c0811015611a4357600080fd5b810190602081018135600160201b811115611a5d57600080fd5b820183602082011115611a6f57600080fd5b803590602001918460018302840111600160201b83111715611a9057600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115611ae257600080fd5b820183602082011115611af457600080fd5b803590602001918460018302840111600160201b83111715611b1557600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115611b6757600080fd5b820183602082011115611b7957600080fd5b803590602001918460018302840111600160201b83111715611b9a57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505050813561ffff908116935060208301351691604001356001600160a01b03169050613490565b6000546001600160a01b031690565b600054604051638884304160e01b81526001600160a01b03838116602483015233604483018190526060600484019081526064840187905291909316926388843041928792879287929091908190608401868680828437600081840152601f19601f82011690508083019250505095505050505050600060405180830381600087803b158015611c9557600080fd5b505af1158015611ca9573d6000803e3d6000fd5b50505050505050565b60005460405162db081160e51b8152606060048201908152606482018890526001600160a01b0390921691631b610220918991899189918991899189918190602481019060448101906084018a8a80828437600083820152601f01601f191690910185810384528881526020019050888880828437600083820152601f01601f191690910185810383528681526020019050868680828437600081840152601f19601f8201169050808301925050509950505050505050505050600060405180830381600087803b158015611d8657600080fd5b505af1158015611d9a573d6000803e3d6000fd5b50505050505050505050565b600080546040516368a6127360e01b815261ffff8086166084830152841660a48201523360c4820181905260e0600483019081528a5160e48401528a516001600160a01b03909416946368a61273948c948c948c948c948c948c9483926024820192604483019260648101926101049091019160208f01918190849084905b83811015611e3d578181015183820152602001611e25565b50505050905090810190601f168015611e6a5780820380516001836020036101000a031916815260200191505b5085810384528b5181528b516020918201918d019080838360005b83811015611e9d578181015183820152602001611e85565b50505050905090810190601f168015611eca5780820380516001836020036101000a031916815260200191505b5085810383528a5181528a516020918201918c019080838360005b83811015611efd578181015183820152602001611ee5565b50505050905090810190601f168015611f2a5780820380516001836020036101000a031916815260200191505b5085810382528951815289516020918201918b019080838360005b83811015611f5d578181015183820152602001611f45565b50505050905090810190601f168015611f8a5780820380516001836020036101000a031916815260200191505b509b505050505050505050505050600060405180830381600087803b158015611d8657600080fd5b600054604051638baa819160e01b81526001600160a01b03878116600483019081523360648401819052608060248501908152608485018990529290941693638baa8191938a938a938a938a938a9391929190604481019060a401888880828437600083820152601f01601f191690910184810383528681526020019050868680828437600081840152601f19601f82011690508083019250505098505050505050505050600060405180830381600087803b15801561207157600080fd5b505af1158015612085573d6000803e3d6000fd5b505050505050505050565b600054604051634b20f45f60e01b81526001600160a01b0383811660248301523360448301819052606060048401908152606484018790529190931692634b20f45f928792879287929091908190608401868680828437600081840152601f19601f82011690508083019250505095505050505050600060405180830381600087803b158015611c9557600080fd5b60008054604051632e6dff9b60e21b815261ffff80871660648301528516608482015260a481018490523360c4820181905260e0600483019081528a5160e48401528a516001600160a01b039094169463b9b7fe6c948c948c948c948c948c948c94839260248201926044830192610104019160208e0191908190849084905b838110156121b757818101518382015260200161219f565b50505050905090810190601f1680156121e45780820380516001836020036101000a031916815260200191505b5084810383528a5181528a516020918201918c019080838360005b838110156122175781810151838201526020016121ff565b50505050905090810190601f1680156122445780820380516001836020036101000a031916815260200191505b5084810382528951815289516020918201918b019080838360005b8381101561227757818101518382015260200161225f565b50505050905090810190601f1680156122a45780820380516001836020036101000a031916815260200191505b509a5050505050505050505050600060405180830381600087803b158015611d8657600080fd5b60005460405163404bf3eb60e01b81526001600160a01b038581166024830152336064830181905260806004840190815260848401899052919093169263404bf3eb9289928992899289928992918190604481019060a401898980828437600083820152601f01601f191690910184810383528681526020019050868680828437600081840152601f19601f82011690508083019250505098505050505050505050600060405180830381600087803b15801561207157600080fd5b60008060009054906101000a90046001600160a01b03166001600160a01b03166344478e796040518163ffffffff1660e01b8152600401602060405180830381600087803b1580156123d857600080fd5b505af11580156123ec573d6000803e3d6000fd5b505050506040513d602081101561240257600080fd5b5051905090565b6000306001600160a01b031663f0d19786878787878760006040518763ffffffff1660e01b81526004018080602001806020018561ffff1661ffff1681526020018461ffff1681526020018381038352898982818152602001925080828437600083820152601f01601f191690910184810383528781526020019050878780828437600081840152601f19601f8201169050808301925050509850505050505050505060206040518083038186803b1580156124c457600080fd5b505afa1580156124d8573d6000803e3d6000fd5b505050506040513d60208110156124ee57600080fd5b50519695505050505050565b60008060009054906101000a90046001600160a01b03166001600160a01b0316634cbfa82e6040518163ffffffff1660e01b815260040160206040518083038186803b15801561254957600080fd5b505afa1580156123ec573d6000803e3d6000fd5b60008054604080516327f2bf3d60e11b81526001600160a01b03858116600483015291519190921692634fe57e7a926024808201939182900301818387803b1580156125a857600080fd5b505af11580156125bc573d6000803e3d6000fd5b5050505050565b6002546001600160a01b03163314612613576040805162461bcd60e51b815260206004820152600e60248201526d34b73b30b634b21031b0b63632b960911b604482015290519081900360640190fd5b600080546001600160a01b0319166001600160a01b0392909216919091179055565b6000805460405163e91b0e1960e01b815261ffff8681166064830152851660848201526001600160a01b0384811660a48301523360c4830181905260e0600484019081528b5160e48501528b51929094169463e91b0e19948c948c948c948c948c948c9492939092839260248201926044830192610104019160208e01919081908490849083156121b757818101518382015260200161219f565b600054604051630d82613b60e11b815260448101859052831515606482015282151560848201523360a4820181905260c06004830190815260c483018a90526001600160a01b0390931692631b04c276928b928b928b928b928b928b928b9291908190602481019060e4018b8b80828437600083820152601f01601f191690910184810383528981526020019050898980828437600081840152601f19601f8201169050808301925050509a5050505050505050505050600060405180830381600087803b1580156127a157600080fd5b505af11580156127b5573d6000803e3d6000fd5b5050505050505050505050565b600080546040516302810afd60e61b815261ffff8086166064830152841660848201523360a4820181905260c060048301908152895160c484015289516001600160a01b039094169463a042bf40948b948b948b948b948b949293919283926024810192604482019260e49092019160208d01918190849084905b8381101561285557818101518382015260200161283d565b50505050905090810190601f1680156128825780820380516001836020036101000a031916815260200191505b5084810383528951815289516020918201918b019080838360005b838110156128b557818101518382015260200161289d565b50505050905090810190601f1680156128e25780820380516001836020036101000a031916815260200191505b5084810382528851815288516020918201918a019080838360005b838110156129155781810151838201526020016128fd565b50505050905090810190601f1680156129425780820380516001836020036101000a031916815260200191505b509950505050505050505050600060405180830381600087803b15801561207157600080fd5b600054604051632d55195960e21b8152602481018390523360448201819052606060048301908152606483018690526001600160a01b039093169263b5546564928792879287928190608401868680828437600081840152601f19601f82011690508083019250505095505050505050600060405180830381600087803b158015611c9557600080fd5b60008054604080516335ab46bb60e11b81526001600160a01b03878116600483019081526024830193845260448301879052931692636b568d76928892889288929091606401848480828437600083820152604051601f909101601f1916909201965060209550909350505081840390508186803b158015612a7357600080fd5b505afa158015612a87573d6000803e3d6000fd5b505050506040513d6020811015612a9d57600080fd5b5051949350505050565b6000546040516302740f8f60e11b81526001600160a01b0384811660248301526044820184905233606483018190526080600484019081526084840188905291909316926304e81f1e92889288928892889290819060a401878780828437600081840152601f19601f8201169050808301925050509650505050505050600060405180830381600087803b158015612b3e57600080fd5b505af1158015612b52573d6000803e3d6000fd5b5050505050505050565b60008054604051634341e3ff60e11b815261ffff8086166044830152841660648201526080600482019081528751608483015287516001600160a01b0390931693638683c7fe93899389938993899391928392602482019260a49092019160208a0191908190849084905b83811015612bdf578181015183820152602001612bc7565b50505050905090810190601f168015612c0c5780820380516001836020036101000a031916815260200191505b50838103825286518152865160209182019188019080838360005b83811015612c3f578181015183820152602001612c27565b50505050905090810190601f168015612c6c5780820380516001836020036101000a031916815260200191505b509650505050505050600060405180830381600087803b158015612b3e57600080fd5b6000805460405163d621d95760e01b815261ffff8581166064830152841660848201523360a4820181905260c060048301908152895160c484015289516001600160a01b039094169463d621d957948b948b948b948b948b949293919283926024810192604482019260e49092019160208d0191819084908490831561285557818101518382015260200161283d565b6000805460408051639bd3810160e01b81526001600160a01b03878116600483019081526024830193845260448301879052931692639bd38101928892889288929091606401848480828437600083820152604051601f909101601f1916909201965060209550909350505081840390508186803b158015612a7357600080fd5b60008054604080516314b087e160e31b8152600481018690526024810185905290516001600160a01b039092169263a5843f089260448084019382900301818387803b158015612def57600080fd5b505af1158015612e03573d6000803e3d6000fd5b505050505050565b600054604051632e52d6df60e11b81523360448201819052606060048301908152606483018790526001600160a01b0390931692635ca5adbe928892889288928892919081906024810190608401888880828437600083820152601f01601f191690910184810383528681526020019050868680828437600081840152601f19601f820116905080830192505050975050505050505050600060405180830381600087803b158015612b3e57600080fd5b600054604051630e124c8960e11b81526001600160a01b0383811660248301523360448301819052606060048401908152606484018790529190931692631c249912928792879287929091908190608401868680828437600081840152601f19601f82011690508083019250505095505050505050600060405180830381600087803b158015611c9557600080fd5b600054604051633cf5f33b60e01b8152602481018390523360448201819052606060048301908152606483018690526001600160a01b0390931692633cf5f33b928792879287928190608401868680828437600081840152601f19601f82011690508083019250505095505050505050600060405180830381600087803b158015611c9557600080fd5b600080546040805163068d506160e51b81526001600160a01b0385811660048301529151919092169163d1aa0c20916024808301926020929190829003018186803b15801561302357600080fd5b505afa158015613037573d6000803e3d6000fd5b505050506040513d602081101561304d57600080fd5b505192915050565b600080546040805163e5055a0360e01b81526001600160a01b03868116600483015285811660248301529151919092169163e5055a03916044808301926020929190829003018186803b1580156130ab57600080fd5b505afa1580156130bf573d6000803e3d6000fd5b505050506040513d60208110156130d557600080fd5b50519392505050565b6000805460405163ecad01d560e01b815261ffff8581166064830152841660848201523360a4820181905260c060048301908152895160c484015289516001600160a01b039094169463ecad01d5948b948b948b948b948b949293919283926024810192604482019260e49092019160208d0191819084908490831561285557818101518382015260200161283d565b60008054604051635456443d60e01b815261ffff808616604483015284166064820152608060048201908152608482018990526001600160a01b0390921691635456443d918a918a918a918a918a918a918190602481019060a401898980828437600083820152601f01601f191690910184810383528781526020019050878780828437600081840152601f19601f8201169050808301925050509850505050505050505060206040518083038186803b15801561322b57600080fd5b505afa15801561323f573d6000803e3d6000fd5b505050506040513d602081101561325557600080fd5b5051979650505050505050565b6000805460405163f346a3a760e01b8152602060048201908152602482018590526060938493909283926001600160a01b039092169163f346a3a791899189918190604401848480828437600081840152601f19601f820116905080830192505050935050505060006040518083038186803b1580156132e157600080fd5b505afa1580156132f5573d6000803e3d6000fd5b505050506040513d6000823e601f3d908101601f19168201604052608081101561331e57600080fd5b8101908080516040519392919084600160201b82111561333d57600080fd5b90830190602082018581111561335257600080fd5b8251600160201b81118282018810171561336b57600080fd5b82525081516020918201929091019080838360005b83811015613398578181015183820152602001613380565b50505050905090810190601f1680156133c55780820380516001836020036101000a031916815260200191505b5060405260200180516040519392919084600160201b8211156133e757600080fd5b9083019060208201858111156133fc57600080fd5b8251600160201b81118282018810171561341557600080fd5b82525081516020918201929091019080838360005b8381101561344257818101518382015260200161342a565b50505050905090810190601f16801561346f5780820380516001836020036101000a031916815260200191505b5060409081526020820151910151949b939a50985092965090945050505050565b60008054604051637baf850360e11b815261ffff8681166064830152851660848201526001600160a01b0384811660a48301523360c4830181905260e0600484019081528b5160e48501528b51929094169463f75f0a06948c948c948c948c948c948c9492939092839260248201926044830192610104019160208e01919081908490849083156121b757818101518382015260200161219f56fea265627a7a72315820bb3b20a6ad800a10d94198efa087966e25cf9242958b69ef4bdd35789643291564736f6c634300050b0032"
+var PermInterfaceParsedABI, _ = abi.JSON(strings.NewReader(PermInterfaceABI))
 
-// DeployEeaPermInterface deploys a new Ethereum contract, binding an instance of EeaPermInterface to it.
-func DeployEeaPermInterface(auth *bind.TransactOpts, backend bind.ContractBackend, _permImplUpgradeable common.Address) (common.Address, *types.Transaction, *EeaPermInterface, error) {
-	parsed, err := abi.JSON(strings.NewReader(EeaPermInterfaceABI))
+// PermInterfaceBin is the compiled bytecode used for deploying new contracts.
+var PermInterfaceBin = "0x608060405234801561001057600080fd5b5060405160208061355b8339810180604052602081101561003057600080fd5b5051600280546001600160a01b0319166001600160a01b039092169190911790556134fb806100606000396000f3fe608060405234801561001057600080fd5b50600436106101f05760003560e01c80635be9672c1161010f578063a97914bf116100a2578063ef5f719611610071578063ef5f719614611638578063f0d19786146117f7578063f346a3a7146118c1578063fa279d6114611a2d576101f0565b8063a97914bf146114ff578063bb3b6e8014611576578063d1aa0c20146115e4578063e5055a031461160a576101f0565b806391ba3f96116100de57806391ba3f96146111e15780639bd38101146113a0578063a5843f081461141e578063a634301214611441576101f0565b80635be9672c14610f3e5780636b568d7614610fac57806384b7a84a1461102a5780638683c7fe146110a7576101f0565b806344478e7911610187578063511bbd9f11610156578063511bbd9f14610ac1578063513a327714610ae757806351f604c314610cb157806358dcff7114610d7f576101f0565b806344478e79146109b557806345a59e5b146109d15780634cbfa82e14610a935780634fe57e7a14610a9b576101f0565b80632f7f0a12116101c35780632f7f0a12146105e45780633e239b23146106b25780633f9be4971461072957806343de646c146108ea576101f0565b806303ed6933146101f557806316724c44146102195780631b610220146102925780632e125a6c146103a0575b600080fd5b6101fd611bf7565b604080516001600160a01b039092168252519081900360200190f35b6102906004803603604081101561022f57600080fd5b810190602081018135600160201b81111561024957600080fd5b82018360208201111561025b57600080fd5b803590602001918460018302840111600160201b8311171561027c57600080fd5b9193509150356001600160a01b0316611c06565b005b610290600480360360608110156102a857600080fd5b810190602081018135600160201b8111156102c257600080fd5b8201836020820111156102d457600080fd5b803590602001918460018302840111600160201b831117156102f557600080fd5b919390929091602081019035600160201b81111561031257600080fd5b82018360208201111561032457600080fd5b803590602001918460018302840111600160201b8311171561034557600080fd5b919390929091602081019035600160201b81111561036257600080fd5b82018360208201111561037457600080fd5b803590602001918460018302840111600160201b8311171561039557600080fd5b509092509050611cb5565b610290600480360360c08110156103b657600080fd5b810190602081018135600160201b8111156103d057600080fd5b8201836020820111156103e257600080fd5b803590602001918460018302840111600160201b8311171561040357600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561045557600080fd5b82018360208201111561046757600080fd5b803590602001918460018302840111600160201b8311171561048857600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b8111156104da57600080fd5b8201836020820111156104ec57600080fd5b803590602001918460018302840111600160201b8311171561050d57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561055f57600080fd5b82018360208201111561057157600080fd5b803590602001918460018302840111600160201b8311171561059257600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff8335811694506020909301359092169150611dac9050565b610290600480360360608110156105fa57600080fd5b6001600160a01b038235169190810190604081016020820135600160201b81111561062457600080fd5b82018360208201111561063657600080fd5b803590602001918460018302840111600160201b8311171561065757600080fd5b919390929091602081019035600160201b81111561067457600080fd5b82018360208201111561068657600080fd5b803590602001918460018302840111600160201b831117156106a757600080fd5b509092509050611fbb565b610290600480360360408110156106c857600080fd5b810190602081018135600160201b8111156106e257600080fd5b8201836020820111156106f457600080fd5b803590602001918460018302840111600160201b8311171561071557600080fd5b9193509150356001600160a01b031661209c565b610290600480360360c081101561073f57600080fd5b810190602081018135600160201b81111561075957600080fd5b82018360208201111561076b57600080fd5b803590602001918460018302840111600160201b8311171561078c57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b8111156107de57600080fd5b8201836020820111156107f057600080fd5b803590602001918460018302840111600160201b8311171561081157600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561086357600080fd5b82018360208201111561087557600080fd5b803590602001918460018302840111600160201b8311171561089657600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff8335811694506020840135169260400135915061212e9050565b6102906004803603606081101561090057600080fd5b810190602081018135600160201b81111561091a57600080fd5b82018360208201111561092c57600080fd5b803590602001918460018302840111600160201b8311171561094d57600080fd5b919390926001600160a01b0383351692604081019060200135600160201b81111561097757600080fd5b82018360208201111561098957600080fd5b803590602001918460018302840111600160201b831117156109aa57600080fd5b5090925090506122dd565b6109bd61239c565b604080519115158252519081900360200190f35b6109bd600480360360608110156109e757600080fd5b810190602081018135600160201b811115610a0157600080fd5b820183602082011115610a1357600080fd5b803590602001918460018302840111600160201b83111715610a3457600080fd5b919390929091602081019035600160201b811115610a5157600080fd5b820183602082011115610a6357600080fd5b803590602001918460018302840111600160201b83111715610a8457600080fd5b91935091503561ffff1661241e565b6109bd61250f565b61029060048036036020811015610ab157600080fd5b50356001600160a01b0316612572565b61029060048036036020811015610ad757600080fd5b50356001600160a01b03166125db565b610290600480360360c0811015610afd57600080fd5b810190602081018135600160201b811115610b1757600080fd5b820183602082011115610b2957600080fd5b803590602001918460018302840111600160201b83111715610b4a57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115610b9c57600080fd5b820183602082011115610bae57600080fd5b803590602001918460018302840111600160201b83111715610bcf57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115610c2157600080fd5b820183602082011115610c3357600080fd5b803590602001918460018302840111600160201b83111715610c5457600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505050813561ffff908116935060208301351691604001356001600160a01b0316905061265f565b610290600480360360a0811015610cc757600080fd5b810190602081018135600160201b811115610ce157600080fd5b820183602082011115610cf357600080fd5b803590602001918460018302840111600160201b83111715610d1457600080fd5b919390929091602081019035600160201b811115610d3157600080fd5b820183602082011115610d4357600080fd5b803590602001918460018302840111600160201b83111715610d6457600080fd5b919350915080359060208101351515906040013515156126ff565b610290600480360360a0811015610d9557600080fd5b810190602081018135600160201b811115610daf57600080fd5b820183602082011115610dc157600080fd5b803590602001918460018302840111600160201b83111715610de257600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115610e3457600080fd5b820183602082011115610e4657600080fd5b803590602001918460018302840111600160201b83111715610e6757600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115610eb957600080fd5b820183602082011115610ecb57600080fd5b803590602001918460018302840111600160201b83111715610eec57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff83358116945060209093013590921691506127f49050565b61029060048036036040811015610f5457600080fd5b810190602081018135600160201b811115610f6e57600080fd5b820183602082011115610f8057600080fd5b803590602001918460018302840111600160201b83111715610fa157600080fd5b91935091503561299d565b6109bd60048036036040811015610fc257600080fd5b6001600160a01b038235169190810190604081016020820135600160201b811115610fec57600080fd5b820183602082011115610ffe57600080fd5b803590602001918460018302840111600160201b8311171561101f57600080fd5b509092509050612a2a565b6102906004803603606081101561104057600080fd5b810190602081018135600160201b81111561105a57600080fd5b82018360208201111561106c57600080fd5b803590602001918460018302840111600160201b8311171561108d57600080fd5b91935091506001600160a01b038135169060200135612ae2565b610290600480360360808110156110bd57600080fd5b810190602081018135600160201b8111156110d757600080fd5b8201836020820111156110e957600080fd5b803590602001918460018302840111600160201b8311171561110a57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561115c57600080fd5b82018360208201111561116e57600080fd5b803590602001918460018302840111600160201b8311171561118f57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff8335811694506020909301359092169150612b9a9050565b610290600480360360a08110156111f757600080fd5b810190602081018135600160201b81111561121157600080fd5b82018360208201111561122357600080fd5b803590602001918460018302840111600160201b8311171561124457600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561129657600080fd5b8201836020820111156112a857600080fd5b803590602001918460018302840111600160201b831117156112c957600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561131b57600080fd5b82018360208201111561132d57600080fd5b803590602001918460018302840111600160201b8311171561134e57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff8335811694506020909301359092169150612cd09050565b6109bd600480360360408110156113b657600080fd5b6001600160a01b038235169190810190604081016020820135600160201b8111156113e057600080fd5b8201836020820111156113f257600080fd5b803590602001918460018302840111600160201b8311171561141357600080fd5b509092509050612d65565b6102906004803603604081101561143457600080fd5b5080359060200135612de9565b6102906004803603604081101561145757600080fd5b810190602081018135600160201b81111561147157600080fd5b82018360208201111561148357600080fd5b803590602001918460018302840111600160201b831117156114a457600080fd5b919390929091602081019035600160201b8111156114c157600080fd5b8201836020820111156114d357600080fd5b803590602001918460018302840111600160201b831117156114f457600080fd5b509092509050612e57565b6102906004803603604081101561151557600080fd5b810190602081018135600160201b81111561152f57600080fd5b82018360208201111561154157600080fd5b803590602001918460018302840111600160201b8311171561156257600080fd5b9193509150356001600160a01b0316612f0b565b6102906004803603604081101561158c57600080fd5b810190602081018135600160201b8111156115a657600080fd5b8201836020820111156115b857600080fd5b803590602001918460018302840111600160201b831117156115d957600080fd5b919350915035612f9d565b6109bd600480360360208110156115fa57600080fd5b50356001600160a01b031661302a565b6109bd6004803603604081101561162057600080fd5b506001600160a01b03813581169160200135166130ad565b610290600480360360a081101561164e57600080fd5b810190602081018135600160201b81111561166857600080fd5b82018360208201111561167a57600080fd5b803590602001918460018302840111600160201b8311171561169b57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b8111156116ed57600080fd5b8201836020820111156116ff57600080fd5b803590602001918460018302840111600160201b8311171561172057600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b81111561177257600080fd5b82018360208201111561178457600080fd5b803590602001918460018302840111600160201b831117156117a557600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505061ffff83358116945060209093013590921691506131399050565b6109bd6004803603608081101561180d57600080fd5b810190602081018135600160201b81111561182757600080fd5b82018360208201111561183957600080fd5b803590602001918460018302840111600160201b8311171561185a57600080fd5b919390929091602081019035600160201b81111561187757600080fd5b82018360208201111561188957600080fd5b803590602001918460018302840111600160201b831117156118aa57600080fd5b919350915061ffff813581169160200135166131ce565b61192f600480360360208110156118d757600080fd5b810190602081018135600160201b8111156118f157600080fd5b82018360208201111561190357600080fd5b803590602001918460018302840111600160201b8311171561192457600080fd5b5090925090506132c5565b604051808060200180602001856001600160a01b03166001600160a01b03168152602001848152602001838103835287818151815260200191508051906020019080838360005b8381101561198e578181015183820152602001611976565b50505050905090810190601f1680156119bb5780820380516001836020036101000a031916815260200191505b50838103825286518152865160209182019188019080838360005b838110156119ee5781810151838201526020016119d6565b50505050905090810190601f168015611a1b5780820380516001836020036101000a031916815260200191505b50965050505050505060405180910390f35b610290600480360360c0811015611a4357600080fd5b810190602081018135600160201b811115611a5d57600080fd5b820183602082011115611a6f57600080fd5b803590602001918460018302840111600160201b83111715611a9057600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115611ae257600080fd5b820183602082011115611af457600080fd5b803590602001918460018302840111600160201b83111715611b1557600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295949360208101935035915050600160201b811115611b6757600080fd5b820183602082011115611b7957600080fd5b803590602001918460018302840111600160201b83111715611b9a57600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295505050813561ffff908116935060208301351691604001356001600160a01b0316905061342f565b6000546001600160a01b031690565b600054604051600160e01b63888430410281526001600160a01b03838116602483015233604483018190526060600484019081526064840187905291909316926388843041928792879287929091908190608401868680828437600081840152601f19601f82011690508083019250505095505050505050600060405180830381600087803b158015611c9857600080fd5b505af1158015611cac573d6000803e3d6000fd5b50505050505050565b600054604051600160e51b62db0811028152606060048201908152606482018890526001600160a01b0390921691631b610220918991899189918991899189918190602481019060448101906084018a8a80828437600083820152601f01601f191690910185810384528881526020019050888880828437600083820152601f01601f191690910185810383528681526020019050868680828437600081840152601f19601f8201169050808301925050509950505050505050505050600060405180830381600087803b158015611d8c57600080fd5b505af1158015611da0573d6000803e3d6000fd5b50505050505050505050565b60008054604051600160e01b6368a6127302815261ffff8086166084830152841660a48201523360c4820181905260e0600483019081528a5160e48401528a516001600160a01b03909416946368a61273948c948c948c948c948c948c9483926024820192604483019260648101926101049091019160208f01918190849084905b83811015611e46578181015183820152602001611e2e565b50505050905090810190601f168015611e735780820380516001836020036101000a031916815260200191505b5085810384528b5181528b516020918201918d019080838360005b83811015611ea6578181015183820152602001611e8e565b50505050905090810190601f168015611ed35780820380516001836020036101000a031916815260200191505b5085810383528a5181528a516020918201918c019080838360005b83811015611f06578181015183820152602001611eee565b50505050905090810190601f168015611f335780820380516001836020036101000a031916815260200191505b5085810382528951815289516020918201918b019080838360005b83811015611f66578181015183820152602001611f4e565b50505050905090810190601f168015611f935780820380516001836020036101000a031916815260200191505b509b505050505050505050505050600060405180830381600087803b158015611d8c57600080fd5b600054604051600160e01b638baa81910281526001600160a01b03878116600483019081523360648401819052608060248501908152608485018990529290941693638baa8191938a938a938a938a938a9391929190604481019060a401888880828437600083820152601f01601f191690910184810383528681526020019050868680828437600081840152601f19601f82011690508083019250505098505050505050505050600060405180830381600087803b15801561207d57600080fd5b505af1158015612091573d6000803e3d6000fd5b505050505050505050565b600054604051600160e01b634b20f45f0281526001600160a01b0383811660248301523360448301819052606060048401908152606484018790529190931692634b20f45f928792879287929091908190608401868680828437600081840152601f19601f82011690508083019250505095505050505050600060405180830381600087803b158015611c9857600080fd5b60008054604051600160e21b632e6dff9b02815261ffff80871660648301528516608482015260a481018490523360c4820181905260e0600483019081528a5160e48401528a516001600160a01b039094169463b9b7fe6c948c948c948c948c948c948c94839260248201926044830192610104019160208e0191908190849084905b838110156121c95781810151838201526020016121b1565b50505050905090810190601f1680156121f65780820380516001836020036101000a031916815260200191505b5084810383528a5181528a516020918201918c019080838360005b83811015612229578181015183820152602001612211565b50505050905090810190601f1680156122565780820380516001836020036101000a031916815260200191505b5084810382528951815289516020918201918b019080838360005b83811015612289578181015183820152602001612271565b50505050905090810190601f1680156122b65780820380516001836020036101000a031916815260200191505b509a5050505050505050505050600060405180830381600087803b158015611d8c57600080fd5b600054604051600160e01b63404bf3eb0281526001600160a01b038581166024830152336064830181905260806004840190815260848401899052919093169263404bf3eb9289928992899289928992918190604481019060a401898980828437600083820152601f01601f191690910184810383528681526020019050868680828437600081840152601f19601f82011690508083019250505098505050505050505050600060405180830381600087803b15801561207d57600080fd5b60008060009054906101000a90046001600160a01b03166001600160a01b03166344478e796040518163ffffffff1660e01b8152600401602060405180830381600087803b1580156123ed57600080fd5b505af1158015612401573d6000803e3d6000fd5b505050506040513d602081101561241757600080fd5b5051905090565b6000306001600160a01b031663f0d19786878787878760006040518763ffffffff1660e01b81526004018080602001806020018561ffff1661ffff1681526020018461ffff1681526020018381038352898982818152602001925080828437600083820152601f01601f191690910184810383528781526020019050878780828437600081840152601f19601f8201169050808301925050509850505050505050505060206040518083038186803b1580156124d957600080fd5b505afa1580156124ed573d6000803e3d6000fd5b505050506040513d602081101561250357600080fd5b50519695505050505050565b60008060009054906101000a90046001600160a01b03166001600160a01b0316634cbfa82e6040518163ffffffff1660e01b815260040160206040518083038186803b15801561255e57600080fd5b505afa158015612401573d6000803e3d6000fd5b6000805460408051600160e11b6327f2bf3d0281526001600160a01b03858116600483015291519190921692634fe57e7a926024808201939182900301818387803b1580156125c057600080fd5b505af11580156125d4573d6000803e3d6000fd5b5050505050565b6002546001600160a01b0316331461263d5760408051600160e51b62461bcd02815260206004820152600e60248201527f696e76616c69642063616c6c6572000000000000000000000000000000000000604482015290519081900360640190fd5b600080546001600160a01b0319166001600160a01b0392909216919091179055565b60008054604051600160e01b63e91b0e1902815261ffff8087166064830152851660848201526001600160a01b0384811660a48301523360c4830181905260e0600484019081528b5160e48501528b51929094169463e91b0e19948c948c948c948c948c948c9492939092839260248201926044830192610104019160208e019190819084908490838110156121c95781810151838201526020016121b1565b600054604051600160e11b630d82613b02815260448101859052831515606482015282151560848201523360a4820181905260c06004830190815260c483018a90526001600160a01b0390931692631b04c276928b928b928b928b928b928b928b9291908190602481019060e4018b8b80828437600083820152601f01601f191690910184810383528981526020019050898980828437600081840152601f19601f8201169050808301925050509a5050505050505050505050600060405180830381600087803b1580156127d357600080fd5b505af11580156127e7573d6000803e3d6000fd5b5050505050505050505050565b60008054604051600160e61b6302810afd02815261ffff8086166064830152841660848201523360a4820181905260c060048301908152895160c484015289516001600160a01b039094169463a042bf40948b948b948b948b948b949293919283926024810192604482019260e49092019160208d01918190849084905b8381101561288a578181015183820152602001612872565b50505050905090810190601f1680156128b75780820380516001836020036101000a031916815260200191505b5084810383528951815289516020918201918b019080838360005b838110156128ea5781810151838201526020016128d2565b50505050905090810190601f1680156129175780820380516001836020036101000a031916815260200191505b5084810382528851815288516020918201918a019080838360005b8381101561294a578181015183820152602001612932565b50505050905090810190601f1680156129775780820380516001836020036101000a031916815260200191505b509950505050505050505050600060405180830381600087803b15801561207d57600080fd5b600054604051600160e21b632d551959028152602481018390523360448201819052606060048301908152606483018690526001600160a01b039093169263b5546564928792879287928190608401868680828437600081840152601f19601f82011690508083019250505095505050505050600060405180830381600087803b158015611c9857600080fd5b6000805460408051600160e11b6335ab46bb0281526001600160a01b03878116600483019081526024830193845260448301879052931692636b568d76928892889288929091606401848480828437600083820152604051601f909101601f1916909201965060209550909350505081840390508186803b158015612aae57600080fd5b505afa158015612ac2573d6000803e3d6000fd5b505050506040513d6020811015612ad857600080fd5b5051949350505050565b600054604051600160e11b6302740f8f0281526001600160a01b0384811660248301526044820184905233606483018190526080600484019081526084840188905291909316926304e81f1e92889288928892889290819060a401878780828437600081840152601f19601f8201169050808301925050509650505050505050600060405180830381600087803b158015612b7c57600080fd5b505af1158015612b90573d6000803e3d6000fd5b5050505050505050565b60008054604051600160e11b634341e3ff02815261ffff8086166044830152841660648201526080600482019081528751608483015287516001600160a01b0390931693638683c7fe93899389938993899391928392602482019260a49092019160208a0191908190849084905b83811015612c20578181015183820152602001612c08565b50505050905090810190601f168015612c4d5780820380516001836020036101000a031916815260200191505b50838103825286518152865160209182019188019080838360005b83811015612c80578181015183820152602001612c68565b50505050905090810190601f168015612cad5780820380516001836020036101000a031916815260200191505b509650505050505050600060405180830381600087803b158015612b7c57600080fd5b60008054604051600160e01b63d621d95702815261ffff8086166064830152841660848201523360a4820181905260c060048301908152895160c484015289516001600160a01b039094169463d621d957948b948b948b948b948b949293919283926024810192604482019260e49092019160208d01918190849084908381101561288a578181015183820152602001612872565b6000805460408051600160e01b639bd381010281526001600160a01b03878116600483019081526024830193845260448301879052931692639bd38101928892889288929091606401848480828437600083820152604051601f909101601f1916909201965060209550909350505081840390508186803b158015612aae57600080fd5b6000805460408051600160e31b6314b087e1028152600481018690526024810185905290516001600160a01b039092169263a5843f089260448084019382900301818387803b158015612e3b57600080fd5b505af1158015612e4f573d6000803e3d6000fd5b505050505050565b600054604051600160e11b632e52d6df0281523360448201819052606060048301908152606483018790526001600160a01b0390931692635ca5adbe928892889288928892919081906024810190608401888880828437600083820152601f01601f191690910184810383528681526020019050868680828437600081840152601f19601f820116905080830192505050975050505050505050600060405180830381600087803b158015612b7c57600080fd5b600054604051600160e11b630e124c890281526001600160a01b0383811660248301523360448301819052606060048401908152606484018790529190931692631c249912928792879287929091908190608401868680828437600081840152601f19601f82011690508083019250505095505050505050600060405180830381600087803b158015611c9857600080fd5b600054604051600160e01b633cf5f33b028152602481018390523360448201819052606060048301908152606483018690526001600160a01b0390931692633cf5f33b928792879287928190608401868680828437600081840152601f19601f82011690508083019250505095505050505050600060405180830381600087803b158015611c9857600080fd5b6000805460408051600160e51b63068d50610281526001600160a01b0385811660048301529151919092169163d1aa0c20916024808301926020929190829003018186803b15801561307b57600080fd5b505afa15801561308f573d6000803e3d6000fd5b505050506040513d60208110156130a557600080fd5b505192915050565b6000805460408051600160e01b63e5055a030281526001600160a01b03868116600483015285811660248301529151919092169163e5055a03916044808301926020929190829003018186803b15801561310657600080fd5b505afa15801561311a573d6000803e3d6000fd5b505050506040513d602081101561313057600080fd5b50519392505050565b60008054604051600160e01b63ecad01d502815261ffff8086166064830152841660848201523360a4820181905260c060048301908152895160c484015289516001600160a01b039094169463ecad01d5948b948b948b948b948b949293919283926024810192604482019260e49092019160208d01918190849084908381101561288a578181015183820152602001612872565b60008054604051600160e01b635456443d02815261ffff808616604483015284166064820152608060048201908152608482018990526001600160a01b0390921691635456443d918a918a918a918a918a918a918190602481019060a401898980828437600083820152601f01601f191690910184810383528781526020019050878780828437600081840152601f19601f8201169050808301925050509850505050505050505060206040518083038186803b15801561328e57600080fd5b505afa1580156132a2573d6000803e3d6000fd5b505050506040513d60208110156132b857600080fd5b5051979650505050505050565b60008054604051600160e01b63f346a3a7028152602060048201908152602482018590526060938493909283926001600160a01b039092169163f346a3a791899189918190604401848480828437600081840152601f19601f820116905080830192505050935050505060006040518083038186803b15801561334757600080fd5b505afa15801561335b573d6000803e3d6000fd5b505050506040513d6000823e601f3d908101601f19168201604052608081101561338457600080fd5b810190808051600160201b81111561339b57600080fd5b820160208101848111156133ae57600080fd5b8151600160201b8111828201871017156133c757600080fd5b50509291906020018051600160201b8111156133e257600080fd5b820160208101848111156133f557600080fd5b8151600160201b81118282018710171561340e57600080fd5b50506020820151604090920151949b909a5090985092965091945050505050565b60008054604051600160e11b637baf850302815261ffff8087166064830152851660848201526001600160a01b0384811660a48301523360c4830181905260e0600484019081528b5160e48501528b51929094169463f75f0a06948c948c948c948c948c948c9492939092839260248201926044830192610104019160208e019190819084908490838110156121c95781810151838201526020016121b156fea165627a7a7230582071240d7c41bdc6b67870ef69c3610cc03d518ac25800288ba43bc7df29e484ce0029"
+
+// DeployPermInterface deploys a new Ethereum contract, binding an instance of PermInterface to it.
+func DeployPermInterface(auth *bind.TransactOpts, backend bind.ContractBackend, _permImplUpgradeable common.Address) (common.Address, *types.Transaction, *PermInterface, error) {
+	parsed, err := abi.JSON(strings.NewReader(PermInterfaceABI))
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
 
-	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(EeaPermInterfaceBin), backend, _permImplUpgradeable)
+	address, tx, contract, err := bind.DeployContract(auth, parsed, common.FromHex(PermInterfaceBin), backend, _permImplUpgradeable)
 	if err != nil {
 		return common.Address{}, nil, nil, err
 	}
-	return address, tx, &EeaPermInterface{EeaPermInterfaceCaller: EeaPermInterfaceCaller{contract: contract}, EeaPermInterfaceTransactor: EeaPermInterfaceTransactor{contract: contract}, EeaPermInterfaceFilterer: EeaPermInterfaceFilterer{contract: contract}}, nil
+	return address, tx, &PermInterface{PermInterfaceCaller: PermInterfaceCaller{contract: contract}, PermInterfaceTransactor: PermInterfaceTransactor{contract: contract}, PermInterfaceFilterer: PermInterfaceFilterer{contract: contract}}, nil
 }
 
-// EeaPermInterface is an auto generated Go binding around an Ethereum contract.
-type EeaPermInterface struct {
-	EeaPermInterfaceCaller     // Read-only binding to the contract
-	EeaPermInterfaceTransactor // Write-only binding to the contract
-	EeaPermInterfaceFilterer   // Log filterer for contract events
+// PermInterface is an auto generated Go binding around an Ethereum contract.
+type PermInterface struct {
+	PermInterfaceCaller     // Read-only binding to the contract
+	PermInterfaceTransactor // Write-only binding to the contract
+	PermInterfaceFilterer   // Log filterer for contract events
 }
 
-// EeaPermInterfaceCaller is an auto generated read-only Go binding around an Ethereum contract.
-type EeaPermInterfaceCaller struct {
+// PermInterfaceCaller is an auto generated read-only Go binding around an Ethereum contract.
+type PermInterfaceCaller struct {
 	contract *bind.BoundContract // Generic contract wrapper for the low level calls
 }
 
-// EeaPermInterfaceTransactor is an auto generated write-only Go binding around an Ethereum contract.
-type EeaPermInterfaceTransactor struct {
+// PermInterfaceTransactor is an auto generated write-only Go binding around an Ethereum contract.
+type PermInterfaceTransactor struct {
 	contract *bind.BoundContract // Generic contract wrapper for the low level calls
 }
 
-// EeaPermInterfaceFilterer is an auto generated log filtering Go binding around an Ethereum contract events.
-type EeaPermInterfaceFilterer struct {
+// PermInterfaceFilterer is an auto generated log filtering Go binding around an Ethereum contract events.
+type PermInterfaceFilterer struct {
 	contract *bind.BoundContract // Generic contract wrapper for the low level calls
 }
 
-// EeaPermInterfaceSession is an auto generated Go binding around an Ethereum contract,
+// PermInterfaceSession is an auto generated Go binding around an Ethereum contract,
 // with pre-set call and transact options.
-type EeaPermInterfaceSession struct {
-	Contract     *EeaPermInterface // Generic contract binding to set the session for
+type PermInterfaceSession struct {
+	Contract     *PermInterface    // Generic contract binding to set the session for
 	CallOpts     bind.CallOpts     // Call options to use throughout this session
 	TransactOpts bind.TransactOpts // Transaction auth options to use throughout this session
 }
 
-// EeaPermInterfaceCallerSession is an auto generated read-only Go binding around an Ethereum contract,
+// PermInterfaceCallerSession is an auto generated read-only Go binding around an Ethereum contract,
 // with pre-set call options.
-type EeaPermInterfaceCallerSession struct {
-	Contract *EeaPermInterfaceCaller // Generic contract caller binding to set the session for
-	CallOpts bind.CallOpts           // Call options to use throughout this session
+type PermInterfaceCallerSession struct {
+	Contract *PermInterfaceCaller // Generic contract caller binding to set the session for
+	CallOpts bind.CallOpts        // Call options to use throughout this session
 }
 
-// EeaPermInterfaceTransactorSession is an auto generated write-only Go binding around an Ethereum contract,
+// PermInterfaceTransactorSession is an auto generated write-only Go binding around an Ethereum contract,
 // with pre-set transact options.
-type EeaPermInterfaceTransactorSession struct {
-	Contract     *EeaPermInterfaceTransactor // Generic contract transactor binding to set the session for
-	TransactOpts bind.TransactOpts           // Transaction auth options to use throughout this session
+type PermInterfaceTransactorSession struct {
+	Contract     *PermInterfaceTransactor // Generic contract transactor binding to set the session for
+	TransactOpts bind.TransactOpts        // Transaction auth options to use throughout this session
 }
 
-// EeaPermInterfaceRaw is an auto generated low-level Go binding around an Ethereum contract.
-type EeaPermInterfaceRaw struct {
-	Contract *EeaPermInterface // Generic contract binding to access the raw methods on
+// PermInterfaceRaw is an auto generated low-level Go binding around an Ethereum contract.
+type PermInterfaceRaw struct {
+	Contract *PermInterface // Generic contract binding to access the raw methods on
 }
 
-// EeaPermInterfaceCallerRaw is an auto generated low-level read-only Go binding around an Ethereum contract.
-type EeaPermInterfaceCallerRaw struct {
-	Contract *EeaPermInterfaceCaller // Generic read-only contract binding to access the raw methods on
+// PermInterfaceCallerRaw is an auto generated low-level read-only Go binding around an Ethereum contract.
+type PermInterfaceCallerRaw struct {
+	Contract *PermInterfaceCaller // Generic read-only contract binding to access the raw methods on
 }
 
-// EeaPermInterfaceTransactorRaw is an auto generated low-level write-only Go binding around an Ethereum contract.
-type EeaPermInterfaceTransactorRaw struct {
-	Contract *EeaPermInterfaceTransactor // Generic write-only contract binding to access the raw methods on
+// PermInterfaceTransactorRaw is an auto generated low-level write-only Go binding around an Ethereum contract.
+type PermInterfaceTransactorRaw struct {
+	Contract *PermInterfaceTransactor // Generic write-only contract binding to access the raw methods on
 }
 
-// NewEeaPermInterface creates a new instance of EeaPermInterface, bound to a specific deployed contract.
-func NewEeaPermInterface(address common.Address, backend bind.ContractBackend) (*EeaPermInterface, error) {
-	contract, err := bindEeaPermInterface(address, backend, backend, backend)
+// NewPermInterface creates a new instance of PermInterface, bound to a specific deployed contract.
+func NewPermInterface(address common.Address, backend bind.ContractBackend) (*PermInterface, error) {
+	contract, err := bindPermInterface(address, backend, backend, backend)
 	if err != nil {
 		return nil, err
 	}
-	return &EeaPermInterface{EeaPermInterfaceCaller: EeaPermInterfaceCaller{contract: contract}, EeaPermInterfaceTransactor: EeaPermInterfaceTransactor{contract: contract}, EeaPermInterfaceFilterer: EeaPermInterfaceFilterer{contract: contract}}, nil
+	return &PermInterface{PermInterfaceCaller: PermInterfaceCaller{contract: contract}, PermInterfaceTransactor: PermInterfaceTransactor{contract: contract}, PermInterfaceFilterer: PermInterfaceFilterer{contract: contract}}, nil
 }
 
-// NewEeaPermInterfaceCaller creates a new read-only instance of EeaPermInterface, bound to a specific deployed contract.
-func NewEeaPermInterfaceCaller(address common.Address, caller bind.ContractCaller) (*EeaPermInterfaceCaller, error) {
-	contract, err := bindEeaPermInterface(address, caller, nil, nil)
+// NewPermInterfaceCaller creates a new read-only instance of PermInterface, bound to a specific deployed contract.
+func NewPermInterfaceCaller(address common.Address, caller bind.ContractCaller) (*PermInterfaceCaller, error) {
+	contract, err := bindPermInterface(address, caller, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &EeaPermInterfaceCaller{contract: contract}, nil
+	return &PermInterfaceCaller{contract: contract}, nil
 }
 
-// NewEeaPermInterfaceTransactor creates a new write-only instance of EeaPermInterface, bound to a specific deployed contract.
-func NewEeaPermInterfaceTransactor(address common.Address, transactor bind.ContractTransactor) (*EeaPermInterfaceTransactor, error) {
-	contract, err := bindEeaPermInterface(address, nil, transactor, nil)
+// NewPermInterfaceTransactor creates a new write-only instance of PermInterface, bound to a specific deployed contract.
+func NewPermInterfaceTransactor(address common.Address, transactor bind.ContractTransactor) (*PermInterfaceTransactor, error) {
+	contract, err := bindPermInterface(address, nil, transactor, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &EeaPermInterfaceTransactor{contract: contract}, nil
+	return &PermInterfaceTransactor{contract: contract}, nil
 }
 
-// NewEeaPermInterfaceFilterer creates a new log filterer instance of EeaPermInterface, bound to a specific deployed contract.
-func NewEeaPermInterfaceFilterer(address common.Address, filterer bind.ContractFilterer) (*EeaPermInterfaceFilterer, error) {
-	contract, err := bindEeaPermInterface(address, nil, nil, filterer)
+// NewPermInterfaceFilterer creates a new log filterer instance of PermInterface, bound to a specific deployed contract.
+func NewPermInterfaceFilterer(address common.Address, filterer bind.ContractFilterer) (*PermInterfaceFilterer, error) {
+	contract, err := bindPermInterface(address, nil, nil, filterer)
 	if err != nil {
 		return nil, err
 	}
-	return &EeaPermInterfaceFilterer{contract: contract}, nil
+	return &PermInterfaceFilterer{contract: contract}, nil
 }
 
-// bindEeaPermInterface binds a generic wrapper to an already deployed contract.
-func bindEeaPermInterface(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
-	parsed, err := abi.JSON(strings.NewReader(EeaPermInterfaceABI))
+// bindPermInterface binds a generic wrapper to an already deployed contract.
+func bindPermInterface(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
+	parsed, err := abi.JSON(strings.NewReader(PermInterfaceABI))
 	if err != nil {
 		return nil, err
 	}
@@ -155,122 +157,122 @@ func bindEeaPermInterface(address common.Address, caller bind.ContractCaller, tr
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_EeaPermInterface *EeaPermInterfaceRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
-	return _EeaPermInterface.Contract.EeaPermInterfaceCaller.contract.Call(opts, result, method, params...)
+func (_PermInterface *PermInterfaceRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+	return _PermInterface.Contract.PermInterfaceCaller.contract.Call(opts, result, method, params...)
 }
 
 // Transfer initiates a plain transaction to move funds to the contract, calling
 // its default method if one is available.
-func (_EeaPermInterface *EeaPermInterfaceRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.EeaPermInterfaceTransactor.contract.Transfer(opts)
+func (_PermInterface *PermInterfaceRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _PermInterface.Contract.PermInterfaceTransactor.contract.Transfer(opts)
 }
 
 // Transact invokes the (paid) contract method with params as input values.
-func (_EeaPermInterface *EeaPermInterfaceRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.EeaPermInterfaceTransactor.contract.Transact(opts, method, params...)
+func (_PermInterface *PermInterfaceRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
+	return _PermInterface.Contract.PermInterfaceTransactor.contract.Transact(opts, method, params...)
 }
 
 // Call invokes the (constant) contract method with params as input values and
 // sets the output to result. The result type might be a single field for simple
 // returns, a slice of interfaces for anonymous returns and a struct for named
 // returns.
-func (_EeaPermInterface *EeaPermInterfaceCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
-	return _EeaPermInterface.Contract.contract.Call(opts, result, method, params...)
+func (_PermInterface *PermInterfaceCallerRaw) Call(opts *bind.CallOpts, result interface{}, method string, params ...interface{}) error {
+	return _PermInterface.Contract.contract.Call(opts, result, method, params...)
 }
 
 // Transfer initiates a plain transaction to move funds to the contract, calling
 // its default method if one is available.
-func (_EeaPermInterface *EeaPermInterfaceTransactorRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.contract.Transfer(opts)
+func (_PermInterface *PermInterfaceTransactorRaw) Transfer(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _PermInterface.Contract.contract.Transfer(opts)
 }
 
 // Transact invokes the (paid) contract method with params as input values.
-func (_EeaPermInterface *EeaPermInterfaceTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.contract.Transact(opts, method, params...)
+func (_PermInterface *PermInterfaceTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
+	return _PermInterface.Contract.contract.Transact(opts, method, params...)
 }
 
 // ConnectionAllowed is a free data retrieval call binding the contract method 0x45a59e5b.
 //
 // Solidity: function connectionAllowed(string _enodeId, string _ip, uint16 _port) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCaller) ConnectionAllowed(opts *bind.CallOpts, _enodeId string, _ip string, _port uint16) (bool, error) {
+func (_PermInterface *PermInterfaceCaller) ConnectionAllowed(opts *bind.CallOpts, _enodeId string, _ip string, _port uint16) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _EeaPermInterface.contract.Call(opts, out, "connectionAllowed", _enodeId, _ip, _port)
+	err := _PermInterface.contract.Call(opts, out, "connectionAllowed", _enodeId, _ip, _port)
 	return *ret0, err
 }
 
 // ConnectionAllowed is a free data retrieval call binding the contract method 0x45a59e5b.
 //
 // Solidity: function connectionAllowed(string _enodeId, string _ip, uint16 _port) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceSession) ConnectionAllowed(_enodeId string, _ip string, _port uint16) (bool, error) {
-	return _EeaPermInterface.Contract.ConnectionAllowed(&_EeaPermInterface.CallOpts, _enodeId, _ip, _port)
+func (_PermInterface *PermInterfaceSession) ConnectionAllowed(_enodeId string, _ip string, _port uint16) (bool, error) {
+	return _PermInterface.Contract.ConnectionAllowed(&_PermInterface.CallOpts, _enodeId, _ip, _port)
 }
 
 // ConnectionAllowed is a free data retrieval call binding the contract method 0x45a59e5b.
 //
 // Solidity: function connectionAllowed(string _enodeId, string _ip, uint16 _port) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCallerSession) ConnectionAllowed(_enodeId string, _ip string, _port uint16) (bool, error) {
-	return _EeaPermInterface.Contract.ConnectionAllowed(&_EeaPermInterface.CallOpts, _enodeId, _ip, _port)
+func (_PermInterface *PermInterfaceCallerSession) ConnectionAllowed(_enodeId string, _ip string, _port uint16) (bool, error) {
+	return _PermInterface.Contract.ConnectionAllowed(&_PermInterface.CallOpts, _enodeId, _ip, _port)
 }
 
 // ConnectionAllowedImpl is a free data retrieval call binding the contract method 0xf0d19786.
 //
 // Solidity: function connectionAllowedImpl(string _enodeId, string _ip, uint16 _port, uint16 _raftport) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCaller) ConnectionAllowedImpl(opts *bind.CallOpts, _enodeId string, _ip string, _port uint16, _raftport uint16) (bool, error) {
+func (_PermInterface *PermInterfaceCaller) ConnectionAllowedImpl(opts *bind.CallOpts, _enodeId string, _ip string, _port uint16, _raftport uint16) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _EeaPermInterface.contract.Call(opts, out, "connectionAllowedImpl", _enodeId, _ip, _port, _raftport)
+	err := _PermInterface.contract.Call(opts, out, "connectionAllowedImpl", _enodeId, _ip, _port, _raftport)
 	return *ret0, err
 }
 
 // ConnectionAllowedImpl is a free data retrieval call binding the contract method 0xf0d19786.
 //
 // Solidity: function connectionAllowedImpl(string _enodeId, string _ip, uint16 _port, uint16 _raftport) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceSession) ConnectionAllowedImpl(_enodeId string, _ip string, _port uint16, _raftport uint16) (bool, error) {
-	return _EeaPermInterface.Contract.ConnectionAllowedImpl(&_EeaPermInterface.CallOpts, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceSession) ConnectionAllowedImpl(_enodeId string, _ip string, _port uint16, _raftport uint16) (bool, error) {
+	return _PermInterface.Contract.ConnectionAllowedImpl(&_PermInterface.CallOpts, _enodeId, _ip, _port, _raftport)
 }
 
 // ConnectionAllowedImpl is a free data retrieval call binding the contract method 0xf0d19786.
 //
 // Solidity: function connectionAllowedImpl(string _enodeId, string _ip, uint16 _port, uint16 _raftport) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCallerSession) ConnectionAllowedImpl(_enodeId string, _ip string, _port uint16, _raftport uint16) (bool, error) {
-	return _EeaPermInterface.Contract.ConnectionAllowedImpl(&_EeaPermInterface.CallOpts, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceCallerSession) ConnectionAllowedImpl(_enodeId string, _ip string, _port uint16, _raftport uint16) (bool, error) {
+	return _PermInterface.Contract.ConnectionAllowedImpl(&_PermInterface.CallOpts, _enodeId, _ip, _port, _raftport)
 }
 
 // GetNetworkBootStatus is a free data retrieval call binding the contract method 0x4cbfa82e.
 //
 // Solidity: function getNetworkBootStatus() constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCaller) GetNetworkBootStatus(opts *bind.CallOpts) (bool, error) {
+func (_PermInterface *PermInterfaceCaller) GetNetworkBootStatus(opts *bind.CallOpts) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _EeaPermInterface.contract.Call(opts, out, "getNetworkBootStatus")
+	err := _PermInterface.contract.Call(opts, out, "getNetworkBootStatus")
 	return *ret0, err
 }
 
 // GetNetworkBootStatus is a free data retrieval call binding the contract method 0x4cbfa82e.
 //
 // Solidity: function getNetworkBootStatus() constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceSession) GetNetworkBootStatus() (bool, error) {
-	return _EeaPermInterface.Contract.GetNetworkBootStatus(&_EeaPermInterface.CallOpts)
+func (_PermInterface *PermInterfaceSession) GetNetworkBootStatus() (bool, error) {
+	return _PermInterface.Contract.GetNetworkBootStatus(&_PermInterface.CallOpts)
 }
 
 // GetNetworkBootStatus is a free data retrieval call binding the contract method 0x4cbfa82e.
 //
 // Solidity: function getNetworkBootStatus() constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCallerSession) GetNetworkBootStatus() (bool, error) {
-	return _EeaPermInterface.Contract.GetNetworkBootStatus(&_EeaPermInterface.CallOpts)
+func (_PermInterface *PermInterfaceCallerSession) GetNetworkBootStatus() (bool, error) {
+	return _PermInterface.Contract.GetNetworkBootStatus(&_PermInterface.CallOpts)
 }
 
 // GetPendingOp is a free data retrieval call binding the contract method 0xf346a3a7.
 //
 // Solidity: function getPendingOp(string _orgId) constant returns(string, string, address, uint256)
-func (_EeaPermInterface *EeaPermInterfaceCaller) GetPendingOp(opts *bind.CallOpts, _orgId string) (string, string, common.Address, *big.Int, error) {
+func (_PermInterface *PermInterfaceCaller) GetPendingOp(opts *bind.CallOpts, _orgId string) (string, string, common.Address, *big.Int, error) {
 	var (
 		ret0 = new(string)
 		ret1 = new(string)
@@ -283,633 +285,633 @@ func (_EeaPermInterface *EeaPermInterfaceCaller) GetPendingOp(opts *bind.CallOpt
 		ret2,
 		ret3,
 	}
-	err := _EeaPermInterface.contract.Call(opts, out, "getPendingOp", _orgId)
+	err := _PermInterface.contract.Call(opts, out, "getPendingOp", _orgId)
 	return *ret0, *ret1, *ret2, *ret3, err
 }
 
 // GetPendingOp is a free data retrieval call binding the contract method 0xf346a3a7.
 //
 // Solidity: function getPendingOp(string _orgId) constant returns(string, string, address, uint256)
-func (_EeaPermInterface *EeaPermInterfaceSession) GetPendingOp(_orgId string) (string, string, common.Address, *big.Int, error) {
-	return _EeaPermInterface.Contract.GetPendingOp(&_EeaPermInterface.CallOpts, _orgId)
+func (_PermInterface *PermInterfaceSession) GetPendingOp(_orgId string) (string, string, common.Address, *big.Int, error) {
+	return _PermInterface.Contract.GetPendingOp(&_PermInterface.CallOpts, _orgId)
 }
 
 // GetPendingOp is a free data retrieval call binding the contract method 0xf346a3a7.
 //
 // Solidity: function getPendingOp(string _orgId) constant returns(string, string, address, uint256)
-func (_EeaPermInterface *EeaPermInterfaceCallerSession) GetPendingOp(_orgId string) (string, string, common.Address, *big.Int, error) {
-	return _EeaPermInterface.Contract.GetPendingOp(&_EeaPermInterface.CallOpts, _orgId)
+func (_PermInterface *PermInterfaceCallerSession) GetPendingOp(_orgId string) (string, string, common.Address, *big.Int, error) {
+	return _PermInterface.Contract.GetPendingOp(&_PermInterface.CallOpts, _orgId)
 }
 
 // GetPermissionsImpl is a free data retrieval call binding the contract method 0x03ed6933.
 //
 // Solidity: function getPermissionsImpl() constant returns(address)
-func (_EeaPermInterface *EeaPermInterfaceCaller) GetPermissionsImpl(opts *bind.CallOpts) (common.Address, error) {
+func (_PermInterface *PermInterfaceCaller) GetPermissionsImpl(opts *bind.CallOpts) (common.Address, error) {
 	var (
 		ret0 = new(common.Address)
 	)
 	out := ret0
-	err := _EeaPermInterface.contract.Call(opts, out, "getPermissionsImpl")
+	err := _PermInterface.contract.Call(opts, out, "getPermissionsImpl")
 	return *ret0, err
 }
 
 // GetPermissionsImpl is a free data retrieval call binding the contract method 0x03ed6933.
 //
 // Solidity: function getPermissionsImpl() constant returns(address)
-func (_EeaPermInterface *EeaPermInterfaceSession) GetPermissionsImpl() (common.Address, error) {
-	return _EeaPermInterface.Contract.GetPermissionsImpl(&_EeaPermInterface.CallOpts)
+func (_PermInterface *PermInterfaceSession) GetPermissionsImpl() (common.Address, error) {
+	return _PermInterface.Contract.GetPermissionsImpl(&_PermInterface.CallOpts)
 }
 
 // GetPermissionsImpl is a free data retrieval call binding the contract method 0x03ed6933.
 //
 // Solidity: function getPermissionsImpl() constant returns(address)
-func (_EeaPermInterface *EeaPermInterfaceCallerSession) GetPermissionsImpl() (common.Address, error) {
-	return _EeaPermInterface.Contract.GetPermissionsImpl(&_EeaPermInterface.CallOpts)
+func (_PermInterface *PermInterfaceCallerSession) GetPermissionsImpl() (common.Address, error) {
+	return _PermInterface.Contract.GetPermissionsImpl(&_PermInterface.CallOpts)
 }
 
 // IsNetworkAdmin is a free data retrieval call binding the contract method 0xd1aa0c20.
 //
 // Solidity: function isNetworkAdmin(address _account) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCaller) IsNetworkAdmin(opts *bind.CallOpts, _account common.Address) (bool, error) {
+func (_PermInterface *PermInterfaceCaller) IsNetworkAdmin(opts *bind.CallOpts, _account common.Address) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _EeaPermInterface.contract.Call(opts, out, "isNetworkAdmin", _account)
+	err := _PermInterface.contract.Call(opts, out, "isNetworkAdmin", _account)
 	return *ret0, err
 }
 
 // IsNetworkAdmin is a free data retrieval call binding the contract method 0xd1aa0c20.
 //
 // Solidity: function isNetworkAdmin(address _account) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceSession) IsNetworkAdmin(_account common.Address) (bool, error) {
-	return _EeaPermInterface.Contract.IsNetworkAdmin(&_EeaPermInterface.CallOpts, _account)
+func (_PermInterface *PermInterfaceSession) IsNetworkAdmin(_account common.Address) (bool, error) {
+	return _PermInterface.Contract.IsNetworkAdmin(&_PermInterface.CallOpts, _account)
 }
 
 // IsNetworkAdmin is a free data retrieval call binding the contract method 0xd1aa0c20.
 //
 // Solidity: function isNetworkAdmin(address _account) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCallerSession) IsNetworkAdmin(_account common.Address) (bool, error) {
-	return _EeaPermInterface.Contract.IsNetworkAdmin(&_EeaPermInterface.CallOpts, _account)
+func (_PermInterface *PermInterfaceCallerSession) IsNetworkAdmin(_account common.Address) (bool, error) {
+	return _PermInterface.Contract.IsNetworkAdmin(&_PermInterface.CallOpts, _account)
 }
 
 // IsOrgAdmin is a free data retrieval call binding the contract method 0x9bd38101.
 //
 // Solidity: function isOrgAdmin(address _account, string _orgId) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCaller) IsOrgAdmin(opts *bind.CallOpts, _account common.Address, _orgId string) (bool, error) {
+func (_PermInterface *PermInterfaceCaller) IsOrgAdmin(opts *bind.CallOpts, _account common.Address, _orgId string) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _EeaPermInterface.contract.Call(opts, out, "isOrgAdmin", _account, _orgId)
+	err := _PermInterface.contract.Call(opts, out, "isOrgAdmin", _account, _orgId)
 	return *ret0, err
 }
 
 // IsOrgAdmin is a free data retrieval call binding the contract method 0x9bd38101.
 //
 // Solidity: function isOrgAdmin(address _account, string _orgId) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceSession) IsOrgAdmin(_account common.Address, _orgId string) (bool, error) {
-	return _EeaPermInterface.Contract.IsOrgAdmin(&_EeaPermInterface.CallOpts, _account, _orgId)
+func (_PermInterface *PermInterfaceSession) IsOrgAdmin(_account common.Address, _orgId string) (bool, error) {
+	return _PermInterface.Contract.IsOrgAdmin(&_PermInterface.CallOpts, _account, _orgId)
 }
 
 // IsOrgAdmin is a free data retrieval call binding the contract method 0x9bd38101.
 //
 // Solidity: function isOrgAdmin(address _account, string _orgId) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCallerSession) IsOrgAdmin(_account common.Address, _orgId string) (bool, error) {
-	return _EeaPermInterface.Contract.IsOrgAdmin(&_EeaPermInterface.CallOpts, _account, _orgId)
+func (_PermInterface *PermInterfaceCallerSession) IsOrgAdmin(_account common.Address, _orgId string) (bool, error) {
+	return _PermInterface.Contract.IsOrgAdmin(&_PermInterface.CallOpts, _account, _orgId)
 }
 
 // TransactionAllowed is a free data retrieval call binding the contract method 0xe5055a03.
 //
 // Solidity: function transactionAllowed(address _srcaccount, address _tgtaccount) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCaller) TransactionAllowed(opts *bind.CallOpts, _srcaccount common.Address, _tgtaccount common.Address) (bool, error) {
+func (_PermInterface *PermInterfaceCaller) TransactionAllowed(opts *bind.CallOpts, _srcaccount common.Address, _tgtaccount common.Address) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _EeaPermInterface.contract.Call(opts, out, "transactionAllowed", _srcaccount, _tgtaccount)
+	err := _PermInterface.contract.Call(opts, out, "transactionAllowed", _srcaccount, _tgtaccount)
 	return *ret0, err
 }
 
 // TransactionAllowed is a free data retrieval call binding the contract method 0xe5055a03.
 //
 // Solidity: function transactionAllowed(address _srcaccount, address _tgtaccount) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceSession) TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error) {
-	return _EeaPermInterface.Contract.TransactionAllowed(&_EeaPermInterface.CallOpts, _srcaccount, _tgtaccount)
+func (_PermInterface *PermInterfaceSession) TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error) {
+	return _PermInterface.Contract.TransactionAllowed(&_PermInterface.CallOpts, _srcaccount, _tgtaccount)
 }
 
 // TransactionAllowed is a free data retrieval call binding the contract method 0xe5055a03.
 //
 // Solidity: function transactionAllowed(address _srcaccount, address _tgtaccount) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCallerSession) TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error) {
-	return _EeaPermInterface.Contract.TransactionAllowed(&_EeaPermInterface.CallOpts, _srcaccount, _tgtaccount)
+func (_PermInterface *PermInterfaceCallerSession) TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error) {
+	return _PermInterface.Contract.TransactionAllowed(&_PermInterface.CallOpts, _srcaccount, _tgtaccount)
 }
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
 // Solidity: function validateAccount(address _account, string _orgId) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCaller) ValidateAccount(opts *bind.CallOpts, _account common.Address, _orgId string) (bool, error) {
+func (_PermInterface *PermInterfaceCaller) ValidateAccount(opts *bind.CallOpts, _account common.Address, _orgId string) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _EeaPermInterface.contract.Call(opts, out, "validateAccount", _account, _orgId)
+	err := _PermInterface.contract.Call(opts, out, "validateAccount", _account, _orgId)
 	return *ret0, err
 }
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
 // Solidity: function validateAccount(address _account, string _orgId) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceSession) ValidateAccount(_account common.Address, _orgId string) (bool, error) {
-	return _EeaPermInterface.Contract.ValidateAccount(&_EeaPermInterface.CallOpts, _account, _orgId)
+func (_PermInterface *PermInterfaceSession) ValidateAccount(_account common.Address, _orgId string) (bool, error) {
+	return _PermInterface.Contract.ValidateAccount(&_PermInterface.CallOpts, _account, _orgId)
 }
 
 // ValidateAccount is a free data retrieval call binding the contract method 0x6b568d76.
 //
 // Solidity: function validateAccount(address _account, string _orgId) constant returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceCallerSession) ValidateAccount(_account common.Address, _orgId string) (bool, error) {
-	return _EeaPermInterface.Contract.ValidateAccount(&_EeaPermInterface.CallOpts, _account, _orgId)
+func (_PermInterface *PermInterfaceCallerSession) ValidateAccount(_account common.Address, _orgId string) (bool, error) {
+	return _PermInterface.Contract.ValidateAccount(&_PermInterface.CallOpts, _account, _orgId)
 }
 
 // AddAdminAccount is a paid mutator transaction binding the contract method 0x4fe57e7a.
 //
 // Solidity: function addAdminAccount(address _acct) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) AddAdminAccount(opts *bind.TransactOpts, _acct common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "addAdminAccount", _acct)
+func (_PermInterface *PermInterfaceTransactor) AddAdminAccount(opts *bind.TransactOpts, _acct common.Address) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "addAdminAccount", _acct)
 }
 
 // AddAdminAccount is a paid mutator transaction binding the contract method 0x4fe57e7a.
 //
 // Solidity: function addAdminAccount(address _acct) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) AddAdminAccount(_acct common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddAdminAccount(&_EeaPermInterface.TransactOpts, _acct)
+func (_PermInterface *PermInterfaceSession) AddAdminAccount(_acct common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddAdminAccount(&_PermInterface.TransactOpts, _acct)
 }
 
 // AddAdminAccount is a paid mutator transaction binding the contract method 0x4fe57e7a.
 //
 // Solidity: function addAdminAccount(address _acct) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) AddAdminAccount(_acct common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddAdminAccount(&_EeaPermInterface.TransactOpts, _acct)
+func (_PermInterface *PermInterfaceTransactorSession) AddAdminAccount(_acct common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddAdminAccount(&_PermInterface.TransactOpts, _acct)
 }
 
 // AddAdminNode is a paid mutator transaction binding the contract method 0x8683c7fe.
 //
 // Solidity: function addAdminNode(string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) AddAdminNode(opts *bind.TransactOpts, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "addAdminNode", _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceTransactor) AddAdminNode(opts *bind.TransactOpts, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "addAdminNode", _enodeId, _ip, _port, _raftport)
 }
 
 // AddAdminNode is a paid mutator transaction binding the contract method 0x8683c7fe.
 //
 // Solidity: function addAdminNode(string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) AddAdminNode(_enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddAdminNode(&_EeaPermInterface.TransactOpts, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceSession) AddAdminNode(_enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddAdminNode(&_PermInterface.TransactOpts, _enodeId, _ip, _port, _raftport)
 }
 
 // AddAdminNode is a paid mutator transaction binding the contract method 0x8683c7fe.
 //
 // Solidity: function addAdminNode(string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) AddAdminNode(_enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddAdminNode(&_EeaPermInterface.TransactOpts, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceTransactorSession) AddAdminNode(_enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddAdminNode(&_PermInterface.TransactOpts, _enodeId, _ip, _port, _raftport)
 }
 
 // AddNewRole is a paid mutator transaction binding the contract method 0x51f604c3.
 //
 // Solidity: function addNewRole(string _roleId, string _orgId, uint256 _access, bool _voter, bool _admin) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) AddNewRole(opts *bind.TransactOpts, _roleId string, _orgId string, _access *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "addNewRole", _roleId, _orgId, _access, _voter, _admin)
+func (_PermInterface *PermInterfaceTransactor) AddNewRole(opts *bind.TransactOpts, _roleId string, _orgId string, _access *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "addNewRole", _roleId, _orgId, _access, _voter, _admin)
 }
 
 // AddNewRole is a paid mutator transaction binding the contract method 0x51f604c3.
 //
 // Solidity: function addNewRole(string _roleId, string _orgId, uint256 _access, bool _voter, bool _admin) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) AddNewRole(_roleId string, _orgId string, _access *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddNewRole(&_EeaPermInterface.TransactOpts, _roleId, _orgId, _access, _voter, _admin)
+func (_PermInterface *PermInterfaceSession) AddNewRole(_roleId string, _orgId string, _access *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddNewRole(&_PermInterface.TransactOpts, _roleId, _orgId, _access, _voter, _admin)
 }
 
 // AddNewRole is a paid mutator transaction binding the contract method 0x51f604c3.
 //
 // Solidity: function addNewRole(string _roleId, string _orgId, uint256 _access, bool _voter, bool _admin) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) AddNewRole(_roleId string, _orgId string, _access *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddNewRole(&_EeaPermInterface.TransactOpts, _roleId, _orgId, _access, _voter, _admin)
+func (_PermInterface *PermInterfaceTransactorSession) AddNewRole(_roleId string, _orgId string, _access *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddNewRole(&_PermInterface.TransactOpts, _roleId, _orgId, _access, _voter, _admin)
 }
 
 // AddNode is a paid mutator transaction binding the contract method 0xef5f7196.
 //
 // Solidity: function addNode(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) AddNode(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "addNode", _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceTransactor) AddNode(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "addNode", _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // AddNode is a paid mutator transaction binding the contract method 0xef5f7196.
 //
 // Solidity: function addNode(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) AddNode(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddNode(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceSession) AddNode(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddNode(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // AddNode is a paid mutator transaction binding the contract method 0xef5f7196.
 //
 // Solidity: function addNode(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) AddNode(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddNode(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceTransactorSession) AddNode(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddNode(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // AddOrg is a paid mutator transaction binding the contract method 0x513a3277.
 //
 // Solidity: function addOrg(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) AddOrg(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "addOrg", _orgId, _enodeId, _ip, _port, _raftport, _account)
+func (_PermInterface *PermInterfaceTransactor) AddOrg(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "addOrg", _orgId, _enodeId, _ip, _port, _raftport, _account)
 }
 
 // AddOrg is a paid mutator transaction binding the contract method 0x513a3277.
 //
 // Solidity: function addOrg(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) AddOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddOrg(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _account)
+func (_PermInterface *PermInterfaceSession) AddOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddOrg(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _account)
 }
 
 // AddOrg is a paid mutator transaction binding the contract method 0x513a3277.
 //
 // Solidity: function addOrg(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) AddOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddOrg(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _account)
+func (_PermInterface *PermInterfaceTransactorSession) AddOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddOrg(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _account)
 }
 
 // AddSubOrg is a paid mutator transaction binding the contract method 0x2e125a6c.
 //
 // Solidity: function addSubOrg(string _pOrgId, string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) AddSubOrg(opts *bind.TransactOpts, _pOrgId string, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "addSubOrg", _pOrgId, _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceTransactor) AddSubOrg(opts *bind.TransactOpts, _pOrgId string, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "addSubOrg", _pOrgId, _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // AddSubOrg is a paid mutator transaction binding the contract method 0x2e125a6c.
 //
 // Solidity: function addSubOrg(string _pOrgId, string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) AddSubOrg(_pOrgId string, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddSubOrg(&_EeaPermInterface.TransactOpts, _pOrgId, _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceSession) AddSubOrg(_pOrgId string, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddSubOrg(&_PermInterface.TransactOpts, _pOrgId, _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // AddSubOrg is a paid mutator transaction binding the contract method 0x2e125a6c.
 //
 // Solidity: function addSubOrg(string _pOrgId, string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) AddSubOrg(_pOrgId string, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AddSubOrg(&_EeaPermInterface.TransactOpts, _pOrgId, _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceTransactorSession) AddSubOrg(_pOrgId string, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.Contract.AddSubOrg(&_PermInterface.TransactOpts, _pOrgId, _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // ApproveAdminRole is a paid mutator transaction binding the contract method 0x16724c44.
 //
 // Solidity: function approveAdminRole(string _orgId, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) ApproveAdminRole(opts *bind.TransactOpts, _orgId string, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "approveAdminRole", _orgId, _account)
+func (_PermInterface *PermInterfaceTransactor) ApproveAdminRole(opts *bind.TransactOpts, _orgId string, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "approveAdminRole", _orgId, _account)
 }
 
 // ApproveAdminRole is a paid mutator transaction binding the contract method 0x16724c44.
 //
 // Solidity: function approveAdminRole(string _orgId, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) ApproveAdminRole(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.ApproveAdminRole(&_EeaPermInterface.TransactOpts, _orgId, _account)
+func (_PermInterface *PermInterfaceSession) ApproveAdminRole(_orgId string, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.ApproveAdminRole(&_PermInterface.TransactOpts, _orgId, _account)
 }
 
 // ApproveAdminRole is a paid mutator transaction binding the contract method 0x16724c44.
 //
 // Solidity: function approveAdminRole(string _orgId, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) ApproveAdminRole(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.ApproveAdminRole(&_EeaPermInterface.TransactOpts, _orgId, _account)
+func (_PermInterface *PermInterfaceTransactorSession) ApproveAdminRole(_orgId string, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.ApproveAdminRole(&_PermInterface.TransactOpts, _orgId, _account)
 }
 
 // ApproveBlacklistedAccountRecovery is a paid mutator transaction binding the contract method 0x3e239b23.
 //
 // Solidity: function approveBlacklistedAccountRecovery(string _orgId, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) ApproveBlacklistedAccountRecovery(opts *bind.TransactOpts, _orgId string, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "approveBlacklistedAccountRecovery", _orgId, _account)
+func (_PermInterface *PermInterfaceTransactor) ApproveBlacklistedAccountRecovery(opts *bind.TransactOpts, _orgId string, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "approveBlacklistedAccountRecovery", _orgId, _account)
 }
 
 // ApproveBlacklistedAccountRecovery is a paid mutator transaction binding the contract method 0x3e239b23.
 //
 // Solidity: function approveBlacklistedAccountRecovery(string _orgId, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) ApproveBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.ApproveBlacklistedAccountRecovery(&_EeaPermInterface.TransactOpts, _orgId, _account)
+func (_PermInterface *PermInterfaceSession) ApproveBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.ApproveBlacklistedAccountRecovery(&_PermInterface.TransactOpts, _orgId, _account)
 }
 
 // ApproveBlacklistedAccountRecovery is a paid mutator transaction binding the contract method 0x3e239b23.
 //
 // Solidity: function approveBlacklistedAccountRecovery(string _orgId, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) ApproveBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.ApproveBlacklistedAccountRecovery(&_EeaPermInterface.TransactOpts, _orgId, _account)
+func (_PermInterface *PermInterfaceTransactorSession) ApproveBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.ApproveBlacklistedAccountRecovery(&_PermInterface.TransactOpts, _orgId, _account)
 }
 
 // ApproveBlacklistedNodeRecovery is a paid mutator transaction binding the contract method 0x58dcff71.
 //
 // Solidity: function approveBlacklistedNodeRecovery(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) ApproveBlacklistedNodeRecovery(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "approveBlacklistedNodeRecovery", _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceTransactor) ApproveBlacklistedNodeRecovery(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "approveBlacklistedNodeRecovery", _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // ApproveBlacklistedNodeRecovery is a paid mutator transaction binding the contract method 0x58dcff71.
 //
 // Solidity: function approveBlacklistedNodeRecovery(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) ApproveBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.ApproveBlacklistedNodeRecovery(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceSession) ApproveBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.Contract.ApproveBlacklistedNodeRecovery(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // ApproveBlacklistedNodeRecovery is a paid mutator transaction binding the contract method 0x58dcff71.
 //
 // Solidity: function approveBlacklistedNodeRecovery(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) ApproveBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.ApproveBlacklistedNodeRecovery(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceTransactorSession) ApproveBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.Contract.ApproveBlacklistedNodeRecovery(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // ApproveOrg is a paid mutator transaction binding the contract method 0xfa279d61.
 //
 // Solidity: function approveOrg(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) ApproveOrg(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "approveOrg", _orgId, _enodeId, _ip, _port, _raftport, _account)
+func (_PermInterface *PermInterfaceTransactor) ApproveOrg(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "approveOrg", _orgId, _enodeId, _ip, _port, _raftport, _account)
 }
 
 // ApproveOrg is a paid mutator transaction binding the contract method 0xfa279d61.
 //
 // Solidity: function approveOrg(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) ApproveOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.ApproveOrg(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _account)
+func (_PermInterface *PermInterfaceSession) ApproveOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.ApproveOrg(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _account)
 }
 
 // ApproveOrg is a paid mutator transaction binding the contract method 0xfa279d61.
 //
 // Solidity: function approveOrg(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) ApproveOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.ApproveOrg(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _account)
+func (_PermInterface *PermInterfaceTransactorSession) ApproveOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.ApproveOrg(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _account)
 }
 
 // ApproveOrgStatus is a paid mutator transaction binding the contract method 0x5be9672c.
 //
 // Solidity: function approveOrgStatus(string _orgId, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) ApproveOrgStatus(opts *bind.TransactOpts, _orgId string, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "approveOrgStatus", _orgId, _action)
+func (_PermInterface *PermInterfaceTransactor) ApproveOrgStatus(opts *bind.TransactOpts, _orgId string, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "approveOrgStatus", _orgId, _action)
 }
 
 // ApproveOrgStatus is a paid mutator transaction binding the contract method 0x5be9672c.
 //
 // Solidity: function approveOrgStatus(string _orgId, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) ApproveOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.ApproveOrgStatus(&_EeaPermInterface.TransactOpts, _orgId, _action)
+func (_PermInterface *PermInterfaceSession) ApproveOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.Contract.ApproveOrgStatus(&_PermInterface.TransactOpts, _orgId, _action)
 }
 
 // ApproveOrgStatus is a paid mutator transaction binding the contract method 0x5be9672c.
 //
 // Solidity: function approveOrgStatus(string _orgId, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) ApproveOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.ApproveOrgStatus(&_EeaPermInterface.TransactOpts, _orgId, _action)
+func (_PermInterface *PermInterfaceTransactorSession) ApproveOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.Contract.ApproveOrgStatus(&_PermInterface.TransactOpts, _orgId, _action)
 }
 
 // AssignAccountRole is a paid mutator transaction binding the contract method 0x2f7f0a12.
 //
 // Solidity: function assignAccountRole(address _account, string _orgId, string _roleId) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) AssignAccountRole(opts *bind.TransactOpts, _account common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "assignAccountRole", _account, _orgId, _roleId)
+func (_PermInterface *PermInterfaceTransactor) AssignAccountRole(opts *bind.TransactOpts, _account common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "assignAccountRole", _account, _orgId, _roleId)
 }
 
 // AssignAccountRole is a paid mutator transaction binding the contract method 0x2f7f0a12.
 //
 // Solidity: function assignAccountRole(address _account, string _orgId, string _roleId) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) AssignAccountRole(_account common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AssignAccountRole(&_EeaPermInterface.TransactOpts, _account, _orgId, _roleId)
+func (_PermInterface *PermInterfaceSession) AssignAccountRole(_account common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
+	return _PermInterface.Contract.AssignAccountRole(&_PermInterface.TransactOpts, _account, _orgId, _roleId)
 }
 
 // AssignAccountRole is a paid mutator transaction binding the contract method 0x2f7f0a12.
 //
 // Solidity: function assignAccountRole(address _account, string _orgId, string _roleId) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) AssignAccountRole(_account common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AssignAccountRole(&_EeaPermInterface.TransactOpts, _account, _orgId, _roleId)
+func (_PermInterface *PermInterfaceTransactorSession) AssignAccountRole(_account common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
+	return _PermInterface.Contract.AssignAccountRole(&_PermInterface.TransactOpts, _account, _orgId, _roleId)
 }
 
 // AssignAdminRole is a paid mutator transaction binding the contract method 0x43de646c.
 //
 // Solidity: function assignAdminRole(string _orgId, address _account, string _roleId) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) AssignAdminRole(opts *bind.TransactOpts, _orgId string, _account common.Address, _roleId string) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "assignAdminRole", _orgId, _account, _roleId)
+func (_PermInterface *PermInterfaceTransactor) AssignAdminRole(opts *bind.TransactOpts, _orgId string, _account common.Address, _roleId string) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "assignAdminRole", _orgId, _account, _roleId)
 }
 
 // AssignAdminRole is a paid mutator transaction binding the contract method 0x43de646c.
 //
 // Solidity: function assignAdminRole(string _orgId, address _account, string _roleId) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) AssignAdminRole(_orgId string, _account common.Address, _roleId string) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AssignAdminRole(&_EeaPermInterface.TransactOpts, _orgId, _account, _roleId)
+func (_PermInterface *PermInterfaceSession) AssignAdminRole(_orgId string, _account common.Address, _roleId string) (*types.Transaction, error) {
+	return _PermInterface.Contract.AssignAdminRole(&_PermInterface.TransactOpts, _orgId, _account, _roleId)
 }
 
 // AssignAdminRole is a paid mutator transaction binding the contract method 0x43de646c.
 //
 // Solidity: function assignAdminRole(string _orgId, address _account, string _roleId) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) AssignAdminRole(_orgId string, _account common.Address, _roleId string) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.AssignAdminRole(&_EeaPermInterface.TransactOpts, _orgId, _account, _roleId)
+func (_PermInterface *PermInterfaceTransactorSession) AssignAdminRole(_orgId string, _account common.Address, _roleId string) (*types.Transaction, error) {
+	return _PermInterface.Contract.AssignAdminRole(&_PermInterface.TransactOpts, _orgId, _account, _roleId)
 }
 
 // Init is a paid mutator transaction binding the contract method 0xa5843f08.
 //
 // Solidity: function init(uint256 _breadth, uint256 _depth) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) Init(opts *bind.TransactOpts, _breadth *big.Int, _depth *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "init", _breadth, _depth)
+func (_PermInterface *PermInterfaceTransactor) Init(opts *bind.TransactOpts, _breadth *big.Int, _depth *big.Int) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "init", _breadth, _depth)
 }
 
 // Init is a paid mutator transaction binding the contract method 0xa5843f08.
 //
 // Solidity: function init(uint256 _breadth, uint256 _depth) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) Init(_breadth *big.Int, _depth *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.Init(&_EeaPermInterface.TransactOpts, _breadth, _depth)
+func (_PermInterface *PermInterfaceSession) Init(_breadth *big.Int, _depth *big.Int) (*types.Transaction, error) {
+	return _PermInterface.Contract.Init(&_PermInterface.TransactOpts, _breadth, _depth)
 }
 
 // Init is a paid mutator transaction binding the contract method 0xa5843f08.
 //
 // Solidity: function init(uint256 _breadth, uint256 _depth) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) Init(_breadth *big.Int, _depth *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.Init(&_EeaPermInterface.TransactOpts, _breadth, _depth)
+func (_PermInterface *PermInterfaceTransactorSession) Init(_breadth *big.Int, _depth *big.Int) (*types.Transaction, error) {
+	return _PermInterface.Contract.Init(&_PermInterface.TransactOpts, _breadth, _depth)
 }
 
 // RemoveRole is a paid mutator transaction binding the contract method 0xa6343012.
 //
 // Solidity: function removeRole(string _roleId, string _orgId) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) RemoveRole(opts *bind.TransactOpts, _roleId string, _orgId string) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "removeRole", _roleId, _orgId)
+func (_PermInterface *PermInterfaceTransactor) RemoveRole(opts *bind.TransactOpts, _roleId string, _orgId string) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "removeRole", _roleId, _orgId)
 }
 
 // RemoveRole is a paid mutator transaction binding the contract method 0xa6343012.
 //
 // Solidity: function removeRole(string _roleId, string _orgId) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) RemoveRole(_roleId string, _orgId string) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.RemoveRole(&_EeaPermInterface.TransactOpts, _roleId, _orgId)
+func (_PermInterface *PermInterfaceSession) RemoveRole(_roleId string, _orgId string) (*types.Transaction, error) {
+	return _PermInterface.Contract.RemoveRole(&_PermInterface.TransactOpts, _roleId, _orgId)
 }
 
 // RemoveRole is a paid mutator transaction binding the contract method 0xa6343012.
 //
 // Solidity: function removeRole(string _roleId, string _orgId) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) RemoveRole(_roleId string, _orgId string) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.RemoveRole(&_EeaPermInterface.TransactOpts, _roleId, _orgId)
+func (_PermInterface *PermInterfaceTransactorSession) RemoveRole(_roleId string, _orgId string) (*types.Transaction, error) {
+	return _PermInterface.Contract.RemoveRole(&_PermInterface.TransactOpts, _roleId, _orgId)
 }
 
 // SetPermImplementation is a paid mutator transaction binding the contract method 0x511bbd9f.
 //
 // Solidity: function setPermImplementation(address _permImplementation) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) SetPermImplementation(opts *bind.TransactOpts, _permImplementation common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "setPermImplementation", _permImplementation)
+func (_PermInterface *PermInterfaceTransactor) SetPermImplementation(opts *bind.TransactOpts, _permImplementation common.Address) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "setPermImplementation", _permImplementation)
 }
 
 // SetPermImplementation is a paid mutator transaction binding the contract method 0x511bbd9f.
 //
 // Solidity: function setPermImplementation(address _permImplementation) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) SetPermImplementation(_permImplementation common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.SetPermImplementation(&_EeaPermInterface.TransactOpts, _permImplementation)
+func (_PermInterface *PermInterfaceSession) SetPermImplementation(_permImplementation common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.SetPermImplementation(&_PermInterface.TransactOpts, _permImplementation)
 }
 
 // SetPermImplementation is a paid mutator transaction binding the contract method 0x511bbd9f.
 //
 // Solidity: function setPermImplementation(address _permImplementation) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) SetPermImplementation(_permImplementation common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.SetPermImplementation(&_EeaPermInterface.TransactOpts, _permImplementation)
+func (_PermInterface *PermInterfaceTransactorSession) SetPermImplementation(_permImplementation common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.SetPermImplementation(&_PermInterface.TransactOpts, _permImplementation)
 }
 
 // SetPolicy is a paid mutator transaction binding the contract method 0x1b610220.
 //
 // Solidity: function setPolicy(string _nwAdminOrg, string _nwAdminRole, string _oAdminRole) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) SetPolicy(opts *bind.TransactOpts, _nwAdminOrg string, _nwAdminRole string, _oAdminRole string) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "setPolicy", _nwAdminOrg, _nwAdminRole, _oAdminRole)
+func (_PermInterface *PermInterfaceTransactor) SetPolicy(opts *bind.TransactOpts, _nwAdminOrg string, _nwAdminRole string, _oAdminRole string) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "setPolicy", _nwAdminOrg, _nwAdminRole, _oAdminRole)
 }
 
 // SetPolicy is a paid mutator transaction binding the contract method 0x1b610220.
 //
 // Solidity: function setPolicy(string _nwAdminOrg, string _nwAdminRole, string _oAdminRole) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) SetPolicy(_nwAdminOrg string, _nwAdminRole string, _oAdminRole string) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.SetPolicy(&_EeaPermInterface.TransactOpts, _nwAdminOrg, _nwAdminRole, _oAdminRole)
+func (_PermInterface *PermInterfaceSession) SetPolicy(_nwAdminOrg string, _nwAdminRole string, _oAdminRole string) (*types.Transaction, error) {
+	return _PermInterface.Contract.SetPolicy(&_PermInterface.TransactOpts, _nwAdminOrg, _nwAdminRole, _oAdminRole)
 }
 
 // SetPolicy is a paid mutator transaction binding the contract method 0x1b610220.
 //
 // Solidity: function setPolicy(string _nwAdminOrg, string _nwAdminRole, string _oAdminRole) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) SetPolicy(_nwAdminOrg string, _nwAdminRole string, _oAdminRole string) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.SetPolicy(&_EeaPermInterface.TransactOpts, _nwAdminOrg, _nwAdminRole, _oAdminRole)
+func (_PermInterface *PermInterfaceTransactorSession) SetPolicy(_nwAdminOrg string, _nwAdminRole string, _oAdminRole string) (*types.Transaction, error) {
+	return _PermInterface.Contract.SetPolicy(&_PermInterface.TransactOpts, _nwAdminOrg, _nwAdminRole, _oAdminRole)
 }
 
 // StartBlacklistedAccountRecovery is a paid mutator transaction binding the contract method 0xa97914bf.
 //
 // Solidity: function startBlacklistedAccountRecovery(string _orgId, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) StartBlacklistedAccountRecovery(opts *bind.TransactOpts, _orgId string, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "startBlacklistedAccountRecovery", _orgId, _account)
+func (_PermInterface *PermInterfaceTransactor) StartBlacklistedAccountRecovery(opts *bind.TransactOpts, _orgId string, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "startBlacklistedAccountRecovery", _orgId, _account)
 }
 
 // StartBlacklistedAccountRecovery is a paid mutator transaction binding the contract method 0xa97914bf.
 //
 // Solidity: function startBlacklistedAccountRecovery(string _orgId, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) StartBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.StartBlacklistedAccountRecovery(&_EeaPermInterface.TransactOpts, _orgId, _account)
+func (_PermInterface *PermInterfaceSession) StartBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.StartBlacklistedAccountRecovery(&_PermInterface.TransactOpts, _orgId, _account)
 }
 
 // StartBlacklistedAccountRecovery is a paid mutator transaction binding the contract method 0xa97914bf.
 //
 // Solidity: function startBlacklistedAccountRecovery(string _orgId, address _account) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) StartBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.StartBlacklistedAccountRecovery(&_EeaPermInterface.TransactOpts, _orgId, _account)
+func (_PermInterface *PermInterfaceTransactorSession) StartBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
+	return _PermInterface.Contract.StartBlacklistedAccountRecovery(&_PermInterface.TransactOpts, _orgId, _account)
 }
 
 // StartBlacklistedNodeRecovery is a paid mutator transaction binding the contract method 0x91ba3f96.
 //
 // Solidity: function startBlacklistedNodeRecovery(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) StartBlacklistedNodeRecovery(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "startBlacklistedNodeRecovery", _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceTransactor) StartBlacklistedNodeRecovery(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "startBlacklistedNodeRecovery", _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // StartBlacklistedNodeRecovery is a paid mutator transaction binding the contract method 0x91ba3f96.
 //
 // Solidity: function startBlacklistedNodeRecovery(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) StartBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.StartBlacklistedNodeRecovery(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceSession) StartBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.Contract.StartBlacklistedNodeRecovery(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // StartBlacklistedNodeRecovery is a paid mutator transaction binding the contract method 0x91ba3f96.
 //
 // Solidity: function startBlacklistedNodeRecovery(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) StartBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.StartBlacklistedNodeRecovery(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
+func (_PermInterface *PermInterfaceTransactorSession) StartBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error) {
+	return _PermInterface.Contract.StartBlacklistedNodeRecovery(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport)
 }
 
 // UpdateAccountStatus is a paid mutator transaction binding the contract method 0x84b7a84a.
 //
 // Solidity: function updateAccountStatus(string _orgId, address _account, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) UpdateAccountStatus(opts *bind.TransactOpts, _orgId string, _account common.Address, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "updateAccountStatus", _orgId, _account, _action)
+func (_PermInterface *PermInterfaceTransactor) UpdateAccountStatus(opts *bind.TransactOpts, _orgId string, _account common.Address, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "updateAccountStatus", _orgId, _account, _action)
 }
 
 // UpdateAccountStatus is a paid mutator transaction binding the contract method 0x84b7a84a.
 //
 // Solidity: function updateAccountStatus(string _orgId, address _account, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) UpdateAccountStatus(_orgId string, _account common.Address, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.UpdateAccountStatus(&_EeaPermInterface.TransactOpts, _orgId, _account, _action)
+func (_PermInterface *PermInterfaceSession) UpdateAccountStatus(_orgId string, _account common.Address, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.Contract.UpdateAccountStatus(&_PermInterface.TransactOpts, _orgId, _account, _action)
 }
 
 // UpdateAccountStatus is a paid mutator transaction binding the contract method 0x84b7a84a.
 //
 // Solidity: function updateAccountStatus(string _orgId, address _account, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) UpdateAccountStatus(_orgId string, _account common.Address, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.UpdateAccountStatus(&_EeaPermInterface.TransactOpts, _orgId, _account, _action)
+func (_PermInterface *PermInterfaceTransactorSession) UpdateAccountStatus(_orgId string, _account common.Address, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.Contract.UpdateAccountStatus(&_PermInterface.TransactOpts, _orgId, _account, _action)
 }
 
 // UpdateNetworkBootStatus is a paid mutator transaction binding the contract method 0x44478e79.
 //
 // Solidity: function updateNetworkBootStatus() returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceTransactor) UpdateNetworkBootStatus(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "updateNetworkBootStatus")
+func (_PermInterface *PermInterfaceTransactor) UpdateNetworkBootStatus(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "updateNetworkBootStatus")
 }
 
 // UpdateNetworkBootStatus is a paid mutator transaction binding the contract method 0x44478e79.
 //
 // Solidity: function updateNetworkBootStatus() returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceSession) UpdateNetworkBootStatus() (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.UpdateNetworkBootStatus(&_EeaPermInterface.TransactOpts)
+func (_PermInterface *PermInterfaceSession) UpdateNetworkBootStatus() (*types.Transaction, error) {
+	return _PermInterface.Contract.UpdateNetworkBootStatus(&_PermInterface.TransactOpts)
 }
 
 // UpdateNetworkBootStatus is a paid mutator transaction binding the contract method 0x44478e79.
 //
 // Solidity: function updateNetworkBootStatus() returns(bool)
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) UpdateNetworkBootStatus() (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.UpdateNetworkBootStatus(&_EeaPermInterface.TransactOpts)
+func (_PermInterface *PermInterfaceTransactorSession) UpdateNetworkBootStatus() (*types.Transaction, error) {
+	return _PermInterface.Contract.UpdateNetworkBootStatus(&_PermInterface.TransactOpts)
 }
 
 // UpdateNodeStatus is a paid mutator transaction binding the contract method 0x3f9be497.
 //
 // Solidity: function updateNodeStatus(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) UpdateNodeStatus(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "updateNodeStatus", _orgId, _enodeId, _ip, _port, _raftport, _action)
+func (_PermInterface *PermInterfaceTransactor) UpdateNodeStatus(opts *bind.TransactOpts, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "updateNodeStatus", _orgId, _enodeId, _ip, _port, _raftport, _action)
 }
 
 // UpdateNodeStatus is a paid mutator transaction binding the contract method 0x3f9be497.
 //
 // Solidity: function updateNodeStatus(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) UpdateNodeStatus(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.UpdateNodeStatus(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _action)
+func (_PermInterface *PermInterfaceSession) UpdateNodeStatus(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.Contract.UpdateNodeStatus(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _action)
 }
 
 // UpdateNodeStatus is a paid mutator transaction binding the contract method 0x3f9be497.
 //
 // Solidity: function updateNodeStatus(string _orgId, string _enodeId, string _ip, uint16 _port, uint16 _raftport, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) UpdateNodeStatus(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.UpdateNodeStatus(&_EeaPermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _action)
+func (_PermInterface *PermInterfaceTransactorSession) UpdateNodeStatus(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.Contract.UpdateNodeStatus(&_PermInterface.TransactOpts, _orgId, _enodeId, _ip, _port, _raftport, _action)
 }
 
 // UpdateOrgStatus is a paid mutator transaction binding the contract method 0xbb3b6e80.
 //
 // Solidity: function updateOrgStatus(string _orgId, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactor) UpdateOrgStatus(opts *bind.TransactOpts, _orgId string, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.contract.Transact(opts, "updateOrgStatus", _orgId, _action)
+func (_PermInterface *PermInterfaceTransactor) UpdateOrgStatus(opts *bind.TransactOpts, _orgId string, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.contract.Transact(opts, "updateOrgStatus", _orgId, _action)
 }
 
 // UpdateOrgStatus is a paid mutator transaction binding the contract method 0xbb3b6e80.
 //
 // Solidity: function updateOrgStatus(string _orgId, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceSession) UpdateOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.UpdateOrgStatus(&_EeaPermInterface.TransactOpts, _orgId, _action)
+func (_PermInterface *PermInterfaceSession) UpdateOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.Contract.UpdateOrgStatus(&_PermInterface.TransactOpts, _orgId, _action)
 }
 
 // UpdateOrgStatus is a paid mutator transaction binding the contract method 0xbb3b6e80.
 //
 // Solidity: function updateOrgStatus(string _orgId, uint256 _action) returns()
-func (_EeaPermInterface *EeaPermInterfaceTransactorSession) UpdateOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
-	return _EeaPermInterface.Contract.UpdateOrgStatus(&_EeaPermInterface.TransactOpts, _orgId, _action)
+func (_PermInterface *PermInterfaceTransactorSession) UpdateOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
+	return _PermInterface.Contract.UpdateOrgStatus(&_PermInterface.TransactOpts, _orgId, _action)
 }

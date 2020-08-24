@@ -5,9 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
-	ptype "github.com/ethereum/go-ethereum/permission/types"
-
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -34,6 +31,7 @@ import (
 	basicbind "github.com/ethereum/go-ethereum/permission/basic/bind"
 	"github.com/ethereum/go-ethereum/permission/eea"
 	eeabind "github.com/ethereum/go-ethereum/permission/eea/bind"
+	ptype "github.com/ethereum/go-ethereum/permission/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -147,40 +145,40 @@ func setup() {
 	contrBackend = backends.NewSimulatedBackendFrom(ethereum)
 
 	var permUpgrInstance *basicbind.PermUpgr
-	var permUpgrInstanceE *eeabind.EeaPermUpgr
+	var permUpgrInstanceE *eeabind.PermUpgr
 
 	guardianTransactor := bind.NewKeyedTransactor(guardianKey)
 
 	if eeaFlag {
-		permUpgrAddress, _, permUpgrInstanceE, err = eeabind.DeployEeaPermUpgr(guardianTransactor, contrBackend, guardianAddress)
+		permUpgrAddress, _, permUpgrInstanceE, err = eeabind.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permInterfaceAddress, _, _, err = eeabind.DeployEeaPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
+		permInterfaceAddress, _, _, err = eeabind.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nodeManagerAddress, _, _, err = eeabind.DeployEeaNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
+		nodeManagerAddress, _, _, err = eeabind.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		roleManagerAddress, _, _, err = eeabind.DeployEeaRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
+		roleManagerAddress, _, _, err = eeabind.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		accountManagerAddress, _, _, err = eeabind.DeployEeaAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
+		accountManagerAddress, _, _, err = eeabind.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		orgManagerAddress, _, _, err = eeabind.DeployEeaOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
+		orgManagerAddress, _, _, err = eeabind.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		voterManagerAddress, _, _, err = eeabind.DeployEeaVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
+		voterManagerAddress, _, _, err = eeabind.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permImplAddress, _, _, err = eeabind.DeployEeaPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+		permImplAddress, _, _, err = eeabind.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -702,17 +700,17 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	defer os.RemoveAll(d)
 
 	testObject.dataDir = d
-	testObject.UpdatePermissionedNodes(arbitraryNode1, ptype.NodeAdd)
+	ptype.UpdatePermissionedNodes(testObject.node, d, arbitraryNode1, ptype.NodeAdd, true)
 
 	permFile, _ := os.Create(d + "/" + "permissioned-nodes.json")
 
-	testObject.updateFile("testFile", arbitraryNode2, ptype.NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, ptype.NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, ptype.NodeAdd, true)
-	testObject.updateFile(permFile.Name(), arbitraryNode2, ptype.NodeAdd, true)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, ptype.NodeAdd, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, ptype.NodeDelete, false)
-	testObject.updateFile(permFile.Name(), arbitraryNode1, ptype.NodeDelete, false)
+	ptype.UpdateFile("testFile", arbitraryNode2, ptype.NodeAdd, false)
+	ptype.UpdateFile(permFile.Name(), arbitraryNode2, ptype.NodeAdd, false)
+	ptype.UpdateFile(permFile.Name(), arbitraryNode2, ptype.NodeAdd, true)
+	ptype.UpdateFile(permFile.Name(), arbitraryNode2, ptype.NodeAdd, true)
+	ptype.UpdateFile(permFile.Name(), arbitraryNode1, ptype.NodeAdd, false)
+	ptype.UpdateFile(permFile.Name(), arbitraryNode1, ptype.NodeDelete, false)
+	ptype.UpdateFile(permFile.Name(), arbitraryNode1, ptype.NodeDelete, false)
 
 	blob, err := ioutil.ReadFile(permFile.Name())
 	var nodeList []string
@@ -721,8 +719,8 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 		return
 	}
 	assert.Equal(t, len(nodeList), 1)
-	testObject.UpdatePermissionedNodes(arbitraryNode1, ptype.NodeAdd)
-	testObject.UpdatePermissionedNodes(arbitraryNode1, ptype.NodeDelete)
+	ptype.UpdatePermissionedNodes(testObject.node, d, arbitraryNode1, ptype.NodeAdd, true)
+	ptype.UpdatePermissionedNodes(testObject.node, d, arbitraryNode1, ptype.NodeDelete, true)
 
 	blob, err = ioutil.ReadFile(permFile.Name())
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
@@ -731,8 +729,8 @@ func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
 	}
 	assert.Equal(t, len(nodeList), 1)
 
-	testObject.UpdateDisallowedNodes(arbitraryNode2, ptype.NodeAdd)
-	testObject.UpdateDisallowedNodes(arbitraryNode2, ptype.NodeDelete)
+	ptype.UpdateDisallowedNodes(d, arbitraryNode2, ptype.NodeAdd)
+	ptype.UpdateDisallowedNodes(d, arbitraryNode2, ptype.NodeDelete)
 	blob, err = ioutil.ReadFile(d + "/" + "disallowed-nodes.json")
 	if err := json.Unmarshal(blob, &nodeList); err != nil {
 		t.Fatal("Failed to load nodes list from file", "fileName", permFile, "err", err)

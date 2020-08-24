@@ -17,9 +17,9 @@ import "./PermissionsUpgradable.sol";
      Once the node is blacklisted no further activity on the node is
      possible.
   */
-contract EeaOrgManager {
+contract OrgManager {
     string private adminOrgId;
-    EeaPermissionsUpgradable private permUpgradable;
+    PermissionsUpgradable private permUpgradable;
     // checks if first time network boot up has happened or not
     bool private networkBoot = false;
 
@@ -81,7 +81,7 @@ contract EeaOrgManager {
     /** @notice constructor. sets the permissions upgradable address
       */
     constructor (address _permUpgradable) public {
-        permUpgradable = EeaPermissionsUpgradable(_permUpgradable);
+        permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
     /** @notice called at the time of network initialization. sets the depth

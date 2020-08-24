@@ -1122,21 +1122,26 @@ func (q *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Walle
 }
 
 func (q *QuorumControlsAPI) newPermInterfaceSession(w accounts.Wallet, txa ethapi.SendTxArgs) ptype.ContractService {
-	frmAcct, transactOpts, gasLimit, gasPrice := q.getTxParams(txa, w)
-	return NewPermissionContractServiceForApi(q.permCtrl, frmAcct, transactOpts, gasLimit, gasPrice)
+	transactOpts := q.getTxParams(txa, w)
+
+	return NewPermissionContractServiceForApi(q.permCtrl, transactOpts)
 }
 
 // getTxParams extracts the transaction related parameters
-func (q *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) (accounts.Account, *bind.TransactOpts, uint64, *big.Int) {
+func (q *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) *bind.TransactOpts {
 	fromAcct := accounts.Account{Address: txa.From}
 	transactOpts := bind.NewWalletTransactor(w, fromAcct)
-	gasLimit := defaultGasLimit
-	gasPrice := defaultGasPrice
+
+	transactOpts.GasPrice = defaultGasPrice
 	if txa.GasPrice != nil {
-		gasPrice = txa.GasPrice.ToInt()
+		transactOpts.GasPrice = txa.GasPrice.ToInt()
 	}
+
+	transactOpts.GasLimit = defaultGasLimit
 	if txa.Gas != nil {
-		gasLimit = uint64(*txa.Gas)
+		transactOpts.GasLimit = uint64(*txa.Gas)
 	}
-	return fromAcct, transactOpts, gasLimit, gasPrice
+	transactOpts.From = fromAcct.Address
+
+	return transactOpts
 }

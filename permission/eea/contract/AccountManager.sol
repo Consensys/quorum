@@ -24,8 +24,8 @@ import "./PermissionsUpgradable.sol";
      admin account will be in revoked status and can be assigned a new role
      later
   */
-contract EeaAccountManager {
-    EeaPermissionsUpgradable private permUpgradable;
+contract AccountManager {
+    PermissionsUpgradable private permUpgradable;
     struct AccountAccessDetails {
         address account;
         string orgId;
@@ -68,7 +68,7 @@ contract EeaAccountManager {
 
     /// @notice constructor. sets the permissions upgradable address
     constructor (address _permUpgradable) public {
-        permUpgradable = EeaPermissionsUpgradable(_permUpgradable);
+        permUpgradable = PermissionsUpgradable(_permUpgradable);
     }
 
 
