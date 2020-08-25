@@ -797,8 +797,8 @@ var (
 	}
 	// Permission EEA flags
 	PermEeaModeFlag = cli.BoolFlag{
-		Name:  "permeea",
-		Usage: "If enabled, uses EEA version of permission contract",
+		Name:  "eeapermissions",
+		Usage: "If enabled, implements EEA permissions model",
 	}
 	// Raft flags
 	RaftModeFlag = cli.BoolFlag{
@@ -1826,9 +1826,8 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 }
 
 // Configure smart-contract-based permissioning service
-func RegisterPermissionService(stack *node.Node, ctx *cli.Context) {
+func RegisterPermissionService(stack *node.Node, eeaFlag bool) {
 	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
-		eeaFlag := ctx.GlobalBool(PermEeaModeFlag.Name)
 		permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
 		if err != nil {
 			return nil, fmt.Errorf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)

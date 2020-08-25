@@ -163,7 +163,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 
 	if cfg.Node.IsPermissionEnabled() {
-		utils.RegisterPermissionService(stack, ctx)
+		utils.RegisterPermissionService(stack, ctx.Bool(utils.PermEeaModeFlag.Name))
 	}
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
