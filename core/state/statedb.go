@@ -115,7 +115,7 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 		return nil, err
 	}
 
-	// End Quorum - Privacy Enhancements
+	// Quorum - Privacy Enhancements
 	privacyMetadataRoot := db.PrivacyMetadataLinker().PrivacyMetadataRootForPrivateStateRoot(root)
 	log.Debug("Privacy metadata root", "hash", privacyMetadataRoot)
 	privacyMetaDataTrie, err := db.OpenTrie(privacyMetadataRoot)

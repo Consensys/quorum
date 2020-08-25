@@ -1378,6 +1378,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, addr
 	return (*hexutil.Uint64)(&nonce), state.Error()
 }
 
+// Quorum
 func (s *PublicTransactionPoolAPI) GetContractPrivacyMetadata(ctx context.Context, address common.Address) (*state.PrivacyMetadata, error) {
 	state, _, err := s.b.StateAndHeaderByNumber(ctx, rpc.LatestBlockNumber)
 	if state == nil || err != nil {
@@ -1385,6 +1386,8 @@ func (s *PublicTransactionPoolAPI) GetContractPrivacyMetadata(ctx context.Contex
 	}
 	return state.GetStatePrivacyMetadata(address)
 }
+
+// /Quorum
 
 // GetTransactionByHash returns the transaction for the given hash
 func (s *PublicTransactionPoolAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {

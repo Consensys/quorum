@@ -42,9 +42,7 @@ func (pmh *privateMessageHandler) mustVerify() bool {
 // true otherwise
 func (pmh *privateMessageHandler) prepare() (bool, error) {
 	if pmh.receivedPrivacyMetadata != nil {
-		// if privacy enhancements are disabled we should treat all transactions as StandardPrivate
 		if !pmh.stAPI.IsPrivacyEnhancementsEnabled() && pmh.receivedPrivacyMetadata.PrivacyFlag.IsNotStandardPrivate() {
-			// TODO - after discussions with Sai I'm inclined to agree with his approach to deal with this scenario.
 			// This situation is only possible if the current node has been upgraded (both quorum and tessera) yet the
 			// node did not apply the privacyEnhancementsBlock configuration (with a network agreed block height).
 			// Since this would be considered node misconfiguration the behavior should be changed to return an error

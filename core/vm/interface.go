@@ -34,7 +34,7 @@ type MinimalApiState interface {
 	GetNonce(addr common.Address) uint64
 	SetNonce(addr common.Address, nonce uint64)
 	SetCode(common.Address, []byte)
-	// Return nil if for public contract
+	// Return nil for public contract
 	GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error)
 
 	// RLP-encoded of the state object in a given address
