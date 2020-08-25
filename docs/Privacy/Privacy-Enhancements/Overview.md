@@ -92,6 +92,6 @@ In this example we walk through the flow of a private transaction on a 'privacy 
 
 10. Node A & Node B being party to the contract will `/receive` decrypted payload, ACOTH (for `PSV` also merkle root) from respective Tessera Nodes.
 
-11. Both Nodes execute the transaction and compare the ACOTH (and execution has for `PSV`) and update the transaction receipt accordingly to mark transaction execution completion..
+11. Both Nodes execute the transaction and compare the ACOTH (and execution hash for `PSV`) and update the transaction receipt accordingly to mark transaction execution completion..
 
 **Note : If the EVM simulation impact more than one contract, all contracts should have the same `PrivacyFlag`, else transaction is rejected. All contracts ACOTH is included in the transmission and the Tessera node will create individual secure hash for each ACOTH.** 
