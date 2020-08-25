@@ -125,4 +125,4 @@ It is a form of expanded shared custody ownership that requires consensus over t
 
 !!! success "Multiparty contract logic action should not be dependent on a single party."
 
-!!! success "Prevent Toke transfers to 0x0 address."
+!!! success "Prevent token transfers to 0x0 address."
