@@ -33,6 +33,11 @@ In this example private contract is being extended from Nodes A to Node B.
     - **5a** - Upon noticing the state share event as a part of block processing, node B fetches the contract private state data from Tessera of node B
     - **5b** - Node B applies the fetched state to the contract address and becomes party of the private contract
     
+## Contract Extension for Privacy Enhanced contracts
+
+Please refer [here](../Privacy-Enhancements/Overview.md) for overiew of privacy enhanced contracts. 
+
+In our design of contract extension we don't share the contract byte code but only the current state at the time of extension. ACOTH which is the key validator in a node's participation in a privacy enhanced contract could not be validated for subsequent transactions unless the extended node also has the contract byte code. Sharing the contract byte code presents an unique problem where for any reason the extended node ever rebuilds its chain, it will become party to the contract at the time of contract creation (much earlier) than at the time of contract extension. To overcome this , our solution for contract extension on privacy enhanced contracts is to update the ACOTH from the originating transaction that created the contract to the transaction that triggered the contract extension across all participants. For this reason only the original contract creating node (which knows all recipients on all types of contracts) could extend privacy enhanced contracts and after the successful completion of the extension all nodes party to the contract will update the ACOTH linked to the private state trie with the hash of the transaction that initiated the contract extension.
 
 ## Note
 If the network is running with [Enhanced network permissioning](http://docs.goquorum.com/en/latest/Permissioning/Enhanced%20Permissions%20Model/Overview/), then:
