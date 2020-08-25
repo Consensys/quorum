@@ -1,4 +1,3 @@
-
 # Project information
 site_name: Quorum
 site_url: https://docs.goquorum.com/
@@ -56,6 +55,9 @@ nav:
             - Contract Extension:
                 - Overview: Privacy/Contract-Extension/Overview.md
                 - APIs: Privacy/Contract-Extension/ContractExtension apis.md
+            - Privacy Enhancements:
+                - Overview: Privacy/Privacy-Enhancements/Overview.md
+                - APIs: Privacy/Privacy-Enhancements/Privacy Enhancement apis.md
         - Consensus:
             - Consensus: Consensus/Consensus.md
             - Raft BFT:
@@ -96,8 +98,9 @@ nav:
                     - Interface: PluggableArchitecture/Plugins/helloworld/interface.md
                     - Implementation: PluggableArchitecture/Plugins/helloworld/implementation.md
                 - security:
-                    - Interface: PluggableArchitecture/Plugins/security/interface.md
-                    - Implementation: PluggableArchitecture/Plugins/security/implementation.md
+                    - For Users: PluggableArchitecture/Plugins/security/For-Users.md
+                    - For Developers: PluggableArchitecture/Plugins/security/For-Developers.md
+                    - API: PluggableArchitecture/Plugins/security/interface.md
                 - account:
                     - For Users: PluggableArchitecture/Plugins/account/For-Users.md
                     - For Developers: PluggableArchitecture/Plugins/account/For-Developers.md
