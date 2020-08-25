@@ -104,6 +104,10 @@ The servers to be started are provided as a list:
 ]
 ```
 
+Note that there are two configuration entries relating to the server address:
+- `serverAddress` - In normal use, you will only need this (e.g. `http://localhost:9001`).
+- `bindingAddress` - This is an optional endpoint to use for the binding. This is useful if you need to bind to an internal IP whilst advertising an external IP using `serverAddress`.
+
 Each server is individually configurable and can advertise over HTTP, HTTPS or a Unix Socket.  The format of an individual server config is slightly different between Tessera v0.9 and v0.8:
 
 #### Server configuration (v0.9)
