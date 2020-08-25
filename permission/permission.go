@@ -1,121 +1,21 @@
 package permission
 
 import (
-	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
-	"github.com/ethereum/go-ethereum/rpc"
 )
-
-type PermissionCtrl struct {
-	node           *node.Node
-	ethClnt        bind.ContractBackend
-	eth            *eth.Ethereum
-	key            *ecdsa.PrivateKey
-	dataDir        string
-	permConfig     *types.PermissionConfig
-	contract       ptype.ContractService
-	backend        ptype.Backend
-	eeaFlag        bool
-	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
-	errorChan      chan error      // channel to capture error when starting aysnc
-	mux            sync.Mutex
-}
-
-// function reads the permissions config file passed and populates the
-// config structure accordingly
-func ParsePermissionConfig(dir string) (types.PermissionConfig, error) {
-	fullPath := filepath.Join(dir, params.PERMISSION_MODEL_CONFIG)
-	f, err := os.Open(fullPath)
-	if err != nil {
-		log.Error("can't open file", "file", fullPath, "error", err)
-		return types.PermissionConfig{}, err
-	}
-	defer func() {
-		_ = f.Close()
-	}()
-
-	var permConfig types.PermissionConfig
-	blob, err := ioutil.ReadFile(fullPath)
-	if err != nil {
-		log.Error("error reading file", "err", err, "file", fullPath)
-	}
-
-	err = json.Unmarshal(blob, &permConfig)
-	if err != nil {
-		log.Error("error unmarshalling the file", "err", err, "file", fullPath)
-	}
-
-	if len(permConfig.Accounts) == 0 {
-		return types.PermissionConfig{}, fmt.Errorf("no accounts given in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
-	}
-	if permConfig.SubOrgDepth.Cmp(big.NewInt(0)) == 0 || permConfig.SubOrgBreadth.Cmp(big.NewInt(0)) == 0 {
-		return types.PermissionConfig{}, fmt.Errorf("sub org breadth depth not passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
-	}
-	if permConfig.IsEmpty() {
-		return types.PermissionConfig{}, fmt.Errorf("missing contract addresses in %s", params.PERMISSION_MODEL_CONFIG)
-	}
-
-	return permConfig, nil
-}
-
-// Create a service instance for permissioning
-//
-// Permission Service depends on the following:
-// 1. EthService to be ready
-// 2. Downloader to sync up blocks
-// 3. InProc RPC server to be ready
-func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, eeaFlag bool) (*PermissionCtrl, error) {
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	p := &PermissionCtrl{
-		node:           stack,
-		key:            stack.GetNodeKey(),
-		dataDir:        stack.DataDir(),
-		permConfig:     pconfig,
-		startWaitGroup: wg,
-		errorChan:      make(chan error),
-		eeaFlag:        eeaFlag,
-	}
-
-	p.populateBackEnd()
-	stopChan, stopSubscription := ptype.SubscribeStopEvent()
-	inProcRPCServerSub := stack.EventMux().Subscribe(rpc.InProcServerReadyEvent{})
-	log.Debug("permission service: waiting for InProcRPC Server")
-
-	go func(_wg *sync.WaitGroup) {
-		defer func(start time.Time) {
-			log.Debug("permission service: InProcRPC server is ready", "took", time.Since(start))
-			stopSubscription.Unsubscribe()
-			inProcRPCServerSub.Unsubscribe()
-			_wg.Done()
-		}(time.Now())
-		select {
-		case <-inProcRPCServerSub.Chan():
-		case <-stopChan:
-		}
-	}(wg) // wait for inproc RPC to be ready
-	return p, nil
-}
 
 // This is to make sure all contract instances are ready and initialized
 //
@@ -197,38 +97,7 @@ func (p *PermissionCtrl) asyncStart() {
 	}
 	p.ethClnt = ethclient.NewClient(client)
 	p.eth = ethereum
-	p.populateContractInterface()
-}
-
-func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
-	log.Debug("permission service: starting")
-	go func() {
-		log.Debug("permission service: starting async")
-		p.asyncStart()
-	}()
-	return nil
-}
-
-func (p *PermissionCtrl) APIs() []rpc.API {
-	return []rpc.API{
-		{
-			Namespace: "quorumPermission",
-			Version:   "1.0",
-			Service:   NewQuorumControlsAPI(p),
-			Public:    true,
-		},
-	}
-}
-
-func (p *PermissionCtrl) Protocols() []p2p.Protocol {
-	return []p2p.Protocol{}
-}
-
-func (p *PermissionCtrl) Stop() error {
-	log.Info("permission service: stopping")
-	ptype.StopFeed.Send(ptype.StopEvent{})
-	log.Info("permission service: stopped")
-	return nil
+	p.updateBackEnd()
 }
 
 // monitors QIP714Block and set default access

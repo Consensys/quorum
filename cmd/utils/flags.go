@@ -68,6 +68,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/permission"
+	"github.com/ethereum/go-ethereum/permission/types"
 	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/raft"
@@ -1828,7 +1829,7 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 func RegisterPermissionService(stack *node.Node, ctx *cli.Context) {
 	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
 		eeaFlag := ctx.GlobalBool(PermEeaModeFlag.Name)
-		permissionConfig, err := permission.ParsePermissionConfig(stack.DataDir())
+		permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
 		if err != nil {
 			return nil, fmt.Errorf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}

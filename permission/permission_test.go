@@ -28,9 +28,9 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/permission/basic"
-	basicbind "github.com/ethereum/go-ethereum/permission/basic/bind"
+	bb "github.com/ethereum/go-ethereum/permission/basic/bind"
 	"github.com/ethereum/go-ethereum/permission/eea"
-	eeabind "github.com/ethereum/go-ethereum/permission/eea/bind"
+	eb "github.com/ethereum/go-ethereum/permission/eea/bind"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -144,41 +144,41 @@ func setup() {
 	}
 	contrBackend = backends.NewSimulatedBackendFrom(ethereum)
 
-	var permUpgrInstance *basicbind.PermUpgr
-	var permUpgrInstanceE *eeabind.PermUpgr
+	var permUpgrInstance *bb.PermUpgr
+	var permUpgrInstanceE *eb.PermUpgr
 
 	guardianTransactor := bind.NewKeyedTransactor(guardianKey)
 
 	if eeaFlag {
-		permUpgrAddress, _, permUpgrInstanceE, err = eeabind.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
+		permUpgrAddress, _, permUpgrInstanceE, err = eb.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permInterfaceAddress, _, _, err = eeabind.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
+		permInterfaceAddress, _, _, err = eb.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nodeManagerAddress, _, _, err = eeabind.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
+		nodeManagerAddress, _, _, err = eb.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		roleManagerAddress, _, _, err = eeabind.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
+		roleManagerAddress, _, _, err = eb.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		accountManagerAddress, _, _, err = eeabind.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
+		accountManagerAddress, _, _, err = eb.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		orgManagerAddress, _, _, err = eeabind.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
+		orgManagerAddress, _, _, err = eb.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		voterManagerAddress, _, _, err = eeabind.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
+		voterManagerAddress, _, _, err = eb.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permImplAddress, _, _, err = eeabind.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+		permImplAddress, _, _, err = eb.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -187,35 +187,35 @@ func setup() {
 			t.Fatal(err)
 		}
 	} else {
-		permUpgrAddress, _, permUpgrInstance, err = basicbind.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
+		permUpgrAddress, _, permUpgrInstance, err = bb.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permInterfaceAddress, _, _, err = basicbind.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
+		permInterfaceAddress, _, _, err = bb.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nodeManagerAddress, _, _, err = basicbind.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
+		nodeManagerAddress, _, _, err = bb.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		roleManagerAddress, _, _, err = basicbind.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
+		roleManagerAddress, _, _, err = bb.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		accountManagerAddress, _, _, err = basicbind.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
+		accountManagerAddress, _, _, err = bb.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		orgManagerAddress, _, _, err = basicbind.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
+		orgManagerAddress, _, _, err = bb.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		voterManagerAddress, _, _, err = basicbind.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
+		voterManagerAddress, _, _, err = bb.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permImplAddress, _, _, err = basicbind.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+		permImplAddress, _, _, err = bb.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -744,12 +744,12 @@ func TestParsePermissionConfig(t *testing.T) {
 	d, _ := ioutil.TempDir("", "qdata")
 	defer os.RemoveAll(d)
 
-	_, err := ParsePermissionConfig(d)
+	_, err := ptype.ParsePermissionConfig(d)
 	assert.True(t, err != nil, "expected file not there error")
 
 	fileName := d + "/permission-config.json"
 	_, err = os.Create(fileName)
-	_, err = ParsePermissionConfig(d)
+	_, err = ptype.ParsePermissionConfig(d)
 	assert.True(t, err != nil, "expected unmarshalling error")
 
 	// write permission-config.json into the temp dir
@@ -771,7 +771,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
-	_, err = ParsePermissionConfig(d)
+	_, err = ptype.ParsePermissionConfig(d)
 	assert.True(t, err != nil, "expected sub org depth not set error")
 
 	_ = os.Remove(fileName)
@@ -781,7 +781,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
-	_, err = ParsePermissionConfig(d)
+	_, err = ptype.ParsePermissionConfig(d)
 	assert.True(t, err != nil, "expected account not given  error")
 
 	_ = os.Remove(fileName)
@@ -790,7 +790,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
-	_, err = ParsePermissionConfig(d)
+	_, err = ptype.ParsePermissionConfig(d)
 	assert.True(t, err != nil, "expected contract address error")
 
 	_ = os.Remove(fileName)
@@ -799,6 +799,6 @@ func TestParsePermissionConfig(t *testing.T) {
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
-	permConfig, err := ParsePermissionConfig(d)
+	permConfig, err := ptype.ParsePermissionConfig(d)
 	assert.False(t, permConfig.IsEmpty(), "expected non empty object")
 }

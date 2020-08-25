@@ -6,22 +6,19 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
-	binding "github.com/ethereum/go-ethereum/permission/eea/bind"
+	eb "github.com/ethereum/go-ethereum/permission/eea/bind"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
 
 type Backend struct {
-	Node    *node.Node
-	IsRaft  bool
-	DataDir string
-	Contr   *Contract
+	Ib    ptype.InterfaceBackend
+	Contr *Contract
 }
 
 func (b *Backend) ManageAccountPermissions() error {
-	chAccessModified := make(chan *binding.AcctManagerAccountAccessModified)
-	chAccessRevoked := make(chan *binding.AcctManagerAccountAccessRevoked)
-	chStatusChanged := make(chan *binding.AcctManagerAccountStatusChanged)
+	chAccessModified := make(chan *eb.AcctManagerAccountAccessModified)
+	chAccessRevoked := make(chan *eb.AcctManagerAccountAccessRevoked)
+	chStatusChanged := make(chan *eb.AcctManagerAccountStatusChanged)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -66,8 +63,8 @@ func (b *Backend) ManageAccountPermissions() error {
 }
 
 func (b *Backend) ManageRolePermissions() error {
-	chRoleCreated := make(chan *binding.RoleManagerRoleCreated, 1)
-	chRoleRevoked := make(chan *binding.RoleManagerRoleRevoked, 1)
+	chRoleCreated := make(chan *eb.RoleManagerRoleCreated, 1)
+	chRoleRevoked := make(chan *eb.RoleManagerRoleRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -105,10 +102,10 @@ func (b *Backend) ManageRolePermissions() error {
 }
 
 func (b *Backend) ManageOrgPermissions() error {
-	chPendingApproval := make(chan *binding.OrgManagerOrgPendingApproval, 1)
-	chOrgApproved := make(chan *binding.OrgManagerOrgApproved, 1)
-	chOrgSuspended := make(chan *binding.OrgManagerOrgSuspended, 1)
-	chOrgReactivated := make(chan *binding.OrgManagerOrgSuspensionRevoked, 1)
+	chPendingApproval := make(chan *eb.OrgManagerOrgPendingApproval, 1)
+	chOrgApproved := make(chan *eb.OrgManagerOrgApproved, 1)
+	chOrgSuspended := make(chan *eb.OrgManagerOrgSuspended, 1)
+	chOrgReactivated := make(chan *eb.OrgManagerOrgSuspensionRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -156,13 +153,13 @@ func (b *Backend) ManageOrgPermissions() error {
 }
 
 func (b *Backend) ManageNodePermissions() error {
-	chNodeApproved := make(chan *binding.NodeManagerNodeApproved, 1)
-	chNodeProposed := make(chan *binding.NodeManagerNodeProposed, 1)
-	chNodeDeactivated := make(chan *binding.NodeManagerNodeDeactivated, 1)
-	chNodeActivated := make(chan *binding.NodeManagerNodeActivated, 1)
-	chNodeBlacklisted := make(chan *binding.NodeManagerNodeBlacklisted)
-	chNodeRecoveryInit := make(chan *binding.NodeManagerNodeRecoveryInitiated, 1)
-	chNodeRecoveryDone := make(chan *binding.NodeManagerNodeRecoveryCompleted, 1)
+	chNodeApproved := make(chan *eb.NodeManagerNodeApproved, 1)
+	chNodeProposed := make(chan *eb.NodeManagerNodeProposed, 1)
+	chNodeDeactivated := make(chan *eb.NodeManagerNodeDeactivated, 1)
+	chNodeActivated := make(chan *eb.NodeManagerNodeActivated, 1)
+	chNodeBlacklisted := make(chan *eb.NodeManagerNodeBlacklisted)
+	chNodeRecoveryInit := make(chan *eb.NodeManagerNodeRecoveryInitiated, 1)
+	chNodeRecoveryDone := make(chan *eb.NodeManagerNodeRecoveryCompleted, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -202,7 +199,7 @@ func (b *Backend) ManageNodePermissions() error {
 			select {
 			case evtNodeApproved := <-chNodeApproved:
 				enodeId := types.GetNodeUrl(evtNodeApproved.EnodeId, evtNodeApproved.Ip[:], evtNodeApproved.Port, evtNodeApproved.Raftport)
-				err := ptype.UpdatePermissionedNodes(b.Node, b.DataDir, enodeId, ptype.NodeAdd, b.IsRaft)
+				err := ptype.UpdatePermissionedNodes(b.Ib.Node(), b.Ib.DataDir(), enodeId, ptype.NodeAdd, b.Ib.IsRaft())
 				if err != nil {
 					log.Error("error updating permissioned-nodes.json", "err", err)
 				}
@@ -214,7 +211,7 @@ func (b *Backend) ManageNodePermissions() error {
 
 			case evtNodeDeactivated := <-chNodeDeactivated:
 				enodeId := types.GetNodeUrl(evtNodeDeactivated.EnodeId, evtNodeDeactivated.Ip[:], evtNodeDeactivated.Port, evtNodeDeactivated.Raftport)
-				err := ptype.UpdatePermissionedNodes(b.Node, b.DataDir, enodeId, ptype.NodeDelete, b.IsRaft)
+				err := ptype.UpdatePermissionedNodes(b.Ib.Node(), b.Ib.DataDir(), enodeId, ptype.NodeDelete, b.Ib.IsRaft())
 				if err != nil {
 					log.Error("error updating permissioned-nodes.json", "err", err)
 				}
@@ -222,7 +219,7 @@ func (b *Backend) ManageNodePermissions() error {
 
 			case evtNodeActivated := <-chNodeActivated:
 				enodeId := types.GetNodeUrl(evtNodeActivated.EnodeId, evtNodeActivated.Ip[:], evtNodeActivated.Port, evtNodeActivated.Raftport)
-				err := ptype.UpdatePermissionedNodes(b.Node, b.DataDir, enodeId, ptype.NodeAdd, b.IsRaft)
+				err := ptype.UpdatePermissionedNodes(b.Ib.Node(), b.Ib.DataDir(), enodeId, ptype.NodeAdd, b.Ib.IsRaft())
 				if err != nil {
 					log.Error("error updating permissioned-nodes.json", "err", err)
 				}
@@ -231,9 +228,9 @@ func (b *Backend) ManageNodePermissions() error {
 			case evtNodeBlacklisted := <-chNodeBlacklisted:
 				enodeId := types.GetNodeUrl(evtNodeBlacklisted.EnodeId, evtNodeBlacklisted.Ip[:], evtNodeBlacklisted.Port, evtNodeBlacklisted.Raftport)
 				types.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, enodeId, types.NodeBlackListed)
-				err := ptype.UpdateDisallowedNodes(b.DataDir, enodeId, ptype.NodeAdd)
+				err := ptype.UpdateDisallowedNodes(b.Ib.DataDir(), enodeId, ptype.NodeAdd)
 				log.Error("error updating disallowed-nodes.json", "err", err)
-				err = ptype.UpdatePermissionedNodes(b.Node, b.DataDir, enodeId, ptype.NodeDelete, b.IsRaft)
+				err = ptype.UpdatePermissionedNodes(b.Ib.Node(), b.Ib.DataDir(), enodeId, ptype.NodeDelete, b.Ib.IsRaft())
 				if err != nil {
 					log.Error("error updating permissioned-nodes.json", "err", err)
 				}
@@ -245,9 +242,9 @@ func (b *Backend) ManageNodePermissions() error {
 			case evtNodeRecoveryDone := <-chNodeRecoveryDone:
 				enodeId := types.GetNodeUrl(evtNodeRecoveryDone.EnodeId, evtNodeRecoveryDone.Ip[:], evtNodeRecoveryDone.Port, evtNodeRecoveryDone.Raftport)
 				types.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, enodeId, types.NodeApproved)
-				err := ptype.UpdateDisallowedNodes(b.DataDir, enodeId, ptype.NodeDelete)
+				err := ptype.UpdateDisallowedNodes(b.Ib.DataDir(), enodeId, ptype.NodeDelete)
 				log.Error("error updating disallowed-nodes.json", "err", err)
-				err = ptype.UpdatePermissionedNodes(b.Node, b.DataDir, enodeId, ptype.NodeAdd, b.IsRaft)
+				err = ptype.UpdatePermissionedNodes(b.Ib.Node(), b.Ib.DataDir(), enodeId, ptype.NodeAdd, b.Ib.IsRaft())
 				if err != nil {
 					log.Error("error updating permissioned-nodes.json", "err", err)
 				}

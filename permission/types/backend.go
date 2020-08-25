@@ -2,17 +2,48 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/raft"
 )
+
+// backend struct for interfaces
+type InterfaceBackend struct {
+	node    *node.Node
+	isRaft  bool
+	dataDir string
+}
+
+func (i *InterfaceBackend) SetIsRaft(isRaft bool) {
+	i.isRaft = isRaft
+}
+
+func NewInterfaceBackend(node *node.Node, isRaft bool, dataDir string) *InterfaceBackend {
+	return &InterfaceBackend{node: node, isRaft: isRaft, dataDir: dataDir}
+}
+
+func (i InterfaceBackend) Node() *node.Node {
+	return i.node
+}
+
+func (i InterfaceBackend) IsRaft() bool {
+	return i.isRaft
+}
+
+func (i InterfaceBackend) DataDir() string {
+	return i.dataDir
+}
 
 // to signal all watches when service is stopped
 type StopEvent struct {
@@ -20,6 +51,7 @@ type StopEvent struct {
 
 // broadcasting stopEvent when service is being stopped
 var StopFeed event.Feed
+var mux sync.Mutex
 
 type NodeOperation uint8
 
@@ -77,7 +109,6 @@ func UpdateFile(fileName, enodeId string, operation NodeOperation, createFile bo
 	}
 	blob, _ := json.Marshal(nodeList)
 
-	var mux sync.Mutex
 	mux.Lock()
 	defer mux.Unlock()
 
@@ -124,6 +155,7 @@ func DisconnectNode(node *node.Node, enodeId string, isRaft bool) error {
 		}
 	} else {
 		// Istanbul  or clique - disconnect the peer
+
 		server := node.Server()
 		if server != nil {
 			node, err := enode.ParseV4(enodeId)
@@ -163,4 +195,41 @@ func SubscribeStopEvent() (chan StopEvent, event.Subscription) {
 	c := make(chan StopEvent)
 	s := StopFeed.Subscribe(c)
 	return c, s
+}
+
+// function reads the permissions config file passed and populates the
+// config structure accordingly
+func ParsePermissionConfig(dir string) (types.PermissionConfig, error) {
+	fullPath := filepath.Join(dir, params.PERMISSION_MODEL_CONFIG)
+	f, err := os.Open(fullPath)
+	if err != nil {
+		log.Error("can't open file", "file", fullPath, "error", err)
+		return types.PermissionConfig{}, err
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+
+	var permConfig types.PermissionConfig
+	blob, err := ioutil.ReadFile(fullPath)
+	if err != nil {
+		log.Error("error reading file", "err", err, "file", fullPath)
+	}
+
+	err = json.Unmarshal(blob, &permConfig)
+	if err != nil {
+		log.Error("error unmarshalling the file", "err", err, "file", fullPath)
+	}
+
+	if len(permConfig.Accounts) == 0 {
+		return types.PermissionConfig{}, fmt.Errorf("no accounts given in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
+	}
+	if permConfig.SubOrgDepth.Cmp(big.NewInt(0)) == 0 || permConfig.SubOrgBreadth.Cmp(big.NewInt(0)) == 0 {
+		return types.PermissionConfig{}, fmt.Errorf("sub org breadth depth not passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
+	}
+	if permConfig.IsEmpty() {
+		return types.PermissionConfig{}, fmt.Errorf("missing contract addresses in %s", params.PERMISSION_MODEL_CONFIG)
+	}
+
+	return permConfig, nil
 }
