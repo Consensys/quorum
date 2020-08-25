@@ -765,8 +765,7 @@ func (q *QuorumControlsAPI) getNodeDetails(url string) (string, string, uint16, 
 	if err != nil {
 		return "", ip, 0, 0, errors.New("invalid Node id")
 	}
-	enodeId, ip, port, raftport := enodeDet.NodeDetails()
-	return enodeId, ip, port, raftport, err
+	return enodeDet.EnodeID(), enodeDet.IP().String(), uint16(enodeDet.TCP()), uint16(enodeDet.RaftPort()), err
 }
 
 // all validations for add org operation

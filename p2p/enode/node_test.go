@@ -267,16 +267,3 @@ func TestIncomplete(t *testing.T) {
 		}
 	}
 }
-
-func TestNode_NodeDetails(t *testing.T) {
-	var url = "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@localhost:21000?discport=0&raftport=50401"
-	n, err := ParseV4(url)
-	if err != nil {
-		t.Errorf("parsing host failed %v", err)
-	}
-	enodeId, ip, port, raftport := n.NodeDetails()
-	assert.Equal(t, "ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef", enodeId, "mismatch in enodeId returned")
-	assert.Equal(t, "::1", ip, "mismatch in IP returned")
-	assert.Equal(t, uint16(21000), port, "mismatch in port returned")
-	assert.Equal(t, uint16(50401), raftport, "mismatch in raft port returned")
-}
