@@ -36,21 +36,22 @@ import (
 )
 
 const (
-	arbitraryNetworkAdminOrg  = "NETWORK_ADMIN"
-	arbitraryNetworkAdminRole = "NETWORK_ADMIN_ROLE"
-	arbitraryOrgAdminRole     = "ORG_ADMIN_ROLE"
-	arbitraryNode1            = "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@127.0.0.1:21000?discport=0&raftport=50401"
-	arbitraryNode2            = "enode://0ba6b9f606a43a95edc6247cdb1c1e105145817be7bcafd6b2c0ba15d58145f0dc1a194f70ba73cd6f4cdd6864edc7687f311254c7555cc32e4d45aeb1b80416@127.0.0.1:21001?discport=0&raftport=50402"
-	arbitraryNode3            = "enode://579f786d4e2830bbcc02815a27e8a9bacccc9605df4dc6f20bcc1a6eb391e7225fff7cb83e5b4ecd1f3a94d8b733803f2f66b7e871961e7b029e22c155c3a778@127.0.0.1:21002?discport=0&raftport=50403"
-	arbitraryNode4            = "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404"
-	arbitraryOrgToAdd         = "ORG1"
-	arbitrarySubOrg           = "SUB1"
-	arbitrartNewRole1         = "NEW_ROLE_1"
-	arbitrartNewRole2         = "NEW_ROLE_2"
-	orgCacheSize              = 4
-	roleCacheSize             = 4
-	nodeCacheSize             = 2
-	accountCacheSize          = 4
+	arbitraryNetworkAdminOrg   = "NETWORK_ADMIN"
+	arbitraryNetworkAdminRole  = "NETWORK_ADMIN_ROLE"
+	arbitraryOrgAdminRole      = "ORG_ADMIN_ROLE"
+	arbitraryNode1             = "enode://ac6b1096ca56b9f6d004b779ae3728bf83f8e22453404cc3cef16a3d9b96608bc67c4b30db88e0a5a6c6390213f7acbe1153ff6d23ce57380104288ae19373ef@127.0.0.1:21000?discport=0&raftport=50401"
+	arbitraryNode2             = "enode://0ba6b9f606a43a95edc6247cdb1c1e105145817be7bcafd6b2c0ba15d58145f0dc1a194f70ba73cd6f4cdd6864edc7687f311254c7555cc32e4d45aeb1b80416@127.0.0.1:21001?discport=0&raftport=50402"
+	arbitraryNode3             = "enode://579f786d4e2830bbcc02815a27e8a9bacccc9605df4dc6f20bcc1a6eb391e7225fff7cb83e5b4ecd1f3a94d8b733803f2f66b7e871961e7b029e22c155c3a778@127.0.0.1:21002?discport=0&raftport=50403"
+	arbitraryNode4             = "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@127.0.0.1:21003?discport=0&raftport=50404"
+	arbitraryNode4withHostName = "enode://3d9ca5956b38557aba991e31cf510d4df641dce9cc26bfeb7de082f0c07abb6ede3a58410c8f249dabeecee4ad3979929ac4c7c496ad20b8cfdd061b7401b4f5@lcoalhost:21003?discport=0&raftport=50404"
+	arbitraryOrgToAdd          = "ORG1"
+	arbitrarySubOrg            = "SUB1"
+	arbitrartNewRole1          = "NEW_ROLE_1"
+	arbitrartNewRole2          = "NEW_ROLE_2"
+	orgCacheSize               = 4
+	roleCacheSize              = 4
+	nodeCacheSize              = 2
+	accountCacheSize           = 4
 )
 
 var ErrAccountsLinked = errors.New("Accounts linked to the role. Cannot be removed")
@@ -62,12 +63,13 @@ var (
 	guardianKey     *ecdsa.PrivateKey
 	guardianAccount accounts.Account
 	contrBackend    bind.ContractBackend
-	permUpgrAddress, permInterfaceAddress, permImplAddress, voterManagerAddress,
-	nodeManagerAddress, roleManagerAddress, accountManagerAddress, orgManagerAddress common.Address
 	ethereum        *eth.Ethereum
 	stack           *node.Node
 	guardianAddress common.Address
 	eeaFlag         bool
+
+	permUpgrAddress, permInterfaceAddress, permImplAddress, voterManagerAddress,
+	nodeManagerAddress, roleManagerAddress, accountManagerAddress, orgManagerAddress common.Address
 )
 
 func TestMain(m *testing.M) {
@@ -478,6 +480,10 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode3, types.NodeApproved)
 
+	testObject.permCtrl.isRaft = true
+	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode4withHostName, txa)
+	assert.Equal(t, err, types.ErrHostNameNotSupported)
+
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode4, txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode4, types.NodeApproved)
@@ -652,7 +658,7 @@ func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
 		SubOrgDepth:   big.NewInt(10),
 		SubOrgBreadth: big.NewInt(10),
 	}
-	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, eeaFlag)
+	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, eeaFlag, false)
 	if err != nil {
 		t.Fatal(err)
 	}

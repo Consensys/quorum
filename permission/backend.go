@@ -29,6 +29,8 @@ type PermissionCtrl struct {
 	contract       ptype.ContractService
 	backend        ptype.Backend
 	eeaFlag        bool
+	useDns         bool
+	isRaft         bool
 	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
 	errorChan      chan error      // channel to capture error when starting aysnc
 }
@@ -39,7 +41,7 @@ type PermissionCtrl struct {
 // 1. EthService to be ready
 // 2. Downloader to sync up blocks
 // 3. InProc RPC server to be ready
-func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, eeaFlag bool) (*PermissionCtrl, error) {
+func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, eeaFlag, useDns bool) (*PermissionCtrl, error) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	p := &PermissionCtrl{
@@ -50,6 +52,8 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, 
 		startWaitGroup: wg,
 		errorChan:      make(chan error),
 		eeaFlag:        eeaFlag,
+		useDns:         useDns,
+		isRaft:         false,
 	}
 
 	p.populateBackEnd()
@@ -154,14 +158,13 @@ func (p *PermissionCtrl) populateBackEnd() {
 }
 
 func (p *PermissionCtrl) updateBackEnd() {
-	isRaft := p.eth.BlockChain().Config().Istanbul == nil && p.eth.BlockChain().Config().Clique == nil
 	p.contract = NewPermissionContractService(p.ethClnt, p.eeaFlag, p.key, p.permConfig)
 	switch p.eeaFlag {
 	case true:
 		p.backend.(*eea.Backend).Contr = p.contract.(*eea.Contract)
-		p.backend.(*eea.Backend).Ib.SetIsRaft(isRaft)
+		p.backend.(*eea.Backend).Ib.SetIsRaft(p.isRaft)
 	default:
 		p.backend.(*basic.Backend).Contr = p.contract.(*basic.Contract)
-		p.backend.(*basic.Backend).Ib.SetIsRaft(isRaft)
+		p.backend.(*basic.Backend).Ib.SetIsRaft(p.isRaft)
 	}
 }

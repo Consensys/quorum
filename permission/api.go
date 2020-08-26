@@ -75,7 +75,7 @@ const (
 	ActivateSuspendedOrg
 )
 
-// QuorumControlsAPI provides an API to access Quorum's Node permission and org Key management related services
+// QuorumControlsAPI provides an API to access Quorum's enterprise permissions related services
 type QuorumControlsAPI struct {
 	permCtrl *PermissionCtrl
 }
@@ -747,6 +747,9 @@ func (q *QuorumControlsAPI) valNodeDetails(url string) error {
 		if err != nil {
 			return types.ErrInvalidNode
 		}
+		if q.permCtrl.isRaft && !q.permCtrl.useDns && enodeDet.Host() != "" {
+			return types.ErrHostNameNotSupported
+		}
 		// check if Node already there
 		if q.checkNodeExists(url, enodeDet.EnodeID()) {
 			return types.ErrNodePresent
@@ -765,7 +768,14 @@ func (q *QuorumControlsAPI) getNodeDetails(url string) (string, string, uint16, 
 	if err != nil {
 		return "", ip, 0, 0, errors.New("invalid Node id")
 	}
-	return enodeDet.EnodeID(), enodeDet.IP().String(), uint16(enodeDet.TCP()), uint16(enodeDet.RaftPort()), err
+
+	ip = enodeDet.IP().String()
+	if q.permCtrl.isRaft && q.permCtrl.useDns {
+		if enodeDet.Host() != "" {
+			ip = enodeDet.Host()
+		}
+	}
+	return enodeDet.EnodeID(), ip, uint16(enodeDet.TCP()), uint16(enodeDet.RaftPort()), err
 }
 
 // all validations for add org operation

@@ -1826,14 +1826,14 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 }
 
 // Configure smart-contract-based permissioning service
-func RegisterPermissionService(stack *node.Node, eeaFlag bool) {
+func RegisterPermissionService(stack *node.Node, eeaFlag, useDns bool) {
 	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
 		permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
 		if err != nil {
 			return nil, fmt.Errorf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}
 		// start the permissions management service
-		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig, eeaFlag)
+		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig, eeaFlag, useDns)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}
