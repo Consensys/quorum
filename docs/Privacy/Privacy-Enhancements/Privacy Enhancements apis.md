@@ -1,4 +1,4 @@
-# Privacy Enhancement  APIs
+# Privacy Enhancements  APIs
 ## APIs
 ### `getContractPrivacyMetadata` 
 The api to query the Privacy Metadata for a contract account address
