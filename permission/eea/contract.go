@@ -16,6 +16,8 @@ type Contract struct {
 	EthClnt    bind.ContractBackend
 	Key        *ecdsa.PrivateKey
 	PermConfig *types.PermissionConfig
+	IsRaft     bool
+	UseDns     bool
 
 	//binding contracts
 	PermUpgr   *binding.PermUpgr
@@ -32,106 +34,125 @@ type Contract struct {
 	permAcctSession   *binding.AcctManagerSession
 }
 
-func (p *Contract) RemoveRole(_roleId string, _orgId string) (*types.Transaction, error) {
-
-	return p.PermInterfSession.RemoveRole(_roleId, _orgId)
+func (p *Contract) RemoveRole(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.RemoveRole(_args.RoleId, _args.OrgId)
 }
 
-func (p *Contract) AddNewRole(_roleId string, _orgId string, _access *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
-
-	return p.PermInterfSession.AddNewRole(_roleId, _orgId, _access, _voter, _admin)
+func (p *Contract) AddNewRole(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.AddNewRole(_args.RoleId, _args.OrgId, big.NewInt(int64(_args.AccessType)), _args.IsVoter, _args.IsAdmin)
 }
 
-func (p *Contract) ConnectionAllowedImpl(_enodeId string, _ip string, _port uint16, _raftport uint16) (bool, error) {
+func (p *Contract) ConnectionAllowedImpl(url string) (bool, error) {
+	enodeId, ip, port, raftPort, err := p.getNodeDetails(url)
+	if err != nil {
+		return false, err
+	}
 
-	return p.PermInterfSession.ConnectionAllowedImpl(_enodeId, _ip, _port, _raftport)
+	return p.PermInterfSession.ConnectionAllowedImpl(enodeId, ip, port, raftPort)
 }
 
 func (p *Contract) TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error) {
-
 	return p.PermInterfSession.TransactionAllowed(_srcaccount, _tgtaccount)
 }
 
-func (p *Contract) AssignAccountRole(_account common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
-
-	return p.PermInterfSession.AssignAccountRole(_account, _orgId, _roleId)
+func (p *Contract) AssignAccountRole(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.AssignAccountRole(_args.AcctId, _args.OrgId, _args.RoleId)
 }
 
-func (p *Contract) UpdateAccountStatus(_orgId string, _account common.Address, _action *big.Int) (*types.Transaction, error) {
-
-	return p.PermInterfSession.UpdateAccountStatus(_orgId, _account, _action)
+func (p *Contract) UpdateAccountStatus(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.UpdateAccountStatus(_args.OrgId, _args.AcctId, big.NewInt(int64(_args.Action)))
 }
 
-func (p *Contract) ApproveBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
-
-	return p.PermInterfSession.ApproveBlacklistedNodeRecovery(_orgId, _enodeId, _ip, _port, _raftport)
+func (p *Contract) ApproveBlacklistedNodeRecovery(_args ptype.TxArgs) (*types.Transaction, error) {
+	enodeId, ip, port, raftPort, err := p.getNodeDetails(_args.Url)
+	if err != nil {
+		return nil, err
+	}
+	return p.PermInterfSession.ApproveBlacklistedNodeRecovery(_args.OrgId, enodeId, ip, port, raftPort)
 }
 
-func (p *Contract) StartBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
-
-	return p.PermInterfSession.StartBlacklistedNodeRecovery(_orgId, _enodeId, _ip, _port, _raftport)
+func (p *Contract) StartBlacklistedNodeRecovery(_args ptype.TxArgs) (*types.Transaction, error) {
+	enodeId, ip, port, raftPort, err := p.getNodeDetails(_args.Url)
+	if err != nil {
+		return nil, err
+	}
+	return p.PermInterfSession.StartBlacklistedNodeRecovery(_args.OrgId, enodeId, ip, port, raftPort)
 }
 
-func (p *Contract) StartBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return p.PermInterfSession.StartBlacklistedAccountRecovery(_orgId, _account)
+func (p *Contract) StartBlacklistedAccountRecovery(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.StartBlacklistedAccountRecovery(_args.OrgId, _args.AcctId)
 }
 
-func (p *Contract) ApproveBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return p.PermInterfSession.ApproveBlacklistedAccountRecovery(_orgId, _account)
+func (p *Contract) ApproveBlacklistedAccountRecovery(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.ApproveBlacklistedAccountRecovery(_args.OrgId, _args.AcctId)
 }
 
 func (p *Contract) GetPendingOp(_orgId string) (string, string, common.Address, *big.Int, error) {
 	return p.PermInterfSession.GetPendingOp(_orgId)
 }
 
-func (p *Contract) ApproveAdminRole(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return p.PermInterfSession.ApproveAdminRole(_orgId, _account)
+func (p *Contract) ApproveAdminRole(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.ApproveAdminRole(_args.OrgId, _args.AcctId)
 }
 
-func (p *Contract) AssignAdminRole(_orgId string, _account common.Address, _roleId string) (*types.Transaction, error) {
-
-	return p.PermInterfSession.AssignAdminRole(_orgId, _account, _roleId)
+func (p *Contract) AssignAdminRole(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.AssignAdminRole(_args.OrgId, _args.AcctId, _args.RoleId)
 }
 
-func (p *Contract) AddNode(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
+func (p *Contract) AddNode(_args ptype.TxArgs) (*types.Transaction, error) {
+	enodeId, ip, port, raftPort, err := p.getNodeDetails(_args.Url)
+	if err != nil {
+		return nil, err
+	}
 
-	return p.PermInterfSession.AddNode(_orgId, _enodeId, _ip, _port, _raftport)
+	return p.PermInterfSession.AddNode(_args.OrgId, enodeId, ip, port, raftPort)
 }
 
-func (p *Contract) UpdateNodeStatus(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string, _action *big.Int) (*types.Transaction, error) {
-
-	return p.PermInterfSession.UpdateNodeStatus(_orgId, _enodeId, _ip, _port, _raftport, _action)
-
+func (p *Contract) UpdateNodeStatus(_args ptype.TxArgs) (*types.Transaction, error) {
+	enodeId, ip, port, raftPort, err := p.getNodeDetails(_args.Url)
+	if err != nil {
+		return nil, err
+	}
+	return p.PermInterfSession.UpdateNodeStatus(_args.OrgId, enodeId, ip, port, raftPort, big.NewInt(int64(_args.Action)))
 }
 
-func (p *Contract) ApproveOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
-	return p.PermInterfSession.ApproveOrgStatus(_orgId, _action)
+func (p *Contract) ApproveOrgStatus(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.ApproveOrgStatus(_args.OrgId, big.NewInt(int64(_args.Action)))
 }
 
-func (p *Contract) UpdateOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
-	return p.PermInterfSession.UpdateOrgStatus(_orgId, _action)
+func (p *Contract) UpdateOrgStatus(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.UpdateOrgStatus(_args.OrgId, big.NewInt(int64(_args.Action)))
 }
 
-func (p *Contract) ApproveOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
-	return p.PermInterfSession.ApproveOrg(_orgId, _enodeId, _ip, _port, _raftport, _account)
+func (p *Contract) ApproveOrg(_args ptype.TxArgs) (*types.Transaction, error) {
+	enodeId, ip, port, raftPort, err := p.getNodeDetails(_args.Url)
+	if err != nil {
+		return nil, err
+	}
+	return p.PermInterfSession.ApproveOrg(_args.OrgId, enodeId, ip, port, raftPort, _args.AcctId)
 }
 
-func (p *Contract) AddSubOrg(_pOrgId string, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
-	return p.PermInterfSession.AddSubOrg(_pOrgId, _orgId, _enodeId, _ip, _port, _raftport)
+func (p *Contract) AddSubOrg(_args ptype.TxArgs) (*types.Transaction, error) {
+	enodeId, ip, port, raftPort, err := p.getNodeDetails(_args.Url)
+	if err != nil {
+		return nil, err
+	}
+	return p.PermInterfSession.AddSubOrg(_args.POrgId, _args.OrgId, enodeId, ip, port, raftPort)
 }
 
-func (p *Contract) AddOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
-
-	return p.PermInterfSession.AddOrg(_orgId, _enodeId, _ip, _port, _raftport, _account)
+func (p *Contract) AddOrg(_args ptype.TxArgs) (*types.Transaction, error) {
+	enodeId, ip, port, raftPort, err := p.getNodeDetails(_args.Url)
+	if err != nil {
+		return nil, err
+	}
+	return p.PermInterfSession.AddOrg(_args.OrgId, enodeId, ip, port, raftPort, _args.AcctId)
 }
 
 func (p *Contract) GetAccountDetailsFromIndex(_aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
-
 	return p.permAcctSession.GetAccountDetailsFromIndex(_aIndex)
 }
 
 func (p *Contract) GetNumberOfAccounts() (*big.Int, error) {
-
 	return p.permAcctSession.GetNumberOfAccounts()
 }
 
@@ -306,4 +327,13 @@ func (p *Contract) initSession() {
 			Pending: true,
 		},
 	}
+}
+
+// checks if the passed URL is no nil and then calls GetNodeDetails
+func (p *Contract) getNodeDetails(url string) (string, string, uint16, uint16, error) {
+	if len(url) > 0 {
+		return ptype.GetNodeDetails(url, p.IsRaft, p.UseDns)
+	}
+
+	return "", "", uint16(0), uint16(0), nil
 }

@@ -108,11 +108,21 @@ func (p *PermissionCtrl) Stop() error {
 }
 
 func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, key *ecdsa.PrivateKey,
-	permConfig *types.PermissionConfig) ptype.ContractService {
+	permConfig *types.PermissionConfig, isRaft, useDns bool) ptype.ContractService {
 	if eeaFlag {
-		return &eea.Contract{EthClnt: ethClnt, Key: key, PermConfig: permConfig}
+		return &eea.Contract{
+			EthClnt:    ethClnt,
+			Key:        key,
+			IsRaft:     isRaft,
+			UseDns:     useDns,
+			PermConfig: permConfig,
+		}
 	}
-	return &basic.Contract{EthClnt: ethClnt, Key: key, PermConfig: permConfig}
+	return &basic.Contract{
+		EthClnt:    ethClnt,
+		Key:        key,
+		PermConfig: permConfig,
+	}
 }
 
 func NewPermissionContractServiceForApi(p *PermissionCtrl, transactOpts *bind.TransactOpts) ptype.ContractService {
@@ -158,7 +168,7 @@ func (p *PermissionCtrl) populateBackEnd() {
 }
 
 func (p *PermissionCtrl) updateBackEnd() {
-	p.contract = NewPermissionContractService(p.ethClnt, p.eeaFlag, p.key, p.permConfig)
+	p.contract = NewPermissionContractService(p.ethClnt, p.eeaFlag, p.key, p.permConfig, p.isRaft, p.useDns)
 	switch p.eeaFlag {
 	case true:
 		p.backend.(*eea.Backend).Contr = p.contract.(*eea.Contract)

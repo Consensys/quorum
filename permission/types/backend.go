@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -232,4 +233,25 @@ func ParsePermissionConfig(dir string) (types.PermissionConfig, error) {
 	}
 
 	return permConfig, nil
+}
+
+// returns the enode details
+func GetNodeDetails(url string, isRaft, useDns bool) (string, string, uint16, uint16, error) {
+	// validate Node id and
+	var ip string
+	if len(url) == 0 {
+		return "", ip, 0, 0, errors.New("invalid Node id")
+	}
+	enodeDet, err := enode.ParseV4(url)
+	if err != nil {
+		return "", ip, 0, 0, errors.New("invalid Node id")
+	}
+
+	ip = enodeDet.IP().String()
+	if isRaft && useDns {
+		if enodeDet.Host() != "" {
+			ip = enodeDet.Host()
+		}
+	}
+	return enodeDet.EnodeID(), ip, uint16(enodeDet.TCP()), uint16(enodeDet.RaftPort()), err
 }

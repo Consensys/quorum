@@ -666,7 +666,7 @@ func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
 	testObject.ethClnt = contrBackend
 	testObject.eth = ethereum
 	// set contract and backend's contract as asyncStart won't get called
-	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.eeaFlag, testObject.key, testObject.permConfig)
+	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.eeaFlag, testObject.key, testObject.permConfig, false, false)
 	if eeaFlag {
 		b := testObject.backend.(*eea.Backend)
 		b.Contr = testObject.contract.(*eea.Contract)

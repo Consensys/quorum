@@ -33,75 +33,83 @@ type Contract struct {
 	permAcctSession   *binding.AcctManagerSession
 }
 
-func (p *Contract) RemoveRole(_roleId string, _orgId string) (*types.Transaction, error) {
-	return p.PermInterfSession.RemoveRole(_roleId, _orgId)
+func (p *Contract) RemoveRole(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.RemoveRole(_args.RoleId, _args.OrgId)
 }
-func (p *Contract) AddNewRole(_roleId string, _orgId string, _access *big.Int, _voter bool, _admin bool) (*types.Transaction, error) {
-	return p.PermInterfSession.AddNewRole(_roleId, _orgId, _access, _voter, _admin)
+
+func (p *Contract) AddNewRole(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.AddNewRole(_args.RoleId, _args.OrgId, big.NewInt(int64(_args.AccessType)), _args.IsVoter, _args.IsAdmin)
 }
-func (p *Contract) ConnectionAllowedImpl(_enodeId string, _ip string, _port uint16, _raftport uint16) (bool, error) {
+
+func (p *Contract) ConnectionAllowedImpl(url string) (bool, error) {
 	return false, fmt.Errorf("not implemented for binding Contr")
 }
+
 func (p *Contract) TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error) {
 	return false, fmt.Errorf("not implemented for binding Contr")
 }
-func (p *Contract) AssignAccountRole(_account common.Address, _orgId string, _roleId string) (*types.Transaction, error) {
-	return p.PermInterfSession.AssignAccountRole(_account, _orgId, _roleId)
+
+func (p *Contract) AssignAccountRole(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.AssignAccountRole(_args.AcctId, _args.OrgId, _args.RoleId)
 }
-func (p *Contract) UpdateAccountStatus(_orgId string, _account common.Address, _action *big.Int) (*types.Transaction, error) {
-	return p.PermInterfSession.UpdateAccountStatus(_orgId, _account, _action)
+
+func (p *Contract) UpdateAccountStatus(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.UpdateAccountStatus(_args.OrgId, _args.AcctId, big.NewInt(int64(_args.Action)))
 }
-func (p *Contract) ApproveBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
-	return p.PermInterfSession.ApproveBlacklistedNodeRecovery(_orgId, _url)
+
+func (p *Contract) ApproveBlacklistedNodeRecovery(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.ApproveBlacklistedNodeRecovery(_args.OrgId, _args.Url)
 }
-func (p *Contract) StartBlacklistedNodeRecovery(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
-	return p.PermInterfSession.StartBlacklistedNodeRecovery(_orgId, _url)
+
+func (p *Contract) StartBlacklistedNodeRecovery(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.StartBlacklistedNodeRecovery(_args.OrgId, _args.Url)
 }
-func (p *Contract) StartBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return p.PermInterfSession.StartBlacklistedAccountRecovery(_orgId, _account)
+func (p *Contract) StartBlacklistedAccountRecovery(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.StartBlacklistedAccountRecovery(_args.OrgId, _args.AcctId)
 }
-func (p *Contract) ApproveBlacklistedAccountRecovery(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return p.PermInterfSession.ApproveBlacklistedAccountRecovery(_orgId, _account)
+
+func (p *Contract) ApproveBlacklistedAccountRecovery(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.ApproveBlacklistedAccountRecovery(_args.OrgId, _args.AcctId)
 }
+
 func (p *Contract) GetPendingOp(_orgId string) (string, string, common.Address, *big.Int, error) {
 	return p.PermInterfSession.GetPendingOp(_orgId)
 }
 
-func (p *Contract) ApproveAdminRole(_orgId string, _account common.Address) (*types.Transaction, error) {
-	return p.PermInterfSession.ApproveAdminRole(_orgId, _account)
+func (p *Contract) ApproveAdminRole(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.ApproveAdminRole(_args.OrgId, _args.AcctId)
 }
 
-func (p *Contract) AssignAdminRole(_orgId string, _account common.Address, _roleId string) (*types.Transaction, error) {
-	return p.PermInterfSession.AssignAdminRole(_orgId, _account, _roleId)
+func (p *Contract) AssignAdminRole(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.AssignAdminRole(_args.OrgId, _args.AcctId, _args.RoleId)
 }
 
-func (p *Contract) AddNode(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
-	return p.PermInterfSession.AddNode(_orgId, _url)
+func (p *Contract) AddNode(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.AddNode(_args.OrgId, _args.Url)
 }
 
-func (p *Contract) UpdateNodeStatus(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string, _action *big.Int) (*types.Transaction, error) {
-	return p.PermInterfSession.UpdateNodeStatus(_orgId, _url, _action)
-
+func (p *Contract) UpdateNodeStatus(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.UpdateNodeStatus(_args.OrgId, _args.Url, big.NewInt(int64(_args.Action)))
 }
 
-func (p *Contract) ApproveOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
-	return p.PermInterfSession.ApproveOrgStatus(_orgId, _action)
+func (p *Contract) ApproveOrgStatus(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.ApproveOrgStatus(_args.OrgId, big.NewInt(int64(_args.Action)))
 }
 
-func (p *Contract) UpdateOrgStatus(_orgId string, _action *big.Int) (*types.Transaction, error) {
-	return p.PermInterfSession.UpdateOrgStatus(_orgId, _action)
+func (p *Contract) UpdateOrgStatus(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.UpdateOrgStatus(_args.OrgId, big.NewInt(int64(_args.Action)))
 }
 
-func (p *Contract) ApproveOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
-	return p.PermInterfSession.ApproveOrg(_orgId, _url, _account)
+func (p *Contract) ApproveOrg(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.ApproveOrg(_args.OrgId, _args.Url, _args.AcctId)
 }
 
-func (p *Contract) AddSubOrg(_pOrgId string, _orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _url string) (*types.Transaction, error) {
-	return p.PermInterfSession.AddSubOrg(_pOrgId, _orgId, _url)
+func (p *Contract) AddSubOrg(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.AddSubOrg(_args.POrgId, _args.OrgId, _args.Url)
 }
 
-func (p *Contract) AddOrg(_orgId string, _enodeId string, _ip string, _port uint16, _raftport uint16, _account common.Address, _url string) (*types.Transaction, error) {
-	return p.PermInterfSession.AddOrg(_orgId, _url, _account)
+func (p *Contract) AddOrg(_args ptype.TxArgs) (*types.Transaction, error) {
+	return p.PermInterfSession.AddOrg(_args.OrgId, _args.Url, _args.AcctId)
 }
 
 func (p *Contract) GetAccountDetailsFromIndex(_aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
