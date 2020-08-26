@@ -17,7 +17,6 @@ const (
 
 func TestPrivateTransactionManagerClient_storeRaw(t *testing.T) {
 	// mock tessera client
-	//TODO: Check the test logic
 	expectedData := []byte("arbitrary data")
 	expectedDataEPH := common.BytesToEncryptedPayloadHash(expectedData)
 	arbitraryServer := newStoreRawServer()

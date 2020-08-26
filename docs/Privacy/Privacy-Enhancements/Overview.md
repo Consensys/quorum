@@ -16,13 +16,13 @@ This flavor uses all the verifications of counter party protection. On top of th
 
 ### Privacy Flag
 
-A new parameter `PrivacyFlag` had been added to all Quorum [send](http://docs.goquorum.com/en/latest/Getting%20Started/api/) API methods, being passed from the client to enable the privacy enhancements feature. This flag is an unsigned integer with the following values: 1 for PP (Party Protection) and 3 for PSV (Private State Validation) transactions. If the flag is missing or zero, the transaction is assumed to be a 'non-privacy enhanced' SP (Standard Private) transaction. 
+A new parameter `PrivacyFlag` has been added to all Quorum [send](http://docs.goquorum.com/en/latest/Getting%20Started/api/) API methods, being passed from the client to enable the privacy enhancements feature. This flag is an unsigned integer with the following values: 1 for PP (Party Protection) and 3 for PSV (Private State Validation) transactions. If the flag is missing or zero, the transaction is assumed to be a 'non-privacy enhanced' SP (Standard Private) transaction. 
 
 ### Privacy Metadata and Privacy Metadata Trie
 
-The Privacy Metadata is a new structure introduced in Quorum. It is stored in the quorum DB in the privacy metadata trie (which is linked to the private state - via root hash mappings). The Privacy Metadata contains the ACOTH and privacyFlag.
+Privacy Metadata is a new structure introduced in Quorum. It is stored in the quorum DB in the privacy metadata trie (which is linked to the private state - via root hash mappings). The Privacy Metadata contains the ACOTH and privacyFlag.
 
-The Privacy Metadata Trie is a parallel trie that stores the privacy metadata (and whatever extra data we may need) for the private contracts and is linked to the private state by root hash mappings. The records in the trie are keyed by the contract address (similarly to how the contract/accounts data is stored in the state trie).
+Privacy Metadata Trie is a parallel trie that stores the privacy metadata (and whatever extra data we may need) for the private contracts and is linked to the private state by root hash mappings. The records in the trie are keyed by the contract address (similarly to how the contract/accounts data is stored in the state trie).
 
 Each contract(account) that is created as the result of a 'PP' or 'PSV' transaction would have such a structure attached to the privacy metadata trie as it is essential in performing checks on future transactions affecting those contracts.
 
@@ -30,7 +30,7 @@ Each contract(account) that is created as the result of a 'PP' or 'PSV' transact
 
 ### Quorum
 
-The Genesis.json file has been modified to include `privacyEnhancementsBlock`. The values for this should be set to an appropriate value in the future (and should be initialised with same value across all the nodes in the network) by when the entire network would be ready to transact with privacy enhanced contracts/transactions. 
+Genesis.json file has been modified to include `privacyEnhancementsBlock`. The values for this should be set to an appropriate value in the future (and should be initialised with same value across all the nodes in the network) by when the entire network would be ready to transact with privacy enhanced contracts/transactions. 
 
 ### Tessera
 

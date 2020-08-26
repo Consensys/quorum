@@ -346,7 +346,6 @@ func TestClient_PreparePrivateTransaction_whenTypical(t *testing.T) {
 }
 
 func TestClient_PreparePrivateTransaction_whenClientIsConfigured(t *testing.T) {
-	//TODO: check the test logic
 	expectedData := []byte("arbitrary payload")
 	expectedDataEPH := common.BytesToEncryptedPayloadHash(expectedData)
 	testObject := NewClient(nil)
