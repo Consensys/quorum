@@ -25,9 +25,9 @@ require (
 	github.com/deckarep/golang-set v0.0.0-20180603214616-504e848d77ea
 	github.com/dlclark/regexp2 v1.2.0 // indirect
 	github.com/docker/docker v1.4.2-0.20180625184442-8e610b2b55bf
+	github.com/dop251/goja v0.0.0-20200106141417-aaec0e7bde29
 	github.com/eapache/channels v1.1.0
 	github.com/eapache/queue v1.1.0 // indirect
-	github.com/dop251/goja v0.0.0-20200106141417-aaec0e7bde29
 	github.com/edsrzf/mmap-go v0.0.0-20160512033002-935e0e8a636c
 	github.com/elastic/gosigar v0.8.1-0.20180330100440-37f05ff46ffa
 	github.com/ethereum/go-ethereum/crypto/secp256k1 v0.0.0-00010101000000-000000000000
@@ -82,10 +82,10 @@ require (
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20191008105621-543471e840be
 	golang.org/x/text v0.3.2
+	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/grpc v1.29.1
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
 	gopkg.in/karalabe/cookiejar.v2 v2.0.0-20150724131613-8dcd6a7f4951
-	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
 	gopkg.in/olebedev/go-duktape.v3 v3.0.0-20190213234257-ec84240a7772
 	gopkg.in/oleiade/lane.v1 v1.0.0

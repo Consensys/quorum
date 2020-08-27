@@ -115,91 +115,8 @@ func (c *Console) init(preload []string) error {
 
 	// Initialize the JavaScript <-> Go RPC bridge.
 	bridge := newBridge(c.client, c.prompter, c.printer)
-	c.jsre.Set("jeth", struct{}{})
-
-	jethObj, _ := c.jsre.Get("jeth")
-	jethObj.Object().Set("send", bridge.Send)
-	jethObj.Object().Set("sendAsync", bridge.Send)
-
-	consoleObj, _ := c.jsre.Get("console")
-	consoleObj.Object().Set("log", c.consoleOutput)
-	consoleObj.Object().Set("error", c.consoleOutput)
-
-	// Load all the internal utility JavaScript libraries
-	if err := c.jsre.Compile("bignumber.js", jsre.BignumberJs); err != nil {
-		return fmt.Errorf("bignumber.js: %v", err)
-	}
-	if err := c.jsre.Compile("web3.js", jsre.Web3Js); err != nil {
-		return fmt.Errorf("web3.js: %v", err)
-	}
-	if _, err := c.jsre.Run("var Web3 = require('web3');"); err != nil {
-		return fmt.Errorf("web3 require: %v", err)
-	}
-	if _, err := c.jsre.Run("var web3 = new Web3(jeth);"); err != nil {
-		return fmt.Errorf("web3 provider: %v", err)
-	}
-	// Load the supported APIs into the JavaScript runtime environment
-	apis, err := c.client.SupportedModules()
-	if err != nil {
-		return fmt.Errorf("api modules: %v", err)
-	}
-	flatten := "var eth = web3.eth; var personal = web3.personal; "
-	for api := range apis {
-		if api == "web3" {
-			continue // manually mapped or ignore
-		}
-		//quorum
-		// the @ symbol results in errors that prevent the extension from being added to the web3 object
-		api = strings.Replace(api, "plugin@", "plugin_", 1)
-		//!quorum
-
-		if file, ok := web3ext.Modules[api]; ok {
-			// Load our extension for the module.
-			if err = c.jsre.Compile(fmt.Sprintf("%s.js", api), file); err != nil {
-				return fmt.Errorf("%s.js: %v", api, err)
-			}
-			flatten += fmt.Sprintf("var %s = web3.%s; ", api, api)
-		} else if obj, err := c.jsre.Run("web3." + api); err == nil && obj.IsObject() {
-			// Enable web3.js built-in extension if available.
-			flatten += fmt.Sprintf("var %s = web3.%s; ", api, api)
-		}
-	}
-	if _, err = c.jsre.Run(flatten); err != nil {
-		return fmt.Errorf("namespace flattening: %v", err)
-	}
-	// Initialize the global name register (disabled for now)
-	//c.jsre.Run(`var GlobalRegistrar = eth.contract(` + registrar.GlobalRegistrarAbi + `);   registrar = GlobalRegistrar.at("` + registrar.GlobalRegistrarAddr + `");`)
-
-	// If the console is in interactive mode, instrument password related methods to query the user
-	if c.prompter != nil {
-		// Retrieve the account management object to instrument
-		personal, err := c.jsre.Get("personal")
-		if err != nil {
-			return err
-		}
-		// Override the openWallet, unlockAccount, newAccount and sign methods since
-		// these require user interaction. Assign these method in the Console the
-		// original web3 callbacks. These will be called by the jeth.* methods after
-		// they got the password from the user and send the original web3 request to
-		// the backend.
-		if obj := personal.Object(); obj != nil { // make sure the personal api is enabled over the interface
-			if _, err = c.jsre.Run(`jeth.openWallet = personal.openWallet;`); err != nil {
-				return fmt.Errorf("personal.openWallet: %v", err)
-			}
-			if _, err = c.jsre.Run(`jeth.unlockAccount = personal.unlockAccount;`); err != nil {
-				return fmt.Errorf("personal.unlockAccount: %v", err)
-			}
-			if _, err = c.jsre.Run(`jeth.newAccount = personal.newAccount;`); err != nil {
-				return fmt.Errorf("personal.newAccount: %v", err)
-			}
-			if _, err = c.jsre.Run(`jeth.sign = personal.sign;`); err != nil {
-				return fmt.Errorf("personal.sign: %v", err)
-			}
-			obj.Set("openWallet", bridge.OpenWallet)
-			obj.Set("unlockAccount", bridge.UnlockAccount)
-			obj.Set("newAccount", bridge.NewAccount)
-			obj.Set("sign", bridge.Sign)
-		}
+	if err := c.initWeb3(bridge); err != nil {
+		return err
 	}
 	if err := c.initExtensions(); err != nil {
 		return err
@@ -279,6 +196,10 @@ func (c *Console) initExtensions() error {
 		if api == "web3" {
 			continue
 		}
+		//quorum
+		// the @ symbol results in errors that prevent the extension from being added to the web3 object
+		api = strings.Replace(api, "plugin@", "plugin_", 1)
+		//!quorum
 		aliases[api] = struct{}{}
 		if file, ok := web3ext.Modules[api]; ok {
 			if err = c.jsre.Compile(api+".js", file); err != nil {

@@ -1001,11 +1001,6 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 
 	//END - QUORUM Permissioning
 
-	if conn, ok := c.fd.(*meteredConn); ok {
-		p := newPeer(srv.log, c, srv.Protocols)
-		conn.handshakeDone(p)
-	}
-
 	err = srv.checkpoint(c, srv.checkpointPostHandshake)
 	if err != nil {
 		clog.Trace("Rejected peer", "err", err)

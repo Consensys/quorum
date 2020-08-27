@@ -134,7 +134,7 @@ func (e wsHandshakeError) Error() string {
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
 func DialWebsocketWithDialer(ctx context.Context, endpoint, origin string, dialer websocket.Dialer) (*Client, error) {
-	return DialWebsocketWithCustomTLS(ctx, endpoint, origin, dialer, nil)
+	return DialWebsocketWithCustomTLS(ctx, endpoint, origin, nil)
 }
 
 // Quorum
@@ -145,7 +145,13 @@ func DialWebsocketWithDialer(ctx context.Context, endpoint, origin string, diale
 //
 // The context is used for the initial connection establishment. It does not
 // affect subsequent interactions with the client.
-func DialWebsocketWithCustomTLS(ctx context.Context, endpoint, origin string, dialer websocket.Dialer, tlsConfig *tls.Config) (*Client, error) {
+func DialWebsocketWithCustomTLS(ctx context.Context, endpoint, origin string, tlsConfig *tls.Config) (*Client, error) {
+	dialer := websocket.Dialer{
+		ReadBufferSize:  wsReadBuffer,
+		WriteBufferSize: wsWriteBuffer,
+		WriteBufferPool: wsBufferPool,
+	}
+
 	endpoint, header, err := wsClientHeaders(endpoint, origin)
 	if err != nil {
 		return nil, err
@@ -153,6 +159,7 @@ func DialWebsocketWithCustomTLS(ctx context.Context, endpoint, origin string, di
 	if tlsConfig != nil {
 		dialer.TLSClientConfig = tlsConfig
 	}
+
 	credProviderFunc, hasCredProviderFunc := ctx.Value(CtxCredentialsProvider).(HttpCredentialsProviderFunc)
 	return newClient(ctx, func(ctx context.Context) (ServerCodec, error) {
 		if hasCredProviderFunc {

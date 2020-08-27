@@ -683,7 +683,7 @@ func TestBroadcastMalformedBlock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create new blockchain: %v", err)
 	}
-	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, new(event.TypeMux), new(testTxPool), engine, blockchain, db, 1, nil)
+	pm, err := NewProtocolManager(config, nil, downloader.FullSync, DefaultConfig.NetworkId, new(event.TypeMux), new(testTxPool), engine, blockchain, db, 1, nil, false)
 	if err != nil {
 		t.Fatalf("failed to start test protocol manager: %v", err)
 	}

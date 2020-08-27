@@ -633,7 +633,7 @@ func (w *worker) resultLoop() {
 			allReceipts := mergeReceipts(pubReceipts, prvReceipts)
 
 			// Commit block and state to database.
-			stat, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.privateState, true)
+			_, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.privateState, true)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue

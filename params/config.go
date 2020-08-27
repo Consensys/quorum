@@ -228,7 +228,7 @@ var (
 	TestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil, nil, false, 32, 32, big.NewInt(0), big.NewInt(0), nil}
 	TestRules       = TestChainConfig.Rules(new(big.Int))
 
-	QuorumTestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, new(EthashConfig), nil, nil, true, 64, 32, big.NewInt(0), big.NewInt(0), nil}
+	QuorumTestChainConfig = &ChainConfig{big.NewInt(10), big.NewInt(0), nil, false, big.NewInt(0), common.Hash{}, big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0), nil, nil, new(EthashConfig), nil, nil, true, 64, 32, big.NewInt(0), big.NewInt(0), nil}
 )
 
 // TrustedCheckpoint represents a set of post-processed trie roots (CHT and

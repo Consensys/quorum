@@ -96,7 +96,7 @@ func NewSimulatedBackendFrom(ethereum *eth.Ethereum) *SimulatedBackend {
 		database:   ethereum.ChainDb(),
 		blockchain: ethereum.BlockChain(),
 		config:     ethereum.BlockChain().Config(),
-		events:     filters.NewEventSystem(new(event.TypeMux), &filterBackend{ethereum.ChainDb(), ethereum.BlockChain()}, false),
+		events:     filters.NewEventSystem(&filterBackend{ethereum.ChainDb(), ethereum.BlockChain()}, false),
 	}
 	backend.rollback()
 	return backend
@@ -145,13 +145,15 @@ func (b *SimulatedBackend) rollback() {
 // stateByBlockNumber retrieves a state by a given blocknumber.
 func (b *SimulatedBackend) stateByBlockNumber(ctx context.Context, blockNumber *big.Int) (*state.StateDB, error) {
 	if blockNumber == nil || blockNumber.Cmp(b.blockchain.CurrentBlock().Number()) == 0 {
-		return b.blockchain.State()
+		statedb, _, err := b.blockchain.State()
+		return statedb, err
 	}
 	block, err := b.BlockByNumber(ctx, blockNumber)
 	if err != nil {
 		return nil, err
 	}
-	return b.blockchain.StateAt(block.Hash())
+	statedb, _, err := b.blockchain.StateAt(block.Hash())
+	return statedb, err
 }
 
 // CodeAt returns the code associated with a certain account in the blockchain.
@@ -163,7 +165,7 @@ func (b *SimulatedBackend) CodeAt(ctx context.Context, contract common.Address, 
 	if err != nil {
 		return nil, err
 	}
-	statedb, _, _ := b.blockchain.State()
+	statedb, _, _ = b.blockchain.State()
 	return statedb.GetCode(contract), nil
 }
 
@@ -176,7 +178,7 @@ func (b *SimulatedBackend) BalanceAt(ctx context.Context, contract common.Addres
 	if err != nil {
 		return nil, err
 	}
-	statedb, _, _ := b.blockchain.State()
+	statedb, _, _ = b.blockchain.State()
 	return statedb.GetBalance(contract), nil
 }
 
@@ -189,7 +191,7 @@ func (b *SimulatedBackend) NonceAt(ctx context.Context, contract common.Address,
 	if err != nil {
 		return 0, err
 	}
-	statedb, _, _ := b.blockchain.State()
+	statedb, _, _ = b.blockchain.State()
 	return statedb.GetNonce(contract), nil
 }
 
@@ -202,7 +204,7 @@ func (b *SimulatedBackend) StorageAt(ctx context.Context, contract common.Addres
 	if err != nil {
 		return nil, err
 	}
-	statedb, _, _ := b.blockchain.State()
+	statedb, _, _ = b.blockchain.State()
 	val := statedb.GetState(contract, key)
 	return val[:], nil
 }

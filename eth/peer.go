@@ -587,7 +587,7 @@ func (p *peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 				CurrentBlock:    head,
 				GenesisBlock:    genesis,
 			})
-		case p.version == eth64 || istanbulNew:
+		case p.version >= eth64 || istanbulNew:
 			errc <- p2p.Send(p.rw, StatusMsg, &statusData{
 				ProtocolVersion: uint32(p.version),
 				NetworkID:       network,

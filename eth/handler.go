@@ -415,7 +415,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 	// Quorum
 	if pm.raftMode {
-		if msg.Code != TxMsg &&
+		if msg.Code != TransactionMsg &&
 			msg.Code != GetBlockHeadersMsg && msg.Code != BlockHeadersMsg &&
 			msg.Code != GetBlockBodiesMsg && msg.Code != BlockBodiesMsg {
 
@@ -860,7 +860,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 // Quorum
 func (pm *ProtocolManager) Enqueue(id string, block *types.Block) {
-	pm.fetcher.Enqueue(id, block)
+	pm.blockFetcher.Enqueue(id, block)
 }
 
 // BroadcastBlock will either propagate a block to a subset of its peers, or
@@ -913,16 +913,18 @@ func (pm *ProtocolManager) BroadcastTransactions(txs types.Transactions, propaga
 	if propagate {
 		for _, tx := range txs {
 			peers := pm.peers.PeersWithoutTx(tx.Hash())
+
 			// Send the block to a subset of our peers
 			transfer := peers[:int(math.Sqrt(float64(len(peers))))]
 			for _, peer := range transfer {
-				txset[peer] = append(txset[peer], tx)
+				txset[peer] = append(txset[peer], tx.Hash())
 			}
 			log.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 		}
 		for peer, hashes := range txset {
 			peer.AsyncSendTransactions(hashes)
 		}
+		return
 	}
 	// Otherwise only broadcast the announcement to peers
 	for _, tx := range txs {

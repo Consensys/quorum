@@ -1369,7 +1369,7 @@ func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, priva
 
 // writeBlockWithState writes the block and all associated state to the database,
 // but is expects the chain mutex to be held.
-func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state, privateState *state.StateDB) (status WriteStatus, err error) {
+func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state, privateState *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
@@ -1727,7 +1727,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			// QUORUM
 			if bc.isRaft() {
 				// Only returns an error for raft mode
-				return it.index, events, coalescedLogs, ErrAbortBlocksProcessing
+				return it.index, ErrAbortBlocksProcessing
 			}
 			// END QUORUM
 			break
@@ -1779,7 +1779,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		privateStateRoot := rawdb.GetPrivateStateRoot(bc.db, parent.Root)
 		privateState, err := stateNew(privateStateRoot, bc.privateStateCache)
 		if err != nil {
-			return it.index, events, coalescedLogs, err
+			return it.index, err
 		}
 		// /Quorum
 
@@ -1845,7 +1845,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		}
 		atomic.StoreUint32(&followupInterrupt, 1)
 		if err := rawdb.WritePrivateBlockBloom(bc.db, block.NumberU64(), privateReceipts); err != nil {
-			return it.index, events, coalescedLogs, err
+			return it.index, err
 		}
 		// Update the metrics touched during block commit
 		accountCommitTimer.Update(statedb.AccountCommits) // Account commits are complete, we can mark them

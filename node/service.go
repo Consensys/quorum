@@ -88,7 +88,7 @@ func (ctx *ServiceContext) Service(service interface{}) error {
 
 // NodeKey returns node key from config
 func (ctx *ServiceContext) NodeKey() *ecdsa.PrivateKey {
-	return ctx.config.NodeKey()
+	return ctx.Config.NodeKey()
 }
 
 // ExtRPCEnabled returns the indicator whether node enables the external
