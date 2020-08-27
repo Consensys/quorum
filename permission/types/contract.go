@@ -1,9 +1,11 @@
 package types
 
 import (
+	"crypto/ecdsa"
 	"math/big"
 	"reflect"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -23,29 +25,68 @@ type TxArgs struct {
 	Txa        ethapi.SendTxArgs
 }
 
-type ContractService interface {
-	RemoveRole(_args TxArgs) (*types.Transaction, error)
+type ContractBackend struct {
+	EthClnt    bind.ContractBackend
+	Key        *ecdsa.PrivateKey
+	PermConfig *types.PermissionConfig
+}
+
+type RoleService interface {
 	AddNewRole(_args TxArgs) (*types.Transaction, error)
-	ConnectionAllowedImpl(url string) (bool, error)
-	TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error)
-	AssignAccountRole(_args TxArgs) (*types.Transaction, error)
-	UpdateAccountStatus(_args TxArgs) (*types.Transaction, error)
-	ApproveBlacklistedNodeRecovery(_args TxArgs) (*types.Transaction, error)
-	StartBlacklistedNodeRecovery(_args TxArgs) (*types.Transaction, error)
-	StartBlacklistedAccountRecovery(_args TxArgs) (*types.Transaction, error)
-	ApproveBlacklistedAccountRecovery(_args TxArgs) (*types.Transaction, error)
-	GetPendingOp(_orgId string) (string, string, common.Address, *big.Int, error)
-	ApproveAdminRole(_args TxArgs) (*types.Transaction, error)
-	AssignAdminRole(_args TxArgs) (*types.Transaction, error)
+	RemoveRole(_args TxArgs) (*types.Transaction, error)
+}
+
+// Org services
+type OrgService interface {
+	AddOrg(_args TxArgs) (*types.Transaction, error)
+	AddSubOrg(_args TxArgs) (*types.Transaction, error)
+	ApproveOrg(_args TxArgs) (*types.Transaction, error)
+	UpdateOrgStatus(_args TxArgs) (*types.Transaction, error)
+	ApproveOrgStatus(_args TxArgs) (*types.Transaction, error)
+}
+
+// Node services
+type NodeService interface {
 	AddNode(_args TxArgs) (*types.Transaction, error)
 	UpdateNodeStatus(_args TxArgs) (*types.Transaction, error)
-	ApproveOrgStatus(_args TxArgs) (*types.Transaction, error)
-	UpdateOrgStatus(_args TxArgs) (*types.Transaction, error)
-	ApproveOrg(_args TxArgs) (*types.Transaction, error)
-	AddSubOrg(_args TxArgs) (*types.Transaction, error)
-	AddOrg(_args TxArgs) (*types.Transaction, error)
+	StartBlacklistedNodeRecovery(_args TxArgs) (*types.Transaction, error)
+	ApproveBlacklistedNodeRecovery(_args TxArgs) (*types.Transaction, error)
+}
+
+// Account services
+type AccountService interface {
+	AssignAccountRole(_args TxArgs) (*types.Transaction, error)
+	AssignAdminRole(_args TxArgs) (*types.Transaction, error)
+	ApproveAdminRole(_args TxArgs) (*types.Transaction, error)
+	UpdateAccountStatus(_args TxArgs) (*types.Transaction, error)
+	StartBlacklistedAccountRecovery(_args TxArgs) (*types.Transaction, error)
+	ApproveBlacklistedAccountRecovery(_args TxArgs) (*types.Transaction, error)
+}
+
+// Control services
+type ControlService interface {
+	ConnectionAllowedImpl(url string) (bool, error)
+	TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error)
+}
+
+// Audit services
+type AuditService interface {
+	GetPendingOperation(_orgId string) (string, string, common.Address, *big.Int, error)
+}
+
+type InitService interface {
+	AfterStart() error
+	Init(_breadth *big.Int, _depth *big.Int) (*types.Transaction, error)
+	UpdateNetworkBootStatus() (*types.Transaction, error)
+	SetPolicy(_nwAdminOrg string, _nwAdminRole string, _oAdminRole string) (*types.Transaction, error)
+	GetNetworkBootStatus() (bool, error)
+
+	AddAdminAccount(_acct common.Address) (*types.Transaction, error)
+	AddAdminNode(url string) (*types.Transaction, error)
 	GetAccountDetailsFromIndex(_aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error)
 	GetNumberOfAccounts() (*big.Int, error)
+	GetAccountDetails(_account common.Address) (common.Address, string, string, *big.Int, bool, error)
+
 	GetRoleDetailsFromIndex(_rIndex *big.Int) (struct {
 		RoleId     string
 		OrgId      string
@@ -55,16 +96,6 @@ type ContractService interface {
 		Active     bool
 	}, error)
 	GetNumberOfRoles() (*big.Int, error)
-	GetNumberOfOrgs() (*big.Int, error)
-	UpdateNetworkBootStatus() (*types.Transaction, error)
-	AddAdminAccount(_acct common.Address) (*types.Transaction, error)
-	AddAdminNode(_enodeId string, _ip string, _port uint16, _raftport uint16) (*types.Transaction, error)
-	SetPolicy(_nwAdminOrg string, _nwAdminRole string, _oAdminRole string) (*types.Transaction, error)
-	Init(_breadth *big.Int, _depth *big.Int) (*types.Transaction, error)
-	GetAccountDetails(_account common.Address) (common.Address, string, string, *big.Int, bool, error)
-	GetNodeDetailsFromIndex(_nodeIndex *big.Int) (string, string, *big.Int, error)
-	GetNumberOfNodes() (*big.Int, error)
-	GetNodeDetails(enodeId string) (string, string, *big.Int, error)
 	GetRoleDetails(_roleId string, _orgId string) (struct {
 		RoleId     string
 		OrgId      string
@@ -73,11 +104,15 @@ type ContractService interface {
 		Admin      bool
 		Active     bool
 	}, error)
+
+	GetNumberOfOrgs() (*big.Int, error)
 	GetSubOrgIndexes(_orgId string) ([]*big.Int, error)
 	GetOrgInfo(_orgIndex *big.Int) (string, string, string, *big.Int, *big.Int, error)
-	GetNetworkBootStatus() (bool, error)
 	GetOrgDetails(_orgId string) (string, string, string, *big.Int, *big.Int, error)
-	AfterStart() error
+
+	GetNodeDetailsFromIndex(_nodeIndex *big.Int) (string, string, *big.Int, error)
+	GetNumberOfNodes() (*big.Int, error)
+	GetNodeDetails(enodeId string) (string, string, *big.Int, error)
 }
 
 func BindContract(contractInstance interface{}, bindFunc func() (interface{}, error)) error {

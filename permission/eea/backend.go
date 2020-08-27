@@ -12,7 +12,7 @@ import (
 
 type Backend struct {
 	Ib    ptype.InterfaceBackend
-	Contr *Contract
+	Contr *Init
 }
 
 func (b *Backend) ManageAccountPermissions() error {

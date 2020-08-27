@@ -240,8 +240,8 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 
 	assert.NoError(t, err)
 	if testObject.eeaFlag {
-		var contract *eea.Contract
-		contract, _ = testObject.contract.(*eea.Contract)
+		var contract *eea.Init
+		contract, _ = testObject.contract.(*eea.Init)
 		assert.NotNil(t, contract.PermOrg)
 		assert.NotNil(t, contract.PermRole)
 		assert.NotNil(t, contract.PermNode)
@@ -249,8 +249,8 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 		assert.NotNil(t, contract.PermInterf)
 		assert.NotNil(t, contract.PermUpgr)
 	} else {
-		var contract *basic.Contract
-		contract, _ = testObject.contract.(*basic.Contract)
+		var contract *basic.Init
+		contract, _ = testObject.contract.(*basic.Init)
 		assert.NotNil(t, contract.PermOrg)
 		assert.NotNil(t, contract.PermRole)
 		assert.NotNil(t, contract.PermNode)
@@ -669,10 +669,10 @@ func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
 	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.eeaFlag, testObject.key, testObject.permConfig, false, false)
 	if eeaFlag {
 		b := testObject.backend.(*eea.Backend)
-		b.Contr = testObject.contract.(*eea.Contract)
+		b.Contr = testObject.contract.(*eea.Init)
 	} else {
 		b := testObject.backend.(*basic.Backend)
-		b.Contr = testObject.contract.(*basic.Contract)
+		b.Contr = testObject.contract.(*basic.Init)
 	}
 
 	go func() {
