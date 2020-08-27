@@ -344,6 +344,33 @@ func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, err
 
 // END QUORUM
 
+func (t *Transaction) R(ctx context.Context) (hexutil.Big, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return hexutil.Big{}, err
+	}
+	_, r, _ := tx.RawSignatureValues()
+	return hexutil.Big(*r), nil
+}
+
+func (t *Transaction) S(ctx context.Context) (hexutil.Big, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return hexutil.Big{}, err
+	}
+	_, _, s := tx.RawSignatureValues()
+	return hexutil.Big(*s), nil
+}
+
+func (t *Transaction) V(ctx context.Context) (hexutil.Big, error) {
+	tx, err := t.resolve(ctx)
+	if err != nil || tx == nil {
+		return hexutil.Big{}, err
+	}
+	v, _, _ := tx.RawSignatureValues()
+	return hexutil.Big(*v), nil
+}
+
 type BlockType int
 
 // Block represents an Ethereum block.

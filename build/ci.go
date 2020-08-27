@@ -145,6 +145,7 @@ var (
 		"bionic": "golang-go",
 		"disco":  "golang-go",
 		"eoan":   "golang-go",
+		"focal":  "golang-go",
 	}
 
 	debGoBootPaths = map[string]string{
@@ -214,9 +215,9 @@ func doInstall(cmdline []string) {
 		var minor int
 		fmt.Sscanf(strings.TrimPrefix(runtime.Version(), "go1."), "%d", &minor)
 
-		if minor < 9 {
+		if minor < 11 {
 			log.Println("You have Go version", runtime.Version())
-			log.Println("go-ethereum requires at least Go version 1.9 and cannot")
+			log.Println("go-ethereum requires at least Go version 1.11 and cannot")
 			log.Println("be compiled with an earlier version. Please upgrade your Go installation.")
 			os.Exit(1)
 		}
@@ -236,13 +237,6 @@ func doInstall(cmdline []string) {
 		goinstall.Args = append(goinstall.Args, packages...)
 		build.MustRun(goinstall)
 		return
-	}
-	// If we are cross compiling to ARMv5 ARMv6 or ARMv7, clean any previous builds
-	if *arch == "arm" {
-		os.RemoveAll(filepath.Join(runtime.GOROOT(), "pkg", runtime.GOOS+"_arm"))
-		for _, path := range filepath.SplitList(build.GOPATH()) {
-			os.RemoveAll(filepath.Join(path, "pkg", runtime.GOOS+"_arm"))
-		}
 	}
 
 	// Seems we are cross compiling, work around forbidden GOBIN
@@ -294,7 +288,6 @@ func goTool(subcmd string, args ...string) *exec.Cmd {
 
 func goToolArch(arch string, cc string, subcmd string, args ...string) *exec.Cmd {
 	cmd := build.GoTool(subcmd, args...)
-	cmd.Env = []string{"GOPATH=" + build.GOPATH()}
 	if arch == "" || arch == runtime.GOARCH {
 		cmd.Env = append(cmd.Env, "GOBIN="+GOBIN)
 	} else {
@@ -305,7 +298,7 @@ func goToolArch(arch string, cc string, subcmd string, args ...string) *exec.Cmd
 		cmd.Env = append(cmd.Env, "CC="+cc)
 	}
 	for _, e := range os.Environ() {
-		if strings.HasPrefix(e, "GOPATH=") || strings.HasPrefix(e, "GOBIN=") {
+		if strings.HasPrefix(e, "GOBIN=") {
 			continue
 		}
 		cmd.Env = append(cmd.Env, e)
@@ -367,7 +360,7 @@ func doLint(cmdline []string) {
 
 // downloadLinter downloads and unpacks golangci-lint.
 func downloadLinter(cachedir string) string {
-	const version = "1.21.0"
+	const version = "1.22.2"
 
 	csdb := build.MustLoadChecksums("build/checksums.txt")
 	base := fmt.Sprintf("golangci-lint-%s-%s-%s", version, runtime.GOOS, runtime.GOARCH)
@@ -892,7 +885,6 @@ func gomobileTool(subcmd string, args ...string) *exec.Cmd {
 	cmd := exec.Command(filepath.Join(GOBIN, "gomobile"), subcmd)
 	cmd.Args = append(cmd.Args, args...)
 	cmd.Env = []string{
-		"GOPATH=" + build.GOPATH(),
 		"PATH=" + GOBIN + string(os.PathListSeparator) + os.Getenv("PATH"),
 	}
 	for _, e := range os.Environ() {
@@ -1082,7 +1074,6 @@ func xgoTool(args []string) *exec.Cmd {
 	cmd := exec.Command(filepath.Join(GOBIN, "xgo"), args...)
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, []string{
-		"GOPATH=" + build.GOPATH(),
 		"GOBIN=" + GOBIN,
 	}...)
 	return cmd

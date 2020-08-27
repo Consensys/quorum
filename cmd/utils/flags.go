@@ -87,6 +87,17 @@ SUBCOMMANDS:
 {{range $categorized.Flags}}{{"\t"}}{{.}}
 {{end}}
 {{end}}{{end}}`
+
+	OriginCommandHelpTemplate = `{{.Name}}{{if .Subcommands}} command{{end}}{{if .Flags}} [command options]{{end}} [arguments...]
+{{if .Description}}{{.Description}}
+{{end}}{{if .Subcommands}}
+SUBCOMMANDS:
+	{{range .Subcommands}}{{.Name}}{{with .ShortName}}, {{.}}{{end}}{{ "\t" }}{{.Usage}}
+	{{end}}{{end}}{{if .Flags}}
+OPTIONS:
+{{range $.Flags}}{{"\t"}}{{.}}
+{{end}}
+{{end}}`
 )
 
 func init() {
@@ -235,6 +246,10 @@ var (
 	OverrideIstanbulFlag = cli.Uint64Flag{
 		Name:  "override.istanbul",
 		Usage: "Manually specify Istanbul fork-block, overriding the bundled setting",
+	}
+	OverrideMuirGlacierFlag = cli.Uint64Flag{
+		Name:  "override.muirglacier",
+		Usage: "Manually specify Muir Glacier fork-block, overriding the bundled setting",
 	}
 	// Light server and client settings
 	LightLegacyServFlag = cli.IntFlag{ // Deprecated in favor of light.serve, remove in 2021
@@ -674,6 +689,10 @@ var (
 		Name:  "netrestrict",
 		Usage: "Restricts network communication to the given IP networks (CIDR masks)",
 	}
+	DNSDiscoveryFlag = cli.StringFlag{
+		Name:  "discovery.dns",
+		Usage: "Sets DNS discovery entry points (use \"\" to disable DNS)",
+	}
 
 	// ATM the url is left to the user and deployment to
 	JSpathFlag = cli.StringFlag{
@@ -908,9 +927,9 @@ func setBootstrapNodes(ctx *cli.Context, cfg *p2p.Config) {
 	switch {
 	case ctx.GlobalIsSet(BootnodesFlag.Name) || ctx.GlobalIsSet(BootnodesV4Flag.Name):
 		if ctx.GlobalIsSet(BootnodesV4Flag.Name) {
-			urls = strings.Split(ctx.GlobalString(BootnodesV4Flag.Name), ",")
+			urls = splitAndTrim(ctx.GlobalString(BootnodesV4Flag.Name))
 		} else {
-			urls = strings.Split(ctx.GlobalString(BootnodesFlag.Name), ",")
+			urls = splitAndTrim(ctx.GlobalString(BootnodesFlag.Name))
 		}
 	case ctx.GlobalBool(TestnetFlag.Name):
 		urls = params.TestnetBootnodes
@@ -942,9 +961,9 @@ func setBootstrapNodesV5(ctx *cli.Context, cfg *p2p.Config) {
 	switch {
 	case ctx.GlobalIsSet(BootnodesFlag.Name) || ctx.GlobalIsSet(BootnodesV5Flag.Name):
 		if ctx.GlobalIsSet(BootnodesV5Flag.Name) {
-			urls = strings.Split(ctx.GlobalString(BootnodesV5Flag.Name), ",")
+			urls = splitAndTrim(ctx.GlobalString(BootnodesV5Flag.Name))
 		} else {
-			urls = strings.Split(ctx.GlobalString(BootnodesFlag.Name), ",")
+			urls = splitAndTrim(ctx.GlobalString(BootnodesFlag.Name))
 		}
 	case ctx.GlobalBool(RinkebyFlag.Name):
 		urls = params.RinkebyBootnodes
@@ -1646,6 +1665,14 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	if ctx.GlobalIsSet(RPCGlobalGasCap.Name) {
 		cfg.RPCGasCap = new(big.Int).SetUint64(ctx.GlobalUint64(RPCGlobalGasCap.Name))
 	}
+	if ctx.GlobalIsSet(DNSDiscoveryFlag.Name) {
+		urls := ctx.GlobalString(DNSDiscoveryFlag.Name)
+		if urls == "" {
+			cfg.DiscoveryURLs = []string{}
+		} else {
+			cfg.DiscoveryURLs = splitAndTrim(urls)
+		}
+	}
 
 	// set immutability threshold in config
 	params.SetQuorumImmutabilityThreshold(ctx.GlobalInt(QuorumImmutabilityThreshold.Name))
@@ -1657,16 +1684,19 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 			cfg.NetworkId = 3
 		}
 		cfg.Genesis = core.DefaultTestnetGenesisBlock()
+		setDNSDiscoveryDefaults(cfg, params.KnownDNSNetworks[params.TestnetGenesisHash])
 	case ctx.GlobalBool(RinkebyFlag.Name):
 		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = 4
 		}
 		cfg.Genesis = core.DefaultRinkebyGenesisBlock()
+		setDNSDiscoveryDefaults(cfg, params.KnownDNSNetworks[params.RinkebyGenesisHash])
 	case ctx.GlobalBool(GoerliFlag.Name):
 		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = 5
 		}
 		cfg.Genesis = core.DefaultGoerliGenesisBlock()
+		setDNSDiscoveryDefaults(cfg, params.KnownDNSNetworks[params.GoerliGenesisHash])
 	case ctx.GlobalBool(DeveloperFlag.Name):
 		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
 			cfg.NetworkId = 1337
@@ -1693,7 +1723,20 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 		if !ctx.GlobalIsSet(MinerGasPriceFlag.Name) && !ctx.GlobalIsSet(MinerLegacyGasPriceFlag.Name) {
 			cfg.Miner.GasPrice = big.NewInt(1)
 		}
+	default:
+		if cfg.NetworkId == 1 {
+			setDNSDiscoveryDefaults(cfg, params.KnownDNSNetworks[params.MainnetGenesisHash])
+		}
 	}
+}
+
+// setDNSDiscoveryDefaults configures DNS discovery with the given URL if
+// no URLs are set.
+func setDNSDiscoveryDefaults(cfg *eth.Config, url string) {
+	if cfg.DiscoveryURLs != nil {
+		return
+	}
+	cfg.DiscoveryURLs = []string{url}
 }
 
 // RegisterEthService adds an Ethereum client to the stack.

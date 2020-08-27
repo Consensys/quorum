@@ -204,7 +204,7 @@ func (s *StateDB) AddRefund(gas uint64) {
 func (s *StateDB) SubRefund(gas uint64) {
 	s.journal.append(refundChange{prev: s.refund})
 	if gas > s.refund {
-		panic("Refund counter below zero")
+		panic(fmt.Sprintf("Refund counter below zero (gas: %d > refund: %d)", gas, s.refund))
 	}
 	s.refund -= gas
 }
@@ -330,7 +330,8 @@ func (s *StateDB) StorageTrie(addr common.Address) Trie {
 		return nil
 	}
 	cpy := stateObject.deepCopy(s)
-	return cpy.updateTrie(s.db)
+	cpy.updateTrie(s.db)
+	return cpy.getTrie(s.db)
 }
 
 func (s *StateDB) HasSuicided(addr common.Address) bool {
@@ -760,8 +761,10 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.AccountCommits += time.Since(start) }(time.Now())
 	}
+	// The onleaf func is called _serially_, so we can reuse the same account
+	// for unmarshalling every time.
+	var account Account
 	return s.trie.Commit(func(leaf []byte, parent common.Hash) error {
-		var account Account
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil
 		}

@@ -108,10 +108,6 @@ func (h *serverHandler) runPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter)
 }
 
 func (h *serverHandler) handle(p *peer) error {
-	// Reject light clients if server is not synced.
-	if !h.synced() {
-		return p2p.DiscRequested
-	}
 	p.Log().Debug("Light Ethereum peer connected", "name", p.Name())
 
 	// Execute the LES handshake
@@ -124,6 +120,16 @@ func (h *serverHandler) handle(p *peer) error {
 	if err := p.Handshake(td, hash, number, h.blockchain.Genesis().Hash(), h.server); err != nil {
 		p.Log().Debug("Light Ethereum handshake failed", "err", err)
 		return err
+	}
+	if p.server {
+		// connected to another server, no messages expected, just wait for disconnection
+		_, err := p.rw.ReadMsg()
+		return err
+	}
+	// Reject light clients if server is not synced.
+	if !h.synced() {
+		p.Log().Debug("Light server not synced, rejecting peer")
+		return p2p.DiscRequested
 	}
 	defer p.fcClient.Disconnect()
 
@@ -268,7 +274,6 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 		if metrics.EnabledExpensive {
 			miscInHeaderPacketsMeter.Mark(1)
 			miscInHeaderTrafficMeter.Mark(int64(msg.Size))
-			defer func(start time.Time) { miscServingTimeHeaderTimer.UpdateSince(start) }(time.Now())
 		}
 		var req struct {
 			ReqID uint64
@@ -372,6 +377,7 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 				if metrics.EnabledExpensive {
 					miscOutHeaderPacketsMeter.Mark(1)
 					miscOutHeaderTrafficMeter.Mark(int64(reply.size()))
+					miscServingTimeHeaderTimer.Update(time.Duration(task.servingTime))
 				}
 			}()
 		}
@@ -381,7 +387,6 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 		if metrics.EnabledExpensive {
 			miscInBodyPacketsMeter.Mark(1)
 			miscInBodyTrafficMeter.Mark(int64(msg.Size))
-			defer func(start time.Time) { miscServingTimeBodyTimer.UpdateSince(start) }(time.Now())
 		}
 		var req struct {
 			ReqID  uint64
@@ -421,6 +426,7 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 				if metrics.EnabledExpensive {
 					miscOutBodyPacketsMeter.Mark(1)
 					miscOutBodyTrafficMeter.Mark(int64(reply.size()))
+					miscServingTimeBodyTimer.Update(time.Duration(task.servingTime))
 				}
 			}()
 		}
@@ -430,7 +436,6 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 		if metrics.EnabledExpensive {
 			miscInCodePacketsMeter.Mark(1)
 			miscInCodeTrafficMeter.Mark(int64(msg.Size))
-			defer func(start time.Time) { miscServingTimeCodeTimer.UpdateSince(start) }(time.Now())
 		}
 		var req struct {
 			ReqID uint64
@@ -494,6 +499,7 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 				if metrics.EnabledExpensive {
 					miscOutCodePacketsMeter.Mark(1)
 					miscOutCodeTrafficMeter.Mark(int64(reply.size()))
+					miscServingTimeCodeTimer.Update(time.Duration(task.servingTime))
 				}
 			}()
 		}
@@ -503,7 +509,6 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 		if metrics.EnabledExpensive {
 			miscInReceiptPacketsMeter.Mark(1)
 			miscInReceiptTrafficMeter.Mark(int64(msg.Size))
-			defer func(start time.Time) { miscServingTimeReceiptTimer.UpdateSince(start) }(time.Now())
 		}
 		var req struct {
 			ReqID  uint64
@@ -551,6 +556,7 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 				if metrics.EnabledExpensive {
 					miscOutReceiptPacketsMeter.Mark(1)
 					miscOutReceiptTrafficMeter.Mark(int64(reply.size()))
+					miscServingTimeReceiptTimer.Update(time.Duration(task.servingTime))
 				}
 			}()
 		}
@@ -560,7 +566,6 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 		if metrics.EnabledExpensive {
 			miscInTrieProofPacketsMeter.Mark(1)
 			miscInTrieProofTrafficMeter.Mark(int64(msg.Size))
-			defer func(start time.Time) { miscServingTimeTrieProofTimer.UpdateSince(start) }(time.Now())
 		}
 		var req struct {
 			ReqID uint64
@@ -654,6 +659,7 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 				if metrics.EnabledExpensive {
 					miscOutTrieProofPacketsMeter.Mark(1)
 					miscOutTrieProofTrafficMeter.Mark(int64(reply.size()))
+					miscServingTimeTrieProofTimer.Update(time.Duration(task.servingTime))
 				}
 			}()
 		}
@@ -663,7 +669,6 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 		if metrics.EnabledExpensive {
 			miscInHelperTriePacketsMeter.Mark(1)
 			miscInHelperTrieTrafficMeter.Mark(int64(msg.Size))
-			defer func(start time.Time) { miscServingTimeHelperTrieTimer.UpdateSince(start) }(time.Now())
 		}
 		var req struct {
 			ReqID uint64
@@ -729,6 +734,7 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 				if metrics.EnabledExpensive {
 					miscOutHelperTriePacketsMeter.Mark(1)
 					miscOutHelperTrieTrafficMeter.Mark(int64(reply.size()))
+					miscServingTimeHelperTrieTimer.Update(time.Duration(task.servingTime))
 				}
 			}()
 		}
@@ -738,7 +744,6 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 		if metrics.EnabledExpensive {
 			miscInTxsPacketsMeter.Mark(1)
 			miscInTxsTrafficMeter.Mark(int64(msg.Size))
-			defer func(start time.Time) { miscServingTimeTxTimer.UpdateSince(start) }(time.Now())
 		}
 		var req struct {
 			ReqID uint64
@@ -778,6 +783,7 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 				if metrics.EnabledExpensive {
 					miscOutTxsPacketsMeter.Mark(1)
 					miscOutTxsTrafficMeter.Mark(int64(reply.size()))
+					miscServingTimeTxTimer.Update(time.Duration(task.servingTime))
 				}
 			}()
 		}
@@ -787,7 +793,6 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 		if metrics.EnabledExpensive {
 			miscInTxStatusPacketsMeter.Mark(1)
 			miscInTxStatusTrafficMeter.Mark(int64(msg.Size))
-			defer func(start time.Time) { miscServingTimeTxStatusTimer.UpdateSince(start) }(time.Now())
 		}
 		var req struct {
 			ReqID  uint64
@@ -815,6 +820,7 @@ func (h *serverHandler) handleMsg(p *peer, wg *sync.WaitGroup) error {
 				if metrics.EnabledExpensive {
 					miscOutTxStatusPacketsMeter.Mark(1)
 					miscOutTxStatusTrafficMeter.Mark(int64(reply.size()))
+					miscServingTimeTxStatusTimer.Update(time.Duration(task.servingTime))
 				}
 			}()
 		}
