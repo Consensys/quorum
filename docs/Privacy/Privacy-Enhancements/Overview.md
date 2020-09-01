@@ -26,6 +26,46 @@ Privacy Metadata Trie is a parallel trie that stores the privacy metadata (and w
 
 Each contract(account) that is created as the result of a 'PP' or 'PSV' transaction would have such a structure attached to the privacy metadata trie as it is essential in performing checks on future transactions affecting those contracts.
 
+### Transaction simulation
+
+In order to discover what ACOTH(s) to attach to a transaction the quorum node simulates the execution of the proposed transaction. The result of the simulation relies on the current state of the chain.
+The ethereum VM has been enhanced to track the contracts involved in the simulated transaction. 
+At the end of the simulation the EVM can report all the created/invoked contract addresses. 
+Coupled with the privacy metadata described above it is easy to translate contract addresses to ACOTHs and attach them to the proposed transaction.
+
+#### Limitations
+Depending on the complexity of the contracts and the throughput of the network it may happen that the state at simulation time may differ from the chain state at the time the proposed transaction is minted.
+If the state at minting time is sufficiently altered to determine different contract interactions the corresponding PP/PSV transactions would be marked as failed on all the participants.
+Furthermore, since state divergence is expected in PP contracts, it is possible (depending on contract design) for PP transactions to fail on some of the participants.
+
+Concurrency may also present a problem for PSV contracts. The execution hash calculation is based on the chain state at simulation time. Submitting multiple transactions to the same PSV contract from multiple nodes concurrently is likely to result in most of the transactions failing.
+
+Considering the above we expect users to choose PP and PSV contracts/transactions **only** when the enhanced privacy is absolutely necessary (and the extra privacy benefits outweigh the potential shortfalls).
+ 
+### Contract/Transaction interactions 
+
+No interactions are allowed between the different types of private contracts/transactions. The only type of allowed interaction is for private contracts (SP/PP/PSV) to read from public contracts.
+
+Legend: 
+* RW - read/write
+* R - read only
+* NP - not permitted
+
+Axis:
+* vertical - calling contract/transaction
+* horizontal - called contract 
+
+<table>
+    <tr><td></td><th>Public</th><th>SP</th><th>PP</th><th>PSV</th></tr>
+    <tr><th>Public</th><td>RW</td><td>NP</td><td>NP</td><td>NP</td></tr>
+    <tr><th>SP</th><td>R</td><td>RW</td><td>NP</td><td>NP</td></tr>
+    <tr><th>PP</th><td>R</td><td>NP</td><td>RW</td><td>NP</td></tr>
+    <tr><th>PSV</th><td>R</td><td>NP</td><td>NP</td><td>RW</td></tr>
+</table>
+
+The privacy enhancements feature only performs it’s checks on submitted/minted transactions. 
+None of the above limitations apply to calls (read only transactions) - contract method invocations that are executed locally and do not result in minted transactions.
+
 ## Configuration Changes
 
 ### Quorum
