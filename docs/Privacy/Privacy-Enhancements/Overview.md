@@ -46,22 +46,7 @@ Considering the above we expect users to choose PP and PSV contracts/transaction
 
 No interactions are allowed between the different types of private contracts/transactions. The only type of allowed interaction is for private contracts (SP/PP/PSV) to read from public contracts.
 
-Legend: 
-* RW - read/write
-* R - read only
-* NP - not permitted
-
-Axis:
-* vertical - calling contract/transaction
-* horizontal - called contract 
-
-<table>
-    <tr><td></td><th>Public</th><th>SP</th><th>PP</th><th>PSV</th></tr>
-    <tr><th>Public</th><td>RW</td><td>NP</td><td>NP</td><td>NP</td></tr>
-    <tr><th>SP</th><td>R</td><td>RW</td><td>NP</td><td>NP</td></tr>
-    <tr><th>PP</th><td>R</td><td>NP</td><td>RW</td><td>NP</td></tr>
-    <tr><th>PSV</th><td>R</td><td>NP</td><td>NP</td><td>RW</td></tr>
-</table>
+![](Contract_Interaction_Matrix.png)
 
 The privacy enhancements feature only performs it’s checks on submitted/minted transactions. 
 None of the above limitations apply to calls (read only transactions) - contract method invocations that are executed locally and do not result in minted transactions.
