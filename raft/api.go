@@ -2,8 +2,8 @@ package raft
 
 import (
 	"errors"
-
 	"github.com/coreos/etcd/pkg/types"
+	"strconv"
 )
 
 type RaftNodeInfo struct {
@@ -11,7 +11,7 @@ type RaftNodeInfo struct {
 	Role           string     `json:"role"`
 	Address        *Address   `json:"address"`
 	PeerAddresses  []*Address `json:"peerAddresses"`
-	RemovedPeerIds []uint16   `json:"removedPeerIds"`
+	RemovedPeerIds []uint64   `json:"removedPeerIds"`
 	AppliedIndex   uint64     `json:"appliedIndex"`
 	SnapshotIndex  uint64     `json:"snapshotIndex"`
 }
@@ -43,29 +43,41 @@ func (s *PublicRaftAPI) checkIfNodeInCluster() error {
 	return nil
 }
 
-func (s *PublicRaftAPI) AddPeer(enodeId string) (uint16, error) {
+func (s *PublicRaftAPI) AddPeer(enodeId string) (string, error) {
 	if err := s.checkIfNodeInCluster(); err != nil {
-		return 0, err
+		return "0", err
 	}
-	return s.raftService.raftProtocolManager.ProposeNewPeer(enodeId, false)
+	raftIdUint64, err := s.raftService.raftProtocolManager.ProposeNewPeer(enodeId, false)
+	raftId := RaftIdToString(raftIdUint64)
+	return raftId, err
 }
 
-func (s *PublicRaftAPI) AddLearner(enodeId string) (uint16, error) {
+func (s *PublicRaftAPI) AddLearner(enodeId string) (string, error) {
 	if err := s.checkIfNodeInCluster(); err != nil {
-		return 0, err
+		return "0", err
 	}
-	return s.raftService.raftProtocolManager.ProposeNewPeer(enodeId, true)
+	raftIdUint64, err := s.raftService.raftProtocolManager.ProposeNewPeer(enodeId, true)
+	raftId := RaftIdToString(raftIdUint64)
+	return raftId, err
 }
 
-func (s *PublicRaftAPI) PromoteToPeer(raftId uint16) (bool, error) {
+func (s *PublicRaftAPI) PromoteToPeer(raftIdStr string) (bool, error) {
 	if err := s.checkIfNodeInCluster(); err != nil {
+		return false, err
+	}
+	raftId, err := strconv.ParseUint(raftIdStr, 10, 64)
+	if err != nil {
 		return false, err
 	}
 	return s.raftService.raftProtocolManager.PromoteToPeer(raftId)
 }
 
-func (s *PublicRaftAPI) RemovePeer(raftId uint16) error {
+func (s *PublicRaftAPI) RemovePeer(raftIdStr string) error {
 	if err := s.checkIfNodeInCluster(); err != nil {
+		return err
+	}
+	raftId, err := strconv.ParseUint(raftIdStr, 10, 64)
+	if err != nil {
 		return err
 	}
 	return s.raftService.raftProtocolManager.ProposePeerRemoval(raftId)
@@ -104,6 +116,8 @@ func (s *PublicRaftAPI) Cluster() ([]ClusterInfo, error) {
 	peerAddresses := append(nodeInfo.PeerAddresses, nodeInfo.Address)
 	clustInfo := make([]ClusterInfo, len(peerAddresses))
 	for i, a := range peerAddresses {
+		// used to display the address in JS, raftId in Javascript is represented as a String as a JS Number and uint64 are not compatible.
+		aJS := newAddressJS(a)
 		role := ""
 		if !noLeader {
 			if a.RaftId == leaderAddr.RaftId {
@@ -114,14 +128,15 @@ func (s *PublicRaftAPI) Cluster() ([]ClusterInfo, error) {
 				role = "verifier"
 			}
 		}
-		clustInfo[i] = ClusterInfo{*a, role, s.checkIfNodeIsActive(a.RaftId)}
+		//log.Info("Cluster RaftId is: ", "a.RaftId", a.RaftId, "aJS.RaftId", aJS.RaftId)
+		clustInfo[i] = ClusterInfo{*aJS, role, s.checkIfNodeIsActive(a.RaftId)}
 	}
 	return clustInfo, nil
 }
 
 // checkIfNodeIsActive checks if the raft node is active
 // if the raft node is active ActiveSince returns non-zero time
-func (s *PublicRaftAPI) checkIfNodeIsActive(raftId uint16) bool {
+func (s *PublicRaftAPI) checkIfNodeIsActive(raftId uint64) bool {
 	if raftId == s.raftService.raftProtocolManager.raftId {
 		return true
 	}
@@ -129,6 +144,6 @@ func (s *PublicRaftAPI) checkIfNodeIsActive(raftId uint16) bool {
 	return !activeSince.IsZero()
 }
 
-func (s *PublicRaftAPI) GetRaftId(enodeId string) (uint16, error) {
+func (s *PublicRaftAPI) GetRaftId(enodeId string) (uint64, error) {
 	return s.raftService.raftProtocolManager.FetchRaftId(enodeId)
 }

@@ -15,7 +15,7 @@ import (
 // or `enode.Node`.
 // As NodeId is mainly used to derive the `ecdsa.pubkey` to build `enode.Node` it is kept as [64]byte instead of ID [32]byte used by `enode.Node`.
 type Address struct {
-	RaftId   uint16        `json:"raftId"`
+	RaftId   uint64        `json:"raftId"`
 	NodeId   enode.EnodeID `json:"nodeId"`
 	Ip       net.IP        `json:"-"`
 	P2pPort  enr.TCP       `json:"p2pPort"`
@@ -27,13 +27,45 @@ type Address struct {
 	Rest []rlp.RawValue `json:"-" rlp:"tail"`
 }
 
+// We use this as a wrapper when displaying the Address in Javascript, as a Number in Javascript cannot not represent a uint64.
+// To fix the JS rendering issue, a string is used instead of an uint64 for the raftId in Javascript.
+// https://2ality.com/2012/04/number-encoding.html#:~:text=JavaScript%20numbers&text=JavaScript%20uses%20binary64%20or%20double,binary%20format%2C%20in%2064%20bits.
+// javascript: As the former name indicates, numbers are stored in a binary format, in 64 bits. These bits are allotted as follows:
+// The fraction occupies bits 0 to 51, the exponent occupies bits 52 to 62, the sign occupies bit 63.
+type AddressJS struct {
+	RaftId   string        `json:"raftId"`
+	NodeId   enode.EnodeID `json:"nodeId"`
+	Ip       net.IP        `json:"-"`
+	P2pPort  enr.TCP       `json:"p2pPort"`
+	RaftPort enr.RaftPort  `json:"raftPort"`
+
+	Hostname string `json:"hostname"`
+
+	// Ignore additional fields (for forward compatibility).
+	Rest []rlp.RawValue `json:"-" rlp:"tail"`
+}
+
+func newAddressJS(a *Address) *AddressJS {
+	return &AddressJS{
+		RaftId:   fmt.Sprintf("%8d", a.RaftId),
+		NodeId:   a.NodeId,
+		Ip:       a.Ip,
+		P2pPort:  a.P2pPort,
+		RaftPort: a.RaftPort,
+		Hostname: a.Hostname,
+	}
+}
+
+// ClusterInfo is used to display the cluster information in Javascript,
+// use the AddressJS instead of Address to display the raftId properly, raftId in Javascipt should be represented as
+// a string, as uint64 (go) and Number (js) are not compatible.
 type ClusterInfo struct {
-	Address
+	AddressJS
 	Role       string `json:"role"`
 	NodeActive bool   `json:"nodeActive"`
 }
 
-func newAddress(raftId uint16, raftPort int, node *enode.Node, useDns bool) *Address {
+func newAddress(raftId uint64, raftPort int, node *enode.Node, useDns bool) *Address {
 	// derive 64 byte nodeID from 128 byte enodeID
 	id, err := enode.RaftHexID(node.EnodeID())
 	if err != nil {
@@ -93,7 +125,7 @@ func bytesToAddress(input []byte) *Address {
 
 	// else try the old format
 	var temp struct {
-		RaftId   uint16
+		RaftId   uint64
 		NodeId   enode.EnodeID
 		Ip       net.IP
 		P2pPort  enr.TCP
