@@ -1,12 +1,13 @@
 package raft
 
 import (
+	"encoding/binary"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"os"
 	"runtime"
-	"strconv"
 )
 
 // TODO: this is just copied over from cmd/utils/cmd.go. dedupe
@@ -31,23 +32,18 @@ func fatalf(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
-// maps a node id (512 bit public key of the node) to a 64 bit raft id required by the etcd raft core.
-// note: enode ids in the network / static-nodes.json need to have unique 15 char prefixes.
-func nodeIdToRaftId(nodeId string) (uint64, error) {
-	log.Info("Converting node id to raft id", "node id", nodeId)
-	nodeIdChars := []rune(nodeId)
-	// a rune is an alias for int32
-	// raft id is an uint64, uint64 is the set of all signed 64-bit integers (-9223372036854775808 to 9223372036854775807)
-	// 0x7FFFFFFFFFFFFFFF == 9223372036854775807 (dec)
-	// len("7FFFFFFFFFFFFFFF")  == 16, so take the first 15 chars (16-1) of the node id to make sure it fits into an uint64
-	idShort := string(nodeIdChars[0:15])
-	log.Info("raft idshort ", "idShort", idShort)
-	raftId, err := strconv.ParseUint(idShort, 16, 64)
-	log.Info("raft id as uint64", "raftId uint64", raftId)
-	if err != nil {
-		log.Error("Error converting node id to uint64 raft id", "err", err)
-		return 0, err
-	}
+// maps an enode id (512 bit public key of the node) to a uint64 bit raft id required by the etcd raft core.
+// the enode ids for the network are obtianed from the static-nodes.json file.
+// nodeIdToRaftId takes the Keccak hash of the enode id, which helps to avoid collisions and
+// ensure uniqueness, and converts the hash into an uint64 which is the raftId type used by the etcd
+// raft protocol.
+func nodeIdToRaftId(enodeId string) (uint64, error) {
+	log.Info("Converting node id to raft id", "enode id", enodeId)
+	// Get the keccak hash of of the enodeId to help ensure uniqueness and protect against collisions.
+	hashedEnodeId := crypto.Keccak256([]byte(enodeId))
+	log.Info("raft hashedEnodeId ", "hashedEnodeId", hashedEnodeId)
+	raftId := binary.BigEndian.Uint64(hashedEnodeId)
+	log.Info("raft raftId ", "raftId", raftId)
 	return raftId, nil
 }
 
