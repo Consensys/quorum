@@ -804,12 +804,6 @@ var (
 		Usage: "Amount of time between raft block creations in milliseconds",
 		Value: 50,
 	}
-	RaftJoinExistingFlag = cli.IntFlag{
-		Name:  "raftjoinexisting",
-		Usage: "The raft ID to assume when joining an pre-existing cluster",
-		Value: 0,
-	}
-
 	EmitCheckpointsFlag = cli.BoolFlag{
 		Name:  "emitcheckpoints",
 		Usage: "If enabled, emit specially formatted logging checkpoints",
@@ -1841,8 +1835,6 @@ func RegisterPermissionService(stack *node.Node) {
 func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Config, ethChan chan *eth.Ethereum) {
 	blockTimeMillis := ctx.GlobalInt(RaftBlockTimeFlag.Name)
 	datadir := ctx.GlobalString(DataDirFlag.Name)
-	// TODO: libby make this a boolean or remove it.
-	joinExistingId := ctx.GlobalInt(RaftJoinExistingFlag.Name)
 	useDns := ctx.GlobalBool(RaftDNSEnabledFlag.Name)
 	raftPort := uint16(ctx.GlobalInt(RaftPortFlag.Name))
 
@@ -1852,18 +1844,14 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 		blockTimeNanos := time.Duration(blockTimeMillis) * time.Millisecond
 		peers := nodeCfg.StaticNodes()
 
-		var joinExisting bool
-
-		if joinExistingId > 0 {
-			joinExisting = true
-		} else if len(peers) == 0 {
-			Fatalf("Raft-based consensus requires either (1) an initial peers list (in static-nodes.json) including this enode hash (%v), or (2) the flag --raftjoinexisting RAFT_ID, where RAFT_ID has been issued by an existing cluster member calling `raft.addPeer(ENODE_ID)` with an enode ID containing this node's enode hash.", strId)
+		if len(peers) == 0 {
+			Fatalf("Raft-based consensus requires either an initial peers list including all the nodes in the network (in static-nodes.json) including this enode hash (%v)", strId)
 		}
 
 		ethereum := <-ethChan
 		ethChan <- ethereum
 
-		return raft.New(ctx, ethereum.BlockChain().Config(), raftPort, joinExisting, blockTimeNanos, ethereum, peers, datadir, useDns)
+		return raft.New(ctx, ethereum.BlockChain().Config(), raftPort, blockTimeNanos, ethereum, peers, datadir, useDns)
 	}); err != nil {
 		Fatalf("Failed to register the Raft service: %v", err)
 	}

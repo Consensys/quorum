@@ -158,7 +158,6 @@ var (
 		utils.EnableNodePermissionFlag,
 		utils.RaftModeFlag,
 		utils.RaftBlockTimeFlag,
-		utils.RaftJoinExistingFlag,
 		utils.RaftPortFlag,
 		utils.RaftDNSEnabledFlag,
 		utils.EmitCheckpointsFlag,

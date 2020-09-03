@@ -39,7 +39,6 @@ type ProtocolManager struct {
 	stopped  bool
 
 	// Static configuration
-	joinExisting   bool // Whether to join an existing cluster when a WAL doesn't already exist
 	bootstrapNodes []*enode.Node
 	raftId         uint64
 	raftPort       uint16
@@ -98,7 +97,7 @@ var errNoLeaderElected = errors.New("no leader is currently elected")
 // Public interface
 //
 // note at this point we do not know the raft id, we will obtain the raft id from the node id when the service is started.
-func NewProtocolManager(raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader, useDns bool) (*ProtocolManager, error) {
+func NewProtocolManager(raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, datadir string, minter *minter, downloader *downloader.Downloader, useDns bool) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -108,7 +107,6 @@ func NewProtocolManager(raftPort uint16, blockchain *core.BlockChain, mux *event
 		peers:               make(map[uint64]*Peer),
 		leader:              uint64(etcdRaft.None),
 		removedPeers:        mapset.NewSet(),
-		joinExisting:        joinExisting,
 		blockchain:          blockchain,
 		eventMux:            mux,
 		blockProposalC:      make(chan *types.Block, 10),
@@ -557,10 +555,7 @@ func (pm *ProtocolManager) startRaft() {
 		log.Info("remounting an existing raft log; connecting to peers.")
 
 		pm.unsafeRawNode = etcdRaft.RestartNode(raftConfig)
-	} else if pm.joinExisting { // TODO: Libby remove, test if we remove this does that mean that all nodes need to have the static-nodes.json file?
-		log.Info("newly joining an existing cluster; waiting for connections.")
-		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil)
-	} else {
+	} else { // a new peer, either part of the initial the network set, or a node is joining an existing network. Note: all nodes must be present in the static-nodes.json
 		log.Info("peer is joining the cluster.")
 		// when joining the cluster, the static-nodes.json is the source or truth and represents the raft initial peer list.
 		if numPeers := len(pm.bootstrapNodes); numPeers == 0 {
