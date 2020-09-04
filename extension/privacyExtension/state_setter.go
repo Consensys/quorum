@@ -110,18 +110,33 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) 
 		return false
 	}
 	encryptedTxHash := common.BytesToEncryptedPayloadHash(common.FromHex(uuid))
-
 	isSender, err := handler.ptm.IsSender(encryptedTxHash)
-	if err != nil {
-		log.Debug("Extension: could not determine if we are sender", "err", err.Error())
-		return false
-	}
+	if isSender {
+		if err != nil {
+			log.Debug("Extension: could not determine if we are sender", "err", err.Error())
+			return false
+		}
 
-	data, _, _ := handler.ptm.Receive(encryptedTxHash)
-	retrievedAddress := common.BytesToAddress(data)
-	if !bytes.Equal(retrievedAddress.Bytes(), address.Bytes()) {
-		log.Error("Extension: wrong address in retrieved UUID")
-		return false
+		encryptedPayload, _, err := handler.ptm.Receive(encryptedTxHash)
+		if err != nil {
+			log.Debug("Extension: payload not found", "err", err)
+			return false
+		}
+		var payload common.DecryptRequest
+		err = json.Unmarshal(encryptedPayload, &payload)
+		if err != nil {
+			log.Debug("Extension: payload unmarshal failed", "err", err)
+		}
+
+		contractDetails, _, err := handler.ptm.DecryptPayload(payload)
+		if err != nil {
+			log.Debug("Extension: payload decrypt failed", "err", err)
+		}
+
+		if !bytes.Equal(contractDetails, address.Bytes()) {
+			log.Error("Extension: wrong address in retrieved UUID")
+			return false
+		}
 	}
 	return isSender
 }

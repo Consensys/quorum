@@ -61,3 +61,21 @@ type sendSignedTxResponse struct {
 	// Base64-encoded
 	Key string `json:"key"`
 }
+
+type encryptPayloadResponse struct {
+	SenderKey       []byte   `json:"senderKey"`
+	CipherText      []byte   `json:"cipherText"`
+	CipherTextNonce []byte   `json:"cipherTextNonce"`
+	RecipientBoxes  []string `json:"recipientBoxes"`
+	RecipientNonce  []byte   `json:"recipientNonce"`
+	RecipientKeys   []string `json:"recipientKeys"`
+}
+
+type decryptPayloadRequest struct {
+	SenderKey       []byte   `json:"senderKey"`
+	CipherText      []byte   `json:"cipherText"`
+	CipherTextNonce []byte   `json:"cipherTextNonce"`
+	RecipientBoxes  []string `json:"recipientBoxes"`
+	RecipientNonce  []byte   `json:"recipientNonce"`
+	RecipientKeys   []string `json:"recipientKeys"`
+}

@@ -9,19 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/private/engine/tessera"
-
-	"github.com/ethereum/go-ethereum/private/engine/constellation"
-
-	"github.com/ethereum/go-ethereum/private/engine/notinuse"
-
-	"github.com/ethereum/go-ethereum/private/engine"
-
-	"github.com/ethereum/go-ethereum/log"
-
-	"github.com/tv42/httpunix"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/private/engine/constellation"
+	"github.com/ethereum/go-ethereum/private/engine/notinuse"
+	"github.com/ethereum/go-ethereum/private/engine/tessera"
+	"github.com/tv42/httpunix"
 )
 
 var (
@@ -48,6 +42,8 @@ type PrivateTransactionManager interface {
 	ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error)
 	IsSender(txHash common.EncryptedPayloadHash) (bool, error)
 	GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error)
+	EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error)
+	DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error)
 }
 
 func FromEnvironmentOrNil(name string) PrivateTransactionManager {

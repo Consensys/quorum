@@ -25,6 +25,14 @@ func (ptm *PrivateTransactionManager) Send(data []byte, from string, to []string
 	return common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerNotinUse
 }
 
+func (ptm *PrivateTransactionManager) EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
+	return nil, engine.ErrPrivateTxManagerNotinUse
+}
+
+func (ptm *PrivateTransactionManager) DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error) {
+	return nil, nil, engine.ErrPrivateTxManagerNotSupported
+}
+
 func (ptm *PrivateTransactionManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
 	return common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerNotinUse
 }

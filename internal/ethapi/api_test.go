@@ -682,6 +682,14 @@ func (sptm *StubPrivateTransactionManager) Send(data []byte, from string, to []s
 	return arbitrarySimpleStorageContractEncryptedPayloadHash, nil
 }
 
+func (sptm *StubPrivateTransactionManager) EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
+	return nil, engine.ErrPrivateTxManagerNotSupported
+}
+
+func (sptm *StubPrivateTransactionManager) DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error) {
+	return nil, nil, engine.ErrPrivateTxManagerNotSupported
+}
+
 func (sptm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
 	return arbitrarySimpleStorageContractEncryptedPayloadHash, nil
 }
