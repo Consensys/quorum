@@ -211,7 +211,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 					msg, _ := tx.AsMessage(signer)
 					vmctx := core.NewEVMContext(msg, task.block.Header(), api.eth.blockchain, nil)
 
-					res, err := api.traceTx(ctx, msg, vmctx, task.statedb, task.privateStateDb, config)
+					res, err := api.traceTx(ctx, msg, tx, vmctx, task.statedb, task.privateStateDb, config)
 					if err != nil {
 						task.results[i] = &txTraceResult{Error: err.Error()}
 						log.Warn("Tracing failed", "hash", tx.Hash(), "block", task.block.NumberU64(), "err", err)
@@ -493,10 +493,11 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 
 			// Fetch and execute the next transaction trace tasks
 			for task := range jobs {
-				msg, _ := txs[task.index].AsMessage(signer)
+				txn := txs[task.index]
+				msg, _ := txn.AsMessage(signer)
 				vmctx := core.NewEVMContext(msg, block.Header(), api.eth.blockchain, nil)
 
-				res, err := api.traceTx(ctx, msg, vmctx, task.statedb, task.privateStateDb, config)
+				res, err := api.traceTx(ctx, msg, txn, vmctx, task.statedb, task.privateStateDb, config)
 				if err != nil {
 					results[task.index] = &txTraceResult{Error: err.Error()}
 					continue
@@ -744,13 +745,13 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, hash common.Ha
 		return nil, err
 	}
 	// Trace the transaction and return
-	return api.traceTx(ctx, msg, vmctx, statedb, privateStateDb, config)
+	return api.traceTx(ctx, msg, tx, vmctx, statedb, privateStateDb, config)
 }
 
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
-func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, vmctx vm.Context, statedb *state.StateDB, privateStateDb *state.StateDB, config *TraceConfig) (interface{}, error) {
+func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, tx *types.Transaction, vmctx vm.Context, statedb *state.StateDB, privateStateDb *state.StateDB, config *TraceConfig) (interface{}, error) {
 	// Assemble the structured logger or the JavaScript tracer
 	var (
 		tracer vm.Tracer
@@ -791,6 +792,7 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, v
 
 	// Run the transaction with tracing enabled.
 	vmenv := vm.NewEVM(vmctx, statedb, privateStateDb, api.eth.blockchain.Config(), vm.Config{Debug: true, Tracer: tracer})
+	vmenv.SetCurrentTX(tx)
 
 	ret, gas, failed, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
 	if err != nil {
