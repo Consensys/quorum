@@ -133,6 +133,11 @@ func NewProtocolManager(raftPort uint16, blockchain *core.BlockChain, mux *event
 	return manager, nil
 }
 
+// Used for testing only
+func (pm *ProtocolManager) setRaftId(raftId uint64) {
+	pm.raftId = raftId
+}
+
 func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
 	log.Info("starting raft protocol handler")
 
@@ -323,7 +328,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint6
 	}
 	if pm.isRaftIdInCluster(raftId) { // TODO: Libby change this, if it is in the cluster return the Id and a bool.
 		log.Error("raftId is already in cluster", "raft id", raftId)
-		return 0, fmt.Errorf("raftId is already in cluster", "raft id", raftId)
+		return 0, fmt.Errorf("raftId is already in cluster raft id [%d]", raftId)
 	}
 
 	// we are proposing a node, that may have been previously remove, if it was previously removed, allow it to be added again.
