@@ -2,8 +2,9 @@ package raft
 
 import (
 	"errors"
-	"github.com/coreos/etcd/pkg/types"
 	"strconv"
+
+	"github.com/coreos/etcd/pkg/types"
 )
 
 type RaftNodeInfo struct {

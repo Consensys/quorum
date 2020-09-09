@@ -3,11 +3,12 @@ package raft
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"io"
 	"os"
 	"runtime"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // TODO: this is just copied over from cmd/utils/cmd.go. dedupe
