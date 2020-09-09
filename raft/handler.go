@@ -105,7 +105,7 @@ func NewProtocolManager(raftPort uint16, blockchain *core.BlockChain, mux *event
 	manager := &ProtocolManager{
 		bootstrapNodes:      bootstrapNodes,
 		peers:               make(map[uint64]*Peer),
-		leader:              uint64(etcdRaft.None),
+		leader:              etcdRaft.None,
 		removedPeers:        mapset.NewSet(),
 		blockchain:          blockchain,
 		eventMux:            mux,

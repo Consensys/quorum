@@ -38,7 +38,7 @@ func (s *PublicRaftAPI) Role() string {
 
 // helper function to check if self node is part of cluster
 func (s *PublicRaftAPI) checkIfNodeInCluster() error {
-	if s.raftService.raftProtocolManager.IsIDRemoved(uint64(s.raftService.raftProtocolManager.raftId)) {
+	if s.raftService.raftProtocolManager.IsIDRemoved(s.raftService.raftProtocolManager.raftId) {
 		return errors.New("node not part of raft cluster. operations not allowed")
 	}
 	return nil
