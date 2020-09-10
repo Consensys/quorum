@@ -51,8 +51,8 @@ func compareVersions(v1, v2 Version) int {
 // Snapshot tessera builds may have versions made of 2 components: major.mid-SNAPSHOT.
 // parseVersion will assume the minor version to be 0 for versions with only 2 components.
 func parseVersion(version []byte) (res Version, err error) {
-	versionMajMidRegExp, _ := regexp.Compile(`([0-9]+)\.([0-9]+)([^0-9].*)`)
-	versionMajMidMinRegExp, _ := regexp.Compile(`([0-9]+)\.([0-9]+)\.([0-9]+)([^0-9].*)`)
+	versionMajMidRegExp, _ := regexp.Compile(`([0-9]+)\.([0-9]+)([^0-9].*)?`)
+	versionMajMidMinRegExp, _ := regexp.Compile(`([0-9]+)\.([0-9]+)\.([0-9]+)([^0-9].*)?`)
 
 	var submatch [][]byte
 	if versionMajMidMinRegExp.Match(version) {
