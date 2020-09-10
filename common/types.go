@@ -497,15 +497,6 @@ func (ma *MixedcaseAddress) Original() string {
 	return ma.original
 }
 
-type EncryptResponseStruct struct {
-	SenderKey       []byte   `json:"senderKey"`
-	CipherText      []byte   `json:"cipherText"`
-	CipherTextNonce []byte   `json:"cipherTextNonce"`
-	RecipientBoxes  []string `json:"recipientBoxes"`
-	RecipientNonce  []byte   `json:"recipientNonce"`
-	RecipientKeys   []string `json:"recipientKeys"`
-}
-
 type DecryptRequest struct {
 	SenderKey       []byte   `json:"senderKey"`
 	CipherText      []byte   `json:"cipherText"`

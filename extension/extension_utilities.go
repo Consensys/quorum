@@ -14,7 +14,7 @@ func generateUuid(contractAddress common.Address, privateFrom string, privateFor
 
 	// to ensure recoverability , the UUID generation logic is as below:
 	// 1. Call Tessera to encrypt the management contract address
-	// 2. Send the encryoted payload to all participants on the contract extension
+	// 2. Send the encrypted payload to all participants on the contract extension
 	// 3. Use the received hash as the UUID
 	payloadHash, err := ptm.EncryptPayload(contractAddress.Bytes(), privateFrom, []string{}, &engine.ExtraMetadata{})
 	if err != nil {
