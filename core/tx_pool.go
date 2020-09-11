@@ -153,7 +153,6 @@ type TxPoolConfig struct {
 	// Quorum
 	TransactionSizeLimit uint64 // Maximum size allowed for valid transaction (in KB)
 	MaxCodeSize          uint64 // Maximum size allowed of contract code that can be deployed (in KB)
-
 }
 
 // DefaultTxPoolConfig contains the default configurations for the transaction
@@ -561,7 +560,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 			return ErrEtherValueUnsupported
 		}
 		// Check if the sender account is authorized to perform the transaction
-		if err := checkAccount(from, tx.To()); err != nil {
+		if err := checkAccountAccess(tx); err != nil {
 			return err
 		}
 	} else {
@@ -1596,23 +1595,17 @@ func (t *txLookup) Remove(hash common.Hash) {
 }
 
 // checks if the account is has the necessary access for the transaction
-func checkAccount(fromAcct common.Address, toAcct *common.Address) error {
-	access := types.GetAcctAccess(fromAcct)
+func checkAccountAccess(tx *types.Transaction) error {
+	transactionType := types.ValueTransferTxn
 
-	switch access {
-	case types.ReadOnly:
-		return errors.New("read only account. cannot transact")
-
-	case types.Transact:
-		if toAcct == nil {
-			return errors.New("account does not have contract create permissions")
-		}
-
-	case types.FullAccess, types.ContractDeploy:
-		return nil
-
+	if tx.To() == nil {
+		transactionType = types.ContractDeployTxn
+	} else if tx.Data() != nil {
+		transactionType = types.ContractCallTxn
 	}
-	return nil
+
+	return types.IsTransactionAllowed(tx.From(), transactionType)
+
 }
 
 // helper function to return chainHeadChannel size

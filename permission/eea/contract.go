@@ -1,6 +1,7 @@
 package eea
 
 import (
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -217,8 +218,31 @@ func (c *Control) ConnectionAllowedImpl(url string) (bool, error) {
 	return c.Backend.PermInterfSession.ConnectionAllowedImpl(enodeId, ip, port, raftPort)
 }
 
-func (c *Control) TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error) {
-	return c.Backend.PermInterfSession.TransactionAllowed(_srcaccount, _tgtaccount)
+func (c *Control) TransactionAllowed(_args ethapi.SendTxArgs) (bool, error) {
+	var value, gasPrice, gasLimit *big.Int
+	var payload []byte
+	if _args.Value != nil {
+		value = _args.Value.ToInt()
+	} else {
+		value = big.NewInt(0)
+	}
+
+	if _args.GasPrice != nil {
+		gasPrice = _args.GasPrice.ToInt()
+	} else {
+		gasPrice = big.NewInt(0)
+	}
+
+	if _args.Gas != nil {
+		gasLimit = big.NewInt(int64(*_args.Gas))
+	} else {
+		gasLimit = big.NewInt(0)
+	}
+
+	if _args.Data != nil {
+		payload = *_args.Data
+	}
+	return c.Backend.PermInterfSession.TransactionAllowed(_args.From, *_args.To, value, gasPrice, gasLimit, payload)
 }
 
 func (r *Role) RemoveRole(_args ptype.TxArgs) (*types.Transaction, error) {

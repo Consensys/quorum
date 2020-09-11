@@ -421,12 +421,12 @@ func (q *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.S
 	return actionSuccess, nil
 }
 
-func (q *QuorumControlsAPI) TransactionAllowed(srcacct common.Address, tgtacct common.Address, txa ethapi.SendTxArgs) (bool, error) {
+func (q *QuorumControlsAPI) TransactionAllowed(txa ethapi.SendTxArgs) (bool, error) {
 	controlService, err := q.permCtrl.NewPermissionControlService()
 	if err != nil {
 		return false, err
 	}
-	return controlService.TransactionAllowed(srcacct, tgtacct)
+	return controlService.TransactionAllowed(txa)
 }
 
 func (q *QuorumControlsAPI) ConnectionAllowed(url string, txa ethapi.SendTxArgs) (bool, error) {

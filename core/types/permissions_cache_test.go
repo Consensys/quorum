@@ -35,7 +35,7 @@ func TestSetSyncStatus(t *testing.T) {
 func TestSetDefaults(t *testing.T) {
 	assert := testifyassert.New(t)
 
-	SetDefaults(NETWORKADMIN, ORGADMIN)
+	SetDefaults(NETWORKADMIN, ORGADMIN, false)
 
 	// get the default values and confirm the same
 	networkAdminRole, orgAdminRole, defaultAccess := GetDefaults()
@@ -175,7 +175,7 @@ func TestGetAcctAccess(t *testing.T) {
 	assert := testifyassert.New(t)
 
 	// default access when the cache is not populated, should return default access
-	SetDefaults(NETWORKADMIN, ORGADMIN)
+	SetDefaults(NETWORKADMIN, ORGADMIN, false)
 	SetDefaultAccess()
 	access := GetAcctAccess(Acct1)
 	assert.True(access == ReadOnly, fmt.Sprintf("Expected account access to be %v, got %v", ReadOnly, access))
@@ -267,7 +267,7 @@ func TestLRUCacheLimit(t *testing.T) {
 }
 
 func TestCheckIfAdminAccount(t *testing.T) {
-	SetDefaults(NETWORKADMIN, ORGADMIN)
+	SetDefaults(NETWORKADMIN, ORGADMIN, false)
 	SetDefaultAccess()
 
 	var Acct3 = common.BytesToAddress([]byte("permission-test1"))

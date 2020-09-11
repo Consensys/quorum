@@ -2,6 +2,7 @@ package basic
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -160,7 +161,7 @@ func (c *Control) ConnectionAllowedImpl(url string) (bool, error) {
 	return false, fmt.Errorf("not implemented for binding Contr")
 }
 
-func (c *Control) TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error) {
+func (c *Control) TransactionAllowed(_args ethapi.SendTxArgs) (bool, error) {
 	return false, fmt.Errorf("not implemented for binding Contr")
 }
 

@@ -66,7 +66,7 @@ type AccountService interface {
 // Control services
 type ControlService interface {
 	ConnectionAllowedImpl(url string) (bool, error)
-	TransactionAllowed(_srcaccount common.Address, _tgtaccount common.Address) (bool, error)
+	TransactionAllowed(_args ethapi.SendTxArgs) (bool, error)
 }
 
 // Audit services

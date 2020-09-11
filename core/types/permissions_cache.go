@@ -15,10 +15,32 @@ import (
 type AccessType uint8
 
 const (
+	// common access type list for both basic and EEA model.
+	// the first 4 are used by both models
 	ReadOnly AccessType = iota
 	Transact
 	ContractDeploy
 	FullAccess
+	// below access types are only used by EEA model
+	ContractCall
+	TransactAndContractCall
+	TransactAndContractDeploy
+	ContractCallAndDeploy
+)
+
+type PermissionModelType uint8
+
+const (
+	Basic PermissionModelType = iota
+	EEA
+)
+
+type TransactionType uint8
+
+const (
+	ValueTransferTxn TransactionType = iota
+	ContractCallTxn
+	ContractDeployTxn
 )
 
 type OrgStatus uint8
@@ -152,6 +174,7 @@ var DefaultAccess = FullAccess
 var QIP714BlockReached = false
 var networkAdminRole string
 var orgAdminRole string
+var PermissionModel = Basic
 
 var (
 	OrgInfoMap  *OrgCache
@@ -282,9 +305,12 @@ func SetDefaultAccess() {
 
 // sets default access to readonly and initializes the values for
 // network admin role and org admin role
-func SetDefaults(nwRoleId, oaRoleId string) {
+func SetDefaults(nwRoleId, oaRoleId string, eeaFlag bool) {
 	networkAdminRole = nwRoleId
 	orgAdminRole = oaRoleId
+	if eeaFlag {
+		PermissionModel = EEA
+	}
 }
 
 func GetDefaults() (string, string, AccessType) {
@@ -623,4 +649,53 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 	}
 
 	return false
+}
+
+func IsTransactionAllowed(address common.Address, transactionType TransactionType ) error {
+	accessType := GetAcctAccess(address)
+
+	if PermissionModel == Basic {
+		switch accessType {
+		case ReadOnly:
+			return errors.New("read only account. cannot transact")
+
+		case Transact:
+			if transactionType == ContractDeployTxn {
+				return errors.New("account does not have contract create permissions")
+			}
+
+		case FullAccess, ContractDeploy:
+			return nil
+
+		}
+
+	} else if PermissionModel == EEA {
+		if accessType == ReadOnly {
+			return errors.New("read only account. cannot transact")
+		}
+
+		if accessType == FullAccess {
+			return nil
+		}
+
+		switch transactionType {
+		case ValueTransferTxn:
+			if accessType != Transact && accessType != TransactAndContractDeploy && accessType != TransactAndContractCall {
+				return errors.New("account does not have value transfer permission")
+			}
+
+		case ContractCallTxn:
+			if accessType != ContractCall && accessType != ContractCallAndDeploy && accessType != TransactAndContractCall {
+				return errors.New("account does not have value transfer permission")
+			}
+
+		case ContractDeployTxn:
+			if accessType != ContractDeploy && accessType != ContractCallAndDeploy && accessType != TransactAndContractDeploy {
+				return errors.New("account does not have value transfer permission")
+			}
+
+		}
+
+	}
+	return nil
 }

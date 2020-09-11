@@ -497,8 +497,8 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
 	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
-	txa := ethapi.SendTxArgs{From: guardianAddress}
 	acct := getArbitraryAccount()
+	txa := ethapi.SendTxArgs{From: guardianAddress, To: &acct}
 
 	_, err := testObject.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -510,7 +510,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
 	if testObject.permCtrl.eeaFlag {
-		actAllowed, err := testObject.TransactionAllowed(acct, acct, txa)
+		actAllowed, err := testObject.TransactionAllowed(ethapi.SendTxArgs{From: acct, To: &acct})
 		assert.Equal(t, actAllowed, false)
 		assert.NoError(t, err)
 	}
@@ -523,7 +523,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, types.AcctActive)
 
 	if testObject.permCtrl.eeaFlag {
-		actAllowed, err := testObject.TransactionAllowed(acct, acct, txa)
+		actAllowed, err := testObject.TransactionAllowed(ethapi.SendTxArgs{From: acct, To: &acct})
 		assert.NoError(t, err)
 		assert.Equal(t, actAllowed, true)
 	}
@@ -568,7 +568,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctSuspended)
 	if testObject.permCtrl.eeaFlag {
-		actAllowed, err := testObject.TransactionAllowed(acct, acct, txa)
+		actAllowed, err := testObject.TransactionAllowed(ethapi.SendTxArgs{From: acct, To: &acct})
 		assert.Equal(t, actAllowed, false)
 		assert.NoError(t, err)
 	}
@@ -582,7 +582,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctBlacklisted)
 
 	if testObject.permCtrl.eeaFlag {
-		actAllowed, err := testObject.TransactionAllowed(acct, acct, txa)
+		actAllowed, err := testObject.TransactionAllowed(ethapi.SendTxArgs{From: acct, To: &acct})
 		assert.Equal(t, actAllowed, false)
 		assert.NoError(t, err)
 	}
