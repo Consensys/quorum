@@ -428,3 +428,270 @@ func Test_checkIfOrgActive(t *testing.T) {
 		})
 	}
 }
+
+func TestIsTransactionAllowed_Basic(t *testing.T) {
+	SetDefaults(NETWORKADMIN, ORGADMIN, false)
+	SetDefaultAccess()
+	OrgInfoMap = NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
+	RoleInfoMap = NewRoleCache(params.DEFAULT_ROLECACHE_SIZE)
+	AcctInfoMap = NewAcctCache(params.DEFAULT_ACCOUNTCACHE_SIZE)
+
+	OrgInfoMap.UpsertOrg(ORGADMIN, "", ORGADMIN, big.NewInt(1), OrgApproved)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE1", false, false, Transact, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE2", false, false, ContractDeploy, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE3", false, false, FullAccess, true)
+	var Acct3 = common.BytesToAddress([]byte("permission-test1"))
+	var Acct4 = common.BytesToAddress([]byte("permission-test2"))
+
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE1", Acct1, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE2", Acct2, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE3", Acct3, false, AcctActive)
+
+	type args struct {
+		address         common.Address
+		transactionType TransactionType
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "Account with transact permission calling value transfer",
+			args: args{address:Acct1, transactionType:ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with transact permission calling value contract call transaction",
+			args: args{address:Acct1, transactionType:ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with transact permission calling contract deploy",
+			args: args{address:Acct1, transactionType:ContractDeployTxn},
+			wantErr: true,
+		},
+		{
+			name: "Account with contract permission deploy calling value transfer",
+			args: args{address:Acct2, transactionType:ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with contract deploy permission calling value contract call transaction",
+			args: args{address:Acct2, transactionType:ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with contract deploy permission calling contract deploy",
+			args: args{address:Acct2, transactionType:ContractDeployTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with full permission calling value transfer",
+			args: args{address:Acct3, transactionType:ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with full permission calling value contract call transaction",
+			args: args{address:Acct3, transactionType:ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with full permission calling contract deploy",
+			args: args{address:Acct3, transactionType:ContractDeployTxn},
+			wantErr: false,
+		},
+		{
+			name: "un-permissioned account calling value transfer",
+			args: args{address:Acct4, transactionType:ValueTransferTxn},
+			wantErr: true,
+		},
+		{
+			name: "un-permissioned account calling contract call transaction",
+			args: args{address:Acct4, transactionType:ContractCallTxn},
+			wantErr: true,
+		},
+		{
+			name: "un-permissioned account calling contract deploy",
+			args: args{address:Acct4, transactionType:ContractDeployTxn},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := IsTransactionAllowed(tt.args.address, tt.args.transactionType); (err != nil) != tt.wantErr {
+				t.Errorf("IsTransactionAllowed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+func TestIsTransactionAllowed_EEA(t *testing.T) {
+	SetDefaults(NETWORKADMIN, ORGADMIN, true)
+	SetDefaultAccess()
+	OrgInfoMap = NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
+	RoleInfoMap = NewRoleCache(params.DEFAULT_ROLECACHE_SIZE)
+	AcctInfoMap = NewAcctCache(params.DEFAULT_ACCOUNTCACHE_SIZE)
+
+	OrgInfoMap.UpsertOrg(ORGADMIN, "", ORGADMIN, big.NewInt(1), OrgApproved)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE1", false, false, Transact, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE2", false, false, ContractCall, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE3", false, false, ContractDeploy, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE4", false, false, TransactAndContractCall, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE5", false, false, TransactAndContractDeploy, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE6", false, false, ContractCallAndDeploy, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE7", false, false, FullAccess, true)
+	var Acct3 = common.BytesToAddress([]byte("permission-test1"))
+	var Acct4 = common.BytesToAddress([]byte("permission-test2"))
+	var Acct5 = common.BytesToAddress([]byte("permission-test3"))
+	var Acct6 = common.BytesToAddress([]byte("permission-test4"))
+	var Acct7 = common.BytesToAddress([]byte("permission-test5"))
+	var Acct8 = common.BytesToAddress([]byte("permission-test6"))
+
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE1", Acct1, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE2", Acct2, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE3", Acct3, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE4", Acct4, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE5", Acct5, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE6", Acct6, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE7", Acct7, false, AcctActive)
+
+	type args struct {
+		address         common.Address
+		transactionType TransactionType
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "Account with transact permission calling value transfer",
+			args: args{address:Acct1, transactionType:ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with transact permission calling value contract call transaction",
+			args: args{address:Acct1, transactionType:ContractCallTxn},
+			wantErr: true,
+		},
+		{
+			name: "Account with transact permission calling contract deploy",
+			args: args{address:Acct1, transactionType:ContractDeployTxn},
+			wantErr: true,
+		},
+		{
+			name: "Account with contarct call permission calling value transfer",
+			args: args{address:Acct2, transactionType:ValueTransferTxn},
+			wantErr: true,
+		},
+		{
+			name: "Account with contarct call permission calling value contract call transaction",
+			args: args{address:Acct2, transactionType:ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with contarct call permission calling contract deploy",
+			args: args{address:Acct2, transactionType:ContractDeployTxn},
+			wantErr: true,
+		},
+		{
+			name: "Account with contract deploy permission calling value transfer",
+			args: args{address:Acct3, transactionType:ValueTransferTxn},
+			wantErr: true,
+		},
+		{
+			name: "Account with transact permission calling value contract call transaction",
+			args: args{address:Acct3, transactionType:ContractCallTxn},
+			wantErr: true,
+		},
+		{
+			name: "Account with transact permission calling contract deploy",
+			args: args{address:Acct3, transactionType:ContractDeployTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with transact and contract call permission calling value transfer",
+			args: args{address:Acct4, transactionType:ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with transact and contract call permission calling value contract call transaction",
+			args: args{address:Acct4, transactionType:ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with transact and contract call permission calling contract deploy",
+			args: args{address:Acct4, transactionType:ContractDeployTxn},
+			wantErr: true,
+		},
+		{
+			name: "Account with transact and contract deploy permission calling value transfer",
+			args: args{address:Acct5, transactionType:ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with transact and contract deploy permission calling value contract call transaction",
+			args: args{address:Acct5, transactionType:ContractCallTxn},
+			wantErr: true,
+		},
+		{
+			name: "Account with transact and contract deploy permission calling contract deploy",
+			args: args{address:Acct5, transactionType:ContractDeployTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with contract call and deploy permission calling value transfer",
+			args: args{address:Acct6, transactionType:ValueTransferTxn},
+			wantErr: true,
+		},
+		{
+			name: "Account with contract call and deploy permission calling value contract call transaction",
+			args: args{address:Acct6, transactionType:ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with contract call and deploy permission calling contract deploy",
+			args: args{address:Acct6, transactionType:ContractDeployTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with full permission calling value transfer",
+			args: args{address:Acct7, transactionType:ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with full permission calling value contract call transaction",
+			args: args{address:Acct7, transactionType:ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name: "Account with full permission calling contract deploy",
+			args: args{address:Acct7, transactionType:ContractDeployTxn},
+			wantErr: false,
+		},
+		{
+			name: "un-permissioned account calling value transfer",
+			args: args{address:Acct8, transactionType:ValueTransferTxn},
+			wantErr: true,
+		},
+		{
+			name: "un-permissioned account calling contract call transaction",
+			args: args{address:Acct8, transactionType:ContractCallTxn},
+			wantErr: true,
+		},
+		{
+			name: "un-permissioned account calling contract deploy",
+			args: args{address:Acct8, transactionType:ContractDeployTxn},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := IsTransactionAllowed(tt.args.address, tt.args.transactionType); (err != nil) != tt.wantErr {
+				t.Errorf("IsTransactionAllowed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
