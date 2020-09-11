@@ -122,10 +122,13 @@ func (pmh *privateMessageHandler) verify(vmerr error) (bool, error) {
 		actualACHashesLength++
 	}
 	// acoth check - case where node is missing privacyMetadata for an affected it should be privy to
-	if len(pmh.receivedPrivacyMetadata.ACHashes) != actualACHashesLength {
-		return returnErrorFunc(nil, "Participation check failed",
-			"missing", len(pmh.receivedPrivacyMetadata.ACHashes)-actualACHashesLength)
-	}
+
+	// Relaxed this check for the situation where two affected contracts have the same ACOTH
+	//if len(pmh.receivedPrivacyMetadata.ACHashes) != actualACHashesLength {
+	//	return returnErrorFunc(nil, "Participation check failed",
+	//		"missing", len(pmh.receivedPrivacyMetadata.ACHashes)-actualACHashesLength)
+	//}
+
 	// check the psv merkle root comparison - for both creation and msg calls
 	if !common.EmptyHash(pmh.receivedPrivacyMetadata.ACMerkleRoot) {
 		log.Trace("Verify merkle root", "merkleRoot", pmh.receivedPrivacyMetadata.ACMerkleRoot)

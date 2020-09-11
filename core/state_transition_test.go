@@ -607,6 +607,8 @@ func TestApplyMessage_Private_whenPartyProtectionC2AndC1ButMissingC1CreationInTe
 //scenario where the simulation is run on the Q1 (privatefor Q3 and Q7) and 3 contracts are affected (C2,C1,C0)
 //but now Q3 receives block and should be privy to all 3 given tessera response
 //but doesn't have C0 privacyMetadata stored in its db
+// UPDATE - after relaxing the ACOTH checks this is a valid scenario where C0 acoth is ignored if it isn't detected as an
+// affected contract during transaction execution
 func TestApplyMessage_Private_whenPartyProtectionC2AndC1AndC0ButMissingC0InStateDB_Fail(t *testing.T) {
 	originalP := private.P
 	defer func() { private.P = originalP }()
@@ -648,7 +650,8 @@ func TestApplyMessage_Private_whenPartyProtectionC2AndC1AndC0ButMissingC0InState
 	_, _, fail, err := ApplyMessage(newEVM(cfg), privateMsg, new(GasPool).AddGas(math.MaxUint64))
 
 	assert.NoError(err, "EVM execution")
-	assert.True(fail, "Transaction receipt status")
+	// after ACOTH check updates this is a successful scenario
+	assert.False(fail, "Transaction receipt status")
 	mockPM.Verify(assert)
 }
 
