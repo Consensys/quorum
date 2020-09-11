@@ -717,18 +717,21 @@ contract PermissionsImplementation {
     }
 
     /** @notice checks if the account is allowed to transact or not
-      * @param _srcaccount source account
-      * @param _tgtaccount target account
+      * @param _sender source account
+      * @param _target target account
+      * @param _value value being transferred
+      * @param _gasPrice gas price
+      * @param _gasLimit gas limit
+      * @param _payload payload for transactions on contracts
       * @return bool indicating if the account is allowed to transact or not
       */
-    function transactionAllowed(address _srcaccount, address _tgtaccount)
+    function transactionAllowed(address _sender, address _target, uint256 _value, uint256 _gasPrice, uint256 _gasLimit, bytes calldata _payload)
     external view returns (bool) {
-
-        if (accountManager.getAccountStatus(_srcaccount) == 2 ) {
-            (string memory act_org, string memory act_role) = accountManager.getAccountOrgRole(_srcaccount);
+        if (accountManager.getAccountStatus(_sender) == 2) {
+            (string memory act_org, string memory act_role) = accountManager.getAccountOrgRole(_sender);
             string memory act_uOrg = _getUltimateParent(act_org);
             if (orgManager.checkOrgActive(act_org)) {
-                if (isNetworkAdmin(_srcaccount) || isOrgAdmin(_srcaccount, act_org)) {
+                if (isNetworkAdmin(_sender) || isOrgAdmin(_sender, act_org)) {
                     return true;
                 }
                 uint256 roleAccess = roleManager.roleAccess(act_role, act_org, act_uOrg);
@@ -736,12 +739,19 @@ contract PermissionsImplementation {
                 if (roleAccess == 0) {
                     return false;
                 }
-                //transact, not contract deployment
-                if (roleAccess == 1 && _tgtaccount == address(0)) {
+                if (roleAccess == 7) {
                     return true;
                 }
-                //fullaccess / admin role
-                if (roleAccess == 3 || roleAccess == 2) {
+                //contract deploy transaction
+                if (_target == address(0) && (roleAccess == 3 || roleAccess == 5 || roleAccess == 6)) {
+                    return true;
+                }
+                //contract call transaction
+                if (_payload.length > 0 && (roleAccess == 2 || roleAccess == 4 || roleAccess == 6)) {
+                    return true;
+                }
+                //should be value transfer transaction
+                if (_value > 0 && (roleAccess == 1 || roleAccess == 4 || roleAccess == 5)) {
                     return true;
                 }
             }
@@ -749,3 +759,4 @@ contract PermissionsImplementation {
         return false;
     }
 }
+

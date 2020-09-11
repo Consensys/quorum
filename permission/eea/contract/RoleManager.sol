@@ -45,14 +45,18 @@ contract RoleManager {
     /** @notice function to add a new role definition to an organization
       * @param _roleId - unique identifier for the role being added
       * @param _orgId - org id to which the role belongs
-      * @param _baseAccess - 0-ReadOnly, 1-Transact, 2-ContractDeply, 3- Full
+      * @param _baseAccess - can be from 0 to 7
       * @param _isVoter - bool to indicate if voter role or not
       * @param _isAdmin - bool to indicate if admin role or not
       * @dev base access can have any of the following values:
             0 - Read only
-            1 - Transact only
-            2 - Contract deploy. can transact as well
-            3 - Full access
+            1 - value transfer transaction only
+            2 - contract call transaction only
+            3 - Contract deploy
+            4 - both value transfer and contract call transactions
+            5 - value transfer transaction + contract deploy
+            6 - contract deploy plus contract call transaction
+            7 - All accesses
       */
     function addRole(string memory _roleId, string memory _orgId, uint256 _baseAccess,
         bool _isVoter, bool _isAdmin) public onlyImplementation {
