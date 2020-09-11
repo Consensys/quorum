@@ -651,7 +651,8 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 	return false
 }
 
-func IsTransactionAllowed(address common.Address, transactionType TransactionType ) error {
+//  checks if the account permission allows the transaction to be executed
+func IsTransactionAllowed(address common.Address, transactionType TransactionType) error {
 	accessType := GetAcctAccess(address)
 
 	if PermissionModel == Basic {

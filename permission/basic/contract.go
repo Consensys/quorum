@@ -2,12 +2,12 @@ package basic
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	binding "github.com/ethereum/go-ethereum/permission/basic/bind"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
@@ -170,6 +170,9 @@ func (r *Role) RemoveRole(_args ptype.TxArgs) (*types.Transaction, error) {
 }
 
 func (r *Role) AddNewRole(_args ptype.TxArgs) (*types.Transaction, error) {
+	if _args.AccessType > 3 {
+		return nil, fmt.Errorf("invalid access type given")
+	}
 	return r.Backend.PermInterfSession.AddNewRole(_args.RoleId, _args.OrgId, big.NewInt(int64(_args.AccessType)), _args.IsVoter, _args.IsAdmin)
 }
 
