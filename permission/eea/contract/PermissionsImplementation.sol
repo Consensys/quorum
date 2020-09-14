@@ -327,9 +327,13 @@ contract PermissionsImplementation {
       * @param _admin bool indicates if the role is an admin role
       * @dev account access type can have of the following four values:
             0 - Read only
-            1 - Transact access
-            2 - Contract deployment access. Can transact as well
-            3 - Full access
+            1 - value transfer
+            2 - contract deploy
+            3 - full access
+            4 - contract call
+            5 - value transfer and contract call
+            6 - value transfer and contract deploy
+            7 - contract call and deploy
       */
     function addNewRole(string calldata _roleId, string calldata _orgId,
         uint256 _access, bool _voter, bool _admin, address _caller) external
@@ -734,29 +738,17 @@ contract PermissionsImplementation {
                 if (isNetworkAdmin(_sender) || isOrgAdmin(_sender, act_org)) {
                     return true;
                 }
-                uint256 roleAccess = roleManager.roleAccess(act_role, act_org, act_uOrg);
-                //readOnly
-                if (roleAccess == 0) {
-                    return false;
+
+                uint256 typeOfxn = 1;
+                if (_target == address(0)) {
+                    typeOfxn = 2;
                 }
-                if (roleAccess == 7) {
-                    return true;
+                else if (_payload.length > 0) {
+                    typeOfxn = 3;
                 }
-                //contract deploy transaction
-                if (_target == address(0) && (roleAccess == 3 || roleAccess == 5 || roleAccess == 6)) {
-                    return true;
-                }
-                //contract call transaction
-                if (_payload.length > 0 && (roleAccess == 2 || roleAccess == 4 || roleAccess == 6)) {
-                    return true;
-                }
-                //should be value transfer transaction
-                if (_value > 0 && (roleAccess == 1 || roleAccess == 4 || roleAccess == 5)) {
-                    return true;
-                }
+                return roleManager.transactionAllowed(act_role, act_org, act_uOrg, typeOfxn);
             }
         }
         return false;
     }
 }
-

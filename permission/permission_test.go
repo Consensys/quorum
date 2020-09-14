@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -494,6 +495,89 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	assert.Equal(t, types.NodeApproved, nodeInfo.Status)
 }
 
+func testTransactionAllowed(t *testing.T, q *QuorumControlsAPI, txa ethapi.SendTxArgs, allowed bool) {
+	if q.permCtrl.eeaFlag {
+		actAllowed, lerr := q.TransactionAllowed(txa)
+		assert.Equal(t, allowed, actAllowed)
+		assert.NoError(t, lerr)
+	}
+}
+
+func TestQuorumControlsAPI_TransactionAllowed(t *testing.T) {
+	testObject := typicalQuorumControlsAPI(t)
+
+	if testObject.permCtrl.eeaFlag {
+
+		acct := getArbitraryAccount()
+		txa := ethapi.SendTxArgs{From: guardianAddress}
+		payload := hexutil.Bytes(([]byte("0x43d3e767000000000000000000000000000000000000000000000000000000000000000a"))[:])
+		value := hexutil.Big(*(big.NewInt(10)))
+
+		transactionTxa := ethapi.SendTxArgs{From: acct, To: &guardianAddress, Value: &value}
+		contractCallTxa := ethapi.SendTxArgs{From: acct, To: &guardianAddress, Data: &payload}
+		contractCreateTxa := ethapi.SendTxArgs{From: acct, To: &common.Address{}, Data: &payload}
+
+		for i := 0; i < 8; i++ {
+			roleId := arbitrartNewRole1 + strconv.Itoa(i)
+			_, err := testObject.AddNewRole(arbitraryNetworkAdminOrg, roleId, uint8(i), false, false, txa)
+			assert.NoError(t, err)
+			types.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, roleId, false, false, types.AccessType(uint8(i)), true)
+
+			if i == 0 {
+				_, err = testObject.AddAccountToOrg(acct, arbitraryNetworkAdminOrg, roleId, txa)
+				assert.NoError(t, err)
+			} else {
+				_, err = testObject.ChangeAccountRole(acct, arbitraryNetworkAdminOrg, roleId, txa)
+				assert.NoError(t, err)
+			}
+
+			switch types.AccessType(uint8(i)) {
+			case types.ReadOnly:
+				testTransactionAllowed(t, testObject, transactionTxa, false)
+				testTransactionAllowed(t, testObject, contractCallTxa, false)
+				testTransactionAllowed(t, testObject, contractCreateTxa, false)
+
+			case types.Transact:
+				testTransactionAllowed(t, testObject, transactionTxa, true)
+				testTransactionAllowed(t, testObject, contractCallTxa, false)
+				testTransactionAllowed(t, testObject, contractCreateTxa, false)
+
+			case types.ContractDeploy:
+				testTransactionAllowed(t, testObject, transactionTxa, false)
+				testTransactionAllowed(t, testObject, contractCallTxa, false)
+				testTransactionAllowed(t, testObject, contractCreateTxa, true)
+
+			case types.FullAccess:
+				testTransactionAllowed(t, testObject, transactionTxa, true)
+				testTransactionAllowed(t, testObject, contractCallTxa, true)
+				testTransactionAllowed(t, testObject, contractCreateTxa, true)
+
+			case types.ContractCall:
+				testTransactionAllowed(t, testObject, transactionTxa, false)
+				testTransactionAllowed(t, testObject, contractCallTxa, true)
+				testTransactionAllowed(t, testObject, contractCreateTxa, false)
+
+			case types.TransactAndContractCall:
+				testTransactionAllowed(t, testObject, transactionTxa, true)
+				testTransactionAllowed(t, testObject, contractCallTxa, true)
+				testTransactionAllowed(t, testObject, contractCreateTxa, false)
+
+			case types.TransactAndContractDeploy:
+				testTransactionAllowed(t, testObject, transactionTxa, true)
+				testTransactionAllowed(t, testObject, contractCallTxa, false)
+				testTransactionAllowed(t, testObject, contractCreateTxa, true)
+			case types.ContractCallAndDeploy:
+				testTransactionAllowed(t, testObject, transactionTxa, false)
+				testTransactionAllowed(t, testObject, contractCallTxa, true)
+				testTransactionAllowed(t, testObject, contractCreateTxa, true)
+
+			}
+
+		}
+	}
+
+}
+
 func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
 	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
@@ -508,12 +592,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
-
-	if testObject.permCtrl.eeaFlag {
-		actAllowed, err := testObject.TransactionAllowed(ethapi.SendTxArgs{From: acct, To: &acct})
-		assert.Equal(t, actAllowed, false)
-		assert.NoError(t, err)
-	}
+	testTransactionAllowed(t, testObject, ethapi.SendTxArgs{From: acct, To: &acct}, false)
 
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -521,12 +600,8 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, types.AcctActive)
+	testTransactionAllowed(t, testObject, ethapi.SendTxArgs{From: acct, To: &acct}, true)
 
-	if testObject.permCtrl.eeaFlag {
-		actAllowed, err := testObject.TransactionAllowed(ethapi.SendTxArgs{From: acct, To: &acct})
-		assert.NoError(t, err)
-		assert.Equal(t, actAllowed, true)
-	}
 	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(types.FullAccess), false, false, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
@@ -567,11 +642,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(SuspendAccount), txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctSuspended)
-	if testObject.permCtrl.eeaFlag {
-		actAllowed, err := testObject.TransactionAllowed(ethapi.SendTxArgs{From: acct, To: &acct})
-		assert.Equal(t, actAllowed, false)
-		assert.NoError(t, err)
-	}
+	testTransactionAllowed(t, testObject, ethapi.SendTxArgs{From: acct, To: &acct}, false)
 
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
 	assert.NoError(t, err)
@@ -580,12 +651,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(BlacklistAccount), txa)
 	assert.NoError(t, err)
 	types.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, types.AcctBlacklisted)
-
-	if testObject.permCtrl.eeaFlag {
-		actAllowed, err := testObject.TransactionAllowed(ethapi.SendTxArgs{From: acct, To: &acct})
-		assert.Equal(t, actAllowed, false)
-		assert.NoError(t, err)
-	}
+	testTransactionAllowed(t, testObject, ethapi.SendTxArgs{From: acct, To: &acct}, false)
 
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
 	assert.Equal(t, err, ErrAcctBlacklisted)

@@ -56,6 +56,8 @@ contract RoleManager {
       */
     function addRole(string memory _roleId, string memory _orgId, uint256 _baseAccess,
         bool _isVoter, bool _isAdmin) public onlyImplementation {
+        // check if the role access passed is valid
+        require(_baseAccess < 4, "invalid access value");
         // Check if account already exists
         require(roleIndex[keccak256(abi.encode(_roleId, _orgId))] == 0, "role exists for the org");
         numberOfRoles ++;

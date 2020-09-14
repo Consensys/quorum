@@ -949,6 +949,12 @@ web3._extend({
                        params: 1,
                        inputFormatter: [null]
                }),
+               new web3._extend.Method({
+                       name: 'transactionAllowed',
+                       call: 'quorumPermission_transactionAllowed',
+                       params: 1,
+                       inputFormatter: [web3._extend.formatters.inputTransactionFormatter]
+               }),
 
        ],
        properties:

@@ -65,7 +65,7 @@ type AccountService interface {
 
 // Control services
 type ControlService interface {
-	ConnectionAllowedImpl(url string) (bool, error)
+	ConnectionAllowed(url string) (bool, error)
 	TransactionAllowed(_args ethapi.SendTxArgs) (bool, error)
 }
 

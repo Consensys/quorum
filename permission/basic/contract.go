@@ -157,7 +157,7 @@ func (a *Audit) GetPendingOperation(_orgId string) (string, string, common.Addre
 	return a.Backend.PermInterfSession.GetPendingOp(_orgId)
 }
 
-func (c *Control) ConnectionAllowedImpl(url string) (bool, error) {
+func (c *Control) ConnectionAllowed(url string) (bool, error) {
 	return false, fmt.Errorf("not implemented for binding Contr")
 }
 

@@ -50,16 +50,17 @@ contract RoleManager {
       * @param _isAdmin - bool to indicate if admin role or not
       * @dev base access can have any of the following values:
             0 - Read only
-            1 - value transfer transaction only
-            2 - contract call transaction only
-            3 - Contract deploy
-            4 - both value transfer and contract call transactions
-            5 - value transfer transaction + contract deploy
-            6 - contract deploy plus contract call transaction
-            7 - All accesses
+            1 - value transfer
+            2 - contract deploy
+            3 - full access
+            4 - contract call
+            5 - value transfer and contract call
+            6 - value transfer and contract deploy
+            7 - contract call and deploy
       */
     function addRole(string memory _roleId, string memory _orgId, uint256 _baseAccess,
         bool _isVoter, bool _isAdmin) public onlyImplementation {
+        require(_baseAccess < 8, "invalid access value");
         // Check if account already exists
         require(roleIndex[keccak256(abi.encode(_roleId, _orgId))] == 0, "role exists for the org");
         numberOfRoles ++;
@@ -201,6 +202,26 @@ contract RoleManager {
             return roleList[id].baseAccess;
         }
         return 0;
+    }
+
+    function transactionAllowed(string calldata _roleId, string calldata _orgId,
+        string calldata _ultParent, uint256 _typeOfTxn) external view returns (bool) {
+        uint256 access = roleAccess(_roleId, _orgId, _ultParent);
+
+        if (access == 3) {
+            return true;
+        }
+        if (_typeOfTxn == 1 && (access == 1 || access == 5 || access == 6)){
+            return true;
+        }
+        if (_typeOfTxn == 2 && (access == 2 || access == 6 || access == 7)){
+            return true;
+        }
+        if (_typeOfTxn == 3 && (access == 4 || access == 5 || access == 7)){
+            return true;
+        }
+
+        return false;
     }
 
     /** @notice returns the role index based on role id and org id

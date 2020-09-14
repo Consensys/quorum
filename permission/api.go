@@ -435,7 +435,7 @@ func (q *QuorumControlsAPI) ConnectionAllowed(url string, txa ethapi.SendTxArgs)
 		return false, err
 	}
 
-	return controlService.ConnectionAllowedImpl(url)
+	return controlService.ConnectionAllowed(url)
 }
 
 func (q *QuorumControlsAPI) AddAccountToOrg(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) (string, error) {

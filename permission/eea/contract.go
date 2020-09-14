@@ -210,7 +210,7 @@ func (a *Audit) GetPendingOperation(_orgId string) (string, string, common.Addre
 	return a.Backend.PermInterfSession.GetPendingOp(_orgId)
 }
 
-func (c *Control) ConnectionAllowedImpl(url string) (bool, error) {
+func (c *Control) ConnectionAllowed(url string) (bool, error) {
 	enodeId, ip, port, raftPort, err := getNodeDetails(url, c.Backend.IsRaft, c.Backend.UseDns)
 	if err != nil {
 		return false, err
@@ -222,10 +222,17 @@ func (c *Control) ConnectionAllowedImpl(url string) (bool, error) {
 func (c *Control) TransactionAllowed(_args ethapi.SendTxArgs) (bool, error) {
 	var value, gasPrice, gasLimit *big.Int
 	var payload []byte
+	var to common.Address
 	if _args.Value != nil {
 		value = _args.Value.ToInt()
 	} else {
 		value = big.NewInt(0)
+	}
+
+	if _args.To == nil {
+		to = common.Address{}
+	} else {
+		to = *_args.To
 	}
 
 	if _args.GasPrice != nil {
@@ -243,7 +250,8 @@ func (c *Control) TransactionAllowed(_args ethapi.SendTxArgs) (bool, error) {
 	if _args.Data != nil {
 		payload = *_args.Data
 	}
-	return c.Backend.PermInterfSession.TransactionAllowed(_args.From, *_args.To, value, gasPrice, gasLimit, payload)
+	allowed, err := c.Backend.PermInterfSession.TransactionAllowed(_args.From, to, value, gasPrice, gasLimit, payload)
+	return allowed, err
 }
 
 func (r *Role) RemoveRole(_args ptype.TxArgs) (*types.Transaction, error) {
