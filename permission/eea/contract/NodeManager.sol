@@ -20,11 +20,12 @@ import "./PermissionsUpgradable.sol";
   */
 contract NodeManager {
     PermissionsUpgradable private permUpgradable;
+
     struct NodeDetails {
         string enodeId;
         string ip;
-        uint16  port;
-        uint16  raftPort;
+        uint16 port;
+        uint16 raftPort;
         string orgId;
         uint256 status;
     }
@@ -40,25 +41,25 @@ contract NodeManager {
 
 
     // node permission events for new node propose
-    event NodeProposed(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
-    event NodeApproved(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeProposed(string _enodeId, string _ip, uint16 _port, uint16 _raftport, string _orgId);
+    event NodeApproved(string _enodeId, string _ip, uint16 _port, uint16 _raftport, string _orgId);
 
     // node permission events for node deactivation
-    event NodeDeactivated(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeDeactivated(string _enodeId, string _ip, uint16 _port, uint16 _raftport, string _orgId);
 
     // node permission events for node activation
-    event NodeActivated(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeActivated(string _enodeId, string _ip, uint16 _port, uint16 _raftport, string _orgId);
 
     // node permission events for node blacklist
-    event NodeBlacklisted(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeBlacklisted(string _enodeId, string _ip, uint16 _port, uint16 _raftport, string _orgId);
 
     // node permission events for initiating the recovery of blacklisted
     // node
-    event NodeRecoveryInitiated(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeRecoveryInitiated(string _enodeId, string _ip, uint16 _port, uint16 _raftport, string _orgId);
 
     // node permission events for completing the recovery of blacklisted
     // node
-    event NodeRecoveryCompleted(string _enodeId, string _ip, uint16  _port, uint16  _raftport, string _orgId);
+    event NodeRecoveryCompleted(string _enodeId, string _ip, uint16 _port, uint16 _raftport, string _orgId);
 
     /** @notice confirms that the caller is the address of implementation
         contract
@@ -99,7 +100,7 @@ contract NodeManager {
       * @return status of the node
       */
     function getNodeDetails(string calldata enodeId) external view
-    returns (string memory _orgId, string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, uint256 _nodeStatus) {
+    returns (string memory _orgId, string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport, uint256 _nodeStatus) {
         if (nodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0) {
             return ("", "", "", 0, 0, 0);
         }
@@ -119,7 +120,7 @@ contract NodeManager {
       * @return status of the node
       */
     function getNodeDetailsFromIndex(uint256 _nodeIndex) external view
-    returns (string memory _orgId, string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, uint256 _nodeStatus) {
+    returns (string memory _orgId, string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport, uint256 _nodeStatus) {
         return (nodeList[_nodeIndex].orgId, nodeList[_nodeIndex].enodeId, nodeList[_nodeIndex].ip,
         nodeList[_nodeIndex].port, nodeList[_nodeIndex].raftPort,
         nodeList[_nodeIndex].status);
@@ -140,7 +141,7 @@ contract NodeManager {
       * @param _raftport raft port of node
       * @param _orgId org id to which the enode belongs
       */
-    function addAdminNode(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, string memory _orgId) public
+    function addAdminNode(string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport, string memory _orgId) public
     onlyImplementation
     enodeDoesNotExists(_enodeId) {
         numberOfNodes++;
@@ -156,7 +157,7 @@ contract NodeManager {
       * @param _raftport raft port of node
       * @param _orgId org id to which the enode belongs
       */
-    function addNode(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, string memory _orgId) public
+    function addNode(string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport, string memory _orgId) public
     onlyImplementation
     enodeDoesNotExists(_enodeId) {
         numberOfNodes++;
@@ -172,7 +173,7 @@ contract NodeManager {
       * @param _raftport raft port of node
       * @param _orgId org or sub org id to which the enode belongs
       */
-    function addOrgNode(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, string memory _orgId) public
+    function addOrgNode(string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport, string memory _orgId) public
     onlyImplementation
     enodeDoesNotExists(_enodeId) {
         numberOfNodes++;
@@ -189,14 +190,14 @@ contract NodeManager {
       * @param _raftport raft port of node
       * @param _orgId org or sub org id to which the enode belongs
       */
-    function approveNode(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, string memory _orgId) public
+    function approveNode(string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport, string memory _orgId) public
     onlyImplementation
     enodeExists(_enodeId) {
         // node should belong to the passed org
         require(_checkOrg(_enodeId, _orgId), "enode id does not belong to the passed org id");
         require(_getNodeStatus(_enodeId) == 1, "nothing pending for approval");
         uint256 nodeIndex = _getNodeIndex(_enodeId);
-        if(keccak256(abi.encode(nodeList[nodeIndex].ip)) != keccak256(abi.encode(_ip)) || nodeList[nodeIndex].port != _port || nodeList[nodeIndex].raftPort != _raftport){
+        if (keccak256(abi.encode(nodeList[nodeIndex].ip)) != keccak256(abi.encode(_ip)) || nodeList[nodeIndex].port != _port || nodeList[nodeIndex].raftPort != _raftport) {
             return;
         }
         nodeList[nodeIndex].status = 2;
@@ -218,7 +219,7 @@ contract NodeManager {
             4 - initiate the recovery of a blacklisted node
             5 - blacklisted node recovery fully approved. mark to active
       */
-    function updateNodeStatus(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport, string memory _orgId, uint256 _action) public
+    function updateNodeStatus(string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport, string memory _orgId, uint256 _action) public
     onlyImplementation
     enodeExists(_enodeId) {
         // node should belong to the org
@@ -227,7 +228,7 @@ contract NodeManager {
             "invalid operation. wrong action passed");
 
         uint256 nodeIndex = _getNodeIndex(_enodeId);
-        if(keccak256(abi.encode(nodeList[nodeIndex].ip)) != keccak256(abi.encode(_ip)) || nodeList[nodeIndex].port != _port || nodeList[nodeIndex].raftPort != _raftport){
+        if (keccak256(abi.encode(nodeList[nodeIndex].ip)) != keccak256(abi.encode(_ip)) || nodeList[nodeIndex].port != _port || nodeList[nodeIndex].raftPort != _raftport) {
             return;
         }
 
@@ -295,18 +296,19 @@ contract NodeManager {
     * @param _raftport raft port of node
     * @return bool indicating if the node is allowed to connect or not
     */
-    function connectionAllowed(string memory _enodeId, string memory _ip, uint16  _port, uint16  _raftport) public view onlyImplementation
+    function connectionAllowed(string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport) public view onlyImplementation
     returns (bool){
         if (enodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0) {
             return false;
         }
-
         uint256 nodeIndex = _getNodeIndex(_enodeId);
-        if(nodeList[nodeIndex].status != 2 || keccak256(abi.encode(nodeList[nodeIndex].ip)) != keccak256(abi.encode(_ip)) || nodeList[nodeIndex].port != _port || nodeList[nodeIndex].raftPort != _raftport){
-            return false;
+        if (nodeList[nodeIndex].status == 2 && nodeList[nodeIndex].port == _port && keccak256(abi.encode(nodeList[nodeIndex].ip)) == keccak256(abi.encode(_ip))) {
+            if (nodeList[nodeIndex].raftPort != 0 &&  nodeList[nodeIndex].raftPort != _raftport) {
+                return false;
+            }
+            return true;
         }
 
-        // do we need to compare the other parts
-        return true;
+        return false;
     }
 }

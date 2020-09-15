@@ -429,13 +429,13 @@ func (q *QuorumControlsAPI) TransactionAllowed(txa ethapi.SendTxArgs) (bool, err
 	return controlService.TransactionAllowed(txa)
 }
 
-func (q *QuorumControlsAPI) ConnectionAllowed(url string, txa ethapi.SendTxArgs) (bool, error) {
+func (q *QuorumControlsAPI) ConnectionAllowed(enodeId, ip string, port, raftPort uint16) (bool, error) {
 	controlService, err := q.permCtrl.NewPermissionControlService()
 	if err != nil {
 		return false, err
 	}
 
-	return controlService.ConnectionAllowed(url)
+	return controlService.ConnectionAllowed(enodeId, ip, port, raftPort)
 }
 
 func (q *QuorumControlsAPI) AddAccountToOrg(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) (string, error) {

@@ -65,7 +65,7 @@ type AccountService interface {
 
 // Control services
 type ControlService interface {
-	ConnectionAllowed(url string) (bool, error)
+	ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error)
 	TransactionAllowed(_args ethapi.SendTxArgs) (bool, error)
 }
 

@@ -149,7 +149,7 @@ func (i *Init) GetNodeDetailsFromIndex(_nodeIndex *big.Int) (string, string, *bi
 	if err != nil {
 		return "", "", big.NewInt(0), err
 	}
-	return r.OrgId, types.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport), r.NodeStatus, err
+	return r.OrgId, types.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport, i.IsRaft), r.NodeStatus, err
 }
 
 func (i *Init) GetNumberOfNodes() (*big.Int, error) {
@@ -161,7 +161,7 @@ func (i *Init) GetNodeDetails(enodeId string) (string, string, *big.Int, error) 
 	if err != nil {
 		return "", "", big.NewInt(0), err
 	}
-	return r.OrgId, types.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport), r.NodeStatus, err
+	return r.OrgId, types.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport, i.IsRaft), r.NodeStatus, err
 }
 
 func (i *Init) GetRoleDetails(_roleId string, _orgId string) (struct {
@@ -210,7 +210,8 @@ func (a *Audit) GetPendingOperation(_orgId string) (string, string, common.Addre
 	return a.Backend.PermInterfSession.GetPendingOp(_orgId)
 }
 
-func (c *Control) ConnectionAllowed(url string) (bool, error) {
+func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error) {
+	url := types.GetNodeUrl(_enodeId, _ip, _port, _raftPort, c.Backend.IsRaft)
 	enodeId, ip, port, raftPort, err := getNodeDetails(url, c.Backend.IsRaft, c.Backend.UseDns)
 	if err != nil {
 		return false, err

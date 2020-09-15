@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 )
 
 type AccessType uint8
@@ -317,8 +317,11 @@ func GetDefaults() (string, string, AccessType) {
 	return networkAdminRole, orgAdminRole, DefaultAccess
 }
 
-func GetNodeUrl(enodeId string, ip string, port uint16, raftport uint16) string {
-	return fmt.Sprintf("enode://%s@%s:%d?discport=0&raftport=%d", enodeId, strings.Trim(ip, "\x00"), port, raftport)
+func GetNodeUrl(enodeId string, ip string, port uint16, raftport uint16, isRaft bool) string {
+	if isRaft {
+		return fmt.Sprintf("enode://%s@%s:%d?discport=0&raftport=%d", enodeId, strings.Trim(ip, "\x00"), port, raftport)
+	}
+	return fmt.Sprintf("enode://%s@%s:%d?discport=0", enodeId, strings.Trim(ip, "\x00"), port)
 }
 
 func (o *OrgCache) UpsertOrg(orgId, parentOrg, ultimateParent string, level *big.Int, status OrgStatus) {
