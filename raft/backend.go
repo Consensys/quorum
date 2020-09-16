@@ -40,7 +40,7 @@ type RaftService struct {
 
 // When we create a new Raft ProtocolManager this happens before we have access to the node id. The raftId is derived from the
 // node id, so at the time of creation do not know the raft id yet.
-func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftPort uint16, blockTime time.Duration, e *eth.Ethereum, startPeers []*enode.Node, datadir string, useDns bool) (*RaftService, error) {
+func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftId uint64, raftjoinExisting bool, raftPort uint16, blockTime time.Duration, e *eth.Ethereum, startPeers []*enode.Node, datadir string, useDns bool) (*RaftService, error) {
 	service := &RaftService{
 		eventMux:         ctx.EventMux,
 		chainDb:          e.ChainDb(),
@@ -56,7 +56,7 @@ func New(ctx *node.ServiceContext, chainConfig *params.ChainConfig, raftPort uin
 	service.minter = newMinter(chainConfig, service, blockTime)
 
 	var err error
-	if service.raftProtocolManager, err = NewProtocolManager(raftPort, service.blockchain, service.eventMux, startPeers, datadir, service.minter, service.downloader, useDns); err != nil {
+	if service.raftProtocolManager, err = NewProtocolManager(raftId, raftPort, service.blockchain, service.eventMux, startPeers, raftjoinExisting, datadir, service.minter, service.downloader, useDns); err != nil {
 		return nil, err
 	}
 

@@ -15,6 +15,7 @@ import (
 // or `enode.Node`.
 // As NodeId is mainly used to derive the `ecdsa.pubkey` to build `enode.Node` it is kept as [64]byte instead of ID [32]byte used by `enode.Node`.
 type Address struct {
+	//RaftId   uint64        `json:"raftId"`
 	RaftId   uint64        `json:"raftId"`
 	NodeId   enode.EnodeID `json:"nodeId"`
 	Ip       net.IP        `json:"-"`

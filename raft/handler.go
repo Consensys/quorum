@@ -39,6 +39,7 @@ type ProtocolManager struct {
 	stopped  bool
 
 	// Static configuration
+	joinExisting   bool // TODO: this is kept around for interacting with < 2.6 nodes, should deprecate.
 	bootstrapNodes []*enode.Node
 	raftId         uint64
 	raftPort       uint16
@@ -97,7 +98,7 @@ var errNoLeaderElected = errors.New("no leader is currently elected")
 // Public interface
 //
 // note at this point we do not know the raft id, we will obtain the raft id from the node id when the service is started.
-func NewProtocolManager(raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, datadir string, minter *minter, downloader *downloader.Downloader, useDns bool) (*ProtocolManager, error) {
+func NewProtocolManager(raftId uint64, raftPort uint16, blockchain *core.BlockChain, mux *event.TypeMux, bootstrapNodes []*enode.Node, joinExisting bool, datadir string, minter *minter, downloader *downloader.Downloader, useDns bool) (*ProtocolManager, error) {
 	waldir := fmt.Sprintf("%s/raft-wal", datadir)
 	snapdir := fmt.Sprintf("%s/raft-snap", datadir)
 	quorumRaftDbLoc := fmt.Sprintf("%s/quorum-raft-state", datadir)
@@ -107,6 +108,7 @@ func NewProtocolManager(raftPort uint16, blockchain *core.BlockChain, mux *event
 		peers:               make(map[uint64]*Peer),
 		leader:              etcdRaft.None,
 		removedPeers:        mapset.NewSet(),
+		joinExisting:        joinExisting,
 		blockchain:          blockchain,
 		eventMux:            mux,
 		blockProposalC:      make(chan *types.Block, 10),
@@ -116,6 +118,7 @@ func NewProtocolManager(raftPort uint16, blockchain *core.BlockChain, mux *event
 		waldir:              waldir,
 		snapdir:             snapdir,
 		snapshotter:         snap.New(snapdir),
+		raftId:              raftId,
 		raftPort:            raftPort,
 		quitSync:            make(chan struct{}),
 		raftStorage:         etcdRaft.NewMemoryStorage(),
@@ -146,15 +149,21 @@ func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
 	// Raft Id must be unique, we therefore derive it from the enode id, which we get from the p2p.Server. This
 	// is not available when the the raft Protocol Manager is first initialized.
 	enode := enode.MustParse(pm.p2pServer.NodeInfo().Enode)
-	raftId, err := nodeIdToRaftId(enode.EnodeID())
-	if err != nil {
-		log.Error("Error converting pm.p2pServer.NodeInfo().Enode to uint64 raftId", "pm.p2pServer.NodeInfo().Enode", pm.p2pServer.NodeInfo().Enode, "err", err)
-		panic(fmt.Sprintf("Error converting enodeId (pm.p2pServer.NodeInfo().Enode) to uint64 raftId. endoeId is [%v] error is [%v]", pm.p2pServer.NodeInfo().Enode, err))
-	}
-	// Override what was previously set..
-	pm.raftId = raftId
 
-	log.Info("raftId obtained from enode id", "raftId", raftId)
+	// TODO: This is kept around for interop with < 2.6 quorum raft node, think about deprecating.
+	if pm.joinExisting { // raftId is already set in this case.
+		log.Info("raftId has been passed in with --raftjoinexisting", "raftId", pm.raftId)
+	} else {
+		raftId, err := nodeIdToRaftId(enode.EnodeID())
+		if err != nil {
+			log.Error("Error converting pm.p2pServer.NodeInfo().Enode to uint64 raftId", "pm.p2pServer.NodeInfo().Enode", pm.p2pServer.NodeInfo().Enode, "err", err)
+			panic(fmt.Sprintf("Error converting enodeId (pm.p2pServer.NodeInfo().Enode) to uint64 raftId. endoeId is [%v] error is [%v]", pm.p2pServer.NodeInfo().Enode, err))
+		}
+		// Override what was previously set..
+		pm.raftId = raftId
+
+		log.Info("raftId obtained from enode id", "raftId", raftId)
+	}
 	pm.startRaft()
 	// update raft peers info to p2p server
 	pm.p2pServer.SetCheckPeerInRaft(pm.peerExist)
@@ -560,6 +569,9 @@ func (pm *ProtocolManager) startRaft() {
 		log.Info("remounting an existing raft log; connecting to peers.")
 
 		pm.unsafeRawNode = etcdRaft.RestartNode(raftConfig)
+	} else if pm.joinExisting {
+		log.Info("newly joining an existing cluster; waiting for connections.")
+		pm.unsafeRawNode = etcdRaft.StartNode(raftConfig, nil)
 	} else { // a new peer, either part of the initial the network set, or a node is joining an existing network. Note: all nodes must be present in the static-nodes.json
 		log.Info("peer is joining the cluster.")
 		// when joining the cluster, the static-nodes.json is the source or truth and represents the raft initial peer list.
@@ -920,6 +932,7 @@ func (pm *ProtocolManager) eventLoop() {
 							// if the raft id does not exist as a peer, then adding a new peer/learner
 							// (either for the first time, or it was previously removed) to an existing network.
 							log.Info("add peer/learner -> "+confChangeTypeName, "raft id", raftId)
+							// TODO: fix this in 2.6 as it can crash all the nodes.
 							pm.addPeer(bytesToAddress(cc.Context))
 						}
 
