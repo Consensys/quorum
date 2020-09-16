@@ -1687,10 +1687,17 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 		contractIndex := b.ContractIndexer()
 		attributes := make([]*security.ContractSecurityAttribute, 0)
 		forSimulation := tx
-		if isRaw && tx.IsPrivate() {
-			forSimulation, privateFrom, err = buildPrivateTransaction(tx)
-			if err != nil {
-				return common.Hash{}, err
+		if tx.IsPrivate() {
+			if isRaw {
+				forSimulation, privateFrom, err = buildPrivateTransactionFromRaw(tx)
+				if err != nil {
+					return common.Hash{}, err
+				}
+			} else {
+				forSimulation, err = buildPrivateTransaction(tx)
+				if err != nil {
+					return common.Hash{}, err
+				}
 			}
 		}
 		createdContractAddresses, affectedContracts, err := simulateExecution(ctx, b, from, forSimulation)
@@ -1803,7 +1810,21 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 
 }
 
-func buildPrivateTransaction(tx *types.Transaction) (*types.Transaction, string, error) {
+func buildPrivateTransaction(tx *types.Transaction) (*types.Transaction, error) {
+	_, privatePayload, revErr := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+	if revErr != nil {
+		return nil, revErr
+	}
+	var privateTx *types.Transaction
+	if tx.To() == nil {
+		privateTx = types.NewContractCreation(tx.Nonce(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
+	} else {
+		privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
+	}
+	return privateTx, nil
+}
+
+func buildPrivateTransactionFromRaw(tx *types.Transaction) (*types.Transaction, string, error) {
 	privatePayload, privateFrom, revErr := private.P.ReceiveRaw(common.BytesToEncryptedPayloadHash(tx.Data()))
 	if revErr != nil {
 		return nil, "", revErr
