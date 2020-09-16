@@ -117,12 +117,16 @@ func (addr *Address) toBytes() []byte {
 }
 
 func bytesToAddress(input []byte) *Address {
+	log.Println(fmt.Sprintf("Libby [bytesToAddress] let's see the decoding " ))
 	// try the new format first
 	addr := new(Address)
 	streamNew := rlp.NewStream(bytes.NewReader(input), 0)
 	if err := streamNew.Decode(addr); err == nil {
 		return addr
+	} else {
+		log.Println(fmt.Sprintf("Libby [streamNew] had error decoding add error [%v]", err))
 	}
+	log.Println("Libby made it passed the new stream")
 
 	// else try the old format
 	var temp struct {
@@ -136,6 +140,8 @@ func bytesToAddress(input []byte) *Address {
 	streamOld := rlp.NewStream(bytes.NewReader(input), 0)
 	if err := streamOld.Decode(&temp); err != nil {
 		log.Fatalf("failed to RLP-decode Address: %v", err)
+	} else {
+		log.Println(fmt.Sprintf("Libby [streamOld] had error decoding add error [%v]", err))
 	}
 
 	return &Address{
