@@ -2,11 +2,12 @@ package privatetransactionmanager
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/private/cache"
 	gocache "github.com/patrickmn/go-cache"
-	"os"
-	"path/filepath"
 )
 
 type PrivateTransactionManager struct {
