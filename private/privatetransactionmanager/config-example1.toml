@@ -1,0 +1,3 @@
+socket = "tm.ipc"
+workdir = "qdata/c1"
+requestTimeout = 10
