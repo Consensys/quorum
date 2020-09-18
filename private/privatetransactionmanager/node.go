@@ -44,24 +44,28 @@ func launchNode(cfgPath string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func unixTransport(socketPath string) *httpunix.Transport {
+func unixTransport(socketPath string, readTimeout uint) *httpunix.Transport {
+	if readTimeout == 0 {
+		readTimeout = 5
+	}
+
 	t := &httpunix.Transport{
 		DialTimeout:           1 * time.Second,
 		RequestTimeout:        5 * time.Second,
-		ResponseHeaderTimeout: 5 * time.Second,
+		ResponseHeaderTimeout: time.Duration(readTimeout) * time.Second,
 	}
 	t.RegisterLocation("c", socketPath)
 	return t
 }
 
-func unixClient(socketPath string) *http.Client {
+func unixClient(socketPath string, readTimeout uint) *http.Client {
 	return &http.Client{
-		Transport: unixTransport(socketPath),
+		Transport: unixTransport(socketPath, readTimeout),
 	}
 }
 
-func RunNode(socketPath string) error {
-	c := unixClient(socketPath)
+func RunNode(socketPath string, readTimeout uint) error {
+	c := unixClient(socketPath, readTimeout)
 	res, err := c.Get("http+unix://c/upcheck")
 	if err != nil {
 		return err
@@ -259,8 +263,8 @@ func (c *Client) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, 
 	return split, nil
 }
 
-func NewClient(socketPath string) (*Client, error) {
+func NewClient(socketPath string, readTimeout uint) (*Client, error) {
 	return &Client{
-		httpClient: unixClient(socketPath),
+		httpClient: unixClient(socketPath, readTimeout),
 	}, nil
 }

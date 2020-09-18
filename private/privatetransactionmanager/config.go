@@ -5,8 +5,9 @@ import (
 )
 
 type Config struct {
-	Socket  string `toml:"socket"`
-	WorkDir string `toml:"workdir"`
+	Socket         string `toml:"socket"`  // socket filename
+	WorkDir        string `toml:"workdir"` // path to socket file
+	RequestTimeout uint   // optional override for request timeout (seconds)
 
 	// Deprecated
 	SocketPath string `toml:"socketPath"`

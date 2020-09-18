@@ -2,12 +2,11 @@ package privatetransactionmanager
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/private/cache"
 	gocache "github.com/patrickmn/go-cache"
+	"os"
+	"path/filepath"
 )
 
 type PrivateTransactionManager struct {
@@ -72,7 +71,7 @@ func (g *PrivateTransactionManager) GetParticipants(txHash common.EncryptedPaylo
 	return g.node.GetParticipants(txHash)
 }
 
-func New(path string) (*PrivateTransactionManager, error) {
+func New(path string, readTimeout uint) (*PrivateTransactionManager, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return nil, err
@@ -86,12 +85,13 @@ func New(path string) (*PrivateTransactionManager, error) {
 			return nil, err
 		}
 		path = filepath.Join(cfg.WorkDir, cfg.Socket)
+		readTimeout = cfg.RequestTimeout
 	}
-	err = RunNode(path)
+	err = RunNode(path, readTimeout)
 	if err != nil {
 		return nil, err
 	}
-	n, err := NewClient(path)
+	n, err := NewClient(path, readTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func New(path string) (*PrivateTransactionManager, error) {
 }
 
 func MustNew(path string) *PrivateTransactionManager {
-	g, err := New(path)
+	g, err := New(path, 0)
 	if err != nil {
 		panic(fmt.Sprintf("MustNew: Failed to connect to private transaction manager (%s): %v", path, err))
 	}
