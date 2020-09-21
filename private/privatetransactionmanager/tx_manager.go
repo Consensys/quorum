@@ -72,27 +72,28 @@ func (g *PrivateTransactionManager) GetParticipants(txHash common.EncryptedPaylo
 	return g.node.GetParticipants(txHash)
 }
 
-func New(path string, readTimeout uint) (*PrivateTransactionManager, error) {
+func New(path string) (*PrivateTransactionManager, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return nil, err
 	}
 	// We accept either the socket or a configuration file that points to
 	// a socket.
+	cfg := new(Config)
 	isSocket := info.Mode()&os.ModeSocket != 0
 	if !isSocket {
-		cfg, err := LoadConfig(path)
+		cfg, err = LoadConfig(path)
 		if err != nil {
 			return nil, err
 		}
-		path = filepath.Join(cfg.WorkDir, cfg.Socket)
-		readTimeout = cfg.RequestTimeout
+	} else {
+		cfg.WorkDir, cfg.Socket = filepath.Split(path)
 	}
-	err = RunNode(path, readTimeout)
+	err = RunNode(*cfg)
 	if err != nil {
 		return nil, err
 	}
-	n, err := NewClient(path, readTimeout)
+	n, err := NewClient(*cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +104,7 @@ func New(path string, readTimeout uint) (*PrivateTransactionManager, error) {
 }
 
 func MustNew(path string) *PrivateTransactionManager {
-	g, err := New(path, 0)
+	g, err := New(path)
 	if err != nil {
 		panic(fmt.Sprintf("MustNew: Failed to connect to private transaction manager (%s): %v", path, err))
 	}

@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -44,28 +45,25 @@ func launchNode(cfgPath string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func unixTransport(socketPath string, readTimeout uint) *httpunix.Transport {
-	if readTimeout == 0 {
-		readTimeout = 5
-	}
+func unixTransport(cfg Config) *httpunix.Transport {
 
 	t := &httpunix.Transport{
-		DialTimeout:           1 * time.Second,
-		RequestTimeout:        5 * time.Second,
-		ResponseHeaderTimeout: time.Duration(readTimeout) * time.Second,
+		DialTimeout:           time.Duration(cfg.DialTimeout) * time.Second,
+		RequestTimeout:        time.Duration(cfg.RequestTimeout) * time.Second,
+		ResponseHeaderTimeout: time.Duration(cfg.ResponseHeaderTimeout) * time.Second,
 	}
-	t.RegisterLocation("c", socketPath)
+	t.RegisterLocation("c", filepath.Join(cfg.WorkDir, cfg.Socket))
 	return t
 }
 
-func unixClient(socketPath string, readTimeout uint) *http.Client {
+func unixClient(cfg Config) *http.Client {
 	return &http.Client{
-		Transport: unixTransport(socketPath, readTimeout),
+		Transport: unixTransport(cfg),
 	}
 }
 
-func RunNode(socketPath string, readTimeout uint) error {
-	c := unixClient(socketPath, readTimeout)
+func RunNode(cfg Config) error {
+	c := unixClient(cfg)
 	res, err := c.Get("http+unix://c/upcheck")
 	if err != nil {
 		return err
@@ -263,8 +261,8 @@ func (c *Client) GetParticipants(txHash common.EncryptedPayloadHash) ([]string, 
 	return split, nil
 }
 
-func NewClient(socketPath string, readTimeout uint) (*Client, error) {
+func NewClient(cfg Config) (*Client, error) {
 	return &Client{
-		httpClient: unixClient(socketPath, readTimeout),
+		httpClient: unixClient(cfg),
 	}, nil
 }

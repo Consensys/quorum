@@ -1,3 +1,5 @@
 socket = "tm.ipc"
 workdir = "qdata/c1"
-requestTimeout = 10
+dialTimeout = 8
+requestTimeout = 9
+responseHeaderTimeout = 10
