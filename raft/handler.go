@@ -160,7 +160,7 @@ func (pm *ProtocolManager) Start(p2pServer *p2p.Server) {
 			panic(fmt.Sprintf("Error converting enodeId (pm.p2pServer.NodeInfo().Enode) to uint64 raftId. endoeId is [%v] error is [%v]", pm.p2pServer.NodeInfo().Enode, err))
 		}
 		// Override what was previously set..
-		pm.raftId = raftId
+		pm.raftId = uint64(raftId)
 
 		log.Info("raftId obtained from enode id", "raftId", raftId)
 	}
@@ -289,7 +289,7 @@ func (pm *ProtocolManager) isRaftIdInCluster(raftId uint64) bool {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 	for _, peer := range pm.peers {
-		if peer.address.RaftId == raftId {
+		if peer.address.RaftId == uint16(raftId) {
 			return true
 		}
 	}
@@ -335,7 +335,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint6
 		log.Error("error getting uint64 raft id for proposed new peer ", "node.EnodeID()", node.EnodeID())
 		return 0, err
 	}
-	if pm.isRaftIdInCluster(raftId) { // TODO: Libby change this, if it is in the cluster return the Id and a bool.
+	if pm.isRaftIdInCluster(uint64(raftId)) { // TODO: Libby change this, if it is in the cluster return the Id and a bool.
 		log.Error("raftId is already in cluster", "raft id", raftId)
 		return 0, fmt.Errorf("raftId is already in cluster raft id [%d]", raftId)
 	}
@@ -346,7 +346,7 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint6
 			"re-added.", "raftId", raftId, "pm.removedPeers", pm.removedPeers)
 		pm.removedPeers.Remove(raftId)
 	}
-
+	// TODO: can we have two address representations? Old (uint16) and new (uint64)? always use new if set in genesis block or blocknumber?
 	address := newAddress(raftId, node.RaftPort(), node, pm.useDns)
 
 	confChangeType := raftpb.ConfChangeAddNode
@@ -357,11 +357,11 @@ func (pm *ProtocolManager) ProposeNewPeer(enodeId string, isLearner bool) (uint6
 
 	pm.confChangeProposalC <- raftpb.ConfChange{
 		Type:    confChangeType,
-		NodeID:  raftId,
+		NodeID:  uint64(raftId),
 		Context: address.toBytes(),
 	}
 
-	return raftId, nil
+	return uint64(raftId), nil
 }
 
 func (pm *ProtocolManager) ProposePeerRemoval(raftId uint64) error {
@@ -803,7 +803,7 @@ func (pm *ProtocolManager) addPeer(address *Address) {
 
 	// Add raft transport connection:
 	pm.transport.AddPeer(raftTypes.ID(raftId), []string{pm.raftUrl(address)})
-	pm.peers[raftId] = &Peer{address, p2pNode}
+	pm.peers[uint64(raftId)] = &Peer{address, p2pNode}
 }
 
 func (pm *ProtocolManager) disconnectFromPeer(raftId uint64, peer *Peer) {
@@ -1011,11 +1011,11 @@ func (pm *ProtocolManager) makeInitialRaftPeers() (raftPeers []etcdRaft.Peer, pe
 		// contains pairs of enodes and raft ports, or we can get this initial peer list from commandline flags.
 		address := newAddress(raftId, node.RaftPort(), node, pm.useDns)
 		raftPeers[i] = etcdRaft.Peer{
-			ID:      raftId,
+			ID:      uint64(raftId),
 			Context: address.toBytes(),
 		}
 
-		if raftId == pm.raftId {
+		if uint64(raftId) == pm.raftId {
 			localAddress = address
 		} else {
 			peerAddresses[peersSeen] = address

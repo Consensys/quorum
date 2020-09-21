@@ -16,7 +16,7 @@ import (
 // As NodeId is mainly used to derive the `ecdsa.pubkey` to build `enode.Node` it is kept as [64]byte instead of ID [32]byte used by `enode.Node`.
 type Address struct {
 	//RaftId   uint64        `json:"raftId"`
-	RaftId   uint64        `json:"raftId"`
+	RaftId   uint16        `json:"raftId"`
 	NodeId   enode.EnodeID `json:"nodeId"`
 	Ip       net.IP        `json:"-"`
 	P2pPort  enr.TCP       `json:"p2pPort"`
@@ -66,7 +66,7 @@ type ClusterInfo struct {
 	NodeActive bool   `json:"nodeActive"`
 }
 
-func newAddress(raftId uint64, raftPort int, node *enode.Node, useDns bool) *Address {
+func newAddress(raftId uint16, raftPort int, node *enode.Node, useDns bool) *Address {
 	// derive 64 byte nodeID from 128 byte enodeID
 	id, err := enode.RaftHexID(node.EnodeID())
 	if err != nil {
@@ -117,7 +117,6 @@ func (addr *Address) toBytes() []byte {
 }
 
 func bytesToAddress(input []byte) *Address {
-	log.Println(fmt.Sprintf("Libby [bytesToAddress] let's see the decoding " ))
 	// try the new format first
 	addr := new(Address)
 	streamNew := rlp.NewStream(bytes.NewReader(input), 0)
@@ -130,7 +129,7 @@ func bytesToAddress(input []byte) *Address {
 
 	// else try the old format
 	var temp struct {
-		RaftId   uint64
+		RaftId   uint16
 		NodeId   enode.EnodeID
 		Ip       net.IP
 		P2pPort  enr.TCP

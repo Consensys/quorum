@@ -1862,7 +1862,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 
 		ethereum := <-ethChan
 		ethChan <- ethereum
-        // myId joinExisting
+		// myId joinExisting
 		return raft.New(ctx, ethereum.BlockChain().Config(), myId, joinExisting, raftPort, blockTimeNanos, ethereum, peers, datadir, useDns)
 	}); err != nil {
 		Fatalf("Failed to register the Raft service: %v", err)

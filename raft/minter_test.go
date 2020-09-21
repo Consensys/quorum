@@ -202,7 +202,7 @@ func getRaftId(t *testing.T, enodeId string) uint64 {
 	if err != nil {
 		t.Fatalf("Unable convert enode id: %s to raft Id. error: %s", enodeId, err.Error())
 	}
-	return raftId
+	return uint64(raftId)
 }
 
 func peerList(url string) (error, []*enode.Node) {

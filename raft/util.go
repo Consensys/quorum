@@ -33,17 +33,19 @@ func fatalf(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
-// maps an enode id (512 bit public key of the node) to a uint64 bit raft id required by the etcd raft core.
-// the enode ids for the network are obtianed from the static-nodes.json file.
+// maps an enode id (512 bit public key of the node) to a uint16 raft id.
+// TODO/note: (2020 Sept 20) the underlying ectd raft id is a uint64, but for quorum backwards compatibility / upgrade, we are keepting this
+//            a uint16, in the near future, we maybe want to provide an upgrade path for raft64
+// the enode ids for the network are obtained from the static-nodes.json file, or passed in when running raft.addPeer(enodeURL).
 // nodeIdToRaftId takes the Keccak hash of the enode id, which helps to avoid collisions and
 // ensure uniqueness, and converts the hash into an uint64 which is the raftId type used by the etcd
 // raft protocol.
-func nodeIdToRaftId(enodeId string) (uint64, error) {
+func nodeIdToRaftId(enodeId string) (uint16, error) {
 	log.Info("Converting node id to raft id", "enode id", enodeId)
 	// Get the keccak hash of of the enodeId to help ensure uniqueness and protect against collisions.
 	hashedEnodeId := crypto.Keccak256([]byte(enodeId))
 	log.Info("raft hashedEnodeId ", "hashedEnodeId", hashedEnodeId)
-	raftId := binary.BigEndian.Uint64(hashedEnodeId)
+	raftId := binary.BigEndian.Uint16(hashedEnodeId)
 	log.Info("raft raftId ", "raftId", raftId)
 	return raftId, nil
 }

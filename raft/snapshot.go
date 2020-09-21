@@ -30,7 +30,7 @@ type SnapshotWithHostnames struct {
 }
 
 type AddressWithoutHostname struct {
-	RaftId   uint64
+	RaftId   uint16
 	NodeId   enode.EnodeID
 	Ip       net.IP
 	P2pPort  enr.TCP
@@ -154,13 +154,13 @@ func (pm *ProtocolManager) updateClusterMembership(newConfState raftpb.ConfState
 	for _, tempAddress := range addresses {
 		address := tempAddress // Allocate separately on the heap for each iteration.
 
-		if address.RaftId == pm.raftId {
+		if uint64(address.RaftId) == pm.raftId {
 			// If we're a newcomer to an existing cluster, this is where we learn
 			// our own Address.
 			pm.setLocalAddress(&address)
 		} else {
 			pm.mu.RLock()
-			existingPeer := pm.peers[address.RaftId]
+			existingPeer := pm.peers[uint64(address.RaftId)]
 			pm.mu.RUnlock()
 
 			if existingPeer == nil {

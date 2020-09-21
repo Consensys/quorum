@@ -123,14 +123,14 @@ func (s *PublicRaftAPI) Cluster() ([]ClusterInfo, error) {
 		if !noLeader {
 			if a.RaftId == leaderAddr.RaftId {
 				role = "minter"
-			} else if s.raftService.raftProtocolManager.isLearner(a.RaftId) {
+			} else if s.raftService.raftProtocolManager.isLearner(uint64(a.RaftId)) {
 				role = "learner"
-			} else if s.raftService.raftProtocolManager.isVerifier(a.RaftId) {
+			} else if s.raftService.raftProtocolManager.isVerifier(uint64(a.RaftId)) {
 				role = "verifier"
 			}
 		}
 		//log.Info("Cluster RaftId is: ", "a.RaftId", a.RaftId, "aJS.RaftId", aJS.RaftId)
-		clustInfo[i] = ClusterInfo{*aJS, role, s.checkIfNodeIsActive(a.RaftId)}
+		clustInfo[i] = ClusterInfo{*aJS, role, s.checkIfNodeIsActive(uint64(a.RaftId))}
 	}
 	return clustInfo, nil
 }
