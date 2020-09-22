@@ -13,7 +13,7 @@ Quorum is a fork of [go-ethereum](https://github.com/ethereum/go-ethereum) and i
 
 Key enhancements over go-ethereum:
 
-* [__Privacy__](http://docs.goquorum.com/en/latest/Privacy/Overview/) - Quorum supports private transactions and private contracts through public/private state separation, and utilises peer-to-peer encrypted message exchanges (see [Constellation](https://github.com/jpmorganchase/constellation) and [Tessera](https://github.com/jpmorganchase/tessera)) for directed transfer of private data to network participants
+* [__Privacy__](http://docs.goquorum.com/en/latest/Privacy/Overview/) - Quorum supports private transactions and private contracts through public/private state separation, and utilises peer-to-peer encrypted message exchanges (see [Constellation](https://github.com/consensys/constellation) and [Tessera](https://github.com/consensys/tessera)) for directed transfer of private data to network participants
 * [__Alternative Consensus Mechanisms__](http://docs.goquorum.com/en/latest/Consensus/Consensus/) - with no need for POW/POS in a permissioned network, Quorum instead offers multiple consensus mechanisms that are more appropriate for consortium chains:
     * [__Raft-based Consensus__](http://docs.goquorum.com/en/latest/Consensus/raft/raft/) - a consensus model for faster blocktimes, transaction finality, and on-demand block creation
     * [__Istanbul BFT__](http://docs.goquorum.com/en/latest/Consensus/ibft/ibft/) - a PBFT-inspired consensus algorithm with transaction finality, by AMIS.
@@ -25,7 +25,7 @@ Key enhancements over go-ethereum:
 
 ## Architecture
 
-![Quorum Tessera Privacy Flow](https://github.com/jpmorganchase/quorum/blob/master/docs/Quorum%20Design.png)
+![Quorum Tessera Privacy Flow](https://github.com/consensys/quorum/blob/master/docs/Quorum%20Design.png)
 
 The above diagram is very high-level overview of component architecture used by Quorum. For more in-depth discussion of the components and how they interact, please refer to [lifecycle of a private transaction](http://docs.goquorum.com/en/latest/Privacy/Lifecycle-of-a-private-transaction/).
 
@@ -34,24 +34,24 @@ There are [several ways](https://docs.goquorum.com/en/latest/Getting%20Started/G
 
 ## Quorum Projects
 
-Check out some of the interesting projects we are actively working on: 
+Check out some of the interesting projects we are actively working on:
 
 * [quorum-wizard](http://docs.goquorum.com/en/latest/Wizard/GettingStarted/): Setup a Quorum network in 2 minutes!
 * [quorum-remix-plugin](http://docs.goquorum.com/en/latest/RemixPlugin/Overview/): The Quorum plugin for Ethereum's Remix IDE adds support for creating and interacting with private contracts on a Quorum network.
 * [Cakeshop](http://docs.goquorum.com/en/latest/Cakeshop/Overview/): An integrated development environment and SDK for Quorum
 * [Quorum-Profiling](http://docs.goquorum.com/en/latest/Quorum%20Profiling/Overview/): Toolset for stress testing & benchmarking Quorum networks. 
 * [quorum-examples](http://docs.goquorum.com/en/latest/Getting%20Started/Quorum-Examples/): Quorum demonstration examples
-* <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [qubernetes](http://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/#quorum-on-kubernetes): Deploy Quorum on Kubernetes  
+* <img src="docs/images/qubernetes/k8s-logo.png" width="15"/> [qubernetes](http://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/#quorum-on-kubernetes): Deploy Quorum on Kubernetes
 * [quorum-cloud](http://docs.goquorum.com/en/latest/Getting%20Started/Getting%20Started%20Overview/#creating-a-network-deployed-in-the-cloud): Tools to help deploy Quorum network in a cloud provider of choice
 * [quorum.js](http://docs.goquorum.com/en/latest/quorum.js/Overview/): Extends web3.js to support Quorum-specific APIs
 * Zero Knowledge on Quorum
-   * [ZSL](https://github.com/jpmorganchase/quorum/wiki/ZSL) POC and [ZSL on Quorum](https://github.com/jpmorganchase/zsl-q/blob/master/README.md)
-   * [Anonymous Zether](https://github.com/jpmorganchase/anonymous-zether) implementation
+   * [ZSL](https://docs.goquorum.consensys.net/en/latest/Reference/GoQuorum-Projects/#zsl-proof-of-concept) POC and [ZSL on Quorum](https://github.com/ConsenSys/zsl-q/blob/master/README.md)
+   * [Anonymous Zether](https://github.com/ConsenSys/anonymous-zether) implementation
 
 
 
 ## Official Docker Containers
-The official docker containers can be found under https://hub.docker.com/u/quorumengineering/ 
+The official docker containers can be found under https://hub.docker.com/u/quorumengineering/
 
 ## Third Party Tools/Libraries
 
@@ -72,7 +72,7 @@ Quorum is built on open source and we invite you to contribute enhancements. Upo
 ## Reporting Security Bugs
 Security is part of our commitment to our users. At Quorum we have a close relationship with the security community, we understand the realm, and encourage security researchers to become part of our mission of building secure reliable software. This section explains how to submit security bugs, and what to expect in return.
 
-All security bugs in [Quorum](https://github.com/jpmorganchase/quorum) and its ecosystem ([Tessera](https://github.com/jpmorganchase/tessera), [Constellation](https://github.com/jpmorganchase/constellation), [Cakeshop](https://github.com/jpmorganchase/cakeshop), ..etc)  should be reported by email to [info@goquorum.com](mailto:info@goquorum.com). Please use the prefix **[security]** in your subject. This email is delivered to Quorum security team. Your email will be acknowledged, and you'll receive a more detailed response to your email as soon as possible indicating the next steps in handling your report. After the initial reply to your report, the security team will endeavor to keep you informed of the progress being made towards a fix and full announcement.
+All security bugs in [Quorum](https://github.com/consensys/quorum) and its ecosystem ([Tessera](https://github.com/consensys/tessera), [Constellation](https://github.com/consensys/constellation), [Cakeshop](https://github.com/consensys/cakeshop), ..etc)  should be reported by email to [security-quorum@consensys.net](mailto:security-quorum@consensys.net). Please use the prefix **[security]** in your subject. This email is delivered to Quorum security team. Your email will be acknowledged, and you'll receive a more detailed response to your email as soon as possible indicating the next steps in handling your report. After the initial reply to your report, the security team will endeavor to keep you informed of the progress being made towards a fix and full announcement.
 
 If you have not received a reply to your email or you have not heard from the security team please contact any team member through quorum slack security channel. **Please note that Quorum slack channels are public discussion forum**. When escalating to this medium, please do not disclose the details of the issue. Simply state that you're trying to reach a member of the security team.
 
@@ -87,7 +87,7 @@ Quorum project uses the following responsible disclosure process:
 - On the date that the fixes are applied, announcements are sent to Quorum-announce.
 - At this point you would be able to disclose publicly your finding.
 
-**Note:** This process can take some time. Every effort will be made to handle the security bug in as timely a manner as possible, however it's important that we follow the process described above to ensure that disclosures are handled consistently.  
+**Note:** This process can take some time. Every effort will be made to handle the security bug in as timely a manner as possible, however it's important that we follow the process described above to ensure that disclosures are handled consistently.
 
 #### Receiving Security Updates
 The best way to receive security announcements is to subscribe to the Quorum-announce mailing list/channel. Any messages pertaining to a security issue will be prefixed with **[security]**.

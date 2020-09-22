@@ -840,6 +840,11 @@ func (api *PrivateDebugAPI) computeTxEnv(blockHash common.Hash, txIndex int, ree
 	signer := types.MakeSigner(api.eth.blockchain.Config(), block.Number())
 
 	for idx, tx := range block.Transactions() {
+		privateStateDbToUse := statedb
+		if api.eth.blockchain.Config().IsQuorum && tx.IsPrivate() {
+			privateStateDbToUse = privateStateDb
+		}
+
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer)
 		context := core.NewEVMContext(msg, block.Header(), api.eth.blockchain, nil)
@@ -847,7 +852,7 @@ func (api *PrivateDebugAPI) computeTxEnv(blockHash common.Hash, txIndex int, ree
 			return msg, context, statedb, privateStateDb, nil
 		}
 		// Not yet the searched for transaction, execute on top of the current state
-		vmenv := vm.NewEVM(context, statedb, privateStateDb, api.eth.blockchain.Config(), vm.Config{})
+		vmenv := vm.NewEVM(context, statedb, privateStateDbToUse, api.eth.blockchain.Config(), vm.Config{})
 		if _, _, _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 			return nil, vm.Context{}, nil, nil, fmt.Errorf("tx %#x failed: %v", tx.Hash(), err)
 		}
