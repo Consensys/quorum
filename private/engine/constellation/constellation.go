@@ -46,6 +46,14 @@ func (g *constellation) Send(data []byte, from string, to []string, extra *engin
 	return out, nil
 }
 
+func (g *constellation) EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
+	return nil, engine.ErrPrivateTxManagerNotSupported
+}
+
+func (g *constellation) DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error) {
+	return nil, nil, engine.ErrPrivateTxManagerNotSupported
+}
+
 func (g *constellation) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
 	return common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerNotSupported
 }

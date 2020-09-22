@@ -147,7 +147,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address,
 	if api.checkAlreadyVoted(addressToVoteOn, txArgs.From) {
 		return "", errors.New("already voted")
 	}
-	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, api.privacyService.ptm)
+	uuid, err := generateUuid(addressToVoteOn, txArgs.PrivateFrom, txArgs.PrivateFor, api.privacyService.ptm)
 	if err != nil {
 		return "", err
 	}

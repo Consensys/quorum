@@ -96,6 +96,28 @@ func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, ex
 	return eph, nil
 }
 
+func (t *tesseraPrivateTxManager) EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
+	response := new(encryptPayloadResponse)
+	acMerkleRoot := ""
+	if !common.EmptyHash(extra.ACMerkleRoot) {
+		acMerkleRoot = extra.ACMerkleRoot.ToBase64()
+	}
+
+	if _, err := t.submitJSON("POST", "/encodedpayload/create", &sendRequest{
+		Payload:                      data,
+		From:                         from,
+		To:                           to,
+		AffectedContractTransactions: extra.ACHashes.ToBase64s(),
+		ExecHash:                     acMerkleRoot,
+		PrivacyFlag:                  extra.PrivacyFlag,
+	}, response); err != nil {
+		return nil, err
+	}
+
+	output, _ := json.Marshal(response)
+	return output, nil
+}
+
 func (t *tesseraPrivateTxManager) StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error) {
 
 	response := new(sendResponse)
@@ -216,6 +238,38 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 		Payload: response.Payload,
 		Extra:   extra,
 	}, gocache.DefaultExpiration)
+
+	return response.Payload, &extra, nil
+}
+
+// retrieve raw will not return information about medata
+func (t *tesseraPrivateTxManager) DecryptPayload(payload common.DecryptRequest) ([]byte, *engine.ExtraMetadata, error) {
+	response := new(receiveResponse)
+	if _, err := t.submitJSON("POST", "/encodedpayload/decrypt", &decryptPayloadRequest{
+		SenderKey:       payload.SenderKey,
+		CipherText:      payload.CipherText,
+		CipherTextNonce: payload.CipherTextNonce,
+		RecipientBoxes:  payload.RecipientBoxes,
+		RecipientNonce:  payload.RecipientNonce,
+		RecipientKeys:   payload.RecipientKeys,
+	}, response); err != nil {
+		return nil, nil, err
+	}
+
+	var extra engine.ExtraMetadata
+	acHashes, err := common.Base64sToEncryptedPayloadHashes(response.AffectedContractTransactions)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to decode ACOTHs %v. Cause: %v", response.AffectedContractTransactions, err)
+	}
+	acMerkleRoot, err := common.Base64ToHash(response.ExecHash)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to decode execution hash %s. Cause: %v", response.ExecHash, err)
+	}
+	extra = engine.ExtraMetadata{
+		ACHashes:     acHashes,
+		ACMerkleRoot: acMerkleRoot,
+		PrivacyFlag:  response.PrivacyFlag,
+	}
 
 	return response.Payload, &extra, nil
 }
