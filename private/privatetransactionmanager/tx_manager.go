@@ -2,8 +2,6 @@ package privatetransactionmanager
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/private/cache"
@@ -72,28 +70,19 @@ func (g *PrivateTransactionManager) GetParticipants(txHash common.EncryptedPaylo
 	return g.node.GetParticipants(txHash)
 }
 
+// Create connection to private transaction manager.
+// Accepts path to the socket file or to a configuration file.
 func New(path string) (*PrivateTransactionManager, error) {
-	info, err := os.Lstat(path)
+	cfg, err := LoadConfig(path)
 	if err != nil {
 		return nil, err
 	}
-	// We accept either the socket or a configuration file that points to
-	// a socket.
-	cfg := new(Config)
-	isSocket := info.Mode()&os.ModeSocket != 0
-	if !isSocket {
-		cfg, err = LoadConfig(path)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		cfg.WorkDir, cfg.Socket = filepath.Split(path)
-	}
-	err = RunNode(*cfg)
+
+	err = RunNode(cfg)
 	if err != nil {
 		return nil, err
 	}
-	n, err := NewClient(*cfg)
+	n, err := NewClient(cfg)
 	if err != nil {
 		return nil, err
 	}

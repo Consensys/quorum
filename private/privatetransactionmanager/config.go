@@ -1,6 +1,9 @@
 package privatetransactionmanager
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/BurntSushi/toml"
 )
 
@@ -16,20 +19,34 @@ type Config struct {
 	SocketPath string `toml:"socketPath"`
 }
 
-var DefaultConfig = &Config{
+var DefaultConfig = Config{
 	DialTimeout:           1,
 	RequestTimeout:        5,
 	ResponseHeaderTimeout: 5,
 }
 
-func LoadConfig(configPath string) (*Config, error) {
-	cfg := *DefaultConfig
-	if _, err := toml.DecodeFile(configPath, &cfg); err != nil {
-		return nil, err
+// LoadConfig sets up the configuration for the connection to a txn manager.
+// It will accept a path to a socket file or a path to a config file,
+// and returns the full configuration info for the socket file.
+func LoadConfig(path string) (Config, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return Config{}, err
 	}
+
+	cfg := DefaultConfig
+	isSocket := info.Mode()&os.ModeSocket != 0
+	if !isSocket {
+		if _, err := toml.DecodeFile(path, &cfg); err != nil {
+			return Config{}, err
+		}
+	} else {
+		cfg.WorkDir, cfg.Socket = filepath.Split(path)
+	}
+
 	// Fall back to Constellation 0.0.1 config format if necessary
 	if cfg.Socket == "" {
 		cfg.Socket = cfg.SocketPath
 	}
-	return &cfg, nil
+	return cfg, nil
 }

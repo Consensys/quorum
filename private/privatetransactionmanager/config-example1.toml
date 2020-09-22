@@ -1,3 +1,4 @@
+#Sample config file for private transaction manager socket connection
 socket = "tm.ipc"
 workdir = "qdata/c1"
 dialTimeout = 8
