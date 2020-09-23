@@ -167,6 +167,7 @@ func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts(t 
 		canNotReadOtherPrivateContractsNoPrivy,
 		canWriteOwnedPrivateContracts,
 		canWriteOtherPrivateContracts,
+		canWriteOtherPrivateContractsWithOverlappedScope,
 		canNotWriteOtherPrivateContracts,
 		canNotWriteOtherPrivateContractsNoPrivy,
 	})
@@ -465,6 +466,23 @@ var (
 		msg: "0x0a1a1a1 can write private contracts created by 0xb1b1b1 and was privy to a key A",
 		rawAuthorities: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&party.tm=A",
+		},
+		attributes: []*ContractSecurityAttribute{{
+			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
+				From: common.HexToAddress("0xa1a1a1"),
+				To:   common.HexToAddress("0xb1b1b1"),
+			},
+			Visibility: "private",
+			Action:     "write",
+			Parties:    []string{"A"},
+		}},
+		isAuthorized: true,
+	}
+	canWriteOtherPrivateContractsWithOverlappedScope = &testCase{
+		msg: "0x0a1a1a1 can write private contracts created by 0xb1b1b1 and was privy to a key A",
+		rawAuthorities: []string{
+			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&party.tm=A",
+			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&party.tm=A&party.tm=B",
 		},
 		attributes: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
