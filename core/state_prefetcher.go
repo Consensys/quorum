@@ -78,8 +78,13 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 	}
 	// Create the EVM and execute the transaction
 	context := NewEVMContext(msg, header, bc, author)
-	vm := vm.NewEVM(context, statedb, privatest, config, cfg)
+	// Quorum decide on the privatestateDB to use for EVM
+	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privatest)
+
+	vm := vm.NewEVM(context, statedb, privateStateDbToUse, config, cfg)
 	vm.SetCurrentTX(tx)
+	// /Quorum
+
 
 	_, _, _, err = ApplyMessage(vm, msg, gaspool)
 	return err

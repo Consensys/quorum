@@ -94,14 +94,25 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 	return receipts, privateReceipts, allLogs, *usedGas, nil
 }
 
+// Quorum
+// returns the privateStateDB to be used for a transaction
+func PrivateStateDBForTxn(isQuorum, isPrivate bool, stateDb, privateStateDB *state.StateDB) *state.StateDB {
+	if !isQuorum || !isPrivate {
+		return stateDb
+	}
+	return privateStateDB
+}
+
+// /Quorum
+
 // ApplyTransaction attempts to apply a transaction to the given state database
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
 func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common.Address, gp *GasPool, statedb, privateState *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, *types.Receipt, error) {
-	if !config.IsQuorum || !tx.IsPrivate() {
-		privateState = statedb
-	}
+	// Quorum - decide the privateStateDB to use
+	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privateState)
+	// /Quorum
 
 	if config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
 		return nil, nil, ErrInvalidGasPrice
@@ -115,7 +126,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	context := NewEVMContext(msg, header, bc, author)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := vm.NewEVM(context, statedb, privateState, config, cfg)
+	vmenv := vm.NewEVM(context, statedb, privateStateDbToUse, config, cfg)
 	vmenv.SetCurrentTX(tx)
 
 	// Apply the transaction to the current state (included in the env)
