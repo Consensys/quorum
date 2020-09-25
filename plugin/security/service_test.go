@@ -31,22 +31,22 @@ func TestMatch_whenTypical(t *testing.T) {
 }
 
 func TestMatch_whenAnyAction(t *testing.T) {
-	granted, _ := url.Parse("private://0xa1b1c1/_/contracts?owned.eoa=0x0&party.tm=A1")
-	ask, _ := url.Parse("private://0xa1b1c1/read/contracts?party.tm=A1")
+	granted, _ := url.Parse("private://0xa1b1c1/_/contracts?owned.eoa=0x0&from.tm=A1")
+	ask, _ := url.Parse("private://0xa1b1c1/read/contracts?from.tm=A1")
 
 	assert.True(t, match(&ContractSecurityAttribute{
 		Visibility: "private",
 		Action:     "read",
 	}, ask, granted))
 
-	ask, _ = url.Parse("private://0xa1b1c1/read/contracts?owned.eoa=0x0&party.tm=A1&party.tm=B1")
+	ask, _ = url.Parse("private://0xa1b1c1/read/contracts?owned.eoa=0x0&from.tm=A1&from.tm=B1")
 
 	assert.True(t, match(&ContractSecurityAttribute{
 		Visibility: "private",
 		Action:     "read",
 	}, ask, granted))
 
-	ask, _ = url.Parse("private://0xa1b1c1/write/contracts?owned.eoa=0x0&party.tm=A1&party.tm=B1")
+	ask, _ = url.Parse("private://0xa1b1c1/write/contracts?owned.eoa=0x0&from.tm=A1")
 
 	assert.True(t, match(&ContractSecurityAttribute{
 		Visibility: "private",
@@ -54,35 +54,34 @@ func TestMatch_whenAnyAction(t *testing.T) {
 	}, ask, granted))
 }
 
-func TestMatch_whenContractWritePermission_AskIsTheSuperSet(t *testing.T) {
-	granted, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&party.tm=A")
-	ask, _ := url.Parse("private://0xa1b1c1/write/contracts?owned.eoa=0xc1d1e1&party.tm=A&party.tm=B")
+func TestMatch_whenPathNotMatched(t *testing.T) {
+	granted, _ := url.Parse("private://0xa1b1c1/write/contracts?owned.eoa=0x0&from.tm=A1")
+	ask, _ := url.Parse("private://0xa1b1c1/read/contracts?from.tm=A1")
 
-	assert.True(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "write",
-	}, ask, granted), "with write permission")
-
-	granted, _ = url.Parse("private://0x0/read/contracts?owned.eoa=0x0&party.tm=A")
-	ask, _ = url.Parse("private://0xa1b1c1/read/contracts?owned.eoa=0xc1d1e1&party.tm=A&party.tm=B")
-
-	assert.True(t, match(&ContractSecurityAttribute{
+	assert.False(t, match(&ContractSecurityAttribute{
 		Visibility: "private",
 		Action:     "read",
-	}, ask, granted), "with read permission")
+	}, ask, granted))
+}
+
+func TestMatch_whenSchemeIsNotEqual(t *testing.T) {
+	granted, _ := url.Parse("unknown://0xa1b1c1/create/contracts?from.tm=A")
+	ask, _ := url.Parse("private://0xa1b1c1/create/contracts?from.tm=A")
+
+	assert.False(t, match(&ContractSecurityAttribute{Action: "create"}, ask, granted))
 }
 
 func TestMatch_whenContractWritePermission_GrantedIsTheSuperSet(t *testing.T) {
-	granted, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&party.tm=A&party.tm=B")
-	ask, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&party.tm=A")
+	granted, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=A&from.tm=B")
+	ask, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=A")
 
 	assert.True(t, match(&ContractSecurityAttribute{
 		Visibility: "private",
 		Action:     "write",
 	}, ask, granted), "with write permission")
 
-	granted, _ = url.Parse("private://0x0/read/contracts?owned.eoa=0x0&party.tm=A&party.tm=B")
-	ask, _ = url.Parse("private://0x0/read/contracts?owned.eoa=0x0&party.tm=A")
+	granted, _ = url.Parse("private://0x0/read/contracts?owned.eoa=0x0&from.tm=A&from.tm=B")
+	ask, _ = url.Parse("private://0x0/read/contracts?owned.eoa=0x0&from.tm=A")
 
 	assert.True(t, match(&ContractSecurityAttribute{
 		Visibility: "private",
@@ -90,13 +89,83 @@ func TestMatch_whenContractWritePermission_GrantedIsTheSuperSet(t *testing.T) {
 	}, ask, granted), "with read permission")
 }
 
+func TestMatch_whenContractReadPermission_EoaSame(t *testing.T) {
+	granted, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x095e7baea6a6c7c4c2dfeb977efac326af552d87")
+	ask, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x945304eb96065b2a98b57a48a06ae28d285a71b5")
+
+	assert.False(t, match(&ContractSecurityAttribute{
+		Visibility: "private",
+		Action:     "read",
+	}, ask, granted))
+}
+
+func TestMatch_whenContractReadPermission_EoaDifferent(t *testing.T) {
+	granted, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x095e7baea6a6c7c4c2dfeb977efac326af552d87")
+	ask, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x095e7baea6a6c7c4c2dfeb977efac326af552d87")
+
+	assert.True(t, match(&ContractSecurityAttribute{
+		Visibility: "private",
+		Action:     "read",
+	}, ask, granted))
+}
+
+func TestMatch_whenContractReadPermission_TmKeysIntersect(t *testing.T) {
+	granted, _ := url.Parse("private://0x0/read/contracts?from.tm=A&from.tm=B")
+	ask, _ := url.Parse("private://0x0/read/contracts?from.tm=B&from.tm=C")
+
+	assert.True(t, match(&ContractSecurityAttribute{
+		Visibility: "private",
+		Action:     "read",
+	}, ask, granted))
+}
+
+func TestMatch_whenContractReadPermission_TmKeysDontIntersect(t *testing.T) {
+	granted, _ := url.Parse("private://0x0/read/contracts?from.tm=A&from.tm=B")
+	ask, _ := url.Parse("private://0x0/read/contracts?from.tm=C&from.tm=D")
+
+	assert.False(t, match(&ContractSecurityAttribute{
+		Visibility: "private",
+		Action:     "read",
+	}, ask, granted))
+}
+
 func TestMatch_whenContractWritePermission_Same(t *testing.T) {
-	granted, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&party.tm=A")
-	ask, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&party.tm=A")
+	granted, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=A")
+	ask, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=A")
 
 	assert.True(t, match(&ContractSecurityAttribute{
 		Visibility: "private",
 		Action:     "write",
+	}, ask, granted))
+}
+
+func TestMatch_whenContractWritePermission_Different(t *testing.T) {
+	granted, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=A")
+	ask, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=B")
+
+	assert.False(t, match(&ContractSecurityAttribute{
+		Visibility: "private",
+		Action:     "write",
+	}, ask, granted))
+}
+
+func TestMatch_whenContractCreatePermission_Same(t *testing.T) {
+	granted, _ := url.Parse("private://0x0/create/contracts?owned.eoa=0x0&from.tm=A")
+	ask, _ := url.Parse("private://0x0/create/contracts?owned.eoa=0x0&from.tm=A")
+
+	assert.True(t, match(&ContractSecurityAttribute{
+		Visibility: "private",
+		Action:     "create",
+	}, ask, granted))
+}
+
+func TestMatch_whenContractCreatePermission_Different(t *testing.T) {
+	granted, _ := url.Parse("private://0x0/create/contracts?owned.eoa=0x0&from.tm=A")
+	ask, _ := url.Parse("private://0x0/create/contracts?owned.eoa=0x0&from.tm=B")
+
+	assert.False(t, match(&ContractSecurityAttribute{
+		Visibility: "private",
+		Action:     "create",
 	}, ask, granted))
 }
 
@@ -110,6 +179,25 @@ func TestMatch_whenUsingWildcardAccount(t *testing.T) {
 	ask, _ = url.Parse("private://0xa1b1c1/read/contract?owned.eoa=0x1234")
 
 	assert.True(t, match(&ContractSecurityAttribute{Action: "read"}, ask, granted))
+}
+
+func TestMatch_whenNotUsingWildcardAccount(t *testing.T) {
+	granted, _ := url.Parse("private://0xed9d02e382b34818e88b88a309c7fe71e65f419d/create/contracts?from.tm=dLHrFQpbSda0EhJnLonsBwDjks%2Bf724NipfI5zK5RSs%3D")
+	ask, _ := url.Parse("private://0xed9d02e382b34818e88b88a309c7fe71e65f419d/create/contracts?from.tm=dLHrFQpbSda0EhJnLonsBwDjks%2Bf724NipfI5zK5RSs%3D")
+
+	assert.True(t, match(&ContractSecurityAttribute{Action: "create"}, ask, granted))
+
+	granted, _ = url.Parse("private://0x0/read/contract?owned.eoa=0x0")
+	ask, _ = url.Parse("private://0xa1b1c1/read/contract?owned.eoa=0x1234")
+
+	assert.True(t, match(&ContractSecurityAttribute{Action: "read"}, ask, granted))
+}
+
+func TestMatch_failsWhenAccountsDiffer(t *testing.T) {
+	granted, _ := url.Parse("private://0xed9d02e382b34818e88b88a309c7fe71e65f419d/create/contracts?from.tm=dLHrFQpbSda0EhJnLonsBwDjks%2Bf724NipfI5zK5RSs%3D")
+	ask, _ := url.Parse("private://0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b/create/contracts?from.tm=dLHrFQpbSda0EhJnLonsBwDjks%2Bf724NipfI5zK5RSs%3D")
+
+	assert.False(t, match(&ContractSecurityAttribute{Action: "create"}, ask, granted))
 }
 
 func TestMatch_whenPublic(t *testing.T) {
@@ -349,7 +437,7 @@ var (
 			Visibility:  "private",
 			Action:      "create",
 			PrivateFrom: "A",
-			Parties:     []string{"B", "C"},
+			Parties:     []string{},
 		}},
 		isAuthorized: true,
 	}
@@ -365,14 +453,14 @@ var (
 			Visibility:  "private",
 			Action:      "create",
 			PrivateFrom: "A",
-			Parties:     []string{"B", "C", "D"},
+			Parties:     []string{},
 		}},
 		isAuthorized: false,
 	}
 	canReadOwnedPrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can read private contracts created by self and was privy to a key A",
 		rawAuthorities: []string{
-			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1&party.tm=A&party.tm=B",
+			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1&from.tm=A&from.tm=B",
 		},
 		attributes: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
@@ -387,7 +475,7 @@ var (
 	canReadOtherPrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can read private contracts created by 0xb1b1b1 and was privy to a key A",
 		rawAuthorities: []string{
-			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&party.tm=A",
+			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&from.tm=A",
 		},
 		attributes: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
@@ -403,7 +491,7 @@ var (
 	canNotReadOtherPrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can NOT read private contracts created by 0xb1b1b1 even it was privy to a key A",
 		rawAuthorities: []string{
-			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000c1c1c1&party.tm=A",
+			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000c1c1c1&from.tm=A",
 		},
 		attributes: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
@@ -419,7 +507,7 @@ var (
 	canNotReadOtherPrivateContractsNoPrivy = &testCase{
 		msg: "0x0a1a1a1 can NOT read private contracts created by 0xb1b1b1 as it was privy to a key B",
 		rawAuthorities: []string{
-			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&party.tm=B",
+			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&from.tm=B",
 		},
 		attributes: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
@@ -435,7 +523,7 @@ var (
 	canWriteOwnedPrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can write private contracts created by self and was privy to a key A",
 		rawAuthorities: []string{
-			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1&from.tm=A&party.tm=B",
+			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1&from.tm=A&from.tm=B",
 		},
 		attributes: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
@@ -486,7 +574,7 @@ var (
 	canNotWriteOtherPrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can NOT write private contracts created by 0xb1b1b1 even it was privy to a key A",
 		rawAuthorities: []string{
-			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000c1c1c1&party.tm=A",
+			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000c1c1c1&from.tm=A",
 		},
 		attributes: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
@@ -502,7 +590,7 @@ var (
 	canNotWriteOtherPrivateContractsNoPrivy = &testCase{
 		msg: "0x0a1a1a1 can NOT write private contracts created by 0xb1b1b1 as it was privy to a key B",
 		rawAuthorities: []string{
-			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&party.tm=B",
+			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&from.tm=B",
 		},
 		attributes: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
