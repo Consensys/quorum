@@ -1,9 +1,45 @@
 package privatetransactionmanager
 
 import (
+	"net"
+	"os"
 	"path/filepath"
+	"runtime"
+	"syscall"
 	"testing"
 )
+
+func TestDefaultTimeoutsUsedWhenNoConfigFileSpecified(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("this test case is not supported for windows")
+	}
+
+	socketFile := filepath.Join(os.TempDir(), "socket-file.ipc")
+	syscall.Unlink(socketFile)
+	l, err := net.Listen("unix", socketFile)
+	if err != nil {
+		t.Errorf("Could not create socket file '%s'", socketFile)
+	}
+	defer l.Close()
+
+	cfg, err := LoadConfig(socketFile)
+	if err != nil {
+		t.Errorf("Failed to set up socket configuration: %v", err)
+	}
+	path := filepath.Join(cfg.WorkDir, cfg.Socket)
+	if path != socketFile {
+		t.Errorf("Incorrect socket path returned: got '%v', expected '%v'", path, socketFile)
+	}
+	if cfg.DialTimeout != DefaultConfig.DialTimeout {
+		t.Errorf("Incorrect DialTimeout from config file: got '%v', expected '%v'", cfg.DialTimeout, DefaultConfig.DialTimeout)
+	}
+	if cfg.RequestTimeout != DefaultConfig.RequestTimeout {
+		t.Errorf("Incorrect RequestTimeout from config file: got '%v', expected '%v'", cfg.RequestTimeout, DefaultConfig.RequestTimeout)
+	}
+	if cfg.ResponseHeaderTimeout != DefaultConfig.ResponseHeaderTimeout {
+		t.Errorf("Incorrect ResponseHeaderTimeout from config file: got '%v', expected '%v'", cfg.ResponseHeaderTimeout, DefaultConfig.ResponseHeaderTimeout)
+	}
+}
 
 func TestLoadConfigWithTimeouts(t *testing.T) {
 
