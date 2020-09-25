@@ -130,7 +130,7 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 					query.Set("owned.eoa", strings.ToLower(attr.To.Hex()))
 				}
 				for _, tm := range attr.Parties {
-					query.Add("party.tm", tm)
+					query.Add("from.tm", tm)
 				}
 			case "write":
 				if (attr.To == common.Address{}) {
@@ -173,7 +173,7 @@ func match(attr *ContractSecurityAttribute, ask, granted *url.URL) bool {
 	}
 
 	isPathMatched := matchPath(strings.ToLower(ask.Path), strings.ToLower(granted.Path))
-	return askScheme == strings.ToLower(granted.Scheme) && //Note: "scheme" here is "private" since we checked "public" above.
+	return askScheme == strings.ToLower(granted.Scheme) && //Note: "askScheme" here is "private" since we checked "public" above.
 		matchHost(strings.ToLower(ask.Host), strings.ToLower(granted.Host)) && //whether i have permission to execute using this ethereum address
 		isPathMatched && //is our permission for the same action (read, write, deploy)
 		matchQuery(attr, ask.Query(), granted.Query())
@@ -193,24 +193,20 @@ func matchPath(ask string, granted string) bool {
 
 func matchQuery(attr *ContractSecurityAttribute, ask, granted url.Values) bool {
 	// possible scenarios:
-	// 1. read -> party.tm -> same key must appear in both lists
-	// 2. read -> from.tm -> not relevant
-	// 3. read - owned.eoa/to.eoa -> check subset
-	// 4. write/create -> from.tm/owned.eoa/to.eoa -> check subset
-	// 5. write/create -> party.tm -> not relevant
-
-	//Note, scenarios 2 & 5 are not checked since they aren't relevant
+	// 1. read -> from.tm -> at least 1 of the same key must appear in both lists
+	// 2. read - owned.eoa/to.eoa -> check subset
+	// 3. write/create -> from.tm/owned.eoa/to.eoa -> check subset
 
 	for k, askValues := range ask {
 		grantedValues := granted[k]
-		if attr.Action == "read" && k == "party.tm" {
+		if attr.Action == "read" {
 			// Scenario 1
-			if k == "party.tm" {
+			if k == "from.tm" {
 				if isIntersectionEmpty(grantedValues, askValues) {
 					return false
 				}
 			}
-			//Scenario 3
+			//Scenario 2
 			if k == "owned.eoa" || k == "to.eoa" {
 				if !subset(grantedValues, askValues) {
 					return false
@@ -219,8 +215,8 @@ func matchQuery(attr *ContractSecurityAttribute, ask, granted url.Values) bool {
 		} else {
 			//action is "write" or "create"
 
-			//Scenario 4
-			if k != "party.tm" && !subset(grantedValues, askValues) {
+			//Scenario 3
+			if !subset(grantedValues, askValues) {
 				return false
 			}
 		}
