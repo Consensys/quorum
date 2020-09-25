@@ -808,7 +808,6 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, t
 	vmenv.SetCurrentTX(tx)
 	// /Quorum
 
-
 	ret, gas, failed, err := core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas()))
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %v", err)
