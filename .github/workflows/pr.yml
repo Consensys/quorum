@@ -65,6 +65,12 @@ jobs:
           repository: ConsenSys/tessera
           path: tessera
           ref: feature/psv-with-ce
+      - name: 'Check out quorum-acceptance-tests project files'
+        uses: actions/checkout@v2
+        with:
+          repository: nicolae-leonte-go/quorum-acceptance-tests
+          path: quorum-acceptance-tests
+          ref: feature/privacyEnhancements
       - name: 'Build docker image'
         id: build
         run: |
@@ -79,6 +85,11 @@ jobs:
           docker build -t quorumengineering/tessera:pe .
           docker save quorumengineering/tessera:pe > tessera-pe.tar
           tar cfvz $output_dir/tessera-pe.tar.gz tessera-pe.tar
+
+          cd ../quorum-acceptance-tests
+          docker build -t quorumengineering/quorum-acceptance-tests:pe .
+          docker save quorumengineering/quorum-acceptance-tests:pe > qat-pe.tar
+          tar cfvz $output_dir/qat-pe.tar.gz qat-pe.tar
 
           echo "::set-output name=output_dir::$output_dir"
       - name: 'Upload workflow artifact - Docker image'
@@ -112,18 +123,16 @@ jobs:
           tar xfvz docker-image/quorum-pr.tar.gz
           docker load --input quorum-pr.tar
           echo "::set-output name=outputDir::${{ runner.temp }}"
-      - name: 'Login to github docker repo'
-        id: setupDockerLogin
-        run: |
-          docker login docker.pkg.github.com -u quorumbot -p ${{ secrets.QUORUMBOT_PAT}}
       - name: 'Get Tessera Docker image'
         id: setupTessera
         run: |
-          docker pull docker.pkg.github.com/quorumengineering/tessera/tessera:dev-tessera-privacyenhancements
+          tar xfvz docker-image/tessera-pe.tar.gz
+          docker load --input tessera-pe.tar
       - name: 'Get QAT Docker image'
         id: setupQAT
         run: |
-          docker pull docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements
+          tar xfvz docker-image/qat-pe.tar.gz
+          docker load --input qat-pe.tar
       - name: 'Run acceptance tests'
         run: |
           docker run --rm \
@@ -131,8 +140,8 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
             -e TF_VAR_quorum_docker_image='{ name = "quorumengineering/quorum:pr", local = true }' \
-            -e TF_VAR_tessera_docker_image='{ name = "docker.pkg.github.com/quorumengineering/tessera/tessera:dev-tessera-privacyenhancements", local = true }' \
-            docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements test \
+            -e TF_VAR_tessera_docker_image='{ name = "quorumengineering/tessera:pe", local = true }' \
+            quorumengineering/quorum-acceptance-tests:pe test \
               -Pauto \
               -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
               -Dtags="${{ matrix.tag }}"
@@ -166,18 +175,16 @@ jobs:
           tar xfvz docker-image/quorum-pr.tar.gz
           docker load --input quorum-pr.tar
           echo "::set-output name=outputDir::${{ runner.temp }}"
-      - name: 'Login to github docker repo'
-        id: setupDockerLogin
-        run: |
-          docker login docker.pkg.github.com -u quorumbot -p ${{ secrets.QUORUMBOT_PAT}}
-      - name: 'Load QAT Docker image'
-        id: setupQAT
-        run: |
-          docker pull docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements
       - name: 'Get Tessera Docker image'
-        id: setupTessera
-        run: |
-          docker pull docker.pkg.github.com/quorumengineering/tessera/tessera:dev-tessera-privacyenhancements
+          id: setupTessera
+          run: |
+            tar xfvz docker-image/tessera-pe.tar.gz
+            docker load --input tessera-pe.tar
+      - name: 'Get QAT Docker image'
+        id: setupQAT
+          run: |
+            tar xfvz docker-image/qat-pe.tar.gz
+            docker load --input qat-pe.tar
       - name: 'Run acceptance tests'
         run: |
           docker run --rm \
@@ -185,9 +192,9 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
             -e TF_VAR_quorum_docker_image='{ name = "quorumengineering/quorum:pr", local = true }' \
-            -e TF_VAR_tessera_docker_image='{ name = "docker.pkg.github.com/quorumengineering/tessera/tessera:dev-tessera-privacyenhancements", local = true }' \
+            -e TF_VAR_tessera_docker_image='{ name = "quorumengineering/tessera:pe", local = true }' \
             -e TF_VAR_privacy_enhancements='{ block = 0, enabled = false }' \
-            docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements test \
+            quorumengineering/quorum-acceptance-tests:pe test \
               -Pauto \
               -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
               -Dtags="${{ matrix.tag }}"
@@ -222,26 +229,23 @@ jobs:
           docker load --input quorum-pr.tar
           echo "::set-output name=outputDir::${{ runner.temp }}"
           docker tag quorumengineering/quorum:pr quorumengineering/quorum:pe
-      - name: 'Login to github docker repo'
-        id: setupDockerLogin
-        run: |
-          docker login docker.pkg.github.com -u quorumbot -p ${{ secrets.QUORUMBOT_PAT}}
-      - name: 'Load QAT Docker image'
-        id: setupQAT
-        run: |
-          docker pull docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements
       - name: 'Get Tessera Docker image'
-        id: setupTessera
-        run: |
-          docker pull docker.pkg.github.com/quorumengineering/tessera/tessera:dev-tessera-privacyenhancements
-          docker tag docker.pkg.github.com/quorumengineering/tessera/tessera:dev-tessera-privacyenhancements quorumengineering/tessera:pe
+          id: setupTessera
+          run: |
+            tar xfvz docker-image/tessera-pe.tar.gz
+            docker load --input tessera-pe.tar
+      - name: 'Get QAT Docker image'
+        id: setupQAT
+          run: |
+            tar xfvz docker-image/qat-pe.tar.gz
+            docker load --input qat-pe.tar
       - name: 'Run acceptance tests'
         run: |
           docker run --rm \
             --network host \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
-            docker.pkg.github.com/quorumengineering/quorum-acceptance-tests/acctests:dev-qat-privacyenhancements test \
+            quorumengineering/quorum-acceptance-tests:pe test \
               -Pauto \
               -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
               -Dtags="${{ matrix.tag }}"
