@@ -59,14 +59,27 @@ jobs:
     steps:
       - name: 'Check out project files'
         uses: actions/checkout@v2
+      - name: 'Check out tessera project files'
+        uses: actions/checkout@v2
+        with:
+          repository: ConsenSys/tessera
+          path: tessera
+          ref: feature/psv-with-ce
       - name: 'Build docker image'
         id: build
         run: |
           output_dir=${{ runner.temp }}/docker
           mkdir -p $output_dir
+
           docker build -t quorumengineering/quorum:pr .
           docker save quorumengineering/quorum:pr > quorum-pr.tar
           tar cfvz $output_dir/quorum-pr.tar.gz quorum-pr.tar
+
+          cd tessera
+          docker build -t quorumengineering/tessera:pe .
+          docker save quorumengineering/tessera:pe > tessera-pe.tar
+          tar cfvz $output_dir/tessera-pe.tar.gz tessera-pe.tar
+
           echo "::set-output name=output_dir::$output_dir"
       - name: 'Upload workflow artifact - Docker image'
         uses: actions/upload-artifact@v1
