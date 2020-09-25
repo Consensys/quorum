@@ -230,15 +230,15 @@ jobs:
           echo "::set-output name=outputDir::${{ runner.temp }}"
           docker tag quorumengineering/quorum:pr quorumengineering/quorum:pe
       - name: 'Get Tessera Docker image'
-          id: setupTessera
-          run: |
-            tar xfvz docker-image/tessera-pe.tar.gz
-            docker load --input tessera-pe.tar
+        id: setupTessera
+        run: |
+          tar xfvz docker-image/tessera-pe.tar.gz
+          docker load --input tessera-pe.tar
       - name: 'Get QAT Docker image'
         id: setupQAT
-          run: |
-            tar xfvz docker-image/qat-pe.tar.gz
-            docker load --input qat-pe.tar
+        run: |
+          tar xfvz docker-image/qat-pe.tar.gz
+          docker load --input qat-pe.tar
       - name: 'Run acceptance tests'
         run: |
           docker run --rm \
