@@ -36,8 +36,8 @@ type ContractSecurityAttribute struct {
 	*AccountStateSecurityAttribute
 	Visibility  string   // public/private
 	Action      string   // create/read/write
-	PrivateFrom string   // TM Key, only if Visibility is private
-	Parties     []string // TM Keys, only if Visibility is private
+	PrivateFrom string   // TM Key, only if Visibility is private, for write/create
+	Parties     []string // TM Keys, only if Visibility is private, for read
 }
 
 type AccountAccessDecisionManager interface {
@@ -123,7 +123,7 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 			}
 		case "private":
 			switch attr.Action {
-			case "read", "write":
+			case "read":
 				if (attr.To == common.Address{}) {
 					query.Set("owned.eoa", strings.ToLower(attr.From.Hex()))
 				} else {
@@ -132,11 +132,15 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 				for _, tm := range attr.Parties {
 					query.Add("party.tm", tm)
 				}
+			case "write":
+				if (attr.To == common.Address{}) {
+					query.Set("owned.eoa", strings.ToLower(attr.From.Hex()))
+				} else {
+					query.Set("owned.eoa", strings.ToLower(attr.To.Hex()))
+				}
+				query.Set("from.tm", attr.PrivateFrom)
 			case "create":
 				query.Set("from.tm", attr.PrivateFrom)
-				for _, tm := range attr.Parties {
-					query.Add("for.tm", tm)
-				}
 			}
 		}
 		// construct request permission identifier
@@ -164,12 +168,15 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 
 func match(attr *ContractSecurityAttribute, ask, granted *url.URL) bool {
 	askScheme := strings.ToLower(ask.Scheme)
-	isPathMatched, isAnyAction := matchPath(strings.ToLower(ask.Path), strings.ToLower(granted.Path))
-	return allowedPublic(askScheme) ||
-		(askScheme == strings.ToLower(granted.Scheme) &&
-			matchHost(strings.ToLower(ask.Host), strings.ToLower(granted.Host)) &&
-			isPathMatched &&
-			matchQuery(isAnyAction, attr, ask.Query(), granted.Query()))
+	if allowedPublic(askScheme) {
+		return true
+	}
+
+	isPathMatched := matchPath(strings.ToLower(ask.Path), strings.ToLower(granted.Path))
+	return askScheme == strings.ToLower(granted.Scheme) && //Note: "scheme" here is "private" since we checked "public" above.
+		matchHost(strings.ToLower(ask.Host), strings.ToLower(granted.Host)) && //whether i have permission to execute using this ethereum address
+		isPathMatched && //is our permission for the same action (read, write, deploy)
+		matchQuery(attr, ask.Query(), granted.Query())
 }
 
 func allowedPublic(scheme string) bool {
@@ -177,36 +184,43 @@ func allowedPublic(scheme string) bool {
 }
 
 func matchHost(ask string, granted string) bool {
-	if strings.HasPrefix(ask, "0x") && strings.HasPrefix(granted, "0x") && granted == "0x0" {
-		return true
-	}
-	return ask == granted
+	return granted == "0x0" || ask == granted
 }
 
-func matchPath(ask string, granted string) (bool, bool) {
-	if strings.HasPrefix(granted, "/_") {
-		return true, true
-	}
-	return ask == granted, false
+func matchPath(ask string, granted string) bool {
+	return strings.HasPrefix(granted, "/_") || ask == granted
 }
 
-func matchQuery(isAnyAction bool, attr *ContractSecurityAttribute, ask, granted url.Values) bool {
+func matchQuery(attr *ContractSecurityAttribute, ask, granted url.Values) bool {
+	// possible scenarios:
+	// 1. read -> party.tm -> same key must appear in both lists
+	// 2. read -> from.tm -> not relevant
+	// 3. read - owned.eoa/to.eoa -> check subset
+	// 4. write/create -> from.tm/owned.eoa/to.eoa -> check subset
+	// 5. write/create -> party.tm -> not relevant
+
+	//Note, scenarios 2 & 5 are not checked since they aren't relevant
+
 	for k, askValues := range ask {
 		grantedValues := granted[k]
-		if isAnyAction {
-			if k == "for.tm" {
-				continue
+		if attr.Action == "read" && k == "party.tm" {
+			// Scenario 1
+			if k == "party.tm" {
+				if isIntersectionEmpty(grantedValues, askValues) {
+					return false
+				}
 			}
-			if k == "from.tm" {
-				grantedValues = granted["party.tm"]
-			}
-		}
-		if attr != nil && attr.Visibility == "private" && (attr.Action == "write" || attr.Action == "read") && k == "party.tm" {
-			if !subset(askValues, grantedValues) && !subset(grantedValues, askValues) {
-				return false
+			//Scenario 3
+			if k == "owned.eoa" || k == "to.eoa" {
+				if !subset(grantedValues, askValues) {
+					return false
+				}
 			}
 		} else {
-			if !subset(grantedValues, askValues) {
+			//action is "write" or "create"
+
+			//Scenario 4
+			if k != "party.tm" && !subset(grantedValues, askValues) {
 				return false
 			}
 		}
@@ -232,6 +246,19 @@ func subset(grantedValues, askValues []string) bool {
 			}
 		}
 		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func isIntersectionEmpty(grantedValues, askValues []string) bool {
+	grantedMap := make(map[string]bool)
+	for _, grantedVal := range grantedValues {
+		grantedMap[grantedVal] = true
+	}
+	for _, askVal := range askValues {
+		if grantedMap[askVal] {
 			return false
 		}
 	}

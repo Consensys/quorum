@@ -1724,7 +1724,6 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 			if tx.IsPrivate() {
 				thisTxSecAttr.Visibility = "private"
 				thisTxSecAttr.PrivateFrom = privateFrom
-				thisTxSecAttr.Parties = privateFor
 			} else {
 				thisTxSecAttr.Visibility = "public"
 			}
@@ -1737,7 +1736,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 			thisTxSecAttr.AccountStateSecurityAttribute.To = cp.CreatorAddress
 			if tx.IsPrivate() {
 				thisTxSecAttr.Visibility = "private"
-				thisTxSecAttr.Parties = cp.ParticipantAddreses // TODO what about privateFor?
+				thisTxSecAttr.PrivateFrom = privateFrom
 				// if this message call creates contracts
 				if len(createdContractAddresses) > 0 {
 					attributes = append(attributes, &security.ContractSecurityAttribute{
@@ -1747,7 +1746,6 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 						Visibility:  "private",
 						Action:      "create",
 						PrivateFrom: privateFrom,
-						Parties:     privateFor,
 					})
 				}
 			} else {
@@ -1775,7 +1773,8 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 					From: from,
 					To:   cp.CreatorAddress,
 				},
-				Parties: cp.ParticipantAddreses,
+				Parties:     cp.ParticipantAddreses,
+				PrivateFrom: privateFrom,
 			}
 			if len(cp.ParticipantAddreses) == 0 {
 				attr.Visibility = "public"
