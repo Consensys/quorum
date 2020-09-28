@@ -13,9 +13,8 @@ const versionLength = 3
 type Version [versionLength]uint64
 
 var (
-	zero = Version{0, 0, 0}
-	// TODO Qurum - Privacy Enhancements - must update this once tessera with privacy enhancements is released (and the version is known)
-	privacyEnhancementsVersion = Version{0, 10, 6}
+	zero                       = Version{0, 0, 0}
+	privacyEnhancementsVersion = Version{1, 0, 0}
 
 	featureVersions = map[engine.PrivateTransactionManagerFeature]Version{
 		engine.PrivacyEnhancements: privacyEnhancementsVersion,
