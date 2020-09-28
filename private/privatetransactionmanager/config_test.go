@@ -1,13 +1,28 @@
 package privatetransactionmanager
 
 import (
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"syscall"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
+
+var configFileWithTimeouts = `
+    socket = "tm.ipc"
+    workdir = "qdata/c1"
+    dialTimeout = 8
+    requestTimeout = 9
+    responseHeaderTimeout = 10
+`
+var configFileNoTimeouts = `
+    socket = "tm.ipc"
+    workdir = "qdata/c1"
+`
 
 func TestDefaultTimeoutsUsedWhenNoConfigFileSpecified(t *testing.T) {
 	if runtime.GOOS == "windows" {
@@ -17,76 +32,47 @@ func TestDefaultTimeoutsUsedWhenNoConfigFileSpecified(t *testing.T) {
 	socketFile := filepath.Join(os.TempDir(), "socket-file.ipc")
 	syscall.Unlink(socketFile)
 	l, err := net.Listen("unix", socketFile)
-	if err != nil {
-		t.Errorf("Could not create socket file '%s'", socketFile)
-	}
 	defer l.Close()
+	if err != nil {
+		t.Fatalf("Could not create socket file '%v' for unit test, error: %v", socketFile, err)
+	}
 
 	cfg, err := LoadConfig(socketFile)
-	if err != nil {
-		t.Errorf("Failed to set up socket configuration: %v", err)
-	}
-	path := filepath.Join(cfg.WorkDir, cfg.Socket)
-	if path != socketFile {
-		t.Errorf("Incorrect socket path returned: got '%v', expected '%v'", path, socketFile)
-	}
-	if cfg.DialTimeout != DefaultConfig.DialTimeout {
-		t.Errorf("Incorrect DialTimeout from config file: got '%v', expected '%v'", cfg.DialTimeout, DefaultConfig.DialTimeout)
-	}
-	if cfg.RequestTimeout != DefaultConfig.RequestTimeout {
-		t.Errorf("Incorrect RequestTimeout from config file: got '%v', expected '%v'", cfg.RequestTimeout, DefaultConfig.RequestTimeout)
-	}
-	if cfg.ResponseHeaderTimeout != DefaultConfig.ResponseHeaderTimeout {
-		t.Errorf("Incorrect ResponseHeaderTimeout from config file: got '%v', expected '%v'", cfg.ResponseHeaderTimeout, DefaultConfig.ResponseHeaderTimeout)
+	if assert.NoError(t, err, "Failed to retrieve socket configuration") {
+		assert.Equal(t, socketFile, filepath.Join(cfg.WorkDir, cfg.Socket), "Socket path unexpectedly changed when loading default config")
+		assert.Equal(t, DefaultConfig.DialTimeout, cfg.DialTimeout, "Did not get expected default DialTimeout")
+		assert.Equal(t, DefaultConfig.RequestTimeout, cfg.RequestTimeout, "Did not get expected default RequestTimeout")
+		assert.Equal(t, DefaultConfig.ResponseHeaderTimeout, cfg.ResponseHeaderTimeout, "Did not get expected default ResponseHeaderTimeout")
 	}
 }
 
 func TestLoadConfigWithTimeouts(t *testing.T) {
+	configFile := filepath.Join(os.TempDir(), "config-example1.toml")
+	if err := ioutil.WriteFile(configFile, []byte(configFileWithTimeouts), 0600); err != nil {
+		t.Fatalf("Failed to create config file for unit test, error: %v", err)
+	}
+	defer os.Remove(configFile)
 
-	expectedPath := "qdata/c1/tm.ipc"
-	var expectedDialTimeout uint = 8
-	var expectedRequestTimeout uint = 9
-	var expectedResponseHeaderTimeout uint = 10
-
-	cfg, err := LoadConfig("config-example1.toml")
-	if err != nil {
-		t.Errorf("Failed to open config file: %v", err)
-	}
-	path := filepath.Join(cfg.WorkDir, cfg.Socket)
-	if path != expectedPath {
-		t.Errorf("Incorrect socket path from config file: got '%v', expected '%v'", path, expectedPath)
-	}
-	if cfg.DialTimeout != expectedDialTimeout {
-		t.Errorf("Incorrect DialTimeout from config file: got '%v', expected '%v'", cfg.DialTimeout, expectedDialTimeout)
-	}
-	if cfg.RequestTimeout != expectedRequestTimeout {
-		t.Errorf("Incorrect RequestTimeout from config file: got '%v', expected '%v'", cfg.RequestTimeout, expectedRequestTimeout)
-	}
-	if cfg.ResponseHeaderTimeout != expectedResponseHeaderTimeout {
-		t.Errorf("Incorrect ResponseHeaderTimeout from config file: got '%v', expected '%v'", cfg.ResponseHeaderTimeout, expectedResponseHeaderTimeout)
+	cfg, err := LoadConfig(configFile)
+	if assert.NoError(t, err, "Failed to load config file") {
+		assert.Equal(t, "qdata/c1/tm.ipc", filepath.Join(cfg.WorkDir, cfg.Socket), "Did not get expected socket path from config file")
+		assert.Equal(t, uint(8), cfg.DialTimeout, "Did not get expected DialTimeout from config file")
+		assert.Equal(t, uint(9), cfg.RequestTimeout, "Did not get expected RequestTimeout from config file")
+		assert.Equal(t, uint(10), cfg.ResponseHeaderTimeout, "Did not get expected ResponseHeaderTimeout from config file")
 	}
 }
 
 func TestLoadConfigWithDefaultTimeouts(t *testing.T) {
+	configFile := filepath.Join(os.TempDir(), "config-example2.toml")
+	if err := ioutil.WriteFile(configFile, []byte(configFileNoTimeouts), 0600); err != nil {
+		t.Fatalf("Failed to create config file for unit test, error: %v", err)
+	}
+	defer os.Remove(configFile)
 
-	expectedDialTimeout := DefaultConfig.DialTimeout
-	expectedRequestTimeout := DefaultConfig.RequestTimeout
-	expectedResponseHeaderTimeout := DefaultConfig.ResponseHeaderTimeout
-
-	cfg, err := LoadConfig("config-example2.toml")
-	if err != nil {
-		t.Errorf("Failed to open config file: %v", err)
-	}
-	dialTimeout := cfg.DialTimeout
-	if dialTimeout != expectedDialTimeout {
-		t.Errorf("Unexpected default DialTimeout: got '%v', expected '%v'", dialTimeout, expectedDialTimeout)
-	}
-	requestTimeout := cfg.RequestTimeout
-	if requestTimeout != expectedRequestTimeout {
-		t.Errorf("Unexpected default RequestTimeout: got '%v', expected '%v'", requestTimeout, expectedRequestTimeout)
-	}
-	responseHeaderTimeout := cfg.ResponseHeaderTimeout
-	if responseHeaderTimeout != expectedResponseHeaderTimeout {
-		t.Errorf("Unexpected default ResponseHeaderTimeout: got '%v', expected '%v'", responseHeaderTimeout, expectedResponseHeaderTimeout)
+	cfg, err := LoadConfig(configFile)
+	if assert.NoError(t, err, "Failed to load config file") {
+		assert.Equal(t, DefaultConfig.DialTimeout, cfg.DialTimeout, "Did not get expected default DialTimeout from config file")
+		assert.Equal(t, DefaultConfig.RequestTimeout, cfg.RequestTimeout, "Did not get expected default RequestTimeout from config file")
+		assert.Equal(t, DefaultConfig.ResponseHeaderTimeout, cfg.ResponseHeaderTimeout, "Did not get expected default ResponseHeaderTimeout from config file")
 	}
 }
