@@ -32,10 +32,10 @@ func TestDefaultTimeoutsUsedWhenNoConfigFileSpecified(t *testing.T) {
 	socketFile := filepath.Join(os.TempDir(), "socket-file.ipc")
 	syscall.Unlink(socketFile)
 	l, err := net.Listen("unix", socketFile)
-	defer l.Close()
 	if err != nil {
 		t.Fatalf("Could not create socket file '%v' for unit test, error: %v", socketFile, err)
 	}
+	defer l.Close()
 
 	cfg, err := LoadConfig(socketFile)
 	if assert.NoError(t, err, "Failed to retrieve socket configuration") {
