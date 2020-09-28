@@ -215,6 +215,7 @@ jobs:
           tar xfvz docker-image/tessera-pe.tar.gz
           docker load --input tessera-pe.tar
           docker tag quorumengineering/tessera:pe quorumengineering/tessera:latest
+          echo "tessera image loaded"
       - name: 'Get QAT Docker image'
         id: setupQAT
         run: |
