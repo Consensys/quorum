@@ -72,7 +72,7 @@ func setup() {
 	testObject = New(&engine.Client{
 		HttpClient: &http.Client{},
 		BaseURL:    testServer.URL,
-	}, []byte("0.11-SNAPSHOT"))
+	}, []byte("1.0.0"))
 }
 
 func MockSendAPIHandlerFunc(response http.ResponseWriter, request *http.Request) {
