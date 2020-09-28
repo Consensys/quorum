@@ -104,6 +104,7 @@ jobs:
     if: success()
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         # list of tag expression being executed in parallel
         # for PR, only selective tests are run.
@@ -168,10 +169,11 @@ jobs:
   acceptance-tests-pe-disabled:
     name: Acceptance tests - PE Disabled (${{ matrix.tag }})
     needs:
-      - docker-build
+      - acceptance-tests
     if: success()
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         # list of tag expression being executed in parallel
         # for PR, only selective tests are run.
