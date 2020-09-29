@@ -408,13 +408,13 @@ func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 	assert.Equal(t, orgDetails.RoleList[0].RoleId, arbitraryNetworkAdminRole)
 }
 
-func testConnectionAllowed(t *testing.T, q *QuorumControlsAPI, url string, allowed bool) {
+func testConnectionAllowed(t *testing.T, q *QuorumControlsAPI, url string, expected bool) {
 	if q.permCtrl.eeaFlag {
-		enode, ip, port, _, err := ptype.GetNodeDetails(url, false, false)
+		enode, ip, port, raftPort, err := ptype.GetNodeDetails(url, false, false)
 		assert.NoError(t, err)
-		connAllowed, err := q.ConnectionAllowed(enode, ip, port, uint16(0))
+		connAllowed, err := q.ConnectionAllowed(enode, ip, port, raftPort)
 		assert.NoError(t, err)
-		assert.Equal(t, allowed, connAllowed)
+		assert.Equal(t, expected, connAllowed)
 	}
 }
 
@@ -423,7 +423,7 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
 	txa := ethapi.SendTxArgs{From: guardianAddress}
 
-	//testObject.permCtrl.isRaft = true
+	testObject.permCtrl.isRaft = true
 	_, err := testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 	testConnectionAllowed(t, testObject, arbitraryNode2, false)
@@ -431,8 +431,7 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
-	// TODO(sai): check why this is failing
-	testConnectionAllowed(t, testObject, arbitraryNode2, false)
+	testConnectionAllowed(t, testObject, arbitraryNode2, true)
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(SuspendNode), invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -445,8 +444,7 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(ActivateSuspendedNode), txa)
 	assert.NoError(t, err)
 	types.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, types.NodeApproved)
-	// TODO(sai): check why this is failing
-	testConnectionAllowed(t, testObject, arbitraryNode2, false)
+	testConnectionAllowed(t, testObject, arbitraryNode2, true)
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(BlacklistNode), txa)
 	assert.NoError(t, err)
