@@ -104,7 +104,6 @@ jobs:
     if: success()
     strategy:
       fail-fast: false
-      max-parallel: 5
       matrix:
         # list of tag expression being executed in parallel
         # for PR, only selective tests are run.
@@ -173,7 +172,6 @@ jobs:
     if: success()
     strategy:
       fail-fast: false
-      max-parallel: 5
       matrix:
         # list of tag expression being executed in parallel
         # for PR, only selective tests are run.
