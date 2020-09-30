@@ -161,14 +161,12 @@ jobs:
               -Pauto \
               -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
               -Dtags="${{ matrix.tag }}"
-          status=$?
-          if [ $status -ne 0 ]; then
-            echo "Acceptance test failed with reurn code $status"
-            docker images
-            docker ps -a
-            return $status
-          fi
       - name: 'Debug'
+        run: |
+          docker images
+          docker ps -a
+      - name: 'Failure info'
+        if: ${{ failure() }}
         run: |
           docker images
           docker ps -a
