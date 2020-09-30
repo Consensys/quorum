@@ -259,7 +259,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 func checkAndPrintPrivacyEnhancementsWarning(config *params.ChainConfig) {
 	if config.PrivacyEnhancementsBlock != nil {
 		log.Warn("Privacy enhancements have been enabled from block height " + config.PrivacyEnhancementsBlock.String() +
-			". Please ensure your privacy manager is upgraded and supports privacy enhancements (tessera version 1.0.0 or later) " +
+			". Please ensure your privacy manager is upgraded and supports privacy enhancements (tessera version 1.*) " +
 			"otherwise your quorum node will fail to start.")
 	}
 }

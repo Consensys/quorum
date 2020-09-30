@@ -55,9 +55,6 @@ nav:
             - Contract Extension:
                 - Overview: Privacy/Contract-Extension/Overview.md
                 - APIs: Privacy/Contract-Extension/ContractExtension apis.md
-            - Privacy Enhancements:
-                - Overview: Privacy/Privacy-Enhancements/Overview.md
-                - APIs: Privacy/Privacy-Enhancements/Privacy Enhancement apis.md
         - Consensus:
             - Consensus: Consensus/Consensus.md
             - Raft BFT:
