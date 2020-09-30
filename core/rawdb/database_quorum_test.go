@@ -18,7 +18,6 @@ package rawdb
 
 import (
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -115,13 +114,8 @@ func TestPrivacyMedatadaLinkRootErrorWrapping(t *testing.T) {
 		t.Fatal("expecting a read only error to be returned")
 	}
 
-	if !strings.Contains(err.Error(), "unable to persist mapping between private state root to privacy metadata root") {
-		t.Fatal("expecting 'unable to persist mapping' error message")
-	}
-
-	// TODO once we are able to adopt go 1.13 features adopt error wrapping - errors.Is(err,errReadOnly)
-	if !strings.Contains(err.Error(), errReadOnly.Error()) {
-		t.Fatal("expecting errReadOnly text to be included")
+	if err != errReadOnly {
+		t.Fatal("expecting the read only error to be returned")
 	}
 }
 
