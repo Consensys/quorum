@@ -168,6 +168,7 @@ jobs:
       - name: 'Failure info'
         if: ${{ failure() }}
         run: |
+          echo "acceptance tests failures"
           docker images
           docker ps -a
   acceptance-tests-pe-disabled:
