@@ -1,3 +1,3 @@
-module github.com/jpmorganchase/quorum/crypto/secp256k1
+module github.com/ConsenSys/quorum/crypto/secp256k1
 
 go 1.13
