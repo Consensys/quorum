@@ -42,7 +42,7 @@ func setPrivacyMetadata(privateState *state.StateDB, address common.Address, has
 
 	ptmHash, err := common.Base64ToEncryptedPayloadHash(hash)
 	if err != nil {
-		log.Debug("setting privacy metadata failed", "err", err)
+		log.Error("setting privacy metadata failed", "err", err)
 		return
 	}
 	pm := state.NewStatePrivacyMetadata(ptmHash, privacyMetaData.PrivacyFlag)

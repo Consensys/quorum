@@ -85,7 +85,6 @@ func (pmh *privateMessageHandler) verify(vmerr error) (bool, error) {
 	actualACAddresses := pmh.stAPI.AffectedContracts()
 	log.Trace("Verify hashes of affected contracts", "expectedHashes", pmh.receivedPrivacyMetadata.ACHashes, "numberOfAffectedAddresses", len(actualACAddresses))
 	privacyFlag := pmh.receivedPrivacyMetadata.PrivacyFlag
-	actualACHashesLength := 0
 	for _, addr := range actualACAddresses {
 		// GetStatePrivacyMetadata is invoked on the privateState (as the tx is private) and it returns:
 		// 1. public contacts: privacyMetadata = nil, err = nil
@@ -96,7 +95,7 @@ func (pmh *privateMessageHandler) verify(vmerr error) (bool, error) {
 		//when privacyMetadata should have been recovered but wasnt (includes non-party)
 		//non party will only be caught here if sender provides privacyFlag
 		if err != nil && privacyFlag.IsNotStandardPrivate() {
-			return returnErrorFunc(nil, "PrivacyMetadata unable to be found", "err", err)
+			return returnErrorFunc(nil, "Unable to find PrivacyMetadata for affected contract", "err", err, "addr", addr.Hex())
 		}
 		log.Trace("Privacy metadata", "affectedAddress", addr.Hex(), "metadata", actualPrivacyMetadata)
 		// both public and standard private contracts will be nil and can be skipped in acoth check
@@ -119,15 +118,7 @@ func (pmh *privateMessageHandler) verify(vmerr error) (bool, error) {
 				"affectedContractAddress", addr.Hex(),
 				"missingCreationTxHash", actualPrivacyMetadata.CreationTxHash.Hex())
 		}
-		actualACHashesLength++
 	}
-	// acoth check - case where node is missing privacyMetadata for an affected it should be privy to
-
-	// Relaxed this check for the situation where two affected contracts have the same ACOTH
-	//if len(pmh.receivedPrivacyMetadata.ACHashes) != actualACHashesLength {
-	//	return returnErrorFunc(nil, "Participation check failed",
-	//		"missing", len(pmh.receivedPrivacyMetadata.ACHashes)-actualACHashesLength)
-	//}
 
 	// check the psv merkle root comparison - for both creation and msg calls
 	if !common.EmptyHash(pmh.receivedPrivacyMetadata.ACMerkleRoot) {
