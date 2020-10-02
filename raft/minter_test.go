@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -24,7 +25,6 @@ func TestSignHeader(t *testing.T) {
 	//create only what we need to test the seal
 	var testRaftId uint16 = 5
 	config := &node.Config{Name: "unit-test", DataDir: ""}
-
 	nodeKey := config.NodeKey()
 
 	raftProtocolManager := &ProtocolManager{raftId: testRaftId}
@@ -184,7 +184,11 @@ func peerList(url string) (error, []*enode.Node) {
 func newTestRaftService(t *testing.T, raftId uint16, nodes []uint64, learners []uint64) *RaftService {
 	//create only what we need to test add learner node
 	config := &node.Config{Name: "unit-test", DataDir: ""}
+	// This will create a new node key, which is needed to set a stub p2p.Server and avoid `nil pointer dereference` when testing.
 	nodeKey := config.NodeKey()
+	mockp2pConfig := p2p.Config{Name: "unit-test", ListenAddr: "30303", PrivateKey: nodeKey}
+	mockp2p := &p2p.Server{Config: mockp2pConfig}
+
 	enodeIdStr := fmt.Sprintf("%x", crypto.FromECDSAPub(&nodeKey.PublicKey)[1:])
 	url := enodeId(enodeIdStr, "127.0.0.1:21001", 50401)
 	err, peers := peerList(url)
@@ -197,6 +201,7 @@ func newTestRaftService(t *testing.T, raftId uint16, nodes []uint64, learners []
 		confChangeProposalC: make(chan raftpb.ConfChange),
 		removedPeers:        mapset.NewSet(),
 		confState:           raftpb.ConfState{Nodes: nodes, Learners: learners},
+		p2pServer:           mockp2p,
 	}
 	raftService := &RaftService{nodeKey: nodeKey, raftProtocolManager: raftProtocolManager}
 	return raftService
