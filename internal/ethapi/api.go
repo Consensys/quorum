@@ -455,7 +455,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	}
 
 	// Quorum
-	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), nil, &args.PrivateTxArgs, args.From, NormalTransaction)
+	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -1672,7 +1672,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	}
 
 	// Quorum
-	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), nil, &args.PrivateTxArgs, args.From, NormalTransaction)
+	isPrivate, data, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, NormalTransaction)
 
 	if err != nil {
 		return common.Hash{}, err
@@ -1714,7 +1714,7 @@ func (s *PublicTransactionPoolAPI) FillTransaction(ctx context.Context, args Sen
 	}
 	// Assemble the transaction and obtain rlp
 	// Quorum
-	isPrivate, hash, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), args.inputOrData(), &args.PrivateTxArgs, args.From, FillTransaction)
+	isPrivate, hash, err := checkAndHandlePrivateTransaction(ctx, s.b, args.toTransaction(), &args.PrivateTxArgs, args.From, FillTransaction)
 	if err != nil {
 		return nil, err
 	}
@@ -1759,7 +1759,7 @@ func (s *PublicTransactionPoolAPI) SendRawPrivateTransaction(ctx context.Context
 	}
 
 	// Quorum
-	isPrivate, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, nil, &args.PrivateTxArgs, common.Address{}, RawTransaction)
+	isPrivate, _, err := checkAndHandlePrivateTransaction(ctx, s.b, tx, &args.PrivateTxArgs, common.Address{}, RawTransaction)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -2193,7 +2193,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	return fmt.Sprintf("0x%x", data), nil
 }
 
-func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, inputData []byte, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
+func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (isPrivate bool, hash common.EncryptedPayloadHash, err error) {
 	isPrivate = privateTxArgs != nil && privateTxArgs.PrivateFor != nil
 	if !isPrivate {
 		return
@@ -2222,7 +2222,7 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 			}
 		}
 
-		hash, err = handlePrivateTransaction(ctx, b, tx, inputData, privateTxArgs, from, txnType)
+		hash, err = handlePrivateTransaction(ctx, b, tx, privateTxArgs, from, txnType)
 
 		return
 	}
@@ -2237,7 +2237,7 @@ func checkAndHandlePrivateTransaction(ctx context.Context, b Backend, tx *types.
 // 2. Calculate Merkle Root as the result of the simulated execution
 // The above information along with private originating payload are sent to Transaction Manager
 // to obtain hash of the encrypted private payload
-func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, inputData []byte, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (hash common.EncryptedPayloadHash, err error) {
+func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transaction, privateTxArgs *PrivateTxArgs, from common.Address, txnType TransactionType) (hash common.EncryptedPayloadHash, err error) {
 	defer func(start time.Time) {
 		log.Debug("Handle Private Transaction finished", "took", time.Since(start))
 	}(time.Now())
@@ -2250,7 +2250,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 
 	switch txnType {
 	case FillTransaction:
-		hash, err = private.P.StoreRaw(inputData, privateTxArgs.PrivateFrom)
+		hash, err = private.P.StoreRaw(data, privateTxArgs.PrivateFrom)
 		return
 	case RawTransaction:
 		hash = common.BytesToEncryptedPayloadHash(data)
