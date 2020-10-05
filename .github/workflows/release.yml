@@ -8,6 +8,20 @@ env:
   GOPATH: ${{ github.workspace }}/go
   WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
+  publish-docker:
+    name: Publish Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v2
+      - name: 'Build and publish to Docker Hub'
+        uses: docker/build-push-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+          repository: ${{ secrets.DOCKER_REPO }}
+          tag_with_ref: true
+          add_git_labels: true
   build:
     name: 'Build binary for ${{ matrix.os }}'
     strategy:
@@ -88,6 +102,7 @@ jobs:
     name: 'Draft Github release'
     needs:
       - deploy-bintray
+      - publish-docker
     runs-on: ubuntu-latest
     steps:
       - name: 'Check out project files'
@@ -138,6 +153,7 @@ jobs:
     needs:
       - build
       - deploy-bintray
+      - publish-docker
       - draft-release
     runs-on: ubuntu-latest
     steps:

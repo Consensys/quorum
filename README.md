@@ -2,8 +2,6 @@
 
 <a href="https://www.goquorum.com/slack-inviter" target="_blank" rel="noopener"><img title="Quorum Slack" src="https://93ecjxb0d3.execute-api.us-east-1.amazonaws.com/Express/badge.svg" alt="Quorum Slack" /></a>
 ![Build Check](https://github.com/jpmorganchase/quorum/workflows/Build%20Check/badge.svg?branch=master)
-[![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/quorumengineering/quorum)](https://hub.docker.com/r/quorumengineering/quorum/builds)
-[![Documentation Status](https://readthedocs.org/projects/goquorum/badge/?version=latest)](http://docs.goquorum.com/en/latest/?badge=latest)
 [![Download](https://api.bintray.com/packages/quorumengineering/quorum/geth/images/download.svg)](https://bintray.com/quorumengineering/quorum/geth/_latestVersion)
 [![Docker Pulls](https://img.shields.io/docker/pulls/quorumengineering/quorum)](https://hub.docker.com/r/quorumengineering/quorum)
 
