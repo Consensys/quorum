@@ -408,10 +408,10 @@ func (s *stateObject) deepCopy(db *StateDB) *stateObject {
 	stateObject.suicided = s.suicided
 	stateObject.dirtyCode = s.dirtyCode
 	stateObject.deleted = s.deleted
-	// Quorum - Privacy Enhancements
+	// Quorum - Privacy Enhancements - copy privacy metadata fields
 	stateObject.privacyMetadata = s.privacyMetadata
 	stateObject.dirtyPrivacyMetadata = s.dirtyPrivacyMetadata
-	// End Quorum - Privacy Enhancements
+
 	return stateObject
 }
 

@@ -115,12 +115,11 @@ type (
 		account            *common.Address
 		prevcode, prevhash []byte
 	}
-	// Quorum - Privacy Enhancements
+	// Quorum - Privacy Enhancements - changes to privacy metadata
 	privacyMetadataChange struct {
 		account *common.Address
 		prev    *PrivacyMetadata
 	}
-	// End Quorum - Privacy Enhancements
 	// Changes to other state values.
 	refundChange struct {
 		prev uint64

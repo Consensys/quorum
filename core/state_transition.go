@@ -343,7 +343,7 @@ func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
 }
 
-// Quorum - Privacy Enhancements
+// Quorum - Privacy Enhancements - implement the pmcStateTransitionAPI interface
 func (st *StateTransition) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
 	st.evm.SetTxPrivacyMetadata(pm)
 }

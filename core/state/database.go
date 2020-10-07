@@ -116,25 +116,21 @@ func NewDatabaseWithCache(db ethdb.Database, cache int) Database {
 		db: trie.NewDatabaseWithCache(db, cache),
 		// Quorum - Privacy Enhancements
 		privacyMetadataLinker: rawdb.NewPrivacyMetadataLinker(db),
-		// End Quorum - Privacy Enhancements
-		codeSizeCache: csc,
+		codeSizeCache:         csc,
 	}
 }
 
 type cachingDB struct {
 	db *trie.Database
-	// Quorum - Privacy Enhancements
+	// Quorum:  Privacy enhacements introducing privacyMetadataLinker which maintains mapping between private state root and privacy metadata root. As this struct is the backing store for state, this gives the reference to the linker when needed.
 	privacyMetadataLinker rawdb.PrivacyMetadataLinker
-	// End Quorum - Privacy Enhancements
-	codeSizeCache *lru.Cache
+	codeSizeCache         *lru.Cache
 }
 
 // Quorum - Privacy Enhancements
 func (db *cachingDB) PrivacyMetadataLinker() rawdb.PrivacyMetadataLinker {
 	return db.privacyMetadataLinker
 }
-
-// End Quorum - Privacy Enhancements
 
 // OpenTrie opens the main account trie at a specific root hash.
 func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {

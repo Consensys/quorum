@@ -65,10 +65,8 @@ func (n *proofList) Delete(key []byte) error {
 type StateDB struct {
 	db   Database
 	trie Trie
-	// Quorum - Privacy Enhancements
+	// Quorum - Privacy Enhancements - new trie to hold extra account information that cannot be stored in the accounts trie
 	privacyMetaDataTrie Trie
-	// End Quorum - Privacy Enhancements
-
 	// This map holds 'live' objects, which will get modified while processing a state transition.
 	stateObjects        map[common.Address]*stateObject
 	stateObjectsPending map[common.Address]struct{} // State objects finalized but not yet written to the trie
@@ -115,7 +113,7 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 		return nil, err
 	}
 
-	// Quorum - Privacy Enhancements
+	// Quorum - Privacy Enhancements - retrieve the privacy metadata root corresponding to the account state root
 	privacyMetadataRoot := db.PrivacyMetadataLinker().PrivacyMetadataRootForPrivateStateRoot(root)
 	log.Debug("Privacy metadata root", "hash", privacyMetadataRoot)
 	privacyMetaDataTrie, err := db.OpenTrie(privacyMetadataRoot)
@@ -129,7 +127,6 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 		trie: tr,
 		// Quorum - Privacy Enhancements
 		privacyMetaDataTrie: privacyMetaDataTrie,
-		// End Quorum - Privacy Enhancements
 		stateObjects:        make(map[common.Address]*stateObject),
 		stateObjectsPending: make(map[common.Address]struct{}),
 		stateObjectsDirty:   make(map[common.Address]struct{}),
@@ -501,7 +498,7 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
 	err = s.trie.TryUpdate(addr[:], data)
-	// Quorum - Privacy Enhancements
+	// Quorum - Privacy Enhancements - update the privacy metadata trie in case the privacy metadata is dirty
 	if err != nil {
 		s.setError(err)
 		return
@@ -530,7 +527,7 @@ func (s *StateDB) deleteStateObject(obj *stateObject) {
 	// Delete the account from the trie
 	addr := obj.Address()
 	err := s.trie.TryDelete(addr[:])
-	// Quorum - Privacy Enhancements
+	// Quorum - Privacy Enhancements - delete the data from the privacy metadata trie corresponding to the account address
 	if err != nil {
 		s.setError(err)
 		return
@@ -663,7 +660,6 @@ func (self *StateDB) Copy() *StateDB {
 		trie: self.db.CopyTrie(self.trie),
 		// Quorum - Privacy Enhancements
 		privacyMetaDataTrie: self.db.CopyTrie(self.privacyMetaDataTrie),
-		// End Quorum - Privacy Enhancements
 		stateObjects:        make(map[common.Address]*stateObject, len(self.journal.dirties)),
 		stateObjectsPending: make(map[common.Address]struct{}, len(self.stateObjectsPending)),
 		stateObjectsDirty:   make(map[common.Address]struct{}, len(self.journal.dirties)),
