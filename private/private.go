@@ -118,13 +118,13 @@ func selectPrivateTxManager(client *engine.Client) (PrivateTransactionManager, e
 	}
 	var privateTxManager PrivateTransactionManager
 	defer func() {
-		log.Info("Target Private Tx Manager", "name", privateTxManager.Name(), "version", version)
+		log.Info("Target Private Tx Manager", "name", privateTxManager.Name(), "distributionVersion", version)
 	}()
 	if res.StatusCode != 200 {
 		// Constellation doesn't have /version endpoint
 		privateTxManager = constellation.New(client)
 	} else {
-		privateTxManager = tessera.New(client, version)
+		privateTxManager = tessera.New(client, []byte(tessera.RetrieveTesseraAPIVersion(client)))
 	}
 	return privateTxManager, nil
 }

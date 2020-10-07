@@ -56,15 +56,15 @@ func TestVersionsComparison(t *testing.T) {
 }
 
 func TestTesseraVersionFeatures(t *testing.T) {
-	res := tesseraVersionFeatures(Version{1, 11, 12})
+	res := tesseraVersionFeatures(Version{2, 11, 12})
 	assert.Contains(t, res, engine.PrivacyEnhancements)
 	res = tesseraVersionFeatures(Version{0, 12, 0})
 	assert.NotContains(t, res, engine.PrivacyEnhancements)
 	res = tesseraVersionFeatures(Version{0, 11, 15})
 	assert.NotContains(t, res, engine.PrivacyEnhancements)
-	res = tesseraVersionFeatures(Version{1, 0, 0})
+	res = tesseraVersionFeatures(Version{2, 0, 0})
 	assert.Contains(t, res, engine.PrivacyEnhancements)
-	res = tesseraVersionFeatures(Version{1, 1, 1})
+	res = tesseraVersionFeatures(Version{2, 1, 1})
 	assert.Contains(t, res, engine.PrivacyEnhancements)
 	res = tesseraVersionFeatures(zero)
 	assert.NotContains(t, res, engine.PrivacyEnhancements)
