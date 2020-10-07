@@ -20,6 +20,8 @@ func checkParseSucceeds(t *testing.T, version []byte, expectedVersion Version) {
 func TestParseVersion(t *testing.T) {
 	checkParseSucceeds(t, []byte("0.10.6"), Version{0, 10, 6})
 	checkParseSucceeds(t, []byte("0.10-SNAPSHOT"), Version{0, 10, 0})
+	checkParseSucceeds(t, []byte("0.10.1-SNAPSHOT"), Version{0, 10, 1})
+	checkParseSucceeds(t, []byte("0.10.0-SNAPSHOT"), Version{0, 10, 0})
 	checkParseSucceeds(t, []byte("0.11.12+12234"), Version{0, 11, 12})
 	checkParseSucceeds(t, []byte("0.11-SNAPSHOT"), Version{0, 11, 0})
 	// leading zeros in version components
