@@ -250,7 +250,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 		return newcfg, stored, compatErr
 	}
 	rawdb.WriteChainConfig(db, stored, newcfg)
-	if storedcfg.PrivacyEnhancementsBlock == nil && newcfg.PrivacyEnhancementsBlock != nil {
+	if storedcfg.PrivacyEnhancementsBlock == nil {
 		checkAndPrintPrivacyEnhancementsWarning(newcfg)
 	}
 	return newcfg, stored, nil

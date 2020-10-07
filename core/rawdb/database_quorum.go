@@ -31,7 +31,8 @@ var (
 	privateBloomPrefix                     = []byte("Pb")
 	quorumEIP155ActivatedPrefix            = []byte("quorum155active")
 	privateRootToPrivacyMetadataRootPrefix = []byte("PSR2PMDR")
-	emptyRoot                              = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+	// emptyRoot is the known root hash of an empty trie. Duplicate from `trie/trie.go#emptyRoot`
+	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 )
 
 //returns whether we have a chain configuration that can't be updated
