@@ -171,6 +171,7 @@ jobs:
           echo "acceptance tests failures"
           docker images
           docker ps -a
+          for containerId in $(docker ps -q); do echo "container: $containerId"; docker container inspect $containerId; docker container logs $containerId; done
   acceptance-tests-pe-disabled:
     name: Acceptance tests - PE Disabled (${{ matrix.tag }})
     needs:
@@ -247,3 +248,4 @@ jobs:
           echo "acceptance tests failures"
           docker images
           docker ps -a
+          for containerId in $(docker ps -q); do echo "container: $containerId"; docker container inspect $containerId; docker container logs $containerId; done
