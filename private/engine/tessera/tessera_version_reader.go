@@ -39,10 +39,23 @@ func RetrieveTesseraAPIVersion(client *engine.Client) string {
 		log.Error("Expecting at least one API version to be returned by the tessera /version/api API.")
 		return apiVersion1
 	}
-	latestVersion := versionsObj.Versions[len(versionsObj.Versions)-1]
-	if len(latestVersion.Version) == 0 {
-		log.Error("Invalid version object returned by the tessera /version/api API.")
-		return apiVersion1
+	// pick the latest version from the versions array
+	latestVersion := version{Version: apiVersion1}
+	latestParsedVersion, _ := parseVersion([]byte(latestVersion.Version))
+	for _, ver := range versionsObj.Versions {
+		if len(ver.Version) == 0 {
+			log.Error("Invalid (empty) version object returned by the tessera /version/api API. Skipping value.")
+			continue
+		}
+		parsedVer, err := parseVersion([]byte(ver.Version))
+		if err != nil {
+			log.Error("Unable to parse version object returned by the tessera /version/api API: %s. Skipping value.", ver.Version)
+			continue
+		}
+		if compareVersions(parsedVer, latestParsedVersion) > 0 {
+			latestVersion = ver
+			latestParsedVersion = parsedVer
+		}
 	}
 	log.Info("Tessera API version: %s", latestVersion.Version)
 	return latestVersion.Version
