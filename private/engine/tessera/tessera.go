@@ -145,21 +145,59 @@ func (t *tesseraPrivateTxManager) StoreRaw(data []byte, from string) (common.Enc
 	return eph, nil
 }
 
+// allow new quorum to send raw transactions when connected to an old tessera
+func (c *tesseraPrivateTxManager) sendSignedPayloadOctetStream(signedPayload []byte, b64To []string) ([]byte, error) {
+	buf := bytes.NewBuffer(signedPayload)
+	req, err := http.NewRequest("POST", c.client.FullPath("/sendsignedtx"), buf)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("c11n-to", strings.Join(b64To, ","))
+	req.Header.Set("Content-Type", "application/octet-stream")
+	res, err := c.client.HttpClient.Do(req)
+
+	if res != nil {
+		defer res.Body.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("Non-200 status code: %+v", res)
+	}
+
+	return ioutil.ReadAll(res.Body)
+}
+
 // also populate cache item with additional extra metadata
 func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
+	if extra.PrivacyFlag.IsNotStandardPrivate() && !t.features.HasFeature(engine.PrivacyEnhancements) {
+		return nil, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements
+	}
 	response := new(sendSignedTxResponse)
 	acMerkleRoot := ""
 	if !common.EmptyHash(extra.ACMerkleRoot) {
 		acMerkleRoot = extra.ACMerkleRoot.ToBase64()
 	}
-	if _, err := t.submitJSON("POST", "/sendsignedtx", &sendSignedTxRequest{
-		Hash:                         data.Bytes(),
-		To:                           to,
-		AffectedContractTransactions: extra.ACHashes.ToBase64s(),
-		ExecHash:                     acMerkleRoot,
-		PrivacyFlag:                  extra.PrivacyFlag,
-	}, response); err != nil {
-		return nil, err
+	// The /sendsignedtx has been updated as part of privacy enhancements to support a json payload.
+	// If an older tessera is used - invoke the octetstream version of the /sendsignedtx
+	if t.features.HasFeature(engine.PrivacyEnhancements) {
+		if _, err := t.submitJSON("POST", "/sendsignedtx", &sendSignedTxRequest{
+			Hash:                         data.Bytes(),
+			To:                           to,
+			AffectedContractTransactions: extra.ACHashes.ToBase64s(),
+			ExecHash:                     acMerkleRoot,
+			PrivacyFlag:                  extra.PrivacyFlag,
+		}, response); err != nil {
+			return nil, err
+		}
+	} else {
+		returnedHash, err := t.sendSignedPayloadOctetStream(data.Bytes(), to)
+		if err != nil {
+			return nil, err
+		}
+		response.Key = string(returnedHash)
 	}
 
 	hashBytes, err := base64.StdEncoding.DecodeString(response.Key)
