@@ -64,7 +64,7 @@ jobs:
         with:
           repository: ConsenSys/tessera
           path: tessera
-          ref: feature/psv-with-ce
+          ref: master
       - name: 'Check out quorum-acceptance-tests project files'
         uses: actions/checkout@v2
         with:
