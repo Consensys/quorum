@@ -249,3 +249,63 @@ jobs:
           docker images
           docker ps -a
           for containerId in $(docker ps -q); do echo "container: $containerId"; docker container inspect $containerId; docker container logs $containerId; done
+  acceptance-tests-pe-disabled-old-tessera:
+    name: Acceptance tests - PE Disabled with old tessera (${{ matrix.tag }})
+    needs:
+      - acceptance-tests-pe-disabled
+    if: success()
+    strategy:
+      fail-fast: false
+      matrix:
+        # list of tag expression being executed in parallel
+        # for PR, only selective tests are run.
+        # More comprehensive suites are scheduled to run in master
+        tag:
+          - '(basic || privacy-enhancements-disabled || basic-raft || (advanced && raft)) && !extension || networks/typical::raft'
+          - '(basic || privacy-enhancements-disabled || basic-istanbul || (advanced && istanbul && !block-heights)) && !extension || networks/typical::istanbul'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Download workflow artifact - Docker image'
+        uses: actions/download-artifact@v1
+        with:
+          name: docker-image
+      - name: 'Load Docker image'
+        id: setup
+        run: |
+          tar xfvz docker-image/quorum-pr.tar.gz
+          docker load --input quorum-pr.tar
+          docker tag quorumengineering/quorum:pr quorumengineering/quorum:latest
+          echo "::set-output name=outputDir::${{ runner.temp }}"
+      - name: 'Get Tessera Docker image'
+        id: setupTessera
+        run: |
+          docker pull quorumengineering/tessera:0.11.0
+      - name: 'Get QAT Docker image'
+        id: setupQAT
+        run: |
+          tar xfvz docker-image/qat-pe.tar.gz
+          docker load --input qat-pe.tar
+      - name: 'Run acceptance tests'
+        run: |
+          docker run --rm \
+            --network host \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ steps.setup.outputs.outputDir }}:${{ steps.setup.outputs.outputDir  }} \
+            -e TF_VAR_quorum_docker_image='{ name = "quorumengineering/quorum:latest", local = true }' \
+            -e TF_VAR_tessera_docker_image='{ name = "quorumengineering/tessera:0.11.0", local = true }' \
+            -e TF_VAR_privacy_enhancements='{ block = 0, enabled = false }' \
+            quorumengineering/quorum-acceptance-tests:pe test \
+              -Pauto \
+              -Dauto.outputDir=${{ steps.setup.outputs.outputDir  }} \
+              -Dtags="${{ matrix.tag }}"
+      - name: 'Debug'
+        run: |
+          docker images
+          docker ps -a
+      - name: 'Failure info'
+        if: ${{ failure() }}
+        run: |
+          echo "acceptance tests failures"
+          docker images
+          docker ps -a
+          for containerId in $(docker ps -q); do echo "container: $containerId"; docker container inspect $containerId; docker container logs $containerId; done
