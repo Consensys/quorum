@@ -20,6 +20,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/p2p"
 	"math"
 	"os"
 	"runtime"
@@ -474,6 +475,13 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		if err := permissionService.AfterStart(); err != nil {
 			utils.Fatalf("Permission service post construct failure: %v", err)
 		}
+		var server *p2p.Server
+		if err := stack.Service(&server); err != nil {
+			utils.Fatalf("p2p server is not runnning: %v", err)
+		}
+		server.SetConnectionAllowed(permissionService.ConnectionAllowed)
+		server.SetPermissionInitialized(permissionService.GetPermissionInitialized())
+		log.Info("p2p server's permission config set")
 	}
 
 	// Start auxiliary services if enabled

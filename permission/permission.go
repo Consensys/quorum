@@ -157,11 +157,13 @@ func (p *PermissionCtrl) populateInitPermissions(orgCacheSize, roleCacheSize, no
 		log.Warn("Failed to retrieve network boot status ", "err", err)
 		return err
 	}
-
+	p.networkInitialized = networkInitialized
 	if !networkInitialized {
 		if err := p.bootupNetwork(); err != nil {
+			p.networkInitialized = false
 			return err
 		}
+		p.networkInitialized = true
 	} else {
 		//populate orgs, nodes, roles and accounts from contract
 		for _, f := range []func() error{

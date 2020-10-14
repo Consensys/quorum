@@ -21,19 +21,21 @@ import (
 )
 
 type PermissionCtrl struct {
-	node           *node.Node
-	ethClnt        bind.ContractBackend
-	eth            *eth.Ethereum
-	key            *ecdsa.PrivateKey
-	dataDir        string
-	permConfig     *types.PermissionConfig
-	contract       ptype.InitService
-	backend        ptype.Backend
-	eeaFlag        bool
-	useDns         bool
-	isRaft         bool
-	startWaitGroup *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
-	errorChan      chan error      // channel to capture error when starting aysnc
+	node               *node.Node
+	ethClnt            bind.ContractBackend
+	eth                *eth.Ethereum
+	key                *ecdsa.PrivateKey
+	dataDir            string
+	permConfig         *types.PermissionConfig
+	contract           ptype.InitService
+	backend            ptype.Backend
+	eeaFlag            bool
+	useDns             bool
+	isRaft             bool
+	startWaitGroup     *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
+	errorChan          chan error      // channel to capture error when starting aysnc
+	networkInitialized bool
+	controlService     ptype.ControlService
 }
 
 // Create a service instance for permissioning
@@ -178,6 +180,27 @@ func (p *PermissionCtrl) NewPermissionControlService() (ptype.ControlService, er
 	default:
 		return &basic.Control{}, nil
 	}
+}
+
+func (p *PermissionCtrl) GetPermissionInitialized() bool {
+	return p.networkInitialized
+}
+
+func (p *PermissionCtrl) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error) {
+	if p.controlService == nil {
+		controlBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
+		switch p.eeaFlag {
+		case true:
+			backEnd, err := getEeaBackEnd(controlBackend, p.isRaft, p.useDns)
+			if err != nil {
+				return false, err
+			}
+			p.controlService = &eea.Control{Backend: backEnd}
+		default:
+			p.controlService = &basic.Control{}
+		}
+	}
+	return p.controlService.ConnectionAllowed(_enodeId, _ip, _port, _raftPort)
 }
 
 func (p *PermissionCtrl) NewPermissionOrgService(transactOpts *bind.TransactOpts) (ptype.OrgService, error) {
