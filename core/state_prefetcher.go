@@ -82,6 +82,7 @@ func precacheTransaction(config *params.ChainConfig, bc ChainContext, author *co
 	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privatest)
 
 	vm := vm.NewEVM(context, statedb, privateStateDbToUse, config, cfg)
+	vm.SetCurrentTX(tx)
 	// /Quorum
 
 	_, _, _, err = ApplyMessage(vm, msg, gaspool)

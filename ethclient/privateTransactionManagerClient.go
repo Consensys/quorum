@@ -65,9 +65,9 @@ func (pc *privateTransactionManagerDefaultClient) StoreRaw(data []byte, privateF
 	if err := json.NewDecoder(resp.Body).Decode(&storeRawResp); err != nil {
 		return common.EncryptedPayloadHash{}, err
 	}
-	b, err := base64.StdEncoding.DecodeString(storeRawResp.Key)
+	encryptedPayloadHash, err := common.Base64ToEncryptedPayloadHash(storeRawResp.Key)
 	if err != nil {
 		return common.EncryptedPayloadHash{}, err
 	}
-	return common.BytesToEncryptedPayloadHash(b), nil
+	return encryptedPayloadHash, nil
 }

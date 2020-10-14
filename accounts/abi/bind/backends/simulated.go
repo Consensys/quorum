@@ -367,8 +367,8 @@ func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transa
 }
 
 // PreparePrivateTransaction dummy implementation
-func (b *SimulatedBackend) PreparePrivateTransaction(data []byte, privateFrom string) ([]byte, error) {
-	return data, nil
+func (b *SimulatedBackend) PreparePrivateTransaction(data []byte, privateFrom string) (common.EncryptedPayloadHash, error) {
+	return common.EncryptedPayloadHash{}, nil
 }
 
 // FilterLogs executes a log filter operation, blocking during execution and
