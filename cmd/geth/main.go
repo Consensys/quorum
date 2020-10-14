@@ -20,7 +20,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/p2p"
 	"math"
 	"os"
 	"runtime"
@@ -29,6 +28,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/p2p"
 
 	"github.com/elastic/gosigar"
 	"github.com/ethereum/go-ethereum/accounts"
