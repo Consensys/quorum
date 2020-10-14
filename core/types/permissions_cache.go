@@ -175,7 +175,7 @@ var QIP714BlockReached = false
 var networkAdminRole string
 var orgAdminRole string
 var PermissionModel = Basic
-
+var PermissionTransactionAllowed func(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error)
 var (
 	OrgInfoMap  *OrgCache
 	NodeInfoMap *NodeCache

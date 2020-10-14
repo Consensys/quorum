@@ -36,6 +36,9 @@ func (p *PermissionCtrl) AfterStart() error {
 
 	// set the default access to ReadOnly
 	types.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole, p.eeaFlag)
+	// set the transaction allowed check function pointer
+	types.PermissionTransactionAllowed = p.TransactionAllowed
+
 	for _, f := range []func() error{
 		p.monitorQIP714Block,               // monitor block number to activate new permissions controls
 		p.backend.ManageOrgPermissions,     // monitor org management related events

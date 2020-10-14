@@ -2,6 +2,7 @@ package permission
 
 import (
 	"crypto/ecdsa"
+	"math/big"
 	"sync"
 	"time"
 
@@ -201,6 +202,24 @@ func (p *PermissionCtrl) ConnectionAllowed(_enodeId, _ip string, _port, _raftPor
 		}
 	}
 	return p.controlService.ConnectionAllowed(_enodeId, _ip, _port, _raftPort)
+}
+
+func (p *PermissionCtrl) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {
+	if p.controlService == nil {
+		controlBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
+		switch p.eeaFlag {
+		case true:
+			backEnd, err := getEeaBackEnd(controlBackend, p.isRaft, p.useDns)
+			if err != nil {
+				return false, err
+			}
+			p.controlService = &eea.Control{Backend: backEnd}
+		default:
+			p.controlService = &basic.Control{}
+		}
+	}
+
+	return p.controlService.TransactionAllowed(_sender, _target, _value, _gasPrice, _gasLimit, _payload)
 }
 
 func (p *PermissionCtrl) NewPermissionOrgService(transactOpts *bind.TransactOpts) (ptype.OrgService, error) {

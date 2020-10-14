@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	binding "github.com/ethereum/go-ethereum/permission/eea/bind"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
@@ -220,38 +219,8 @@ func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint1
 	return c.Backend.PermInterfSession.ConnectionAllowedImpl(enodeId, ip, port, raftPort)
 }
 
-func (c *Control) TransactionAllowed(_args ethapi.SendTxArgs) (bool, error) {
-	var value, gasPrice, gasLimit *big.Int
-	var payload []byte
-	var to common.Address
-	if _args.Value != nil {
-		value = _args.Value.ToInt()
-	} else {
-		value = big.NewInt(0)
-	}
-
-	if _args.To == nil {
-		to = common.Address{}
-	} else {
-		to = *_args.To
-	}
-
-	if _args.GasPrice != nil {
-		gasPrice = _args.GasPrice.ToInt()
-	} else {
-		gasPrice = big.NewInt(0)
-	}
-
-	if _args.Gas != nil {
-		gasLimit = big.NewInt(int64(*_args.Gas))
-	} else {
-		gasLimit = big.NewInt(0)
-	}
-
-	if _args.Data != nil {
-		payload = *_args.Data
-	}
-	allowed, err := c.Backend.PermInterfSession.TransactionAllowed(_args.From, to, value, gasPrice, gasLimit, payload)
+func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {
+	allowed, err := c.Backend.PermInterfSession.TransactionAllowed(_sender, _target, _value, _gasPrice, _gasLimit, _payload)
 	return allowed, err
 }
 

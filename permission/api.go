@@ -426,7 +426,37 @@ func (q *QuorumControlsAPI) TransactionAllowed(txa ethapi.SendTxArgs) (bool, err
 	if err != nil {
 		return false, err
 	}
-	return controlService.TransactionAllowed(txa)
+	var value, gasPrice, gasLimit *big.Int
+	var payload []byte
+	var to, from common.Address
+	if txa.Value != nil {
+		value = txa.Value.ToInt()
+	} else {
+		value = big.NewInt(0)
+	}
+	from = txa.From
+	if txa.To == nil {
+		to = common.Address{}
+	} else {
+		to = *txa.To
+	}
+
+	if txa.GasPrice != nil {
+		gasPrice = txa.GasPrice.ToInt()
+	} else {
+		gasPrice = big.NewInt(0)
+	}
+
+	if txa.Gas != nil {
+		gasLimit = big.NewInt(int64(*txa.Gas))
+	} else {
+		gasLimit = big.NewInt(0)
+	}
+
+	if txa.Data != nil {
+		payload = *txa.Data
+	}
+	return controlService.TransactionAllowed(from, to, value, gasPrice, gasLimit, payload)
 }
 
 func (q *QuorumControlsAPI) ConnectionAllowed(enodeId, ip string, port, raftPort uint16) (bool, error) {

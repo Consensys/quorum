@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	binding "github.com/ethereum/go-ethereum/permission/basic/bind"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
@@ -161,7 +160,7 @@ func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint1
 	return false, fmt.Errorf("not implemented for binding Contr")
 }
 
-func (c *Control) TransactionAllowed(_args ethapi.SendTxArgs) (bool, error) {
+func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {
 	return false, fmt.Errorf("not implemented for binding Contr")
 }
 
