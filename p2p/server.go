@@ -209,9 +209,7 @@ type Server struct {
 	checkPeerInRaft func(*enode.Node) bool
 
 	// permissions - check if node is permissioned
-	ConnectionAllowed func(_enodeId, _ip string, _port, _raftPort uint16) (bool, error)
-	// permissions - check if permission initialized
-	permissionInitialized bool
+	isNodePermissionedFunc func(node *enode.Node, nodename string, currentNode string, datadir string, direction string) bool
 }
 
 type peerOpFunc func(map[enode.ID]*Peer)
@@ -1010,41 +1008,22 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 
 	if srv.EnableNodePermission {
 		clog.Trace("Node Permissioning is Enabled.")
-		node := c.node.ID().String()
+		nodeId := c.node.ID().String()
+		node := c.node
 		direction := "INCOMING"
 		if dialDest != nil {
-			node = dialDest.ID().String()
+			node = dialDest
+			nodeId = dialDest.ID().String()
 			direction = "OUTGOING"
 			log.Trace("Node Permissioning", "Connection Direction", direction)
 		}
+		if srv.isNodePermissionedFunc == nil {
+			log.Error("isNodePermissionedFunc not set in server")
+		}
 
-		peerErr := newPeerError(errPermissionDenied, "id=%s…%s %s id=%s…%s", currentNode[:4], currentNode[len(currentNode)-4:], direction, node[:4], node[len(node)-4:])
-		if srv.permissionInitialized && srv.ConnectionAllowed != nil {
-			allowed, err := srv.ConnectionAllowed(c.node.ID().String(), c.node.IP().String(), uint16(c.node.TCP()), uint16(c.node.RaftPort()))
-			if err != nil {
-				if err.Error() == "not implemented for binding Contr" {
-					log.Info("Permission connectionAllowed not implemented")
-					if !isNodePermissioned(node, currentNode, srv.DataDir, direction) {
-						log.Info("Permission isNodePermissioned check failed", "node", c.node.String())
-						return peerErr
-					}
-					log.Info("Permission isNodePermissioned check passed", "node", c.node.String())
-				} else {
-					return peerErr
-				}
-			}
-
-			if !allowed {
-				log.Info("Permission connectionAllowed check failed", "node", c.node.String())
-				return peerErr
-			}
-			log.Info("Permission connectionAllowed check passed", "node", c.node.String())
-		} else {
-			if !isNodePermissioned(node, currentNode, srv.DataDir, direction) {
-				log.Info("Permission isNodePermissioned check failed", "node", c.node.String())
-				return peerErr
-			}
-			log.Info("Permission isNodePermissioned check passed", "node", c.node.String())
+		if srv.isNodePermissionedFunc != nil && !srv.isNodePermissionedFunc(node, nodeId, currentNode, srv.DataDir, direction) {
+			log.Info("Permission isNodePermissioned check failed", "node", c.node.String())
+			return newPeerError(errPermissionDenied, "id=%s…%s %s id=%s…%s", currentNode[:4], currentNode[len(currentNode)-4:], direction, nodeId[:4], nodeId[len(nodeId)-4:])
 		}
 	} else {
 		clog.Trace("Node Permissioning is Disabled.")
@@ -1214,10 +1193,8 @@ func (srv *Server) SetCheckPeerInRaft(f func(*enode.Node) bool) {
 	srv.checkPeerInRaft = f
 }
 
-func (srv *Server) SetPermissionInitialized(v bool) {
-	srv.permissionInitialized = v
-}
-
-func (srv *Server) SetConnectionAllowed(f func(string, string, uint16, uint16) (bool, error)) {
-	srv.ConnectionAllowed = f
+func (srv *Server) SetIsNodePermissioned(f func(*enode.Node, string, string, string, string) bool) {
+	if srv.isNodePermissionedFunc == nil {
+		srv.isNodePermissionedFunc = f
+	}
 }

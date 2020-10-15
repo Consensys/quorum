@@ -1604,34 +1604,14 @@ func checkAccountAccess(tx *types.Transaction) error {
 		transactionType = types.ContractCallTxn
 	}
 
-	var value, gasPrice, gasLimit *big.Int
-	var payload []byte
 	var to common.Address
-	var from common.Address
 	if tx.To() == nil {
 		to = common.Address{}
 	} else {
 		to = *tx.To()
 	}
-	payload = tx.Data()
-	value = tx.Value()
-	gasPrice = tx.GasPrice()
-	gasLimit = big.NewInt(int64(tx.Gas()))
-	from = tx.From()
-	if types.PermissionTransactionAllowed != nil {
-		allowed, err := types.PermissionTransactionAllowed(from, to, value, gasPrice, gasLimit, payload)
-		if err != nil {
-			if err.Error() == "not implemented for binding Contr" {
-				return types.IsTransactionAllowed(tx.From(), transactionType)
-			}
-			return err
-		}
-		if allowed {
-			return nil
-		}
-		return errors.New("account does not have permission")
-	}
-	return types.IsTransactionAllowed(tx.From(), transactionType)
+
+	return types.IsTransactionAllowed(tx.From(), to, tx.Value(), tx.GasPrice(), big.NewInt(int64(tx.Gas())), tx.Data(), transactionType)
 
 }
 

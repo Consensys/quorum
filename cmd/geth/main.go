@@ -468,6 +468,13 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	// Quorum
 	//
 	// checking if permissions is enabled and staring the permissions service
+	var server *p2p.Server
+	if err := stack.Service(&server); err != nil {
+		utils.Fatalf("p2p server is not runnning: %v", err)
+	}
+	server.SetIsNodePermissioned(permission.IsNodePermissioned)
+	log.Info("p2p server's permission config set")
+
 	if stack.IsPermissionEnabled() {
 		var permissionService *permission.PermissionCtrl
 		if err := stack.Service(&permissionService); err != nil {
@@ -476,13 +483,7 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		if err := permissionService.AfterStart(); err != nil {
 			utils.Fatalf("Permission service post construct failure: %v", err)
 		}
-		var server *p2p.Server
-		if err := stack.Service(&server); err != nil {
-			utils.Fatalf("p2p server is not runnning: %v", err)
-		}
-		server.SetConnectionAllowed(permissionService.ConnectionAllowed)
-		server.SetPermissionInitialized(permissionService.GetPermissionInitialized())
-		log.Info("p2p server's permission config set")
+		permission.SetPermissionService(permissionService)
 	}
 
 	// Start auxiliary services if enabled

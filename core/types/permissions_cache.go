@@ -7,9 +7,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/log"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 type AccessType uint8
@@ -175,7 +177,7 @@ var QIP714BlockReached = false
 var networkAdminRole string
 var orgAdminRole string
 var PermissionModel = Basic
-var PermissionTransactionAllowed func(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error)
+var PermissionTransactionAllowedFunc func(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error)
 var (
 	OrgInfoMap  *OrgCache
 	NodeInfoMap *NodeCache
@@ -655,8 +657,8 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 }
 
 //  checks if the account permission allows the transaction to be executed
-func IsTransactionAllowed(address common.Address, transactionType TransactionType) error {
-	accessType := GetAcctAccess(address)
+func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int, gasPrice *big.Int, gasLimit *big.Int, payload []byte, transactionType TransactionType) error {
+	accessType := GetAcctAccess(from)
 
 	if PermissionModel == Basic {
 		switch accessType {
@@ -674,30 +676,16 @@ func IsTransactionAllowed(address common.Address, transactionType TransactionTyp
 		}
 
 	} else if PermissionModel == EEA {
-		if accessType == ReadOnly {
-			return errors.New("read only account. cannot transact")
-		}
-
-		if accessType == FullAccess {
-			return nil
-		}
-
-		switch transactionType {
-		case ValueTransferTxn:
-			if accessType != Transact && accessType != TransactAndContractDeploy && accessType != TransactAndContractCall {
-				return errors.New("account does not have value transfer permission")
+		allowed, err := PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload)
+		if err == nil {
+			if allowed {
+				return nil
 			}
-
-		case ContractCallTxn:
-			if accessType != ContractCall && accessType != ContractCallAndDeploy && accessType != TransactAndContractCall {
-				return errors.New("account does not have value transfer permission")
-			}
-
-		case ContractDeployTxn:
-			if accessType != ContractDeploy && accessType != ContractCallAndDeploy && accessType != TransactAndContractDeploy {
-				return errors.New("account does not have value transfer permission")
-			}
-
+			return errors.New("account does not have permission")
+		} else {
+			// TODO (Amal): confirm should it be fatal
+			log.Error("calling TransactionAllowed failed", "err", err)
+			return err
 		}
 
 	}
