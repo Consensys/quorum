@@ -53,7 +53,7 @@ const (
 
 var permissionService *PermissionCtrl
 
-func SetPermissionService(ps *PermissionCtrl) {
+func setPermissionService(ps *PermissionCtrl) {
 	if permissionService == nil {
 		permissionService = ps
 	}
@@ -391,20 +391,36 @@ func (p *PermissionCtrl) updateBackEnd() {
 }
 
 func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, datadir string, direction string) bool {
-	// if permission is enabled
+	var permissionType types.PermissionModelType
+
 	if permissionService == nil {
-		return isNodePermissioned(nodename, currentNode, datadir, direction)
-	} else if permissionService.eeaFlag { // if permission is enabled with eea contract
-		allowed, err := permissionService.ConnectionAllowed(node.ID().String(), node.IP().String(), uint16(node.TCP()), uint16(node.RaftPort()))
-		if err == nil {
-			return allowed
-		}
-		// TODO (Amal): confirm should this be fatal
-		log.Error("isNodePermissioned failed with error", "err", err, "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
-		return false
-	} else { // if permission is enabled with basic contract
-		return isNodePermissioned(nodename, currentNode, datadir, direction)
+		permissionType = types.Default
+	} else if permissionService.eeaFlag {
+		permissionType = types.EEA
+	} else {
+		permissionType = types.Basic
 	}
+
+	switch permissionType {
+	case types.Default:
+		return isNodePermissioned(nodename, currentNode, datadir, direction)
+
+	case types.Basic:
+		for _, n := range types.NodeInfoMap.GetNodeList() {
+			if n.Status == types.NodeApproved && strings.Contains(n.Url, nodename) {
+				return true
+			}
+		}
+		return false
+
+	case types.EEA:
+		allowed, err := permissionService.ConnectionAllowed(node.ID().String(), node.IP().String(), uint16(node.TCP()), uint16(node.RaftPort()))
+		if err != nil {
+			return false
+		}
+		return allowed
+	}
+	return false
 }
 
 //TODO update this based on permission changes

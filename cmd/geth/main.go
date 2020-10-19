@@ -483,7 +483,6 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		if err := permissionService.AfterStart(); err != nil {
 			utils.Fatalf("Permission service post construct failure: %v", err)
 		}
-		permission.SetPermissionService(permissionService)
 	}
 
 	// Start auxiliary services if enabled

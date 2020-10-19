@@ -1017,11 +1017,12 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 			direction = "OUTGOING"
 			log.Trace("Node Permissioning", "Connection Direction", direction)
 		}
+
 		if srv.isNodePermissionedFunc == nil {
-			log.Error("isNodePermissionedFunc not set in server")
+			return errors.New("permission enabled but isNodePermissionedFunc is not set")
 		}
 
-		if srv.isNodePermissionedFunc != nil && !srv.isNodePermissionedFunc(node, nodeId, currentNode, srv.DataDir, direction) {
+		if !srv.isNodePermissionedFunc(node, nodeId, currentNode, srv.DataDir, direction) {
 			log.Info("Permission isNodePermissioned check failed", "node", c.node.String())
 			return newPeerError(errPermissionDenied, "id=%s…%s %s id=%s…%s", currentNode[:4], currentNode[len(currentNode)-4:], direction, nodeId[:4], nodeId[len(nodeId)-4:])
 		}

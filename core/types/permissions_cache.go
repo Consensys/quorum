@@ -35,6 +35,7 @@ type PermissionModelType uint8
 const (
 	Basic PermissionModelType = iota
 	EEA
+	Default
 )
 
 type TransactionType uint8
@@ -176,7 +177,7 @@ var DefaultAccess = FullAccess
 var QIP714BlockReached = false
 var networkAdminRole string
 var orgAdminRole string
-var PermissionModel = Basic
+var PermissionModel = Default
 var PermissionTransactionAllowedFunc func(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error)
 var (
 	OrgInfoMap  *OrgCache
@@ -312,6 +313,8 @@ func SetDefaults(nwRoleId, oaRoleId string, eeaFlag bool) {
 	orgAdminRole = oaRoleId
 	if eeaFlag {
 		PermissionModel = EEA
+	} else {
+		PermissionModel = Basic
 	}
 }
 
@@ -658,10 +661,12 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 
 //  checks if the account permission allows the transaction to be executed
 func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int, gasPrice *big.Int, gasLimit *big.Int, payload []byte, transactionType TransactionType) error {
-	accessType := GetAcctAccess(from)
+	switch PermissionModel {
+	case Default:
+		return nil
 
-	if PermissionModel == Basic {
-		switch accessType {
+	case Basic:
+		switch GetAcctAccess(from) {
 		case ReadOnly:
 			return errors.New("read only account. cannot transact")
 
@@ -675,19 +680,17 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 
 		}
 
-	} else if PermissionModel == EEA {
-		allowed, err := PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload)
-		if err == nil {
-			if allowed {
-				return nil
-			}
-			return errors.New("account does not have permission")
-		} else {
-			// TODO (Amal): confirm should it be fatal
-			log.Error("calling TransactionAllowed failed", "err", err)
-			return err
+	case EEA:
+		if PermissionTransactionAllowedFunc == nil {
+			log.Error("PermissionTransactionAllowedFunc is not set for permissioned EEA")
+			return nil
 		}
-
+		allowed, err := PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload)
+		if err != nil || !allowed {
+			return errors.New("account does not have permission")
+		}
+		return nil
 	}
+
 	return nil
 }
