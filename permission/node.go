@@ -33,12 +33,7 @@ func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, d
 		return isNodePermissioned(nodename, currentNode, datadir, direction)
 
 	case types.Basic:
-		for _, n := range types.NodeInfoMap.GetNodeList() {
-			if n.Status == types.NodeApproved && strings.Contains(n.Url, nodename) {
-				return true
-			}
-		}
-		return false
+		return isNodePermissionedBasic(node.String())
 
 	case types.EEA:
 		allowed, err := permissionService.ConnectionAllowed(node.ID().String(), node.IP().String(), uint16(node.TCP()), uint16(node.RaftPort()))
@@ -46,6 +41,15 @@ func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, d
 			return false
 		}
 		return allowed
+	}
+	return false
+}
+
+func isNodePermissionedBasic(url string) bool {
+	for _, n := range types.NodeInfoMap.GetNodeList() {
+		if n.Status == types.NodeApproved && n.Url == url {
+			return true
+		}
 	}
 	return false
 }

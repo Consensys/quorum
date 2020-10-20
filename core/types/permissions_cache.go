@@ -558,23 +558,28 @@ func GetAcctAccess(acctId common.Address) AccessType {
 
 	// check if the org status is fine to do the transaction
 	a, _ := AcctInfoMap.GetAccount(acctId)
-	if a != nil && a.Status == AcctActive {
-		// get the org details and ultimate org details. check org status
-		// if the org is not approved or pending suspension
-		if checkIfOrgActive(a.OrgId) {
-			if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
-				return FullAccess
-			}
-			if r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
-				return r.Access
-			}
-			if o, _ := OrgInfoMap.GetOrg(a.OrgId); o != nil {
-				if r, _ := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
+	if a != nil {
+		if a.Status == AcctActive {
+			// get the org details and ultimate org details. check org status
+			// if the org is not approved or pending suspension
+			if checkIfOrgActive(a.OrgId) {
+				if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+					return FullAccess
+				}
+				if r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
 					return r.Access
 				}
+				if o, _ := OrgInfoMap.GetOrg(a.OrgId); o != nil {
+					if r, _ := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
+						return r.Access
+					}
+				}
 			}
+		} else {
+			return ReadOnly
 		}
 	}
+
 	return DefaultAccess
 }
 

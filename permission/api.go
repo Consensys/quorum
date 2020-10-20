@@ -422,10 +422,10 @@ func (q *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.S
 }
 
 func (q *QuorumControlsAPI) TransactionAllowed(txa ethapi.SendTxArgs) (bool, error) {
-	controlService, err := q.permCtrl.NewPermissionControlService()
+	/*controlService, err := q.permCtrl.NewPermissionControlService()
 	if err != nil {
 		return false, err
-	}
+	}*/
 	var value, gasPrice, gasLimit *big.Int
 	var payload []byte
 	var to, from common.Address
@@ -456,7 +456,20 @@ func (q *QuorumControlsAPI) TransactionAllowed(txa ethapi.SendTxArgs) (bool, err
 	if txa.Data != nil {
 		payload = *txa.Data
 	}
-	return controlService.TransactionAllowed(from, to, value, gasPrice, gasLimit, payload)
+
+	transactionType := types.ValueTransferTxn
+
+	if txa.To == nil {
+		transactionType = types.ContractDeployTxn
+	} else if txa.Data != nil {
+		transactionType = types.ContractCallTxn
+	}
+
+	err := types.IsTransactionAllowed(from, to, value, gasPrice, gasLimit, payload, transactionType)
+	if err == nil {
+		return true, nil
+	}
+	return false, err
 }
 
 func (q *QuorumControlsAPI) ConnectionAllowed(enodeId, ip string, port, raftPort uint16) (bool, error) {
