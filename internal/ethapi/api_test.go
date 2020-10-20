@@ -490,6 +490,10 @@ func (sb *StubBackend) ExtRPCEnabled() bool {
 	panic("implement me")
 }
 
+func (sb *StubBackend) CallTimeOut() int {
+	panic("implement me")
+}
+
 func (sb *StubBackend) RPCGasCap() *big.Int {
 	panic("implement me")
 }

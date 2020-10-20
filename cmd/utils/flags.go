@@ -823,6 +823,11 @@ var (
 		Name:  "raftdnsenable",
 		Usage: "Enable DNS resolution of peers",
 	}
+	TimeOutForCall = cli.IntFlag{
+		Name:  "timeoutforcall",
+		Usage: "timeout duration in seconds for eth_call execution. if passed as 0 there will be no time out",
+		Value: 5,
+	}
 
 	// Permission
 	EnableNodePermissionFlag = cli.BoolFlag{
@@ -1543,6 +1548,13 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 	cfg.RaftMode = ctx.GlobalBool(RaftModeFlag.Name)
 }
 
+func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
+	cfg.TimeOutForCall = ctx.GlobalInt(TimeOutForCall.Name)
+
+	setIstanbul(ctx, cfg)
+	setRaft(ctx, cfg)
+}
+
 // CheckExclusive verifies that only a single instance of the provided flags was
 // set by the user. Each flag might optionally be followed by a string type to
 // specialize it further.
@@ -1617,8 +1629,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setLes(ctx, cfg)
 
 	// Quorum
-	setIstanbul(ctx, cfg)
-	setRaft(ctx, cfg)
+	setQuorumConfig(ctx, cfg)
 
 	if ctx.GlobalIsSet(SyncModeFlag.Name) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)

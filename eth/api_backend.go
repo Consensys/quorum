@@ -49,6 +49,9 @@ type EthAPIBackend struct {
 	//
 	// hex node id from node public key
 	hexNodeId string
+
+	// if set diables the time out for eth_call
+	timeOutForCall int
 }
 
 // ChainConfig returns the active chain configuration.
@@ -330,6 +333,10 @@ func (b *EthAPIBackend) AccountManager() *accounts.Manager {
 
 func (b *EthAPIBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
+}
+
+func (b *EthAPIBackend) CallTimeOut() int {
+	return b.timeOutForCall
 }
 
 func (b *EthAPIBackend) RPCGasCap() *big.Int {

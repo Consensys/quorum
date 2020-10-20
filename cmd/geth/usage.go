@@ -279,6 +279,7 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.PluginLocalVerifyFlag,
 			utils.PluginPublicKeyFlag,
 			utils.AllowedFutureBlockTimeFlag,
+			utils.TimeOutForCall,
 		},
 	},
 	{

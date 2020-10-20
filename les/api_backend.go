@@ -258,6 +258,10 @@ func (b *LesApiBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
 }
 
+func (b *LesApiBackend) CallTimeOut() int {
+	return 5
+}
+
 func (b *LesApiBackend) RPCGasCap() *big.Int {
 	return b.eth.config.RPCGasCap
 }
