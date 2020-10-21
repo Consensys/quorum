@@ -550,11 +550,6 @@ func (r *RoleCache) GetRoleList() []RoleInfo {
 // Returns the access type for an account. If not found returns
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
-	//if we have not reached QIP714 block return default access
-	//which will be full access
-	if !QIP714BlockReached {
-		return DefaultAccess
-	}
 
 	// check if the org status is fine to do the transaction
 	a, _ := AcctInfoMap.GetAccount(acctId)
@@ -575,12 +570,10 @@ func GetAcctAccess(acctId common.Address) AccessType {
 					}
 				}
 			}
-		} else {
-			return ReadOnly
 		}
 	}
 
-	return DefaultAccess
+	return ReadOnly
 }
 
 //checks if the given org is active in the network
@@ -671,6 +664,10 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 		return nil
 
 	case Basic:
+		//if we have not reached QIP714 block return full access
+		if !QIP714BlockReached {
+			return nil
+		}
 		switch GetAcctAccess(from) {
 		case ReadOnly:
 			return errors.New("read only account. cannot transact")
@@ -686,10 +683,16 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 		}
 
 	case EEA:
+		//if we have not reached QIP714 block return full access
 		if PermissionTransactionAllowedFunc == nil {
 			log.Error("PermissionTransactionAllowedFunc is not set for permissioned EEA")
 			return nil
 		}
+
+		if !QIP714BlockReached {
+			return nil
+		}
+
 		allowed, err := PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload)
 		if err != nil || !allowed {
 			return errors.New("account does not have permission")
