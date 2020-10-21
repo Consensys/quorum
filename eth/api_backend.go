@@ -51,7 +51,7 @@ type EthAPIBackend struct {
 	// hex node id from node public key
 	hexNodeId string
 
-	// if set diables the time out for eth_call
+	// timeout value for call
 	evmCallTimeOut time.Duration
 }
 

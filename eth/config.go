@@ -166,6 +166,6 @@ type Config struct {
 	// Istanbul block override (TODO: remove after the fork)
 	OverrideIstanbul *big.Int
 
-	// no time out fo eth_call
+	// timeout value for call
 	EVMCallTimeOut time.Duration
 }
