@@ -167,5 +167,5 @@ type Config struct {
 	OverrideIstanbul *big.Int
 
 	// no time out fo eth_call
-	TimeOutForCall int
+	EVMCallTimeOut time.Duration
 }

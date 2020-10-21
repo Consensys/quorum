@@ -787,6 +787,13 @@ var (
 		Value: "",
 	}
 
+	// Quorum - added configurable call timeout for execution of calls
+	EVMCallTimeOutFlag = cli.IntFlag{
+		Name:  "vm.calltimeout",
+		Usage: "Timeout duration in seconds for message call execution without creating a transaction. Value 0 means no timeout.",
+		Value: 5,
+	}
+
 	// Quorum
 	// immutability threshold which can be passed as a parameter at geth start
 	QuorumImmutabilityThreshold = cli.IntFlag{
@@ -822,11 +829,6 @@ var (
 	RaftDNSEnabledFlag = cli.BoolFlag{
 		Name:  "raftdnsenable",
 		Usage: "Enable DNS resolution of peers",
-	}
-	TimeOutForCall = cli.IntFlag{
-		Name:  "timeoutforcall",
-		Usage: "timeout duration in seconds for eth_call execution. if passed as 0 there will be no time out",
-		Value: 5,
 	}
 
 	// Permission
@@ -1549,7 +1551,7 @@ func setRaft(ctx *cli.Context, cfg *eth.Config) {
 }
 
 func setQuorumConfig(ctx *cli.Context, cfg *eth.Config) {
-	cfg.TimeOutForCall = ctx.GlobalInt(TimeOutForCall.Name)
+	cfg.EVMCallTimeOut = time.Duration(ctx.GlobalInt(EVMCallTimeOutFlag.Name)) * time.Second
 
 	setIstanbul(ctx, cfg)
 	setRaft(ctx, cfg)

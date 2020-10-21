@@ -981,11 +981,8 @@ func (s *PublicBlockChainAPI) Call(ctx context.Context, args CallArgs, blockNrOr
 		accounts = *overrides
 	}
 
-	// Quorum
-	// read the timeout value from flag value of timeoutforcall
-	timeout := time.Duration(s.b.CallTimeOut()) * time.Second
-
-	result, _, _, err := DoCall(ctx, s.b, args, blockNrOrHash, accounts, vm.Config{}, timeout, s.b.RPCGasCap())
+	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
+	result, _, _, err := DoCall(ctx, s.b, args, blockNrOrHash, accounts, vm.Config{}, s.b.CallTimeOut(), s.b.RPCGasCap())
 	return (hexutil.Bytes)(result), err
 }
 

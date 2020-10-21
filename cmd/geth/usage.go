@@ -239,6 +239,8 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.VMEnableDebugFlag,
 			utils.EVMInterpreterFlag,
 			utils.EWASMInterpreterFlag,
+			// Quorum - timout for calls
+			utils.EVMCallTimeOutFlag,
 		},
 	},
 	{
@@ -279,7 +281,6 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.PluginLocalVerifyFlag,
 			utils.PluginPublicKeyFlag,
 			utils.AllowedFutureBlockTimeFlag,
-			utils.TimeOutForCall,
 		},
 	},
 	{

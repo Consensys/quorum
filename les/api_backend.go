@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -258,8 +259,8 @@ func (b *LesApiBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
 }
 
-func (b *LesApiBackend) CallTimeOut() int {
-	return 5
+func (b *LesApiBackend) CallTimeOut() time.Duration {
+	return 5 * time.Second
 }
 
 func (b *LesApiBackend) RPCGasCap() *big.Int {

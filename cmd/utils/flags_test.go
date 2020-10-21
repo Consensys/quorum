@@ -80,11 +80,11 @@ func TestSetImmutabilityThreshold(t *testing.T) {
 
 func TestSetTimeOutForCall(t *testing.T) {
 	fs := &flag.FlagSet{}
-	fs.Int(TimeOutForCall.Name, 0, "")
+	fs.Int(EVMCallTimeOutFlag.Name, 0, "")
 	arbitraryCLIContext := cli.NewContext(nil, fs, nil)
-	assert.NoError(t, arbitraryCLIContext.GlobalSet(TimeOutForCall.Name, strconv.Itoa(10)))
-	assert.True(t, arbitraryCLIContext.GlobalIsSet(TimeOutForCall.Name), "timeoutforcall flag not set")
-	assert.Equal(t, 10, arbitraryCLIContext.GlobalInt(TimeOutForCall.Name), "timeoutforcall value not set")
+	assert.NoError(t, arbitraryCLIContext.GlobalSet(EVMCallTimeOutFlag.Name, strconv.Itoa(10)))
+	assert.True(t, arbitraryCLIContext.GlobalIsSet(EVMCallTimeOutFlag.Name), "timeoutforcall flag not set")
+	assert.Equal(t, 10, arbitraryCLIContext.GlobalInt(EVMCallTimeOutFlag.Name), "timeoutforcall value not set")
 }
 
 func TestSetPlugins_whenTypical(t *testing.T) {

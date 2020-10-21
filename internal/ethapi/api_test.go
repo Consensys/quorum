@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -490,7 +491,7 @@ func (sb *StubBackend) ExtRPCEnabled() bool {
 	panic("implement me")
 }
 
-func (sb *StubBackend) CallTimeOut() int {
+func (sb *StubBackend) CallTimeOut() time.Duration {
 	panic("implement me")
 }
 
