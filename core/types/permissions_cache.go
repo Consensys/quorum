@@ -676,6 +676,7 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 			if transactionType == ContractDeployTxn {
 				return errors.New("account does not have contract create permissions")
 			}
+			return nil
 
 		case FullAccess, ContractDeploy:
 			return nil
