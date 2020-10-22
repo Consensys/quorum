@@ -302,10 +302,7 @@ contract NodeManager {
             return false;
         }
         uint256 nodeIndex = _getNodeIndex(_enodeId);
-        if (nodeList[nodeIndex].status == 2 && nodeList[nodeIndex].port == _port && keccak256(abi.encode(nodeList[nodeIndex].ip)) == keccak256(abi.encode(_ip))) {
-            if (nodeList[nodeIndex].raftPort != 0 &&  nodeList[nodeIndex].raftPort != _raftport) {
-                return false;
-            }
+        if (nodeList[nodeIndex].status == 2 && keccak256(abi.encode(nodeList[nodeIndex].ip)) == keccak256(abi.encode(_ip))) {
             return true;
         }
 

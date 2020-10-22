@@ -29,8 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/p2p"
-
 	"github.com/elastic/gosigar"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -468,11 +466,8 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 	// Quorum
 	//
 	// checking if permissions is enabled and staring the permissions service
-	var server *p2p.Server
-	if err := stack.Service(&server); err != nil {
-		utils.Fatalf("p2p server is not runnning: %v", err)
-	}
-	server.SetIsNodePermissioned(permission.IsNodePermissioned)
+
+	stack.Server().SetIsNodePermissioned(permission.IsNodePermissioned)
 	log.Info("p2p server's permission config set")
 
 	if stack.IsPermissionEnabled() {

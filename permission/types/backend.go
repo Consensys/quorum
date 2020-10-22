@@ -240,11 +240,11 @@ func GetNodeDetails(url string, isRaft, useDns bool) (string, string, uint16, ui
 	// validate Node id and
 	var ip string
 	if len(url) == 0 {
-		return "", ip, 0, 0, errors.New("invalid Node id")
+		return "", ip, 0, 0, errors.New("invalid Node id. empty url")
 	}
 	enodeDet, err := enode.ParseV4(url)
 	if err != nil {
-		return "", ip, 0, 0, errors.New("invalid Node id")
+		return "", ip, 0, 0, fmt.Errorf("invalid Node id. %s", err.Error())
 	}
 
 	ip = enodeDet.IP().String()

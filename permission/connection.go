@@ -30,14 +30,19 @@ func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, d
 
 	switch permissionType {
 	case types.Default:
-		return isNodePermissioned(nodename, currentNode, datadir, direction)
+		allowed := isNodePermissioned(nodename, currentNode, datadir, direction)
+		log.Info("isNodePermissioned Default", "allowed", allowed, "url", node.String())
+		return allowed
 
 	case types.Basic:
-		return isNodePermissionedBasic(node.String())
-
+		allowed := isNodePermissionedBasic(node.EnodeID())
+		log.Info("isNodePermissioned Basic", "allowed", allowed, "url", node.String())
+		return allowed
 	case types.EEA:
-		allowed, err := permissionService.ConnectionAllowed(node.ID().String(), node.IP().String(), uint16(node.TCP()), uint16(node.RaftPort()))
+		allowed, err := permissionService.ConnectionAllowed(node.EnodeID(), node.IP().String(), uint16(node.TCP()), uint16(node.RaftPort()))
+		log.Info("isNodePermissioned EEA", "allowed", allowed, "url", node.String())
 		if err != nil {
+			log.Error("isNodePermissioned EEA ERRORED", "err", err, "allowed", allowed, "url", node.String())
 			return false
 		}
 		return allowed
@@ -45,9 +50,10 @@ func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, d
 	return false
 }
 
-func isNodePermissionedBasic(url string) bool {
+func isNodePermissionedBasic(enodeId string) bool {
 	for _, n := range types.NodeInfoMap.GetNodeList() {
-		if n.Status == types.NodeApproved && n.Url == url {
+		if n.Status == types.NodeApproved && strings.Contains(n.Url, enodeId) {
+			log.Info("isNodePermissionedBasic check passed", "lk_url", enodeId, "c_url", n.Url)
 			return true
 		}
 	}

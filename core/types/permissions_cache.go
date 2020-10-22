@@ -553,21 +553,19 @@ func GetAcctAccess(acctId common.Address) AccessType {
 
 	// check if the org status is fine to do the transaction
 	a, _ := AcctInfoMap.GetAccount(acctId)
-	if a != nil {
-		if a.Status == AcctActive {
-			// get the org details and ultimate org details. check org status
-			// if the org is not approved or pending suspension
-			if checkIfOrgActive(a.OrgId) {
-				if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
-					return FullAccess
-				}
-				if r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
+	if a != nil && a.Status == AcctActive {
+		// get the org details and ultimate org details. check org status
+		// if the org is not approved or pending suspension
+		if checkIfOrgActive(a.OrgId) {
+			if a.RoleId == networkAdminRole || a.RoleId == orgAdminRole {
+				return FullAccess
+			}
+			if r, _ := RoleInfoMap.GetRole(a.OrgId, a.RoleId); r != nil && r.Active {
+				return r.Access
+			}
+			if o, _ := OrgInfoMap.GetOrg(a.OrgId); o != nil {
+				if r, _ := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
 					return r.Access
-				}
-				if o, _ := OrgInfoMap.GetOrg(a.OrgId); o != nil {
-					if r, _ := RoleInfoMap.GetRole(o.UltimateParent, a.RoleId); r != nil && r.Active {
-						return r.Access
-					}
 				}
 			}
 		}
@@ -659,15 +657,16 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 
 //  checks if the account permission allows the transaction to be executed
 func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int, gasPrice *big.Int, gasLimit *big.Int, payload []byte, transactionType TransactionType) error {
+	//if we have not reached QIP714 block return full access
+	if !QIP714BlockReached {
+		return nil
+	}
+
 	switch PermissionModel {
 	case Default:
 		return nil
 
 	case Basic:
-		//if we have not reached QIP714 block return full access
-		if !QIP714BlockReached {
-			return nil
-		}
 		switch GetAcctAccess(from) {
 		case ReadOnly:
 			return errors.New("read only account. cannot transact")
@@ -687,11 +686,7 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 		//if we have not reached QIP714 block return full access
 		if PermissionTransactionAllowedFunc == nil {
 			log.Error("PermissionTransactionAllowedFunc is not set for permissioned EEA")
-			return nil
-		}
-
-		if !QIP714BlockReached {
-			return nil
+			return errors.New("account does not have permission")
 		}
 
 		allowed, err := PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload)
