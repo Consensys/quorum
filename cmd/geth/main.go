@@ -168,6 +168,7 @@ var (
 		utils.PluginLocalVerifyFlag,
 		utils.PluginPublicKeyFlag,
 		utils.AllowedFutureBlockTimeFlag,
+		utils.EVMCallTimeOutFlag,
 		// End-Quorum
 	}
 

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -49,6 +50,9 @@ type EthAPIBackend struct {
 	//
 	// hex node id from node public key
 	hexNodeId string
+
+	// timeout value for call
+	evmCallTimeOut time.Duration
 }
 
 // ChainConfig returns the active chain configuration.
@@ -330,6 +334,10 @@ func (b *EthAPIBackend) AccountManager() *accounts.Manager {
 
 func (b *EthAPIBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
+}
+
+func (b *EthAPIBackend) CallTimeOut() time.Duration {
+	return b.evmCallTimeOut
 }
 
 func (b *EthAPIBackend) RPCGasCap() *big.Int {
