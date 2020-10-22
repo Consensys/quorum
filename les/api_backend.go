@@ -260,7 +260,7 @@ func (b *LesApiBackend) ExtRPCEnabled() bool {
 }
 
 func (b *LesApiBackend) CallTimeOut() time.Duration {
-	return 5 * time.Second
+	return b.eth.config.EVMCallTimeOut
 }
 
 func (b *LesApiBackend) RPCGasCap() *big.Int {
