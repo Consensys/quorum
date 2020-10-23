@@ -47,9 +47,6 @@ func (p *PermissionCtrl) AfterStart() error {
 			return err
 		}
 	}
-	// set the transaction allowed check function pointer
-	types.PermissionTransactionAllowedFunc = p.TransactionAllowed
-	setPermissionService(p)
 	log.Info("permission service: is now ready")
 	return nil
 }
@@ -70,11 +67,11 @@ func (p *PermissionCtrl) asyncStart() {
 	// waits for block syncing before the starting permissions
 	p.startWaitGroup.Add(1)
 	go func(_wg *sync.WaitGroup) {
-		log.Debug("permission service: waiting for downloader")
+		log.Info("permission service: waiting for downloader")
 		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		pollingTicker := time.NewTicker(10 * time.Millisecond)
 		defer func(start time.Time) {
-			log.Debug("permission service: downloader completed", "took", time.Since(start))
+			log.Info("permission service: downloader completed", "took", time.Since(start))
 			stopSubscription.Unsubscribe()
 			pollingTicker.Stop()
 			_wg.Done()
@@ -82,6 +79,7 @@ func (p *PermissionCtrl) asyncStart() {
 		for {
 			select {
 			case <-pollingTicker.C:
+				log.Info("permission service: waiting for downloader ticker")
 				if types.GetSyncStatus() && !ethereum.Downloader().Synchronising() {
 					return
 				}
@@ -91,7 +89,7 @@ func (p *PermissionCtrl) asyncStart() {
 		}
 	}(p.startWaitGroup) // wait for downloader to sync if any
 
-	log.Debug("permission service: waiting for all dependencies to be ready")
+	log.Info("permission service: waiting for all dependencies to be ready")
 	p.startWaitGroup.Wait()
 	client, err := p.node.Attach()
 	if err != nil {
@@ -102,6 +100,10 @@ func (p *PermissionCtrl) asyncStart() {
 	p.eth = ethereum
 	p.isRaft = p.eth.BlockChain().Config().Istanbul == nil && p.eth.BlockChain().Config().Clique == nil
 	p.updateBackEnd()
+	// set the transaction allowed check function pointer
+	types.PermissionTransactionAllowedFunc = p.TransactionAllowed
+	setPermissionService(p)
+	log.Info("permission service: all dependencies are ready")
 }
 
 // monitors QIP714Block and set default access

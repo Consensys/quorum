@@ -294,6 +294,7 @@ func (pc *PermissionConfig) IsEmpty() bool {
 
 func SetSyncStatus() {
 	syncStarted = true
+	log.Info("AJ-sync status set")
 }
 
 func GetSyncStatus() bool {

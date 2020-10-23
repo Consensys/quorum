@@ -1891,6 +1891,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 	}); err != nil {
 		Fatalf("Failed to register the Raft service: %v", err)
 	}
+	log.Info("raft service registered")
 }
 
 func RegisterExtensionService(stack *node.Node, ethChan chan *eth.Ethereum) {

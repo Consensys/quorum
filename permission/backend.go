@@ -71,11 +71,11 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, 
 	p.populateBackEnd()
 	stopChan, stopSubscription := ptype.SubscribeStopEvent()
 	inProcRPCServerSub := stack.EventMux().Subscribe(rpc.InProcServerReadyEvent{})
-	log.Debug("permission service: waiting for InProcRPC Server")
+	log.Info("permission service: waiting for InProcRPC Server")
 
 	go func(_wg *sync.WaitGroup) {
 		defer func(start time.Time) {
-			log.Debug("permission service: InProcRPC server is ready", "took", time.Since(start))
+			log.Info("permission service: InProcRPC server is ready", "took", time.Since(start))
 			stopSubscription.Unsubscribe()
 			inProcRPCServerSub.Unsubscribe()
 			_wg.Done()
@@ -89,9 +89,9 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, 
 }
 
 func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
-	log.Debug("permission service: starting")
+	log.Info("permission service: starting")
 	go func() {
-		log.Debug("permission service: starting async")
+		log.Info("permission service: starting async")
 		p.asyncStart()
 	}()
 	return nil
