@@ -656,6 +656,10 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 	return false
 }
 
+func IsEEAPermission() bool {
+	return PermissionModel == EEA
+}
+
 //  checks if the account permission allows the transaction to be executed
 func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int, gasPrice *big.Int, gasLimit *big.Int, payload []byte, transactionType TransactionType) error {
 	//if we have not reached QIP714 block return full access

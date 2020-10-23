@@ -103,7 +103,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		privateState = statedb
 	}
 
-	if types.PermissionModel == types.EEA {
+	if types.IsEEAPermission() {
 		if err := checkAccountAccess(tx); err != nil {
 			return nil, nil, err
 		}
