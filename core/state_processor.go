@@ -103,6 +103,10 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 		privateState = statedb
 	}
 
+	if err := checkAccountAccess(tx); err != nil {
+		return nil, nil, err
+	}
+
 	if config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
 		return nil, nil, ErrInvalidGasPrice
 	}

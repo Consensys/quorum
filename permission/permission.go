@@ -79,7 +79,7 @@ func (p *PermissionCtrl) asyncStart() {
 		for {
 			select {
 			case <-pollingTicker.C:
-				log.Info("permission service: waiting for downloader ticker")
+				log.Debug("permission service: waiting for downloader ticker")
 				if types.GetSyncStatus() && !ethereum.Downloader().Synchronising() {
 					return
 				}

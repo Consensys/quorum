@@ -1019,24 +1019,18 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 			direction = "OUTGOING"
 			log.Trace("Node Permissioning", "Connection Direction", direction)
 		}
-		log.Info("AJ-p2p isNodePermissioned check start", "url", node.String())
+
 		if srv.isNodePermissionedFunc == nil {
-			log.Info("isNodePermissionedFunc is not set")
+			log.Debug("isNodePermissionedFunc is not set", "url", node.String())
 			if !types.IsNodePermissioned(nodeId, currentNode, srv.DataDir, direction) {
 				log.Info("Permission isNodePermissioned check failed", "node", c.node.String())
 				return newPeerError(errPermissionDenied, "id=%s…%s %s id=%s…%s", currentNode[:4], currentNode[len(currentNode)-4:], direction, nodeId[:4], nodeId[len(nodeId)-4:])
-			} else {
-				log.Info("AJ-p2p isNodePermissioned check successful", "url", node.String())
 			}
-			return errors.New("permission enabled but isNodePermissionedFunc is not set")
-		}
-
-		if !srv.isNodePermissionedFunc(node, nodeId, currentNode, srv.DataDir, direction) {
+		} else if !srv.isNodePermissionedFunc(node, nodeId, currentNode, srv.DataDir, direction) {
 			log.Info("Permission isNodePermissioned check failed", "node", c.node.String())
 			return newPeerError(errPermissionDenied, "id=%s…%s %s id=%s…%s", currentNode[:4], currentNode[len(currentNode)-4:], direction, nodeId[:4], nodeId[len(nodeId)-4:])
-		} else {
-			log.Info("AJ-p2p isNodePermissioned check successful", "url", node.String())
 		}
+		log.Debug("isNodePermissioned check successful", "url", node.String())
 	} else {
 		clog.Trace("Node Permissioning is Disabled.")
 	}

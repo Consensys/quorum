@@ -1612,7 +1612,6 @@ func checkAccountAccess(tx *types.Transaction) error {
 	}
 
 	return types.IsTransactionAllowed(tx.From(), to, tx.Value(), tx.GasPrice(), big.NewInt(int64(tx.Gas())), tx.Data(), transactionType)
-
 }
 
 // helper function to return chainHeadChannel size

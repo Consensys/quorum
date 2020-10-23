@@ -665,20 +665,25 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 
 	switch PermissionModel {
 	case Default:
+		log.Debug("IsTransactionAllowed Default", "from", from, "perm", "full")
 		return nil
 
 	case Basic:
 		switch GetAcctAccess(from) {
 		case ReadOnly:
+			log.Debug("IsTransactionAllowed Basic - readOnly", "from", from)
 			return errors.New("read only account. cannot transact")
 
 		case Transact:
 			if transactionType == ContractDeployTxn {
+				log.Debug("IsTransactionAllowed Basic - no contract create permission", "from", from)
 				return errors.New("account does not have contract create permissions")
 			}
+			log.Debug("IsTransactionAllowed Basic - Transact", "from", from)
 			return nil
 
 		case FullAccess, ContractDeploy:
+			log.Debug("IsTransactionAllowed Basic - FullAccess, ContractDeploy", "from", from)
 			return nil
 
 		}
@@ -686,14 +691,16 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 	case EEA:
 		//if we have not reached QIP714 block return full access
 		if PermissionTransactionAllowedFunc == nil {
-			log.Error("PermissionTransactionAllowedFunc is not set for permissioned EEA")
-			return errors.New("account does not have permission")
+			log.Warn("PermissionTransactionAllowedFunc is not set for permissioned EEA")
+			return nil
 		}
 
 		allowed, err := PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload)
 		if err != nil || !allowed {
+			log.Debug("IsTransactionAllowed EEA - not allowed", "from", from)
 			return errors.New("account does not have permission")
 		}
+		log.Debug("IsTransactionAllowed EEA - allowed", "from", from)
 		return nil
 	}
 

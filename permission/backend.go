@@ -71,11 +71,11 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, 
 	p.populateBackEnd()
 	stopChan, stopSubscription := ptype.SubscribeStopEvent()
 	inProcRPCServerSub := stack.EventMux().Subscribe(rpc.InProcServerReadyEvent{})
-	log.Info("permission service: waiting for InProcRPC Server")
+	log.Debug("permission service: waiting for InProcRPC Server")
 
 	go func(_wg *sync.WaitGroup) {
 		defer func(start time.Time) {
-			log.Info("permission service: InProcRPC server is ready", "took", time.Since(start))
+			log.Debug("permission service: InProcRPC server is ready", "took", time.Since(start))
 			stopSubscription.Unsubscribe()
 			inProcRPCServerSub.Unsubscribe()
 			_wg.Done()
