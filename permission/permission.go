@@ -34,8 +34,6 @@ func (p *PermissionCtrl) AfterStart() error {
 		return fmt.Errorf("populateInitPermissions failed: %v", err)
 	}
 
-	// set the default access to ReadOnly
-	types.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole, p.eeaFlag)
 	for _, f := range []func() error{
 		p.monitorQIP714Block,               // monitor block number to activate new permissions controls
 		p.backend.ManageOrgPermissions,     // monitor org management related events
@@ -53,15 +51,11 @@ func (p *PermissionCtrl) AfterStart() error {
 
 // start service asynchronously due to dependencies
 func (p *PermissionCtrl) asyncStart() {
-	var ethereum *eth.Ethereum
-	// will be blocked here until Node is up
-	if err := p.node.Service(&ethereum); err != nil {
-		p.errorChan <- fmt.Errorf("dependent ethereum service not started")
-		return
-	}
+	log.Debug("permission service: asyncStart start..")
 	defer func() {
 		p.errorChan <- nil
 	}()
+
 	// for cases where the Node is joining an existing network, permission service
 	// can be brought up only after block syncing is complete. This function
 	// waits for block syncing before the starting permissions
@@ -80,7 +74,7 @@ func (p *PermissionCtrl) asyncStart() {
 			select {
 			case <-pollingTicker.C:
 				log.Debug("permission service: waiting for downloader ticker")
-				if types.GetSyncStatus() && !ethereum.Downloader().Synchronising() {
+				if types.GetSyncStatus() && !p.eth.Downloader().Synchronising() {
 					return
 				}
 			case <-stopChan:
@@ -89,21 +83,36 @@ func (p *PermissionCtrl) asyncStart() {
 		}
 	}(p.startWaitGroup) // wait for downloader to sync if any
 
-	log.Info("permission service: waiting for all dependencies to be ready")
+	log.Info("permission service: waiting for block sync to complete...")
 	p.startWaitGroup.Wait()
+
+	log.Info("permission service: all dependencies are ready, block sync complete")
+}
+
+func (p *PermissionCtrl) SetDependency() bool {
+	log.Debug("permission service: SetDependency start")
+	var ethereum *eth.Ethereum
+	// will be blocked here until Node is up
+	if err := p.node.Service(&ethereum); err != nil {
+		p.errorChan <- fmt.Errorf("dependent ethereum service not started")
+		return true
+	}
+	// set the default access to ReadOnly
+	types.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole, p.eeaFlag)
+	// set the transaction allowed check function pointer
+	types.PermissionTransactionAllowedFunc = p.TransactionAllowed
+	setPermissionService(p)
 	client, err := p.node.Attach()
 	if err != nil {
 		p.errorChan <- fmt.Errorf("unable to create rpc client: %v", err)
-		return
+		return true
 	}
 	p.ethClnt = ethclient.NewClient(client)
 	p.eth = ethereum
 	p.isRaft = p.eth.BlockChain().Config().Istanbul == nil && p.eth.BlockChain().Config().Clique == nil
 	p.updateBackEnd()
-	// set the transaction allowed check function pointer
-	types.PermissionTransactionAllowedFunc = p.TransactionAllowed
-	setPermissionService(p)
-	log.Info("permission service: all dependencies are ready")
+	log.Debug("permission service: SetDependency end")
+	return false
 }
 
 // monitors QIP714Block and set default access

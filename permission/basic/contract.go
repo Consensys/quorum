@@ -284,6 +284,7 @@ func (i *Init) basicBindContract() error {
 
 func (i *Init) initSession() {
 	auth := bind.NewKeyedTransactor(i.Backend.Key)
+	log.Debug("NodeAccount basic", "nodeAcc", auth.From)
 	i.PermInterfSession = &binding.PermInterfaceSession{
 		Contract: i.PermInterf,
 		CallOpts: bind.CallOpts{

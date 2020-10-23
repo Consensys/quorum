@@ -336,6 +336,7 @@ func (i *Init) eeaBindContract() error {
 
 func (i *Init) initSession() {
 	auth := bind.NewKeyedTransactor(i.Backend.Key)
+	log.Debug("NodeAccount EEA", "nodeAcc", auth.From)
 	i.PermInterfSession = &binding.PermInterfaceSession{
 		Contract: i.PermInterf,
 		CallOpts: bind.CallOpts{

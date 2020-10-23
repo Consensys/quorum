@@ -91,9 +91,14 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, 
 func (p *PermissionCtrl) Start(srvr *p2p.Server) error {
 	log.Info("permission service: starting")
 	go func() {
+		if p.SetDependency() {
+			log.Error("permission service: set dependency failed")
+			return
+		}
 		log.Info("permission service: starting async")
 		p.asyncStart()
 	}()
+	log.Debug("permission service: async start called")
 	return nil
 }
 
