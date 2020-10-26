@@ -8,6 +8,26 @@ env:
   GOPATH: ${{ github.workspace }}/go
   WORKING_DIR: ${{ github.workspace }}/go/src/github.com/ethereum/go-ethereum
 jobs:
+  publish-docker:
+    name: Publish Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v2
+      - name: 'Extract Docker Image Tag'
+        id: extract
+        run: |
+          REF=${{ github.ref }}
+          echo ::set-output name=image_tag::$(echo $REF | sed 's/refs\/tags\/v//g')
+          echo ::set-output name=image_tag_minor_latest::$(echo $REF | sed -e 's/refs\/tags\/v//g' -e 's/^\([[:digit:]]*\.[[:digit:]]*\).*/\1/') 
+      - name: 'Build and publish to Docker Hub'
+        uses: docker/build-push-action@v1
+        with: 
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+          repository: ${{ secrets.DOCKER_REPO }}
+          tags: ${{ steps.extract.outputs.image_tag }}, ${{ steps.extract.outputs.image_tag_minor_latest }}
+          add_git_labels: true
   build:
     name: 'Build binary for ${{ matrix.os }}'
     strategy:
@@ -88,6 +108,7 @@ jobs:
     name: 'Draft Github release'
     needs:
       - deploy-bintray
+      - publish-docker
     runs-on: ubuntu-latest
     steps:
       - name: 'Check out project files'
@@ -105,7 +126,7 @@ jobs:
           echo "Last version: $last_version on $last_release_date"
           # pulling from git logs
           curl -q -s -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/search/issues?q=repo:jpmorganchase/quorum+is:pr+is:merged+merged%3A>=$last_release_date+sort%3Aupdated-desc" | jq -r '"* " + (.items[]|.title + " #" + (.number|tostring))' \
+            "https://api.github.com/search/issues?q=repo:ConsenSys/quorum+is:pr+is:merged+merged%3A>=$last_release_date+sort%3Aupdated-desc" | jq -r '"* " + (.items[]|.title + " #" + (.number|tostring))' \
             >> $file
           # pulling file hashes from Bintray
           echo "" >> $file
@@ -138,6 +159,7 @@ jobs:
     needs:
       - build
       - deploy-bintray
+      - publish-docker
       - draft-release
     runs-on: ubuntu-latest
     steps:

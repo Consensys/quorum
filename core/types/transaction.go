@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -56,6 +57,12 @@ type Transaction struct {
 	hash atomic.Value
 	size atomic.Value
 	from atomic.Value
+
+	privacyMetadata *PrivacyMetadata
+}
+
+type PrivacyMetadata struct {
+	PrivacyFlag engine.PrivacyFlagType
 }
 
 type txdata struct {
@@ -117,6 +124,16 @@ func newTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 	}
 
 	return &Transaction{data: d}
+}
+
+func NewTxPrivacyMetadata(privacyFlag engine.PrivacyFlagType) *PrivacyMetadata {
+	return &PrivacyMetadata{
+		PrivacyFlag: privacyFlag,
+	}
+}
+
+func (tx *Transaction) SetTxPrivacyMetadata(pm *PrivacyMetadata) {
+	tx.privacyMetadata = pm
 }
 
 // ChainId returns which chain id this transaction was signed for (if at all)
@@ -188,12 +205,13 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 	return nil
 }
 
-func (tx *Transaction) Data() []byte       { return common.CopyBytes(tx.data.Payload) }
-func (tx *Transaction) Gas() uint64        { return tx.data.GasLimit }
-func (tx *Transaction) GasPrice() *big.Int { return new(big.Int).Set(tx.data.Price) }
-func (tx *Transaction) Value() *big.Int    { return new(big.Int).Set(tx.data.Amount) }
-func (tx *Transaction) Nonce() uint64      { return tx.data.AccountNonce }
-func (tx *Transaction) CheckNonce() bool   { return true }
+func (tx *Transaction) Data() []byte                      { return common.CopyBytes(tx.data.Payload) }
+func (tx *Transaction) Gas() uint64                       { return tx.data.GasLimit }
+func (tx *Transaction) GasPrice() *big.Int                { return new(big.Int).Set(tx.data.Price) }
+func (tx *Transaction) Value() *big.Int                   { return new(big.Int).Set(tx.data.Amount) }
+func (tx *Transaction) Nonce() uint64                     { return tx.data.AccountNonce }
+func (tx *Transaction) CheckNonce() bool                  { return true }
+func (tx *Transaction) PrivacyMetadata() *PrivacyMetadata { return tx.privacyMetadata }
 
 // To returns the recipient address of the transaction.
 // It returns nil if the transaction is a contract creation.

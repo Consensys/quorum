@@ -1,7 +1,7 @@
 # Contributing
 
-Thank you for your interest in contributing to Quorum! 
-We welcome contributions from anyone on the internet, and are grateful for even the 
+Thank you for your interest in contributing to Quorum!
+We welcome contributions from anyone on the internet, and are grateful for even the
 smallest of fixes!
 
 If you'd like to contribute to quorum please fork, fix, commit and
@@ -12,10 +12,10 @@ are ignored.
 
 Please make sure your contributions adhere to our coding guidelines:
 
- * Code must adhere to the official Go 
-[formatting](https://golang.org/doc/effective_go.html#formatting) guidelines 
+ * Code must adhere to the official Go
+[formatting](https://golang.org/doc/effective_go.html#formatting) guidelines
 (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
- * Code must be documented adhering to the official Go 
+ * Code must be documented adhering to the official Go
 [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
  * Pull requests need to be based on and opened against the `master` branch.
  * Commit messages should be prefixed with the package(s) they modify.
@@ -23,10 +23,10 @@ Please make sure your contributions adhere to our coding guidelines:
 
 ## Can I have feature X
 
-Before you submit a feature request, please check and make sure that it isn't 
-possible through some other means. The JavaScript-enabled console is a powerful 
-feature in the right hands. Please check our 
-[Wiki page](https://github.com/jpmorganchase/quorum/wiki) for more info
+Before you submit a feature request, please check and make sure that it isn't
+possible through some other means. The JavaScript-enabled console is a powerful
+feature in the right hands. Please check our
+[developer documentation](https://docs.goquorum.consensys.net/en/latest/) for more info
 and help.
 
 ## Configuration, dependencies, and tests

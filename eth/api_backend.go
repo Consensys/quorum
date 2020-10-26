@@ -19,7 +19,9 @@ package eth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -48,6 +50,9 @@ type EthAPIBackend struct {
 	//
 	// hex node id from node public key
 	hexNodeId string
+
+	// timeout value for call
+	evmCallTimeOut time.Duration
 }
 
 // ChainConfig returns the active chain configuration.
@@ -331,6 +336,10 @@ func (b *EthAPIBackend) ExtRPCEnabled() bool {
 	return b.extRPCEnabled
 }
 
+func (b *EthAPIBackend) CallTimeOut() time.Duration {
+	return b.evmCallTimeOut
+}
+
 func (b *EthAPIBackend) RPCGasCap() *big.Int {
 	return b.eth.config.RPCGasCap
 }
@@ -417,6 +426,21 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 		return s.privateState.GetNonce(addr)
 	}
 	return s.state.GetNonce(addr)
+}
+
+func (s EthAPIState) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+	if s.privateState.Exist(addr) {
+		return s.privateState.GetStatePrivacyMetadata(addr)
+	}
+	return nil, fmt.Errorf("The provided address is not a private contract: %x", addr)
+}
+
+func (s EthAPIState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
+	getFunc := s.state.GetRLPEncodedStateObject
+	if s.privateState.Exist(addr) {
+		getFunc = s.privateState.GetRLPEncodedStateObject
+	}
+	return getFunc(addr)
 }
 
 func (s EthAPIState) GetProof(addr common.Address) ([][]byte, error) {

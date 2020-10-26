@@ -270,6 +270,12 @@ web3._extend({
 			inputFormatter: [web3._extend.formatters.inputBlockNumberFormatter, ""]
 		}),
 		new web3._extend.Method({
+			name: 'dumpAddress',
+			call: 'debug_dumpAddress',
+			params: 2,
+			inputFormatter: [web3._extend.formatters.inputAddressFormatter, web3._extend.formatters.inputBlockNumberFormatter]
+		}),
+		new web3._extend.Method({
 			name: 'chaindbProperty',
 			call: 'debug_chaindbProperty',
 			params: 1,
@@ -475,6 +481,11 @@ web3._extend({
 			call: 'eth_sendRawPrivateTransaction',
 			params: 2,
 			inputFormatter: [null, null]
+		}),
+		new web3._extend.Method({
+			name: 'getContractPrivacyMetadata',
+			call: 'eth_getContractPrivacyMetadata',
+			params: 1
 		}),
 		new web3._extend.Method({
 			name: 'chainId',

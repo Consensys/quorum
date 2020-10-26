@@ -34,6 +34,12 @@ type MinimalApiState interface {
 	GetNonce(addr common.Address) uint64
 	SetNonce(addr common.Address, nonce uint64)
 	SetCode(common.Address, []byte)
+	// Return nil for public contract
+	GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error)
+
+	// RLP-encoded of the state object in a given address
+	// Throw error if no state object is found
+	GetRLPEncodedStateObject(addr common.Address) ([]byte, error)
 	GetProof(common.Address) ([][]byte, error)
 	GetStorageProof(common.Address, common.Hash) ([][]byte, error)
 	StorageTrie(addr common.Address) state.Trie
@@ -55,6 +61,7 @@ type StateDB interface {
 	//GetNonce(common.Address) uint64
 	//SetNonce(common.Address, uint64)
 
+	SetStatePrivacyMetadata(common.Address, *state.PrivacyMetadata)
 	//GetCodeHash(common.Address) common.Hash
 	//GetCode(common.Address) []byte
 	//SetCode(common.Address, []byte)

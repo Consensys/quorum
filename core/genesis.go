@@ -186,6 +186,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 		if err != nil {
 			return genesis.Config, common.Hash{}, err
 		}
+		checkAndPrintPrivacyEnhancementsWarning(genesis.Config)
 		return genesis.Config, block.Hash(), nil
 	}
 
@@ -228,6 +229,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 	if storedcfg == nil {
 		log.Warn("Found genesis block without chain config")
 		rawdb.WriteChainConfig(db, stored, newcfg)
+		checkAndPrintPrivacyEnhancementsWarning(newcfg)
 		return newcfg, stored, nil
 	}
 	// Special case: don't change the existing config of a non-mainnet chain if no new
@@ -248,7 +250,18 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 		return newcfg, stored, compatErr
 	}
 	rawdb.WriteChainConfig(db, stored, newcfg)
+	if storedcfg.PrivacyEnhancementsBlock == nil {
+		checkAndPrintPrivacyEnhancementsWarning(newcfg)
+	}
 	return newcfg, stored, nil
+}
+
+func checkAndPrintPrivacyEnhancementsWarning(config *params.ChainConfig) {
+	if config.PrivacyEnhancementsBlock != nil {
+		log.Warn("Privacy enhancements have been enabled from block height " + config.PrivacyEnhancementsBlock.String() +
+			". Please ensure your privacy manager is upgraded and supports privacy enhancements (tessera version 1.*) " +
+			"otherwise your quorum node will fail to start.")
+	}
 }
 
 func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {

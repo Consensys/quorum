@@ -248,10 +248,11 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 	// with the hash of the transaction from tessera/constellation.
 	if opts.PrivateFor != nil {
 		var payload []byte
-		payload, err = c.transactor.PreparePrivateTransaction(rawTx.Data(), opts.PrivateFrom)
+		hash, err := c.transactor.PreparePrivateTransaction(rawTx.Data(), opts.PrivateFrom)
 		if err != nil {
 			return nil, err
 		}
+		payload = hash.Bytes()
 		rawTx = c.createPrivateTransaction(rawTx, payload)
 	}
 
