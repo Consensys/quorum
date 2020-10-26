@@ -328,6 +328,8 @@ func (h *handler) handleCall(cp *callProc, msg *jsonrpcMessage) *jsonrpcMessage 
 		secCtx := r.Resolve()
 		h.log.Debug("Enrich call context with token from security context")
 		cp.ctx = context.WithValue(cp.ctx, CtxPreauthenticatedToken, secCtx.Value(CtxPreauthenticatedToken))
+		// add the PSI from the security context
+		cp.ctx = context.WithValue(cp.ctx, "PSI", secCtx.Value("PSI"))
 	}
 	if msg.isSubscribe() {
 		return h.handleSubscribe(cp, msg)

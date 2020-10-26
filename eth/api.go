@@ -71,10 +71,10 @@ func (s *PublicEthereumAPI) StorageRoot(addr common.Address, blockNr *rpc.BlockN
 	)
 
 	if blockNr == nil || blockNr.Int64() == rpc.LatestBlockNumber.Int64() {
-		pub, priv, err = s.e.blockchain.State()
+		pub, priv, _, err = s.e.blockchain.State()
 	} else {
 		if ch := s.e.blockchain.GetHeaderByNumber(uint64(blockNr.Int64())); ch != nil {
-			pub, priv, err = s.e.blockchain.StateAt(ch.Root)
+			pub, priv, _, err = s.e.blockchain.StateAt(ch.Root)
 		} else {
 			return common.Hash{}, fmt.Errorf("invalid block number")
 		}
@@ -308,6 +308,7 @@ func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 // DumpBlock retrieves the entire state of the database at a given block.
 // Quorum adds an additional parameter to support private state dump
 func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ *string) (state.Dump, error) {
+	// TODO add context and extract the relevant PSI
 	publicState, privateState, err := api.getStateDbsFromBlockNumber(blockNr)
 	if err != nil {
 		return state.Dump{}, err
@@ -331,6 +332,7 @@ func (api *PublicDebugAPI) PrivateStateRoot(ctx context.Context, blockNr rpc.Blo
 // DumpAddress retrieves the state of an address at a given block.
 // Quorum adds an additional parameter to support private state dump
 func (api *PublicDebugAPI) DumpAddress(address common.Address, blockNr rpc.BlockNumber) (state.DumpAccount, error) {
+	// TODO add context and extract the relevant PSI
 	publicState, privateState, err := api.getStateDbsFromBlockNumber(blockNr)
 	if err != nil {
 		return state.DumpAccount{}, err
@@ -366,7 +368,9 @@ func (api *PublicDebugAPI) getStateDbsFromBlockNumber(blockNr rpc.BlockNumber) (
 	if block == nil {
 		return nil, nil, fmt.Errorf("block #%d not found", blockNr)
 	}
-	return api.eth.BlockChain().StateAt(block.Root())
+	// TODO must not ignore the MTStateService
+	publicState, privateState, _, err := api.eth.BlockChain().StateAt(block.Root())
+	return publicState, privateState, err
 }
 
 // PrivateDebugAPI is the collection of Ethereum full node APIs exposed over

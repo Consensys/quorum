@@ -623,6 +623,11 @@ func (s *PublicBlockChainAPI) ChainId() *hexutil.Big {
 	return (*hexutil.Big)(s.b.ChainConfig().ChainID)
 }
 
+// ChainId returns the chainID value for transaction replay protection.
+func (s *PublicBlockChainAPI) GetPSI(ctx context.Context) (string, error) {
+	return core.PSIS.ResolveForUserContext(ctx)
+}
+
 // BlockNumber returns the block number of the chain head.
 func (s *PublicBlockChainAPI) BlockNumber() hexutil.Uint64 {
 	header, _ := s.b.HeaderByNumber(context.Background(), rpc.LatestBlockNumber) // latest header should always be available

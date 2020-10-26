@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -19,8 +20,8 @@ type ChainAccessor interface {
 	multitenancy.ContextAware
 	// GetBlockByHash retrieves a block from the local chain.
 	GetBlockByHash(common.Hash) *types.Block
-	StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error)
-	State() (*state.StateDB, *state.StateDB, error)
+	StateAt(root common.Hash) (*state.StateDB, *state.StateDB, *core.MTStateService, error)
+	State() (*state.StateDB, *state.StateDB, *core.MTStateService, error)
 	CurrentBlock() *types.Block
 }
 
@@ -67,7 +68,7 @@ func (fetcher *StateFetcher) GetAddressStateFromBlock(blockHash common.Hash, add
 // privateState returns the private state database for a given block hash.
 func (fetcher *StateFetcher) privateState(blockHash common.Hash) (*state.StateDB, error) {
 	block := fetcher.chainAccessor.GetBlockByHash(blockHash)
-	_, privateState, err := fetcher.chainAccessor.StateAt(block.Root())
+	_, privateState, _, err := fetcher.chainAccessor.StateAt(block.Root())
 
 	return privateState, err
 }

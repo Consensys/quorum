@@ -28,7 +28,9 @@ import (
 
 var (
 	privateRootPrefix           = []byte("P")
+	mtPrivateRootPrefix         = []byte("MTP")
 	privateBloomPrefix          = []byte("Pb")
+	mtPrivateBloomPrefix        = []byte("MTPb")
 	quorumEIP155ActivatedPrefix = []byte("quorum155active")
 	// Quorum
 	// we introduce a generic approach to store extra data for an account. PrivacyMetadata is wrapped.
@@ -64,6 +66,15 @@ func WritePrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error
 	return db.Put(append(privateRootPrefix, blockRoot[:]...), root[:])
 }
 
+func GetMTPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
+	root, _ := db.Get(append(mtPrivateRootPrefix, blockRoot[:]...))
+	return common.BytesToHash(root)
+}
+
+func WriteMTPrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error {
+	return db.Put(append(mtPrivateRootPrefix, blockRoot[:]...), root[:])
+}
+
 // WriteRootHashMapping stores the mapping between root hash of state trie and
 // root hash of state.AccountExtraData trie to persistent storage
 func WriteRootHashMapping(db ethdb.KeyValueWriter, stateRoot, extraDataRoot common.Hash) error {
@@ -80,6 +91,22 @@ func WritePrivateBlockBloom(db ethdb.Database, number uint64, receipts types.Rec
 // GetPrivateBlockBloom retrieves the private bloom associated with the given number.
 func GetPrivateBlockBloom(db ethdb.Database, number uint64) (bloom types.Bloom) {
 	data, _ := db.Get(append(privateBloomPrefix, encodeBlockNumber(number)...))
+	if len(data) > 0 {
+		bloom = types.BytesToBloom(data)
+	}
+	return bloom
+}
+
+// WriteMTPrivateBlockBloom creates a bloom filter for the given receipts and saves it to the database
+// with the number given as identifier (i.e. block number).
+func WriteMTPrivateBlockBloom(db ethdb.Database, number uint64, receipts types.Receipts, psi string) error {
+	rbloom := types.CreateBloom(receipts)
+	return db.Put(append(append(mtPrivateBloomPrefix, []byte(psi)...), encodeBlockNumber(number)...), rbloom[:])
+}
+
+// GetMTPrivateBlockBloom retrieves the private bloom associated with the given number.
+func GetMTPrivateBlockBloom(db ethdb.Database, number uint64, psi string) (bloom types.Bloom) {
+	data, _ := db.Get(append(append(mtPrivateBloomPrefix, []byte(psi)...), encodeBlockNumber(number)...))
 	if len(data) > 0 {
 		bloom = types.BytesToBloom(data)
 	}

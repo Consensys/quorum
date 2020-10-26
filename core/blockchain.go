@@ -666,17 +666,27 @@ func (bc *BlockChain) Processor() Processor {
 }
 
 // State returns a new mutable state based on the current HEAD block.
-func (bc *BlockChain) State() (*state.StateDB, *state.StateDB, error) {
+func (bc *BlockChain) State() (*state.StateDB, *state.StateDB, *MTStateService, error) {
 	return bc.StateAt(bc.CurrentBlock().Root())
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
-func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *state.StateDB, error) {
-	publicStateDb, privateStateDb, err := state.NewDual(root, bc.stateCache, bc.snaps, bc.db, bc.privateStateCache, nil)
-	if err != nil {
-		return nil, nil, err
+func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *state.StateDB, *MTStateService, error) {
+	publicStateDb, publicStateDbErr := state.New(root, bc.stateCache, bc.snaps)
+	if publicStateDbErr != nil {
+		return nil, nil, nil, publicStateDbErr
 	}
-	return publicStateDb, privateStateDb, nil
+	privateStateDb, privateStateDbErr := state.New(rawdb.GetPrivateStateRoot(bc.db, root), bc.privateStateCache, bc.snaps)
+	if privateStateDbErr != nil {
+		return nil, nil, nil, privateStateDbErr
+	}
+
+	mtService, mtServiceErr := NewMTStateService(bc, root)
+	if mtServiceErr != nil {
+		return nil, nil, nil, mtServiceErr
+	}
+
+	return publicStateDb, privateStateDb, mtService, nil
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.
@@ -1477,7 +1487,9 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
 
-	return bc.writeBlockWithState(block, receipts, logs, state, privateState, emitHeadEvent)
+	// TODO - decide if worker code will be updated to handle multiple private states
+	// if it will - then we need to pass in the MTStateService
+	return bc.writeBlockWithState(block, receipts, logs, state, privateState, nil, emitHeadEvent)
 }
 
 // QUORUM
@@ -1510,7 +1522,7 @@ func (bc *BlockChain) CommitBlockWithState(deleteEmptyObjects bool, state, priva
 
 // writeBlockWithState writes the block and all associated state to the database,
 // but is expects the chain mutex to be held.
-func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state, privateState *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
+func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state, privateState *state.StateDB, mtService *MTStateService, emitHeadEvent bool) (status WriteStatus, err error) {
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
@@ -1535,7 +1547,13 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	if err := privateTriedb.Commit(privateRoot, false, nil); err != nil {
 		return NonStatTy, err
 	}
-	// End Quorum
+	if mtService != nil {
+		err = mtService.Commit(block)
+		if err != nil {
+			return NonStatTy, err
+		}
+	}
+	// /Quorum
 
 	currentBlock := bc.CurrentBlock()
 	localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
@@ -1732,7 +1750,12 @@ func mergeReceipts(pub, priv types.Receipts) types.Receipts {
 		m[receipt.TxHash] = receipt
 	}
 	for _, receipt := range priv {
-		m[receipt.TxHash] = receipt
+		publicReceipt := m[receipt.TxHash]
+		publicReceipt.MTVersions = make(map[string]*types.Receipt)
+		publicReceipt.MTVersions["private"] = receipt
+		for psi, mtReceipt := range receipt.MTVersions {
+			publicReceipt.MTVersions[psi] = mtReceipt
+		}
 	}
 
 	ret := make(types.Receipts, 0, len(pub))
@@ -1934,6 +1957,11 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if err != nil {
 			return it.index, err
 		}
+		// initialize mtStateService
+		mtService, err := NewMTStateService(bc, parent.Root)
+		if err != nil {
+			return it.index, err
+		}
 		// /Quorum
 
 		// If we have a followup block, run that against the current state to pre-cache
@@ -1955,7 +1983,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		}
 		// Process block using the parent state as reference point
 		substart := time.Now()
-		receipts, privateReceipts, logs, usedGas, err := bc.processor.Process(block, statedb, privateState, bc.vmConfig)
+		receipts, privateReceipts, logs, usedGas, err := bc.processor.Process(block, statedb, privateState, mtService, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
 			atomic.StoreUint32(&followupInterrupt, 1)
@@ -1993,7 +2021,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 
 		// Write the block to the chain and get the status.
 		substart = time.Now()
-		status, err := bc.writeBlockWithState(block, allReceipts, logs, statedb, privateState, false)
+		status, err := bc.writeBlockWithState(block, allReceipts, logs, statedb, privateState, mtService, false)
 		atomic.StoreUint32(&followupInterrupt, 1)
 		if err != nil {
 			return it.index, err

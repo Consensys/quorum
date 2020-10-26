@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/permission/core"
 )
 
@@ -54,7 +55,7 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *types.Block, statedb, privateState *state.StateDB, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, uint64, error) {
+func (p *StateProcessor) Process(block *types.Block, statedb, privateState *state.StateDB, mtService *MTStateService, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, uint64, error) {
 
 	var (
 		receipts types.Receipts
@@ -74,18 +75,56 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		privateState.Prepare(tx.Hash(), block.Hash(), i)
 
+		mtPublicStateDb := statedb.Copy()
+
 		receipt, privateReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, usedGas, cfg)
+
 		if err != nil {
 			return nil, nil, nil, 0, err
 		}
+
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 
 		// if the private receipt is nil this means the tx was public
 		// and we do not need to apply the additional logic.
 		if privateReceipt != nil {
-			privateReceipts = append(privateReceipts, privateReceipt)
+			managedParties, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+			if len(managedParties) > 0 {
+				privateReceipt.MTVersions = make(map[string]*types.Receipt)
+			}
+			for _, log := range privateReceipt.Logs {
+				log.PSI = "private"
+			}
 			allLogs = append(allLogs, privateReceipt.Logs...)
+
+			if mtService != nil {
+				for _, managedParty := range managedParties {
+					psi, _ := PSIS.ResolveForManagedParty(managedParty)
+					mtPrivateState, err := mtService.GetPrivateState(psi)
+					if err != nil {
+						return nil, nil, nil, 0, err
+					}
+					mtPrivateState.Prepare(tx.Hash(), block.Hash(), i)
+					publicStateDBCopy := mtPublicStateDb.Copy()
+					publicStateDBCopy.Prepare(tx.Hash(), block.Hash(), i)
+					// TODO with the relevant states resolved it should be possible to run ApplyTransaction in parallel
+					_, mtPrivateReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, publicStateDBCopy, mtPrivateState, header, tx, usedGas, cfg)
+					if err != nil {
+						return nil, nil, nil, 0, err
+					}
+					// set the PSI for each log (so that the filter system knows for what private state they are)
+					for _, log := range mtPrivateReceipt.Logs {
+						log.PSI = psi
+					}
+					privateReceipt.MTVersions[psi] = mtPrivateReceipt
+					// TODO - figure out contract extension for each private state
+					allLogs = append(allLogs, mtPrivateReceipt.Logs...)
+				}
+			}
+
+			privateReceipts = append(privateReceipts, privateReceipt)
+
 			p.bc.CheckAndSetPrivateState(privateReceipt.Logs, privateState)
 		}
 	}

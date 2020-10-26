@@ -702,7 +702,7 @@ func mergeReceipts(pub, priv types.Receipts) types.Receipts {
 
 // makeCurrent creates a new environment for the current cycle.
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
-	publicState, privateState, err := w.chain.StateAt(parent.Root())
+	publicState, privateState, _, err := w.chain.StateAt(parent.Root())
 	if err != nil {
 		return err
 	}

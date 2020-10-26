@@ -268,7 +268,7 @@ func (minter *minter) createWork() *work {
 		Time:       uint64(tstamp),
 	}
 
-	publicState, privateState, err := minter.chain.StateAt(parent.Root())
+	publicState, privateState, _, err := minter.chain.StateAt(parent.Root())
 	if err != nil {
 		panic(fmt.Sprint("failed to get parent state: ", err))
 	}

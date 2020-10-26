@@ -149,10 +149,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 
 	// Ensure we have a valid starting state before doing any work
 	origin := start.NumberU64()
-	database := state.NewDatabaseWithCache(api.eth.ChainDb(), 16, "") // Chain tracing will probably start at genesis
-	// Quorum
-	privateDatabase := state.NewDatabaseWithCache(api.eth.ChainDb(), 16, "")
-	// End Quorum
+	database := state.NewDatabaseWithCache(api.eth.ChainDb(), 16) // Chain tracing will probably start at genesis
 
 	if number := start.NumberU64(); number > 0 {
 		start = api.eth.blockchain.GetBlock(start.ParentHash(), start.NumberU64()-1)
@@ -160,7 +157,8 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			return nil, fmt.Errorf("parent block #%d not found", number-1)
 		}
 	}
-	statedb, privateStateDb, err := state.NewDual(start.Root(), database, nil, api.eth.chainDb, privateDatabase, nil)
+	// TODO identify the relevant PSI
+	statedb, privateStateDb, _, err := api.eth.blockchain.StateAt(start.Root())
 	if err != nil {
 		// If the starting state is missing, allow some number of blocks to be reexecuted
 		reexec := defaultTraceReexec
@@ -173,9 +171,8 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			if start == nil {
 				break
 			}
-
-			// Quorum - use NewDual(...) to create private state too
-			if statedb, privateStateDb, err = state.NewDual(start.Root(), database, nil, api.eth.chainDb, privateDatabase, nil); err == nil {
+			statedb, privateStateDb, _, err = api.eth.blockchain.StateAt(start.Root())
+			if err == nil {
 				break
 			}
 		}
@@ -297,7 +294,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 				traced += uint64(len(txs))
 			}
 			// Generate the next state snapshot fast without tracing
-			_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, privateStateDb, vm.Config{})
+			_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, privateStateDb, nil, vm.Config{})
 			if err != nil {
 				failed = err
 				break
@@ -670,25 +667,21 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 // attempted to be reexecuted to generate the desired state.
 func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, *state.StateDB, error) {
 	// If we have the state fully available, use that
-	statedb, privateStateDb, err := api.eth.blockchain.StateAt(block.Root())
+	statedb, privateStateDb, _, err := api.eth.blockchain.StateAt(block.Root())
 	if err == nil {
 		return statedb, privateStateDb, nil
 	}
 	// Otherwise try to reexec blocks until we find a state or reach our limit
 	origin := block.NumberU64()
-	database := state.NewDatabaseWithCache(api.eth.ChainDb(), 16, "")
-	// Quorum
-	privateDatabase := state.NewDatabaseWithCache(api.eth.ChainDb(), 16, "")
-	// End Quorum
+	database := state.NewDatabaseWithCache(api.eth.ChainDb(), 16)
 
 	for i := uint64(0); i < reexec; i++ {
 		block = api.eth.blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1)
 		if block == nil {
 			break
 		}
-
-		// Quorum - use NewDual(...) to create private state too
-		if statedb, privateStateDb, err = state.NewDual(block.Root(), database, nil, api.eth.chainDb, privateDatabase, nil); err == nil {
+		statedb, privateStateDb, _, err = api.eth.blockchain.StateAt(block.Root())
+		if err == nil {
 			break
 		}
 	}
@@ -716,7 +709,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if block = api.eth.blockchain.GetBlockByNumber(block.NumberU64() + 1); block == nil {
 			return nil, nil, fmt.Errorf("block #%d not found", block.NumberU64()+1)
 		}
-		_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, privateStateDb, vm.Config{})
+		_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, privateStateDb, nil, vm.Config{})
 		if err != nil {
 			return nil, nil, fmt.Errorf("processing block %d failed: %v", block.NumberU64(), err)
 		}

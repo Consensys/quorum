@@ -206,6 +206,13 @@ func wsClientHeaders(endpoint, origin string) (string, http.Header, error) {
 		header.Add(HttpAuthorizationHeader, "Basic "+b64auth)
 		endpointURL.User = nil
 	}
+	// TODO remove when the PSI is derived from the auth token
+	// for now it allows for easy testing
+	psi := os.Getenv("PSI")
+	if len(psi) == 0 {
+		psi = "private"
+	}
+	header.Set("PSI", psi)
 	return endpointURL.String(), header, nil
 }
 
