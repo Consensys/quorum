@@ -527,6 +527,9 @@ func TestIsTransactionAllowed_Basic(t *testing.T) {
 	}
 }
 
+
+// TODO: This function to be moved to permission_test.go as EEA does not use cache with latest changes(Amal/Sai)
+
 func TestIsTransactionAllowed_EEA(t *testing.T) {
 	SetDefaults(NETWORKADMIN, ORGADMIN, true)
 	SetDefaultAccess()
