@@ -1521,8 +1521,6 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
 
-	//worker code needs to handle multiple private states
-	//if the miner in istanbul, need to be able to write all the private states because doesn't do it in insertchain
 	return bc.writeBlockWithState(block, receipts, logs, state, psManager, emitHeadEvent)
 }
 
