@@ -362,3 +362,4 @@ jobs:
             curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} -H "Content-type: application/json" --data "@${1}"
           }
           _post "long_message.json" || _post "short_message.json"
+
