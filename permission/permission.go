@@ -34,6 +34,12 @@ func (p *PermissionCtrl) AfterStart() error {
 		return fmt.Errorf("populateInitPermissions failed: %v", err)
 	}
 
+	// set the transaction allowed check function pointer
+	types.PermissionTransactionAllowedFunc = p.TransactionAllowed
+	setPermissionService(p)
+
+	// set the default access to ReadOnly
+	types.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole, p.eeaFlag)
 	for _, f := range []func() error{
 		p.monitorQIP714Block,               // monitor block number to activate new permissions controls
 		p.backend.ManageOrgPermissions,     // monitor org management related events
@@ -51,7 +57,12 @@ func (p *PermissionCtrl) AfterStart() error {
 
 // start service asynchronously due to dependencies
 func (p *PermissionCtrl) asyncStart() {
-	log.Debug("permission service: asyncStart start..")
+	var ethereum *eth.Ethereum
+	// will be blocked here until Node is up
+	if err := p.node.Service(&ethereum); err != nil {
+		p.errorChan <- fmt.Errorf("dependent ethereum service not started")
+		return
+	}
 	defer func() {
 		p.errorChan <- nil
 	}()
@@ -61,7 +72,7 @@ func (p *PermissionCtrl) asyncStart() {
 	// waits for block syncing before the starting permissions
 	p.startWaitGroup.Add(1)
 	go func(_wg *sync.WaitGroup) {
-		log.Info("permission service: waiting for downloader")
+		log.Debug("permission service: waiting for downloader")
 		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		pollingTicker := time.NewTicker(10 * time.Millisecond)
 		defer func(start time.Time) {
@@ -73,8 +84,7 @@ func (p *PermissionCtrl) asyncStart() {
 		for {
 			select {
 			case <-pollingTicker.C:
-				log.Debug("permission service: waiting for downloader ticker")
-				if types.GetSyncStatus() && !p.eth.Downloader().Synchronising() {
+				if types.GetSyncStatus() && !ethereum.Downloader().Synchronising() {
 					return
 				}
 			case <-stopChan:
@@ -85,42 +95,25 @@ func (p *PermissionCtrl) asyncStart() {
 
 	log.Info("permission service: waiting for block sync to complete...")
 	p.startWaitGroup.Wait()
-
-	log.Info("permission service: all dependencies are ready, block sync complete")
-}
-
-func (p *PermissionCtrl) SetDependency() bool {
-	log.Debug("permission service: SetDependency start")
-	var ethereum *eth.Ethereum
-	// will be blocked here until Node is up
-	if err := p.node.Service(&ethereum); err != nil {
-		p.errorChan <- fmt.Errorf("dependent ethereum service not started")
-		return true
-	}
-	// set the default access to ReadOnly
-	types.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole, p.eeaFlag)
-	// set the transaction allowed check function pointer
-	types.PermissionTransactionAllowedFunc = p.TransactionAllowed
-	setPermissionService(p)
 	client, err := p.node.Attach()
 	if err != nil {
 		p.errorChan <- fmt.Errorf("unable to create rpc client: %v", err)
-		return true
+		return
 	}
 	p.ethClnt = ethclient.NewClient(client)
 	p.eth = ethereum
 	p.isRaft = p.eth.BlockChain().Config().Istanbul == nil && p.eth.BlockChain().Config().Clique == nil
 	p.updateBackEnd()
-	log.Debug("permission service: SetDependency end")
-	return false
+	log.Info("permission service: all dependencies are ready, block sync complete")
 }
 
 // monitors QIP714Block and set default access
 func (p *PermissionCtrl) monitorQIP714Block() error {
 	// if QIP714block is not given, set the default access
 	// to readonly
-	if p.eth.BlockChain().Config().QIP714Block == nil {
+	if p.eth.BlockChain().Config().QIP714Block == nil || p.eth.BlockChain().Config().IsQIP714(p.eth.BlockChain().CurrentBlock().Number()) {
 		types.SetDefaultAccess()
+		log.Info("QIP714 block reached", "number", p.eth.BlockChain().CurrentBlock().Number().Uint64())
 		return nil
 	}
 	//QIP714block is given, monitor block count
@@ -134,6 +127,7 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 			select {
 			case head := <-chainHeadCh:
 				if p.eth.BlockChain().Config().IsQIP714(head.Block.Number()) {
+					log.Info("QIP714 block reached", "number", head.Block.Number().Uint64())
 					types.SetDefaultAccess()
 					return
 				}
@@ -171,13 +165,11 @@ func (p *PermissionCtrl) populateInitPermissions(orgCacheSize, roleCacheSize, no
 		log.Warn("Failed to retrieve network boot status ", "err", err)
 		return err
 	}
-	p.networkInitialized = networkInitialized
+
 	if !networkInitialized {
 		if err := p.bootupNetwork(); err != nil {
-			p.networkInitialized = false
 			return err
 		}
-		p.networkInitialized = true
 	} else {
 		//populate orgs, nodes, roles and accounts from contract
 		for _, f := range []func() error{

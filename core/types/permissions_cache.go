@@ -38,14 +38,6 @@ const (
 	Default
 )
 
-type TransactionType uint8
-
-const (
-	ValueTransferTxn TransactionType = iota
-	ContractCallTxn
-	ContractDeployTxn
-)
-
 type OrgStatus uint8
 
 const (
@@ -173,9 +165,6 @@ var (
 
 var syncStarted = false
 
-// TODO (Amal): to be removed
-var NodeAccount map[common.Address]bool
-
 var DefaultAccess = FullAccess
 var QIP714BlockReached = false
 var networkAdminRole string
@@ -198,15 +187,6 @@ type OrgCache struct {
 	mux               sync.Mutex
 	evicted           bool
 	populateCacheFunc func(orgId string) (*OrgInfo, error)
-}
-
-//TODO (Amal): remove once code change is done to add system accounts to contract
-func init() {
-	NodeAccount = make(map[common.Address]bool)
-	NodeAccount[common.HexToAddress("0xd8Dba507e85F116b1f7e231cA8525fC9008A6966")] = true
-	NodeAccount[common.HexToAddress("0x6571D97f340c8495B661a823F2C2145cA47D63c2")] = true
-	NodeAccount[common.HexToAddress("0xe36cbeB565B061217930767886474e3cDe903AC5")] = true
-	NodeAccount[common.HexToAddress("0xF512a992F3fb749857d758fFDa1330e590fa915E")] = true
 }
 
 func (o *OrgCache) PopulateCacheFunc(cf func(string) (*OrgInfo, error)) {
@@ -306,7 +286,6 @@ func (pc *PermissionConfig) IsEmpty() bool {
 
 func SetSyncStatus() {
 	syncStarted = true
-	log.Info("AJ-sync status set")
 }
 
 func GetSyncStatus() bool {
@@ -677,6 +656,7 @@ func IsEEAPermission() bool {
 func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int, gasPrice *big.Int, gasLimit *big.Int, payload []byte, transactionType TransactionType) error {
 	//if we have not reached QIP714 block return full access
 	if !QIP714BlockReached {
+		log.Debug("IsTransactionAllowed QIP714 not reached")
 		return nil
 	}
 
@@ -686,34 +666,9 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 		return nil
 
 	case Basic:
-		if _, ok := NodeAccount[from]; ok {
-			log.Debug("IsTransactionAllowed Basic - node account allowed", "from", from)
-			return nil
-		}
-		switch GetAcctAccess(from) {
-		case ReadOnly:
-			log.Debug("IsTransactionAllowed Basic - readOnly", "from", from)
-			return errors.New("read only account. cannot transact")
-
-		case Transact:
-			if transactionType == ContractDeployTxn {
-				log.Debug("IsTransactionAllowed Basic - no contract create permission", "from", from)
-				return errors.New("account does not have contract create permissions")
-			}
-			log.Debug("IsTransactionAllowed Basic - Transact", "from", from)
-			return nil
-
-		case FullAccess, ContractDeploy:
-			log.Debug("IsTransactionAllowed Basic - FullAccess, ContractDeploy", "from", from)
-			return nil
-
-		}
+		return isTransactionAllowedBasic(from, transactionType)
 
 	case EEA:
-		if _, ok := NodeAccount[from]; ok {
-			log.Debug("IsTransactionAllowed EEA - node account allowed", "from", from)
-			return nil
-		}
 		//if we have not reached QIP714 block return full access
 		if PermissionTransactionAllowedFunc == nil {
 			log.Warn("PermissionTransactionAllowedFunc is not set for permissioned EEA")
@@ -721,13 +676,39 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 		}
 
 		allowed, err := PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload)
-		if err != nil || !allowed {
+		if err != nil {
 			log.Debug("IsTransactionAllowed EEA - not allowed", "from", from, "err", err)
 			return errors.New("account does not have permission")
 		}
-		log.Debug("IsTransactionAllowed EEA - allowed", "from", from)
-		return nil
+		log.Debug("IsTransactionAllowed EEA", "allowed", allowed, "from", from)
+		if allowed {
+			return nil
+		} else {
+			return errors.New("account does not have permission")
+		}
 	}
 
+	return nil
+}
+
+func isTransactionAllowedBasic(from common.Address, transactionType TransactionType) error {
+	switch GetAcctAccess(from) {
+	case ReadOnly:
+		log.Debug("IsTransactionAllowed Basic - readOnly", "from", from)
+		return errors.New("read only account. cannot transact")
+
+	case Transact:
+		if transactionType == ContractDeployTxn {
+			log.Debug("IsTransactionAllowed Basic - no contract create permission", "from", from)
+			return errors.New("account does not have contract create permissions")
+		}
+		log.Debug("IsTransactionAllowed Basic - Transact", "from", from)
+		return nil
+
+	case FullAccess, ContractDeploy:
+		log.Debug("IsTransactionAllowed Basic - FullAccess, ContractDeploy", "from", from)
+		return nil
+
+	}
 	return nil
 }

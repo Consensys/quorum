@@ -422,10 +422,6 @@ func (q *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.S
 }
 
 func (q *QuorumControlsAPI) TransactionAllowed(txa ethapi.SendTxArgs) (bool, error) {
-	/*controlService, err := q.permCtrl.NewPermissionControlService()
-	if err != nil {
-		return false, err
-	}*/
 	var value, gasPrice, gasLimit *big.Int
 	var payload []byte
 	var to, from common.Address

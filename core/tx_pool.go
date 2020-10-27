@@ -560,7 +560,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 			return ErrEtherValueUnsupported
 		}
 		// Check if the sender account is authorized to perform the transaction
-		if err := checkAccountAccess(tx); err != nil {
+		if err := tx.CheckAccountAccess(); err != nil {
 			return err
 		}
 	} else {
@@ -1592,26 +1592,6 @@ func (t *txLookup) Remove(hash common.Hash) {
 	defer t.lock.Unlock()
 
 	delete(t.all, hash)
-}
-
-// checks if the account is has the necessary access for the transaction
-func checkAccountAccess(tx *types.Transaction) error {
-	transactionType := types.ValueTransferTxn
-
-	if tx.To() == nil {
-		transactionType = types.ContractDeployTxn
-	} else if tx.Data() != nil {
-		transactionType = types.ContractCallTxn
-	}
-
-	var to common.Address
-	if tx.To() == nil {
-		to = common.Address{}
-	} else {
-		to = *tx.To()
-	}
-
-	return types.IsTransactionAllowed(tx.From(), to, tx.Value(), tx.GasPrice(), big.NewInt(int64(tx.Gas())), tx.Data(), transactionType)
 }
 
 // helper function to return chainHeadChannel size

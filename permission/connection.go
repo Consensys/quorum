@@ -19,17 +19,15 @@ func isNodePermissionedBasic(enodeId string) bool {
 }
 
 func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, datadir string, direction string) bool {
-	var permissionType types.PermissionModelType
 
-	if permissionService == nil {
-		permissionType = types.Default
-	} else if permissionService.eeaFlag {
-		permissionType = types.EEA
-	} else {
-		permissionType = types.Basic
+	//if we have not reached QIP714 block return full access
+	if !types.QIP714BlockReached {
+		allowed := types.IsNodePermissioned(nodename, currentNode, datadir, direction)
+		log.Debug("isNodePermissioned Default", "allowed", allowed, "url", node.String())
+		return allowed
 	}
-	log.Debug("IsNodePermissioned", "permType", permissionType, "url", node.String())
-	switch permissionType {
+
+	switch types.PermissionModel {
 	case types.Default:
 		allowed := types.IsNodePermissioned(nodename, currentNode, datadir, direction)
 		log.Debug("isNodePermissioned Default", "allowed", allowed, "url", node.String())
@@ -39,7 +37,12 @@ func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, d
 		allowed := isNodePermissionedBasic(node.EnodeID())
 		log.Debug("isNodePermissioned Basic", "allowed", allowed, "url", node.String())
 		return allowed
+
 	case types.EEA:
+		if permissionService == nil {
+			log.Error("permissionService is not set")
+			return false
+		}
 		allowed, err := permissionService.ConnectionAllowed(node.EnodeID(), node.IP().String(), uint16(node.TCP()), uint16(node.RaftPort()))
 		log.Debug("isNodePermissioned EEA", "allowed", allowed, "url", node.String())
 		if err != nil {

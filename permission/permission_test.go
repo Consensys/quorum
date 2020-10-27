@@ -74,8 +74,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	types.QIP714BlockReached = true
-	var eeaFlagVer = []bool{false, true}
+	var eeaFlagVer = []bool{false}
 	var ret int
 	for i := range eeaFlagVer {
 		eeaFlag = eeaFlagVer[i]
@@ -413,7 +412,7 @@ func testConnectionAllowed(t *testing.T, q *QuorumControlsAPI, url string, expec
 	if q.permCtrl.eeaFlag {
 		enode, ip, port, raftPort, err := ptype.GetNodeDetails(url, false, false)
 		assert.NoError(t, err)
-		connAllowed, err := q.permCtrl.ConnectionAllowed(enode, ip, port, raftPort)
+		connAllowed, err := q.ConnectionAllowed(enode, ip, port, raftPort)
 		assert.NoError(t, err)
 		assert.Equal(t, expected, connAllowed)
 	} else {
@@ -491,7 +490,8 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 }
 
 func testTransactionAllowed(t *testing.T, q *QuorumControlsAPI, txa ethapi.SendTxArgs, expected bool) {
-	actAllowed, _ := q.TransactionAllowed(txa)
+	actAllowed, lerr := q.TransactionAllowed(txa)
+	t.Logf("testTransactionAllowed err=%v", lerr)
 	assert.Equal(t, expected, actAllowed)
 }
 
@@ -723,6 +723,7 @@ func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
 
 	testObject.ethClnt = contrBackend
 	testObject.eth = ethereum
+
 	// set contract and backend's contract as asyncStart won't get called
 	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.eeaFlag, testObject.key, testObject.permConfig, false, false)
 	if eeaFlag {
