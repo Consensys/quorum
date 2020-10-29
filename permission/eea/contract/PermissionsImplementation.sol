@@ -713,11 +713,10 @@ contract PermissionsImplementation {
       * @param _enodeId enode id
       * @param _ip IP of node
       * @param _port tcp port of node
-      * @param _raftport raft port of node
       * @return bool indicating if the node is allowed to connect or not
       */
-    function connectionAllowed(string calldata _enodeId, string calldata _ip, uint16 _port, uint16 _raftport) external view returns (bool) {
-        return nodeManager.connectionAllowed(_enodeId, _ip, _port, _raftport);
+    function connectionAllowed(string calldata _enodeId, string calldata _ip, uint16 _port) external view returns (bool) {
+        return nodeManager.connectionAllowed(_enodeId, _ip, _port);
     }
 
     /** @notice checks if the account is allowed to transact or not

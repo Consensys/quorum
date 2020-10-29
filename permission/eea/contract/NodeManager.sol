@@ -293,10 +293,9 @@ contract NodeManager {
     * @param _enodeId enode id
     * @param _ip IP of node
     * @param _port tcp port of node
-    * @param _raftport raft port of node
     * @return bool indicating if the node is allowed to connect or not
     */
-    function connectionAllowed(string memory _enodeId, string memory _ip, uint16 _port, uint16 _raftport) public view onlyImplementation
+    function connectionAllowed(string memory _enodeId, string memory _ip, uint16 _port) public view onlyImplementation
     returns (bool){
         if (enodeIdToIndex[keccak256(abi.encode(_enodeId))] == 0) {
             return false;
