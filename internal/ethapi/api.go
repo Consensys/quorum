@@ -1555,9 +1555,9 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	}
 	receipt := receipts[index]
 	if receipt.MTVersions != nil {
-		psi, ok := ctx.Value("PSI").(string)
-		if !ok {
-			psi = "private"
+		psi, err := core.PSIS.ResolveForUserContext(ctx)
+		if err != nil {
+			return nil, err
 		}
 		mtReceipt, found := receipt.MTVersions[psi]
 		if found {
