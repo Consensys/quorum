@@ -97,19 +97,20 @@ func (spm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransaction
 	return true
 }
 
-func (spm *StubPrivateTransactionManager) Receive(txHash common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
+func (spm *StubPrivateTransactionManager) Receive(txHash common.EncryptedPayloadHash) ([]string, []byte, *engine.ExtraMetadata, error) {
 	res := spm.responses[txHash]
 	if err, ok := res[1].(error); ok {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if ret, ok := res[0].([]byte); ok {
-		return ret, &engine.ExtraMetadata{
+		return nil, ret, &engine.ExtraMetadata{
 			PrivacyFlag: engine.PrivacyFlagStandardPrivate,
 		}, nil
 	}
-	return nil, nil, nil
+	return nil, nil, nil, nil
 }
 
-func (spm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
-	return spm.Receive(data)
+func (spm *StubPrivateTransactionManager) ReceiveRaw(hash common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error) {
+	sender, data, metadata, err := spm.Receive(hash)
+	return data, sender[0], metadata, err
 }

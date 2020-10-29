@@ -357,7 +357,7 @@ func (t *Transaction) PrivateInputData(ctx context.Context) (*hexutil.Bytes, err
 		return &hexutil.Bytes{}, err
 	}
 	if tx.IsPrivate() {
-		privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+		_, privateInputData, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 		if err != nil || tx == nil {
 			return &hexutil.Bytes{}, err
 		}

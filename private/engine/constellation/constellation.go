@@ -30,20 +30,20 @@ func New(client *engine.Client) *constellation {
 	}
 }
 
-func (g *constellation) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
+func (g *constellation) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]string, common.EncryptedPayloadHash, error) {
 	if extra.PrivacyFlag.IsNotStandardPrivate() {
-		return common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements
+		return nil, common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements
 	}
 	out, err := g.node.SendPayload(data, from, to, extra.ACHashes, extra.ACMerkleRoot)
 	if err != nil {
-		return common.EncryptedPayloadHash{}, err
+		return nil, common.EncryptedPayloadHash{}, err
 	}
 	cacheKey := string(out.Bytes())
 	g.c.Set(cacheKey, cache.PrivateCacheItem{
 		Payload: data,
 		Extra:   *extra,
 	}, cache.DefaultExpiration)
-	return out, nil
+	return nil, out, nil
 }
 
 func (g *constellation) EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
@@ -58,12 +58,12 @@ func (g *constellation) StoreRaw(data []byte, from string) (common.EncryptedPayl
 	return common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerNotSupported
 }
 
-func (g *constellation) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) (out []byte, err error) {
-	return nil, engine.ErrPrivateTxManagerNotSupported
+func (g *constellation) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]string, []byte, error) {
+	return nil, nil, engine.ErrPrivateTxManagerNotSupported
 }
 
-func (g *constellation) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
-	return nil, nil, engine.ErrPrivateTxManagerNotSupported
+func (g *constellation) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error) {
+	return nil, "", nil, engine.ErrPrivateTxManagerNotSupported
 }
 
 func (g *constellation) IsSender(txHash common.EncryptedPayloadHash) (bool, error) {
@@ -74,9 +74,9 @@ func (g *constellation) GetParticipants(txHash common.EncryptedPayloadHash) ([]s
 	return nil, engine.ErrPrivateTxManagerNotSupported
 }
 
-func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
+func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]string, []byte, *engine.ExtraMetadata, error) {
 	if common.EmptyEncryptedPayloadHash(data) {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	// Ignore this error since not being a recipient of
 	// a payload isn't an error.
@@ -87,13 +87,13 @@ func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engi
 	if found {
 		cacheItem, ok := x.(cache.PrivateCacheItem)
 		if !ok {
-			return nil, nil, fmt.Errorf("unknown cache item. expected type PrivateCacheItem")
+			return nil, nil, nil, fmt.Errorf("unknown cache item. expected type PrivateCacheItem")
 		}
-		return cacheItem.Payload, &cacheItem.Extra, nil
+		return nil, cacheItem.Payload, &cacheItem.Extra, nil
 	}
 	privatePayload, acHashes, acMerkleRoot, err := g.node.ReceivePayload(data)
 	if nil != err {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	extra := engine.ExtraMetadata{
 		ACHashes:     acHashes,
@@ -103,7 +103,7 @@ func (g *constellation) Receive(data common.EncryptedPayloadHash) ([]byte, *engi
 		Payload: privatePayload,
 		Extra:   extra,
 	}, cache.DefaultExpiration)
-	return privatePayload, &extra, nil
+	return nil, privatePayload, &extra, nil
 }
 
 func (g *constellation) Name() string {

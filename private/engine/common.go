@@ -21,8 +21,11 @@ type ExtraMetadata struct {
 	ACHashes common.EncryptedPayloadHashes
 	// Root Hash of a Merkle Trie containing all affected contract account in state objects
 	ACMerkleRoot common.Hash
-	//Privacy flag for contract: standardPrivate, partyProtection, psv
+	// Privacy flag for contract: standardPrivate, partyProtection, psv
 	PrivacyFlag PrivacyFlagType
+	// Contract participants that are managed by the corresponding Tessera.
+	// Being used in Multi Tenancy
+	ManagedParties []string
 }
 
 type Client struct {

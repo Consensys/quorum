@@ -20,12 +20,15 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -131,7 +134,7 @@ func TestSimulateExecution_whenStandardPrivateCreation(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
-	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
 
 	assert.NoError(err, "simulate execution")
 	assert.Empty(affectedCACreationTxHashes, "creation tx should not have any affected contract creation tx hashes")
@@ -142,7 +145,7 @@ func TestSimulateExecution_whenPartyProtectionCreation(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
-	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
 
 	assert.NoError(err, "simulation execution")
 	assert.Empty(affectedCACreationTxHashes, "creation tx should not have any affected contract creation tx hashes")
@@ -153,7 +156,7 @@ func TestSimulateExecution_whenCreationWithStateValidation(t *testing.T) {
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStateValidation
 
-	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractCreationTx, privateTxArgs)
 
 	assert.NoError(err, "simulate execution")
 	assert.Empty(affectedCACreationTxHashes, "creation tx should not have any affected contract creation tx hashes")
@@ -168,7 +171,7 @@ func TestSimulateExecution_whenStandardPrivateMessageCall(t *testing.T) {
 	privateStateDB.SetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}))
 
@@ -181,7 +184,7 @@ func TestSimulateExecution_StandardPrivateMessageCallSucceedsWheContractNotAvail
 	assert := assert.New(t)
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
-	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}))
 
@@ -203,7 +206,7 @@ func TestSimulateExecution_whenPartyProtectionMessageCall(t *testing.T) {
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	expectedCACreationTxHashes := []common.EncryptedPayloadHash{arbitrarySimpleStorageContractEncryptedPayloadHash}
 
@@ -223,7 +226,7 @@ func TestSimulateExecution_whenPartyProtectionMessageCallAndPrivacyEnhancementsD
 	defer func() { params.QuorumTestChainConfig.PrivacyEnhancementsBlock = big.NewInt(0) }()
 
 	stbBackend := &StubBackend{}
-	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, stbBackend, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecutionForPE(arbitraryCtx, stbBackend, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	// the simulation returns early without executing the transaction
 	assert.False(stbBackend.getEVMCalled, "simulation is ended early - before getEVM is called")
@@ -245,7 +248,7 @@ func TestSimulateExecution_whenStateValidationMessageCall(t *testing.T) {
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	affectedCACreationTxHashes, merkleRoot, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	affectedCACreationTxHashes, merkleRoot, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	expectedCACreationTxHashes := []common.EncryptedPayloadHash{arbitrarySimpleStorageContractEncryptedPayloadHash}
 
@@ -266,7 +269,7 @@ func TestSimulateExecution_PrivacyFlagPartyProtectionCallingStandardPrivateContr
 	privateStateDB.SetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	_, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, standardPrivateSimpleStorageContractMessageCallTx, privateTxArgs)
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitraryStandardPrivateSimpleStorageContractAddress, common.Hash{0}))
 
@@ -286,7 +289,7 @@ func TestSimulateExecution_StandardPrivateFlagCallingPartyProtectionContract_Err
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	_, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	assert.Error(err, "simulate execution")
 }
@@ -304,7 +307,7 @@ func TestSimulateExecution_StandardPrivateFlagCallingStateValidationContract_Err
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	_, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitrarySimpleStorageContractAddress, common.Hash{0}))
 
@@ -324,7 +327,7 @@ func TestSimulateExecution_PartyProtectionFlagCallingStateValidationContract_Err
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	_, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	log.Debug("state", "state", privateStateDB.GetState(arbitrarySimpleStorageContractAddress, common.Hash{0}))
 
@@ -344,7 +347,7 @@ func TestSimulateExecution_StateValidationFlagCallingPartyProtectionContract_Err
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
 
-	_, _, err := simulateExecution(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
+	_, _, err := simulateExecutionForPE(arbitraryCtx, &StubBackend{}, arbitraryFrom, simpleStorageContractMessageCallTx, privateTxArgs)
 
 	//expectedCACreationTxHashes := []common.EncryptedPayloadHash{arbitrarySimpleStorageContractEncryptedPayloadHash}
 
@@ -443,6 +446,14 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 
 type StubBackend struct {
 	getEVMCalled bool
+}
+
+func (sb *StubBackend) ContractIndexer() *index.ContractIndex {
+	panic("implement me")
+}
+
+func (sb *StubBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*security.ContractSecurityAttribute) bool {
+	panic("implement me")
 }
 
 func (sb *StubBackend) GetEVM(ctx context.Context, msg core.Message, state vm.MinimalApiState, header *types.Header) (*vm.EVM, func() error, error) {
@@ -683,8 +694,8 @@ type StubPrivateTransactionManager struct {
 	creation bool
 }
 
-func (sptm *StubPrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (common.EncryptedPayloadHash, error) {
-	return arbitrarySimpleStorageContractEncryptedPayloadHash, nil
+func (sptm *StubPrivateTransactionManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]string, common.EncryptedPayloadHash, error) {
+	return nil, arbitrarySimpleStorageContractEncryptedPayloadHash, nil
 }
 
 func (sptm *StubPrivateTransactionManager) EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
@@ -699,15 +710,15 @@ func (sptm *StubPrivateTransactionManager) StoreRaw(data []byte, from string) (c
 	return arbitrarySimpleStorageContractEncryptedPayloadHash, nil
 }
 
-func (sptm *StubPrivateTransactionManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
-	return arbitrarySimpleStorageContractEncryptedPayloadHash.Bytes(), nil
+func (sptm *StubPrivateTransactionManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]string, []byte, error) {
+	return nil, arbitrarySimpleStorageContractEncryptedPayloadHash.Bytes(), nil
 }
 
-func (sptm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
+func (sptm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error) {
 	if sptm.creation {
-		return hexutil.MustDecode("0x6060604052341561000f57600080fd5b604051602080610149833981016040528080519060200190919050505b806000819055505b505b610104806100456000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680632a1afcd914605157806360fe47b11460775780636d4ce63c146097575b600080fd5b3415605b57600080fd5b606160bd565b6040518082815260200191505060405180910390f35b3415608157600080fd5b6095600480803590602001909190505060c3565b005b341560a157600080fd5b60a760ce565b6040518082815260200191505060405180910390f35b60005481565b806000819055505b50565b6000805490505b905600a165627a7a72305820d5851baab720bba574474de3d09dbeaabc674a15f4dd93b974908476542c23f00029"), nil, nil
+		return hexutil.MustDecode("0x6060604052341561000f57600080fd5b604051602080610149833981016040528080519060200190919050505b806000819055505b505b610104806100456000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680632a1afcd914605157806360fe47b11460775780636d4ce63c146097575b600080fd5b3415605b57600080fd5b606160bd565b6040518082815260200191505060405180910390f35b3415608157600080fd5b6095600480803590602001909190505060c3565b005b341560a157600080fd5b60a760ce565b6040518082815260200191505060405180910390f35b60005481565b806000819055505b50565b6000805490505b905600a165627a7a72305820d5851baab720bba574474de3d09dbeaabc674a15f4dd93b974908476542c23f00029"), "", nil, nil
 	} else {
-		return hexutil.MustDecode("0x60fe47b1000000000000000000000000000000000000000000000000000000000000000e"), nil, nil
+		return hexutil.MustDecode("0x60fe47b1000000000000000000000000000000000000000000000000000000000000000e"), "", nil, nil
 	}
 }
 

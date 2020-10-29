@@ -32,6 +32,8 @@ type storerawRequest struct {
 type sendResponse struct {
 	// Base64-encoded
 	Key string `json:"key"`
+	// Public Keys
+	ManagedParties []string `json:"managedParties"`
 }
 
 type receiveResponse struct {
@@ -44,6 +46,9 @@ type receiveResponse struct {
 	ExecHash string `json:"execHash"`
 
 	PrivacyFlag engine.PrivacyFlagType `json:"privacyFlag"`
+
+	// Public Keys
+	ManagedParties []string `json:"managedParties"`
 }
 
 type sendSignedTxRequest struct {
@@ -60,6 +65,8 @@ type sendSignedTxRequest struct {
 type sendSignedTxResponse struct {
 	// Base64-encoded
 	Key string `json:"key"`
+	// Public Keys
+	ManagedParties []string `json:"managedParties"`
 }
 
 type encryptPayloadResponse struct {

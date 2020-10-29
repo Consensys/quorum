@@ -88,7 +88,7 @@ func (handler *ExtensionHandler) FetchStateData(address common.Address, hash str
 
 func (handler *ExtensionHandler) FetchDataFromPTM(hash string) ([]byte, *state.PrivacyMetadata, bool) {
 	ptmHash, _ := common.Base64ToEncryptedPayloadHash(hash)
-	stateData, extraMetaData, err := handler.ptm.Receive(ptmHash)
+	_, stateData, extraMetaData, err := handler.ptm.Receive(ptmHash)
 
 	if stateData == nil {
 		log.Error("No state data found in PTM", "ptm hash", hash)
@@ -117,7 +117,7 @@ func (handler *ExtensionHandler) UuidIsOwn(address common.Address, uuid string) 
 			return false
 		}
 
-		encryptedPayload, _, err := handler.ptm.Receive(encryptedTxHash)
+		_, encryptedPayload, _, err := handler.ptm.Receive(encryptedTxHash)
 		if err != nil {
 			log.Debug("Extension: payload not found", "err", err)
 			return false

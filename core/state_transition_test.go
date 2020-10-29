@@ -8,25 +8,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/trie"
-
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
-
-	"github.com/ethereum/go-ethereum/accounts/abi"
-
-	"github.com/ethereum/go-ethereum/common/math"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 	testifyassert "github.com/stretchr/testify/assert"
 )
 
@@ -1097,7 +1093,7 @@ func (mpm *mockPrivateTransactionManager) HasFeature(f engine.PrivateTransaction
 	return true
 }
 
-func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
+func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]string, []byte, *engine.ExtraMetadata, error) {
 	mpm.count["Receive"]++
 	values := mpm.returns["Receive"]
 	var (
@@ -1114,7 +1110,7 @@ func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHa
 	if values[2] != nil {
 		r3 = values[2].(error)
 	}
-	return r1, r2, r3
+	return nil, r1, r2, r3
 }
 
 func (mpm *mockPrivateTransactionManager) When(name string) *mockPrivateTransactionManager {
@@ -1344,21 +1340,22 @@ type StubPrivateTransactionManager struct {
 	responses map[string][]interface{}
 }
 
-func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
+func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]string, []byte, *engine.ExtraMetadata, error) {
 	res := spm.responses["Receive"]
 	if err, ok := res[1].(error); ok {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if ret, ok := res[0].([]byte); ok {
-		return ret, &engine.ExtraMetadata{
+		return nil, ret, &engine.ExtraMetadata{
 			PrivacyFlag: engine.PrivacyFlagStandardPrivate,
 		}, nil
 	}
-	return nil, nil, nil
+	return nil, nil, nil, nil
 }
 
-func (spm *StubPrivateTransactionManager) ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error) {
-	return spm.Receive(data)
+func (spm *StubPrivateTransactionManager) ReceiveRaw(hash common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error) {
+	sender, data, metadata, err := spm.Receive(hash)
+	return data, sender[0], metadata, err
 }
 
 func (spm *StubPrivateTransactionManager) HasFeature(f engine.PrivateTransactionManagerFeature) bool {

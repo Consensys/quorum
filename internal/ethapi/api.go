@@ -1700,7 +1700,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 				}
 			}
 		}
-		createdContractAddresses, affectedContracts, err := simulateExecution(ctx, b, from, forSimulation)
+		createdContractAddresses, affectedContracts, err := simulateExecutionForMultitenancy(ctx, b, from, forSimulation)
 		if err != nil {
 			return common.Hash{}, err
 		}
@@ -1810,7 +1810,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 }
 
 func buildPrivateTransaction(tx *types.Transaction) (*types.Transaction, error) {
-	_, privatePayload, revErr := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+	_, privatePayload, _, revErr := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 	if revErr != nil {
 		return nil, revErr
 	}
@@ -1824,7 +1824,7 @@ func buildPrivateTransaction(tx *types.Transaction) (*types.Transaction, error) 
 }
 
 func buildPrivateTransactionFromRaw(tx *types.Transaction) (*types.Transaction, string, error) {
-	privatePayload, privateFrom, revErr := private.P.ReceiveRaw(common.BytesToEncryptedPayloadHash(tx.Data()))
+	privatePayload, privateFrom, _, revErr := private.P.ReceiveRaw(common.BytesToEncryptedPayloadHash(tx.Data()))
 	if revErr != nil {
 		return nil, "", revErr
 	}
@@ -1837,7 +1837,7 @@ func buildPrivateTransactionFromRaw(tx *types.Transaction) (*types.Transaction, 
 	return privateTx, privateFrom, nil
 }
 
-func simulateExecution(ctx context.Context, b Backend, from common.Address, tx *types.Transaction) ([]common.Address, map[common.Address]vm.AffectedMode, error) {
+func simulateExecutionForMultitenancy(ctx context.Context, b Backend, from common.Address, tx *types.Transaction) ([]common.Address, map[common.Address]vm.AffectedMode, error) {
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())
@@ -2449,7 +2449,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != common.EncryptedPayloadHashLength {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	data, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
+	_, data, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
 	if err != nil {
 		return "", err
 	}
@@ -2517,7 +2517,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 		return
 	case RawTransaction:
 		hash = common.BytesToEncryptedPayloadHash(data)
-		privatePayload, _, revErr := private.P.ReceiveRaw(hash)
+		privatePayload, _, _, revErr := private.P.ReceiveRaw(hash)
 		if revErr != nil {
 			return common.EncryptedPayloadHash{}, revErr
 		}
@@ -2528,13 +2528,13 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 		} else {
 			privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
 		}
-		affectedCATxHashes, merkleRoot, err = simulateExecution(ctx, b, from, privateTx, privateTxArgs)
+		affectedCATxHashes, merkleRoot, err = simulateExecutionForPE(ctx, b, from, privateTx, privateTxArgs)
 		log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privateTxArgs.PrivacyFlag, "error", err)
 		if err != nil {
 			return
 		}
 
-		data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
+		_, data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 			ACHashes:     affectedCATxHashes,
 			ACMerkleRoot: merkleRoot,
 			PrivacyFlag:  privateTxArgs.PrivacyFlag,
@@ -2544,13 +2544,13 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 		}
 
 	case NormalTransaction:
-		affectedCATxHashes, merkleRoot, err = simulateExecution(ctx, b, from, tx, privateTxArgs)
+		affectedCATxHashes, merkleRoot, err = simulateExecutionForPE(ctx, b, from, tx, privateTxArgs)
 		log.Trace("after simulation", "affectedCATxHashes", affectedCATxHashes, "merkleRoot", merkleRoot, "privacyFlag", privateTxArgs.PrivacyFlag, "error", err)
 		if err != nil {
 			return
 		}
 
-		hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
+		_, hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 			ACHashes:     affectedCATxHashes,
 			ACMerkleRoot: merkleRoot,
 			PrivacyFlag:  privateTxArgs.PrivacyFlag,
@@ -2576,7 +2576,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts
 // and the merkle root combining all affected contract accounts after the simulation
 //
-func simulateExecution(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (common.EncryptedPayloadHashes, common.Hash, error) {
+func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (common.EncryptedPayloadHashes, common.Hash, error) {
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())

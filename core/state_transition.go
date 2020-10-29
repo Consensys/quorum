@@ -17,7 +17,6 @@
 package core
 
 import (
-	"encoding/hex"
 	"errors"
 	"math"
 	"math/big"
@@ -215,6 +214,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	isQuorum := st.evm.ChainConfig().IsQuorum
 
 	var data []byte
+	var managedParties []string
 	isPrivate := false
 	publicState := st.state
 	pmh := newPMH(st)
@@ -222,7 +222,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		isPrivate = true
 		pmh.snapshot = st.evm.StateDB.Snapshot()
 		pmh.eph = common.BytesToEncryptedPayloadHash(st.data)
-		data, pmh.receivedPrivacyMetadata, err = private.P.Receive(pmh.eph)
+		managedParties, data, pmh.receivedPrivacyMetadata, err = private.P.Receive(pmh.eph)
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call

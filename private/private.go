@@ -37,9 +37,9 @@ type PrivateTransactionManager interface {
 	StoreRaw(data []byte, from string) (common.EncryptedPayloadHash, error)
 	SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]string, []byte, error)
 	// Returns nil payload if not found
-	Receive(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error)
+	Receive(data common.EncryptedPayloadHash) ([]string, []byte, *engine.ExtraMetadata, error)
 	// Returns nil payload if not found
-	ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, *engine.ExtraMetadata, error)
+	ReceiveRaw(data common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error)
 	IsSender(txHash common.EncryptedPayloadHash) (bool, error)
 	GetParticipants(txHash common.EncryptedPayloadHash) ([]string, error)
 	EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error)

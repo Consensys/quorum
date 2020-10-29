@@ -26,8 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/index"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -179,7 +179,7 @@ type EVM struct {
 
 	// these are for privacy enhancements
 	affectedContracts map[common.Address]*AffectedType // affected contract account address -> type
-	currentTx         *types.Transaction              // transaction currently being applied on this EVM
+	currentTx         *types.Transaction               // transaction currently being applied on this EVM
 	addressStack      []common.Address
 }
 
@@ -650,9 +650,9 @@ func getDualState(evm *EVM, addr common.Address) StateDB {
 	return state
 }
 
-func (evm *EVM) PublicState() PublicState           { return env.publicState }
-func (evm *EVM) PrivateState() PrivateState         { return env.privateState }
-func (evm *EVM) SetCurrentTX(tx *types.Transaction) { env.currentTx = tx }
+func (evm *EVM) PublicState() PublicState           { return evm.publicState }
+func (evm *EVM) PrivateState() PrivateState         { return evm.privateState }
+func (evm *EVM) SetCurrentTX(tx *types.Transaction) { evm.currentTx = tx }
 func (evm *EVM) SetTxPrivacyMetadata(pm *types.PrivacyMetadata) {
 	evm.currentTx.SetTxPrivacyMetadata(pm)
 }
@@ -718,10 +718,16 @@ func (evm *EVM) CreatedContracts() []common.Address {
 	return addr[:]
 }
 
-func (evm *EVM) pushAddress(addresses common.Address) {
-	evm.addressStack = append(evm.addressStack, addresses)
+// Quorum
+//
+// pushAddress stores the contract address being affected during EVM execution
+func (evm *EVM) pushAddress(address common.Address) {
+	evm.addressStack = append(evm.addressStack, address)
 }
 
+// Quorum
+//
+// popAddress retrieves the affected contract address from the stack
 func (evm *EVM) popAddress() {
 	l := len(evm.addressStack)
 	if l == 0 {
@@ -730,6 +736,10 @@ func (evm *EVM) popAddress() {
 	evm.addressStack = evm.addressStack[:l-1]
 }
 
+// Quorum
+//
+// captureOperationMode stores the type of operation being applied on the current
+// affected contract whose address is on top of the stack
 func (evm *EVM) captureOperationMode(isWriteOperation bool) {
 	l := len(evm.addressStack)
 	if l == 0 {
@@ -745,6 +755,11 @@ func (evm *EVM) captureOperationMode(isWriteOperation bool) {
 	}
 }
 
+// Quorum
+//
+// AffecteMode returns the type of operation (read/write) which was applied on the given
+// contract address. It returns ModeUnknown if the contract is not affected during
+// the lifecycle of this EVM instance
 func (evm *EVM) AffectedMode(a common.Address) (AffectedMode, error) {
 	if t, ok := evm.affectedContracts[a]; ok {
 		return t.mode, nil
@@ -759,21 +774,14 @@ func newAffectedType(r AffectedReason, m AffectedMode) *AffectedType {
 	}
 }
 
-// Returns all affected contracts that are NOT due to creation transaction
+// Quorum
+//
+// AffectedContracts returns all affected contracts that are the results of
+// MessageCall transaction
 func (evm *EVM) AffectedContracts() []common.Address {
 	addr := make([]common.Address, 0, len(evm.affectedContracts))
 	for a, t := range evm.affectedContracts {
-		if t == MessageCall {
-			addr = append(addr, a)
-		}
-	}
-	return addr[:]
-}
-
-func (evm *EVM) CreatedContracts() []common.Address {
-	addr := make([]common.Address, 0, len(evm.affectedContracts))
-	for a, t := range evm.affectedContracts {
-		if t == Creation {
+		if t.reason == MessageCall {
 			addr = append(addr, a)
 		}
 	}
