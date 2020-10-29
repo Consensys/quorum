@@ -143,7 +143,7 @@ type BoundContract struct {
 	deployer *types.Transaction
 }
 
-// ContractDeployTxn deploys a contract onto the Ethereum blockchain and binds the
+// DeployContract deploys a contract onto the Ethereum blockchain and binds the
 // deployment address with a wrapper.
 func DeployContract(opts *TransactOpts, abiJSON string, bytecode []byte, client *EthereumClient, args *Interfaces) (contract *BoundContract, _ error) {
 	// Deploy the contract to the network

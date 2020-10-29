@@ -1,4 +1,4 @@
-package types
+package p2p
 
 import (
 	"encoding/json"
@@ -25,15 +25,15 @@ func IsNodePermissioned(nodename string, currentNode string, datadir string, dir
 		permissionedList = append(permissionedList, v.ID().String())
 	}
 
-	log.Debug("isNodePermissioned", "permissionedList", permissionedList)
+	log.Debug("IsNodePermissioned", "permissionedList", permissionedList)
 	for _, v := range permissionedList {
 		if v == nodename {
-			log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
+			log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
 			// check if the node is blacklisted
 			return !isNodeBlackListed(nodename, datadir)
 		}
 	}
-	log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "DENIED-BY", currentNode[:NODE_NAME_LENGTH])
+	log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "DENIED-BY", currentNode[:NODE_NAME_LENGTH])
 	return false
 }
 

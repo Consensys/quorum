@@ -75,7 +75,7 @@ type AuditService interface {
 }
 
 type InitService interface {
-	AfterStart() error
+	BindContracts() error
 	Init(_breadth *big.Int, _depth *big.Int) (*types.Transaction, error)
 	UpdateNetworkBootStatus() (*types.Transaction, error)
 	SetPolicy(_nwAdminOrg string, _nwAdminRole string, _oAdminRole string) (*types.Transaction, error)

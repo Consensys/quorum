@@ -155,7 +155,7 @@ func (tx *Transaction) Protected() bool {
 }
 
 // Quorum - function checks for account access to execute the transaction
-func (tx *Transaction) CheckAccountAccess() error {
+func (tx *Transaction) CheckAccountPermission() error {
 	transactionType := ValueTransferTxn
 
 	if tx.To() == nil {

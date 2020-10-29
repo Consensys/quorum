@@ -238,7 +238,7 @@ func (a *Account) AssignAdminRole(_args ptype.TxArgs) (*types.Transaction, error
 // This is to make sure all Contr instances are ready and initialized
 //
 // Required to be call after standard service start lifecycle
-func (i *Init) AfterStart() error {
+func (i *Init) BindContracts() error {
 	log.Debug("permission service: binding contracts")
 	err := i.basicBindContract()
 	if err != nil {

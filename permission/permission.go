@@ -26,7 +26,7 @@ func (p *PermissionCtrl) AfterStart() error {
 	if err != nil {
 		return err
 	}
-	p.contract.AfterStart()
+	p.contract.BindContracts()
 
 	// populate the initial list of permissioned nodes and account accesses
 	if err := p.populateInitPermissions(params.DEFAULT_ORGCACHE_SIZE, params.DEFAULT_ROLECACHE_SIZE,
@@ -34,7 +34,7 @@ func (p *PermissionCtrl) AfterStart() error {
 		return fmt.Errorf("populateInitPermissions failed: %v", err)
 	}
 
-	// set the transaction allowed check function pointer
+	// set the function point for transaction allowed check
 	types.PermissionTransactionAllowedFunc = p.TransactionAllowed
 	setPermissionService(p)
 
@@ -51,7 +51,9 @@ func (p *PermissionCtrl) AfterStart() error {
 			return err
 		}
 	}
+
 	log.Info("permission service: is now ready")
+
 	return nil
 }
 
@@ -66,8 +68,7 @@ func (p *PermissionCtrl) asyncStart() {
 	defer func() {
 		p.errorChan <- nil
 	}()
-
-	// for cases where the Node is joining an existing network, permission service
+	// for cases where the node is joining an existing network, permission service
 	// can be brought up only after block syncing is complete. This function
 	// waits for block syncing before the starting permissions
 	p.startWaitGroup.Add(1)
@@ -76,7 +77,7 @@ func (p *PermissionCtrl) asyncStart() {
 		stopChan, stopSubscription := ptype.SubscribeStopEvent()
 		pollingTicker := time.NewTicker(10 * time.Millisecond)
 		defer func(start time.Time) {
-			log.Info("permission service: downloader completed", "took", time.Since(start))
+			log.Debug("permission service: downloader completed", "took", time.Since(start))
 			stopSubscription.Unsubscribe()
 			pollingTicker.Stop()
 			_wg.Done()
@@ -93,7 +94,7 @@ func (p *PermissionCtrl) asyncStart() {
 		}
 	}(p.startWaitGroup) // wait for downloader to sync if any
 
-	log.Info("permission service: waiting for block sync to complete...")
+	log.Debug("permission service: waiting for all dependencies to be ready")
 	p.startWaitGroup.Wait()
 	client, err := p.node.Attach()
 	if err != nil {
@@ -104,7 +105,6 @@ func (p *PermissionCtrl) asyncStart() {
 	p.eth = ethereum
 	p.isRaft = p.eth.BlockChain().Config().Istanbul == nil && p.eth.BlockChain().Config().Clique == nil
 	p.updateBackEnd()
-	log.Info("permission service: all dependencies are ready, block sync complete")
 }
 
 // monitors QIP714Block and set default access
@@ -113,7 +113,6 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 	// to readonly
 	if p.eth.BlockChain().Config().QIP714Block == nil || p.eth.BlockChain().Config().IsQIP714(p.eth.BlockChain().CurrentBlock().Number()) {
 		types.SetDefaultAccess()
-		log.Info("QIP714 block reached", "number", p.eth.BlockChain().CurrentBlock().Number().Uint64())
 		return nil
 	}
 	//QIP714block is given, monitor block count
@@ -127,7 +126,6 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 			select {
 			case head := <-chainHeadCh:
 				if p.eth.BlockChain().Config().IsQIP714(head.Block.Number()) {
-					log.Info("QIP714 block reached", "number", head.Block.Number().Uint64())
 					types.SetDefaultAccess()
 					return
 				}
@@ -278,14 +276,14 @@ func (p *PermissionCtrl) populateOrgsFromContract() error {
 	return nil
 }
 
-// Reads the Node list from static-nodes.json and populates into the contract
+// Reads the node list from static-nodes.json and populates into the contract
 func (p *PermissionCtrl) populateStaticNodesToContract() error {
 	nodes := p.node.Server().Config.StaticNodes
 	for _, node := range nodes {
 		url := types.GetNodeUrl(node.EnodeID(), node.IP().String(), uint16(node.TCP()), uint16(node.RaftPort()), p.isRaft)
 		_, err := p.contract.AddAdminNode(url)
 		if err != nil {
-			log.Warn("Failed to propose Node", "err", err, "enode", node.EnodeID())
+			log.Warn("Failed to propose node", "err", err, "enode", node.EnodeID())
 			return err
 		}
 		types.NodeInfoMap.UpsertNode(p.permConfig.NwAdminOrg, url, 2)
