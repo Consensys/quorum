@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
@@ -22,14 +23,14 @@ func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, d
 
 	//if we have not reached QIP714 block return full access
 	if !types.QIP714BlockReached {
-		allowed := types.IsNodePermissioned(nodename, currentNode, datadir, direction)
+		allowed := p2p.IsNodePermissioned(nodename, currentNode, datadir, direction)
 		log.Debug("isNodePermissioned Default", "allowed", allowed, "url", node.String())
 		return allowed
 	}
 
 	switch types.PermissionModel {
 	case types.Default:
-		allowed := types.IsNodePermissioned(nodename, currentNode, datadir, direction)
+		allowed := p2p.IsNodePermissioned(nodename, currentNode, datadir, direction)
 		log.Debug("isNodePermissioned Default", "allowed", allowed, "url", node.String())
 		return allowed
 

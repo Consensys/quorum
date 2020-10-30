@@ -31,7 +31,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/mclock"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -1020,7 +1019,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 		}
 
 		if srv.isNodePermissionedFunc == nil {
-			if !types.IsNodePermissioned(nodeId, currentNode, srv.DataDir, direction) {
+			if !IsNodePermissioned(nodeId, currentNode, srv.DataDir, direction) {
 				return newPeerError(errPermissionDenied, "id=%s…%s %s id=%s…%s", currentNode[:4], currentNode[len(currentNode)-4:], direction, nodeId[:4], nodeId[len(nodeId)-4:])
 			}
 		} else if !srv.isNodePermissionedFunc(node, nodeId, currentNode, srv.DataDir, direction) {
