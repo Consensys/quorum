@@ -7,11 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/log"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 )
 
 type AccessType uint8
@@ -308,7 +306,6 @@ func SetDefaults(nwRoleId, oaRoleId string, eeaFlag bool) {
 	} else {
 		PermissionModel = Basic
 	}
-	log.Debug("SetDefaults", "permType", PermissionModel, "eea", EEA, "basic", Basic, "Def", Default)
 }
 
 func GetDefaults() (string, string, AccessType) {
@@ -563,8 +560,7 @@ func GetAcctAccess(acctId common.Address) AccessType {
 			}
 		}
 	}
-
-	return ReadOnly
+	return DefaultAccess
 }
 
 //checks if the given org is active in the network
@@ -656,31 +652,25 @@ func IsEEAPermission() bool {
 func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int, gasPrice *big.Int, gasLimit *big.Int, payload []byte, transactionType TransactionType) error {
 	//if we have not reached QIP714 block return full access
 	if !QIP714BlockReached {
-		log.Debug("IsTransactionAllowed QIP714 not reached")
 		return nil
 	}
 
 	switch PermissionModel {
 	case Default:
-		log.Debug("IsTransactionAllowed Default", "from", from, "perm", "full")
 		return nil
 
 	case Basic:
 		return isTransactionAllowedBasic(from, transactionType)
 
 	case EEA:
-		//if we have not reached QIP714 block return full access
 		if PermissionTransactionAllowedFunc == nil {
-			log.Warn("PermissionTransactionAllowedFunc is not set for permissioned EEA")
-			return nil
+			return errors.New("account does not have permission for the transaction")
 		}
 
 		allowed, err := PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload)
 		if err != nil {
-			log.Debug("IsTransactionAllowed EEA - not allowed", "from", from, "err", err)
-			return errors.New("account does not have permission")
+			return errors.New("account does not have permission for the transaction")
 		}
-		log.Debug("IsTransactionAllowed EEA", "allowed", allowed, "from", from)
 		if allowed {
 			return nil
 		} else {
@@ -694,19 +684,15 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 func isTransactionAllowedBasic(from common.Address, transactionType TransactionType) error {
 	switch GetAcctAccess(from) {
 	case ReadOnly:
-		log.Debug("IsTransactionAllowed Basic - readOnly", "from", from)
-		return errors.New("read only account. cannot transact")
+		return errors.New("account does not have permission for the transaction")
 
 	case Transact:
 		if transactionType == ContractDeployTxn {
-			log.Debug("IsTransactionAllowed Basic - no contract create permission", "from", from)
-			return errors.New("account does not have contract create permissions")
+			return errors.New("account does not have permission for the transaction")
 		}
-		log.Debug("IsTransactionAllowed Basic - Transact", "from", from)
 		return nil
 
 	case FullAccess, ContractDeploy:
-		log.Debug("IsTransactionAllowed Basic - FullAccess, ContractDeploy", "from", from)
 		return nil
 
 	}
