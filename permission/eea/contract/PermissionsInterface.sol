@@ -323,17 +323,6 @@ contract PermissionsInterface {
         return permImplementation.validateAccount(_account, _orgId);
     }
 
-    /** @notice checks if the node is allowed to connect or not (for Quorum with support for raftport)
-     * @param _enodeId enode id
-     * @param _ip IP of node
-     * @param _port tcp port of node
-     * @param _raftport raft port of node
-     * @return bool indicating if the node is allowed to connect or not
-     */
-    function connectionAllowedImpl(string calldata _enodeId, string calldata _ip, uint16 _port, uint16 _raftport) external view returns (bool) {
-        return permImplementation.connectionAllowed(_enodeId, _ip, _port, _raftport);
-    }
-
     /** @notice  checks if the node is allowed to connect or not
       * @param _enodeId enode id
       * @param _ip IP of node
@@ -341,7 +330,7 @@ contract PermissionsInterface {
       * @return bool indicating if the node is allowed to connect or not
       */
     function connectionAllowed(string calldata _enodeId, string calldata _ip, uint16 _port) external view returns (bool) {
-        return this.connectionAllowedImpl(_enodeId, _ip, _port, 0);
+        return permImplementation.connectionAllowed(_enodeId, _ip, _port);
     }
 
 

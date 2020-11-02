@@ -193,7 +193,7 @@ func (i *Init) GetOrgDetails(_orgId string) (string, string, string, *big.Int, *
 // This is to make sure all contract instances are ready and initialized
 //
 // Required to be call after standard service start lifecycle
-func (i *Init) AfterStart() error {
+func (i *Init) BindContracts() error {
 	log.Debug("permission service: binding contracts")
 
 	err := i.eeaBindContract()
@@ -211,12 +211,12 @@ func (a *Audit) GetPendingOperation(_orgId string) (string, string, common.Addre
 
 func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error) {
 	url := types.GetNodeUrl(_enodeId, _ip, _port, _raftPort, c.Backend.IsRaft)
-	enodeId, ip, port, raftPort, err := getNodeDetails(url, c.Backend.IsRaft, c.Backend.UseDns)
+	enodeId, ip, port, _, err := getNodeDetails(url, c.Backend.IsRaft, c.Backend.UseDns)
 	if err != nil {
 		return false, err
 	}
 
-	return c.Backend.PermInterfSession.ConnectionAllowedImpl(enodeId, ip, port, raftPort)
+	return c.Backend.PermInterfSession.ConnectionAllowed(enodeId, ip, port)
 }
 
 func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {

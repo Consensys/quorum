@@ -409,14 +409,14 @@ func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 }
 
 func testConnectionAllowed(t *testing.T, q *QuorumControlsAPI, url string, expected bool) {
+	enode, ip, port, raftPort, err := ptype.GetNodeDetails(url, false, false)
 	if q.permCtrl.eeaFlag {
-		enode, ip, port, raftPort, err := ptype.GetNodeDetails(url, false, false)
 		assert.NoError(t, err)
 		connAllowed, err := q.ConnectionAllowed(enode, ip, port, raftPort)
 		assert.NoError(t, err)
 		assert.Equal(t, expected, connAllowed)
 	} else {
-		assert.Equal(t, isNodePermissionedBasic(url), expected)
+		assert.Equal(t, isNodePermissionedBasic(url, enode, enode, "INCOMING"), expected)
 	}
 }
 

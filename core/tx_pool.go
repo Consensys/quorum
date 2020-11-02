@@ -560,7 +560,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 			return ErrEtherValueUnsupported
 		}
 		// Check if the sender account is authorized to perform the transaction
-		if err := tx.CheckAccountAccess(); err != nil {
+		if err := tx.CheckAccountPermission(); err != nil {
 			return err
 		}
 	} else {

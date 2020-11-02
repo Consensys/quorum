@@ -6,8 +6,6 @@ import (
 	"math/big"
 	"regexp"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -146,86 +144,14 @@ func (q *QuorumControlsAPI) GetOrgDetails(orgId string) (types.OrgDetailInfo, er
 	return types.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList, SubOrgList: orgRec.SubOrgList}, nil
 }
 
-func (q *QuorumControlsAPI) initRoleService(txa ethapi.SendTxArgs) (ptype.RoleService, error) {
-	var err error
-	var w accounts.Wallet
-
-	w, err = q.validateAccount(txa.From)
-	if err != nil {
-		return nil, types.ErrInvalidAccount
-	}
-
-	transactOpts := q.getTxParams(txa, w)
-	roleService, err := q.permCtrl.NewPermissionRoleService(transactOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	return roleService, nil
-}
-
-func (q *QuorumControlsAPI) initAccountService(txa ethapi.SendTxArgs) (ptype.AccountService, error) {
-	var err error
-	var w accounts.Wallet
-
-	w, err = q.validateAccount(txa.From)
-	if err != nil {
-		return nil, types.ErrInvalidAccount
-	}
-
-	transactOpts := q.getTxParams(txa, w)
-	accountService, err := q.permCtrl.NewPermissionAccountService(transactOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	return accountService, nil
-}
-
-func (q *QuorumControlsAPI) initOrgService(txa ethapi.SendTxArgs) (ptype.OrgService, error) {
-	var err error
-	var w accounts.Wallet
-
-	w, err = q.validateAccount(txa.From)
-	if err != nil {
-		return nil, types.ErrInvalidAccount
-	}
-
-	transactOpts := q.getTxParams(txa, w)
-	orgService, err := q.permCtrl.NewPermissionOrgService(transactOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	return orgService, nil
-}
-
-func (q *QuorumControlsAPI) initNodeService(txa ethapi.SendTxArgs) (ptype.NodeService, error) {
-	var err error
-	var w accounts.Wallet
-
-	w, err = q.validateAccount(txa.From)
-	if err != nil {
-		return nil, types.ErrInvalidAccount
-	}
-
-	transactOpts := q.getTxParams(txa, w)
-	nodeService, err := q.permCtrl.NewPermissionNodeService(transactOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	return nodeService, nil
-}
-
 func reportExecError(action PermAction, err error) (string, error) {
-	log.Error("Failed to execute permission Action", "Action", action, "err", err)
-	msg := fmt.Sprintf("failed to execute permissions Action: %v", err)
+	log.Error("Failed to execute permission action", "action", action, "err", err)
+	msg := fmt.Sprintf("failed to execute permissions action: %v", err)
 	return "", errors.New(msg)
 }
 
 func (q *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) (string, error) {
-	orgService, err := q.initOrgService(txa)
+	orgService, err := q.permCtrl.NewPermissionOrgService(txa)
 	if err != nil {
 		return "", err
 	}
@@ -238,12 +164,12 @@ func (q *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address
 	if err != nil {
 		return reportExecError(AddOrg, err)
 	}
-	log.Debug("executed permission Action", "Action", AddOrg, "tx", tx)
+	log.Debug("executed permission action", "action", AddOrg, "tx", tx)
 	return actionSuccess, nil
 }
 
 func (q *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, txa ethapi.SendTxArgs) (string, error) {
-	orgService, err := q.initOrgService(txa)
+	orgService, err := q.permCtrl.NewPermissionOrgService(txa)
 	if err != nil {
 		return "", err
 	}
@@ -256,12 +182,12 @@ func (q *QuorumControlsAPI) AddSubOrg(porgId, orgId string, url string, txa etha
 	if err != nil {
 		return reportExecError(AddSubOrg, err)
 	}
-	log.Debug("executed permission Action", "Action", AddSubOrg, "tx", tx)
+	log.Debug("executed permission action", "action", AddSubOrg, "tx", tx)
 	return actionSuccess, nil
 }
 
 func (q *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) (string, error) {
-	orgService, err := q.initOrgService(txa)
+	orgService, err := q.permCtrl.NewPermissionOrgService(txa)
 	if err != nil {
 		return "", err
 	}
@@ -273,12 +199,12 @@ func (q *QuorumControlsAPI) ApproveOrg(orgId string, url string, acct common.Add
 	if err != nil {
 		return reportExecError(ApproveOrg, err)
 	}
-	log.Debug("executed permission Action", "Action", ApproveOrg, "tx", tx)
+	log.Debug("executed permission action", "action", ApproveOrg, "tx", tx)
 	return actionSuccess, nil
 }
 
 func (q *QuorumControlsAPI) UpdateOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) (string, error) {
-	orgService, err := q.initOrgService(txa)
+	orgService, err := q.permCtrl.NewPermissionOrgService(txa)
 	if err != nil {
 		return "", err
 	}
@@ -291,12 +217,12 @@ func (q *QuorumControlsAPI) UpdateOrgStatus(orgId string, status uint8, txa etha
 	if err != nil {
 		return reportExecError(UpdateOrgStatus, err)
 	}
-	log.Debug("executed permission Action", "Action", UpdateOrgStatus, "tx", tx)
+	log.Debug("executed permission action", "action", UpdateOrgStatus, "tx", tx)
 	return actionSuccess, nil
 }
 
 func (q *QuorumControlsAPI) AddNode(orgId string, url string, txa ethapi.SendTxArgs) (string, error) {
-	nodeService, err := q.initNodeService(txa)
+	nodeService, err := q.permCtrl.NewPermissionNodeService(txa)
 	if err != nil {
 		return "", err
 	}
@@ -304,17 +230,17 @@ func (q *QuorumControlsAPI) AddNode(orgId string, url string, txa ethapi.SendTxA
 	if err := q.valAddNode(args); err != nil {
 		return "", err
 	}
-	// check if Node is already there
+	// check if node is already there
 	tx, err := nodeService.AddNode(args)
 	if err != nil {
 		return reportExecError(AddNode, err)
 	}
-	log.Debug("executed permission Action", "Action", AddNode, "tx", tx)
+	log.Debug("executed permission action", "action", AddNode, "tx", tx)
 	return actionSuccess, nil
 }
 
 func (q *QuorumControlsAPI) UpdateNodeStatus(orgId string, url string, action uint8, txa ethapi.SendTxArgs) (string, error) {
-	nodeService, err := q.initNodeService(txa)
+	nodeService, err := q.permCtrl.NewPermissionNodeService(txa)
 	if err != nil {
 		return "", err
 	}
@@ -322,17 +248,17 @@ func (q *QuorumControlsAPI) UpdateNodeStatus(orgId string, url string, action ui
 	if err := q.valUpdateNodeStatus(args, UpdateNodeStatus); err != nil {
 		return "", err
 	}
-	// check Node status for operation
+	// check node status for operation
 	tx, err := nodeService.UpdateNodeStatus(args)
 	if err != nil {
 		return reportExecError(UpdateNodeStatus, err)
 	}
-	log.Debug("executed permission Action", "Action", UpdateNodeStatus, "tx", tx)
+	log.Debug("executed permission action", "action", UpdateNodeStatus, "tx", tx)
 	return actionSuccess, nil
 }
 
 func (q *QuorumControlsAPI) ApproveOrgStatus(orgId string, status uint8, txa ethapi.SendTxArgs) (string, error) {
-	orgService, err := q.initOrgService(txa)
+	orgService, err := q.permCtrl.NewPermissionOrgService(txa)
 	if err != nil {
 		return "", err
 	}
@@ -345,12 +271,12 @@ func (q *QuorumControlsAPI) ApproveOrgStatus(orgId string, status uint8, txa eth
 	if err != nil {
 		return reportExecError(ApproveOrgStatus, err)
 	}
-	log.Debug("executed permission Action", "Action", ApproveOrgStatus, "tx", tx)
+	log.Debug("executed permission action", "action", ApproveOrgStatus, "tx", tx)
 	return actionSuccess, nil
 }
 
 func (q *QuorumControlsAPI) AssignAdminRole(orgId string, acct common.Address, roleId string, txa ethapi.SendTxArgs) (string, error) {
-	accountService, err := q.initAccountService(txa)
+	accountService, err := q.permCtrl.NewPermissionAccountService(txa)
 	if err != nil {
 		return "", err
 	}
@@ -363,12 +289,12 @@ func (q *QuorumControlsAPI) AssignAdminRole(orgId string, acct common.Address, r
 	if err != nil {
 		return reportExecError(AssignAdminRole, err)
 	}
-	log.Debug("executed permission Action", "Action", AssignAdminRole, "tx", tx)
+	log.Debug("executed permission action", "action", AssignAdminRole, "tx", tx)
 	return actionSuccess, nil
 }
 
 func (q *QuorumControlsAPI) ApproveAdminRole(orgId string, acct common.Address, txa ethapi.SendTxArgs) (string, error) {
-	accountService, err := q.initAccountService(txa)
+	accountService, err := q.permCtrl.NewPermissionAccountService(txa)
 	if err != nil {
 		return "", err
 	}
@@ -381,12 +307,12 @@ func (q *QuorumControlsAPI) ApproveAdminRole(orgId string, acct common.Address, 
 	if err != nil {
 		return reportExecError(ApproveAdminRole, err)
 	}
-	log.Debug("executed permission Action", "Action", ApproveAdminRole, "tx", tx)
+	log.Debug("executed permission action", "action", ApproveAdminRole, "tx", tx)
 	return actionSuccess, nil
 }
 
 func (q *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8, isVoter bool, isAdmin bool, txa ethapi.SendTxArgs) (string, error) {
-	roleService, err := q.initRoleService(txa)
+	roleService, err := q.permCtrl.NewPermissionRoleService(txa)
 	if err != nil {
 		return "", err
 	}
@@ -399,12 +325,12 @@ func (q *QuorumControlsAPI) AddNewRole(orgId string, roleId string, access uint8
 	if err != nil {
 		return reportExecError(AddNewRole, err)
 	}
-	log.Debug("executed permission Action", "Action", AddNewRole, "tx", tx)
+	log.Debug("executed permission action", "action", AddNewRole, "tx", tx)
 	return actionSuccess, nil
 }
 
 func (q *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.SendTxArgs) (string, error) {
-	roleService, err := q.initRoleService(txa)
+	roleService, err := q.permCtrl.NewPermissionRoleService(txa)
 	if err != nil {
 		return "", err
 	}
@@ -417,7 +343,132 @@ func (q *QuorumControlsAPI) RemoveRole(orgId string, roleId string, txa ethapi.S
 	if err != nil {
 		return reportExecError(RemoveRole, err)
 	}
-	log.Debug("executed permission Action", "Action", RemoveRole, "tx", tx)
+	log.Debug("executed permission action", "action", RemoveRole, "tx", tx)
+	return actionSuccess, nil
+}
+
+func (q *QuorumControlsAPI) AddAccountToOrg(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) (string, error) {
+	accountService, err := q.permCtrl.NewPermissionAccountService(txa)
+	if err != nil {
+		return "", err
+	}
+	args := ptype.TxArgs{OrgId: orgId, RoleId: roleId, AcctId: acct, Txa: txa}
+
+	if err := q.valAssignRole(args); err != nil {
+		return "", err
+	}
+	tx, err := accountService.AssignAccountRole(args)
+	if err != nil {
+		return reportExecError(AddAccountToOrg, err)
+	}
+	log.Debug("executed permission action", "action", AddAccountToOrg, "tx", tx)
+	return actionSuccess, nil
+}
+func (q *QuorumControlsAPI) ChangeAccountRole(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) (string, error) {
+	accountService, err := q.permCtrl.NewPermissionAccountService(txa)
+	if err != nil {
+		return "", err
+	}
+	args := ptype.TxArgs{OrgId: orgId, RoleId: roleId, AcctId: acct, Txa: txa}
+
+	if err := q.valAssignRole(args); err != nil {
+		return "", err
+	}
+	tx, err := accountService.AssignAccountRole(args)
+	if err != nil {
+		return reportExecError(ChangeAccountRole, err)
+	}
+	log.Debug("executed permission action", "action", ChangeAccountRole, "tx", tx)
+	return actionSuccess, nil
+}
+
+func (q *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Address, status uint8, txa ethapi.SendTxArgs) (string, error) {
+	accountService, err := q.permCtrl.NewPermissionAccountService(txa)
+	if err != nil {
+		return "", err
+	}
+	args := ptype.TxArgs{OrgId: orgId, AcctId: acct, Action: status, Txa: txa}
+
+	if err := q.valUpdateAccountStatus(args, UpdateAccountStatus); err != nil {
+		return "", err
+	}
+	tx, err := accountService.UpdateAccountStatus(args)
+	if err != nil {
+		return reportExecError(UpdateAccountStatus, err)
+	}
+	log.Debug("executed permission action", "action", UpdateAccountStatus, "tx", tx)
+	return actionSuccess, nil
+}
+
+func (q *QuorumControlsAPI) RecoverBlackListedNode(orgId string, enodeId string, txa ethapi.SendTxArgs) (string, error) {
+	nodeService, err := q.permCtrl.NewPermissionNodeService(txa)
+	if err != nil {
+		return "", err
+	}
+	args := ptype.TxArgs{OrgId: orgId, Url: enodeId, Txa: txa}
+
+	if err := q.valRecoverNode(args, InitiateNodeRecovery); err != nil {
+		return "", err
+	}
+	tx, err := nodeService.StartBlacklistedNodeRecovery(args)
+	if err != nil {
+		return reportExecError(InitiateNodeRecovery, err)
+	}
+	log.Debug("executed permission action", "action", InitiateNodeRecovery, "tx", tx)
+	return actionSuccess, nil
+}
+
+func (q *QuorumControlsAPI) ApproveBlackListedNodeRecovery(orgId string, enodeId string, txa ethapi.SendTxArgs) (string, error) {
+	nodeService, err := q.permCtrl.NewPermissionNodeService(txa)
+	if err != nil {
+		return "", err
+	}
+	args := ptype.TxArgs{OrgId: orgId, Url: enodeId, Txa: txa}
+
+	if err := q.valRecoverNode(args, ApproveNodeRecovery); err != nil {
+		return "", err
+	}
+	tx, err := nodeService.ApproveBlacklistedNodeRecovery(args)
+	if err != nil {
+		return reportExecError(ApproveNodeRecovery, err)
+	}
+	log.Debug("executed permission action", "action", ApproveNodeRecovery, "tx", tx)
+	return actionSuccess, nil
+}
+
+func (q *QuorumControlsAPI) RecoverBlackListedAccount(orgId string, acctId common.Address, txa ethapi.SendTxArgs) (string, error) {
+	accountService, err := q.permCtrl.NewPermissionAccountService(txa)
+	if err != nil {
+		return "", err
+	}
+	args := ptype.TxArgs{OrgId: orgId, AcctId: acctId, Txa: txa}
+
+	if err := q.valRecoverAccount(args, InitiateAccountRecovery); err != nil {
+		return "", err
+	}
+	tx, err := accountService.StartBlacklistedAccountRecovery(args)
+	if err != nil {
+		return reportExecError(InitiateAccountRecovery, err)
+	}
+	log.Debug("executed permission action", "action", InitiateAccountRecovery, "tx", tx)
+	return actionSuccess, nil
+}
+
+func (q *QuorumControlsAPI) ApproveBlackListedAccountRecovery(orgId string, acctId common.Address, txa ethapi.SendTxArgs) (string, error) {
+	accountService, err := q.permCtrl.NewPermissionAccountService(txa)
+	if err != nil {
+		return "", err
+	}
+	args := ptype.TxArgs{OrgId: orgId, AcctId: acctId, Txa: txa}
+
+	if err := q.valRecoverAccount(args, ApproveAccountRecovery); err != nil {
+		return "", err
+	}
+	tx, err := accountService.ApproveBlacklistedAccountRecovery(args)
+	if err != nil {
+		return reportExecError(ApproveAccountRecovery, err)
+	}
+	log.Debug("executed permission action", "action", ApproveAccountRecovery, "tx", tx)
 	return actionSuccess, nil
 }
 
@@ -475,131 +526,6 @@ func (q *QuorumControlsAPI) ConnectionAllowed(enodeId, ip string, port, raftPort
 	}
 
 	return controlService.ConnectionAllowed(enodeId, ip, port, raftPort)
-}
-
-func (q *QuorumControlsAPI) AddAccountToOrg(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) (string, error) {
-	accountService, err := q.initAccountService(txa)
-	if err != nil {
-		return "", err
-	}
-	args := ptype.TxArgs{OrgId: orgId, RoleId: roleId, AcctId: acct, Txa: txa}
-
-	if err := q.valAssignRole(args); err != nil {
-		return "", err
-	}
-	tx, err := accountService.AssignAccountRole(args)
-	if err != nil {
-		return reportExecError(AddAccountToOrg, err)
-	}
-	log.Debug("executed permission Action", "Action", AddAccountToOrg, "tx", tx)
-	return actionSuccess, nil
-}
-func (q *QuorumControlsAPI) ChangeAccountRole(acct common.Address, orgId string, roleId string, txa ethapi.SendTxArgs) (string, error) {
-	accountService, err := q.initAccountService(txa)
-	if err != nil {
-		return "", err
-	}
-	args := ptype.TxArgs{OrgId: orgId, RoleId: roleId, AcctId: acct, Txa: txa}
-
-	if err := q.valAssignRole(args); err != nil {
-		return "", err
-	}
-	tx, err := accountService.AssignAccountRole(args)
-	if err != nil {
-		return reportExecError(ChangeAccountRole, err)
-	}
-	log.Debug("executed permission Action", "Action", ChangeAccountRole, "tx", tx)
-	return actionSuccess, nil
-}
-
-func (q *QuorumControlsAPI) UpdateAccountStatus(orgId string, acct common.Address, status uint8, txa ethapi.SendTxArgs) (string, error) {
-	accountService, err := q.initAccountService(txa)
-	if err != nil {
-		return "", err
-	}
-	args := ptype.TxArgs{OrgId: orgId, AcctId: acct, Action: status, Txa: txa}
-
-	if err := q.valUpdateAccountStatus(args, UpdateAccountStatus); err != nil {
-		return "", err
-	}
-	tx, err := accountService.UpdateAccountStatus(args)
-	if err != nil {
-		return reportExecError(UpdateAccountStatus, err)
-	}
-	log.Debug("executed permission Action", "Action", UpdateAccountStatus, "tx", tx)
-	return actionSuccess, nil
-}
-
-func (q *QuorumControlsAPI) RecoverBlackListedNode(orgId string, enodeId string, txa ethapi.SendTxArgs) (string, error) {
-	nodeService, err := q.initNodeService(txa)
-	if err != nil {
-		return "", err
-	}
-	args := ptype.TxArgs{OrgId: orgId, Url: enodeId, Txa: txa}
-
-	if err := q.valRecoverNode(args, InitiateNodeRecovery); err != nil {
-		return "", err
-	}
-	tx, err := nodeService.StartBlacklistedNodeRecovery(args)
-	if err != nil {
-		return reportExecError(InitiateNodeRecovery, err)
-	}
-	log.Debug("executed permission Action", "Action", InitiateNodeRecovery, "tx", tx)
-	return actionSuccess, nil
-}
-
-func (q *QuorumControlsAPI) ApproveBlackListedNodeRecovery(orgId string, enodeId string, txa ethapi.SendTxArgs) (string, error) {
-	nodeService, err := q.initNodeService(txa)
-	if err != nil {
-		return "", err
-	}
-	args := ptype.TxArgs{OrgId: orgId, Url: enodeId, Txa: txa}
-
-	if err := q.valRecoverNode(args, ApproveNodeRecovery); err != nil {
-		return "", err
-	}
-	tx, err := nodeService.ApproveBlacklistedNodeRecovery(args)
-	if err != nil {
-		return reportExecError(ApproveNodeRecovery, err)
-	}
-	log.Debug("executed permission Action", "Action", ApproveNodeRecovery, "tx", tx)
-	return actionSuccess, nil
-}
-
-func (q *QuorumControlsAPI) RecoverBlackListedAccount(orgId string, acctId common.Address, txa ethapi.SendTxArgs) (string, error) {
-	accountService, err := q.initAccountService(txa)
-	if err != nil {
-		return "", err
-	}
-	args := ptype.TxArgs{OrgId: orgId, AcctId: acctId, Txa: txa}
-
-	if err := q.valRecoverAccount(args, InitiateAccountRecovery); err != nil {
-		return "", err
-	}
-	tx, err := accountService.StartBlacklistedAccountRecovery(args)
-	if err != nil {
-		return reportExecError(InitiateAccountRecovery, err)
-	}
-	log.Debug("executed permission Action", "Action", InitiateAccountRecovery, "tx", tx)
-	return actionSuccess, nil
-}
-
-func (q *QuorumControlsAPI) ApproveBlackListedAccountRecovery(orgId string, acctId common.Address, txa ethapi.SendTxArgs) (string, error) {
-	accountService, err := q.initAccountService(txa)
-	if err != nil {
-		return "", err
-	}
-	args := ptype.TxArgs{OrgId: orgId, AcctId: acctId, Txa: txa}
-
-	if err := q.valRecoverAccount(args, ApproveAccountRecovery); err != nil {
-		return "", err
-	}
-	tx, err := accountService.ApproveBlacklistedAccountRecovery(args)
-	if err != nil {
-		return reportExecError(ApproveAccountRecovery, err)
-	}
-	log.Debug("executed permission Action", "Action", ApproveAccountRecovery, "tx", tx)
-	return actionSuccess, nil
 }
 
 // check if the account is network admin
@@ -680,7 +606,7 @@ func (q *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) error {
 
 func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdateAction, permAction PermAction) error {
 	// validates if the enode is linked the passed organization
-	// validate Node id and
+	// validate node id and if the status change can happen
 	if len(url) == 0 {
 		return types.ErrInvalidNode
 	}
@@ -701,7 +627,7 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 		return types.ErrBlacklistedNode
 	}
 
-	// validate the op and Node status and check if the op can be performed
+	// validate the op and node status and check if the op can be performed
 	if (permAction == UpdateNodeStatus && (op != SuspendNode && op != ActivateSuspendedNode && op != BlacklistNode)) ||
 		(permAction == InitiateNodeRecovery && op != RecoverBlacklistedNode) ||
 		(permAction == ApproveNodeRecovery && op != ApproveBlacklistedNodeRecovery) {
@@ -819,7 +745,7 @@ func (q *QuorumControlsAPI) checkNodeExists(url, enodeId string) bool {
 }
 
 func (q *QuorumControlsAPI) valNodeDetails(url string) error {
-	// validate Node id and
+	// validate node id and
 	if len(url) != 0 {
 		enodeDet, err := enode.ParseV4(url)
 		if err != nil {
@@ -828,7 +754,7 @@ func (q *QuorumControlsAPI) valNodeDetails(url string) error {
 		if q.permCtrl.isRaft && !q.permCtrl.useDns && enodeDet.Host() != "" {
 			return types.ErrHostNameNotSupported
 		}
-		// check if Node already there
+		// check if node already there
 		if q.checkNodeExists(url, enodeDet.EnodeID()) {
 			return types.ErrNodePresent
 		}
@@ -860,7 +786,7 @@ func (q *QuorumControlsAPI) valAddOrg(args ptype.TxArgs) error {
 		return er
 	}
 
-	// validate Node id and
+	// validate node id and
 	if er := q.valNodeDetails(args.Url); er != nil {
 		return er
 	}
@@ -1115,7 +1041,7 @@ func (q *QuorumControlsAPI) valRecoverNode(args ptype.TxArgs, action PermAction)
 	if !q.isNetworkAdmin(args.Txa.From) {
 		return types.ErrNotNetworkAdmin
 	}
-	// validate inputs - org id is valid, Node is valid and in blacklisted state
+	// validate inputs - org id is valid, node is valid and in blacklisted state
 	if err := q.validateOrg(args.OrgId, ""); err.Error() != types.ErrOrgExists.Error() {
 		return types.ErrInvalidOrgName
 	}
@@ -1134,7 +1060,7 @@ func (q *QuorumControlsAPI) valRecoverNode(args ptype.TxArgs, action PermAction)
 			return err
 		}
 		enodeId, _, _, _, _ := ptype.GetNodeDetails(args.Url, q.permCtrl.isRaft, q.permCtrl.useDns)
-		// check that there is a pending approval item for Node recovery
+		// check that there is a pending approval item for node recovery
 		if q.permCtrl.eeaFlag {
 			if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.OrgId, enodeId, common.Address{}, 5) {
 				return types.ErrNothingToApprove
@@ -1176,33 +1102,4 @@ func (q *QuorumControlsAPI) valRecoverAccount(args ptype.TxArgs, action PermActi
 		return types.ErrNothingToApprove
 	}
 	return nil
-}
-
-// validateAccount validates the account and returns the wallet associated with that for signing the transaction
-func (q *QuorumControlsAPI) validateAccount(from common.Address) (accounts.Wallet, error) {
-	acct := accounts.Account{Address: from}
-	w, err := q.permCtrl.eth.AccountManager().Find(acct)
-	if err != nil {
-		return nil, err
-	}
-	return w, nil
-}
-
-// getTxParams extracts the transaction related parameters
-func (q *QuorumControlsAPI) getTxParams(txa ethapi.SendTxArgs, w accounts.Wallet) *bind.TransactOpts {
-	fromAcct := accounts.Account{Address: txa.From}
-	transactOpts := bind.NewWalletTransactor(w, fromAcct)
-
-	transactOpts.GasPrice = defaultGasPrice
-	if txa.GasPrice != nil {
-		transactOpts.GasPrice = txa.GasPrice.ToInt()
-	}
-
-	transactOpts.GasLimit = defaultGasLimit
-	if txa.Gas != nil {
-		transactOpts.GasLimit = uint64(*txa.Gas)
-	}
-	transactOpts.From = fromAcct.Address
-
-	return transactOpts
 }

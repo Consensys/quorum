@@ -115,7 +115,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	// /Quorum
 
 	if types.IsEEAPermission() {
-		if err := tx.CheckAccountAccess(); err != nil {
+		if err := tx.CheckAccountPermission(); err != nil {
 			return nil, nil, err
 		}
 	}
