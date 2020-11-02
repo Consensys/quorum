@@ -23,15 +23,15 @@ func isNodePermissionedBasic(enodeId string, nodename string, currentNode string
 	return false
 }
 
-func isNodePerissionedEEA(node *enode.Node, nodename string, currentNode string, direction string) bool {
+func isNodePermissionedEEA(node *enode.Node, nodename string, currentNode string, direction string) bool {
 	if permissionService == nil {
-		log.Debug("isNodePerissionedEEA connection not allowed - permissionService is not set")
+		log.Debug("isNodePermissionedEEA connection not allowed - permissionService is not set")
 		return false
 	}
 	allowed, err := permissionService.ConnectionAllowed(node.EnodeID(), node.IP().String(), uint16(node.TCP()), uint16(node.RaftPort()))
-	log.Debug("isNodePermissioned EEA", "allowed", allowed, "url", node.String())
+	log.Debug("isNodePermissionedEEA EEA", "allowed", allowed, "url", node.String())
 	if err != nil {
-		log.Error("isNodePerissionedEEA connection not allowed", "err", err)
+		log.Error("isNodePermissionedEEA connection not allowed", "err", err)
 		return false
 	}
 	if allowed {
@@ -59,7 +59,7 @@ func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, d
 		return isNodePermissionedBasic(node.EnodeID(), nodename, currentNode, direction)
 
 	case types.EEA:
-		return isNodePerissionedEEA(node, nodename, currentNode, direction)
+		return isNodePermissionedEEA(node, nodename, currentNode, direction)
 	}
 	return false
 }

@@ -159,6 +159,7 @@ var (
 	ErrInvalidInput         = errors.New("Invalid input")
 	ErrNotMasterOrg         = errors.New("Org is not a master org")
 	ErrHostNameNotSupported = errors.New("Hostname not supported in the network")
+	ErrNoPermissionForTxn   = errors.New("account does not have permission for the transaction")
 )
 
 var syncStarted = false
@@ -664,17 +665,17 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 
 	case EEA:
 		if PermissionTransactionAllowedFunc == nil {
-			return errors.New("account does not have permission for the transaction")
+			return ErrNoPermissionForTxn
 		}
 
 		allowed, err := PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload)
 		if err != nil {
-			return errors.New("account does not have permission for the transaction")
+			return ErrNoPermissionForTxn
 		}
 		if allowed {
 			return nil
 		} else {
-			return errors.New("account does not have permission")
+			return ErrNoPermissionForTxn
 		}
 	}
 
@@ -684,11 +685,11 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 func isTransactionAllowedBasic(from common.Address, transactionType TransactionType) error {
 	switch GetAcctAccess(from) {
 	case ReadOnly:
-		return errors.New("account does not have permission for the transaction")
+		return ErrNoPermissionForTxn
 
 	case Transact:
 		if transactionType == ContractDeployTxn {
-			return errors.New("account does not have permission for the transaction")
+			return ErrNoPermissionForTxn
 		}
 		return nil
 
