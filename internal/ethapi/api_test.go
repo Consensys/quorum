@@ -444,11 +444,33 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 
 }
 
+func TestBuildContractSecurityAttributes_whenTypicalMessageCallFromRawPrivateTransaction(t *testing.T) {
+	arbitraryContractAddress := common.StringToAddress("arbitrary contract address")
+	arbitraryData := []byte("arbitrary data input")
+	arbitraryPrivateTx := types.NewTransaction(1, arbitraryContractAddress, big.NewInt(0), 0, big.NewInt(0), arbitraryData)
+	arbitraryPrivateTx.SetPrivate()
+	arbitraryPrivateTxArgs := &PrivateTxArgs{
+		PrivateFrom: "",
+		PrivateFor:  nil,
+	}
+	stubBackend := &StubBackend{}
+
+	attributes, err := buildContractSecurityAttributes(stubBackend, arbitraryPrivateTx, true, arbitraryPrivateTxArgs)
+
+	assert.NoError(t, err)
+	assert.Len(t, attributes, 1)
+	attr := attributes[0]
+	assert.Equal(t, "write", attr.Action)
+	assert.Equal(t, "private", attr.Visibility)
+	assert.Equal(t, "", attr.From) //TODO
+	assert.Equal(t, "", attr.PrivateFrom)
+}
+
 type StubBackend struct {
 	getEVMCalled bool
 }
 
-func (sb *StubBackend) ContractIndexer() *index.ContractIndex {
+func (sb *StubBackend) ContractIndexReader() index.ContractIndexReader {
 	panic("implement me")
 }
 

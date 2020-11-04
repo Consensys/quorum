@@ -607,7 +607,7 @@ func (api *PublicFilterAPI) isAuthorized(ctx context.Context, logs []*types.Log)
 	}
 	authToken, isPreauthenticated := ctx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
 	if isPreauthenticated {
-		contractIndex := api.backend.ContractIndexer()
+		contractIndex := api.backend.ContractIndexReader()
 		attributes := make([]*security.ContractSecurityAttribute, 0)
 		for _, l := range logs {
 			ca := l.Address

@@ -36,8 +36,8 @@ type ChainContext interface {
 	// GetHeader returns the hash corresponding to their hash.
 	GetHeader(common.Hash, uint64) *types.Header
 
-	// GetContractIndexer return the ContractIndex
-	GetContractIndexer() *index.ContractIndex
+	// ContractIndexWriter return the ContractIndex
+	ContractIndexWriter() index.ContractIndexWriter
 }
 
 // NewEVMContext creates a new context for use in the EVM.
@@ -49,9 +49,9 @@ func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author
 	} else {
 		beneficiary = *author
 	}
-	var contractIndexer *index.ContractIndex
+	var contractIndexer index.ContractIndexWriter
 	if chain != nil && !reflect.ValueOf(chain).IsNil() {
-		contractIndexer = chain.GetContractIndexer()
+		contractIndexer = chain.ContractIndexWriter()
 	}
 	return vm.Context{
 		CanTransfer:     CanTransfer,

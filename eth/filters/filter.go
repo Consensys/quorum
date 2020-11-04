@@ -50,7 +50,7 @@ type Backend interface {
 	BloomStatus() (uint64, uint64)
 	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
 
-	ContractIndexer() *index.ContractIndex
+	ContractIndexReader() index.ContractIndexReader
 	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*security.ContractSecurityAttribute) bool
 }
 

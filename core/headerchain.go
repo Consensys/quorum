@@ -469,7 +469,7 @@ func (hc *HeaderChain) SetCurrentHeader(head *types.Header) {
 }
 
 // GetContractIndexer returns a new instance of ContractIndexer
-func (hc *HeaderChain) GetContractIndexer() *index.ContractIndex {
+func (hc *HeaderChain) ContractIndexWriter() index.ContractIndexWriter {
 	return index.NewContractIndex(hc.chainDb)
 }
 

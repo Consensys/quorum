@@ -113,8 +113,6 @@ type Context struct {
 	// GetHash returns the hash corresponding to n
 	GetHash GetHashFunc
 
-	ContractIndexer *index.ContractIndex
-
 	// Message information
 	Origin   common.Address // Provides information for ORIGIN
 	GasPrice *big.Int       // Provides information for GASPRICE
@@ -125,6 +123,11 @@ type Context struct {
 	BlockNumber *big.Int       // Provides information for NUMBER
 	Time        *big.Int       // Provides information for TIME
 	Difficulty  *big.Int       // Provides information for DIFFICULTY
+
+	// Quorum
+	// Writes an index for contract address against parties
+	// which are managed by paired Tessera
+	ContractIndexer index.ContractIndexWriter
 }
 
 type PublicState StateDB

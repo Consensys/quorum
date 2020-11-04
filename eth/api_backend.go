@@ -359,7 +359,7 @@ func (b *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	}
 }
 
-func (b *EthAPIBackend) ContractIndexer() *index.ContractIndex {
+func (b *EthAPIBackend) ContractIndexReader() index.ContractIndexReader {
 	return index.NewContractIndex(b.ChainDb())
 }
 

@@ -154,7 +154,7 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 	}()
 }
 
-func (b *testBackend) ContractIndexer() *index.ContractIndex {
+func (b *testBackend) ContractIndexReader() index.ContractIndexReader {
 	return nil
 }
 

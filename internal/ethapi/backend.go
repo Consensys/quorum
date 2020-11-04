@@ -88,7 +88,8 @@ type Backend interface {
 
 	ChainConfig() *params.ChainConfig
 	CurrentBlock() *types.Block
-	ContractIndexer() *index.ContractIndex
+
+	ContractIndexReader() index.ContractIndexReader
 	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*security.ContractSecurityAttribute) bool
 }
 

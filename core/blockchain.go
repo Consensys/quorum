@@ -2316,7 +2316,7 @@ func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
 }
 
 // GetContractIndexer returns a new instance of ContractIndexer
-func (bc *BlockChain) GetContractIndexer() *index.ContractIndex {
+func (bc *BlockChain) ContractIndexWriter() index.ContractIndexWriter {
 	return index.NewContractIndex(bc.db)
 }
 

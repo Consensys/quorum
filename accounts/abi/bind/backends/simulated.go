@@ -545,7 +545,7 @@ func (fb *filterBackend) ServiceFilter(ctx context.Context, ms *bloombits.Matche
 	panic("not supported")
 }
 
-func (fb *filterBackend) ContractIndexer() *index.ContractIndex {
+func (fb *filterBackend) ContractIndexReader() index.ContractIndexReader {
 	panic("not supported")
 }
 func (fb *filterBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*security.ContractSecurityAttribute) bool {

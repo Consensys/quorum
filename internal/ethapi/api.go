@@ -1485,7 +1485,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	log.Debug("Found contract addresses", "count", len(contractAddresses))
 	authToken, isPreauthenticated := ctx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
 	if isPreauthenticated {
-		contractIndex := s.b.ContractIndexer()
+		contractIndex := s.b.ContractIndexReader()
 		// now if the message call doesn't produce any events, we need to get contract address in another way
 		if len(contractAddresses) == 0 {
 			// by looking up in our contract index
@@ -1684,7 +1684,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	}
 	authToken, isPreauthenticated := ctx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
 	if isPreauthenticated {
-		contractIndex := b.ContractIndexer()
+		contractIndex := b.ContractIndexReader()
 		attributes := make([]*security.ContractSecurityAttribute, 0)
 		forSimulation := tx
 		if tx.IsPrivate() {
@@ -1807,6 +1807,10 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	}
 	return tx.Hash(), nil
 
+}
+
+func buildContractSecurityAttributes(b Backend, tx *types.Transaction, isRaw bool, privateArgs *PrivateTxArgs) ([]security.ContractSecurityAttribute, error) {
+	return nil, nil
 }
 
 func buildPrivateTransaction(tx *types.Transaction) (*types.Transaction, error) {

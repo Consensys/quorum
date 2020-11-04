@@ -462,9 +462,9 @@ func (lc *LightChain) GetHeaderByNumberOdr(ctx context.Context, number uint64) (
 	return GetHeaderByNumber(ctx, lc.odr, number)
 }
 
-// GetContractIndexer returns a new instance of ContractIndexer
-func (self *LightChain) GetContractIndexer() *index.ContractIndex {
-	return index.NewContractIndex(self.chainDb)
+// ContractIndexWriter returns a new instance of ContractIndex used to write an index
+func (lc *LightChain) ContractIndexWriter() index.ContractIndexWriter {
+	return index.NewContractIndex(lc.chainDb)
 }
 
 // Config retrieves the header chain's chain configuration.

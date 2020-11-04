@@ -284,7 +284,7 @@ func (b *LesApiBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	}
 }
 
-func (b *LesApiBackend) ContractIndexer() *index.ContractIndex {
+func (b *LesApiBackend) ContractIndexReader() index.ContractIndexReader {
 	return index.NewContractIndex(b.ChainDb())
 }
 
