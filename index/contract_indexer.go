@@ -12,6 +12,14 @@ import (
 
 var contractIndexPrefix = []byte("contractIndex")
 
+type ContractIndexWriter interface {
+	WriteIndex(contractAddress common.Address, contractParties *ContractParties) error
+}
+
+type ContractIndexReader interface {
+	ReadIndex(contractAddress common.Address) (ContractParties, error)
+}
+
 type ContractIndex struct {
 	db ethdb.Database
 }
