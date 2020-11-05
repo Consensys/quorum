@@ -162,6 +162,16 @@ func verifyRequestHeader(h http.Header, t *testing.T) {
 	}
 }
 
+func verifyRequestHeaderMultiTenancy(h http.Header, t *testing.T) {
+	if h.Get("Content-type") != "application/vnd.tessera-2.1+json" {
+		t.Errorf("expected Content-type header is application/vnd.tessera-2.1+json")
+	}
+
+	if h.Get("Accept") != "application/vnd.tessera-2.1+json" {
+		t.Errorf("expected Accept header is application/vnd.tessera-2.1+json")
+	}
+}
+
 func TestSend_whenTypical(t *testing.T) {
 	assert := testifyassert.New(t)
 
@@ -176,6 +186,37 @@ func TestSend_whenTypical(t *testing.T) {
 	}
 
 	verifyRequestHeader(capturedRequest.header, t)
+
+	actualRequest := capturedRequest.request.(*sendRequest)
+
+	assert.Equal(arbitraryPrivatePayload, actualRequest.Payload, "request.payload")
+	assert.Equal(arbitraryFrom, actualRequest.From, "request.from")
+	assert.Equal(arbitraryTo, actualRequest.To, "request.to")
+	assert.Equal(arbitraryPrivacyFlag, actualRequest.PrivacyFlag, "request.privacyFlag")
+	assert.Equal(arbitraryExtra.ACHashes.ToBase64s(), actualRequest.AffectedContractTransactions, "request.affectedContractTransactions")
+	assert.Equal(arbitraryExtra.ACMerkleRoot.ToBase64(), actualRequest.ExecHash, "request.execHash")
+	assert.Equal(arbitraryHash, actualHash, "returned hash")
+}
+
+func TestSend_whenTypical_MultiTenancy(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	testObjectWithMT := New(&engine.Client{
+		HttpClient: &http.Client{},
+		BaseURL:    testServer.URL,
+	}, []byte("2.1"))
+
+	_, actualHash, err := testObjectWithMT.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	capturedRequest := <-sendRequestCaptor
+
+	if capturedRequest.err != nil {
+		t.Fatalf("%s", capturedRequest.err)
+	}
+
+	verifyRequestHeaderMultiTenancy(capturedRequest.header, t)
 
 	actualRequest := capturedRequest.request.(*sendRequest)
 
@@ -269,6 +310,34 @@ func TestReceive_whenTypical(t *testing.T) {
 	}
 
 	verifyRequestHeader(capturedRequest.header, t)
+
+	actualRequest := capturedRequest.request.(string)
+
+	assert.Equal(arbitraryHash1.ToBase64(), actualRequest, "requested hash")
+	assert.Equal(arbitraryExtra.ACHashes, actualExtra.ACHashes, "returned affected contract transaction hashes")
+	assert.Equal(arbitraryExtra.ACMerkleRoot, actualExtra.ACMerkleRoot, "returned merkle root")
+	assert.Equal(arbitraryExtra.PrivacyFlag, actualExtra.PrivacyFlag, "returned privacy flag")
+}
+
+func TestReceive_whenTypical_Multitenancy(t *testing.T) {
+	assert := testifyassert.New(t)
+
+	testObjectWithMT := New(&engine.Client{
+		HttpClient: &http.Client{},
+		BaseURL:    testServer.URL,
+	}, []byte("2.1"))
+
+	_, _, actualExtra, err := testObjectWithMT.Receive(arbitraryHash1)
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	capturedRequest := <-receiveRequestCaptor
+
+	if capturedRequest.err != nil {
+		t.Fatalf("%s", capturedRequest.err)
+	}
+
+	verifyRequestHeaderMultiTenancy(capturedRequest.header, t)
 
 	actualRequest := capturedRequest.request.(string)
 

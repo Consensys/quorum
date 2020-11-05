@@ -43,7 +43,32 @@ func New(client *engine.Client, version []byte) *tesseraPrivateTxManager {
 }
 
 func (t *tesseraPrivateTxManager) submitJSON(method, path string, request interface{}, response interface{}) (int, error) {
-	req, err := newOptionalJSONRequest(method, t.client.FullPath(path), request)
+	apiVersion := ""
+	if t.features.HasFeature(engine.MultiTenancy) {
+		apiVersion = "vnd.tessera-2.1+"
+	}
+	req, err := newOptionalJSONRequest(method, t.client.FullPath(path), request, apiVersion)
+	if err != nil {
+		return -1, fmt.Errorf("unable to build json request for (method:%s,path:%s). Cause: %v", method, path, err)
+	}
+	res, err := t.client.HttpClient.Do(req)
+	if err != nil {
+		return -1, fmt.Errorf("unable to submit request (method:%s,path:%s). Cause: %v", method, path, err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
+		body, _ := ioutil.ReadAll(res.Body)
+		return res.StatusCode, fmt.Errorf("%d status: %s", res.StatusCode, string(body))
+	}
+	if err := json.NewDecoder(res.Body).Decode(response); err != nil {
+		return res.StatusCode, fmt.Errorf("unable to decode response body for (method:%s,path:%s). Cause: %v", method, path, err)
+	}
+	return res.StatusCode, nil
+}
+
+func (t *tesseraPrivateTxManager) submitJSONOld(method, path string, request interface{}, response interface{}) (int, error) {
+	apiVersion := ""
+	req, err := newOptionalJSONRequest(method, t.client.FullPath(path), request, apiVersion)
 	if err != nil {
 		return -1, fmt.Errorf("unable to build json request for (method:%s,path:%s). Cause: %v", method, path, err)
 	}
@@ -335,6 +360,10 @@ func (t *tesseraPrivateTxManager) IsSender(txHash common.EncryptedPayloadHash) (
 	if err != nil {
 		return false, err
 	}
+	if t.features.HasFeature(engine.MultiTenancy) {
+		apiVersion := "vnd.tessera-2.1+"
+		req.Header.Set("Accept", fmt.Sprintf("application/%sjson", apiVersion))
+	}
 
 	res, err := t.client.HttpClient.Do(req)
 
@@ -363,6 +392,10 @@ func (t *tesseraPrivateTxManager) GetParticipants(txHash common.EncryptedPayload
 	req, err := http.NewRequest("GET", requestUrl, nil)
 	if err != nil {
 		return nil, err
+	}
+	if t.features.HasFeature(engine.MultiTenancy) {
+		apiVersion := "vnd.tessera-2.1+"
+		req.Header.Set("Accept", fmt.Sprintf("application/%sjson", apiVersion))
 	}
 
 	res, err := t.client.HttpClient.Do(req)
@@ -398,7 +431,7 @@ func (t *tesseraPrivateTxManager) HasFeature(f engine.PrivateTransactionManagerF
 }
 
 // don't serialize body if nil
-func newOptionalJSONRequest(method string, path string, body interface{}) (*http.Request, error) {
+func newOptionalJSONRequest(method string, path string, body interface{}, apiVersion string) (*http.Request, error) {
 	buf := new(bytes.Buffer)
 	if body != nil {
 		err := json.NewEncoder(buf).Encode(body)
@@ -411,7 +444,7 @@ func newOptionalJSONRequest(method string, path string, body interface{}) (*http
 		return nil, err
 	}
 	request.Header.Set("User-Agent", fmt.Sprintf("quorum-v%s", params.QuorumVersion))
-	request.Header.Set("Content-type", "application/json")
-	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-type", fmt.Sprintf("application/%sjson", apiVersion))
+	request.Header.Set("Accept", fmt.Sprintf("application/%sjson", apiVersion))
 	return request, nil
 }

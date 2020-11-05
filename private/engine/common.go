@@ -85,6 +85,7 @@ type PrivateTransactionManagerFeature uint64
 const (
 	None                PrivateTransactionManagerFeature = iota                                          // 0
 	PrivacyEnhancements PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 1
+	MultiTenancy        PrivateTransactionManagerFeature = 1 << PrivateTransactionManagerFeature(iota-1) // 2
 )
 
 type FeatureSet struct {
