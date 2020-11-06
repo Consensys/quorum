@@ -44,7 +44,8 @@ func TestSetDefaults(t *testing.T) {
 	assert.True(orgAdminRole == ORGADMIN, fmt.Sprintf("Expected network admin role %v, got %v", ORGADMIN, orgAdminRole))
 	assert.True(defaultAccess == FullAccess, fmt.Sprintf("Expected network admin role %v, got %v", FullAccess, defaultAccess))
 
-	SetDefaultAccess()
+	SetNetworkBootUpCompleted()
+	SetQIP714BlockReached()
 	networkAdminRole, orgAdminRole, defaultAccess = GetDefaults()
 	assert.True(defaultAccess == ReadOnly, fmt.Sprintf("Expected network admin role %v, got %v", ReadOnly, defaultAccess))
 }
@@ -176,7 +177,8 @@ func TestGetAcctAccess(t *testing.T) {
 
 	// default access when the cache is not populated, should return default access
 	SetDefaults(NETWORKADMIN, ORGADMIN, false)
-	SetDefaultAccess()
+	SetQIP714BlockReached()
+	SetNetworkBootUpCompleted()
 	access := GetAcctAccess(Acct1)
 	assert.True(access == ReadOnly, fmt.Sprintf("Expected account access to be %v, got %v", ReadOnly, access))
 
@@ -213,8 +215,8 @@ func TestValidateNodeForTxn(t *testing.T) {
 	txnAllowed := ValidateNodeForTxn("", Acct1)
 	assert.True(txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 
-	SetDefaultAccess()
-
+	SetQIP714BlockReached()
+	SetNetworkBootUpCompleted()
 	// if a proper enode id is not passed, return should be false
 	txnAllowed = ValidateNodeForTxn("ABCDE", Acct1)
 	assert.True(!txnAllowed, "Expected access %v, got %v", true, txnAllowed)
@@ -247,7 +249,8 @@ func TestValidateNodeForTxn_whenUsingOnlyHexNodeId(t *testing.T) {
 	arbitraryPrivateKey, _ := crypto.GenerateKey()
 	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&arbitraryPrivateKey.PublicKey)[1:])
 
-	SetDefaultAccess()
+	SetQIP714BlockReached()
+	SetNetworkBootUpCompleted()
 
 	txnAllowed := ValidateNodeForTxn(hexNodeId, Acct1)
 
@@ -268,7 +271,8 @@ func TestLRUCacheLimit(t *testing.T) {
 
 func TestCheckIfAdminAccount(t *testing.T) {
 	SetDefaults(NETWORKADMIN, ORGADMIN, false)
-	SetDefaultAccess()
+	SetQIP714BlockReached()
+	SetQIP714BlockReached()
 
 	var Acct3 = common.BytesToAddress([]byte("permission-test1"))
 	var Acct4 = common.BytesToAddress([]byte("permission-test2"))
@@ -431,7 +435,8 @@ func Test_checkIfOrgActive(t *testing.T) {
 
 func TestIsTransactionAllowed_Basic(t *testing.T) {
 	SetDefaults(NETWORKADMIN, ORGADMIN, false)
-	SetDefaultAccess()
+	SetQIP714BlockReached()
+	SetNetworkBootUpCompleted()
 	OrgInfoMap = NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
 	RoleInfoMap = NewRoleCache(params.DEFAULT_ROLECACHE_SIZE)
 	AcctInfoMap = NewAcctCache(params.DEFAULT_ACCOUNTCACHE_SIZE)

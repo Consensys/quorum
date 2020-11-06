@@ -202,7 +202,7 @@ contract PermissionsImplementation {
     networkBootStatus(false)
     returns (bool){
         networkBoot = true;
-        //        emit PermissionsInitialized(networkBoot);
+        emit PermissionsInitialized(networkBoot);
         return networkBoot;
     }
 
@@ -716,6 +716,9 @@ contract PermissionsImplementation {
       * @return bool indicating if the node is allowed to connect or not
       */
     function connectionAllowed(string calldata _enodeId, string calldata _ip, uint16 _port) external view returns (bool) {
+        if (!networkBoot){
+            return true;
+        }
         return nodeManager.connectionAllowed(_enodeId, _ip, _port);
     }
 
@@ -730,6 +733,10 @@ contract PermissionsImplementation {
       */
     function transactionAllowed(address _sender, address _target, uint256 _value, uint256 _gasPrice, uint256 _gasLimit, bytes calldata _payload)
     external view returns (bool) {
+        if (!networkBoot){
+            return true;
+        }
+
         if (accountManager.getAccountStatus(_sender) == 2) {
             (string memory act_org, string memory act_role) = accountManager.getAccountOrgRole(_sender);
             string memory act_uOrg = _getUltimateParent(act_org);

@@ -224,6 +224,11 @@ func gatherForks(config *params.ChainConfig) []uint64 {
 		if field.Type != reflect.TypeOf(new(big.Int)) {
 			continue
 		}
+
+		//TODO: (SMK) ignoring qip714Block for interop. Need to correct later
+		if field.Name == "QIP714Block" {
+			continue
+		}
 		// Extract the fork rule block number and aggregate it
 		rule := conf.Field(i).Interface().(*big.Int)
 		if rule != nil {

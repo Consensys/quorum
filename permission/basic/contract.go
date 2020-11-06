@@ -46,6 +46,7 @@ type Init struct {
 
 	//binding contracts
 	PermUpgr   *binding.PermUpgr
+	PermImpl   *binding.PermImpl
 	PermInterf *binding.PermInterface
 	PermNode   *binding.NodeManager
 	PermAcct   *binding.AcctManager
@@ -251,6 +252,11 @@ func (i *Init) BindContracts() error {
 func (i *Init) basicBindContract() error {
 	if err := ptype.BindContract(&i.PermUpgr, func() (interface{}, error) {
 		return binding.NewPermUpgr(i.Backend.PermConfig.UpgrdAddress, i.Backend.EthClnt)
+	}); err != nil {
+		return err
+	}
+	if err := ptype.BindContract(&i.PermImpl, func() (interface{}, error) {
+		return binding.NewPermImpl(i.Backend.PermConfig.ImplAddress, i.Backend.EthClnt)
 	}); err != nil {
 		return err
 	}

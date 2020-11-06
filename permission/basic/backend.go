@@ -253,3 +253,33 @@ func (b *Backend) ManageNodePermissions() error {
 	}()
 	return nil
 }
+
+func (b *Backend) MonitorNetworkBootUp() error {
+	netWorkBootCh := make(chan *bb.PermImplPermissionsInitialized, 1)
+
+	opts := &bind.WatchOpts{}
+	var blockNumber uint64 = 1
+	opts.Start = &blockNumber
+
+	if _, err := b.Contr.PermImpl.PermImplFilterer.WatchPermissionsInitialized(opts, netWorkBootCh); err != nil {
+		return fmt.Errorf("failed WatchNodeApproved: %v", err)
+	}
+
+	go func() {
+		stopChan, stopSubscription := ptype.SubscribeStopEvent()
+		defer stopSubscription.Unsubscribe()
+		for {
+			select {
+			case evtMetworkBootUpCompleted := <-netWorkBootCh:
+				if evtMetworkBootUpCompleted.NetworkBootStatus {
+					types.SetNetworkBootUpCompleted()
+				}
+				return
+			case <-stopChan:
+				log.Info("quit implementation contract network boot watch")
+				return
+			}
+		}
+	}()
+	return nil
+}
