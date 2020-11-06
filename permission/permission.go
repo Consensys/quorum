@@ -26,7 +26,9 @@ func (p *PermissionCtrl) AfterStart() error {
 	if err != nil {
 		return err
 	}
-	p.contract.BindContracts()
+	if err = p.contract.BindContracts(); err != nil {
+		return fmt.Errorf("populateInitPermissions failed to bind contracts: %v", err)
+	}
 
 	// populate the initial list of permissioned nodes and account accesses
 	if err := p.populateInitPermissions(params.DEFAULT_ORGCACHE_SIZE, params.DEFAULT_ROLECACHE_SIZE,
@@ -112,7 +114,7 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 	// if QIP714block is not given, set the default access
 	// to readonly
 	if p.eth.BlockChain().Config().QIP714Block == nil || p.eth.BlockChain().Config().IsQIP714(p.eth.BlockChain().CurrentBlock().Number()) {
-		types.SetDefaultAccess()
+		types.SetQIP714BlockReached()
 		return nil
 	}
 	//QIP714block is given, monitor block count
@@ -126,7 +128,7 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 			select {
 			case head := <-chainHeadCh:
 				if p.eth.BlockChain().Config().IsQIP714(head.Block.Number()) {
-					types.SetDefaultAccess()
+					types.SetQIP714BlockReached()
 					return
 				}
 			case <-stopChan:
@@ -165,6 +167,7 @@ func (p *PermissionCtrl) populateInitPermissions(orgCacheSize, roleCacheSize, no
 	}
 
 	if !networkInitialized {
+		p.backend.MonitorNetworkBootUp()
 		if err := p.bootupNetwork(); err != nil {
 			return err
 		}
@@ -180,6 +183,7 @@ func (p *PermissionCtrl) populateInitPermissions(orgCacheSize, roleCacheSize, no
 				return err
 			}
 		}
+		types.SetNetworkBootUpCompleted()
 	}
 	return nil
 }

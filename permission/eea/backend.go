@@ -257,3 +257,6 @@ func (b *Backend) ManageNodePermissions() error {
 	}()
 	return nil
 }
+func (b *Backend) MonitorNetworkBootUp() error {
+	return nil
+}

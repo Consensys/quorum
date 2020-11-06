@@ -47,7 +47,7 @@ func isNodePermissionedEEA(node *enode.Node, nodename string, currentNode string
 func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, datadir string, direction string) bool {
 
 	//if we have not reached QIP714 block return full access
-	if !types.QIP714BlockReached {
+	if !types.PermissionsEnabled() {
 		return p2p.IsNodePermissioned(nodename, currentNode, datadir, direction)
 	}
 

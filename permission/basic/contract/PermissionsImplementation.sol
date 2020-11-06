@@ -199,7 +199,7 @@ contract PermissionsImplementation {
     networkBootStatus(false)
     returns (bool){
         networkBoot = true;
-        //        emit PermissionsInitialized(networkBoot);
+        emit PermissionsInitialized(networkBoot);
         return networkBoot;
     }
 

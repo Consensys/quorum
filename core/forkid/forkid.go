@@ -225,7 +225,7 @@ func gatherForks(config *params.ChainConfig) []uint64 {
 			continue
 		}
 
-		//TODO: SMK ignoring qip714Block for interop. Need to correct later
+		//TODO: (SMK) ignoring qip714Block for interop. Need to correct later
 		if field.Name == "QIP714Block" {
 			continue
 		}

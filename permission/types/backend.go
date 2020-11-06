@@ -71,6 +71,9 @@ type Backend interface {
 	ManageOrgPermissions() error
 	// monitors role management related events and updated cache
 	ManageRolePermissions() error
+
+	// monitors for network boot up complete event
+	MonitorNetworkBootUp() error
 }
 
 // adds or deletes and entry from a given file

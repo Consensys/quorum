@@ -164,8 +164,9 @@ var (
 
 var syncStarted = false
 
-var DefaultAccess = FullAccess
-var QIP714BlockReached = false
+var defaultAccess = FullAccess
+var qip714BlockReached = false
+var networkBootUpCompleted = false
 var networkAdminRole string
 var orgAdminRole string
 var PermissionModel = Default
@@ -291,10 +292,32 @@ func GetSyncStatus() bool {
 	return syncStarted
 }
 
-// sets the default access to Readonly upon QIP714Blokc
-func SetDefaultAccess() {
-	DefaultAccess = ReadOnly
-	QIP714BlockReached = true
+// sets default access to read only
+func setDefaultAccess(){
+	if PermissionsEnabled(){
+		defaultAccess = ReadOnly
+	}
+}
+
+// sets the qip714block reached as true
+func SetQIP714BlockReached() {
+	qip714BlockReached = true
+	setDefaultAccess()
+}
+
+// sets the network boot completed as true
+func SetNetworkBootUpCompleted() {
+	networkBootUpCompleted = true
+	setDefaultAccess()
+}
+
+// return bool to indicate if permissions is enabled
+func PermissionsEnabled() bool {
+	if PermissionModel == EEA {
+		return qip714BlockReached
+	} else {
+		return qip714BlockReached && networkBootUpCompleted
+	}
 }
 
 // sets default access to readonly and initializes the values for
@@ -310,7 +333,7 @@ func SetDefaults(nwRoleId, oaRoleId string, eeaFlag bool) {
 }
 
 func GetDefaults() (string, string, AccessType) {
-	return networkAdminRole, orgAdminRole, DefaultAccess
+	return networkAdminRole, orgAdminRole, defaultAccess
 }
 
 func GetNodeUrl(enodeId string, ip string, port uint16, raftport uint16, isRaft bool) string {
@@ -561,7 +584,7 @@ func GetAcctAccess(acctId common.Address) AccessType {
 			}
 		}
 	}
-	return DefaultAccess
+	return defaultAccess
 }
 
 //checks if the given org is active in the network
@@ -582,7 +605,7 @@ func checkIfOrgActive(orgId string) bool {
 // checks if the passed account is linked to a org admin or
 // network admin role
 func CheckIfAdminAccount(acctId common.Address) bool {
-	if !QIP714BlockReached {
+	if !PermissionsEnabled() {
 		return true
 	}
 	a, _ := AcctInfoMap.GetAccount(acctId)
@@ -606,7 +629,7 @@ func CheckIfAdminAccount(acctId common.Address) bool {
 
 // validates if the account can transact from the current node
 func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
-	if !QIP714BlockReached || hexnodeId == "" {
+	if !PermissionsEnabled() || hexnodeId == "" {
 		return true
 	}
 
@@ -652,7 +675,7 @@ func IsEEAPermission() bool {
 //  checks if the account permission allows the transaction to be executed
 func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int, gasPrice *big.Int, gasLimit *big.Int, payload []byte, transactionType TransactionType) error {
 	//if we have not reached QIP714 block return full access
-	if !QIP714BlockReached {
+	if !PermissionsEnabled() {
 		return nil
 	}
 

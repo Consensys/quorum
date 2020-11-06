@@ -472,7 +472,7 @@ func (q *QuorumControlsAPI) ApproveBlackListedAccountRecovery(orgId string, acct
 	return actionSuccess, nil
 }
 
-func (q *QuorumControlsAPI) TransactionAllowed(txa ethapi.SendTxArgs) (bool, error) {
+func (q *QuorumControlsAPI) TransactionAllowed(txa ethapi.SendTxArgs) bool {
 	var value, gasPrice, gasLimit *big.Int
 	var payload []byte
 	var to, from common.Address
@@ -512,20 +512,24 @@ func (q *QuorumControlsAPI) TransactionAllowed(txa ethapi.SendTxArgs) (bool, err
 		transactionType = types.ContractCallTxn
 	}
 
-	err := types.IsTransactionAllowed(from, to, value, gasPrice, gasLimit, payload, transactionType)
-	if err == nil {
-		return true, nil
+	if err := types.IsTransactionAllowed(from, to, value, gasPrice, gasLimit, payload, transactionType); err != nil {
+		return false
+	} else {
+		return true
 	}
-	return false, err
 }
 
-func (q *QuorumControlsAPI) ConnectionAllowed(enodeId, ip string, port, raftPort uint16) (bool, error) {
+func (q *QuorumControlsAPI) ConnectionAllowed(enodeId, ip string, port, raftPort uint16) bool {
 	controlService, err := q.permCtrl.NewPermissionControlService()
 	if err != nil {
-		return false, err
+		return false
 	}
 
-	return controlService.ConnectionAllowed(enodeId, ip, port, raftPort)
+	if allowed, err := controlService.ConnectionAllowed(enodeId, ip, port, raftPort); err != nil {
+		return false
+	} else {
+		return allowed
+	}
 }
 
 // check if the account is network admin

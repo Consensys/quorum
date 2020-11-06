@@ -412,8 +412,7 @@ func testConnectionAllowed(t *testing.T, q *QuorumControlsAPI, url string, expec
 	enode, ip, port, raftPort, err := ptype.GetNodeDetails(url, false, false)
 	if q.permCtrl.eeaFlag {
 		assert.NoError(t, err)
-		connAllowed, err := q.ConnectionAllowed(enode, ip, port, raftPort)
-		assert.NoError(t, err)
+		connAllowed := q.ConnectionAllowed(enode, ip, port, raftPort)
 		assert.Equal(t, expected, connAllowed)
 	} else {
 		assert.Equal(t, isNodePermissionedBasic(url, enode, enode, "INCOMING"), expected)
@@ -490,8 +489,7 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 }
 
 func testTransactionAllowed(t *testing.T, q *QuorumControlsAPI, txa ethapi.SendTxArgs, expected bool) {
-	actAllowed, lerr := q.TransactionAllowed(txa)
-	t.Logf("testTransactionAllowed err=%v", lerr)
+	actAllowed := q.TransactionAllowed(txa)
 	assert.Equal(t, expected, actAllowed)
 }
 
@@ -575,6 +573,9 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	invalidTxa := ethapi.SendTxArgs{From: getArbitraryAccount()}
 	acct := getArbitraryAccount()
 	txa := ethapi.SendTxArgs{From: guardianAddress, To: &acct}
+
+	types.SetNetworkBootUpCompleted()
+	types.SetQIP714BlockReached()
 
 	_, err := testObject.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
