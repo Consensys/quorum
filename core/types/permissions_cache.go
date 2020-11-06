@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 type AccessType uint8
@@ -293,8 +293,8 @@ func GetSyncStatus() bool {
 }
 
 // sets default access to read only
-func setDefaultAccess(){
-	if PermissionsEnabled(){
+func setDefaultAccess() {
+	if PermissionsEnabled() {
 		defaultAccess = ReadOnly
 	}
 }
