@@ -98,11 +98,10 @@ func TestGenerateTransactionOptionsErrorsWhenNoPrivateParticipants(t *testing.T)
 }
 
 func TestGenerateTransactionOptionsErrorsWhenAccountNotFound(t *testing.T) {
+	privateTxArgs := ethapi.PrivateTxArgs{PrivateFor: []string{}}
 	sendTxArgs := ethapi.SendTxArgs{
-		From: common.Address{},
-		PrivateTxArgs: ethapi.PrivateTxArgs{
-			PrivateFor: []string{},
-		},
+		From:          common.Address{},
+		PrivateTxArgs: privateTxArgs,
 	}
 
 	mockBackend := MockBackend{}
@@ -127,12 +126,11 @@ func TestGenerateTransactionOptionsErrorsWhenAccountNotFound(t *testing.T) {
 func TestGenerateTransactionOptionsGivesDefaults(t *testing.T) {
 	from := common.HexToAddress("0x2222222222222222222222222222222222222222")
 
+	privateTxArgs := ethapi.PrivateTxArgs{PrivateFor: []string{"privateFor1", "privateFor2"}, PrivateFrom: "privateFrom"}
+
 	sendTxArgs := ethapi.SendTxArgs{
-		From: from,
-		PrivateTxArgs: ethapi.PrivateTxArgs{
-			PrivateFor:  []string{"privateFor1", "privateFor2"},
-			PrivateFrom: "privateFrom",
-		},
+		From:          from,
+		PrivateTxArgs: privateTxArgs,
 	}
 
 	mockWallet := &MockWallet{isContained: true}
@@ -179,13 +177,13 @@ func TestGenerateTransactionOptionsGivesNonDefaultsWhenSpecified(t *testing.T) {
 	gasLimit := hexutil.Uint64(5000)
 	gasPrice := hexutil.Big(*big.NewInt(50))
 
+	privateTxArgs := ethapi.PrivateTxArgs{PrivateFor: []string{}}
+
 	sendTxArgs := ethapi.SendTxArgs{
-		From:     from,
-		Gas:      &gasLimit,
-		GasPrice: &gasPrice,
-		PrivateTxArgs: ethapi.PrivateTxArgs{
-			PrivateFor: []string{},
-		},
+		From:          from,
+		Gas:           &gasLimit,
+		GasPrice:      &gasPrice,
+		PrivateTxArgs: privateTxArgs,
 	}
 
 	mockWallet := &MockWallet{isContained: true}

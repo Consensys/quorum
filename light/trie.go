@@ -21,6 +21,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/core/rawdb"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -88,6 +90,28 @@ func (db *odrDatabase) ContractCodeSize(addrHash, codeHash common.Hash) (int, er
 func (db *odrDatabase) TrieDB() *trie.Database {
 	return nil
 }
+
+// Quorum - Privacy Enhancements
+type stubPrivacyMetadataLinker struct {
+}
+
+func newPrivacyMetadataLinkerStub() rawdb.PrivacyMetadataLinker {
+	return &stubPrivacyMetadataLinker{}
+}
+
+func (pml *stubPrivacyMetadataLinker) PrivacyMetadataRootForPrivateStateRoot(privateStateRoot common.Hash) common.Hash {
+	return common.Hash{}
+}
+
+func (pml *stubPrivacyMetadataLinker) LinkPrivacyMetadataRootToPrivateStateRoot(privateStateRoot, privacyMetadataRoot common.Hash) error {
+	return nil
+}
+
+func (db *odrDatabase) PrivacyMetadataLinker() rawdb.PrivacyMetadataLinker {
+	return newPrivacyMetadataLinkerStub()
+}
+
+// End Quorum - Privacy Enhancements
 
 type odrTrie struct {
 	db   *odrDatabase

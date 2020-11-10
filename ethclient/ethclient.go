@@ -545,15 +545,12 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction, ar
 // Quorum
 //
 // Retrieve encrypted payload hash from the private transaction manager if configured
-func (ec *Client) PreparePrivateTransaction(data []byte, privateFrom string) ([]byte, error) {
+func (ec *Client) PreparePrivateTransaction(data []byte, privateFrom string) (common.EncryptedPayloadHash, error) {
 	if ec.pc == nil {
-		return nil, errors.New("missing private transaction manager client configuration")
+		return common.EncryptedPayloadHash{}, errors.New("missing private transaction manager client configuration")
 	}
-	encryptedPayloadHash, err := ec.pc.StoreRaw(data, privateFrom)
-	if err != nil {
-		return nil, err
-	}
-	return encryptedPayloadHash.Bytes(), err
+	payLoadHash, err := ec.pc.StoreRaw(data, privateFrom)
+	return payLoadHash, err
 }
 
 func toCallArg(msg ethereum.CallMsg) interface{} {

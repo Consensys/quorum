@@ -2,15 +2,17 @@ package privacyExtension
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/core/rawdb"
-
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	extension "github.com/ethereum/go-ethereum/extension/extensionContracts"
+	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLogContainsExtensionTopicWithWrongLengthReturnsFalse(t *testing.T) {
@@ -49,7 +51,7 @@ func TestLogContainsExtensionTopicWithCorrectHashReturnsTrue(t *testing.T) {
 	}
 }
 
-func TestStateSetWithListedAccounts(t *testing.T) {
+func createStateDb(t *testing.T) *state.StateDB {
 	input := `{"0x2222222222222222222222222222222222222222":{"state":{"balance":"22","nonce":5,"root":"56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","codeHash":"87874902497a5bb968da31a2998d8f22e949d1ef6214bcdedd8bae24cca4b9e3","code":"03030303030303","storage":{}}}}`
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()))
 
@@ -58,10 +60,16 @@ func TestStateSetWithListedAccounts(t *testing.T) {
 		t.Errorf("error when unmarshalling static data: %s", err.Error())
 	}
 
-	success := setState(statedb, accounts)
+	success := setState(statedb, accounts, &state.PrivacyMetadata{})
 	if !success {
 		t.Errorf("unexpected error when setting state")
 	}
+
+	return statedb
+}
+
+func TestStateSetWithListedAccounts(t *testing.T) {
+	statedb := createStateDb(t)
 
 	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
 	balance := statedb.GetBalance(address)
@@ -101,8 +109,45 @@ func TestStateSetWithListedAccountsFailsOnInvalidBalance(t *testing.T) {
 		t.Errorf("error when unmarshalling static data: %s", err.Error())
 	}
 
-	success := setState(statedb, accounts)
+	success := setState(statedb, accounts, &state.PrivacyMetadata{})
 	if success {
 		t.Errorf("error expected when setting state")
 	}
+}
+
+func Test_setPrivacyMetadata(t *testing.T) {
+	statedb := createStateDb(t)
+	address := common.HexToAddress("0x2222222222222222222222222222222222222222")
+
+	// call setPrivacyMetaData
+	arbitraryBytes1 := []byte{10}
+	hash := common.BytesToEncryptedPayloadHash(arbitraryBytes1)
+	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes1))
+
+	privacyMetaData, err := statedb.GetStatePrivacyMetadata(address)
+	if err != nil {
+		t.Errorf("expected error to be nil, got err %s", err)
+	}
+
+	assert.NotEqual(t, privacyMetaData.CreationTxHash, hash)
+	privacyMetaData = &state.PrivacyMetadata{hash, engine.PrivacyFlagPartyProtection}
+	statedb.SetStatePrivacyMetadata(address, privacyMetaData)
+
+	privacyMetaData, err = statedb.GetStatePrivacyMetadata(address)
+	if err != nil {
+		t.Errorf("expected error to be nil, got err %s", err)
+	}
+	assert.Equal(t, engine.PrivacyFlagPartyProtection, privacyMetaData.PrivacyFlag)
+	assert.Equal(t, hash, privacyMetaData.CreationTxHash)
+
+	arbitraryBytes2 := []byte{20}
+	newHash := common.BytesToEncryptedPayloadHash(arbitraryBytes2)
+	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes2))
+
+	privacyMetaData, err = statedb.GetStatePrivacyMetadata(address)
+	if err != nil {
+		t.Errorf("expected error to be nil, got err %s", err)
+	}
+	assert.Equal(t, engine.PrivacyFlagPartyProtection, privacyMetaData.PrivacyFlag)
+	assert.Equal(t, newHash, privacyMetaData.CreationTxHash)
 }
