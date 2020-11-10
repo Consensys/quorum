@@ -29,13 +29,16 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	arbitraryCtx  = context.Background()
-	privateTxArgs = &PrivateTxArgs{
-		PrivateFor: []string{"arbitrary party 1", "arbitrary party 2"},
+	arbitraryCtx         = context.Background()
+	arbitraryPrivateFrom = "arbitrary private from"
+	privateTxArgs        = &PrivateTxArgs{
+		PrivateFrom: arbitraryPrivateFrom,
+		PrivateFor:  []string{"arbitrary party 1", "arbitrary party 2"},
 	}
 	arbitraryFrom = common.BytesToAddress([]byte("arbitrary address"))
 
@@ -444,34 +447,103 @@ func TestHandlePrivateTransaction_whenRawStandardPrivateMessageCall(t *testing.T
 
 }
 
-func TestBuildContractSecurityAttributes_whenTypicalMessageCallFromRawPrivateTransaction(t *testing.T) {
-	arbitraryContractAddress := common.StringToAddress("arbitrary contract address")
-	arbitraryData := []byte("arbitrary data input")
-	arbitraryPrivateTx := types.NewTransaction(1, arbitraryContractAddress, big.NewInt(0), 0, big.NewInt(0), arbitraryData)
-	arbitraryPrivateTx.SetPrivate()
-	arbitraryPrivateTxArgs := &PrivateTxArgs{
-		PrivateFrom: "",
-		PrivateFor:  nil,
-	}
-	stubBackend := &StubBackend{}
+func TestBuildContractSecurityAttributes_whenTypicalContractCreationFromRawPrivateTransaction(t *testing.T) {
+	tx := copyTransaction(rawSimpleStorageContractCreationTx)
 
-	attributes, err := buildContractSecurityAttributes(stubBackend, arbitraryPrivateTx, true, arbitraryPrivateTxArgs)
+	attributes, err := buildContractSecurityAttributes(arbitraryCtx, &StubBackend{}, arbitraryFrom, tx, privateTxArgs)
 
 	assert.NoError(t, err)
 	assert.Len(t, attributes, 1)
 	attr := attributes[0]
+	assert.Equal(t, "create", attr.Action)
+	assert.Equal(t, "private", attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
+}
+
+func TestBuildContractSecurityAttributes_whenTypicalMessageCall(t *testing.T) {
+	arbitraryCreatorAddress := common.StringToAddress("0xArbitraryCreatorAddress")
+	stubBackend := &StubBackend{
+		stubContractIndexReader: &StubContractIndexReader{
+			errorMap: make(map[common.Address]error),
+			partiesMap: map[common.Address]index.ContractParties{
+				arbitrarySimpleStorageContractAddress: {
+					CreatorAddress:      arbitraryCreatorAddress,
+					ParticipantAddreses: []string{privateTxArgs.PrivateFor[0]}, // only first one is managed
+				},
+			},
+		},
+	}
+	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000002"))
+	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
+	privateStateDB.Commit(true)
+	tx := copyTransaction(simpleStorageContractMessageCallTx)
+
+	attributes, err := buildContractSecurityAttributes(arbitraryCtx, stubBackend, arbitraryFrom, tx, privateTxArgs)
+
+	assert.NoError(t, err)
+	assert.Len(t, attributes, 2)
+	// the first one is for the target contract
+	attr := attributes[0]
 	assert.Equal(t, "write", attr.Action)
 	assert.Equal(t, "private", attr.Visibility)
-	assert.Equal(t, "", attr.From) //TODO
-	assert.Equal(t, "", attr.PrivateFrom)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Equal(t, arbitraryCreatorAddress, attr.To)
+	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
+	// the second one is for the affected contract
+	attr = attributes[1]
+	assert.Equal(t, "write", attr.Action)
+	assert.Equal(t, "private", attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Equal(t, arbitraryCreatorAddress, attr.To)
+	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
+	assert.Len(t, attr.Parties, 1, "Must have only 1 managed party from the index")
+	assert.Equal(t, privateTxArgs.PrivateFor[0], attr.Parties[0])
+}
+
+// Copy and set private
+func copyTransaction(tx *types.Transaction) *types.Transaction {
+	var privateTx *types.Transaction
+	if tx.To() == nil {
+		privateTx = types.NewContractCreation(tx.Nonce(),
+			tx.Value(),
+			tx.Gas(),
+			tx.GasPrice(),
+			tx.Data())
+	} else {
+		privateTx = types.NewTransaction(tx.Nonce(),
+			*tx.To(),
+			tx.Value(),
+			tx.Gas(),
+			tx.GasPrice(),
+			tx.Data())
+	}
+	privateTx.SetPrivate()
+	return privateTx
+}
+
+type StubContractIndexReader struct {
+	errorMap   map[common.Address]error
+	partiesMap map[common.Address]index.ContractParties
+}
+
+func (cir *StubContractIndexReader) ReadIndex(contractAddress common.Address) (index.ContractParties, error) {
+	if e, ok := cir.errorMap[contractAddress]; ok {
+		return index.ContractParties{}, e
+	}
+	if p, ok := cir.partiesMap[contractAddress]; ok {
+		return p, nil
+	}
+	return index.ContractParties{}, errors.Errorf("no stub setup for contract")
 }
 
 type StubBackend struct {
-	getEVMCalled bool
+	getEVMCalled            bool
+	stubContractIndexReader index.ContractIndexReader
 }
 
 func (sb *StubBackend) ContractIndexReader() index.ContractIndexReader {
-	panic("implement me")
+	return sb.stubContractIndexReader
 }
 
 func (sb *StubBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*security.ContractSecurityAttribute) bool {

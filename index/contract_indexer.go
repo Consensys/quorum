@@ -31,7 +31,9 @@ func NewContractIndex(db ethdb.Database) *ContractIndex {
 }
 
 type ContractParties struct {
-	CreatorAddress      common.Address
+	// EOA address that was used to sign the contract creation transaction
+	CreatorAddress common.Address
+	// List of Tessera Public Keys
 	ParticipantAddreses []string
 }
 

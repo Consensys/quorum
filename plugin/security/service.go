@@ -22,16 +22,15 @@ type AuthenticationManager interface {
 	IsEnabled(ctx context.Context) (bool, error)
 }
 
-// TODO plugin: define as proto
-// Security configuration attributes which are defined for secure object.
-// These attributes have special meaning to various implementations
-
-// For secure account state
+// AccountStateSecurityAttribute contains security configuration attributes
+// which are defined for a secure account state
 type AccountStateSecurityAttribute struct {
 	From common.Address // Account Address
 	To   common.Address
 }
 
+// ContractSecurityAttribute contains security configuration attributes
+// which are defined for a secure contract account
 type ContractSecurityAttribute struct {
 	*AccountStateSecurityAttribute
 	Visibility  string   // public/private
@@ -90,8 +89,6 @@ func (*DisabledAuthenticationManager) IsEnabled(ctx context.Context) (bool, erro
 func NewDisabledAuthenticationManager() AuthenticationManager {
 	return &DisabledAuthenticationManager{}
 }
-
-// TODO plugin: the below default implementations need to move to the plugin code
 
 type DefaultAccountAccessDecisionManager struct {
 }

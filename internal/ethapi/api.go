@@ -1684,110 +1684,29 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	}
 	authToken, isPreauthenticated := ctx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
 	if isPreauthenticated {
-		contractIndex := b.ContractIndexReader()
-		attributes := make([]*security.ContractSecurityAttribute, 0)
-		forSimulation := tx
+		originalTx := tx
+		// for private transaction, private payload will be retrieved from Tessera to build the original transaction
+		// in order to supply to the simulation engine
 		if tx.IsPrivate() {
 			if isRaw {
-				forSimulation, privateFrom, err = buildPrivateTransactionFromRaw(tx)
+				// for raw private transaction, the privateFrom will be derived when retrieving the private payload from Tessera
+				originalTx, privateFrom, err = buildPrivateTransactionFromRaw(tx)
 				if err != nil {
 					return common.Hash{}, err
 				}
 			} else {
-				forSimulation, err = buildPrivateTransaction(tx)
+				originalTx, err = buildPrivateTransaction(tx)
 				if err != nil {
 					return common.Hash{}, err
 				}
 			}
 		}
-		createdContractAddresses, affectedContracts, err := simulateExecutionForMultitenancy(ctx, b, from, forSimulation)
+		attributes, err := buildContractSecurityAttributes(ctx, b, from, originalTx, &PrivateTxArgs{
+			PrivateFrom: privateFrom,
+			PrivateFor:  privateFor,
+		})
 		if err != nil {
 			return common.Hash{}, err
-		}
-		for _, a := range createdContractAddresses {
-			log.Debug("Simulation", "created", a.Hex())
-		}
-		for a, mode := range affectedContracts {
-			log.Debug("Simullation", "called", a.Hex(), "mode", mode)
-		}
-		// the main logic below is to build correct security attributes based on
-		// information available
-
-		isContractCreation := tx.To() == nil
-		thisTxSecAttr := &security.ContractSecurityAttribute{
-			AccountStateSecurityAttribute: &security.AccountStateSecurityAttribute{
-				From: from,
-			},
-		}
-		if isContractCreation {
-			thisTxSecAttr.Action = "create"
-			if tx.IsPrivate() {
-				thisTxSecAttr.Visibility = "private"
-				thisTxSecAttr.PrivateFrom = privateFrom
-			} else {
-				thisTxSecAttr.Visibility = "public"
-			}
-		} else { // message call
-			thisTxSecAttr.Action = "write"
-			cp, err := contractIndex.ReadIndex(*tx.To())
-			if err != nil {
-				return common.Hash{}, err
-			}
-			thisTxSecAttr.AccountStateSecurityAttribute.To = cp.CreatorAddress
-			if tx.IsPrivate() {
-				thisTxSecAttr.Visibility = "private"
-				thisTxSecAttr.PrivateFrom = privateFrom
-				// if this message call creates contracts
-				if len(createdContractAddresses) > 0 {
-					attributes = append(attributes, &security.ContractSecurityAttribute{
-						AccountStateSecurityAttribute: &security.AccountStateSecurityAttribute{
-							From: from,
-						},
-						Visibility:  "private",
-						Action:      "create",
-						PrivateFrom: privateFrom,
-					})
-				}
-			} else {
-				thisTxSecAttr.Visibility = "public"
-				// if this message call creates contracts
-				if len(createdContractAddresses) > 0 {
-					attributes = append(attributes, &security.ContractSecurityAttribute{
-						AccountStateSecurityAttribute: &security.AccountStateSecurityAttribute{
-							From: from,
-						},
-						Visibility: "public",
-						Action:     "create",
-					})
-				}
-			}
-		}
-		attributes = append(attributes, thisTxSecAttr)
-		for a, mode := range affectedContracts {
-			cp, err := contractIndex.ReadIndex(a)
-			if err != nil {
-				return common.Hash{}, fmt.Errorf("%s not found in the index due to %s", a.Hex(), err.Error())
-			}
-			attr := &security.ContractSecurityAttribute{
-				AccountStateSecurityAttribute: &security.AccountStateSecurityAttribute{
-					From: from,
-					To:   cp.CreatorAddress,
-				},
-				Parties:     cp.ParticipantAddreses,
-				PrivateFrom: privateFrom,
-			}
-			if len(cp.ParticipantAddreses) == 0 {
-				attr.Visibility = "public"
-			} else {
-				attr.Visibility = "private"
-			}
-			if mode&vm.ModeRead == vm.ModeRead {
-				attr.Action = "read"
-			}
-			if mode&vm.ModeWrite == vm.ModeWrite {
-				attr.Action = "write"
-			}
-			attributes = append(attributes, attr)
 		}
 		if authorized := b.IsAuthorized(ctx, authToken, attributes); !authorized {
 			return common.Hash{}, fmt.Errorf("not authorized")
@@ -1809,10 +1728,102 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 
 }
 
-func buildContractSecurityAttributes(b Backend, tx *types.Transaction, isRaw bool, privateArgs *PrivateTxArgs) ([]security.ContractSecurityAttribute, error) {
-	return nil, nil
+// Quorum
+//
+// buildContractSecurityAttributes is to use the given transaction and construct
+// expected security attributes being checked against entitled ones. The
+// transaction is fed into the simulation engine in order to determine the impact.
+func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA common.Address, tx *types.Transaction, privateArgs *PrivateTxArgs) ([]*security.ContractSecurityAttribute, error) {
+	createdContractAddresses, affectedContracts, err := simulateExecutionForMultitenancy(ctx, b, fromEOA, tx)
+	if err != nil {
+		return nil, err
+	}
+	contractIndex := b.ContractIndexReader()
+	attributes := make([]*security.ContractSecurityAttribute, 0)
+	// the main logic below is to build correct security attributes based on
+	// information available
+	thisTxSecAttr := &security.ContractSecurityAttribute{
+		AccountStateSecurityAttribute: &security.AccountStateSecurityAttribute{
+			From: fromEOA,
+		},
+	}
+	if tx.To() == nil { // contract creation
+		thisTxSecAttr.Action = "create"
+		if tx.IsPrivate() {
+			thisTxSecAttr.Visibility = "private"
+			thisTxSecAttr.PrivateFrom = privateArgs.PrivateFrom
+		} else {
+			thisTxSecAttr.Visibility = "public"
+		}
+	} else { // message call
+		thisTxSecAttr.Action = "write"
+		contractAddress := *tx.To()
+		cp, err := contractIndex.ReadIndex(contractAddress)
+		if err != nil {
+			return nil, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
+		}
+		thisTxSecAttr.AccountStateSecurityAttribute.To = cp.CreatorAddress
+		if tx.IsPrivate() {
+			thisTxSecAttr.Visibility = "private"
+			thisTxSecAttr.PrivateFrom = privateArgs.PrivateFrom
+			// if this message call results in contracts creation
+			if len(createdContractAddresses) > 0 {
+				attributes = append(attributes, &security.ContractSecurityAttribute{
+					AccountStateSecurityAttribute: &security.AccountStateSecurityAttribute{
+						From: fromEOA,
+					},
+					Visibility:  "private",
+					Action:      "create",
+					PrivateFrom: privateArgs.PrivateFrom,
+				})
+			}
+		} else {
+			thisTxSecAttr.Visibility = "public"
+			// if this message call creates contracts
+			if len(createdContractAddresses) > 0 {
+				attributes = append(attributes, &security.ContractSecurityAttribute{
+					AccountStateSecurityAttribute: &security.AccountStateSecurityAttribute{
+						From: fromEOA,
+					},
+					Visibility: "public",
+					Action:     "create",
+				})
+			}
+		}
+	}
+	attributes = append(attributes, thisTxSecAttr)
+	for a, mode := range affectedContracts {
+		cp, err := contractIndex.ReadIndex(a)
+		if err != nil {
+			return nil, fmt.Errorf("%s not found in the index, error: %s", a.Hex(), err.Error())
+		}
+		attr := &security.ContractSecurityAttribute{
+			AccountStateSecurityAttribute: &security.AccountStateSecurityAttribute{
+				From: fromEOA,
+				To:   cp.CreatorAddress,
+			},
+			Parties:     cp.ParticipantAddreses,
+			PrivateFrom: privateArgs.PrivateFrom,
+		}
+		if len(cp.ParticipantAddreses) == 0 {
+			attr.Visibility = "public"
+		} else {
+			attr.Visibility = "private"
+		}
+		if mode&vm.ModeRead == vm.ModeRead {
+			attr.Action = "read"
+		}
+		if mode&vm.ModeWrite == vm.ModeWrite {
+			attr.Action = "write"
+		}
+		attributes = append(attributes, attr)
+	}
+	return attributes, nil
 }
 
+// Quorum
+//
+// Retrieve private payload and construct the original transaction
 func buildPrivateTransaction(tx *types.Transaction) (*types.Transaction, error) {
 	_, privatePayload, _, revErr := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 	if revErr != nil {
@@ -1827,6 +1838,9 @@ func buildPrivateTransaction(tx *types.Transaction) (*types.Transaction, error) 
 	return privateTx, nil
 }
 
+// Quorum
+//
+// Retrieve private payload and construct the original transaction along with privateFrom information
 func buildPrivateTransactionFromRaw(tx *types.Transaction) (*types.Transaction, string, error) {
 	privatePayload, privateFrom, _, revErr := private.P.ReceiveRaw(common.BytesToEncryptedPayloadHash(tx.Data()))
 	if revErr != nil {
@@ -1841,22 +1855,41 @@ func buildPrivateTransactionFromRaw(tx *types.Transaction) (*types.Transaction, 
 	return privateTx, privateFrom, nil
 }
 
+// Quorum
+//
+// simulateExecutionForMultitenancy runs a simulation to execute the given transaction
+// then it returns affected contract addresses along with affected modes
 func simulateExecutionForMultitenancy(ctx context.Context, b Backend, from common.Address, tx *types.Transaction) ([]common.Address, map[common.Address]vm.AffectedMode, error) {
+	evm, err := runSimulation(ctx, b, from, tx)
+	if err != nil {
+		log.Error("Simulated execution", "error", err)
+		return nil, nil, err
+	}
+
+	m := make(map[common.Address]vm.AffectedMode)
+	for _, a := range evm.CalledContracts() {
+		if mode, err := evm.AffectedMode(a); err != nil {
+			return nil, nil, err
+		} else {
+			m[a] = mode
+		}
+	}
+	return evm.CreatedContracts(), m, nil
+}
+
+// runSimulation runs a simulation of the given transaction.
+// It returns the EVM instance upon completion
+func runSimulation(ctx context.Context, b Backend, from common.Address, tx *types.Transaction) (*vm.EVM, error) {
 	defer func(start time.Time) {
 		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
 	}(time.Now())
-	var contractAddr common.Address
-	blockNumber := b.CurrentBlock().Number().Uint64()
-	state, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
-	if state == nil || err != nil {
-		return nil, nil, err
-	}
+
 	// Set sender address or use a default if none specified
 	addr := from
 	if addr == (common.Address{}) {
 		if wallets := b.AccountManager().Wallets(); len(wallets) > 0 {
-			if accs := wallets[0].Accounts(); len(accs) > 0 {
-				addr = accs[0].Address
+			if accountList := wallets[0].Accounts(); len(accountList) > 0 {
+				addr = accountList[0].Address
 			}
 		}
 	}
@@ -1872,10 +1905,16 @@ func simulateExecutionForMultitenancy(ctx context.Context, b Backend, from commo
 	defer func() { cancel() }()
 
 	// Get a new instance of the EVM.
-	evm, _, err := b.GetEVM(ctx, msg, state, header)
-	if err != nil {
-		return nil, nil, err
+	blockNumber := b.CurrentBlock().Number().Uint64()
+	stateAtBlock, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
+	if stateAtBlock == nil || err != nil {
+		return nil, err
 	}
+	evm, _, err := b.GetEVM(ctx, msg, stateAtBlock, header)
+	if err != nil {
+		return nil, err
+	}
+
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
 	go func() {
@@ -1883,13 +1922,11 @@ func simulateExecutionForMultitenancy(ctx context.Context, b Backend, from commo
 		evm.Cancel()
 	}()
 
+	var contractAddr common.Address
 	// even the creation of a contract (init code) can invoke other contracts
 	if tx.To() != nil {
-		if !evm.StateDB.Exist(*tx.To()) {
-			err = fmt.Errorf("no access to contract account %s", tx.To().Hex())
-		} else {
-			_, _, err = evm.Call(vm.AccountRef(addr), *tx.To(), tx.Data(), tx.Gas(), tx.Value())
-		}
+		// removed contract availability checks as they are performed in checkAndHandlePrivateTransaction
+		_, _, err = evm.Call(vm.AccountRef(addr), *tx.To(), tx.Data(), tx.Gas(), tx.Value())
 	} else {
 		_, contractAddr, _, err = evm.Create(vm.AccountRef(addr), tx.Data(), tx.Gas(), tx.Value())
 		//make sure that nonce is same in simulation as in actual block processing
@@ -1899,20 +1936,7 @@ func simulateExecutionForMultitenancy(ctx context.Context, b Backend, from commo
 			evm.StateDB.SetNonce(contractAddr, 1)
 		}
 	}
-
-	if err != nil {
-		log.Error("Simulated execution", "error", err)
-		return nil, nil, err
-	}
-	m := make(map[common.Address]vm.AffectedMode)
-	for _, a := range evm.CalledContracts() {
-		if mode, err := evm.AffectedMode(a); err != nil {
-			return nil, nil, err
-		} else {
-			m[a] = mode
-		}
-	}
-	return evm.CreatedContracts(), m, nil
+	return evm, nil
 }
 
 // SendTransaction creates a transaction for the given argument, sign it and submit it to the
@@ -2576,72 +2600,17 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 	return
 }
 
-// Simulate execution of a private transaction
+// simulateExecutionForPE simulates execution of a private transaction for enhanced privacy
+//
 // Returns hashes of encrypted payload of creation transactions for all affected contract accounts
 // and the merkle root combining all affected contract accounts after the simulation
-//
 func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address, privateTx *types.Transaction, privateTxArgs *PrivateTxArgs) (common.EncryptedPayloadHashes, common.Hash, error) {
-	defer func(start time.Time) {
-		log.Debug("Simulated Execution EVM call finished", "runtime", time.Since(start))
-	}(time.Now())
-
 	// skip simulation if privacy enhancements are disabled
 	if !b.ChainConfig().IsPrivacyEnhancementsEnabled(b.CurrentBlock().Number()) {
 		return nil, common.Hash{}, nil
 	}
 
-	// Set sender address or use a default if none specified
-	addr := from
-	if addr == (common.Address{}) {
-		if wallets := b.AccountManager().Wallets(); len(wallets) > 0 {
-			if accounts := wallets[0].Accounts(); len(accounts) > 0 {
-				addr = accounts[0].Address
-			}
-		}
-	}
-
-	// Create new call message
-	msg := types.NewMessage(addr, privateTx.To(), privateTx.Nonce(), privateTx.Value(), privateTx.Gas(), privateTx.GasPrice(), privateTx.Data(), false)
-
-	// Setup context with timeout as gas un-metered
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, time.Second*5)
-	// Make sure the context is cancelled when the call has completed
-	// this makes sure resources are cleaned up.
-	defer func() { cancel() }()
-
-	// Get a new instance of the EVM.
-	blockNumber := b.CurrentBlock().Number().Uint64()
-	state, header, err := b.StateAndHeaderByNumber(ctx, rpc.BlockNumber(blockNumber))
-	if state == nil || err != nil {
-		return nil, common.Hash{}, err
-	}
-	evm, _, err := b.GetEVM(ctx, msg, state, header)
-	if err != nil {
-		return nil, common.Hash{}, err
-	}
-
-	// Wait for the context to be done and cancel the evm. Even if the
-	// EVM has finished, cancelling may be done (repeatedly)
-	go func() {
-		<-ctx.Done()
-		evm.Cancel()
-	}()
-
-	var contractAddr common.Address
-	// even the creation of a contract (init code) can invoke other contracts
-	if privateTx.To() != nil {
-		// removed contract availability checks as they are performed in checkAndHandlePrivateTransaction
-		_, _, err = evm.Call(vm.AccountRef(addr), *privateTx.To(), privateTx.Data(), privateTx.Gas(), privateTx.Value())
-	} else {
-		_, contractAddr, _, err = evm.Create(vm.AccountRef(addr), privateTx.Data(), privateTx.Gas(), privateTx.Value())
-		//make sure that nonce is same in simulation as in actual block processing
-		//simulation blockNumber will be behind block processing blockNumber by at least 1
-		//only guaranteed to work for default config where EIP158=1
-		if evm.ChainConfig().IsEIP158(big.NewInt(evm.BlockNumber.Int64() + 1)) {
-			evm.StateDB.SetNonce(contractAddr, 1)
-		}
-	}
+	evm, err := runSimulation(ctx, b, from, privateTx)
 
 	if err != nil {
 		if privateTxArgs.PrivacyFlag.IsStandardPrivate() {
