@@ -114,6 +114,12 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privateState)
 	// /Quorum
 
+	if types.IsEEAPermission() {
+		if err := tx.CheckAccountPermission(); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	if config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
 		return nil, nil, ErrInvalidGasPrice
 	}

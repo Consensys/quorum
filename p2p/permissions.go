@@ -18,22 +18,22 @@ const (
 
 //TODO update this based on permission changes
 // check if a given node is permissioned to connect to the change
-func isNodePermissioned(nodename string, currentNode string, datadir string, direction string) bool {
+func IsNodePermissioned(nodename string, currentNode string, datadir string, direction string) bool {
 	var permissionedList []string
 	nodes := ParsePermissionedNodes(datadir)
 	for _, v := range nodes {
 		permissionedList = append(permissionedList, v.ID().String())
 	}
 
-	log.Debug("isNodePermissioned", "permissionedList", permissionedList)
+	log.Debug("IsNodePermissioned", "permissionedList", permissionedList)
 	for _, v := range permissionedList {
 		if v == nodename {
-			log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
+			log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
 			// check if the node is blacklisted
 			return !isNodeBlackListed(nodename, datadir)
 		}
 	}
-	log.Debug("isNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "DENIED-BY", currentNode[:NODE_NAME_LENGTH])
+	log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "DENIED-BY", currentNode[:NODE_NAME_LENGTH])
 	return false
 }
 

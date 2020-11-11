@@ -2,21 +2,38 @@ package types
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru"
 )
 
 type AccessType uint8
 
 const (
+	// common access type list for both basic and EEA model.
+	// the first 4 are used by both models
 	ReadOnly AccessType = iota
 	Transact
 	ContractDeploy
 	FullAccess
+	// below access types are only used by EEA model
+	ContractCall
+	TransactAndContractCall
+	TransactAndContractDeploy
+	ContractCallAndDeploy
+)
+
+type PermissionModelType uint8
+
+const (
+	Basic PermissionModelType = iota
+	EEA
+	Default
 )
 
 type OrgStatus uint8
@@ -111,45 +128,49 @@ type PermissionConfig struct {
 }
 
 var (
-	ErrNotNetworkAdmin    = errors.New("Operation can be performed by network admin only. Account not a network admin.")
-	ErrNotOrgAdmin        = errors.New("Operation can be performed by org admin only. Account not a org admin.")
-	ErrNodePresent        = errors.New("EnodeId already part of network.")
-	ErrInvalidNode        = errors.New("Invalid enode id")
-	ErrInvalidAccount     = errors.New("Invalid account id")
-	ErrOrgExists          = errors.New("Org already exist")
-	ErrPendingApprovals   = errors.New("Pending approvals for the organization. Approve first")
-	ErrNothingToApprove   = errors.New("Nothing to approve")
-	ErrOpNotAllowed       = errors.New("Operation not allowed")
-	ErrNodeOrgMismatch    = errors.New("Enode id passed does not belong to the organization.")
-	ErrBlacklistedNode    = errors.New("Blacklisted node. Operation not allowed")
-	ErrBlacklistedAccount = errors.New("Blacklisted account. Operation not allowed")
-	ErrAccountOrgAdmin    = errors.New("Account already org admin for the org")
-	ErrOrgAdminExists     = errors.New("Org admin exist for the org")
-	ErrAccountInUse       = errors.New("Account already in use in another organization")
-	ErrRoleExists         = errors.New("Role exist for the org")
-	ErrRoleActive         = errors.New("Accounts linked to the role. Cannot be removed")
-	ErrAdminRoles         = errors.New("Admin role cannot be removed")
-	ErrInvalidOrgName     = errors.New("Org id cannot contain special characters")
-	ErrInvalidParentOrg   = errors.New("Invalid parent org id")
-	ErrAccountNotThere    = errors.New("Account does not exist")
-	ErrOrgNotOwner        = errors.New("Account does not belong to this org")
-	ErrMaxDepth           = errors.New("Max depth for sub orgs reached")
-	ErrMaxBreadth         = errors.New("Max breadth for sub orgs reached")
-	ErrNodeDoesNotExists  = errors.New("Node does not exist")
-	ErrOrgDoesNotExists   = errors.New("Org does not exist")
-	ErrInactiveRole       = errors.New("Role is already inactive")
-	ErrInvalidRole        = errors.New("Invalid role")
-	ErrInvalidInput       = errors.New("Invalid input")
-	ErrNotMasterOrg       = errors.New("Org is not a master org")
+	ErrNotNetworkAdmin      = errors.New("Operation can be performed by network admin only. Account not a network admin.")
+	ErrNotOrgAdmin          = errors.New("Operation can be performed by org admin only. Account not a org admin.")
+	ErrNodePresent          = errors.New("EnodeId already part of network.")
+	ErrInvalidNode          = errors.New("Invalid enode id")
+	ErrInvalidAccount       = errors.New("Invalid account id")
+	ErrOrgExists            = errors.New("Org already exist")
+	ErrPendingApprovals     = errors.New("Pending approvals for the organization. Approve first")
+	ErrNothingToApprove     = errors.New("Nothing to approve")
+	ErrOpNotAllowed         = errors.New("Operation not allowed")
+	ErrNodeOrgMismatch      = errors.New("Enode id passed does not belong to the organization.")
+	ErrBlacklistedNode      = errors.New("Blacklisted node. Operation not allowed")
+	ErrBlacklistedAccount   = errors.New("Blacklisted account. Operation not allowed")
+	ErrAccountOrgAdmin      = errors.New("Account already org admin for the org")
+	ErrOrgAdminExists       = errors.New("Org admin exist for the org")
+	ErrAccountInUse         = errors.New("Account already in use in another organization")
+	ErrRoleExists           = errors.New("Role exist for the org")
+	ErrRoleActive           = errors.New("Accounts linked to the role. Cannot be removed")
+	ErrAdminRoles           = errors.New("Admin role cannot be removed")
+	ErrInvalidOrgName       = errors.New("Org id cannot contain special characters")
+	ErrInvalidParentOrg     = errors.New("Invalid parent org id")
+	ErrAccountNotThere      = errors.New("Account does not exist")
+	ErrOrgNotOwner          = errors.New("Account does not belong to this org")
+	ErrMaxDepth             = errors.New("Max depth for sub orgs reached")
+	ErrMaxBreadth           = errors.New("Max breadth for sub orgs reached")
+	ErrNodeDoesNotExists    = errors.New("Node does not exist")
+	ErrOrgDoesNotExists     = errors.New("Org does not exist")
+	ErrInactiveRole         = errors.New("Role is already inactive")
+	ErrInvalidRole          = errors.New("Invalid role")
+	ErrInvalidInput         = errors.New("Invalid input")
+	ErrNotMasterOrg         = errors.New("Org is not a master org")
+	ErrHostNameNotSupported = errors.New("Hostname not supported in the network")
+	ErrNoPermissionForTxn   = errors.New("account does not have permission for the transaction")
 )
 
 var syncStarted = false
 
-var DefaultAccess = FullAccess
-var QIP714BlockReached = false
+var defaultAccess = FullAccess
+var qip714BlockReached = false
+var networkBootUpCompleted = false
 var networkAdminRole string
 var orgAdminRole string
-
+var PermissionModel = Default
+var PermissionTransactionAllowedFunc func(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error)
 var (
 	OrgInfoMap  *OrgCache
 	NodeInfoMap *NodeCache
@@ -271,21 +292,55 @@ func GetSyncStatus() bool {
 	return syncStarted
 }
 
-// sets the default access to Readonly upon QIP714Blokc
-func SetDefaultAccess() {
-	DefaultAccess = ReadOnly
-	QIP714BlockReached = true
+// sets default access to read only
+func setDefaultAccess() {
+	if PermissionsEnabled() {
+		defaultAccess = ReadOnly
+	}
+}
+
+// sets the qip714block reached as true
+func SetQIP714BlockReached() {
+	qip714BlockReached = true
+	setDefaultAccess()
+}
+
+// sets the network boot completed as true
+func SetNetworkBootUpCompleted() {
+	networkBootUpCompleted = true
+	setDefaultAccess()
+}
+
+// return bool to indicate if permissions is enabled
+func PermissionsEnabled() bool {
+	if PermissionModel == EEA {
+		return qip714BlockReached
+	} else {
+		return qip714BlockReached && networkBootUpCompleted
+	}
 }
 
 // sets default access to readonly and initializes the values for
 // network admin role and org admin role
-func SetDefaults(nwRoleId, oaRoleId string) {
+func SetDefaults(nwRoleId, oaRoleId string, eeaFlag bool) {
 	networkAdminRole = nwRoleId
 	orgAdminRole = oaRoleId
+	if eeaFlag {
+		PermissionModel = EEA
+	} else {
+		PermissionModel = Basic
+	}
 }
 
 func GetDefaults() (string, string, AccessType) {
-	return networkAdminRole, orgAdminRole, DefaultAccess
+	return networkAdminRole, orgAdminRole, defaultAccess
+}
+
+func GetNodeUrl(enodeId string, ip string, port uint16, raftport uint16, isRaft bool) string {
+	if isRaft {
+		return fmt.Sprintf("enode://%s@%s:%d?discport=0&raftport=%d", enodeId, strings.Trim(ip, "\x00"), port, raftport)
+	}
+	return fmt.Sprintf("enode://%s@%s:%d?discport=0", enodeId, strings.Trim(ip, "\x00"), port)
 }
 
 func (o *OrgCache) UpsertOrg(orgId, parentOrg, ultimateParent string, level *big.Int, status OrgStatus) {
@@ -509,11 +564,6 @@ func (r *RoleCache) GetRoleList() []RoleInfo {
 // Returns the access type for an account. If not found returns
 // default access
 func GetAcctAccess(acctId common.Address) AccessType {
-	//if we have not reached QIP714 block return default access
-	//which will be full access
-	if !QIP714BlockReached {
-		return DefaultAccess
-	}
 
 	// check if the org status is fine to do the transaction
 	a, _ := AcctInfoMap.GetAccount(acctId)
@@ -534,7 +584,7 @@ func GetAcctAccess(acctId common.Address) AccessType {
 			}
 		}
 	}
-	return DefaultAccess
+	return defaultAccess
 }
 
 //checks if the given org is active in the network
@@ -555,7 +605,7 @@ func checkIfOrgActive(orgId string) bool {
 // checks if the passed account is linked to a org admin or
 // network admin role
 func CheckIfAdminAccount(acctId common.Address) bool {
-	if !QIP714BlockReached {
+	if !PermissionsEnabled() {
 		return true
 	}
 	a, _ := AcctInfoMap.GetAccount(acctId)
@@ -579,7 +629,7 @@ func CheckIfAdminAccount(acctId common.Address) bool {
 
 // validates if the account can transact from the current node
 func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
-	if !QIP714BlockReached || hexnodeId == "" {
+	if !PermissionsEnabled() || hexnodeId == "" {
 		return true
 	}
 
@@ -616,4 +666,59 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 	}
 
 	return false
+}
+
+func IsEEAPermission() bool {
+	return PermissionModel == EEA
+}
+
+//  checks if the account permission allows the transaction to be executed
+func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int, gasPrice *big.Int, gasLimit *big.Int, payload []byte, transactionType TransactionType) error {
+	//if we have not reached QIP714 block return full access
+	if !PermissionsEnabled() {
+		return nil
+	}
+
+	switch PermissionModel {
+	case Default:
+		return nil
+
+	case Basic:
+		return isTransactionAllowedBasic(from, transactionType)
+
+	case EEA:
+		if PermissionTransactionAllowedFunc == nil {
+			return ErrNoPermissionForTxn
+		}
+
+		allowed, err := PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload)
+		if err != nil {
+			return ErrNoPermissionForTxn
+		}
+		if allowed {
+			return nil
+		} else {
+			return ErrNoPermissionForTxn
+		}
+	}
+
+	return nil
+}
+
+func isTransactionAllowedBasic(from common.Address, transactionType TransactionType) error {
+	switch GetAcctAccess(from) {
+	case ReadOnly:
+		return ErrNoPermissionForTxn
+
+	case Transact:
+		if transactionType == ContractDeployTxn {
+			return ErrNoPermissionForTxn
+		}
+		return nil
+
+	case FullAccess, ContractDeploy:
+		return nil
+
+	}
+	return nil
 }

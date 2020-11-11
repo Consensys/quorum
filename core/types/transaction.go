@@ -35,6 +35,14 @@ import (
 
 //go:generate gencodec -type txdata -field-override txdataMarshaling -out gen_tx_json.go
 
+type TransactionType uint8
+
+const (
+	ValueTransferTxn TransactionType = iota
+	ContractCallTxn
+	ContractDeployTxn
+)
+
 var (
 	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
 )
@@ -144,6 +152,26 @@ func (tx *Transaction) ChainId() *big.Int {
 // Protected returns whether the transaction is protected from replay protection.
 func (tx *Transaction) Protected() bool {
 	return isProtectedV(tx.data.V)
+}
+
+// Quorum - function checks for account access to execute the transaction
+func (tx *Transaction) CheckAccountPermission() error {
+	transactionType := ValueTransferTxn
+
+	if tx.To() == nil {
+		transactionType = ContractDeployTxn
+	} else if tx.Data() != nil {
+		transactionType = ContractCallTxn
+	}
+
+	var to common.Address
+	if tx.To() == nil {
+		to = common.Address{}
+	} else {
+		to = *tx.To()
+	}
+
+	return IsTransactionAllowed(tx.From(), to, tx.Value(), tx.GasPrice(), big.NewInt(int64(tx.Gas())), tx.Data(), transactionType)
 }
 
 func isProtectedV(V *big.Int) bool {

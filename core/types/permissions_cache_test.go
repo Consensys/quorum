@@ -35,7 +35,7 @@ func TestSetSyncStatus(t *testing.T) {
 func TestSetDefaults(t *testing.T) {
 	assert := testifyassert.New(t)
 
-	SetDefaults(NETWORKADMIN, ORGADMIN)
+	SetDefaults(NETWORKADMIN, ORGADMIN, false)
 
 	// get the default values and confirm the same
 	networkAdminRole, orgAdminRole, defaultAccess := GetDefaults()
@@ -44,7 +44,8 @@ func TestSetDefaults(t *testing.T) {
 	assert.True(orgAdminRole == ORGADMIN, fmt.Sprintf("Expected network admin role %v, got %v", ORGADMIN, orgAdminRole))
 	assert.True(defaultAccess == FullAccess, fmt.Sprintf("Expected network admin role %v, got %v", FullAccess, defaultAccess))
 
-	SetDefaultAccess()
+	SetNetworkBootUpCompleted()
+	SetQIP714BlockReached()
 	networkAdminRole, orgAdminRole, defaultAccess = GetDefaults()
 	assert.True(defaultAccess == ReadOnly, fmt.Sprintf("Expected network admin role %v, got %v", ReadOnly, defaultAccess))
 }
@@ -175,8 +176,9 @@ func TestGetAcctAccess(t *testing.T) {
 	assert := testifyassert.New(t)
 
 	// default access when the cache is not populated, should return default access
-	SetDefaults(NETWORKADMIN, ORGADMIN)
-	SetDefaultAccess()
+	SetDefaults(NETWORKADMIN, ORGADMIN, false)
+	SetQIP714BlockReached()
+	SetNetworkBootUpCompleted()
 	access := GetAcctAccess(Acct1)
 	assert.True(access == ReadOnly, fmt.Sprintf("Expected account access to be %v, got %v", ReadOnly, access))
 
@@ -213,8 +215,8 @@ func TestValidateNodeForTxn(t *testing.T) {
 	txnAllowed := ValidateNodeForTxn("", Acct1)
 	assert.True(txnAllowed, "Expected access %v, got %v", true, txnAllowed)
 
-	SetDefaultAccess()
-
+	SetQIP714BlockReached()
+	SetNetworkBootUpCompleted()
 	// if a proper enode id is not passed, return should be false
 	txnAllowed = ValidateNodeForTxn("ABCDE", Acct1)
 	assert.True(!txnAllowed, "Expected access %v, got %v", true, txnAllowed)
@@ -247,7 +249,8 @@ func TestValidateNodeForTxn_whenUsingOnlyHexNodeId(t *testing.T) {
 	arbitraryPrivateKey, _ := crypto.GenerateKey()
 	hexNodeId := fmt.Sprintf("%x", crypto.FromECDSAPub(&arbitraryPrivateKey.PublicKey)[1:])
 
-	SetDefaultAccess()
+	SetQIP714BlockReached()
+	SetNetworkBootUpCompleted()
 
 	txnAllowed := ValidateNodeForTxn(hexNodeId, Acct1)
 
@@ -267,8 +270,9 @@ func TestLRUCacheLimit(t *testing.T) {
 }
 
 func TestCheckIfAdminAccount(t *testing.T) {
-	SetDefaults(NETWORKADMIN, ORGADMIN)
-	SetDefaultAccess()
+	SetDefaults(NETWORKADMIN, ORGADMIN, false)
+	SetQIP714BlockReached()
+	SetQIP714BlockReached()
 
 	var Acct3 = common.BytesToAddress([]byte("permission-test1"))
 	var Acct4 = common.BytesToAddress([]byte("permission-test2"))
@@ -424,6 +428,105 @@ func Test_checkIfOrgActive(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := checkIfOrgActive(tt.args.orgId); got != tt.want {
 				t.Errorf("checkIfOrgActive() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsTransactionAllowed_Basic(t *testing.T) {
+	SetDefaults(NETWORKADMIN, ORGADMIN, false)
+	SetQIP714BlockReached()
+	SetNetworkBootUpCompleted()
+	OrgInfoMap = NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
+	RoleInfoMap = NewRoleCache(params.DEFAULT_ROLECACHE_SIZE)
+	AcctInfoMap = NewAcctCache(params.DEFAULT_ACCOUNTCACHE_SIZE)
+
+	OrgInfoMap.UpsertOrg(ORGADMIN, "", ORGADMIN, big.NewInt(1), OrgApproved)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE1", false, false, Transact, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE2", false, false, ContractDeploy, true)
+	RoleInfoMap.UpsertRole(ORGADMIN, "ROLE3", false, false, FullAccess, true)
+	var Acct3 = common.BytesToAddress([]byte("permission-test1"))
+	var Acct4 = common.BytesToAddress([]byte("permission-test2"))
+
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE1", Acct1, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE2", Acct2, false, AcctActive)
+	AcctInfoMap.UpsertAccount(ORGADMIN, "ROLE3", Acct3, false, AcctActive)
+
+	type args struct {
+		address         common.Address
+		transactionType TransactionType
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name:    "Account with transact permission calling value transfer",
+			args:    args{address: Acct1, transactionType: ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with transact permission calling value contract call transaction",
+			args:    args{address: Acct1, transactionType: ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with transact permission calling contract deploy",
+			args:    args{address: Acct1, transactionType: ContractDeployTxn},
+			wantErr: true,
+		},
+		{
+			name:    "Account with contract permission deploy calling value transfer",
+			args:    args{address: Acct2, transactionType: ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with contract deploy permission calling value contract call transaction",
+			args:    args{address: Acct2, transactionType: ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with contract deploy permission calling contract deploy",
+			args:    args{address: Acct2, transactionType: ContractDeployTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with full permission calling value transfer",
+			args:    args{address: Acct3, transactionType: ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with full permission calling value contract call transaction",
+			args:    args{address: Acct3, transactionType: ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with full permission calling contract deploy",
+			args:    args{address: Acct3, transactionType: ContractDeployTxn},
+			wantErr: false,
+		},
+		{
+			name:    "un-permissioned account calling value transfer",
+			args:    args{address: Acct4, transactionType: ValueTransferTxn},
+			wantErr: true,
+		},
+		{
+			name:    "un-permissioned account calling contract call transaction",
+			args:    args{address: Acct4, transactionType: ContractCallTxn},
+			wantErr: true,
+		},
+		{
+			name:    "un-permissioned account calling contract deploy",
+			args:    args{address: Acct4, transactionType: ContractDeployTxn},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := IsTransactionAllowed(tt.args.address, common.Address{}, nil, nil, nil, nil, tt.args.transactionType); (err != nil) != tt.wantErr {
+				t.Errorf("IsTransactionAllowed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
