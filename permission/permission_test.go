@@ -240,7 +240,7 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 	err := testObject.AfterStart()
 
 	assert.NoError(t, err)
-	if testObject.eeaFlag {
+	if testObject.IsEEAPermission() {
 		var contract *eea.Init
 		contract, _ = testObject.contract.(*eea.Init)
 		assert.NotNil(t, contract.PermOrg)
@@ -410,7 +410,7 @@ func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 
 func testConnectionAllowed(t *testing.T, q *QuorumControlsAPI, url string, expected bool) {
 	enode, ip, port, raftPort, err := ptype.GetNodeDetails(url, false, false)
-	if q.permCtrl.eeaFlag {
+	if q.permCtrl.IsEEAPermission() {
 		assert.NoError(t, err)
 		connAllowed := q.ConnectionAllowed(enode, ip, port, raftPort)
 		assert.Equal(t, expected, connAllowed)
@@ -496,7 +496,7 @@ func testTransactionAllowed(t *testing.T, q *QuorumControlsAPI, txa ethapi.SendT
 func TestQuorumControlsAPI_TransactionAllowed(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
 
-	if testObject.permCtrl.eeaFlag {
+	if testObject.permCtrl.IsEEAPermission() {
 
 		acct := getArbitraryAccount()
 		txa := ethapi.SendTxArgs{From: guardianAddress}
@@ -717,7 +717,12 @@ func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
 		SubOrgDepth:   big.NewInt(10),
 		SubOrgBreadth: big.NewInt(10),
 	}
-	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, eeaFlag, false)
+	if eeaFlag {
+		pconfig.PermissionsModel = PERMISSION_EEA
+	} else {
+		pconfig.PermissionsModel = PERMISSION_BASIC
+	}
+	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -726,7 +731,7 @@ func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
 	testObject.eth = ethereum
 
 	// set contract and backend's contract as asyncStart won't get called
-	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.eeaFlag, testObject.key, testObject.permConfig, false, false)
+	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.IsEEAPermission(), testObject.key, testObject.permConfig, false, false)
 	if eeaFlag {
 		b := testObject.backend.(*eea.Backend)
 		b.Contr = testObject.contract.(*eea.Init)

@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	binding "github.com/ethereum/go-ethereum/permission/basic/bind"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
@@ -158,7 +159,18 @@ func (a *Audit) GetPendingOperation(_orgId string) (string, string, common.Addre
 }
 
 func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error) {
-	return false, fmt.Errorf("not implemented for binding Contr")
+	passedEnodeId, err := enode.ParseV4(_enodeId)
+	if err != nil {
+		return false, nil
+	}
+	nodeList := types.NodeInfoMap.GetNodeList()
+	for _, n := range nodeList {
+		recEnodeId, _ := enode.ParseV4(n.Url)
+		if recEnodeId.ID() == passedEnodeId.ID() && n.Status == types.NodeApproved {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {
