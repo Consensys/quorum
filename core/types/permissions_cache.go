@@ -110,17 +110,18 @@ type OrgDetailInfo struct {
 
 // permission config for bootstrapping
 type PermissionConfig struct {
-	UpgrdAddress   common.Address `json:"upgrdableAddress"`
-	InterfAddress  common.Address `json:"interfaceAddress"`
-	ImplAddress    common.Address `json:"implAddress"`
-	NodeAddress    common.Address `json:"nodeMgrAddress"`
-	AccountAddress common.Address `json:"accountMgrAddress"`
-	RoleAddress    common.Address `json:"roleMgrAddress"`
-	VoterAddress   common.Address `json:"voterMgrAddress"`
-	OrgAddress     common.Address `json:"orgMgrAddress"`
-	NwAdminOrg     string         `json:"nwAdminOrg"`
-	NwAdminRole    string         `json:"nwAdminRole"`
-	OrgAdminRole   string         `json:"orgAdminRole"`
+	PermissionsModel string         `json:"permissionModel"`
+	UpgrdAddress     common.Address `json:"upgrdableAddress"`
+	InterfAddress    common.Address `json:"interfaceAddress"`
+	ImplAddress      common.Address `json:"implAddress"`
+	NodeAddress      common.Address `json:"nodeMgrAddress"`
+	AccountAddress   common.Address `json:"accountMgrAddress"`
+	RoleAddress      common.Address `json:"roleMgrAddress"`
+	VoterAddress     common.Address `json:"voterMgrAddress"`
+	OrgAddress       common.Address `json:"orgMgrAddress"`
+	NwAdminOrg       string         `json:"nwAdminOrg"`
+	NwAdminRole      string         `json:"nwAdminRole"`
+	OrgAdminRole     string         `json:"orgAdminRole"`
 
 	Accounts      []common.Address `json:"accounts"` //initial list of account that need full access
 	SubOrgDepth   *big.Int         `json:"subOrgDepth"`

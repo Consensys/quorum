@@ -809,7 +809,7 @@ func (q *QuorumControlsAPI) valApproveOrg(args ptype.TxArgs) error {
 	}
 	enodeId, _, _, _, _ := ptype.GetNodeDetails(args.Url, q.permCtrl.isRaft, q.permCtrl.useDns)
 	url := args.Url
-	if q.permCtrl.eeaFlag {
+	if q.permCtrl.IsEEAPermission() {
 		url = enodeId
 	}
 	// check if anything pending approval
@@ -1065,7 +1065,7 @@ func (q *QuorumControlsAPI) valRecoverNode(args ptype.TxArgs, action PermAction)
 		}
 		enodeId, _, _, _, _ := ptype.GetNodeDetails(args.Url, q.permCtrl.isRaft, q.permCtrl.useDns)
 		// check that there is a pending approval item for node recovery
-		if q.permCtrl.eeaFlag {
+		if q.permCtrl.IsEEAPermission() {
 			if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.OrgId, enodeId, common.Address{}, 5) {
 				return types.ErrNothingToApprove
 			}

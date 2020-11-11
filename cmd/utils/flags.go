@@ -802,11 +802,6 @@ var (
 		Usage: "overrides the default immutability threshold for Quorum nodes. Its the threshold beyond which block data will be moved to ancient db",
 		Value: 3162240,
 	}
-	// Permission EEA flags
-	PermEeaModeFlag = cli.BoolFlag{
-		Name:  "eeapermissions",
-		Usage: "If enabled, implements EEA permissions model",
-	}
 	// Raft flags
 	RaftModeFlag = cli.BoolFlag{
 		Name:  "raft",
@@ -1839,14 +1834,14 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 }
 
 // Configure smart-contract-based permissioning service
-func RegisterPermissionService(stack *node.Node, eeaFlag, useDns bool) {
+func RegisterPermissionService(stack *node.Node, useDns bool) {
 	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
 		permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
 		if err != nil {
 			return nil, fmt.Errorf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}
 		// start the permissions management service
-		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig, eeaFlag, useDns)
+		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig, useDns)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}

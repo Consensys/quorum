@@ -32,7 +32,6 @@ type PermissionCtrl struct {
 	permConfig         *types.PermissionConfig
 	contract           ptype.InitService
 	backend            ptype.Backend
-	eeaFlag            bool
 	useDns             bool
 	isRaft             bool
 	startWaitGroup     *sync.WaitGroup // waitgroup to make sure all dependencies are ready before we start the service
@@ -40,6 +39,11 @@ type PermissionCtrl struct {
 	networkInitialized bool
 	controlService     ptype.ControlService
 }
+
+const (
+	PERMISSION_EEA   = "EEA"
+	PERMISSION_BASIC = "BASIC"
+)
 
 var permissionService *PermissionCtrl
 
@@ -55,9 +59,13 @@ func setPermissionService(ps *PermissionCtrl) {
 // 1. EthService to be ready
 // 2. Downloader to sync up blocks
 // 3. InProc RPC server to be ready
-func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, eeaFlag, useDns bool) (*PermissionCtrl, error) {
+func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, useDns bool) (*PermissionCtrl, error) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
+
+	if pconfig.PermissionsModel == "" {
+		pconfig.PermissionsModel = PERMISSION_BASIC
+	}
 	p := &PermissionCtrl{
 		node:           stack,
 		key:            stack.GetNodeKey(),
@@ -65,7 +73,6 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, 
 		permConfig:     pconfig,
 		startWaitGroup: wg,
 		errorChan:      make(chan error),
-		eeaFlag:        eeaFlag,
 		useDns:         useDns,
 		isRaft:         false,
 	}
@@ -121,6 +128,10 @@ func (p *PermissionCtrl) Stop() error {
 	return nil
 }
 
+func (p *PermissionCtrl) IsEEAPermission() bool {
+	return p.permConfig.PermissionsModel == PERMISSION_EEA
+}
+
 func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, key *ecdsa.PrivateKey,
 	permConfig *types.PermissionConfig, isRaft, useDns bool) ptype.InitService {
 
@@ -149,7 +160,7 @@ func (p *PermissionCtrl) NewPermissionRoleService(txa ethapi.SendTxArgs) (ptype.
 	}
 	roleBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
 
-	switch p.eeaFlag {
+	switch p.IsEEAPermission() {
 	case true:
 		backEnd, err := getEeaBackEndWithTransactOpts(roleBackend, p.isRaft, p.useDns, transactOpts)
 		if err != nil {
@@ -172,7 +183,7 @@ func (p *PermissionCtrl) NewPermissionOrgService(txa ethapi.SendTxArgs) (ptype.O
 	}
 
 	orgBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-	switch p.eeaFlag {
+	switch p.IsEEAPermission() {
 	case true:
 		backEnd, err := getEeaBackEndWithTransactOpts(orgBackend, p.isRaft, p.useDns, transactOpts)
 		if err != nil {
@@ -195,7 +206,7 @@ func (p *PermissionCtrl) NewPermissionNodeService(txa ethapi.SendTxArgs) (ptype.
 	}
 
 	nodeBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-	switch p.eeaFlag {
+	switch p.IsEEAPermission() {
 	case true:
 		backEnd, err := getEeaBackEndWithTransactOpts(nodeBackend, p.isRaft, p.useDns, transactOpts)
 		if err != nil {
@@ -218,7 +229,7 @@ func (p *PermissionCtrl) NewPermissionAccountService(txa ethapi.SendTxArgs) (pty
 	}
 
 	accountBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-	switch p.eeaFlag {
+	switch p.IsEEAPermission() {
 	case true:
 		backEnd, err := getEeaBackEndWithTransactOpts(accountBackend, p.isRaft, p.useDns, transactOpts)
 		if err != nil {
@@ -237,7 +248,7 @@ func (p *PermissionCtrl) NewPermissionAccountService(txa ethapi.SendTxArgs) (pty
 func (p *PermissionCtrl) NewPermissionAuditService() (ptype.AuditService, error) {
 
 	auditBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-	switch p.eeaFlag {
+	switch p.IsEEAPermission() {
 	case true:
 		backEnd, err := getEeaBackEnd(auditBackend, p.isRaft, p.useDns)
 		if err != nil {
@@ -255,7 +266,7 @@ func (p *PermissionCtrl) NewPermissionAuditService() (ptype.AuditService, error)
 
 func (p *PermissionCtrl) NewPermissionControlService() (ptype.ControlService, error) {
 	controlBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-	switch p.eeaFlag {
+	switch p.IsEEAPermission() {
 	case true:
 		backEnd, err := getEeaBackEnd(controlBackend, p.isRaft, p.useDns)
 		if err != nil {
@@ -270,7 +281,7 @@ func (p *PermissionCtrl) NewPermissionControlService() (ptype.ControlService, er
 func (p *PermissionCtrl) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error) {
 	if p.controlService == nil {
 		controlBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-		switch p.eeaFlag {
+		switch p.IsEEAPermission() {
 		case true:
 			backEnd, err := getEeaBackEnd(controlBackend, p.isRaft, p.useDns)
 			if err != nil {
@@ -287,7 +298,7 @@ func (p *PermissionCtrl) ConnectionAllowed(_enodeId, _ip string, _port, _raftPor
 func (p *PermissionCtrl) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {
 	if p.controlService == nil {
 		controlBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-		switch p.eeaFlag {
+		switch p.IsEEAPermission() {
 		case true:
 			backEnd, err := getEeaBackEnd(controlBackend, p.isRaft, p.useDns)
 			if err != nil {
@@ -370,7 +381,7 @@ func getEeaInterfaceContractSession(permInterfaceInstance *eb.PermInterface, con
 func (p *PermissionCtrl) populateBackEnd() {
 	backend := ptype.NewInterfaceBackend(p.node, false, p.dataDir)
 
-	switch p.eeaFlag {
+	switch p.IsEEAPermission() {
 	case true:
 		p.backend = &eea.Backend{
 			Ib: *backend,
@@ -384,8 +395,8 @@ func (p *PermissionCtrl) populateBackEnd() {
 }
 
 func (p *PermissionCtrl) updateBackEnd() {
-	p.contract = NewPermissionContractService(p.ethClnt, p.eeaFlag, p.key, p.permConfig, p.isRaft, p.useDns)
-	switch p.eeaFlag {
+	p.contract = NewPermissionContractService(p.ethClnt, p.IsEEAPermission(), p.key, p.permConfig, p.isRaft, p.useDns)
+	switch p.IsEEAPermission() {
 	case true:
 		p.backend.(*eea.Backend).Contr = p.contract.(*eea.Init)
 		p.backend.(*eea.Backend).Ib.SetIsRaft(p.isRaft)
