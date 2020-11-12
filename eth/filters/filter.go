@@ -28,8 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/index"
-	"github.com/ethereum/go-ethereum/plugin/security"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
@@ -50,8 +49,12 @@ type Backend interface {
 	BloomStatus() (uint64, uint64)
 	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
 
-	ContractIndexReader() index.ContractIndexReader
-	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*security.ContractSecurityAttribute) bool
+	// Quorum - Multitenancy
+	ContractIndexReader() multitenancy.ContractIndexReader
+	// Quorum - Multitenancy
+	// Performs matching logic between verified entitlements embedded in the authToken and
+	// the security attributes built from the request
+	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool
 }
 
 // Filter can be used to retrieve and filter logs.

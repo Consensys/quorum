@@ -34,8 +34,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	lru "github.com/hashicorp/golang-lru"
@@ -463,8 +463,8 @@ func (lc *LightChain) GetHeaderByNumberOdr(ctx context.Context, number uint64) (
 }
 
 // ContractIndexWriter returns a new instance of ContractIndex used to write an index
-func (lc *LightChain) ContractIndexWriter() index.ContractIndexWriter {
-	return index.NewContractIndex(lc.chainDb)
+func (lc *LightChain) ContractIndexWriter() multitenancy.ContractIndexWriter {
+	return multitenancy.NewContractIndex(lc.chainDb)
 }
 
 // Config retrieves the header chain's chain configuration.

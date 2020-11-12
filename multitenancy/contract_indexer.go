@@ -1,4 +1,4 @@
-package index
+package multitenancy
 
 import (
 	"errors"
@@ -34,12 +34,12 @@ type ContractParties struct {
 	// EOA address that was used to sign the contract creation transaction
 	CreatorAddress common.Address
 	// List of Tessera Public Keys
-	ParticipantAddreses []string
+	Parties []string
 }
 
 type contractPartiesRLP struct {
-	CreatorAddress      common.Address
-	ParticipantAddreses []string
+	CreatorAddress common.Address
+	Parties        []string
 }
 
 func (ci ContractIndex) WriteIndex(contractAddress common.Address, contractParties *ContractParties) error {
@@ -74,13 +74,13 @@ func (cp *ContractParties) DecodeRLP(s *rlp.Stream) error {
 	if err := s.Decode(&partiesRLP); err != nil {
 		return err
 	}
-	cp.CreatorAddress, cp.ParticipantAddreses = partiesRLP.CreatorAddress, partiesRLP.ParticipantAddreses
+	cp.CreatorAddress, cp.Parties = partiesRLP.CreatorAddress, partiesRLP.Parties
 	return nil
 }
 
 func (cp *ContractParties) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, contractPartiesRLP{
-		CreatorAddress:      cp.CreatorAddress,
-		ParticipantAddreses: cp.ParticipantAddreses,
+		CreatorAddress: cp.CreatorAddress,
+		Parties:        cp.Parties,
 	})
 }

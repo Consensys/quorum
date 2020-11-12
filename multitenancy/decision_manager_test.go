@@ -1,4 +1,4 @@
-package security
+package multitenancy
 
 import (
 	"context"
@@ -27,7 +27,7 @@ func TestMatch_whenTypical(t *testing.T) {
 	granted, _ := url.Parse("private://0xa1b1c1/create/contracts?from.tm=A/")
 	ask, _ := url.Parse("private://0xa1b1c1/create/contracts?from.tm=A%2F")
 
-	assert.True(t, match(&ContractSecurityAttribute{Action: "create"}, ask, granted))
+	assert.True(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
 }
 
 func TestMatch_whenAnyAction(t *testing.T) {
@@ -35,22 +35,22 @@ func TestMatch_whenAnyAction(t *testing.T) {
 	ask, _ := url.Parse("private://0xa1b1c1/read/contracts?from.tm=A1")
 
 	assert.True(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "read",
+		Visibility: VisibilityPrivate,
+		Action:     ActionRead,
 	}, ask, granted))
 
 	ask, _ = url.Parse("private://0xa1b1c1/read/contracts?owned.eoa=0x0&from.tm=A1&from.tm=B1")
 
 	assert.True(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "read",
+		Visibility: VisibilityPrivate,
+		Action:     ActionRead,
 	}, ask, granted))
 
 	ask, _ = url.Parse("private://0xa1b1c1/write/contracts?owned.eoa=0x0&from.tm=A1")
 
 	assert.True(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "write",
+		Visibility: VisibilityPrivate,
+		Action:     ActionWrite,
 	}, ask, granted))
 }
 
@@ -59,8 +59,8 @@ func TestMatch_whenPathNotMatched(t *testing.T) {
 	ask, _ := url.Parse("private://0xa1b1c1/read/contracts?from.tm=A1")
 
 	assert.False(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "read",
+		Visibility: VisibilityPrivate,
+		Action:     ActionRead,
 	}, ask, granted))
 }
 
@@ -68,7 +68,7 @@ func TestMatch_whenSchemeIsNotEqual(t *testing.T) {
 	granted, _ := url.Parse("unknown://0xa1b1c1/create/contracts?from.tm=A")
 	ask, _ := url.Parse("private://0xa1b1c1/create/contracts?from.tm=A")
 
-	assert.False(t, match(&ContractSecurityAttribute{Action: "create"}, ask, granted))
+	assert.False(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
 }
 
 func TestMatch_whenContractWritePermission_GrantedIsTheSuperSet(t *testing.T) {
@@ -76,16 +76,16 @@ func TestMatch_whenContractWritePermission_GrantedIsTheSuperSet(t *testing.T) {
 	ask, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=A")
 
 	assert.True(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "write",
+		Visibility: VisibilityPrivate,
+		Action:     ActionWrite,
 	}, ask, granted), "with write permission")
 
 	granted, _ = url.Parse("private://0x0/read/contracts?owned.eoa=0x0&from.tm=A&from.tm=B")
 	ask, _ = url.Parse("private://0x0/read/contracts?owned.eoa=0x0&from.tm=A")
 
 	assert.True(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "read",
+		Visibility: VisibilityPrivate,
+		Action:     ActionRead,
 	}, ask, granted), "with read permission")
 }
 
@@ -94,8 +94,8 @@ func TestMatch_whenContractReadPermission_EoaSame(t *testing.T) {
 	ask, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x945304eb96065b2a98b57a48a06ae28d285a71b5")
 
 	assert.False(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "read",
+		Visibility: VisibilityPrivate,
+		Action:     ActionRead,
 	}, ask, granted))
 }
 
@@ -104,8 +104,8 @@ func TestMatch_whenContractReadPermission_EoaDifferent(t *testing.T) {
 	ask, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x095e7baea6a6c7c4c2dfeb977efac326af552d87")
 
 	assert.True(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "read",
+		Visibility: VisibilityPrivate,
+		Action:     ActionRead,
 	}, ask, granted))
 }
 
@@ -114,8 +114,8 @@ func TestMatch_whenContractReadPermission_TmKeysIntersect(t *testing.T) {
 	ask, _ := url.Parse("private://0x0/read/contracts?from.tm=B&from.tm=C")
 
 	assert.True(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "read",
+		Visibility: VisibilityPrivate,
+		Action:     ActionRead,
 	}, ask, granted))
 }
 
@@ -124,8 +124,8 @@ func TestMatch_whenContractReadPermission_TmKeysDontIntersect(t *testing.T) {
 	ask, _ := url.Parse("private://0x0/read/contracts?from.tm=C&from.tm=D")
 
 	assert.False(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "read",
+		Visibility: VisibilityPrivate,
+		Action:     ActionRead,
 	}, ask, granted))
 }
 
@@ -134,8 +134,8 @@ func TestMatch_whenContractWritePermission_Same(t *testing.T) {
 	ask, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=A")
 
 	assert.True(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "write",
+		Visibility: VisibilityPrivate,
+		Action:     ActionWrite,
 	}, ask, granted))
 }
 
@@ -144,8 +144,8 @@ func TestMatch_whenContractWritePermission_Different(t *testing.T) {
 	ask, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=B")
 
 	assert.False(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "write",
+		Visibility: VisibilityPrivate,
+		Action:     ActionWrite,
 	}, ask, granted))
 }
 
@@ -154,8 +154,8 @@ func TestMatch_whenContractCreatePermission_Same(t *testing.T) {
 	ask, _ := url.Parse("private://0x0/create/contracts?owned.eoa=0x0&from.tm=A")
 
 	assert.True(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "create",
+		Visibility: VisibilityPrivate,
+		Action:     ActionCreate,
 	}, ask, granted))
 }
 
@@ -164,8 +164,8 @@ func TestMatch_whenContractCreatePermission_Different(t *testing.T) {
 	ask, _ := url.Parse("private://0x0/create/contracts?owned.eoa=0x0&from.tm=B")
 
 	assert.False(t, match(&ContractSecurityAttribute{
-		Visibility: "private",
-		Action:     "create",
+		Visibility: VisibilityPrivate,
+		Action:     ActionCreate,
 	}, ask, granted))
 }
 
@@ -173,38 +173,38 @@ func TestMatch_whenUsingWildcardAccount(t *testing.T) {
 	granted, _ := url.Parse("private://0x0/create/contracts?from.tm=dLHrFQpbSda0EhJnLonsBwDjks%2Bf724NipfI5zK5RSs%3D")
 	ask, _ := url.Parse("private://0xed9d02e382b34818e88b88a309c7fe71e65f419d/create/contracts?from.tm=dLHrFQpbSda0EhJnLonsBwDjks%2Bf724NipfI5zK5RSs%3D")
 
-	assert.True(t, match(&ContractSecurityAttribute{Action: "create"}, ask, granted))
+	assert.True(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
 
 	granted, _ = url.Parse("private://0x0/read/contract?owned.eoa=0x0")
 	ask, _ = url.Parse("private://0xa1b1c1/read/contract?owned.eoa=0x1234")
 
-	assert.True(t, match(&ContractSecurityAttribute{Action: "read"}, ask, granted))
+	assert.True(t, match(&ContractSecurityAttribute{Action: ActionRead}, ask, granted))
 }
 
 func TestMatch_whenNotUsingWildcardAccount(t *testing.T) {
 	granted, _ := url.Parse("private://0xed9d02e382b34818e88b88a309c7fe71e65f419d/create/contracts?from.tm=dLHrFQpbSda0EhJnLonsBwDjks%2Bf724NipfI5zK5RSs%3D")
 	ask, _ := url.Parse("private://0xed9d02e382b34818e88b88a309c7fe71e65f419d/create/contracts?from.tm=dLHrFQpbSda0EhJnLonsBwDjks%2Bf724NipfI5zK5RSs%3D")
 
-	assert.True(t, match(&ContractSecurityAttribute{Action: "create"}, ask, granted))
+	assert.True(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
 
 	granted, _ = url.Parse("private://0x0/read/contract?owned.eoa=0x0")
 	ask, _ = url.Parse("private://0xa1b1c1/read/contract?owned.eoa=0x1234")
 
-	assert.True(t, match(&ContractSecurityAttribute{Action: "read"}, ask, granted))
+	assert.True(t, match(&ContractSecurityAttribute{Action: ActionRead}, ask, granted))
 }
 
 func TestMatch_failsWhenAccountsDiffer(t *testing.T) {
 	granted, _ := url.Parse("private://0xed9d02e382b34818e88b88a309c7fe71e65f419d/create/contracts?from.tm=dLHrFQpbSda0EhJnLonsBwDjks%2Bf724NipfI5zK5RSs%3D")
 	ask, _ := url.Parse("private://0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b/create/contracts?from.tm=dLHrFQpbSda0EhJnLonsBwDjks%2Bf724NipfI5zK5RSs%3D")
 
-	assert.False(t, match(&ContractSecurityAttribute{Action: "create"}, ask, granted))
+	assert.False(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
 }
 
 func TestMatch_whenPublic(t *testing.T) {
 	granted, _ := url.Parse("private://0xa1b1c1/create/contract?from.tm=A/")
 	ask, _ := url.Parse("public://0x0/create/contract")
 
-	assert.True(t, match(&ContractSecurityAttribute{Action: "create"}, ask, granted))
+	assert.True(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
 }
 
 func TestMatch_whenNotEscaped(t *testing.T) {
@@ -212,7 +212,7 @@ func TestMatch_whenNotEscaped(t *testing.T) {
 	granted, _ := url.Parse("private://0xed9d02e382b34818e88b88a309c7fe71e65f419d/create/contracts?from.tm=BULeR8JyUWhiuuCMU/HLA0Q5pzkYT+cHII3ZKBey3Bo=")
 	ask, _ := url.Parse("private://0xed9d02e382b34818e88b88a309c7fe71e65f419d/create/contracts?from.tm=BULeR8JyUWhiuuCMU%2FHLA0Q5pzkYT%2BcHII3ZKBey3Bo%3D")
 
-	assert.False(t, match(&ContractSecurityAttribute{Action: "create"}, ask, granted))
+	assert.False(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
 }
 
 func runTestCases(t *testing.T, testCases []*testCase) {
@@ -274,8 +274,8 @@ var (
 				AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 					From: common.HexToAddress("0xa1a1a1"),
 				},
-				Visibility: "public",
-				Action:     "create",
+				Visibility: VisibilityPublic,
+				Action:     ActionCreate,
 			},
 		},
 		isAuthorized: true,
@@ -291,15 +291,15 @@ var (
 				AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 					From: common.HexToAddress("0xa1a1a1"),
 				},
-				Visibility: "public",
-				Action:     "create",
+				Visibility: VisibilityPublic,
+				Action:     ActionCreate,
 			}, {
 				AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 					From: common.HexToAddress("0xa1a1a1"),
 					To:   common.HexToAddress("0xb1b1b1"),
 				},
-				Visibility: "public",
-				Action:     "write",
+				Visibility: VisibilityPublic,
+				Action:     ActionWrite,
 			},
 		},
 		isAuthorized: true,
@@ -315,8 +315,8 @@ var (
 	//		AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 	//			From: common.HexToAddress("0xb1b1b1"),
 	//		},
-	//		Visibility: "public",
-	//		Action:     "create",
+	//		Visibility: VisibilityPublic,
+	//		Action:     ActionCreate,
 	//	}},
 	//	isAuthorized: false,
 	//}
@@ -329,8 +329,8 @@ var (
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
-			Visibility: "public",
-			Action:     "read",
+			Visibility: VisibilityPublic,
+			Action:     ActionRead,
 		}},
 		isAuthorized: true,
 	}
@@ -344,8 +344,8 @@ var (
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
 			},
-			Visibility: "public",
-			Action:     "read",
+			Visibility: VisibilityPublic,
+			Action:     ActionRead,
 		}},
 		isAuthorized: true,
 	}
@@ -359,8 +359,8 @@ var (
 	//			From: common.HexToAddress("0xa1a1a1"),
 	//			To:   common.HexToAddress("0xb1b1b1"),
 	//		},
-	//		Visibility: "public",
-	//		Action:     "read",
+	//		Visibility: VisibilityPublic,
+	//		Action:     ActionRead,
 	//	}},
 	//	isAuthorized: false,
 	//}
@@ -373,8 +373,8 @@ var (
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
-			Visibility: "public",
-			Action:     "write",
+			Visibility: VisibilityPublic,
+			Action:     ActionWrite,
 		}},
 		isAuthorized: true,
 	}
@@ -388,8 +388,8 @@ var (
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
 			},
-			Visibility: "public",
-			Action:     "write",
+			Visibility: VisibilityPublic,
+			Action:     ActionWrite,
 		}},
 		isAuthorized: true,
 	}
@@ -403,8 +403,8 @@ var (
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xc1c1c1"),
 			},
-			Visibility: "public",
-			Action:     "write",
+			Visibility: VisibilityPublic,
+			Action:     ActionWrite,
 		}},
 		isAuthorized: true,
 	}
@@ -419,8 +419,8 @@ var (
 	//			From: common.HexToAddress("0xa1a1a1"),
 	//			To:   common.HexToAddress("0xb1b1b1"),
 	//		},
-	//		Visibility: "public",
-	//		Action:     "write",
+	//		Visibility: VisibilityPublic,
+	//		Action:     ActionWrite,
 	//	}},
 	//	isAuthorized: false,
 	//}
@@ -434,8 +434,8 @@ var (
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
-			Visibility:  "private",
-			Action:      "create",
+			Visibility:  VisibilityPrivate,
+			Action:      ActionCreate,
 			PrivateFrom: "A",
 			Parties:     []string{},
 		}},
@@ -450,8 +450,8 @@ var (
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
-			Visibility:  "private",
-			Action:      "create",
+			Visibility:  VisibilityPrivate,
+			Action:      ActionCreate,
 			PrivateFrom: "A",
 			Parties:     []string{},
 		}},
@@ -466,8 +466,8 @@ var (
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
-			Visibility: "private",
-			Action:     "read",
+			Visibility: VisibilityPrivate,
+			Action:     ActionRead,
 			Parties:    []string{"A"},
 		}},
 		isAuthorized: true,
@@ -482,8 +482,8 @@ var (
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
 			},
-			Visibility: "private",
-			Action:     "read",
+			Visibility: VisibilityPrivate,
+			Action:     ActionRead,
 			Parties:    []string{"A"},
 		}},
 		isAuthorized: true,
@@ -498,8 +498,8 @@ var (
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
 			},
-			Visibility: "private",
-			Action:     "read",
+			Visibility: VisibilityPrivate,
+			Action:     ActionRead,
 			Parties:    []string{"A"},
 		}},
 		isAuthorized: false,
@@ -514,8 +514,8 @@ var (
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
 			},
-			Visibility: "private",
-			Action:     "read",
+			Visibility: VisibilityPrivate,
+			Action:     ActionRead,
 			Parties:    []string{"A"},
 		}},
 		isAuthorized: false,
@@ -529,8 +529,8 @@ var (
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
-			Visibility:  "private",
-			Action:      "write",
+			Visibility:  VisibilityPrivate,
+			Action:      ActionWrite,
 			PrivateFrom: "A",
 			Parties:     []string{"A"},
 		}},
@@ -546,8 +546,8 @@ var (
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
 			},
-			Visibility:  "private",
-			Action:      "write",
+			Visibility:  VisibilityPrivate,
+			Action:      ActionWrite,
 			PrivateFrom: "A",
 			Parties:     []string{"A"},
 		}},
@@ -564,8 +564,8 @@ var (
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
 			},
-			Visibility:  "private",
-			Action:      "write",
+			Visibility:  VisibilityPrivate,
+			Action:      ActionWrite,
 			PrivateFrom: "A",
 			Parties:     []string{"A"},
 		}},
@@ -581,8 +581,8 @@ var (
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
 			},
-			Visibility: "private",
-			Action:     "write",
+			Visibility: VisibilityPrivate,
+			Action:     ActionWrite,
 			Parties:    []string{"A"},
 		}},
 		isAuthorized: false,
@@ -597,8 +597,8 @@ var (
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
 			},
-			Visibility: "private",
-			Action:     "write",
+			Visibility: VisibilityPrivate,
+			Action:     ActionWrite,
 			Parties:    []string{"A"},
 		}},
 		isAuthorized: false,

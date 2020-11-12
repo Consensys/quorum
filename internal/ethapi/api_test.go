@@ -20,10 +20,9 @@ import (
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/plugin/security"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
@@ -455,8 +454,8 @@ func TestBuildContractSecurityAttributes_whenTypicalContractCreationFromRawPriva
 	assert.NoError(t, err)
 	assert.Len(t, attributes, 1)
 	attr := attributes[0]
-	assert.Equal(t, "create", attr.Action)
-	assert.Equal(t, "private", attr.Visibility)
+	assert.Equal(t, multitenancy.ActionCreate, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
 	assert.Equal(t, arbitraryFrom, attr.From)
 	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
 }
@@ -466,10 +465,10 @@ func TestBuildContractSecurityAttributes_whenTypicalMessageCall(t *testing.T) {
 	stubBackend := &StubBackend{
 		stubContractIndexReader: &StubContractIndexReader{
 			errorMap: make(map[common.Address]error),
-			partiesMap: map[common.Address]index.ContractParties{
+			partiesMap: map[common.Address]multitenancy.ContractParties{
 				arbitrarySimpleStorageContractAddress: {
-					CreatorAddress:      arbitraryCreatorAddress,
-					ParticipantAddreses: []string{privateTxArgs.PrivateFor[0]}, // only first one is managed
+					CreatorAddress: arbitraryCreatorAddress,
+					Parties:        []string{privateTxArgs.PrivateFor[0]}, // only first one is managed
 				},
 			},
 		},
@@ -485,15 +484,15 @@ func TestBuildContractSecurityAttributes_whenTypicalMessageCall(t *testing.T) {
 	assert.Len(t, attributes, 2)
 	// the first one is for the target contract
 	attr := attributes[0]
-	assert.Equal(t, "write", attr.Action)
-	assert.Equal(t, "private", attr.Visibility)
+	assert.Equal(t, multitenancy.ActionWrite, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
 	assert.Equal(t, arbitraryFrom, attr.From)
 	assert.Equal(t, arbitraryCreatorAddress, attr.To)
 	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
 	// the second one is for the affected contract
 	attr = attributes[1]
-	assert.Equal(t, "write", attr.Action)
-	assert.Equal(t, "private", attr.Visibility)
+	assert.Equal(t, multitenancy.ActionWrite, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
 	assert.Equal(t, arbitraryFrom, attr.From)
 	assert.Equal(t, arbitraryCreatorAddress, attr.To)
 	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
@@ -524,29 +523,29 @@ func copyTransaction(tx *types.Transaction) *types.Transaction {
 
 type StubContractIndexReader struct {
 	errorMap   map[common.Address]error
-	partiesMap map[common.Address]index.ContractParties
+	partiesMap map[common.Address]multitenancy.ContractParties
 }
 
-func (cir *StubContractIndexReader) ReadIndex(contractAddress common.Address) (index.ContractParties, error) {
+func (cir *StubContractIndexReader) ReadIndex(contractAddress common.Address) (multitenancy.ContractParties, error) {
 	if e, ok := cir.errorMap[contractAddress]; ok {
-		return index.ContractParties{}, e
+		return multitenancy.ContractParties{}, e
 	}
 	if p, ok := cir.partiesMap[contractAddress]; ok {
 		return p, nil
 	}
-	return index.ContractParties{}, errors.Errorf("no stub setup for contract")
+	return multitenancy.ContractParties{}, errors.Errorf("no stub setup for contract")
 }
 
 type StubBackend struct {
 	getEVMCalled            bool
-	stubContractIndexReader index.ContractIndexReader
+	stubContractIndexReader multitenancy.ContractIndexReader
 }
 
-func (sb *StubBackend) ContractIndexReader() index.ContractIndexReader {
+func (sb *StubBackend) ContractIndexReader() multitenancy.ContractIndexReader {
 	return sb.stubContractIndexReader
 }
 
-func (sb *StubBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*security.ContractSecurityAttribute) bool {
+func (sb *StubBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {
 	panic("implement me")
 }
 

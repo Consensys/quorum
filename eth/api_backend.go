@@ -36,7 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/index"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	pcore "github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/plugin/security"
@@ -359,11 +359,11 @@ func (b *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	}
 }
 
-func (b *EthAPIBackend) ContractIndexReader() index.ContractIndexReader {
-	return index.NewContractIndex(b.ChainDb())
+func (b *EthAPIBackend) ContractIndexReader() multitenancy.ContractIndexReader {
+	return multitenancy.NewContractIndex(b.ChainDb())
 }
 
-func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*security.ContractSecurityAttribute) bool {
+func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {
 	caDecisionManager, err := b.eth.securityPlugin.ContractAccessDecisionManager()
 	if err != nil {
 		// TODO log the error

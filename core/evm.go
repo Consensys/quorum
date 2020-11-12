@@ -24,7 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/index"
+	"github.com/ethereum/go-ethereum/multitenancy"
 )
 
 // ChainContext supports retrieving headers and consensus parameters from the
@@ -37,7 +37,7 @@ type ChainContext interface {
 	GetHeader(common.Hash, uint64) *types.Header
 
 	// ContractIndexWriter return the ContractIndex
-	ContractIndexWriter() index.ContractIndexWriter
+	ContractIndexWriter() multitenancy.ContractIndexWriter
 }
 
 // NewEVMContext creates a new context for use in the EVM.
@@ -49,7 +49,7 @@ func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author
 	} else {
 		beneficiary = *author
 	}
-	var contractIndexer index.ContractIndexWriter
+	var contractIndexer multitenancy.ContractIndexWriter
 	if chain != nil && !reflect.ValueOf(chain).IsNil() {
 		contractIndexer = chain.ContractIndexWriter()
 	}

@@ -26,8 +26,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -127,7 +127,7 @@ type Context struct {
 	// Quorum
 	// Writes an index for contract address against parties
 	// which are managed by paired Tessera
-	ContractIndexer index.ContractIndexWriter
+	ContractIndexer multitenancy.ContractIndexWriter
 }
 
 type PublicState StateDB

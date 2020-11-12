@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/plugin/security"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
@@ -600,35 +600,16 @@ func decodeTopic(s string) (common.Hash, error) {
 }
 
 // Quorum
-//
+// Perform authorization check for each logs based on the contract addresses
 func (api *PublicFilterAPI) isAuthorized(ctx context.Context, logs []*types.Log) (bool, error) {
 	if len(logs) == 0 {
 		return true, nil
 	}
 	authToken, isPreauthenticated := ctx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
 	if isPreauthenticated {
-		contractIndex := api.backend.ContractIndexReader()
-		attributes := make([]*security.ContractSecurityAttribute, 0)
-		for _, l := range logs {
-			ca := l.Address
-			cp, err := contractIndex.ReadIndex(ca)
-			if err != nil {
-				return false, fmt.Errorf("%s not found in the index due to %s", ca.Hex(), err.Error())
-			}
-			attr := &security.ContractSecurityAttribute{
-				AccountStateSecurityAttribute: &security.AccountStateSecurityAttribute{
-					From: cp.CreatorAddress, // TODO must figure out what this value must be when tighten access control for account
-					To:   cp.CreatorAddress,
-				},
-				Action:  "read",
-				Parties: cp.ParticipantAddreses,
-			}
-			if len(cp.ParticipantAddreses) == 0 {
-				attr.Visibility = "public"
-			} else {
-				attr.Visibility = "private"
-			}
-			attributes = append(attributes, attr)
+		attributes, err := multitenancy.ToContractSecurityAttributes(api.backend.ContractIndexReader(), logs)
+		if err != nil {
+			return false, err
 		}
 		if !api.backend.IsAuthorized(ctx, authToken, attributes) {
 			return false, nil

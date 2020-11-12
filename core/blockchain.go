@@ -38,9 +38,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -2316,8 +2316,8 @@ func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
 }
 
 // GetContractIndexer returns a new instance of ContractIndexer
-func (bc *BlockChain) ContractIndexWriter() index.ContractIndexWriter {
-	return index.NewContractIndex(bc.db)
+func (bc *BlockChain) ContractIndexWriter() multitenancy.ContractIndexWriter {
+	return multitenancy.NewContractIndex(bc.db)
 }
 
 // GetTransactionLookup retrieves the lookup associate with the given transaction

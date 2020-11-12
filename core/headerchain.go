@@ -31,8 +31,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/index"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	lru "github.com/hashicorp/golang-lru"
 )
@@ -469,8 +469,8 @@ func (hc *HeaderChain) SetCurrentHeader(head *types.Header) {
 }
 
 // GetContractIndexer returns a new instance of ContractIndexer
-func (hc *HeaderChain) ContractIndexWriter() index.ContractIndexWriter {
-	return index.NewContractIndex(hc.chainDb)
+func (hc *HeaderChain) ContractIndexWriter() multitenancy.ContractIndexWriter {
+	return multitenancy.NewContractIndex(hc.chainDb)
 }
 
 type (
