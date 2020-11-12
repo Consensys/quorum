@@ -1,3 +1,5 @@
+//go:generate mockgen -source contract_indexer.go -destination mock_contract_indexer.go -package multitenancy
+
 package multitenancy
 
 import (
@@ -17,7 +19,7 @@ type ContractIndexWriter interface {
 }
 
 type ContractIndexReader interface {
-	ReadIndex(contractAddress common.Address) (ContractParties, error)
+	ReadIndex(contractAddress common.Address) (*ContractParties, error)
 }
 
 type ContractIndex struct {
@@ -54,19 +56,21 @@ func (ci ContractIndex) WriteIndex(contractAddress common.Address, contractParti
 	return nil
 }
 
-func (ci ContractIndex) ReadIndex(contractAddress common.Address) (ContractParties, error) {
+func (ci ContractIndex) ReadIndex(contractAddress common.Address) (*ContractParties, error) {
 	var ca ContractParties
 	contractPartiesBytes, err := ci.db.Get(append(contractIndexPrefix, contractAddress.Bytes()...))
 	if err != nil {
 		log.Error("Error retrieving Contract Addresses from index", "Contract Address", contractAddress)
-		return ca, err
+		return nil, err
 	}
 	if len(contractPartiesBytes) == 0 {
 		log.Error("Empty response returned", "Contract Address", contractAddress)
-		return ca, errors.New("empty response querying contract index")
+		return nil, errors.New("empty response querying contract index")
 	}
-	rlp.DecodeBytes(contractPartiesBytes, &ca)
-	return ca, nil
+	if err := rlp.DecodeBytes(contractPartiesBytes, &ca); err != nil {
+		return nil, err
+	}
+	return &ca, nil
 }
 
 func (cp *ContractParties) DecodeRLP(s *rlp.Stream) error {

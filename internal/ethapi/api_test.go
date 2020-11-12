@@ -526,14 +526,14 @@ type StubContractIndexReader struct {
 	partiesMap map[common.Address]multitenancy.ContractParties
 }
 
-func (cir *StubContractIndexReader) ReadIndex(contractAddress common.Address) (multitenancy.ContractParties, error) {
+func (cir *StubContractIndexReader) ReadIndex(contractAddress common.Address) (*multitenancy.ContractParties, error) {
 	if e, ok := cir.errorMap[contractAddress]; ok {
-		return multitenancy.ContractParties{}, e
+		return nil, e
 	}
 	if p, ok := cir.partiesMap[contractAddress]; ok {
-		return p, nil
+		return &p, nil
 	}
-	return multitenancy.ContractParties{}, errors.Errorf("no stub setup for contract")
+	return nil, errors.Errorf("no stub setup for contract")
 }
 
 type StubBackend struct {
