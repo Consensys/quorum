@@ -37,6 +37,11 @@ type BlockSigners struct {
 	Committers []common.Address
 }
 
+type Status struct {
+	SigningStatus map[common.Address]int `json:"sealerActivity"`
+	NumBlocks     uint64                 `json:"numBlocks"`
+}
+
 // NodeAddress returns the public address that is used to sign block headers in IBFT
 func (api *API) NodeAddress() common.Address {
 	return api.istanbul.Address()
@@ -175,4 +180,57 @@ func (api *API) Discard(address common.Address) {
 	defer api.istanbul.candidatesLock.Unlock()
 
 	delete(api.istanbul.candidates, address)
+}
+
+func (api *API) Status() (*Status, error) {
+	var (
+		numBlocks   = uint64(64)
+		header      = api.chain.CurrentHeader()
+		blockNumber = rpc.BlockNumber(header.Number.Int64())
+		end         = header.Number.Uint64()
+		start       = end - numBlocks
+	)
+	signers, err := api.GetValidators(&blockNumber)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if numBlocks >= end {
+		start = 1
+		if end > start {
+			numBlocks = end - start
+		} else {
+			numBlocks = 0
+		}
+	}
+	signStatus := make(map[common.Address]int)
+	for _, s := range signers {
+		signStatus[s] = 0
+	}
+
+	for n := start; n < end; n++ {
+		blockNum := rpc.BlockNumber(int64(n))
+		s, _ := api.GetSignersFromBlock(&blockNum)
+		signStatus[s.Author]++
+
+	}
+	return &Status{
+		SigningStatus: signStatus,
+		NumBlocks:     numBlocks,
+	}, nil
+}
+
+func (api *API) IsValidator() (bool, error) {
+
+	header := api.chain.CurrentHeader()
+	blockNumber := rpc.BlockNumber(header.Number.Int64())
+	s, _ := api.GetValidators(&blockNumber)
+
+	for _, v := range s {
+		if v == api.istanbul.address {
+			return true, nil
+		}
+	}
+	return false, nil
 }

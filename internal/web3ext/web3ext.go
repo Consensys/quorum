@@ -107,6 +107,11 @@ web3._extend({
 			call: 'clique_discard',
 			params: 1
 		}),
+		new web3._extend.Method({
+			name: 'status',
+			call: 'clique_status',
+			params: 0
+		}),
 	],
 	properties: [
 		new web3._extend.Property({
@@ -1033,6 +1038,17 @@ web3._extend({
 			call: 'istanbul_getSignersFromBlockByHash',
 			params: 1
 		}),
+		new web3._extend.Method({
+			name: 'status',
+			call: 'istanbul_status',
+			params: 0
+		}),
+		new web3._extend.Method({
+			name: 'isValidator',
+			call: 'istanbul_isValidator',
+			params: 0
+		}),
+
 	],
 	properties:
 	[
