@@ -16,16 +16,31 @@ const (
 	ActionRead        ContractAction     = "read"
 	ActionWrite       ContractAction     = "write"
 	ActionCreate      ContractAction     = "create"
+
+	// QueryOwnedEOA query parameter is to capture the EOA address
+	// For value transfer, it represents the account owner
+	// For message call, it represents the EOA that signed the contract creation transaction
+	// in other words, the EOA that owns the contract
+	QueryOwnedEOA = "owned.eoa"
+	// QueryToEOA query parameter is to capture the EOA address which is the
+	// target account in value transfer scenarios
+	QueryToEOA = "to.eoa"
+	// QueryFromTM query parameter is to capture the Tessera Public Key
+	// which indicates the sender of a private transaction or participant of a private contract
+	QueryFromTM = "from.tm"
+
+	// AnyEOAAddress represents wild card for EOA address
+	AnyEOAAddress = "0x0"
 )
 
-// AccountStateSecurityAttribute contains security configuration attributes
+// AccountStateSecurityAttribute contains security configuration ask
 // which are defined for a secure account state
 type AccountStateSecurityAttribute struct {
 	From common.Address // Account Address
 	To   common.Address
 }
 
-// ContractSecurityAttribute contains security configuration attributes
+// ContractSecurityAttribute contains security configuration ask
 // which are defined for a secure contract account
 type ContractSecurityAttribute struct {
 	*AccountStateSecurityAttribute
@@ -35,7 +50,7 @@ type ContractSecurityAttribute struct {
 	Parties     []string           // TM Keys, only if Visibility is private, for read
 }
 
-// Construct a list of READ security attributes from contract event logs
+// Construct a list of READ security ask from contract event logs
 func ToContractSecurityAttributes(contractIndex ContractIndexReader, logs []*types.Log) ([]*ContractSecurityAttribute, error) {
 	attributes := make([]*ContractSecurityAttribute, 0)
 	for _, l := range logs {

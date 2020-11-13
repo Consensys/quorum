@@ -2,6 +2,7 @@ package ethapi
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -28,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -533,7 +533,7 @@ func (cir *StubContractIndexReader) ReadIndex(contractAddress common.Address) (*
 	if p, ok := cir.partiesMap[contractAddress]; ok {
 		return &p, nil
 	}
-	return nil, errors.Errorf("no stub setup for contract")
+	return nil, fmt.Errorf("no stub setup for contract")
 }
 
 type StubBackend struct {

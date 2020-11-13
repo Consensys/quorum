@@ -17,10 +17,10 @@ func init() {
 }
 
 type testCase struct {
-	msg            string
-	rawAuthorities []string
-	attributes     []*ContractSecurityAttribute
-	isAuthorized   bool
+	msg          string
+	granted      []string
+	ask          []*ContractSecurityAttribute
+	isAuthorized bool
 }
 
 func TestMatch_whenTypical(t *testing.T) {
@@ -149,6 +149,16 @@ func TestMatch_whenContractWritePermission_Different(t *testing.T) {
 	}, ask, granted))
 }
 
+func TestMatch_whenContractWritePermission_AskIsSuperSet(t *testing.T) {
+	granted, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=A")
+	ask, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=B&from.tm=C&from.tm=A")
+
+	assert.False(t, match(&ContractSecurityAttribute{
+		Visibility: VisibilityPrivate,
+		Action:     ActionWrite,
+	}, ask, granted))
+}
+
 func TestMatch_whenContractCreatePermission_Same(t *testing.T) {
 	granted, _ := url.Parse("private://0x0/create/contracts?owned.eoa=0x0&from.tm=A")
 	ask, _ := url.Parse("private://0x0/create/contracts?owned.eoa=0x0&from.tm=A")
@@ -220,13 +230,13 @@ func runTestCases(t *testing.T, testCases []*testCase) {
 	for _, tc := range testCases {
 		log.Debug("--> Running test case: " + tc.msg)
 		authorities := make([]*proto.GrantedAuthority, 0)
-		for _, a := range tc.rawAuthorities {
+		for _, a := range tc.granted {
 			authorities = append(authorities, &proto.GrantedAuthority{Raw: a})
 		}
 		b, err := testObject.IsAuthorized(
 			context.Background(),
 			&proto.PreAuthenticatedAuthenticationToken{Authorities: authorities},
-			tc.attributes)
+			tc.ask)
 		assert.NoError(t, err, tc.msg)
 		assert.Equal(t, tc.isAuthorized, b, tc.msg)
 	}
@@ -260,16 +270,105 @@ func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts(t 
 		canWriteOtherPrivateContractsWithOverlappedScope,
 		canNotWriteOtherPrivateContracts,
 		canNotWriteOtherPrivateContractsNoPrivy,
+		canNotWriteOtherPrivateContractsNoPrivyViaItsPrivateTx,
+	})
+}
+
+func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wildcards(t *testing.T) {
+	runTestCases(t, []*testCase{
+		{
+			msg: "X has full access to a private contract",
+			granted: []string{
+				"private://0x0/_/contracts?owned.eoa=0x0&from.tm=X",
+			},
+			ask: []*ContractSecurityAttribute{
+				// create
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
+						From: common.HexToAddress("0xa1a1a1"),
+					},
+					Visibility:  VisibilityPrivate,
+					Action:      ActionCreate,
+					PrivateFrom: "X",
+					Parties:     []string{},
+				},
+				// write
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
+						From: common.HexToAddress("0xa1a1a1"),
+					},
+					Visibility:  VisibilityPrivate,
+					Action:      ActionWrite,
+					PrivateFrom: "X",
+					Parties:     []string{},
+				},
+				// write as a participant
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
+						From: common.HexToAddress("0xa1a1a1"),
+					},
+					Visibility:  VisibilityPrivate,
+					Action:      ActionWrite,
+					PrivateFrom: "X",
+					Parties:     []string{"X"},
+				},
+				// read
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
+					Visibility:                    VisibilityPrivate,
+					Action:                        ActionRead,
+					PrivateFrom:                   "X",
+					Parties:                       []string{},
+				},
+				// read as a participant
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
+					Visibility:                    VisibilityPrivate,
+					Action:                        ActionRead,
+					PrivateFrom:                   "X",
+					Parties:                       []string{"X"},
+				},
+			},
+			isAuthorized: true,
+		},
+		{
+			msg: "X must not access other private contracts",
+			granted: []string{
+				"private://0x0/_/contracts?owned.eoa=0x0&from.tm=X",
+			},
+			ask: []*ContractSecurityAttribute{
+				// proxy-write via its private tx
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
+						From: common.HexToAddress("0xa1a1a1"),
+						To:   common.HexToAddress("0xb1b1b1"), // creator EOA address
+					},
+					Visibility:  VisibilityPrivate,
+					Action:      ActionWrite,
+					PrivateFrom: "X",
+					Parties:     []string{"A", "B"},
+				},
+				// proxy-read via its private tx
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
+					Visibility:                    VisibilityPrivate,
+					Action:                        ActionRead,
+					PrivateFrom:                   "X",
+					Parties:                       []string{"A", "B"},
+				},
+			},
+			isAuthorized: false,
+		},
 	})
 }
 
 var (
 	canCreatePublicContracts = &testCase{
 		msg: "0x0a1a1a1 can create public contracts",
-		rawAuthorities: []string{
+		granted: []string{
 			"public://0x0000000000000000000000000000000000a1a1a1/create/contracts",
 		},
-		attributes: []*ContractSecurityAttribute{
+		ask: []*ContractSecurityAttribute{
 			{
 				AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 					From: common.HexToAddress("0xa1a1a1"),
@@ -282,11 +381,11 @@ var (
 	}
 	canCreatePublicContractsAndWriteToOthers = &testCase{
 		msg: "0x0a1a1a1 can create public contracts and write to contracts created by 0xb1b1b1",
-		rawAuthorities: []string{
+		granted: []string{
 			"public://0x0000000000000000000000000000000000a1a1a1/create/contracts",
 			"public://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&owned.eoa=0x0000000000000000000000000000000000c1c1c1",
 		},
-		attributes: []*ContractSecurityAttribute{
+		ask: []*ContractSecurityAttribute{
 			{
 				AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 					From: common.HexToAddress("0xa1a1a1"),
@@ -307,11 +406,11 @@ var (
 	//
 	//canNotCreatePublicContracts = &testCase{
 	//	msg: "0xb1b1b1 can not create public contracts",
-	//	rawAuthorities: []string{
+	//	granted: []string{
 	//		"public://0x0000000000000000000000000000000000a1a1a1/create/contracts",
 	//		"public://0x0000000000000000000000000000000000b1b1b1/read/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1",
 	//	},
-	//	attributes: []*ContractSecurityAttribute{{
+	//	ask: []*ContractSecurityAttribute{{
 	//		AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 	//			From: common.HexToAddress("0xb1b1b1"),
 	//		},
@@ -322,10 +421,10 @@ var (
 	//}
 	canReadOwnedPublicContracts = &testCase{
 		msg: "0x0a1a1a1 can read public contracts created by self",
-		rawAuthorities: []string{
+		granted: []string{
 			"public://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
@@ -336,10 +435,10 @@ var (
 	}
 	canReadOtherPublicContracts = &testCase{
 		msg: "0x0a1a1a1 can read public contracts created by 0xb1b1b1",
-		rawAuthorities: []string{
+		granted: []string{
 			"public://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
@@ -351,10 +450,10 @@ var (
 	}
 	//canNotReadOtherPublicContracts = &testCase{
 	//	msg: "0x0a1a1a1 can only read public contracts created by self",
-	//	rawAuthorities: []string{
+	//	granted: []string{
 	//		"public://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1",
 	//	},
-	//	attributes: []*ContractSecurityAttribute{{
+	//	ask: []*ContractSecurityAttribute{{
 	//		AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 	//			From: common.HexToAddress("0xa1a1a1"),
 	//			To:   common.HexToAddress("0xb1b1b1"),
@@ -366,10 +465,10 @@ var (
 	//}
 	canWriteOwnedPublicContracts = &testCase{
 		msg: "0x0a1a1a1 can send transactions to public contracts created by self",
-		rawAuthorities: []string{
+		granted: []string{
 			"public://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
@@ -380,10 +479,10 @@ var (
 	}
 	canWriteOtherPublicContracts1 = &testCase{
 		msg: "0xa1a1a1 can send transactions to public contracts created by 0xb1b1b1",
-		rawAuthorities: []string{
+		granted: []string{
 			"public://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&owned.eoa=0x0000000000000000000000000000000000c1c1c1",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
@@ -395,10 +494,10 @@ var (
 	}
 	canWriteOtherPublicContracts2 = &testCase{
 		msg: "0xa1a1a1 can send transactions to public contracts created by 0xb1b1b1",
-		rawAuthorities: []string{
+		granted: []string{
 			"public://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&owned.eoa=0x0000000000000000000000000000000000c1c1c1",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xc1c1c1"),
@@ -410,11 +509,11 @@ var (
 	}
 	//canNotWriteOtherPublicContracts = &testCase{
 	//	msg: "0x0a1a1a1 can only send transactions to public contracts created by self",
-	//	rawAuthorities: []string{
+	//	granted: []string{
 	//		"public://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1",
 	//		"public://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1",
 	//	},
-	//	attributes: []*ContractSecurityAttribute{{
+	//	ask: []*ContractSecurityAttribute{{
 	//		AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 	//			From: common.HexToAddress("0xa1a1a1"),
 	//			To:   common.HexToAddress("0xb1b1b1"),
@@ -427,10 +526,10 @@ var (
 	// private contracts
 	canCreatePrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can create private contracts with sender key A",
-		rawAuthorities: []string{
+		granted: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/create/contracts?from.tm=A",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
@@ -443,10 +542,10 @@ var (
 	}
 	canNotCreatePrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can NOT create private contracts with sender key A if only own key B",
-		rawAuthorities: []string{
+		granted: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/create/contracts?from.tm=B",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
@@ -459,10 +558,10 @@ var (
 	}
 	canReadOwnedPrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can read private contracts created by self and was privy to a key A",
-		rawAuthorities: []string{
+		granted: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1&from.tm=A&from.tm=B",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
@@ -474,10 +573,10 @@ var (
 	}
 	canReadOtherPrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can read private contracts created by 0xb1b1b1 and was privy to a key A",
-		rawAuthorities: []string{
+		granted: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&from.tm=A",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
@@ -490,10 +589,10 @@ var (
 	}
 	canNotReadOtherPrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can NOT read private contracts created by 0xb1b1b1 even it was privy to a key A",
-		rawAuthorities: []string{
+		granted: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000c1c1c1&from.tm=A",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
@@ -506,10 +605,10 @@ var (
 	}
 	canNotReadOtherPrivateContractsNoPrivy = &testCase{
 		msg: "0x0a1a1a1 can NOT read private contracts created by 0xb1b1b1 as it was privy to a key B",
-		rawAuthorities: []string{
+		granted: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/read/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&from.tm=B",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
@@ -522,10 +621,10 @@ var (
 	}
 	canWriteOwnedPrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can write private contracts created by self and was privy to a key A",
-		rawAuthorities: []string{
+		granted: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000a1a1a1&from.tm=A&from.tm=B",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 			},
@@ -538,10 +637,10 @@ var (
 	}
 	canWriteOtherPrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can write private contracts created by 0xb1b1b1 and was privy to a key A",
-		rawAuthorities: []string{
+		granted: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&from.tm=A",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
@@ -555,11 +654,11 @@ var (
 	}
 	canWriteOtherPrivateContractsWithOverlappedScope = &testCase{
 		msg: "0x0a1a1a1 can write private contracts created by 0xb1b1b1 and was privy to a key A",
-		rawAuthorities: []string{
+		granted: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&from.tm=A",
 			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&from.tm=A&from.tm=B",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
@@ -573,10 +672,10 @@ var (
 	}
 	canNotWriteOtherPrivateContracts = &testCase{
 		msg: "0x0a1a1a1 can NOT write private contracts created by 0xb1b1b1 even it was privy to a key A",
-		rawAuthorities: []string{
+		granted: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000c1c1c1&from.tm=A",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
@@ -589,10 +688,10 @@ var (
 	}
 	canNotWriteOtherPrivateContractsNoPrivy = &testCase{
 		msg: "0x0a1a1a1 can NOT write private contracts created by 0xb1b1b1 as it was privy to a key B",
-		rawAuthorities: []string{
+		granted: []string{
 			"private://0x0000000000000000000000000000000000a1a1a1/write/contracts?owned.eoa=0x0000000000000000000000000000000000b1b1b1&from.tm=B",
 		},
-		attributes: []*ContractSecurityAttribute{{
+		ask: []*ContractSecurityAttribute{{
 			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 				From: common.HexToAddress("0xa1a1a1"),
 				To:   common.HexToAddress("0xb1b1b1"),
@@ -600,6 +699,23 @@ var (
 			Visibility: VisibilityPrivate,
 			Action:     ActionWrite,
 			Parties:    []string{"A"},
+		}},
+		isAuthorized: false,
+	}
+	canNotWriteOtherPrivateContractsNoPrivyViaItsPrivateTx = &testCase{
+		msg: "X sends a private tx that affects private contract that was privy to A",
+		granted: []string{
+			"private://0x0/write/contracts?owned.eoa=0x0&from.tm=X",
+		},
+		ask: []*ContractSecurityAttribute{{
+			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
+				From: common.HexToAddress("0xa1a1a1"),
+				To:   common.HexToAddress("0xb1b1b1"),
+			},
+			Visibility:  VisibilityPrivate,
+			Action:      ActionWrite,
+			PrivateFrom: "X",
+			Parties:     []string{"A"},
 		}},
 		isAuthorized: false,
 	}

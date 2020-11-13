@@ -70,6 +70,7 @@ func (ci ContractIndex) ReadIndex(contractAddress common.Address) (*ContractPart
 	if err := rlp.DecodeBytes(contractPartiesBytes, &ca); err != nil {
 		return nil, err
 	}
+	log.Trace("Contract index found", "addess", contractAddress, "creatorEOA", ca.CreatorAddress.Hex(), "parties", ca.Parties)
 	return &ca, nil
 }
 

@@ -1722,6 +1722,12 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 // transaction is fed into the simulation engine in order to determine the impact.
 func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA common.Address, tx *types.Transaction, privateArgs *PrivateTxArgs) ([]*multitenancy.ContractSecurityAttribute, error) {
 	createdContractAddresses, affectedContracts, err := simulateExecutionForMultitenancy(ctx, b, fromEOA, tx)
+	for _, ca := range createdContractAddresses {
+		log.Trace("Simulation results", "created", ca.Hex())
+	}
+	for ac, m := range affectedContracts {
+		log.Trace("Simulation results", "affected", ac.Hex(), "mode", m)
+	}
 	if err != nil {
 		return nil, err
 	}

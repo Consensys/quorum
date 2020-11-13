@@ -40,33 +40,31 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 		switch attr.Visibility {
 		case VisibilityPublic:
 			switch attr.Action {
-			case ActionRead, ActionWrite:
+			case ActionRead, ActionWrite, ActionCreate:
 				if (attr.To == common.Address{}) {
-					query.Set("owned.eoa", strings.ToLower(attr.From.Hex()))
+					query.Set(QueryOwnedEOA, strings.ToLower(attr.From.Hex()))
 				} else {
-					query.Set("owned.eoa", strings.ToLower(attr.To.Hex()))
+					query.Set(QueryOwnedEOA, strings.ToLower(attr.To.Hex()))
 				}
 			}
 		case VisibilityPrivate:
 			switch attr.Action {
-			case ActionRead:
+			case ActionRead, ActionWrite:
 				if (attr.To == common.Address{}) {
-					query.Set("owned.eoa", strings.ToLower(attr.From.Hex()))
+					query.Set(QueryOwnedEOA, strings.ToLower(attr.From.Hex()))
 				} else {
-					query.Set("owned.eoa", strings.ToLower(attr.To.Hex()))
+					query.Set(QueryOwnedEOA, strings.ToLower(attr.To.Hex()))
 				}
+				parties := make(map[string]struct{})
+				parties[attr.PrivateFrom] = struct{}{}
 				for _, tm := range attr.Parties {
-					query.Add("from.tm", tm)
+					parties[tm] = struct{}{}
 				}
-			case ActionWrite:
-				if (attr.To == common.Address{}) {
-					query.Set("owned.eoa", strings.ToLower(attr.From.Hex()))
-				} else {
-					query.Set("owned.eoa", strings.ToLower(attr.To.Hex()))
+				for tm := range parties {
+					query.Add(QueryFromTM, tm)
 				}
-				query.Set("from.tm", attr.PrivateFrom)
 			case ActionCreate:
-				query.Set("from.tm", attr.PrivateFrom)
+				query.Set(QueryFromTM, attr.PrivateFrom)
 			}
 		}
 		// construct request permission identifier
@@ -82,7 +80,7 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 			}
 			granted := pi.String()
 			ask := request.String()
-			log.Debug("Checking contract access", "granted", granted, "with", ask)
+			log.Debug("Checking contract access", "granted", granted, "ask", ask)
 			if match(attr, request, pi) {
 				matchCount++
 				break
@@ -110,7 +108,7 @@ func allowedPublic(scheme string) bool {
 }
 
 func matchHost(ask string, granted string) bool {
-	return granted == "0x0" || ask == granted
+	return granted == AnyEOAAddress || ask == granted
 }
 
 func matchPath(ask string, granted string) bool {
@@ -127,20 +125,18 @@ func matchQuery(attr *ContractSecurityAttribute, ask, granted url.Values) bool {
 		grantedValues := granted[k]
 		if attr.Action == ActionRead {
 			// Scenario 1
-			if k == "from.tm" {
+			if k == QueryFromTM {
 				if isIntersectionEmpty(grantedValues, askValues) {
 					return false
 				}
 			}
 			//Scenario 2
-			if k == "owned.eoa" || k == "to.eoa" {
+			if k == QueryOwnedEOA || k == QueryToEOA {
 				if !subset(grantedValues, askValues) {
 					return false
 				}
 			}
-		} else {
-			//action is "write" or "create"
-
+		} else { //action is "write" or "create"
 			//Scenario 3
 			if !subset(grantedValues, askValues) {
 				return false
@@ -162,7 +158,7 @@ func subset(grantedValues, askValues []string) bool {
 			if strings.HasPrefix(grantedValue, "0x") {
 				sanitizedGrantedValue = strings.ToLower(grantedValue)
 			}
-			if sanitizedGrantedValue == "0x0" || sanitizedAskValue == sanitizedGrantedValue {
+			if sanitizedGrantedValue == AnyEOAAddress || sanitizedAskValue == sanitizedGrantedValue {
 				found = true
 				break
 			}
