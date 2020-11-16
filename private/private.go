@@ -58,42 +58,31 @@ func FromEnvironmentOrNil(name string) PrivateTransactionManager {
 }
 
 func MustNewPrivateTxManager(cfgPath string) PrivateTransactionManager {
-	info, err := os.Lstat(cfgPath)
+	cfg, err := engine.LoadConfig(cfgPath)
 	if err != nil {
 		panic(fmt.Sprintf("unable to read %s due to %s", cfgPath, err))
-	}
-	// We accept either the socket or a configuration file that points to
-	// a socket.
-	socketPath := cfgPath
-	isSocket := info.Mode()&os.ModeSocket != 0
-	if !isSocket {
-		cfg, err := engine.LoadConfig(cfgPath)
-		if err != nil {
-			panic(fmt.Sprintf("unable to load configuration file for private transaction manager from %s due to %s", cfgPath, err))
-		}
-		socketPath = filepath.Join(cfg.WorkDir, cfg.Socket)
 	}
 
 	client := &engine.Client{
 		HttpClient: &http.Client{
-			Transport: unixTransport(socketPath),
+			Transport: unixTransport(cfg),
 		},
 		BaseURL: "http+unix://c",
 	}
 	ptm, err := selectPrivateTxManager(client)
 	if err != nil {
-		panic(fmt.Sprintf("unable to connect to private tx manager using %s due to %s", socketPath, err))
+		panic(fmt.Sprintf("unable to connect to private tx manager using %s due to %s", cfgPath, err))
 	}
 	return ptm
 }
 
-func unixTransport(socketPath string) *httpunix.Transport {
+func unixTransport(cfg engine.Config) *httpunix.Transport {
 	t := &httpunix.Transport{
-		DialTimeout:           1 * time.Second,
-		RequestTimeout:        5 * time.Second,
-		ResponseHeaderTimeout: 5 * time.Second,
+		DialTimeout:           time.Duration(cfg.DialTimeout) * time.Second,
+		RequestTimeout:        time.Duration(cfg.RequestTimeout) * time.Second,
+		ResponseHeaderTimeout: time.Duration(cfg.ResponseHeaderTimeout) * time.Second,
 	}
-	t.RegisterLocation("c", socketPath)
+	t.RegisterLocation("c", filepath.Join(cfg.WorkDir, cfg.Socket))
 	return t
 }
 
