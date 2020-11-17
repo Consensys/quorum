@@ -682,4 +682,3 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 
 	return PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload, transactionType)
 }
-

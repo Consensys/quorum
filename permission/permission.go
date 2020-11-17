@@ -37,7 +37,7 @@ func (p *PermissionCtrl) AfterStart() error {
 	}
 
 	// set the function point for transaction allowed check
-	types.PermissionTransactionAllowedFunc = p.TransactionAllowed
+	types.PermissionTransactionAllowedFunc = p.IsTransactionAllowed
 	setPermissionService(p)
 
 	// set the default access to ReadOnly

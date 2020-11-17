@@ -873,3 +873,106 @@ func TestParsePermissionConfig(t *testing.T) {
 	permConfig, err := ptype.ParsePermissionConfig(d)
 	assert.False(t, permConfig.IsEmpty(), "expected non empty object")
 }
+
+func TestIsTransactionAllowed_Basic(t *testing.T) {
+	testObject := typicalQuorumControlsAPI(t)
+	types.PermissionTransactionAllowedFunc = testObject.permCtrl.IsTransactionAllowed
+	var Acct1 = common.BytesToAddress([]byte("permission"))
+	var Acct2 = common.BytesToAddress([]byte("perm-test"))
+	types.SetDefaults(arbitraryNetworkAdminRole, arbitraryOrgAdminRole, false)
+	types.SetQIP714BlockReached()
+	types.SetNetworkBootUpCompleted()
+	types.OrgInfoMap = types.NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
+	types.RoleInfoMap = types.NewRoleCache(params.DEFAULT_ROLECACHE_SIZE)
+	types.AcctInfoMap = types.NewAcctCache(params.DEFAULT_ACCOUNTCACHE_SIZE)
+
+	types.OrgInfoMap.UpsertOrg(arbitraryOrgAdminRole, "", arbitraryOrgAdminRole, big.NewInt(1), types.OrgApproved)
+	types.RoleInfoMap.UpsertRole(arbitraryOrgAdminRole, "ROLE1", false, false, types.Transact, true)
+	types.RoleInfoMap.UpsertRole(arbitraryOrgAdminRole, "ROLE2", false, false, types.ContractDeploy, true)
+	types.RoleInfoMap.UpsertRole(arbitraryOrgAdminRole, "ROLE3", false, false, types.FullAccess, true)
+	var Acct3 = common.BytesToAddress([]byte("permission-test1"))
+	var Acct4 = common.BytesToAddress([]byte("permission-test2"))
+
+	types.AcctInfoMap.UpsertAccount(arbitraryOrgAdminRole, "ROLE1", Acct1, false, types.AcctActive)
+	types.AcctInfoMap.UpsertAccount(arbitraryOrgAdminRole, "ROLE2", Acct2, false, types.AcctActive)
+	types.AcctInfoMap.UpsertAccount(arbitraryOrgAdminRole, "ROLE3", Acct3, false, types.AcctActive)
+
+	type args struct {
+		address         common.Address
+		transactionType types.TransactionType
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name:    "Account with transact permission calling value transfer",
+			args:    args{address: Acct1, transactionType: types.ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with transact permission calling value contract call transaction",
+			args:    args{address: Acct1, transactionType: types.ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with transact permission calling contract deploy",
+			args:    args{address: Acct1, transactionType: types.ContractDeployTxn},
+			wantErr: true,
+		},
+		{
+			name:    "Account with contract permission deploy calling value transfer",
+			args:    args{address: Acct2, transactionType: types.ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with contract deploy permission calling value contract call transaction",
+			args:    args{address: Acct2, transactionType: types.ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with contract deploy permission calling contract deploy",
+			args:    args{address: Acct2, transactionType: types.ContractDeployTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with full permission calling value transfer",
+			args:    args{address: Acct3, transactionType: types.ValueTransferTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with full permission calling value contract call transaction",
+			args:    args{address: Acct3, transactionType: types.ContractCallTxn},
+			wantErr: false,
+		},
+		{
+			name:    "Account with full permission calling contract deploy",
+			args:    args{address: Acct3, transactionType: types.ContractDeployTxn},
+			wantErr: false,
+		},
+		{
+			name:    "un-permissioned account calling value transfer",
+			args:    args{address: Acct4, transactionType: types.ValueTransferTxn},
+			wantErr: true,
+		},
+		{
+			name:    "un-permissioned account calling contract call transaction",
+			args:    args{address: Acct4, transactionType: types.ContractCallTxn},
+			wantErr: true,
+		},
+		{
+			name:    "un-permissioned account calling contract deploy",
+			args:    args{address: Acct4, transactionType: types.ContractDeployTxn},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := types.IsTransactionAllowed(tt.args.address, common.Address{}, nil, nil, nil, nil, tt.args.transactionType); (err != nil) != tt.wantErr {
+				t.Errorf("IsTransactionAllowed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
