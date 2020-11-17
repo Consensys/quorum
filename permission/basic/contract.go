@@ -154,8 +154,14 @@ func (i *Init) GetOrgDetails(_orgId string) (string, string, string, *big.Int, *
 	return i.permOrgSession.GetOrgDetails(_orgId)
 }
 
-func (a *Audit) GetPendingOperation(_orgId string) (string, string, common.Address, *big.Int, error) {
-	return a.Backend.PermInterfSession.GetPendingOp(_orgId)
+func (a *Audit) ValidatePendingOp(_authOrg, _orgId, _url string, _account common.Address, _pendingOp int64) bool {
+	pOrg, pUrl, pAcct, op, err := a.Backend.PermInterfSession.GetPendingOp(_authOrg)
+	return err == nil && (op.Int64() == _pendingOp && pOrg == _orgId && pUrl == _url && pAcct == _account)
+}
+
+func (a *Audit) CheckPendingOp(_orgId string) bool {
+	_, _, _, op, err := a.Backend.PermInterfSession.GetPendingOp(_orgId)
+	return err == nil && op.Int64() != 0
 }
 
 func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error) {

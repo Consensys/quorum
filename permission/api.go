@@ -578,8 +578,7 @@ func (q *QuorumControlsAPI) validatePendingOp(authOrg, orgId, url string, accoun
 	if err != nil {
 		return false
 	}
-	pOrg, pUrl, pAcct, op, err := auditService.GetPendingOperation(authOrg)
-	return err == nil && (op.Int64() == pendingOp && pOrg == orgId && pUrl == url && pAcct == account)
+	return auditService.ValidatePendingOp(authOrg, orgId, url, account, pendingOp)
 }
 
 func (q *QuorumControlsAPI) checkPendingOp(orgId string) bool {
@@ -587,8 +586,7 @@ func (q *QuorumControlsAPI) checkPendingOp(orgId string) bool {
 	if err != nil {
 		return false
 	}
-	_, _, _, op, err := auditService.GetPendingOperation(orgId)
-	return err == nil && op.Int64() != 0
+	return auditService.CheckPendingOp(orgId)
 }
 
 func (q *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) error {
@@ -807,13 +805,8 @@ func (q *QuorumControlsAPI) valApproveOrg(args ptype.TxArgs) error {
 	if !q.isNetworkAdmin(args.Txa.From) {
 		return types.ErrNotNetworkAdmin
 	}
-	enodeId, _, _, _, _ := ptype.GetNodeDetails(args.Url, q.permCtrl.isRaft, q.permCtrl.useDns)
-	url := args.Url
-	if q.permCtrl.IsEEAPermission() {
-		url = enodeId
-	}
 	// check if anything pending approval
-	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.OrgId, url, args.AcctId, 1) {
+	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.OrgId, args.Url, args.AcctId, 1) {
 		return types.ErrNothingToApprove
 	}
 	return nil
@@ -1063,16 +1056,8 @@ func (q *QuorumControlsAPI) valRecoverNode(args ptype.TxArgs, action PermAction)
 		if err := q.valNodeStatusChange(args.OrgId, args.Url, 5, ApproveNodeRecovery); err != nil {
 			return err
 		}
-		enodeId, _, _, _, _ := ptype.GetNodeDetails(args.Url, q.permCtrl.isRaft, q.permCtrl.useDns)
-		// check that there is a pending approval item for node recovery
-		if q.permCtrl.IsEEAPermission() {
-			if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.OrgId, enodeId, common.Address{}, 5) {
-				return types.ErrNothingToApprove
-			}
-		} else {
-			if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.OrgId, args.Url, common.Address{}, 5) {
-				return types.ErrNothingToApprove
-			}
+		if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.OrgId, args.Url, common.Address{}, 5) {
+			return types.ErrNothingToApprove
 		}
 	}
 

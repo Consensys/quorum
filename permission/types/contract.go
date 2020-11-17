@@ -71,7 +71,8 @@ type ControlService interface {
 
 // Audit services
 type AuditService interface {
-	GetPendingOperation(_orgId string) (string, string, common.Address, *big.Int, error)
+	ValidatePendingOp(authOrg, orgId, url string, account common.Address, pendingOp int64) bool
+	CheckPendingOp(_orgId string) bool
 }
 
 type InitService interface {
