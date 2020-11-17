@@ -173,8 +173,25 @@ func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint1
 	return false, nil
 }
 
-func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {
-	return false, fmt.Errorf("not implemented for binding Contr")
+func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, transactionType types.TransactionType) error {
+	accessType := types.GetAcctAccess(_sender)
+	switch accessType {
+	case types.ReadOnly:
+		return types.ErrNoPermissionForTxn
+
+	case types.Transact:
+		if transactionType == types.ContractDeployTxn {
+			return types.ErrNoPermissionForTxn
+		}
+		return nil
+
+	case types.FullAccess, types.ContractDeploy:
+		return nil
+
+	default:
+		return types.ErrNoPermissionForTxn
+
+	}
 }
 
 func (r *Role) RemoveRole(_args ptype.TxArgs) (*types.Transaction, error) {

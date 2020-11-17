@@ -171,7 +171,7 @@ var networkBootUpCompleted = false
 var networkAdminRole string
 var orgAdminRole string
 var PermissionModel = Default
-var PermissionTransactionAllowedFunc func(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error)
+var PermissionTransactionAllowedFunc func(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, _transactionType TransactionType) error
 var (
 	OrgInfoMap  *OrgCache
 	NodeInfoMap *NodeCache
@@ -680,46 +680,6 @@ func IsTransactionAllowed(from common.Address, to common.Address, value *big.Int
 		return nil
 	}
 
-	switch PermissionModel {
-	case Default:
-		return nil
-
-	case Basic:
-		return isTransactionAllowedBasic(from, transactionType)
-
-	case EEA:
-		if PermissionTransactionAllowedFunc == nil {
-			return ErrNoPermissionForTxn
-		}
-
-		allowed, err := PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload)
-		if err != nil {
-			return ErrNoPermissionForTxn
-		}
-		if allowed {
-			return nil
-		} else {
-			return ErrNoPermissionForTxn
-		}
-	}
-
-	return nil
+	return PermissionTransactionAllowedFunc(from, to, value, gasPrice, gasLimit, payload, transactionType)
 }
 
-func isTransactionAllowedBasic(from common.Address, transactionType TransactionType) error {
-	switch GetAcctAccess(from) {
-	case ReadOnly:
-		return ErrNoPermissionForTxn
-
-	case Transact:
-		if transactionType == ContractDeployTxn {
-			return ErrNoPermissionForTxn
-		}
-		return nil
-
-	case FullAccess, ContractDeploy:
-		return nil
-
-	}
-	return nil
-}

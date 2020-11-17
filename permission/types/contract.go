@@ -66,7 +66,7 @@ type AccountService interface {
 // Control services
 type ControlService interface {
 	ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error)
-	TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error)
+	TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, _transactionType types.TransactionType) error
 }
 
 // Audit services

@@ -295,14 +295,21 @@ func (p *PermissionCtrl) ConnectionAllowed(_enodeId, _ip string, _port, _raftPor
 	return p.controlService.ConnectionAllowed(_enodeId, _ip, _port, _raftPort)
 }
 
-func (p *PermissionCtrl) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {
+func (p *PermissionCtrl) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, transactionType types.TransactionType) error {
+	// If permissions model is not in use return nil
+	if types.PermissionModel == types.Default {
+		return nil
+	}
+
+	// check permission model type and call respective services
 	if p.controlService == nil {
 		controlBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
 		switch p.IsEEAPermission() {
 		case true:
 			backEnd, err := getEeaBackEnd(controlBackend, p.isRaft, p.useDns)
 			if err != nil {
-				return false, err
+				log.Error("Permissions: unable to get the back end for access check", "err", err)
+				return err
 			}
 			p.controlService = &eea.Control{Backend: backEnd}
 		default:
@@ -310,7 +317,7 @@ func (p *PermissionCtrl) TransactionAllowed(_sender common.Address, _target comm
 		}
 	}
 
-	return p.controlService.TransactionAllowed(_sender, _target, _value, _gasPrice, _gasLimit, _payload)
+	return p.controlService.TransactionAllowed(_sender, _target, _value, _gasPrice, _gasLimit, _payload, transactionType)
 }
 
 func getBasicInterfaceContractSession(permInterfaceInstance *bb.PermInterface, contractAddress common.Address, backend bind.ContractBackend) (*bb.PermInterfaceSession, error) {

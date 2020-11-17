@@ -219,9 +219,13 @@ func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint1
 	return c.Backend.PermInterfSession.ConnectionAllowed(enodeId, ip, port)
 }
 
-func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte) (bool, error) {
-	allowed, err := c.Backend.PermInterfSession.TransactionAllowed(_sender, _target, _value, _gasPrice, _gasLimit, _payload)
-	return allowed, err
+func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, _transactionType types.TransactionType) error {
+	if allowed, err := c.Backend.PermInterfSession.TransactionAllowed(_sender, _target, _value, _gasPrice, _gasLimit, _payload); err != nil {
+		return err
+	} else if !allowed {
+		return types.ErrNoPermissionForTxn
+	}
+	return nil
 }
 
 func (r *Role) RemoveRole(_args ptype.TxArgs) (*types.Transaction, error) {
