@@ -52,7 +52,7 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 			}
 		case VisibilityPrivate:
 			switch attr.Action {
-			case ActionRead, ActionWrite:
+			case ActionRead:
 				if (attr.To == common.Address{}) {
 					query.Set(QueryOwnedEOA, strings.ToLower(attr.From.Hex()))
 				} else {
@@ -61,6 +61,13 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 				for _, tm := range attr.Parties {
 					query.Add(QueryFromTM, tm)
 				}
+			case ActionWrite:
+				if (attr.To == common.Address{}) {
+					query.Set(QueryOwnedEOA, strings.ToLower(attr.From.Hex()))
+				} else {
+					query.Set(QueryOwnedEOA, strings.ToLower(attr.To.Hex()))
+				}
+				query.Add(QueryFromTM, attr.PrivateFrom)
 			case ActionCreate:
 				query.Set(QueryFromTM, attr.PrivateFrom)
 			}
