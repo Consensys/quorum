@@ -53,7 +53,6 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -856,6 +855,9 @@ type account struct {
 	StateDiff *map[common.Hash]common.Hash `json:"stateDiff"`
 }
 
+// Quorum - Multitenancy
+// Before returning the result, we need to inspect the EVM and
+// perform verification check
 func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides map[common.Address]account, vmCfg vm.Config, timeout time.Duration, globalGasCap *big.Int) ([]byte, uint64, bool, error) {
 	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
@@ -968,6 +970,43 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	if evm.Cancelled() {
 		return nil, 0, false, fmt.Errorf("execution aborted (timeout = %v)", timeout)
 	}
+
+	// perform multi tenancy verification
+	if authToken, ok := b.SupportsMultitenancy(ctx); ok {
+		attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
+		if len(data) == 0 { // value transfer, public READ
+			attributes = append(attributes, &multitenancy.ContractSecurityAttribute{
+				AccountStateSecurityAttribute: &multitenancy.AccountStateSecurityAttribute{
+					From: msg.From(),
+					To:   *msg.To(),
+				},
+				Visibility: multitenancy.VisibilityPublic,
+				Action:     multitenancy.ActionRead,
+			})
+		} else { // contract READ
+			contractIndex := b.ContractIndexReader()
+			// a read can't produce a write so we only construct READ security attributes
+			for _, contractAddress := range evm.CalledContracts() {
+				cp, err := contractIndex.ReadIndex(contractAddress)
+				if err != nil {
+					return nil, 0, false, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
+				}
+				visibility := multitenancy.VisibilityPublic
+				if len(cp.Parties) > 0 {
+					visibility = multitenancy.VisibilityPrivate
+				}
+				attributes = append(attributes, &multitenancy.ContractSecurityAttribute{
+					AccountStateSecurityAttribute: &multitenancy.AccountStateSecurityAttribute{},
+					Visibility:                    visibility,
+					Action:                        multitenancy.ActionRead,
+					Parties:                       cp.Parties,
+				})
+				if !b.IsAuthorized(ctx, authToken, attributes) {
+					return nil, 0, false, fmt.Errorf("not authorized")
+				}
+			}
+		}
+	}
 	return res, gas, failed, err
 }
 
@@ -977,14 +1016,17 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 //
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
+// Quorum
+// - replaced the default 5s time out with the value passed in vm.calltimeout
+// - multi tenancy verification
 func (s *PublicBlockChainAPI) Call(ctx context.Context, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *map[common.Address]account) (hexutil.Bytes, error) {
 	var accounts map[common.Address]account
 	if overrides != nil {
 		accounts = *overrides
 	}
 
-	// Quorum - replaced the default 5s time out with the value passed in vm.calltimeout
 	result, _, _, err := DoCall(ctx, s.b, args, blockNrOrHash, accounts, vm.Config{}, s.b.CallTimeOut(), s.b.RPCGasCap())
+
 	return (hexutil.Bytes)(result), err
 }
 
@@ -1483,8 +1525,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		contractAddresses = append(contractAddresses, log.Address)
 	}
 	log.Debug("Found contract addresses", "count", len(contractAddresses))
-	authToken, isPreauthenticated := ctx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
-	if isPreauthenticated {
+	if authToken, ok := s.b.SupportsMultitenancy(ctx); ok {
 		contractIndex := s.b.ContractIndexReader()
 		// now if the message call doesn't produce any events, we need to get contract address in another way
 		if len(contractAddresses) == 0 {
@@ -1669,8 +1710,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 	if err != nil {
 		return common.Hash{}, err
 	}
-	authToken, isPreauthenticated := ctx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
-	if isPreauthenticated {
+	if authToken, ok := b.SupportsMultitenancy(ctx); ok {
 		originalTx := tx
 		// for private transaction, private payload will be retrieved from Tessera to build the original transaction
 		// in order to supply to the simulation engine

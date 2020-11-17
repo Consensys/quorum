@@ -153,6 +153,10 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 	}()
 }
 
+func (b *testBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	return nil, false
+}
+
 func (b *testBackend) ContractIndexReader() multitenancy.ContractIndexReader {
 	return nil
 }

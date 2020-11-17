@@ -550,3 +550,7 @@ func (fb *filterBackend) ContractIndexReader() multitenancy.ContractIndexReader 
 func (fb *filterBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {
 	panic("not supported")
 }
+
+func (fb *filterBackend) SupportsMultitenancy(context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	panic("not supported")
+}

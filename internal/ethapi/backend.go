@@ -89,6 +89,9 @@ type Backend interface {
 	CurrentBlock() *types.Block
 
 	// Quorum - Multitenancy
+	// rpcCtx must carry the preauthenticated token in addition to the config
+	SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
+	// Quorum - Multitenancy
 	ContractIndexReader() multitenancy.ContractIndexReader
 	// Quorum - Multitenancy
 	// Performs matching logic between verified entitlements embedded in the authToken and

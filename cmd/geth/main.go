@@ -169,6 +169,7 @@ var (
 		utils.PluginPublicKeyFlag,
 		utils.AllowedFutureBlockTimeFlag,
 		utils.EVMCallTimeOutFlag,
+		utils.MultitenancyFlag,
 		// End-Quorum
 	}
 

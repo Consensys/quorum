@@ -237,8 +237,12 @@ func runTestCases(t *testing.T, testCases []*testCase) {
 			context.Background(),
 			&proto.PreAuthenticatedAuthenticationToken{Authorities: authorities},
 			tc.ask)
-		assert.NoError(t, err, tc.msg)
-		assert.Equal(t, tc.isAuthorized, b, tc.msg)
+		if !assert.NoError(t, err, tc.msg) {
+			return
+		}
+		if !assert.Equal(t, tc.isAuthorized, b, tc.msg) {
+			return
+		}
 	}
 }
 
@@ -270,17 +274,18 @@ func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts(t 
 		canWriteOtherPrivateContractsWithOverlappedScope,
 		canNotWriteOtherPrivateContracts,
 		canNotWriteOtherPrivateContractsNoPrivy,
-		canNotWriteOtherPrivateContractsNoPrivyViaItsPrivateTx,
 	})
 }
 
-func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wildcards(t *testing.T) {
+func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wildcards_whenCreate(t *testing.T) {
+	fullAccessToX := []string{
+		"private://0x0/_/contracts?owned.eoa=0x0&from.tm=X",
+	}
 	runTestCases(t, []*testCase{
 		{
-			msg: "X has full access to a private contract",
-			granted: []string{
-				"private://0x0/_/contracts?owned.eoa=0x0&from.tm=X",
-			},
+			msg:          "X has full access to a private contract when create",
+			isAuthorized: true,
+			granted:      fullAccessToX,
 			ask: []*ContractSecurityAttribute{
 				// create
 				{
@@ -292,17 +297,125 @@ func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wi
 					PrivateFrom: "X",
 					Parties:     []string{},
 				},
-				// write
+			},
+		},
+		{
+			msg:          "X can't creat private contract with other TM key",
+			isAuthorized: false,
+			granted:      fullAccessToX,
+			ask: []*ContractSecurityAttribute{
+				// create
 				{
 					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 						From: common.HexToAddress("0xa1a1a1"),
 					},
 					Visibility:  VisibilityPrivate,
-					Action:      ActionWrite,
-					PrivateFrom: "X",
+					Action:      ActionCreate,
+					PrivateFrom: "A",
 					Parties:     []string{},
 				},
-				// write as a participant
+			},
+		},
+	})
+}
+
+func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wildcards_whenRead(t *testing.T) {
+	fullAccessToX := []string{
+		"private://0x0/_/contracts?owned.eoa=0x0&from.tm=X",
+	}
+	runTestCases(t, []*testCase{
+		{
+			msg:          "X has full access to a private contract when read as one of the participants",
+			isAuthorized: true,
+			granted:      fullAccessToX,
+			ask: []*ContractSecurityAttribute{
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
+					Visibility:                    VisibilityPrivate,
+					Action:                        ActionRead,
+					PrivateFrom:                   "X",
+					Parties:                       []string{"X", "Y"},
+				},
+			},
+		},
+		{
+			msg:          "X has full access to a private contract when read as a single participant",
+			isAuthorized: true,
+			granted:      fullAccessToX,
+			ask: []*ContractSecurityAttribute{
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
+					Visibility:                    VisibilityPrivate,
+					Action:                        ActionRead,
+					PrivateFrom:                   "X",
+					Parties:                       []string{"X"},
+				},
+			},
+		},
+		{
+			msg:          "X can't read other private contracts",
+			isAuthorized: false,
+			granted:      fullAccessToX,
+			ask: []*ContractSecurityAttribute{
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
+					Visibility:                    VisibilityPrivate,
+					Action:                        ActionRead,
+					PrivateFrom:                   "X",
+					Parties:                       []string{"A", "B"},
+				},
+			},
+		},
+		{
+			msg:          "X can't read other private contracts by faking the read",
+			isAuthorized: false,
+			granted:      fullAccessToX,
+			ask: []*ContractSecurityAttribute{
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
+					Visibility:                    VisibilityPrivate,
+					Action:                        ActionRead,
+					PrivateFrom:                   "A",
+					Parties:                       []string{"A", "B"},
+				},
+			},
+		},
+		{
+			msg:          "X can't read other private contracts when proxy-read",
+			isAuthorized: false,
+			granted:      fullAccessToX,
+			ask: []*ContractSecurityAttribute{
+				// read its own contract
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
+					Visibility:                    VisibilityPrivate,
+					Action:                        ActionRead,
+					PrivateFrom:                   "X",
+					Parties:                       []string{"X"},
+				},
+				// but using it as proxy to read other contract
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
+					Visibility:                    VisibilityPrivate,
+					Action:                        ActionRead,
+					PrivateFrom:                   "X",
+					Parties:                       []string{"A", "B"},
+				},
+			},
+		},
+	})
+}
+
+func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wildcards_whenWrite(t *testing.T) {
+	fullAccess := []string{
+		"private://0x0/_/contracts?owned.eoa=0x0&from.tm=X",
+	}
+	runTestCases(t, []*testCase{
+		{
+			msg:          "X has full access to a private contract when write as a single participant",
+			isAuthorized: true,
+			granted:      fullAccess,
+			ask: []*ContractSecurityAttribute{
 				{
 					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 						From: common.HexToAddress("0xa1a1a1"),
@@ -312,32 +425,47 @@ func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wi
 					PrivateFrom: "X",
 					Parties:     []string{"X"},
 				},
-				// read
-				{
-					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
-					Visibility:                    VisibilityPrivate,
-					Action:                        ActionRead,
-					PrivateFrom:                   "X",
-					Parties:                       []string{},
-				},
-				// read as a participant
-				{
-					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
-					Visibility:                    VisibilityPrivate,
-					Action:                        ActionRead,
-					PrivateFrom:                   "X",
-					Parties:                       []string{"X"},
-				},
 			},
-			isAuthorized: true,
 		},
 		{
-			msg: "X must not access other private contracts",
-			granted: []string{
-				"private://0x0/_/contracts?owned.eoa=0x0&from.tm=X",
-			},
+			msg:          "X has full access to a private contract when write as one of the participants",
+			isAuthorized: true,
+			granted:      fullAccess,
 			ask: []*ContractSecurityAttribute{
-				// proxy-write via its private tx
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
+						From: common.HexToAddress("0xa1a1a1"),
+					},
+					Visibility:  VisibilityPrivate,
+					Action:      ActionWrite,
+					PrivateFrom: "X",
+					Parties:     []string{"X", "Y"},
+				},
+			},
+		},
+		{
+			msg:          "X must not access other private contracts when faking write",
+			isAuthorized: false,
+			granted:      fullAccess,
+			ask: []*ContractSecurityAttribute{
+				{
+					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
+						From: common.HexToAddress("0xa1a1a1"),
+						To:   common.HexToAddress("0xb1b1b1"), // creator EOA address
+					},
+					Visibility:  VisibilityPrivate,
+					Action:      ActionWrite,
+					PrivateFrom: "A",
+					Parties:     []string{"A", "B"},
+				},
+			},
+		},
+		{
+			// this scenario is a standard private transaction scenario
+			msg:          "X can write to a private contract not privy to X",
+			isAuthorized: true,
+			granted:      fullAccess,
+			ask: []*ContractSecurityAttribute{
 				{
 					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
 						From: common.HexToAddress("0xa1a1a1"),
@@ -348,16 +476,7 @@ func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wi
 					PrivateFrom: "X",
 					Parties:     []string{"A", "B"},
 				},
-				// proxy-read via its private tx
-				{
-					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{},
-					Visibility:                    VisibilityPrivate,
-					Action:                        ActionRead,
-					PrivateFrom:                   "X",
-					Parties:                       []string{"A", "B"},
-				},
 			},
-			isAuthorized: false,
 		},
 	})
 }
@@ -699,23 +818,6 @@ var (
 			Visibility: VisibilityPrivate,
 			Action:     ActionWrite,
 			Parties:    []string{"A"},
-		}},
-		isAuthorized: false,
-	}
-	canNotWriteOtherPrivateContractsNoPrivyViaItsPrivateTx = &testCase{
-		msg: "X sends a private tx that affects private contract that was privy to A",
-		granted: []string{
-			"private://0x0/write/contracts?owned.eoa=0x0&from.tm=X",
-		},
-		ask: []*ContractSecurityAttribute{{
-			AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
-				From: common.HexToAddress("0xa1a1a1"),
-				To:   common.HexToAddress("0xb1b1b1"),
-			},
-			Visibility:  VisibilityPrivate,
-			Action:      ActionWrite,
-			PrivateFrom: "X",
-			Parties:     []string{"A"},
 		}},
 		isAuthorized: false,
 	}

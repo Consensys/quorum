@@ -283,6 +283,14 @@ func (b *LesApiBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	}
 }
 
+func (b *LesApiBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	authToken, isPreauthenticated := rpcCtx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	if isPreauthenticated && b.eth.config.EnableMultitenancy {
+		return authToken, true
+	}
+	return nil, false
+}
+
 func (b *LesApiBackend) ContractIndexReader() multitenancy.ContractIndexReader {
 	return multitenancy.NewContractIndex(b.ChainDb())
 }

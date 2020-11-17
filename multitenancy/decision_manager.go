@@ -30,6 +30,10 @@ func (am *DefaultAccountAccessDecisionManager) IsAuthorized(ctx context.Context,
 type DefaultContractAccessDecisionManager struct {
 }
 
+// IsAuthorized performs authorization check for each security attribute against
+// the granted access inside the pre-authenticated access token.
+//
+// All security attributes must pass.
 func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*ContractSecurityAttribute) (bool, error) {
 	matchCount := 0
 	if len(attributes) == 0 {
@@ -49,20 +53,22 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 			}
 		case VisibilityPrivate:
 			switch attr.Action {
-			case ActionRead, ActionWrite:
+			case ActionRead:
 				if (attr.To == common.Address{}) {
 					query.Set(QueryOwnedEOA, strings.ToLower(attr.From.Hex()))
 				} else {
 					query.Set(QueryOwnedEOA, strings.ToLower(attr.To.Hex()))
 				}
-				parties := make(map[string]struct{})
-				parties[attr.PrivateFrom] = struct{}{}
 				for _, tm := range attr.Parties {
-					parties[tm] = struct{}{}
-				}
-				for tm := range parties {
 					query.Add(QueryFromTM, tm)
 				}
+			case ActionWrite:
+				if (attr.To == common.Address{}) {
+					query.Set(QueryOwnedEOA, strings.ToLower(attr.From.Hex()))
+				} else {
+					query.Set(QueryOwnedEOA, strings.ToLower(attr.To.Hex()))
+				}
+				query.Add(QueryFromTM, attr.PrivateFrom)
 			case ActionCreate:
 				query.Set(QueryFromTM, attr.PrivateFrom)
 			}
@@ -80,8 +86,9 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 			}
 			granted := pi.String()
 			ask := request.String()
-			log.Debug("Checking contract access", "granted", granted, "ask", ask)
-			if match(attr, request, pi) {
+			isMatched := match(attr, request, pi)
+			log.Debug("Checking contract access", "passed", isMatched, "granted", granted, "ask", ask)
+			if isMatched {
 				matchCount++
 				break
 			}

@@ -33,7 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
 var (
@@ -605,8 +604,7 @@ func (api *PublicFilterAPI) isAuthorized(ctx context.Context, logs []*types.Log)
 	if len(logs) == 0 {
 		return true, nil
 	}
-	authToken, isPreauthenticated := ctx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
-	if isPreauthenticated {
+	if authToken, ok := api.backend.SupportsMultitenancy(ctx); ok {
 		attributes, err := multitenancy.ToContractSecurityAttributes(api.backend.ContractIndexReader(), logs)
 		if err != nil {
 			return false, err

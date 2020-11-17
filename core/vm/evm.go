@@ -126,7 +126,8 @@ type Context struct {
 
 	// Quorum
 	// Writes an index for contract address against parties
-	// which are managed by paired Tessera
+	// which are managed by paired Tessera.
+	// This value can be nil in case multitenancy not enabled in this node.
 	ContractIndexer multitenancy.ContractIndexWriter
 }
 

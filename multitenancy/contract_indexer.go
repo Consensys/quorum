@@ -22,6 +22,7 @@ type ContractIndexReader interface {
 	ReadIndex(contractAddress common.Address) (*ContractParties, error)
 }
 
+// write index direct to eth DB
 type ContractIndex struct {
 	db ethdb.Database
 }

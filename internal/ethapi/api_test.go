@@ -460,7 +460,7 @@ func TestBuildContractSecurityAttributes_whenTypicalContractCreationFromRawPriva
 	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
 }
 
-func TestBuildContractSecurityAttributes_whenTypicalMessageCall(t *testing.T) {
+func TestBuildContractSecurityAttributes_whenWrite(t *testing.T) {
 	arbitraryCreatorAddress := common.StringToAddress("0xArbitraryCreatorAddress")
 	stubBackend := &StubBackend{
 		stubContractIndexReader: &StubContractIndexReader{
@@ -489,6 +489,7 @@ func TestBuildContractSecurityAttributes_whenTypicalMessageCall(t *testing.T) {
 	assert.Equal(t, arbitraryFrom, attr.From)
 	assert.Equal(t, arbitraryCreatorAddress, attr.To)
 	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
+	assert.Len(t, attr.Parties, 0)
 	// the second one is for the affected contract
 	attr = attributes[1]
 	assert.Equal(t, multitenancy.ActionWrite, attr.Action)
@@ -498,6 +499,26 @@ func TestBuildContractSecurityAttributes_whenTypicalMessageCall(t *testing.T) {
 	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
 	assert.Len(t, attr.Parties, 1, "Must have only 1 managed party from the index")
 	assert.Equal(t, privateTxArgs.PrivateFor[0], attr.Parties[0])
+}
+
+func TestBuildContractSecurityAttributes_whenCreate(t *testing.T) {
+	tx := copyTransaction(simpleStorageContractCreationTx)
+
+	attributes, err := buildContractSecurityAttributes(arbitraryCtx, &StubBackend{}, arbitraryFrom, tx, privateTxArgs)
+
+	assert.NoError(t, err)
+	assert.Len(t, attributes, 1)
+	attr := attributes[0]
+	assert.Equal(t, multitenancy.ActionCreate, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
+	assert.Empty(t, attr.Parties)
+	assert.Equal(t, common.Address{}, attr.To)
+}
+
+func TestBuildContractSecurityAttributes_whenRead(t *testing.T) {
+
 }
 
 // Copy and set private
@@ -539,6 +560,10 @@ func (cir *StubContractIndexReader) ReadIndex(contractAddress common.Address) (*
 type StubBackend struct {
 	getEVMCalled            bool
 	stubContractIndexReader multitenancy.ContractIndexReader
+}
+
+func (sb *StubBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	panic("implement me")
 }
 
 func (sb *StubBackend) ContractIndexReader() multitenancy.ContractIndexReader {

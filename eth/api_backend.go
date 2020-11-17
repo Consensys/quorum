@@ -359,6 +359,16 @@ func (b *EthAPIBackend) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	}
 }
 
+// The validation of pre-requisite for multitenancy is done when EthService
+// is being created. So it's safe to use the config value here.
+func (b *EthAPIBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
+	authToken, isPreauthenticated := rpcCtx.Value(rpc.CtxPreauthenticatedToken).(*proto.PreAuthenticatedAuthenticationToken)
+	if isPreauthenticated && b.eth.config.EnableMultitenancy {
+		return authToken, true
+	}
+	return nil, false
+}
+
 func (b *EthAPIBackend) ContractIndexReader() multitenancy.ContractIndexReader {
 	return multitenancy.NewContractIndex(b.ChainDb())
 }
@@ -454,7 +464,7 @@ func (s EthAPIState) GetStatePrivacyMetadata(addr common.Address) (*state.Privac
 	if s.privateState.Exist(addr) {
 		return s.privateState.GetStatePrivacyMetadata(addr)
 	}
-	return nil, fmt.Errorf("The provided address is not a private contract: %x", addr)
+	return nil, fmt.Errorf("%x: %w", addr, ErrNotPrivateContract)
 }
 
 func (s EthAPIState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
@@ -499,5 +509,7 @@ func (s EthAPIState) GetCodeHash(addr common.Address) common.Hash {
 	}
 	return s.state.GetCodeHash(addr)
 }
+
+var ErrNotPrivateContract = errors.New("the provided address is not a private contract")
 
 //func (s MinimalApiState) Error

@@ -18,6 +18,7 @@
 package les
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -112,9 +113,13 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 	if checkpoint == nil {
 		checkpoint = params.TrustedCheckpoints[genesisHash]
 	}
+	newChainFunc := light.NewLightChain
+	if config.EnableMultitenancy {
+		newChainFunc = light.NewMultitenantLightChain
+	}
 	// Note: NewLightChain adds the trusted checkpoint so it needs an ODR with
 	// indexers already set but not started yet
-	if leth.blockchain, err = light.NewLightChain(leth.odr, leth.chainConfig, leth.engine, checkpoint); err != nil {
+	if leth.blockchain, err = newChainFunc(leth.odr, leth.chainConfig, leth.engine, checkpoint); err != nil {
 		return nil, err
 	}
 	leth.chainReader = leth.blockchain
@@ -159,7 +164,10 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 			leth.securityPlugin = sp
 		}
 	}
-
+	// check for pre-requisites to support multitenancy
+	if config.EnableMultitenancy && leth.securityPlugin == nil {
+		return nil, errors.New("multitenancy requires RPC Security Plugin to be configured")
+	}
 	return leth, nil
 }
 

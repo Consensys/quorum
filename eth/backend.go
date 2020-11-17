@@ -214,7 +214,11 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 			TrieTimeLimit:       config.TrieTimeout,
 		}
 	)
-	eth.blockchain, err = core.NewBlockChain(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve)
+	newBlockChainFunc := core.NewBlockChain
+	if config.EnableMultitenancy {
+		newBlockChainFunc = core.NewMultitenantBlockChain
+	}
+	eth.blockchain, err = newBlockChainFunc(chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve)
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +263,10 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 			eth.securityPlugin = sp
 		}
 	}
-
+	// check for pre-requisites to support multitenancy
+	if config.EnableMultitenancy && eth.securityPlugin == nil {
+		return nil, errors.New("multitenancy requires RPC Security Plugin to be configured")
+	}
 	return eth, nil
 }
 

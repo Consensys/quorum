@@ -181,6 +181,7 @@ type BlockChain struct {
 	setPrivateState func([]*types.Log, *state.StateDB) // Function to check extension and set private state
 
 	privateStateCache state.Database // Private state database to reuse between imports (contains state cache)
+	isMultitenant     bool           // if this blockchain supports multitenancy
 }
 
 // function pointer for updating private state
@@ -313,6 +314,15 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	// Take ownership of this particular state
 	go bc.update()
 	return bc, nil
+}
+
+func NewMultitenantBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(block *types.Block) bool) (*BlockChain, error) {
+	bc, err := NewBlockChain(db, cacheConfig, chainConfig, engine, vmConfig, shouldPreserve)
+	if err != nil {
+		return nil, err
+	}
+	bc.isMultitenant = true
+	return bc, err
 }
 
 func (bc *BlockChain) getProcInterrupt() bool {
@@ -2317,7 +2327,11 @@ func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
 
 // GetContractIndexer returns a new instance of ContractIndexer
 func (bc *BlockChain) ContractIndexWriter() multitenancy.ContractIndexWriter {
-	return multitenancy.NewContractIndex(bc.db)
+	if bc.isMultitenant {
+		return multitenancy.NewContractIndex(bc.db)
+	} else {
+		return nil
+	}
 }
 
 // GetTransactionLookup retrieves the lookup associate with the given transaction
