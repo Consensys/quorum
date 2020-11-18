@@ -23,7 +23,7 @@ jobs:
         # ###[error]    natupnp_test.go:165: not discovered
         # must be sommething with Github Actions VM networking setup.
         # Event Ubuntu requires a workaround
-        os: ["ubuntu-latest"]
+        os: ["ubuntu-18.04"]
     env:
       QUORUM_IGNORE_TEST_PACKAGES: github.com/ethereum/go-ethereum/les,github.com/ethereum/go-ethereum/les/flowcontrol,github.com/ethereum/go-ethereum/mobile
     runs-on: ${{ matrix.os }}
@@ -44,7 +44,7 @@ jobs:
           sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
       - name: 'Prepare environment'
         run: |
-          echo "::add-path::$(go env GOPATH)/bin"
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - name: 'Run tests and build all'
         working-directory: ${{ env.WORKING_DIR }}
         run: |
@@ -53,7 +53,7 @@ jobs:
     name: Publish Docker Image
     needs:
       - build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v2
@@ -71,7 +71,7 @@ jobs:
     needs:
       - build
       - publish-docker
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: 'Setup metadata'
         id: setup
