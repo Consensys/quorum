@@ -14,8 +14,6 @@ import (
 
 type Eea struct {
 	ContractBackend   ptype.ContractBackend
-	IsRaft            bool
-	UseDns            bool
 	PermInterf        *binding.PermInterface
 	PermInterfSession *binding.PermInterfaceSession
 }
@@ -46,9 +44,6 @@ type Node struct {
 
 type Init struct {
 	Backend ptype.ContractBackend
-	IsRaft  bool
-	UseDns  bool
-
 	//binding contracts
 	PermUpgr   *binding.PermUpgr
 	PermInterf *binding.PermInterface
@@ -124,7 +119,7 @@ func (i *Init) AddAdminAccount(_acct common.Address) (*types.Transaction, error)
 }
 
 func (i *Init) AddAdminNode(url string) (*types.Transaction, error) {
-	enodeId, ip, port, raftPort, err := getNodeDetails(url, i.IsRaft, i.UseDns)
+	enodeId, ip, port, raftPort, err := getNodeDetails(url, i.Backend.IsRaft, i.Backend.UseDns)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +143,7 @@ func (i *Init) GetNodeDetailsFromIndex(_nodeIndex *big.Int) (string, string, *bi
 	if err != nil {
 		return "", "", big.NewInt(0), err
 	}
-	return r.OrgId, types.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport, i.IsRaft), r.NodeStatus, err
+	return r.OrgId, types.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport, i.Backend.IsRaft), r.NodeStatus, err
 }
 
 func (i *Init) GetNumberOfNodes() (*big.Int, error) {
@@ -160,7 +155,7 @@ func (i *Init) GetNodeDetails(enodeId string) (string, string, *big.Int, error) 
 	if err != nil {
 		return "", "", big.NewInt(0), err
 	}
-	return r.OrgId, types.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport, i.IsRaft), r.NodeStatus, err
+	return r.OrgId, types.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport, i.Backend.IsRaft), r.NodeStatus, err
 }
 
 func (i *Init) GetRoleDetails(_roleId string, _orgId string) (struct {
@@ -209,7 +204,7 @@ func (a *Audit) ValidatePendingOp(_authOrg, _orgId, _url string, _account common
 	var enodeId string
 	var err error
 	if _url != "" {
-		enodeId, _, _, _, err = getNodeDetails(_url, a.Backend.IsRaft, a.Backend.UseDns)
+		enodeId, _, _, _, err = getNodeDetails(_url, a.Backend.ContractBackend.IsRaft, a.Backend.ContractBackend.UseDns)
 		if err != nil {
 			log.Error("permission: encountered error while checking for pending operations", "err", err)
 			return false
@@ -225,8 +220,8 @@ func (a *Audit) CheckPendingOp(_orgId string) bool {
 }
 
 func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error) {
-	url := types.GetNodeUrl(_enodeId, _ip, _port, _raftPort, c.Backend.IsRaft)
-	enodeId, ip, port, _, err := getNodeDetails(url, c.Backend.IsRaft, c.Backend.UseDns)
+	url := types.GetNodeUrl(_enodeId, _ip, _port, _raftPort, c.Backend.ContractBackend.IsRaft)
+	enodeId, ip, port, _, err := getNodeDetails(url, c.Backend.ContractBackend.IsRaft, c.Backend.ContractBackend.UseDns)
 	if err != nil {
 		return false, err
 	}
@@ -263,7 +258,7 @@ func (o *Org) UpdateOrgStatus(_args ptype.TxArgs) (*types.Transaction, error) {
 }
 
 func (o *Org) ApproveOrg(_args ptype.TxArgs) (*types.Transaction, error) {
-	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, o.Backend.IsRaft, o.Backend.UseDns)
+	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, o.Backend.ContractBackend.IsRaft, o.Backend.ContractBackend.UseDns)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +266,7 @@ func (o *Org) ApproveOrg(_args ptype.TxArgs) (*types.Transaction, error) {
 }
 
 func (o *Org) AddSubOrg(_args ptype.TxArgs) (*types.Transaction, error) {
-	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, o.Backend.IsRaft, o.Backend.UseDns)
+	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, o.Backend.ContractBackend.IsRaft, o.Backend.ContractBackend.UseDns)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +274,7 @@ func (o *Org) AddSubOrg(_args ptype.TxArgs) (*types.Transaction, error) {
 }
 
 func (o *Org) AddOrg(_args ptype.TxArgs) (*types.Transaction, error) {
-	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, o.Backend.IsRaft, o.Backend.UseDns)
+	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, o.Backend.ContractBackend.IsRaft, o.Backend.ContractBackend.UseDns)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +282,7 @@ func (o *Org) AddOrg(_args ptype.TxArgs) (*types.Transaction, error) {
 }
 
 func (n *Node) ApproveBlacklistedNodeRecovery(_args ptype.TxArgs) (*types.Transaction, error) {
-	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, n.Backend.IsRaft, n.Backend.UseDns)
+	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, n.Backend.ContractBackend.IsRaft, n.Backend.ContractBackend.UseDns)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +290,7 @@ func (n *Node) ApproveBlacklistedNodeRecovery(_args ptype.TxArgs) (*types.Transa
 }
 
 func (n *Node) StartBlacklistedNodeRecovery(_args ptype.TxArgs) (*types.Transaction, error) {
-	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, n.Backend.IsRaft, n.Backend.UseDns)
+	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, n.Backend.ContractBackend.IsRaft, n.Backend.ContractBackend.UseDns)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +298,7 @@ func (n *Node) StartBlacklistedNodeRecovery(_args ptype.TxArgs) (*types.Transact
 }
 
 func (n *Node) AddNode(_args ptype.TxArgs) (*types.Transaction, error) {
-	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, n.Backend.IsRaft, n.Backend.UseDns)
+	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, n.Backend.ContractBackend.IsRaft, n.Backend.ContractBackend.UseDns)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +307,7 @@ func (n *Node) AddNode(_args ptype.TxArgs) (*types.Transaction, error) {
 }
 
 func (n *Node) UpdateNodeStatus(_args ptype.TxArgs) (*types.Transaction, error) {
-	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, n.Backend.IsRaft, n.Backend.UseDns)
+	enodeId, ip, port, raftPort, err := getNodeDetails(_args.Url, n.Backend.ContractBackend.IsRaft, n.Backend.ContractBackend.UseDns)
 	if err != nil {
 		return nil, err
 	}

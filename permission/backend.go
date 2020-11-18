@@ -16,9 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/permission/basic"
-	bb "github.com/ethereum/go-ethereum/permission/basic/bind"
 	"github.com/ethereum/go-ethereum/permission/eea"
-	eb "github.com/ethereum/go-ethereum/permission/eea/bind"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -139,13 +137,13 @@ func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, ke
 		EthClnt:    ethClnt,
 		Key:        key,
 		PermConfig: permConfig,
+		IsRaft:     isRaft,
+		UseDns:     useDns,
 	}
 
 	if eeaFlag {
 		return &eea.Init{
 			Backend: contractBackEnd,
-			IsRaft:  isRaft,
-			UseDns:  useDns,
 		}
 	}
 	return &basic.Init{
@@ -158,22 +156,7 @@ func (p *PermissionCtrl) NewPermissionRoleService(txa ethapi.SendTxArgs) (ptype.
 	if err != nil {
 		return nil, err
 	}
-	roleBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-
-	switch p.IsEEAPermission() {
-	case true:
-		backEnd, err := getEeaBackEndWithTransactOpts(roleBackend, p.isRaft, p.useDns, transactOpts)
-		if err != nil {
-			return nil, err
-		}
-		return &eea.Role{Backend: backEnd}, nil
-	default:
-		backEnd, err := getBasicBackEndWithTransactOpts(roleBackend, transactOpts)
-		if err != nil {
-			return nil, err
-		}
-		return &basic.Role{Backend: backEnd}, nil
-	}
+	return p.backend.GetRoleService(transactOpts, p.getContractBackend())
 }
 
 func (p *PermissionCtrl) NewPermissionOrgService(txa ethapi.SendTxArgs) (ptype.OrgService, error) {
@@ -181,22 +164,7 @@ func (p *PermissionCtrl) NewPermissionOrgService(txa ethapi.SendTxArgs) (ptype.O
 	if err != nil {
 		return nil, err
 	}
-
-	orgBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-	switch p.IsEEAPermission() {
-	case true:
-		backEnd, err := getEeaBackEndWithTransactOpts(orgBackend, p.isRaft, p.useDns, transactOpts)
-		if err != nil {
-			return nil, err
-		}
-		return &eea.Org{Backend: backEnd}, nil
-	default:
-		backEnd, err := getBasicBackEndWithTransactOpts(orgBackend, transactOpts)
-		if err != nil {
-			return nil, err
-		}
-		return &basic.Org{Backend: backEnd}, nil
-	}
+	return p.backend.GetOrgService(transactOpts, p.getContractBackend())
 }
 
 func (p *PermissionCtrl) NewPermissionNodeService(txa ethapi.SendTxArgs) (ptype.NodeService, error) {
@@ -204,22 +172,7 @@ func (p *PermissionCtrl) NewPermissionNodeService(txa ethapi.SendTxArgs) (ptype.
 	if err != nil {
 		return nil, err
 	}
-
-	nodeBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-	switch p.IsEEAPermission() {
-	case true:
-		backEnd, err := getEeaBackEndWithTransactOpts(nodeBackend, p.isRaft, p.useDns, transactOpts)
-		if err != nil {
-			return nil, err
-		}
-		return &eea.Node{Backend: backEnd}, nil
-	default:
-		backEnd, err := getBasicBackEndWithTransactOpts(nodeBackend, transactOpts)
-		if err != nil {
-			return nil, err
-		}
-		return &basic.Node{Backend: backEnd}, nil
-	}
+	return p.backend.GetNodeService(transactOpts, p.getContractBackend())
 }
 
 func (p *PermissionCtrl) NewPermissionAccountService(txa ethapi.SendTxArgs) (ptype.AccountService, error) {
@@ -227,72 +180,27 @@ func (p *PermissionCtrl) NewPermissionAccountService(txa ethapi.SendTxArgs) (pty
 	if err != nil {
 		return nil, err
 	}
-
-	accountBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-	switch p.IsEEAPermission() {
-	case true:
-		backEnd, err := getEeaBackEndWithTransactOpts(accountBackend, p.isRaft, p.useDns, transactOpts)
-		if err != nil {
-			return nil, err
-		}
-		return &eea.Account{Backend: backEnd}, nil
-	default:
-		backEnd, err := getBasicBackEndWithTransactOpts(accountBackend, transactOpts)
-		if err != nil {
-			return nil, err
-		}
-		return &basic.Account{Backend: backEnd}, nil
-	}
+	return p.backend.GetAccountService(transactOpts, p.getContractBackend())
 }
 
 func (p *PermissionCtrl) NewPermissionAuditService() (ptype.AuditService, error) {
-
-	auditBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-	switch p.IsEEAPermission() {
-	case true:
-		backEnd, err := getEeaBackEnd(auditBackend, p.isRaft, p.useDns)
-		if err != nil {
-			return nil, err
-		}
-		return &eea.Audit{Backend: backEnd}, nil
-	default:
-		backEnd, err := getBasicBackEnd(auditBackend)
-		if err != nil {
-			return nil, err
-		}
-		return &basic.Audit{Backend: backEnd}, nil
-	}
+	return p.backend.GetAuditService(p.getContractBackend())
 }
 
 func (p *PermissionCtrl) NewPermissionControlService() (ptype.ControlService, error) {
-	controlBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-	switch p.IsEEAPermission() {
-	case true:
-		backEnd, err := getEeaBackEnd(controlBackend, p.isRaft, p.useDns)
-		if err != nil {
-			return nil, err
-		}
-		return &eea.Control{Backend: backEnd}, nil
-	default:
-		return &basic.Control{}, nil
-	}
+	return p.backend.GetControlService(p.getContractBackend())
+}
+
+func (p *PermissionCtrl) getContractBackend() ptype.ContractBackend {
+	return ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig, IsRaft: p.isRaft, UseDns: p.isRaft}
 }
 
 func (p *PermissionCtrl) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error) {
-	if p.controlService == nil {
-		controlBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-		switch p.IsEEAPermission() {
-		case true:
-			backEnd, err := getEeaBackEnd(controlBackend, p.isRaft, p.useDns)
-			if err != nil {
-				return false, err
-			}
-			p.controlService = &eea.Control{Backend: backEnd}
-		default:
-			p.controlService = &basic.Control{}
-		}
+	cs, err := p.backend.GetControlService(p.getContractBackend())
+	if err != nil {
+		return false, err
 	}
-	return p.controlService.ConnectionAllowed(_enodeId, _ip, _port, _raftPort)
+	return cs.ConnectionAllowed(_enodeId, _ip, _port, _raftPort)
 }
 
 func (p *PermissionCtrl) IsTransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, transactionType types.TransactionType) error {
@@ -301,88 +209,12 @@ func (p *PermissionCtrl) IsTransactionAllowed(_sender common.Address, _target co
 		return nil
 	}
 
-	// check permission model type and call respective services
-	if p.controlService == nil {
-		controlBackend := ptype.ContractBackend{EthClnt: p.ethClnt, Key: p.key, PermConfig: p.permConfig}
-		switch p.IsEEAPermission() {
-		case true:
-			backEnd, err := getEeaBackEnd(controlBackend, p.isRaft, p.useDns)
-			if err != nil {
-				log.Error("Permissions: unable to get the back end for access check", "err", err)
-				return err
-			}
-			p.controlService = &eea.Control{Backend: backEnd}
-		default:
-			p.controlService = &basic.Control{}
-		}
-	}
-
-	return p.controlService.TransactionAllowed(_sender, _target, _value, _gasPrice, _gasLimit, _payload, transactionType)
-}
-
-func getBasicInterfaceContractSession(permInterfaceInstance *bb.PermInterface, contractAddress common.Address, backend bind.ContractBackend) (*bb.PermInterfaceSession, error) {
-	if err := ptype.BindContract(&permInterfaceInstance, func() (interface{}, error) { return bb.NewPermInterface(contractAddress, backend) }); err != nil {
-		return nil, err
-	}
-	ps := &bb.PermInterfaceSession{
-		Contract: permInterfaceInstance,
-		CallOpts: bind.CallOpts{
-			Pending: true,
-		},
-	}
-	return ps, nil
-}
-
-func getBasicBackEndWithTransactOpts(contractBackend ptype.ContractBackend, transactOpts *bind.TransactOpts) (*basic.Basic, error) {
-	basicBackend, err := getBasicBackEnd(contractBackend)
+	cs, err := p.backend.GetControlService(p.getContractBackend())
 	if err != nil {
-		return nil, err
+		return err
 	}
-	basicBackend.PermInterfSession.TransactOpts = *transactOpts
 
-	return basicBackend, nil
-}
-
-func getBasicBackEnd(contractBackend ptype.ContractBackend) (*basic.Basic, error) {
-	basicBackend := basic.Basic{ContractBackend: contractBackend}
-	ps, err := getBasicInterfaceContractSession(basicBackend.PermInterf, contractBackend.PermConfig.InterfAddress, contractBackend.EthClnt)
-	if err != nil {
-		return nil, err
-	}
-	basicBackend.PermInterfSession = ps
-	return &basicBackend, nil
-}
-
-func getEeaBackEndWithTransactOpts(contractBackend ptype.ContractBackend, isRaft, useDns bool, transactOpts *bind.TransactOpts) (*eea.Eea, error) {
-	eeaBackend, err := getEeaBackEnd(contractBackend, isRaft, useDns)
-	if err != nil {
-		return nil, err
-	}
-	eeaBackend.PermInterfSession.TransactOpts = *transactOpts
-	return eeaBackend, nil
-}
-
-func getEeaBackEnd(contractBackend ptype.ContractBackend, isRaft, useDns bool) (*eea.Eea, error) {
-	eeaBackend := eea.Eea{ContractBackend: contractBackend, IsRaft: isRaft, UseDns: useDns}
-	ps, err := getEeaInterfaceContractSession(eeaBackend.PermInterf, contractBackend.PermConfig.InterfAddress, contractBackend.EthClnt)
-	if err != nil {
-		return nil, err
-	}
-	eeaBackend.PermInterfSession = ps
-	return &eeaBackend, nil
-}
-
-func getEeaInterfaceContractSession(permInterfaceInstance *eb.PermInterface, contractAddress common.Address, backend bind.ContractBackend) (*eb.PermInterfaceSession, error) {
-	if err := ptype.BindContract(&permInterfaceInstance, func() (interface{}, error) { return eb.NewPermInterface(contractAddress, backend) }); err != nil {
-		return nil, err
-	}
-	ps := &eb.PermInterfaceSession{
-		Contract: permInterfaceInstance,
-		CallOpts: bind.CallOpts{
-			Pending: true,
-		},
-	}
-	return ps, nil
+	return cs.TransactionAllowed(_sender, _target, _value, _gasPrice, _gasLimit, _payload, transactionType)
 }
 
 func (p *PermissionCtrl) populateBackEnd() {

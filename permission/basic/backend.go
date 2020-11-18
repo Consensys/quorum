@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	bb "github.com/ethereum/go-ethereum/permission/basic/bind"
@@ -282,4 +283,86 @@ func (b *Backend) MonitorNetworkBootUp() error {
 		}
 	}()
 	return nil
+}
+
+func getInterfaceContractSession(permInterfaceInstance *bb.PermInterface, contractAddress common.Address, backend bind.ContractBackend) (*bb.PermInterfaceSession, error) {
+	if err := ptype.BindContract(&permInterfaceInstance, func() (interface{}, error) { return bb.NewPermInterface(contractAddress, backend) }); err != nil {
+		return nil, err
+	}
+	ps := &bb.PermInterfaceSession{
+		Contract: permInterfaceInstance,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+	}
+	return ps, nil
+}
+
+func getBackend(contractBackend ptype.ContractBackend) (*Basic, error) {
+	basicBackend := Basic{ContractBackend: contractBackend}
+	ps, err := getInterfaceContractSession(basicBackend.PermInterf, contractBackend.PermConfig.InterfAddress, contractBackend.EthClnt)
+	if err != nil {
+		return nil, err
+	}
+	basicBackend.PermInterfSession = ps
+	return &basicBackend, nil
+}
+
+func getBackendWithTransactOpts(contractBackend ptype.ContractBackend, transactOpts *bind.TransactOpts) (*Basic, error) {
+	basicBackend, err := getBackend(contractBackend)
+	if err != nil {
+		return nil, err
+	}
+	basicBackend.PermInterfSession.TransactOpts = *transactOpts
+
+	return basicBackend, nil
+}
+
+func (b *Backend) GetRoleService(transactOpts *bind.TransactOpts, roleBackend ptype.ContractBackend) (ptype.RoleService, error) {
+	backEnd, err := getBackendWithTransactOpts(roleBackend, transactOpts)
+	if err != nil {
+		return nil, err
+	}
+	return &Role{Backend: backEnd}, nil
+
+}
+
+func (b *Backend) GetOrgService(transactOpts *bind.TransactOpts, orgBackend ptype.ContractBackend) (ptype.OrgService, error) {
+	backEnd, err := getBackendWithTransactOpts(orgBackend, transactOpts)
+	if err != nil {
+		return nil, err
+	}
+	return &Org{Backend: backEnd}, nil
+
+}
+
+func (b *Backend) GetNodeService(transactOpts *bind.TransactOpts, nodeBackend ptype.ContractBackend) (ptype.NodeService, error) {
+	backEnd, err := getBackendWithTransactOpts(nodeBackend, transactOpts)
+	if err != nil {
+		return nil, err
+	}
+	return &Node{Backend: backEnd}, nil
+
+}
+
+func (b *Backend) GetAccountService(transactOpts *bind.TransactOpts, accountBackend ptype.ContractBackend) (ptype.AccountService, error) {
+	backEnd, err := getBackendWithTransactOpts(accountBackend, transactOpts)
+	if err != nil {
+		return nil, err
+	}
+	return &Account{Backend: backEnd}, nil
+
+}
+
+func (b *Backend) GetAuditService(auditBackend ptype.ContractBackend) (ptype.AuditService, error) {
+	backEnd, err := getBackend(auditBackend)
+	if err != nil {
+		return nil, err
+	}
+	return &Audit{Backend: backEnd}, nil
+
+}
+
+func (b *Backend) GetControlService(controlBackend ptype.ContractBackend) (ptype.ControlService, error) {
+	return &Control{}, nil
 }

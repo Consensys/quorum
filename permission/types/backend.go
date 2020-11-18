@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -62,6 +63,18 @@ const (
 )
 
 type Backend interface {
+	// role service for role management service
+	GetRoleService(transactOpts *bind.TransactOpts, roleBackend ContractBackend) (RoleService, error)
+	// org service for org management service
+	GetOrgService(transactOpts *bind.TransactOpts, orgBackend ContractBackend) (OrgService, error)
+	// node service for node management service
+	GetNodeService(transactOpts *bind.TransactOpts, nodeBackend ContractBackend) (NodeService, error)
+	// account service for account management service
+	GetAccountService(transactOpts *bind.TransactOpts, accountBackend ContractBackend) (AccountService, error)
+	// audit service for account management service
+	GetAuditService(auditBackend ContractBackend) (AuditService, error)
+	// control service for account management service
+	GetControlService(controlBackend ContractBackend) (ControlService, error)
 	// Monitors account access related events and updates the cache accordingly
 	ManageAccountPermissions() error
 	// Monitors Node management events and updates cache accordingly

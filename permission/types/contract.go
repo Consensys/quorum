@@ -29,6 +29,8 @@ type ContractBackend struct {
 	EthClnt    bind.ContractBackend
 	Key        *ecdsa.PrivateKey
 	PermConfig *types.PermissionConfig
+	IsRaft     bool
+	UseDns     bool
 }
 
 type RoleService interface {

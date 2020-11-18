@@ -152,6 +152,7 @@ func reportExecError(action PermAction, err error) (string, error) {
 
 func (q *QuorumControlsAPI) AddOrg(orgId string, url string, acct common.Address, txa ethapi.SendTxArgs) (string, error) {
 	orgService, err := q.permCtrl.NewPermissionOrgService(txa)
+
 	if err != nil {
 		return "", err
 	}
