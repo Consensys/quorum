@@ -76,7 +76,7 @@ func (b *Backend) ManageRolePermissions() error {
 	}
 
 	if _, err := b.Contr.PermRole.RoleManagerFilterer.WatchRoleRevoked(opts, chRoleRevoked); err != nil {
-		return fmt.Errorf("failed WatchRoleRemoved: %v", err)
+		return fmt.Errorf("failed WatchRoleRevoked: %v", err)
 	}
 
 	go func() {
@@ -113,19 +113,19 @@ func (b *Backend) ManageOrgPermissions() error {
 	opts.Start = &blockNumber
 
 	if _, err := b.Contr.PermOrg.OrgManagerFilterer.WatchOrgPendingApproval(opts, chPendingApproval); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
+		return fmt.Errorf("failed WatchOrgPendingApproval: %v", err)
 	}
 
 	if _, err := b.Contr.PermOrg.OrgManagerFilterer.WatchOrgApproved(opts, chOrgApproved); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
+		return fmt.Errorf("failed WatchOrgApproved: %v", err)
 	}
 
 	if _, err := b.Contr.PermOrg.OrgManagerFilterer.WatchOrgSuspended(opts, chOrgSuspended); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
+		return fmt.Errorf("failed WatchOrgSuspended: %v", err)
 	}
 
 	if _, err := b.Contr.PermOrg.OrgManagerFilterer.WatchOrgSuspensionRevoked(opts, chOrgReactivated); err != nil {
-		return fmt.Errorf("failed WatchNodePendingApproval: %v", err)
+		return fmt.Errorf("failed WatchOrgSuspensionRevoked: %v", err)
 	}
 
 	go func() {
