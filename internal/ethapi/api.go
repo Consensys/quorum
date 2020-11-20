@@ -1554,16 +1554,6 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		return nil, nil
 	}
 	receipt := receipts[index]
-	if receipt.MTVersions != nil {
-		psi, err := core.PSIS.ResolveForUserContext(ctx)
-		if err != nil {
-			return nil, err
-		}
-		mtReceipt, found := receipt.MTVersions[psi]
-		if found {
-			receipt = mtReceipt
-		}
-	}
 
 	var signer types.Signer = types.HomesteadSigner{}
 	if tx.Protected() && !tx.IsPrivate() {
