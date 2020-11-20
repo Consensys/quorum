@@ -718,9 +718,9 @@ func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
 		SubOrgBreadth: big.NewInt(10),
 	}
 	if eeaFlag {
-		pconfig.PermissionsModel = PERMISSION_EEA
+		pconfig.PermissionsModel = ptype.PERMISSION_EEA
 	} else {
-		pconfig.PermissionsModel = PERMISSION_BASIC
+		pconfig.PermissionsModel = ptype.PERMISSION_BASIC
 	}
 	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, false)
 	if err != nil {
@@ -843,15 +843,28 @@ func TestParsePermissionConfig(t *testing.T) {
 		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
 	_, err = ptype.ParsePermissionConfig(d)
-	assert.True(t, err != nil, "expected sub org depth not set error")
+	assert.True(t, err != nil, "permission model not given error")
 
 	_ = os.Remove(fileName)
-	tmpPermCofig.SubOrgBreadth.Set(big.NewInt(4))
-	tmpPermCofig.SubOrgDepth.Set(big.NewInt(4))
+	tmpPermCofig.PermissionsModel = "ABCD"
 	blob, _ = json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
+
+	_, err = ptype.ParsePermissionConfig(d)
+	assert.True(t, err != nil, "invalid permission model error")
+	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
+		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
+	}
+
+	_ = os.Remove(fileName)
+	tmpPermCofig.PermissionsModel = "basic"
+	blob, _ = json.Marshal(tmpPermCofig)
+	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
+		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
+	}
+
 	_, err = ptype.ParsePermissionConfig(d)
 	assert.True(t, err != nil, "expected account not given  error")
 
@@ -861,6 +874,18 @@ func TestParsePermissionConfig(t *testing.T) {
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
 	}
+
+	_, err = ptype.ParsePermissionConfig(d)
+	assert.True(t, err != nil, "expected sub org depth not set error")
+
+	_ = os.Remove(fileName)
+	tmpPermCofig.SubOrgBreadth.Set(big.NewInt(4))
+	tmpPermCofig.SubOrgDepth.Set(big.NewInt(4))
+	blob, _ = json.Marshal(tmpPermCofig)
+	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
+		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
+	}
+
 	_, err = ptype.ParsePermissionConfig(d)
 	assert.True(t, err != nil, "expected contract address error")
 

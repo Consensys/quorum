@@ -2,6 +2,7 @@ package permission
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"math/big"
 	"sync"
 	"time"
@@ -38,11 +39,6 @@ type PermissionCtrl struct {
 	controlService     ptype.ControlService
 }
 
-const (
-	PERMISSION_EEA   = "EEA"
-	PERMISSION_BASIC = "BASIC"
-)
-
 var permissionService *PermissionCtrl
 
 func setPermissionService(ps *PermissionCtrl) {
@@ -61,9 +57,6 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-	if pconfig.PermissionsModel == "" {
-		pconfig.PermissionsModel = PERMISSION_BASIC
-	}
 	p := &PermissionCtrl{
 		node:           stack,
 		key:            stack.GetNodeKey(),
@@ -75,7 +68,10 @@ func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, 
 		isRaft:         false,
 	}
 
-	p.populateBackEnd()
+	err := p.populateBackEnd()
+	if err != nil {
+		return nil, err
+	}
 	stopChan, stopSubscription := ptype.SubscribeStopEvent()
 	inProcRPCServerSub := stack.EventMux().Subscribe(rpc.InProcServerReadyEvent{})
 	log.Debug("permission service: waiting for InProcRPC Server")
@@ -127,7 +123,7 @@ func (p *PermissionCtrl) Stop() error {
 }
 
 func (p *PermissionCtrl) IsEEAPermission() bool {
-	return p.permConfig.PermissionsModel == PERMISSION_EEA
+	return p.permConfig.PermissionsModel == ptype.PERMISSION_EEA
 }
 
 func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, key *ecdsa.PrivateKey,
@@ -217,20 +213,28 @@ func (p *PermissionCtrl) IsTransactionAllowed(_sender common.Address, _target co
 	return cs.TransactionAllowed(_sender, _target, _value, _gasPrice, _gasLimit, _payload, transactionType)
 }
 
-func (p *PermissionCtrl) populateBackEnd() {
+func (p *PermissionCtrl) populateBackEnd() error {
 	backend := ptype.NewInterfaceBackend(p.node, false, p.dataDir)
 
-	switch p.IsEEAPermission() {
-	case true:
+	switch p.permConfig.PermissionsModel {
+	case ptype.PERMISSION_EEA:
 		p.backend = &eea.Backend{
 			Ib: *backend,
 		}
+		log.Debug("permission service: using eea permissions model")
+		return nil
 
-	default:
+	case ptype.PERMISSION_BASIC:
 		p.backend = &basic.Backend{
 			Ib: *backend,
 		}
+		log.Debug("permission service: using basic permissions model")
+		return nil
+
+	default:
+		return errors.New("permission: invalid permissions model passed")
 	}
+
 }
 
 func (p *PermissionCtrl) updateBackEnd() {

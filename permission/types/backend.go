@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -18,6 +19,11 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/raft"
+)
+
+const (
+	PERMISSION_EEA   = "eea"
+	PERMISSION_BASIC = "basic"
 )
 
 // backend struct for interfaces
@@ -236,6 +242,15 @@ func ParsePermissionConfig(dir string) (types.PermissionConfig, error) {
 	err = json.Unmarshal(blob, &permConfig)
 	if err != nil {
 		log.Error("error unmarshalling the file", "err", err, "file", fullPath)
+	}
+
+	if permConfig.PermissionsModel == "" {
+		return types.PermissionConfig{}, fmt.Errorf("permissions model type not passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
+	}
+
+	permConfig.PermissionsModel = strings.ToLower(permConfig.PermissionsModel)
+	if permConfig.PermissionsModel != PERMISSION_EEA && permConfig.PermissionsModel != PERMISSION_BASIC {
+		return types.PermissionConfig{}, fmt.Errorf("invalid permissions model type passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
 	}
 
 	if len(permConfig.Accounts) == 0 {
