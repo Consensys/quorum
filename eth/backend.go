@@ -48,11 +48,11 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -91,8 +91,6 @@ type Ethereum struct {
 
 	APIBackend *EthAPIBackend
 
-	securityPlugin *plugin.SecurityPluginTemplate
-
 	miner     *miner.Miner
 	gasPrice  *big.Int
 	etherbase common.Address
@@ -101,6 +99,10 @@ type Ethereum struct {
 	netRPCService *ethapi.PublicNetAPI
 
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price and etherbase)
+
+	// Quorum - Multitenancy
+	// contractAccessDecisionManager is set after node starts instead in New()
+	contractAccessDecisionManager multitenancy.ContractAccessDecisionManager
 }
 
 func (s *Ethereum) AddLesServer(ls LesServer) {
@@ -114,6 +116,13 @@ func (s *Ethereum) SetContractBackend(backend bind.ContractBackend) {
 	if s.lesServer != nil {
 		s.lesServer.SetContractBackend(backend)
 	}
+}
+
+// Quorum
+//
+// Set the decision manager for multitenancy support
+func (s *Ethereum) SetContractAccessDecisionManager(dm multitenancy.ContractAccessDecisionManager) {
+	s.contractAccessDecisionManager = dm
 }
 
 // New creates a new Ethereum object (including the
@@ -255,18 +264,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 	eth.APIBackend.gpo = gasprice.NewOracle(eth.APIBackend, gpoParams)
 
-	// Set Security plugin in eth
-	var pluginManager *plugin.PluginManager
-	if err := ctx.Service(&pluginManager); err == nil {
-		sp := new(plugin.SecurityPluginTemplate)
-		if err := pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err == nil {
-			eth.securityPlugin = sp
-		}
-	}
-	// check for pre-requisites to support multitenancy
-	if config.EnableMultitenancy && eth.securityPlugin == nil {
-		return nil, errors.New("multitenancy requires RPC Security Plugin to be configured")
-	}
 	return eth, nil
 }
 

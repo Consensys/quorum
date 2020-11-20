@@ -465,9 +465,10 @@ func TestBuildContractSecurityAttributes_whenWrite(t *testing.T) {
 	stubBackend := &StubBackend{
 		stubContractIndexReader: &StubContractIndexReader{
 			errorMap: make(map[common.Address]error),
-			partiesMap: map[common.Address]multitenancy.ContractParties{
+			partiesMap: map[common.Address]multitenancy.ContractIndexItem{
 				arbitrarySimpleStorageContractAddress: {
 					CreatorAddress: arbitraryCreatorAddress,
+					IsPrivate:      true,
 					Parties:        []string{privateTxArgs.PrivateFor[0]}, // only first one is managed
 				},
 			},
@@ -489,7 +490,8 @@ func TestBuildContractSecurityAttributes_whenWrite(t *testing.T) {
 	assert.Equal(t, arbitraryFrom, attr.From)
 	assert.Equal(t, arbitraryCreatorAddress, attr.To)
 	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
-	assert.Len(t, attr.Parties, 0)
+	assert.Len(t, attr.Parties, 1)
+	assert.Equal(t, privateTxArgs.PrivateFor[0], attr.Parties[0])
 	// the second one is for the affected contract
 	attr = attributes[1]
 	assert.Equal(t, multitenancy.ActionWrite, attr.Action)
@@ -544,10 +546,10 @@ func copyTransaction(tx *types.Transaction) *types.Transaction {
 
 type StubContractIndexReader struct {
 	errorMap   map[common.Address]error
-	partiesMap map[common.Address]multitenancy.ContractParties
+	partiesMap map[common.Address]multitenancy.ContractIndexItem
 }
 
-func (cir *StubContractIndexReader) ReadIndex(contractAddress common.Address) (*multitenancy.ContractParties, error) {
+func (cir *StubContractIndexReader) ReadIndex(contractAddress common.Address) (*multitenancy.ContractIndexItem, error) {
 	if e, ok := cir.errorMap[contractAddress]; ok {
 		return nil, e
 	}

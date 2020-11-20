@@ -35,7 +35,7 @@ func (m *MockContractIndexWriter) EXPECT() *MockContractIndexWriterMockRecorder 
 }
 
 // WriteIndex mocks base method.
-func (m *MockContractIndexWriter) WriteIndex(contractAddress common.Address, contractParties *ContractParties) error {
+func (m *MockContractIndexWriter) WriteIndex(contractAddress common.Address, contractParties *ContractIndexItem) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WriteIndex", contractAddress, contractParties)
 	ret0, _ := ret[0].(error)
@@ -72,10 +72,10 @@ func (m *MockContractIndexReader) EXPECT() *MockContractIndexReaderMockRecorder 
 }
 
 // ReadIndex mocks base method.
-func (m *MockContractIndexReader) ReadIndex(contractAddress common.Address) (*ContractParties, error) {
+func (m *MockContractIndexReader) ReadIndex(contractAddress common.Address) (*ContractIndexItem, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadIndex", contractAddress)
-	ret0, _ := ret[0].(*ContractParties)
+	ret0, _ := ret[0].(*ContractIndexItem)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

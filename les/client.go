@@ -18,7 +18,6 @@
 package les
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -39,11 +38,11 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/light"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -68,7 +67,16 @@ type LightEthereum struct {
 	accountManager *accounts.Manager
 	netRPCService  *ethapi.PublicNetAPI
 
-	securityPlugin *plugin.SecurityPluginTemplate // Quorum: to dispose security plugin being used
+	// Quorum - Multitenancy
+	// contractAccessDecisionManager is set after node starts instead in New()
+	contractAccessDecisionManager multitenancy.ContractAccessDecisionManager
+}
+
+// Quorum
+//
+// Set the decision manager for multitenancy support
+func (s *LightEthereum) SetContractAccessDecisionManager(dm multitenancy.ContractAccessDecisionManager) {
+	s.contractAccessDecisionManager = dm
 }
 
 func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
@@ -156,18 +164,6 @@ func New(ctx *node.ServiceContext, config *eth.Config) (*LightEthereum, error) {
 	}
 	leth.ApiBackend.gpo = gasprice.NewOracle(leth.ApiBackend, gpoParams)
 
-	// Set Security plugin in eth
-	var pluginManager *plugin.PluginManager
-	if err := ctx.Service(&pluginManager); err == nil {
-		sp := new(plugin.SecurityPluginTemplate)
-		if err := pluginManager.GetPluginTemplate(plugin.SecurityPluginInterfaceName, sp); err == nil {
-			leth.securityPlugin = sp
-		}
-	}
-	// check for pre-requisites to support multitenancy
-	if config.EnableMultitenancy && leth.securityPlugin == nil {
-		return nil, errors.New("multitenancy requires RPC Security Plugin to be configured")
-	}
 	return leth, nil
 }
 

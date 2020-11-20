@@ -296,12 +296,7 @@ func (b *LesApiBackend) ContractIndexReader() multitenancy.ContractIndexReader {
 }
 
 func (b *LesApiBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {
-	caDecisionManager, err := b.eth.securityPlugin.ContractAccessDecisionManager()
-	if err != nil {
-		// TODO log the error
-		return false
-	}
-	auth, err := caDecisionManager.IsAuthorized(ctx, authToken, attributes)
+	auth, err := b.eth.contractAccessDecisionManager.IsAuthorized(ctx, authToken, attributes)
 	if err != nil {
 		// TODO log the error
 		return false

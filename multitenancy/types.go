@@ -40,6 +40,10 @@ type AccountStateSecurityAttribute struct {
 	To   common.Address
 }
 
+func (assa *AccountStateSecurityAttribute) String() string {
+	return fmt.Sprintf("from=%s to=%s", assa.From.Hex(), assa.To.Hex())
+}
+
 // ContractSecurityAttribute contains security configuration ask
 // which are defined for a secure contract account
 type ContractSecurityAttribute struct {
@@ -48,6 +52,10 @@ type ContractSecurityAttribute struct {
 	Action      ContractAction     // create/read/write
 	PrivateFrom string             // TM Key, only if Visibility is private, for write/create
 	Parties     []string           // TM Keys, only if Visibility is private, for read
+}
+
+func (csa *ContractSecurityAttribute) String() string {
+	return fmt.Sprintf("%v visibility=%s action=%s privateFrom=%s parties=%v", csa.AccountStateSecurityAttribute, csa.Visibility, csa.Action, csa.PrivateFrom, csa.Parties)
 }
 
 // Construct a list of READ security ask from contract event logs
@@ -65,22 +73,22 @@ func ToContractSecurityAttributes(contractIndex ContractIndexReader, logs []*typ
 
 // Construct a READ security attribute for a contract from the index
 func ToContractSecurityAttribute(contractIndex ContractIndexReader, contractAddress common.Address) (*ContractSecurityAttribute, error) {
-	cp, err := contractIndex.ReadIndex(contractAddress)
+	ci, err := contractIndex.ReadIndex(contractAddress)
 	if err != nil {
-		return nil, fmt.Errorf("%s not found in the index due to %s", contractAddress.Hex(), err.Error())
+		return nil, fmt.Errorf("contract %s not found in the index due to %s", contractAddress.Hex(), err.Error())
 	}
 	attr := &ContractSecurityAttribute{
 		AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
-			From: cp.CreatorAddress, // TODO must figure out what this value must be when tighten access control for account
-			To:   cp.CreatorAddress,
+			From: ci.CreatorAddress, // TODO must figure out what this value must be when tighten access control for account
+			To:   ci.CreatorAddress,
 		},
 		Action:  ActionRead,
-		Parties: cp.Parties,
+		Parties: ci.Parties,
 	}
-	if len(cp.Parties) == 0 {
-		attr.Visibility = VisibilityPublic
-	} else {
+	if ci.IsPrivate {
 		attr.Visibility = VisibilityPrivate
+	} else {
+		attr.Visibility = VisibilityPublic
 	}
 	return attr, nil
 }

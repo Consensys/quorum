@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/plugin/account"
 	"github.com/ethereum/go-ethereum/plugin/helloworld"
 	"github.com/ethereum/go-ethereum/plugin/security"
@@ -78,16 +77,6 @@ func (sp *SecurityPluginTemplate) AuthenticationManager() (security.Authenticati
 		}
 	}
 	return security.NewDeferredAuthenticationManager(deferFunc), nil
-}
-
-// The instance is not disposed from the plugin
-func (sp *SecurityPluginTemplate) AcccountAccessDecisionManager() (multitenancy.AccountAccessDecisionManager, error) {
-	return &multitenancy.DefaultAccountAccessDecisionManager{}, nil
-}
-
-// The instance is not disposed from the plugin
-func (sp *SecurityPluginTemplate) ContractAccessDecisionManager() (multitenancy.ContractAccessDecisionManager, error) {
-	return &multitenancy.DefaultContractAccessDecisionManager{}, nil
 }
 
 type ReloadableAccountServiceFactory struct {

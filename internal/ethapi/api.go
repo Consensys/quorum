@@ -992,7 +992,7 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 					return nil, 0, false, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
 				}
 				visibility := multitenancy.VisibilityPublic
-				if len(cp.Parties) > 0 {
+				if cp.IsPrivate {
 					visibility = multitenancy.VisibilityPrivate
 				}
 				attributes = append(attributes, &multitenancy.ContractSecurityAttribute{
@@ -1727,6 +1727,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 					return common.Hash{}, err
 				}
 			}
+			originalTx.SetPrivate()
 		}
 		attributes, err := buildContractSecurityAttributes(ctx, b, from, originalTx, &PrivateTxArgs{
 			PrivateFrom: privateFrom,
@@ -1761,15 +1762,23 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 // expected security attributes being checked against entitled ones. The
 // transaction is fed into the simulation engine in order to determine the impact.
 func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA common.Address, tx *types.Transaction, privateArgs *PrivateTxArgs) ([]*multitenancy.ContractSecurityAttribute, error) {
-	createdContractAddresses, affectedContracts, err := simulateExecutionForMultitenancy(ctx, b, fromEOA, tx)
+	evm, err := runSimulation(ctx, b, fromEOA, tx)
+	if err != nil {
+		log.Error("Simulated execution", "error", err)
+		return nil, err
+	}
+	createdContractAddresses := evm.CreatedContracts()
 	for _, ca := range createdContractAddresses {
 		log.Trace("Simulation results", "created", ca.Hex())
 	}
-	for ac, m := range affectedContracts {
-		log.Trace("Simulation results", "affected", ac.Hex(), "mode", m)
-	}
-	if err != nil {
-		return nil, err
+	affectedContracts := make(map[common.Address]vm.AffectedMode)
+	for _, a := range evm.CalledContracts() {
+		if mode, err := evm.AffectedMode(a); err != nil {
+			return nil, err
+		} else {
+			log.Trace("Simulation results", "affected", a.Hex(), "mode", mode)
+			affectedContracts[a] = mode
+		}
 	}
 	contractIndex := b.ContractIndexReader()
 	attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
@@ -1791,11 +1800,12 @@ func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA com
 	} else { // message call
 		thisTxSecAttr.Action = multitenancy.ActionWrite
 		contractAddress := *tx.To()
-		cp, err := contractIndex.ReadIndex(contractAddress)
+		ci, err := contractIndex.ReadIndex(contractAddress)
 		if err != nil {
 			return nil, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
 		}
-		thisTxSecAttr.AccountStateSecurityAttribute.To = cp.CreatorAddress
+		thisTxSecAttr.AccountStateSecurityAttribute.To = ci.CreatorAddress
+		thisTxSecAttr.Parties = ci.Parties
 		if tx.IsPrivate() {
 			thisTxSecAttr.Visibility = multitenancy.VisibilityPrivate
 			thisTxSecAttr.PrivateFrom = privateArgs.PrivateFrom
@@ -1824,24 +1834,25 @@ func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA com
 			}
 		}
 	}
+	log.Trace("Built contract security attributes", "address", tx.To(), "attributes", thisTxSecAttr)
 	attributes = append(attributes, thisTxSecAttr)
 	for a, mode := range affectedContracts {
-		cp, err := contractIndex.ReadIndex(a)
+		ci, err := contractIndex.ReadIndex(a)
 		if err != nil {
 			return nil, fmt.Errorf("%s not found in the index, error: %s", a.Hex(), err.Error())
 		}
 		attr := &multitenancy.ContractSecurityAttribute{
 			AccountStateSecurityAttribute: &multitenancy.AccountStateSecurityAttribute{
 				From: fromEOA,
-				To:   cp.CreatorAddress,
+				To:   ci.CreatorAddress,
 			},
-			Parties:     cp.Parties,
+			Parties:     ci.Parties,
 			PrivateFrom: privateArgs.PrivateFrom,
 		}
-		if len(cp.Parties) == 0 {
-			attr.Visibility = multitenancy.VisibilityPublic
-		} else {
+		if ci.IsPrivate {
 			attr.Visibility = multitenancy.VisibilityPrivate
+		} else {
+			attr.Visibility = multitenancy.VisibilityPublic
 		}
 		if mode&vm.ModeRead == vm.ModeRead {
 			attr.Action = multitenancy.ActionRead
@@ -1849,6 +1860,7 @@ func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA com
 		if mode&vm.ModeWrite == vm.ModeWrite {
 			attr.Action = multitenancy.ActionWrite
 		}
+		log.Trace("Built affected contract security attributes", "address", a, "attributes", attr)
 		attributes = append(attributes, attr)
 	}
 	return attributes, nil
@@ -1886,28 +1898,6 @@ func buildPrivateTransactionFromRaw(tx *types.Transaction) (*types.Transaction, 
 		privateTx = types.NewTransaction(tx.Nonce(), *tx.To(), tx.Value(), tx.Gas(), tx.GasPrice(), privatePayload)
 	}
 	return privateTx, privateFrom, nil
-}
-
-// Quorum
-//
-// simulateExecutionForMultitenancy runs a simulation to execute the given transaction
-// then it returns affected contract addresses along with affected modes
-func simulateExecutionForMultitenancy(ctx context.Context, b Backend, from common.Address, tx *types.Transaction) ([]common.Address, map[common.Address]vm.AffectedMode, error) {
-	evm, err := runSimulation(ctx, b, from, tx)
-	if err != nil {
-		log.Error("Simulated execution", "error", err)
-		return nil, nil, err
-	}
-
-	m := make(map[common.Address]vm.AffectedMode)
-	for _, a := range evm.CalledContracts() {
-		if mode, err := evm.AffectedMode(a); err != nil {
-			return nil, nil, err
-		} else {
-			m[a] = mode
-		}
-	}
-	return evm.CreatedContracts(), m, nil
 }
 
 // runSimulation runs a simulation of the given transaction.

@@ -15,11 +15,11 @@ import (
 var contractIndexPrefix = []byte("contractIndex")
 
 type ContractIndexWriter interface {
-	WriteIndex(contractAddress common.Address, contractParties *ContractParties) error
+	WriteIndex(contractAddress common.Address, contractParties *ContractIndexItem) error
 }
 
 type ContractIndexReader interface {
-	ReadIndex(contractAddress common.Address) (*ContractParties, error)
+	ReadIndex(contractAddress common.Address) (*ContractIndexItem, error)
 }
 
 // write index direct to eth DB
@@ -33,20 +33,22 @@ func NewContractIndex(db ethdb.Database) *ContractIndex {
 	}
 }
 
-type ContractParties struct {
+type ContractIndexItem struct {
 	// EOA address that was used to sign the contract creation transaction
 	CreatorAddress common.Address
+	IsPrivate      bool
 	// List of Tessera Public Keys
 	Parties []string
 }
 
-type contractPartiesRLP struct {
+type contractIndexItemRLP struct {
 	CreatorAddress common.Address
+	IsPrivate      bool
 	Parties        []string
 }
 
-func (ci ContractIndex) WriteIndex(contractAddress common.Address, contractParties *ContractParties) error {
-	data, err := rlp.EncodeToBytes(contractParties)
+func (ci ContractIndex) WriteIndex(contractAddress common.Address, indexItem *ContractIndexItem) error {
+	data, err := rlp.EncodeToBytes(indexItem)
 	if err != nil {
 		return err
 	}
@@ -57,36 +59,37 @@ func (ci ContractIndex) WriteIndex(contractAddress common.Address, contractParti
 	return nil
 }
 
-func (ci ContractIndex) ReadIndex(contractAddress common.Address) (*ContractParties, error) {
-	var ca ContractParties
-	contractPartiesBytes, err := ci.db.Get(append(contractIndexPrefix, contractAddress.Bytes()...))
+func (ci ContractIndex) ReadIndex(contractAddress common.Address) (*ContractIndexItem, error) {
+	var ca ContractIndexItem
+	contractIndexItemBytes, err := ci.db.Get(append(contractIndexPrefix, contractAddress.Bytes()...))
 	if err != nil {
 		log.Error("Error retrieving Contract Addresses from index", "Contract Address", contractAddress)
 		return nil, err
 	}
-	if len(contractPartiesBytes) == 0 {
+	if len(contractIndexItemBytes) == 0 {
 		log.Error("Empty response returned", "Contract Address", contractAddress)
 		return nil, errors.New("empty response querying contract index")
 	}
-	if err := rlp.DecodeBytes(contractPartiesBytes, &ca); err != nil {
+	if err := rlp.DecodeBytes(contractIndexItemBytes, &ca); err != nil {
 		return nil, err
 	}
 	log.Trace("Contract index found", "addess", contractAddress, "creatorEOA", ca.CreatorAddress.Hex(), "parties", ca.Parties)
 	return &ca, nil
 }
 
-func (cp *ContractParties) DecodeRLP(s *rlp.Stream) error {
-	var partiesRLP contractPartiesRLP
-	if err := s.Decode(&partiesRLP); err != nil {
+func (cii *ContractIndexItem) DecodeRLP(s *rlp.Stream) error {
+	var indexItemRLP contractIndexItemRLP
+	if err := s.Decode(&indexItemRLP); err != nil {
 		return err
 	}
-	cp.CreatorAddress, cp.Parties = partiesRLP.CreatorAddress, partiesRLP.Parties
+	cii.CreatorAddress, cii.IsPrivate, cii.Parties = indexItemRLP.CreatorAddress, indexItemRLP.IsPrivate, indexItemRLP.Parties
 	return nil
 }
 
-func (cp *ContractParties) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, contractPartiesRLP{
-		CreatorAddress: cp.CreatorAddress,
-		Parties:        cp.Parties,
+func (cii *ContractIndexItem) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, contractIndexItemRLP{
+		CreatorAddress: cii.CreatorAddress,
+		IsPrivate:      cii.IsPrivate,
+		Parties:        cii.Parties,
 	})
 }

@@ -322,9 +322,13 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	if contractCreation && ci != nil {
 		addresses := evm.CreatedContracts()
 		for _, address := range addresses {
-			contractParties := &multitenancy.ContractParties{CreatorAddress: msg.From(), Parties: managedParties}
-			log.Debug("Writing index", "address", strings.ToLower(address.Hex()), "creator", strings.ToLower(msg.From().Hex()))
-			if err := ci.WriteIndex(address, contractParties); err != nil {
+			indexItem := &multitenancy.ContractIndexItem{CreatorAddress: msg.From(), IsPrivate: isPrivate, Parties: managedParties}
+			log.Debug("Writing index",
+				"address", strings.ToLower(address.Hex()),
+				"isPrivate", isPrivate,
+				"creator", strings.ToLower(msg.From().Hex()),
+				"parties", managedParties)
+			if err := ci.WriteIndex(address, indexItem); err != nil {
 				log.Error("Writing index failed", "error", err)
 			}
 		}

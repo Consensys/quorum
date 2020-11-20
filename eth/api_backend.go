@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	pcore "github.com/ethereum/go-ethereum/permission/core"
@@ -374,14 +375,9 @@ func (b *EthAPIBackend) ContractIndexReader() multitenancy.ContractIndexReader {
 }
 
 func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {
-	caDecisionManager, err := b.eth.securityPlugin.ContractAccessDecisionManager()
+	auth, err := b.eth.contractAccessDecisionManager.IsAuthorized(ctx, authToken, attributes)
 	if err != nil {
-		// TODO log the error
-		return false
-	}
-	auth, err := caDecisionManager.IsAuthorized(ctx, authToken, attributes)
-	if err != nil {
-		// TODO log the error
+		log.Error("failed to perform authorization check", "err", err, "granted", string(authToken.RawToken), "ask", attributes)
 		return false
 	}
 	return auth
@@ -464,7 +460,7 @@ func (s EthAPIState) GetStatePrivacyMetadata(addr common.Address) (*state.Privac
 	if s.privateState.Exist(addr) {
 		return s.privateState.GetStatePrivacyMetadata(addr)
 	}
-	return nil, fmt.Errorf("%x: %w", addr, ErrNotPrivateContract)
+	return nil, fmt.Errorf("%x: %w", addr, common.ErrNotPrivateContract)
 }
 
 func (s EthAPIState) GetRLPEncodedStateObject(addr common.Address) ([]byte, error) {
@@ -509,7 +505,5 @@ func (s EthAPIState) GetCodeHash(addr common.Address) common.Hash {
 	}
 	return s.state.GetCodeHash(addr)
 }
-
-var ErrNotPrivateContract = errors.New("the provided address is not a private contract")
 
 //func (s MinimalApiState) Error

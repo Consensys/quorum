@@ -53,7 +53,7 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 			}
 		case VisibilityPrivate:
 			switch attr.Action {
-			case ActionRead:
+			case ActionRead, ActionWrite:
 				if (attr.To == common.Address{}) {
 					query.Set(QueryOwnedEOA, strings.ToLower(attr.From.Hex()))
 				} else {
@@ -62,13 +62,6 @@ func (cm *DefaultContractAccessDecisionManager) IsAuthorized(ctx context.Context
 				for _, tm := range attr.Parties {
 					query.Add(QueryFromTM, tm)
 				}
-			case ActionWrite:
-				if (attr.To == common.Address{}) {
-					query.Set(QueryOwnedEOA, strings.ToLower(attr.From.Hex()))
-				} else {
-					query.Set(QueryOwnedEOA, strings.ToLower(attr.To.Hex()))
-				}
-				query.Add(QueryFromTM, attr.PrivateFrom)
 			case ActionCreate:
 				query.Set(QueryFromTM, attr.PrivateFrom)
 			}
@@ -123,14 +116,18 @@ func matchPath(ask string, granted string) bool {
 }
 
 func matchQuery(attr *ContractSecurityAttribute, ask, granted url.Values) bool {
+	// if asking nothing, we should bail out
+	if len(ask) == 0 || len(ask[QueryFromTM]) == 0 {
+		return false
+	}
 	// possible scenarios:
-	// 1. read -> from.tm -> at least 1 of the same key must appear in both lists
-	// 2. read - owned.eoa/to.eoa -> check subset
-	// 3. write/create -> from.tm/owned.eoa/to.eoa -> check subset
-
+	// 1. read/write -> from.tm -> at least 1 of the same key must appear in both lists
+	// 2. read/write - owned.eoa/to.eoa -> check subset
+	// 3. create -> from.tm/owned.eoa/to.eoa -> check subset
 	for k, askValues := range ask {
 		grantedValues := granted[k]
-		if attr.Action == ActionRead {
+		switch attr.Action {
+		case ActionRead, ActionWrite:
 			// Scenario 1
 			if k == QueryFromTM {
 				if isIntersectionEmpty(grantedValues, askValues) {
@@ -143,11 +140,15 @@ func matchQuery(attr *ContractSecurityAttribute, ask, granted url.Values) bool {
 					return false
 				}
 			}
-		} else { //action is "write" or "create"
+		case ActionCreate:
 			//Scenario 3
 			if !subset(grantedValues, askValues) {
 				return false
 			}
+		default:
+			// we don't know, better reject
+			log.Error("unsupported action", "action", attr.Action)
+			return false
 		}
 	}
 	return true

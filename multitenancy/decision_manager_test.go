@@ -30,6 +30,24 @@ func TestMatch_whenTypical(t *testing.T) {
 	assert.True(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
 }
 
+func TestMatch_whenAskNothing(t *testing.T) {
+	granted, _ := url.Parse("private://0x0/_/contracts?from.tm=A&owned.eoa=0x0")
+	ask, _ := url.Parse("private://0xa1b1c1/write/contracts?owned.eoa=0xe1e1e1")
+
+	assert.False(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
+
+	ask, _ = url.Parse("private://0xa1b1c1/write/contracts")
+
+	assert.False(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
+}
+
+func TestMatch_whenGrantNothing(t *testing.T) {
+	granted, _ := url.Parse("private://0xa1b1c1/write/contracts")
+	ask, _ := url.Parse("private://0xa1b1c1/write/contracts?from.tm=A")
+
+	assert.False(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
+}
+
 func TestMatch_whenAnyAction(t *testing.T) {
 	granted, _ := url.Parse("private://0xa1b1c1/_/contracts?owned.eoa=0x0&from.tm=A1")
 	ask, _ := url.Parse("private://0xa1b1c1/read/contracts?from.tm=A1")
@@ -89,9 +107,9 @@ func TestMatch_whenContractWritePermission_GrantedIsTheSuperSet(t *testing.T) {
 	}, ask, granted), "with read permission")
 }
 
-func TestMatch_whenContractReadPermission_EoaSame(t *testing.T) {
-	granted, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x095e7baea6a6c7c4c2dfeb977efac326af552d87")
-	ask, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x945304eb96065b2a98b57a48a06ae28d285a71b5")
+func TestMatch_whenContractReadPermission_EoaDifferent(t *testing.T) {
+	granted, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x095e7baea6a6c7c4c2dfeb977efac326af552d87&from.tm=A")
+	ask, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x945304eb96065b2a98b57a48a06ae28d285a71b5&from.tm=A")
 
 	assert.False(t, match(&ContractSecurityAttribute{
 		Visibility: VisibilityPrivate,
@@ -99,9 +117,9 @@ func TestMatch_whenContractReadPermission_EoaSame(t *testing.T) {
 	}, ask, granted))
 }
 
-func TestMatch_whenContractReadPermission_EoaDifferent(t *testing.T) {
-	granted, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x095e7baea6a6c7c4c2dfeb977efac326af552d87")
-	ask, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x095e7baea6a6c7c4c2dfeb977efac326af552d87")
+func TestMatch_whenContractReadPermission_EoaSame(t *testing.T) {
+	granted, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x095e7baea6a6c7c4c2dfeb977efac326af552d87&from.tm=A")
+	ask, _ := url.Parse("private://0x0/read/contracts?owned.eoa=0x095e7baea6a6c7c4c2dfeb977efac326af552d87&from.tm=A")
 
 	assert.True(t, match(&ContractSecurityAttribute{
 		Visibility: VisibilityPrivate,
@@ -153,7 +171,7 @@ func TestMatch_whenContractWritePermission_AskIsSuperSet(t *testing.T) {
 	granted, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=A")
 	ask, _ := url.Parse("private://0x0/write/contracts?owned.eoa=0x0&from.tm=B&from.tm=C&from.tm=A")
 
-	assert.False(t, match(&ContractSecurityAttribute{
+	assert.True(t, match(&ContractSecurityAttribute{
 		Visibility: VisibilityPrivate,
 		Action:     ActionWrite,
 	}, ask, granted))
@@ -185,8 +203,8 @@ func TestMatch_whenUsingWildcardAccount(t *testing.T) {
 
 	assert.True(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
 
-	granted, _ = url.Parse("private://0x0/read/contract?owned.eoa=0x0")
-	ask, _ = url.Parse("private://0xa1b1c1/read/contract?owned.eoa=0x1234")
+	granted, _ = url.Parse("private://0x0/read/contract?owned.eoa=0x0&from.tm=A")
+	ask, _ = url.Parse("private://0xa1b1c1/read/contract?owned.eoa=0x1234&from.tm=A")
 
 	assert.True(t, match(&ContractSecurityAttribute{Action: ActionRead}, ask, granted))
 }
@@ -197,8 +215,8 @@ func TestMatch_whenNotUsingWildcardAccount(t *testing.T) {
 
 	assert.True(t, match(&ContractSecurityAttribute{Action: ActionCreate}, ask, granted))
 
-	granted, _ = url.Parse("private://0x0/read/contract?owned.eoa=0x0")
-	ask, _ = url.Parse("private://0xa1b1c1/read/contract?owned.eoa=0x1234")
+	granted, _ = url.Parse("private://0x0/read/contract?owned.eoa=0x0&from.tm=A")
+	ask, _ = url.Parse("private://0xa1b1c1/read/contract?owned.eoa=0x1234&from.tm=A")
 
 	assert.True(t, match(&ContractSecurityAttribute{Action: ActionRead}, ask, granted))
 }
@@ -407,14 +425,14 @@ func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wi
 }
 
 func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wildcards_whenWrite(t *testing.T) {
-	fullAccess := []string{
+	fullAccessToX := []string{
 		"private://0x0/_/contracts?owned.eoa=0x0&from.tm=X",
 	}
 	runTestCases(t, []*testCase{
 		{
 			msg:          "X has full access to a private contract when write as a single participant",
 			isAuthorized: true,
-			granted:      fullAccess,
+			granted:      fullAccessToX,
 			ask: []*ContractSecurityAttribute{
 				{
 					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
@@ -430,7 +448,7 @@ func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wi
 		{
 			msg:          "X has full access to a private contract when write as one of the participants",
 			isAuthorized: true,
-			granted:      fullAccess,
+			granted:      fullAccessToX,
 			ask: []*ContractSecurityAttribute{
 				{
 					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
@@ -446,7 +464,7 @@ func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wi
 		{
 			msg:          "X must not access other private contracts when faking write",
 			isAuthorized: false,
-			granted:      fullAccess,
+			granted:      fullAccessToX,
 			ask: []*ContractSecurityAttribute{
 				{
 					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
@@ -461,10 +479,9 @@ func TestDefaultAccountAccessDecisionManager_IsAuthorized_forPrivateContracts_wi
 			},
 		},
 		{
-			// this scenario is a standard private transaction scenario
-			msg:          "X can write to a private contract not privy to X",
-			isAuthorized: true,
-			granted:      fullAccess,
+			msg:          "X can not write to a private contract not privy to X",
+			isAuthorized: false,
+			granted:      fullAccessToX,
 			ask: []*ContractSecurityAttribute{
 				{
 					AccountStateSecurityAttribute: &AccountStateSecurityAttribute{

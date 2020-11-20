@@ -878,7 +878,7 @@ var (
 	// Multitenancy setting
 	MultitenancyFlag = cli.BoolFlag{
 		Name:  "multitenancy",
-		Usage: "Enable multitenancy support for this node. This requires RPC Security Plugin must be also configured.",
+		Usage: "Enable multitenancy support for this node. This requires RPC Security Plugin to also be configured.",
 	}
 )
 
