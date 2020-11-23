@@ -10,7 +10,7 @@ env:
 jobs:
   publish-docker:
     name: Publish Docker Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v2
@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-latest", "macos-latest"]
+        os: ["ubuntu-18.04", "macos-latest"]
     runs-on: ${{ matrix.os }}
     steps:
       - name: 'Setup Go ${{ env.GO_VERSION }}'
@@ -43,7 +43,7 @@ jobs:
       - name: 'Prepare environment'
         id: env
         run: |
-          echo "::add-path::$(go env GOPATH)/bin"
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
           echo "::set-output name=key::$(go env GOOS)_$(go env GOARCH)"
           echo "::set-output name=version::${GITHUB_REF##*/}"
       - name: 'Check out project files'
@@ -64,7 +64,7 @@ jobs:
           name: ${{ steps.env.outputs.key }}
   prepare-bintray:
     name: 'Prepare Bintray'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: 'Setup jfrog CLI'
         uses: jfrog/setup-jfrog-cli@v1
@@ -89,7 +89,7 @@ jobs:
     needs:
       - build
       - prepare-bintray
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: 'Setup jfrog CLI'
         uses: jfrog/setup-jfrog-cli@v1
@@ -109,7 +109,7 @@ jobs:
     needs:
       - deploy-bintray
       - publish-docker
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: 'Check out project files'
         uses: actions/checkout@v2
@@ -161,7 +161,7 @@ jobs:
       - deploy-bintray
       - publish-docker
       - draft-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: 'Setup metadata'
         id: setup
