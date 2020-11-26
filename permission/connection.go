@@ -1,12 +1,13 @@
 package permission
 
 import (
+	"github.com/ethereum/go-ethereum/params"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/permission/p2p"
 )
 
 func isNodePermissionedBasic(enodeId string, nodename string, currentNode string, direction string) bool {
@@ -15,11 +16,11 @@ func isNodePermissionedBasic(enodeId string, nodename string, currentNode string
 	log.Debug("isNodePermissionedBasic", "permissionedList", permissionedList)
 	for _, n := range permissionedList {
 		if strings.Contains(n.Url, enodeId) && n.Status == types.NodeApproved {
-			log.Debug("isNodePermissionedBasic", "connection", direction, "nodename", nodename[:p2p.NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:p2p.NODE_NAME_LENGTH])
+			log.Debug("isNodePermissionedBasic", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:params.NODE_NAME_LENGTH])
 			return true
 		}
 	}
-	log.Debug("isNodePermissionedBasic", "connection", direction, "nodename", nodename[:p2p.NODE_NAME_LENGTH], "DENIED-BY", currentNode[:p2p.NODE_NAME_LENGTH])
+	log.Debug("isNodePermissionedBasic", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "DENIED-BY", currentNode[:params.NODE_NAME_LENGTH])
 	return false
 }
 
@@ -35,9 +36,9 @@ func isNodePermissionedEEA(node *enode.Node, nodename string, currentNode string
 		return false
 	}
 	if allowed {
-		log.Debug("isNodePermissionedEEA", "connection", direction, "nodename", nodename[:p2p.NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:p2p.NODE_NAME_LENGTH])
+		log.Debug("isNodePermissionedEEA", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:params.NODE_NAME_LENGTH])
 	} else {
-		log.Debug("isNodePermissionedEEA", "connection", direction, "nodename", nodename[:p2p.NODE_NAME_LENGTH], "DENIED-BY", currentNode[:p2p.NODE_NAME_LENGTH])
+		log.Debug("isNodePermissionedEEA", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "DENIED-BY", currentNode[:params.NODE_NAME_LENGTH])
 
 	}
 	return allowed

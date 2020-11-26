@@ -12,10 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-const (
-	NODE_NAME_LENGTH = 32
-)
-
 // check if a given node is permissioned to connect to the change
 func IsNodePermissioned(nodename string, currentNode string, datadir string, direction string) bool {
 	var permissionedList []string
@@ -27,12 +23,12 @@ func IsNodePermissioned(nodename string, currentNode string, datadir string, dir
 	log.Debug("IsNodePermissioned", "permissionedList", permissionedList)
 	for _, v := range permissionedList {
 		if v == nodename {
-			log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:NODE_NAME_LENGTH])
+			log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:params.NODE_NAME_LENGTH])
 			// check if the node is blacklisted
 			return !isNodeBlackListed(nodename, datadir)
 		}
 	}
-	log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:NODE_NAME_LENGTH], "DENIED-BY", currentNode[:NODE_NAME_LENGTH])
+	log.Debug("IsNodePermissioned", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "DENIED-BY", currentNode[:params.NODE_NAME_LENGTH])
 	return false
 }
 
