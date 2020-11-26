@@ -63,17 +63,21 @@ func MustNewPrivateTxManager(cfgPath string) PrivateTransactionManager {
 		panic(fmt.Sprintf("unable to read %s due to %s", cfgPath, err))
 	}
 
+	ptm, err := newPrivateTxManager(cfg)
+	if err != nil {
+		panic(fmt.Sprintf("unable to connect to private tx manager using %s due to %s", cfgPath, err))
+	}
+	return ptm
+}
+
+func newPrivateTxManager(cfg engine.Config) (PrivateTransactionManager, error) {
 	client := &engine.Client{
 		HttpClient: &http.Client{
 			Transport: unixTransport(cfg),
 		},
 		BaseURL: "http+unix://c",
 	}
-	ptm, err := selectPrivateTxManager(client)
-	if err != nil {
-		panic(fmt.Sprintf("unable to connect to private tx manager using %s due to %s", cfgPath, err))
-	}
-	return ptm
+	return selectPrivateTxManager(client)
 }
 
 func unixTransport(cfg engine.Config) *httpunix.Transport {
