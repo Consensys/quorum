@@ -19,29 +19,21 @@ package types
 import (
 	"container/heap"
 	"errors"
+	fmt "fmt"
 	"io"
 	"math/big"
 	"sync/atomic"
-
-	fmt "fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/permission/cache"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
 //go:generate gencodec -type txdata -field-override txdataMarshaling -out gen_tx_json.go
-
-type TransactionType uint8
-
-const (
-	ValueTransferTxn TransactionType = iota
-	ContractCallTxn
-	ContractDeployTxn
-)
 
 var (
 	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
@@ -156,12 +148,12 @@ func (tx *Transaction) Protected() bool {
 
 // Quorum - function checks for account access to execute the transaction
 func (tx *Transaction) CheckAccountPermission() error {
-	transactionType := ValueTransferTxn
+	transactionType := cache.ValueTransferTxn
 
 	if tx.To() == nil {
-		transactionType = ContractDeployTxn
+		transactionType = cache.ContractDeployTxn
 	} else if tx.Data() != nil {
-		transactionType = ContractCallTxn
+		transactionType = cache.ContractCallTxn
 	}
 
 	var to common.Address
@@ -171,7 +163,7 @@ func (tx *Transaction) CheckAccountPermission() error {
 		to = *tx.To()
 	}
 
-	return IsTransactionAllowed(tx.From(), to, tx.Value(), tx.GasPrice(), big.NewInt(int64(tx.Gas())), tx.Data(), transactionType)
+	return cache.IsTransactionAllowed(tx.From(), to, tx.Value(), tx.GasPrice(), big.NewInt(int64(tx.Gas())), tx.Data(), transactionType)
 }
 
 func isProtectedV(V *big.Int) bool {

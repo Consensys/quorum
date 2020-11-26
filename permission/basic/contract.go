@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	binding "github.com/ethereum/go-ethereum/permission/basic/bind"
+	"github.com/ethereum/go-ethereum/permission/cache"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
 
@@ -169,29 +170,29 @@ func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint1
 	if err != nil {
 		return false, nil
 	}
-	nodeList := types.NodeInfoMap.GetNodeList()
+	nodeList := cache.NodeInfoMap.GetNodeList()
 	for _, n := range nodeList {
 		recEnodeId, _ := enode.ParseV4(n.Url)
-		if recEnodeId.ID() == passedEnodeId.ID() && n.Status == types.NodeApproved {
+		if recEnodeId.ID() == passedEnodeId.ID() && n.Status == cache.NodeApproved {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, transactionType types.TransactionType) error {
-	accessType := types.GetAcctAccess(_sender)
+func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, transactionType cache.TransactionType) error {
+	accessType := cache.GetAcctAccess(_sender)
 	switch accessType {
-	case types.ReadOnly:
+	case cache.ReadOnly:
 		return ptype.ErrNoPermissionForTxn
 
-	case types.Transact:
-		if transactionType == types.ContractDeployTxn {
+	case cache.Transact:
+		if transactionType == cache.ContractDeployTxn {
 			return ptype.ErrNoPermissionForTxn
 		}
 		return nil
 
-	case types.FullAccess, types.ContractDeploy:
+	case cache.FullAccess, cache.ContractDeploy:
 		return nil
 
 	default:

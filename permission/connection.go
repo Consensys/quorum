@@ -1,21 +1,21 @@
 package permission
 
 import (
-	"github.com/ethereum/go-ethereum/params"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/permission/cache"
 	"github.com/ethereum/go-ethereum/permission/p2p"
 )
 
 func isNodePermissionedBasic(enodeId string, nodename string, currentNode string, direction string) bool {
-	permissionedList := types.NodeInfoMap.GetNodeList()
+	permissionedList := cache.NodeInfoMap.GetNodeList()
 
 	log.Debug("isNodePermissionedBasic", "permissionedList", permissionedList)
 	for _, n := range permissionedList {
-		if strings.Contains(n.Url, enodeId) && n.Status == types.NodeApproved {
+		if strings.Contains(n.Url, enodeId) && n.Status == cache.NodeApproved {
 			log.Debug("isNodePermissionedBasic", "connection", direction, "nodename", nodename[:params.NODE_NAME_LENGTH], "ALLOWED-BY", currentNode[:params.NODE_NAME_LENGTH])
 			return true
 		}
@@ -48,18 +48,18 @@ func isNodePermissionedEEA(node *enode.Node, nodename string, currentNode string
 func IsNodePermissioned(node *enode.Node, nodename string, currentNode string, datadir string, direction string) bool {
 
 	//if we have not reached QIP714 block return full access
-	if !types.PermissionsEnabled() {
+	if !cache.PermissionsEnabled() {
 		return p2p.IsNodePermissioned(nodename, currentNode, datadir, direction)
 	}
 
-	switch types.PermissionModel {
-	case types.Default:
+	switch cache.PermissionModel {
+	case cache.Default:
 		return p2p.IsNodePermissioned(nodename, currentNode, datadir, direction)
 
-	case types.Basic:
+	case cache.Basic:
 		return isNodePermissionedBasic(node.EnodeID(), nodename, currentNode, direction)
 
-	case types.EEA:
+	case cache.EEA:
 		return isNodePermissionedEEA(node, nodename, currentNode, direction)
 	}
 	return false

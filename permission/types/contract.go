@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/permission/cache"
 )
 
 // TxArgs holds arguments required for execute functions
@@ -68,7 +69,7 @@ type AccountService interface {
 // Control services
 type ControlService interface {
 	ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error)
-	TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, _transactionType types.TransactionType) error
+	TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, _transactionType cache.TransactionType) error
 }
 
 // Audit services

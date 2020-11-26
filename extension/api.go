@@ -7,8 +7,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/permission/cache"
 )
 
 var (
@@ -116,7 +116,7 @@ func (api *PrivateExtensionAPI) ApproveExtension(addressToVoteOn common.Address,
 		return "", errors.New("contract extension process complete. nothing to accept")
 	}
 
-	if !types.CheckIfAdminAccount(txa.From) {
+	if !cache.CheckIfAdminAccount(txa.From) {
 		return "", errors.New("account cannot accept extension")
 	}
 
@@ -209,10 +209,10 @@ func (api *PrivateExtensionAPI) ExtendContract(toExtend common.Address, newRecip
 	if txa.From == recipientAddr {
 		return "", errors.New("account accepting the extension cannot be the account initiating extension")
 	}
-	if !types.CheckIfAdminAccount(txa.From) {
+	if !cache.CheckIfAdminAccount(txa.From) {
 		return "", errors.New("account not an org admin account, cannot initiate extension")
 	}
-	if !types.CheckIfAdminAccount(recipientAddr) {
+	if !cache.CheckIfAdminAccount(recipientAddr) {
 		return "", errors.New("recipient account address is not an org admin account. cannot accept extension")
 	}
 

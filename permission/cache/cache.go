@@ -1,4 +1,4 @@
-package types
+package cache
 
 import (
 	"errors"
@@ -10,6 +10,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/hashicorp/golang-lru"
+)
+
+type TransactionType uint8
+
+const (
+	ValueTransferTxn TransactionType = iota
+	ContractCallTxn
+	ContractDeployTxn
 )
 
 type AccessType uint8
@@ -107,7 +115,6 @@ type OrgDetailInfo struct {
 	AcctList   []AccountInfo `json:"acctList"`
 	SubOrgList []string      `json:"subOrgList"`
 }
-
 
 var syncStarted = false
 

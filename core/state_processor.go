@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/permission/cache"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -114,7 +115,7 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privateState)
 	// /Quorum
 
-	if types.IsEEAPermission() {
+	if cache.IsEEAPermission() {
 		if err := tx.CheckAccountPermission(); err != nil {
 			return nil, nil, err
 		}

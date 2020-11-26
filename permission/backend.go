@@ -10,13 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/permission/basic"
+	"github.com/ethereum/go-ethereum/permission/cache"
 	"github.com/ethereum/go-ethereum/permission/eea"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -199,9 +199,9 @@ func (p *PermissionCtrl) ConnectionAllowed(_enodeId, _ip string, _port, _raftPor
 	return cs.ConnectionAllowed(_enodeId, _ip, _port, _raftPort)
 }
 
-func (p *PermissionCtrl) IsTransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, transactionType types.TransactionType) error {
+func (p *PermissionCtrl) IsTransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, transactionType cache.TransactionType) error {
 	// If permissions model is not in use return nil
-	if types.PermissionModel == types.Default {
+	if cache.PermissionModel == cache.Default {
 		return nil
 	}
 
