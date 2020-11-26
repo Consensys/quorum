@@ -545,15 +545,15 @@ func (q *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) err
 		return err
 	}
 	if org == nil {
-		return types.ErrOrgDoesNotExists
+		return ptype.ErrOrgDoesNotExists
 	}
 	ac, _ := types.AcctInfoMap.GetAccount(account)
 	if ac == nil {
-		return types.ErrNotOrgAdmin
+		return ptype.ErrNotOrgAdmin
 	}
 	// check if the account is network admin
 	if !(ac.IsOrgAdmin && (ac.OrgId == orgId || ac.OrgId == org.UltimateParent)) {
-		return types.ErrNotOrgAdmin
+		return ptype.ErrNotOrgAdmin
 	}
 	return nil
 }
@@ -562,14 +562,14 @@ func (q *QuorumControlsAPI) validateOrg(orgId, pOrgId string) error {
 	// validate Parent org id
 	if pOrgId != "" {
 		if _, err := types.OrgInfoMap.GetOrg(pOrgId); err != nil {
-			return types.ErrInvalidParentOrg
+			return ptype.ErrInvalidParentOrg
 		}
 		locOrgId := pOrgId + "." + orgId
 		if lorgRec, _ := types.OrgInfoMap.GetOrg(locOrgId); lorgRec != nil {
-			return types.ErrOrgExists
+			return ptype.ErrOrgExists
 		}
 	} else if orgRec, _ := types.OrgInfoMap.GetOrg(orgId); orgRec != nil {
-		return types.ErrOrgExists
+		return ptype.ErrOrgExists
 	}
 	return nil
 }
@@ -594,15 +594,15 @@ func (q *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) error {
 	org, _ := types.OrgInfoMap.GetOrg(orgId)
 
 	if org == nil {
-		return types.ErrOrgDoesNotExists
+		return ptype.ErrOrgDoesNotExists
 	}
 	// check if its a master org. operation is allowed only if its a master org
 	if org.Level.Cmp(big.NewInt(1)) != 0 {
-		return types.ErrNotMasterOrg
+		return ptype.ErrNotMasterOrg
 	}
 
 	if !((op == 1 && org.Status == types.OrgApproved) || (op == 2 && org.Status == types.OrgSuspended)) {
-		return types.ErrOpNotAllowed
+		return ptype.ErrOpNotAllowed
 	}
 	return nil
 }
@@ -611,9 +611,9 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 	// validates if the enode is linked the passed organization
 	// validate node id and if the status change can happen
 	if len(url) == 0 {
-		return types.ErrInvalidNode
+		return ptype.ErrInvalidNode
 	}
-	if err := q.valNodeDetails(url); err != nil && err.Error() != types.ErrNodePresent.Error() {
+	if err := q.valNodeDetails(url); err != nil && err.Error() != ptype.ErrNodePresent.Error() {
 		return err
 	}
 
@@ -623,18 +623,18 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 	}
 
 	if node.OrgId != orgId {
-		return types.ErrNodeOrgMismatch
+		return ptype.ErrNodeOrgMismatch
 	}
 
 	if node.Status == types.NodeBlackListed && op != RecoverBlacklistedNode {
-		return types.ErrBlacklistedNode
+		return ptype.ErrBlacklistedNode
 	}
 
 	// validate the op and node status and check if the op can be performed
 	if (permAction == UpdateNodeStatus && (op != SuspendNode && op != ActivateSuspendedNode && op != BlacklistNode)) ||
 		(permAction == InitiateNodeRecovery && op != RecoverBlacklistedNode) ||
 		(permAction == ApproveNodeRecovery && op != ApproveBlacklistedNodeRecovery) {
-		return types.ErrOpNotAllowed
+		return ptype.ErrOpNotAllowed
 	}
 
 	if (op == SuspendNode && node.Status != types.NodeApproved) ||
@@ -642,7 +642,7 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 		(op == BlacklistNode && node.Status == types.NodeRecoveryInitiated) ||
 		(op == RecoverBlacklistedNode && node.Status != types.NodeBlackListed) ||
 		(op == ApproveBlacklistedNodeRecovery && node.Status != types.NodeRecoveryInitiated) {
-		return types.ErrOpNotAllowed
+		return ptype.ErrOpNotAllowed
 	}
 
 	return nil
@@ -675,20 +675,20 @@ func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 	}
 
 	if ac.IsOrgAdmin && (ac.RoleId == q.permCtrl.permConfig.NwAdminRole || ac.RoleId == q.permCtrl.permConfig.OrgAdminRole) && (op == 1 || op == 3) {
-		return types.ErrOpNotAllowed
+		return ptype.ErrOpNotAllowed
 	}
 
 	if ac.OrgId != orgId {
-		return types.ErrOrgNotOwner
+		return ptype.ErrOrgNotOwner
 	}
 	if (permAction == UpdateAccountStatus && (op != SuspendAccount && op != ActivateSuspendedAccount && op != BlacklistAccount)) ||
 		(permAction == InitiateAccountRecovery && op != RecoverBlacklistedAccount) ||
 		(permAction == ApproveAccountRecovery && op != ApproveBlacklistedAccountRecovery) {
-		return types.ErrOpNotAllowed
+		return ptype.ErrOpNotAllowed
 	}
 
 	if ac.Status == types.AcctBlacklisted && op != RecoverBlacklistedAccount {
-		return types.ErrBlacklistedAccount
+		return ptype.ErrBlacklistedAccount
 	}
 
 	if (op == SuspendAccount && ac.Status != types.AcctActive) ||
@@ -696,7 +696,7 @@ func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 		(op == BlacklistAccount && ac.Status == types.AcctRecoveryInitiated) ||
 		(op == RecoverBlacklistedAccount && ac.Status != types.AcctBlacklisted) ||
 		(op == ApproveBlacklistedAccountRecovery && ac.Status != types.AcctRecoveryInitiated) {
-		return types.ErrOpNotAllowed
+		return ptype.ErrOpNotAllowed
 	}
 	return nil
 }
@@ -704,10 +704,10 @@ func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 func (q *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account common.Address) error {
 	if ac, _ := types.AcctInfoMap.GetAccount(account); ac != nil {
 		if ac.OrgId != orgId {
-			return types.ErrAccountInUse
+			return ptype.ErrAccountInUse
 		}
 		if roleId != "" && roleId == q.permCtrl.permConfig.OrgAdminRole && ac.IsOrgAdmin {
-			return types.ErrAccountOrgAdmin
+			return ptype.ErrAccountOrgAdmin
 		}
 	}
 	return nil
@@ -716,15 +716,15 @@ func (q *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account co
 func (q *QuorumControlsAPI) valSubOrgBreadthDepth(porgId string) error {
 	org, err := types.OrgInfoMap.GetOrg(porgId)
 	if err != nil {
-		return types.ErrOpNotAllowed
+		return ptype.ErrOpNotAllowed
 	}
 
 	if q.permCtrl.permConfig.SubOrgDepth.Cmp(org.Level) == 0 {
-		return types.ErrMaxDepth
+		return ptype.ErrMaxDepth
 	}
 
 	if q.permCtrl.permConfig.SubOrgBreadth.Cmp(big.NewInt(int64(len(org.SubOrgList)))) == 0 {
-		return types.ErrMaxBreadth
+		return ptype.ErrMaxBreadth
 	}
 
 	return nil
@@ -752,14 +752,14 @@ func (q *QuorumControlsAPI) valNodeDetails(url string) error {
 	if len(url) != 0 {
 		enodeDet, err := enode.ParseV4(url)
 		if err != nil {
-			return types.ErrInvalidNode
+			return ptype.ErrInvalidNode
 		}
 		if q.permCtrl.isRaft && !q.permCtrl.useDns && enodeDet.Host() != "" {
-			return types.ErrHostNameNotSupported
+			return ptype.ErrHostNameNotSupported
 		}
 		// check if node already there
 		if q.checkNodeExists(url, enodeDet.EnodeID()) {
-			return types.ErrNodePresent
+			return ptype.ErrNodePresent
 		}
 	}
 	return nil
@@ -769,20 +769,20 @@ func (q *QuorumControlsAPI) valNodeDetails(url string) error {
 func (q *QuorumControlsAPI) valAddOrg(args ptype.TxArgs) error {
 	// check if the org id contains "."
 	if args.OrgId == "" || args.Url == "" || args.AcctId == (common.Address{0}) {
-		return types.ErrInvalidInput
+		return ptype.ErrInvalidInput
 	}
 	if !isStringAlphaNumeric(args.OrgId) {
-		return types.ErrInvalidOrgName
+		return ptype.ErrInvalidOrgName
 	}
 
 	// check if caller is network admin
 	if !q.isNetworkAdmin(args.Txa.From) {
-		return types.ErrNotNetworkAdmin
+		return ptype.ErrNotNetworkAdmin
 	}
 
 	// check if any previous op is pending approval for network admin
 	if q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg) {
-		return types.ErrPendingApprovals
+		return ptype.ErrPendingApprovals
 	}
 	// check if org already exists
 	if er := q.validateOrg(args.OrgId, ""); er != nil {
@@ -804,11 +804,11 @@ func (q *QuorumControlsAPI) valAddOrg(args ptype.TxArgs) error {
 func (q *QuorumControlsAPI) valApproveOrg(args ptype.TxArgs) error {
 	// check caller is network admin
 	if !q.isNetworkAdmin(args.Txa.From) {
-		return types.ErrNotNetworkAdmin
+		return ptype.ErrNotNetworkAdmin
 	}
 	// check if anything pending approval
 	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.OrgId, args.Url, args.AcctId, 1) {
-		return types.ErrNothingToApprove
+		return ptype.ErrNothingToApprove
 	}
 	return nil
 }
@@ -816,10 +816,10 @@ func (q *QuorumControlsAPI) valApproveOrg(args ptype.TxArgs) error {
 func (q *QuorumControlsAPI) valAddSubOrg(args ptype.TxArgs) error {
 	// check if the org id contains "."
 	if args.OrgId == "" {
-		return types.ErrInvalidInput
+		return ptype.ErrInvalidInput
 	}
 	if !isStringAlphaNumeric(args.OrgId) {
-		return types.ErrInvalidOrgName
+		return ptype.ErrInvalidOrgName
 	}
 
 	// check if caller is network admin
@@ -845,16 +845,16 @@ func (q *QuorumControlsAPI) valAddSubOrg(args ptype.TxArgs) error {
 func (q *QuorumControlsAPI) valUpdateOrgStatus(args ptype.TxArgs) error {
 	// check if called is network admin
 	if !q.isNetworkAdmin(args.Txa.From) {
-		return types.ErrNotNetworkAdmin
+		return ptype.ErrNotNetworkAdmin
 	}
 	if OrgUpdateAction(args.Action) != SuspendOrg &&
 		OrgUpdateAction(args.Action) != ActivateSuspendedOrg {
-		return types.ErrOpNotAllowed
+		return ptype.ErrOpNotAllowed
 	}
 
 	//check if passed org id is network admin org. update should not be allowed
 	if args.OrgId == q.permCtrl.permConfig.NwAdminOrg {
-		return types.ErrOpNotAllowed
+		return ptype.ErrOpNotAllowed
 	}
 	// check if status update can be performed. Org should be approved for suspension
 	if er := q.checkOrgStatus(args.OrgId, args.Action); er != nil {
@@ -866,7 +866,7 @@ func (q *QuorumControlsAPI) valUpdateOrgStatus(args ptype.TxArgs) error {
 func (q *QuorumControlsAPI) valApproveOrgStatus(args ptype.TxArgs) error {
 	// check if called is network admin
 	if !q.isNetworkAdmin(args.Txa.From) {
-		return types.ErrNotNetworkAdmin
+		return ptype.ErrNotNetworkAdmin
 	}
 	// check if anything is pending approval
 	var pendingOp int64
@@ -875,17 +875,17 @@ func (q *QuorumControlsAPI) valApproveOrgStatus(args ptype.TxArgs) error {
 	} else if args.Action == 2 {
 		pendingOp = 3
 	} else {
-		return types.ErrOpNotAllowed
+		return ptype.ErrOpNotAllowed
 	}
 	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.OrgId, "", common.Address{}, pendingOp) {
-		return types.ErrNothingToApprove
+		return ptype.ErrNothingToApprove
 	}
 	return nil
 }
 
 func (q *QuorumControlsAPI) valAddNode(args ptype.TxArgs) error {
 	if args.Url == "" {
-		return types.ErrInvalidInput
+		return ptype.ErrInvalidInput
 	}
 	// check if caller is network admin
 	if er := q.isOrgAdmin(args.Txa.From, args.OrgId); er != nil {
@@ -914,23 +914,23 @@ func (q *QuorumControlsAPI) valUpdateNodeStatus(args ptype.TxArgs, permAction Pe
 
 func (q *QuorumControlsAPI) valAssignAdminRole(args ptype.TxArgs) error {
 	if args.AcctId == (common.Address{0}) {
-		return types.ErrInvalidInput
+		return ptype.ErrInvalidInput
 	}
 	// check if caller is network admin
 	if args.RoleId != q.permCtrl.permConfig.OrgAdminRole && args.RoleId != q.permCtrl.permConfig.NwAdminRole {
-		return types.ErrOpNotAllowed
+		return ptype.ErrOpNotAllowed
 	}
 
 	if !q.isNetworkAdmin(args.Txa.From) {
-		return types.ErrNotNetworkAdmin
+		return ptype.ErrNotNetworkAdmin
 	}
 
 	if err := q.validateOrg(args.OrgId, ""); err == nil {
-		return types.ErrOrgDoesNotExists
+		return ptype.ErrOrgDoesNotExists
 	}
 
 	// check if account is already part of another org
-	if er := q.checkOrgAdminExists(args.OrgId, args.RoleId, args.AcctId); er != nil && er.Error() != types.ErrOrgAdminExists.Error() {
+	if er := q.checkOrgAdminExists(args.OrgId, args.RoleId, args.AcctId); er != nil && er.Error() != ptype.ErrOrgAdminExists.Error() {
 		return er
 	}
 	return nil
@@ -939,25 +939,25 @@ func (q *QuorumControlsAPI) valAssignAdminRole(args ptype.TxArgs) error {
 func (q *QuorumControlsAPI) valApproveAdminRole(args ptype.TxArgs) error {
 	// check if caller is network admin
 	if !q.isNetworkAdmin(args.Txa.From) {
-		return types.ErrNotNetworkAdmin
+		return ptype.ErrNotNetworkAdmin
 	}
 	// check if the org exists
 
 	// check if account is valid
 	ac, _ := types.AcctInfoMap.GetAccount(args.AcctId)
 	if ac == nil {
-		return types.ErrInvalidAccount
+		return ptype.ErrInvalidAccount
 	}
 	// validate pending op
 	if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, ac.OrgId, "", args.AcctId, 4) {
-		return types.ErrNothingToApprove
+		return ptype.ErrNothingToApprove
 	}
 	return nil
 }
 
 func (q *QuorumControlsAPI) valAddNewRole(args ptype.TxArgs) error {
 	if args.RoleId == "" {
-		return types.ErrInvalidInput
+		return ptype.ErrInvalidInput
 	}
 	// check if caller is network admin
 	if er := q.isOrgAdmin(args.Txa.From, args.OrgId); er != nil {
@@ -965,7 +965,7 @@ func (q *QuorumControlsAPI) valAddNewRole(args ptype.TxArgs) error {
 	}
 	// validate if role is already present
 	if roleRec, _ := types.RoleInfoMap.GetRole(args.OrgId, args.RoleId); roleRec != nil {
-		return types.ErrRoleExists
+		return ptype.ErrRoleExists
 	}
 	return nil
 }
@@ -978,30 +978,30 @@ func (q *QuorumControlsAPI) valRemoveRole(args ptype.TxArgs) error {
 
 	// admin roles cannot be removed
 	if args.RoleId == q.permCtrl.permConfig.OrgAdminRole || args.RoleId == q.permCtrl.permConfig.NwAdminRole {
-		return types.ErrAdminRoles
+		return ptype.ErrAdminRoles
 	}
 
 	// check if role is alraedy inactive
 	r, _ := types.RoleInfoMap.GetRole(args.OrgId, args.RoleId)
 	if r == nil {
-		return types.ErrInvalidRole
+		return ptype.ErrInvalidRole
 	} else if !r.Active {
-		return types.ErrInactiveRole
+		return ptype.ErrInactiveRole
 	}
 
 	// check if the role has active accounts. if yes operations should not be allowed
 	if len(types.AcctInfoMap.GetAcctListRole(args.OrgId, args.RoleId)) != 0 {
-		return types.ErrRoleActive
+		return ptype.ErrRoleActive
 	}
 	return nil
 }
 
 func (q *QuorumControlsAPI) valAssignRole(args ptype.TxArgs) error {
 	if args.AcctId == (common.Address{0}) {
-		return types.ErrInvalidInput
+		return ptype.ErrInvalidInput
 	}
 	if args.RoleId == q.permCtrl.permConfig.OrgAdminRole || args.RoleId == q.permCtrl.permConfig.NwAdminRole {
-		return types.ErrInvalidRole
+		return ptype.ErrInvalidRole
 	}
 	// check if caller is network admin
 	if er := q.isOrgAdmin(args.Txa.From, args.OrgId); er != nil {
@@ -1010,13 +1010,13 @@ func (q *QuorumControlsAPI) valAssignRole(args ptype.TxArgs) error {
 
 	// check if the role is valid
 	if !q.validateRole(args.OrgId, args.RoleId) {
-		return types.ErrInvalidRole
+		return ptype.ErrInvalidRole
 	}
 
 	// check if the account is part of another org
 	if ac, _ := types.AcctInfoMap.GetAccount(args.AcctId); ac != nil {
 		if ac != nil && ac.OrgId != args.OrgId {
-			return types.ErrAccountInUse
+			return ptype.ErrAccountInUse
 		}
 	}
 	return nil
@@ -1037,11 +1037,11 @@ func (q *QuorumControlsAPI) valUpdateAccountStatus(args ptype.TxArgs, permAction
 func (q *QuorumControlsAPI) valRecoverNode(args ptype.TxArgs, action PermAction) error {
 	// check if the caller is org admin
 	if !q.isNetworkAdmin(args.Txa.From) {
-		return types.ErrNotNetworkAdmin
+		return ptype.ErrNotNetworkAdmin
 	}
 	// validate inputs - org id is valid, node is valid and in blacklisted state
-	if err := q.validateOrg(args.OrgId, ""); err.Error() != types.ErrOrgExists.Error() {
-		return types.ErrInvalidOrgName
+	if err := q.validateOrg(args.OrgId, ""); err.Error() != ptype.ErrOrgExists.Error() {
+		return ptype.ErrInvalidOrgName
 	}
 
 	if action == InitiateNodeRecovery {
@@ -1050,7 +1050,7 @@ func (q *QuorumControlsAPI) valRecoverNode(args ptype.TxArgs, action PermAction)
 		}
 		// check no pending approval items
 		if q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg) {
-			return types.ErrPendingApprovals
+			return ptype.ErrPendingApprovals
 		}
 	} else {
 		// validate inputs - org id is valid, Node is valid pending recovery state
@@ -1058,7 +1058,7 @@ func (q *QuorumControlsAPI) valRecoverNode(args ptype.TxArgs, action PermAction)
 			return err
 		}
 		if !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.OrgId, args.Url, common.Address{}, 5) {
-			return types.ErrNothingToApprove
+			return ptype.ErrNothingToApprove
 		}
 	}
 
@@ -1070,7 +1070,7 @@ func (q *QuorumControlsAPI) valRecoverNode(args ptype.TxArgs, action PermAction)
 func (q *QuorumControlsAPI) valRecoverAccount(args ptype.TxArgs, action PermAction) error {
 	// check if the caller is org admin
 	if !q.isNetworkAdmin(args.Txa.From) {
-		return types.ErrNotNetworkAdmin
+		return ptype.ErrNotNetworkAdmin
 	}
 
 	var opAction AccountUpdateAction
@@ -1085,11 +1085,11 @@ func (q *QuorumControlsAPI) valRecoverAccount(args ptype.TxArgs, action PermActi
 	}
 
 	if action == InitiateAccountRecovery && q.checkPendingOp(q.permCtrl.permConfig.NwAdminOrg) {
-		return types.ErrPendingApprovals
+		return ptype.ErrPendingApprovals
 	}
 
 	if action == ApproveAccountRecovery && !q.validatePendingOp(q.permCtrl.permConfig.NwAdminOrg, args.OrgId, "", args.AcctId, 6) {
-		return types.ErrNothingToApprove
+		return ptype.ErrNothingToApprove
 	}
 	return nil
 }

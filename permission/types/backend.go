@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
@@ -24,6 +24,62 @@ import (
 const (
 	PERMISSION_EEA   = "eea"
 	PERMISSION_BASIC = "basic"
+)
+
+// permission config for bootstrapping
+type PermissionConfig struct {
+	PermissionsModel string         `json:"permissionModel"`
+	UpgrdAddress     common.Address `json:"upgrdableAddress"`
+	InterfAddress    common.Address `json:"interfaceAddress"`
+	ImplAddress      common.Address `json:"implAddress"`
+	NodeAddress      common.Address `json:"nodeMgrAddress"`
+	AccountAddress   common.Address `json:"accountMgrAddress"`
+	RoleAddress      common.Address `json:"roleMgrAddress"`
+	VoterAddress     common.Address `json:"voterMgrAddress"`
+	OrgAddress       common.Address `json:"orgMgrAddress"`
+	NwAdminOrg       string         `json:"nwAdminOrg"`
+	NwAdminRole      string         `json:"nwAdminRole"`
+	OrgAdminRole     string         `json:"orgAdminRole"`
+
+	Accounts      []common.Address `json:"accounts"` //initial list of account that need full access
+	SubOrgDepth   *big.Int         `json:"subOrgDepth"`
+	SubOrgBreadth *big.Int         `json:"subOrgBreadth"`
+}
+
+var (
+	ErrInvalidInput       = errors.New("Invalid input")
+	ErrInvalidRole        = errors.New("Invalid role")
+	ErrNotNetworkAdmin    = errors.New("Operation can be performed by network admin only. Account not a network admin.")
+	ErrNotOrgAdmin        = errors.New("Operation can be performed by org admin only. Account not a org admin.")
+	ErrNodePresent        = errors.New("EnodeId already part of network.")
+	ErrInvalidNode        = errors.New("Invalid enode id")
+	ErrInvalidAccount     = errors.New("Invalid account id")
+	ErrOrgExists          = errors.New("Org already exist")
+	ErrPendingApprovals   = errors.New("Pending approvals for the organization. Approve first")
+	ErrNothingToApprove   = errors.New("Nothing to approve")
+	ErrOpNotAllowed       = errors.New("Operation not allowed")
+	ErrNodeOrgMismatch    = errors.New("Enode id passed does not belong to the organization.")
+	ErrBlacklistedNode    = errors.New("Blacklisted node. Operation not allowed")
+	ErrBlacklistedAccount = errors.New("Blacklisted account. Operation not allowed")
+	ErrAccountOrgAdmin    = errors.New("Account already org admin for the org")
+	ErrOrgAdminExists     = errors.New("Org admin exist for the org")
+	ErrAccountInUse       = errors.New("Account already in use in another organization")
+	ErrRoleExists         = errors.New("Role exist for the org")
+	ErrRoleActive         = errors.New("Accounts linked to the role. Cannot be removed")
+	ErrAdminRoles         = errors.New("Admin role cannot be removed")
+	ErrInvalidOrgName     = errors.New("Org id cannot contain special characters")
+	ErrInvalidParentOrg   = errors.New("Invalid parent org id")
+	ErrAccountNotThere    = errors.New("Account does not exist")
+	ErrOrgNotOwner        = errors.New("Account does not belong to this org")
+	ErrMaxDepth           = errors.New("Max depth for sub orgs reached")
+	ErrMaxBreadth         = errors.New("Max breadth for sub orgs reached")
+	ErrNodeDoesNotExists  = errors.New("Node does not exist")
+	ErrOrgDoesNotExists   = errors.New("Org does not exist")
+	ErrInactiveRole       = errors.New("Role is already inactive")
+
+	ErrNotMasterOrg         = errors.New("Org is not a master org")
+	ErrHostNameNotSupported = errors.New("Hostname not supported in the network")
+	ErrNoPermissionForTxn   = errors.New("account does not have permission for the transaction")
 )
 
 // backend struct for interfaces
@@ -222,18 +278,18 @@ func SubscribeStopEvent() (chan StopEvent, event.Subscription) {
 
 // function reads the permissions config file passed and populates the
 // config structure accordingly
-func ParsePermissionConfig(dir string) (types.PermissionConfig, error) {
+func ParsePermissionConfig(dir string) (PermissionConfig, error) {
 	fullPath := filepath.Join(dir, params.PERMISSION_MODEL_CONFIG)
 	f, err := os.Open(fullPath)
 	if err != nil {
 		log.Error("can't open file", "file", fullPath, "error", err)
-		return types.PermissionConfig{}, err
+		return PermissionConfig{}, err
 	}
 	defer func() {
 		_ = f.Close()
 	}()
 
-	var permConfig types.PermissionConfig
+	var permConfig PermissionConfig
 	blob, err := ioutil.ReadFile(fullPath)
 	if err != nil {
 		log.Error("error reading file", "err", err, "file", fullPath)
@@ -245,22 +301,22 @@ func ParsePermissionConfig(dir string) (types.PermissionConfig, error) {
 	}
 
 	if permConfig.PermissionsModel == "" {
-		return types.PermissionConfig{}, fmt.Errorf("permissions model type not passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
+		return PermissionConfig{}, fmt.Errorf("permissions model type not passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
 	}
 
 	permConfig.PermissionsModel = strings.ToLower(permConfig.PermissionsModel)
 	if permConfig.PermissionsModel != PERMISSION_EEA && permConfig.PermissionsModel != PERMISSION_BASIC {
-		return types.PermissionConfig{}, fmt.Errorf("invalid permissions model type passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
+		return PermissionConfig{}, fmt.Errorf("invalid permissions model type passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
 	}
 
 	if len(permConfig.Accounts) == 0 {
-		return types.PermissionConfig{}, fmt.Errorf("no accounts given in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
+		return PermissionConfig{}, fmt.Errorf("no accounts given in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
 	}
 	if permConfig.SubOrgDepth.Cmp(big.NewInt(0)) == 0 || permConfig.SubOrgBreadth.Cmp(big.NewInt(0)) == 0 {
-		return types.PermissionConfig{}, fmt.Errorf("sub org breadth depth not passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
+		return PermissionConfig{}, fmt.Errorf("sub org breadth depth not passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
 	}
 	if permConfig.IsEmpty() {
-		return types.PermissionConfig{}, fmt.Errorf("missing contract addresses in %s", params.PERMISSION_MODEL_CONFIG)
+		return PermissionConfig{}, fmt.Errorf("missing contract addresses in %s", params.PERMISSION_MODEL_CONFIG)
 	}
 
 	return permConfig, nil
@@ -285,4 +341,8 @@ func GetNodeDetails(url string, isRaft, useDns bool) (string, string, uint16, ui
 		}
 	}
 	return enodeDet.EnodeID(), ip, uint16(enodeDet.TCP()), uint16(enodeDet.RaftPort()), err
+}
+
+func (pc *PermissionConfig) IsEmpty() bool {
+	return pc.InterfAddress == common.HexToAddress("0x0")
 }

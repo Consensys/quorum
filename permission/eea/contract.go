@@ -233,7 +233,7 @@ func (c *Control) TransactionAllowed(_sender common.Address, _target common.Addr
 	if allowed, err := c.Backend.PermInterfSession.TransactionAllowed(_sender, _target, _value, _gasPrice, _gasLimit, _payload); err != nil {
 		return err
 	} else if !allowed {
-		return types.ErrNoPermissionForTxn
+		return ptype.ErrNoPermissionForTxn
 	}
 	return nil
 }

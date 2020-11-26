@@ -183,11 +183,11 @@ func (c *Control) TransactionAllowed(_sender common.Address, _target common.Addr
 	accessType := types.GetAcctAccess(_sender)
 	switch accessType {
 	case types.ReadOnly:
-		return types.ErrNoPermissionForTxn
+		return ptype.ErrNoPermissionForTxn
 
 	case types.Transact:
 		if transactionType == types.ContractDeployTxn {
-			return types.ErrNoPermissionForTxn
+			return ptype.ErrNoPermissionForTxn
 		}
 		return nil
 
@@ -195,7 +195,7 @@ func (c *Control) TransactionAllowed(_sender common.Address, _target common.Addr
 		return nil
 
 	default:
-		return types.ErrNoPermissionForTxn
+		return ptype.ErrNoPermissionForTxn
 
 	}
 }

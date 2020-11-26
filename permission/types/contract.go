@@ -28,7 +28,7 @@ type TxArgs struct {
 type ContractBackend struct {
 	EthClnt    bind.ContractBackend
 	Key        *ecdsa.PrivateKey
-	PermConfig *types.PermissionConfig
+	PermConfig *PermissionConfig
 	IsRaft     bool
 	UseDns     bool
 }

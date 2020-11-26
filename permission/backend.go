@@ -28,7 +28,7 @@ type PermissionCtrl struct {
 	eth                *eth.Ethereum
 	key                *ecdsa.PrivateKey
 	dataDir            string
-	permConfig         *types.PermissionConfig
+	permConfig         *ptype.PermissionConfig
 	contract           ptype.InitService
 	backend            ptype.Backend
 	useDns             bool
@@ -53,7 +53,7 @@ func setPermissionService(ps *PermissionCtrl) {
 // 1. EthService to be ready
 // 2. Downloader to sync up blocks
 // 3. InProc RPC server to be ready
-func NewQuorumPermissionCtrl(stack *node.Node, pconfig *types.PermissionConfig, useDns bool) (*PermissionCtrl, error) {
+func NewQuorumPermissionCtrl(stack *node.Node, pconfig *ptype.PermissionConfig, useDns bool) (*PermissionCtrl, error) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
@@ -127,7 +127,7 @@ func (p *PermissionCtrl) IsEEAPermission() bool {
 }
 
 func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, key *ecdsa.PrivateKey,
-	permConfig *types.PermissionConfig, isRaft, useDns bool) ptype.InitService {
+	permConfig *ptype.PermissionConfig, isRaft, useDns bool) ptype.InitService {
 
 	contractBackEnd := ptype.ContractBackend{
 		EthClnt:    ethClnt,
@@ -264,7 +264,7 @@ func (p *PermissionCtrl) validateAccount(from common.Address) (accounts.Wallet, 
 func (p *PermissionCtrl) getTxParams(txa ethapi.SendTxArgs) (*bind.TransactOpts, error) {
 	w, err := p.validateAccount(txa.From)
 	if err != nil {
-		return nil, types.ErrInvalidAccount
+		return nil, ptype.ErrInvalidAccount
 	}
 	fromAcct := accounts.Account{Address: txa.From}
 	transactOpts := bind.NewWalletTransactor(w, fromAcct)

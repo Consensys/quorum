@@ -327,7 +327,7 @@ func (p *PermissionCtrl) populateAccountToCache(acctId common.Address) (*types.A
 	}
 
 	if status.Int64() == 0 {
-		return nil, types.ErrAccountNotThere
+		return nil, ptype.ErrAccountNotThere
 	}
 	return &types.AccountInfo{AcctId: account, OrgId: orgId, RoleId: roleId, Status: types.AcctStatus(status.Int64()), IsOrgAdmin: isAdmin}, nil
 }
@@ -339,7 +339,7 @@ func (p *PermissionCtrl) populateOrgToCache(orgId string) (*types.OrgInfo, error
 		return nil, err
 	}
 	if orgStatus.Int64() == 0 {
-		return nil, types.ErrOrgDoesNotExists
+		return nil, ptype.ErrOrgDoesNotExists
 	}
 	orgInfo := types.OrgInfo{OrgId: org, ParentOrgId: parentOrgId, UltimateParent: ultimateParentId, Status: types.OrgStatus(orgStatus.Int64()), Level: orgLevel}
 	// now need to build the list of sub orgs for this org
@@ -374,7 +374,7 @@ func (p *PermissionCtrl) populateRoleToCache(roleKey *types.RoleKey) (*types.Rol
 	}
 
 	if roleDetails.OrgId == "" {
-		return nil, types.ErrInvalidRole
+		return nil, ptype.ErrInvalidRole
 	}
 	return &types.RoleInfo{OrgId: roleDetails.OrgId, RoleId: roleDetails.RoleId, IsVoter: roleDetails.Voter, IsAdmin: roleDetails.Admin, Access: types.AccessType(roleDetails.AccessType.Int64()), Active: roleDetails.Active}, nil
 }
@@ -387,7 +387,7 @@ func (p *PermissionCtrl) populateNodeCache(url string) (*types.NodeInfo, error) 
 	}
 
 	if status.Int64() == 0 {
-		return nil, types.ErrNodeDoesNotExists
+		return nil, ptype.ErrNodeDoesNotExists
 	}
 	return &types.NodeInfo{OrgId: orgId, Url: url, Status: types.NodeStatus(status.Int64())}, nil
 }

@@ -108,60 +108,6 @@ type OrgDetailInfo struct {
 	SubOrgList []string      `json:"subOrgList"`
 }
 
-// permission config for bootstrapping
-type PermissionConfig struct {
-	PermissionsModel string         `json:"permissionModel"`
-	UpgrdAddress     common.Address `json:"upgrdableAddress"`
-	InterfAddress    common.Address `json:"interfaceAddress"`
-	ImplAddress      common.Address `json:"implAddress"`
-	NodeAddress      common.Address `json:"nodeMgrAddress"`
-	AccountAddress   common.Address `json:"accountMgrAddress"`
-	RoleAddress      common.Address `json:"roleMgrAddress"`
-	VoterAddress     common.Address `json:"voterMgrAddress"`
-	OrgAddress       common.Address `json:"orgMgrAddress"`
-	NwAdminOrg       string         `json:"nwAdminOrg"`
-	NwAdminRole      string         `json:"nwAdminRole"`
-	OrgAdminRole     string         `json:"orgAdminRole"`
-
-	Accounts      []common.Address `json:"accounts"` //initial list of account that need full access
-	SubOrgDepth   *big.Int         `json:"subOrgDepth"`
-	SubOrgBreadth *big.Int         `json:"subOrgBreadth"`
-}
-
-var (
-	ErrNotNetworkAdmin      = errors.New("Operation can be performed by network admin only. Account not a network admin.")
-	ErrNotOrgAdmin          = errors.New("Operation can be performed by org admin only. Account not a org admin.")
-	ErrNodePresent          = errors.New("EnodeId already part of network.")
-	ErrInvalidNode          = errors.New("Invalid enode id")
-	ErrInvalidAccount       = errors.New("Invalid account id")
-	ErrOrgExists            = errors.New("Org already exist")
-	ErrPendingApprovals     = errors.New("Pending approvals for the organization. Approve first")
-	ErrNothingToApprove     = errors.New("Nothing to approve")
-	ErrOpNotAllowed         = errors.New("Operation not allowed")
-	ErrNodeOrgMismatch      = errors.New("Enode id passed does not belong to the organization.")
-	ErrBlacklistedNode      = errors.New("Blacklisted node. Operation not allowed")
-	ErrBlacklistedAccount   = errors.New("Blacklisted account. Operation not allowed")
-	ErrAccountOrgAdmin      = errors.New("Account already org admin for the org")
-	ErrOrgAdminExists       = errors.New("Org admin exist for the org")
-	ErrAccountInUse         = errors.New("Account already in use in another organization")
-	ErrRoleExists           = errors.New("Role exist for the org")
-	ErrRoleActive           = errors.New("Accounts linked to the role. Cannot be removed")
-	ErrAdminRoles           = errors.New("Admin role cannot be removed")
-	ErrInvalidOrgName       = errors.New("Org id cannot contain special characters")
-	ErrInvalidParentOrg     = errors.New("Invalid parent org id")
-	ErrAccountNotThere      = errors.New("Account does not exist")
-	ErrOrgNotOwner          = errors.New("Account does not belong to this org")
-	ErrMaxDepth             = errors.New("Max depth for sub orgs reached")
-	ErrMaxBreadth           = errors.New("Max breadth for sub orgs reached")
-	ErrNodeDoesNotExists    = errors.New("Node does not exist")
-	ErrOrgDoesNotExists     = errors.New("Org does not exist")
-	ErrInactiveRole         = errors.New("Role is already inactive")
-	ErrInvalidRole          = errors.New("Invalid role")
-	ErrInvalidInput         = errors.New("Invalid input")
-	ErrNotMasterOrg         = errors.New("Org is not a master org")
-	ErrHostNameNotSupported = errors.New("Hostname not supported in the network")
-	ErrNoPermissionForTxn   = errors.New("account does not have permission for the transaction")
-)
 
 var syncStarted = false
 
@@ -279,10 +225,6 @@ func NewAcctCache(cacheSize int) *AcctCache {
 
 	acctCache.c, _ = lru.NewWithEvict(cacheSize, onEvictedFunc)
 	return &acctCache
-}
-
-func (pc *PermissionConfig) IsEmpty() bool {
-	return pc.InterfAddress == common.HexToAddress("0x0")
 }
 
 func SetSyncStatus() {
@@ -404,7 +346,7 @@ func (o *OrgCache) GetOrg(orgId string) (*OrgInfo, error) {
 		//return the record
 		return orgRec, nil
 	}
-	return nil, ErrOrgDoesNotExists
+	return nil, errors.New("Org does not exist")
 }
 
 func (o *OrgCache) GetOrgList() []OrgInfo {
@@ -445,7 +387,7 @@ func (n *NodeCache) GetNodeByUrl(url string) (*NodeInfo, error) {
 		//return the record
 		return nodeRec, err
 	}
-	return nil, ErrNodeDoesNotExists
+	return nil, errors.New("Node does not exist")
 }
 
 func (n *NodeCache) GetNodeList() []NodeInfo {
@@ -549,7 +491,7 @@ func (r *RoleCache) GetRole(orgId string, roleId string) (*RoleInfo, error) {
 		//return the record
 		return roleRec, nil
 	}
-	return nil, ErrInvalidRole
+	return nil, errors.New("Invalid role")
 }
 
 func (r *RoleCache) GetRoleList() []RoleInfo {

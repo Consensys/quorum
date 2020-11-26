@@ -476,7 +476,7 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 
 	testObject.permCtrl.isRaft = true
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode4withHostName, txa)
-	assert.Equal(t, err, types.ErrHostNameNotSupported)
+	assert.Equal(t, err, ptype.ErrHostNameNotSupported)
 
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode4, txa)
 	assert.NoError(t, err)
@@ -699,7 +699,7 @@ func getArbitraryAccount() common.Address {
 }
 
 func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
-	pconfig := &types.PermissionConfig{
+	pconfig := &ptype.PermissionConfig{
 		UpgrdAddress:   permUpgrAddress,
 		InterfAddress:  permInterfaceAddress,
 		ImplAddress:    permImplAddress,
@@ -824,7 +824,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	assert.True(t, err != nil, "expected unmarshalling error")
 
 	// write permission-config.json into the temp dir
-	var tmpPermCofig types.PermissionConfig
+	var tmpPermCofig ptype.PermissionConfig
 	tmpPermCofig.NwAdminOrg = arbitraryNetworkAdminOrg
 	tmpPermCofig.NwAdminRole = arbitraryNetworkAdminRole
 	tmpPermCofig.OrgAdminRole = arbitraryOrgAdminRole
