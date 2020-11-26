@@ -2,14 +2,12 @@ package p2p
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"strings"
-
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 )
 
 // check if a given node is permissioned to connect to the change
@@ -96,7 +94,8 @@ func isNodeBlackListed(nodeName, dataDir string) bool {
 	}
 
 	for _, v := range nodelist {
-		if strings.Contains(v, nodeName) {
+		n, _ := enode.ParseV4(v)
+		if nodeName == n.ID().String() {
 			return true
 		}
 	}
