@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/permission/core"
-	ptype "github.com/ethereum/go-ethereum/permission/types"
+	ptype "github.com/ethereum/go-ethereum/permission/core/types"
 )
 
 var isStringAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9_-]*$`).MatchString

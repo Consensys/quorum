@@ -29,10 +29,10 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/permission/basic"
 	bb "github.com/ethereum/go-ethereum/permission/basic/bind"
-	"github.com/ethereum/go-ethereum/permission/core"
+	pcore "github.com/ethereum/go-ethereum/permission/core"
+	ptype "github.com/ethereum/go-ethereum/permission/core/types"
 	"github.com/ethereum/go-ethereum/permission/eea"
 	eb "github.com/ethereum/go-ethereum/permission/eea/bind"
-	ptype "github.com/ethereum/go-ethereum/permission/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -274,32 +274,32 @@ func TestPermissionCtrl_PopulateInitPermissions_AfterNetworkIsInitialized(t *tes
 	assert.NoError(t, err)
 
 	// assert cache
-	assert.Equal(t, 1, len(core.OrgInfoMap.GetOrgList()))
-	cachedOrg := core.OrgInfoMap.GetOrgList()[0]
+	assert.Equal(t, 1, len(pcore.OrgInfoMap.GetOrgList()))
+	cachedOrg := pcore.OrgInfoMap.GetOrgList()[0]
 	assert.Equal(t, arbitraryNetworkAdminOrg, cachedOrg.OrgId)
 	assert.Equal(t, arbitraryNetworkAdminOrg, cachedOrg.FullOrgId)
 	assert.Equal(t, arbitraryNetworkAdminOrg, cachedOrg.UltimateParent)
 	assert.Equal(t, "", cachedOrg.ParentOrgId)
-	assert.Equal(t, core.OrgApproved, cachedOrg.Status)
+	assert.Equal(t, pcore.OrgApproved, cachedOrg.Status)
 	assert.Equal(t, 0, len(cachedOrg.SubOrgList))
 	assert.Equal(t, big.NewInt(1), cachedOrg.Level)
 
-	assert.Equal(t, 1, len(core.RoleInfoMap.GetRoleList()))
-	cachedRole := core.RoleInfoMap.GetRoleList()[0]
+	assert.Equal(t, 1, len(pcore.RoleInfoMap.GetRoleList()))
+	cachedRole := pcore.RoleInfoMap.GetRoleList()[0]
 	assert.Equal(t, arbitraryNetworkAdminOrg, cachedRole.OrgId)
 	assert.Equal(t, arbitraryNetworkAdminRole, cachedRole.RoleId)
 	assert.True(t, cachedRole.Active)
 	assert.True(t, cachedRole.IsAdmin)
 	assert.True(t, cachedRole.IsVoter)
-	assert.Equal(t, core.FullAccess, cachedRole.Access)
+	assert.Equal(t, pcore.FullAccess, cachedRole.Access)
 
-	assert.Equal(t, 0, len(core.NodeInfoMap.GetNodeList()))
+	assert.Equal(t, 0, len(pcore.NodeInfoMap.GetNodeList()))
 
-	assert.Equal(t, 1, len(core.AcctInfoMap.GetAcctList()))
-	cachedAccount := core.AcctInfoMap.GetAcctList()[0]
+	assert.Equal(t, 1, len(pcore.AcctInfoMap.GetAcctList()))
+	cachedAccount := pcore.AcctInfoMap.GetAcctList()[0]
 	assert.Equal(t, arbitraryNetworkAdminOrg, cachedAccount.OrgId)
 	assert.Equal(t, arbitraryNetworkAdminRole, cachedAccount.RoleId)
-	assert.Equal(t, core.AcctActive, cachedAccount.Status)
+	assert.Equal(t, pcore.AcctActive, cachedAccount.Status)
 	assert.True(t, cachedAccount.IsOrgAdmin)
 	assert.Equal(t, guardianAddress, cachedAccount.AcctId)
 }
@@ -363,14 +363,14 @@ func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 	_, err = testObject.ApproveOrg(arbitraryOrgToAdd, arbitraryNode1, orgAdminAddress, txa)
 	assert.NoError(t, err)
 
-	core.OrgInfoMap.UpsertOrg(arbitraryOrgToAdd, "", arbitraryOrgToAdd, big.NewInt(1), core.OrgApproved)
+	pcore.OrgInfoMap.UpsertOrg(arbitraryOrgToAdd, "", arbitraryOrgToAdd, big.NewInt(1), pcore.OrgApproved)
 	_, err = testObject.UpdateOrgStatus(arbitraryOrgToAdd, uint8(SuspendOrg), invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
 	_, err = testObject.UpdateOrgStatus(arbitraryOrgToAdd, uint8(SuspendOrg), txa)
 	assert.NoError(t, err)
 
-	core.OrgInfoMap.UpsertOrg(arbitraryOrgToAdd, "", arbitraryOrgToAdd, big.NewInt(1), core.OrgSuspended)
+	pcore.OrgInfoMap.UpsertOrg(arbitraryOrgToAdd, "", arbitraryOrgToAdd, big.NewInt(1), pcore.OrgSuspended)
 	_, err = testObject.ApproveOrgStatus(arbitraryOrgToAdd, uint8(SuspendOrg), invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
@@ -382,7 +382,7 @@ func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 
 	_, err = testObject.AddSubOrg(arbitraryNetworkAdminOrg, arbitrarySubOrg, "", txa)
 	assert.NoError(t, err)
-	core.OrgInfoMap.UpsertOrg(arbitrarySubOrg, arbitraryNetworkAdminOrg, arbitraryNetworkAdminOrg, big.NewInt(2), core.OrgApproved)
+	pcore.OrgInfoMap.UpsertOrg(arbitrarySubOrg, arbitraryNetworkAdminOrg, arbitraryNetworkAdminOrg, big.NewInt(2), pcore.OrgApproved)
 
 	suborg := "ABC.12345"
 	_, err = testObject.AddSubOrg(arbitraryNetworkAdminOrg, suborg, "", txa)
@@ -398,10 +398,10 @@ func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 		subOrgId := "TESTSUBORG" + strconv.Itoa(i)
 		_, err = testObject.AddSubOrg(arbitraryNetworkAdminOrg, subOrgId, "", txa)
 		assert.NoError(t, err)
-		core.OrgInfoMap.UpsertOrg(subOrgId, arbitraryNetworkAdminOrg, arbitraryNetworkAdminOrg, big.NewInt(2), core.OrgApproved)
+		pcore.OrgInfoMap.UpsertOrg(subOrgId, arbitraryNetworkAdminOrg, arbitraryNetworkAdminOrg, big.NewInt(2), pcore.OrgApproved)
 	}
 
-	assert.Equal(t, orgCacheSize, len(core.OrgInfoMap.GetOrgList()))
+	assert.Equal(t, orgCacheSize, len(pcore.OrgInfoMap.GetOrgList()))
 
 	orgDetails, err := testObject.GetOrgDetails(arbitraryNetworkAdminOrg)
 	assert.Equal(t, orgDetails.AcctList[0].AcctId, guardianAddress)
@@ -431,7 +431,7 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
-	core.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, core.NodeApproved)
+	pcore.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, pcore.NodeApproved)
 	testConnectionAllowed(t, testObject, arbitraryNode2, true)
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(SuspendNode), invalidTxa)
@@ -439,17 +439,17 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(SuspendNode), txa)
 	assert.NoError(t, err)
-	core.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, core.NodeDeactivated)
+	pcore.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, pcore.NodeDeactivated)
 	testConnectionAllowed(t, testObject, arbitraryNode2, false)
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(ActivateSuspendedNode), txa)
 	assert.NoError(t, err)
-	core.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, core.NodeApproved)
+	pcore.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, pcore.NodeApproved)
 	testConnectionAllowed(t, testObject, arbitraryNode2, true)
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(BlacklistNode), txa)
 	assert.NoError(t, err)
-	core.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, core.NodeBlackListed)
+	pcore.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, pcore.NodeBlackListed)
 
 	_, err = testObject.UpdateNodeStatus(arbitraryNetworkAdminOrg, arbitraryNode2, uint8(ActivateSuspendedNode), txa)
 	assert.Equal(t, err, ErrNodeBlacklisted)
@@ -459,20 +459,20 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 
 	_, err = testObject.RecoverBlackListedNode(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
-	core.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, core.NodeRecoveryInitiated)
+	pcore.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, pcore.NodeRecoveryInitiated)
 
 	_, err = testObject.ApproveBlackListedNodeRecovery(arbitraryNetworkAdminOrg, arbitraryNode2, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
 	_, err = testObject.ApproveBlackListedNodeRecovery(arbitraryNetworkAdminOrg, arbitraryNode2, txa)
 	assert.NoError(t, err)
-	core.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, core.NodeApproved)
+	pcore.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode2, pcore.NodeApproved)
 
 	// caching tests - cache size for Node is 3. add 2 nodes which will
 	// result in Node eviction from cache. get evicted Node details using api
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode3, txa)
 	assert.NoError(t, err)
-	core.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode3, core.NodeApproved)
+	pcore.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode3, pcore.NodeApproved)
 
 	testObject.permCtrl.isRaft = true
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode4withHostName, txa)
@@ -480,12 +480,12 @@ func TestQuorumControlsAPI_NodeAPIs(t *testing.T) {
 
 	_, err = testObject.AddNode(arbitraryNetworkAdminOrg, arbitraryNode4, txa)
 	assert.NoError(t, err)
-	core.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode4, core.NodeApproved)
+	pcore.NodeInfoMap.UpsertNode(arbitraryNetworkAdminOrg, arbitraryNode4, pcore.NodeApproved)
 
-	assert.Equal(t, nodeCacheSize, len(core.NodeInfoMap.GetNodeList()))
-	nodeInfo, err := core.NodeInfoMap.GetNodeByUrl(arbitraryNode4)
+	assert.Equal(t, nodeCacheSize, len(pcore.NodeInfoMap.GetNodeList()))
+	nodeInfo, err := pcore.NodeInfoMap.GetNodeByUrl(arbitraryNode4)
 	assert.True(t, err == nil, "Node fetch returned error")
-	assert.Equal(t, core.NodeApproved, nodeInfo.Status)
+	assert.Equal(t, pcore.NodeApproved, nodeInfo.Status)
 }
 
 func testTransactionAllowed(t *testing.T, q *QuorumControlsAPI, txa ethapi.SendTxArgs, expected bool) {
@@ -511,7 +511,7 @@ func TestQuorumControlsAPI_TransactionAllowed(t *testing.T) {
 			roleId := arbitrartNewRole1 + strconv.Itoa(i)
 			_, err := testObject.AddNewRole(arbitraryNetworkAdminOrg, roleId, uint8(i), false, false, txa)
 			assert.NoError(t, err)
-			core.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, roleId, false, false, core.AccessType(uint8(i)), true)
+			pcore.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, roleId, false, false, pcore.AccessType(uint8(i)), true)
 
 			if i == 0 {
 				_, err = testObject.AddAccountToOrg(acct, arbitraryNetworkAdminOrg, roleId, txa)
@@ -521,42 +521,42 @@ func TestQuorumControlsAPI_TransactionAllowed(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			switch core.AccessType(uint8(i)) {
-			case core.ReadOnly:
+			switch pcore.AccessType(uint8(i)) {
+			case pcore.ReadOnly:
 				testTransactionAllowed(t, testObject, transactionTxa, false)
 				testTransactionAllowed(t, testObject, contractCallTxa, false)
 				testTransactionAllowed(t, testObject, contractCreateTxa, false)
 
-			case core.Transact:
+			case pcore.Transact:
 				testTransactionAllowed(t, testObject, transactionTxa, true)
 				testTransactionAllowed(t, testObject, contractCallTxa, false)
 				testTransactionAllowed(t, testObject, contractCreateTxa, false)
 
-			case core.ContractDeploy:
+			case pcore.ContractDeploy:
 				testTransactionAllowed(t, testObject, transactionTxa, false)
 				testTransactionAllowed(t, testObject, contractCallTxa, false)
 				testTransactionAllowed(t, testObject, contractCreateTxa, true)
 
-			case core.FullAccess:
+			case pcore.FullAccess:
 				testTransactionAllowed(t, testObject, transactionTxa, true)
 				testTransactionAllowed(t, testObject, contractCallTxa, true)
 				testTransactionAllowed(t, testObject, contractCreateTxa, true)
 
-			case core.ContractCall:
+			case pcore.ContractCall:
 				testTransactionAllowed(t, testObject, transactionTxa, false)
 				testTransactionAllowed(t, testObject, contractCallTxa, true)
 				testTransactionAllowed(t, testObject, contractCreateTxa, false)
 
-			case core.TransactAndContractCall:
+			case pcore.TransactAndContractCall:
 				testTransactionAllowed(t, testObject, transactionTxa, true)
 				testTransactionAllowed(t, testObject, contractCallTxa, true)
 				testTransactionAllowed(t, testObject, contractCreateTxa, false)
 
-			case core.TransactAndContractDeploy:
+			case pcore.TransactAndContractDeploy:
 				testTransactionAllowed(t, testObject, transactionTxa, true)
 				testTransactionAllowed(t, testObject, contractCallTxa, false)
 				testTransactionAllowed(t, testObject, contractCreateTxa, true)
-			case core.ContractCallAndDeploy:
+			case pcore.ContractCallAndDeploy:
 				testTransactionAllowed(t, testObject, transactionTxa, false)
 				testTransactionAllowed(t, testObject, contractCallTxa, true)
 				testTransactionAllowed(t, testObject, contractCreateTxa, true)
@@ -574,14 +574,14 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	acct := getArbitraryAccount()
 	txa := ethapi.SendTxArgs{From: guardianAddress, To: &acct}
 
-	core.SetNetworkBootUpCompleted()
-	core.SetQIP714BlockReached()
+	pcore.SetNetworkBootUpCompleted()
+	pcore.SetQIP714BlockReached()
 
 	_, err := testObject.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
 	_, err = testObject.AssignAdminRole(arbitraryNetworkAdminOrg, acct, arbitraryNetworkAdminRole, txa)
-	core.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, core.AcctPendingApproval)
+	pcore.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, pcore.AcctPendingApproval)
 
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -592,15 +592,15 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 
 	_, err = testObject.ApproveAdminRole(arbitraryNetworkAdminOrg, acct, txa)
 	assert.NoError(t, err)
-	core.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, core.AcctActive)
+	pcore.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitraryNetworkAdminRole, acct, true, pcore.AcctActive)
 	testTransactionAllowed(t, testObject, ethapi.SendTxArgs{From: acct, To: &acct}, true)
 
-	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(core.FullAccess), false, false, invalidTxa)
+	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(pcore.FullAccess), false, false, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
 
-	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(core.FullAccess), false, false, txa)
+	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, uint8(pcore.FullAccess), false, false, txa)
 	assert.NoError(t, err)
-	core.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, false, false, core.FullAccess, true)
+	pcore.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, false, false, pcore.FullAccess, true)
 
 	acct = getArbitraryAccount()
 	_, err = testObject.AddAccountToOrg(acct, arbitraryNetworkAdminOrg, arbitrartNewRole1, invalidTxa)
@@ -608,7 +608,7 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 
 	_, err = testObject.AddAccountToOrg(acct, arbitraryNetworkAdminOrg, arbitrartNewRole1, txa)
 	assert.NoError(t, err)
-	core.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole1, acct, true, core.AcctActive)
+	pcore.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole1, acct, true, pcore.AcctActive)
 
 	_, err = testObject.RemoveRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -616,9 +616,9 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	_, err = testObject.RemoveRole(arbitraryNetworkAdminOrg, arbitrartNewRole1, txa)
 	assert.Equal(t, err, ErrAccountsLinked)
 
-	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole2, uint8(core.FullAccess), false, false, txa)
+	_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, arbitrartNewRole2, uint8(pcore.FullAccess), false, false, txa)
 	assert.NoError(t, err)
-	core.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, arbitrartNewRole2, false, false, core.FullAccess, true)
+	pcore.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, arbitrartNewRole2, false, false, pcore.FullAccess, true)
 
 	_, err = testObject.ChangeAccountRole(acct, arbitraryNetworkAdminOrg, arbitrartNewRole2, invalidTxa)
 	assert.Equal(t, err, errors.New("Invalid account id"))
@@ -634,16 +634,16 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(SuspendAccount), txa)
 	assert.NoError(t, err)
-	core.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, core.AcctSuspended)
+	pcore.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, pcore.AcctSuspended)
 	testTransactionAllowed(t, testObject, ethapi.SendTxArgs{From: acct, To: &acct}, false)
 
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
 	assert.NoError(t, err)
-	core.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, core.AcctActive)
+	pcore.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, pcore.AcctActive)
 
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(BlacklistAccount), txa)
 	assert.NoError(t, err)
-	core.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, core.AcctBlacklisted)
+	pcore.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, pcore.AcctBlacklisted)
 	testTransactionAllowed(t, testObject, ethapi.SendTxArgs{From: acct, To: &acct}, false)
 
 	_, err = testObject.UpdateAccountStatus(arbitraryNetworkAdminOrg, acct, uint8(ActivateSuspendedAccount), txa)
@@ -654,22 +654,22 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 
 	_, err = testObject.RecoverBlackListedAccount(arbitraryNetworkAdminOrg, acct, txa)
 	assert.NoError(t, err)
-	core.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, core.AcctRecoveryInitiated)
+	pcore.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, pcore.AcctRecoveryInitiated)
 	_, err = testObject.ApproveBlackListedAccountRecovery(arbitraryNetworkAdminOrg, acct, txa)
 	assert.NoError(t, err)
-	core.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, core.AcctActive)
+	pcore.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole2, acct, true, pcore.AcctActive)
 
 	// check role cache. the cache size is set to 4
 	// insert 4 records and then retrieve the 1st role
 	for i := 0; i < roleCacheSize; i++ {
 		roleId := "TESTROLE" + strconv.Itoa(i)
-		_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, roleId, uint8(core.FullAccess), false, false, txa)
+		_, err = testObject.AddNewRole(arbitraryNetworkAdminOrg, roleId, uint8(pcore.FullAccess), false, false, txa)
 		assert.NoError(t, err)
-		core.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, roleId, false, false, core.FullAccess, true)
+		pcore.RoleInfoMap.UpsertRole(arbitraryNetworkAdminOrg, roleId, false, false, pcore.FullAccess, true)
 	}
 
-	assert.Equal(t, roleCacheSize, len(core.RoleInfoMap.GetRoleList()))
-	roleInfo, err := core.RoleInfoMap.GetRole(arbitraryNetworkAdminOrg, arbitrartNewRole1)
+	assert.Equal(t, roleCacheSize, len(pcore.RoleInfoMap.GetRoleList()))
+	roleInfo, err := pcore.RoleInfoMap.GetRole(arbitraryNetworkAdminOrg, arbitrartNewRole1)
 	assert.True(t, err == nil, "error encountered")
 
 	assert.Equal(t, roleInfo.RoleId, arbitrartNewRole1)
@@ -684,11 +684,11 @@ func TestQuorumControlsAPI_RoleAndAccountsAPIs(t *testing.T) {
 	for i := 0; i < accountCacheSize; i++ {
 		_, err = testObject.AddAccountToOrg(AccountArray[i], arbitraryNetworkAdminOrg, arbitrartNewRole1, txa)
 		assert.NoError(t, err)
-		core.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole1, AccountArray[i], false, core.AcctActive)
+		pcore.AcctInfoMap.UpsertAccount(arbitraryNetworkAdminOrg, arbitrartNewRole1, AccountArray[i], false, pcore.AcctActive)
 	}
-	assert.Equal(t, accountCacheSize, len(core.AcctInfoMap.GetAcctList()))
+	assert.Equal(t, accountCacheSize, len(pcore.AcctInfoMap.GetAcctList()))
 
-	acctInfo, err := core.AcctInfoMap.GetAccount(acct)
+	acctInfo, err := pcore.AcctInfoMap.GetAccount(acct)
 	assert.True(t, err == nil, "error encountered")
 	assert.True(t, acctInfo != nil, "account details nil")
 }
@@ -901,30 +901,30 @@ func TestParsePermissionConfig(t *testing.T) {
 
 func TestIsTransactionAllowed_Basic(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
-	core.PermissionTransactionAllowedFunc = testObject.permCtrl.IsTransactionAllowed
+	pcore.PermissionTransactionAllowedFunc = testObject.permCtrl.IsTransactionAllowed
 	var Acct1 = common.BytesToAddress([]byte("permission"))
 	var Acct2 = common.BytesToAddress([]byte("perm-test"))
-	core.SetDefaults(arbitraryNetworkAdminRole, arbitraryOrgAdminRole, false)
-	core.SetQIP714BlockReached()
-	core.SetNetworkBootUpCompleted()
-	core.OrgInfoMap = core.NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
-	core.RoleInfoMap = core.NewRoleCache(params.DEFAULT_ROLECACHE_SIZE)
-	core.AcctInfoMap = core.NewAcctCache(params.DEFAULT_ACCOUNTCACHE_SIZE)
+	pcore.SetDefaults(arbitraryNetworkAdminRole, arbitraryOrgAdminRole, false)
+	pcore.SetQIP714BlockReached()
+	pcore.SetNetworkBootUpCompleted()
+	pcore.OrgInfoMap = pcore.NewOrgCache(params.DEFAULT_ORGCACHE_SIZE)
+	pcore.RoleInfoMap = pcore.NewRoleCache(params.DEFAULT_ROLECACHE_SIZE)
+	pcore.AcctInfoMap = pcore.NewAcctCache(params.DEFAULT_ACCOUNTCACHE_SIZE)
 
-	core.OrgInfoMap.UpsertOrg(arbitraryOrgAdminRole, "", arbitraryOrgAdminRole, big.NewInt(1), core.OrgApproved)
-	core.RoleInfoMap.UpsertRole(arbitraryOrgAdminRole, "ROLE1", false, false, core.Transact, true)
-	core.RoleInfoMap.UpsertRole(arbitraryOrgAdminRole, "ROLE2", false, false, core.ContractDeploy, true)
-	core.RoleInfoMap.UpsertRole(arbitraryOrgAdminRole, "ROLE3", false, false, core.FullAccess, true)
+	pcore.OrgInfoMap.UpsertOrg(arbitraryOrgAdminRole, "", arbitraryOrgAdminRole, big.NewInt(1), pcore.OrgApproved)
+	pcore.RoleInfoMap.UpsertRole(arbitraryOrgAdminRole, "ROLE1", false, false, pcore.Transact, true)
+	pcore.RoleInfoMap.UpsertRole(arbitraryOrgAdminRole, "ROLE2", false, false, pcore.ContractDeploy, true)
+	pcore.RoleInfoMap.UpsertRole(arbitraryOrgAdminRole, "ROLE3", false, false, pcore.FullAccess, true)
 	var Acct3 = common.BytesToAddress([]byte("permission-test1"))
 	var Acct4 = common.BytesToAddress([]byte("permission-test2"))
 
-	core.AcctInfoMap.UpsertAccount(arbitraryOrgAdminRole, "ROLE1", Acct1, false, core.AcctActive)
-	core.AcctInfoMap.UpsertAccount(arbitraryOrgAdminRole, "ROLE2", Acct2, false, core.AcctActive)
-	core.AcctInfoMap.UpsertAccount(arbitraryOrgAdminRole, "ROLE3", Acct3, false, core.AcctActive)
+	pcore.AcctInfoMap.UpsertAccount(arbitraryOrgAdminRole, "ROLE1", Acct1, false, pcore.AcctActive)
+	pcore.AcctInfoMap.UpsertAccount(arbitraryOrgAdminRole, "ROLE2", Acct2, false, pcore.AcctActive)
+	pcore.AcctInfoMap.UpsertAccount(arbitraryOrgAdminRole, "ROLE3", Acct3, false, pcore.AcctActive)
 
 	type args struct {
 		address         common.Address
-		transactionType core.TransactionType
+		transactionType pcore.TransactionType
 	}
 	tests := []struct {
 		name    string
@@ -934,68 +934,68 @@ func TestIsTransactionAllowed_Basic(t *testing.T) {
 		// TODO: Add test cases.
 		{
 			name:    "Account with transact permission calling value transfer",
-			args:    args{address: Acct1, transactionType: core.ValueTransferTxn},
+			args:    args{address: Acct1, transactionType: pcore.ValueTransferTxn},
 			wantErr: false,
 		},
 		{
 			name:    "Account with transact permission calling value contract call transaction",
-			args:    args{address: Acct1, transactionType: core.ContractCallTxn},
+			args:    args{address: Acct1, transactionType: pcore.ContractCallTxn},
 			wantErr: false,
 		},
 		{
 			name:    "Account with transact permission calling contract deploy",
-			args:    args{address: Acct1, transactionType: core.ContractDeployTxn},
+			args:    args{address: Acct1, transactionType: pcore.ContractDeployTxn},
 			wantErr: true,
 		},
 		{
 			name:    "Account with contract permission deploy calling value transfer",
-			args:    args{address: Acct2, transactionType: core.ValueTransferTxn},
+			args:    args{address: Acct2, transactionType: pcore.ValueTransferTxn},
 			wantErr: false,
 		},
 		{
 			name:    "Account with contract deploy permission calling value contract call transaction",
-			args:    args{address: Acct2, transactionType: core.ContractCallTxn},
+			args:    args{address: Acct2, transactionType: pcore.ContractCallTxn},
 			wantErr: false,
 		},
 		{
 			name:    "Account with contract deploy permission calling contract deploy",
-			args:    args{address: Acct2, transactionType: core.ContractDeployTxn},
+			args:    args{address: Acct2, transactionType: pcore.ContractDeployTxn},
 			wantErr: false,
 		},
 		{
 			name:    "Account with full permission calling value transfer",
-			args:    args{address: Acct3, transactionType: core.ValueTransferTxn},
+			args:    args{address: Acct3, transactionType: pcore.ValueTransferTxn},
 			wantErr: false,
 		},
 		{
 			name:    "Account with full permission calling value contract call transaction",
-			args:    args{address: Acct3, transactionType: core.ContractCallTxn},
+			args:    args{address: Acct3, transactionType: pcore.ContractCallTxn},
 			wantErr: false,
 		},
 		{
 			name:    "Account with full permission calling contract deploy",
-			args:    args{address: Acct3, transactionType: core.ContractDeployTxn},
+			args:    args{address: Acct3, transactionType: pcore.ContractDeployTxn},
 			wantErr: false,
 		},
 		{
 			name:    "un-permissioned account calling value transfer",
-			args:    args{address: Acct4, transactionType: core.ValueTransferTxn},
+			args:    args{address: Acct4, transactionType: pcore.ValueTransferTxn},
 			wantErr: true,
 		},
 		{
 			name:    "un-permissioned account calling contract call transaction",
-			args:    args{address: Acct4, transactionType: core.ContractCallTxn},
+			args:    args{address: Acct4, transactionType: pcore.ContractCallTxn},
 			wantErr: true,
 		},
 		{
 			name:    "un-permissioned account calling contract deploy",
-			args:    args{address: Acct4, transactionType: core.ContractDeployTxn},
+			args:    args{address: Acct4, transactionType: pcore.ContractDeployTxn},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := core.IsTransactionAllowed(tt.args.address, common.Address{}, nil, nil, nil, nil, tt.args.transactionType); (err != nil) != tt.wantErr {
+			if err := pcore.IsTransactionAllowed(tt.args.address, common.Address{}, nil, nil, nil, nil, tt.args.transactionType); (err != nil) != tt.wantErr {
 				t.Errorf("IsTransactionAllowed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

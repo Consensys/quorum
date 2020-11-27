@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	pcore "github.com/ethereum/go-ethereum/permission/core"
-	ptype "github.com/ethereum/go-ethereum/permission/types"
+	ptype "github.com/ethereum/go-ethereum/permission/core/types"
 )
 
 // This is to make sure all contract instances are ready and initialized

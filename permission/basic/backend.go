@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	bb "github.com/ethereum/go-ethereum/permission/basic/bind"
 	"github.com/ethereum/go-ethereum/permission/core"
-	ptype "github.com/ethereum/go-ethereum/permission/types"
+	ptype "github.com/ethereum/go-ethereum/permission/core/types"
 )
 
 type Backend struct {

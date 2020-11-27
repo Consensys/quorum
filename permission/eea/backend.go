@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/permission/core"
+	ptype "github.com/ethereum/go-ethereum/permission/core/types"
 	eb "github.com/ethereum/go-ethereum/permission/eea/bind"
-	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
 
 type Backend struct {

@@ -9,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/permission/core"
+	ptype "github.com/ethereum/go-ethereum/permission/core/types"
 	binding "github.com/ethereum/go-ethereum/permission/eea/bind"
-	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
 
 type Eea struct {
