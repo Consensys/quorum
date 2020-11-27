@@ -28,7 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/permission/cache"
+	"github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -148,12 +148,12 @@ func (tx *Transaction) Protected() bool {
 
 // Quorum - function checks for account access to execute the transaction
 func (tx *Transaction) CheckAccountPermission() error {
-	transactionType := cache.ValueTransferTxn
+	transactionType := core.ValueTransferTxn
 
 	if tx.To() == nil {
-		transactionType = cache.ContractDeployTxn
+		transactionType = core.ContractDeployTxn
 	} else if tx.Data() != nil {
-		transactionType = cache.ContractCallTxn
+		transactionType = core.ContractCallTxn
 	}
 
 	var to common.Address
@@ -163,7 +163,7 @@ func (tx *Transaction) CheckAccountPermission() error {
 		to = *tx.To()
 	}
 
-	return cache.IsTransactionAllowed(tx.From(), to, tx.Value(), tx.GasPrice(), big.NewInt(int64(tx.Gas())), tx.Data(), transactionType)
+	return core.IsTransactionAllowed(tx.From(), to, tx.Value(), tx.GasPrice(), big.NewInt(int64(tx.Gas())), tx.Data(), transactionType)
 }
 
 func isProtectedV(V *big.Int) bool {

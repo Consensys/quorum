@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/permission/cache"
+	"github.com/ethereum/go-ethereum/permission/core"
 	binding "github.com/ethereum/go-ethereum/permission/eea/bind"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
@@ -144,7 +144,7 @@ func (i *Init) GetNodeDetailsFromIndex(_nodeIndex *big.Int) (string, string, *bi
 	if err != nil {
 		return "", "", big.NewInt(0), err
 	}
-	return r.OrgId, cache.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport, i.Backend.IsRaft), r.NodeStatus, err
+	return r.OrgId, core.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport, i.Backend.IsRaft), r.NodeStatus, err
 }
 
 func (i *Init) GetNumberOfNodes() (*big.Int, error) {
@@ -156,7 +156,7 @@ func (i *Init) GetNodeDetails(enodeId string) (string, string, *big.Int, error) 
 	if err != nil {
 		return "", "", big.NewInt(0), err
 	}
-	return r.OrgId, cache.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport, i.Backend.IsRaft), r.NodeStatus, err
+	return r.OrgId, core.GetNodeUrl(r.EnodeId, r.Ip[:], r.Port, r.Raftport, i.Backend.IsRaft), r.NodeStatus, err
 }
 
 func (i *Init) GetRoleDetails(_roleId string, _orgId string) (struct {
@@ -221,7 +221,7 @@ func (a *Audit) CheckPendingOp(_orgId string) bool {
 }
 
 func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint16) (bool, error) {
-	url := cache.GetNodeUrl(_enodeId, _ip, _port, _raftPort, c.Backend.ContractBackend.IsRaft)
+	url := core.GetNodeUrl(_enodeId, _ip, _port, _raftPort, c.Backend.ContractBackend.IsRaft)
 	enodeId, ip, port, _, err := getNodeDetails(url, c.Backend.ContractBackend.IsRaft, c.Backend.ContractBackend.UseDns)
 	if err != nil {
 		return false, err
@@ -230,7 +230,7 @@ func (c *Control) ConnectionAllowed(_enodeId, _ip string, _port, _raftPort uint1
 	return c.Backend.PermInterfSession.ConnectionAllowed(enodeId, ip, port)
 }
 
-func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, _transactionType cache.TransactionType) error {
+func (c *Control) TransactionAllowed(_sender common.Address, _target common.Address, _value *big.Int, _gasPrice *big.Int, _gasLimit *big.Int, _payload []byte, _transactionType core.TransactionType) error {
 	if allowed, err := c.Backend.PermInterfSession.TransactionAllowed(_sender, _target, _value, _gasPrice, _gasLimit, _payload); err != nil {
 		return err
 	} else if !allowed {

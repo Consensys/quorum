@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/permission/cache"
+	pcore "github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
 
@@ -37,11 +37,11 @@ func (p *PermissionCtrl) AfterStart() error {
 	}
 
 	// set the function point for transaction allowed check
-	cache.PermissionTransactionAllowedFunc = p.IsTransactionAllowed
+	pcore.PermissionTransactionAllowedFunc = p.IsTransactionAllowed
 	setPermissionService(p)
 
 	// set the default access to ReadOnly
-	cache.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole, p.IsEEAPermission())
+	pcore.SetDefaults(p.permConfig.NwAdminRole, p.permConfig.OrgAdminRole, p.IsEEAPermission())
 	for _, f := range []func() error{
 		p.monitorQIP714Block,               // monitor block number to activate new permissions controls
 		p.backend.ManageOrgPermissions,     // monitor org management related events
@@ -87,7 +87,7 @@ func (p *PermissionCtrl) asyncStart() {
 		for {
 			select {
 			case <-pollingTicker.C:
-				if cache.GetSyncStatus() && !ethereum.Downloader().Synchronising() {
+				if pcore.GetSyncStatus() && !ethereum.Downloader().Synchronising() {
 					return
 				}
 			case <-stopChan:
@@ -114,7 +114,7 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 	// if QIP714block is not given, set the default access
 	// to readonly
 	if p.eth.BlockChain().Config().QIP714Block == nil || p.eth.BlockChain().Config().IsQIP714(p.eth.BlockChain().CurrentBlock().Number()) {
-		cache.SetQIP714BlockReached()
+		pcore.SetQIP714BlockReached()
 		return nil
 	}
 	//QIP714block is given, monitor block count
@@ -128,7 +128,7 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 			select {
 			case head := <-chainHeadCh:
 				if p.eth.BlockChain().Config().IsQIP714(head.Block.Number()) {
-					cache.SetQIP714BlockReached()
+					pcore.SetQIP714BlockReached()
 					return
 				}
 			case <-stopChan:
@@ -141,18 +141,18 @@ func (p *PermissionCtrl) monitorQIP714Block() error {
 
 func (p *PermissionCtrl) instantiateCache(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize int) {
 	// instantiate the cache objects for permissions
-	cache.OrgInfoMap = cache.NewOrgCache(orgCacheSize)
-	cache.OrgInfoMap.PopulateCacheFunc(p.populateOrgToCache)
+	pcore.OrgInfoMap = pcore.NewOrgCache(orgCacheSize)
+	pcore.OrgInfoMap.PopulateCacheFunc(p.populateOrgToCache)
 
-	cache.RoleInfoMap = cache.NewRoleCache(roleCacheSize)
-	cache.RoleInfoMap.PopulateCacheFunc(p.populateRoleToCache)
+	pcore.RoleInfoMap = pcore.NewRoleCache(roleCacheSize)
+	pcore.RoleInfoMap.PopulateCacheFunc(p.populateRoleToCache)
 
-	cache.NodeInfoMap = cache.NewNodeCache(nodeCacheSize)
-	cache.NodeInfoMap.PopulateCacheFunc(p.populateNodeCache)
-	cache.NodeInfoMap.PopulateValidateFunc(p.populateNodeCacheAndValidate)
+	pcore.NodeInfoMap = pcore.NewNodeCache(nodeCacheSize)
+	pcore.NodeInfoMap.PopulateCacheFunc(p.populateNodeCache)
+	pcore.NodeInfoMap.PopulateValidateFunc(p.populateNodeCacheAndValidate)
 
-	cache.AcctInfoMap = cache.NewAcctCache(accountCacheSize)
-	cache.AcctInfoMap.PopulateCacheFunc(p.populateAccountToCache)
+	pcore.AcctInfoMap = pcore.NewAcctCache(accountCacheSize)
+	pcore.AcctInfoMap.PopulateCacheFunc(p.populateAccountToCache)
 }
 
 // Thus function checks if the initial network boot up status and if no
@@ -183,7 +183,7 @@ func (p *PermissionCtrl) populateInitPermissions(orgCacheSize, roleCacheSize, no
 				return err
 			}
 		}
-		cache.SetNetworkBootUpCompleted()
+		pcore.SetNetworkBootUpCompleted()
 	}
 	return nil
 }
@@ -199,8 +199,8 @@ func (p *PermissionCtrl) bootupNetwork() error {
 		return err
 	}
 
-	cache.OrgInfoMap.UpsertOrg(p.permConfig.NwAdminOrg, "", p.permConfig.NwAdminOrg, big.NewInt(1), cache.OrgApproved)
-	cache.RoleInfoMap.UpsertRole(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, true, true, cache.FullAccess, true)
+	pcore.OrgInfoMap.UpsertOrg(p.permConfig.NwAdminOrg, "", p.permConfig.NwAdminOrg, big.NewInt(1), pcore.OrgApproved)
+	pcore.RoleInfoMap.UpsertRole(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, true, true, pcore.FullAccess, true)
 	// populate the initial Node list from static-nodes.json
 	if err := p.populateStaticNodesToContract(); err != nil {
 		return err
@@ -224,7 +224,7 @@ func (p *PermissionCtrl) populateAccountsFromContract() error {
 		iOrgNum := numberOfRoles.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
 			if addr, org, role, status, orgAdmin, err := p.contract.GetAccountDetailsFromIndex(big.NewInt(int64(k))); err == nil {
-				cache.AcctInfoMap.UpsertAccount(org, role, addr, orgAdmin, cache.AcctStatus(int(status.Int64())))
+				pcore.AcctInfoMap.UpsertAccount(org, role, addr, orgAdmin, pcore.AcctStatus(int(status.Int64())))
 			}
 		}
 	} else {
@@ -239,7 +239,7 @@ func (p *PermissionCtrl) populateRolesFromContract() error {
 		iOrgNum := numberOfRoles.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
 			if roleStruct, err := p.contract.GetRoleDetailsFromIndex(big.NewInt(int64(k))); err == nil {
-				cache.RoleInfoMap.UpsertRole(roleStruct.OrgId, roleStruct.RoleId, roleStruct.Voter, roleStruct.Admin, cache.AccessType(int(roleStruct.AccessType.Int64())), roleStruct.Active)
+				pcore.RoleInfoMap.UpsertRole(roleStruct.OrgId, roleStruct.RoleId, roleStruct.Voter, roleStruct.Admin, pcore.AccessType(int(roleStruct.AccessType.Int64())), roleStruct.Active)
 			}
 		}
 
@@ -255,7 +255,7 @@ func (p *PermissionCtrl) populateNodesFromContract() error {
 		iOrgNum := numberOfNodes.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
 			if orgId, url, status, err := p.contract.GetNodeDetailsFromIndex(big.NewInt(int64(k))); err == nil {
-				cache.NodeInfoMap.UpsertNode(orgId, url, cache.NodeStatus(int(status.Int64())))
+				pcore.NodeInfoMap.UpsertNode(orgId, url, pcore.NodeStatus(int(status.Int64())))
 			}
 		}
 	} else {
@@ -271,7 +271,7 @@ func (p *PermissionCtrl) populateOrgsFromContract() error {
 		iOrgNum := numberOfOrgs.Uint64()
 		for k := uint64(0); k < iOrgNum; k++ {
 			if orgId, porgId, ultParent, level, status, err := p.contract.GetOrgInfo(big.NewInt(int64(k))); err == nil {
-				cache.OrgInfoMap.UpsertOrg(orgId, porgId, ultParent, level, cache.OrgStatus(int(status.Int64())))
+				pcore.OrgInfoMap.UpsertOrg(orgId, porgId, ultParent, level, pcore.OrgStatus(int(status.Int64())))
 			}
 		}
 	} else {
@@ -284,13 +284,13 @@ func (p *PermissionCtrl) populateOrgsFromContract() error {
 func (p *PermissionCtrl) populateStaticNodesToContract() error {
 	nodes := p.node.Server().Config.StaticNodes
 	for _, node := range nodes {
-		url := cache.GetNodeUrl(node.EnodeID(), node.IP().String(), uint16(node.TCP()), uint16(node.RaftPort()), p.isRaft)
+		url := pcore.GetNodeUrl(node.EnodeID(), node.IP().String(), uint16(node.TCP()), uint16(node.RaftPort()), p.isRaft)
 		_, err := p.contract.AddAdminNode(url)
 		if err != nil {
 			log.Warn("Failed to propose node", "err", err, "enode", node.EnodeID())
 			return err
 		}
-		cache.NodeInfoMap.UpsertNode(p.permConfig.NwAdminOrg, url, 2)
+		pcore.NodeInfoMap.UpsertNode(p.permConfig.NwAdminOrg, url, 2)
 	}
 	return nil
 }
@@ -304,7 +304,7 @@ func (p *PermissionCtrl) populateInitAccountAccess() error {
 			log.Warn("Error adding permission initial account list", "err", er, "account", a)
 			return er
 		}
-		cache.AcctInfoMap.UpsertAccount(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, a, true, 2)
+		pcore.AcctInfoMap.UpsertAccount(p.permConfig.NwAdminOrg, p.permConfig.NwAdminRole, a, true, 2)
 	}
 	return nil
 }
@@ -320,7 +320,7 @@ func (p *PermissionCtrl) updateNetworkStatus() error {
 }
 
 // getter to get an account record from the contract
-func (p *PermissionCtrl) populateAccountToCache(acctId common.Address) (*cache.AccountInfo, error) {
+func (p *PermissionCtrl) populateAccountToCache(acctId common.Address) (*pcore.AccountInfo, error) {
 	account, orgId, roleId, status, isAdmin, err := p.contract.GetAccountDetails(acctId)
 	if err != nil {
 		return nil, err
@@ -329,11 +329,11 @@ func (p *PermissionCtrl) populateAccountToCache(acctId common.Address) (*cache.A
 	if status.Int64() == 0 {
 		return nil, ptype.ErrAccountNotThere
 	}
-	return &cache.AccountInfo{AcctId: account, OrgId: orgId, RoleId: roleId, Status: cache.AcctStatus(status.Int64()), IsOrgAdmin: isAdmin}, nil
+	return &pcore.AccountInfo{AcctId: account, OrgId: orgId, RoleId: roleId, Status: pcore.AcctStatus(status.Int64()), IsOrgAdmin: isAdmin}, nil
 }
 
 // getter to get a org record from the contract
-func (p *PermissionCtrl) populateOrgToCache(orgId string) (*cache.OrgInfo, error) {
+func (p *PermissionCtrl) populateOrgToCache(orgId string) (*pcore.OrgInfo, error) {
 	org, parentOrgId, ultimateParentId, orgLevel, orgStatus, err := p.contract.GetOrgDetails(orgId)
 	if err != nil {
 		return nil, err
@@ -341,7 +341,7 @@ func (p *PermissionCtrl) populateOrgToCache(orgId string) (*cache.OrgInfo, error
 	if orgStatus.Int64() == 0 {
 		return nil, ptype.ErrOrgDoesNotExists
 	}
-	orgInfo := cache.OrgInfo{OrgId: org, ParentOrgId: parentOrgId, UltimateParent: ultimateParentId, Status: cache.OrgStatus(orgStatus.Int64()), Level: orgLevel}
+	orgInfo := pcore.OrgInfo{OrgId: org, ParentOrgId: parentOrgId, UltimateParent: ultimateParentId, Status: pcore.OrgStatus(orgStatus.Int64()), Level: orgLevel}
 	// now need to build the list of sub orgs for this org
 	subOrgIndexes, err := p.contract.GetSubOrgIndexes(orgId)
 	if err != nil {
@@ -366,7 +366,7 @@ func (p *PermissionCtrl) populateOrgToCache(orgId string) (*cache.OrgInfo, error
 }
 
 // getter to get a role record from the contract
-func (p *PermissionCtrl) populateRoleToCache(roleKey *cache.RoleKey) (*cache.RoleInfo, error) {
+func (p *PermissionCtrl) populateRoleToCache(roleKey *pcore.RoleKey) (*pcore.RoleInfo, error) {
 	roleDetails, err := p.contract.GetRoleDetails(roleKey.RoleId, roleKey.OrgId)
 
 	if err != nil {
@@ -376,11 +376,11 @@ func (p *PermissionCtrl) populateRoleToCache(roleKey *cache.RoleKey) (*cache.Rol
 	if roleDetails.OrgId == "" {
 		return nil, ptype.ErrInvalidRole
 	}
-	return &cache.RoleInfo{OrgId: roleDetails.OrgId, RoleId: roleDetails.RoleId, IsVoter: roleDetails.Voter, IsAdmin: roleDetails.Admin, Access: cache.AccessType(roleDetails.AccessType.Int64()), Active: roleDetails.Active}, nil
+	return &pcore.RoleInfo{OrgId: roleDetails.OrgId, RoleId: roleDetails.RoleId, IsVoter: roleDetails.Voter, IsAdmin: roleDetails.Admin, Access: pcore.AccessType(roleDetails.AccessType.Int64()), Active: roleDetails.Active}, nil
 }
 
 // getter to get a role record from the contract
-func (p *PermissionCtrl) populateNodeCache(url string) (*cache.NodeInfo, error) {
+func (p *PermissionCtrl) populateNodeCache(url string) (*pcore.NodeInfo, error) {
 	orgId, url, status, err := p.contract.GetNodeDetails(url)
 	if err != nil {
 		return nil, err
@@ -389,7 +389,7 @@ func (p *PermissionCtrl) populateNodeCache(url string) (*cache.NodeInfo, error) 
 	if status.Int64() == 0 {
 		return nil, ptype.ErrNodeDoesNotExists
 	}
-	return &cache.NodeInfo{OrgId: orgId, Url: url, Status: cache.NodeStatus(status.Int64())}, nil
+	return &pcore.NodeInfo{OrgId: orgId, Url: url, Status: pcore.NodeStatus(status.Int64())}, nil
 }
 
 // getter to get a Node record from the contract
@@ -400,12 +400,12 @@ func (p *PermissionCtrl) populateNodeCacheAndValidate(hexNodeId, ultimateParentI
 		numNodes := numberOfNodes.Uint64()
 		for k := uint64(0); k < numNodes; k++ {
 			if orgId, url, status, err := p.contract.GetNodeDetailsFromIndex(big.NewInt(int64(k))); err == nil {
-				if orgRec, err := cache.OrgInfoMap.GetOrg(orgId); err != nil {
+				if orgRec, err := pcore.OrgInfoMap.GetOrg(orgId); err != nil {
 					if orgRec.UltimateParent == ultimateParentId {
 						recEnode, _ := enode.ParseV4(url)
 						if recEnode.ID() == passedEnode.ID() {
 							txnAllowed = true
-							cache.NodeInfoMap.UpsertNode(orgId, url, cache.NodeStatus(int(status.Int64())))
+							pcore.NodeInfoMap.UpsertNode(orgId, url, pcore.NodeStatus(int(status.Int64())))
 						}
 					}
 				}

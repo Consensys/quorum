@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	bb "github.com/ethereum/go-ethereum/permission/basic/bind"
-	"github.com/ethereum/go-ethereum/permission/cache"
+	"github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
 
@@ -43,14 +43,14 @@ func (b *Backend) ManageAccountPermissions() error {
 		for {
 			select {
 			case evtAccessModified := <-chAccessModified:
-				cache.AcctInfoMap.UpsertAccount(evtAccessModified.OrgId, evtAccessModified.RoleId, evtAccessModified.Account, evtAccessModified.OrgAdmin, cache.AcctStatus(int(evtAccessModified.Status.Uint64())))
+				core.AcctInfoMap.UpsertAccount(evtAccessModified.OrgId, evtAccessModified.RoleId, evtAccessModified.Account, evtAccessModified.OrgAdmin, core.AcctStatus(int(evtAccessModified.Status.Uint64())))
 
 			case evtAccessRevoked := <-chAccessRevoked:
-				cache.AcctInfoMap.UpsertAccount(evtAccessRevoked.OrgId, evtAccessRevoked.RoleId, evtAccessRevoked.Account, evtAccessRevoked.OrgAdmin, cache.AcctActive)
+				core.AcctInfoMap.UpsertAccount(evtAccessRevoked.OrgId, evtAccessRevoked.RoleId, evtAccessRevoked.Account, evtAccessRevoked.OrgAdmin, core.AcctActive)
 
 			case evtStatusChanged := <-chStatusChanged:
-				if ac, err := cache.AcctInfoMap.GetAccount(evtStatusChanged.Account); ac != nil {
-					cache.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Account, ac.IsOrgAdmin, cache.AcctStatus(int(evtStatusChanged.Status.Uint64())))
+				if ac, err := core.AcctInfoMap.GetAccount(evtStatusChanged.Account); ac != nil {
+					core.AcctInfoMap.UpsertAccount(evtStatusChanged.OrgId, ac.RoleId, evtStatusChanged.Account, ac.IsOrgAdmin, core.AcctStatus(int(evtStatusChanged.Status.Uint64())))
 				} else {
 					log.Info("error fetching account information", "err", err)
 				}
@@ -86,11 +86,11 @@ func (b *Backend) ManageRolePermissions() error {
 		for {
 			select {
 			case evtRoleCreated := <-chRoleCreated:
-				cache.RoleInfoMap.UpsertRole(evtRoleCreated.OrgId, evtRoleCreated.RoleId, evtRoleCreated.IsVoter, evtRoleCreated.IsAdmin, cache.AccessType(int(evtRoleCreated.BaseAccess.Uint64())), true)
+				core.RoleInfoMap.UpsertRole(evtRoleCreated.OrgId, evtRoleCreated.RoleId, evtRoleCreated.IsVoter, evtRoleCreated.IsAdmin, core.AccessType(int(evtRoleCreated.BaseAccess.Uint64())), true)
 
 			case evtRoleRevoked := <-chRoleRevoked:
-				if r, _ := cache.RoleInfoMap.GetRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId); r != nil {
-					cache.RoleInfoMap.UpsertRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId, r.IsVoter, r.IsAdmin, r.Access, false)
+				if r, _ := core.RoleInfoMap.GetRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId); r != nil {
+					core.RoleInfoMap.UpsertRole(evtRoleRevoked.OrgId, evtRoleRevoked.RoleId, r.IsVoter, r.IsAdmin, r.Access, false)
 				} else {
 					log.Error("Revoke role - cache is missing role", "org", evtRoleRevoked.OrgId, "role", evtRoleRevoked.RoleId)
 				}
@@ -136,16 +136,16 @@ func (b *Backend) ManageOrgPermissions() error {
 		for {
 			select {
 			case evtPendingApproval := <-chPendingApproval:
-				cache.OrgInfoMap.UpsertOrg(evtPendingApproval.OrgId, evtPendingApproval.PorgId, evtPendingApproval.UltParent, evtPendingApproval.Level, cache.OrgStatus(evtPendingApproval.Status.Uint64()))
+				core.OrgInfoMap.UpsertOrg(evtPendingApproval.OrgId, evtPendingApproval.PorgId, evtPendingApproval.UltParent, evtPendingApproval.Level, core.OrgStatus(evtPendingApproval.Status.Uint64()))
 
 			case evtOrgApproved := <-chOrgApproved:
-				cache.OrgInfoMap.UpsertOrg(evtOrgApproved.OrgId, evtOrgApproved.PorgId, evtOrgApproved.UltParent, evtOrgApproved.Level, cache.OrgApproved)
+				core.OrgInfoMap.UpsertOrg(evtOrgApproved.OrgId, evtOrgApproved.PorgId, evtOrgApproved.UltParent, evtOrgApproved.Level, core.OrgApproved)
 
 			case evtOrgSuspended := <-chOrgSuspended:
-				cache.OrgInfoMap.UpsertOrg(evtOrgSuspended.OrgId, evtOrgSuspended.PorgId, evtOrgSuspended.UltParent, evtOrgSuspended.Level, cache.OrgSuspended)
+				core.OrgInfoMap.UpsertOrg(evtOrgSuspended.OrgId, evtOrgSuspended.PorgId, evtOrgSuspended.UltParent, evtOrgSuspended.Level, core.OrgSuspended)
 
 			case evtOrgReactivated := <-chOrgReactivated:
-				cache.OrgInfoMap.UpsertOrg(evtOrgReactivated.OrgId, evtOrgReactivated.PorgId, evtOrgReactivated.UltParent, evtOrgReactivated.Level, cache.OrgApproved)
+				core.OrgInfoMap.UpsertOrg(evtOrgReactivated.OrgId, evtOrgReactivated.PorgId, evtOrgReactivated.UltParent, evtOrgReactivated.Level, core.OrgApproved)
 			case <-stopChan:
 				log.Info("quit org Contr watch")
 				return
@@ -206,27 +206,27 @@ func (b *Backend) ManageNodePermissions() error {
 				if err != nil {
 					log.Error("error updating permissioned-nodes.json", "err", err)
 				}
-				cache.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, evtNodeApproved.EnodeId, cache.NodeApproved)
+				core.NodeInfoMap.UpsertNode(evtNodeApproved.OrgId, evtNodeApproved.EnodeId, core.NodeApproved)
 
 			case evtNodeProposed := <-chNodeProposed:
-				cache.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, evtNodeProposed.EnodeId, cache.NodePendingApproval)
+				core.NodeInfoMap.UpsertNode(evtNodeProposed.OrgId, evtNodeProposed.EnodeId, core.NodePendingApproval)
 
 			case evtNodeDeactivated := <-chNodeDeactivated:
 				err := ptype.UpdatePermissionedNodes(b.Ib.Node(), b.Ib.DataDir(), evtNodeDeactivated.EnodeId, ptype.NodeDelete, b.Ib.IsRaft())
 				if err != nil {
 					log.Error("error updating permissioned-nodes.json", "err", err)
 				}
-				cache.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, evtNodeDeactivated.EnodeId, cache.NodeDeactivated)
+				core.NodeInfoMap.UpsertNode(evtNodeDeactivated.OrgId, evtNodeDeactivated.EnodeId, core.NodeDeactivated)
 
 			case evtNodeActivated := <-chNodeActivated:
 				err := ptype.UpdatePermissionedNodes(b.Ib.Node(), b.Ib.DataDir(), evtNodeActivated.EnodeId, ptype.NodeAdd, b.Ib.IsRaft())
 				if err != nil {
 					log.Error("error updating permissioned-nodes.json", "err", err)
 				}
-				cache.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, evtNodeActivated.EnodeId, cache.NodeApproved)
+				core.NodeInfoMap.UpsertNode(evtNodeActivated.OrgId, evtNodeActivated.EnodeId, core.NodeApproved)
 
 			case evtNodeBlacklisted := <-chNodeBlacklisted:
-				cache.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, cache.NodeBlackListed)
+				core.NodeInfoMap.UpsertNode(evtNodeBlacklisted.OrgId, evtNodeBlacklisted.EnodeId, core.NodeBlackListed)
 				err := ptype.UpdateDisallowedNodes(b.Ib.DataDir(), evtNodeBlacklisted.EnodeId, ptype.NodeAdd)
 				log.Error("error updating disallowed-nodes.json", "err", err)
 				err = ptype.UpdatePermissionedNodes(b.Ib.Node(), b.Ib.DataDir(), evtNodeBlacklisted.EnodeId, ptype.NodeDelete, b.Ib.IsRaft())
@@ -235,10 +235,10 @@ func (b *Backend) ManageNodePermissions() error {
 				}
 
 			case evtNodeRecoveryInit := <-chNodeRecoveryInit:
-				cache.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, evtNodeRecoveryInit.EnodeId, cache.NodeRecoveryInitiated)
+				core.NodeInfoMap.UpsertNode(evtNodeRecoveryInit.OrgId, evtNodeRecoveryInit.EnodeId, core.NodeRecoveryInitiated)
 
 			case evtNodeRecoveryDone := <-chNodeRecoveryDone:
-				cache.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, evtNodeRecoveryDone.EnodeId, cache.NodeApproved)
+				core.NodeInfoMap.UpsertNode(evtNodeRecoveryDone.OrgId, evtNodeRecoveryDone.EnodeId, core.NodeApproved)
 				err := ptype.UpdateDisallowedNodes(b.Ib.DataDir(), evtNodeRecoveryDone.EnodeId, ptype.NodeDelete)
 				log.Error("error updating disallowed-nodes.json", "err", err)
 				err = ptype.UpdatePermissionedNodes(b.Ib.Node(), b.Ib.DataDir(), evtNodeRecoveryDone.EnodeId, ptype.NodeAdd, b.Ib.IsRaft())
@@ -273,7 +273,7 @@ func (b *Backend) MonitorNetworkBootUp() error {
 			select {
 			case evtMetworkBootUpCompleted := <-netWorkBootCh:
 				if evtMetworkBootUpCompleted.NetworkBootStatus {
-					cache.SetNetworkBootUpCompleted()
+					core.SetNetworkBootUpCompleted()
 				}
 				return
 			case <-stopChan:

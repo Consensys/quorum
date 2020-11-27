@@ -19,7 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/p2p/enr"
-	"github.com/ethereum/go-ethereum/permission/cache"
+	"github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -336,7 +336,7 @@ func (pm *ProtocolManager) applyRaftSnapshot(raftSnapshot raftpb.Snapshot) {
 		log.Info(chainExtensionMessage, "hash", pm.blockchain.CurrentBlock().Hash())
 	} else {
 		// added for permissions changes to indicate node sync up has started
-		cache.SetSyncStatus()
+		core.SetSyncStatus()
 		log.Info("blockchain is caught up; no need to synchronize")
 	}
 

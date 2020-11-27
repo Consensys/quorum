@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/permission/cache"
+	"github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/types"
 )
 
@@ -90,34 +90,34 @@ func NewQuorumControlsAPI(p *PermissionCtrl) *QuorumControlsAPI {
 	return &QuorumControlsAPI{p}
 }
 
-func (q *QuorumControlsAPI) OrgList() []cache.OrgInfo {
-	return cache.OrgInfoMap.GetOrgList()
+func (q *QuorumControlsAPI) OrgList() []core.OrgInfo {
+	return core.OrgInfoMap.GetOrgList()
 }
 
-func (q *QuorumControlsAPI) NodeList() []cache.NodeInfo {
-	return cache.NodeInfoMap.GetNodeList()
+func (q *QuorumControlsAPI) NodeList() []core.NodeInfo {
+	return core.NodeInfoMap.GetNodeList()
 }
 
-func (q *QuorumControlsAPI) RoleList() []cache.RoleInfo {
-	return cache.RoleInfoMap.GetRoleList()
+func (q *QuorumControlsAPI) RoleList() []core.RoleInfo {
+	return core.RoleInfoMap.GetRoleList()
 }
 
-func (q *QuorumControlsAPI) AcctList() []cache.AccountInfo {
-	return cache.AcctInfoMap.GetAcctList()
+func (q *QuorumControlsAPI) AcctList() []core.AccountInfo {
+	return core.AcctInfoMap.GetAcctList()
 }
 
-func (q *QuorumControlsAPI) GetOrgDetails(orgId string) (cache.OrgDetailInfo, error) {
-	o, err := cache.OrgInfoMap.GetOrg(orgId)
+func (q *QuorumControlsAPI) GetOrgDetails(orgId string) (core.OrgDetailInfo, error) {
+	o, err := core.OrgInfoMap.GetOrg(orgId)
 	if err != nil {
-		return cache.OrgDetailInfo{}, err
+		return core.OrgDetailInfo{}, err
 	}
 
 	if o == nil {
-		return cache.OrgDetailInfo{}, errors.New("org does not exist")
+		return core.OrgDetailInfo{}, errors.New("org does not exist")
 	}
-	var acctList []cache.AccountInfo
-	var roleList []cache.RoleInfo
-	var nodeList []cache.NodeInfo
+	var acctList []core.AccountInfo
+	var roleList []core.RoleInfo
+	var nodeList []core.NodeInfo
 	for _, a := range q.AcctList() {
 		if a.OrgId == orgId {
 			acctList = append(acctList, a)
@@ -133,15 +133,15 @@ func (q *QuorumControlsAPI) GetOrgDetails(orgId string) (cache.OrgDetailInfo, er
 			nodeList = append(nodeList, a)
 		}
 	}
-	orgRec, err := cache.OrgInfoMap.GetOrg(orgId)
+	orgRec, err := core.OrgInfoMap.GetOrg(orgId)
 	if err != nil {
-		return cache.OrgDetailInfo{}, err
+		return core.OrgDetailInfo{}, err
 	}
 
 	if orgRec == nil {
-		return cache.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList}, nil
+		return core.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList}, nil
 	}
-	return cache.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList, SubOrgList: orgRec.SubOrgList}, nil
+	return core.OrgDetailInfo{NodeList: nodeList, RoleList: roleList, AcctList: acctList, SubOrgList: orgRec.SubOrgList}, nil
 }
 
 func reportExecError(action PermAction, err error) (string, error) {
@@ -505,15 +505,15 @@ func (q *QuorumControlsAPI) TransactionAllowed(txa ethapi.SendTxArgs) bool {
 		payload = *txa.Data
 	}
 
-	transactionType := cache.ValueTransferTxn
+	transactionType := core.ValueTransferTxn
 
 	if txa.To == nil {
-		transactionType = cache.ContractDeployTxn
+		transactionType = core.ContractDeployTxn
 	} else if txa.Data != nil {
-		transactionType = cache.ContractCallTxn
+		transactionType = core.ContractCallTxn
 	}
 
-	if err := cache.IsTransactionAllowed(from, to, value, gasPrice, gasLimit, payload, transactionType); err != nil {
+	if err := core.IsTransactionAllowed(from, to, value, gasPrice, gasLimit, payload, transactionType); err != nil {
 		return false
 	} else {
 		return true
@@ -535,19 +535,19 @@ func (q *QuorumControlsAPI) ConnectionAllowed(enodeId, ip string, port, raftPort
 
 // check if the account is network admin
 func (q *QuorumControlsAPI) isNetworkAdmin(account common.Address) bool {
-	ac, _ := cache.AcctInfoMap.GetAccount(account)
+	ac, _ := core.AcctInfoMap.GetAccount(account)
 	return ac != nil && ac.RoleId == q.permCtrl.permConfig.NwAdminRole
 }
 
 func (q *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) error {
-	org, err := cache.OrgInfoMap.GetOrg(orgId)
+	org, err := core.OrgInfoMap.GetOrg(orgId)
 	if err != nil {
 		return err
 	}
 	if org == nil {
 		return ptype.ErrOrgDoesNotExists
 	}
-	ac, _ := cache.AcctInfoMap.GetAccount(account)
+	ac, _ := core.AcctInfoMap.GetAccount(account)
 	if ac == nil {
 		return ptype.ErrNotOrgAdmin
 	}
@@ -561,14 +561,14 @@ func (q *QuorumControlsAPI) isOrgAdmin(account common.Address, orgId string) err
 func (q *QuorumControlsAPI) validateOrg(orgId, pOrgId string) error {
 	// validate Parent org id
 	if pOrgId != "" {
-		if _, err := cache.OrgInfoMap.GetOrg(pOrgId); err != nil {
+		if _, err := core.OrgInfoMap.GetOrg(pOrgId); err != nil {
 			return ptype.ErrInvalidParentOrg
 		}
 		locOrgId := pOrgId + "." + orgId
-		if lorgRec, _ := cache.OrgInfoMap.GetOrg(locOrgId); lorgRec != nil {
+		if lorgRec, _ := core.OrgInfoMap.GetOrg(locOrgId); lorgRec != nil {
 			return ptype.ErrOrgExists
 		}
-	} else if orgRec, _ := cache.OrgInfoMap.GetOrg(orgId); orgRec != nil {
+	} else if orgRec, _ := core.OrgInfoMap.GetOrg(orgId); orgRec != nil {
 		return ptype.ErrOrgExists
 	}
 	return nil
@@ -591,7 +591,7 @@ func (q *QuorumControlsAPI) checkPendingOp(orgId string) bool {
 }
 
 func (q *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) error {
-	org, _ := cache.OrgInfoMap.GetOrg(orgId)
+	org, _ := core.OrgInfoMap.GetOrg(orgId)
 
 	if org == nil {
 		return ptype.ErrOrgDoesNotExists
@@ -601,7 +601,7 @@ func (q *QuorumControlsAPI) checkOrgStatus(orgId string, op uint8) error {
 		return ptype.ErrNotMasterOrg
 	}
 
-	if !((op == 1 && org.Status == cache.OrgApproved) || (op == 2 && org.Status == cache.OrgSuspended)) {
+	if !((op == 1 && org.Status == core.OrgApproved) || (op == 2 && org.Status == core.OrgSuspended)) {
 		return ptype.ErrOpNotAllowed
 	}
 	return nil
@@ -617,7 +617,7 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 		return err
 	}
 
-	node, err := cache.NodeInfoMap.GetNodeByUrl(url)
+	node, err := core.NodeInfoMap.GetNodeByUrl(url)
 	if err != nil {
 		return err
 	}
@@ -626,7 +626,7 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 		return ptype.ErrNodeOrgMismatch
 	}
 
-	if node.Status == cache.NodeBlackListed && op != RecoverBlacklistedNode {
+	if node.Status == core.NodeBlackListed && op != RecoverBlacklistedNode {
 		return ptype.ErrBlacklistedNode
 	}
 
@@ -637,11 +637,11 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 		return ptype.ErrOpNotAllowed
 	}
 
-	if (op == SuspendNode && node.Status != cache.NodeApproved) ||
-		(op == ActivateSuspendedNode && node.Status != cache.NodeDeactivated) ||
-		(op == BlacklistNode && node.Status == cache.NodeRecoveryInitiated) ||
-		(op == RecoverBlacklistedNode && node.Status != cache.NodeBlackListed) ||
-		(op == ApproveBlacklistedNodeRecovery && node.Status != cache.NodeRecoveryInitiated) {
+	if (op == SuspendNode && node.Status != core.NodeApproved) ||
+		(op == ActivateSuspendedNode && node.Status != core.NodeDeactivated) ||
+		(op == BlacklistNode && node.Status == core.NodeRecoveryInitiated) ||
+		(op == RecoverBlacklistedNode && node.Status != core.NodeBlackListed) ||
+		(op == ApproveBlacklistedNodeRecovery && node.Status != core.NodeRecoveryInitiated) {
 		return ptype.ErrOpNotAllowed
 	}
 
@@ -649,17 +649,17 @@ func (q *QuorumControlsAPI) valNodeStatusChange(orgId, url string, op NodeUpdate
 }
 
 func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
-	var r *cache.RoleInfo
-	r, err := cache.RoleInfoMap.GetRole(orgId, roleId)
+	var r *core.RoleInfo
+	r, err := core.RoleInfoMap.GetRole(orgId, roleId)
 	if err != nil {
 		return false
 	}
 
-	orgRec, err := cache.OrgInfoMap.GetOrg(orgId)
+	orgRec, err := core.OrgInfoMap.GetOrg(orgId)
 	if err != nil {
 		return false
 	}
-	r, err = cache.RoleInfoMap.GetRole(orgRec.UltimateParent, roleId)
+	r, err = core.RoleInfoMap.GetRole(orgRec.UltimateParent, roleId)
 	if err != nil {
 		return false
 	}
@@ -669,7 +669,7 @@ func (q *QuorumControlsAPI) validateRole(orgId, roleId string) bool {
 
 func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.Address, permAction PermAction, op AccountUpdateAction) error {
 	// validates if the enode is linked the passed organization
-	ac, err := cache.AcctInfoMap.GetAccount(account)
+	ac, err := core.AcctInfoMap.GetAccount(account)
 	if err != nil {
 		return err
 	}
@@ -687,22 +687,22 @@ func (q *QuorumControlsAPI) valAccountStatusChange(orgId string, account common.
 		return ptype.ErrOpNotAllowed
 	}
 
-	if ac.Status == cache.AcctBlacklisted && op != RecoverBlacklistedAccount {
+	if ac.Status == core.AcctBlacklisted && op != RecoverBlacklistedAccount {
 		return ptype.ErrBlacklistedAccount
 	}
 
-	if (op == SuspendAccount && ac.Status != cache.AcctActive) ||
-		(op == ActivateSuspendedAccount && ac.Status != cache.AcctSuspended) ||
-		(op == BlacklistAccount && ac.Status == cache.AcctRecoveryInitiated) ||
-		(op == RecoverBlacklistedAccount && ac.Status != cache.AcctBlacklisted) ||
-		(op == ApproveBlacklistedAccountRecovery && ac.Status != cache.AcctRecoveryInitiated) {
+	if (op == SuspendAccount && ac.Status != core.AcctActive) ||
+		(op == ActivateSuspendedAccount && ac.Status != core.AcctSuspended) ||
+		(op == BlacklistAccount && ac.Status == core.AcctRecoveryInitiated) ||
+		(op == RecoverBlacklistedAccount && ac.Status != core.AcctBlacklisted) ||
+		(op == ApproveBlacklistedAccountRecovery && ac.Status != core.AcctRecoveryInitiated) {
 		return ptype.ErrOpNotAllowed
 	}
 	return nil
 }
 
 func (q *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account common.Address) error {
-	if ac, _ := cache.AcctInfoMap.GetAccount(account); ac != nil {
+	if ac, _ := core.AcctInfoMap.GetAccount(account); ac != nil {
 		if ac.OrgId != orgId {
 			return ptype.ErrAccountInUse
 		}
@@ -714,7 +714,7 @@ func (q *QuorumControlsAPI) checkOrgAdminExists(orgId, roleId string, account co
 }
 
 func (q *QuorumControlsAPI) valSubOrgBreadthDepth(porgId string) error {
-	org, err := cache.OrgInfoMap.GetOrg(porgId)
+	org, err := core.OrgInfoMap.GetOrg(porgId)
 	if err != nil {
 		return ptype.ErrOpNotAllowed
 	}
@@ -731,12 +731,12 @@ func (q *QuorumControlsAPI) valSubOrgBreadthDepth(porgId string) error {
 }
 
 func (q *QuorumControlsAPI) checkNodeExists(url, enodeId string) bool {
-	node, _ := cache.NodeInfoMap.GetNodeByUrl(url)
+	node, _ := core.NodeInfoMap.GetNodeByUrl(url)
 	if node != nil {
 		return true
 	}
 	// check if the same nodeid is in use with different port numbers
-	nodeList := cache.NodeInfoMap.GetNodeList()
+	nodeList := core.NodeInfoMap.GetNodeList()
 	for _, n := range nodeList {
 		if enodeDet, er := enode.ParseV4(n.Url); er == nil {
 			if enodeDet.EnodeID() == enodeId {
@@ -944,7 +944,7 @@ func (q *QuorumControlsAPI) valApproveAdminRole(args ptype.TxArgs) error {
 	// check if the org exists
 
 	// check if account is valid
-	ac, _ := cache.AcctInfoMap.GetAccount(args.AcctId)
+	ac, _ := core.AcctInfoMap.GetAccount(args.AcctId)
 	if ac == nil {
 		return ptype.ErrInvalidAccount
 	}
@@ -964,7 +964,7 @@ func (q *QuorumControlsAPI) valAddNewRole(args ptype.TxArgs) error {
 		return er
 	}
 	// validate if role is already present
-	if roleRec, _ := cache.RoleInfoMap.GetRole(args.OrgId, args.RoleId); roleRec != nil {
+	if roleRec, _ := core.RoleInfoMap.GetRole(args.OrgId, args.RoleId); roleRec != nil {
 		return ptype.ErrRoleExists
 	}
 	return nil
@@ -982,7 +982,7 @@ func (q *QuorumControlsAPI) valRemoveRole(args ptype.TxArgs) error {
 	}
 
 	// check if role is alraedy inactive
-	r, _ := cache.RoleInfoMap.GetRole(args.OrgId, args.RoleId)
+	r, _ := core.RoleInfoMap.GetRole(args.OrgId, args.RoleId)
 	if r == nil {
 		return ptype.ErrInvalidRole
 	} else if !r.Active {
@@ -990,7 +990,7 @@ func (q *QuorumControlsAPI) valRemoveRole(args ptype.TxArgs) error {
 	}
 
 	// check if the role has active accounts. if yes operations should not be allowed
-	if len(cache.AcctInfoMap.GetAcctListRole(args.OrgId, args.RoleId)) != 0 {
+	if len(core.AcctInfoMap.GetAcctListRole(args.OrgId, args.RoleId)) != 0 {
 		return ptype.ErrRoleActive
 	}
 	return nil
@@ -1014,7 +1014,7 @@ func (q *QuorumControlsAPI) valAssignRole(args ptype.TxArgs) error {
 	}
 
 	// check if the account is part of another org
-	if ac, _ := cache.AcctInfoMap.GetAccount(args.AcctId); ac != nil {
+	if ac, _ := core.AcctInfoMap.GetAccount(args.AcctId); ac != nil {
 		if ac != nil && ac.OrgId != args.OrgId {
 			return ptype.ErrAccountInUse
 		}

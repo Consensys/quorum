@@ -40,7 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enr"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/p2p/netutil"
-	"github.com/ethereum/go-ethereum/permission/p2p"
+	"github.com/ethereum/go-ethereum/permission/core"
 )
 
 const (
@@ -1020,7 +1020,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 		}
 
 		if srv.isNodePermissionedFunc == nil {
-			if !p2p.IsNodePermissioned(nodeId, currentNode, srv.DataDir, direction) {
+			if !core.IsNodePermissioned(nodeId, currentNode, srv.DataDir, direction) {
 				return newPeerError(errPermissionDenied, "id=%s…%s %s id=%s…%s", currentNode[:4], currentNode[len(currentNode)-4:], direction, nodeId[:4], nodeId[len(nodeId)-4:])
 			}
 		} else if !srv.isNodePermissionedFunc(node, nodeId, currentNode, srv.DataDir, direction) {
