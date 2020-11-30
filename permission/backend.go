@@ -221,14 +221,14 @@ func (p *PermissionCtrl) populateBackEnd() error {
 		p.backend = &v2.Backend{
 			Ib: *backend,
 		}
-		log.Debug("permission service: using v2 permissions model")
+		log.Info("permission service: using v2 permissions model")
 		return nil
 
 	case ptype.PERMISSION_V1:
 		p.backend = &v1.Backend{
 			Ib: *backend,
 		}
-		log.Debug("permission service: using v1 permissions model")
+		log.Info("permission service: using v1 permissions model")
 		return nil
 
 	default:
