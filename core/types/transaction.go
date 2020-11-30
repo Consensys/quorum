@@ -19,7 +19,7 @@ package types
 import (
 	"container/heap"
 	"errors"
-	fmt "fmt"
+	"fmt"
 	"io"
 	"math/big"
 	"sync/atomic"
@@ -28,7 +28,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/permission/core"
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -144,26 +143,6 @@ func (tx *Transaction) ChainId() *big.Int {
 // Protected returns whether the transaction is protected from replay protection.
 func (tx *Transaction) Protected() bool {
 	return isProtectedV(tx.data.V)
-}
-
-// Quorum - function checks for account access to execute the transaction
-func (tx *Transaction) CheckAccountPermission() error {
-	transactionType := core.ValueTransferTxn
-
-	if tx.To() == nil {
-		transactionType = core.ContractDeployTxn
-	} else if tx.Data() != nil {
-		transactionType = core.ContractCallTxn
-	}
-
-	var to common.Address
-	if tx.To() == nil {
-		to = common.Address{}
-	} else {
-		to = *tx.To()
-	}
-
-	return core.IsTransactionAllowed(tx.From(), to, tx.Value(), tx.GasPrice(), big.NewInt(int64(tx.Gas())), tx.Data(), transactionType)
 }
 
 func isProtectedV(V *big.Int) bool {

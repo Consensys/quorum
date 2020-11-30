@@ -3,9 +3,11 @@ package core
 import (
 	"encoding/json"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"path/filepath"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
@@ -101,4 +103,25 @@ func isNodeBlackListed(nodeName, dataDir string) bool {
 		}
 	}
 	return false
+}
+
+// function checks for account access to execute the transaction
+func CheckAccountPermission(from common.Address, to *common.Address, value *big.Int, data []byte, gas uint64, gasPrice *big.Int) error {
+	transactionType := ValueTransferTxn
+
+	if to == nil {
+		transactionType = ContractDeployTxn
+	} else if data != nil {
+		transactionType = ContractCallTxn
+	}
+
+	var toAcct common.Address
+
+	if to == nil {
+		toAcct = common.Address{}
+	} else {
+		toAcct = *to
+	}
+
+	return IsTransactionAllowed(from, toAcct, value, gasPrice, big.NewInt(int64(gas)), data, transactionType)
 }

@@ -115,8 +115,9 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privateState)
 	// /Quorum
 
+	// Quorum - check for account permissions to execute the transaction
 	if core.IsV2Permission() {
-		if err := tx.CheckAccountPermission(); err != nil {
+		if err := core.CheckAccountPermission(tx.From(), tx.To(), tx.Value(), tx.Data(), tx.Gas(), tx.GasPrice()); err != nil {
 			return nil, nil, err
 		}
 	}
