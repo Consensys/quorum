@@ -1,4 +1,4 @@
-package basic
+package v1
 
 import (
 	"fmt"
@@ -9,58 +9,58 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
-	binding "github.com/ethereum/go-ethereum/permission/basic/bind"
 	"github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/core/types"
+	pb "github.com/ethereum/go-ethereum/permission/v1/bind"
 )
 
-type Basic struct {
+type PermissionModelV1 struct {
 	ContractBackend   ptype.ContractBackend
-	PermInterf        *binding.PermInterface
-	PermInterfSession *binding.PermInterfaceSession
+	PermInterf        *pb.PermInterface
+	PermInterfSession *pb.PermInterfaceSession
 }
 
 type Audit struct {
-	Backend *Basic
+	Backend *PermissionModelV1
 }
 
 type Role struct {
-	Backend *Basic
+	Backend *PermissionModelV1
 }
 
 type Control struct {
 }
 
 type Org struct {
-	Backend *Basic
+	Backend *PermissionModelV1
 }
 
 type Node struct {
-	Backend *Basic
+	Backend *PermissionModelV1
 }
 
 type Account struct {
-	Backend *Basic
+	Backend *PermissionModelV1
 }
 
 type Init struct {
 	Backend ptype.ContractBackend
 
-	//binding contracts
-	PermUpgr   *binding.PermUpgr
-	PermImpl   *binding.PermImpl
-	PermInterf *binding.PermInterface
-	PermNode   *binding.NodeManager
-	PermAcct   *binding.AcctManager
-	PermRole   *binding.RoleManager
-	PermOrg    *binding.OrgManager
+	//pb contracts
+	PermUpgr   *pb.PermUpgr
+	PermImpl   *pb.PermImpl
+	PermInterf *pb.PermInterface
+	PermNode   *pb.NodeManager
+	PermAcct   *pb.AcctManager
+	PermRole   *pb.RoleManager
+	PermOrg    *pb.OrgManager
 
 	//sessions
-	PermInterfSession *binding.PermInterfaceSession
-	permOrgSession    *binding.OrgManagerSession
-	permNodeSession   *binding.NodeManagerSession
-	permRoleSession   *binding.RoleManagerSession
-	permAcctSession   *binding.AcctManagerSession
+	PermInterfSession *pb.PermInterfaceSession
+	permOrgSession    *pb.OrgManagerSession
+	permNodeSession   *pb.NodeManagerSession
+	permRoleSession   *pb.RoleManagerSession
+	permAcctSession   *pb.AcctManagerSession
 }
 
 func (i *Init) GetAccountDetailsFromIndex(_aIndex *big.Int) (common.Address, string, string, *big.Int, bool, error) {
@@ -277,7 +277,7 @@ func (a *Account) AssignAdminRole(_args ptype.TxArgs) (*types.Transaction, error
 // Required to be call after standard service start lifecycle
 func (i *Init) BindContracts() error {
 	log.Debug("permission service: binding contracts")
-	err := i.basicBindContract()
+	err := i.bindContract()
 	if err != nil {
 		return err
 	}
@@ -285,39 +285,39 @@ func (i *Init) BindContracts() error {
 	return nil
 }
 
-func (i *Init) basicBindContract() error {
+func (i *Init) bindContract() error {
 	if err := ptype.BindContract(&i.PermUpgr, func() (interface{}, error) {
-		return binding.NewPermUpgr(i.Backend.PermConfig.UpgrdAddress, i.Backend.EthClnt)
+		return pb.NewPermUpgr(i.Backend.PermConfig.UpgrdAddress, i.Backend.EthClnt)
 	}); err != nil {
 		return err
 	}
 	if err := ptype.BindContract(&i.PermImpl, func() (interface{}, error) {
-		return binding.NewPermImpl(i.Backend.PermConfig.ImplAddress, i.Backend.EthClnt)
+		return pb.NewPermImpl(i.Backend.PermConfig.ImplAddress, i.Backend.EthClnt)
 	}); err != nil {
 		return err
 	}
 	if err := ptype.BindContract(&i.PermInterf, func() (interface{}, error) {
-		return binding.NewPermInterface(i.Backend.PermConfig.InterfAddress, i.Backend.EthClnt)
+		return pb.NewPermInterface(i.Backend.PermConfig.InterfAddress, i.Backend.EthClnt)
 	}); err != nil {
 		return err
 	}
 	if err := ptype.BindContract(&i.PermAcct, func() (interface{}, error) {
-		return binding.NewAcctManager(i.Backend.PermConfig.AccountAddress, i.Backend.EthClnt)
+		return pb.NewAcctManager(i.Backend.PermConfig.AccountAddress, i.Backend.EthClnt)
 	}); err != nil {
 		return err
 	}
 	if err := ptype.BindContract(&i.PermNode, func() (interface{}, error) {
-		return binding.NewNodeManager(i.Backend.PermConfig.NodeAddress, i.Backend.EthClnt)
+		return pb.NewNodeManager(i.Backend.PermConfig.NodeAddress, i.Backend.EthClnt)
 	}); err != nil {
 		return err
 	}
 	if err := ptype.BindContract(&i.PermRole, func() (interface{}, error) {
-		return binding.NewRoleManager(i.Backend.PermConfig.RoleAddress, i.Backend.EthClnt)
+		return pb.NewRoleManager(i.Backend.PermConfig.RoleAddress, i.Backend.EthClnt)
 	}); err != nil {
 		return err
 	}
 	if err := ptype.BindContract(&i.PermOrg, func() (interface{}, error) {
-		return binding.NewOrgManager(i.Backend.PermConfig.OrgAddress, i.Backend.EthClnt)
+		return pb.NewOrgManager(i.Backend.PermConfig.OrgAddress, i.Backend.EthClnt)
 	}); err != nil {
 		return err
 	}
@@ -326,8 +326,8 @@ func (i *Init) basicBindContract() error {
 
 func (i *Init) initSession() {
 	auth := bind.NewKeyedTransactor(i.Backend.Key)
-	log.Debug("NodeAccount basic", "nodeAcc", auth.From)
-	i.PermInterfSession = &binding.PermInterfaceSession{
+	log.Debug("NodeAccount V1", "nodeAcc", auth.From)
+	i.PermInterfSession = &pb.PermInterfaceSession{
 		Contract: i.PermInterf,
 		CallOpts: bind.CallOpts{
 			Pending: true,
@@ -340,14 +340,14 @@ func (i *Init) initSession() {
 		},
 	}
 
-	i.permOrgSession = &binding.OrgManagerSession{
+	i.permOrgSession = &pb.OrgManagerSession{
 		Contract: i.PermOrg,
 		CallOpts: bind.CallOpts{
 			Pending: true,
 		},
 	}
 
-	i.permNodeSession = &binding.NodeManagerSession{
+	i.permNodeSession = &pb.NodeManagerSession{
 		Contract: i.PermNode,
 		CallOpts: bind.CallOpts{
 			Pending: true,
@@ -355,7 +355,7 @@ func (i *Init) initSession() {
 	}
 
 	//populate roles
-	i.permRoleSession = &binding.RoleManagerSession{
+	i.permRoleSession = &pb.RoleManagerSession{
 		Contract: i.PermRole,
 		CallOpts: bind.CallOpts{
 			Pending: true,
@@ -363,7 +363,7 @@ func (i *Init) initSession() {
 	}
 
 	//populate accounts
-	i.permAcctSession = &binding.AcctManagerSession{
+	i.permAcctSession = &pb.AcctManagerSession{
 		Contract: i.PermAcct,
 		CallOpts: bind.CallOpts{
 			Pending: true,

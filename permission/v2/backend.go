@@ -1,4 +1,4 @@
-package eea
+package v2
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/core/types"
-	eb "github.com/ethereum/go-ethereum/permission/eea/bind"
+	eb "github.com/ethereum/go-ethereum/permission/v2/bind"
 )
 
 type Backend struct {
@@ -262,23 +262,23 @@ func (b *Backend) MonitorNetworkBootUp() error {
 	return nil
 }
 
-func getBackend(contractBackend ptype.ContractBackend) (*Eea, error) {
-	eeaBackend := Eea{ContractBackend: contractBackend}
-	ps, err := getInterfaceContractSession(eeaBackend.PermInterf, contractBackend.PermConfig.InterfAddress, contractBackend.EthClnt)
+func getBackend(contractBackend ptype.ContractBackend) (*PermissionModelV2, error) {
+	backend := PermissionModelV2{ContractBackend: contractBackend}
+	ps, err := getInterfaceContractSession(backend.PermInterf, contractBackend.PermConfig.InterfAddress, contractBackend.EthClnt)
 	if err != nil {
 		return nil, err
 	}
-	eeaBackend.PermInterfSession = ps
-	return &eeaBackend, nil
+	backend.PermInterfSession = ps
+	return &backend, nil
 }
 
-func getBackendWithTransactOpts(contractBackend ptype.ContractBackend, transactOpts *bind.TransactOpts) (*Eea, error) {
-	eeaBackend, err := getBackend(contractBackend)
+func getBackendWithTransactOpts(contractBackend ptype.ContractBackend, transactOpts *bind.TransactOpts) (*PermissionModelV2, error) {
+	backend, err := getBackend(contractBackend)
 	if err != nil {
 		return nil, err
 	}
-	eeaBackend.PermInterfSession.TransactOpts = *transactOpts
-	return eeaBackend, nil
+	backend.PermInterfSession.TransactOpts = *transactOpts
+	return backend, nil
 }
 
 func getInterfaceContractSession(permInterfaceInstance *eb.PermInterface, contractAddress common.Address, backend bind.ContractBackend) (*eb.PermInterfaceSession, error) {

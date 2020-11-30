@@ -15,10 +15,10 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/permission/basic"
 	"github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/core/types"
-	"github.com/ethereum/go-ethereum/permission/eea"
+	"github.com/ethereum/go-ethereum/permission/v1"
+	"github.com/ethereum/go-ethereum/permission/v2"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -122,11 +122,11 @@ func (p *PermissionCtrl) Stop() error {
 	return nil
 }
 
-func (p *PermissionCtrl) IsEEAPermission() bool {
-	return p.permConfig.PermissionsModel == ptype.PERMISSION_EEA
+func (p *PermissionCtrl) IsV2Permission() bool {
+	return p.permConfig.PermissionsModel == ptype.PERMISSION_V2
 }
 
-func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, key *ecdsa.PrivateKey,
+func NewPermissionContractService(ethClnt bind.ContractBackend, permissionV2 bool, key *ecdsa.PrivateKey,
 	permConfig *ptype.PermissionConfig, isRaft, useDns bool) ptype.InitService {
 
 	contractBackEnd := ptype.ContractBackend{
@@ -137,12 +137,12 @@ func NewPermissionContractService(ethClnt bind.ContractBackend, eeaFlag bool, ke
 		UseDns:     useDns,
 	}
 
-	if eeaFlag {
-		return &eea.Init{
+	if permissionV2 {
+		return &v2.Init{
 			Backend: contractBackEnd,
 		}
 	}
-	return &basic.Init{
+	return &v1.Init{
 		Backend: contractBackEnd,
 	}
 }
@@ -217,18 +217,18 @@ func (p *PermissionCtrl) populateBackEnd() error {
 	backend := ptype.NewInterfaceBackend(p.node, false, p.dataDir)
 
 	switch p.permConfig.PermissionsModel {
-	case ptype.PERMISSION_EEA:
-		p.backend = &eea.Backend{
+	case ptype.PERMISSION_V2:
+		p.backend = &v2.Backend{
 			Ib: *backend,
 		}
-		log.Debug("permission service: using eea permissions model")
+		log.Debug("permission service: using v2 permissions model")
 		return nil
 
-	case ptype.PERMISSION_BASIC:
-		p.backend = &basic.Backend{
+	case ptype.PERMISSION_V1:
+		p.backend = &v1.Backend{
 			Ib: *backend,
 		}
-		log.Debug("permission service: using basic permissions model")
+		log.Debug("permission service: using v1 permissions model")
 		return nil
 
 	default:
@@ -238,15 +238,15 @@ func (p *PermissionCtrl) populateBackEnd() error {
 }
 
 func (p *PermissionCtrl) updateBackEnd() {
-	p.contract = NewPermissionContractService(p.ethClnt, p.IsEEAPermission(), p.key, p.permConfig, p.isRaft, p.useDns)
-	switch p.IsEEAPermission() {
+	p.contract = NewPermissionContractService(p.ethClnt, p.IsV2Permission(), p.key, p.permConfig, p.isRaft, p.useDns)
+	switch p.IsV2Permission() {
 	case true:
-		p.backend.(*eea.Backend).Contr = p.contract.(*eea.Init)
-		p.backend.(*eea.Backend).Ib.SetIsRaft(p.isRaft)
+		p.backend.(*v2.Backend).Contr = p.contract.(*v2.Init)
+		p.backend.(*v2.Backend).Ib.SetIsRaft(p.isRaft)
 
 	default:
-		p.backend.(*basic.Backend).Contr = p.contract.(*basic.Init)
-		p.backend.(*basic.Backend).Ib.SetIsRaft(p.isRaft)
+		p.backend.(*v1.Backend).Contr = p.contract.(*v1.Init)
+		p.backend.(*v1.Backend).Ib.SetIsRaft(p.isRaft)
 	}
 }
 

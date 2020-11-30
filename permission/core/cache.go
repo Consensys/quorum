@@ -23,13 +23,14 @@ const (
 type AccessType uint8
 
 const (
-	// common access type list for both basic and EEA model.
+	// common access type list for both V1 and V2 model.
 	// the first 4 are used by both models
+	// last 3 are used by V2 in alignment with EEA specs
 	ReadOnly AccessType = iota
 	Transact
 	ContractDeploy
 	FullAccess
-	// below access types are only used by EEA model
+	// below access types are only used by V2 model
 	ContractCall
 	TransactAndContractCall
 	TransactAndContractDeploy
@@ -39,8 +40,8 @@ const (
 type PermissionModelType uint8
 
 const (
-	Basic PermissionModelType = iota
-	EEA
+	V1 PermissionModelType = iota
+	V2
 	Default
 )
 
@@ -263,7 +264,7 @@ func SetNetworkBootUpCompleted() {
 
 // return bool to indicate if permissions is enabled
 func PermissionsEnabled() bool {
-	if PermissionModel == EEA {
+	if PermissionModel == V2 {
 		return qip714BlockReached
 	} else {
 		return qip714BlockReached && networkBootUpCompleted
@@ -272,13 +273,13 @@ func PermissionsEnabled() bool {
 
 // sets default access to readonly and initializes the values for
 // network admin role and org admin role
-func SetDefaults(nwRoleId, oaRoleId string, eeaFlag bool) {
+func SetDefaults(nwRoleId, oaRoleId string, permissionV2 bool) {
 	networkAdminRole = nwRoleId
 	orgAdminRole = oaRoleId
-	if eeaFlag {
-		PermissionModel = EEA
+	if permissionV2 {
+		PermissionModel = V2
 	} else {
-		PermissionModel = Basic
+		PermissionModel = V1
 	}
 }
 
@@ -618,8 +619,8 @@ func ValidateNodeForTxn(hexnodeId string, from common.Address) bool {
 	return false
 }
 
-func IsEEAPermission() bool {
-	return PermissionModel == EEA
+func IsV2Permission() bool {
+	return PermissionModel == V2
 }
 
 //  checks if the account permission allows the transaction to be executed

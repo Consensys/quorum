@@ -21,9 +21,11 @@ import (
 	"github.com/ethereum/go-ethereum/raft"
 )
 
+// supports 2 models of permissions v1 and v2.
+// v2 is aligned with the latest eea specs
 const (
-	PERMISSION_EEA   = "eea"
-	PERMISSION_BASIC = "basic"
+	PERMISSION_V1 = "v1"
+	PERMISSION_V2 = "v2"
 )
 
 // permission config for bootstrapping
@@ -305,7 +307,7 @@ func ParsePermissionConfig(dir string) (PermissionConfig, error) {
 	}
 
 	permConfig.PermissionsModel = strings.ToLower(permConfig.PermissionsModel)
-	if permConfig.PermissionsModel != PERMISSION_EEA && permConfig.PermissionsModel != PERMISSION_BASIC {
+	if permConfig.PermissionsModel != PERMISSION_V2 && permConfig.PermissionsModel != PERMISSION_V1 {
 		return PermissionConfig{}, fmt.Errorf("invalid permissions model type passed in %s. Network cannot boot up", params.PERMISSION_MODEL_CONFIG)
 	}
 

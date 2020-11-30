@@ -1,4 +1,4 @@
-package basic
+package v1
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
-	bb "github.com/ethereum/go-ethereum/permission/basic/bind"
 	"github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/core/types"
+	pb "github.com/ethereum/go-ethereum/permission/v1/bind"
 )
 
 type Backend struct {
@@ -17,9 +17,9 @@ type Backend struct {
 }
 
 func (b *Backend) ManageAccountPermissions() error {
-	chAccessModified := make(chan *bb.AcctManagerAccountAccessModified)
-	chAccessRevoked := make(chan *bb.AcctManagerAccountAccessRevoked)
-	chStatusChanged := make(chan *bb.AcctManagerAccountStatusChanged)
+	chAccessModified := make(chan *pb.AcctManagerAccountAccessModified)
+	chAccessRevoked := make(chan *pb.AcctManagerAccountAccessRevoked)
+	chStatusChanged := make(chan *pb.AcctManagerAccountStatusChanged)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -64,8 +64,8 @@ func (b *Backend) ManageAccountPermissions() error {
 }
 
 func (b *Backend) ManageRolePermissions() error {
-	chRoleCreated := make(chan *bb.RoleManagerRoleCreated, 1)
-	chRoleRevoked := make(chan *bb.RoleManagerRoleRevoked, 1)
+	chRoleCreated := make(chan *pb.RoleManagerRoleCreated, 1)
+	chRoleRevoked := make(chan *pb.RoleManagerRoleRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -104,10 +104,10 @@ func (b *Backend) ManageRolePermissions() error {
 }
 
 func (b *Backend) ManageOrgPermissions() error {
-	chPendingApproval := make(chan *bb.OrgManagerOrgPendingApproval, 1)
-	chOrgApproved := make(chan *bb.OrgManagerOrgApproved, 1)
-	chOrgSuspended := make(chan *bb.OrgManagerOrgSuspended, 1)
-	chOrgReactivated := make(chan *bb.OrgManagerOrgSuspensionRevoked, 1)
+	chPendingApproval := make(chan *pb.OrgManagerOrgPendingApproval, 1)
+	chOrgApproved := make(chan *pb.OrgManagerOrgApproved, 1)
+	chOrgSuspended := make(chan *pb.OrgManagerOrgSuspended, 1)
+	chOrgReactivated := make(chan *pb.OrgManagerOrgSuspensionRevoked, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -156,13 +156,13 @@ func (b *Backend) ManageOrgPermissions() error {
 }
 
 func (b *Backend) ManageNodePermissions() error {
-	chNodeApproved := make(chan *bb.NodeManagerNodeApproved, 1)
-	chNodeProposed := make(chan *bb.NodeManagerNodeProposed, 1)
-	chNodeDeactivated := make(chan *bb.NodeManagerNodeDeactivated, 1)
-	chNodeActivated := make(chan *bb.NodeManagerNodeActivated, 1)
-	chNodeBlacklisted := make(chan *bb.NodeManagerNodeBlacklisted)
-	chNodeRecoveryInit := make(chan *bb.NodeManagerNodeRecoveryInitiated, 1)
-	chNodeRecoveryDone := make(chan *bb.NodeManagerNodeRecoveryCompleted, 1)
+	chNodeApproved := make(chan *pb.NodeManagerNodeApproved, 1)
+	chNodeProposed := make(chan *pb.NodeManagerNodeProposed, 1)
+	chNodeDeactivated := make(chan *pb.NodeManagerNodeDeactivated, 1)
+	chNodeActivated := make(chan *pb.NodeManagerNodeActivated, 1)
+	chNodeBlacklisted := make(chan *pb.NodeManagerNodeBlacklisted)
+	chNodeRecoveryInit := make(chan *pb.NodeManagerNodeRecoveryInitiated, 1)
+	chNodeRecoveryDone := make(chan *pb.NodeManagerNodeRecoveryCompleted, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -256,7 +256,7 @@ func (b *Backend) ManageNodePermissions() error {
 }
 
 func (b *Backend) MonitorNetworkBootUp() error {
-	netWorkBootCh := make(chan *bb.PermImplPermissionsInitialized, 1)
+	netWorkBootCh := make(chan *pb.PermImplPermissionsInitialized, 1)
 
 	opts := &bind.WatchOpts{}
 	var blockNumber uint64 = 1
@@ -285,11 +285,11 @@ func (b *Backend) MonitorNetworkBootUp() error {
 	return nil
 }
 
-func getInterfaceContractSession(permInterfaceInstance *bb.PermInterface, contractAddress common.Address, backend bind.ContractBackend) (*bb.PermInterfaceSession, error) {
-	if err := ptype.BindContract(&permInterfaceInstance, func() (interface{}, error) { return bb.NewPermInterface(contractAddress, backend) }); err != nil {
+func getInterfaceContractSession(permInterfaceInstance *pb.PermInterface, contractAddress common.Address, backend bind.ContractBackend) (*pb.PermInterfaceSession, error) {
+	if err := ptype.BindContract(&permInterfaceInstance, func() (interface{}, error) { return pb.NewPermInterface(contractAddress, backend) }); err != nil {
 		return nil, err
 	}
-	ps := &bb.PermInterfaceSession{
+	ps := &pb.PermInterfaceSession{
 		Contract: permInterfaceInstance,
 		CallOpts: bind.CallOpts{
 			Pending: true,
@@ -298,24 +298,24 @@ func getInterfaceContractSession(permInterfaceInstance *bb.PermInterface, contra
 	return ps, nil
 }
 
-func getBackend(contractBackend ptype.ContractBackend) (*Basic, error) {
-	basicBackend := Basic{ContractBackend: contractBackend}
-	ps, err := getInterfaceContractSession(basicBackend.PermInterf, contractBackend.PermConfig.InterfAddress, contractBackend.EthClnt)
+func getBackend(contractBackend ptype.ContractBackend) (*PermissionModelV1, error) {
+	backend := PermissionModelV1{ContractBackend: contractBackend}
+	ps, err := getInterfaceContractSession(backend.PermInterf, contractBackend.PermConfig.InterfAddress, contractBackend.EthClnt)
 	if err != nil {
 		return nil, err
 	}
-	basicBackend.PermInterfSession = ps
-	return &basicBackend, nil
+	backend.PermInterfSession = ps
+	return &backend, nil
 }
 
-func getBackendWithTransactOpts(contractBackend ptype.ContractBackend, transactOpts *bind.TransactOpts) (*Basic, error) {
-	basicBackend, err := getBackend(contractBackend)
+func getBackendWithTransactOpts(contractBackend ptype.ContractBackend, transactOpts *bind.TransactOpts) (*PermissionModelV1, error) {
+	backend, err := getBackend(contractBackend)
 	if err != nil {
 		return nil, err
 	}
-	basicBackend.PermInterfSession.TransactOpts = *transactOpts
+	backend.PermInterfSession.TransactOpts = *transactOpts
 
-	return basicBackend, nil
+	return backend, nil
 }
 
 func (b *Backend) GetRoleService(transactOpts *bind.TransactOpts, roleBackend ptype.ContractBackend) (ptype.RoleService, error) {

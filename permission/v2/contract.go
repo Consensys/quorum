@@ -1,4 +1,4 @@
-package eea
+package v2
 
 import (
 	"fmt"
@@ -10,37 +10,39 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/core/types"
-	binding "github.com/ethereum/go-ethereum/permission/eea/bind"
+	binding "github.com/ethereum/go-ethereum/permission/v2/bind"
 )
 
-type Eea struct {
+// definitions for v2 permissions model which is aligned with eea specs
+
+type PermissionModelV2 struct {
 	ContractBackend   ptype.ContractBackend
 	PermInterf        *binding.PermInterface
 	PermInterfSession *binding.PermInterfaceSession
 }
 
 type Audit struct {
-	Backend *Eea
+	Backend *PermissionModelV2
 }
 
 type Role struct {
-	Backend *Eea
+	Backend *PermissionModelV2
 }
 
 type Account struct {
-	Backend *Eea
+	Backend *PermissionModelV2
 }
 
 type Control struct {
-	Backend *Eea
+	Backend *PermissionModelV2
 }
 
 type Org struct {
-	Backend *Eea
+	Backend *PermissionModelV2
 }
 
 type Node struct {
-	Backend *Eea
+	Backend *PermissionModelV2
 }
 
 type Init struct {
@@ -192,7 +194,7 @@ func (i *Init) GetOrgDetails(_orgId string) (string, string, string, *big.Int, *
 func (i *Init) BindContracts() error {
 	log.Debug("permission service: binding contracts")
 
-	err := i.eeaBindContract()
+	err := i.bindContract()
 	if err != nil {
 		return err
 	}
@@ -315,7 +317,7 @@ func (n *Node) UpdateNodeStatus(_args ptype.TxArgs) (*types.Transaction, error) 
 	return n.Backend.PermInterfSession.UpdateNodeStatus(_args.OrgId, enodeId, ip, port, raftPort, big.NewInt(int64(_args.Action)))
 }
 
-func (i *Init) eeaBindContract() error {
+func (i *Init) bindContract() error {
 	if err := ptype.BindContract(&i.PermUpgr, func() (interface{}, error) {
 		return binding.NewPermUpgr(i.Backend.PermConfig.UpgrdAddress, i.Backend.EthClnt)
 	}); err != nil {
@@ -351,7 +353,7 @@ func (i *Init) eeaBindContract() error {
 
 func (i *Init) initSession() {
 	auth := bind.NewKeyedTransactor(i.Backend.Key)
-	log.Debug("NodeAccount EEA", "nodeAcc", auth.From)
+	log.Debug("NodeAccount V2", "nodeAcc", auth.From)
 	i.PermInterfSession = &binding.PermInterfaceSession{
 		Contract: i.PermInterf,
 		CallOpts: bind.CallOpts{

@@ -27,12 +27,12 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/permission/basic"
-	bb "github.com/ethereum/go-ethereum/permission/basic/bind"
 	pcore "github.com/ethereum/go-ethereum/permission/core"
 	ptype "github.com/ethereum/go-ethereum/permission/core/types"
-	"github.com/ethereum/go-ethereum/permission/eea"
-	eb "github.com/ethereum/go-ethereum/permission/eea/bind"
+	"github.com/ethereum/go-ethereum/permission/v1"
+	v1bind "github.com/ethereum/go-ethereum/permission/v1/bind"
+	"github.com/ethereum/go-ethereum/permission/v2"
+	v2bind "github.com/ethereum/go-ethereum/permission/v2/bind"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,17 +67,17 @@ var (
 	ethereum        *eth.Ethereum
 	stack           *node.Node
 	guardianAddress common.Address
-	eeaFlag         bool
+	v2Flag          bool
 
 	permUpgrAddress, permInterfaceAddress, permImplAddress, voterManagerAddress,
 	nodeManagerAddress, roleManagerAddress, accountManagerAddress, orgManagerAddress common.Address
 )
 
 func TestMain(m *testing.M) {
-	var eeaFlagVer = []bool{false}
+	var v2FlagVer = []bool{false}
 	var ret int
-	for i := range eeaFlagVer {
-		eeaFlag = eeaFlagVer[i]
+	for i := range v2FlagVer {
+		v2Flag = v2FlagVer[i]
 		setup()
 		ret = m.Run()
 		teardown()
@@ -147,41 +147,41 @@ func setup() {
 	}
 	contrBackend = backends.NewSimulatedBackendFrom(ethereum)
 
-	var permUpgrInstance *bb.PermUpgr
-	var permUpgrInstanceE *eb.PermUpgr
+	var permUpgrInstance *v1bind.PermUpgr
+	var permUpgrInstanceE *v2bind.PermUpgr
 
 	guardianTransactor := bind.NewKeyedTransactor(guardianKey)
 
-	if eeaFlag {
-		permUpgrAddress, _, permUpgrInstanceE, err = eb.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
+	if v2Flag {
+		permUpgrAddress, _, permUpgrInstanceE, err = v2bind.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permInterfaceAddress, _, _, err = eb.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
+		permInterfaceAddress, _, _, err = v2bind.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nodeManagerAddress, _, _, err = eb.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
+		nodeManagerAddress, _, _, err = v2bind.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		roleManagerAddress, _, _, err = eb.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
+		roleManagerAddress, _, _, err = v2bind.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		accountManagerAddress, _, _, err = eb.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
+		accountManagerAddress, _, _, err = v2bind.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		orgManagerAddress, _, _, err = eb.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
+		orgManagerAddress, _, _, err = v2bind.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		voterManagerAddress, _, _, err = eb.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
+		voterManagerAddress, _, _, err = v2bind.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permImplAddress, _, _, err = eb.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+		permImplAddress, _, _, err = v2bind.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -190,35 +190,35 @@ func setup() {
 			t.Fatal(err)
 		}
 	} else {
-		permUpgrAddress, _, permUpgrInstance, err = bb.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
+		permUpgrAddress, _, permUpgrInstance, err = v1bind.DeployPermUpgr(guardianTransactor, contrBackend, guardianAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permInterfaceAddress, _, _, err = bb.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
+		permInterfaceAddress, _, _, err = v1bind.DeployPermInterface(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		nodeManagerAddress, _, _, err = bb.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
+		nodeManagerAddress, _, _, err = v1bind.DeployNodeManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		roleManagerAddress, _, _, err = bb.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
+		roleManagerAddress, _, _, err = v1bind.DeployRoleManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		accountManagerAddress, _, _, err = bb.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
+		accountManagerAddress, _, _, err = v1bind.DeployAcctManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		orgManagerAddress, _, _, err = bb.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
+		orgManagerAddress, _, _, err = v1bind.DeployOrgManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		voterManagerAddress, _, _, err = bb.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
+		voterManagerAddress, _, _, err = v1bind.DeployVoterManager(guardianTransactor, contrBackend, permUpgrAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
-		permImplAddress, _, _, err = bb.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
+		permImplAddress, _, _, err = v1bind.DeployPermImpl(guardianTransactor, contrBackend, permUpgrAddress, orgManagerAddress, roleManagerAddress, accountManagerAddress, voterManagerAddress, nodeManagerAddress)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -235,14 +235,14 @@ func teardown() {
 }
 
 func TestPermissionCtrl_AfterStart(t *testing.T) {
-	testObject := typicalPermissionCtrl(t, eeaFlag)
+	testObject := typicalPermissionCtrl(t, v2Flag)
 
 	err := testObject.AfterStart()
 
 	assert.NoError(t, err)
-	if testObject.IsEEAPermission() {
-		var contract *eea.Init
-		contract, _ = testObject.contract.(*eea.Init)
+	if testObject.IsV2Permission() {
+		var contract *v2.Init
+		contract, _ = testObject.contract.(*v2.Init)
 		assert.NotNil(t, contract.PermOrg)
 		assert.NotNil(t, contract.PermRole)
 		assert.NotNil(t, contract.PermNode)
@@ -250,8 +250,8 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 		assert.NotNil(t, contract.PermInterf)
 		assert.NotNil(t, contract.PermUpgr)
 	} else {
-		var contract *basic.Init
-		contract, _ = testObject.contract.(*basic.Init)
+		var contract *v1.Init
+		contract, _ = testObject.contract.(*v1.Init)
 		assert.NotNil(t, contract.PermOrg)
 		assert.NotNil(t, contract.PermRole)
 		assert.NotNil(t, contract.PermNode)
@@ -266,7 +266,7 @@ func TestPermissionCtrl_AfterStart(t *testing.T) {
 }
 
 func TestPermissionCtrl_PopulateInitPermissions_AfterNetworkIsInitialized(t *testing.T) {
-	testObject := typicalPermissionCtrl(t, eeaFlag)
+	testObject := typicalPermissionCtrl(t, v2Flag)
 	assert.NoError(t, testObject.AfterStart())
 
 	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
@@ -305,7 +305,7 @@ func TestPermissionCtrl_PopulateInitPermissions_AfterNetworkIsInitialized(t *tes
 }
 
 func typicalQuorumControlsAPI(t *testing.T) *QuorumControlsAPI {
-	pc := typicalPermissionCtrl(t, eeaFlag)
+	pc := typicalPermissionCtrl(t, v2Flag)
 	if !assert.NoError(t, pc.AfterStart()) {
 		t.Fail()
 	}
@@ -410,12 +410,12 @@ func TestQuorumControlsAPI_OrgAPIs(t *testing.T) {
 
 func testConnectionAllowed(t *testing.T, q *QuorumControlsAPI, url string, expected bool) {
 	enode, ip, port, raftPort, err := ptype.GetNodeDetails(url, false, false)
-	if q.permCtrl.IsEEAPermission() {
+	if q.permCtrl.IsV2Permission() {
 		assert.NoError(t, err)
 		connAllowed := q.ConnectionAllowed(enode, ip, port, raftPort)
 		assert.Equal(t, expected, connAllowed)
 	} else {
-		assert.Equal(t, isNodePermissionedBasic(url, enode, enode, "INCOMING"), expected)
+		assert.Equal(t, isNodePermissionedV1(url, enode, enode, "INCOMING"), expected)
 	}
 }
 
@@ -496,7 +496,7 @@ func testTransactionAllowed(t *testing.T, q *QuorumControlsAPI, txa ethapi.SendT
 func TestQuorumControlsAPI_TransactionAllowed(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
 
-	if testObject.permCtrl.IsEEAPermission() {
+	if testObject.permCtrl.IsV2Permission() {
 
 		acct := getArbitraryAccount()
 		txa := ethapi.SendTxArgs{From: guardianAddress}
@@ -698,7 +698,7 @@ func getArbitraryAccount() common.Address {
 	return crypto.PubkeyToAddress(acctKey.PublicKey)
 }
 
-func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
+func typicalPermissionCtrl(t *testing.T, v2Flag bool) *PermissionCtrl {
 	pconfig := &ptype.PermissionConfig{
 		UpgrdAddress:   permUpgrAddress,
 		InterfAddress:  permInterfaceAddress,
@@ -717,10 +717,10 @@ func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
 		SubOrgDepth:   big.NewInt(10),
 		SubOrgBreadth: big.NewInt(10),
 	}
-	if eeaFlag {
-		pconfig.PermissionsModel = ptype.PERMISSION_EEA
+	if v2Flag {
+		pconfig.PermissionsModel = ptype.PERMISSION_V2
 	} else {
-		pconfig.PermissionsModel = ptype.PERMISSION_BASIC
+		pconfig.PermissionsModel = ptype.PERMISSION_V1
 	}
 	testObject, err := NewQuorumPermissionCtrl(stack, pconfig, false)
 	if err != nil {
@@ -731,13 +731,13 @@ func typicalPermissionCtrl(t *testing.T, eeaFlag bool) *PermissionCtrl {
 	testObject.eth = ethereum
 
 	// set contract and backend's contract as asyncStart won't get called
-	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.IsEEAPermission(), testObject.key, testObject.permConfig, false, false)
-	if eeaFlag {
-		b := testObject.backend.(*eea.Backend)
-		b.Contr = testObject.contract.(*eea.Init)
+	testObject.contract = NewPermissionContractService(testObject.ethClnt, testObject.IsV2Permission(), testObject.key, testObject.permConfig, false, false)
+	if v2Flag {
+		b := testObject.backend.(*v2.Backend)
+		b.Contr = testObject.contract.(*v2.Init)
 	} else {
-		b := testObject.backend.(*basic.Backend)
-		b.Contr = testObject.contract.(*basic.Init)
+		b := testObject.backend.(*v1.Backend)
+		b.Contr = testObject.contract.(*v1.Init)
 	}
 
 	go func() {
@@ -761,7 +761,7 @@ func tmpKeyStore(encrypted bool) (string, *keystore.KeyStore, error) {
 }
 
 func TestPermissionCtrl_whenUpdateFile(t *testing.T) {
-	testObject := typicalPermissionCtrl(t, eeaFlag)
+	testObject := typicalPermissionCtrl(t, v2Flag)
 	assert.NoError(t, testObject.AfterStart())
 
 	err := testObject.populateInitPermissions(orgCacheSize, roleCacheSize, nodeCacheSize, accountCacheSize)
@@ -859,7 +859,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	}
 
 	_ = os.Remove(fileName)
-	tmpPermCofig.PermissionsModel = "basic"
+	tmpPermCofig.PermissionsModel = "v1"
 	blob, _ = json.Marshal(tmpPermCofig)
 	if err := ioutil.WriteFile(fileName, blob, 0644); err != nil {
 		t.Fatal("Error writing new Node info to file", "fileName", fileName, "err", err)
@@ -899,7 +899,7 @@ func TestParsePermissionConfig(t *testing.T) {
 	assert.False(t, permConfig.IsEmpty(), "expected non empty object")
 }
 
-func TestIsTransactionAllowed_Basic(t *testing.T) {
+func TestIsTransactionAllowed_V1(t *testing.T) {
 	testObject := typicalQuorumControlsAPI(t)
 	pcore.PermissionTransactionAllowedFunc = testObject.permCtrl.IsTransactionAllowed
 	var Acct1 = common.BytesToAddress([]byte("permission"))
@@ -931,7 +931,6 @@ func TestIsTransactionAllowed_Basic(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name:    "Account with transact permission calling value transfer",
 			args:    args{address: Acct1, transactionType: pcore.ValueTransferTxn},
