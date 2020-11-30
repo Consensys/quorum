@@ -91,27 +91,24 @@ func (db *odrDatabase) TrieDB() *trie.Database {
 	return nil
 }
 
-// Quorum - Privacy Enhancements
-type stubPrivacyMetadataLinker struct {
+type stubAccountExtraDataLinker struct {
 }
 
-func newPrivacyMetadataLinkerStub() rawdb.PrivacyMetadataLinker {
-	return &stubPrivacyMetadataLinker{}
+func newAccountExtraDataLinkerStub() rawdb.AccountExtraDataLinker {
+	return &stubAccountExtraDataLinker{}
 }
 
-func (pml *stubPrivacyMetadataLinker) PrivacyMetadataRootForPrivateStateRoot(privateStateRoot common.Hash) common.Hash {
+func (pml *stubAccountExtraDataLinker) Find(_ common.Hash) common.Hash {
 	return common.Hash{}
 }
 
-func (pml *stubPrivacyMetadataLinker) LinkPrivacyMetadataRootToPrivateStateRoot(privateStateRoot, privacyMetadataRoot common.Hash) error {
+func (pml *stubAccountExtraDataLinker) Link(_, _ common.Hash) error {
 	return nil
 }
 
-func (db *odrDatabase) PrivacyMetadataLinker() rawdb.PrivacyMetadataLinker {
-	return newPrivacyMetadataLinkerStub()
+func (db *odrDatabase) AccountExtraDataLinker() rawdb.AccountExtraDataLinker {
+	return newAccountExtraDataLinkerStub()
 }
-
-// End Quorum - Privacy Enhancements
 
 type odrTrie struct {
 	db   *odrDatabase

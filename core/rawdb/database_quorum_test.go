@@ -46,39 +46,39 @@ func TestIsQuorumEIP155Active(t *testing.T) {
 	}
 }
 
-func TestPrivacyMedatadaLinkEmptyRoot(t *testing.T) {
+func TestAccountExtraDataLinker_whenLinkingEmptyRoot(t *testing.T) {
 	db := NewMemoryDatabase()
 	psr := common.Hash{1}
 
-	pml := NewPrivacyMetadataLinker(db)
+	linker := NewAccountExtraDataLinker(db)
 
-	err := pml.LinkPrivacyMetadataRootToPrivateStateRoot(psr, emptyRoot)
+	err := linker.Link(psr, emptyRoot)
 
 	if err != nil {
 		t.Fatal("unable to store the link")
 	}
 
-	value, _ := db.Get(append(privateRootToPrivacyMetadataRootPrefix, psr[:]...))
+	value, _ := db.Get(append(stateRootToExtraDataRootPrefix, psr[:]...))
 
 	if value != nil {
 		t.Fatal("the mapping should not have been stored")
 	}
 }
 
-func TestPrivacyMedatadaLinkRoot(t *testing.T) {
+func TestAccountExtraDataLinker_whenLinkingRoots(t *testing.T) {
 	db := NewMemoryDatabase()
 	psr := common.Hash{1}
 	pmr := common.Hash{2}
 
-	pml := NewPrivacyMetadataLinker(db)
+	linker := NewAccountExtraDataLinker(db)
 
-	err := pml.LinkPrivacyMetadataRootToPrivateStateRoot(psr, pmr)
+	err := linker.Link(psr, pmr)
 
 	if err != nil {
 		t.Fatal("unable to store the link")
 	}
 
-	value, _ := db.Get(append(privateRootToPrivacyMetadataRootPrefix, psr[:]...))
+	value, _ := db.Get(append(stateRootToExtraDataRootPrefix, psr[:]...))
 
 	if value == nil {
 		t.Fatal("the mapping should have been stored")
@@ -101,14 +101,14 @@ func (t *ReadOnlyDB) Put(key []byte, value []byte) error {
 	return errReadOnly
 }
 
-func TestPrivacyMedatadaLinkRootErrorWrapping(t *testing.T) {
+func TestAccountExtraDataLinker_whenError(t *testing.T) {
 	db := NewDatabase(&ReadOnlyDB{})
 	psr := common.Hash{1}
 	pmr := common.Hash{2}
 
-	pml := NewPrivacyMetadataLinker(db)
+	linker := NewAccountExtraDataLinker(db)
 
-	err := pml.LinkPrivacyMetadataRootToPrivateStateRoot(psr, pmr)
+	err := linker.Link(psr, pmr)
 
 	if err == nil {
 		t.Fatal("expecting a read only error to be returned")
@@ -119,35 +119,35 @@ func TestPrivacyMedatadaLinkRootErrorWrapping(t *testing.T) {
 	}
 }
 
-func TestPrivacyMedatadaRetrievePrivacyMetadataRoot(t *testing.T) {
+func TestAccountExtraDataLinker_whenFinding(t *testing.T) {
 	db := NewMemoryDatabase()
 	psr := common.Hash{1}
 	pmr := common.Hash{2}
 
-	err := db.Put(append(privateRootToPrivacyMetadataRootPrefix, psr[:]...), pmr[:])
+	err := db.Put(append(stateRootToExtraDataRootPrefix, psr[:]...), pmr[:])
 
 	if err != nil {
 		t.Fatal("unable to write to db")
 	}
 
-	pml := NewPrivacyMetadataLinker(db)
+	pml := NewAccountExtraDataLinker(db)
 
-	pmrRetrieved := pml.PrivacyMetadataRootForPrivateStateRoot(psr)
+	pmrRetrieved := pml.Find(psr)
 
 	if pmrRetrieved != pmr {
 		t.Fatal("the mapping should have been retrieved")
 	}
 }
 
-func TestPrivacyMedatadaRetrieveEmptyPrivacyMetadataRoot(t *testing.T) {
+func TestAccountExtraDataLinker_whenNotFound(t *testing.T) {
 	db := NewMemoryDatabase()
 	psr := common.Hash{1}
 
-	pml := NewPrivacyMetadataLinker(db)
+	pml := NewAccountExtraDataLinker(db)
 
-	pmrRetrieved := pml.PrivacyMetadataRootForPrivateStateRoot(psr)
+	pmrRetrieved := pml.Find(psr)
 
 	if !common.EmptyHash(pmrRetrieved) {
-		t.Fatal("the retrieved privacy metadata root should be thg empty hash")
+		t.Fatal("the retrieved privacy metadata root should be the empty hash")
 	}
 }

@@ -24,6 +24,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/private/engine"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/stretchr/testify/assert"
 )
 
 func BenchmarkCutOriginal(b *testing.B) {
@@ -67,4 +70,76 @@ func xTestFuzzCutter(t *testing.T) {
 		}
 		//break
 	}
+}
+
+type privacyMetadataOld struct {
+	CreationTxHash common.EncryptedPayloadHash
+	PrivacyFlag    engine.PrivacyFlagType
+}
+
+// privacyMetadataToBytes is the utility function under test from previous implementation
+func privacyMetadataToBytes(pm *privacyMetadataOld) ([]byte, error) {
+	return rlp.EncodeToBytes(pm)
+}
+
+// bytesToPrivacyMetadata is the utility function under test from previous implementation
+func bytesToPrivacyMetadata(b []byte) (*privacyMetadataOld, error) {
+	var data *privacyMetadataOld
+	if err := rlp.DecodeBytes(b, &data); err != nil {
+		return nil, fmt.Errorf("unable to decode privacy metadata. Cause: %v", err)
+	}
+	return data, nil
+}
+
+func TestRLP_PrivacyMetadata_DecodeBackwardCompatibility(t *testing.T) {
+	existingPM := &privacyMetadataOld{
+		CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("arbitrary-hash")),
+		PrivacyFlag:    engine.PrivacyFlagStateValidation,
+	}
+	existing, err := privacyMetadataToBytes(existingPM)
+	assert.NoError(t, err)
+
+	var actual PrivacyMetadata
+	err = rlp.DecodeBytes(existing, &actual)
+
+	assert.NoError(t, err, "Must decode PrivacyMetadata successfully")
+	assert.Equal(t, existingPM.CreationTxHash, actual.CreationTxHash)
+	assert.Equal(t, existingPM.PrivacyFlag, actual.PrivacyFlag)
+}
+
+func TestRLP_PrivacyMetadata_DecodeForwardCompatibility(t *testing.T) {
+	pm := &PrivacyMetadata{
+		CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("arbitrary-hash")),
+		PrivacyFlag:    engine.PrivacyFlagStateValidation,
+	}
+	existing, err := rlp.EncodeToBytes(pm)
+	assert.NoError(t, err)
+
+	var actual *privacyMetadataOld
+	actual, err = bytesToPrivacyMetadata(existing)
+
+	assert.NoError(t, err, "Must encode PrivacyMetadata successfully")
+	assert.Equal(t, pm.CreationTxHash, actual.CreationTxHash)
+	assert.Equal(t, pm.PrivacyFlag, actual.PrivacyFlag)
+}
+
+// From initial privacy enhancements, the privacy metadata is RLP encoded
+// we now wrap PrivacyMetadata in a more generic struct. This test is to make sure
+// we support backward compatibility.
+func TestRLP_AccountExtraData_BackwardCompatibility(t *testing.T) {
+	// prepare existing RLP bytes
+	arbitraryExistingMetadata := &PrivacyMetadata{
+		CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("arbitrary-existing-privacy-metadata-creation-hash")),
+		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
+	}
+	existing, err := rlp.EncodeToBytes(arbitraryExistingMetadata)
+	assert.NoError(t, err)
+
+	// now try to decode with the new struct
+	var actual AccountExtraData
+	err = rlp.DecodeBytes(existing, &actual)
+
+	assert.NoError(t, err, "Must decode successfully")
+	assert.Equal(t, arbitraryExistingMetadata.CreationTxHash, actual.PrivacyMetadata.CreationTxHash)
+	assert.Equal(t, arbitraryExistingMetadata.PrivacyFlag, actual.PrivacyMetadata.PrivacyFlag)
 }
