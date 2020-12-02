@@ -394,6 +394,7 @@ func (r Receipts) DeriveFields(config *params.ChainConfig, hash common.Hash, num
 			for psi := range allReceipts {
 				allReceipts[psi] = append(allReceipts[psi], receipt)
 			}
+			allPublic = append(allPublic, receipt)
 			continue
 		}
 
