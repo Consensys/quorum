@@ -436,6 +436,13 @@ func (self *StateDB) SetStatePrivacyMetadata(addr common.Address, metadata *Priv
 	}
 }
 
+func (self *StateDB) SetManagedParties(addr common.Address, managedParties []string) {
+	stateObject := self.GetOrNewStateObject(addr)
+	if stateObject != nil && len(managedParties) > 0 {
+		stateObject.SetManagedParties(managedParties)
+	}
+}
+
 func (self *StateDB) SetCode(addr common.Address, code []byte) {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {

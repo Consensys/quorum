@@ -143,3 +143,25 @@ func TestRLP_AccountExtraData_BackwardCompatibility(t *testing.T) {
 	assert.Equal(t, arbitraryExistingMetadata.CreationTxHash, actual.PrivacyMetadata.CreationTxHash)
 	assert.Equal(t, arbitraryExistingMetadata.PrivacyFlag, actual.PrivacyMetadata.PrivacyFlag)
 }
+
+func TestRLP_AccountExtraData_withField_ManagedParties(t *testing.T) {
+	// prepare existing RLP bytes
+	arbitraryExtraData := &AccountExtraData{
+		PrivacyMetadata: &PrivacyMetadata{
+			CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("arbitrary-existing-privacy-metadata-creation-hash")),
+			PrivacyFlag:    engine.PrivacyFlagPartyProtection,
+		},
+		ManagedParties: []string{"Arbitrary PK1", "Arbitrary PK2"},
+	}
+	existing, err := rlp.EncodeToBytes(arbitraryExtraData)
+	assert.NoError(t, err)
+
+	// now try to decode with the new struct
+	var actual AccountExtraData
+	err = rlp.DecodeBytes(existing, &actual)
+
+	assert.NoError(t, err, "Must decode successfully")
+	assert.Equal(t, arbitraryExtraData.PrivacyMetadata.CreationTxHash, actual.PrivacyMetadata.CreationTxHash)
+	assert.Equal(t, arbitraryExtraData.PrivacyMetadata.PrivacyFlag, actual.PrivacyMetadata.PrivacyFlag)
+	assert.Equal(t, arbitraryExtraData.ManagedParties, actual.ManagedParties)
+}

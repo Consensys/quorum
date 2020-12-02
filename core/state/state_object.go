@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -83,6 +84,9 @@ type stateObject struct {
 	// Quorum
 	// contains extra data that is linked to the account
 	accountExtraData *AccountExtraData
+	// as there are many fields in accountExtraData which might be concurrently changed
+	// this is to make sure we can keep track of changes individually.
+	accountExtraDataMutex sync.Mutex
 
 	originStorage  Storage // Storage cache of original entries to dedup rewrites, reset for every transaction
 	pendingStorage Storage // Storage entries that need to be flushed to disk, at the end of an entire block
@@ -154,31 +158,30 @@ func (p *PrivacyMetadata) EncodeRLP(writer io.Writer) error {
 // Quorum
 // AccountExtraData is to contain extra data that supplements existing Account data.
 // It is also maintained in a trie to support rollback.
-// Note: it's important to update copy() method to make sure data history is kept
+// Note:
+// - update copy() method
+// - update DecodeRLP and EncodeRLP when adding new field
 type AccountExtraData struct {
+	// for privacy enhancements
 	PrivacyMetadata *PrivacyMetadata
-}
-
-// Quorum
-// accountExtraDataRLP struct is to make sure
-// field order is preserved regardless changes in the AccountExtraData and its internal
-//
-// Edit this struct with care to make sure forward and backward compatibility.
-type accountExtraDataRLP struct {
-	// from state.PrivacyMetadata, this is required to support
-	// backward compatibility with RLP-encoded state.PrivacyMetadata.
-	// Refer to rlp/doc.go for decoding rules.
-	CreationTxHash common.EncryptedPayloadHash
-	// from state.PrivacyMetadata, this is required to support
-	// backward compatibility with RLP-encoded state.PrivacyMetadata.
-	// Refer to rlp/doc.go for decoding rules.
-	PrivacyFlag engine.PrivacyFlagType
-
-	Rest []rlp.RawValue `rlp:"tail"` // to maintain forward compatibility
+	// list of public keys managed by the corresponding Tessera.
+	// This is for multitenancy
+	ManagedParties []string
 }
 
 func (qmd *AccountExtraData) DecodeRLP(stream *rlp.Stream) error {
-	var dataRLP accountExtraDataRLP
+	var dataRLP struct {
+		// from state.PrivacyMetadata, this is required to support
+		// backward compatibility with RLP-encoded state.PrivacyMetadata.
+		// Refer to rlp/doc.go for decoding rules.
+		CreationTxHash common.EncryptedPayloadHash
+		// from state.PrivacyMetadata, this is required to support
+		// backward compatibility with RLP-encoded state.PrivacyMetadata.
+		// Refer to rlp/doc.go for decoding rules.
+		PrivacyFlag engine.PrivacyFlagType
+
+		Rest []rlp.RawValue `rlp:"tail"` // to maintain forward compatibility
+	}
 	if err := stream.Decode(&dataRLP); err != nil {
 		return err
 	}
@@ -186,13 +189,25 @@ func (qmd *AccountExtraData) DecodeRLP(stream *rlp.Stream) error {
 		CreationTxHash: dataRLP.CreationTxHash,
 		PrivacyFlag:    dataRLP.PrivacyFlag,
 	}
+	if len(dataRLP.Rest) > 0 {
+		var managedParties []string
+		if err := rlp.DecodeBytes(dataRLP.Rest[0], &managedParties); err != nil {
+			return fmt.Errorf("fail to decode managedParties with error %v", err)
+		}
+		qmd.ManagedParties = managedParties
+	}
 	return nil
 }
 
 func (qmd *AccountExtraData) EncodeRLP(writer io.Writer) error {
-	return rlp.Encode(writer, accountExtraDataRLP{
+	return rlp.Encode(writer, struct {
+		CreationTxHash common.EncryptedPayloadHash
+		PrivacyFlag    engine.PrivacyFlagType
+		ManagedParties []string
+	}{
 		CreationTxHash: qmd.PrivacyMetadata.CreationTxHash,
 		PrivacyFlag:    qmd.PrivacyMetadata.PrivacyFlag,
+		ManagedParties: qmd.ManagedParties,
 	})
 }
 
@@ -207,8 +222,11 @@ func (qmd *AccountExtraData) copy() *AccountExtraData {
 			PrivacyFlag:    qmd.PrivacyMetadata.PrivacyFlag,
 		}
 	}
+	copyManagedParties := make([]string, len(qmd.ManagedParties))
+	copy(copyManagedParties, qmd.ManagedParties)
 	return &AccountExtraData{
 		PrivacyMetadata: copyPM,
+		ManagedParties:  copyManagedParties,
 	}
 }
 
@@ -572,10 +590,9 @@ func (s *stateObject) SetAccountExtraData(extraData *AccountExtraData) {
 	s.setAccountExtraData(extraData)
 }
 
-// Quorum
-// UpdatePrivacyMetadata updates the AccountExtraData and journals it.
 // A new AccountExtraData will be created if not exists.
-func (s *stateObject) SetStatePrivacyMetadata(pm *PrivacyMetadata) {
+// This must be called after successfully acquiring accountExtraDataMutex lock
+func (s *stateObject) journalAccountExtraData() *AccountExtraData {
 	current, _ := s.AccountExtraData()
 	s.db.journal.append(accountExtraDataChange{
 		account: &s.address,
@@ -584,8 +601,29 @@ func (s *stateObject) SetStatePrivacyMetadata(pm *PrivacyMetadata) {
 	if current == nil {
 		current = &AccountExtraData{}
 	}
-	current.PrivacyMetadata = pm
-	s.setAccountExtraData(current)
+	return current
+}
+
+// Quorum
+// SetStatePrivacyMetadata updates the PrivacyMetadata in AccountExtraData and journals it.
+func (s *stateObject) SetStatePrivacyMetadata(pm *PrivacyMetadata) {
+	s.accountExtraDataMutex.Lock()
+	defer s.accountExtraDataMutex.Unlock()
+
+	newExtraData := s.journalAccountExtraData()
+	newExtraData.PrivacyMetadata = pm
+	s.setAccountExtraData(newExtraData)
+}
+
+// Quorum
+// SetStatePrivacyMetadata updates the PrivacyMetadata in AccountExtraData and journals it.
+func (s *stateObject) SetManagedParties(managedParties []string) {
+	s.accountExtraDataMutex.Lock()
+	defer s.accountExtraDataMutex.Unlock()
+
+	newExtraData := s.journalAccountExtraData()
+	newExtraData.ManagedParties = managedParties
+	s.setAccountExtraData(newExtraData)
 }
 
 // Quorum

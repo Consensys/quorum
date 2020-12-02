@@ -62,6 +62,7 @@ type StateDB interface {
 	//SetNonce(common.Address, uint64)
 
 	SetStatePrivacyMetadata(common.Address, *state.PrivacyMetadata)
+	SetManagedParties(addr common.Address, managedParties []string)
 	//GetCodeHash(common.Address) common.Hash
 	//GetCode(common.Address) []byte
 	//SetCode(common.Address, []byte)
