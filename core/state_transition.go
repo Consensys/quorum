@@ -340,7 +340,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	st.refundGas()
 	st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 
-	if contractCreation {
+	if contractCreation && st.evm.SupportsMultitenancy {
 		addresses := evm.CreatedContracts()
 		for _, address := range addresses {
 			log.Debug("Save to extra data",
