@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -2322,6 +2323,15 @@ func (bc *BlockChain) GetAncestor(hash common.Hash, number, ancestor uint64, max
 // caching it (associated with its hash) if found.
 func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
 	return bc.hc.GetHeaderByNumber(number)
+}
+
+// GetContractIndexer returns a new instance of ContractIndexer
+func (bc *BlockChain) ContractIndexWriter() multitenancy.ContractIndexWriter {
+	if bc.isMultitenant {
+		return multitenancy.NewContractIndex(bc.db)
+	} else {
+		return nil
+	}
 }
 
 // GetTransactionLookup retrieves the lookup associate with the given transaction
