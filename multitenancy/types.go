@@ -32,6 +32,11 @@ const (
 	AnyEOAAddress = "0x0"
 )
 
+// an auxiliary interface
+type Context interface {
+	SupportsMultitenancy() bool
+}
+
 // AccountStateSecurityAttribute contains security configuration ask
 // which are defined for a secure account state
 type AccountStateSecurityAttribute struct {

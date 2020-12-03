@@ -30,14 +30,12 @@ import (
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
 type ChainContext interface {
+	multitenancy.Context
 	// Engine retrieves the chain's consensus engine.
 	Engine() consensus.Engine
 
 	// GetHeader returns the hash corresponding to their hash.
 	GetHeader(common.Hash, uint64) *types.Header
-
-	// ContractIndexWriter return the ContractIndex
-	ContractIndexWriter() multitenancy.ContractIndexWriter
 }
 
 // NewEVMContext creates a new context for use in the EVM.
@@ -49,22 +47,24 @@ func NewEVMContext(msg Message, header *types.Header, chain ChainContext, author
 	} else {
 		beneficiary = *author
 	}
-	var contractIndexer multitenancy.ContractIndexWriter
+	supportsMultitenancy := false
+	// mainly to overcome lost of test cases which pass ChainContext as nil value
+	// nil interface requires this check to make sure we don't get nil pointer reference error
 	if chain != nil && !reflect.ValueOf(chain).IsNil() {
-		contractIndexer = chain.ContractIndexWriter()
+		supportsMultitenancy = chain.SupportsMultitenancy()
 	}
 	return vm.Context{
-		CanTransfer:     CanTransfer,
-		Transfer:        Transfer,
-		GetHash:         GetHashFn(header, chain),
-		ContractIndexer: contractIndexer,
-		Origin:          msg.From(),
-		Coinbase:        beneficiary,
-		BlockNumber:     new(big.Int).Set(header.Number),
-		Time:            new(big.Int).SetUint64(header.Time),
-		Difficulty:      new(big.Int).Set(header.Difficulty),
-		GasLimit:        header.GasLimit,
-		GasPrice:        new(big.Int).Set(msg.GasPrice()),
+		CanTransfer:          CanTransfer,
+		Transfer:             Transfer,
+		GetHash:              GetHashFn(header, chain),
+		Origin:               msg.From(),
+		Coinbase:             beneficiary,
+		BlockNumber:          new(big.Int).Set(header.Number),
+		Time:                 new(big.Int).SetUint64(header.Time),
+		Difficulty:           new(big.Int).Set(header.Difficulty),
+		GasLimit:             header.GasLimit,
+		GasPrice:             new(big.Int).Set(msg.GasPrice()),
+		SupportsMultitenancy: supportsMultitenancy,
 	}
 }
 

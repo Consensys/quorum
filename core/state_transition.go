@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
 )
@@ -212,6 +211,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	istanbul := st.evm.ChainConfig().IsIstanbul(st.evm.BlockNumber)
 	contractCreation := msg.To() == nil
 	isQuorum := st.evm.ChainConfig().IsQuorum
+	snapshot := st.evm.StateDB.Snapshot()
 
 	var data []byte
 	var managedParties []string
@@ -220,7 +220,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	pmh := newPMH(st)
 	if msg, ok := msg.(PrivateMessage); ok && isQuorum && msg.IsPrivate() {
 		isPrivate = true
-		pmh.snapshot = st.evm.StateDB.Snapshot()
+		pmh.snapshot = snapshot
 		pmh.eph = common.BytesToEncryptedPayloadHash(st.data)
 		managedParties, data, pmh.receivedPrivacyMetadata, err = private.P.Receive(pmh.eph)
 		// Increment the public account nonce if:
@@ -307,6 +307,28 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 	// End Quorum - Privacy Enhancements
 
+	// do the affected contract managed party checks
+	if msg, ok := msg.(PrivateMessage); ok && isQuorum && st.evm.SupportsMultitenancy && msg.IsPrivate() {
+		if len(managedParties) > 0 {
+			for _, address := range evm.AffectedContracts() {
+				managedPartiesInContract, err := st.evm.StateDB.ReadManagedParties(address)
+				if err != nil {
+					return nil, 0, true, err
+				}
+				// managed parties for public transactions is empty so nothing to check there
+				if len(managedPartiesInContract) > 0 {
+					if !containsAll(managedPartiesInContract, managedParties) {
+						log.Debug("Managed parties check has failed for contract", "addr", address, "EPH",
+							pmh.eph.TerminalString(), "contractMP", managedPartiesInContract, "txMP", managedParties)
+						st.evm.RevertToSnapshot(snapshot)
+						// TODO - see whether we can find a way to store this error and make it available via customizations to getTransactionReceipt
+						return nil, 0, true, nil
+					}
+				}
+			}
+		}
+	}
+
 	// Pay gas used during contract creation or execution (st.gas tracks remaining gas)
 	// However, if private contract then we don't want to do this else we can get
 	// a mismatch between a (non-participant) minter and (participant) validator,
@@ -333,6 +355,22 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		return ret, 0, vmerr != nil, err
 	}
 	return ret, st.gasUsed(), vmerr != nil, err
+}
+
+func containsAll(source, target []string) bool {
+	for _, str := range target {
+		found := false
+		for _, sourceStr := range source {
+			if sourceStr == str {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 func (st *StateTransition) refundGas() {
