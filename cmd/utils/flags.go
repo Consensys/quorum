@@ -68,6 +68,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/netutil"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/permission"
+	"github.com/ethereum/go-ethereum/permission/core/types"
 	"github.com/ethereum/go-ethereum/plugin"
 	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/raft"
@@ -1833,14 +1834,14 @@ func RegisterPluginService(stack *node.Node, cfg *node.Config, skipVerify bool, 
 }
 
 // Configure smart-contract-based permissioning service
-func RegisterPermissionService(stack *node.Node) {
+func RegisterPermissionService(stack *node.Node, useDns bool) {
 	if err := stack.Register(func(sctx *node.ServiceContext) (node.Service, error) {
-		permissionConfig, err := permission.ParsePermissionConfig(stack.DataDir())
+		permissionConfig, err := types.ParsePermissionConfig(stack.DataDir())
 		if err != nil {
 			return nil, fmt.Errorf("loading of %s failed due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}
 		// start the permissions management service
-		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig)
+		pc, err := permission.NewQuorumPermissionCtrl(stack, &permissionConfig, useDns)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load the permission contracts as given in %s due to %v", params.PERMISSION_MODEL_CONFIG, err)
 		}
@@ -1898,6 +1899,7 @@ func RegisterRaftService(stack *node.Node, ctx *cli.Context, nodeCfg *node.Confi
 	}); err != nil {
 		Fatalf("Failed to register the Raft service: %v", err)
 	}
+	log.Info("raft service registered")
 }
 
 func RegisterExtensionService(stack *node.Node, ethChan chan *eth.Ethereum) {

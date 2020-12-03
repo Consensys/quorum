@@ -166,7 +166,7 @@ func makeFullNode(ctx *cli.Context) *node.Node {
 	}
 
 	if cfg.Node.IsPermissionEnabled() {
-		utils.RegisterPermissionService(stack)
+		utils.RegisterPermissionService(stack, ctx.Bool(utils.RaftDNSEnabledFlag.Name))
 	}
 
 	if ctx.GlobalBool(utils.RaftModeFlag.Name) {
