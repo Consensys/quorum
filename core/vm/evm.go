@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -123,12 +122,6 @@ type Context struct {
 	BlockNumber *big.Int       // Provides information for NUMBER
 	Time        *big.Int       // Provides information for TIME
 	Difficulty  *big.Int       // Provides information for DIFFICULTY
-
-	// Quorum
-	// Writes an index for contract address against parties
-	// which are managed by paired Tessera.
-	// This value can be nil in case multitenancy not enabled in this node.
-	ContractIndexer multitenancy.ContractIndexWriter
 }
 
 type PublicState StateDB
@@ -533,7 +526,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		// for calls (reading contract state) or finding the affected contracts there is no transaction
 		if evm.currentTx.PrivacyMetadata().PrivacyFlag.IsNotStandardPrivate() {
 			pm := state.NewStatePrivacyMetadata(common.BytesToEncryptedPayloadHash(evm.currentTx.Data()), evm.currentTx.PrivacyMetadata().PrivacyFlag)
-			evm.StateDB.SetStatePrivacyMetadata(address, pm)
+			evm.StateDB.WritePrivacyMetadata(address, pm)
 			log.Trace("Set Privacy Metadata", "key", address, "privacyMetadata", pm)
 		}
 	}

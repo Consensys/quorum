@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/multitenancy"
@@ -52,8 +53,8 @@ type Backend interface {
 	// Quorum - Multitenancy
 	// rpcCtx must carry the preauthenticated token in addition to the config
 	SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool)
-	// Quorum - Multitenancy
-	ContractIndexReader() multitenancy.ContractIndexReader
+	// AccountExtraDataStateReaderByNumber returns state reader at a given block height
+	AccountExtraDataStateReaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateReader, error)
 	// Quorum - Multitenancy
 	// Performs matching logic between verified entitlements embedded in the authToken and
 	// the security attributes built from the request

@@ -654,7 +654,7 @@ func (s *stateObject) AccountExtraData() (*AccountExtraData, error) {
 	if s.accountExtraData != nil {
 		return s.accountExtraData, nil
 	}
-	val, err := s.GetCommittedAccountExtraData()
+	val, err := s.getCommittedAccountExtraData()
 	if err != nil {
 		return nil, err
 	}
@@ -663,10 +663,10 @@ func (s *stateObject) AccountExtraData() (*AccountExtraData, error) {
 }
 
 // Quorum
-// GetCommittedAccountExtraData looks for an entry in accountExtraDataTrie.
+// getCommittedAccountExtraData looks for an entry in accountExtraDataTrie.
 //
 // This method enforces on returning error and never returns (nil, nil).
-func (s *stateObject) GetCommittedAccountExtraData() (*AccountExtraData, error) {
+func (s *stateObject) getCommittedAccountExtraData() (*AccountExtraData, error) {
 	val, err := s.db.accountExtraDataTrie.TryGet(s.address.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve data from the accountExtraDataTrie. Cause: %v", err)
@@ -692,7 +692,7 @@ func (s *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
 }
 
 func (s *stateObject) GetCommittedPrivacyMetadata() (*PrivacyMetadata, error) {
-	extraData, err := s.GetCommittedAccountExtraData()
+	extraData, err := s.getCommittedAccountExtraData()
 	if err != nil {
 		return nil, err
 	}
@@ -703,6 +703,15 @@ func (s *stateObject) GetCommittedPrivacyMetadata() (*PrivacyMetadata, error) {
 }
 
 // End Quorum - Privacy Enhancements
+
+func (s *stateObject) ManagedParties() ([]string, error) {
+	extraData, err := s.AccountExtraData()
+	if err != nil {
+		return nil, err
+	}
+	// extraData can't be nil. Refer to s.AccountExtraData()
+	return extraData.ManagedParties, nil
+}
 
 // Never called, but must be present to allow stateObject to be used
 // as a vm.Account interface that also satisfies the vm.ContractRef

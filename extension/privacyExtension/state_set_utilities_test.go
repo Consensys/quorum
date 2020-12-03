@@ -124,16 +124,16 @@ func Test_setPrivacyMetadata(t *testing.T) {
 	hash := common.BytesToEncryptedPayloadHash(arbitraryBytes1)
 	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes1))
 
-	privacyMetaData, err := statedb.GetStatePrivacyMetadata(address)
+	privacyMetaData, err := statedb.ReadPrivacyMetadata(address)
 	if err != nil {
 		t.Errorf("expected error to be nil, got err %s", err)
 	}
 
 	assert.NotEqual(t, privacyMetaData.CreationTxHash, hash)
 	privacyMetaData = &state.PrivacyMetadata{hash, engine.PrivacyFlagPartyProtection}
-	statedb.SetStatePrivacyMetadata(address, privacyMetaData)
+	statedb.WritePrivacyMetadata(address, privacyMetaData)
 
-	privacyMetaData, err = statedb.GetStatePrivacyMetadata(address)
+	privacyMetaData, err = statedb.ReadPrivacyMetadata(address)
 	if err != nil {
 		t.Errorf("expected error to be nil, got err %s", err)
 	}
@@ -144,7 +144,7 @@ func Test_setPrivacyMetadata(t *testing.T) {
 	newHash := common.BytesToEncryptedPayloadHash(arbitraryBytes2)
 	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes2))
 
-	privacyMetaData, err = statedb.GetStatePrivacyMetadata(address)
+	privacyMetaData, err = statedb.ReadPrivacyMetadata(address)
 	if err != nil {
 		t.Errorf("expected error to be nil, got err %s", err)
 	}

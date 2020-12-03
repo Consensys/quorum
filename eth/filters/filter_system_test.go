@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/multitenancy"
@@ -157,8 +158,8 @@ func (b *testBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAu
 	return nil, false
 }
 
-func (b *testBackend) ContractIndexReader() multitenancy.ContractIndexReader {
-	return nil
+func (b *testBackend) AccountExtraDataStateReaderByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateReader, error) {
+	return nil, nil
 }
 
 func (b *testBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {

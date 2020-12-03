@@ -605,9 +605,21 @@ func (api *PublicFilterAPI) isAuthorized(ctx context.Context, logs []*types.Log)
 		return true, nil
 	}
 	if authToken, ok := api.backend.SupportsMultitenancy(ctx); ok {
-		attributes, err := multitenancy.ToContractSecurityAttributes(api.backend.ContractIndexReader(), logs)
-		if err != nil {
-			return false, err
+		attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
+		for _, l := range logs {
+			contractAddress := l.Address
+			extraDataReader, err := api.backend.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(l.BlockNumber))
+			if err != nil {
+				return false, fmt.Errorf("no account extra data reader at block %v: %w", l.BlockNumber, err)
+			}
+			managedParties, err := extraDataReader.ReadManagedParties(contractAddress)
+			attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().Read().Private()
+			if errors.Is(err, common.ErrNotPrivateContract) {
+				attrBuilder.Public()
+			} else if err != nil {
+				return false, fmt.Errorf("contract %s not found in the index due to %s", contractAddress.Hex(), err.Error())
+			}
+			attributes = append(attributes, attrBuilder.Parties(managedParties).Build())
 		}
 		if !api.backend.IsAuthorized(ctx, authToken, attributes) {
 			return false, nil

@@ -84,7 +84,7 @@ func (fetcher *StateFetcher) GetPrivacyMetaData(blockHash common.Hash, address c
 		return nil, err
 	}
 
-	privacyMetaData, err := privateState.GetStatePrivacyMetadata(address)
+	privacyMetaData, err := privateState.ReadPrivacyMetadata(address)
 	if err != nil {
 		return nil, err
 	}

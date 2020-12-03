@@ -27,7 +27,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/multitenancy"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/private"
 )
@@ -318,19 +317,14 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	st.refundGas()
 	st.state.AddBalance(st.evm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 
-	ci := st.evm.Context.ContractIndexer
-	if contractCreation && ci != nil {
+	if contractCreation {
 		addresses := evm.CreatedContracts()
 		for _, address := range addresses {
-			indexItem := &multitenancy.ContractIndexItem{CreatorAddress: msg.From(), IsPrivate: isPrivate, Parties: managedParties}
-			log.Debug("Writing index",
+			log.Debug("Save to extra data",
 				"address", strings.ToLower(address.Hex()),
 				"isPrivate", isPrivate,
-				"creator", strings.ToLower(msg.From().Hex()),
 				"parties", managedParties)
-			if err := ci.WriteIndex(address, indexItem); err != nil {
-				log.Error("Writing index failed", "error", err)
-			}
+			st.evm.StateDB.WriteManagedParties(address, managedParties)
 		}
 	}
 
@@ -373,7 +367,7 @@ func (st *StateTransition) RevertToSnapshot(snapshot int) {
 	st.evm.StateDB.RevertToSnapshot(snapshot)
 }
 func (st *StateTransition) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
-	return st.evm.StateDB.GetStatePrivacyMetadata(addr)
+	return st.evm.StateDB.ReadPrivacyMetadata(addr)
 }
 func (st *StateTransition) CalculateMerkleRoot() (common.Hash, error) {
 	return st.evm.CalculateMerkleRoot()

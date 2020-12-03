@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
+//go:generate mockgen -source interface.go -destination mock_interface.go -package vm
+
 package vm
 
 import (
@@ -24,9 +26,22 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+type AccountExtraDataStateReader interface {
+	// Return nil for public contract
+	ReadPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error)
+	ReadManagedParties(addr common.Address) ([]string, error)
+}
+
+type AccountExtraDataStateWriter interface {
+	WritePrivacyMetadata(addr common.Address, pm *state.PrivacyMetadata)
+	WriteManagedParties(addr common.Address, managedParties []string)
+}
+
 // Quorum uses a cut-down StateDB, MinimalApiState. We leave the methods in StateDB commented out so they'll produce a
 // conflict when upstream changes.
 type MinimalApiState interface {
+	AccountExtraDataStateReader
+
 	GetBalance(addr common.Address) *big.Int
 	SetBalance(addr common.Address, balance *big.Int)
 	GetCode(addr common.Address) []byte
@@ -34,8 +49,6 @@ type MinimalApiState interface {
 	GetNonce(addr common.Address) uint64
 	SetNonce(addr common.Address, nonce uint64)
 	SetCode(common.Address, []byte)
-	// Return nil for public contract
-	GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error)
 
 	// RLP-encoded of the state object in a given address
 	// Throw error if no state object is found
@@ -52,6 +65,8 @@ type MinimalApiState interface {
 // StateDB is an EVM database for full state querying.
 type StateDB interface {
 	MinimalApiState
+	AccountExtraDataStateWriter
+
 	CreateAccount(common.Address)
 
 	SubBalance(common.Address, *big.Int)
@@ -61,8 +76,6 @@ type StateDB interface {
 	//GetNonce(common.Address) uint64
 	//SetNonce(common.Address, uint64)
 
-	SetStatePrivacyMetadata(common.Address, *state.PrivacyMetadata)
-	SetManagedParties(addr common.Address, managedParties []string)
 	//GetCodeHash(common.Address) common.Hash
 	//GetCode(common.Address) []byte
 	//SetCode(common.Address, []byte)

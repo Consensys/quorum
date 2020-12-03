@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type ContractVisibility string
@@ -36,7 +35,7 @@ const (
 // AccountStateSecurityAttribute contains security configuration ask
 // which are defined for a secure account state
 type AccountStateSecurityAttribute struct {
-	From common.Address // Account Address
+	From common.Address // Ethereum Account Address
 	To   common.Address
 }
 
@@ -56,41 +55,6 @@ type ContractSecurityAttribute struct {
 
 func (csa *ContractSecurityAttribute) String() string {
 	return fmt.Sprintf("%v visibility=%s action=%s privateFrom=%s parties=%v", csa.AccountStateSecurityAttribute, csa.Visibility, csa.Action, csa.PrivateFrom, csa.Parties)
-}
-
-// Construct a list of READ security ask from contract event logs
-func ToContractSecurityAttributes(contractIndex ContractIndexReader, logs []*types.Log) ([]*ContractSecurityAttribute, error) {
-	attributes := make([]*ContractSecurityAttribute, 0)
-	for _, l := range logs {
-		attr, err := ToContractSecurityAttribute(contractIndex, l.Address)
-		if err != nil {
-			return nil, err
-		}
-		attributes = append(attributes, attr)
-	}
-	return attributes, nil
-}
-
-// Construct a READ security attribute for a contract from the index
-func ToContractSecurityAttribute(contractIndex ContractIndexReader, contractAddress common.Address) (*ContractSecurityAttribute, error) {
-	ci, err := contractIndex.ReadIndex(contractAddress)
-	if err != nil {
-		return nil, fmt.Errorf("contract %s not found in the index due to %s", contractAddress.Hex(), err.Error())
-	}
-	attr := &ContractSecurityAttribute{
-		AccountStateSecurityAttribute: &AccountStateSecurityAttribute{
-			From: ci.CreatorAddress, // TODO must figure out what this value must be when tighten access control for account
-			To:   ci.CreatorAddress,
-		},
-		Action:  ActionRead,
-		Parties: ci.Parties,
-	}
-	if ci.IsPrivate {
-		attr.Visibility = VisibilityPrivate
-	} else {
-		attr.Visibility = VisibilityPublic
-	}
-	return attr, nil
 }
 
 type ContractSecurityAttributeBuilder struct {

@@ -326,7 +326,7 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 			args: make([]int64, 2),
 		},
 		{
-			name: "SetStatePrivacyMetadata",
+			name: "WritePrivacyMetadata",
 			fn: func(a testAction, s *StateDB) {
 
 				privFlag := engine.PrivacyFlagType((uint64(a.args[0])%2)*2 + 1) // the only possible values should be 1 and 3
@@ -334,7 +334,7 @@ func newTestAction(addr common.Address, r *rand.Rand) testAction {
 				binary.BigEndian.PutUint64(b, uint64(a.args[1]))
 				hash := common.BytesToEncryptedPayloadHash(b)
 
-				s.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+				s.WritePrivacyMetadata(addr, &PrivacyMetadata{
 					CreationTxHash: hash,
 					PrivacyFlag:    privFlag,
 				})
@@ -482,9 +482,9 @@ func (test *snapshotTest) checkEqual(state, checkstate *StateDB) error {
 		checkeq("GetCode", state.GetCode(addr), checkstate.GetCode(addr))
 		checkeq("GetCodeHash", state.GetCodeHash(addr), checkstate.GetCodeHash(addr))
 		checkeq("GetCodeSize", state.GetCodeSize(addr), checkstate.GetCodeSize(addr))
-		statePM, _ := state.GetStatePrivacyMetadata(addr)
-		checkStatePM, _ := checkstate.GetStatePrivacyMetadata(addr)
-		checkeq("GetStatePrivacyMetadata", statePM, checkStatePM)
+		statePM, _ := state.ReadPrivacyMetadata(addr)
+		checkStatePM, _ := checkstate.ReadPrivacyMetadata(addr)
+		checkeq("ReadPrivacyMetadata", statePM, checkStatePM)
 		// Check storage.
 		if obj := state.getStateObject(addr); obj != nil {
 			state.ForEachStorage(addr, func(key, value common.Hash) bool {
@@ -744,7 +744,7 @@ func TestPrivacyMetadataIsSavedOnStateDbCommit(t *testing.T) {
 	state.CreateAccount(addr)
 
 	state.SetNonce(addr, uint64(1))
-	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+	state.WritePrivacyMetadata(addr, &PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
 		CreationTxHash: common.EncryptedPayloadHash{1},
 	})
@@ -771,7 +771,7 @@ func TestPrivacyMetadataIsUpdatedOnAccountReCreateWithDifferentPrivacyMetadata(t
 	state.CreateAccount(addr)
 
 	state.SetNonce(addr, uint64(1))
-	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+	state.WritePrivacyMetadata(addr, &PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
 		CreationTxHash: common.EncryptedPayloadHash{1},
 	})
@@ -784,7 +784,7 @@ func TestPrivacyMetadataIsUpdatedOnAccountReCreateWithDifferentPrivacyMetadata(t
 
 	state.CreateAccount(addr)
 	state.SetNonce(addr, uint64(1))
-	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+	state.WritePrivacyMetadata(addr, &PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagStateValidation,
 		CreationTxHash: common.EncryptedPayloadHash{1},
 	})
@@ -808,7 +808,7 @@ func TestPrivacyMetadataIsRemovedOnAccountSuicide(t *testing.T) {
 	state.CreateAccount(addr)
 
 	state.SetNonce(addr, uint64(1))
-	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+	state.WritePrivacyMetadata(addr, &PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
 		CreationTxHash: common.EncryptedPayloadHash{1},
 	})
@@ -837,7 +837,7 @@ func TestPrivacyMetadataChangesAreRolledBackOnRevert(t *testing.T) {
 	state.CreateAccount(addr)
 
 	state.SetNonce(addr, uint64(1))
-	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+	state.WritePrivacyMetadata(addr, &PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
 		CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("one")),
 	})
@@ -849,7 +849,7 @@ func TestPrivacyMetadataChangesAreRolledBackOnRevert(t *testing.T) {
 	}
 
 	// update privacy metadata
-	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+	state.WritePrivacyMetadata(addr, &PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagStateValidation,
 		CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("two")),
 	})
@@ -857,18 +857,18 @@ func TestPrivacyMetadataChangesAreRolledBackOnRevert(t *testing.T) {
 	// record the snapshot
 	snapshot := state.Snapshot()
 
-	privMetaData, _ = state.GetStatePrivacyMetadata(addr)
+	privMetaData, _ = state.ReadPrivacyMetadata(addr)
 	if privMetaData.CreationTxHash != common.BytesToEncryptedPayloadHash([]byte("two")) {
 		t.Errorf("current privacy metadata creation tx hash does not match the expected value")
 	}
 
 	// update the metadata
-	state.SetStatePrivacyMetadata(addr, &PrivacyMetadata{
+	state.WritePrivacyMetadata(addr, &PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagStateValidation,
 		CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("three")),
 	})
 
-	privMetaData, _ = state.GetStatePrivacyMetadata(addr)
+	privMetaData, _ = state.ReadPrivacyMetadata(addr)
 	if privMetaData.CreationTxHash != common.BytesToEncryptedPayloadHash([]byte("three")) {
 		t.Errorf("current privacy metadata creation tx hash does not match the expected value")
 	}
@@ -876,7 +876,7 @@ func TestPrivacyMetadataChangesAreRolledBackOnRevert(t *testing.T) {
 	// revert to snapshot
 	state.RevertToSnapshot(snapshot)
 
-	privMetaData, _ = state.GetStatePrivacyMetadata(addr)
+	privMetaData, _ = state.ReadPrivacyMetadata(addr)
 	if privMetaData.CreationTxHash != common.BytesToEncryptedPayloadHash([]byte("two")) {
 		t.Errorf("current privacy metadata creation tx hash does not match the expected value")
 	}

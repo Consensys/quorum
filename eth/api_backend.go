@@ -370,8 +370,9 @@ func (b *EthAPIBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.Pre
 	return nil, false
 }
 
-func (b *EthAPIBackend) ContractIndexReader() multitenancy.ContractIndexReader {
-	return multitenancy.NewContractIndex(b.ChainDb())
+func (b *EthAPIBackend) AccountExtraDataStateReaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.AccountExtraDataStateReader, error) {
+	s, _, err := b.StateAndHeaderByNumber(ctx, number)
+	return s, err
 }
 
 func (b *EthAPIBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {
@@ -456,9 +457,16 @@ func (s EthAPIState) GetNonce(addr common.Address) uint64 {
 	return s.state.GetNonce(addr)
 }
 
-func (s EthAPIState) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+func (s EthAPIState) ReadPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
 	if s.privateState.Exist(addr) {
-		return s.privateState.GetStatePrivacyMetadata(addr)
+		return s.privateState.ReadPrivacyMetadata(addr)
+	}
+	return nil, fmt.Errorf("%x: %w", addr, common.ErrNotPrivateContract)
+}
+
+func (s EthAPIState) ReadManagedParties(addr common.Address) ([]string, error) {
+	if s.privateState.Exist(addr) {
+		return s.privateState.ReadManagedParties(addr)
 	}
 	return nil, fmt.Errorf("%x: %w", addr, common.ErrNotPrivateContract)
 }

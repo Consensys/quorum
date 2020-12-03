@@ -544,7 +544,7 @@ func (fb *filterBackend) ServiceFilter(ctx context.Context, ms *bloombits.Matche
 	panic("not supported")
 }
 
-func (fb *filterBackend) ContractIndexReader() multitenancy.ContractIndexReader {
+func (fb *filterBackend) AccountExtraDataStateReaderByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateReader, error) {
 	panic("not supported")
 }
 func (fb *filterBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {

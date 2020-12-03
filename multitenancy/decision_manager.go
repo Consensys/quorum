@@ -11,20 +11,19 @@ import (
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 )
 
+// AccountAccessDecisionManager performs authorization checks for Ethereum Account
+// based on what is entitled in the proto.PreAuthenticatedAuthenticationToken
+// and what is asked in ContractSecurityAttribute list.
+// Note: place holder for future, this is to protect Value Transfer between accounts.
 type AccountAccessDecisionManager interface {
 	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attr *AccountStateSecurityAttribute) (bool, error)
 }
 
+// ContractAccessDecisionManager performs authorization checks for contract
+// based on what is entitled in the proto.PreAuthenticatedAuthenticationToken
+// and what is asked in ContractSecurityAttribute list.
 type ContractAccessDecisionManager interface {
 	IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*ContractSecurityAttribute) (bool, error)
-}
-
-type DefaultAccountAccessDecisionManager struct {
-}
-
-func (am *DefaultAccountAccessDecisionManager) IsAuthorized(ctx context.Context,
-	authToken *proto.PreAuthenticatedAuthenticationToken, attr *AccountStateSecurityAttribute) (bool, error) {
-	panic("implement me")
 }
 
 type DefaultContractAccessDecisionManager struct {

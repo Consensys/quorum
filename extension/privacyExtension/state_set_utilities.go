@@ -28,14 +28,14 @@ func setState(privateState *state.StateDB, accounts map[string]extension.Account
 		for keyStore, valueStore := range stateDump.Storage {
 			privateState.SetState(contractAddress, keyStore, common.HexToHash(valueStore))
 		}
-		privateState.SetStatePrivacyMetadata(contractAddress, privacyMetaData)
+		privateState.WritePrivacyMetadata(contractAddress, privacyMetaData)
 	}
 	return true
 }
 
 // updates the privacy metadata
 func setPrivacyMetadata(privateState *state.StateDB, address common.Address, hash string) {
-	privacyMetaData, err := privateState.GetStatePrivacyMetadata(address)
+	privacyMetaData, err := privateState.ReadPrivacyMetadata(address)
 	if err != nil || privacyMetaData.PrivacyFlag.IsStandardPrivate() {
 		return
 	}
@@ -46,7 +46,7 @@ func setPrivacyMetadata(privateState *state.StateDB, address common.Address, has
 		return
 	}
 	pm := state.NewStatePrivacyMetadata(ptmHash, privacyMetaData.PrivacyFlag)
-	privateState.SetStatePrivacyMetadata(address, pm)
+	privateState.WritePrivacyMetadata(address, pm)
 }
 
 func logContainsExtensionTopic(receivedLog *types.Log) bool {

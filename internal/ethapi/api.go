@@ -975,32 +975,24 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	if authToken, ok := b.SupportsMultitenancy(ctx); ok {
 		attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
 		if len(data) == 0 { // value transfer, public READ
-			attributes = append(attributes, &multitenancy.ContractSecurityAttribute{
-				AccountStateSecurityAttribute: &multitenancy.AccountStateSecurityAttribute{
-					From: msg.From(),
-					To:   *msg.To(),
-				},
-				Visibility: multitenancy.VisibilityPublic,
-				Action:     multitenancy.ActionRead,
-			})
+			attributes = append(attributes,
+				multitenancy.NewContractSecurityAttributeBuilder().FromEOA(msg.From()).ToEOA(*msg.To()).Public().Read().Build())
 		} else { // contract READ
-			contractIndex := b.ContractIndexReader()
+			extraDataReader, err := b.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(header.Number.Int64()))
+			if err != nil {
+				return nil, 0, false, fmt.Errorf("no account extra data reader at block %v: %w", header.Number, err)
+			}
 			// a read can't produce a write so we only construct READ security attributes
 			for _, contractAddress := range evm.CalledContracts() {
-				cp, err := contractIndex.ReadIndex(contractAddress)
-				if err != nil {
+				managedParties, err := extraDataReader.ReadManagedParties(contractAddress)
+				visibility := multitenancy.VisibilityPrivate
+				if errors.Is(err, common.ErrNotPrivateContract) {
+					visibility = multitenancy.VisibilityPublic
+				} else if err != nil {
 					return nil, 0, false, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
 				}
-				visibility := multitenancy.VisibilityPublic
-				if cp.IsPrivate {
-					visibility = multitenancy.VisibilityPrivate
-				}
-				attributes = append(attributes, &multitenancy.ContractSecurityAttribute{
-					AccountStateSecurityAttribute: &multitenancy.AccountStateSecurityAttribute{},
-					Visibility:                    visibility,
-					Action:                        multitenancy.ActionRead,
-					Parties:                       cp.Parties,
-				})
+				attributes = append(attributes,
+					multitenancy.NewContractSecurityAttributeBuilder().Visibility(visibility).Read().Parties(managedParties).Build())
 				if !b.IsAuthorized(ctx, authToken, attributes) {
 					return nil, 0, false, fmt.Errorf("not authorized")
 				}
@@ -1430,7 +1422,7 @@ func (s *PublicTransactionPoolAPI) GetContractPrivacyMetadata(ctx context.Contex
 	if state == nil || err != nil {
 		return nil, err
 	}
-	return state.GetStatePrivacyMetadata(address)
+	return state.ReadPrivacyMetadata(address)
 }
 
 // /Quorum
@@ -1526,11 +1518,14 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	}
 	log.Debug("Found contract addresses", "count", len(contractAddresses))
 	if authToken, ok := s.b.SupportsMultitenancy(ctx); ok {
-		contractIndex := s.b.ContractIndexReader()
+		extraDataReader, err := s.b.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(blockNumber))
+		if err != nil {
+			return nil, fmt.Errorf("no account extra data reader at block %v: %w", blockNumber, err)
+		}
 		// now if the message call doesn't produce any events, we need to get contract address in another way
 		if len(contractAddresses) == 0 {
 			// by looking up in our contract index
-			if _, err := contractIndex.ReadIndex(*tx.To()); err == nil {
+			if _, err := extraDataReader.ReadManagedParties(*tx.To()); err == nil {
 				contractAddresses = append(contractAddresses, *tx.To())
 			} else {
 				// this is value transfer for public transaction
@@ -1539,11 +1534,14 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		}
 		attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
 		for _, ca := range contractAddresses {
-			attr, err := multitenancy.ToContractSecurityAttribute(contractIndex, ca)
-			if err != nil {
-				return nil, err
+			attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().Read().Private()
+			managedParties, err := extraDataReader.ReadManagedParties(ca)
+			if errors.Is(err, common.ErrNotPrivateContract) {
+				attrBuilder.Public()
+			} else if err != nil {
+				return nil, fmt.Errorf("contract %s not found in the index due to %s", ca.Hex(), err.Error())
 			}
-			attributes = append(attributes, attr)
+			attributes = append(attributes, attrBuilder.Parties(managedParties).Build())
 		}
 		if !s.b.IsAuthorized(ctx, authToken, attributes) {
 			return nil, fmt.Errorf("not authorized")
@@ -1766,6 +1764,11 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 // expected security attributes being checked against entitled ones. The
 // transaction is fed into the simulation engine in order to determine the impact.
 func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA common.Address, tx *types.Transaction, privateArgs *PrivateTxArgs) ([]*multitenancy.ContractSecurityAttribute, error) {
+	currentBlock := b.CurrentBlock().Number().Int64()
+	extraDataReader, err := b.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
+	if err != nil {
+		return nil, fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
+	}
 	evm, err := runSimulation(ctx, b, fromEOA, tx)
 	if err != nil {
 		log.Error("Simulated execution", "error", err)
@@ -1784,7 +1787,6 @@ func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA com
 			affectedContracts[a] = mode
 		}
 	}
-	contractIndex := b.ContractIndexReader()
 	attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
 	visibility := multitenancy.VisibilityPublic
 	if tx.IsPrivate() {
@@ -1807,11 +1809,11 @@ func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA com
 	} else { // message call
 		thisTxSecAttrBuilder.Write()
 		contractAddress := *tx.To()
-		ci, err := contractIndex.ReadIndex(contractAddress)
-		if err != nil {
+		managedParties, err := extraDataReader.ReadManagedParties(contractAddress)
+		if err != nil && !errors.Is(err, common.ErrNotPrivateContract) {
 			return nil, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
 		}
-		thisTxSecAttrBuilder.ToEOA(ci.CreatorAddress).Parties(ci.Parties).Visibility(visibility)
+		thisTxSecAttrBuilder.Parties(managedParties).Visibility(visibility)
 		// if this message call results in contracts creation
 		if len(createdContractAddresses) > 0 {
 			createContractSecAttrBuilder := multitenancy.NewContractSecurityAttributeBuilder().
@@ -1824,13 +1826,17 @@ func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA com
 	log.Trace("Built contract security attributes", "address", tx.To(), "attributes", thisTxSecAttr)
 	attributes = append(attributes, thisTxSecAttr)
 	for a, mode := range affectedContracts {
-		ci, err := contractIndex.ReadIndex(a)
+		managedParties, err := extraDataReader.ReadManagedParties(a)
+		isPrivate := true
+		if errors.Is(err, common.ErrNotPrivateContract) {
+			isPrivate = false
+		}
 		if err != nil {
 			return nil, fmt.Errorf("%s not found in the index, error: %s", a.Hex(), err.Error())
 		}
 		attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().
-			FromEOA(fromEOA).ToEOA(ci.CreatorAddress).Parties(ci.Parties).
-			PrivateFromOnlyIf(ci.IsPrivate, privateArgs.PrivateFrom).PrivateIf(ci.IsPrivate).
+			FromEOA(fromEOA).Parties(managedParties).
+			PrivateFromOnlyIf(isPrivate, privateArgs.PrivateFrom).PrivateIf(isPrivate).
 			ReadOnlyIf(mode&vm.ModeRead == vm.ModeRead).
 			WriteOnlyIf(mode&vm.ModeWrite == vm.ModeWrite)
 		attr := attrBuilder.Build()
@@ -2624,12 +2630,12 @@ func simulateExecutionForPE(ctx context.Context, b Backend, from common.Address,
 	privacyFlag := privateTxArgs.PrivacyFlag
 	log.Trace("after simulation run", "numberOfAffectedContracts", len(addresses), "privacyFlag", privacyFlag)
 	for _, addr := range addresses {
-		// GetStatePrivacyMetadata is invoked directly on the privateState (as the tx is private) and it returns:
+		// ReadPrivacyMetadata is invoked directly on the privateState (as the tx is private) and it returns:
 		// 1. public contacts: privacyMetadata = nil, err = nil
 		// 2. private contracts of type:
 		// 2.1. StandardPrivate:     privacyMetadata = nil, err = "The provided contract does not have privacy metadata"
 		// 2.2. PartyProtection/PSV: privacyMetadata = <data>, err = nil
-		privacyMetadata, err := evm.StateDB.GetStatePrivacyMetadata(addr)
+		privacyMetadata, err := evm.StateDB.ReadPrivacyMetadata(addr)
 		log.Debug("Found affected contract", "address", addr.Hex(), "privacyMetadata", privacyMetadata)
 		//privacyMetadata not found=non-party, or another db error
 		if err != nil && privacyFlag.IsNotStandardPrivate() {

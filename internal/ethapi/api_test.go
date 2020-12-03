@@ -2,7 +2,6 @@ package ethapi
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -28,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/private/engine"
 	"github.com/ethereum/go-ethereum/private/engine/notinuse"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/golang/mock/gomock"
 	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"github.com/stretchr/testify/assert"
 )
@@ -200,7 +200,7 @@ func TestSimulateExecution_whenPartyProtectionMessageCall(t *testing.T) {
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.WritePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    privateTxArgs.PrivacyFlag,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -242,7 +242,7 @@ func TestSimulateExecution_whenStateValidationMessageCall(t *testing.T) {
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStateValidation
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.WritePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    privateTxArgs.PrivacyFlag,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -283,7 +283,7 @@ func TestSimulateExecution_StandardPrivateFlagCallingPartyProtectionContract_Err
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.WritePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -301,7 +301,7 @@ func TestSimulateExecution_StandardPrivateFlagCallingStateValidationContract_Err
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStandardPrivate
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.WritePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagStateValidation,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -321,7 +321,7 @@ func TestSimulateExecution_PartyProtectionFlagCallingStateValidationContract_Err
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagPartyProtection
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.WritePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagStateValidation,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -341,7 +341,7 @@ func TestSimulateExecution_StateValidationFlagCallingPartyProtectionContract_Err
 	privateTxArgs.PrivacyFlag = engine.PrivacyFlagStateValidation
 
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000001"))
-	privateStateDB.SetStatePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
+	privateStateDB.WritePrivacyMetadata(arbitrarySimpleStorageContractAddress, &state.PrivacyMetadata{
 		PrivacyFlag:    engine.PrivacyFlagPartyProtection,
 		CreationTxHash: arbitrarySimpleStorageContractEncryptedPayloadHash,
 	})
@@ -482,19 +482,11 @@ func TestBuildContractSecurityAttributes_whenTypicalContractCreationFromRawPriva
 }
 
 func TestBuildContractSecurityAttributes_whenWrite(t *testing.T) {
-	arbitraryCreatorAddress := common.StringToAddress("0xArbitraryCreatorAddress")
-	stubBackend := &StubBackend{
-		stubContractIndexReader: &StubContractIndexReader{
-			errorMap: make(map[common.Address]error),
-			partiesMap: map[common.Address]multitenancy.ContractIndexItem{
-				arbitrarySimpleStorageContractAddress: {
-					CreatorAddress: arbitraryCreatorAddress,
-					IsPrivate:      true,
-					Parties:        []string{privateTxArgs.PrivateFor[0]}, // only first one is managed
-				},
-			},
-		},
-	}
+	mockExtraDataReader := vm.NewMockAccountExtraDataStateReader(gomock.NewController(t))
+	mockExtraDataReader.EXPECT().
+		ReadManagedParties(gomock.Eq(arbitrarySimpleStorageContractAddress)).
+		Return([]string{privateTxArgs.PrivateFor[0]}, nil).Times(2)
+	stubBackend := &StubBackend{mockAccountExtraDataStateReader: mockExtraDataReader}
 	privateStateDB.SetCode(arbitrarySimpleStorageContractAddress, hexutil.MustDecode("0x608060405234801561001057600080fd5b506040516020806101618339810180604052602081101561003057600080fd5b81019080805190602001909291905050508060008190555050610109806100586000396000f3fe6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806360fe47b114604e5780636d4ce63c146099575b600080fd5b348015605957600080fd5b50608360048036036020811015606e57600080fd5b810190808035906020019092919050505060c1565b6040518082815260200191505060405180910390f35b34801560a457600080fd5b5060ab60d4565b6040518082815260200191505060405180910390f35b6000816000819055506000549050919050565b6000805490509056fea165627a7a723058203624ca2e3479d3fa5a12d97cf3dae0d9a6de3a3b8a53c8605b9cd398d9766b9f00290000000000000000000000000000000000000000000000000000000000000002"))
 	privateStateDB.SetState(arbitrarySimpleStorageContractAddress, common.Hash{0}, common.Hash{100})
 	privateStateDB.Commit(true)
@@ -530,7 +522,7 @@ func TestBuildContractSecurityAttributes_whenWrite(t *testing.T) {
 	assert.Equal(t, multitenancy.ActionWrite, attr.Action)
 	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
 	assert.Equal(t, arbitraryFrom, attr.From)
-	assert.Equal(t, arbitraryCreatorAddress, attr.To)
+	assert.Equal(t, common.Address{}, attr.To, "Don't expect ToEOA to be set")
 	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
 	assert.Len(t, attr.Parties, 1)
 	assert.Equal(t, privateTxArgs.PrivateFor[0], attr.Parties[0])
@@ -539,7 +531,7 @@ func TestBuildContractSecurityAttributes_whenWrite(t *testing.T) {
 	assert.Equal(t, multitenancy.ActionWrite, attr.Action)
 	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
 	assert.Equal(t, arbitraryFrom, attr.From)
-	assert.Equal(t, arbitraryCreatorAddress, attr.To)
+	assert.Equal(t, common.Address{}, attr.To, "Don't expect ToEOA to be set")
 	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
 	assert.Len(t, attr.Parties, 1, "Must have only 1 managed party from the index")
 	assert.Equal(t, privateTxArgs.PrivateFor[0], attr.Parties[0])
@@ -551,18 +543,35 @@ func TestBuildContractSecurityAttributes_whenCreate(t *testing.T) {
 	attributes, err := buildContractSecurityAttributes(arbitraryCtx, &StubBackend{}, arbitraryFrom, tx, privateTxArgs)
 
 	assert.NoError(t, err)
-	assert.Len(t, attributes, 1)
+	assert.Len(t, attributes, 4)
+	// the first 3 are to enforce privateFrom
 	attr := attributes[0]
+	assert.Equal(t, multitenancy.ActionCreate, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
+
+	attr = attributes[1]
+	assert.Equal(t, multitenancy.ActionWrite, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Empty(t, attr.PrivateFrom)
+	assert.Contains(t, attr.Parties, arbitraryPrivateFrom)
+
+	attr = attributes[2]
+	assert.Equal(t, multitenancy.ActionRead, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Empty(t, attr.PrivateFrom)
+	assert.Contains(t, attr.Parties, arbitraryPrivateFrom)
+
+	attr = attributes[3]
 	assert.Equal(t, multitenancy.ActionCreate, attr.Action)
 	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
 	assert.Equal(t, arbitraryFrom, attr.From)
 	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
 	assert.Empty(t, attr.Parties)
 	assert.Equal(t, common.Address{}, attr.To)
-}
-
-func TestBuildContractSecurityAttributes_whenRead(t *testing.T) {
-
 }
 
 // Copy and set private
@@ -586,32 +595,17 @@ func copyTransaction(tx *types.Transaction) *types.Transaction {
 	return privateTx
 }
 
-type StubContractIndexReader struct {
-	errorMap   map[common.Address]error
-	partiesMap map[common.Address]multitenancy.ContractIndexItem
-}
-
-func (cir *StubContractIndexReader) ReadIndex(contractAddress common.Address) (*multitenancy.ContractIndexItem, error) {
-	if e, ok := cir.errorMap[contractAddress]; ok {
-		return nil, e
-	}
-	if p, ok := cir.partiesMap[contractAddress]; ok {
-		return &p, nil
-	}
-	return nil, fmt.Errorf("no stub setup for contract")
-}
-
 type StubBackend struct {
-	getEVMCalled            bool
-	stubContractIndexReader multitenancy.ContractIndexReader
+	getEVMCalled                    bool
+	mockAccountExtraDataStateReader *vm.MockAccountExtraDataStateReader
 }
 
 func (sb *StubBackend) SupportsMultitenancy(rpcCtx context.Context) (*proto.PreAuthenticatedAuthenticationToken, bool) {
 	panic("implement me")
 }
 
-func (sb *StubBackend) ContractIndexReader() multitenancy.ContractIndexReader {
-	return sb.stubContractIndexReader
+func (sb *StubBackend) AccountExtraDataStateReaderByNumber(context.Context, rpc.BlockNumber) (vm.AccountExtraDataStateReader, error) {
+	return sb.mockAccountExtraDataStateReader, nil
 }
 
 func (sb *StubBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {
@@ -815,7 +809,11 @@ func (StubMinimalApiState) SetCode(common.Address, []byte) {
 	panic("implement me")
 }
 
-func (StubMinimalApiState) GetStatePrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+func (StubMinimalApiState) ReadPrivacyMetadata(addr common.Address) (*state.PrivacyMetadata, error) {
+	panic("implement me")
+}
+
+func (StubMinimalApiState) ReadManagedParties(addr common.Address) ([]string, error) {
 	panic("implement me")
 }
 
