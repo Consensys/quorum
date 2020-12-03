@@ -1830,8 +1830,7 @@ func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA com
 		isPrivate := true
 		if errors.Is(err, common.ErrNotPrivateContract) {
 			isPrivate = false
-		}
-		if err != nil {
+		} else if err != nil {
 			return nil, fmt.Errorf("%s not found in the index, error: %s", a.Hex(), err.Error())
 		}
 		attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().

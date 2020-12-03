@@ -200,13 +200,20 @@ func (qmd *AccountExtraData) DecodeRLP(stream *rlp.Stream) error {
 }
 
 func (qmd *AccountExtraData) EncodeRLP(writer io.Writer) error {
+	encryptedPayloadHash := common.EncryptedPayloadHash{}
+	privacyFlag := engine.PrivacyFlagStandardPrivate
+	if qmd.PrivacyMetadata != nil {
+		encryptedPayloadHash = qmd.PrivacyMetadata.CreationTxHash
+		privacyFlag = qmd.PrivacyMetadata.PrivacyFlag
+	}
+
 	return rlp.Encode(writer, struct {
 		CreationTxHash common.EncryptedPayloadHash
 		PrivacyFlag    engine.PrivacyFlagType
 		ManagedParties []string
 	}{
-		CreationTxHash: qmd.PrivacyMetadata.CreationTxHash,
-		PrivacyFlag:    qmd.PrivacyMetadata.PrivacyFlag,
+		CreationTxHash: encryptedPayloadHash,
+		PrivacyFlag:    privacyFlag,
 		ManagedParties: qmd.ManagedParties,
 	})
 }
