@@ -1728,6 +1728,10 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction, pr
 				}
 			}
 			originalTx.SetPrivate()
+			// enforcing privateFrom present
+			if privateFrom == "" {
+				return common.Hash{}, fmt.Errorf("missing privateFrom")
+			}
 		}
 		attributes, err := buildContractSecurityAttributes(ctx, b, from, originalTx, &PrivateTxArgs{
 			PrivateFrom: privateFrom,
@@ -1782,58 +1786,41 @@ func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA com
 	}
 	contractIndex := b.ContractIndexReader()
 	attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
+	visibility := multitenancy.VisibilityPublic
+	if tx.IsPrivate() {
+		visibility = multitenancy.VisibilityPrivate
+		// enforce authorization check for privateFrom
+		// user must be entitled for all actions
+		// READ and WRITE actions are taking Parties into consideration so
+		// we need to populate it with privateFrom
+		attributes = append(attributes,
+			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Create().PrivateFrom(privateArgs.PrivateFrom).Build(),
+			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Write().Party(privateArgs.PrivateFrom).Build(),
+			multitenancy.NewContractSecurityAttributeBuilder().FromEOA(fromEOA).Private().Read().Party(privateArgs.PrivateFrom).Build())
+	}
 	// the main logic below is to build correct security attributes based on
 	// information available
-	thisTxSecAttr := &multitenancy.ContractSecurityAttribute{
-		AccountStateSecurityAttribute: &multitenancy.AccountStateSecurityAttribute{
-			From: fromEOA,
-		},
-	}
+	thisTxSecAttrBuilder := multitenancy.NewContractSecurityAttributeBuilder().
+		FromEOA(fromEOA).PrivateFromOnlyIf(tx.IsPrivate(), privateArgs.PrivateFrom)
 	if tx.To() == nil { // contract creation
-		thisTxSecAttr.Action = multitenancy.ActionCreate
-		if tx.IsPrivate() {
-			thisTxSecAttr.Visibility = multitenancy.VisibilityPrivate
-			thisTxSecAttr.PrivateFrom = privateArgs.PrivateFrom
-		} else {
-			thisTxSecAttr.Visibility = multitenancy.VisibilityPublic
-		}
+		thisTxSecAttrBuilder.Create().Visibility(visibility)
 	} else { // message call
-		thisTxSecAttr.Action = multitenancy.ActionWrite
+		thisTxSecAttrBuilder.Write()
 		contractAddress := *tx.To()
 		ci, err := contractIndex.ReadIndex(contractAddress)
 		if err != nil {
 			return nil, fmt.Errorf("%s not found in the index, error: %s", contractAddress.Hex(), err.Error())
 		}
-		thisTxSecAttr.AccountStateSecurityAttribute.To = ci.CreatorAddress
-		thisTxSecAttr.Parties = ci.Parties
-		if tx.IsPrivate() {
-			thisTxSecAttr.Visibility = multitenancy.VisibilityPrivate
-			thisTxSecAttr.PrivateFrom = privateArgs.PrivateFrom
-			// if this message call results in contracts creation
-			if len(createdContractAddresses) > 0 {
-				attributes = append(attributes, &multitenancy.ContractSecurityAttribute{
-					AccountStateSecurityAttribute: &multitenancy.AccountStateSecurityAttribute{
-						From: fromEOA,
-					},
-					Visibility:  multitenancy.VisibilityPrivate,
-					Action:      multitenancy.ActionCreate,
-					PrivateFrom: privateArgs.PrivateFrom,
-				})
-			}
-		} else {
-			thisTxSecAttr.Visibility = multitenancy.VisibilityPublic
-			// if this message call creates contracts
-			if len(createdContractAddresses) > 0 {
-				attributes = append(attributes, &multitenancy.ContractSecurityAttribute{
-					AccountStateSecurityAttribute: &multitenancy.AccountStateSecurityAttribute{
-						From: fromEOA,
-					},
-					Visibility: multitenancy.VisibilityPublic,
-					Action:     multitenancy.ActionCreate,
-				})
-			}
+		thisTxSecAttrBuilder.ToEOA(ci.CreatorAddress).Parties(ci.Parties).Visibility(visibility)
+		// if this message call results in contracts creation
+		if len(createdContractAddresses) > 0 {
+			createContractSecAttrBuilder := multitenancy.NewContractSecurityAttributeBuilder().
+				FromEOA(fromEOA).Visibility(visibility).Create().
+				PrivateFromOnlyIf(tx.IsPrivate(), privateArgs.PrivateFrom)
+			attributes = append(attributes, createContractSecAttrBuilder.Build())
 		}
 	}
+	thisTxSecAttr := thisTxSecAttrBuilder.Build()
 	log.Trace("Built contract security attributes", "address", tx.To(), "attributes", thisTxSecAttr)
 	attributes = append(attributes, thisTxSecAttr)
 	for a, mode := range affectedContracts {
@@ -1841,25 +1828,12 @@ func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA com
 		if err != nil {
 			return nil, fmt.Errorf("%s not found in the index, error: %s", a.Hex(), err.Error())
 		}
-		attr := &multitenancy.ContractSecurityAttribute{
-			AccountStateSecurityAttribute: &multitenancy.AccountStateSecurityAttribute{
-				From: fromEOA,
-				To:   ci.CreatorAddress,
-			},
-			Parties:     ci.Parties,
-			PrivateFrom: privateArgs.PrivateFrom,
-		}
-		if ci.IsPrivate {
-			attr.Visibility = multitenancy.VisibilityPrivate
-		} else {
-			attr.Visibility = multitenancy.VisibilityPublic
-		}
-		if mode&vm.ModeRead == vm.ModeRead {
-			attr.Action = multitenancy.ActionRead
-		}
-		if mode&vm.ModeWrite == vm.ModeWrite {
-			attr.Action = multitenancy.ActionWrite
-		}
+		attrBuilder := multitenancy.NewContractSecurityAttributeBuilder().
+			FromEOA(fromEOA).ToEOA(ci.CreatorAddress).Parties(ci.Parties).
+			PrivateFromOnlyIf(ci.IsPrivate, privateArgs.PrivateFrom).PrivateIf(ci.IsPrivate).
+			ReadOnlyIf(mode&vm.ModeRead == vm.ModeRead).
+			WriteOnlyIf(mode&vm.ModeWrite == vm.ModeWrite)
+		attr := attrBuilder.Build()
 		log.Trace("Built affected contract security attributes", "address", a, "attributes", attr)
 		attributes = append(attributes, attr)
 	}

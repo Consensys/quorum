@@ -452,8 +452,29 @@ func TestBuildContractSecurityAttributes_whenTypicalContractCreationFromRawPriva
 	attributes, err := buildContractSecurityAttributes(arbitraryCtx, &StubBackend{}, arbitraryFrom, tx, privateTxArgs)
 
 	assert.NoError(t, err)
-	assert.Len(t, attributes, 1)
+	assert.Len(t, attributes, 4)
+	// the first 3 are to enforce privateFrom
 	attr := attributes[0]
+	assert.Equal(t, multitenancy.ActionCreate, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
+
+	attr = attributes[1]
+	assert.Equal(t, multitenancy.ActionWrite, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Empty(t, attr.PrivateFrom)
+	assert.Contains(t, attr.Parties, arbitraryPrivateFrom)
+
+	attr = attributes[2]
+	assert.Equal(t, multitenancy.ActionRead, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Empty(t, attr.PrivateFrom)
+	assert.Contains(t, attr.Parties, arbitraryPrivateFrom)
+
+	attr = attributes[3]
 	assert.Equal(t, multitenancy.ActionCreate, attr.Action)
 	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
 	assert.Equal(t, arbitraryFrom, attr.From)
@@ -482,9 +503,30 @@ func TestBuildContractSecurityAttributes_whenWrite(t *testing.T) {
 	attributes, err := buildContractSecurityAttributes(arbitraryCtx, stubBackend, arbitraryFrom, tx, privateTxArgs)
 
 	assert.NoError(t, err)
-	assert.Len(t, attributes, 2)
-	// the first one is for the target contract
+	assert.Len(t, attributes, 5)
+	// the first 3 are to enforce privateFrom
 	attr := attributes[0]
+	assert.Equal(t, multitenancy.ActionCreate, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
+
+	attr = attributes[1]
+	assert.Equal(t, multitenancy.ActionWrite, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Empty(t, attr.PrivateFrom)
+	assert.Contains(t, attr.Parties, arbitraryPrivateFrom)
+
+	attr = attributes[2]
+	assert.Equal(t, multitenancy.ActionRead, attr.Action)
+	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
+	assert.Equal(t, arbitraryFrom, attr.From)
+	assert.Empty(t, attr.PrivateFrom)
+	assert.Contains(t, attr.Parties, arbitraryPrivateFrom)
+
+	// the next one is for the target contract
+	attr = attributes[3]
 	assert.Equal(t, multitenancy.ActionWrite, attr.Action)
 	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
 	assert.Equal(t, arbitraryFrom, attr.From)
@@ -492,8 +534,8 @@ func TestBuildContractSecurityAttributes_whenWrite(t *testing.T) {
 	assert.Equal(t, arbitraryPrivateFrom, attr.PrivateFrom)
 	assert.Len(t, attr.Parties, 1)
 	assert.Equal(t, privateTxArgs.PrivateFor[0], attr.Parties[0])
-	// the second one is for the affected contract
-	attr = attributes[1]
+	// the next one is for the affected contract
+	attr = attributes[4]
 	assert.Equal(t, multitenancy.ActionWrite, attr.Action)
 	assert.Equal(t, multitenancy.VisibilityPrivate, attr.Visibility)
 	assert.Equal(t, arbitraryFrom, attr.From)
