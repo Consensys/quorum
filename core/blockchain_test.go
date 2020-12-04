@@ -148,7 +148,11 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 		if err != nil {
 			return err
 		}
-		receipts, _, _, usedGas, err := blockchain.processor.Process(block, statedb, statedb, vm.Config{})
+		mtService, mtServiceErr := NewMTStateService(blockchain, block.ParentHash()).Root())
+		if mtServiceErr != nil {
+			return mtServiceErr
+		}
+		receipts, _, _, usedGas, err := blockchain.processor.Process(block, statedb, mtService, vm.Config{})
 		if err != nil {
 			blockchain.reportBlock(block, receipts, err)
 			return err

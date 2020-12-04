@@ -36,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/private"
 )
 
 const (
@@ -95,7 +96,7 @@ type environment struct {
 
 	privateReceipts []*types.Receipt
 	// Leave this publicState named state, add privateState which most code paths can just ignore
-	privateState *state.StateDB
+	mtService *core.MTStateService
 }
 
 // task contains all information for consensus engine sealing and result submitting.
@@ -107,7 +108,7 @@ type task struct {
 
 	privateReceipts []*types.Receipt
 	// Leave this publicState named state, add privateState which most code paths can just ignore
-	privateState *state.StateDB
+	mtService *core.MTStateService
 }
 
 const (
@@ -276,14 +277,15 @@ func (w *worker) enablePreseal() {
 }
 
 // pending returns the pending state and corresponding block.
-func (w *worker) pending() (*types.Block, *state.StateDB, *state.StateDB) {
+func (w *worker) pending(psi string) (*types.Block, *state.StateDB, *state.StateDB) {
 	// return a snapshot to avoid contention on currentMu mutex
 	w.snapshotMu.RLock()
 	defer w.snapshotMu.RUnlock()
 	if w.snapshotState == nil {
 		return nil, nil, nil
 	}
-	return w.snapshotBlock, w.snapshotState.Copy(), w.current.privateState.Copy()
+	privateState, _ := w.current.mtService.GetPrivateState(psi)
+	return w.snapshotBlock, w.snapshotState.Copy(), privateState.Copy()
 }
 
 // pendingBlock returns pending block.
@@ -655,7 +657,7 @@ func (w *worker) resultLoop() {
 			allReceipts := mergeReceipts(pubReceipts, prvReceipts)
 
 			// Commit block and state to database.
-			_, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.privateState, true)
+			_, err := w.chain.WriteBlockWithState(block, allReceipts, logs, task.state, task.mtService, true)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
@@ -689,7 +691,12 @@ func mergeReceipts(pub, priv types.Receipts) types.Receipts {
 		m[receipt.TxHash] = receipt
 	}
 	for _, receipt := range priv {
-		m[receipt.TxHash] = receipt
+		publicReceipt := m[receipt.TxHash]
+		publicReceipt.MTVersions = make(map[string]*types.Receipt)
+		publicReceipt.MTVersions["private"] = receipt
+		for psi, mtReceipt := range receipt.MTVersions {
+			publicReceipt.MTVersions[psi] = mtReceipt
+		}
 	}
 
 	ret := make(types.Receipts, 0, len(pub))
@@ -702,18 +709,18 @@ func mergeReceipts(pub, priv types.Receipts) types.Receipts {
 
 // makeCurrent creates a new environment for the current cycle.
 func (w *worker) makeCurrent(parent *types.Block, header *types.Header) error {
-	publicState, privateState, _, err := w.chain.StateAt(parent.Root())
+	publicState, mtService, err := w.chain.StateAt(parent.Root())
 	if err != nil {
 		return err
 	}
 	env := &environment{
-		signer:       types.MakeSigner(w.chainConfig, header.Number),
-		state:        publicState,
-		ancestors:    mapset.NewSet(),
-		family:       mapset.NewSet(),
-		uncles:       mapset.NewSet(),
-		header:       header,
-		privateState: privateState,
+		signer:    types.MakeSigner(w.chainConfig, header.Number),
+		state:     publicState,
+		ancestors: mapset.NewSet(),
+		family:    mapset.NewSet(),
+		uncles:    mapset.NewSet(),
+		header:    header,
+		mtService: mtService,
 	}
 
 	// when 08 is processed ancestors contain 07 (quick block)
@@ -786,26 +793,62 @@ func (w *worker) updateSnapshot() {
 
 func (w *worker) commitTransaction(tx *types.Transaction, coinbase common.Address) ([]*types.Log, error) {
 	snap := w.current.state.Snapshot()
-	privateSnap := w.current.privateState.Snapshot()
+	privateState, _ := w.current.mtService.GetOverallPrivateState()
+	privateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
+	privateSnap := privateState.Snapshot()
 
 	txnStart := time.Now()
-	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, w.current.gasPool, w.current.state, w.current.privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig())
+	mtPublicStateDb := w.current.state.Copy()
+	receipt, privateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &coinbase, w.current.gasPool, w.current.state, privateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig())
 	if err != nil {
 		w.current.state.RevertToSnapshot(snap)
-		w.current.privateState.RevertToSnapshot(privateSnap)
+		privateState.RevertToSnapshot(privateSnap)
 		return nil, err
 	}
 	w.current.txs = append(w.current.txs, tx)
 	w.current.receipts = append(w.current.receipts, receipt)
 	log.EmitCheckpoint(log.TxCompleted, "tx", tx.Hash().Hex(), "time", time.Since(txnStart))
 
-	logs := receipt.Logs
+	allLogs := receipt.Logs
 	if privateReceipt != nil {
-		logs = append(receipt.Logs, privateReceipt.Logs...)
+		_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+		if len(managedParties) > 0 {
+			privateReceipt.MTVersions = make(map[string]*types.Receipt)
+		}
+		for _, log := range privateReceipt.Logs {
+			log.PSI = "private"
+		}
+		allLogs = append(allLogs, privateReceipt.Logs...)
+
+		if w.current.mtService != nil {
+			for _, managedParty := range managedParties {
+				psi, _ := core.PSIS.ResolveForManagedParty(managedParty)
+				mtPrivateState, err := w.current.mtService.GetPrivateState(psi)
+				if err != nil {
+					return nil, err
+				}
+				mtPrivateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
+				publicStateDBCopy := mtPublicStateDb.Copy()
+				publicStateDBCopy.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
+				// TODO with the relevant states resolved it should be possible to run ApplyTransaction in parallel
+				_, mtPrivateReceipt, err := core.ApplyTransaction(w.chainConfig, w.chain, nil, w.current.gasPool, publicStateDBCopy, mtPrivateState, w.current.header, tx, &w.current.header.GasUsed, *w.chain.GetVMConfig())
+				if err != nil {
+					return nil, err
+				}
+				// set the PSI for each log (so that the filter system knows for what private state they are)
+				for _, log := range mtPrivateReceipt.Logs {
+					log.PSI = psi
+				}
+				privateReceipt.MTVersions[psi] = mtPrivateReceipt
+				// TODO - figure out contract extension for each private state
+				allLogs = append(allLogs, mtPrivateReceipt.Logs...)
+			}
+		}
+
 		w.current.privateReceipts = append(w.current.privateReceipts, privateReceipt)
-		w.chain.CheckAndSetPrivateState(logs, w.current.privateState)
+		w.chain.CheckAndSetPrivateState(allLogs, privateState)
 	}
-	return logs, nil
+	return allLogs, nil
 }
 
 func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coinbase common.Address, interrupt *int32) bool {
@@ -866,7 +909,6 @@ func (w *worker) commitTransactions(txs *types.TransactionsByPriceAndNonce, coin
 		}
 		// Start executing the transaction
 		w.current.state.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
-		w.current.privateState.Prepare(tx.Hash(), common.Hash{}, w.current.tcount)
 
 		logs, err := w.commitTransaction(tx, coinbase)
 		switch err {
@@ -1062,7 +1104,6 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 	privateReceipts := copyReceipts(w.current.privateReceipts) // Quorum
 
 	s := w.current.state.Copy()
-	ps := w.current.privateState.Copy() // Quorum
 	block, err := w.engine.FinalizeAndAssemble(w.chain, w.current.header, s, w.current.txs, uncles, receipts)
 	if err != nil {
 		return err
@@ -1072,7 +1113,7 @@ func (w *worker) commit(uncles []*types.Header, interval func(), update bool, st
 			interval()
 		}
 		select {
-		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, privateState: ps, block: block, createdAt: time.Now()}:
+		case w.taskCh <- &task{receipts: receipts, privateReceipts: privateReceipts, state: s, mtService: w.current.mtService, block: block, createdAt: time.Now()}:
 			w.unconfirmed.Shift(block.NumberU64() - 1)
 			log.Info("Commit new mining work", "number", block.Number(), "sealhash", w.engine.SealHash(block.Header()),
 				"uncles", len(uncles), "txs", w.current.tcount,

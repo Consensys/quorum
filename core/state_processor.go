@@ -25,8 +25,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/private"
 	"github.com/ethereum/go-ethereum/permission/core"
+	"github.com/ethereum/go-ethereum/private"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -55,7 +55,7 @@ func NewStateProcessor(config *params.ChainConfig, bc *BlockChain, engine consen
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *types.Block, statedb, privateState *state.StateDB, mtService *MTStateService, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, uint64, error) {
+func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, mtService *MTStateService, cfg vm.Config) (types.Receipts, types.Receipts, []*types.Log, uint64, error) {
 
 	var (
 		receipts types.Receipts
@@ -73,10 +73,10 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
+		privateState, _ := mtService.GetOverallPrivateState()
 		privateState.Prepare(tx.Hash(), block.Hash(), i)
 
 		mtPublicStateDb := statedb.Copy()
-
 		receipt, privateReceipt, err := ApplyTransaction(p.config, p.bc, nil, gp, statedb, privateState, header, tx, usedGas, cfg)
 
 		if err != nil {
@@ -89,7 +89,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb, privateState *stat
 		// if the private receipt is nil this means the tx was public
 		// and we do not need to apply the additional logic.
 		if privateReceipt != nil {
-			managedParties, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+			_, managedParties, _, _, _ := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 			if len(managedParties) > 0 {
 				privateReceipt.MTVersions = make(map[string]*types.Receipt)
 			}

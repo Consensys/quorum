@@ -150,19 +150,8 @@ func (b *EthAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 	return nil, errors.New("invalid arguments; neither block nor hash specified")
 }
 
-func getMTPrivateState(ctx context.Context, mtService *core.MTStateService, privateState *state.StateDB) *state.StateDB {
-	psi, _ := core.PSIS.ResolveForUserContext(ctx)
-	if "private" != psi {
-		mtPrivateState, err := mtService.GetPrivateState(psi)
-		if err != nil {
-			return privateState
-		}
-		return mtPrivateState
-	}
-	return privateState
-}
-
 func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (vm.MinimalApiState, *types.Header, error) {
+	psi, _ := core.PSIS.ResolveForUserContext(ctx)
 	// Pending state is only known by the miner
 	if number == rpc.PendingBlockNumber {
 		// Quorum
@@ -172,10 +161,10 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 			if header == nil || err != nil {
 				return nil, nil, err
 			}
-			publicState, privateState, mtService, err := b.eth.BlockChain().StateAt(header.Root)
-			return EthAPIState{publicState, getMTPrivateState(ctx, mtService, privateState)}, header, err
+			publicState, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psi)
+			return EthAPIState{publicState, privateState}, header, err
 		}
-		block, publicState, privateState := b.eth.miner.Pending()
+		block, publicState, privateState := b.eth.miner.Pending(psi)
 		return EthAPIState{publicState, privateState}, block.Header(), nil
 	}
 	// Otherwise resolve the block number and return its state
@@ -186,8 +175,8 @@ func (b *EthAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	if header == nil {
 		return nil, nil, errors.New("header not found")
 	}
-	stateDb, privateState, mtService, err := b.eth.BlockChain().StateAt(header.Root)
-	return EthAPIState{stateDb, getMTPrivateState(ctx, mtService, privateState)}, header, err
+	stateDb, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psi)
+	return EthAPIState{stateDb, privateState}, header, err
 
 }
 
@@ -206,9 +195,9 @@ func (b *EthAPIBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 		if blockNrOrHash.RequireCanonical && b.eth.blockchain.GetCanonicalHash(header.Number.Uint64()) != hash {
 			return nil, nil, errors.New("hash is not currently canonical")
 		}
-		stateDb, privateState, mtService, err := b.eth.BlockChain().StateAt(header.Root)
-
-		return EthAPIState{stateDb, getMTPrivateState(ctx, mtService, privateState)}, header, err
+		psi, _ := core.PSIS.ResolveForUserContext(ctx)
+		stateDb, privateState, err := b.eth.BlockChain().StateAtPSI(header.Root, psi)
+		return EthAPIState{stateDb, privateState}, header, err
 
 	}
 	return nil, nil, errors.New("invalid arguments; neither block nor hash specified")

@@ -244,7 +244,7 @@ func (f *Filter) blockLogs(ctx context.Context, header *types.Header) (logs []*t
 	// Quorum
 	// Apply bloom filter for both public bloom and private bloom
 	bloomMatches := bloomFilter(header.Bloom, f.addresses, f.topics) ||
-		bloomFilter(rawdb.GetMTPrivateBlockBloom(f.db, header.Number.Uint64(), f.psi), f.addresses, f.topics)
+		bloomFilter(rawdb.GetPrivateBlockBloom(f.db, header.Number.Uint64()), f.addresses, f.topics)
 	if bloomMatches {
 		found, err := f.checkMatches(ctx, header)
 		if err != nil {

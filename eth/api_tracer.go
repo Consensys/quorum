@@ -157,8 +157,8 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			return nil, fmt.Errorf("parent block #%d not found", number-1)
 		}
 	}
-	// TODO identify the relevant PSI
-	statedb, privateStateDb, _, err := api.eth.blockchain.StateAt(start.Root())
+	psi, _ := core.PSIS.ResolveForUserContext(ctx)
+	statedb, mtService, err := api.eth.blockchain.StateAt(start.Root())
 	if err != nil {
 		// If the starting state is missing, allow some number of blocks to be reexecuted
 		reexec := defaultTraceReexec
@@ -171,7 +171,7 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			if start == nil {
 				break
 			}
-			statedb, privateStateDb, _, err = api.eth.blockchain.StateAt(start.Root())
+			statedb, mtService, err = api.eth.blockchain.StateAt(start.Root())
 			if err == nil {
 				break
 			}
@@ -285,16 +285,16 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 			// Send the block over to the concurrent tracers (if not in the fast-forward phase)
 			if number > origin {
 				txs := block.Transactions()
-
+				privateState, _ := mtService.GetPrivateState(psi)
 				select {
-				case tasks <- &blockTraceTask{statedb: statedb.Copy(), privateStateDb: privateStateDb.Copy(), block: block, rootref: proot, results: make([]*txTraceResult, len(txs))}:
+				case tasks <- &blockTraceTask{statedb: statedb.Copy(), privateStateDb: privateState.Copy(), block: block, rootref: proot, results: make([]*txTraceResult, len(txs))}:
 				case <-notifier.Closed():
 					return
 				}
 				traced += uint64(len(txs))
 			}
 			// Generate the next state snapshot fast without tracing
-			_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, privateStateDb, nil, vm.Config{})
+			_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, mtService, vm.Config{})
 			if err != nil {
 				failed = err
 				break
@@ -310,15 +310,16 @@ func (api *PrivateDebugAPI) traceChain(ctx context.Context, start, end *types.Bl
 				break
 			}
 
-			privateStateRoot, err := privateStateDb.Commit(true)
+			err = mtService.Commit(block)
 			if err != nil {
 				failed = err
 				break
 			}
-			if err := privateStateDb.Reset(privateStateRoot); err != nil {
+			if err := mtService.Reset(); err != nil {
 				failed = err
 				break
 			}
+
 			// Reference the trie twice, once for us, once for the tracer
 			database.TrieDB().Reference(root, common.Hash{})
 			if number >= origin {
@@ -469,7 +470,9 @@ func (api *PrivateDebugAPI) traceBlock(ctx context.Context, block *types.Block, 
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	statedb, privateStateDb, err := api.computeStateDB(parent, reexec)
+	statedb, mtService, err := api.computeStateDB(parent, reexec)
+	psi, _ := core.PSIS.ResolveForUserContext(ctx)
+	privateStateDb, _ := mtService.GetPrivateState(psi)
 	if err != nil {
 		return nil, err
 	}
@@ -569,7 +572,9 @@ func (api *PrivateDebugAPI) standardTraceBlockToFile(ctx context.Context, block 
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	statedb, privateStateDb, err := api.computeStateDB(parent, reexec)
+	statedb, mtService, err := api.computeStateDB(parent, reexec)
+	psi, _ := core.PSIS.ResolveForUserContext(ctx)
+	privateStateDb, _ := mtService.GetPrivateState(psi)
 	if err != nil {
 		return nil, err
 	}
@@ -665,11 +670,11 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 // computeStateDB retrieves the state database associated with a certain block.
 // If no state is locally available for the given block, a number of blocks are
 // attempted to be reexecuted to generate the desired state.
-func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, *state.StateDB, error) {
+func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*state.StateDB, *core.MTStateService, error) {
 	// If we have the state fully available, use that
-	statedb, privateStateDb, _, err := api.eth.blockchain.StateAt(block.Root())
+	statedb, mtService, err := api.eth.blockchain.StateAt(block.Root())
 	if err == nil {
-		return statedb, privateStateDb, nil
+		return statedb, mtService, nil
 	}
 	// Otherwise try to reexec blocks until we find a state or reach our limit
 	origin := block.NumberU64()
@@ -680,7 +685,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if block == nil {
 			break
 		}
-		statedb, privateStateDb, _, err = api.eth.blockchain.StateAt(block.Root())
+		statedb, mtService, err = api.eth.blockchain.StateAt(block.Root())
 		if err == nil {
 			break
 		}
@@ -709,7 +714,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if block = api.eth.blockchain.GetBlockByNumber(block.NumberU64() + 1); block == nil {
 			return nil, nil, fmt.Errorf("block #%d not found", block.NumberU64()+1)
 		}
-		_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, privateStateDb, nil, vm.Config{})
+		_, _, _, _, err := api.eth.blockchain.Processor().Process(block, statedb, mtService, vm.Config{})
 		if err != nil {
 			return nil, nil, fmt.Errorf("processing block %d failed: %v", block.NumberU64(), err)
 		}
@@ -721,11 +726,11 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 		if err := statedb.Reset(root); err != nil {
 			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
-		privateStateRoot, err := privateStateDb.Commit(api.eth.blockchain.Config().IsEIP158(block.Number()))
+		err = mtService.Commit(block)
 		if err != nil {
 			return nil, nil, err
 		}
-		if err := privateStateDb.Reset(privateStateRoot); err != nil {
+		if err := mtService.Reset(); err != nil {
 			return nil, nil, fmt.Errorf("state reset after block %d failed: %v", block.NumberU64(), err)
 		}
 		database.TrieDB().Reference(root, common.Hash{})
@@ -736,7 +741,7 @@ func (api *PrivateDebugAPI) computeStateDB(block *types.Block, reexec uint64) (*
 	}
 	nodes, imgs := database.TrieDB().Size()
 	log.Info("Historical state regenerated", "block", block.NumberU64(), "elapsed", time.Since(start), "nodes", nodes, "preimages", imgs)
-	return statedb, privateStateDb, nil
+	return statedb, mtService, nil
 }
 
 // TraceTransaction returns the structured logs created during the execution of EVM
@@ -751,12 +756,12 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, hash common.Ha
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	msg, vmctx, statedb, privateStateDb, err := api.computeTxEnv(blockHash, int(index), reexec)
+	msg, vmctx, statedb, privateState, err := api.computeTxEnv(ctx, blockHash, int(index), reexec)
 	if err != nil {
 		return nil, err
 	}
 	// Trace the transaction and return
-	return api.traceTx(ctx, msg, tx, vmctx, statedb, privateStateDb, config)
+	return api.traceTx(ctx, msg, tx, vmctx, statedb, privateState, config)
 }
 
 // traceTx configures a new tracer according to the provided configuration, and
@@ -837,7 +842,7 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message core.Message, t
 }
 
 // computeTxEnv returns the execution environment of a certain transaction.
-func (api *PrivateDebugAPI) computeTxEnv(blockHash common.Hash, txIndex int, reexec uint64) (core.Message, vm.Context, *state.StateDB, *state.StateDB, error) {
+func (api *PrivateDebugAPI) computeTxEnv(ctx context.Context, blockHash common.Hash, txIndex int, reexec uint64) (core.Message, vm.Context, *state.StateDB, *state.StateDB, error) {
 	// Create the parent state database
 	block := api.eth.blockchain.GetBlockByHash(blockHash)
 	if block == nil {
@@ -847,7 +852,9 @@ func (api *PrivateDebugAPI) computeTxEnv(blockHash common.Hash, txIndex int, ree
 	if parent == nil {
 		return nil, vm.Context{}, nil, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
 	}
-	statedb, privateStateDb, err := api.computeStateDB(parent, reexec)
+	statedb, mtService, err := api.computeStateDB(parent, reexec)
+	psi, _ := core.PSIS.ResolveForUserContext(ctx)
+	privateStateDb, err := mtService.GetPrivateState(psi)
 	if err != nil {
 		return nil, vm.Context{}, nil, nil, err
 	}

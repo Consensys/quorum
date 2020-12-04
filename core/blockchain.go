@@ -440,6 +440,16 @@ func (bc *BlockChain) loadLastState() error {
 		log.Warn("Head block missing, resetting chain", "hash", head)
 		return bc.Reset()
 	}
+
+	// Quorum
+	if mtService, err := NewMTStateService(bc, currentBlock.Root()); err != nil {
+		if _, err := mtService.GetOverallPrivateState(); err != nil {
+			log.Warn("Head private state missing, resetting chain", "number", currentBlock.Number(), "hash", currentBlock.Hash())
+			return bc.Reset()
+		}
+	}
+	// /Quorum
+
 	// Everything seems to be fine, set as the head block
 	bc.currentBlock.Store(currentBlock)
 	headBlockGauge.Update(int64(currentBlock.NumberU64()))
@@ -666,32 +676,46 @@ func (bc *BlockChain) Processor() Processor {
 }
 
 // State returns a new mutable state based on the current HEAD block.
-func (bc *BlockChain) State() (*state.StateDB, *state.StateDB, *MTStateService, error) {
+func (bc *BlockChain) State() (*state.StateDB, *MTStateService, error) {
 	return bc.StateAt(bc.CurrentBlock().Root())
 }
 
+func (bc *BlockChain) StatePSI(psi string) (*state.StateDB, *state.StateDB, error) {
+	return bc.StateAtPSI(bc.CurrentBlock().Root(), psi)
+}
+
+func (bc *BlockChain) StateAtPSI(root common.Hash, psi string) (*state.StateDB, *state.StateDB, error) {
+	publicStateDb, mtService, err := bc.StateAt(bc.CurrentBlock().Root())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	privateStateDb, privateStateDbErr := mtService.GetPrivateState(psi)
+	if privateStateDbErr != nil {
+		return nil, nil, privateStateDbErr
+	}
+
+	return publicStateDb, privateStateDb, nil
+}
+
 // StateAt returns a new mutable state based on a particular point in time.
-func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *state.StateDB, *MTStateService, error) {
+func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, *MTStateService, error) {
 	publicStateDb, publicStateDbErr := state.New(root, bc.stateCache, bc.snaps)
 	if publicStateDbErr != nil {
-		return nil, nil, nil, publicStateDbErr
-	}
-	privateStateDb, privateStateDbErr := state.New(rawdb.GetPrivateStateRoot(bc.db, root), bc.privateStateCache, bc.snaps)
-	if privateStateDbErr != nil {
-		return nil, nil, nil, privateStateDbErr
+		return nil, nil, publicStateDbErr
 	}
 
 	mtService, mtServiceErr := NewMTStateService(bc, root)
 	if mtServiceErr != nil {
-		return nil, nil, nil, mtServiceErr
+		return nil, nil, mtServiceErr
 	}
 
-	return publicStateDb, privateStateDb, mtService, nil
+	return publicStateDb, mtService, nil
 }
 
 // StateCache returns the caching database underpinning the blockchain instance.
-func (bc *BlockChain) StateCache() (state.Database, state.Database) {
-	return bc.stateCache, bc.privateStateCache
+func (bc *BlockChain) StateCache() state.Database {
+	return bc.stateCache
 }
 
 // Reset purges the entire blockchain, restoring it to its genesis state.
@@ -1483,13 +1507,13 @@ func (bc *BlockChain) writeKnownBlock(block *types.Block) error {
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
-func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state, privateState *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
+func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state, privateState *state.StateDB, mtService *MTStateService, emitHeadEvent bool) (status WriteStatus, err error) {
 	bc.chainmu.Lock()
 	defer bc.chainmu.Unlock()
 
 	// TODO - decide if worker code will be updated to handle multiple private states
 	// if it will - then we need to pass in the MTStateService
-	return bc.writeBlockWithState(block, receipts, logs, state, privateState, nil, emitHeadEvent)
+	return bc.writeBlockWithState(block, receipts, logs, state, privateState, mtService, emitHeadEvent)
 }
 
 // QUORUM
@@ -1534,21 +1558,8 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// Make sure no inconsistent state is leaked during insertion
 	// Quorum
 	// Write private state changes to database
-	privateRoot, err := privateState.Commit(bc.chainConfig.IsEIP158(block.Number()))
-	if err != nil {
-		return NonStatTy, err
-	}
-	if err := rawdb.WritePrivateStateRoot(bc.db, block.Root(), privateRoot); err != nil {
-		log.Error("Failed writing private state root", "err", err)
-		return NonStatTy, err
-	}
-	// Explicit commit for privateStateTriedb
-	privateTriedb := bc.privateStateCache.TrieDB()
-	if err := privateTriedb.Commit(privateRoot, false, nil); err != nil {
-		return NonStatTy, err
-	}
 	if mtService != nil {
-		err = mtService.Commit(block)
+		err = mtService.CommitAndWrite(block)
 		if err != nil {
 			return NonStatTy, err
 		}
@@ -1952,11 +1963,6 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 			return it.index, err
 		}
 		// Quorum
-		privateStateRoot := rawdb.GetPrivateStateRoot(bc.db, parent.Root)
-		privateState, err := state.New(privateStateRoot, bc.privateStateCache, nil)
-		if err != nil {
-			return it.index, err
-		}
 		// initialize mtStateService
 		mtService, err := NewMTStateService(bc, parent.Root)
 		if err != nil {
@@ -1970,20 +1976,23 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals bool) (int, er
 		if !bc.cacheConfig.TrieCleanNoPrefetch {
 			if followup, err := it.peek(); followup != nil && err == nil {
 				throwaway, _ := state.New(parent.Root, bc.stateCache, bc.snaps)
-				privatest, _ := state.New(privateStateRoot, bc.privateStateCache, nil)
-				go func(start time.Time, followup *types.Block, throwaway, privatest *state.StateDB, interrupt *uint32) {
-					bc.prefetcher.Prefetch(followup, throwaway, privatest, bc.vmConfig, &followupInterrupt)
+				//due to mtservice changes, for now only do prefetch on the public state
+				//we do have an option to also do it on overall privateState but need a function in mtService to return the overall private stateCache
+				//this reverts the prefetch definition to the original go-ethereum definition (only takes in publicState)
+				go func(start time.Time, followup *types.Block, throwaway *state.StateDB, interrupt *uint32) {
+					bc.prefetcher.Prefetch(followup, throwaway, bc.vmConfig, &followupInterrupt)
 
 					blockPrefetchExecuteTimer.Update(time.Since(start))
 					if atomic.LoadUint32(interrupt) == 1 {
 						blockPrefetchInterruptMeter.Mark(1)
 					}
-				}(time.Now(), followup, throwaway, privatest, &followupInterrupt)
+				}(time.Now(), followup, throwaway, &followupInterrupt)
 			}
 		}
 		// Process block using the parent state as reference point
 		substart := time.Now()
-		receipts, privateReceipts, logs, usedGas, err := bc.processor.Process(block, statedb, privateState, mtService, bc.vmConfig)
+
+		receipts, privateReceipts, logs, usedGas, err := bc.processor.Process(block, statedb, mtService, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
 			atomic.StoreUint32(&followupInterrupt, 1)

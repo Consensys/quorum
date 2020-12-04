@@ -86,7 +86,7 @@ func (api *PrivateExtensionAPI) getContractExtended(addressToVoteOn, from common
 // checks if the contract being extended is a public contract
 func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) bool {
 	// check if the passed contract is public contract
-	publicStateDb, _, _, _ := api.privacyService.stateFetcher.chainAccessor.State()
+	publicStateDb, _, _ := api.privacyService.stateFetcher.chainAccessor.State()
 	if publicStateDb != nil && publicStateDb.Exist(toExtend) {
 		return true
 	}
@@ -97,7 +97,8 @@ func (api *PrivateExtensionAPI) checkIfPublicContract(toExtend common.Address) b
 func (api *PrivateExtensionAPI) checkIfPrivateStateExists(toExtend common.Address) bool {
 	// check if the private contract exists on the node extending the contract
 	// TODO identify the relevant PSI
-	_, privateStateDb, _, _ := api.privacyService.stateFetcher.chainAccessor.State()
+	_, mtService, _ := api.privacyService.stateFetcher.chainAccessor.State()
+	privateStateDb, _ := mtService.GetOverallPrivateState()
 	if privateStateDb != nil {
 		if privateStateDb.GetCode(toExtend) != nil {
 			return true

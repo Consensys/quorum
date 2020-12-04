@@ -140,7 +140,7 @@ func (b *SimulatedBackend) Rollback() {
 
 func (b *SimulatedBackend) rollback() {
 	blocks, _ := core.GenerateChain(b.config, b.blockchain.CurrentBlock(), ethash.NewFaker(), b.database, 1, func(int, *core.BlockGen) {})
-	statedb, _, _, _ := b.blockchain.State()
+	statedb, _, _ := b.blockchain.State()
 
 	b.pendingBlock = blocks[0]
 	b.pendingState, _ = state.New(b.pendingBlock.Root(), statedb.Database(), nil)
@@ -169,7 +169,7 @@ func (b *SimulatedBackend) CodeAt(ctx context.Context, contract common.Address, 
 	if err != nil {
 		return nil, err
 	}
-	statedb, _, _, _ := b.blockchain.State()
+	statedb, _, _ := b.blockchain.State()
 	return statedb.GetCode(contract), nil
 }
 
@@ -182,7 +182,7 @@ func (b *SimulatedBackend) BalanceAt(ctx context.Context, contract common.Addres
 	if err != nil {
 		return nil, err
 	}
-	statedb, _, _, _ := b.blockchain.State()
+	statedb, _, _ := b.blockchain.State()
 	return statedb.GetBalance(contract), nil
 }
 
@@ -195,7 +195,7 @@ func (b *SimulatedBackend) NonceAt(ctx context.Context, contract common.Address,
 	if err != nil {
 		return 0, err
 	}
-	statedb, _, _, _ := b.blockchain.State()
+	statedb, _, _ := b.blockchain.State()
 	return statedb.GetNonce(contract), nil
 }
 
@@ -208,7 +208,7 @@ func (b *SimulatedBackend) StorageAt(ctx context.Context, contract common.Addres
 	if err != nil {
 		return nil, err
 	}
-	statedb, _, _, _ := b.blockchain.State()
+	statedb, _, _ := b.blockchain.State()
 	val := statedb.GetState(contract, key)
 	return val[:], nil
 }
@@ -402,7 +402,7 @@ func (b *SimulatedBackend) CallContract(ctx context.Context, call ethereum.CallM
 	if blockNumber != nil && blockNumber.Cmp(b.blockchain.CurrentBlock().Number()) != 0 {
 		return nil, errBlockNumberUnsupported
 	}
-	state, _, _, err := b.blockchain.State()
+	state, _, err := b.blockchain.State()
 	if err != nil {
 		return nil, err
 	}
@@ -591,7 +591,7 @@ func (b *SimulatedBackend) SendTransaction(ctx context.Context, tx *types.Transa
 		}
 		block.AddTxWithChain(b.blockchain, tx)
 	})
-	statedb, _, _, _ := b.blockchain.State()
+	statedb, _, _ := b.blockchain.State()
 
 	b.pendingBlock = blocks[0]
 	b.pendingState, _ = state.New(b.pendingBlock.Root(), statedb.Database(), nil)
@@ -709,7 +709,7 @@ func (b *SimulatedBackend) AdjustTime(adjustment time.Duration) error {
 		}
 		block.OffsetTime(int64(adjustment.Seconds()))
 	})
-	statedb, _, _, _ := b.blockchain.State()
+	statedb, _, _ := b.blockchain.State()
 
 	b.pendingBlock = blocks[0]
 	b.pendingState, _ = state.New(b.pendingBlock.Root(), statedb.Database(), nil)

@@ -64,17 +64,18 @@ func (api *PublicEthereumAPI) Coinbase() (common.Address, error) {
 // Quorum
 // StorageRoot returns the storage root of an account on the the given (optional) block height.
 // If block number is not given the latest block is used.
-func (s *PublicEthereumAPI) StorageRoot(addr common.Address, blockNr *rpc.BlockNumber) (common.Hash, error) {
+func (s *PublicEthereumAPI) StorageRoot(ctx context.Context, addr common.Address, blockNr *rpc.BlockNumber) (common.Hash, error) {
 	var (
 		pub, priv *state.StateDB
 		err       error
 	)
 
+	psi, _ := core.PSIS.ResolveForUserContext(ctx)
 	if blockNr == nil || blockNr.Int64() == rpc.LatestBlockNumber.Int64() {
-		pub, priv, _, err = s.e.blockchain.State()
+		pub, priv, err = s.e.blockchain.StatePSI(psi)
 	} else {
 		if ch := s.e.blockchain.GetHeaderByNumber(uint64(blockNr.Int64())); ch != nil {
-			pub, priv, _, err = s.e.blockchain.StateAt(ch.Root)
+			pub, priv, err = s.e.blockchain.StateAtPSI(ch.Root, psi)
 		} else {
 			return common.Hash{}, fmt.Errorf("invalid block number")
 		}
@@ -307,9 +308,9 @@ func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 
 // DumpBlock retrieves the entire state of the database at a given block.
 // Quorum adds an additional parameter to support private state dump
-func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber, typ *string) (state.Dump, error) {
+func (api *PublicDebugAPI) DumpBlock(ctx context.Context, blockNr rpc.BlockNumber, typ *string) (state.Dump, error) {
 	// TODO add context and extract the relevant PSI
-	publicState, privateState, err := api.getStateDbsFromBlockNumber(blockNr)
+	publicState, privateState, err := api.getStateDbsFromBlockNumber(ctx, blockNr)
 	if err != nil {
 		return state.Dump{}, err
 	}
@@ -331,9 +332,8 @@ func (api *PublicDebugAPI) PrivateStateRoot(ctx context.Context, blockNr rpc.Blo
 // Quorum
 // DumpAddress retrieves the state of an address at a given block.
 // Quorum adds an additional parameter to support private state dump
-func (api *PublicDebugAPI) DumpAddress(address common.Address, blockNr rpc.BlockNumber) (state.DumpAccount, error) {
-	// TODO add context and extract the relevant PSI
-	publicState, privateState, err := api.getStateDbsFromBlockNumber(blockNr)
+func (api *PublicDebugAPI) DumpAddress(ctx context.Context, address common.Address, blockNr rpc.BlockNumber) (state.DumpAccount, error) {
+	publicState, privateState, err := api.getStateDbsFromBlockNumber(ctx, blockNr)
 	if err != nil {
 		return state.DumpAccount{}, err
 	}
@@ -350,12 +350,13 @@ func (api *PublicDebugAPI) DumpAddress(address common.Address, blockNr rpc.Block
 //Quorum
 //Taken from DumpBlock, as it was reused in DumpAddress.
 //Contains modifications from the original to return the private state db, as well as public.
-func (api *PublicDebugAPI) getStateDbsFromBlockNumber(blockNr rpc.BlockNumber) (*state.StateDB, *state.StateDB, error) {
+func (api *PublicDebugAPI) getStateDbsFromBlockNumber(ctx context.Context, blockNr rpc.BlockNumber) (*state.StateDB, *state.StateDB, error) {
+	psi, _ := core.PSIS.ResolveForUserContext(ctx)
 	if blockNr == rpc.PendingBlockNumber {
 		// If we're dumping the pending state, we need to request
 		// both the pending block as well as the pending state from
 		// the miner and operate on those
-		_, publicState, privateState := api.eth.miner.Pending()
+		_, publicState, privateState := api.eth.miner.Pending(psi)
 		return publicState, privateState, nil
 	}
 
@@ -368,8 +369,7 @@ func (api *PublicDebugAPI) getStateDbsFromBlockNumber(blockNr rpc.BlockNumber) (
 	if block == nil {
 		return nil, nil, fmt.Errorf("block #%d not found", blockNr)
 	}
-	// TODO must not ignore the MTStateService
-	publicState, privateState, _, err := api.eth.BlockChain().StateAt(block.Root())
+	publicState, privateState, err := api.eth.BlockChain().StateAtPSI(block.Root(), psi)
 	return publicState, privateState, err
 }
 
@@ -483,8 +483,8 @@ type storageEntry struct {
 }
 
 // StorageRangeAt returns the storage at the given block height and transaction index.
-func (api *PrivateDebugAPI) StorageRangeAt(blockHash common.Hash, txIndex int, contractAddress common.Address, keyStart hexutil.Bytes, maxResult int) (StorageRangeResult, error) {
-	_, _, statedb, _, err := api.computeTxEnv(blockHash, txIndex, 0)
+func (api *PrivateDebugAPI) StorageRangeAt(ctx context.Context, blockHash common.Hash, txIndex int, contractAddress common.Address, keyStart hexutil.Bytes, maxResult int) (StorageRangeResult, error) {
+	_, _, statedb, _, err := api.computeTxEnv(ctx, blockHash, txIndex, 0)
 	if err != nil {
 		return StorageRangeResult{}, err
 	}
@@ -577,8 +577,7 @@ func (api *PrivateDebugAPI) getModifiedAccounts(startBlock, endBlock *types.Bloc
 	if startBlock.Number().Uint64() >= endBlock.Number().Uint64() {
 		return nil, fmt.Errorf("start block height (%d) must be less than end block height (%d)", startBlock.Number().Uint64(), endBlock.Number().Uint64())
 	}
-	statedb, _ := api.eth.BlockChain().StateCache()
-	triedb := statedb.TrieDB()
+	triedb := api.eth.BlockChain().StateCache().TrieDB()
 
 	oldTrie, err := trie.NewSecure(startBlock.Root(), triedb)
 	if err != nil {

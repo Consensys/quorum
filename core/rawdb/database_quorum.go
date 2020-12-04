@@ -52,20 +52,6 @@ func WriteQuorumEIP155Activation(db ethdb.KeyValueWriter) error {
 	return db.Put(quorumEIP155ActivatedPrefix, []byte{1})
 }
 
-func GetPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
-	root, _ := db.Get(append(privateRootPrefix, blockRoot[:]...))
-	return common.BytesToHash(root)
-}
-
-func GetAccountExtraDataRoot(db ethdb.KeyValueReader, stateRoot common.Hash) common.Hash {
-	root, _ := db.Get(append(stateRootToExtraDataRootPrefix, stateRoot[:]...))
-	return common.BytesToHash(root)
-}
-
-func WritePrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error {
-	return db.Put(append(privateRootPrefix, blockRoot[:]...), root[:])
-}
-
 func GetMTPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash {
 	root, _ := db.Get(append(mtPrivateRootPrefix, blockRoot[:]...))
 	return common.BytesToHash(root)
@@ -73,6 +59,11 @@ func GetMTPrivateStateRoot(db ethdb.Database, blockRoot common.Hash) common.Hash
 
 func WriteMTPrivateStateRoot(db ethdb.Database, blockRoot, root common.Hash) error {
 	return db.Put(append(mtPrivateRootPrefix, blockRoot[:]...), root[:])
+}
+
+func GetAccountExtraDataRoot(db ethdb.KeyValueReader, stateRoot common.Hash) common.Hash {
+	root, _ := db.Get(append(stateRootToExtraDataRootPrefix, stateRoot[:]...))
+	return common.BytesToHash(root)
 }
 
 // WriteRootHashMapping stores the mapping between root hash of state trie and
@@ -84,29 +75,24 @@ func WriteRootHashMapping(db ethdb.KeyValueWriter, stateRoot, extraDataRoot comm
 // WritePrivateBlockBloom creates a bloom filter for the given receipts and saves it to the database
 // with the number given as identifier (i.e. block number).
 func WritePrivateBlockBloom(db ethdb.Database, number uint64, receipts types.Receipts) error {
-	rbloom := types.CreateBloom(receipts)
+	//only private receipts in
+	//this is a top level receipt (with implied PSI "private")
+	//then MT versions having receipts per PSI
+	var flattenedReceipts []*types.Receipt
+	for _, privReceipt := range receipts {
+		flattenedReceipts = append(flattenedReceipts, privReceipt)
+		for _, psiReceipt := range privReceipt.MTVersions {
+			flattenedReceipts = append(flattenedReceipts, psiReceipt)
+		}
+	}
+
+	rbloom := types.CreateBloom(flattenedReceipts)
 	return db.Put(append(privateBloomPrefix, encodeBlockNumber(number)...), rbloom[:])
 }
 
 // GetPrivateBlockBloom retrieves the private bloom associated with the given number.
 func GetPrivateBlockBloom(db ethdb.Database, number uint64) (bloom types.Bloom) {
 	data, _ := db.Get(append(privateBloomPrefix, encodeBlockNumber(number)...))
-	if len(data) > 0 {
-		bloom = types.BytesToBloom(data)
-	}
-	return bloom
-}
-
-// WriteMTPrivateBlockBloom creates a bloom filter for the given receipts and saves it to the database
-// with the number given as identifier (i.e. block number).
-func WriteMTPrivateBlockBloom(db ethdb.Database, number uint64, receipts types.Receipts, psi string) error {
-	rbloom := types.CreateBloom(receipts)
-	return db.Put(append(append(mtPrivateBloomPrefix, []byte(psi)...), encodeBlockNumber(number)...), rbloom[:])
-}
-
-// GetMTPrivateBlockBloom retrieves the private bloom associated with the given number.
-func GetMTPrivateBlockBloom(db ethdb.Database, number uint64, psi string) (bloom types.Bloom) {
-	data, _ := db.Get(append(append(mtPrivateBloomPrefix, []byte(psi)...), encodeBlockNumber(number)...))
 	if len(data) > 0 {
 		bloom = types.BytesToBloom(data)
 	}
