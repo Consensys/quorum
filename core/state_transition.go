@@ -315,13 +315,13 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 				if err != nil {
 					return nil, 0, true, err
 				}
-				// managed parties for public transactions is empty so nothing to check there
+				// managed parties for public contracts is empty so nothing to check there
 				if len(managedPartiesInContract) > 0 {
 					if !containsAll(managedPartiesInContract, managedParties) {
 						log.Debug("Managed parties check has failed for contract", "addr", address, "EPH",
 							pmh.eph.TerminalString(), "contractMP", managedPartiesInContract, "txMP", managedParties)
 						st.evm.RevertToSnapshot(snapshot)
-						// TODO - see whether we can find a way to store this error and make it available via customizations to getTransactionReceipt
+						// TODO - see whether we can find a way to store this error and make it available via customizations to getTransactionReceipt or an alternate API
 						return nil, 0, true, nil
 					}
 				}
