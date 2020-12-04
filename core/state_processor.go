@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/permission/core"
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -113,6 +114,13 @@ func ApplyTransaction(config *params.ChainConfig, bc *BlockChain, author *common
 	// Quorum - decide the privateStateDB to use
 	privateStateDbToUse := PrivateStateDBForTxn(config.IsQuorum, tx.IsPrivate(), statedb, privateState)
 	// /Quorum
+
+	// Quorum - check for account permissions to execute the transaction
+	if core.IsV2Permission() {
+		if err := core.CheckAccountPermission(tx.From(), tx.To(), tx.Value(), tx.Data(), tx.Gas(), tx.GasPrice()); err != nil {
+			return nil, nil, err
+		}
+	}
 
 	if config.IsQuorum && tx.GasPrice() != nil && tx.GasPrice().Cmp(common.Big0) > 0 {
 		return nil, nil, ErrInvalidGasPrice
