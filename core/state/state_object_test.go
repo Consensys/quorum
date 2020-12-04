@@ -165,3 +165,69 @@ func TestRLP_AccountExtraData_withField_ManagedParties(t *testing.T) {
 	assert.Equal(t, arbitraryExtraData.PrivacyMetadata.PrivacyFlag, actual.PrivacyMetadata.PrivacyFlag)
 	assert.Equal(t, arbitraryExtraData.ManagedParties, actual.ManagedParties)
 }
+
+func TestRLP_AccountExtraData_whenTypical(t *testing.T) {
+	expected := AccountExtraData{
+		PrivacyMetadata: &PrivacyMetadata{
+			CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("arbitrary-payload-hash")),
+			PrivacyFlag:    engine.PrivacyFlagPartyProtection,
+		},
+		ManagedParties: []string{"XYZ"},
+	}
+
+	data, err := rlp.EncodeToBytes(&expected)
+	assert.NoError(t, err)
+
+	var actual AccountExtraData
+	assert.NoError(t, rlp.DecodeBytes(data, &actual))
+	assert.Equal(t, expected.PrivacyMetadata.CreationTxHash, actual.PrivacyMetadata.CreationTxHash)
+	assert.Equal(t, expected.PrivacyMetadata.PrivacyFlag, actual.PrivacyMetadata.PrivacyFlag)
+	assert.Equal(t, expected.ManagedParties, actual.ManagedParties)
+}
+
+func TestRLP_AccountExtraData_whenHavingPrivacyMetadataOnly(t *testing.T) {
+	expected := AccountExtraData{
+		PrivacyMetadata: &PrivacyMetadata{
+			CreationTxHash: common.BytesToEncryptedPayloadHash([]byte("arbitrary-payload-hash")),
+			PrivacyFlag:    engine.PrivacyFlagPartyProtection,
+		},
+	}
+
+	data, err := rlp.EncodeToBytes(&expected)
+	assert.NoError(t, err)
+
+	var actual AccountExtraData
+	assert.NoError(t, rlp.DecodeBytes(data, &actual))
+	assert.Equal(t, expected.PrivacyMetadata.CreationTxHash, actual.PrivacyMetadata.CreationTxHash)
+	assert.Equal(t, expected.PrivacyMetadata.PrivacyFlag, actual.PrivacyMetadata.PrivacyFlag)
+}
+
+func TestRLP_AccountExtraData_whenHavingNilManagedParties(t *testing.T) {
+	expected := AccountExtraData{
+		PrivacyMetadata: nil,
+		ManagedParties:  nil,
+	}
+
+	data, err := rlp.EncodeToBytes(&expected)
+	assert.NoError(t, err)
+
+	var actual AccountExtraData
+	assert.NoError(t, rlp.DecodeBytes(data, &actual))
+	assert.Nil(t, actual.ManagedParties)
+	assert.Nil(t, actual.PrivacyMetadata)
+}
+
+func TestRLP_AccountExtraData_whenHavingEmptyManagedParties(t *testing.T) {
+	expected := AccountExtraData{
+		PrivacyMetadata: nil,
+		ManagedParties:  []string{},
+	}
+
+	data, err := rlp.EncodeToBytes(&expected)
+	assert.NoError(t, err)
+
+	var actual AccountExtraData
+	assert.NoError(t, rlp.DecodeBytes(data, &actual))
+	assert.Nil(t, actual.ManagedParties)
+	assert.Nil(t, actual.PrivacyMetadata)
+}
