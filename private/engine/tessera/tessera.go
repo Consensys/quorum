@@ -360,10 +360,6 @@ func (t *tesseraPrivateTxManager) IsSender(txHash common.EncryptedPayloadHash) (
 	if err != nil {
 		return false, err
 	}
-	if t.features.HasFeature(engine.MultiTenancy) {
-		apiVersion := "vnd.tessera-2.1+"
-		req.Header.Set("Accept", fmt.Sprintf("application/%sjson", apiVersion))
-	}
 
 	res, err := t.client.HttpClient.Do(req)
 
@@ -392,10 +388,6 @@ func (t *tesseraPrivateTxManager) GetParticipants(txHash common.EncryptedPayload
 	req, err := http.NewRequest("GET", requestUrl, nil)
 	if err != nil {
 		return nil, err
-	}
-	if t.features.HasFeature(engine.MultiTenancy) {
-		apiVersion := "vnd.tessera-2.1+"
-		req.Header.Set("Accept", fmt.Sprintf("application/%sjson", apiVersion))
 	}
 
 	res, err := t.client.HttpClient.Do(req)
