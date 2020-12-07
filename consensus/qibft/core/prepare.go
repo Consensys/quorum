@@ -59,7 +59,7 @@ func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
 
 	// Change to Prepared state if we've received enough PREPARE messages
 	// and we are in earlier state before Prepared state.
-	if (c.current.GetPrepareOrCommitSize() >= c.QuorumSize()) && c.state.Cmp(StatePrepared) < 0 {
+	if (c.current.Prepares.Size() >= c.QuorumSize()) && c.state.Cmp(StatePrepared) < 0 {
 
 		// IBFT REDUX
 		c.current.preparedRound = c.currentView().Round

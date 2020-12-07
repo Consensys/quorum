@@ -59,21 +59,6 @@ type roundState struct {
 	preprepareSent *big.Int
 }
 
-func (s *roundState) GetPrepareOrCommitSize() int {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	result := s.Prepares.Size() + s.Commits.Size()
-
-	// find duplicate one
-	for _, m := range s.Prepares.Values() {
-		if s.Commits.Get(m.Address) != nil {
-			result--
-		}
-	}
-	return result
-}
-
 func (s *roundState) Subject() *Subject {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
