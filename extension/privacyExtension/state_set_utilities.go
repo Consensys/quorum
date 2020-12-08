@@ -63,7 +63,7 @@ func setManagedParties(ptm private.PrivateTransactionManager, privateState *stat
 		return
 	}
 
-	managedParties, _, _, err := ptm.Receive(ptmHash)
+	_, managedParties, _, _, err := ptm.Receive(ptmHash)
 	newManagedParties := appendSkipDuplicates(existingManagedParties, managedParties)
 	privateState.WriteManagedParties(address, newManagedParties)
 }

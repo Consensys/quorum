@@ -87,9 +87,9 @@ func (t *tesseraPrivateTxManager) submitJSONOld(method, path string, request int
 	return res.StatusCode, nil
 }
 
-func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]string, common.EncryptedPayloadHash, error) {
+func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, extra *engine.ExtraMetadata) (string, []string, common.EncryptedPayloadHash, error) {
 	if extra.PrivacyFlag.IsNotStandardPrivate() && !t.features.HasFeature(engine.PrivacyEnhancements) {
-		return nil, common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements
+		return "", nil, common.EncryptedPayloadHash{}, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements
 	}
 	response := new(sendResponse)
 	acMerkleRoot := ""
@@ -104,12 +104,12 @@ func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, ex
 		ExecHash:                     acMerkleRoot,
 		PrivacyFlag:                  extra.PrivacyFlag,
 	}, response); err != nil {
-		return nil, common.EncryptedPayloadHash{}, err
+		return "", nil, common.EncryptedPayloadHash{}, err
 	}
 
 	eph, err := common.Base64ToEncryptedPayloadHash(response.Key)
 	if err != nil {
-		return nil, common.EncryptedPayloadHash{}, fmt.Errorf("unable to decode encrypted payload hash: %s. Cause: %v", response.Key, err)
+		return "", nil, common.EncryptedPayloadHash{}, fmt.Errorf("unable to decode encrypted payload hash: %s. Cause: %v", response.Key, err)
 	}
 
 	cacheKey := eph.Hex()
@@ -120,10 +120,11 @@ func (t *tesseraPrivateTxManager) Send(data []byte, from string, to []string, ex
 			ACMerkleRoot:   extra.ACMerkleRoot,
 			PrivacyFlag:    extra.PrivacyFlag,
 			ManagedParties: response.ManagedParties,
+			Sender:         response.Sender,
 		},
 	}, gocache.DefaultExpiration)
 
-	return response.ManagedParties, eph, nil
+	return response.Sender, response.ManagedParties, eph, nil
 }
 
 func (t *tesseraPrivateTxManager) EncryptPayload(data []byte, from string, to []string, extra *engine.ExtraMetadata) ([]byte, error) {
@@ -176,35 +177,39 @@ func (t *tesseraPrivateTxManager) StoreRaw(data []byte, from string) (common.Enc
 }
 
 // allow new quorum to send raw transactions when connected to an old tessera
-func (c *tesseraPrivateTxManager) sendSignedPayloadOctetStream(signedPayload []byte, b64To []string) ([]string, []byte, error) {
+func (c *tesseraPrivateTxManager) sendSignedPayloadOctetStream(signedPayload []byte, b64To []string) (string, []string, []byte, error) {
 	buf := bytes.NewBuffer(signedPayload)
 	req, err := http.NewRequest("POST", c.client.FullPath("/sendsignedtx"), buf)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
 
 	req.Header.Set("c11n-to", strings.Join(b64To, ","))
 	req.Header.Set("Content-Type", "application/octet-stream")
 	res, err := c.client.HttpClient.Do(req)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		return nil, nil, fmt.Errorf("Non-200 status code: %+v", res)
+		return "", nil, nil, fmt.Errorf("Non-200 status code: %+v", res)
 	}
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
-	return res.Header["Tesseramanagedparties"], data, nil
+	sender := ""
+	if len(res.Header["Tesserasender"]) > 0 {
+		sender = res.Header["Tesserasender"][0]
+	}
+	return sender, res.Header["Tesseramanagedparties"], data, nil
 }
 
 // also populate cache item with additional extra metadata
-func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) ([]string, []byte, error) {
+func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash, to []string, extra *engine.ExtraMetadata) (string, []string, []byte, error) {
 	if extra.PrivacyFlag.IsNotStandardPrivate() && !t.features.HasFeature(engine.PrivacyEnhancements) {
-		return nil, nil, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements
+		return "", nil, nil, engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements
 	}
 	response := new(sendSignedTxResponse)
 	acMerkleRoot := ""
@@ -221,20 +226,21 @@ func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash,
 			ExecHash:                     acMerkleRoot,
 			PrivacyFlag:                  extra.PrivacyFlag,
 		}, response); err != nil {
-			return nil, nil, err
+			return "", nil, nil, err
 		}
 	} else {
-		managedParties, returnedHash, err := t.sendSignedPayloadOctetStream(data.Bytes(), to)
+		sender, managedParties, returnedHash, err := t.sendSignedPayloadOctetStream(data.Bytes(), to)
 		if err != nil {
-			return nil, nil, err
+			return "", nil, nil, err
 		}
 		response.Key = string(returnedHash)
 		response.ManagedParties = managedParties
+		response.Sender = sender
 	}
 
 	hashBytes, err := base64.StdEncoding.DecodeString(response.Key)
 	if err != nil {
-		return nil, nil, err
+		return "", nil, nil, err
 	}
 	// pull incomplete cache item and inject new cache item with complete information
 	cacheKey := data.Hex()
@@ -248,33 +254,30 @@ func (t *tesseraPrivateTxManager) SendSignedTx(data common.EncryptedPayloadHash,
 					ACMerkleRoot:   extra.ACMerkleRoot,
 					PrivacyFlag:    extra.PrivacyFlag,
 					ManagedParties: response.ManagedParties,
+					Sender:         response.Sender,
 				},
 			}, gocache.DefaultExpiration)
 			t.cache.Delete(cacheKeyTemp)
 		}
 	}
-	return response.ManagedParties, hashBytes, err
+	return response.Sender, response.ManagedParties, hashBytes, err
 }
 
-func (t *tesseraPrivateTxManager) Receive(hash common.EncryptedPayloadHash) ([]string, []byte, *engine.ExtraMetadata, error) {
+func (t *tesseraPrivateTxManager) Receive(hash common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {
 	return t.receive(hash, false)
 }
 
 // retrieve raw will not return information about medata.
 // Related to SendSignedTx
 func (t *tesseraPrivateTxManager) ReceiveRaw(hash common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error) {
-	managedParties, data, extra, err := t.receive(hash, true)
-	sender := ""
-	if len(managedParties) > 0 {
-		sender = managedParties[0]
-	}
+	sender, _, data, extra, err := t.receive(hash, true)
 	return data, sender, extra, err
 }
 
 // retrieve raw will not return information about medata
-func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRaw bool) ([]string, []byte, *engine.ExtraMetadata, error) {
+func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRaw bool) (string, []string, []byte, *engine.ExtraMetadata, error) {
 	if common.EmptyEncryptedPayloadHash(data) {
-		return nil, nil, nil, nil
+		return "", nil, nil, nil, nil
 	}
 	cacheKey := data.Hex()
 	if isRaw {
@@ -284,34 +287,35 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 	if item, found := t.cache.Get(cacheKey); found {
 		cacheItem, ok := item.(cache.PrivateCacheItem)
 		if !ok {
-			return nil, nil, nil, fmt.Errorf("unknown cache item. expected type PrivateCacheItem")
+			return "", nil, nil, nil, fmt.Errorf("unknown cache item. expected type PrivateCacheItem")
 		}
-		return cacheItem.Extra.ManagedParties, cacheItem.Payload, &cacheItem.Extra, nil
+		return cacheItem.Extra.Sender, cacheItem.Extra.ManagedParties, cacheItem.Payload, &cacheItem.Extra, nil
 	}
 
 	response := new(receiveResponse)
 	if statusCode, err := t.submitJSON("GET", fmt.Sprintf("/transaction/%s?isRaw=%v", url.PathEscape(data.ToBase64()), isRaw), nil, response); err != nil {
 		if statusCode == http.StatusNotFound {
-			return nil, nil, nil, nil
+			return "", nil, nil, nil, nil
 		} else {
-			return nil, nil, nil, err
+			return "", nil, nil, nil, err
 		}
 	}
 	var extra engine.ExtraMetadata
 	if !isRaw {
 		acHashes, err := common.Base64sToEncryptedPayloadHashes(response.AffectedContractTransactions)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("unable to decode ACOTHs %v. Cause: %v", response.AffectedContractTransactions, err)
+			return "", nil, nil, nil, fmt.Errorf("unable to decode ACOTHs %v. Cause: %v", response.AffectedContractTransactions, err)
 		}
 		acMerkleRoot, err := common.Base64ToHash(response.ExecHash)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("unable to decode execution hash %s. Cause: %v", response.ExecHash, err)
+			return "", nil, nil, nil, fmt.Errorf("unable to decode execution hash %s. Cause: %v", response.ExecHash, err)
 		}
 		extra = engine.ExtraMetadata{
 			ACHashes:       acHashes,
 			ACMerkleRoot:   acMerkleRoot,
 			PrivacyFlag:    response.PrivacyFlag,
 			ManagedParties: response.ManagedParties,
+			Sender:         response.Sender,
 		}
 	}
 
@@ -320,7 +324,7 @@ func (t *tesseraPrivateTxManager) receive(data common.EncryptedPayloadHash, isRa
 		Extra:   extra,
 	}, gocache.DefaultExpiration)
 
-	return response.ManagedParties, response.Payload, &extra, nil
+	return response.Sender, response.ManagedParties, response.Payload, &extra, nil
 }
 
 // retrieve raw will not return information about medata

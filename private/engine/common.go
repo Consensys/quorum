@@ -26,6 +26,8 @@ type ExtraMetadata struct {
 	// Contract participants that are managed by the corresponding Tessera.
 	// Being used in Multi Tenancy
 	ManagedParties []string
+	// the sender of the transaction
+	Sender string
 }
 
 type Client struct {

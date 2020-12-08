@@ -1849,7 +1849,7 @@ func buildContractSecurityAttributes(ctx context.Context, b Backend, fromEOA com
 //
 // Retrieve private payload and construct the original transaction
 func buildPrivateTransaction(tx *types.Transaction) (*types.Transaction, error) {
-	_, privatePayload, _, revErr := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
+	_, _, privatePayload, _, revErr := private.P.Receive(common.BytesToEncryptedPayloadHash(tx.Data()))
 	if revErr != nil {
 		return nil, revErr
 	}
@@ -2479,7 +2479,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != common.EncryptedPayloadHashLength {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	_, data, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
+	_, _, data, _, err := private.P.Receive(common.BytesToEncryptedPayloadHash(b))
 	if err != nil {
 		return "", err
 	}
@@ -2564,7 +2564,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 			return
 		}
 
-		_, data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
+		_, _, data, err = private.P.SendSignedTx(hash, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 			ACHashes:     affectedCATxHashes,
 			ACMerkleRoot: merkleRoot,
 			PrivacyFlag:  privateTxArgs.PrivacyFlag,
@@ -2580,7 +2580,7 @@ func handlePrivateTransaction(ctx context.Context, b Backend, tx *types.Transact
 			return
 		}
 
-		_, hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
+		_, _, hash, err = private.P.Send(data, privateTxArgs.PrivateFrom, privateTxArgs.PrivateFor, &engine.ExtraMetadata{
 			ACHashes:     affectedCATxHashes,
 			ACMerkleRoot: merkleRoot,
 			PrivacyFlag:  privateTxArgs.PrivacyFlag,

@@ -161,11 +161,18 @@ func (service *PrivacyService) watchForNewContracts() error {
 						log.Error("Extension: unable to fetch all parties for extension management contract", "error", err)
 						continue
 					}
+
+					privateFrom, _, _, _, err := service.ptm.Receive(data)
+					if err != nil || len(privateFrom) == 0 {
+						log.Error("Extension: unable to fetch privateFrom(sender) for extension management contract", "error", err)
+						continue
+					}
+
 					//Find the extension contract in order to interact with it
 					caller, _ := service.managementContractFacade.Caller(newContractExtension.ManagementContractAddress)
 					contractCreator, _ := caller.Creator(nil)
 
-					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties}}
+					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}}
 
 					extensionAPI := NewPrivateExtensionAPI(service)
 					_, err = extensionAPI.ApproveExtension(context.Background(), newContractExtension.ManagementContractAddress, true, txArgs)
@@ -270,7 +277,14 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 					}
 					log.Debug("Extension: able to fetch all parties", "parties", fetchedParties)
 
-					txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties}})
+					privateFrom, _, _, _, err := service.ptm.Receive(payload)
+					if err != nil || len(privateFrom) == 0 {
+						log.Error("Extension: unable to fetch privateFrom(sender) for extension management contract", "error", err)
+						return
+					}
+					log.Debug("Extension: able to fetch privateFrom(sender)", "privateFrom", privateFrom)
+
+					txArgs, err := service.GenerateTransactOptions(ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties, PrivateFrom: privateFrom}})
 					if err != nil {
 						log.Error("service.accountManager.GenerateTransactOptions", "error", err, "contractCreator", contractCreator.Hex(), "privateFor", fetchedParties)
 						return
@@ -307,7 +321,7 @@ func (service *PrivacyService) watchForCompletionEvents() error {
 							extraMetaData.ACMerkleRoot = storageRoot
 						}
 					}
-					_, hashOfStateData, err := service.ptm.Send(entireStateData, "", fetchedParties, &extraMetaData)
+					_, _, hashOfStateData, err := service.ptm.Send(entireStateData, privateFrom, fetchedParties, &extraMetaData)
 
 					if err != nil {
 						log.Error("[ptm] service.ptm.Send", "stateDataInHex", hex.EncodeToString(entireStateData[:]), "recipients", fetchedParties, "error", err)

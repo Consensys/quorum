@@ -34,6 +34,8 @@ type sendResponse struct {
 	Key string `json:"key"`
 	// Public Keys
 	ManagedParties []string `json:"managedParties"`
+	// Sender tessera public key
+	Sender string `json:"sender"`
 }
 
 type receiveResponse struct {
@@ -49,6 +51,8 @@ type receiveResponse struct {
 
 	// Public Keys
 	ManagedParties []string `json:"managedParties"`
+	// Sender tessera public key
+	Sender string `json:"sender"`
 }
 
 type sendSignedTxRequest struct {
@@ -67,6 +71,8 @@ type sendSignedTxResponse struct {
 	Key string `json:"key"`
 	// Public Keys
 	ManagedParties []string `json:"managedParties"`
+	// Sender tessera public key
+	Sender string `json:"sender"`
 }
 
 type encryptPayloadResponse struct {
