@@ -1,9 +1,11 @@
 package extension
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/eth"
 	"math/big"
 	"sync"
 
@@ -31,6 +33,7 @@ type PrivacyService struct {
 	managementContractFacade ManagementContractFacade
 	extClient                Client
 	stopFeed                 event.Feed
+	ethService               *eth.Ethereum
 
 	mu               sync.Mutex
 	currentContracts map[common.Address]*ExtensionContract
@@ -56,13 +59,14 @@ func (service *PrivacyService) subscribeStopEvent() (chan stopEvent, event.Subsc
 	return c, s
 }
 
-func New(ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher) (*PrivacyService, error) {
+func New(ptm private.PrivateTransactionManager, manager *accounts.Manager, handler DataHandler, fetcher *StateFetcher, ethService *eth.Ethereum) (*PrivacyService, error) {
 	service := &PrivacyService{
 		currentContracts: make(map[common.Address]*ExtensionContract),
 		ptm:              ptm,
 		dataHandler:      handler,
 		stateFetcher:     fetcher,
 		accountManager:   manager,
+		ethService:       ethService,
 	}
 
 	var err error
@@ -164,7 +168,7 @@ func (service *PrivacyService) watchForNewContracts() error {
 					txArgs := ethapi.SendTxArgs{From: contractCreator, PrivateTxArgs: ethapi.PrivateTxArgs{PrivateFor: fetchedParties}}
 
 					extensionAPI := NewPrivateExtensionAPI(service)
-					_, err = extensionAPI.ApproveExtension(newContractExtension.ManagementContractAddress, true, txArgs)
+					_, err = extensionAPI.ApproveExtension(context.Background(), newContractExtension.ManagementContractAddress, true, txArgs)
 
 					if err != nil {
 						log.Error("Extension: initiator vote on management contract failed", "error", err)

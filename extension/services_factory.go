@@ -30,7 +30,9 @@ func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, 
 	factory.dataHandler = NewJsonFileDataHandler(node.InstanceDir())
 	factory.stateFetcher = NewStateFetcher(ethService.BlockChain())
 
-	backendService, err := New(ptm, factory.AccountManager(), factory.DataHandler(), factory.StateFetcher())
+	// TODO - I have no idea what other bits (other than ethService.APIBackend) I may need from ethService so for now just keep a handle to it
+	// must revisit later and reduce access to only what is needed
+	backendService, err := New(ptm, factory.AccountManager(), factory.DataHandler(), factory.StateFetcher(), ethService)
 	if err != nil {
 		return nil, err
 	}

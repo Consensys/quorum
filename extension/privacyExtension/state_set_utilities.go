@@ -1,6 +1,7 @@
 package privacyExtension
 
 import (
+	"github.com/ethereum/go-ethereum/private"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -10,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-func setState(privateState *state.StateDB, accounts map[string]extension.AccountWithMetadata, privacyMetaData *state.PrivacyMetadata) bool {
+func setState(privateState *state.StateDB, accounts map[string]extension.AccountWithMetadata, privacyMetaData *state.PrivacyMetadata, managedParties []string) bool {
 	log.Debug("Extension: set private state explicitly from state dump")
 	for key, value := range accounts {
 		stateDump := value.State
@@ -29,6 +30,7 @@ func setState(privateState *state.StateDB, accounts map[string]extension.Account
 			privateState.SetState(contractAddress, keyStore, common.HexToHash(valueStore))
 		}
 		privateState.WritePrivacyMetadata(contractAddress, privacyMetaData)
+		privateState.WriteManagedParties(contractAddress, managedParties)
 	}
 	return true
 }
@@ -47,6 +49,42 @@ func setPrivacyMetadata(privateState *state.StateDB, address common.Address, has
 	}
 	pm := state.NewStatePrivacyMetadata(ptmHash, privacyMetaData.PrivacyFlag)
 	privateState.WritePrivacyMetadata(address, pm)
+}
+
+func setManagedParties(ptm private.PrivateTransactionManager, privateState *state.StateDB, address common.Address, hash string) {
+	existingManagedParties, err := privateState.ReadManagedParties(address)
+	if err != nil {
+		return
+	}
+
+	ptmHash, err := common.Base64ToEncryptedPayloadHash(hash)
+	if err != nil {
+		log.Error("setting privacy metadata failed", "err", err)
+		return
+	}
+
+	managedParties, _, _, err := ptm.Receive(ptmHash)
+	newManagedParties := appendSkipDuplicates(existingManagedParties, managedParties)
+	privateState.WriteManagedParties(address, newManagedParties)
+}
+
+func appendSkipDuplicates(list1 []string, list2 []string) (result []string) {
+	result = list1
+	for _, val := range list2 {
+		if !sliceContains(list1, val) {
+			result = append(result, val)
+		}
+	}
+	return result
+}
+
+func sliceContains(list []string, item string) bool {
+	for _, val := range list {
+		if val == item {
+			return true
+		}
+	}
+	return false
 }
 
 func logContainsExtensionTopic(receivedLog *types.Log) bool {
