@@ -704,6 +704,9 @@ func (s *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
+	if extraData == nil || extraData.PrivacyMetadata == nil {
+		return nil, fmt.Errorf("The provided contract does not have privacy metadata: %x", s.address)
+	}
 	// extraData can't be nil. Refer to s.AccountExtraData()
 	return extraData.PrivacyMetadata, nil
 }
@@ -713,8 +716,8 @@ func (s *stateObject) GetCommittedPrivacyMetadata() (*PrivacyMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
-	if extraData == nil {
-		return nil, nil
+	if extraData == nil || extraData.PrivacyMetadata == nil {
+		return nil, fmt.Errorf("The provided contract does not have privacy metadata: %x", s.address)
 	}
 	return extraData.PrivacyMetadata, nil
 }
