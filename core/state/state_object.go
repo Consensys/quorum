@@ -699,15 +699,17 @@ func (s *stateObject) getCommittedAccountExtraData() (*AccountExtraData, error) 
 }
 
 // Quorum - Privacy Enhancements
+// PrivacyMetadata returns the reference to PrivacyMetadata.
+// It will returrn an error if no PrivacyMetadata is in the AccountExtraData.
 func (s *stateObject) PrivacyMetadata() (*PrivacyMetadata, error) {
 	extraData, err := s.AccountExtraData()
 	if err != nil {
 		return nil, err
 	}
-	if extraData == nil || extraData.PrivacyMetadata == nil {
-		return nil, fmt.Errorf("The provided contract does not have privacy metadata: %x", s.address)
-	}
 	// extraData can't be nil. Refer to s.AccountExtraData()
+	if extraData.PrivacyMetadata == nil {
+		return nil, fmt.Errorf("no privacy metadata data for contract %s", s.address.Hex())
+	}
 	return extraData.PrivacyMetadata, nil
 }
 
