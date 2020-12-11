@@ -21,13 +21,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"io"
 	"math/big"
 	mrand "math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"

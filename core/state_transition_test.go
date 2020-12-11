@@ -1093,7 +1093,7 @@ func (mpm *mockPrivateTransactionManager) HasFeature(f engine.PrivateTransaction
 	return true
 }
 
-func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]string, []byte, *engine.ExtraMetadata, error) {
+func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {
 	mpm.count["Receive"]++
 	values := mpm.returns["Receive"]
 	var (
@@ -1110,7 +1110,7 @@ func (mpm *mockPrivateTransactionManager) Receive(data common.EncryptedPayloadHa
 	if values[2] != nil {
 		r3 = values[2].(error)
 	}
-	return nil, r1, r2, r3
+	return "", nil, r1, r2, r3
 }
 
 func (mpm *mockPrivateTransactionManager) When(name string) *mockPrivateTransactionManager {
@@ -1340,21 +1340,21 @@ type StubPrivateTransactionManager struct {
 	responses map[string][]interface{}
 }
 
-func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) ([]string, []byte, *engine.ExtraMetadata, error) {
+func (spm *StubPrivateTransactionManager) Receive(data common.EncryptedPayloadHash) (string, []string, []byte, *engine.ExtraMetadata, error) {
 	res := spm.responses["Receive"]
 	if err, ok := res[1].(error); ok {
-		return nil, nil, nil, err
+		return "", nil, nil, nil, err
 	}
 	if ret, ok := res[0].([]byte); ok {
-		return nil, ret, &engine.ExtraMetadata{
+		return "", nil, ret, &engine.ExtraMetadata{
 			PrivacyFlag: engine.PrivacyFlagStandardPrivate,
 		}, nil
 	}
-	return nil, nil, nil, nil
+	return "", nil, nil, nil, nil
 }
 
 func (spm *StubPrivateTransactionManager) ReceiveRaw(hash common.EncryptedPayloadHash) ([]byte, string, *engine.ExtraMetadata, error) {
-	sender, data, metadata, err := spm.Receive(hash)
+	_, sender, data, metadata, err := spm.Receive(hash)
 	return data, sender[0], metadata, err
 }
 

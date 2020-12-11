@@ -60,7 +60,7 @@ func createStateDb(t *testing.T) *state.StateDB {
 		t.Errorf("error when unmarshalling static data: %s", err.Error())
 	}
 
-	success := setState(statedb, accounts, &state.PrivacyMetadata{})
+	success := setState(statedb, accounts, &state.PrivacyMetadata{}, nil)
 	if !success {
 		t.Errorf("unexpected error when setting state")
 	}
@@ -109,7 +109,7 @@ func TestStateSetWithListedAccountsFailsOnInvalidBalance(t *testing.T) {
 		t.Errorf("error when unmarshalling static data: %s", err.Error())
 	}
 
-	success := setState(statedb, accounts, &state.PrivacyMetadata{})
+	success := setState(statedb, accounts, &state.PrivacyMetadata{}, nil)
 	if success {
 		t.Errorf("error expected when setting state")
 	}
@@ -124,13 +124,11 @@ func Test_setPrivacyMetadata(t *testing.T) {
 	hash := common.BytesToEncryptedPayloadHash(arbitraryBytes1)
 	setPrivacyMetadata(statedb, address, base64.StdEncoding.EncodeToString(arbitraryBytes1))
 
+	// we don't save PrivacyMetadata if it's standardprivate
 	privacyMetaData, err := statedb.ReadPrivacyMetadata(address)
-	if err != nil {
-		t.Errorf("expected error to be nil, got err %s", err)
-	}
+	assert.Error(t, err, common.ErrNoAccountExtraData)
 
-	assert.NotEqual(t, privacyMetaData.CreationTxHash, hash)
-	privacyMetaData = &state.PrivacyMetadata{hash, engine.PrivacyFlagPartyProtection}
+	privacyMetaData = &state.PrivacyMetadata{CreationTxHash: hash, PrivacyFlag: engine.PrivacyFlagPartyProtection}
 	statedb.WritePrivacyMetadata(address, privacyMetaData)
 
 	privacyMetaData, err = statedb.ReadPrivacyMetadata(address)

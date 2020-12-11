@@ -175,7 +175,7 @@ func verifyRequestHeaderMultiTenancy(h http.Header, t *testing.T) {
 func TestSend_whenTypical(t *testing.T) {
 	assert := testifyassert.New(t)
 
-	_, actualHash, err := testObject.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
+	_, _, actualHash, err := testObject.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -206,7 +206,7 @@ func TestSend_whenTypical_MultiTenancy(t *testing.T) {
 		BaseURL:    testServer.URL,
 	}, []byte("2.1"))
 
-	_, actualHash, err := testObjectWithMT.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
+	_, _, actualHash, err := testObjectWithMT.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -240,7 +240,7 @@ func TestSend_whenTesseraVersionDoesNotSupportPrivacyEnhancements(t *testing.T) 
 	assert.False(testObjectNoPE.HasFeature(engine.PrivacyEnhancements), "the supplied version does not support privacy enhancements")
 
 	// trying to send a party protection transaction
-	_, _, err := testObjectNoPE.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
+	_, _, _, err := testObjectNoPE.Send(arbitraryPrivatePayload, arbitraryFrom, arbitraryTo, arbitraryExtra)
 	if err != engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements {
 		t.Fatal("Expecting send to raise ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements")
 	}
@@ -265,7 +265,7 @@ func TestSendRaw_whenTesseraVersionDoesNotSupportPrivacyEnhancements(t *testing.
 	assert.False(testObjectNoPE.HasFeature(engine.PrivacyEnhancements), "the supplied version does not support privacy enhancements")
 
 	// trying to send a party protection transaction
-	_, _, err := testObjectNoPE.SendSignedTx(arbitraryHash, arbitraryTo, arbitraryExtra)
+	_, _, _, err := testObjectNoPE.SendSignedTx(arbitraryHash, arbitraryTo, arbitraryExtra)
 	if err != engine.ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements {
 		t.Fatal("Expecting send to raise ErrPrivateTxManagerDoesNotSupportPrivacyEnhancements")
 	}
@@ -280,7 +280,7 @@ func TestSendRaw_whenTesseraVersionDoesNotSupportPrivacyEnhancements(t *testing.
 	<-receiveRequestCaptor
 
 	// caching complete item
-	_, _, err = testObjectNoPE.SendSignedTx(arbitraryHashNoPrivateMetadata, arbitraryTo, &engine.ExtraMetadata{
+	_, _, _, err = testObjectNoPE.SendSignedTx(arbitraryHashNoPrivateMetadata, arbitraryTo, &engine.ExtraMetadata{
 		PrivacyFlag: engine.PrivacyFlagStandardPrivate})
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -288,7 +288,7 @@ func TestSendRaw_whenTesseraVersionDoesNotSupportPrivacyEnhancements(t *testing.
 	req := <-sendSignedTxOctetStreamRequestCaptor
 	assert.Equal("application/octet-stream", req.header["Content-Type"][0])
 
-	_, _, actualExtra, err := testObjectNoPE.Receive(arbitraryHashNoPrivateMetadata)
+	_, _, _, actualExtra, err := testObjectNoPE.Receive(arbitraryHashNoPrivateMetadata)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -299,7 +299,7 @@ func TestSendRaw_whenTesseraVersionDoesNotSupportPrivacyEnhancements(t *testing.
 func TestReceive_whenTypical(t *testing.T) {
 	assert := testifyassert.New(t)
 
-	_, _, actualExtra, err := testObject.Receive(arbitraryHash1)
+	_, _, _, actualExtra, err := testObject.Receive(arbitraryHash1)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -327,7 +327,7 @@ func TestReceive_whenTypical_Multitenancy(t *testing.T) {
 		BaseURL:    testServer.URL,
 	}, []byte("2.1"))
 
-	_, _, actualExtra, err := testObjectWithMT.Receive(arbitraryHash1)
+	_, _, _, actualExtra, err := testObjectWithMT.Receive(arbitraryHash1)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -350,7 +350,7 @@ func TestReceive_whenTypical_Multitenancy(t *testing.T) {
 func TestReceive_whenPayloadNotFound(t *testing.T) {
 	assert := testifyassert.New(t)
 
-	_, data, _, err := testObject.Receive(arbitraryNotFoundHash)
+	_, _, data, _, err := testObject.Receive(arbitraryNotFoundHash)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -371,7 +371,7 @@ func TestReceive_whenPayloadNotFound(t *testing.T) {
 func TestReceive_whenEncryptedPayloadHashIsEmpty(t *testing.T) {
 	assert := testifyassert.New(t)
 
-	_, data, _, err := testObject.Receive(emptyHash)
+	_, _, data, _, err := testObject.Receive(emptyHash)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -382,7 +382,7 @@ func TestReceive_whenEncryptedPayloadHashIsEmpty(t *testing.T) {
 func TestReceive_whenHavingPayloadButNoPrivateExtraMetadata(t *testing.T) {
 	assert := testifyassert.New(t)
 
-	_, _, actualExtra, err := testObject.Receive(arbitraryHashNoPrivateMetadata)
+	_, _, _, actualExtra, err := testObject.Receive(arbitraryHashNoPrivateMetadata)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -404,7 +404,7 @@ func TestReceive_whenHavingPayloadButNoPrivateExtraMetadata(t *testing.T) {
 func TestSendSignedTx_whenTypical(t *testing.T) {
 	assert := testifyassert.New(t)
 
-	_, _, err := testObject.SendSignedTx(arbitraryHash, arbitraryTo, arbitraryExtra)
+	_, _, _, err := testObject.SendSignedTx(arbitraryHash, arbitraryTo, arbitraryExtra)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -434,13 +434,13 @@ func TestReceive_whenCachingRawPayload(t *testing.T) {
 	<-receiveRequestCaptor
 
 	// caching complete item
-	_, _, err = testObject.SendSignedTx(arbitraryHashNoPrivateMetadata, arbitraryTo, arbitraryExtra)
+	_, _, _, err = testObject.SendSignedTx(arbitraryHashNoPrivateMetadata, arbitraryTo, arbitraryExtra)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
 	<-sendSignedTxRequestCaptor
 
-	_, _, actualExtra, err := testObject.Receive(arbitraryHashNoPrivateMetadata)
+	_, _, _, actualExtra, err := testObject.Receive(arbitraryHashNoPrivateMetadata)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}

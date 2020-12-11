@@ -18,7 +18,7 @@ func TestName(t *testing.T) {
 func TestSendReturnsError(t *testing.T) {
 	ptm := &PrivateTransactionManager{}
 
-	_, _, err := ptm.Send([]byte{}, "", []string{}, nil)
+	_, _, _, err := ptm.Send([]byte{}, "", []string{}, nil)
 
 	assert.Equal(t, err, engine.ErrPrivateTxManagerNotinUse, "got wrong error in 'send'")
 }
@@ -34,7 +34,7 @@ func TestStoreRawReturnsError(t *testing.T) {
 func TestReceiveReturnsEmpty(t *testing.T) {
 	ptm := &PrivateTransactionManager{}
 
-	_, data, metadata, err := ptm.Receive(common.EncryptedPayloadHash{})
+	_, _, data, metadata, err := ptm.Receive(common.EncryptedPayloadHash{})
 
 	assert.Nil(t, err, "got unexpected error in 'receive'")
 	assert.Nil(t, data, "got unexpected data in 'receive'")
@@ -52,7 +52,7 @@ func TestReceiveRawReturnsError(t *testing.T) {
 func TestSendSignedTxReturnsError(t *testing.T) {
 	ptm := &PrivateTransactionManager{}
 
-	_, _, err := ptm.SendSignedTx(common.EncryptedPayloadHash{}, []string{}, nil)
+	_, _, _, err := ptm.SendSignedTx(common.EncryptedPayloadHash{}, []string{}, nil)
 
 	assert.Equal(t, err, engine.ErrPrivateTxManagerNotinUse, "got wrong error in 'SendSignedTx'")
 }

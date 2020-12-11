@@ -21,11 +21,12 @@ package light
 import (
 	"context"
 	"errors"
-	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/jpmorganchase/quorum-security-plugin-sdk-go/proto"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"

@@ -162,8 +162,8 @@ func (b *testBackend) AccountExtraDataStateReaderByNumber(context.Context, rpc.B
 	return nil, nil
 }
 
-func (b *testBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) bool {
-	return true
+func (b *testBackend) IsAuthorized(ctx context.Context, authToken *proto.PreAuthenticatedAuthenticationToken, attributes []*multitenancy.ContractSecurityAttribute) (bool, error) {
+	return true, nil
 }
 
 // TestBlockSubscription tests if a block subscription returns block hashes for posted chain events.
