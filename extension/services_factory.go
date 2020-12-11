@@ -38,6 +38,7 @@ func NewServicesFactory(node *node.Node, ptm private.PrivateTransactionManager, 
 	}
 	factory.backendService = backendService
 
+	privacyExtension.DefaultExtensionHandler.MultitenancyEnabled = ethService.BlockChain().SupportsMultitenancy()
 	ethService.BlockChain().PopulateSetPrivateState(privacyExtension.DefaultExtensionHandler.CheckExtensionAndSetPrivateState)
 
 	go backendService.initialise(node)

@@ -2,6 +2,7 @@ package privacyExtension
 
 import (
 	"github.com/ethereum/go-ethereum/private"
+	"github.com/ethereum/go-ethereum/private/engine"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -29,8 +30,12 @@ func setState(privateState *state.StateDB, accounts map[string]extension.Account
 		for keyStore, valueStore := range stateDump.Storage {
 			privateState.SetState(contractAddress, keyStore, common.HexToHash(valueStore))
 		}
-		privateState.WritePrivacyMetadata(contractAddress, privacyMetaData)
-		privateState.WriteManagedParties(contractAddress, managedParties)
+		if privacyMetaData.PrivacyFlag != engine.PrivacyFlagStandardPrivate {
+			privateState.WritePrivacyMetadata(contractAddress, privacyMetaData)
+		}
+		if managedParties != nil {
+			privateState.WriteManagedParties(contractAddress, managedParties)
+		}
 	}
 	return true
 }
