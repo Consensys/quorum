@@ -358,23 +358,19 @@ func (api *PrivateExtensionAPI) CancelExtension(ctx context.Context, extensionCo
 
 // Returns the extension status from management contract
 func (api *PrivateExtensionAPI) GetExtensionStatus(ctx context.Context, extensionContract common.Address) (string, error) {
-	// here we should only check that the token has READ/WRITE access to the extension contract?
 	if authToken, ok := api.privacyService.ethService.APIBackend.SupportsMultitenancy(ctx); ok {
-
 		currentBlock := api.privacyService.ethService.APIBackend.CurrentBlock().Number().Int64()
 		extraDataReader, err := api.privacyService.ethService.APIBackend.AccountExtraDataStateReaderByNumber(ctx, rpc.BlockNumber(currentBlock))
 		if err != nil {
 			return "", fmt.Errorf("no account extra data reader at block %v: %w", currentBlock, err)
 		}
-
 		managedParties, err := extraDataReader.ReadManagedParties(extensionContract)
-
-		// TODO verify if these are enough checks for toExtend
-		attributes := make([]*multitenancy.ContractSecurityAttribute, 0)
-		attributes = append(attributes,
-			multitenancy.NewContractSecurityAttributeBuilder().Private().Write().Parties(managedParties).Build(),
-			multitenancy.NewContractSecurityAttributeBuilder().Private().Read().Parties(managedParties).Build())
-
+		if err != nil {
+			return "", err
+		}
+		attributes := []*multitenancy.ContractSecurityAttribute{
+			multitenancy.NewContractSecurityAttributeBuilder().Private().Read().Parties(managedParties).Build(),
+		}
 		if authorized := api.privacyService.ethService.APIBackend.IsAuthorized(ctx, authToken, attributes); !authorized {
 			return "", fmt.Errorf("not authorized")
 		}
